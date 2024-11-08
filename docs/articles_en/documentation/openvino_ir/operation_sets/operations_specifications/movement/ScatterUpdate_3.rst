@@ -5,7 +5,7 @@ ScatterUpdate
 
 
 .. meta::
-  :description: Learn about ScatterUpdate-3 - a data movement operation, which can be 
+  :description: Learn about ScatterUpdate-3 - a data movement operation, which can be
                 performed on four required input tensors.
 
 **Versioned name**: *ScatterUpdate-3*
@@ -35,14 +35,14 @@ Several examples for case when `axis = 0`:
 
 *   **1**: ``data`` tensor of arbitrary rank ``r`` and type *T_NUMERIC*. **Required.**
 
-*   **2**: ``indices`` tensor with indices of type *T_IND*. All index values are expected to be within bounds ``[0, s - 1]`` along the axis of size ``s``. If multiple indices point to the
-same output location, the order of updating the values is undefined. If an index points to a non-existing output
-tensor element or is negative, then an exception is raised. **Required.**
+*   **2**: ``indices`` tensor with indices of type *T_IND*. All index values are expected to be within bounds ``[0, s - 1]`` along the axis
+    of size ``s``. If multiple indices point to the same output location, the order of updating the values is undefined.
+    If an index points to a non-existing output tensor element or is negative, then an exception is raised. **Required.**
 
 *   **3**: ``updates`` tensor of type *T_NUMERIC* and rank equal to ``rank(indices) + rank(data) - 1`` **Required.**
 
 *   **4**: ``axis`` tensor with scalar or 1D tensor with one element of type *T_AXIS* specifying axis for scatter.
-The value can be in the range ``[ -r, r - 1]``, where ``r`` is the rank of ``data``. **Required.**
+    The value can be in the range ``[ -r, r - 1]``, where ``r`` is the rank of ``data``. **Required.**
 
 **Outputs**:
 
@@ -65,29 +65,29 @@ The value can be in the range ``[ -r, r - 1]``, where ``r`` is the rank of ``dat
 
     <layer ... type="ScatterUpdate">
         <input>
-            <port id="0">  < !-- data -->
+            <port id="0">  <!-- data -->
                 <dim>1000</dim>
                 <dim>256</dim>
                 <dim>10</dim>
                 <dim>15</dim>
             </port>
-            <port id="1">  < !-- indices -->
+            <port id="1">  <!-- indices -->
                 <dim>125</dim>
                 <dim>20</dim>
             </port>
-            <port id="2">  < !-- updates -->
+            <port id="2">  <!-- updates -->
                 <dim>1000</dim>
                 <dim>125</dim>
                 <dim>20</dim>
                 <dim>10</dim>
                 <dim>15</dim>
             </port>
-            <port id="3">   < !-- axis -->
-                <dim>1</dim> < !-- value [1] -->
+            <port id="3">   <!-- axis -->
+                <dim>1</dim> <!-- value [1] -->
             </port>
         </input>
         <output>
-            <port id="4" precision="FP32"> < !-- output -->
+            <port id="4" precision="FP32"> <!-- output -->
                 <dim>1000</dim>
                 <dim>256</dim>
                 <dim>10</dim>
@@ -103,26 +103,26 @@ The value can be in the range ``[ -r, r - 1]``, where ``r`` is the rank of ``dat
 
     <layer ... type="ScatterUpdate">
         <input>
-            <port id="0">  < !-- data -->
-                <dim>3</dim>    < !-- {{-1.0f, 1.0f, -1.0f, 3.0f, 4.0f},  -->
-                <dim>5</dim>    < !-- {-1.0f, 6.0f, -1.0f, 8.0f, 9.0f},   -->
-            </port>             < !-- {-1.0f, 11.0f, 1.0f, 13.0f, 14.0f}} -->
-            <port id="1">  < !-- indices -->
-                <dim>2</dim> < !-- {0, 2} -->
+            <port id="0">  <!-- data -->
+                <dim>3</dim>    <!-- {{-1.0f, 1.0f, -1.0f, 3.0f, 4.0f},  -->
+                <dim>5</dim>    <!-- {-1.0f, 6.0f, -1.0f, 8.0f, 9.0f},   -->
+            </port>             <!-- {-1.0f, 11.0f, 1.0f, 13.0f, 14.0f}} -->
+            <port id="1">  <!-- indices -->
+                <dim>2</dim> <!-- {0, 2} -->
             </port>
-            <port id="2">  < !-- updates -->
-                <dim>3</dim> < !-- {1.0f, 1.0f} -->
-                <dim>2</dim> < !-- {1.0f, 1.0f} -->
-            </port>          < !-- {1.0f, 2.0f} -->
-            <port id="3">   < !-- axis -->
-                <dim>1</dim> < !-- {1} -->
+            <port id="2">  <!-- updates -->
+                <dim>3</dim> <!-- {1.0f, 1.0f} -->
+                <dim>2</dim> <!-- {1.0f, 1.0f} -->
+            </port>          <!-- {1.0f, 2.0f} -->
+            <port id="3">   <!-- axis -->
+                <dim>1</dim> <!-- {1} -->
             </port>
         </input>
         <output>
-            <port id="4">  < !-- output -->
-                <dim>3</dim>    < !-- {{1.0f, 1.0f, 1.0f, 3.0f, 4.0f},   -->
-                <dim>5</dim>    < !-- {1.0f, 6.0f, 1.0f, 8.0f, 9.0f},    -->
-            </port>             < !-- {1.0f, 11.0f, 2.0f, 13.0f, 14.0f}} -->
+            <port id="4">  <!-- output -->
+                <dim>3</dim>    <!-- {{1.0f, 1.0f, 1.0f, 3.0f, 4.0f},   -->
+                <dim>5</dim>    <!-- {1.0f, 6.0f, 1.0f, 8.0f, 9.0f},    -->
+            </port>             <!-- {1.0f, 11.0f, 2.0f, 13.0f, 14.0f}} -->
         </output>
     </layer>
 

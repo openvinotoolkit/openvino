@@ -5,7 +5,7 @@ Assign
 
 
 .. meta::
-  :description: Learn about Assign-6 - an infrastructure operation, which 
+  :description: Learn about Assign-6 - an infrastructure operation, which
                 can be performed on a single input tensor to set a value to variable_id.
 
 **Versioned name**: *Assign-6*
@@ -16,15 +16,18 @@ Assign
 
 **Detailed description**:
 
-ReadValue, Assign and Variable define a coherent mechanism for reading, writing and storing a memory buffer between inference calls.
-More details can be found on :doc:`StateAPI<openvino_docs_OV_UG_stateful_models_intro>` documentation page.
+ReadValue, Assign, and Variable define a coherent mechanism for reading, writing and
+storing a memory buffer between inference calls. More details can be found on the
+:doc:`StateAPI<openvino_docs_OV_UG_stateful_models_intro>` documentation page.
 
-*Assign* operation sets an input value to the ``variable_id`` variable. This value will be read by *ReadValue* operation on next inference call if variable was not reset.
-The operation checks that the shape and type specified in ``variable_id`` variable extend (relax)
-the shape and the type inferred from the 1st input and returns an error otherwise, e.g. if the type in the variable is specified
-as dynamic, it means that any type for 1st input is allowed but if it is specified as f32, only f32 type is allowed.
+*Assign* sets an input value to the ``variable_id`` variable. This value will be read
+by the *ReadValue* operation on the next inference call if it has not been reset.
+The operation checks if the shape and type specified in ``variable_id`` extend (relax)
+the shape and type inferred from the 1st input. If not, it returns an error. For example,
+if the type in the variable is specified as dynamic, it means that any type for 1st
+input is allowed but if it is specified as f32, only f32 type is allowed.
 
-It is expected only one pair of ReadValue, Assign operations for each Variable in the model.
+Only one pair of ReadValue and Assign operations is expected for each Variable in the model.
 
 **Attributes**:
 
@@ -47,7 +50,7 @@ It is expected only one pair of ReadValue, Assign operations for each Variable i
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="Assign" ...>
        <data variable_id="lstm_state_1"/>
        <input>

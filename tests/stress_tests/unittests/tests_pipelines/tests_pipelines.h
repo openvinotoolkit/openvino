@@ -30,6 +30,9 @@ void test_create_infer_request(const std::string &model, const std::string &targ
 
 void test_infer_request_inference(const std::string &model, const std::string &target_device, const int &n,
                                   const int &api_version);
+
+void test_recreate_and_infer_in_thread(const std::string &model, const std::string &target_device, const int &n,
+                                  const int &api_version);
 // tests_pipelines/tests_pipelines.cpp
 
 // tests_pipelines/tests_pipelines_full_pipeline.cpp

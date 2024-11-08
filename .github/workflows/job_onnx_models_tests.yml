@@ -28,7 +28,10 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       ONNX_MODELS_PATH: ${{ github.workspace }}/onnx_test_models
-      MODELS_SHARE_PATH: "/mount/onnxtestdata"
+      # instead of using static MODELS_SHARE_PATH
+      # choose one of the replicas dynamically instead
+      # depending on GITHUB_RUN_NUMBER variable
+      NUMBER_OF_REPLICAS: 2
       ONNX_MODEL_ZOO_SHA: "d58213534f2a4d1c4b19ba62b3bb5f544353256e"
     steps:
       - name: Set apt retries
@@ -52,6 +55,8 @@ jobs:
           echo "OPENVINO_REPO=$GITHUB_WORKSPACE/openvino" >> "$GITHUB_ENV"
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
+          echo "MODELS_SHARE_PATH=/mount/onnxtestdata$((GITHUB_RUN_NUMBER % NUMBER_OF_REPLICAS))" >> "$GITHUB_ENV"
+          echo $MODELS_SHARE_PATH
 
       - name: Extract OpenVINO packages
         run: |

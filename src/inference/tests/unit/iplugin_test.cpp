@@ -28,7 +28,7 @@ private:
     std::shared_ptr<ov::Model> create_model() {
         auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 2, 2});
         param->set_friendly_name("Param");
-        param->output(0).set_names({"param"});
+        param->output(0).set_names({"param", "name1", "name2", "name3"});
 
         auto relu = std::make_shared<ov::op::v0::Relu>(param);
         relu->set_friendly_name("ReLU");
@@ -79,6 +79,42 @@ protected:
 
 MATCHER_P(blob_in_map_pointer_is_same, ref_blob, "") {
     return reinterpret_cast<float*>(arg.begin()->second->buffer()) == reinterpret_cast<float*>(ref_blob->buffer());
+}
+
+TEST_F(IPluginTest, SetTensorWithIncorrectPortNames) {
+    ov::SoPtr<ov::ITensor> tensor = ov::make_tensor(ov::element::f32, {1, 3, 2, 2});
+    auto updated_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 2, 2});
+    updated_param->set_friendly_name("Param");
+
+    updated_param->output(0).set_names({"new_name"});
+    EXPECT_THROW(mock_infer_request->set_tensor(updated_param->output(0), tensor), ov::Exception);
+
+    updated_param->output(0).set_names({"param", "new_name"});
+    EXPECT_THROW(mock_infer_request->set_tensor(updated_param->output(0), tensor), ov::Exception);
+
+    updated_param->output(0).set_names({"new_name", "name2"});
+    EXPECT_THROW(mock_infer_request->set_tensor(updated_param->output(0), tensor), ov::Exception);
+}
+
+TEST_F(IPluginTest, SetTensorWithCorrectPortNames) {
+    ov::SoPtr<ov::ITensor> tensor = ov::make_tensor(ov::element::f32, {1, 3, 2, 2});
+    auto updated_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 2, 2});
+    updated_param->set_friendly_name("Param");
+
+    updated_param->output(0).set_names({"param"});
+    EXPECT_NO_THROW(mock_infer_request->set_tensor(updated_param->output(0), tensor));
+
+    updated_param->output(0).set_names({"name1", "param"});
+    EXPECT_NO_THROW(mock_infer_request->set_tensor(updated_param->output(0), tensor));
+
+    updated_param->output(0).set_names({"name1", "name2"});
+    EXPECT_NO_THROW(mock_infer_request->set_tensor(updated_param->output(0), tensor));
+
+    updated_param->output(0).set_names({"param", "name1", "name2"});
+    EXPECT_NO_THROW(mock_infer_request->set_tensor(updated_param->output(0), tensor));
+
+    updated_param->output(0).set_names({"param", "name1", "name2", "name3"});
+    EXPECT_NO_THROW(mock_infer_request->set_tensor(updated_param->output(0), tensor));
 }
 
 TEST_F(IPluginTest, failToSetTensorWithIncorrectPort) {

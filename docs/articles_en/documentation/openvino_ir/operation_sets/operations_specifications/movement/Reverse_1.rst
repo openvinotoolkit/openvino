@@ -5,7 +5,7 @@ Reverse
 
 
 .. meta::
-  :description: Learn about Reverse-1 - a data movement operation, 
+  :description: Learn about Reverse-1 - a data movement operation,
                 which can be performed on one required and one optional input tensor.
 
 **Versioned name**: *Reverse-1*
@@ -62,7 +62,7 @@ If no axis specified, that means either the second input is empty if ``index`` m
                 <dim>200</dim>
             </port>
             <port id="1">
-                <dim>1</dim>   < !-- reverting along single axis -->
+                <dim>1</dim>   <!-- reverting along single axis -->
             </port>
         </input>
         <output>

@@ -5,7 +5,7 @@ Concat
 
 
 .. meta::
-  :description: Learn about Concat-1 - a data movement operation, 
+  :description: Learn about Concat-1 - a data movement operation,
                 which can be performed on arbitrary number of input tensors.
 
 **Versioned name**: *Concat-1*
@@ -39,25 +39,25 @@ Concat
 
 .. code-block:: xml
    :force:
-   
+
    <layer id="1" type="Concat">
        <data axis="1" />
        <input>
            <port id="0">
                <dim>1</dim>
-               <dim>8</dim>  < !-- axis for concatenation -->
+               <dim>8</dim>  <!-- axis for concatenation -->
                <dim>50</dim>
                <dim>50</dim>
            </port>
            <port id="1">
                <dim>1</dim>
-               <dim>16</dim>  < !-- axis for concatenation -->
+               <dim>16</dim>  <!-- axis for concatenation -->
                <dim>50</dim>
                <dim>50</dim>
            </port>
            <port id="2">
                <dim>1</dim>
-               <dim>32</dim>  < !-- axis for concatenation -->
+               <dim>32</dim>  <!-- axis for concatenation -->
                <dim>50</dim>
                <dim>50</dim>
            </port>
@@ -65,7 +65,7 @@ Concat
        <output>
            <port id="0">
                <dim>1</dim>
-               <dim>56</dim>  < !-- concatenated axis: 8 + 16 + 32 = 48 -->
+               <dim>56</dim>  <!-- concatenated axis: 8 + 16 + 32 = 48 -->
                <dim>50</dim>
                <dim>50</dim>
            </port>
@@ -75,25 +75,25 @@ Concat
 
 .. code-block:: xml
    :force:
-   
+
    <layer id="1" type="Concat">
        <data axis="-3" />
        <input>
            <port id="0">
                <dim>1</dim>
-               <dim>8</dim>  < !-- axis for concatenation -->
+               <dim>8</dim>  <!-- axis for concatenation -->
                <dim>50</dim>
                <dim>50</dim>
            </port>
            <port id="1">
                <dim>1</dim>
-               <dim>16</dim>  < !-- axis for concatenation -->
+               <dim>16</dim>  <!-- axis for concatenation -->
                <dim>50</dim>
                <dim>50</dim>
            </port>
            <port id="2">
                <dim>1</dim>
-               <dim>32</dim>  < !-- axis for concatenation -->
+               <dim>32</dim>  <!-- axis for concatenation -->
                <dim>50</dim>
                <dim>50</dim>
            </port>
@@ -101,7 +101,7 @@ Concat
        <output>
            <port id="0">
                <dim>1</dim>
-               <dim>56</dim>  < !-- concatenated axis: 8 + 16 + 32 = 48 -->
+               <dim>56</dim>  <!-- concatenated axis: 8 + 16 + 32 = 48 -->
                <dim>50</dim>
                <dim>50</dim>
            </port>

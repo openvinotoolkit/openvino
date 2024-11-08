@@ -5,7 +5,7 @@ Pad
 
 
 .. meta::
-  :description: Learn about Pad-12 - a data movement operation, 
+  :description: Learn about Pad-12 - a data movement operation,
                 which can be performed on three required and one optional input tensor.
 
 **Versioned name**: *Pad-12*
@@ -19,7 +19,7 @@ Pad
 The following examples illustrate how output tensor is generated for the *Pad* layer for a given inputs:
 
 Positive pads example:
-########################  
+########################
 
 .. code-block:: cpp
 
@@ -82,7 +82,7 @@ depending on the *pad_mode* attribute:
 
 
 Negative pads example:
-######################### 
+#########################
 
 .. code-block:: cpp
 
@@ -111,7 +111,7 @@ for all of the *pad_mode* attribute options:
 
 
 Mixed pads example:
-######################## 
+########################
 
 .. code-block:: cpp
 
@@ -178,7 +178,7 @@ Mixed pads example:
 
   * **Description**: *pad_mode* specifies the method used to generate the padding values.
   * **Range of values**: Name of the method in string format:
-  
+
     * ``constant`` - padded values are taken from the *pad_value* input. If the input is not provided, the padding elements are equal to zero.
     * ``edge`` - padded values are copied from the respective edge of the input ``data`` tensor.
     * ``reflect`` - padded values are a reflection of the input `data` tensor. Values on the edges are not duplicated, ``pads_begin[D]`` and ``pads_end[D]`` must be not greater than ``data.shape[D] – 1`` for any valid ``D``.
@@ -223,22 +223,22 @@ Mixed pads example:
                 <dim>40</dim>
             </port>
             <port id="1">
-                <dim>4</dim>     < !-- pads_begin = [0, 5, 2, 1]  -->
+                <dim>4</dim>     <!-- pads_begin = [0, 5, 2, 1]  -->
             </port>
             <port id="2">
-                <dim>4</dim>     < !-- pads_end = [1, 0, 3, 7] -->
+                <dim>4</dim>     <!-- pads_end = [1, 0, 3, 7] -->
             </port>
             <port id="3">
-                                < !-- pad_value = 15.0 -->
+                                <!-- pad_value = 15.0 -->
             </port>
         </input>
         <output>
             <port id="0">
-                <dim>2</dim>     < !-- 2 = 0 + 1 + 1 = pads_begin[0] + input.shape[0] + pads_end[0] -->
-                <dim>8</dim>     < !-- 8 = 5 + 3 + 0 = pads_begin[1] + input.shape[1] + pads_end[1] -->
-                <dim>37</dim>    < !-- 37 = 2 + 32 + 3 = pads_begin[2] + input.shape[2] + pads_end[2] -->
-                <dim>48</dim>    < !-- 48 = 1 + 40 + 7 = pads_begin[3] + input.shape[3] + pads_end[3] -->
-                                < !-- all new elements are filled with 15.0 value -->
+                <dim>2</dim>     <!-- 2 = 0 + 1 + 1 = pads_begin[0] + input.shape[0] + pads_end[0] -->
+                <dim>8</dim>     <!-- 8 = 5 + 3 + 0 = pads_begin[1] + input.shape[1] + pads_end[1] -->
+                <dim>37</dim>    <!-- 37 = 2 + 32 + 3 = pads_begin[2] + input.shape[2] + pads_end[2] -->
+                <dim>48</dim>    <!-- 48 = 1 + 40 + 7 = pads_begin[3] + input.shape[3] + pads_end[3] -->
+                                <!-- all new elements are filled with 15.0 value -->
             </port>
         </output>
     </layer>
@@ -247,7 +247,7 @@ Mixed pads example:
 **Example**: constant mode (positive and negative pads)
 
 .. code-block:: xml
-   :force: 
+   :force:
 
     <layer ... type="Pad" ...>
         <data pad_mode="constant"/>
@@ -259,22 +259,22 @@ Mixed pads example:
                 <dim>40</dim>
             </port>
             <port id="1">
-                <dim>4</dim>     < !-- pads_begin = [0, -2, -8, 1]  -->
+                <dim>4</dim>     <!-- pads_begin = [0, -2, -8, 1]  -->
             </port>
             <port id="2">
-                <dim>4</dim>     < !-- pads_end = [-1, 4, -6, 7] -->
+                <dim>4</dim>     <!-- pads_end = [-1, 4, -6, 7] -->
             </port>
             <port id="3">
-                                < !-- pad_value = 15.0 -->
+                                <!-- pad_value = 15.0 -->
             </port>
         </input>
         <output>
             <port id="0">
-                <dim>1</dim>     < !-- 2 = 0 + 2 + (-1) = pads_begin[0] + input.shape[0] + pads_end[0] -->
-                <dim>5</dim>     < !-- 5 = (-2) + 3 + 4 = pads_begin[1] + input.shape[1] + pads_end[1] -->
-                <dim>18</dim>    < !-- 18 = (-8) + 32 (-6) = pads_begin[2] + input.shape[2] + pads_end[2] -->
-                <dim>48</dim>    < !-- 48 = 1 + 40 + 7 = pads_begin[3] + input.shape[3] + pads_end[3] -->
-                                < !-- all new elements are filled with 15.0 value -->
+                <dim>1</dim>     <!-- 2 = 0 + 2 + (-1) = pads_begin[0] + input.shape[0] + pads_end[0] -->
+                <dim>5</dim>     <!-- 5 = (-2) + 3 + 4 = pads_begin[1] + input.shape[1] + pads_end[1] -->
+                <dim>18</dim>    <!-- 18 = (-8) + 32 (-6) = pads_begin[2] + input.shape[2] + pads_end[2] -->
+                <dim>48</dim>    <!-- 48 = 1 + 40 + 7 = pads_begin[3] + input.shape[3] + pads_end[3] -->
+                                <!-- all new elements are filled with 15.0 value -->
             </port>
         </output>
     </layer>
@@ -283,7 +283,7 @@ Mixed pads example:
 **Example**: edge mode
 
 .. code-block:: xml
-   :force: 
+   :force:
 
     <layer ... type="Pad" ...>
         <data pad_mode="edge"/>
@@ -295,18 +295,18 @@ Mixed pads example:
                 <dim>40</dim>
             </port>
             <port id="1">
-                <dim>4</dim>     < !-- pads_begin = [0, 5, 2, 1]  -->
+                <dim>4</dim>     <!-- pads_begin = [0, 5, 2, 1]  -->
             </port>
             <port id="2">
-                <dim>4</dim>     < !-- pads_end = [1, 0, 3, 7] -->
+                <dim>4</dim>     <!-- pads_end = [1, 0, 3, 7] -->
             </port>
         </input>
         <output>
             <port id="0">
-                <dim>2</dim>     < !-- 2 = 0 + 1 + 1 = pads_begin[0] + input.shape[0] + pads_end[0] -->
-                <dim>8</dim>     < !-- 8 = 5 + 3 + 0 = pads_begin[1] + input.shape[1] + pads_end[1] -->
-                <dim>37</dim>    < !-- 37 = 2 + 32 + 3 = pads_begin[2] + input.shape[2] + pads_end[2] -->
-                <dim>48</dim>    < !-- 48 = 1 + 40 + 7 = pads_begin[3] + input.shape[3] + pads_end[3] -->
+                <dim>2</dim>     <!-- 2 = 0 + 1 + 1 = pads_begin[0] + input.shape[0] + pads_end[0] -->
+                <dim>8</dim>     <!-- 8 = 5 + 3 + 0 = pads_begin[1] + input.shape[1] + pads_end[1] -->
+                <dim>37</dim>    <!-- 37 = 2 + 32 + 3 = pads_begin[2] + input.shape[2] + pads_end[2] -->
+                <dim>48</dim>    <!-- 48 = 1 + 40 + 7 = pads_begin[3] + input.shape[3] + pads_end[3] -->
             </port>
         </output>
     </layer>

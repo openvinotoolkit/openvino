@@ -293,7 +293,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --batch 2 --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. Please check Python API.
+            - Not available in OVC tool. Switch to the **Python** tab.
 
 ``mean_values``
 ################
@@ -342,7 +342,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --mean_values [0.5,0.5,0.5] --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. Please check Python API.
+            - Not available in OVC tool. Switch to the **Python** tab.
 
 ``scale_values``
 #################
@@ -391,7 +391,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --scale_values [255,255,255] --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. Please check Python API.
+            - Not available in OVC tool. Switch to the **Python** tab.
 
 ``reverse_input_channels``
 ###########################
@@ -440,7 +440,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --reverse_input_channels --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. Please check Python API.
+            - Not available in OVC tool. Switch to the **Python** tab.
 
 ``source_layout``
 ##################
@@ -487,7 +487,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --source_layout input_name(NHWC) --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. Please check Python API.
+            - Not available in OVC tool. Switch to the **Python** tab.
 
 ``target_layout``
 ##################
@@ -534,7 +534,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --target_layout input_name(NHWC) --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. Please check Python API.
+            - Not available in OVC tool. Switch to the **Python** tab.
 
 ``layout``
 ###########
@@ -581,7 +581,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --layout "input_name(NCHW->NHWC)" --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. Please check Python API.
+            - Not available in OVC tool. Switch to the **Python** tab.
 
 ``transform``
 ##############
@@ -627,21 +627,21 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
 
                  mo --input_model MODEL_NAME --transform LowLatency2[use_const_initializer=False],Pruning,MakeStateful[param_res_names={'input_name':'output_name'}] --output_dir OUTPUT_DIR
 
-            - Not available in OVC tool. Please check Python API.
+            - Not available in OVC tool. Switch to the **Python** tab.
 
 Cutting Off Parts of a Model
 ############################
 
-Performing surgery by cutting model inputs and outputs from a model is no longer available in the new conversion API. Instead, we recommend performing the cut in the original framework. 
+Performing surgery by cutting model inputs and outputs from a model is no longer available in the new conversion API. Instead, we recommend performing the cut in the original framework.
 Below are examples of model cutting of TensorFlow protobuf, TensorFlow SavedModel, and ONNX formats with the legacy conversion API, compared to achieving the same cut with tools provided by the Tensorflow and ONNX frameworks.
 For PyTorch, TensorFlow 2 Keras, and PaddlePaddle, we recommend changing the original model code to perform the model cut.
 
-Note: This guide does not cover the cutting a model by input port of an operation that MO tool provides using `input` and `output` options, for example, `--input 1:name_op`. 
+Note: This guide does not cover the cutting a model by input port of an operation that MO tool provides using `input` and `output` options, for example, `--input 1:name_op`.
 
 ``PyTorch``
 ###########
 
-Model cut for PyTorch is not available in legacy API.  
+Model cut for PyTorch is not available in legacy API.
 
 When it is needed to remove a whole module from the model it is possible to replace such modules with `Identity`. Below is the example of removing `conv1` and `bn1` modules at the input and `fc` module at the output of the resnet50 model.
 
@@ -652,17 +652,17 @@ When it is needed to remove a whole module from the model it is possible to repl
    import torch
    import torchvision
    from torch.nn import Identity
-     
+
    # Load pretrained model
    model = torchvision.models.resnet50(weights='DEFAULT')
-     
+
    # input cut
    model.conv1 = Identity()
    model.bn1 = Identity()
-     
+
    # output cut
    model.fc = Identity()
-     
+
    # convert and compile the model
    ov_model = ov.convert_model(model, input=([-1,64,-1,-1], torch.float32))
    compiled_model = ov.compile_model(ov_model)
@@ -678,7 +678,7 @@ When it is needed to remove one or more outputs from the model it is possible to
    # Example of model with multiple outputs
    class Model(torch.nn.Module):
        def __init__(self):
-           super(Model, self).__init__() 
+           super(Model, self).__init__()
            self.linear1 = torch.nn.Linear(100, 200)
            self.activation1 = torch.nn.ReLU()
            self.linear2 = torch.nn.Linear(200, 10)
@@ -690,23 +690,23 @@ When it is needed to remove one or more outputs from the model it is possible to
            y = self.linear2(x)
            y = self.activation2(y)
            return x, y
-     
+
    # New model, where some outputs are cut
    class CutModel(torch.nn.Module):
        def __init__(self):
            super(CutModel, self).__init__()
            self.model = Model()
 
-       def forward(self, x): 
+       def forward(self, x):
 
            # get first output
            x, _ = self.model(x)
 
            return x
-     
+
    # Model with output cut
    cut_model = CutModel()
-     
+
    # convert and compile the model
    ov_model = ov.convert_model(cut_model, input=([-1,-1,-1], torch.float32))
    compiled_model = ov.compile_model(ov_model)
@@ -722,9 +722,9 @@ Legacy API.
 
    import openvino as ov
    import openvino.tools.mo as mo
-         
+
    import tensorflow as tf
-    
+
    def load_graph(model_path):
        graph_def = tf.compat.v1.GraphDef()
        with open(model_path, "rb") as f:
@@ -732,15 +732,15 @@ Legacy API.
        with tf.compat.v1.Graph().as_default() as graph:
            tf.graph_util.import_graph_def(graph_def, name="")
            return graph
-           
+
    # Load TF model
    graph = load_graph("/path_to_model/HugeCTR.pb")
-     
+
    # Convert the model with input and output cut
    input_name = "concat"
    output_name = "MatVec_3/Squeeze"
    ov_model = mo.convert_model(graph, input=(input_name, [-1, -1]), output=output_name)
-     
+
    # Compile the model
    compiled_model = ov.compile_model(ov_model)
 
@@ -751,9 +751,9 @@ Model cut in original FW.
 
    import openvino as ov
    import tensorflow as tf
-     
+
    from tensorflow.python.tools.strip_unused_lib import strip_unused
-     
+
    def load_graph(model_path):
        graph_def = tf.compat.v1.GraphDef()
        with open(model_path, "rb") as f:
@@ -761,16 +761,16 @@ Model cut in original FW.
        with tf.compat.v1.Graph().as_default() as graph:
            tf.graph_util.import_graph_def(graph_def, name="")
            return graph
-     
+
    # Load TF model
    graph = load_graph("/path_to_model/HugeCTR.pb")
-     
+
    # Cut the model
    input_name = "concat"
    output_name = "MatVec_3/Squeeze"
    graph_def = graph.as_graph_def()
    new_graph_def = strip_unused(graph_def, [input_name], [output_name], tf.float32.as_datatype_enum)
-     
+
    # Convert and compile model
    ov_model = ov.convert_model(new_graph_def, input=[-1, -1])
    cmp_model = ov.compile_model(ov_model)
@@ -779,7 +779,7 @@ Model cut in original FW.
 ``TensorFlow SavedModel format``
 ################################
 
-Model cut for SavedModel format is not available in legacy API.  
+Model cut for SavedModel format is not available in legacy API.
 
 Example of model cut in original FW.
 
@@ -788,24 +788,24 @@ Example of model cut in original FW.
 
    import openvino as ov
    import tensorflow_hub as hub
-     
+
    import tensorflow as tf
    from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
    from tensorflow.python.tools.strip_unused_lib import strip_unused
-     
+
    # Load TF model
    model = hub.load("https://tfhub.dev/svampeatlas/vision/embedder/fungi_V2/1?tf-hub-format=compressed")
-     
+
    # Convert model to GraphDef
    model_func = model.signatures["default"]
    frozen_func = convert_variables_to_constants_v2(model_func)
    graph_def = frozen_func.graph.as_graph_def()
-     
+
    # Cut the model
    input_name = 'InceptionV4/InceptionV4/Conv2d_2b_3x3/Relu'
    output_name = 'InceptionV4/InceptionV4/Mixed_7c/concat'
    new_graph_def = strip_unused(graph_def, [input_name], [output_name], tf.float32.as_datatype_enum)
-     
+
    # Convert and compile the model
    ov_model = ov.convert_model(new_graph_def)
    compiled_model = ov.compile_model(ov_model)
@@ -822,14 +822,14 @@ Legacy API.
 
    import openvino as ov
    import openvino.tools.mo as mo
-          
+
    input_path = "/path_to_model/yolov8x.onnx"
-          
+
    # Convert model and perform input and output cut
    input_name = "/model.2/Concat_output_0"
    output_name = "/model.22/Concat_3_output_0"
    ov_model = mo.convert_model(input_path, input=input_name, output=output_name)
-          
+
    # Compile model
    ov.compile_model(ov_model)
 
@@ -840,18 +840,18 @@ Model cut in original FW.
 
    import onnx
    import openvino as ov
-          
+
    input_path = "/path_to_model/yolov8x.onnx"
-          
+
    # Cut the model
    input_name = "/model.2/Concat_output_0"
    output_name = "/model.22/Concat_3_output_0"
    cut_model_path = "/path_to_model/yolov8x_cut.onnx"
    onnx.utils.extract_model(input_path, cut_model_path, [input_name], [output_name])
-          
+
    # Convert model
    ov_model = ov.convert_model(cut_model_path)
-          
+
    # Compile model
    ov.compile_model(ov_model)
 

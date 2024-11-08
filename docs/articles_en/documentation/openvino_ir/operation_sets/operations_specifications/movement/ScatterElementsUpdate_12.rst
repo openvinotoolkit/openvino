@@ -130,22 +130,22 @@ Accordingly for 3D tensor case, the update of the element corresponding to the `
 
     <layer ... use_init_val="true" reduction="sum" type="ScatterElementsUpdate">
         <input>
-            <port id="0">>  < !-- data -->
-                <dim>4</dim>  < !-- values: [2, 3, 4, 6] -->
+            <port id="0">>  <!-- data -->
+                <dim>4</dim>  <!-- values: [2, 3, 4, 6] -->
             </port>
-            <port id="1">  < !-- indices (negative values allowed) -->
-                <dim>6</dim>  < !-- values: [1, 0, 0, -2, -1, 2] -->
+            <port id="1">  <!-- indices (negative values allowed) -->
+                <dim>6</dim>  <!-- values: [1, 0, 0, -2, -1, 2] -->
             </port>
-            <port id="2">>  < !-- updates -->
-                <dim>6</dim>  < !-- values: [10, 20, 30, 40, 70, 60] -->
+            <port id="2">>  <!-- updates -->
+                <dim>6</dim>  <!-- values: [10, 20, 30, 40, 70, 60] -->
             </port>
-            <port id="3">     < !-- values: [0] -->
+            <port id="3">     <!-- values: [0] -->
                 <dim>1</dim>
             </port>
         </input>
         <output>
             <port id="4" precision="FP32">
-                <dim>4</dim>  < !-- values: [52, 13, 104, 76] -->
+                <dim>4</dim>  <!-- values: [52, 13, 104, 76] -->
             </port>
         </output>
     </layer>
@@ -157,22 +157,22 @@ Accordingly for 3D tensor case, the update of the element corresponding to the `
 
     <layer ... use_init_val="false" reduction="sum" type="ScatterElementsUpdate">
         <input>
-            <port id="0">>  < !-- data -->
-                <dim>4</dim>  < !-- values: [2, 3, 4, 6] -->
+            <port id="0">>  <!-- data -->
+                <dim>4</dim>  <!-- values: [2, 3, 4, 6] -->
             </port>
-            <port id="1">  < !-- indices -->
-                <dim>6</dim>  < !-- values: [1, 0, 0, 2, 3, 2] -->
+            <port id="1">  <!-- indices -->
+                <dim>6</dim>  <!-- values: [1, 0, 0, 2, 3, 2] -->
             </port>
-            <port id="2">>  < !-- updates -->
-                <dim>6</dim>  < !-- values: [10, 20, 30, 40, 70, 60] -->
+            <port id="2">>  <!-- updates -->
+                <dim>6</dim>  <!-- values: [10, 20, 30, 40, 70, 60] -->
             </port>
-            <port id="3">     < !-- values: [0] -->
+            <port id="3">     <!-- values: [0] -->
                 <dim>1</dim>
             </port>
         </input>
         <output>
             <port id="4" precision="FP32">
-                <dim>4</dim>  < !-- values: [50, 10, 100, 70] -->
+                <dim>4</dim>  <!-- values: [50, 10, 100, 70] -->
             </port>
         </output>
     </layer>
@@ -184,30 +184,30 @@ Accordingly for 3D tensor case, the update of the element corresponding to the `
 
     <layer ... use_init_val="true" reduction="none" type="ScatterElementsUpdate">
         <input>
-            <port id="0">>  < !-- data -->
+            <port id="0">>  <!-- data -->
                 <dim>3</dim>
-                <dim>4</dim>  < !-- values: [[0, 0, 0, 0],
+                <dim>4</dim>  <!-- values: [[0, 0, 0, 0],
                                              [0, 0, 0, 0],
                                              [0, 0, 0, 0]] -->
             </port>
-            <port id="1">  < !-- indices -->
+            <port id="1">  <!-- indices -->
                 <dim>2</dim>
-                <dim>2</dim>  < !-- values: [[1, 2],
+                <dim>2</dim>  <!-- values: [[1, 2],
                                              [0, 3]] -->
             </port>
-            <port id="2">>  < !-- updates -->
+            <port id="2">>  <!-- updates -->
                 <dim>2</dim>
-                <dim>2</dim>  < !-- values: [[11, 12],
+                <dim>2</dim>  <!-- values: [[11, 12],
                                              [13, 14]]) -->
             </port>
-            <port id="3">     < !-- values: [1] -->
+            <port id="3">     <!-- values: [1] -->
                 <dim>1</dim>
             </port>
         </input>
         <output>
             <port id="4" precision="I32">
                 <dim>3</dim>
-                <dim>4</dim>  < !-- values:  [[ 0, 11, 12,  0],
+                <dim>4</dim>  <!-- values:  [[ 0, 11, 12,  0],
                                               [13,  0,  0, 14],
                                               [ 0,  0,  0,  0]] -->
             </port>
@@ -221,30 +221,30 @@ Accordingly for 3D tensor case, the update of the element corresponding to the `
 
     <layer ... use_init_val="true" reduction="sum" type="ScatterElementsUpdate">
         <input>
-            <port id="0">>  < !-- data -->
+            <port id="0">>  <!-- data -->
                 <dim>3</dim>
-                <dim>4</dim>  < !-- values: [[1, 1, 1, 1],
+                <dim>4</dim>  <!-- values: [[1, 1, 1, 1],
                                              [1, 1, 1, 1],
                                              [1, 1, 1, 1]] -->
             </port>
-            <port id="1">  < !-- indices -->
+            <port id="1">  <!-- indices -->
                 <dim>2</dim>
-                <dim>2</dim>  < !-- values: [[1, 1],
+                <dim>2</dim>  <!-- values: [[1, 1],
                                              [0, 3]] -->
             </port>
-            <port id="2">>  < !-- updates -->
+            <port id="2">>  <!-- updates -->
                 <dim>2</dim>
-                <dim>2</dim>  < !-- values: [[11, 12],
+                <dim>2</dim>  <!-- values: [[11, 12],
                                              [13, 14]]) -->
             </port>
-            <port id="3">     < !-- values: [1] -->
+            <port id="3">     <!-- values: [1] -->
                 <dim>1</dim>
             </port>
         </input>
         <output>
             <port id="4" precision="I32">
                 <dim>3</dim>
-                <dim>4</dim>  < !-- values: [[ 1, 24,  1,  1],
+                <dim>4</dim>  <!-- values: [[ 1, 24,  1,  1],
                                              [14,  1,  1, 15],
                                              [ 1,  1,  1,  1]] -->
             </port>
@@ -258,30 +258,30 @@ Accordingly for 3D tensor case, the update of the element corresponding to the `
 
     <layer ... use_init_val="true" reduction="prod" type="ScatterElementsUpdate">
         <input>
-            <port id="0">>  < !-- data -->
+            <port id="0">>  <!-- data -->
                 <dim>3</dim>
-                <dim>4</dim>  < !-- values: [[2, 2, 2, 2],
+                <dim>4</dim>  <!-- values: [[2, 2, 2, 2],
                                              [2, 2, 2, 2],
                                              [2, 2, 2, 2]] -->
             </port>
-            <port id="1">  < !-- indices -->
+            <port id="1">  <!-- indices -->
                 <dim>2</dim>
-                <dim>2</dim>  < !-- values: [[1, 1],
+                <dim>2</dim>  <!-- values: [[1, 1],
                                              [0, 3]] -->
             </port>
-            <port id="2">>  < !-- updates -->
+            <port id="2">>  <!-- updates -->
                 <dim>2</dim>
-                <dim>2</dim>  < !-- values: [[11, 12],
+                <dim>2</dim>  <!-- values: [[11, 12],
                                              [13, 14]]) -->
             </port>
-            <port id="3">     < !-- values: [1] -->
+            <port id="3">     <!-- values: [1] -->
                 <dim>1</dim>
             </port>
         </input>
         <output>
             <port id="4" precision="I32">
                 <dim>3</dim>
-                <dim>4</dim>  < !-- values: [[  2, 264,   2,   2],
+                <dim>4</dim>  <!-- values: [[  2, 264,   2,   2],
                                              [ 26,   2,   2,  28],
                                              [  2,   2,   2,   2]] -->
             </port>
@@ -313,7 +313,7 @@ Accordingly for 3D tensor case, the update of the element corresponding to the `
                 <dim>7</dim>
                 <dim>6</dim>
             </port>
-            <port id="3">     < !-- values: [0] -->
+            <port id="3">     <!-- values: [0] -->
                 <dim>1</dim>
             </port>
         </input>

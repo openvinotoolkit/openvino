@@ -5,7 +5,7 @@ Discrete Fourier Transformation for real-valued input (RDFT)
 
 
 .. meta::
-  :description: Learn about RDFT-9 - a signal processing operation, which can be 
+  :description: Learn about RDFT-9 - a signal processing operation, which can be
                 performed on two required and one optional input tensor.
 
 **Versioned name**: *RDFT-9*
@@ -85,7 +85,7 @@ There is no ``signal_size`` input (3D input tensor):
                 <dim>320</dim>
             </port>
             <port id="1">
-                <dim>2</dim> < !-- axes input contains [1, 2] -->
+                <dim>2</dim> <!-- axes input contains [1, 2] -->
             </port>
         <output>
             <port id="2">
@@ -110,7 +110,7 @@ There is no ``signal_size`` input (2D input tensor):
                 <dim>320</dim>
             </port>
             <port id="1">
-                <dim>2</dim> < !-- axes input contains [0, 1] -->
+                <dim>2</dim> <!-- axes input contains [0, 1] -->
             </port>
         <output>
             <port id="2">
@@ -136,10 +136,10 @@ There is ``signal_size`` input (3D input tensor):
                 <dim>320</dim>
             </port>
             <port id="1">
-                <dim>2</dim> < !-- axes input contains [1, 2] -->
+                <dim>2</dim> <!-- axes input contains [1, 2] -->
             </port>
             <port id="2">
-                <dim>2</dim> < !-- signal_size input contains [512, 100] -->
+                <dim>2</dim> <!-- signal_size input contains [512, 100] -->
             </port>
         <output>
             <port id="3">
@@ -163,10 +163,10 @@ There is ``signal_size`` input (2D input tensor):
                 <dim>320</dim>
             </port>
             <port id="1">
-                <dim>2</dim> < !-- axes input contains [0, 1] -->
+                <dim>2</dim> <!-- axes input contains [0, 1] -->
             </port>
             <port id="2">
-                <dim>2</dim> < !-- signal_size input contains [512, 100] -->
+                <dim>2</dim> <!-- signal_size input contains [512, 100] -->
             </port>
         <output>
             <port id="3">
@@ -192,10 +192,10 @@ There is ``signal_size`` input (4D input tensor, ``-1`` in ``signal_size``, unso
                 <dim>320</dim>
             </port>
             <port id="1">
-                <dim>3</dim> < !-- axes input contains  [3, 1, 2] -->
+                <dim>3</dim> <!-- axes input contains  [3, 1, 2] -->
             </port>
             <port id="2">
-                <dim>3</dim> < !-- signal_size input contains [170, -1, 1024] -->
+                <dim>3</dim> <!-- signal_size input contains [170, -1, 1024] -->
             </port>
         <output>
             <port id="3">
@@ -222,10 +222,10 @@ There is ``signal_size`` input (4D input tensor, ``-1`` in ``signal_size``, unso
                 <dim>320</dim>
             </port>
             <port id="1">
-                <dim>3</dim> < !-- axes input contains  [3, 0, 2] -->
+                <dim>3</dim> <!-- axes input contains  [3, 0, 2] -->
             </port>
             <port id="2">
-                <dim>3</dim> < !-- signal_size input contains [258, -1, 2056] -->
+                <dim>3</dim> <!-- signal_size input contains [258, -1, 2056] -->
             </port>
         <output>
             <port id="3">

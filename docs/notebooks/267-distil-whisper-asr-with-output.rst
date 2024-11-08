@@ -36,26 +36,36 @@ convert the model to OpenVINO™ IR format. To further improve OpenVINO
 Distil-Whisper model performance ``INT8`` post-training quantization
 from `NNCF <https://github.com/openvinotoolkit/nncf/>`__ is applied.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
+-  `Prerequisites <#prerequisites>`__
+-  `Load PyTorch model <#load-pytorch-model>`__
 
-- `Prerequisites <#prerequisites>`__
-- `Load PyTorch model <#load-pytorch-model>`__
-- `Prepare input sample <#prepare-input-sample>`__
-- `Run model inference <#run-model-inference>`__
-- `Load OpenVINO model using Optimum library <#load-openvino-model-using-optimum-library>`__
-- `Select Inference device <#select-inference-device>`__
-- `Compile OpenVINO model <#compile-openvino-model>`__
-- `Run OpenVINO model inference <#run-openvino-model-inference>`__
-- `Compare performance PyTorch vs OpenVINO <#compare-performance-pytorch-vs-openvino>`__
-- `Compare with OpenAI Whisper <#compare-with-openai-whisper>`__
-- `Usage OpenVINO model with HuggingFace pipelines <#usage-openvino-model-with-huggingface-pipelines>`__
-- `Quantization <#quantization>`__
-- `Prepare calibration datasets <#prepare-calibration-datasets>`__
-- `Quantize Distil-Whisper encoder and decoder models <#quantize-distil-whisper-encoder-and-decoder-models>`__
-- `Run quantized model inference <#run-quantized-model-inference>`__
-- `Compare performance and accuracy of the original and quantized models <#compare-performance-and-accuracy-of-the-original-and-quantized-models>`__
-- `Interactive demo <#interactive-demo>`__
+   -  `Prepare input sample <#prepare-input-sample>`__
+   -  `Run model inference <#run-model-inference>`__
+
+-  `Load OpenVINO model using Optimum
+   library <#load-openvino-model-using-optimum-library>`__
+
+   -  `Select Inference device <#select-inference-device>`__
+   -  `Compile OpenVINO model <#compile-openvino-model>`__
+   -  `Run OpenVINO model inference <#run-openvino-model-inference>`__
+
+-  `Compare performance PyTorch vs
+   OpenVINO <#compare-performance-pytorch-vs-openvino>`__
+-  `Usage OpenVINO model with HuggingFace
+   pipelines <#usage-openvino-model-with-huggingface-pipelines>`__
+-  `Quantization <#quantization>`__
+
+   -  `Prepare calibration datasets <#prepare-calibration-datasets>`__
+   -  `Quantize Distil-Whisper encoder and decoder
+      models <#quantize-distil-whisper-encoder-and-decoder-models>`__
+   -  `Run quantized model inference <#run-quantized-model-inference>`__
+   -  `Compare performance and accuracy of the original and quantized
+      models <#compare-performance-and-accuracy-of-the-original-and-quantized-models>`__
+
+-  `Interactive demo <#interactive-demo>`__
 
 Prerequisites
 -------------
@@ -423,8 +433,10 @@ Compare performance PyTorch vs OpenVINO
     Performance distil-large-v2 openvino speedup: 1.684
 
 
+load_in_8bit
+
 Compare with OpenAI Whisper
------------------------------------------------
+---------------------------
 
 Usage OpenVINO model with HuggingFace pipelines
 -----------------------------------------------
@@ -614,7 +626,7 @@ The optimization process contains the following steps:
 
 ..
 
-   **Note**: Quantization is time and memory consuming operation.
+   **NOTE**: Quantization is time and memory consuming operation.
    Running quantization code below may take some time.
 
 Please select below whether you would like to run Distil-Whisper
@@ -658,7 +670,7 @@ Prepare calibration datasets
 
 First step is to prepare calibration datasets for quantization. Since we
 quantize whisper encoder and decoder separately, we need to prepare a
-calibration dataset for each of the models. We define a
+calibration dataset for each of the models. We import an
 ``InferRequestWrapper`` class that will intercept model inputs and
 collect them to a list. Then we run model inference on some small amount
 of audio samples. Generally, increasing the calibration dataset size
@@ -669,44 +681,10 @@ improves quantization quality.
     %%skip not $to_quantize.value
 
     from itertools import islice
-    from typing import List, Any
-    from openvino import Tensor
+    from optimum.intel.openvino.quantization import InferRequestWrapper
 
 
-    class InferRequestWrapper:
-        def __init__(self, request, data_cache: List):
-            self.request = request
-            self.data_cache = data_cache
-
-        def __call__(self, *args, **kwargs):
-            self.data_cache.append(*args)
-            return self.request(*args, **kwargs)
-
-        def infer(self, inputs: Any = None, shared_memory: bool = False):
-            self.data_cache.append(inputs)
-            return self.request.infer(inputs, shared_memory)
-
-        def start_async(
-            self,
-            inputs: Any = None,
-            userdata: Any = None,
-            share_inputs: bool = False,
-        ):
-            self.data_cache.append(inputs)
-            self.request.infer(inputs, share_inputs)
-
-        def wait(self):
-            pass
-
-        def get_tensor(self, name: str):
-            return Tensor(self.request.results[name])
-
-        def __getattr__(self, attr):
-            if attr in self.__dict__:
-                return getattr(self, attr)
-            return getattr(self.request, attr)
-
-    def collect_calibration_dataset(ov_model, calibration_dataset_size):
+    def collect_calibration_dataset(ov_model: OVModelForSpeechSeq2Seq, calibration_dataset_size: int):
         # Overwrite model request properties, saving the original ones for restoring later
         original_encoder_request = ov_model.encoder.request
         original_decoder_with_past_request = ov_model.decoder_with_past.request
@@ -746,11 +724,11 @@ negligible.
     import nncf
 
     CALIBRATION_DATASET_SIZE = 50
-    quantized_distil_model_path = Path(f"{model_path}_quantized")
+    quantized_model_path = Path(f"{model_path}_quantized")
 
 
-    def quantize(ov_model, calibration_dataset_size):
-        if not quantized_distil_model_path.exists():
+    def quantize(ov_model: OVModelForSpeechSeq2Seq, calibration_dataset_size: int):
+        if not quantized_model_path.exists():
             encoder_calibration_data, decoder_calibration_data = collect_calibration_dataset(
                 ov_model, calibration_dataset_size
             )
@@ -758,13 +736,12 @@ negligible.
             quantized_encoder = nncf.quantize(
                 ov_model.encoder.model,
                 nncf.Dataset(encoder_calibration_data),
-                preset=nncf.QuantizationPreset.MIXED,
                 subset_size=len(encoder_calibration_data),
                 model_type=nncf.ModelType.TRANSFORMER,
                 # Smooth Quant algorithm reduces activation quantization error; optimal alpha value was obtained through grid search
                 advanced_parameters=nncf.AdvancedQuantizationParameters(smooth_quant_alpha=0.50)
             )
-            ov.save_model(quantized_encoder, quantized_distil_model_path / "openvino_encoder_model.xml")
+            ov.save_model(quantized_encoder, quantized_model_path / "openvino_encoder_model.xml")
             del quantized_encoder
             del encoder_calibration_data
             gc.collect()
@@ -773,23 +750,22 @@ negligible.
             quantized_decoder_with_past = nncf.quantize(
                 ov_model.decoder_with_past.model,
                 nncf.Dataset(decoder_calibration_data),
-                preset=nncf.QuantizationPreset.MIXED,
                 subset_size=len(decoder_calibration_data),
                 model_type=nncf.ModelType.TRANSFORMER,
                 # Smooth Quant algorithm reduces activation quantization error; optimal alpha value was obtained through grid search
                 advanced_parameters=nncf.AdvancedQuantizationParameters(smooth_quant_alpha=0.95)
             )
-            ov.save_model(quantized_decoder_with_past, quantized_distil_model_path / "openvino_decoder_with_past_model.xml")
+            ov.save_model(quantized_decoder_with_past, quantized_model_path / "openvino_decoder_with_past_model.xml")
             del quantized_decoder_with_past
             del decoder_calibration_data
             gc.collect()
 
             # Copy the config file and the first-step-decoder manually
-            shutil.copy(model_path / "config.json", quantized_distil_model_path / "config.json")
-            shutil.copy(model_path / "openvino_decoder_model.xml", quantized_distil_model_path / "openvino_decoder_model.xml")
-            shutil.copy(model_path / "openvino_decoder_model.bin", quantized_distil_model_path / "openvino_decoder_model.bin")
+            shutil.copy(model_path / "config.json", quantized_model_path / "config.json")
+            shutil.copy(model_path / "openvino_decoder_model.xml", quantized_model_path / "openvino_decoder_model.xml")
+            shutil.copy(model_path / "openvino_decoder_model.bin", quantized_model_path / "openvino_decoder_model.bin")
 
-        quantized_ov_model = OVModelForSpeechSeq2Seq.from_pretrained(quantized_distil_model_path, ov_config=ov_config, compile=False)
+        quantized_ov_model = OVModelForSpeechSeq2Seq.from_pretrained(quantized_model_path, ov_config=ov_config, compile=False)
         quantized_ov_model.to(device.value)
         quantized_ov_model.compile()
         return quantized_ov_model

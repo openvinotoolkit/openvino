@@ -19,10 +19,12 @@ card <https://github.com/openai/whisper/blob/main/model-card.md>`__ and
 GitHub `repository <https://github.com/openai/whisper>`__.
 
 In this notebook, we will use Whisper with OpenVINO to generate
-subtitles in a sample video. Notebook contains the following steps: 1.
-Download the model. 2. Instantiate the PyTorch model pipeline. 3.
-Convert model to OpenVINO IR, using model conversion API. 4. Run the
-Whisper pipeline with OpenVINO models.
+subtitles in a sample video. Notebook contains the following steps:
+
+1. Download the model.
+2. Instantiate the PyTorch model pipeline.
+3. Convert model to OpenVINO IR, using model conversion API.
+4. Run the Whisper pipeline with OpenVINO models.
 
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
@@ -320,8 +322,7 @@ To run the PyTorch Whisper model, we just need to call the
 original model pipeline for audio transcribing after replacing the
 original models with OpenVINO IR versions.
 
-Select inference device
---------------------------
+### Select inference device
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -565,7 +566,7 @@ Interactive demo
 
 .. .. raw:: html
 
-..     <div><iframe src="http://127.0.0.1:7862/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..    <div><iframe src="http://127.0.0.1:7862/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
 
 .. parsed-literal::

@@ -68,7 +68,8 @@ Table of contents:
    -  `Run quantization <#run-quantization>`__
    -  `Compare inference time of the FP16 and INT8
       models <#compare-inference-time-of-the-fp16-and-int8-models>`__
-   -  `Compare UNet file size <#compare-unet-file-size>`__
+
+      -  `Compare UNet file size <#compare-unet-file-size>`__
 
 -  `Interactive demo <#interactive-demo>`__
 
@@ -95,7 +96,7 @@ fine-tune of `Stable-Diffusion
 v1-5 <https://huggingface.co/runwayml/stable-diffusion-v1-5>`__ using
 Latent Consistency Distillation (LCD) approach discussed above. This
 model is also integrated into
-`Diffusers <https://huggingface.co/docs/diffusers/index>`__ library. 🤗
+`Diffusers <https://huggingface.co/docs/diffusers/index>`__ library.
 Diffusers is the go-to library for state-of-the-art pretrained diffusion
 models for generating images, audio, and even 3D structures of
 molecules. This allows us to compare running original Stable Diffusion
@@ -1041,14 +1042,15 @@ Create a quantized model from the pre-trained converted OpenVINO model.
 
 
 
+
+
+
+
+
 .. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-
-
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
 
 
 
@@ -1059,14 +1061,15 @@ Create a quantized model from the pre-trained converted OpenVINO model.
 
 
 
+
+
+
+
+
 .. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-
-
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
 
 
 
@@ -1082,14 +1085,15 @@ Create a quantized model from the pre-trained converted OpenVINO model.
 
 
 
+
+
+
+
+
 .. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-
-
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
 
 
 

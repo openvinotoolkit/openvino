@@ -20,7 +20,7 @@ to use it successfully.
 | **Supported Platforms:**
 |   Host: Intel® Core™ Ultra (former Meteor Lake)
 |   NPU device: NPU 3720
-|   OS: Ubuntu* 22.04 (with Linux kernel 6.6+), MS Windows* 11 (both 64-bit)
+|   OS: Ubuntu* 22.04 64-bit (with Linux kernel 6.6+), MS Windows* 11 64-bit (22H2, 23H2)
 
 
 | **Supported Inference Data Types**

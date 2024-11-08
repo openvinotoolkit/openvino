@@ -1,4 +1,4 @@
-const { addon: ov } = require('openvinojs-node');
+const { addon: ov } = require('openvino-node');
 
 const fs = require('node:fs/promises');
 const { cv } = require('opencv-wasm');

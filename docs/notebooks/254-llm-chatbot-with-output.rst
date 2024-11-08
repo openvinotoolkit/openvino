@@ -85,8 +85,8 @@ Select model for inference
 The tutorial supports different models, you can select one from the
 provided options to compare the quality of open source LLM solutions.
 
-**Note**: conversion of some models can require additional actions
-from user side and at least 64GB RAM for conversion.
+   **NOTE**: conversion of some models can require additional actions
+   from user side and at least 64GB RAM for conversion.
 
 The available options are:
 
@@ -119,9 +119,8 @@ The available options are:
    `HuggingFace model
    card <https://huggingface.co/meta-llama/Llama-2-7b-chat-hf>`__
 
-   **Note**: run model with demo, you will need to accept license
-   agreement.
-   You must be a registered user in 🤗 Hugging Face Hub.
+   **NOTE**: run model with demo, you will need to accept license
+   agreement. You must be a registered user in Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/meta-llama/Llama-2-7b-chat-hf>`__,
    carefully read terms of usage and click accept button. You will need
@@ -134,6 +133,7 @@ The available options are:
 .. code:: python
 
        ## login to huggingfacehub to get access to pretrained model
+
        from huggingface_hub import notebook_login, whoami
 
        try:
@@ -366,13 +366,13 @@ model.
 enables weights compression. We will consider how to do it on RedPajama,
 LLAMA and Zephyr examples.
 
-   **Note**: Weights Compression using Optimum Intel currently supports
+   **NOTE**: Weights Compression using Optimum Intel currently supports
    only INT8 compression. We will apply INT4 compression for these model
    using NNCF API described below.
 
 ..
 
-   **Note**: There may be no speedup for INT4/INT8 compressed models on
+   **NOTE**: There may be no speedup for INT4/INT8 compressed models on
    dGPU.
 
 Weights Compression using NNCF
@@ -385,7 +385,7 @@ directly. ``nncf.compress_weights`` function accepts OpenVINO model
 instance and compresses its weights for Linear and Embedding layers. We
 will consider this variant based on MPT model.
 
-   **Note**: This tutorial involves conversion model for FP16 and
+   **NOTE**: This tutorial involves conversion model for FP16 and
    INT4/INT8 weights compression scenarios. It may be memory and
    time-consuming in the first run. You can manually control the
    compression precision below.
@@ -630,7 +630,7 @@ Select device for inference and model variant
 
 
 
-   **Note**: There may be no speedup for INT4/INT8 compressed models on
+   **NOTE**: There may be no speedup for INT4/INT8 compressed models on
    dGPU.
 
 .. code:: ipython3

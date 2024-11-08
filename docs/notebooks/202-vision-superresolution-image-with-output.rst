@@ -5,7 +5,7 @@ Super Resolution is the process of enhancing the quality of an image by
 increasing the pixel count using deep learning. This notebook shows the
 Single Image Super Resolution (SISR) which takes just one low resolution
 image. A model called
-`single-image-super-resolution-1032 <https://docs.openvino.ai/2023.0/omz_models_model_single_image_super_resolution_1032.html>`__,
+`single-image-super-resolution-1032 <https://docs.openvino.ai/2023.3/omz_models_model_single_image_super_resolution_1032.html>`__,
 which is available in Open Model Zoo, is used in this tutorial. It is
 based on the research paper cited below.
 
@@ -774,8 +774,8 @@ as total time to process each patch.
 
 .. parsed-literal::
 
-    Processed 42 patches in 4.63 seconds. Total patches per second (including processing): 9.06.
-    Inference patches per second: 17.81 
+    Processed 42 patches in 4.64 seconds. Total patches per second (including processing): 9.05.
+    Inference patches per second: 17.92 
 
 
 Save superresolution image and the bicubic image

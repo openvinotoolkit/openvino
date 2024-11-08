@@ -5,7 +5,7 @@ NormalizeL2
 
 
 .. meta::
-  :description: Learn about MVN-1 - a normalization operation, which can be 
+  :description: Learn about MVN-1 - a normalization operation, which can be
                 performed on two required input tensors.
 
 **Versioned name**: *NormalizeL2-1*
@@ -79,7 +79,7 @@ Example: Normalization over channel dimension for ``NCHW`` layout
                 <dim>24</dim>
             </port>
             <port id="1">
-                <dim>1</dim>         < !-- axes list [1] means normalization over channel dimension -->
+                <dim>1</dim>         <!-- axes list [1] means normalization over channel dimension -->
             </port>
         </input>
         <output>
@@ -108,7 +108,7 @@ Example: Normalization over channel and spatial dimensions for ``NCHW`` layout
                 <dim>24</dim>
             </port>
             <port id="1">
-                <dim>3</dim>         < !-- axes list [1, 2, 3] means normalization over channel and spatial dimensions -->
+                <dim>3</dim>         <!-- axes list [1, 2, 3] means normalization over channel and spatial dimensions -->
             </port>
         </input>
         <output>

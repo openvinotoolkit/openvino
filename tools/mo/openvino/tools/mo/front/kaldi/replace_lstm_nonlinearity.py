@@ -71,7 +71,7 @@ class ReplaceLstmNonLinearityPattern(FrontReplacementOp):
         if node['use_dropout']:
             mul_dropout_i = Mul(graph, {'name': split_node.soft_get('name', split_node.id) + '/mul_i'}).create_node()
             mul_dropout_i.in_port(0).connect(i_sigmoid.out_port(0))
-            mul_dropout_i.in_port(1).connect(i_drop_scale)
+            mul_dropout_i.in_port(1).connect(i_drop_scale)  # pylint: disable=possibly-used-before-assignment
             i_sigmoid = mul_dropout_i
 
         # f_t = Sigmoid(f_part + w_fc*ct_1)
@@ -91,7 +91,7 @@ class ReplaceLstmNonLinearityPattern(FrontReplacementOp):
         if node['use_dropout']:
             mul_dropout_f = Mul(graph, {'name': split_node.soft_get('name', split_node.id) + '/mul_f'}).create_node()
             mul_dropout_f.in_port(0).connect(f_sigmoid.out_port(0))
-            mul_dropout_f.in_port(1).connect(f_drop_scale)
+            mul_dropout_f.in_port(1).connect(f_drop_scale)  # pylint: disable=possibly-used-before-assignment
             f_sigmoid = mul_dropout_f
 
         # c_t = f_t*ct_1 + i_t * tanh(c_part)
@@ -127,7 +127,7 @@ class ReplaceLstmNonLinearityPattern(FrontReplacementOp):
         if node['use_dropout']:
             mul_dropout_o = Mul(graph, {'name': split_node.soft_get('name', split_node.id) + '/mul_o'}).create_node()
             mul_dropout_o.in_port(0).connect(o_sigmoid.out_port(0))
-            mul_dropout_o.in_port(1).connect(o_drop_scale)
+            mul_dropout_o.in_port(1).connect(o_drop_scale)  # pylint: disable=possibly-used-before-assignment
             o_sigmoid = mul_dropout_o
 
         # m_t = o_t * Tanh(c_t)

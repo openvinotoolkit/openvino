@@ -5,8 +5,8 @@ NonMaxSuppression
 
 
 .. meta::
-  :description: Learn about NonMaxSuppression-9 - a sorting and maximization 
-                operation, which can be performed on two required and four 
+  :description: Learn about NonMaxSuppression-9 - a sorting and maximization
+                operation, which can be performed on two required and four
                 optional input tensors.
 
 **Versioned name**: *NonMaxSuppression-9*
@@ -120,11 +120,11 @@ Plugins which do not support dynamic output tensors produce ``selected_indices``
       </input>
       <output>
           <port id="6" precision="I64">
-              <dim>150</dim> < !-- min(100, 10) * 3 * 5 -->
+              <dim>150</dim> <!-- min(100, 10) * 3 * 5 -->
               <dim>3</dim>
           </port>
           <port id="7" precision="FP32">
-              <dim>150</dim> < !-- min(100, 10) * 3 * 5 -->
+              <dim>150</dim> <!-- min(100, 10) * 3 * 5 -->
               <dim>3</dim>
           </port>
           <port id="8" precision="I64">

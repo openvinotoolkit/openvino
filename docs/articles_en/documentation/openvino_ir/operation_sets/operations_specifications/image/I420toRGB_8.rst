@@ -5,7 +5,7 @@ I420toRGB
 
 
 .. meta::
-  :description: Learn about I420toRGB-8 - an image processing operation, which 
+  :description: Learn about I420toRGB-8 - an image processing operation, which
                 can be performed to convert image from I420 to RGB format.
 
 **Versioned name**: *I420toRGB-8*
@@ -113,19 +113,19 @@ Input I420 image tensor shall have ``NHWC (also known as NYXC)`` layout and can 
 
    <layer ... type="I420toRGB">
        <input>
-           <port id="0">  < !-- Y plane -->
+           <port id="0">  <!-- Y plane -->
                <dim>1</dim>
                <dim>480</dim>
                <dim>640</dim>
                <dim>1</dim>
            </port>
-           <port id="1">  < !-- U plane -->
+           <port id="1">  <!-- U plane -->
                <dim>1</dim>
                <dim>240</dim>
                <dim>320</dim>
                <dim>1</dim>
            </port>
-           <port id="2">  < !-- V plane -->
+           <port id="2">  <!-- V plane -->
              <dim>1</dim>
              <dim>240</dim>
              <dim>320</dim>

@@ -314,8 +314,8 @@ private:
         std::vector<size_t> local_store_pool_vec_idxs = { static_cast<size_t>(vmm_dst.getIdx()) };
         local_store_pool_vec_idxs.insert(local_store_pool_vec_idxs.begin(), store_pool_vec_idxs.begin(), store_pool_vec_idxs.end());
 
-        emitters[seed]->emit_code({static_cast<size_t>(vmm_dst.getIdx()), static_cast<size_t>(offset)},
-                                  {static_cast<size_t>(reg_dst.getIdx())},
+        emitters[seed]->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
+                                  {static_cast<size_t>(reg_dst.getIdx()), static_cast<size_t>(offset)},
                                   {local_store_pool_vec_idxs}, {store_pool_gpr_idxs});
     }
 

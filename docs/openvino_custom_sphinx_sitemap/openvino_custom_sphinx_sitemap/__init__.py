@@ -30,10 +30,10 @@ def create_sitemap(app, exception):
     urlset = app.builder.config.ov_sitemap_urlset
     meta = app.builder.config.ov_sitemap_meta
 
-    site_url = app.builder.config.site_url or app.builder.config.html_baseurl
+    site_url = app.builder.config.site_url
     site_url = site_url.rstrip('/') + '/'
     if not site_url:
-        print("sphinx-sitemap error: neither html_baseurl nor site_url "
+        print("sphinx-sitemap error: no site_url "
               "are set in conf.py. Sitemap not built.")
         return
     if (not app.sitemap_links):

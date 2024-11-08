@@ -92,6 +92,8 @@ macro(ov_cpack_settings)
         2023.2.0
         )
 
+    ov_check_conflicts_versions(conflicting_versions)
+
     #
     # core: base dependency for each component
     #

@@ -55,12 +55,9 @@ Table of contents:
       conversion <#prepare-helpers-for-model-conversion>`__
    -  `Convert and Optimize Model <#convert-and-optimize-model>`__
 
-      -  `Instantiate PyTorch model
-          <#instantiate-pytorch-model>`__
-      -  `Compress Model weights to 4 and 8 bits using NNCF
-          <#compress-model-weights-to-4-and-8-bits-using-nncf>`__
-      -  `Convert model to OpenVINO IR format
-          <#convert-model-to-openvino-ir-format>`__
+      -  `Instantiate PyTorch model <#instantiate-pytorch-model>`__
+      -  `Compress Model weights to 4 and 8 bits using NNCF <#compress-model-weights-to-4-and-8-bits-using-nncf>`__
+      -  `Convert model to OpenVINO IR format <#convert-model-to-openvino-ir-format>`__
 
 -  `Prepare OpenVINO based inference
    pipeline <#prepare-openvino-based-inference-pipeline>`__
@@ -117,7 +114,17 @@ Install required dependencies
     import sys
 
     %pip install -q "torch>=2.1.0" "torchvision" "torchaudio" --index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "openvino>=2023.2.0" "nncf>=2.7.0"  "sentencepiece" "tokenizers>=0.12.1" "transformers>=4.31.0,<4.35.0" "gradio" "einops"
+    %pip install -q "openvino>=2023.2.0" "nncf>=2.7.0"  "sentencepiece" "tokenizers>=0.12.1" "transformers>=4.37.2" "gradio" "einops"
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+    [notice] A new release of pip is available: 23.3.2 -> 24.0
+    [notice] To update, run: pip install --upgrade pip
+    Note: you may need to restart the kernel to use updated packages.
+
 
 .. code:: ipython3
 
@@ -149,13 +156,19 @@ instruction.
 .. code:: ipython3
 
     from transformers import AutoTokenizer, AutoConfig, CLIPImageProcessor
-    from llava.model.language_model.llava_mpt import LlavaMPTForCausalLM
+    from llava.model.language_model.llava_mpt import LlavaMptForCausalLM
 
     model_id = "liuhaotian/LLaVA-Lightning-MPT-7B-preview"
 
     config = AutoConfig.from_pretrained(model_id)
     tokenizer = AutoTokenizer.from_pretrained(model_id)
     image_processor = CLIPImageProcessor.from_pretrained(config.mm_vision_tower)
+
+
+.. parsed-literal::
+
+    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+
 
 .. code:: ipython3
 
@@ -272,8 +285,6 @@ on disk using ``ov.save_model``.
                 inputs_embeds=inputs_embeds,
                 past_key_values=past_key_values,
                 attention_mask=attention_mask,
-                prefix_mask=None,
-                sequence_id=None,
                 return_dict=True,
                 output_attentions=False,
                 output_hidden_states=False,
@@ -283,13 +294,6 @@ on disk using ``ov.save_model``.
                 outputs.last_hidden_state.to(self.model.transformer.wte.weight.device),
                 self.model.transformer.wte.weight.to(outputs.last_hidden_state.dtype),
             )
-            if self.model.logit_scale is not None:
-                if self.model.logit_scale == 0:
-                    warnings.warn(
-                        f"Multiplying logits by self.logit_scale={self.model.logit_scale!r}."
-                        "This will produce uniform (uninformative) outputs."
-                    )
-                logits *= self.model.logit_scale
 
             return (logits, tuple(outputs.past_key_values))
 
@@ -427,7 +431,7 @@ on disk using ``ov.save_model``.
         for idx in range(len(outs[1])):
             inputs.extend([f"past_key_values.{idx}.key", f"past_key_values.{idx}.value"])
             dynamic_shapes[inputs[-1]] = {2: "past_sequence + sequence"}
-            dynamic_shapes[inputs[-2]] = {3: "past_sequence + sequence"}
+            dynamic_shapes[inputs[-2]] = {2: "past_sequence + sequence"}
             outputs.extend([f"present.{idx}.key", f"present.{idx}.value"])
 
         inputs.extend(["attention_mask"])
@@ -474,7 +478,7 @@ on disk using ``ov.save_model``.
 
 .. parsed-literal::
 
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, openvino
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, onnx, openvino
 
 
 Convert and Optimize Model
@@ -488,7 +492,7 @@ Convert model to OpenVINO format and save it on disk.
 
 Let’s consider each step more deeply.
 
-Instantiate PyTorch model `:math:`\Uparrow` <#table-of-content>`__
+Instantiate PyTorch model
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
@@ -499,7 +503,7 @@ from `HuggingFace hub <https://huggingface.co/models>`__ during first
 run. It may takes some time and requires at least 13 Gb free space on
 disk.
 
-Compress Model weights to 4 and 8 bits using NNCF `:math:`\Uparrow` <#table-of-content>`__
+Compress Model weights to 4 and 8 bits using NNCF
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
@@ -540,9 +544,9 @@ prediction quality.
 More details about weights compression, can be found in `OpenVINO
 documentation <https://docs.openvino.ai/2023.3/weight_compression.html>`__.
 
-   **Note**: There is no speedup for INT4 compressed models on dGPU.
+   **NOTE**: There is no speedup for INT4 compressed models on dGPU.
 
-Convert model to OpenVINO IR format `:math:`\Uparrow` <#table-of-content>`__
+Convert model to OpenVINO IR format
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
@@ -566,6 +570,15 @@ compression instead of INT8 weight compression.
 
     compression_mode
 
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Compression mode:', options=('INT4', 'INT8'), value='INT4')
+
+
+
 .. code:: ipython3
 
     if compression_mode.value == 'INT4':
@@ -578,7 +591,7 @@ compression instead of INT8 weight compression.
     if not compressed_model_dir.exists():
         compressed_model_dir.mkdir(exist_ok=True, parents=True)
         config.save_pretrained(compressed_model_dir)
-        model = LlavaMPTForCausalLM.from_pretrained(model_id)
+        model = LlavaMptForCausalLM.from_pretrained(model_id)
         vision_tower = model.get_vision_tower()
         if not vision_tower.is_loaded:
             vision_tower.load_model()
@@ -595,11 +608,6 @@ compression instead of INT8 weight compression.
         gc.collect();
 
 
-.. parsed-literal::
-
-    You are using config.init_device='cpu', but you can also use config.init_device="meta" with Composer + FSDP for fast initialization.
-
-
 
 .. parsed-literal::
 
@@ -608,18 +616,14 @@ compression instead of INT8 weight compression.
 
 .. parsed-literal::
 
-    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda-11.7'
-
-
-.. parsed-literal::
-
     Applying weight compression to image encoder
     INFO:nncf:Statistics of the bitwidth distribution:
-    +--------------+------------------+--------------------+
-    | Num bits (N) |   % all weight   | % internal weights |
-    +==============+==================+====================+
-    | 8            | 100% (139 / 139) | 100% (137 / 137)   |
-    +--------------+------------------+--------------------+
+    +--------------+---------------------------+-----------------------------------+
+    | Num bits (N) | % all parameters (layers) |    % ratio-defining parameters    |
+    |              |                           |             (layers)              |
+    +==============+===========================+===================================+
+    | 8            | 100% (139 / 139)          | 100% (139 / 139)                  |
+    +--------------+---------------------------+-----------------------------------+
 
 
 
@@ -629,14 +633,15 @@ compression instead of INT8 weight compression.
 
 
 
+
+
+
+
+
 .. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-
-
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
 
 
 
@@ -654,27 +659,29 @@ compression instead of INT8 weight compression.
 
 
 
+
+
+
+
+
 .. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-
-
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
 
 
 
 .. parsed-literal::
 
     INFO:nncf:Statistics of the bitwidth distribution:
-    +--------------+----------------+--------------------+
-    | Num bits (N) |  % all weight  | % internal weights |
-    +==============+================+====================+
-    | 8            | 24% (39 / 129) | 21% (37 / 127)     |
-    +--------------+----------------+--------------------+
-    | 4            | 76% (90 / 129) | 79% (90 / 127)     |
-    +--------------+----------------+--------------------+
+    +--------------+---------------------------+-----------------------------------+
+    | Num bits (N) | % all parameters (layers) |    % ratio-defining parameters    |
+    |              |                           |             (layers)              |
+    +==============+===========================+===================================+
+    | 8            | 23% (38 / 129)            | 21% (37 / 128)                    |
+    +--------------+---------------------------+-----------------------------------+
+    | 4            | 77% (91 / 129)            | 79% (91 / 128)                    |
+    +--------------+---------------------------+-----------------------------------+
 
 
 
@@ -684,14 +691,15 @@ compression instead of INT8 weight compression.
 
 
 
+
+
+
+
+
 .. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-
-
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
 
 
 
@@ -707,27 +715,29 @@ compression instead of INT8 weight compression.
 
 
 
+
+
+
+
+
 .. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-
-
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
 
 
 
 .. parsed-literal::
 
     INFO:nncf:Statistics of the bitwidth distribution:
-    +--------------+----------------+--------------------+
-    | Num bits (N) |  % all weight  | % internal weights |
-    +==============+================+====================+
-    | 8            | 24% (39 / 129) | 21% (37 / 127)     |
-    +--------------+----------------+--------------------+
-    | 4            | 76% (90 / 129) | 79% (90 / 127)     |
-    +--------------+----------------+--------------------+
+    +--------------+---------------------------+-----------------------------------+
+    | Num bits (N) | % all parameters (layers) |    % ratio-defining parameters    |
+    |              |                           |             (layers)              |
+    +==============+===========================+===================================+
+    | 8            | 26% (39 / 130)            | 21% (37 / 128)                    |
+    +--------------+---------------------------+-----------------------------------+
+    | 4            | 74% (91 / 130)            | 79% (91 / 128)                    |
+    +--------------+---------------------------+-----------------------------------+
 
 
 
@@ -737,14 +747,15 @@ compression instead of INT8 weight compression.
 
 
 
+
+
+
+
+
 .. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-
-
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
 
 
 
@@ -1041,7 +1052,7 @@ Select inference device
 
 Select device from dropdown list for running inference using OpenVINO.
 
-   **Note**: There is no speedup for INT4 compressed models on dGPU.
+   **NOTE**: There is no speedup for INT4 compressed models on dGPU.
 
 .. code:: ipython3
 
@@ -1063,7 +1074,7 @@ Select device from dropdown list for running inference using OpenVINO.
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=4, options=('CPU', 'GPU.0', 'GPU.1', 'GPU.2', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=3, options=('CPU', 'GPU.0', 'GPU.1', 'AUTO'), value='AUTO')
 
 
 
@@ -1186,7 +1197,7 @@ accumulating history of provided messages and images.
 .. parsed-literal::
 
     Answer:
-    When visiting this location, you should be cautious about the water conditions and potential hazards. The image shows a wooden pier or boardwalk extending into the water, which could be slippery or unstable, especially if the water is shallow or has strong currents. It is essential to exercise caution when walking on the pier or boardwalk, especially if you are carrying luggage or have children with you. Additionally, the presence of a boat in the water suggests that there might be boat traffic or other water-related activities nearby, so it is crucial to be aware of your surroundings and maintain a safe distance from any watercraft to avoid accidents or collisions.
+    When visiting this location, I should be cautious about the water level and the presence of boats. The image shows a dock with a boat in the water, and the water appears to be relatively shallow. It is essential to be mindful of the water depth when approaching the dock, as it could be dangerous to step into the water without checking the water level. Additionally, I should be aware of the boats in the water, as they could pose a risk if they are not properly secured or if they are not being used as intended. It is crucial to maintain a safe distance from the boats and follow any posted signs or guidelines to ensure a safe and enjoyable experience.
 
 
 Interactive demo
@@ -1364,18 +1375,3 @@ Interactive demo
         demo.queue(max_size=2).launch(debug=False)
     except Exception:
         demo.queue(max_size=2).launch(share=True, debug=False)
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-.. .. raw:: html
-
-..     <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
-
-

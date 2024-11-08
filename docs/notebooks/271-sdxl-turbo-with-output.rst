@@ -30,8 +30,34 @@ simplify the user experience, the `Hugging Face Optimum
 Intel <https://huggingface.co/docs/optimum/intel/index>`__ library is
 used to convert the models to OpenVINO™ IR format.
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
+
+-  `Prerequisites <#prerequisites>`__
+-  `Convert model to OpenVINO
+   format <#convert-model-to-openvino-format>`__
+-  `Text-to-image generation <#text-to-image-generation>`__
+
+   -  `Select inference device for text-to-image
+      generation <#select-inference-device-for-text-to-image-generation>`__
+
+-  `Image-to-Image generation <#image-to-image-generation>`__
+-  `Quantization <#quantization>`__
+
+   -  `Prepare calibration dataset <#prepare-calibration-dataset>`__
+   -  `Run quantization <#run-quantization>`__
+
+      -  `Compare UNet file size <#compare-unet-file-size>`__
+
+   -  `Compare inference time of the FP16 and INT8
+      models <#compare-inference-time-of-the-fp16-and-int8-models>`__
+
+-  `Interactive Demo <#interactive-demo>`__
+
 Prerequisites
 -------------
+
+
 
 .. code:: ipython3
 
@@ -40,6 +66,8 @@ Prerequisites
 
 Convert model to OpenVINO format
 --------------------------------
+
+
 
 `sdxl-turbo <https://huggingface.co/stabilityai/sdxl-turbo>`__ is
 available for downloading via the `HuggingFace
@@ -129,6 +157,8 @@ back to image format.
 Text-to-image generation
 ------------------------
 
+
+
 Text-to-image generation lets you create images using text description.
 To start generating images, we need to load models first. To load an
 OpenVINO model and run an inference with Optimum and OpenVINO Runtime,
@@ -139,6 +169,8 @@ should be passed. Additionally, you can specify an inference device.
 
 Select inference device for text-to-image generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -224,6 +256,8 @@ disabled using ``guidance_scale = 0``
 Image-to-Image generation
 -------------------------
 
+
+
 Image-to-image generation lets you transform images to match the
 characteristics provided in the text description. We can reuse the
 already converted model for running the Image2Image generation pipeline.
@@ -293,6 +327,8 @@ finally, we get 0.5 \* 2.0 = 1 step in our pipeline.
 Quantization
 ------------
 
+
+
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
 graph and then using a subset of the training dataset to initialize the
@@ -350,6 +386,8 @@ improve model inference speed.
 
 Prepare calibration dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 We use a portion of
 `conceptual_captions <https://huggingface.co/datasets/conceptual_captions>`__
@@ -431,6 +469,8 @@ model inputs for calibration we should customize ``CompiledModel``.
 
 Run quantization
 ~~~~~~~~~~~~~~~~
+
+
 
 Create a quantized model from the pre-trained converted OpenVINO model.
 Quantization of the first and last ``Convolution`` layers impacts the
@@ -543,6 +583,8 @@ data.
 Compare UNet file size
 ^^^^^^^^^^^^^^^^^^^^^^
 
+
+
 .. code:: ipython3
 
     %%skip not $to_quantize.value
@@ -564,6 +606,8 @@ Compare UNet file size
 
 Compare inference time of the FP16 and INT8 models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 To measure the inference performance of the ``FP16`` and ``INT8``
 pipelines, we use median inference time on calibration subset.
@@ -635,6 +679,8 @@ pipelines, we use median inference time on calibration subset.
 
 Interactive Demo
 ----------------
+
+
 
 Now, you can check model work using own text descriptions. Provide text
 prompt in the text box and launch generation using Run button.

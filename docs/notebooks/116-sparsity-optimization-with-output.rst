@@ -85,14 +85,14 @@ Imports
 
 .. parsed-literal::
 
-    2024-01-25 23:06:01.802535: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-01-25 23:06:01.837209: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-02-09 23:02:05.779349: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-02-09 23:02:05.814537: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
 .. parsed-literal::
 
-    2024-01-25 23:06:02.398511: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-02-09 23:02:06.378496: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Download, quantize and sparsify the model, using Hugging Face Optimum API
@@ -228,7 +228,7 @@ as an example. It is recommended to tune based on your applications.
 
 .. parsed-literal::
 
-    [ INFO ] Read model took 60.22 ms
+    [ INFO ] Read model took 62.38 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [?,?]
@@ -239,7 +239,7 @@ as an example. It is recommended to tune based on your applications.
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'input_ids': [1,64], 'attention_mask': [1,64], 'token_type_ids': [1,64]
-    [ INFO ] Reshape model took 23.06 ms
+    [ INFO ] Reshape model took 23.14 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [1,64]
@@ -252,7 +252,7 @@ as an example. It is recommended to tune based on your applications.
 
 .. parsed-literal::
 
-    [ INFO ] Compile model took 1064.23 ms
+    [ INFO ] Compile model took 1107.64 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: torch_jit
@@ -284,21 +284,21 @@ as an example. It is recommended to tune based on your applications.
 
 .. parsed-literal::
 
-    [ INFO ] First inference took 27.61 ms
+    [ INFO ] First inference took 30.14 ms
 
 
 .. parsed-literal::
 
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            8900 iterations
-    [ INFO ] Duration:         60039.72 ms
+    [ INFO ] Count:            8852 iterations
+    [ INFO ] Duration:         60038.32 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        26.68 ms
-    [ INFO ]    Average:       26.74 ms
-    [ INFO ]    Min:           25.09 ms
-    [ INFO ]    Max:           39.62 ms
-    [ INFO ] Throughput:   148.24 FPS
+    [ INFO ]    Median:        26.79 ms
+    [ INFO ]    Average:       26.86 ms
+    [ INFO ]    Min:           24.76 ms
+    [ INFO ]    Max:           42.20 ms
+    [ INFO ] Throughput:   147.44 FPS
 
 
 Benchmark quantized sparse inference performance
@@ -363,7 +363,7 @@ for which a layer will be enabled.
 
 .. parsed-literal::
 
-    [ INFO ] Read model took 67.79 ms
+    [ INFO ] Read model took 71.12 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [?,?]
@@ -378,7 +378,7 @@ for which a layer will be enabled.
 
 .. parsed-literal::
 
-    [ INFO ] Reshape model took 23.92 ms
+    [ INFO ] Reshape model took 23.54 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [1,64]
@@ -392,9 +392,9 @@ for which a layer will be enabled.
     Wrong value for property key CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE. Expected only float numbers
     
     Traceback (most recent call last):
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 408, in main
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 408, in main
         compiled_model = benchmark.core.compile_model(model, benchmark.device, device_config)
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/runtime/ie_api.py", line 547, in compile_model
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/runtime/ie_api.py", line 547, in compile_model
         super().compile_model(model, device_name, {} if config is None else config),
     RuntimeError: Exception from src/inference/src/core.cpp:99:
     [ GENERAL_ERROR ] Exception from src/plugins/intel_cpu/src/config.cpp:158:

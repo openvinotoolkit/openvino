@@ -5,7 +5,7 @@ ReadValue
 
 
 .. meta::
-  :description: Learn about ReadValue-6 - an infrastructure operation, which 
+  :description: Learn about ReadValue-6 - an infrastructure operation, which
                 can be performed on a single input tensor or without input tensors
                 to return the value of variable_id.
 
@@ -17,22 +17,25 @@ ReadValue
 
 **Detailed description**:
 
-ReadValue, Assign and Variable define a coherent mechanism for reading, writing and storing some memory buffer between inference calls.
-More details can be found on :doc:`StateAPI<openvino_docs_OV_UG_stateful_models_intro>` documentation page.
+*ReadValue*, *Assign*, and *Variable* define a coherent mechanism for reading, writing,
+and storing some memory buffer between inference calls. More details can be found on the
+:doc:`StateAPI<openvino_docs_OV_UG_stateful_models_intro>` documentation page.
 
-If 1st input is provided and this is the first inference or reset was called,
+If the 1st input is provided and this is the first inference or reset has been called,
 *ReadValue* returns the value from the 1st input.
 
-If 1st input is not provided and this is the first inference or reset was called,
+If the 1st input is not provided and this is the first inference or reset has been called,
 *ReadValue* returns the tensor with the ``variable_shape`` and ``variable_type`` and zero values.
 
-In all other cases *ReadValue* returns value from the corresponding ``variable_id`` Variable.
+In all other cases *ReadValue* returns the value from the corresponding ``variable_id`` variable.
 
-If the 1st input was provided, the operation checks that ``variable_shape`` and ``variable_type`` extend (relax)
-the shape and the type inferred from the 1st input and returns an error otherwise, e.g. if ``variable_type`` is specified
-as dynamic, it means that any type for 1st input is allowed but if it is specified as f32, only f32 type is allowed.
+If the 1st input has been provided, the operation checks if ``variable_shape`` and ``variable_type``
+extend (relax) the shape and type inferred from the 1st input. If not, it returns an error.
+For example, if ``variable_type`` is specified as dynamic, it means that any type for 1st input
+is allowed but if it is specified as f32, only f32 type is allowed.
 
-It is expected only one pair of ReadValue, Assign operations for each Variable in the model.
+Only one pair of ReadValue and Assign operations is expected for each Variable in the model.
+
 
 **Attributes**:
 
@@ -90,4 +93,4 @@ It is expected only one pair of ReadValue, Assign operations for each Variable i
         </output>
     </layer>
 
-    
+

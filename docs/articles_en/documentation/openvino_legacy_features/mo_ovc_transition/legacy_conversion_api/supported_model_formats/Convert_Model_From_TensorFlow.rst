@@ -4,14 +4,14 @@
 ============================================
 
 .. meta::
-   :description: Learn how to convert a model from a 
+   :description: Learn how to convert a model from a
                  TensorFlow format to the OpenVINO Intermediate Representation.
 
 .. danger::
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Converting a TensorFlow Model <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow>` article. 
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Converting a TensorFlow Model <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow>` article.
 
 
 .. note:: TensorFlow models are supported via :doc:`FrontEnd API <openvino_docs_MO_DG_TensorFlow_Frontend>`. You may skip conversion to IR and read models directly by OpenVINO runtime API. Refer to the :doc:`inference example <openvino_docs_OV_UG_Integrate_OV_with_your_application>` for more details. Using ``convert_model`` is still necessary in more complex cases, such as new custom inputs/outputs in model pruning, adding pre-processing, or using Python conversion extensions.
@@ -125,7 +125,7 @@ TensorFlow 2 SavedModel format has a specific graph structure due to eager execu
 pruning, find custom input nodes in the ``StatefulPartitionedCall/*`` subgraph.
 
 Since the 2023.0 release, direct pruning of models in SavedModel format is not supported.
-It is essential to freeze the model before pruning. Use the following code snippet for model freezing: 
+It is essential to freeze the model before pruning. Use the following code snippet for model freezing:
 
 .. code-block:: py
    :force:
@@ -208,6 +208,9 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
   .. code-block:: py
      :force:
 
+     import tensorflow as tf
+     from openvino.tools.mo import convert_model
+
      model = tf.keras.applications.ResNet50(weights="imagenet")
      ov_model = convert_model(model)
 
@@ -218,6 +221,7 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
      :force:
 
      import tensorflow_hub as hub
+     from openvino.tools.mo import convert_model
 
      model = hub.KerasLayer("https://tfhub.dev/google/imagenet/mobilenet_v1_100_224/classification/5")
      ov_model = convert_model(model, input_shape=[-1, 224, 224, 3])
@@ -226,6 +230,9 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
 
   .. code-block:: py
      :force:
+
+     import tensorflow as tf
+     from openvino.tools.mo import convert_model
 
      class MyModule(tf.Module):
         def __init__(self, name=None):
@@ -243,6 +250,9 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
   .. code-block:: py
      :force:
 
+     import tensorflow as tf
+     from openvino.tools.mo import convert_model
+
      with tf.compat.v1.Session() as sess:
         inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
         inp2 = tf.compat.v1.placeholder(tf.float32, [100], 'Input2')
@@ -256,6 +266,9 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
 
   .. code-block:: py
      :force:
+
+     import tensorflow as tf
+     from openvino.tools.mo import convert_model
 
      with tf.compat.v1.Session() as sess:
         inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
@@ -271,6 +284,9 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
   .. code-block:: py
      :force:
 
+     import tensorflow as tf
+     from openvino.tools.mo import convert_model
+
      @tf.function(
         input_signature=[tf.TensorSpec(shape=[1, 2, 3], dtype=tf.float32),
                          tf.TensorSpec(shape=[1, 2, 3], dtype=tf.float32)])
@@ -284,6 +300,9 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
   .. code-block:: py
      :force:
 
+     import tensorflow as tf
+     from openvino.tools.mo import convert_model
+
      with tf.compat.v1.Session() as sess:
         inp1 = tf.compat.v1.placeholder(tf.float32, [100], 'Input1')
         inp2 = tf.compat.v1.placeholder(tf.float32, [100], 'Input2')
@@ -296,6 +315,9 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
 
   .. code-block:: py
      :force:
+
+     import tensorflow as tf
+     from openvino.tools.mo import convert_model
 
      model = tf.keras.Model(...)
      checkpoint = tf.train.Checkpoint(model)

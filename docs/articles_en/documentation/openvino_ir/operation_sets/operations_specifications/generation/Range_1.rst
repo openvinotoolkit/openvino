@@ -5,7 +5,7 @@ Range
 
 
 .. meta::
-  :description: Learn about Range-1 - a generation operation, which can be 
+  :description: Learn about Range-1 - a generation operation, which can be
                 performed on three required input tensors.
 
 **Versioned name**: *Range-1*
@@ -46,7 +46,7 @@ For a positive ``step``:
 for a negative ``step``:
 
 .. math::
- 
+
    start>=val[i]>stop,
 
 
@@ -66,16 +66,16 @@ where
 
     <layer ... type="Range">
         <input>
-            <port id="0">  < !-- start value: 2 -->
+            <port id="0">  <!-- start value: 2 -->
             </port>
-            <port id="1">  < !-- stop value: 23 -->
+            <port id="1">  <!-- stop value: 23 -->
             </port>
-            <port id="2">  < !-- step value: 3 -->
+            <port id="2">  <!-- step value: 3 -->
             </port>
         </input>
         <output>
             <port id="3">
-                <dim>7</dim> < !-- [ 2,  5,  8, 11, 14, 17, 20] -->
+                <dim>7</dim> <!-- [ 2,  5,  8, 11, 14, 17, 20] -->
             </port>
         </output>
     </layer>
@@ -88,16 +88,16 @@ where
 
     <layer ... type="Range">
         <input>
-            <port id="0">  < !-- start value: 23 -->
+            <port id="0">  <!-- start value: 23 -->
             </port>
-            <port id="1">  < !-- stop value: 2 -->
+            <port id="1">  <!-- stop value: 2 -->
             </port>
-            <port id="2">  < !-- step value: -3 -->
+            <port id="2">  <!-- step value: -3 -->
             </port>
         </input>
         <output>
             <port id="3">
-                <dim>7</dim> < !-- [23, 20, 17, 14, 11, 8, 5] -->
+                <dim>7</dim> <!-- [23, 20, 17, 14, 11, 8, 5] -->
             </port>
         </output>
     </layer>

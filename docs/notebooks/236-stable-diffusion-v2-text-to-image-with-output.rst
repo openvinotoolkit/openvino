@@ -950,7 +950,7 @@ Now, you can define a text prompts for image generation and run
 inference pipeline. Optionally, you can also change the random generator
 seed for latent state initialization and number of steps.
 
-   **Note**: Consider increasing ``steps`` to get more precise results.
+   **NOTE**: Consider increasing ``steps`` to get more precise results.
    A suggested value is ``50``, but it will take longer time to process.
 
 .. code:: ipython3

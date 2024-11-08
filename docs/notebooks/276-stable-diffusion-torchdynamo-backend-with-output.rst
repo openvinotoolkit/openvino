@@ -1,5 +1,5 @@
-Stable Diffusion v2.1 using OpenVINO ``TorchDynamo`` backend
-============================================================
+Stable Diffusion v2.1 using OpenVINO TorchDynamo backend
+========================================================
 
 Stable Diffusion v2 is the next generation of Stable Diffusion model a
 Text-to-Image latent diffusion model created by the researchers and
@@ -43,6 +43,18 @@ Table of contents:
 -  `Support for Automatic1111 Stable Diffusion
    WebUI <#support-for-automatic1111-stable-diffusion-webui>`__
 
+.. code:: ipython3
+
+    import sys
+    from IPython.display import HTML, display
+
+    sys.path.append("../utils")
+    from ipython_exit import exit
+
+    if sys.platform == "win32":
+        display(HTML("""<div class="alert alert-danger">Currently notebook does not support Windows platform"""))
+        exit()
+
 Prerequisites
 -------------
 
@@ -56,7 +68,7 @@ Prerequisites
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
 
 
 .. parsed-literal::
@@ -66,7 +78,7 @@ Prerequisites
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
 
 
 .. parsed-literal::
@@ -87,14 +99,20 @@ Prerequisites
 
 .. parsed-literal::
 
-    2024-01-26 00:22:47.314279: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-01-26 00:22:47.347458: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-02-10 00:40:19.136206: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-02-10 00:40:19.170875: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
 .. parsed-literal::
 
-    2024-01-26 00:22:47.901537: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-02-10 00:40:19.867185: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+      torch.utils._pytree._register_pytree_node(
 
 
 Stable Diffusion with Diffusers library
@@ -208,12 +226,12 @@ backend:
 
     pipe.unet = torch.compile(pipe.unet, backend="openvino", options={"device": device.value, "model_caching": model_caching.value})
 
-   **Note**: Read more about available `OpenVINO
+   **NOTE**: Read more about available `OpenVINO
    backends <https://docs.openvino.ai/2023.3/pytorch_2_0_torch_compile.html#how-to-use>`__
 
 ..
 
-   **Note**: Currently, PyTorch does not support torch.compile feature
+   **NOTE**: Currently, PyTorch does not support torch.compile feature
    on Windows officially. Please follow `these
    instructions <https://docs.openvino.ai/2023.3/pytorch_2_0_torch_compile.html#windows-support>`__
    if you want to access it on Windows.
@@ -238,7 +256,7 @@ Run Image generation
 
 
 
-.. image:: 276-stable-diffusion-torchdynamo-backend-with-output_files/276-stable-diffusion-torchdynamo-backend-with-output_13_1.png
+.. image:: 276-stable-diffusion-torchdynamo-backend-with-output_files/276-stable-diffusion-torchdynamo-backend-with-output_15_1.png
 
 
 
@@ -393,7 +411,7 @@ pipeline. Optionally, you can also change some input parameters.
 
 .. .. raw:: html
 
-..     <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
 
 Support for Automatic1111 Stable Diffusion WebUI
@@ -407,5 +425,4 @@ generation. It allows users to create realistic and creative images from
 text prompts. Stable Diffusion WebUI is supported on Intel CPUs, Intel
 integrated GPUs, and Intel discrete GPUs by leveraging OpenVINO
 torch.compile capability. Detailed instructions are available
-in\ `Stable Diffusion WebUI
-repository <https://github.com/openvinotoolkit/stable-diffusion-webui/wiki/Installation-on-Intel-Silicon>`__.
+in `Stable Diffusion WebUI repository <https://github.com/openvinotoolkit/stable-diffusion-webui/wiki/Installation-on-Intel-Silicon>`__.

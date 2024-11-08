@@ -54,6 +54,8 @@ Table of contents:
 -  `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
 -  `Configure Inference Pipeline <#configure-inference-pipeline>`__
 
+   -  `Calibrate UNet for GPU
+      inference <#calibrate-unet-for-gpu-inference>`__
    -  `Text-to-Image generation <#text-to-image-generation>`__
    -  `Image-to-Image generation <#image-to-image-generation>`__
    -  `Interactive Demo <#interactive-demo>`__
@@ -862,6 +864,8 @@ Select device from dropdown list for running inference using OpenVINO.
 Calibrate UNet for GPU inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+
+
 On a GPU device a model is executed in FP16 precision. For Tiny-SD UNet
 model there known to be accuracy issues caused by this. Therefore, a
 special calibration procedure is used to selectively mark some
@@ -1190,5 +1194,5 @@ Interactive Demo
 
 .. .. raw:: html
 
-..     <div><iframe src="http://127.0.0.1:7863/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..    <div><iframe src="http://127.0.0.1:7863/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
