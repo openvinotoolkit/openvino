@@ -32,6 +32,8 @@ Result ReshapeShapeInfer::infer(const std::vector<std::reference_wrapper<const V
     for (int32_t i = 0; i < outputPatternSize; ++i) {
         if (outPattern[i] == 0 && m_specialZero && i < static_cast<int32_t>(inputShapeSize)) {
             outputShape[i] = inputShape[i];
+            if (!inputShape[i])
+                outputProduct = 0;
         } else if (outPattern[i] == -1) {
             minusOneIdx = i;
             minusOneCount++;
@@ -43,6 +45,8 @@ Result ReshapeShapeInfer::infer(const std::vector<std::reference_wrapper<const V
     size_t inputProduct = 1;
     for (size_t i = 0; i < inputShapeSize; ++i) {
         if (static_cast<int>(i) < outputPatternSize && outPattern[i] == 0 && m_specialZero) {
+            if (!inputShape[i])
+                inputProduct = 0;
             continue;
         }
         inputProduct *= inputShape[i];
