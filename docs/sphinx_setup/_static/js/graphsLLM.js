@@ -1,10 +1,194 @@
-// =================== ADDITIONAL OUTPUT CONFIG =========================
+// =================== GENERAL OUTPUT CONFIG =========================
+
+class Filter {
+
+    // param: GraphData[], networkModels[]
+    static FilterByNetworkModel(graphDataArr, networkModels) {
+        const optionMap = new Map();
+        networkModels.map((model) => graphDataArr.filter((graphData => graphData.Model === model)))
+            .flat(1)
+            .forEach(item => optionMap.set(item.Platform, item));
+        return Array.from(optionMap.values());
+    }
+
+    // param: GraphData[], ieType
+    static ByIeTypes(graphDataArr, ieTypes) {
+        const optionMap = new Map();
+        graphDataArr
+            .filter(graphData => ieTypes.includes(graphData.PlatformType))
+            .forEach(item => optionMap.set(item.Platform, item));
+        return Array.from(optionMap.values());
+    }
+
+    // param: GraphData[], ieType, networkModels
+    static ByTypesAndModels(graphDataArr, ieTypes, models) {
+        const optionMap = new Map();
+        graphDataArr
+            .filter(graphData => ieTypes.includes(graphData.PlatformType))
+            .filter(graphData => models.includes(graphData.Model))
+            .forEach(item => optionMap.set(item.Platform, item));
+        return Array.from(optionMap.values());
+    }
+
+    // param: GraphData[], clientPlatforms
+    static ByIeKpis(graphDataArr, clientPlatforms) {
+        var kpis = []
+        clientPlatforms.forEach((platformName) => {
+            graphDataArr.filter((data) => {
+                if (data.Platform.includes(platformName)) {
+                    for (var key in data.Parameters) {
+                        if (!kpis.includes(key)) kpis.push(key)
+                    }
+                }
+            })
+        })
+        return kpis;
+    }
+
+    // param: GraphData[]
+    static getParameters(graphDataArr) {
+        var parameters = []
+        graphDataArr.filter((data) => {
+            for (var key in data.Parameters) {
+                if (!parameters.includes(Graph.capitalizeFirstLetter(key))) parameters.push(Graph.capitalizeFirstLetter(key))
+            }
+        })
+        return parameters;
+    }
+
+    // param: GraphData[]
+    static getIeTypes(graphDataArr) {
+        var kpis = []
+        graphDataArr.filter((data) => {
+            for (var key in data.Parameters) {
+                if (!kpis.includes(Graph.capitalizeFirstLetter(key))) kpis.push(Graph.capitalizeFirstLetter(key))
+            }
+        })
+        return kpis;
+    }
+
+    // param: GraphData[], clientPlatforms[]
+    static ByClientPlatforms(graphDataArr, platformsArr) {
+        return graphDataArr.filter((data) => {
+            return platformsArr.includes(data.Platform)
+        });
+    }
+
+    // param: GraphData[], coreTypes[]
+    static FilterByCoreTypes(graphDataArr, coreTypes) {
+        if (coreTypes) {
+            return graphDataArr.filter((data) => coreTypes.includes(data.PlatformType));
+        }
+        return graphDataArr;
+    }
+}
+
+class Modal {
+    static getPrecisionsLabels(graphDataArr) {
+        var kpis = []
+        graphDataArr.filter((data) => {
+            for (var key in data.Parameters) {
+                data.Parameters[key].Precisions.forEach((key) => {
+                    Object.keys(key).forEach((key) => {
+                        if (!kpis.includes(key.toUpperCase())) kpis.push(key.toUpperCase())
+                    });
+                })
+            }
+        })
+        return kpis;
+    }
+
+    static getPrecisions(appConfig, labels) {
+        return labels.map((label) => {
+            var prec = appConfig.PrecisionsMap[label];
+            if (prec !== undefined) {
+                return prec;
+            }
+            else {
+                return "no name";
+            }
+        });
+    }
+}
+
+class Graph {
+    // functions to get unique keys 
+    static getNetworkModels(graphDataArr) {
+        return Array.from(new Set(graphDataArr.map((obj) => obj.Model)));
+    }
+    static getIeTypes(graphDataArr) {
+        return Array.from(new Set(graphDataArr.map((obj) => obj.PlatformType)));
+    }
+    static getCoreTypes(graphDataArr) {
+        return Array.from(new Set(graphDataArr.map((obj) => obj.ieType)));
+    }
+
+    // param: GraphData[]
+    static getPlatformNames(graphDataArr) {
+        return graphDataArr.map((data) => data.Platform);
+    }
+
+    // param: GraphData[], engine: string, precisions: list
+    static getDatabyParameter(graphDataArr, engine, array) {
+        if (!Array.isArray(array[engine])) {
+            array[engine] = [];
+        }
+        array[engine].push(graphDataArr.Parameters[engine].Precisions);
+        return array;
+    }
+
+    // this returns an object that is used to ender the chart
+    static getGraphConfig(engine, precisions, appConfig) {
+        return {
+            chartTitle: 'Throughput vs Latency',
+            iconClass: 'latency-icon',
+            datasets: precisions.map((precision) => appConfig.PrecisionData[engine][precision]),
+            unit: "None"
+        };
+    }
+    // param: GraphData[], parameterName: string, precisions: list
+    static getDatabyParameterOld(graphDataArr, parameterName, precisions) {
+        var array = [];
+        graphDataArr.forEach((item) => {
+            if (item.Parameters[parameterName] !== undefined) {
+                array.push(item.Parameters[parameterName].Precisions);
+            }
+            else {
+                var obj = {};
+                precisions.forEach((prec) => {
+                    obj[prec] = 0;
+                })
+                array.push([obj])
+            }
+        })
+        return array;
+
+    }
+
+    // this returns an object that is used to ender the chart
+    static getGraphConfigOld(parameterName, item, precisions, appConfig) {
+        return {
+            chartTitle: Graph.capitalizeFirstLetter(parameterName),
+            iconClass: parameterName + '-icon',
+            unit: item.Parameters[parameterName]?.Unit,
+            datasets: precisions.map((precision) => appConfig.PrecisionData[precision]),
+        };
+    }
+    static capitalizeFirstLetter(string) {
+        return string.charAt(0).toUpperCase() + string.slice(1);
+    }
+}
+
+class ChartDisplay {
+    constructor(mode, numberOfCharts) {
+        this.mode = mode;
+        this.numberOfChartsInRow = numberOfCharts;
+    }
+}
 
 $(document).ready(function () {
-
-    $('.ov-toolkit-benchmark-results').on('click', () => showModal("graph-data-ov.json"));
-    $('.ovms-toolkit-benchmark-results').on('click', () => showModal("graph-data-ovms.json"));
-    function clickBuildGraphs(graph, appConfig, networkModels, ieTypes, platforms, kpis, precisions) {
+    $('.ovms-toolkit-benchmark-llm-result').on('click', () => showModal("graph-data-ovms-genai.json"));
+    function clickBuildGraphsLLM(graph, appConfig, networkModels, ieTypes, platforms, kpis, precisions) {
         renderData(graph, appConfig, networkModels, ieTypes, platforms, kpis, precisions);
         $('.modal-footer').show();
         $('#modal-display-graphs').show();
@@ -17,6 +201,7 @@ $(document).ready(function () {
 
         $('.graph-chart-title-header').off('click').on('click', (event) => {
             var parent = event.target.parentElement;
+
             if ($(parent).children('.chart-wrap,.empty-chart-container').is(":visible")) {
                 $(parent).children('.chart-wrap,.empty-chart-container').hide();
                 $(parent).children('.chevron-right-btn').show();
@@ -37,7 +222,7 @@ $(document).ready(function () {
     function showModal(file) {
         $('body').css('overflow', 'hidden');
 
-        fetch('../_static/benchmarks_files/data/'+ file)
+        fetch('../_static/benchmarks_files/data/' + file)
             .then((response) => response.json())
             .then((jsonData) => {
                 fetch('../_static/benchmarks_files/graph-config.json')
@@ -97,7 +282,7 @@ $(document).ready(function () {
         new Graph(graph);
         var networkModels = Graph.getNetworkModels(graph);
         var ieTypes = Graph.getIeTypes(graph);
-        fetch('../_static/html/modal.html').then((response) => response.text()).then((text) => {
+        fetch('../_static/html/modalLLM.html').then((response) => response.text()).then((text) => {
 
             // generate and configure modal container
             var modal = $('<div>');
@@ -111,10 +296,10 @@ $(document).ready(function () {
             const models = networkModels.map((networkModel) => createCheckMark(networkModel, 'networkmodel'));
             modal.find('.models-column').append(models);
 
-            const selectAllModelsButton = createCheckMark('', 'networkmodel');            
+            const selectAllModelsButton = createCheckMark('', 'networkmodel');
             modal.find('.models-selectall').append(selectAllModelsButton);
 
-            const selectAllPlatformsButton = createCheckMark('', 'platform');  
+            const selectAllPlatformsButton = createCheckMark('', 'platform');
             modal.find('.platforms-selectall').append(selectAllPlatformsButton);
 
             const precisions = Modal.getPrecisionsLabels(graph).map((precision) => createCheckMark(precision, 'precision', false));
@@ -142,14 +327,14 @@ $(document).ready(function () {
             //is not generic solution :(
             if (appConfig.DefaultSelections.platformTypes?.data?.includes('Select All')) {
                 selectAllCheckboxes(iefilter);
-                
+
             };
             renderClientPlatforms(graph, modal);
 
             $('.clear-all-btn').on('click', clearAll);
             $('#build-graphs-btn').on('click', () => {
                 $('#modal-configure-graphs').hide();
-                clickBuildGraphs(graph, appConfig, getSelectedNetworkModels(), getSelectedIeTypes(), getSelectedClientPlatforms(), getSelectedKpis(), Modal.getPrecisions(appConfig, getSelectedPrecisions()));
+                clickBuildGraphsLLM(graph, appConfig, getSelectedNetworkModels(), getSelectedIeTypes(), getSelectedClientPlatforms(), getSelectedKpis(), Modal.getPrecisions(appConfig, getSelectedPrecisions()));
             });
             $('.modal-close').on('click', hideModal);
             $('.close-btn').on('click', hideModal);
@@ -163,18 +348,18 @@ $(document).ready(function () {
             modal.find('.models-selectall input').on('click', function () {
                 if ($(this).prop('checked')) selectAllCheckboxes(models);
                 else deSelectAllCheckboxes(models);
-                
+
                 renderClientPlatforms(graph, modal)
             });
 
             modal.find('.platforms-selectall input').on('click', function () {
-                if ($(this).prop('checked')) 
+                if ($(this).prop('checked'))
                     renderClientPlatforms(graph, modal)
                 else {
                     var enabledPlatforms = modal.find('.platforms-column .checkmark-container');
                     deSelectCheckbox(enabledPlatforms);
                 };
-                
+
             });
 
             modal.find('.models-column input').on('click', function () {
@@ -232,38 +417,38 @@ $(document).ready(function () {
     function preselectDefaultSettings(graph, modal, appConfig) {
 
         const defaultSelections = appConfig.DefaultSelections;
-    
+
         selectDefaultPlatformType(defaultSelections.platformTypes, graph, modal);
-    
+
         applyPlatformFilters(defaultSelections.platformFilters, modal, graph);
-    
+
         clearAllSettings(defaultSelections);
 
         validateSelections();
         validatePrecisionSelection();
     }
-    
+
     function selectDefaultPlatformType(platformTypes, graph, modal) {
         if (!platformTypes) return;
-    
+
         const type = platformTypes.data[0];
         $(`input[data-ietype="${type}"]`).prop('checked', true);
         renderClientPlatforms(graph, modal);
     }
-    
+
     function applyPlatformFilters(platformFilters, modal, graph) {
         if (!platformFilters) return;
-    
+
         const filters = modal.find('.selectable-box-container').children('.selectable-box');
         filters.removeClass('selected');
-    
+
         platformFilters.data.forEach(selection => {
             filters.filter(`[data-${platformFilters.name}="${selection}"]`).addClass('selected');
         });
-    
+
         renderClientPlatforms(graph, modal);
     }
-    
+
     function clearAllSettings(defaultSelections) {
         clearAll();
         Object.keys(defaultSelections).forEach(setting => {
@@ -288,7 +473,7 @@ $(document).ready(function () {
         $('.platforms-column .checkmark-container').remove();
 
         const clientPlatforms = platformNames.map((platform) => createCheckMark(platform, 'platform', true));
-        
+
         var enabledPlatforms = filterPlatforms(graph, getSelectedIeTypes(), getSelectedNetworkModels());
         enableCheckBoxes(clientPlatforms, enabledPlatforms);
         modal.find('.platforms-column').append(clientPlatforms);
@@ -330,11 +515,11 @@ $(document).ready(function () {
     }
 
     function enableCheckBoxes(items, enabledItems) {
-        items.forEach((item) => {            
+        items.forEach((item) => {
             item.find(':input').prop('disabled', true);
             enabledItems.forEach((platform) => {
                 var tmp = item.find(':input');
-                if(tmp[0].dataset.platform === platform.Platform){
+                if (tmp[0].dataset.platform === platform.Platform) {
                     item.find(':input').prop('checked', true);
                     item.find(':input').prop('disabled', false);
                 }
@@ -397,13 +582,7 @@ $(document).ready(function () {
                 li.style.marginLeft = '4px';
 
                 li.onclick = () => {
-                    const { type } = chart.config;
-                    if (type === 'pie' || type === 'doughnut') {
-                        // Pie and doughnut charts only have a single dataset and visibility is per item
-                        chart.toggleDataVisibility(item.index);
-                    } else {
-                        chart.setDatasetVisibility(item.datasetIndex, !chart.isDatasetVisible(item.datasetIndex));
-                    }
+                    chart.toggleDataVisibility(item.index);
                     chart.update();
                 };
 
@@ -436,52 +615,40 @@ $(document).ready(function () {
         }
     };
 
-    function getChartOptions(title, containerId) {
+    function getChartOptions(containerId, allowedAxisIDs) {
+        const axisConfigs = {
+            x: {
+                title: { display: true, text: 'Request Rate' }
+            },
+            y: {
+                type: 'linear',
+                display: true,
+                position: 'left',
+                title: { display: true, text: 'Throughput [tok/s]' },
+                grid: { drawOnChartArea: true }
+            },
+            y1: {
+                type: 'linear',
+                display: true,
+                position: 'right',
+                title: { display: true, text: 'TPOT Mean Latency' },
+                grid: { drawOnChartArea: true }
+            }
+        };
+
         return {
             responsive: true,
-            indexAxis: 'y',
-            maintainAspectRatio: false,
-            title: {
-                display: false,
-                text: title
-            },
-            scales: {
-                x: {
-                    ticks: {
-                        beginAtZero: true
-                    }
-                },
-                y: {
-                    ticks: {
-                        display: false,
-                        beginAtZero: true
-                    }
-                }
-            },
+            scales: Object.keys(axisConfigs)
+                .filter(key => allowedAxisIDs.includes(key))
+                .reduce((obj, key) => {
+                    obj[key] = axisConfigs[key];
+                    return obj;
+                }, {}),
             plugins: {
-                legend: {
-                    display: false
-                },
-                htmlLegend: {
-                    containerID: containerId,
-                }
+                legend: { display: false },
+                htmlLegend: { containerID: containerId }
             }
-        }
-    }
-
-    function getChartDataNew(labels, datasets) {
-        return {
-            labels: labels,
-            datasets: datasets.map((item) => {
-                return {
-                    label: item.label,
-                    data: item.data,
-                    backgroundColor: item.color,
-                    borderColor: 'rgba(170,170,170,0)',
-                    barThickness: 10
-                }
-            })
-        }
+        };
     }
 
     function renderData(graph, appConfig, networkModels, ieTypes, platforms, kpis, precisions) {
@@ -489,7 +656,6 @@ $(document).ready(function () {
         $('.modal-footer').empty();
 
         const display = new ChartDisplay(getChartsDisplayMode(kpis.length), kpis.length);
-
         networkModels.forEach((networkModel) => {
             var chartName = networkModel;
             var chartSlug = chartName.replace(')', '').replace(' (', '-');
@@ -510,7 +676,7 @@ $(document).ready(function () {
             var filteredGraphData = Filter.ByClientPlatforms(filteredIeTypes, platforms);
             $('.chart-placeholder').append(chartContainer);
             if (filteredGraphData.length > 0) {
-                createChartWithNewData(filteredGraphData, appConfig, chartContainer, kpis, ieTypes, precisions, display);
+                createChartWithNewData(filteredGraphData, appConfig, chartContainer, kpis, precisions, display);
             } else {
                 createEmptyChartContainer(chartContainer);
             }
@@ -526,22 +692,27 @@ $(document).ready(function () {
 
     // this function should take the final data set and turn it into graphs
     // params: GraphData, unused, chartContainer
-    function createChartWithNewData(model, appConfig, chartContainer, parameters, ietype, precisions, display) {
+    function createChartWithNewData(graphData, appConfig, chartContainer, engines, precisions, display) {
         var chartWrap = $('<div>');
         chartWrap.addClass('chart-wrap');
         chartContainer.append(chartWrap);
-        var graphConfigs = parameters.map((parameter) => {
-            var groupUnit = model[0];
-            var kpiData = Graph.getDatabyParameterOld(model, appConfig.ParametersMap[parameter], precisions);
-            var config = Graph.getGraphConfigOld(appConfig.ParametersMap[parameter], groupUnit, precisions, JSON.parse(JSON.stringify(appConfig)));
-            precisions.forEach((precision, index) => {
-                config.datasets[index].data = kpiData.map(tData => tData[0][precision]);
+        var graphConfigs = graphData.map((platform) => {
+            var kpiData = [];
+            engines.forEach((engine) => Graph.getDatabyParameter(platform, engine, kpiData));
+            var graphConfig = [];
+            engines.forEach((engine) => {
+                const engineGraphConfig = { engine: engine, config: Graph.getGraphConfig(engine, precisions, JSON.parse(JSON.stringify(appConfig))) };
+                precisions.forEach((precision, index) => {
+                    engineGraphConfig.config.datasets[index].data = kpiData[engine][0].find(el => el[precision])?.[precision];
+                });
+                graphConfig.push(engineGraphConfig);
+                graphConfig.chartTitle = platform.Platform;
             });
-            return config;
-        });
-        
+            return graphConfig
+        })
+
         // get the client platform labels and create labels for all the graphs
-        var labels = Graph.getPlatformNames(model);
+        var labels = Graph.getPlatformNames(graphData);
         var labelsContainer = $('<div>');
         labelsContainer.addClass('chart-labels-container');
         chartWrap.append(labelsContainer);
@@ -566,40 +737,25 @@ $(document).ready(function () {
             columnHeaderContainer.append(columnIcon);
             var columnHeader = $('<div class="chart-header">');
             columnHeader.append($('<div class="title">' + graphConfig.chartTitle + '</div>'));
-            columnHeader.append($('<div class="subtitle">' + graphConfig.unit + ' ' + appConfig.UnitDescription[graphConfig.unit] + '</div>'));
             columnHeaderContainer.append(columnHeader);
             chartGraphsContainer.append(graphItem);
             var graphClass = $('<div>');
             graphClass.addClass('graph-row');
-
             graphItem.append(columnHeaderContainer);
             graphItem.append(graphClass);
-            processMetricNew(labels, graphConfig.datasets, graphConfig.chartTitle, graphClass, 'graph-row-column', id);
-
+            processMetricNew(labels, graphConfig, graphClass, 'graph-row-column', id);
             window.setTimeout(() => {
-                const topPadding = getLabelsTopPadding(display.mode);
-                const labelsHeight = (labels.length * 55);
-                const chartHeight = $(graphItem).outerHeight();
-                const bottomPadding = (chartHeight - (topPadding + labelsHeight));
                 var labelsItem = $('<div>');
-                labelsItem.addClass('chart-labels-item');
-                labels.forEach((label) => {
-                    labelsItem.append($('<div class="title">' + label + '</div>'));
-                });
-
-                labelsItem.css('padding-top', topPadding + 'px');
-                labelsItem.css('padding-bottom', bottomPadding + 'px');
                 setInitialItemsVisibility(labelsItem, index, display.mode);
-                labelsContainer.append(labelsItem);
             });
         });
         setChartsDisplayDirection(display.mode);
         adjustHeaderIcons(display.mode);
     }
 
-    function processMetricNew(labels, datasets, chartTitle, container, widthClass, id) {
+    function processMetricNew(labels, datasets, container, widthClass, id) {
         // ratio for consistent chart label height
-        var heightRatio = (30 + (labels.length * 55));
+        var heightRatio = (80 + (labels.length * 55));
         var chart = $('<div>');
         const containerId = `legend-container-${id}`;
         const legend = $(`<div id="${containerId}">`);
@@ -614,10 +770,46 @@ $(document).ready(function () {
         var context = canvas.get(0).getContext('2d');
         context.canvas.height = heightRatio;
         window.setTimeout(() => {
+            var labels = [];
+            for (const key in datasets[0].config.datasets[0].data) {
+                labels.push(key);
+            }
+
+            var graphDatas = [];
+            datasets.forEach((engineSet) => {
+                engineSet.config.datasets.forEach((precision) => {
+                    var precData = [];
+                    for (const key in precision.data) {
+                        precData.push(precision.data[key]);
+                    }
+                    graphDatas.push({
+                        label: engineSet.engine + ' ' + precision.label,
+                        data: precData,
+                        borderColor: precision.color,
+                        backgroundColor: precision.color,
+                        yAxisID: precision.label === "Throughput" ? 'y' : 'y1',
+                        fill: false
+                    }
+                    )
+                })
+            })
+
+            let allowedAxisIDs = ['x'];
+            const newAxisIDs = [...new Set(graphDatas.map(item => item.yAxisID))];
+
+            newAxisIDs.forEach(id => {
+                if (!allowedAxisIDs.includes(id)) {
+                    allowedAxisIDs.push(id);
+                }
+            });
+
             new Chart(context, {
-                type: 'bar',
-                data: getChartDataNew(labels, datasets),
-                options: getChartOptions(chartTitle, containerId),
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: graphDatas
+                },
+                options: getChartOptions(containerId, allowedAxisIDs),
                 plugins: [htmlLegendPlugin]
             });
         });
