@@ -83,11 +83,11 @@ KERNEL(dynamic_quantize_gpu_kv_cache)(
 #if ASYMMETRIC_QUANTIZATION
     min_value = work_group_reduce_min(min_value);
     max_value = work_group_reduce_max(max_value);
-    OUTPUT1_TYPE scale = (OUTPUT1_TYPE)((CHAR_MAX - CHAR_MIN) / (max_value - min_value));
-    OUTPUT1_TYPE zp = (OUTPUT1_TYPE)(-min_value * scale) - CHAR_MAX;
+    ACCUMULATOR_TYPE scale = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / (max_value - min_value));
+    ACCUMULATOR_TYPE zp = (ACCUMULATOR_TYPE)(-min_value * scale) - CHAR_MAX;
 #else
     max_value = work_group_reduce_max(max_value);
-    OUTPUT1_TYPE scale = 127.0h / max_value;
+    ACCUMULATOR_TYPE scale = 127.0h / max_value;
 #endif
 
 #ifdef APPEND_MODE
