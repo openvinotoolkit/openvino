@@ -1,28 +1,16 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/itt.hpp"
-
 #include "move_brgemm_repacking_out.hpp"
 
-#include "snippets/utils/utils.hpp"
-#include "snippets/op/brgemm.hpp"
-#include "snippets/op/buffer.hpp"
-#include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
-#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-#include "transformations/tpp/x64/op/modifiers.hpp"
-
-#include "openvino/core/rt_info.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/pattern/matcher.hpp"
-
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/op/rank_normalization.hpp"
+#include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
-
-#include "cpu_shape.h"
-#include "utils/general_utils.h"
-
 
 namespace ov {
 namespace intel_cpu {
@@ -38,7 +26,6 @@ pass::MoveBrgemmRepackingOut::MoveBrgemmRepackingOut() {
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::MoveBrgemmRepackingOut")
         const auto& pattern_map = m.get_pattern_value_map();
-        const auto& copy_b_in = pattern_map.at(m_param);
         const auto& copy_b_out = pattern_map.at(m_copy_b);
         const auto copy_b_node = ov::as_type_ptr<BrgemmCopyB>(copy_b_out.get_node_shared_ptr());
         OPENVINO_ASSERT(copy_b_node, "BrgemmCopyB node is null in MoveBrgemmRepackingOut transformation");
@@ -48,11 +35,12 @@ pass::MoveBrgemmRepackingOut::MoveBrgemmRepackingOut() {
         // TODO:
         // 1. handle copyB with compensations
         // 2. handle non-planar layout
-        if (!ov::snippets::utils::is_planar_layout(layout) || copy_b_node->get_src_element_type() == ov::element::i8 ||
-            transformation_callback(copy_b_node))
+        if (!ov::snippets::utils::is_planar_layout(layout) ||
+            copy_b_node->get_src_element_type() == ov::element::i8 || transformation_callback(copy_b_node))
             return false;
+        std::cout << "copy_b_node = " << copy_b_node << std::endl;
         std::cout << "[ INFO ] MoveBrgemmRepackingOut is finished\n";
-        return ov::replace_output_update_name(copy_b_out, copy_b_in);
+        return ov::replace_output_update_name(copy_b_out, copy_b_node->input_value(0));
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(m_copy_b, matcher_name);
