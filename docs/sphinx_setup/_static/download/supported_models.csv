@@ -344,8 +344,7 @@ mask_rcnn_resnet101_atrous_coco,Instance Segmentation,tf,FP16-INT8,+,+,
 mask_rcnn_resnet50_atrous_coco,Instance Segmentation,tf,FP16,+,+,
 mask_rcnn_resnet50_atrous_coco,Instance Segmentation,tf,FP16-INT8,+,+,
 mask_rcnn_resnet50_atrous_coco,Instance Segmentation,tf,FP32,+,+,
-MaskRCNN-12,Object Detection,onnx,FP16,,,+
-MaskRCNN-12,Object Detection,onnx,FP32,+,+,+
+MaskRCNN-12,Object Detection,onnx,FP32,+,+,
 mbart-large-50-many-to-one-mmt,Natural Language Processing,pytorch,intel-optimum default,,+,
 Meta-Llama-3-8B,Large Language Model,pytorch,intel-optimum default,,+,
 Meta-Llama-3-8B-Instruct,Large Language Model,pytorch,intel-optimum default,,+,
