@@ -705,8 +705,7 @@ $(document).ready(function () {
             var kpiData = Graph.getDatabyParameter(model, appConfig.ParametersMap[parameter], precisions);
             var config = Graph.getGraphConfig(appConfig.ParametersMap[parameter], groupUnit, precisions, JSON.parse(JSON.stringify(appConfig)));
             precisions.forEach((precision, index) => {
-                config.datasets[index].data = kpiData.map(tData => tData[0][precision]
-                );
+                config.datasets[index].data = kpiData.map(tData => tData[0][precision]);
             });
             return config;
         });
