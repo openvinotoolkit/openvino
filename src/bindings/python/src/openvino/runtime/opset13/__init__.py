@@ -3,4 +3,4 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from openvino.opset13 import *
+from openvino.opset13 import *  # noqa: F403

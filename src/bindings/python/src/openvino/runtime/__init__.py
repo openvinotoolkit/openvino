@@ -6,13 +6,13 @@
 # noqa: F401
 
 import warnings
-warnings.simplefilter('always', DeprecationWarning)
+warnings.simplefilter("always", DeprecationWarning)
 
 warnings.warn(
-'The `openvino.runtime` module is deprecated and will be removed in the 2026.0 release. '
-'Please replace `openvino.runtime` with `openvino` after 25.1 release.',
-DeprecationWarning,
-stacklevel=2
+    "The `openvino.runtime` module is deprecated and will be removed in the 2026.0 release. "
+    "Please replace `openvino.runtime` with `openvino` after 25.1 release.",
+    DeprecationWarning,
+    stacklevel=2
 )
 
 from openvino._pyopenvino import get_version

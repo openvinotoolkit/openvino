@@ -2,4 +2,4 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.opset_utils import *
+from openvino.opset_utils import *  # noqa: F403
