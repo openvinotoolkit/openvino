@@ -1457,10 +1457,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                     } else {
                         weights_path = cacheContent.modelPath;
                     }
-                    if (!ov::util::file_exists(weights_path)) {
-                        OPENVINO_THROW("Weights file does not exist");
+                    if (ov::util::file_exists(weights_path)) {
+                        update_config[ov::weights_path.name()] = weights_path;
                     }
-                    update_config[ov::weights_path.name()] = weights_path;
                 }
                 compiled_model = context ? plugin.import_model(networkStream, context, update_config)
                                          : plugin.import_model(networkStream, update_config);
