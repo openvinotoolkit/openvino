@@ -122,6 +122,7 @@ jobs:
             -v ${INSTALL_DIR}:/work/install \
             -w /work/src \
             -e PATH="${{ env.PYTHON}}:$PATH" \
+            -e CC -e CXX \
             ${{ fromJSON(needs.docker.outputs.images).ov_build.manylinux2014_x86_64 }} \
             /bin/bash -c "
               python3 -m pip install -r /work/src/src/bindings/python/wheel/requirements-dev.txt --force-reinstall &&
@@ -129,6 +130,8 @@ jobs:
               cmake --build /work/build --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}"
         env:
           PYTHON: /opt/python/cp39-cp39/bin
+          CC: gcc
+          CXX: g++
       
       - name: Dump build cache
         run: |
