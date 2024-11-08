@@ -9,15 +9,8 @@ which shows only text detection.
 The
 `horizontal-text-detection-0001 <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/horizontal-text-detection-0001/README.md>`__
 and
-`text-recognition-resnet <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/text-recognition-resnet-fc/README.md>`__
+`text-recognition-0014 <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/text-recognition-0014/README.md>`__
 models are used together for text detection and then text recognition.
-
-In this tutorial, Open Model Zoo tools including Model Downloader, Model
-Converter and Info Dumper are used to download and convert the models
-from `Open Model
-Zoo <https://github.com/openvinotoolkit/open_model_zoo>`__. For more
-information, refer to the
-`model-tools <model-tools-with-output.html>`__ tutorial.
 
 
 **Table of contents:**
@@ -26,7 +19,6 @@ information, refer to the
 -  `Imports <#imports>`__
 -  `Settings <#settings>`__
 -  `Download Models <#download-models>`__
--  `Convert Models <#convert-models>`__
 -  `Select inference device <#select-inference-device>`__
 -  `Object Detection <#object-detection>`__
 
@@ -61,15 +53,12 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 
 .. code:: ipython3
 
-    # Install openvino-dev package
-    %pip install -q "openvino-dev>=2024.0.0"  "onnx<1.16.2" torch torchvision pillow opencv-python "matplotlib>=3.4" --extra-index-url https://download.pytorch.org/whl/cpu
+    # Install openvino package
+    %pip install -q "openvino>=2024.4.0" pillow opencv-python "matplotlib>=3.4"
 
 
 .. parsed-literal::
 
-    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.17.2+cpu which is incompatible.
-    torchaudio 2.4.1+cpu requires torch==2.4.1, but you have torch 2.2.2+cpu which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -111,7 +100,7 @@ Settings
     model_dir = Path("model")
     precision = "FP16"
     detection_model = "horizontal-text-detection-0001"
-    recognition_model = "text-recognition-resnet-fc"
+    recognition_model = "text-recognition-0014"
     
     model_dir.mkdir(exist_ok=True)
 
@@ -120,274 +109,35 @@ Download Models
 
 
 
-The next cells will run Model Downloader to download the detection and
-recognition models. If the models have been downloaded before, they will
-not be downloaded again.
+The next cells will download the detection and recognition models. If
+the models have been downloaded before, they will not be downloaded
+again.
 
 .. code:: ipython3
 
-    download_command = (
-        f"omz_downloader --name {detection_model},{recognition_model} --output_dir {model_dir} --cache_dir {model_dir} --precision {precision}  --num_attempts 5"
+    from notebook_utils import download_ir_model
+    
+    detection_model_url = f"https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1/{detection_model}/{precision}/{detection_model}.xml"
+    
+    recognition_model_url = (
+        f"https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1/{recognition_model}/{precision}/{recognition_model}.xml"
     )
-    display(Markdown(f"Download command: `{download_command}`"))
-    display(Markdown(f"Downloading {detection_model}, {recognition_model}..."))
-    !$download_command
-    display(Markdown(f"Finished downloading {detection_model}, {recognition_model}."))
     
-    detection_model_path = (model_dir / "intel/horizontal-text-detection-0001" / precision / detection_model).with_suffix(".xml")
-    recognition_model_path = (model_dir / "public/text-recognition-resnet-fc" / precision / recognition_model).with_suffix(".xml")
+    detection_model_path = download_ir_model(detection_model_url, model_dir / detection_model / precision)
+    
+    recognition_model_path = download_ir_model(recognition_model_url, model_dir / recognition_model / precision)
 
-
-
-Download command:
-``omz_downloader --name horizontal-text-detection-0001,text-recognition-resnet-fc --output_dir model --cache_dir model --precision FP16  --num_attempts 5``
-
-
-
-Downloading horizontal-text-detection-0001, text-recognition-resnet-fc…
 
 
 .. parsed-literal::
 
-    ################|| Downloading horizontal-text-detection-0001 ||################
-    
-    ========== Downloading model/intel/horizontal-text-detection-0001/FP16/horizontal-text-detection-0001.xml
-    
-    
-    ========== Downloading model/intel/horizontal-text-detection-0001/FP16/horizontal-text-detection-0001.bin
-    
-    
-    ################|| Downloading text-recognition-resnet-fc ||################
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/__init__.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/builder.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/model.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/weight_init.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/registry.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/heads/__init__.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/heads/builder.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/heads/fc_head.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/heads/registry.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/bodies/__init__.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/bodies/builder.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/bodies/registry.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/bodies/body.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/bodies/component.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/bodies/sequences/__init__.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/bodies/sequences/builder.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/bodies/sequences/registry.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/bodies/feature_extractors/__init__.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/bodies/feature_extractors/builder.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/bodies/feature_extractors/decoders/__init__.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/bodies/feature_extractors/decoders/builder.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/bodies/feature_extractors/decoders/registry.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/bodies/feature_extractors/decoders/bricks/__init__.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/bodies/feature_extractors/decoders/bricks/bricks.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/bodies/feature_extractors/decoders/bricks/builder.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/bodies/feature_extractors/decoders/bricks/registry.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/bodies/feature_extractors/encoders/__init__.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/bodies/feature_extractors/encoders/builder.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/bodies/feature_extractors/encoders/backbones/__init__.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/bodies/feature_extractors/encoders/backbones/builder.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/bodies/feature_extractors/encoders/backbones/registry.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/bodies/feature_extractors/encoders/backbones/resnet.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/bodies/feature_extractors/encoders/enhance_modules/__init__.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/bodies/feature_extractors/encoders/enhance_modules/builder.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/bodies/feature_extractors/encoders/enhance_modules/registry.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/utils/__init__.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/utils/builder.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/utils/conv_module.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/utils/fc_module.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/utils/norm.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/models/utils/registry.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/utils/__init__.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/utils/common.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/utils/registry.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/utils/config.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/configs/resnet_fc.py
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/ckpt/resnet_fc.pth
-    
-    
-    ========== Downloading model/public/text-recognition-resnet-fc/vedastr/addict-2.4.0-py3-none-any.whl
-    
-    
-    ========== Replacing text in model/public/text-recognition-resnet-fc/vedastr/models/heads/__init__.py
-    ========== Replacing text in model/public/text-recognition-resnet-fc/vedastr/models/bodies/__init__.py
-    ========== Replacing text in model/public/text-recognition-resnet-fc/vedastr/models/bodies/sequences/__init__.py
-    ========== Replacing text in model/public/text-recognition-resnet-fc/vedastr/models/bodies/component.py
-    ========== Replacing text in model/public/text-recognition-resnet-fc/vedastr/models/bodies/feature_extractors/decoders/__init__.py
-    ========== Replacing text in model/public/text-recognition-resnet-fc/vedastr/models/bodies/feature_extractors/decoders/bricks/__init__.py
-    ========== Replacing text in model/public/text-recognition-resnet-fc/vedastr/models/bodies/feature_extractors/encoders/backbones/__init__.py
-    ========== Replacing text in model/public/text-recognition-resnet-fc/vedastr/models/bodies/feature_extractors/encoders/enhance_modules/__init__.py
-    ========== Replacing text in model/public/text-recognition-resnet-fc/vedastr/models/utils/__init__.py
-    ========== Replacing text in model/public/text-recognition-resnet-fc/vedastr/utils/__init__.py
-    ========== Replacing text in model/public/text-recognition-resnet-fc/vedastr/utils/config.py
-    ========== Replacing text in model/public/text-recognition-resnet-fc/vedastr/utils/config.py
-    ========== Replacing text in model/public/text-recognition-resnet-fc/vedastr/utils/config.py
-    ========== Replacing text in model/public/text-recognition-resnet-fc/vedastr/utils/config.py
-    ========== Replacing text in model/public/text-recognition-resnet-fc/vedastr/utils/config.py
-    ========== Replacing text in model/public/text-recognition-resnet-fc/vedastr/models/bodies/feature_extractors/encoders/backbones/resnet.py
-    ========== Replacing text in model/public/text-recognition-resnet-fc/vedastr/models/bodies/feature_extractors/encoders/backbones/resnet.py
-    ========== Unpacking model/public/text-recognition-resnet-fc/vedastr/addict-2.4.0-py3-none-any.whl
-    
+    model/horizontal-text-detection-0001/FP16/horizontal-text-detection-0001.bin:   0%|          | 0.00/3.70M [00:…
 
-
-
-Finished downloading horizontal-text-detection-0001,
-text-recognition-resnet-fc.
-
-
-.. code:: ipython3
-
-    ### The text-recognition-resnet-fc model consists of many files. All filenames are printed in
-    ### the output of Model Downloader. Uncomment the next two lines to show this output.
-    
-    # for line in download_result:
-    #    print(line)
-
-Convert Models
---------------
-
-
-
-The downloaded detection model is an Intel model, which is already in
-OpenVINO Intermediate Representation (OpenVINO IR) format. The text
-recognition model is a public model which needs to be converted to
-OpenVINO IR. Since this model was downloaded from Open Model Zoo, use
-Model Converter to convert the model to OpenVINO IR format.
-
-The output of Model Converter will be displayed. When the conversion is
-successful, the last lines of output will include
-``[ SUCCESS ] Generated IR version 11 model.``
-
-.. code:: ipython3
-
-    convert_command = f"omz_converter --name {recognition_model} --precisions {precision} --download_dir {model_dir} --output_dir {model_dir}"
-    display(Markdown(f"Convert command: `{convert_command}`"))
-    display(Markdown(f"Converting {recognition_model}..."))
-    ! $convert_command
-
-
-
-Convert command:
-``omz_converter --name text-recognition-resnet-fc --precisions FP16 --download_dir model --output_dir model``
-
-
-
-Converting text-recognition-resnet-fc…
 
 
 .. parsed-literal::
 
-    ========== Converting text-recognition-resnet-fc to ONNX
-    Conversion to ONNX command: /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/omz_tools/internal_scripts/pytorch_to_onnx.py --model-path=/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/omz_tools/models/public/text-recognition-resnet-fc --model-path=model/public/text-recognition-resnet-fc --model-name=get_model --import-module=model '--model-param=file_config=r"model/public/text-recognition-resnet-fc/vedastr/configs/resnet_fc.py"' '--model-param=weights=r"model/public/text-recognition-resnet-fc/vedastr/ckpt/resnet_fc.pth"' --input-shape=1,1,32,100 --input-names=input --output-names=output --output-file=model/public/text-recognition-resnet-fc/resnet_fc.onnx
-    
-    ONNX check passed successfully.
-    
-    ========== Converting text-recognition-resnet-fc to IR (FP16)
-    Conversion command: /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/bin/mo --framework=onnx --output_dir=model/public/text-recognition-resnet-fc/FP16 --model_name=text-recognition-resnet-fc --input=input '--mean_values=input[127.5]' '--scale_values=input[127.5]' --output=output --input_model=model/public/text-recognition-resnet-fc/resnet_fc.onnx '--layout=input(NCHW)' '--input_shape=[1, 1, 32, 100]' --compress_to_fp16=True
-    
-    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
-    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
-    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
-    [ INFO ] Generated IR will be compressed to FP16. If you get lower accuracy, please consider disabling compression explicitly by adding argument --compress_to_fp16=False.
-    Find more information about compression to FP16 at https://docs.openvino.ai/2023.0/openvino_docs_MO_DG_FP16_Compression.html
-    [ SUCCESS ] Generated IR version 11 model.
-    [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/optical-character-recognition/model/public/text-recognition-resnet-fc/FP16/text-recognition-resnet-fc.xml
-    [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/optical-character-recognition/model/public/text-recognition-resnet-fc/FP16/text-recognition-resnet-fc.bin
-    
+    model/text-recognition-0014/FP16/text-recognition-0014.bin:   0%|          | 0.00/17.4M [00:00<?, ?B/s]
 
 
 Select inference device
@@ -427,7 +177,7 @@ Load a Detection Model
 
 .. code:: ipython3
 
-    detection_model = core.read_model(model=detection_model_path, weights=detection_model_path.with_suffix(".bin"))
+    detection_model = core.read_model(detection_model_path)
     detection_compiled_model = core.compile_model(model=detection_model, device_name=device.value)
     
     detection_input_layer = detection_compiled_model.input(0)
@@ -457,7 +207,7 @@ Load an Image
 
 
 
-.. image:: optical-character-recognition-with-output_files/optical-character-recognition-with-output_16_0.png
+.. image:: optical-character-recognition-with-output_files/optical-character-recognition-with-output_13_0.png
 
 
 Do Inference
@@ -558,7 +308,7 @@ Load Text Recognition Model
 
 .. code:: ipython3
 
-    recognition_model = core.read_model(model=recognition_model_path, weights=recognition_model_path.with_suffix(".bin"))
+    recognition_model = core.read_model(recognition_model_path)
     
     recognition_compiled_model = core.compile_model(model=recognition_model, device_name=device.value)
     
@@ -583,7 +333,7 @@ Do Inference
     grayscale_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     
     # Get a dictionary to encode output, based on the model documentation.
-    letters = "~0123456789abcdefghijklmnopqrstuvwxyz"
+    letters = "#1234567890abcdefghijklmnopqrstuvwxyz"
     
     # Prepare an empty list for annotations.
     annotations = list()
@@ -608,7 +358,7 @@ Do Inference
     
             # Returning 0 index from `argmax` signalizes an end of a string.
             if parsed_letter == letters[0]:
-                break
+                continue
             annotation.append(parsed_letter)
         annotations.append("".join(annotation))
         cropped_image = Image.fromarray(image[y_min:y_max, x_min:x_max])
@@ -636,7 +386,7 @@ the OCR result from the text recognition model.
 
 
 
-.. image:: optical-character-recognition-with-output_files/optical-character-recognition-with-output_26_0.png
+.. image:: optical-character-recognition-with-output_files/optical-character-recognition-with-output_23_0.png
 
 
 Show the OCR Result per Bounding Box
@@ -655,15 +405,15 @@ display the extracted boxes and the OCR result per box.
 
 
 
-.. image:: optical-character-recognition-with-output_files/optical-character-recognition-with-output_28_0.png
+.. image:: optical-character-recognition-with-output_files/optical-character-recognition-with-output_25_0.png
 
 
 
-building
+buildinng
 
 
 
-.. image:: optical-character-recognition-with-output_files/optical-character-recognition-with-output_28_2.png
+.. image:: optical-character-recognition-with-output_files/optical-character-recognition-with-output_25_2.png
 
 
 
@@ -671,7 +421,7 @@ noyce
 
 
 
-.. image:: optical-character-recognition-with-output_files/optical-character-recognition-with-output_28_4.png
+.. image:: optical-character-recognition-with-output_files/optical-character-recognition-with-output_25_4.png
 
 
 
@@ -679,7 +429,7 @@ noyce
 
 
 
-.. image:: optical-character-recognition-with-output_files/optical-character-recognition-with-output_28_6.png
+.. image:: optical-character-recognition-with-output_files/optical-character-recognition-with-output_25_6.png
 
 
 
@@ -687,7 +437,7 @@ n
 
 
 
-.. image:: optical-character-recognition-with-output_files/optical-character-recognition-with-output_28_8.png
+.. image:: optical-character-recognition-with-output_files/optical-character-recognition-with-output_25_8.png
 
 
 
@@ -695,7 +445,7 @@ center
 
 
 
-.. image:: optical-character-recognition-with-output_files/optical-character-recognition-with-output_28_10.png
+.. image:: optical-character-recognition-with-output_files/optical-character-recognition-with-output_25_10.png
 
 
 
@@ -719,6 +469,6 @@ image, starting from the upper left corner.
 
 .. parsed-literal::
 
-    ['robert', 'n', 'noyce', 'building', '2200', 'center']
+    ['robert', 'n', 'noyce', 'buildinng', '2200', 'center']
 
 
