@@ -86,7 +86,7 @@ jobs:
     env:
       CMAKE_BUILD_TYPE: 'Release'
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
-      OPENVINO_REPO: ${{ runner.tmp }}/openvino
+      OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
       INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
