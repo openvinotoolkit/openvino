@@ -618,12 +618,13 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertNMS9ToNMSIEInternal);
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertMulticlassNmsToMulticlassNmsIE);
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertMatrixNmsToMatrixNmsIE);
-    CPU_SET_CALLBACK_COMMON(manager,
-        [this](const_node_ptr &node) -> bool {
+    CPU_SET_CALLBACK_COMMON(
+        manager,
+        [this](const_node_ptr& node) -> bool {
             std::string errorMsg;
-            // Current SDPA impl is optimized only for LLM models, so we decompose it for others to avoid perf regression.
-            // Matching the pattern is a little complicated, so we just check if there is any state nodes.
-            return node::ScaledDotProductAttention::isSupportedOperation(node, errorMsg) && model->get_variables().size() > 0;
+            // Current SDPA impl is optimized only for LLM models, so we decompose it for others to avoid perf
+            // regression. Matching the pattern is a little complicated, so we just check if there is any state nodes.
+            return !node::ScaledDotProductAttention::isSupportedOperation(node, errorMsg);
         },
         ov::pass::ScaledDotProductAttentionDecomposition);
 
