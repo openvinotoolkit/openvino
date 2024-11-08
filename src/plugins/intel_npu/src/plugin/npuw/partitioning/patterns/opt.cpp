@@ -1497,8 +1497,10 @@ ConvToMatmul::ConvToMatmul(Context::Ref ctx) {
             shape[2] == 1 && shape[3] == 1 && shape2[2] == 1 && shape2[3] == 1 && tr_in_shape.size() == 4 &&
             tr_out_shape.size() == 4 && tr_in_shape[0] == 1 && tr_in_shape[1] == 1 && tr_out_shape[0] == 1 &&
             tr_out_shape[1] == 1) {
-            auto new_param = std::make_shared<ov::op::v0::Parameter>(matched_param->get_element_type(), ov::Shape{shape[0], shape[1]});
-            auto new_param2 = std::make_shared<ov::op::v0::Parameter>(matched_param2->get_element_type(), ov::Shape{shape2[0], shape2[1]});
+            auto new_param = std::make_shared<ov::op::v0::Parameter>(matched_param->get_element_type(),
+                                                                     ov::Shape{shape[0], shape[1]});
+            auto new_param2 = std::make_shared<ov::op::v0::Parameter>(matched_param2->get_element_type(),
+                                                                      ov::Shape{shape2[0], shape2[1]});
 
             ctx.get().closures_to_reshape_remove.insert(matched_param);
             ctx.get().closures_to_reshape_remove.insert(matched_param2);
@@ -1510,10 +1512,8 @@ ConvToMatmul::ConvToMatmul(Context::Ref ctx) {
             matched_node_multiply->input(1).replace_source_output(new_param2);
             matched_node_multiply->validate_and_infer_types();
 
-            auto matmul = std::make_shared<ov::op::v0::MatMul>(matched_node_tr_input,
-                                                               matched_node_multiply,
-                                                               false,
-                                                               true);
+            auto matmul =
+                std::make_shared<ov::op::v0::MatMul>(matched_node_tr_input, matched_node_multiply, false, true);
 
             for (auto&& r : matched_node_transpose_out->output(0).get_target_inputs()) {
                 r.replace_source_output(matmul);
@@ -1562,8 +1562,11 @@ ConvToMatmul2::ConvToMatmul2(Context::Ref ctx) {
             shape[2] == 1 && shape[3] == 1 && shape2[2] == 1 && shape2[3] == 1 && tr_in_shape.size() == 4 &&
             tr_out_shape.size() == 4 && tr_in_shape[0] == 1 && tr_in_shape[1] == 1 && tr_out_shape[0] == 1 &&
             tr_out_shape[1] == 1) {
-            auto new_param = std::make_shared<ov::op::v0::Parameter>(matched_param->get_element_type(), ov::Shape{shape[0], shape[1]});
-            auto new_const = std::make_shared<ov::op::v0::Constant>(matched_constant, ov::Shape{shape2[0], shape2[1]});
+            auto new_param = std::make_shared<ov::op::v0::Parameter>(matched_param->get_element_type(),
+                                                                     ov::Shape{shape[0], shape[1]});
+            // FIXME: could this const keep all others alive?
+            auto new_const =
+                std::make_shared<ov::op::v0::Constant>(*matched_constant.get(), ov::Shape{shape2[0], shape2[1]});
 
             ctx.get().closures_to_reshape_remove.insert(matched_param);
             ctx.get().closures_to_reshape_add.insert(new_param);
@@ -1573,10 +1576,8 @@ ConvToMatmul2::ConvToMatmul2(Context::Ref ctx) {
             matched_node_multiply->input(1).replace_source_output(new_const);
             matched_node_multiply->validate_and_infer_types();
 
-            auto matmul = std::make_shared<ov::op::v0::MatMul>(matched_node_tr_input,
-                                                               matched_node_multiply,
-                                                               false,
-                                                               true);
+            auto matmul =
+                std::make_shared<ov::op::v0::MatMul>(matched_node_tr_input, matched_node_multiply, false, true);
 
             for (auto&& r : matched_node_transpose_out->output(0).get_target_inputs()) {
                 r.replace_source_output(matmul);
