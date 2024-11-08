@@ -744,7 +744,6 @@ event::ptr primitive_inst::realloc_if_needed() {
         reset_user_output_memory = [&](cldnn::primitive_inst* curr_inst, cldnn::memory::ptr input_mem_ptr) {
             auto curr_output_memory_ptr = curr_inst->output_memory_ptr(0);
             if (curr_inst->can_be_optimized()
-                    && curr_inst->get_node().is_runtime_skippable()
                     && (curr_output_memory_ptr
                         && get_network().get_engine().is_the_same_buffer(*curr_output_memory_ptr, *input_mem_ptr))) {
                 curr_inst->_outputs[0] = nullptr;
