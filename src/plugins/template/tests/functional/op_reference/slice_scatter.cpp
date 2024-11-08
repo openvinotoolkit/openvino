@@ -194,6 +194,13 @@ std::vector<SliceScatterParams> generateSliceScatterParamsUnsigned() {
                            reference_tests::Tensor{{1}, AXIS_ET, std::vector<AXIS_T>{0}},
                            reference_tests::Tensor{{4}, DATA_ET, std::vector<DATA_T>{1, 10, 3, 20}},
                            "1D_2_step_replace"),
+        SliceScatterParams(reference_tests::Tensor{{4}, DATA_ET, std::vector<DATA_T>{1, 2, 3, 4}},
+                           reference_tests::Tensor{{4}, DATA_ET, std::vector<DATA_T>{10, 20, 30, 40}},
+                           reference_tests::Tensor{{0}, IND_ET, std::vector<IND_T>{}},
+                           reference_tests::Tensor{{0}, IND_ET, std::vector<IND_T>{}},
+                           reference_tests::Tensor{{0}, IND_ET, std::vector<IND_T>{}},
+                           reference_tests::Tensor{{4}, DATA_ET, std::vector<DATA_T>{10, 20, 30, 40}},
+                           "1D_full_replace_empty_slice_params"),
         SliceScatterParams(
             reference_tests::Tensor{{4, 4},
                                     DATA_ET,
@@ -348,6 +355,23 @@ std::vector<SliceScatterParams> generateSliceScatterParamsUnsigned() {
                                                                                30, 31, 32, 33, 34, 35, 54, 55, 38, 39,
                                                                                40, 41, 56, 57, 44, 45, 46, 47}},
             "4D_partial_replace_even_axes"),
+        SliceScatterParams(
+            reference_tests::Tensor{{4, 2, 3, 2}, DATA_ET, std::vector<DATA_T>{}},
+            reference_tests::Tensor{{4, 2, 3, 2}, DATA_ET, std::vector<DATA_T>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,
+                                                                               10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+                                                                               20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+                                                                               30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+                                                                               40, 41, 42, 43, 44, 45, 46, 47}},
+            reference_tests::Tensor{{0}, IND_ET, std::vector<IND_T>{}},
+            reference_tests::Tensor{{0}, IND_ET, std::vector<IND_T>{}},
+            reference_tests::Tensor{{0}, IND_ET, std::vector<IND_T>{}},
+            reference_tests::Tensor{{0}, IND_ET, std::vector<AXIS_T>{}},
+            reference_tests::Tensor{{4, 2, 3, 2}, DATA_ET, std::vector<DATA_T>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,
+                                                                               10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+                                                                               20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+                                                                               30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+                                                                               40, 41, 42, 43, 44, 45, 46, 47}},
+            "4D_full_replace_empty_slice_params"),
     };
     return test_params;
 }
