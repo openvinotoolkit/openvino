@@ -54,8 +54,12 @@ protected:
      */
     void update_loop_args(const ov::snippets::lowered::LinearIRCPtr& linear_ir) const;
 
-    void update_requested_descs(const ov::snippets::lowered::LinearIRCPtr& linear_ir) const;
-    void adjust_offsets_from_descs(const ov::snippets::lowered::LinearIRCPtr& linear_ir) const;
+    void update_requested_descs(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
+                                const std::vector<ov::snippets::VectorDims>& shapes,
+                                const std::vector<std::vector<size_t>>& layouts) const;
+    void adjust_offsets_from_descs(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
+                                   const std::vector<ov::snippets::VectorDims>& shapes,
+                                   const std::vector<std::vector<size_t>>& layouts) const;
 
     static const size_t rank6D;
 

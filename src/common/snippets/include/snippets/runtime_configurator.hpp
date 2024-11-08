@@ -171,7 +171,7 @@ protected:
          * @brief Checks if the current master shape can be optimized, and if yes, updates all the necessary runtime information
          * @return status if the optimization is applied
          */
-        bool optimize();
+        bool optimize(std::vector<ov::snippets::VectorDims>& shapes, std::vector<std::vector<size_t>>& layots);
 
     private:
         /**

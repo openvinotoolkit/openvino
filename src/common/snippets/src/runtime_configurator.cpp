@@ -70,17 +70,17 @@ void RuntimeConfigurator::update(const lowered::LinearIRCPtr& linear_ir) {
     m_config->master_shape = linear_ir->get_master_shape();
     update_loop_info(linear_ir);
 
-    if (!m_optimizer.optimize()) {
-        // If the optimization was not applied, offsets are updated using shapes from descriptors
-        auto shapes = extract_shapes();
-        update_data_offsets(shapes, extract_layouts());
-        m_latest_shapes = std::move(shapes);
-    }
+    auto shapes = extract_shapes();
+    auto layouts = extract_layouts();
+    m_optimizer.optimize(shapes, layouts);
+
+    update_data_offsets(shapes, layouts);
 
     // Update KernelExecutor Table should be before `update_buffer_scratchpad_size`
     // because `ComputeAllocationSize` depends on subtensors which are updated in the table
     get_kernel_executor_table()->update_state(linear_ir);
     update_buffer_scratchpad_size(linear_ir);
+    m_latest_shapes = std::move(shapes);
 }
 
 void RuntimeConfigurator::update_tensor_rank(const ov::snippets::VectorDims& master_shape) {
@@ -382,7 +382,8 @@ bool RuntimeConfigurator::MHAParallelWAOptimizer::enabled() const {
     return !loops_to_split.empty();
 }
 
-bool RuntimeConfigurator::MHAParallelWAOptimizer::optimize() {
+bool RuntimeConfigurator::MHAParallelWAOptimizer::optimize(std::vector<ov::snippets::VectorDims>& shapes,
+                                                           std::vector<std::vector<size_t>>& layouts) {
     OPENVINO_ASSERT(configurator != nullptr, "Configurator is nullptr");
     if (!enabled())
         return false;
@@ -390,7 +391,7 @@ bool RuntimeConfigurator::MHAParallelWAOptimizer::optimize() {
     size_t new_batch_dim, new_kernel_dim;
     if (!SplitDimensionM::split(configurator->m_config->master_shape, concurrency, new_batch_dim, new_kernel_dim))
         return false;
-
+    std::cout << "[ INFO ] MHAParallelWAOptimizer works\n";
     auto& master_shape = configurator->m_config->master_shape;
     *++master_shape.rbegin() = new_kernel_dim;
     master_shape.insert(master_shape.cbegin() + master_shape.size() - 2, new_batch_dim);
@@ -416,14 +417,12 @@ bool RuntimeConfigurator::MHAParallelWAOptimizer::optimize() {
         loop->apply(updater, updated_loops);
     }
 
-    auto shapes = configurator->extract_shapes();
     for (size_t i = 0; i < configurator->m_io_num; ++i) {
         shapes[i] = unsqueezed_params.count(i)
                         ? SplitDimensionM::unsqueeze_m_dim(shapes[i], m_dim_idces[i])
                         : SplitDimensionM::reshape_m_dim(shapes[i], m_dim_idces[i], new_batch_dim, new_kernel_dim);
     }
-    configurator->update_data_offsets(shapes, optimized_layouts);
-    configurator->m_latest_shapes = std::move(shapes);
+    layouts = optimized_layouts;
     return true;
 }
 

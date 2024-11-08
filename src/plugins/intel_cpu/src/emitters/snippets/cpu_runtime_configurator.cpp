@@ -52,18 +52,17 @@ void CPURuntimeConfigurator::initialization(const ov::snippets::lowered::LinearI
 }
 
 void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
-    update_requested_descs(linear_ir);
     m_config->master_shape = linear_ir->get_master_shape();
     if (linear_ir->is_dynamic()) {
         update_loop_info(linear_ir);
     }
 
-    if (!m_optimizer.optimize()) {
-        // If the optimization was not applied, offsets are updated using shapes from descriptors
-        auto shapes = extract_shapes();
-        update_data_offsets(shapes, extract_layouts());
-        m_latest_shapes = std::move(shapes);
-    }
+    auto shapes = extract_shapes();
+    auto layouts = extract_layouts();
+    m_optimizer.optimize(shapes, layouts);
+    // Why must it be called before kernel executor table update?
+    update_requested_descs(linear_ir, shapes, layouts);
+
     if (linear_ir->is_dynamic())
         loopPortsAdjuster.optimize();
 
@@ -75,7 +74,9 @@ void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRCPtr& l
     if (linear_ir->is_dynamic()) {
         update_loop_args(linear_ir);
     }
-    adjust_offsets_from_descs(linear_ir);
+    update_data_offsets(shapes, layouts);
+    adjust_offsets_from_descs(linear_ir, shapes, layouts);
+    m_latest_shapes = std::move(shapes);
 }
 
 void CPURuntimeConfigurator::update_tensor_rank(const ov::snippets::VectorDims& master_shape) {
@@ -143,7 +144,9 @@ void CPURuntimeConfigurator::BrgemmCopyBLoopPortsAdjuster::optimize() {
 }
 #endif
 
-void CPURuntimeConfigurator::update_requested_descs(const ov::snippets::lowered::LinearIRCPtr& linear_ir) const {
+void CPURuntimeConfigurator::update_requested_descs(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
+                                                    const std::vector<ov::snippets::VectorDims>& shapes,
+                                                    const std::vector<std::vector<size_t>>& layots) const {
     const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(m_config);
     auto& optimal_descs = cpu_config->m_in_requested_descs;
     const auto& params = linear_ir->get_parameters();
@@ -157,8 +160,8 @@ void CPURuntimeConfigurator::update_requested_descs(const ov::snippets::lowered:
                 return port.get_index() == 1 && brgemm && brgemm_utils::with_repacking(brgemm->get_type());
             });
         if (brgemm_with_extracted_repacking) {
-            const auto& desc = param->get_output_port_descriptor(0);
-            const auto& shape = desc->get_shape();
+            const auto& shape = shapes[i];
+            // TODO: support orbitrary order
             const auto& K = *++shape.rbegin();
             const auto& N = *shape.rbegin();
 
@@ -181,22 +184,22 @@ void CPURuntimeConfigurator::update_requested_descs(const ov::snippets::lowered:
         }
     }
 }
-void CPURuntimeConfigurator::adjust_offsets_from_descs(const ov::snippets::lowered::LinearIRCPtr& linear_ir) const {
+void CPURuntimeConfigurator::adjust_offsets_from_descs(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
+                                                       const std::vector<ov::snippets::VectorDims>& shapes,
+                                                       const std::vector<std::vector<size_t>>& layouts) const {
     const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(m_config);
     auto& optimal_descs = cpu_config->m_in_requested_descs;
     for (size_t i = 0; i < m_in_num; ++i) {
         if (optimal_descs.count(i)) {
             const auto& optimal_desc = optimal_descs[i];
-            // It is assumed that shape is planar
-            const auto& parameter = linear_ir->get_parameters()[i];
-            const auto& original_shape = parameter->get_output_port_descriptor(0)->get_shape();
+            const auto& original_shape = shapes[i];
             const auto& blocked_shape = optimal_desc->as<DnnlBlockedMemoryDesc>()->getBlockDims();
 
             ov::snippets::VectorDims shape_for_offset(m_config->tensor_rank - original_shape.size(), 1);
             shape_for_offset.insert(shape_for_offset.end(), blocked_shape.begin(), blocked_shape.end());
             auto& offsets = m_config->io_data_offsets[i];
             compute_offsets(shape_for_offset, offsets, shape_for_offset.size(), m_io_data_sizes[i], 0);
-            OPENVINO_ASSERT(ov::snippets::utils::is_planar_layout(parameter->get_output_port_descriptor(0)->get_layout()));
+            OPENVINO_ASSERT(ov::snippets::utils::is_planar_layout(layouts[i]));
         }
     }
 }
