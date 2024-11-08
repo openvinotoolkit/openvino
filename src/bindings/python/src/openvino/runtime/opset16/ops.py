@@ -14,6 +14,7 @@ from openvino.runtime.utils.types import NodeInput, as_nodes
 _get_node_factory_opset16 = partial(_get_node_factory, "opset16")
 
 # -------------------------------------------- ops ------------------------------------------------
+
 @nameable_op
 def identity(
     data: NodeInput,
