@@ -282,7 +282,7 @@ $(document).ready(function () {
         new Graph(graph);
         var networkModels = Graph.getNetworkModels(graph);
         var ieTypes = Graph.getIeTypes(graph);
-        fetch('../_static/html/modal.html').then((response) => response.text()).then((text) => {
+        fetch('../_static/html/modalLLM.html').then((response) => response.text()).then((text) => {
 
             // generate and configure modal container
             var modal = $('<div>');
