@@ -59,12 +59,12 @@ implemented in your solutions. Click the buttons below to see the chosen benchma
    .. grid-item::
 
       .. button-link:: #
-         :class: ovms-toolkit-benchmark-llm
+         :class: ovms-toolkit-benchmark-llm-result
          :color: primary
          :outline:
          :expand:
 
-         :material-regular:`bar_chart;1.4em` OVMS for GenAI (coming soon)
+         :material-regular:`bar_chart;1.4em` OVMS for GenAI
 
 
 
