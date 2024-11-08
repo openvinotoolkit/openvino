@@ -113,9 +113,9 @@ jobs:
       
       - name: Build (Python 3.9)
         run: |
-          ls -la ${OPENVINO_REPO}
+          ls -la ${{ env.OPENVINO_REPO }}
           docker run --rm \
-            -v ${OPENVINO_REPO}:/work/src \
+            -v ${{ env.OPENVINO_REPO }}:/work/src \
             -v ov_build_cache:/work/build \
             -v ${INSTALL_DIR}:/work/install \
             -w /work/src \
