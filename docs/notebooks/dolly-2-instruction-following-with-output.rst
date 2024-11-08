@@ -136,6 +136,8 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 .. code:: ipython3
 
     import os
+    from pathlib import Path
+    import requests
 
     os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
 
@@ -144,12 +146,17 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
     %pip install -q "diffusers>=0.16.1" "transformers>=4.33.0" "torch>=2.1" "nncf>=2.10.0" "onnx<1.16.2" "gradio>=4.19" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
 
-    import requests
 
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
+    utility_files = ["notebook_utils.py", "cmd_helper.py"]
+
+    for utility in utility_files:
+        local_path = Path(utility)
+        if not local_path.exists():
+            r = requests.get(
+                url=f"https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/{local_path.name}",
+            )
+        with local_path.open("w") as f:
+            f.write(r.text)
 
 Convert model using Optimum-CLI tool
 ------------------------------------
@@ -227,7 +234,7 @@ sacrifice of the model size and inference latency.
 
 .. code:: ipython3
 
-    from IPython.display import Markdown, display
+    from IPython.display import display
     import ipywidgets as widgets
 
     prepare_int4_model = widgets.Checkbox(
@@ -272,6 +279,7 @@ sacrifice of the model size and inference latency.
 .. code:: ipython3
 
     from pathlib import Path
+    from cmd_helper import optimum_cli
 
     model_id = "databricks/dolly-v2-3b"
     model_path = Path("dolly-v2-3b")
@@ -284,36 +292,19 @@ sacrifice of the model size and inference latency.
     def convert_to_fp16():
         if (fp16_model_dir / "openvino_model.xml").exists():
             return
-        fp16_model_dir.mkdir(parents=True, exist_ok=True)
-        export_command_base = "optimum-cli export openvino --model {} --task text-generation-with-past --weight-format fp16".format(model_id)
-        export_command = export_command_base + " " + str(fp16_model_dir)
-        display(Markdown("**Export command:**"))
-        display(Markdown(f"`{export_command}`"))
-        ! $export_command
+        optimum_cli(model_id, fp16_model_dir, additional_args={"weight-format": "fp16"})
 
 
     def convert_to_int8():
         if (int8_model_dir / "openvino_model.xml").exists():
             return
-        int8_model_dir.mkdir(parents=True, exist_ok=True)
-        export_command_base = "optimum-cli export openvino --model {} --task text-generation-with-past --weight-format int8".format(model_id)
-        export_command = export_command_base + " " + str(int8_model_dir)
-        display(Markdown("**Export command:**"))
-        display(Markdown(f"`{export_command}`"))
-        ! $export_command
+        optimum_cli(model_id, int8_model_dir, additional_args={"weight-format": "int8"})
 
 
     def convert_to_int4():
         if (int4_model_dir / "openvino_model.xml").exists():
             return
-        int4_model_dir.mkdir(parents=True, exist_ok=True)
-        export_command_base = "optimum-cli export openvino --model {} --task text-generation-with-past --weight-format int4 --ratio 1.0 --group-size 128".format(
-            model_id
-        )
-        export_command = export_command_base + " " + str(int4_model_dir)
-        display(Markdown("**Export command:**"))
-        display(Markdown(f"`{export_command}`"))
-        ! $export_command
+        optimum_cli(model_id, int4_model_dir, additional_args={"weight-format": "int4"})
 
 
     if prepare_fp16_model.value:

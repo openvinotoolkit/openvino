@@ -5,7 +5,7 @@ on:
   merge_group:
   push:
     branches:
-      # - master
+      - master
       - 'releases/**'
 
 concurrency:
@@ -24,7 +24,7 @@ jobs:
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
-        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           sparse-checkout: .github/actions/smart-ci
 
@@ -58,7 +58,7 @@ jobs:
       images: "${{ steps.handle_docker.outputs.images }}"
     steps:
       - name: Checkout
-        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - uses: ./.github/actions/handle_docker
         id: handle_docker
@@ -147,7 +147,7 @@ jobs:
           python3 -c 'from openvino import Core; Core().get_property("MULTI", "SUPPORTED_PROPERTIES")'
           python3 -c 'from openvino import Core; Core().get_property("HETERO", "SUPPORTED_PROPERTIES")'
           python3 -c 'from openvino import Core; Core().get_property("BATCH", "SUPPORTED_PROPERTIES")'
-          python3 -c 'from openvino.frontend import FrontEndManager; assert len(FrontEndManager().get_available_front_ends()) == 7'
+          python3 -c 'from openvino.frontend import FrontEndManager; assert len(FrontEndManager().get_available_front_ends()) == 6'
           benchmark_app --help
           opt_in_out --help
           ovc --help
@@ -160,6 +160,7 @@ jobs:
       runner: 'aks-linux-4-cores-16gb'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.fedora_29 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      os: 'fedora_29'
   
   Overall_Status:
     name: ci/gha_overall_status_fedora

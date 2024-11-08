@@ -82,6 +82,7 @@ pipeline.
   pipelines <#compare-inference-time-of-the-fp16-and-int8-pipelines>`__
 - `Interactive demo <#interactive-demo>`__
 
+
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -113,7 +114,7 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q "openvino>=2023.3.0" opencv-python transformers "diffusers>=0.24.0" accelerate gdown "scikit-image>=0.19.2" "gradio>=4.19" "nncf>=2.9.0" "datasets>=2.14.6" "peft>=0.6.2"
+    %pip install -q "openvino>=2023.3.0" opencv-python transformers "diffusers>=0.24.0" "matplotlib>=3.4" accelerate gdown "scikit-image>=0.19.2" "gradio>=4.19" "nncf>=2.9.0" "datasets>=2.14.6" "peft>=0.6.2"
 
 Convert and prepare Face IdentityNet
 ------------------------------------

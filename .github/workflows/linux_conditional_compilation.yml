@@ -29,7 +29,7 @@ jobs:
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
-        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           sparse-checkout: .github/actions/smart-ci
 
@@ -63,7 +63,7 @@ jobs:
       images: "${{ steps.handle_docker.outputs.images }}"
     steps:
       - name: Checkout
-        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - uses: ./.github/actions/handle_docker
         id: handle_docker
@@ -109,13 +109,13 @@ jobs:
 
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
 
       - name: Clone test models
-        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: 'openvinotoolkit/testdata'
           path: ${{ env.MODELS_PATH }}
@@ -169,7 +169,7 @@ jobs:
       - name: Cmake build - CC COLLECT
         run: |
           cmake --build ${BUILD_DIR} --parallel 8 --config ${{ env.CMAKE_BUILD_TYPE }}
-          cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib
+          cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib
 
       - name: Show sccache stats
         run: ${SCCACHE_PATH} --show-stats
@@ -182,7 +182,7 @@ jobs:
       - name: Build C++ samples - OpenVINO build tree
         run: |
           cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${BUILD_DIR} -S ${INSTALL_DIR}/samples/cpp -B ${BUILD_DIR}/cpp_samples
-          cmake --build ${BUILD_DIR}/cpp_samples --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device
+          cmake --build ${BUILD_DIR}/cpp_samples --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device
 
       - name: Build C samples - OpenVINO install tree
         run: ${INSTALL_DIR}/samples/c/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/c_samples
@@ -200,30 +200,30 @@ jobs:
       - name: Pack Artifacts
         run: |
           pushd ${SELECTIVE_BUILD_STAT_DIR}
-            tar -czvf ${BUILD_DIR}/openvino_selective_build_stat.tar.gz *
+            tar -cvf - * | pigz > ${BUILD_DIR}/openvino_selective_build_stat.tar.gz
           popd
 
           pushd ${INSTALL_DIR}
-            tar -czvf ${BUILD_DIR}/openvino_package.tar.gz \
-              install_dependencies/install_openvino_dependencies.sh
+            tar -cvf - install_dependencies/install_openvino_dependencies.sh | pigz > ${BUILD_DIR}/openvino_package.tar.gz
           popd
 
           cp -v ${OPENVINO_REPO}/temp/tbb/lib/lib* ${INSTALL_TEST_DIR}/tests
           pushd ${INSTALL_TEST_DIR}
-            tar -czvf ${BUILD_DIR}/openvino_tests.tar.gz \
+            tar -cvf - \
               tests/ov_cpu_func_tests \
               tests/libopenvino_template_extension.so \
               tests/libze_loader.so* \
               tests/libhwloc* \
               tests/libtbb* \
-              tests/functional_test_utils/layer_tests_summary/*
+              tests/functional_test_utils/layer_tests_summary/* \
+              | pigz > ${BUILD_DIR}/openvino_tests.tar.gz
           popd
 
       #
       # Upload build artifacts and logs
       #
       - name: Upload build logs
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         if: always()
         with:
           name: build_logs
@@ -232,7 +232,7 @@ jobs:
 
       - name: Upload openvino package
         if: ${{ always() }}
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
@@ -240,7 +240,7 @@ jobs:
 
       - name: Upload selective build statistics package
         if: ${{ always() }}
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: openvino_selective_build_stat
           path: ${{ env.BUILD_DIR }}/openvino_selective_build_stat.tar.gz
@@ -248,7 +248,7 @@ jobs:
 
       - name: Upload OpenVINO tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
@@ -282,13 +282,13 @@ jobs:
 
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
 
       - name: Clone test models
-        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: 'openvinotoolkit/testdata'
           path: ${{ env.MODELS_PATH }}
@@ -302,7 +302,8 @@ jobs:
           path: ${{ env.SELECTIVE_BUILD_STAT_DIR }}
 
       - name: Extract selective build statistics package
-        run: tar -xvzf ${SELECTIVE_BUILD_STAT_DIR}/openvino_selective_build_stat.tar.gz -C ${SELECTIVE_BUILD_STAT_DIR}
+        run: |
+          pigz -dc ${SELECTIVE_BUILD_STAT_DIR}/openvino_selective_build_stat.tar.gz | tar -xf - -C ${SELECTIVE_BUILD_STAT_DIR}
 
       #
       # Build
@@ -346,6 +347,7 @@ jobs:
     with:
       runner: 'aks-linux-8-cores-32gb'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
+      python-version: '3.11'
 
   Overall_Status:
     name: ci/gha_overall_status_linux_cc

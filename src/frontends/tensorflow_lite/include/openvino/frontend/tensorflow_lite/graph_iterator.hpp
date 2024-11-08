@@ -24,7 +24,7 @@ namespace tensorflow_lite {
 /// DecoderBaseOperation (for op 1), ..., DecoderBaseOperation (for op k),
 /// where n - number of inputs in the model, m - number of outputs in the model k - number of operation nodes.
 /// NOTE: constants are ignored and no decoder object is returned for constant.
-class GraphIterator : ::ov::RuntimeAttribute {
+class TENSORFLOW_LITE_API GraphIterator : ::ov::RuntimeAttribute {
 public:
     using Ptr = std::shared_ptr<GraphIterator>;
 

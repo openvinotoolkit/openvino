@@ -7,6 +7,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
+#include "openvino/util/weights_path.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -435,7 +436,7 @@ void program::prepare_nodes(topology const& topology) {
     }
 }
 
-// add node's dependecies from its primitive dependencies
+// add node's dependencies from its primitive dependencies
 void program::add_node_dependencies(program_node* node) {
     auto deps = node->get_primitive()->dependencies();
     // add pointers to node's dependencies
@@ -452,7 +453,7 @@ void program::add_node_dependencies(program_node* node) {
 }
 
 /* helper method for program constructor from list of nodes which
-   copies src_node dependecies to the destination node dest_node dependencies.
+   copies src_node dependencies to the destination node dest_node dependencies.
    But only to those which appaer in this program implementation nodes_map */
 void program::copy_node_dependencies(program_node* dest_node, program_node* src_node) {
     if (dest_node->get_primitive()->id != src_node->get_primitive()->id) {
@@ -1720,6 +1721,7 @@ void program::cancel_compilation_context() {
 void program::save(cldnn::BinaryOutputBuffer& ob) const {
     std::map<cldnn::memory::ptr, std::vector<const cldnn::program_node*>> mutable_datas_ptrs;
     ob << nodes_map.size();
+
     for (auto& node : nodes_map) {
         ob.setKernelImplParams(node.second->get_kernel_impl_params().get());
 
@@ -1732,6 +1734,7 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
                 node.second->as<data>().typed_desc()->mem = data_node.get_attached_memory_ptr();
             }
         }
+
         ob << true;
 
         ob << node.second->desc;
@@ -1776,6 +1779,7 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
 
     ob << _is_body_program;
     ob << _can_be_optimized;
+    ob << get_layout_optimizer().get_optimization_attributes().use_onednn_impls;
     processing_order.save(ob);
 
     {
@@ -1792,15 +1796,9 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
         for (auto& impl_id : impl_ids) {
             std::string type_name = get_node_ptr(impl_id)->get_selected_impl()->m_manager->get_type_info().name;
             ob << type_name;
-            if (get_node_ptr(impl_id)->get_selected_impl()->is_onednn()) {
-                ob << true;
-                auto params = get_node_ptr(impl_id)->get_kernel_impl_params();
-                ob.setKernelImplParams(params.get());
-                ob << get_node_ptr(impl_id)->selected_impl;
-            } else {
-                ob << false;
-                ob << get_node_ptr(impl_id)->selected_impl;
-            }
+            auto params = get_node_ptr(impl_id)->get_kernel_impl_params();
+            ob.setKernelImplParams(params.get());
+            ob << get_node_ptr(impl_id)->selected_impl;
             ob << get_node_ptr(impl_id)->get_selected_impl()->get_cached_kernel_ids(kernels_cache);
         }
     }
@@ -1834,6 +1832,13 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
 void program::load(cldnn::BinaryInputBuffer& ib) {
     init_program();
 
+    std::shared_ptr<ov::MappedMemory> mapped_memory = nullptr;
+    std::string weights_path = _config.get_property(ov::weights_path);
+    if (_config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE &&
+        ov::util::validate_weights_path(weights_path)) {
+        mapped_memory = ov::load_mmap_object(weights_path);
+    }
+
     size_t num_nodes;
     ib >> num_nodes;
     bool is_valid_data_node;
@@ -1844,6 +1849,9 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
 
         std::shared_ptr<cldnn::primitive> prim;
         ib >> prim;
+        if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
+            data_prim->load_weights(ib, mapped_memory);
+        }
         get_or_create(prim);
     }
 
@@ -1895,9 +1903,13 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
 
     ib >> _is_body_program;
     ib >> _can_be_optimized;
+    int32_t use_onednn_attr = 0;
+    ib >> use_onednn_attr;
+    get_layout_optimizer().set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, use_onednn_attr);
     _loaded_from_cache = true;
 
     processing_order.load(ib, *this);
+    set_layout_optimizer_attributes(*_layout_optimizer);
 
     {
         auto& kernels_cache = get_kernels_cache();
@@ -1912,15 +1924,10 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
             ib >> type_name;
             ov::DiscreteTypeInfo type(type_name.c_str());
             auto impl_manager = p_node.type()->get(type);
-            bool is_onednn;
-            ib >> is_onednn;
-            if (is_onednn) {
-                auto params = p_node.get_kernel_impl_params();
-                ib.setKernelImplParams(params.get());
-                ib >> p_node.selected_impl;
-            } else {
-                ib >> p_node.selected_impl;
-            }
+
+            auto params = p_node.get_kernel_impl_params();
+            ib.setKernelImplParams(params.get());
+            ib >> p_node.selected_impl;
 
             p_node.selected_impl->m_manager = impl_manager.get();
 

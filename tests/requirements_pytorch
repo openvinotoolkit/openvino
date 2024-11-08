@@ -1,0 +1,57 @@
+# test ovc with NumPy 2.x on Ubuntu 24 with default Python 3.12
+# test against NumPy 1.x with older Python versions
+# optimum still requires numpy<2.0.0
+numpy==1.26.4; python_version < "3.12"
+numpy==2.1.1; python_version >= "3.12"
+torch==2.5.1; platform_system != "Darwin" or platform_machine != "x86_64"
+torch==2.2.2; platform_system == "Darwin" and platform_machine == "x86_64"
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+torchvision==0.20.1; platform_system != "Darwin" or platform_machine != "x86_64"
+torchvision==0.17.2; platform_system == "Darwin" and platform_machine == "x86_64"
+torchaudio==2.5.1; platform_system != "Darwin" or platform_machine != "x86_64"
+torchaudio==2.2.2; platform_system == "Darwin" and platform_machine == "x86_64"
+# transformers 4.45.1 is available
+# but optimum still requires <4.45.0
+transformers==4.44.2
+pytest==7.0.1
+pytest-html==4.1.1
+pytest-xdist[psutil]==3.6.1
+defusedxml==0.7.1
+
+auto-gptq==0.7.1; platform_system == "Linux" and platform_machine == "x86_64" and python_version < "3.12"
+av==13.0.0
+basicsr==1.4.2; python_version < "3.12"
+datasets==3.0.1
+easyocr==1.7.2
+facexlib==0.3.0; python_version < "3.12"
+librosa==0.10.2; python_version < "3.12"
+packaging==24.1
+pandas==2.2.3
+protobuf==5.28.2
+pyctcdecode==0.5.0; python_version < "3.12"
+sacremoses==0.1.1
+sentencepiece==0.2.0
+soundfile==0.12.1
+super-image==0.1.7; python_version < "3.12"
+timm==1.0.11
+wheel==0.44.0
+PyYAML==6.0.2
+kornia==0.7.3
+super-image==0.1.7
+# huggingface-hub required for super-image
+huggingface-hub==0.25.2
+
+# use latest released version once it's available
+git+https://github.com/huggingface/optimum-intel.git@main; python_version < "3.12"
+# set 'export HF_HUB_ENABLE_HF_TRANSFER=1' to benefits from hf_transfer
+hf_transfer==0.1.8
+
+# requirements for specific models
+# - hf-tiny-model-private/tiny-random-RoFormerForCausalLM
+rjieba==0.1.11
+
+# - katuni4ka/tiny-random-qwen
+# - katuni4ka/tiny-random-internlm2
+transformers_stream_generator==0.0.5
+einops==0.8.0

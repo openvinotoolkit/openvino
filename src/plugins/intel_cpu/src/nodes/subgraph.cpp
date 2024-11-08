@@ -17,15 +17,13 @@
 #include "snippets/pass/positioned_pass.hpp"
 #include "snippets/pass/canonicalization.hpp"
 #include "snippets/pass/analyze_broadcastable_inputs.hpp"
-#include "snippets/lowered/linear_ir.hpp"
-#include "snippets/lowered/pass/optimize_domain.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
 #include "snippets/lowered/pass/mark_loops.hpp"
 #include "snippets/lowered/pass/insert_buffers.hpp"
+#include "snippets/lowered/pass/init_loops.hpp"
 #include "transformations/defs.hpp"
 #include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
 #include "transformations/snippets/common/pass/mul_add_to_fma.hpp"
-#include "transformations/snippets/common/pass/lowered/fuse_load_store_and_convert.hpp"
 
 #if defined(OPENVINO_ARCH_ARM64)
 #include "emitters/snippets/aarch64/cpu_generator.hpp"
@@ -33,11 +31,13 @@
 #else
 #include "emitters/snippets/x64/cpu_generator.hpp"
 #include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
+#include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
 #include "transformations/snippets/x64/pass/lowered/insert_brgemm_copy_b_buffers.hpp"
 #include "transformations/snippets/x64/pass/remove_converts.hpp"
 #include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
 #include "transformations/snippets/x64/pass/enforce_precision.hpp"
 #include "transformations/snippets/x64/shape_inference.hpp"
+#include "transformations/snippets/x64/pass/lowered/adjust_brgemm_copy_b_loop_ports.hpp"
 #endif
 
 #include "utils/cpu_utils.hpp"
@@ -54,6 +54,7 @@ std::mutex err_print_lock;
 #endif
 
 #ifdef SNIPPETS_LIBXSMM_TPP
+#include "snippets/lowered/pass/optimize_domain.hpp"
 #include "transformations/tpp/x64/pass/brgemm_to_brgemm_tpp.hpp"
 #include "transformations/tpp/x64/pass/eltwise_to_eltwise_tpp.hpp"
 #include "transformations/tpp/x64/pass/scalar_to_scalar_tpp.hpp"
@@ -672,23 +673,25 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
 Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
     ControlFlowPasses backend_passes;
 
+#if defined(OPENVINO_ARCH_X86_64)
     using PassPosition = ov::snippets::pass::PassPosition;
     using Place = PassPosition::Place;
 #   define SNIPPETS_REGISTER_PASS_RELATIVE(PASS_PLACE, TARGET_PASS, PASS, ...) \
             backend_passes.emplace_back(PassPosition(PASS_PLACE, TARGET_PASS::get_type_info_static()), std::make_shared<PASS>(__VA_ARGS__))
+#else
+#    define SNIPPETS_REGISTER_PASS_RELATIVE(PASS_PLACE, TARGET_PASS, PASS, ...)
+#endif  // OPENVINO_ARCH_X86_64
 
-#if defined(OPENVINO_ARCH_X86_64)
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::snippets::lowered::pass::MarkLoops,
                                     ov::intel_cpu::pass::BrgemmCPUBlocking);
-#endif
+
+    SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::snippets::lowered::pass::InitLoops,
+                                    ov::intel_cpu::pass::AdjustBrgemmCopyBLoopPorts);
 
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::snippets::lowered::pass::InsertLoops,
                                     ov::intel_cpu::pass::FuseLoadStoreConvert);
-
-#if defined(OPENVINO_ARCH_X86_64)
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::Before, ov::snippets::lowered::pass::InsertBuffers,
                                     ov::intel_cpu::pass::InsertBrgemmCopyBBuffers);
-#endif
 
 #ifdef SNIPPETS_LIBXSMM_TPP
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::Before, ov::intel_cpu::pass::BrgemmCPUBlocking,

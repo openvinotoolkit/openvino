@@ -364,7 +364,8 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
         if (_tensor.GetLayout() == DataLayout::bf || _tensor.GetLayout() == DataLayout::bfyx ||
             _tensor.GetLayout() == DataLayout::bfzyx || _tensor.GetLayout() == DataLayout::bfwzyx ||
             _tensor.GetLayout() == DataLayout::bfuwzyx || _tensor.GetLayout() == DataLayout::bfvuwzyx ||
-            _tensor.GetLayout() == DataLayout::b_fs_yx_fsv16 || _tensor.GetLayout() == DataLayout::b_fs_yx_fsv32) {
+            _tensor.GetLayout() == DataLayout::b_fs_yx_fsv16 || _tensor.GetLayout() == DataLayout::b_fs_yx_fsv32 ||
+            _tensor.GetLayout() == DataLayout::b_fs_zyx_fsv16) {
             definitions.push_back({_name + "_X_PITCH", "1"});
             definitions.push_back({_name + "_Y_PITCH", dims_padded.x()});
             definitions.push_back({_name + "_Z_PITCH", toVectorMulString({dims_padded.x(), dims_padded.y()})});
@@ -2197,7 +2198,21 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
 
             if (vec_size > 1) {
                 return block_read;
-            } else if (input_tensor.LogicalSize() > 1) {
+            }
+
+            bool multiple_elements = false;
+            // For dynamic shape input tensor, check any one of static dimension has more than one element.
+            if (input_tensor.is_dynamic()) {
+                for (auto dim : input_tensor.GetDims()) {
+                    auto v = dim.v;
+                    if (v > 1) {
+                        multiple_elements = true;
+                        break;
+                    }
+                }
+            }
+
+            if (input_tensor.LogicalSize() > 1 || multiple_elements) {
                 // Currently we assume that in such scenario we can safely load sub_group_size elements from the pointer
                 return Broadcast(block_read, input_dt, vec_size);
             } else {

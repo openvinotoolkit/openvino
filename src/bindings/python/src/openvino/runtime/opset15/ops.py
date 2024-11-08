@@ -274,3 +274,116 @@ def bitwise_right_shift(
             "auto_broadcast": auto_broadcast.upper(),
         },
     )
+
+
+@nameable_op
+def slice_scatter(
+    data: NodeInput,
+    updates: NodeInput,
+    start: NodeInput,
+    stop: NodeInput,
+    step: NodeInput,
+    axes: Optional[NodeInput] = None,
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which generates SliceScatter operation.
+
+    :param  data: The node providing input data.
+    :param  updates: The node providing updates data.
+    :param  start: The node providing start indices (inclusively).
+    :param  stop: The node providing stop indices (exclusively).
+    :param  step: The node providing step values.
+    :param  axes: The optional node providing axes to slice, default [0, 1, ..., len(start)-1].
+    :param  name: The optional name for the created output node.
+    :return: The new node performing SliceScatter operation.
+    """
+    if axes is None:
+        inputs = as_nodes(data, updates, start, stop, step, name=name)
+    else:
+        inputs = as_nodes(data, updates, start, stop, step, axes, name=name)
+
+    return _get_node_factory_opset15().create("SliceScatter", inputs)
+
+
+@nameable_op
+def stft(
+    data: NodeInput,
+    window: NodeInput,
+    frame_size: NodeInput,
+    frame_step: NodeInput,
+    transpose_frames: bool,
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which generates STFT operation.
+
+    :param  data: The node providing input data.
+    :param  window: The node providing window data.
+    :param  frame_size: The node with scalar value representing the size of Fourier Transform.
+    :param  frame_step: The distance (number of samples) between successive window frames.
+    :param  transpose_frames: Flag to set output shape layout. If true the `frames` dimension is at out_shape[2],
+                              otherwise it is at out_shape[1].
+    :param  name: The optional name for the created output node.
+    :return: The new node performing STFT operation.
+    """
+    inputs = as_nodes(data, window, frame_size, frame_step, name=name)
+    return _get_node_factory_opset15().create("STFT", inputs, {"transpose_frames": transpose_frames})
+
+
+@nameable_op
+def search_sorted(
+    sorted_sequence: NodeInput,
+    values: NodeInput,
+    right_mode: bool = False,
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which generates SearchSorted operation.
+
+    :param sorted_sequence: The node providing sorted sequence to search in.
+    :param values: The node providing searched values.
+    :param right_mode: If set to False, return the first suitable index that is found for given value.
+                       If set to True, return the last such index. Defaults to False.
+    :param name: The optional name for the created output node.
+    :return: The new node performing SearchSorted operation.
+    """
+    inputs = as_nodes(sorted_sequence, values, name=name)
+    attributes = {"right_mode": right_mode}
+    return _get_node_factory_opset15().create("SearchSorted", inputs, attributes)
+
+
+@nameable_op
+def squeeze(
+    data: NodeInput,
+    axes: Optional[NodeInput] = None,
+    allow_axis_skip: bool = False,
+    name: Optional[str] = None,
+) -> Node:
+    """Perform squeeze operation on input tensor.
+
+    :param data: The node with data tensor.
+    :param axes: Optional list of integers, indicating the dimensions to squeeze.
+                  Negative indices are supported. One of: input node or array.
+    :param allow_axis_skip: If true, shape inference results in a dynamic rank, when
+                  selected axis has value 1 in its dynamic range. Used only if axes input
+                  is given. Defaults to false.
+    :param name: Optional new name for output node.
+    :return: The new node performing a squeeze operation on input tensor.
+
+    Remove single-dimensional entries from the shape of a tensor.
+    Takes an optional parameter `axes` with a list of axes to squeeze.
+    If `axes` is not provided, all the single dimensions will be removed from the shape.
+
+    For example:
+
+       Inputs: tensor with shape [1, 2, 1, 3, 1, 1], axes=[2, 4]
+
+       Result: tensor with shape [1, 2, 3, 1]
+    """
+    if axes is None:
+        inputs = as_nodes(data, name=name)
+    else:
+        inputs = as_nodes(data, axes, name=name)
+    return _get_node_factory_opset15().create(
+        "Squeeze",
+        inputs,
+        {"allow_axis_skip": allow_axis_skip}
+    )

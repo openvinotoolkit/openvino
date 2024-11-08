@@ -1,4 +1,17 @@
 $(document).ready(function () {
+  var pageTitle = document.title;
+  var columnDefs;
+  if(pageTitle.includes('Most Efficient Large Language Models for AI PC'))
+  {
+    columnDefs=  [
+      { "visible": false, "targets": [3,4,6] }
+    ]
+  }
+  else
+  {
+    columnDefs=[]
+  }
+
   var table = $('table.modeldata').DataTable({
     responsive: true,
     "autoWidth": false,
@@ -12,6 +25,7 @@ $(document).ready(function () {
       [10, 25, 50, -1],
       ['10 rows', '25 rows', '50 rows', 'Show all rows']
     ],
+    "columnDefs": columnDefs,
     layout: {
       topStart: {
         buttons: [
