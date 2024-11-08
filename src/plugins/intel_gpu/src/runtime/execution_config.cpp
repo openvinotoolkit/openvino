@@ -246,6 +246,11 @@ void ExecutionConfig::apply_user_properties(const cldnn::device_info& info) {
         set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
     }
 
+    // Enable KV-cache compression by default for non-systolic platforms
+    if (!is_set_by_user(ov::hint::kv_cache_precision) && !info.supports_immad) {
+        set_property(ov::hint::kv_cache_precision(ov::element::i8));
+    }
+
     user_properties.clear();
 }
 
