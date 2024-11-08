@@ -76,7 +76,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores-32gb
+    runs-on: aks-linux-16-cores-32gb-manylinux
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64_docker }}
@@ -120,7 +120,8 @@ jobs:
             -v ${INSTALL_DIR}:/work/install \
             -w /work/src \
             -e PATH="${{ env.PYTHON}}:$PATH" \
-            quay.io/pypa/manylinux2014_x86_64 \
+            ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64_docker }} \
+            # quay.io/pypa/manylinux2014_x86_64 \
             /bin/bash -c "
               python3 -m pip install -r /work/src/src/bindings/python/wheel/requirements-dev.txt --force-reinstall &&
               cmake -DENABLE_CPPLINT=OFF -DENABLE_NCC_STYLE=OFF -DCMAKE_VERBOSE_MAKEFILE=ON -DBUILD_SHARED_LIBS=ON -DENABLE_WHEEL=ON -S /work/src -B /work/build &&
