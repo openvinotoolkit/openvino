@@ -13,6 +13,7 @@
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/less_eq.hpp"
+#include "openvino/op/logistic.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/negative.hpp"
@@ -80,6 +81,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_jaxpr() {
             {"integer_pow", op::translate_integer_pow},
             {"lt", op::translate_binary_op<v1::Less>},
             {"le", op::translate_binary_op<v1::LessEqual>},
+            {"lg", op::translate_binary_op<v1::Logistic>},
             {"max", op::translate_1to1_match_2_inputs<v1::Maximum>},
             {"mul", op::translate_1to1_match_2_inputs<v1::Multiply>},
             {"neg", op::translate_1to1_match_1_input<v0::Negative>},

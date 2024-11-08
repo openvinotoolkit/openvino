@@ -9,6 +9,7 @@
 #include "openvino/op/less.hpp"
 #include "openvino/op/less_eq.hpp"
 #include "openvino/op/not_equal.hpp"
+#include "openvino/op/logistic.hpp"
 #include "utils.hpp"
 
 using namespace std;
@@ -34,6 +35,7 @@ template OutputVector translate_binary_op<v1::GreaterEqual>(const NodeContext& c
 template OutputVector translate_binary_op<v1::Greater>(const NodeContext& context);
 template OutputVector translate_binary_op<v1::Less>(const NodeContext& context);
 template OutputVector translate_binary_op<v1::LessEqual>(const NodeContext& context);
+template OutputVector translate_binary_op<v1::Logistic>(const NodeContext& context);
 template OutputVector translate_binary_op<v1::NotEqual>(const NodeContext& context);
 
 }  // namespace op
