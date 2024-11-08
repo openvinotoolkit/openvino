@@ -91,7 +91,6 @@ jobs:
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
       INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
-      DOCKER_CONFIG: /home/runner/.docker
 
     steps:
       - name: Clone OpenVINO
