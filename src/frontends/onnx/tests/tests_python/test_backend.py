@@ -90,6 +90,7 @@ from tests import (
     xfail_issue_139936,
     xfail_issue_139937,
     xfail_issue_139938,
+    xfail_issue_139938,
 )
 from tests.tests_python.utils.onnx_backend import OpenVinoTestBackend
 
@@ -798,8 +799,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_quantizelinear_blocked_asymmetric_cpu",
         "OnnxBackendNodeModelTest.test_quantizelinear_blocked_symmetric_cpu",
     ),
-<<<<<<< HEAD
-=======
     (
         skip_issue_124587,
         "OnnxBackendNodeModelTest.test_split_variable_parts_1d_opset18_cpu",
@@ -838,7 +837,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_qlinearmatmul_2D_int8_float32_cpu",
         "OnnxBackendNodeModelTest.test_qlinearmatmul_2D_uint8_float16_cpu",
     ),
->>>>>>> 12a5e5a505... [ONNX] Switched to ONNX 1.16.0 (#24242)
 ]
 
 if platform.system() == 'Darwin':
