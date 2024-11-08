@@ -120,7 +120,7 @@ Table of Contents
 * :doc:`Loop <../operation-specs/infrastructure/loop-5>`
 * :doc:`LRN <../operation-specs/normalization/lrn-1>`
 * :doc:`LSTMCell <../operation-specs/sequence/lstm-cell-1>`
-* :doc:`LSTMSequence <../operation-specs/sequence/lstm-sequence-1>`
+* :doc:`LSTMSequence <../operation-specs/sequence/lstm-sequence-5>`
 * :doc:`MatMul <../operation-specs/matrix/matmul-1>`
 * :doc:`MatrixNMS <../operation-specs/sort/matrix-non-max-suppression-8>`
 * :doc:`MaxPool <../operation-specs/pooling/max-pool-14>`
@@ -198,7 +198,7 @@ Table of Contents
 * :doc:`Split <../operation-specs/movement/split-1>`
 * :doc:`Sqrt <../operation-specs/arithmetic/sqrt-1>`
 * :doc:`SquaredDifference <../operation-specs/arithmetic/squared-difference-1>`
-* :doc:`Squeeze <../operation-specs/shape/squeeze-1>`
+* :doc:`Squeeze <../operation-specs/shape/squeeze-15>`
 * :doc:`STFT <../operation-specs/signals/stft-15>`
 * :doc:`StridedSlice <../operation-specs/movement/strided-slice-1>`
 * :doc:`StringTensorPack <../operation-specs/type/string-tensor-pack-15>`

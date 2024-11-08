@@ -26,7 +26,11 @@ using OpenVINO.
 -  `Prerequisites <#prerequisites>`__
 -  `Select model <#select-model>`__
 -  `Convert model with OpenVINO <#convert-model-with-openvino>`__
--  `Compress model weights <#compress-model-weights>`__
+
+   -  `Convert model using Optimum
+      Intel <#convert-model-using-optimum-intel>`__
+   -  `Compress model weights <#compress-model-weights>`__
+
 -  `Run OpenVINO model inference <#run-openvino-model-inference>`__
 -  `Interactive demo <#interactive-demo>`__
 
@@ -47,8 +51,9 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q "gradio>=4.19" "torch>=2.1"  "transformers" "nncf>=2.12.0" "diffusers>=0.30.0" "opencv-python" "pillow" "peft>=0.7.0" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "gradio>=4.19" "torch>=2.1"  "transformers" "nncf>=2.12.0" "diffusers>=0.31.0" "opencv-python" "pillow" "peft>=0.7.0" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "sentencepiece" "protobuf"
+    %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
     %pip install -qU "openvino>=2024.4.0"
 
 .. code:: ipython3
@@ -56,9 +61,9 @@ Prerequisites
     import requests
     from pathlib import Path
     
-    if not Path("flux_helper.py").exists():
-        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/flux.1-image-generation/flux_helper.py")
-        open("flux_helper.py", "w").write(r.text)
+    if not Path("cmd_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py")
+        open("cmd_helper.py", "w").write(r.text)
     
     if not Path("gradio_helper.py").exists():
         r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/flux.1-image-generation/gradio_helper.py")
@@ -100,25 +105,19 @@ FLUX.1-dev version using widget bellow.
 
 .. code:: ipython3
 
-    from flux_helper import get_model_selector
+    import ipywidgets as widgets
     
-    model_selector = get_model_selector()
+    model_ids = ["black-forest-labs/FLUX.1-schnell", "black-forest-labs/FLUX.1-dev"]
+    
+    model_selector = widgets.Dropdown(
+        options=model_ids,
+        default=model_ids[0],
+        description="Model:",
+    )
+    
+    
     model_selector
 
-
-.. parsed-literal::
-
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-    
-
-.. parsed-literal::
-
-    2024-08-13 17:30:13.543036: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-08-13 17:30:13.544738: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2024-08-13 17:30:13.579013: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-08-13 17:30:14.449873: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    
 
 
 
@@ -169,40 +168,44 @@ The pipeline consists of four important parts:
 -  Transformer for step-by-step denoising latent image representation.
 -  Autoencoder (VAE) for decoding latent space to image.
 
-We will use ``convert_flux`` helper function defined in
-`flux_helper.py <flux_helper.py-with-output.html>`__ that create original PyTorch model
-and convert each part of pipeline using ``ov.convert_model``.
-
-.. code:: ipython3
-
-    from flux_helper import convert_flux
-    
-    # uncomment the line to see model conversion code
-    # ??convert_flux
-
-.. code:: ipython3
-
-    model_dir = convert_flux(model_selector.value)
+Convert model using Optimum Intel
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
-.. parsed-literal::
 
-    ✅ black-forest-labs/FLUX.1-schnell model already converted and can be found in FLUX.1-schnell
-    
+For convenience, we will use OpenVINO integration with HuggingFace
+Optimum. `Optimum
+Intel <https://huggingface.co/docs/optimum/intel/index>`__ is the
+interface between the Transformers and Diffusers libraries and the
+different tools and libraries provided by Intel to accelerate end-to-end
+pipelines on Intel architectures.
 
-.. code:: ipython3
+Among other use cases, Optimum Intel provides a simple interface to
+optimize your Transformers and Diffusers models, convert them to the
+OpenVINO Intermediate Representation (IR) format and run inference using
+OpenVINO Runtime. ``optimum-cli`` provides command line interface for
+model conversion and optimization.
 
-    from flux_helper import TRANSFORMER_PATH, VAE_DECODER_PATH, TEXT_ENCODER_PATH, TEXT_ENCODER_2_PATH
-    
-    model_dict = {
-        "transformer": model_dir / TRANSFORMER_PATH,
-        "text_encoder": model_dir / TEXT_ENCODER_PATH,
-        "text_encoder_2": model_dir / TEXT_ENCODER_2_PATH,
-        "vae": model_dir / VAE_DECODER_PATH,
-    }
+General command format:
+
+.. code:: bash
+
+   optimum-cli export openvino --model <model_id_or_path> --task <task> <output_dir>
+
+where task is task to export the model for, if not specified, the task
+will be auto-inferred based on the model. You can find a mapping between
+tasks and model classes in Optimum TaskManager
+`documentation <https://huggingface.co/docs/optimum/exporters/task_manager>`__.
+Additionally, you can specify weights compression using
+``--weight-format`` argument with one of following options: ``fp32``,
+``fp16``, ``int8`` and ``int4``. Fro int8 and int4
+`nncf <https://github.com/openvinotoolkit/nncf>`__ will be used for
+weight compression. More details about model export provided in `Optimum
+Intel
+documentation <https://huggingface.co/docs/optimum/intel/openvino/export#export-your-model>`__.
 
 Compress model weights
-----------------------
+~~~~~~~~~~~~~~~~~~~~~~
 
 
 
@@ -215,14 +218,16 @@ where the size of weights is relatively larger than the size of
 activations, for example, Large Language Models (LLM). Compared to INT8
 compression, INT4 compression improves performance even more, but
 introduces a minor drop in prediction quality. We will use
-`NNCF <https://github.com/openvinotoolkit/nncf>`__ for weight
-compression.
+`NNCF <https://github.com/openvinotoolkit/nncf>`__ integration to
+``optimum-cli`` tool for weight compression.
 
 .. code:: ipython3
 
-    from flux_helper import weight_compression_widget
-    
-    to_compress = weight_compression_widget()
+    to_compress = widgets.Checkbox(
+        value=True,
+        description="Weight compression",
+        disabled=False,
+    )
     
     to_compress
 
@@ -237,74 +242,40 @@ compression.
 
 .. code:: ipython3
 
-    import nncf
-    import openvino as ov
-    import gc
+    from pathlib import Path
     
-    compression_args = {"mode": nncf.CompressWeightsMode.INT4_SYM, "group_size": 64, "ratio": 1.0}
+    model_id = model_selector.value
     
-    int4_model_dict = {}
+    model_base_dir = Path(model_id.split("/")[-1])
+    additional_args = {}
     
     if to_compress.value:
-        core = ov.Core()
+        model_dir = model_base_dir / "INT4"
+        additional_args.update({"weight-format": "int4", "group-size": "64", "ratio": "1.0"})
+    else:
+        model_dir = model_base_dir / "FP16"
+        additional_args.update({"weight-format": "fp16"})
+
+.. code:: ipython3
+
+    from cmd_helper import optimum_cli
     
-        for model_name, model_path in model_dict.items():
-            int4_path = model_path.parent / (model_path.stem + "_int4.xml")
-            if not int4_path.exists():
-                print(f"⌛ {model_path.stem} compression started")
-                print(
-                    f"Compression parameters:\n\tmode = {compression_args['mode']}\n\tratio = {compression_args['ratio']}\n\tgroup_size = {compression_args['group_size']}"
-                )
-                model = core.read_model(model_path)
-                compressed_model = nncf.compress_weights(model, **compression_args)
-                ov.save_model(compressed_model, int4_path)
-                print(f"✅ {model_path.stem} compression finished")
-                del compressed_model
-                del model
-                gc.collect()
-            print(f"Compressed {model_path.stem} can be found in {int4_path}")
-            int4_model_dict[model_name] = int4_path
-
-
-.. parsed-literal::
-
-    Compressed transformer can be found in FLUX.1-schnell/transformer/transformer_int4.xml
-    Compressed text_encoder can be found in FLUX.1-schnell/text_encoder/text_encoder_int4.xml
-    Compressed text_encoder_2 can be found in FLUX.1-schnell/text_encoder_2/text_encoder_2_int4.xml
-    Compressed vae_decoder can be found in FLUX.1-schnell/vae/vae_decoder_int4.xml
-    
+    if not model_dir.exists():
+        optimum_cli(model_id, model_dir, additional_args=additional_args)
 
 Run OpenVINO model inference
 ----------------------------
 
 
 
-``OVFluxPipeline`` class defined in ``flux_helper.py`` provides
-convenient way for running model. It accepts directory with converted
-model and inference device as arguments.
-
-.. code:: ipython3
-
-    from flux_helper import get_pipeline_selection_option
-    
-    use_compressed = get_pipeline_selection_option(int4_model_dict)
-    use_compressed
-
-
-
-
-.. parsed-literal::
-
-    Checkbox(value=True, description='Use compressed models')
-
-
-
-.. code:: ipython3
-
-    from flux_helper import OVFluxPipeline, init_pipeline  # noqa: F401
-    
-    # uncomment the line to see model pipeline
-    # ??OVFluxPipeline
+``OVDiffusionPipeline`` from Optimum Intel provides ready-to-use
+interface for running Diffusers models using OpenVINO. It supports
+various models including Stable Diffusion, Stable Diffusion XL, LCM,
+Stable Diffusion v3 and Flux. Similar to original Diffusers pipeline,
+for initialization, we should use ``from_preptrained`` method providing
+model id from HuggingFace hub or local directory (both original PyTorch
+and OpenVINO models formats supported, in the first case model class
+additionally will trigger model conversion).
 
 .. code:: ipython3
 
@@ -318,31 +289,51 @@ model and inference device as arguments.
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', options=('CPU', 'AUTO'), value='CPU')
 
 
 
 .. code:: ipython3
 
-    ov_pipe = init_pipeline(model_dir, model_dict if not use_compressed.value else int4_model_dict, device.value)
-
-
-.. parsed-literal::
-
-    Models compilation
-    ✅ transformer - Done!
-    ✅ text_encoder - Done!
-    ✅ text_encoder_2 - Done!
+    import ipywidgets as widgets
     
+    model_available = (model_base_dir / "INT4").is_dir()
+    use_quantized_models = widgets.Checkbox(
+        value=model_available,
+        description="Use compressed models",
+        disabled=not model_available,
+    )
+    
+    use_quantized_models
+
+
+
 
 .. parsed-literal::
 
+    Checkbox(value=True, description='Use compressed models')
+
+
+
+.. code:: ipython3
+
+    from optimum.intel.openvino import OVDiffusionPipeline
+    
+    model_dir = model_base_dir / "INT4" if use_quantized_models.value else model_base_dir / "FP16"
+    
+    ov_pipe = OVDiffusionPipeline.from_pretrained(model_dir, device=device.value)
+
+
+.. parsed-literal::
+
+    2024-10-28 18:12:30.714636: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-10-28 18:12:30.727116: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:477] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+    WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+    E0000 00:00:1730124750.741387   52454 cuda_dnn.cc:8310] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+    E0000 00:00:1730124750.745955   52454 cuda_blas.cc:1418] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+    2024-10-28 18:12:30.761443: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
     You set `add_prefix_space`. The tokenizer needs to be converted from the slow tokenizers
-    
-
-.. parsed-literal::
-
-    ✅ vae - Done!
     
 
 .. code:: ipython3
@@ -365,7 +356,7 @@ model and inference device as arguments.
 
 
 
-.. image:: flux.1-image-generation-with-output_files/flux.1-image-generation-with-output_20_1.png
+.. image:: flux.1-image-generation-with-output_files/flux.1-image-generation-with-output_16_1.png
 
 
 
