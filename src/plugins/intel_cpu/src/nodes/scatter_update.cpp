@@ -979,6 +979,7 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
     uint8_t* update = mem_updates->getDataAs<uint8_t>();
     uint8_t* dstData = mem_data->getDataAs<uint8_t>();
     const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
+    const auto elementsCount = getParentEdgeAt(DATA_ID)->getMemory().getShape().getElementsCount();
     const auto& indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
     size_t indicesRank = indicesDim.size();
 
@@ -1002,8 +1003,14 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
             }
             dstOffset += idxValue * srcBlockND[i + 1];
         }
+
+        // Exception must be thrown according to the specification
+        CPU_NODE_ASSERT(dstOffset < elementsCount,
+                        " indices contain values that points to non-existing data tensor element");
+
         dstOffset *= dataSize;
         size_t updateOffset = tupleIdx * sizeToUpdate;
+
         cpu_memcpy(dstData + dstOffset, update + updateOffset, sizeToUpdate);
     });
 }
@@ -1018,6 +1025,7 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
     DataType* update = mem_updates->getDataAs<DataType>();
     DataType* dstData = mem_data->getDataAs<DataType>();
     const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
+    const auto elementsCount = getParentEdgeAt(DATA_ID)->getMemory().getShape().getElementsCount();
     const auto& indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
     const auto indicesRank = indicesDim.size();
 
@@ -1039,6 +1047,11 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
             }
             dstOffset += idxValue * srcBlockND[i + 1];
         }
+
+        // Exception must be thrown according to the specification
+        CPU_NODE_ASSERT(dstOffset < elementsCount,
+                        " indices contain values that points to non-existing data tensor element");
+
         const auto updateOffset = tupleIdx * sizeToUpdate;
         DataType* dstDataWithOffset = dstData + dstOffset;
         const DataType* updateWithOffset = update + updateOffset;
