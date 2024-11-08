@@ -71,9 +71,7 @@ std::vector<layout> one_hot_inst::calc_output_layouts(const one_hot_node& /*node
     std::unordered_map<size_t, ov::Tensor> const_data = {};
     if (depth != 0) {
         auto depth_tensor = ov::Tensor(ov::element::i64, ov::Shape{1}, static_cast<void*>(&depth));
-        const_data = {
-            {1, depth_tensor}
-        };
+        const_data[1] = depth_tensor;
     } else if (memory_deps.count(1) > 0) {
         auto depth_mem = memory_deps.at(1);
 
