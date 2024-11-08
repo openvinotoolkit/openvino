@@ -1818,7 +1818,7 @@ void Partitioner::optimize(const std::string& func_name) {
         std::set<std::size_t> to_remove_idx;
 
         // Update params and closures after convolution to matmul passes
-        for (auto&& p : ctx.closures_to_reshape_remove) {
+        for (auto&& p : ctx.closures_to_reshape_add) {
             new_params.push_back(p);
         }
         for (auto&& p : ctx.closures_to_reshape_remove) {
@@ -1826,11 +1826,11 @@ void Partitioner::optimize(const std::string& func_name) {
             to_remove.push_back(p);
             to_remove_idx.insert(param_idx);
             auto closure_idx = param_idx - f._param_offset;
-            std::cout << "Check idx:" << param_idx << ' ' << f._param_offset << ' ' << closure_idx << std::endl;
             for (std::size_t f_idx = 0; f_idx < func_group.refs.size(); ++f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
                 // Update and move closure according to the newly added parameter
                 // FIXME: rewrite with functional LazyTensors
+                // !!! FIXME !!! not tested yet. Won't work with original params and not consts!
                 funcall._lazy_closure[closure_idx].update(TransformType::RESHAPE, std::monostate{});
                 funcall._lazy_closure.push_back(funcall._lazy_closure[closure_idx]);
                 // Some of the tensors might be in closure - preserve it's 1:1 idx mapping with _lazy_closure
@@ -1981,6 +1981,7 @@ void Partitioner::optimize(const std::string& func_name) {
 
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulCWi>();
+    rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulCWi2>();
     rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQi>(std::ref(ctx));
     rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQ2i>(std::ref(ctx));
     rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQiP>(std::ref(ctx));
