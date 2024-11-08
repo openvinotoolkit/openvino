@@ -110,17 +110,6 @@ def test_clamp_operator():
     assert list(model.get_output_shape(0)) == [2, 2]
 
 
-def test_squeeze_operator():
-    data_shape = [1, 2, 1, 3, 1, 1]
-    parameter_data = ov.parameter(data_shape, name="Data", dtype=np.float32)
-    axes = [2, 4]
-    model = ov.squeeze(parameter_data, axes)
-
-    assert model.get_type_name() == "Squeeze"
-    assert model.get_output_size() == 1
-    assert list(model.get_output_shape(0)) == [1, 2, 3, 1]
-
-
 def test_squared_difference_operator():
     x1_shape = [1, 2, 3, 4]
     x2_shape = [2, 3, 4]
