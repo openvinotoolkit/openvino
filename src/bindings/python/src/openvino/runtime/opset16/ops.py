@@ -4,18 +4,15 @@
 
 """Factory functions for ops added to openvino opset16."""
 from functools import partial
-from typing import Optional
 
-from openvino.runtime.opset_utils import _get_node_factory
 from openvino.runtime import Node
 from openvino.runtime.utils.decorators import nameable_op
+from openvino.runtime.opset_utils import _get_node_factory
 from openvino.runtime.utils.types import NodeInput, as_nodes
 
 _get_node_factory_opset16 = partial(_get_node_factory, "opset16")
 
 # -------------------------------------------- ops ------------------------------------------------
-
-
 @nameable_op
 def identity(
     data: NodeInput,
