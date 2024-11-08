@@ -35,14 +35,14 @@ If the input and output tensor data address is the same, input is returned as ou
         <data/>
         <input>
             <port id="0" precision="FP32">
-                <dim>3</dim> <!-- 3 rows of square matrix -->
-                <dim>3</dim> <!-- 3 columns of square matrix -->
+                <dim>3</dim>
+                <dim>3</dim>
             </port>
         </input>
         <output>
             <port id="1" precision="FP32" names="Identity:16">
-                <dim>3</dim> <!-- 3 rows of square matrix -->
-                <dim>3</dim> <!-- 3 columns of square matrix -->
+                <dim>3</dim>
+                <dim>3</dim>
             </port>
         </output>
     </layer>
