@@ -746,6 +746,11 @@ event::ptr primitive_inst::realloc_if_needed() {
             if (curr_inst->can_be_optimized()
                     && (curr_output_memory_ptr
                         && get_network().get_engine().is_the_same_buffer(*curr_output_memory_ptr, *input_mem_ptr))) {
+                if (curr_inst->mem_allocated()) {
+                    get_network().get_memory_pool().release_memory(curr_inst->_outputs[0].get(),
+                            curr_inst->get_node().get_unique_id(), curr_inst->id(), get_network_id());
+                    _mem_allocated = false;
+                }
                 curr_inst->_outputs[0] = nullptr;
                 curr_inst->_max_output_layout_count[0] = 0;
                 for (auto& user_inst : curr_inst->get_user_insts()) {
@@ -770,6 +775,11 @@ event::ptr primitive_inst::realloc_if_needed() {
             return ev;
         } else if (_outputs[0] && dep_memory_ptr(0) &&
                    _network.get_engine().is_the_same_buffer(dep_memory(0), output_memory(0))) {
+            if (mem_allocated()) {
+                get_network().get_memory_pool().release_memory(_outputs[0].get(),
+                        get_node().get_unique_id(), id(), get_network_id());
+                _mem_allocated = false;
+            }
             _outputs[0] = nullptr;
             _max_output_layout_count[0] = 0;
             // Check users recursively and if the users is can_be_optimized && runtime_skippable
