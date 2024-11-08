@@ -115,7 +115,7 @@ jobs:
         run: |
           ls -la ${OPENVINO_REPO}
           docker run --rm \
-            -v ${OPENVINO_REPO}/openvino:/work/src \
+            -v ${OPENVINO_REPO}:/work/src \
             -v ov_build_cache:/work/build \
             -v ${INSTALL_DIR}:/work/install \
             -w /work/src \
