@@ -23,6 +23,8 @@ public:
 
     uint32_t getSupportedOpsetVersion() const override final;
 
+    std::string getSupportedOptions() const override final;
+
     NetworkDescription compile(const std::shared_ptr<const ov::Model>& model,
                                const Config& config) const override final;
 

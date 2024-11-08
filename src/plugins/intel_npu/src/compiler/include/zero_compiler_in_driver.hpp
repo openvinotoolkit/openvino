@@ -63,6 +63,7 @@ public:
     ~LevelZeroCompilerInDriver() override;
 
     uint32_t getSupportedOpsetVersion() const override final;
+    std::string getSupportedOptions() const override final;
 
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 

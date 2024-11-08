@@ -957,6 +957,44 @@ uint32_t LevelZeroCompilerInDriver<TableExtension>::getSupportedOpsetVersion() c
     return maxOpsetVersion;
 }
 
+template <typename TableExtension>
+std::string LevelZeroCompilerInDriver<TableExtension>::getSupportedOptions() const {
+    _logger.debug("getSupportedOptions start");
+    /// PLACEHOLDER
+    std::string test_supported_options = {"NPU_TURBO "
+                                          "NPU_BYPASS_UMD_CACHING "
+                                          "WORKLOAD_TYPE NPU_COMPILATION_MODE "
+                                          "CACHE_DIR NPU_TILES "
+                                          "LOADED_FROM_CACHE "
+                                          "LOG_LEVEL "
+                                          "NPU_BATCH_MODE "
+                                          "DEVICE_ID "
+                                          "NPU_COMPILER_TYPE "
+                                          "NPU_PLATFORM "
+                                          "INFERENCE_PRECISION_HINT "
+                                          "PERFORMANCE_HINT_NUM_REQUESTS "
+                                          "NPU_COMPILATION_MODE_PARAMS "
+                                          "NPU_DMA_ENGINES "
+                                          "PERFORMANCE_HINT "
+                                          "EXCLUSIVE_ASYNC_REQUESTS "
+                                          "NUM_STREAMS "
+                                          "NPU_BACKEND_COMPILATION_PARAMS "
+                                          "NPU_USE_ELF_COMPILER_BACKEND "
+                                          "NPU_MAX_TILES "
+                                          "COMPILATION_NUM_THREADS "
+                                          "NPU_DPU_GROUPS "
+                                          "EXECUTION_MODE_HINT "
+                                          "NPU_STEPPING "
+                                          "NPU_DYNAMIC_SHAPE_TO_STATIC "
+                                          "ENABLE_CPU_PINNING "
+                                          "NPU_PROFILING_TYPE "
+                                          "PERF_COUNT "
+                                          "MODEL_PRIORITY "
+                                          "NPU_CREATE_EXECUTOR"};
+    _logger.debug("getSupportedOptions end");
+    return test_supported_options;
+}
+
 /**
  * @brief Extracts the I/O metadata from Level Zero specific structures and converts them into OpenVINO specific ones.
  *

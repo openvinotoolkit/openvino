@@ -191,6 +191,12 @@ public:
     virtual uint32_t getSupportedOpsetVersion() const = 0;
 
     /**
+     * @brief Returns the list of compiler's supported configuration options
+     * @return string with all the supported options keys
+     */
+    virtual std::string getSupportedOptions() const = 0;
+
+    /**
      * @brief Transforms a network from the OpenVINO model representation to a format executable
      * by a NPU device
      * @param model a shared pointer to the OpenVINO model to be compiled
@@ -227,7 +233,7 @@ public:
                                                                     const Config& config) const = 0;
 
     // Driver compiler can use this to release graphHandle, if we do not have executor
-    virtual void release([[maybe_unused]] std::shared_ptr<const NetworkDescription> networkDescription){};
+    virtual void release([[maybe_unused]] std::shared_ptr<const NetworkDescription> networkDescription) {};
 
     virtual CompiledNetwork getCompiledNetwork(const NetworkDescription& networkDescription) {
         return CompiledNetwork(networkDescription.compiledNetwork.data(),
