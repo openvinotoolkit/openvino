@@ -274,7 +274,7 @@ std::vector<std::string> disabledTestPatterns() {
                                         auto operatingSystemRule = enableRule.text().get();
 
                                         if (operatingSystemRule == currentOS.getName())
-                                                operatingSystemRuleFlag;
+                                                operatingSystemRuleFlag = true;
                                 }
                         }
                         else {
