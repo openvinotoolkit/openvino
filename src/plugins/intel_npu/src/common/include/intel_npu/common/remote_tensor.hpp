@@ -20,7 +20,7 @@ namespace intel_npu {
  */
 class RemoteTensor : public ov::IRemoteTensor {
 public:
-    RemoteTensor(std::shared_ptr<ov::IRemoteContext> context,
+    RemoteTensor(const std::shared_ptr<ov::IRemoteContext>& context,
                  const ov::element::Type& element_type,
                  const ov::Shape& shape);
 

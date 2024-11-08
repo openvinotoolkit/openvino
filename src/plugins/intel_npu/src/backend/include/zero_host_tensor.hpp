@@ -13,8 +13,8 @@ namespace intel_npu {
 
 class ZeroHostTensor : public ov::ITensor {
 public:
-    ZeroHostTensor(std::shared_ptr<ov::IRemoteContext> context,
-                   std::shared_ptr<ZeroInitStructsHolder> init_structs,
+    ZeroHostTensor(const std::shared_ptr<ov::IRemoteContext>& context,
+                   const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                    const ov::element::Type element_type,
                    const ov::Shape& shape,
                    const Config& config);
