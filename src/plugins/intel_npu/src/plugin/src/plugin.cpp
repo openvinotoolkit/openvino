@@ -212,21 +212,44 @@ Plugin::Plugin()
     if (device) {
         cid_ver = device->getCompilerVersion();
     }
+    /// Creatig a dummy compiler to access its supported properties
+    auto dummy_compiler = createCompiler(_backends, ov::intel_npu::CompilerType::DRIVER);
+    std::string compiler_supported_options = dummy_compiler->getSupportedOptions();
 
     OV_ITT_TASK_NEXT(PLUGIN, "Metrics");
     _metrics = std::make_shared<Metrics>(_backends);
 
-    init_options(cid_ver);
+    init_options(cid_ver, compiler_supported_options);
     /// Init and register properties
     _properties = std::make_unique<Properties>(PropertiesType::PLUGIN, _globalConfig, _metrics);
     _properties->registerProperties();
 }
 
-void Plugin::init_options(compilerVersion comp_ver) {
+void Plugin::init_options(compilerVersion comp_ver, const std::string& comp_opts) {
     // Initialize (note: it will reset registered options)
+    // vectorize string
+    std::istringstream suppstream(comp_opts);
+    std::vector<std::string> compilerOpts;
+    std::string option;
+    while (suppstream >> option) {
+        compilerOpts.push_back(option);
+    }
+    _options->reset();
+    _options->setCompilerSupportedOptions(compilerOpts);
+    _options->setCompilerVersion(comp_ver);
     OV_ITT_TASK_NEXT(PLUGIN, "initOptions");
-    registerOptions(*_options, comp_ver);
+    registerOptions(*_options, OptionMode::RunTime);
+    registerOptions(*_options, OptionMode::Both);
+    registerOptions(*_options, OptionMode::CompileTime);
     _backends->registerOptions(*_options);
+
+    // debug print TODO: remove
+    std::vector<std::string> regopts = _options->getSupported(true);
+    std::cout << "REGISTERED: " << std::endl;
+    for (const std::string& word : regopts) {
+        std::cout << word << " ";
+    }
+    std::cout << std::endl;
 
     // Extras
     // Additional filtering of options, based on other criteria (other than compiler version)

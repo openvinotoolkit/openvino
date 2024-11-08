@@ -30,7 +30,7 @@ namespace intel_npu {
 // register
 //
 
-void registerOptions(OptionsDesc& desc, compilerVersion compilerVer);
+void registerOptions(OptionsDesc& desc, OptionMode mode);
 
 //
 // PERFORMANCE_HINT

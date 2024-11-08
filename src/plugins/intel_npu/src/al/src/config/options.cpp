@@ -11,43 +11,40 @@ using namespace ov::intel_npu;
 // register
 //
 
-void intel_npu::registerOptions(OptionsDesc& desc, compilerVersion compilerVer) {
-    // reset options first
-    desc.reset();
-
+void intel_npu::registerOptions(OptionsDesc& desc, OptionMode mode) {
     // register
-    desc.add<PERFORMANCE_HINT>(compilerVer);
-    desc.add<PERFORMANCE_HINT_NUM_REQUESTS>(compilerVer);
-    desc.add<INFERENCE_PRECISION_HINT>(compilerVer);
-    desc.add<PERF_COUNT>(compilerVer);
-    desc.add<LOG_LEVEL>(compilerVer);
-    desc.add<PLATFORM>(compilerVer);
-    desc.add<DEVICE_ID>(compilerVer);
-    desc.add<CACHE_DIR>(compilerVer);
-    desc.add<LOADED_FROM_CACHE>(compilerVer);
-    desc.add<BATCH_MODE>(compilerVer);
-    desc.add<COMPILER_TYPE>(compilerVer);
-    desc.add<COMPILATION_MODE>(compilerVer);
-    desc.add<COMPILATION_MODE_PARAMS>(compilerVer);
-    desc.add<BACKEND_COMPILATION_PARAMS>(compilerVer);
-    desc.add<COMPILATION_NUM_THREADS>(compilerVer);
-    desc.add<DPU_GROUPS>(compilerVer);
-    desc.add<TILES>(compilerVer);
-    desc.add<STEPPING>(compilerVer);
-    desc.add<MAX_TILES>(compilerVer);
-    desc.add<DMA_ENGINES>(compilerVer);
-    desc.add<USE_ELF_COMPILER_BACKEND>(compilerVer);
-    desc.add<DYNAMIC_SHAPE_TO_STATIC>(compilerVer);
-    desc.add<EXECUTION_MODE_HINT>(compilerVer);
-    desc.add<EXCLUSIVE_ASYNC_REQUESTS>();
-    desc.add<PROFILING_TYPE>(compilerVer);
-    desc.add<MODEL_PRIORITY>(compilerVer);
-    desc.add<CREATE_EXECUTOR>(compilerVer);
-    desc.add<NUM_STREAMS>(compilerVer);
-    desc.add<ENABLE_CPU_PINNING>(compilerVer);
-    desc.add<WORKLOAD_TYPE>(compilerVer);
-    desc.add<TURBO>(compilerVer);
-    desc.add<BYPASS_UMD_CACHING>(compilerVer);
+    desc.tryAdd<PERFORMANCE_HINT>(mode);
+    desc.tryAdd<PERFORMANCE_HINT_NUM_REQUESTS>(mode);
+    desc.tryAdd<INFERENCE_PRECISION_HINT>(mode);
+    desc.tryAdd<PERF_COUNT>(mode);
+    desc.tryAdd<LOG_LEVEL>(mode);
+    desc.tryAdd<PLATFORM>(mode);
+    desc.tryAdd<DEVICE_ID>(mode);
+    desc.tryAdd<CACHE_DIR>(mode);
+    desc.tryAdd<LOADED_FROM_CACHE>(mode);
+    desc.tryAdd<BATCH_MODE>(mode);
+    desc.tryAdd<COMPILER_TYPE>(mode);
+    desc.tryAdd<COMPILATION_MODE>(mode);
+    desc.tryAdd<COMPILATION_MODE_PARAMS>(mode);
+    desc.tryAdd<BACKEND_COMPILATION_PARAMS>(mode);
+    desc.tryAdd<COMPILATION_NUM_THREADS>(mode);
+    desc.tryAdd<DPU_GROUPS>(mode);
+    desc.tryAdd<TILES>(mode);
+    desc.tryAdd<STEPPING>(mode);
+    desc.tryAdd<MAX_TILES>(mode);
+    desc.tryAdd<DMA_ENGINES>(mode);
+    desc.tryAdd<USE_ELF_COMPILER_BACKEND>(mode);
+    desc.tryAdd<DYNAMIC_SHAPE_TO_STATIC>(mode);
+    desc.tryAdd<EXECUTION_MODE_HINT>(mode);
+    desc.tryAdd<EXCLUSIVE_ASYNC_REQUESTS>(mode);
+    desc.tryAdd<PROFILING_TYPE>(mode);
+    desc.tryAdd<MODEL_PRIORITY>(mode);
+    desc.tryAdd<CREATE_EXECUTOR>(mode);
+    desc.tryAdd<NUM_STREAMS>(mode);
+    desc.tryAdd<ENABLE_CPU_PINNING>(mode);
+    desc.tryAdd<WORKLOAD_TYPE>(mode);
+    desc.tryAdd<TURBO>(mode);
+    desc.tryAdd<BYPASS_UMD_CACHING>(mode);
 }
 
 //
