@@ -114,7 +114,6 @@ jobs:
       - name: Build (Python 3.9)
         run: |
           # ls -la ${OPENVINO_REPO}
-          ls -la /runner/_work
           ls -la /__w/
           docker run --rm \
             -v ${{ github.workspace }}/openvino:/work/src \
