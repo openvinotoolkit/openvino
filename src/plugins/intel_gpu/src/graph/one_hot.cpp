@@ -66,14 +66,15 @@ std::vector<layout> one_hot_inst::calc_output_layouts(const one_hot_node& /*node
     };
 
     int64_t depth = desc->depth;
-
-    auto depth_tensor = ov::Tensor(ov::element::i64, ov::Shape{1}, static_cast<void*>(&depth));
-    std::unordered_map<size_t, ov::Tensor> const_data = {
-        {1, depth_tensor}
-    };
-
     auto& memory_deps = impl_param.memory_deps;
-    if (memory_deps.count(1) > 0) {
+
+    std::unordered_map<size_t, ov::Tensor> const_data = {};
+    if (depth != 0) {
+        auto depth_tensor = ov::Tensor(ov::element::i64, ov::Shape{1}, static_cast<void*>(&depth));
+        const_data = {
+            {1, depth_tensor}
+        };
+    } else if (memory_deps.count(1) > 0) {
         auto depth_mem = memory_deps.at(1);
 
         cldnn::mem_lock<uint8_t, mem_lock_type::read> depth_lock(depth_mem, impl_param.get_stream());

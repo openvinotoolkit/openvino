@@ -63,7 +63,7 @@ struct one_hot : public primitive_base<one_hot> {
             const int64_t& one_hot_axis,
             const float& on_value = 1.0f,
             const float& off_value = 0.0f)
-        : primitive_base(id, {input, input_depth})
+        : primitive_base(id, {input, input_depth}, 1, {optional_data_type{output_dt}})
         , shape(shape)
         , one_hot_axis(one_hot_axis)
         , on_value(on_value)
