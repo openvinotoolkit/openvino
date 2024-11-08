@@ -789,7 +789,7 @@ void RandomUniform::computeMersenneTwister(void* out, size_t output_elements_cou
                 auto& params = m_mersenne_twister_thread_params[ithr];
                 auto state_ptr = mersenne_state_ptr + params.src_start_idx;
                 auto dst_ptr = output_byte_ptr + params.dst_start_idx + i * byte_offset;
-                auto output_idx = params.src_start_idx + i;
+                auto output_idx = params.src_start_idx + i * MERSENNE_STATE_N;
                 auto max_output_idx = output_elements_count;
                 auto state_accesses_count = params.state_accesses_count;
                 auto elements_to_generate = static_cast<int64_t>(
