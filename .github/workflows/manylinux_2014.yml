@@ -113,14 +113,15 @@ jobs:
       
       - name: Build (Python 3.9)
         run: |
-          ls -la ${OPENVINO_REPO}
+          # ls -la ${OPENVINO_REPO}
+          ls -la /runner/_work
+          ls -la /__w/
           docker run --rm \
             -v ${{ github.workspace }}/openvino:/work/src \
             -v ov_build_cache:/work/build \
             -v ${INSTALL_DIR}:/work/install \
             -w /work/src \
             -e PATH="${{ env.PYTHON}}:$PATH" \
-            # ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64_docker }} \
             quay.io/pypa/manylinux2014_x86_64 \
             /bin/bash -c "
               python3 -m pip install -r /work/src/src/bindings/python/wheel/requirements-dev.txt --force-reinstall &&
