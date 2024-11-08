@@ -2,10 +2,10 @@
 =========================
 
 
-4-bit weight quantization method results in significant reduction in model size and memory usage.
-Therefore, the method makes LLMs more accessible for devices with limited capabilities.
+The 4-bit weight quantization method results in significant reduction in model size and
+memory usage, making LLMs more accessible to less performant devices.
 It also usually offers lower inference latency, however, depending on specific models,
-it can potentially impact the accuracy.
+it may potentially impact the accuracy.
 
 Nevertheless, the INT4 method has several parameters that can provide different performance-accuracy
 trade-offs after optimization:

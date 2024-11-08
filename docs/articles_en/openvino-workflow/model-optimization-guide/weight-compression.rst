@@ -9,14 +9,12 @@ LLM Weight Compression
    weight-compression/4-bit-weight-quantization
 
 
-Weight compression enhances the efficiency of models,
-which have large memory requirements. This method reduces the model's
-memory footprint, a crucial factor for Large Language Models (LLMs).
+Weight compression enhances the efficiency of models by reducing their memory footprint,
+a crucial factor for Large Language Models (LLMs). It is especially effective for networks with high memory requirements.
 
-Unlike full model quantization, where weights and activations are quantized,
-weight compression in `Neural Network Compression Framework (NNCF) <https://github.com/openvinotoolkit/nncf>`__
-only targets the model's weights. This approach enables the activations to remain as
-floating-point numbers, preserving most of the model's accuracy while improving its
+Unlike full model quantization, where both weights and activations are quantized, it
+only targets weights, keeping activations as floating-point numbers. This means preserving most
+of the model's accuracy while improving its
 speed and reducing its size. The reduction in size is especially noticeable with larger models.
 For instance the 7 billion parameter Llama 2 model can be reduced
 from about 25GB to 4GB using 4-bit weight compression.
@@ -49,14 +47,13 @@ method primarily designed to optimize LLMs.
 Compression Methods (8-bit vs. 4-bit)
 #####################################
 
-**8-bit weight quantization** method offers a balance between model size reduction and
-maintaining accuracy, which usually leads to significant performance improvements for
-Transformer-based models. Models with 8-bit compressed weights are performant on the
-vast majority of supported CPU and GPU platforms. By default, weights are compressed
-asymmetrically to "INT8_ASYM" mode.
+**8-bit weight quantization** offers a good balance between reducing the size and lowering the
+accuracy of a model. It usually results in significant improvements for transformer-based models
+and guarantees good model performance for a vast majority of supported CPU and GPU platforms.
+By default, weights are compressed asymmetrically to "INT8_ASYM" mode.
 
-The code snippet below shows how to do asymmetrical 8-bit quantization of the model weights
-represented in OpenVINO IR using NNCF:
+Here is an example of code using NNCF to perform asymmetrical 8-bit weight quantization of
+a model in the OpenVINO IR format:
 
 .. tab-set::
 
@@ -131,14 +128,12 @@ when the model is loaded with the ``load_in_8bit=True`` parameter.
          results = pipe(phrase)
          print(results)
 
-The model can be also :ref:`saved into a compressed format <save_pretrained>`,
+The model can also be :ref:`saved into a compressed format <save_pretrained>`,
 resulting in a smaller binary file.
 
 
-**4-bit weight quantization** method stands for an INT4-INT8 mixed-precision weight quantization,
-where INT4 is considered as the primary precision and asymmetric INT8 is the backup one.
-It usually results in a smaller model size and lower inference latency, although the accuracy
-degradation can be higher, depending on the model.
+**4-bit weight quantization** is actually a mixed-precision compression, primarily INT4 and
+a backup asymmetric INT8 precisions. It produces a smaller model, offering lower inference latency but potentially noticeable accuracy degradation, depending on the model.
 
 The code snippet below shows how to do 4-bit quantization of the model weights represented
 in OpenVINO IR using NNCF:
