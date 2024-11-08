@@ -121,7 +121,6 @@ jobs:
             -v ${INSTALL_DIR}:/work/install \
             -w /work/src \
             -e PATH="${{ env.PYTHON}}:$PATH" \
-            # quay.io/pypa/manylinux2014_x86_64 \
             ${{ fromJSON(needs.docker.outputs.images).ov_build.manylinux2014_x86_64 }} \
             /bin/bash -c "
               python3 -m pip install -r /work/src/src/bindings/python/wheel/requirements-dev.txt --force-reinstall &&
@@ -129,6 +128,11 @@ jobs:
               cmake --build /work/build --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}"
         env:
           PYTHON: /opt/python/cp39-cp39/bin
+      
+      - name: Dump build cache
+        run: |
+          docker run --rm -v ov_build_cache:/mnt -v $(pwd):/backup busybox tar -czf /backup/volume_backup.tar.gz -C /mnt .
+
       #
       # Build
       #
