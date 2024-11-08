@@ -121,7 +121,8 @@ jobs:
             -v ${INSTALL_DIR}:/work/install \
             -w /work/src \
             -e PATH="${{ env.PYTHON}}:$PATH" \
-            quay.io/pypa/manylinux2014_x86_64 \
+            # quay.io/pypa/manylinux2014_x86_64 \
+            ${{ fromJSON(needs.docker.outputs.images).ov_build.manylinux2014_x86_64 }} \
             /bin/bash -c "
               python3 -m pip install -r /work/src/src/bindings/python/wheel/requirements-dev.txt --force-reinstall &&
               cmake -DENABLE_CPPLINT=OFF -DENABLE_NCC_STYLE=OFF -DCMAKE_VERBOSE_MAKEFILE=ON -DBUILD_SHARED_LIBS=ON -DENABLE_WHEEL=ON -S /work/src -B /work/build &&
