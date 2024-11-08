@@ -20,23 +20,6 @@ Example:
 <skip_configs>
     <skip_config>
         <!-- EISW ##### -->
-        <message>These tests are test filters</message>
-        <enable_rules>
-            <backend>LEVEL0</backend>
-        </enable_rules>
-        <filters>
-            <filter>.*InferRequestRunTests.*</filter>
-            <filter>.*AllocatorCanDisposeBlobWhenOnlyInferRequestIsInScope.*</filter>
-            <filter>.*MultipleExecutorStreamsTestsSyncInfers.*</filter>
-            <filter>.*MultipleExecutorStreamsTestsAsyncInfers.*</filter>
-            <filter>.*MultipleExecutorTestsSyncInfers.*</filter>
-            <filter>.*CheckOutputDataFromTwoRuns.*</filter>
-            <filter>.*CheckOutputDataFromMultipleRunsUsingSameL0Tensor.*</filter>
-            <filter>.*RecreateL0TensorIfNeeded.*</filter>
-        </filters>
-    </skip_config>
-    <skip_config>
-        <!-- EISW ##### -->
         <message>Tests break due to starting infer on IA side</message>
         <filters>
             <filter>.*CorrectConfigAPITests.*</filter>
@@ -329,7 +312,6 @@ Example:
         <message>Disabled for when backend is empty (i.e., no device)</message>
         <enable_rules>
             <backend>empty</backend>
-            <device></device>
         </enable_rules>
         <filters>
             <!-- Cannot run InferRequest tests without a device to infer to -->
@@ -716,31 +698,6 @@ Example:
         </filters>
     </skip_config>
     <skip_config>
-        <!-- EISW 118331 -->
-        <message>platform and compiler_type are private</message>
-        <enable_rules>
-            <backend>LEVEL0</backend>
-            <device>!3720</device>
-        </enable_rules>
-        <filters>
-            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestCallbackTests.*</filter>
-            <filter>.*smoke_Auto_BehaviorTests/OVInferRequestCallbackTests.*</filter>
-            <filter>.*smoke_Auto_BehaviorTests/OVInferRequestCallbackTestsNPU.*</filter>
-            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestCallbackTestsNPU.*</filter>
-            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestIOTensorTestNPU.*</filter>
-            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestIOTensorTest.*</filter>
-            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestMultithreadingTests.*</filter>
-            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestPerfCountersTest.*</filter>
-            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestPerfCountersExceptionTest.*</filter>
-            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestWaitTests.*</filter>
-            <filter>.*smoke_Auto_BehaviorTests/OVInferRequestMultithreadingTestsNPU.*</filter>
-            <filter>.*smoke_Auto_BehaviorTests/OVInferRequestPerfCountersTest.*</filter>
-            <filter>.*smoke_Auto_BehaviorTests/OVInferRequestPerfCountersExceptionTest.*</filter>
-            <filter>.*smoke_Auto_BehaviorTests/OVInferRequestWaitTests.*</filter>
-            <filter>.*smoke_OVClassNetworkTestP/OVClassNetworkTestPNPU.*</filter>
-        </filters>
-    </skip_config>
-    <skip_config>
         <!-- EISW 125086 -->
         <message>Failing tests after functional tests migration to OV</message>
         <enable_rules>
@@ -780,15 +737,6 @@ Example:
         <message>NPU plugin doesn't support infer dynamic</message>
         <filters>
             <filter>.*OVInferRequestBatchedTests.SetInputTensors_Can_Infer_Dynamic.*</filter>
-        </filters>
-    </skip_config>
-    <skip_config>
-        <!-- EISW 118381 -->
-        <message>Comparation is failed, SLT need to be updated.</message>
-        <filters>
-            <filter>.*smoke.*GridSample_Tiling/GridSampleLayerTest.*align_corners=0.*Mode=nearest_padding_mode=zeros.*</filter>
-            <filter>.*smoke.*GridSample_Tiling/GridSampleLayerTest.*align_corners=0.*Mode=nearest_padding_mode=border.*</filter>
-            <filter>.*smoke.*GridSample_Tiling/GridSampleLayerTest.*align_corners=0.*Mode=nearest_padding_mode=reflection.*</filter>
         </filters>
     </skip_config>
     <skip_config>
