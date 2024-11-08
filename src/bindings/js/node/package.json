@@ -3,7 +3,7 @@
   "version": "2024.4.0",
   "description": "OpenVINO™ utils for using from Node.js environment",
   "repository": {
-    "url": "https://github.com/openvinotoolkit/openvino.git",
+    "url": "git+https://github.com/openvinotoolkit/openvino.git",
     "type": "git"
   },
   "license": "Apache-2.0",
