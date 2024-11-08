@@ -177,6 +177,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
             }
         });
+        // add comment for test
         program_helpers::do_for_types<reorder>(*node, [](reorder_node& node){
             auto impl_params = node.get_kernel_impl_params();
 
