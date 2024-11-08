@@ -1449,13 +1449,11 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                 update_config[ov::loaded_from_cache.name()] = true;
 
                 if (util::contains(plugin.get_property(ov::supported_properties), ov::weights_path)) {
-                    std::string weights_path;
-                    auto pos = cacheContent.modelPath.rfind('.');
-                    if (cacheContent.modelPath.substr(pos) == ".xml") {
-                        weights_path = cacheContent.modelPath.substr(0, pos);
+                    std::string weights_path = cacheContent.modelPath;
+                    auto pos = weights_path.rfind('.');
+                    if (pos != weights_path.npos && weights_path.substr(pos) == ".xml") {
+                        weights_path = weights_path.substr(0, pos);
                         weights_path += ".bin";
-                    } else {
-                        weights_path = cacheContent.modelPath;
                     }
                     if (ov::util::file_exists(weights_path)) {
                         update_config[ov::weights_path.name()] = weights_path;
