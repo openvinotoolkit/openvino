@@ -31,9 +31,10 @@ ov::pass::MarkRopeInputsToKeepInMixedPrecision::MarkRopeInputsToKeepInMixedPreci
         auto visit_func = [](ov::Node* node) {
             ov::disable_fp16_compression(node->shared_from_this());
         };
-        // skip constant, parameter and shapeof 
+        // skip constant, parameter and shapeof
         auto skip_node_predicate = [](ov::Node* node) -> bool {
-            return ov::is_type<ov::op::v0::Constant>(node) || ov::is_type<ov::op::v0::Parameter>(node) || ov::is_type<ov::op::util::ShapeOfBase>(node);
+            return ov::is_type<ov::op::v0::Constant>(node) || ov::is_type<ov::op::v0::Parameter>(node) ||
+                   ov::is_type<ov::op::util::ShapeOfBase>(node);
         };
         if (!visited.count(cos_input_node)) {
             ov::op::util::visit_path(cos_input_node, visited, visit_func, skip_node_predicate);
