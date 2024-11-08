@@ -67,7 +67,7 @@ std::vector<TRShape> shape_infer(const OneHot* op,
         auto depth_as_shape =
             get_input_const_data_as_shape<TRShape>(op, 1, ta, util::GetNotNegative<typename DimType::value_type>(op));
 
-        if (depth_as_shape && depth_as_shape->size() == 1 && (*depth_as_shape)[0].get_length() > 0) {
+        if (depth_as_shape && depth_as_shape->size() == 1) {
             result_shape.insert(result_shape.begin() + axis, (*depth_as_shape)[0]);
         } else {
             result_shape.insert(result_shape.begin() + axis, DimType());
