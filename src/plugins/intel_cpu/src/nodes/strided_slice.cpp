@@ -71,17 +71,19 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
     if (inputShapes.size() > attrs.AXES_ID) {
         isAxesSpecified = true;
     }
-
+    hasConstAttrInputs = true;
     for (size_t i = 0lu; i < op->get_input_size(); i++) {
         isConstantInput[i] = ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
-        if (!isConstantInput[i] && one_of(i, attrs.BEGIN_ID, attrs.END_ID, attrs.STRIDE_ID) && !attrs.isSliceScatterOp) {
-            shapeHasDataDependency = true;
+        if (!isConstantInput[i] && one_of(i, attrs.BEGIN_ID, attrs.END_ID, attrs.STRIDE_ID)) {
+            hasConstAttrInputs = false;
+            if (!attrs.isSliceScatterOp) {
+                shapeHasDataDependency = true;
+            }
         }
     }
-    hasConstAttrInputs = !shapeHasDataDependency;
-    if (isAxesSpecified)
+    if (isAxesSpecified) {
         hasConstAttrInputs &= isConstantInput[attrs.AXES_ID];
-
+    }
     const size_t inputRank = getInputShapeAtPort(attrs.DATA_ID).getRank();
     const size_t outputRank = getOutputShapeAtPort(0).getRank();
     const size_t nDims = std::max(inputRank, outputRank);
@@ -292,7 +294,7 @@ bool StridedSlice::isExecutable() const {
 }
 
 void StridedSlice::createPrimitive() {
-    if (inputShapesDefined() && isExecutable() && !shapeHasDataDependency) {
+    if (inputShapesDefined() && isExecutable() && !shapeHasDataDependency && hasConstAttrInputs) {
         if (needPrepareParams()) {
             prepareParams();
         }
@@ -325,9 +327,12 @@ bool StridedSlice::needShapeInfer() const {
 }
 
 void StridedSlice::execute(dnnl::stream strm) {
-    if (!execPtr)
+    if (!execPtr && !Node::isDynamic) {
+        // SliceScatter due to not having data dependency on shape may not call prepareParams when start/stop/step values are non-constant in Static execution.
+        StridedSlice::prepareParams();
+    } else if (!execPtr) {
         OPENVINO_THROW(errorPrefix, "doesn't have compiled executor!");
-
+    }
     execPtr->exec(srcMemory, dstMemory);
 }
 
@@ -762,7 +767,7 @@ void StridedSlice::StridedSliceCommonExecutor::execSliceScatter(const std::vecto
     const uint8_t* srcUpdates = srcMemory[1]->getDataAs<const uint8_t>();
     uint8_t* dstData = dstMemory[0]->getDataAs<uint8_t>();
     cpu_parallel_memcpy(dstData, srcData, srcMemory[0]->getSize());
-    if (srcMemory[1]->getSize() == 0) {
+    if (srcMemory[1]->getShape().hasZeroDims() || srcMemory[1]->getSize() == 0) {
         // Updates are empty - do not apply
         return;
     }
