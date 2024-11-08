@@ -121,6 +121,7 @@ private:
     std::string _name;
     intel_npu::Logger _log = intel_npu::Logger("CurrentOS", ov::log::Level::INFO);
 };
+
 class SkipRegistry {
 public:
     void addPatterns(std::string&& comment, std::vector<std::string>&& patternsToSkip) {
@@ -295,7 +296,6 @@ std::vector<std::string> disabledTestPatterns() {
                         auto skipFilterEntry = skipFilter.text().get();
 
                         // Add skip to regoistry
-                        count_filter++;
                         _skipRegistry.addPatterns(ruleFlag, skipMessageEntry, { skipFilterEntry });
                 }
         }
