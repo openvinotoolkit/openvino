@@ -229,7 +229,7 @@ ov::Tensor LazyTensorImpl::eval() const {
     case TransformType::CONVERT:
         return ov::npuw::util::to_f16(m_parent->eval());
     case TransformType::RESHAPE:
-        return ov::npuw::util::reshape(m_parent->eval());
+        return ov::npuw::util::drop_last_dims(m_parent->eval());
     default:
         NPUW_ASSERT(false);
     }

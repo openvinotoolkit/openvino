@@ -367,16 +367,14 @@ ov::Tensor ov::npuw::util::to_f16(const ov::Tensor& t) {
     return ov::npuw::util::XARCH::to_f16(t);
 }
 
-ov::Tensor ov::npuw::util::reshape(const ov::Tensor& t) {
+ov::Tensor ov::npuw::util::drop_last_dims(const ov::Tensor& t) {
     const auto& shape = t.get_shape();
-    ov::Tensor tnew(t.get_element_type(), {shape[0], shape[1]});
+    NPUW_ASSERT(shape.size() == 4);
     const auto& strides = t.get_strides();
-    ov::Tensor wraped(t.get_element_type(),
+    return ov::Tensor(t.get_element_type(),
                       ov::Shape{shape[0], shape[1]},
                       t.data(),
                       ov::Strides{strides[0], strides[1]});
-    wraped.copy_to(tnew);
-    return tnew;
 }
 
 inline uint8_t tread_4b(const ov::Tensor& t, std::size_t r, std::size_t c, std::size_t COLS) {
