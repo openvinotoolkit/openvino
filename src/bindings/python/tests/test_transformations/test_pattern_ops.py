@@ -189,7 +189,7 @@ def test_pattern_optional_root():
 
 
 def test_wrap_type_pattern_type():
-    last_opset_number = 15
+    last_opset_number = 16
     for i in range(1, last_opset_number + 1):
         WrapType(f"opset{i}.Parameter")
         WrapType(f"opset{i}::Parameter")
