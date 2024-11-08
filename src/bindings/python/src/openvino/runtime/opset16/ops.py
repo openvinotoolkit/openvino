@@ -4,6 +4,7 @@
 
 """Factory functions for ops added to openvino opset16."""
 from functools import partial
+from typing import Optional
 
 from openvino.runtime import Node
 from openvino.runtime.utils.decorators import nameable_op
