@@ -782,6 +782,8 @@ struct MHAHelper {
     size_t _nthr;
     size_t _sliding_window;
     float _d_scale;
+    size_t _key_group_size = 0;
+    size_t _value_group_size = 0;
 
     PlainTensor _weight;            // [nthr, H, 32, rnd_up(kv_len, block_size)], shared by first and second loop along bh
     PlainTensor _output;            // [nthr, 32, H, S], shared by first and second loop along bh
@@ -808,6 +810,10 @@ struct MHAHelper {
     PlainTensor _score_offsets;
 
     MHAHelper() {
+        _weight.resize<float>({size_t{1}, size_t{1}, size_t{1}, size_t{1}});
+    }
+
+    explicit MHAHelper(size_t key_group_size, size_t value_group_size) : _key_group_size(key_group_size), _value_group_size(value_group_size) {
         _weight.resize<float>({size_t{1}, size_t{1}, size_t{1}, size_t{1}});
     }
 
@@ -1590,6 +1596,10 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 
     AttentionExecutor() : _kernel(_helper) {}
 
+    explicit AttentionExecutor(size_t key_group_size, size_t value_group_size)
+        : _helper(MHAHelper<DATA_TYPE, KEY_CACHE_TYPE, VALUE_CACHE_TYPE>(key_group_size, value_group_size)),
+          _kernel(_helper) {}
+
     void init(const std::vector<MemoryPtr>& inputs, const std::vector<MemoryPtr>& outputs, PlainTensor& q, PlainTensor& k, PlainTensor& v, PlainTensor& k_cache,
         PlainTensor& v_cache, PlainTensor& past_lens, PlainTensor& subsequence_begins, PlainTensor& block_indices, PlainTensor& block_indices_begins,
         float& scale, size_t& sliding_window, PlainTensor& alibi_slopes, size_t& max_context_len, PlainTensor& output_emb, PlainTensor& output_score) {
@@ -1676,7 +1686,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
 
         if (k_cache.m_dt == ov::element::Type_t::u8) {
-            paged_attn_quantkv(k, v, k_cache, v_cache, _slot_mapping);
+            paged_attn_quantkv(k, v, k_cache, v_cache, _slot_mapping, _helper._key_group_size, _helper._value_group_size);
         } else {
             paged_attn_memcpy(k, v, k_cache, v_cache, _slot_mapping);
         }
@@ -1702,35 +1712,39 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 };
 #endif
 
-std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_type, ov::element::Type key_cache_type, ov::element::Type value_cache_type) {
+std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_type,
+                                                         ov::element::Type key_cache_type,
+                                                         ov::element::Type value_cache_type,
+                                                         size_t key_group_size,
+                                                         size_t value_group_size) {
     std::shared_ptr<PagedAttentionExecutor> executor;
 
 #ifdef OPENVINO_ARCH_X86_64
     if (data_type == ov::element::bf16) {
-#if defined(HAVE_AVX512F)
+#    if defined(HAVE_AVX512F)
         if (key_cache_type == ov::element::u8) {
-            executor = std::make_shared<AttentionExecutor<ov::bfloat16, uint8_t, uint8_t>>();
+            executor = std::make_shared<AttentionExecutor<ov::bfloat16, uint8_t, uint8_t>>(key_group_size, value_group_size);
         } else {
             OPENVINO_ASSERT(key_cache_type == ov::element::bf16, "expect kvcache type bf16, current: ", key_cache_type);
             executor = std::make_shared<AttentionExecutor<ov::bfloat16, ov::bfloat16, ov::bfloat16>>();
         }
-#else
+#    else
         OPENVINO_THROW("make_pa_executor: bf16 needs avx512+ hardware.");
-#endif
+#    endif
     } else if (data_type == ov::element::f16) {
-#if defined(HAVE_AVX512F)
+#    if defined(HAVE_AVX512F)
         if (key_cache_type == ov::element::u8) {
-            executor = std::make_shared<AttentionExecutor<ov::float16, uint8_t, uint8_t>>();
+            executor = std::make_shared<AttentionExecutor<ov::float16, uint8_t, uint8_t>>(key_group_size, value_group_size);
         } else {
             OPENVINO_ASSERT(key_cache_type == ov::element::f16, "expect kvcache type f16, current: ", key_cache_type);
             executor = std::make_shared<AttentionExecutor<ov::float16, ov::float16, ov::float16>>();
         }
-#else
-     OPENVINO_THROW("make_pa_executor: f16 needs avx512+ hardware.");
-#endif
+#    else
+        OPENVINO_THROW("make_pa_executor: f16 needs avx512+ hardware.");
+#    endif
     } else if (data_type == ov::element::f32) {
         if (key_cache_type == ov::element::u8) {
-            executor = std::make_shared<AttentionExecutor<float, uint8_t, uint8_t>>();
+            executor = std::make_shared<AttentionExecutor<float, uint8_t, uint8_t>>(key_group_size, value_group_size);
         } else if (key_cache_type == ov::element::f16) {
             executor = std::make_shared<AttentionExecutor<float, ov::float16, ov::float16>>();
         } else {

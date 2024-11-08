@@ -50,6 +50,25 @@ void attn_dequant_u8_kernel(const uint8_t* src, TDST* dst, size_t n, float scale
     }
 }
 
+template<typename TDST>
+void attn_dequant_u4_kernel(const uint8_t* src, TDST* dst, size_t n, float scale, float zp) {
+    auto extract_half_byte = [&](uint8_t val, bool high_half) -> uint8_t {
+        uint8_t shift = high_half ? 0 : 4;
+        return (uint8_t) ((val >> shift) & 0x000F);
+    };
+    size_t i = 0;
+    // loadu_si128/epi64 does not support const qualifier;
+    uint8_t* src_nc = const_cast<uint8_t*>(src);
+    float temp[4] = {0};
+    for (; i < n; ++i) {
+        float tmp = extract_half_byte(src_nc[i / 2], (uint8_t)(i % 2));
+        if (i < 4)
+            printf("index %ld integral %f float %f hex %x ", i, tmp, (tmp - zp) * scale, src_nc[i / 2]);
+        tmp = (tmp - zp) * scale;
+        dst[i] = tmp;
+    }
+}
+
 }  // namespace XARCH
 }  // namespace Cpu
 }  // namespace Extensions

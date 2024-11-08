@@ -129,10 +129,13 @@ void PagedAttention::createPrimitive() {
 
     auto builder = [&](const PagedAttentionKey& key) -> std::shared_ptr<PagedAttentionExecutor> {
 #ifdef OPENVINO_ARCH_X86_64
+        // Since we are quantize only last dim it's safe to use the last dim of KV.
         auto kCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
         auto vCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
-        std::cout << "PagedAttn|Kcache|" << kCachePrecision << "|Vcache|" << vCachePrecision << std::endl;
-        return make_pa_executor(rtPrecision, kCachePrecision, vCachePrecision);
+        size_t key_group_size = 0;
+        size_t value_group_size = 0; 
+        std::cout << "PagedAttn|Kcache|" << kCachePrecision << "|Vcache|" << vCachePrecision << "|key_group_size|" << key_group_size << "|value_group_size|" << value_group_size << std::endl;
+        return make_pa_executor(rtPrecision, kCachePrecision, vCachePrecision, key_group_size, value_group_size);
 #else
         return nullptr;
 #endif
