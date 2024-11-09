@@ -15,7 +15,7 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 
-OutputVector translate_exp1m_op(const NodeContext& node) {
+OutputVector translate_expm1_op(const NodeContext& node) {
     default_op_checks(node, 1, {"Expm1"});
     auto input = node.get_input(0);
     auto const_one = create_same_type_const_scalar<int>(input, 1);
