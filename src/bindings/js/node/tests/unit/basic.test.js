@@ -24,14 +24,16 @@ describe('ov basic tests.', () => {
   let modelLike = null;
   let outDir = null;
 
-  before(async () => {
+  before(() => {
     fs.mkdtemp(path.join(os.tmpdir(), 'ov_js_out_'), (err, directory) => {
       if (err) {
         throw err;
       }
       outDir = directory;
     });
+  });
 
+  before(async () => {
     await isModelAvailable(testModels.testModelFP32);
     testXml = getModelPath().xml;
   });
