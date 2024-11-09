@@ -25,7 +25,7 @@ describe('ov basic tests.', () => {
   let outDir = null;
 
   before(async () => {
-    fs.mkdtemp(path.join(os.tmpdir(), 'ov_js_out_'), (err, directory) => {
+    await fs.mkdtemp(path.join(os.tmpdir(), 'ov_js_out_'), (err, directory) => {
       if (err) {
         throw err;
       }
