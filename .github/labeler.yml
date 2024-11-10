@@ -76,6 +76,8 @@
 
 'category: NPUW':
 - 'src/plugins/intel_npu/src/plugin/npuw/**/*'
+- 'src/plugins/intel_npu/tests/functional/behavior/npuw/**/*'
+- 'src/plugins/intel_npu/tests/unit/behavior/npuw/**/*'
 
 'category: HETERO':
 - 'src/plugins/hetero/**/*'

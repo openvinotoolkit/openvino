@@ -21,6 +21,22 @@ def extract_module_extensions(args):
     return {extension.module: extension for extension in extensions if isinstance(extension, ModuleExtension)}
 
 
+def get_decoder_for_exported_program(model):
+    from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+    import torch
+
+    from packaging import version
+    if version.parse(torch.__version__) >= version.parse("2.2"):
+        from torch._decomp import get_decompositions
+        from openvino.frontend.pytorch.torchdynamo.decompositions import get_export_decomposition_list
+        decomp = get_decompositions(get_export_decomposition_list())
+        model = model.run_decompositions(decomp_table=decomp)
+    gm = model.module()
+    log.debug(gm.code)
+    decoder = TorchFXPythonDecoder(gm, dynamic_shapes=True)
+    return decoder
+
+
 def get_pytorch_decoder(model, example_inputs, args):
     try:
         from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
@@ -49,15 +65,7 @@ def get_pytorch_decoder(model, example_inputs, args):
     inputs = prepare_torch_inputs(example_inputs)
     if not isinstance(model, (TorchScriptPythonDecoder, TorchFXPythonDecoder)):
         if hasattr(torch, "export") and isinstance(model, (torch.export.ExportedProgram)):
-            from packaging import version
-            if version.parse(torch.__version__) >= version.parse("2.2"):
-                from torch._decomp import get_decompositions
-                from openvino.frontend.pytorch.torchdynamo.decompositions import get_export_decomposition_list
-                decomp = get_decompositions(get_export_decomposition_list())
-                model = model.run_decompositions(decomp_table=decomp)
-            gm = model.module()
-            log.debug(gm.code)
-            decoder = TorchFXPythonDecoder(gm, dynamic_shapes=True)
+            decoder = get_decoder_for_exported_program(model)
         else:
             decoder = TorchScriptPythonDecoder(
                 model,
@@ -89,37 +97,33 @@ def get_pytorch_decoder_for_model_on_disk(argv, args):
     else:
         input_model = argv.input_model
 
-    if isinstance(input_model, (str, pathlib.Path)):
-        # attempt to load scripted model
-        try:
-            inputs = prepare_torch_inputs(example_inputs)
-            model = torch.jit.load(input_model)
-            model.eval()
-            decoder = TorchScriptPythonDecoder(
-                model,
-                example_input=inputs,
-                shared_memory=args.get("share_weights", True),
-                module_extensions=extract_module_extensions(args))
-            argv.input_model = decoder
+    if not isinstance(input_model, (str, pathlib.Path)):
+        return False
+
+    # attempt to load scripted model
+    try:
+        inputs = prepare_torch_inputs(example_inputs)
+        model = torch.jit.load(input_model)
+        model.eval()
+        decoder = TorchScriptPythonDecoder(
+            model,
+            example_input=inputs,
+            shared_memory=args.get("share_weights", True),
+            module_extensions=extract_module_extensions(args))
+        argv.input_model = decoder
+        argv.framework = 'pytorch'
+        return True
+    except:
+        pass
+    # attempt to load exported model
+    try:
+        exported_program = torch.export.load(input_model)
+        if hasattr(torch, "export") and isinstance(exported_program, (torch.export.ExportedProgram)):
+            argv.input_model = get_decoder_for_exported_program(exported_program)
             argv.framework = 'pytorch'
             return True
-        except:
-            pass
-    if isinstance(input_model, (str, pathlib.Path)):
-        # attempt to load exported model
-        try:
-            exported_program = torch.export.load(input_model)
-            if hasattr(torch, "export") and isinstance(exported_program, (torch.export.ExportedProgram)):
-                from packaging import version
-                if version.parse(torch.__version__) >= version.parse("2.2"):
-                    exported_program = exported_program.run_decompositions()
-                gm = exported_program.module()
-                decoder = TorchFXPythonDecoder(gm, dynamic_shapes=True)
-                argv.input_model = decoder
-                argv.framework = 'pytorch'
-                return True
-        except:
-            pass
+    except:
+        pass
     return False
 
 

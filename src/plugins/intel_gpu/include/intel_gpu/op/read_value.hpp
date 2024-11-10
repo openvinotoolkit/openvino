@@ -26,12 +26,19 @@ public:
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 
     void validate_and_infer_types() override;
+    void validate_and_infer_types(size_t output_idx, const ov::op::util::VariableInfo& variable_info);
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 
     std::string get_variable_id() const override {
         OPENVINO_ASSERT(m_variable, "Variable is not initialized. Variable_id is unavailable");
         return m_variable->get_info().variable_id;
+    }
+
+protected:
+    ReadValue(const std::vector<Output<Node>>& variable_initializers, const std::shared_ptr<ov::op::util::Variable>& variable)
+    : Op(variable_initializers) {
+        m_variable = variable;
     }
 };
 

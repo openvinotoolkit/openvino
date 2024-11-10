@@ -15,6 +15,7 @@
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "gemm_inst.h"
 #include "permute_inst.h"
+#include "layout_optimizer.h"
 
 #include <cstddef>
 #include <vector>
@@ -472,6 +473,9 @@ public:
             config.set_property(ov::intel_gpu::optimize_data(true));
             config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
+            ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, "", impl_types::ocl };
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm_ref", gemm_impl} }));
+
             network network(engine, topology, config);
             network.set_input_data("input1", input1_mem);
             network.set_input_data("input2", input2_mem);
@@ -497,6 +501,10 @@ public:
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+        ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, "", impl_types::ocl };
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm", gemm_impl} }));
+
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input1", input1_mem);
         network->set_input_data("input2", input2_mem);
@@ -625,7 +633,7 @@ public:
             topology topology;
             topology.add(input_layout("input1", in1_layout),
                         input_layout("input2", in2_layout),
-                        gemm("gemm_ref", { input_info("input1"), input_info("input2") }, data_types::f16, 
+                        gemm("gemm_ref", { input_info("input1"), input_info("input2") }, data_types::f16,
                              {0, 2, 1, 3}, {0, 2, 3, 1}, {0, 1, 2, 3})
             );
 
@@ -652,7 +660,7 @@ public:
         topology topology;
         topology.add(input_layout("input1", in1_layout),
                      input_layout("input2", in2_layout),
-                     gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f16, 
+                     gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f16,
                              {0, 2, 1, 3}, {0, 2, 3, 1}, {0, 1, 2, 3})
         );
 
@@ -1245,10 +1253,12 @@ public:
         network->set_input_data("input0", input0_mem);
         network->set_input_data("input1", input1_mem);
 
-        auto inst = network->get_primitive("gemm");
-        auto impl = inst->get_impl();
-        ASSERT_TRUE(impl != nullptr);
-        ASSERT_TRUE(impl->is_dynamic() == is_input_dynamic);
+        if (!engine.get_device_info().supports_immad) {
+            auto inst = network->get_primitive("gemm");
+            auto impl = inst->get_impl();
+            ASSERT_TRUE(impl != nullptr);
+            ASSERT_TRUE(impl->is_dynamic() == is_input_dynamic);
+        }
 
         auto outputs = network->execute();
 
@@ -1532,10 +1542,12 @@ public:
         network->set_input_data("input0", input0_mem);
         network->set_input_data("input1", input1_mem);
 
-        auto inst = network->get_primitive("gemm");
-        auto impl = inst->get_impl();
-        ASSERT_TRUE(impl != nullptr);
-        ASSERT_TRUE(impl->is_dynamic() == is_input_dynamic);
+        if (!engine.get_device_info().supports_immad) {
+            auto inst = network->get_primitive("gemm");
+            auto impl = inst->get_impl();
+            ASSERT_TRUE(impl != nullptr);
+            ASSERT_TRUE(impl->is_dynamic() == is_input_dynamic);
+        }
 
         auto outputs = network->execute();
 
@@ -2789,7 +2801,7 @@ INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_onednn_ndims, ::testing::ValuesIn(std::v
 
 class gemm_onednn: public ::testing::Test {
 public:
-    void test_impl_replacement_with_cldnn() {
+    void test_impl_replacement_with_cldnn(bool is_caching_test) {
         auto& engine = get_test_engine();
 
         if (!engine.get_device_info().supports_immad)
@@ -2828,16 +2840,36 @@ public:
                              ov::intel_gpu::optimize_data(true),
                              ov::intel_gpu::allow_new_shape_infer(true) };
 
-        network network(engine, topology, cfg);
-        network.set_input_data("input1", input1);
-        network.set_input_data("input2", input2);
+        cldnn::network::ptr network;
+        if (is_caching_test) {
+            membuf mem_buf;
+            {
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                ob.set_stream(get_test_stream_ptr().get());
+                program::build_program(engine, topology, cfg)->save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                auto imported_prog = std::make_shared<cldnn::program>(engine, cfg);
+                imported_prog->load(ib);
+                network = std::make_shared<cldnn::network>(imported_prog);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology, cfg);
+        }
+        network->set_input_data("input1", input1);
+        network->set_input_data("input2", input2);
 
-        auto inst = network.get_primitive("gemm");
+        auto inst = network->get_primitive("gemm");
         auto impl = inst->get_impl();
-        ASSERT_TRUE(impl != nullptr);
-        ASSERT_TRUE(impl->is_dynamic());
+        if (!engine.get_device_info().supports_immad) {
+            ASSERT_TRUE(impl != nullptr);
+            ASSERT_TRUE(impl->is_dynamic());
+        }
 
-        auto outputs = network.execute();
+        auto outputs = network->execute();
 
         auto output = outputs.at("gemm").get_memory();
         cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
@@ -2847,12 +2879,15 @@ public:
             ASSERT_FLOAT_EQ(output_ptr[i], out_data[i]);
         }
 
-        // WA: Call wait_all() to wait for all queued kernels compilation finish
-        network.get_program()->get_compilation_context().wait_all();
+        // Call wait_all() to wait for all queued kernels compilation finish
+        network->get_program()->get_compilation_context().wait_all();
+
+        auto& lo = network->get_program()->get_layout_optimizer();
+        ASSERT_TRUE(lo.get_optimization_attributes().use_onednn_impls);
 
         // Check if OneDNN's impl is used for the next execute() call
-        network.execute();
-        inst = network.get_primitive("gemm");
+        network->execute();
+        inst = network->get_primitive("gemm");
         impl = inst->get_impl();
         ASSERT_TRUE(impl != nullptr);
         ASSERT_FALSE(impl->is_dynamic());
@@ -3214,7 +3249,10 @@ public:
 };
 
 TEST_F(gemm_onednn, impl_replacement_with_cldnn) {
-    this->test_impl_replacement_with_cldnn();
+    this->test_impl_replacement_with_cldnn(false);
+}
+TEST_F(gemm_onednn, impl_replacement_with_cldnn_cached) {
+    this->test_impl_replacement_with_cldnn(true);
 }
 
 // Check gemm_onednn transpose_format() can accept transpose white list format (byfx/bxfy)

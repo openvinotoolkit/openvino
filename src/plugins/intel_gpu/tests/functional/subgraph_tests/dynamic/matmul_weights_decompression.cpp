@@ -30,7 +30,7 @@ using ov::test::InputShape;
  *                   \       /
  *                   Multiply
  *                      |
- *      Data(F32)   Transpose(optional)
+ *      Data(F32)   Transpose(optional) or Multiply(optional)
  *            \     /
  *             Matmul
  *               |
@@ -56,6 +56,7 @@ using MatmulWeightsDecompressionParams = std::tuple<ShapeParams,              //
                                                     bool,                     // transpose on weights
                                                     bool,                     // decompression subtract
                                                     bool,                     // reshape on decompression constants
+                                                    bool,                     // extra multiply
                                                     bool,                     // per-tensor zero-point
                                                     uint64_t                  // dynamic_quantization_group_size
                                                     >;
@@ -70,6 +71,7 @@ public:
         bool transpose;
         bool decompression_sub;
         bool reshape_on_decompression;
+        bool extra_multiply;
         bool per_tensor_zp;
         uint64_t dyn_quan_group_size;
 
@@ -79,6 +81,7 @@ public:
                  transpose,
                  decompression_sub,
                  reshape_on_decompression,
+                 extra_multiply,
                  per_tensor_zp,
                  dyn_quan_group_size) = obj.param;
 
@@ -95,6 +98,7 @@ public:
         result << "transpose_weights=" << transpose << "_";
         result << "decompression_subtract=" << decompression_sub << "_";
         result << "reshape_on_decompression=" << reshape_on_decompression << "_";
+        result << "extra_multiply=" << extra_multiply << "_";
         result << "per_tensor_zp=" << per_tensor_zp << "_";
         result << "dyn_quan_group_size=" << dyn_quan_group_size;
 
@@ -110,6 +114,7 @@ protected:
                                               const bool transpose_weights,
                                               const bool add_subtract,
                                               const bool reshape_on_decompression,
+                                              const bool extra_multiply,
                                               const bool per_tensor_zp) {
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(data_precision, data_shape)};
         const auto weights_subgraph = init_compressed_weights_subgraph(weights_shape,
@@ -119,6 +124,7 @@ protected:
                                                                        transpose_weights,
                                                                        add_subtract,
                                                                        reshape_on_decompression,
+                                                                       extra_multiply,
                                                                        per_tensor_zp);
 
         auto mat_mul = std::make_shared<ov::op::v0::MatMul>(params[0], weights_subgraph);
@@ -132,6 +138,7 @@ protected:
                                                                const bool transpose_weights,
                                                                const bool add_subtract,
                                                                const bool reshape_on_decompression_constant,
+                                                               const bool extra_multiply,
                                                                const bool per_tensor_zp) {
         auto transpose_if_necessary = [&](const ov::Shape& shape) {
             auto result_shape = shape;
@@ -229,6 +236,8 @@ protected:
             std::swap(*order.rbegin(), *(order.rbegin() + 1));
             auto transpose_constant = ov::op::v0::Constant::create(ov::element::i32, {rank}, order);
             last_node = std::make_shared<ov::op::v1::Transpose>(last_node, transpose_constant);
+        } else if (extra_multiply) {
+            last_node = std::make_shared<ov::op::v1::Multiply>(last_node, scale_const);
         }
         return last_node;
     }
@@ -242,6 +251,7 @@ protected:
         bool transpose_weights;
         bool decompression_sub;
         bool reshape_on_decompression;
+        bool extra_multiply;
         bool per_tensor_zp;
         uint64_t dyn_quan_group_size;
 
@@ -251,6 +261,7 @@ protected:
                  transpose_weights,
                  decompression_sub,
                  reshape_on_decompression,
+                 extra_multiply,
                  per_tensor_zp,
                  dyn_quan_group_size) = GetParam();
 
@@ -266,6 +277,7 @@ protected:
                                  transpose_weights,
                                  decompression_sub,
                                  reshape_on_decompression,
+                                 extra_multiply,
                                  per_tensor_zp);
 
 
@@ -328,6 +340,20 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic,
                                             ::testing::Values(true),
                                             ::testing::Values(true),
                                             ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(0)),
+                         MatmulWeightsDecompression::get_test_case_name);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_extra_multiply,
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_basic),
+                                            ::testing::ValuesIn(weights_precisions),
+                                            ::testing::ValuesIn(activations_precisions),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(true),
+                                            ::testing::Values(false),
                                             ::testing::Values(0)),
                          MatmulWeightsDecompression::get_test_case_name);
 
@@ -356,6 +382,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases_basic,
                                             ::testing::ValuesIn(transpose_weights),
                                             ::testing::ValuesIn(add_decompression_sub),
                                             ::testing::ValuesIn(reshape_on_decompression),
+                                            ::testing::Values(false),
                                             ::testing::ValuesIn(per_tensor_zp),
                                             ::testing::Values(0)),
                          MatmulWeightsDecompression::get_test_case_name);
@@ -368,6 +395,7 @@ INSTANTIATE_TEST_SUITE_P(MatMulCompressedWeights_corner_cases_big,
                                             ::testing::ValuesIn(transpose_weights),
                                             ::testing::ValuesIn(add_decompression_sub),
                                             ::testing::ValuesIn(reshape_on_decompression),
+                                            ::testing::Values(false),
                                             ::testing::ValuesIn(per_tensor_zp),
                                             ::testing::Values(0)),
                          MatmulWeightsDecompression::get_test_case_name);
@@ -384,6 +412,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_dyn_quan,
                                             ::testing::Values(false),
                                             ::testing::ValuesIn(add_decompression_sub),
                                             ::testing::Values(true),
+                                            ::testing::Values(false),
                                             ::testing::Values(true),  // per_tensor_zp
                                             ::testing::Values(UINT64_MAX)),
                          MatmulWeightsDecompression::get_test_case_name);
