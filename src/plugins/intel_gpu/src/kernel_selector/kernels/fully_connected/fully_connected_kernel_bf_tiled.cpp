@@ -145,7 +145,7 @@ static bool is_weight_vertical(const fully_connected_params& params, size_t outp
                            << "(computeUnitsCount : " << params.engineInfo.computeUnitsCount
                            << " min_num_threads : " << min_num_threads << ")" << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "Use ofm_tile size 1 if the batch size is 1." << std::endl;
-    return (params.weights.IFM().v >= params.weights.OFM().v * 3
+    return (params.weights.IFM().v >= params.weights.OFM().v * 2
             && output_f / 2 /*most frequently used tile_ofm*/ <= min_num_threads);
 }
 
