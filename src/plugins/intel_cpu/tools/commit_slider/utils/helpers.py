@@ -15,7 +15,7 @@ from utils.cfg_manager import CfgManager
 import copy
 
 
-mulKey = 'multiplation_key'
+mulKey = 'multiplication_key'
 
 def getMeaningfullCommitTail(commit):
     return commit[:7]
@@ -745,7 +745,7 @@ def findJSONPathsByKey(content, soughtFor, curPath:list=['$']):
 
 def multiplyCfgByKey(content):
     substVector = getSubstVectorByKey(content)
-    pathVector = findJSONPathsByKey(content, 'multiplation_key')
+    pathVector = findJSONPathsByKey(content, mulKey)
     n = -1
     for v in substVector:
         if n != -1 and len(v) != n:
@@ -766,8 +766,7 @@ def deepCopyJSON(obj):
     return json.loads(json.dumps(obj, sort_keys=True))
 
 
-def getSubstVectorByKey(content,
-                     soughtFor='multiplation_key'):
+def getSubstVectorByKey(content, soughtFor=mulKey):
     pathVector = findJSONPathsByKey(content, soughtFor)
     keyVector = []
     # populate configs
@@ -783,20 +782,13 @@ def getSubstVectorByKey(content,
         curObj = content
         for item in path[1:]:
             curObj = stepInto(curObj, item)
-        curObj = curObj['multiplation_key']
+        curObj = curObj[mulKey]
         if isinstance(curObj, list):
             keyVector.append(curObj)
         else:
-            print(curObj)
             raise Exception("Wrong JSON type in multiplicaiton key")
     return keyVector
 
-
-def doit(item):
-    try:
-        return int(item[1:-1])
-    except ValueError:
-        raise Exception("Wrong JSON path:{}".format(item))
 
 def applySubstitutionRules(cfg: map, rules: list, commit: str=None):
     # if commit is None or rule['type'] == 'static',

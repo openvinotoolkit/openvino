@@ -66,7 +66,6 @@ class CommitSliderTest(TestCase):
             getCSOutput(updatedData),
             "\n\n".join(['cfg #{n}'.format(n=n) for n in range(3)]) + "\n")
 
-
     @skip_commit_slider_devtest
     def testBmUnstable(self):
         _, updatedData = getExpectedCommit(

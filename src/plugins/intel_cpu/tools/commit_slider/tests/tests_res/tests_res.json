@@ -121,8 +121,8 @@
             "appPath": "{appPath}",
             "gitPath" : "{gitPath}",
             "userLogPath" : {
-                "multiplation_type": "dot_product",
-                "multiplation_key": [
+                "multiplication_type": "dot_product",
+                "multiplication_key": [
                     "{testDir}/test_log/sub_log_0/",
                     "{testDir}/test_log/sub_log_1/",
                     "{testDir}/test_log/sub_log_2/"
@@ -134,8 +134,8 @@
             "runConfig" : {
                 "commitList" : {
                     "getCommitListCmd" : {
-                        "multiplation_type": "dot_product",
-                        "multiplation_key": [
+                        "multiplication_type": "dot_product",
+                        "multiplication_key": [
                             "git log start_0..end_0 --boundary --pretty=\"%h\"",
                             "git log start_1..end_1 --boundary --pretty=\"%h\"",
                             "git log start_2..end_2 --boundary --pretty=\"%h\""
@@ -143,14 +143,14 @@
                     }
                 },
                 "someKey" : ["dot_product", "", "dot_product"],
-                "complexOblect": {"multiplation_key": [
+                "complexOblect": {"multiplication_key": [
                     {"k1" : "v0", "k2" : ["v00", "v01"]},
                     {"k1" : "v1", "k2" : ["v10", "v11"]},
                     {"k1" : "v2", "k2" : ["v20", "v21"]}
                 ]},
                 "someList" : [
                     "val_0", "val_1",
-                    {"multiplation_key": [
+                    {"multiplication_key": [
                         "val_20",
                         "val_21",
                         "val_22"
@@ -159,8 +159,8 @@
                 "mode" : "nop",
                 "traversal" : "bruteForce",
                 "msg" : {
-                    "multiplation_type": "dot_product",
-                    "multiplation_key": ["cfg #1", "cfg #2", "cfg #3"]
+                    "multiplication_type": "dot_product",
+                    "multiplication_key": ["cfg #1", "cfg #2", "cfg #3"]
                 }
             }
         },
@@ -174,8 +174,8 @@
                 "appPath": "{appPath}",
                 "gitPath" : "{gitPath}",
                 "userLogPath" : {
-                    "multiplation_type": "dot_product",
-                    "multiplation_key": [
+                    "multiplication_type": "dot_product",
+                    "multiplication_key": [
                         "{testDir}/test_log/sub_log_0/",
                         "{testDir}/test_log/sub_log_1/",
                         "{testDir}/test_log/sub_log_2/"
@@ -191,8 +191,8 @@
                     "mode" : "nop",
                     "traversal" : "bruteForce",
                     "msg" : {
-                        "multiplation_type": "dot_product",
-                        "multiplation_key": [
+                        "multiplication_type": "dot_product",
+                        "multiplication_key": [
                             "cfg #0",
                             "cfg #1",
                             "cfg #2"
@@ -220,8 +220,8 @@
                     "mode" : "nop",
                     "traversal" : "bruteForce",
                     "msg" : {
-                        "multiplation_type": "dot_product",
-                        "multiplation_key": ["cfg #1", "cfg #2", "cfg #3"]
+                        "multiplication_type": "dot_product",
+                        "multiplication_key": ["cfg #1", "cfg #2", "cfg #3"]
                     }
                 }
             }
