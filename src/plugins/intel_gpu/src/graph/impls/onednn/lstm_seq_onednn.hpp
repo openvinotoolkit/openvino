@@ -37,7 +37,7 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
 
             in_fmts[idx] = target_format;
         }
-        out_fmts[0] = format::get_default_format(out_rank);
+        out_fmts[0] = format::ybfx;
 
         return {in_fmts, out_fmts};
     }

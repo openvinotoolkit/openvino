@@ -156,28 +156,6 @@ void post_optimize_weights::run(program& p) {
         }
     }
     p.get_processing_order().calc_processing_order(p);
-    int i = 0;
-    for (auto node : p.get_processing_order()) {
-        if (node->is_type<cldnn::mutable_data>()) {
-            continue;
-        }
-        for (auto prev_node : node->get_dependencies()) {
-            if (prev_node.first->is_type<lstm_seq>()) {
-                auto impl = prev_node.first->get_selected_impl();
-                 if (!impl)
-                    continue;
-                auto weights_reorder_params = impl->get_weights_reorder_params();
-                if (weights_reorder_params == nullptr) {
-                    continue;
-                }
-                prev_node.first->recalc_output_layouts(false);
-                _rf.get_out_reorder(p, prev_node.first, node, i);
-                node->recalc_output_layouts(false);
-                i++;
-            }
-        }
-    }
-    p.get_processing_order().calc_processing_order(p);
 }
 
 }  // namespace cldnn
