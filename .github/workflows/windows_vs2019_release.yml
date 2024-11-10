@@ -296,11 +296,6 @@ jobs:
           $ovCoreWheelPath=Get-ChildItem -Path . -Filter openvino-*.whl | % { $_.FullName }
           python3 -m pip install "$ovCoreWheelPath"
 
-          # Find and install the dev OV wheel
-          $ovDevWheelPath=Get-ChildItem -Path . -Filter openvino_dev*.whl | % { $_.FullName }
-          python3 -m pip install "$ovDevWheelPath[caffe,kaldi,onnx,tensorflow2,pytorch]"
-        working-directory: ${{ env.INSTALL_WHEELS_DIR }}
-
       - name: Install Python API tests dependencies
         run: |
           # To enable pytest parallel features
@@ -308,9 +303,6 @@ jobs:
 
           # For torchvision to OpenVINO preprocessing converter
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/python/preprocess/torchvision/requirements.txt
-
-          # TODO: replace with Python API tests requirements
-          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/mo/requirements_dev.txt
 
           # For getting rid of SSL issues during model downloading for unit tests
           python3 -m pip install certifi
@@ -324,12 +316,6 @@ jobs:
         run: |
           set PYTHONPATH=${{ env.LAYER_TESTS_INSTALL_DIR }};%PYTHONPATH%
           python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/pyopenvino ${{ env.PYTHON_STATIC_ARGS }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_utils/test_utils.py
-
-      - name: Model Optimizer UT
-        if: fromJSON(needs.smart_ci.outputs.affected_components).MO.test
-        shell: cmd
-        run: |
-          python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/mo/unit_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-ModelOptimizer.xml
 
       - name: Install Python Layer tests dependencies
         run: |
@@ -365,18 +351,6 @@ jobs:
           python3 -m pytest ${{ env.INSTALL_TEST_DIR }}/onnx -k "not cuda" ^
           --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-onnx_frontend.xml ^
           --ignore=${{ env.INSTALL_TEST_DIR }}/onnx/test_python/test_zoo_models.py
-
-      - name: MO Python API Tests
-        if: fromJSON(needs.smart_ci.outputs.affected_components).MO.test
-        shell: cmd
-        run: |
-          :: Used for 'test_utils' installed in '<test_package>\python\openvino\test_utils'
-          set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\python\openvino\test_utils;${{ env.INSTALL_TEST_DIR }}\python;%PYTHONPATH%
-
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/mo_python_api_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_mo_convert.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
 
       - name: OVC Python API Tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).MO.test
