@@ -155,11 +155,13 @@ Graph::~Graph() {
         if (host_exec_times.size() >= 1) {
             print_entry("First", host_exec_times[0], 1);
         }
-
         if (host_exec_times.size() >= 2) {
+            print_entry("Second", host_exec_times[1], 1);
+        }
+        if (host_exec_times.size() > 2) {
             HostTimeProfilingEntry avg;
 
-            const auto begin = std::begin(host_exec_times) + 1;
+            const auto begin = std::begin(host_exec_times) + 2;
             const auto end = std::end(host_exec_times);
             avg.inputs_processing = std::accumulate(begin, end, 0,
                 [](int64_t sum, const HostTimeProfilingEntry& entry) { return sum + entry.inputs_processing; });
@@ -170,7 +172,7 @@ Graph::~Graph() {
             avg.outputs_processing = std::accumulate(begin, end, 0,
                 [](int64_t sum, const HostTimeProfilingEntry& entry) { return sum + entry.outputs_processing; });
 
-            const auto iters_num = host_exec_times.size() - 1;
+            const auto iters_num = host_exec_times.size() - 2;
             print_entry("Avg", avg, iters_num);
         }
     }

@@ -177,12 +177,13 @@ Plugin::Plugin() {
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model");
     std::string device_id = get_device_id(orig_config);
+    auto context = get_default_context(device_ids.front());
 
-    auto context = get_default_context(device_id);
+    OPENVINO_ASSERT(m_configs_map.find(device_ids.front()) != m_configs_map.end(), "[GPU] compile_model: Couldn't find config for GPU with id ", m_default_device_id);
 
-    OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] compile_model: Couldn't find config for GPU with id ", device_id);
-
-    ExecutionConfig config = m_configs_map.at(device_id);
+    ExecutionConfig config = m_configs_map.at(device_ids.front());
+    if (device_ids.size() > 1)
+        config.set_user_property({{ov::device::priorities.name(), device_id}});
     config.set_user_property(orig_config);
     config.apply_user_properties(context->get_engine().get_device_info());
     std::set<ov::hint::ModelDistributionPolicy> model_distribution_policy =
@@ -194,10 +195,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto iter_devices_for_tp = orig_config.find(ov::device::priorities.name()) == orig_config.end();
     std::string devices_for_tp =
         iter_devices_for_tp ? "" : config.get_property(ov::device::priorities.name()).as<std::string>();
+    if (devices_for_tp == "" && device_ids.size() > 1) {
+        devices_for_tp = config.get_property(ov::device::priorities.name()).as<std::string>();
+    }
     auto parse_devices_id = [&](const std::string devices_for_tp,
                                 const std::string delimiter = ",") -> std::vector<std::string> {
-        std::cout << "devices_for_tp: " << devices_for_tp << std::endl;
         bool is_set_device_id = orig_config.find(ov::device::id.name()) != orig_config.end();
+        if (device_ids.size() > 1)
+            is_set_device_id = false;
         std::vector<std::string> ret;
         if (is_set_device_id)
             ret.push_back(device_id);
@@ -514,9 +519,39 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     if (options.find(ov::device::id.name()) != options.end()) {
         device_id = options.find(ov::device::id.name())->second.as<std::string>();
     }
-    OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] get_property: Couldn't find config for GPU with id ", device_id);
 
-    const auto& c = m_configs_map.at(device_id);
+    auto parse_devices_id = [&](const std::string devices_for_tp,
+                                const std::string delimiter = ",") -> std::vector<std::string> {
+        std::size_t start = 0, end = devices_for_tp.find(delimiter);
+        std::vector<std::string> ret;
+        while (end != std::string::npos) {
+            std::string device_with_id = devices_for_tp.substr(start, end - start);
+            auto dotPos = device_with_id.find(".");
+            if (dotPos != std::string::npos) {
+                auto target_id = device_with_id.substr(dotPos + 1);
+                ret.push_back(target_id);
+            }
+            start = end + delimiter.length();
+            end = devices_for_tp.find(delimiter, start);
+        }
+        std::string last = devices_for_tp.substr(start);
+        auto dotPos = last.find(".");
+        if (dotPos != std::string::npos) {
+            auto target_id = last.substr(dotPos + 1);
+            ret.push_back(target_id);
+        }
+        return ret;
+    };
+    if (m_configs_map.find(device_id) == m_configs_map.end()) {
+        device_ids = parse_devices_id(device_id);
+        for (auto id : device_ids) {
+            OPENVINO_ASSERT(m_configs_map.find(id) != m_configs_map.end(), "[GPU] get_property: Couldn't find config for GPU with id ", device_id);
+        }
+    } else {
+        device_ids.emplace_back(device_id);
+    }
+
+    const auto& c = m_configs_map.at(device_ids.front());
     return c.get_property(name);
 }
 
