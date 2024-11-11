@@ -143,7 +143,7 @@ jobs:
           docker run --rm \
             -v ${{ env.OPENVINO_REPO }}:/work/src \
             -v ov_build_cache:/work/build \
-            -v ${INSTALL_DIR}:/work/wheels \
+            -v ${{ env.INSTALL_DIR }}:/work/wheels \
             -e SCCACHE_AZURE_BLOB_CONTAINER \
             -e SCCACHE_AZURE_CONNECTION_STRING \
             -e SCCACHE_SERVER_PORT \
@@ -163,39 +163,6 @@ jobs:
             "
         env:
           PYTHON: /opt/python/cp39-cp39/bin
-      
-      # - name: Dump build cache
-      #   run: |
-      #     docker run --rm -v ov_build_cache:/mnt -v $(pwd):/backup busybox tar -czf /backup/volume_backup.tar.gz -C /mnt .
-
-      #
-      # Build
-      #
-      # - name: Clean sccache stats
-      #   run: ${SCCACHE_PATH} --zero-stats
-             
-      # - name: CMake configure - OpenVINO
-      #   run: |
-      #     cmake \
-      #       -G "${{ env.CMAKE_GENERATOR }}" \
-      #       -DENABLE_CPPLINT=OFF \
-      #       -DENABLE_NCC_STYLE=OFF \
-      #       -DCMAKE_VERBOSE_MAKEFILE=ON \
-      #       -DBUILD_SHARED_LIBS=ON \
-      #       -DENABLE_WHEEL=ON \
-      #       -S ${OPENVINO_REPO} \
-      #       -B ${BUILD_DIR}
-
-      # - name: Cmake build - OpenVINO
-      #   run: |
-      #     cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
-          
-      # - name: Show sccache stats
-      #   run: ${SCCACHE_PATH} --show-stats
-        
-      # - name: Cmake install - OpenVINO
-      #   run: |
-      #     cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: Pack Artifacts
         run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_package.tar.gz
