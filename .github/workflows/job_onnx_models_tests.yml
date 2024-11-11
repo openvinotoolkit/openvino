@@ -87,8 +87,6 @@ jobs:
           # Install the core OV wheel
           python3 -m pip install ./openvino-*.whl
 
-          extras_to_install="onnx"
-
       - name: Install Python tests dependencies
         run: |
           # To enable pytest parallel features
