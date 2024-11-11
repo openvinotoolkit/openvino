@@ -1,0 +1,157 @@
+name: PyTorch Layer Tests
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: 'Machine on which the tests would run'
+        type: string
+        required: true
+      container:
+        description: 'JSON to be converted to the value of the "container" configuration for the job'
+        type: string
+        required: false
+        default: '{"image": null}'
+      affected-components:
+        description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
+        type: string
+        required: true
+      python-version:
+        description: 'Python version to setup. E.g., "3.11"'
+        type: string
+        required: true
+
+permissions: read-all
+
+env:
+  PIP_CACHE_PATH: /mount/caches/pip/linux
+
+jobs:
+  PyTorch_Layer_Tests:
+    name: PyTorch Layer Tests
+    timeout-minutes: 40
+    runs-on: ${{ inputs.runner }}
+    container: ${{ fromJSON(inputs.container) }}
+    defaults:
+      run:
+        shell: ${{ contains(inputs.runner, 'win') && 'pwsh' || 'bash' }}
+    env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      OPENVINO_REPO: ${{ github.workspace }}/openvino
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
+      LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
+    steps:
+      - name: Download OpenVINO artifacts (tarballs)
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          pattern: openvino_[tests]*
+          path: ${{ env.INSTALL_DIR }}
+          merge-multiple: true
+          
+      - name: Download OpenVINO artifacts (wheels)
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          pattern: openvino_[wheels]*
+          path: ${{ env.INSTALL_WHEELS_DIR }}
+          merge-multiple: true
+
+      # Needed as ${{ github.workspace }} is not working correctly when using Docker
+      - name: Setup Variables
+        if: runner.os != 'Windows'
+        run: |
+          echo "OPENVINO_REPO=$GITHUB_WORKSPACE/openvino" >> "$GITHUB_ENV"
+          echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
+          echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
+          echo "LAYER_TESTS_INSTALL_DIR=$GITHUB_WORKSPACE/install/tests/layer_tests" >> "$GITHUB_ENV"
+  
+      - name: Install OpenVINO dependencies (mac)
+        if: runner.os == 'macOS'
+        run: brew install pigz
+          
+      - name: Extract OpenVINO packages (Linux, macOS)
+        if: runner.os != 'Windows'
+        run: |
+            pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
+        working-directory: ${{ env.INSTALL_DIR }}
+
+      - name: Extract OpenVINO artifacts (Windows)
+        if: runner.os == 'Windows'
+        run: |
+            Expand-Archive openvino_tests.zip -DestinationPath ${{ env.INSTALL_DIR }}
+        working-directory: ${{ env.INSTALL_DIR }}
+
+      - name: Fetch setup_python action
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
+
+      - name: Setup Python ${{ inputs.python-version }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ inputs.python-version }}
+          pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH || '' }}
+          should-setup-pip-paths: ${{ runner.os == 'Linux' }}
+          self-hosted-runner: ${{ runner.os == 'Linux' }}
+
+      - name: Install OpenVINO Python wheels (Linux and macOS)
+        if: runner.os != 'Windows'
+        run: |
+          # Install the core OV wheel
+          python3 -m pip install ./openvino-*.whl
+        working-directory: ${{ env.INSTALL_WHEELS_DIR }}
+
+      - name: Install OpenVINO Python wheels (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          # Find and install the core OV wheel
+          $ovCoreWheelPath=Get-ChildItem -Path . -Filter openvino-*.whl | % { $_.FullName }
+          python3 -m pip install "$ovCoreWheelPath"
+        working-directory: ${{ env.INSTALL_WHEELS_DIR }}
+
+      - name: Install Pytorch Layer tests dependencies
+        run: |
+          # pytorch test requirements
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_pytorch
+
+      - name: PyTorch Layer Tests
+        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287, 142196
+        # due to CVS-152795, parallel run is not possible on Windows
+        run: python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests ${PARALLEL} -m precommit -v --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP32
+          PARALLEL: ${{ runner.os == 'Windows' && ' ' || '-n logical'}}
+
+      - name: PyTorch torch.export Layer Tests
+        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' && runner.os != 'Windows' }} # Ticket: 126287
+        run: |
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests ${PARALLEL} -m precommit_torch_export -v --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch_export.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP32
+          PYTORCH_TRACING_MODE: EXPORT
+          PARALLEL: ${{ runner.os == 'Windows' && ' ' || '-n logical'}}
+
+      - name: PyTorch torch.compile TORCHFX Layer Tests
+        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.os != 'macOS' && runner.arch != 'ARM64' && runner.os != 'Windows' }} # Ticket: 126287
+        run: |
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests -m precommit_fx_backend -v --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch_compile.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP32
+          PYTORCH_TRACING_MODE: TORCHFX
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        if: ${{ !cancelled() }}
+        with:
+          name: test-results-python-pytorch-layers
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          if-no-files-found: 'warn'
