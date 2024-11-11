@@ -12,7 +12,7 @@ namespace op {
 namespace ShapeInferRange {
 
 template <class TRShape, typename std::enable_if<std::is_same<TRShape, PartialShape>::value>::type* = nullptr>
-void dynamic_case(const Node* op,
+void symbol_propagation(const Node* op,
                   std::vector<TRShape>& output_shapes,
                   const double& start,
                   const double& step,
@@ -29,7 +29,7 @@ void dynamic_case(const Node* op,
 }
 
 template <class TRShape, typename std::enable_if<!std::is_same<TRShape, PartialShape>::value>::type* = nullptr>
-void dynamic_case(const Node* op,
+void symbol_propagation(const Node* op,
                   std::vector<TRShape>& output_shapes,
                   const double& start,
                   const double& step,
@@ -102,7 +102,7 @@ std::vector<TRShape> range_shape_infer(const Node* op,
 
         output_shapes[0] = TRShape{static_cast<uint32_t>(strided)};
     } else {
-        dynamic_case(op, output_shapes, start, step, start_val, step_val);
+        symbol_propagation(op, output_shapes, start, step, start_val, step_val);
     }
     return output_shapes;
 }
