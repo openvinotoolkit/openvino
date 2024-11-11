@@ -932,7 +932,8 @@ Subgraph::SubgraphExecutor::SubgraphExecutor(const std::shared_ptr<Subgraph::Sub
         const void* data_ptr = m_buffer_scratchpad->getDataAs<uint8_t>() + offset;
         m_in_requested_repackings[desc.first] = std::make_shared<Memory>(engine, requested_desc, data_ptr);
         offset += requested_desc->getCurrentMemSize();
-        std::cout << "scratch_mem is created for requested desc " << desc.first << std::endl;
+        std::cout << "scratch_mem is created for requested desc " << desc.first
+                  << ", ptr = " << m_in_requested_repackings[desc.first]->getData() << std::endl;
     }
 
 #if defined(__linux__) && defined(OPENVINO_ARCH_X86_64) && defined(SNIPPETS_DEBUG_CAPS)
@@ -1018,6 +1019,22 @@ void Subgraph::SubgraphExecutor::execute(dnnl::stream strm, std::vector<MemoryPt
 }
 
 void Subgraph::SubgraphExecutor::reorder_execute(dnnl::stream strm, std::vector<MemoryPtr> inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
+    std::cout << "[ INFO ] Reorder execute is called\n";
+    // TODO: discuss whether it is applicable to create new memory object from scratchpad on each inference
+    // As an alternative option, the separate memory object (not from scratchpad) can be created once on Executor constructor stage
+    const auto internal_buffer_size = static_cast<size_t>(m_nthreads) * m_buffer_scratchpad_size;
+    size_t offset = internal_buffer_size;
+    for (auto& intermediate_memory : m_in_requested_repackings) {
+        auto& mem = intermediate_memory.second;
+        const auto& desc = mem->getDescPtr();
+        const void* data_ptr = m_buffer_scratchpad->getDataAs<uint8_t>() + offset;
+        mem = std::make_shared<Memory>(strm.get_engine(), desc, data_ptr, false);
+        offset += desc->getCurrentMemSize();
+        std::cout << "scratch_mem is used for requested desc " << intermediate_memory.first
+                  << ", ptr = " << mem->getData() << std::endl;
+        std::cout << "m_scratch = " << m_buffer_scratchpad->getData() << std::endl;
+    }
+
     for (auto& requested_repacking : m_in_requested_repackings) {
         const auto& scratch_mem = requested_repacking.second;
         scratch_mem->load(*inMemPtrs[requested_repacking.first]);
