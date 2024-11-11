@@ -8,6 +8,8 @@
 #include "snippets/lowered/pass/init_loops.hpp"
 #include "snippets/lowered/pass/insert_specific_iterations.hpp"
 #include "snippets/lowered/pass/mha_parallel_wa_optimizer.hpp"
+#include "snippets/lowered/pass/solve_buffer_memory.hpp"
+#include "snippets/pass/split_dimension_m.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/utils/loop_utils.hpp"
 #include "snippets/utils/utils.hpp"
@@ -253,6 +255,9 @@ void RuntimeConfigurator::update_buffer_scratchpad_size(const lowered::LinearIRC
             OPENVINO_ASSERT(!utils::is_dynamic_value(allocation_size), "Buffer scratchpad size must be defined!");
             additional_size = std::max(allocation_size * buffer_expr->get_node()->get_element_type().size(), additional_size);
         }
+
+        // Align with cache line size. The experiments shows that it affects performance.
+        additional_size = utils::rnd_up(additional_size, lowered::pass::SolveBufferMemory::byte_alignment);
 
         cluster_offset = m_config->buffer_scratchpad_size;
         OPENVINO_ASSERT(!utils::is_dynamic_value(cluster_offset), "Offset of the cluster must be defined!");
