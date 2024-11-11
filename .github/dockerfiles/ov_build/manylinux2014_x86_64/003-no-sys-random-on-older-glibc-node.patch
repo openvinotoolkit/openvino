@@ -1,0 +1,24 @@
+diff --git a/deps/cares/config/linux/ares_config.h b/deps/cares/config/linux/ares_config.h
+index 3cb135a35ca6..1ea3b2e35308 100644
+--- a/deps/cares/config/linux/ares_config.h
++++ b/deps/cares/config/linux/ares_config.h
+@@ -116,7 +116,9 @@
+ #define HAVE_GETNAMEINFO 1
+
+ /* Define to 1 if you have `getrandom` */
++#if defined(__GLIBC__) && __GLIBC__ >= 2 && __GLIBC_MINOR__ >= 25
+ #define HAVE_GETRANDOM 1
++#endif
+
+ /* Define to 1 if you have `getservbyport_r` */
+ #define HAVE_GETSERVBYPORT_R 1
+@@ -329,7 +331,9 @@
+ #define HAVE_SYS_PARAM_H 1
+
+ /* Define to 1 if you have the <sys/random.h> header file. */
++#if defined(__GLIBC__) && __GLIBC__ >= 2 && __GLIBC_MINOR__ >= 25
+ #define HAVE_SYS_RANDOM_H 1
++#endif
+
+ /* Define to 1 if you have the <sys/select.h> header file. */
+ #define HAVE_SYS_SELECT_H 1
