@@ -2,12 +2,7 @@ ARG REGISTRY="quay.io"
 FROM openvinogithubactions.azurecr.io/quayio/pypa/manylinux2014_x86_64
 
 USER root
-
-# Install build dependencies
-ADD install_build_dependencies.sh /install_build_dependencies.sh
-RUN chmod +x /install_build_dependencies.sh && \
-    /install_build_dependencies.sh
-    
+  
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
 ENV SCCACHE_HOME="/opt/sccache" \
