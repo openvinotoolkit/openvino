@@ -49,6 +49,9 @@ def parse_and_check_command_line():
         raise Exception("Cannot set precision for a compiled model. " \
                         "Please re-compile your model with required precision.")
 
+    if args.api_type == "sync" and args.number_infer_requests > args.number_iterations:
+        raise Exception("Number of infer requests should be less than or equal to number of iterations in sync mode.")
+
     return args, is_network_compiled
 
 def main():
@@ -315,9 +318,13 @@ def main():
                     del device_number_streams[device]
 
         device_config = {}
-        for device in config:
-            if benchmark.device.find(device) == 0:
-                device_config = config[device]
+        # In case of multiple devices found prefer the one given in CLI argument
+        if benchmark.device.find(device_name) == 0 and device_name in config.keys():
+            device_config = config[device_name]
+        else:
+            for device in config:
+                if benchmark.device.find(device) == 0:
+                    device_config = config[device]
         if args.cache_dir:
             benchmark.set_cache_dir(args.cache_dir)
 

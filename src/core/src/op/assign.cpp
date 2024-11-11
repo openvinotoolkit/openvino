@@ -134,7 +134,7 @@ bool Assign::has_evaluate() const {
     return true;
 }
 
-bool Assign::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
+bool Assign::can_constant_fold(const OutputVector& input_values) const {
     return false;
 }
 }  // namespace v6

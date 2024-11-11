@@ -6,7 +6,7 @@ import numpy as np
 import openvino as ov
 
 import openvino.runtime.opset13 as ops
-from openvino import Type, PartialShape, Model, compile_model
+from openvino import Type, PartialShape, Model, Tensor, compile_model
 from openvino.runtime.op import Constant
 from openvino.helpers import pack_data, unpack_data
 
@@ -87,7 +87,7 @@ def test_init_with_array(src_dtype, dst_dtype, shared_flag, data_getter):
         data = np.ascontiguousarray(data)
 
     # Create constant from based on numpy dtype or openvino type
-    ov_const = ops.constant(data, dtype=dst_dtype, shared_memory=shared_flag)
+    ov_const = ops.constant(data, dst_dtype, shared_memory=shared_flag)
 
     # Check shape and element type of Constant class
     assert isinstance(ov_const, Constant)
@@ -842,7 +842,7 @@ def test_get_data_casting_bf16(src_dtype, dst_dtype, copy_flag):
 )
 def test_get_data_casting_packed(src_dtype, ov_type, dst_dtype, copy_flag):
     data = np.array([[0, 0, 0, 0, 1, 0, 0, 1], [0, 0, 0, 0, 0, 0, 0, 1]], dtype=src_dtype)
-    ov_const = ops.constant(data, dtype=ov_type)
+    ov_const = ops.constant(value=data, dtype=ov_type)
     arr = ov_const.get_data(dtype=dst_dtype, copy=copy_flag)
 
     if dst_dtype is None:
@@ -854,3 +854,28 @@ def test_get_data_casting_packed(src_dtype, ov_type, dst_dtype, copy_flag):
     else:
         assert arr.flags["OWNDATA"] is True
         assert np.array_equal(arr, data)
+
+
+@pytest.mark.parametrize(
+    ("shared_flag"),
+    [
+        (True),
+        (False),
+    ],
+)
+def test_const_from_tensor(shared_flag):
+    shape = [1, 3, 32, 32]
+    arr = np.ones(shape).astype(np.float32)
+    ov_tensor = Tensor(arr, shape, Type.f32)
+    ov_const = ops.constant(tensor=ov_tensor, shared_memory=shared_flag)
+
+    assert isinstance(ov_const, Constant)
+    assert np.all(list(ov_const.shape) == shape)
+    arr += 1
+
+    if shared_flag is True:
+        assert np.array_equal(ov_const.data, arr)
+        assert np.shares_memory(arr, ov_const.data)
+    else:
+        assert not np.array_equal(ov_const.data, arr)
+        assert not np.shares_memory(arr, ov_const.data)

@@ -62,6 +62,12 @@ public:
         return sequence_axis >= 0 ? sequence_axis : past_layout_rank + sequence_axis;
     }
 
+    static int64_t get_scale_zp_sequence_axis() {
+        // The order of scales and zero points is fixed, so use constant axis
+        const auto scale_zp_concat_axis = 2;
+        return scale_zp_concat_axis;
+    }
+
     static int64_t get_max_pad(const layout& target_layout, size_t buffer_size, int64_t sequence_axis, std::string target_name = "") {
         if (buffer_size == 0)
             return 0;

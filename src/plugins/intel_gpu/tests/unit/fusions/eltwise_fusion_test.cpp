@@ -38,8 +38,10 @@ public:
         network network_fused(this->engine, this->topology_fused, cfg_fused);
 
         auto inputs = network_fused.get_input_ids();
-        network_fused.set_input_data("input", input_prim);
-        network_not_fused.set_input_data("input", input_prim);
+        if (std::find(inputs.begin(), inputs.end(), "input") != inputs.end()) {
+            network_fused.set_input_data("input", input_prim);
+            network_not_fused.set_input_data("input", input_prim);
+        }
         if (std::find(inputs.begin(), inputs.end(), "input2") != inputs.end()) {
             network_fused.set_input_data("input2", input_prim2);
             network_not_fused.set_input_data("input2", input_prim2);
@@ -698,4 +700,28 @@ TEST_P(eltwise_fusing_reorders, reorders_for_data_type) {
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, eltwise_fusing_reorders, ::testing::ValuesIn(std::vector<eltwise_test_params>{
     eltwise_test_params{ { 1, 16, 16, 2 }, data_types::f16, data_types::f16, format::bfyx,  data_types::f16,  format::bfyx, eltwise_mode::max, 4, 6 },
+}));
+
+class eltwise_with_constant_input : public EltwiseFusingTest {};
+TEST_P(eltwise_with_constant_input, basic) {
+    auto p = GetParam();
+    create_topologies(data("eltwise_data", get_mem(get_input_layout2(p), -10, 10)),
+                      data("eltwise_data1", get_mem(get_input_layout2(p), -10, 10)),
+                      eltwise("eltwise", {input_info("eltwise_data"), input_info("eltwise_data1")}, p.mode, p.default_type),
+                      reorder("out",
+                              input_info("eltwise"),
+                              p.default_format,
+                              data_types::f32,
+                              std::vector<float>(),
+                              cldnn::reorder_mean_mode::subtract,
+                              cldnn::padding(),
+                              true)
+                              );
+
+    tolerance = default_tolerance(p.input_type);
+    execute(p, true);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, eltwise_with_constant_input, ::testing::ValuesIn(std::vector<eltwise_test_params>{
+    eltwise_test_params{ CASE_ELTWISE_FP16_1, 0, 0},
 }));
