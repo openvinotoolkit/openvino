@@ -5,7 +5,6 @@
 #include "infer_request.h"
 
 #include "async_infer_request.h"
-#include "compiled_model.h"
 #include "dnnl_extension_utils.h"
 #include "itt.h"
 #include "memory_state.h"
@@ -24,9 +23,9 @@ using OvString = ov::element_type_traits<ov::element::string>::value_type;
 
 namespace ov {
 namespace intel_cpu {
-SyncInferRequest::SyncInferRequest(std::shared_ptr<const CompiledModel> compiled_model)
-    : ov::ISyncInferRequest(compiled_model),
-      m_compiled_model(compiled_model) {
+SyncInferRequest::SyncInferRequest(CompiledModelHandler compiled_model)
+    : ov::ISyncInferRequest(compiled_model.compiled_model()),
+      m_compiled_model(std::move(compiled_model)) {
     const auto& inputs = get_inputs();
     for (std::size_t input_index = 0; input_index < inputs.size(); input_index++) {
         m_input_ports_map[input_index] = inputs[input_index];
@@ -40,13 +39,8 @@ SyncInferRequest::SyncInferRequest(std::shared_ptr<const CompiledModel> compiled
 }
 
 void SyncInferRequest::create_infer_request() {
-    auto id = (m_compiled_model->m_numRequests)++;
-    m_profiling_task = openvino::itt::handle("INTEL_CPU_INFER_" + m_compiled_model->m_name + "_" + std::to_string(id));
-
-    if (m_compiled_model->m_graphs.size() == 0) {
-        OPENVINO_THROW("No graph was found");
-    }
-    m_graph = &(m_compiled_model->get_graph()._graph);
+    m_profiling_task = openvino::itt::handle("INTEL_CPU_INFER_" + m_compiled_model.name() + "_" +
+                                             std::to_string(m_compiled_model.id()));
 
     // Alocate memory for each tensor if static shape
     for (const auto& it : m_input_ports_map) {
@@ -57,18 +51,15 @@ void SyncInferRequest::create_infer_request() {
     }
 
     //create states according to the list of the MemoryStateNodes
-    for (auto&& node : m_graph->getInternalStateNodes()) {
+    auto&& graph = m_compiled_model.graph();
+    for (auto&& node : graph.getInternalStateNodes()) {
         m_memory_states.emplace_back(node.second->makeState());
     }
 }
 
-SyncInferRequest::~SyncInferRequest() {
-    --(m_compiled_model->m_numRequests);
-}
-
 // state -> storage
-void SyncInferRequest::assign_states() {
-    auto&& graph_internal_state_nodes = m_graph->getInternalStateNodes();
+void SyncInferRequest::assign_states(Graph& graph) {
+    auto&& graph_internal_state_nodes = graph.getInternalStateNodes();
     for (const auto& state : m_memory_states) {
         auto itr = graph_internal_state_nodes.find(state->get_name());
         if (itr != graph_internal_state_nodes.end()) {
@@ -77,8 +68,8 @@ void SyncInferRequest::assign_states() {
     }
 }
 
-void SyncInferRequest::redefine_memory_for_input_nodes() {
-    const auto cpuInputNodes = m_graph->GetInputNodesMap();
+void SyncInferRequest::redefine_memory_for_input_nodes(Graph& graph) {
+    const auto cpuInputNodes = graph.GetInputNodesMap();
     for (const auto& input_port : m_input_ports_map) {
         const auto inputNode = cpuInputNodes.find(input_port.first);
         if (inputNode == cpuInputNodes.end())
@@ -103,8 +94,8 @@ void SyncInferRequest::update_external_tensor_ptrs() {
 void SyncInferRequest::infer() {
     using namespace openvino::itt;
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, m_profiling_task);
-    auto graphLock = m_compiled_model->get_graph();
-    m_graph = &(graphLock._graph);
+    auto graphLock = m_compiled_model.lock();
+    auto&& graph = graphLock._graph;
     auto message = ov::threading::message_manager();
 
     throw_if_canceled();
@@ -120,40 +111,41 @@ void SyncInferRequest::infer() {
         update_external_tensor_ptrs();
     }
 
-    if (m_graph->hasDynamicInput()) {
-        redefine_memory_for_input_nodes();
+    if (graph.hasDynamicInput()) {
+        redefine_memory_for_input_nodes(graph);
     }
 
-    change_default_ptr();
+    change_default_ptr(graph);
 
     throw_if_canceled();
 
     // state -> node
     if (!m_memory_states.empty()) {
-        assign_states();
+        assign_states(graph);
     }
 
-    push_input_data();
+    push_input_data(graph);
 
-    m_graph->Infer(this);
+    graph.Infer(this);
 
     throw_if_canceled();
 
     // update output control blocks, if any, in order to refresh internal buffers
-    if (m_graph->IsDynamic()) {
+    if (graph.IsDynamic()) {
         for (auto&& item : m_outputControlBlocks) {
             item.second.update();
         }
     }
 
-    m_graph->PullOutputData(m_outputs);
+    graph.PullOutputData(m_outputs);
 }
 
 std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {
-    if (!m_graph || !m_graph->IsReady())
+    auto&& graph = m_compiled_model.graph();
+    if (!graph.IsReady())
         OPENVINO_THROW("Graph is not ready!");
     std::vector<ov::ProfilingInfo> perfMap;
-    m_graph->GetPerfData(perfMap);
+    graph.GetPerfData(perfMap);
     return perfMap;
 }
 
@@ -172,13 +164,13 @@ static inline void change_edge_ptr(const EdgePtr& edge, ov::SoPtr<ov::ITensor>& 
     }
 }
 
-void SyncInferRequest::change_default_ptr() {
-    const auto& inputNodesMap = m_graph->GetInputNodesMap();
-    const auto& outputNodesMap = m_graph->GetOutputNodesMap();
+void SyncInferRequest::change_default_ptr(Graph& graph) {
+    const auto& inputNodesMap = graph.GetInputNodesMap();
+    const auto& outputNodesMap = graph.GetOutputNodesMap();
 
     std::unordered_set<const void*> inputPtrs;
     std::function<void(const EdgePtr &edge, ov::SoPtr<ov::ITensor>& tensor)> changeInpPtr;
-    if (m_graph->IsDynamic()) {
+    if (graph.IsDynamic()) {
         changeInpPtr = [&inputPtrs](const EdgePtr &edge, ov::SoPtr<ov::ITensor>& tensor) {
             change_edge_ptr(edge, tensor);
             inputPtrs.insert(tensor->data());
@@ -278,8 +270,8 @@ void SyncInferRequest::change_default_ptr() {
             change_edge_ptr(parentEdge, it.second);
     }
 
-    if (m_graph->IsDynamic()) {
-        const auto &outMemBlocksMap = m_graph->getOutputNodesMemBlocksMap();
+    if (graph.IsDynamic()) {
+        const auto &outMemBlocksMap = graph.getOutputNodesMemBlocksMap();
         for (auto&& item : outMemBlocksMap) {
             const auto& name = item.first;
 
@@ -301,7 +293,7 @@ void SyncInferRequest::change_default_ptr() {
                     controlBlock.currentMemBlock(); // else reuse the existing buffer
 
                 outputMemBlock->setMemBlockResize(memBlock);
-                DEBUG_LOG("reset proxy ", outputMemBlock, ", actual ", controlBlock.currentMemBlock(), " graph ", m_graph, " inferrequest ", this);
+                DEBUG_LOG("reset proxy ", outputMemBlock, ", actual ", controlBlock.currentMemBlock(), " graph ", &graph, " infer request ", this);
                 DEBUG_LOG(name, ", tensor ", controlBlock.tensor());
             } else {
                 outputMemBlock->reset(); // switch to the internal memory since memory sharing is no longer possible
@@ -401,7 +393,9 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
                            " are different.");
         }
 
-        MemoryDescPtr actualDesc = m_graph->getInputNodeByIndex(input_index)->getBaseMemDescAtOutputPort(0);
+        auto&& graph = m_compiled_model.graph();
+
+        MemoryDescPtr actualDesc = graph.getInputNodeByIndex(input_index)->getBaseMemDescAtOutputPort(0);
         if (!actualDesc->isDefined()) {
             // we must define desc for dynamic case
             // otherwise we got incorrect check on shape compatibility inside isCompatible
@@ -448,7 +442,9 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
                            " are different.");
         }
 
-        const auto& desc = m_graph->getOutputNodeByIndex(output_index)->getParentEdgeAt(0)->getMemory().getDesc();
+        auto&& graph = m_compiled_model.graph();
+
+        const auto& desc = graph.getOutputNodeByIndex(output_index)->getParentEdgeAt(0)->getMemory().getDesc();
         if (!isDynamic && mem_desc_ptr->isCompatible(desc)) {
             m_output_external_ptr[output_index] = tensor;
         } else if (m_output_external_ptr.find(output_index) != m_output_external_ptr.end()) {
@@ -471,12 +467,12 @@ void SyncInferRequest::set_tensors_impl(const ov::Output<const ov::Node> port, c
 
 void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyncInferRequest::FoundPort::Type& type) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "init_tensor");
-    if (!m_graph || !m_graph->IsReady())
-        OPENVINO_THROW("Graph is not ready!");
+    auto&& graph = m_compiled_model.graph();
+    OPENVINO_ASSERT(graph.IsReady(), "Graph is not ready!");
 
     ov::SoPtr<ITensor> tensor;
     if (type == ov::ISyncInferRequest::FoundPort::Type::INPUT) {
-        OPENVINO_ASSERT(m_graph->GetInputNodesMap().find(port_index) != m_graph->GetInputNodesMap().end(),
+        OPENVINO_ASSERT(graph.GetInputNodesMap().find(port_index) != graph.GetInputNodesMap().end(),
                         "Tensor with index: ",
                         port_index,
                         " exists in CPU plugin graph, but absents in model inputs");
@@ -501,7 +497,7 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
             if (!isDynamic) {
                 auto mem_desc_ptr = MemoryDescUtils::generateCpuBlockedMemoryDesc(tensor);
                 if (mem_desc_ptr->isCompatible(
-                        m_graph->getInputNodeByIndex(port_index)->getChildEdgeAt(0)->getMemory().getDesc())) {
+                        graph.getInputNodeByIndex(port_index)->getChildEdgeAt(0)->getMemory().getDesc())) {
                     m_input_external_ptr[port_index] = tensor;
                 }
             }
@@ -509,7 +505,7 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
     }
 
     if (type == ov::ISyncInferRequest::FoundPort::Type::OUTPUT) {
-        const auto& outMap = m_graph->GetOutputNodesMap();
+        const auto& outMap = graph.GetOutputNodesMap();
         auto output = outMap.find(port_index);
         OPENVINO_ASSERT(output != outMap.end(),
                         "Tensor with index: ",
@@ -589,10 +585,10 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
     return;
 }
 
-void SyncInferRequest::push_input_data() {
+void SyncInferRequest::push_input_data(Graph& graph) {
     for (auto& input : m_input_ports_map) {
         auto tensor = get_tensor(input.second);
-        m_graph->PushInputData(input.first, tensor);
+        graph.PushInputData(input.first, tensor);
     }
 }
 

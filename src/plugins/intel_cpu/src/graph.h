@@ -89,22 +89,22 @@ public:
         return _name;
     }
 
-    std::map<std::size_t, NodePtr>& GetInputNodesMap() {
+    const std::map<std::size_t, NodePtr>& GetInputNodesMap() const {
         return inputNodesMap;
     }
 
-    std::map<std::size_t, NodePtr>& GetOutputNodesMap() {
+    const std::map<std::size_t, NodePtr>& GetOutputNodesMap() const {
         return outputNodesMap;
     }
 
-    NodePtr getInputNodeByIndex(const std::size_t &index) {
+    NodeConstPtr getInputNodeByIndex(const std::size_t &index) const {
         auto input = inputNodesMap.find(index);
         if (input == inputNodesMap.end())
             OPENVINO_THROW("CPU execution graph doesn't contain input node with index: ", index);
         return input->second;
     }
 
-    NodePtr getOutputNodeByIndex(const std::size_t &index) {
+    NodeConstPtr getOutputNodeByIndex(const std::size_t &index) const {
         auto output = outputNodesMap.find(index);
         if (output == outputNodesMap.end())
             OPENVINO_THROW("CPU execution graph doesn't contain output node with index: ", index);
