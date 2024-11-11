@@ -103,7 +103,7 @@ void ProfilingQuery::getProfilingProperties(ze_device_profiling_data_properties_
 
 void ProfilingQuery::verifyProfilingProperties() const {
     if (!_handle) {
-        OPENVINO_THROW("Can't get profiling statistics because profiling is disabled.");
+        OPENVINO_THROW("No available profiling data.");
     }
     const auto stringifyVersion = [](auto version) -> std::string {
         return std::to_string(ZE_MAJOR_VERSION(version)) + "." + std::to_string(ZE_MINOR_VERSION(version));
