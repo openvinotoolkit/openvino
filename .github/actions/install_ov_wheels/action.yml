@@ -7,13 +7,6 @@ inputs:
   install-core-wheel:
     description: 'Whether to install the OpenVINO Core wheel (openvino-*.whl)'
     required: true
-  install-dev-wheel:
-    description: 'Whether to install the OpenVINO Dev wheel (openvino_dev*.whl)'
-    required: true
-  extras-to-install:
-    description: 'Extras to install with the OpenVINO Dev wheel (openvino_dev.whl[caffe,kaldi,onnx,tensorflow2,pytorch])'
-    required: false
-    default: ''
   install-tokenizers-wheel:
     description: 'Whether to install the OpenVINO Dev wheel (openvino_tokenizes*.whl)'
     required: true
@@ -36,19 +29,6 @@ runs:
             $ovTokenizersWheelPath = Get-ChildItem -Path ${{ inputs.wheels-dir-path }} -Filter openvino_tokenizers-*.whl | % { $_.FullName }
             python3 -m pip install "$ovTokenizersWheelPath"
         }
-        
-        if ( "${{ inputs.install-dev-wheel }}" -eq "true" )
-        {
-            $ovDevWheelPath = Get-ChildItem -Path "${{ inputs.wheels-dir-path }}" -Filter openvino_dev*.whl | % { $_.FullName }
-            if ( "${{ inputs.extras-to-install }}" )
-            {
-              python3 -m pip install "$ovDevWheelPath[${{ inputs.extras-to-install }}]"
-            }
-            else
-            {
-              python3 -m pip install "$ovDevWheelPath"
-            }
-        }
     - name: Install OpenVINO Python wheels (Linux and macOS)
       shell: bash
       if: runner.os != 'Windows'
@@ -61,13 +41,4 @@ runs:
         
         if [[ "${{ inputs.install-tokenizers-wheel }}" == "true" ]]; then
           python3 -m pip install ${{ inputs.wheels-dir-path }}/openvino_tokenizers-*.whl
-        fi
-        
-        if [[ "${{ inputs.install-dev-wheel }}" == "true" ]]; then
-          ov_dev_wheel_path=$(find ${{ inputs.wheels-dir-path }} -name 'openvino_dev*.whl')
-          if [[ "${{ inputs.extras-to-install }}" ]]; then
-            python3 -m pip install $ov_dev_wheel_path[${{ inputs.extras-to-install }}]
-          else
-            python3 -m pip install $ov_dev_wheel_path
-          fi
         fi

@@ -99,7 +99,6 @@ jobs:
         with:
           wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
           install-core-wheel: true
-          install-dev-wheel: false
           install-tokenizers-wheel: false
 
       #

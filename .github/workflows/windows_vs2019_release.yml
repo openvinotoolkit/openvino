@@ -143,7 +143,6 @@ jobs:
         with:
           wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
           install-core-wheel: true
-          install-dev-wheel: false
           install-tokenizers-wheel: false
 
       - name: Samples tests
@@ -304,8 +303,6 @@ jobs:
         with:
           wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
           install-core-wheel: true
-          install-dev-wheel: true
-          extras-to-install: 'caffe,kaldi,onnx,tensorflow2,pytorch'
           install-tokenizers-wheel: false
 
       - name: Install Python API tests dependencies
@@ -468,8 +465,6 @@ jobs:
         with:
           wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
           install-core-wheel: true
-          install-dev-wheel: true
-          extras-to-install: 'caffe,kaldi,onnx,tensorflow2,pytorch'
           install-tokenizers-wheel: false
 
       - name: Install Python API tests dependencies
