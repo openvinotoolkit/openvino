@@ -292,7 +292,7 @@ For data-aware weight compression refer to the following
   method can be applied along with **AWQ** and mixed-precision quantization (the ``ratio`` parameter).
 
 
-**HuggingFace Optimum-Intel API**
+**Hugging Face Optimum-Intel API**
 
 HuggingFace Optimum-Intel provides an easy way to use NNCF Weight Compression capabilities to optimized
 large Transformer models of various types. Most of the options of NNCF ``nncf.compress_weights()`` API are
