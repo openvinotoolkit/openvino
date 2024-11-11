@@ -132,6 +132,10 @@ jobs:
               cmake --build /work/build --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} &&
               cmake --install /work/build --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/install
             "
+      
+      - name: Pack Artifacts
+        run: mkdir -p ${{ env.BUILD_DIR }} && tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+        working-directory: ${{ env.INSTALL_DIR }}
             
       - name: Build Python API(Python 3.9-3.13)
         run: |
@@ -154,15 +158,11 @@ jobs:
               /bin/bash -c "
                 export PATH=/opt/python/${PY_VER}-${PY_VER}/bin:\$PATH
                 python3 -m pip install -r /work/src/src/bindings/python/wheel/requirements-dev.txt --force-reinstall &&
-                cmake -DENABLE_CPPLINT=OFF -DENABLE_NCC_STYLE=OFF -DCMAKE_VERBOSE_MAKEFILE=ON -DBUILD_SHARED_LIBS=ON -DENABLE_WHEEL=ON -S /work/src -B /work/build &&
+                cmake -DENABLE_CPPLINT=OFF -DENABLE_NCC_STYLE=OFF -DCMAKE_VERBOSE_MAKEFILE=ON -DBUILD_SHARED_LIBS=ON -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -S /work/src -B /work/build &&
                 cmake --build /work/build --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} &&
                 cmake --install /work/build --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/wheels --component python_wheels
               "
           done
-
-      - name: Pack Artifacts
-        run: tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_package.tar.gz
-        working-directory: ${{ env.INSTALL_DIR }}
 
       #
       # Upload build artifacts
