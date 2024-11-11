@@ -130,8 +130,6 @@ jobs:
               cmake --build /work/build --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}"
         env:
           PYTHON: /opt/python/cp39-cp39/bin
-          CC: gcc
-          CXX: g++
       
       - name: Dump build cache
         run: |
