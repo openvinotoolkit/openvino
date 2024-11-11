@@ -50,6 +50,7 @@ protected:
     mutable std::atomic<std::size_t>                                     m_request_id = {0};
     std::mutex                                                           m_dev_infer_mutex;
     std::unordered_map<IASyncInferPtr, WorkerInferRequest*>              m_dev_infer;
+    std::shared_ptr<Log>                                                 m_logger;
 };
 
 }  // namespace auto_plugin

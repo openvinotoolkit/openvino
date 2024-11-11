@@ -43,6 +43,7 @@ private:
     std::future<void>                                                    m_firstload_future;
     std::promise<void>                                                   m_firstload_promise;
     bool                                                                 m_exitflag = {false};
+    // hold the resource of static variable to avoid the destruction of the static variable.
     std::shared_ptr<std::mutex>                                          m_mtx;
     std::shared_ptr<std::map<unsigned int, std::list<std::string>>>      m_priority_map;
 };
