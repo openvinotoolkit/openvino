@@ -14,8 +14,6 @@ void Schedule::launch(const ScheduleContext::Ptr& context) {
     m_context = context;
     m_log_tag = context->m_log_tag;
     m_plugin = std::const_pointer_cast<Plugin>(std::dynamic_pointer_cast<const Plugin>(context->m_plugin));
-    // hold the resource of static variable to avoid the destruction of the static variable.
-    m_logger =  Log::instance();
     LOG_INFO_TAG("scheduler starting");
     init();
 }

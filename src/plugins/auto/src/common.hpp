@@ -223,6 +223,7 @@ public:
     // hold the resource of static variable to avoid the destruction of the static variable.
     std::shared_ptr<std::mutex>                                          m_mtx;
     std::shared_ptr<std::map<unsigned int, std::list<std::string>>>      m_priority_map;
+    std::shared_ptr<Log>                                                 m_logger = Log::instance();
     virtual ~ScheduleContext() = default;
 };
 
