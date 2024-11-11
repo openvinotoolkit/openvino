@@ -13,11 +13,11 @@ namespace ShapeInferRange {
 
 template <class TRShape, typename std::enable_if<std::is_same<TRShape, PartialShape>::value>::type* = nullptr>
 void symbol_propagation(const Node* op,
-                  std::vector<TRShape>& output_shapes,
-                  const double& start,
-                  const double& step,
-                  bool start_val,
-                  bool step_val) {
+                        std::vector<TRShape>& output_shapes,
+                        const double& start,
+                        const double& step,
+                        bool start_val,
+                        bool step_val) {
     output_shapes[0] = ov::PartialShape::dynamic(1);
     if (op->get_input_size() == 3 && step_val && step == 1) {
         auto start_symbol = op->input_value(0).get_tensor().get_value_symbol();
@@ -30,11 +30,11 @@ void symbol_propagation(const Node* op,
 
 template <class TRShape, typename std::enable_if<!std::is_same<TRShape, PartialShape>::value>::type* = nullptr>
 void symbol_propagation(const Node* op,
-                  std::vector<TRShape>& output_shapes,
-                  const double& start,
-                  const double& step,
-                  bool start_val,
-                  bool step_val) {}
+                        std::vector<TRShape>& output_shapes,
+                        const double& start,
+                        const double& step,
+                        bool start_val,
+                        bool step_val) {}
 
 template <class T, class TRShape = result_shape_t<T>>
 std::vector<TRShape> range_shape_infer(const Node* op,
