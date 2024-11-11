@@ -85,13 +85,10 @@ jobs:
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING -e DOCKER_CONFIG
     env:
       CMAKE_BUILD_TYPE: 'Release'
-      GITHUB_WORKSPACE: '/__w/openvino/openvino'
-      OPENVINO_REPO: /__w/openvino/openvino/openvino
-      OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
-      INSTALL_DIR: /__w/openvino/openvino/install/openvino
-      INSTALL_WHEELS_DIR: /__w/openvino/install/wheels
-      INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
-      BUILD_DIR: /__w/openvino/openvino/openvino_build
+      OPENVINO_REPO: ${{ github.workspace }}/src
+      INSTALL_DIR: ${{ github.workspace }}/install/openvino
+      INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
+      BUILD_DIR: ${{ github.workspace }}/build
       DOCKER_CONFIG: "/mount/.docker"
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
@@ -122,7 +119,7 @@ jobs:
       - name: Build OpenVINO
         run: |
           docker run --rm \
-            -v ${{ github.workspace }}/openvino:/work/src \
+            -v ${{ env.OPENVINO_REPO }}:/work/src \
             -v ov_build_cache:/work/build \
             -v ${INSTALL_DIR}:/work/install \
             -e SCCACHE_AZURE_BLOB_CONTAINER \
@@ -144,7 +141,7 @@ jobs:
       - name: Build Python API(Python 3.9)
         run: |
           docker run --rm \
-            -v ${{ github.workspace }}/openvino:/work/src \
+            -v ${{ env.OPENVINO_REPO }}:/work/src \
             -v ov_build_cache:/work/build \
             -v ${INSTALL_DIR}:/work/wheels \
             -e SCCACHE_AZURE_BLOB_CONTAINER \
