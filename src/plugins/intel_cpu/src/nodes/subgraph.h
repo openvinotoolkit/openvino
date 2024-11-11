@@ -171,7 +171,7 @@ protected:
 private:
     void reorder_execute(dnnl::stream strm, std::vector<MemoryPtr> inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs);
 
-    std::unordered_map<size_t, MemoryPtr> m_in_requested_repackings = {};
+    std::unordered_map<size_t, CpuBlockedMemoryDescPtr> m_in_requested_descs = {};
 };
 
 }   // namespace node

@@ -67,6 +67,7 @@ bool pass::AdjustBrgemmCopyBLoopPorts::run(const snippets::lowered::LinearIR& li
 
     for (const auto& expr : linear_ir) {
         const auto& node = expr->get_node();
+        // TODO: start this logic from BrgemmCPU, not from BrgemmCopyB
         if (!is_type<BrgemmCopyB>(node))
             continue;
         const auto& repacking_loop_ids = expr->get_loop_ids();

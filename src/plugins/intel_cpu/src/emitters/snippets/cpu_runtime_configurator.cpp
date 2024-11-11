@@ -186,19 +186,18 @@ void CPURuntimeConfigurator::update_requested_descs(const ov::snippets::lowered:
 void CPURuntimeConfigurator::adjust_offsets_from_descs(const std::vector<ov::snippets::VectorDims>& shapes,
                                                        const std::vector<std::vector<size_t>>& layouts) const {
     const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(m_config);
-    auto& optimal_descs = cpu_config->m_in_requested_descs;
-    for (size_t i = 0; i < m_in_num; ++i) {
-        if (optimal_descs.count(i)) {
-            const auto& optimal_desc = optimal_descs[i];
-            const auto& original_shape = shapes[i];
-            const auto& blocked_shape = optimal_desc->getBlockDims();
+    for (const auto& map_elem : cpu_config->m_in_requested_descs) {
+        const auto input_idx = map_elem.first;
+        const auto& optimal_desc = map_elem.second;
+        const auto& original_shape = shapes[input_idx];
+        const auto& blocked_shape = optimal_desc->getBlockDims();
 
-            ov::snippets::VectorDims shape_for_offset(m_config->tensor_rank - original_shape.size(), 1);
-            shape_for_offset.insert(shape_for_offset.end(), blocked_shape.begin(), blocked_shape.end());
-            auto& offsets = m_config->io_data_offsets[i];
-            compute_offsets(shape_for_offset, offsets, shape_for_offset.size(), m_io_data_sizes[i], 0);
-            OPENVINO_ASSERT(ov::snippets::utils::is_planar_layout(layouts[i]));
-        }
+        ov::snippets::VectorDims shape_for_offset(m_config->tensor_rank - original_shape.size(), 1);
+        shape_for_offset.insert(shape_for_offset.end(), blocked_shape.begin(), blocked_shape.end());
+        auto& offsets = m_config->io_data_offsets[input_idx];
+        compute_offsets(shape_for_offset, offsets, shape_for_offset.size(), m_io_data_sizes[input_idx], 0);
+        // TODO: Support non-planar layout
+        OPENVINO_ASSERT(ov::snippets::utils::is_planar_layout(layouts[input_idx]));
     }
 }
 

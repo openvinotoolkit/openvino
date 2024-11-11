@@ -68,10 +68,9 @@ void BrgemmCPU::custom_constructor_validate_and_infer_types(std::vector<size_t> 
     INTERNAL_OP_SCOPE(BrgemmCPU_constructor_validate_and_infer_types);
     validate_inputs();
 
-    // This shape inference can use get_input_partial_shape(1) in all cases
-    const auto planar_input_shapes =
-        std::vector<ov::PartialShape>{ snippets::utils::get_planar_pshape(get_input_partial_shape(0), layout_a),
-                                       snippets::utils::get_planar_pshape(get_input_partial_shape(1), layout_b) };
+    const std::vector<ov::PartialShape> planar_input_shapes{
+        snippets::utils::get_planar_pshape(get_input_partial_shape(0), layout_a),
+        snippets::utils::get_planar_pshape(get_input_partial_shape(1), layout_b)};
     auto output_shape = infer_output_partial_shape(planar_input_shapes);
     set_output_type(0, get_output_type(), snippets::utils::get_planar_pshape(output_shape, layout_c));
 

@@ -3,8 +3,6 @@
 //
 #include "subgraph.h"
 
-#include "nodes/reorder.h"
-#include "nodes/common/reorder_prim.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "common/primitive_hashing_utils.hpp"
@@ -655,9 +653,8 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
     }
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before, ov::snippets::pass::PropagatePrecision,
                                            ov::intel_cpu::pass::BrgemmToBrgemmCPU);
-    if (!std::getenv("REFERENCE"))
-        SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After, ov::intel_cpu::pass::BrgemmToBrgemmCPU,
-                                            ov::intel_cpu::pass::MoveBrgemmRepackingOut);
+    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After, ov::intel_cpu::pass::BrgemmToBrgemmCPU,
+                                           ov::intel_cpu::pass::MoveBrgemmRepackingOut);
     SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd, ov::intel_cpu::pass::RemoveConverts);
     SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON(Place::PipelineEnd, ov::intel_cpu::pass::MulAddToFMA);
 
@@ -917,24 +914,15 @@ Subgraph::SubgraphExecutor::SubgraphExecutor(const std::shared_ptr<Subgraph::Sub
     m_buffer_scratchpad_size = snippet_config->buffer_scratchpad_size;
     OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(m_buffer_scratchpad_size), "Undefined buffer scratchpad size!");
     const auto internal_buffer_size = static_cast<size_t>(m_nthreads) * m_buffer_scratchpad_size;
+    m_in_requested_descs = snippet_config->m_in_requested_descs;
     const auto external_repacking_buffer_size =
-        std::accumulate(snippet_config->m_in_requested_descs.begin(),
-                        snippet_config->m_in_requested_descs.end(),
+        std::accumulate(m_in_requested_descs.begin(),
+                        m_in_requested_descs.end(),
                         size_t(0),
                         [](size_t sum, const std::pair<size_t, ov::intel_cpu::MemoryDescPtr>& requested_desc_elem) {
                             return sum + requested_desc_elem.second->getCurrentMemSize();
                         });
     m_buffer_scratchpad = allocator(internal_buffer_size + external_repacking_buffer_size);
-
-    size_t offset = internal_buffer_size;
-    for (const auto& desc : snippet_config->m_in_requested_descs) {
-        const auto& requested_desc = desc.second;
-        const void* data_ptr = m_buffer_scratchpad->getDataAs<uint8_t>() + offset;
-        m_in_requested_repackings[desc.first] = std::make_shared<Memory>(engine, requested_desc, data_ptr);
-        offset += requested_desc->getCurrentMemSize();
-        std::cout << "scratch_mem is created for requested desc " << desc.first
-                  << ", ptr = " << m_in_requested_repackings[desc.first]->getData() << std::endl;
-    }
 
 #if defined(__linux__) && defined(OPENVINO_ARCH_X86_64) && defined(SNIPPETS_DEBUG_CAPS)
     const auto target = std::dynamic_pointer_cast<const CPUTargetMachine>(snippet_attrs->snippet->get_generator()->get_target_machine());
@@ -1012,7 +1000,7 @@ void Subgraph::SubgraphExecutor::parallel_forNd(const std::function<void(jit_sni
 }
 
 void Subgraph::SubgraphExecutor::execute(dnnl::stream strm, std::vector<MemoryPtr>& inMemPtrs, std::vector<MemoryPtr>& outMemPtrs) {
-    if (m_in_requested_repackings.empty())
+    if (m_in_requested_descs.empty())
         exec_impl(inMemPtrs, outMemPtrs);
     else
         reorder_execute(strm, inMemPtrs, outMemPtrs);
@@ -1024,21 +1012,18 @@ void Subgraph::SubgraphExecutor::reorder_execute(dnnl::stream strm, std::vector<
     // As an alternative option, the separate memory object (not from scratchpad) can be created once on Executor constructor stage
     const auto internal_buffer_size = static_cast<size_t>(m_nthreads) * m_buffer_scratchpad_size;
     size_t offset = internal_buffer_size;
-    for (auto& intermediate_memory : m_in_requested_repackings) {
-        auto& mem = intermediate_memory.second;
-        const auto& desc = mem->getDescPtr();
-        const void* data_ptr = m_buffer_scratchpad->getDataAs<uint8_t>() + offset;
-        mem = std::make_shared<Memory>(strm.get_engine(), desc, data_ptr, false);
-        offset += desc->getCurrentMemSize();
-        std::cout << "scratch_mem is used for requested desc " << intermediate_memory.first
-                  << ", ptr = " << mem->getData() << std::endl;
-        std::cout << "m_scratch = " << m_buffer_scratchpad->getData() << std::endl;
-    }
+    for (const auto& requested_descs_elem : m_in_requested_descs) {
+        const auto in_idx = requested_descs_elem.first;
+        const auto& requested_desc = requested_descs_elem.second;
 
-    for (auto& requested_repacking : m_in_requested_repackings) {
-        const auto& scratch_mem = requested_repacking.second;
-        scratch_mem->load(*inMemPtrs[requested_repacking.first]);
-        inMemPtrs[requested_repacking.first] = scratch_mem;
+        const void* data_ptr = m_buffer_scratchpad->getDataAs<uint8_t>() + offset;
+        const auto scratch_mem = std::make_shared<Memory>(strm.get_engine(), requested_desc, data_ptr, false);
+        scratch_mem->load(*inMemPtrs[in_idx]);
+        inMemPtrs[in_idx] = scratch_mem;
+        offset += requested_desc->getCurrentMemSize();
+        std::cout << "scratch_mem is used for requested desc " << in_idx
+                  << ", ptr = " << scratch_mem->getData() << std::endl;
+        std::cout << "m_scratch = " << m_buffer_scratchpad->getData() << std::endl;
     }
     exec_impl(inMemPtrs, outMemPtrs);
 }
