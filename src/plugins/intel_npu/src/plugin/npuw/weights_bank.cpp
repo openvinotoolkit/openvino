@@ -126,7 +126,7 @@ std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name,
     std::lock_guard<std::mutex> guard(m_mutex);
 
     auto iter = m_bank_map.find(bank_name);
-    if (iter == m_bank_map.end()) {
+    if (iter == m_bank_map.end() || iter->second.expired()) {
         auto bank = std::make_shared<Bank>(core, alloc_device);
         m_bank_map[bank_name] = bank;
         return bank;
