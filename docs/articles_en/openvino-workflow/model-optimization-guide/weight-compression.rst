@@ -294,10 +294,10 @@ For data-aware weight compression refer to the following
 
 **Hugging Face Optimum-Intel API**
 
-HuggingFace Optimum-Intel provides an easy way to use NNCF Weight Compression capabilities to optimized
-large Transformer models of various types. Most of the options of NNCF ``nncf.compress_weights()`` API are
-exposed in the ``.from_pretrained()`` method of Optimum-Intel classes. Moreover, Optimum also has several datasets
-for data-aware quantization aailable out-of-the-box.
+Hugging Face Optimum-Intel provides an easy way to use NNCF Weight Compression capabilities to optimize
+various large Transformer models. Most of the options of the NNCF ``nncf.compress_weights()`` API are
+exposed in the ``.from_pretrained()`` method of Optimum-Intel classes. Optimum also has several datasets
+for data-aware quantization available out-of-the-box.
 The example below shows data-free 4-bit weight quantization
 applied on top of OpenVINO IR. Before trying the example, make sure Optimum Intel
 is installed in your environment by running the following command:
