@@ -15,7 +15,6 @@ using namespace intel_npu;
 
 ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs)
     : _initStructs(initStructs),
-      _graph_ddi_table_ext(_initStructs->getGraphDdiTable()),
       log("ZeroDevice", Logger::global().level()) {
     log.debug("ZeroDevice::ZeroDevice init");
     device_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
@@ -121,9 +120,10 @@ uint32_t ZeroDevice::getMaxNumSlices() const {
 
 uint64_t ZeroDevice::getAllocMemSize() const {
     ze_graph_memory_query_t query{};
-    ze_result_t result =
-        _graph_ddi_table_ext.pfnQueryContextMemory(_initStructs->getContext(), ZE_GRAPH_QUERY_MEMORY_DDR, &query);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryContextMemory", result, _graph_ddi_table_ext);
+    ze_result_t result = _initStructs->getGraphDdiTable().pfnQueryContextMemory(_initStructs->getContext(),
+                                                                                ZE_GRAPH_QUERY_MEMORY_DDR,
+                                                                                &query);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryContextMemory", result, _initStructs->getGraphDdiTable());
 
     return query.allocated;
 }
@@ -132,9 +132,10 @@ uint64_t ZeroDevice::getTotalMemSize() const {
 #define LEGACY_MAX_MEM_ALLOC_SIZE_BYTES (2147483648)  // 2GB in base-2
 
     ze_graph_memory_query_t query{};
-    ze_result_t result =
-        _graph_ddi_table_ext.pfnQueryContextMemory(_initStructs->getContext(), ZE_GRAPH_QUERY_MEMORY_DDR, &query);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryContextMemory", result, _graph_ddi_table_ext);
+    ze_result_t result = _initStructs->getGraphDdiTable().pfnQueryContextMemory(_initStructs->getContext(),
+                                                                                ZE_GRAPH_QUERY_MEMORY_DDR,
+                                                                                &query);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryContextMemory", result, _initStructs->getGraphDdiTable());
 
     // For drivers with graph_extension < 1.9 we report fixed 2GB max allocation size (old drivers don't support more)
     // For drivers with graph_extension > 1.9 we report the value they return
