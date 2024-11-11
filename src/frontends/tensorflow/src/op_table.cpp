@@ -252,6 +252,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"EmptyTensorList", CreatorFunction(translate_empty_tensor_list_op)},
         {"EnsureShape", CreatorFunction(translate_identity_op)},
         {"ExpandDims", CreatorFunction(translate_expand_dims_op)},
+        {"Expm1", CreatorFunction(translate_expm1_op)},
         {"ExtractImagePatches", CreatorFunction(translate_extract_image_patches_op)},
         {"FakeQuantWithMinMaxVars", CreatorFunction(translate_fake_quant_op)},
         {"FakeQuantWithMinMaxVarsPerChannel", CreatorFunction(translate_fake_quant_op)},
