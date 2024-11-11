@@ -6,22 +6,27 @@ USER root
 # Define Node.js version
 ENV NODE_VERSION=22.9.0
 
+
+RUN mkdir -p /tmp/node-build
+
+WORKDIR /tmp/node-build
+
 # Download the Node.js source code
 RUN curl -O https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}.tar.gz \
-    && tar -xzvf node-v${NODE_VERSION}.tar.gz \
+    && tar -xzf node-v${NODE_VERSION}.tar.gz \
     && rm node-v${NODE_VERSION}.tar.gz
 
-WORKDIR /node-v${NODE_VERSION}
+WORKDIR /tmp/node-build/node-v${NODE_VERSION}
 
 COPY .github/dockerfiles/ov_build/manylinux2014_x86_64/003-no-sys-random-on-older-glibc-node.patch .
-RUN patch -p1 < 003-no-sys-random-on-older-glibc-node.patch
+RUN patch -p1 < 003-no-sys-random-on-older-glibc-node.patch \
+    && ./configure --prefix=/usr/local \ 
+    && make -j $(nproc) \
+    && make install
 
-# Configure and build Node.js
-RUN ./configure && make -j 4 && make install
-
-# Clean up
-WORKDIR /
-RUN rm -rf /node-v${NODE_VERSION}
+# Clean up tmpfs to reduce final image size
+WORKDIR /tmp
+RUN rm -rf /node-build
 
 # Verify Node.js installation
 RUN node --version && npm --version
