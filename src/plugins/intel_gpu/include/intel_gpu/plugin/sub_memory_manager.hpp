@@ -20,6 +20,8 @@ public:
         void* send_buf;
         std::shared_ptr<void> buf;
         bool flag;
+        bool all_gather_flag;
+        bool all_gather_copy_flag;
         bool last_used;
         std::shared_ptr<cldnn::stream> stream_ptr;
         std::vector<cldnn::memory::ptr> recv_bufs;
@@ -38,6 +40,8 @@ public:
          _num_sub_streams = num_sub_streams;
         MemoryInfo memory_info;
         memory_info.flag = false;
+        memory_info.all_gather_flag = false;
+        memory_info.all_gather_copy_flag = false;
         memory_info.last_used = false;
         memory_info.layout = cldnn::layout();
         memory_info.recv_bufs.assign(_num_sub_streams, nullptr);
@@ -51,6 +55,8 @@ public:
         memorys.assign(_num_sub_streams, memory_info);
         _memorys_table.assign(2, memorys);
         _use_count.assign(2, 0);
+        result = nullptr;
+        updated_flag = false;
     }
 
     int get_memory_id(int sub_stream_id) {
@@ -70,6 +76,8 @@ public:
     int _num_sub_streams;
     std::vector<std::vector<MemoryInfo>> _memorys_table;
     std::vector<size_t> _use_count;
+    void* result;
+    bool updated_flag;
     std::mutex _flagMutex;
 };
 }  // namespace intel_gpu

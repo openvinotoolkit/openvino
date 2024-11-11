@@ -78,6 +78,10 @@ public:
         if (m_has_sub_compiled_models) {
             m_sub_compiled_models.clear();
             m_sub_memory_manager->_memorys_table.clear();
+            if (m_sub_memory_manager->result != nullptr) {
+                free(m_sub_memory_manager->result);
+                m_sub_memory_manager->result = nullptr;
+            }
         }
     }
 
