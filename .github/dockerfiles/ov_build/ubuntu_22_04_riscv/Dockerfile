@@ -64,13 +64,14 @@ RUN dpkg --add-architecture riscv64 && \
     apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/riscv64-sources.list && \
     apt-get install -y --no-install-recommends libpython3-dev:riscv64
 
+RUN apt-get update
+RUN apt-get install -y --no-install-recommends apt-utils
+RUN apt-get -y install curl
+# RUN apt-get install libgomp1
+
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
-RUN apt-get update
-RUN apt-get install -y --no-install-recommends apt-utils
-RUN apt-get -y install curl
-# RUN apt-get install libgomp1
