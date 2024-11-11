@@ -13,7 +13,7 @@ RUN curl -O https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}.tar.g
 
 WORKDIR /node-v${NODE_VERSION}
 
-COPY 003-no-sys-random-on-older-glibc-node.patch .
+COPY ./003-no-sys-random-on-older-glibc-node.patch .
 RUN patch -p1 < 003-no-sys-random-on-older-glibc-node.patch
 
 # Configure and build Node.js
