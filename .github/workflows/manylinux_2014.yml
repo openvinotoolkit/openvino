@@ -15,6 +15,9 @@ concurrency:
 
 permissions: read-all
 
+env:
+  PIP_CACHE_PATH: /mount/caches/pip/linux
+
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
@@ -146,6 +149,7 @@ jobs:
               -v ${{ env.OPENVINO_REPO }}:/work/src \
               -v ov_build_cache:/work/build \
               -v ${INSTALL_WHEELS_DIR}:/work/wheels \
+              -v ${{ env.PIP_CACHE_PATH }}: /work/pip_cache \
               -e SCCACHE_AZURE_BLOB_CONTAINER \
               -e SCCACHE_AZURE_CONNECTION_STRING \
               -e SCCACHE_SERVER_PORT \
@@ -158,6 +162,8 @@ jobs:
               ${{ fromJSON(needs.docker.outputs.images).ov_build.manylinux2014_x86_64 }} \
               /bin/bash -c "
                 export PATH=${python_path}:\$PATH
+                PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
+                export "PIP_CACHE_DIR=/work/pip_cache/${PIP_VER}"
                 python3 -m pip install -r /work/src/src/bindings/python/wheel/requirements-dev.txt --force-reinstall &&
                 cmake -DPython3_EXECUTABLE=${python_path}/python -DENABLE_CPPLINT=OFF -DENABLE_NCC_STYLE=OFF -DCMAKE_VERBOSE_MAKEFILE=ON -DBUILD_SHARED_LIBS=ON -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -S /work/src -B /work/build &&
                 cmake --build /work/build --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} &&
