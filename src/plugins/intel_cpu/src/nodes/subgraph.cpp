@@ -82,8 +82,8 @@ public:
                            const std::vector<ptrdiff_t>& start_offset_out,
                            const std::shared_ptr<CPURuntimeConfig>& snippet_config,
                            const BufferScratchpadAllocator& allocator,
-                           const DnnlScratchPadPtr& scratchpad)
-    : SubgraphExecutor(snippet_attrs, snippet, start_offset_in, start_offset_out, snippet_config, allocator, scratchpad) {}
+                           const dnnl::engine& engine)
+    : SubgraphExecutor(snippet_attrs, snippet, start_offset_in, start_offset_out, snippet_config, allocator, engine) {}
 
     void exec_impl(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override  {
         const auto& callable = m_schedule->get_callable<kernel>();
@@ -126,8 +126,8 @@ public:
                                        const std::vector<ptrdiff_t>& start_offset_out,
                                        const std::shared_ptr<CPURuntimeConfig>& snippet_config,
                                        const BufferScratchpadAllocator& allocator,
-                                       const DnnlScratchPadPtr& scratchpad)
-    : SubgraphExecutor(snippet_attrs, snippet, start_offset_in, start_offset_out, snippet_config, allocator, scratchpad) {
+                                       const dnnl::engine& engine)
+    : SubgraphExecutor(snippet_attrs, snippet, start_offset_in, start_offset_out, snippet_config, allocator, engine) {
         buffer_offsets = snippet_config->buffer_cluster_offsets;
         data_offsets = snippet_config->io_data_offsets;
         loop_args = snippet_config->loop_args;
@@ -798,7 +798,7 @@ void Subgraph::prepareParams() {
                                                                         start_offset_out,
                                                                         snippet_config,
                                                                         allocator,
-                                                                        context->getScratchPad());
+                                                                        getEngine());
         } else {
             // Static case:
             // 1. Update runtime config to get static scheduling data (io data offsets, parallel domain) which will be compiled in JIT code
@@ -815,7 +815,7 @@ void Subgraph::prepareParams() {
                                                             start_offset_out,
                                                             snippet_config,
                                                             allocator,
-                                                            context->getScratchPad());
+                                                            getEngine());
         }
     };
 
@@ -905,8 +905,8 @@ Subgraph::SubgraphExecutor::SubgraphExecutor(const std::shared_ptr<Subgraph::Sub
                                              const std::vector<ptrdiff_t>& start_offset_out,
                                              const std::shared_ptr<CPURuntimeConfig>& snippet_config,
                                              const BufferScratchpadAllocator& allocator,
-                                             const DnnlScratchPadPtr& scratchpad)
-    : m_schedule(snippet->get()), m_start_offset_in(start_offset_in), m_start_offset_out(start_offset_out), m_scratchpad(scratchpad) {
+                                             const dnnl::engine& engine)
+    : m_schedule(snippet->get()), m_start_offset_in(start_offset_in), m_start_offset_out(start_offset_out) {
     OPENVINO_ASSERT(m_schedule, "Schedule is empty!");
     OPENVINO_ASSERT(snippet_config, "Runtime Config is empty!");
     init_parallel_domain(snippet_config, m_parallel_exec_domain);
@@ -916,12 +916,23 @@ Subgraph::SubgraphExecutor::SubgraphExecutor(const std::shared_ptr<Subgraph::Sub
 
     m_buffer_scratchpad_size = snippet_config->buffer_scratchpad_size;
     OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(m_buffer_scratchpad_size), "Undefined buffer scratchpad size!");
-    m_buffer_scratchpad = allocator(static_cast<size_t>(m_nthreads) * m_buffer_scratchpad_size);
+    const auto internal_buffer_size = static_cast<size_t>(m_nthreads) * m_buffer_scratchpad_size;
+    const auto external_repacking_buffer_size =
+        std::accumulate(snippet_config->m_in_requested_descs.begin(),
+                        snippet_config->m_in_requested_descs.end(),
+                        size_t(0),
+                        [](size_t sum, const std::pair<size_t, ov::intel_cpu::MemoryDescPtr>& requested_desc_elem) {
+                            return sum + requested_desc_elem.second->getCurrentMemSize();
+                        });
+    m_buffer_scratchpad = allocator(internal_buffer_size + external_repacking_buffer_size);
 
-    // TODO: here we need to already create memory, preliminary provide to allocator the adjusted scracth size
+    size_t offset = internal_buffer_size;
     for (const auto& desc : snippet_config->m_in_requested_descs) {
         const auto& requested_desc = desc.second;
-        m_in_requested_repackings.emplace(desc.first, RequestedRepacking(requested_desc, nullptr));
+        const void* data_ptr = m_buffer_scratchpad->getDataAs<uint8_t>() + offset;
+        m_in_requested_repackings[desc.first] = std::make_shared<Memory>(engine, requested_desc, data_ptr);
+        offset += requested_desc->getCurrentMemSize();
+        std::cout << "scratch_mem is created for requested desc " << desc.first << std::endl;
     }
 
 #if defined(__linux__) && defined(OPENVINO_ARCH_X86_64) && defined(SNIPPETS_DEBUG_CAPS)
@@ -1008,18 +1019,9 @@ void Subgraph::SubgraphExecutor::execute(dnnl::stream strm, std::vector<MemoryPt
 
 void Subgraph::SubgraphExecutor::reorder_execute(dnnl::stream strm, std::vector<MemoryPtr> inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
     for (auto& requested_repacking : m_in_requested_repackings) {
-        const auto& requested_desc = requested_repacking.second.requested_desc;
-        auto& scratch_mem = requested_repacking.second.scratch_mem;
-        if (requested_desc) {
-            if (!scratch_mem || !scratch_mem->getDesc().isCompatible(*requested_desc)) {
-                // TODO: move to prepareParams and investigate why the repacking is called on each iteration
-                // scratch_mem = m_scratchpad->createScratchPadMem(requested_desc);
-                scratch_mem = std::make_shared<Memory>(strm.get_engine(), requested_desc);
-                std::cout << "scratch_mem is created for requested desc " << requested_repacking.first << std::endl;
-            }
-            scratch_mem->load(*inMemPtrs[requested_repacking.first]);
-            inMemPtrs[requested_repacking.first] = scratch_mem;
-        }
+        const auto& scratch_mem = requested_repacking.second;
+        scratch_mem->load(*inMemPtrs[requested_repacking.first]);
+        inMemPtrs[requested_repacking.first] = scratch_mem;
     }
     exec_impl(inMemPtrs, outMemPtrs);
 }

@@ -127,7 +127,7 @@ public:
                      const std::vector<ptrdiff_t>& start_offset_out,
                      const std::shared_ptr<CPURuntimeConfig>& snippet_config,
                      const BufferScratchpadAllocator& allocator,
-                     const DnnlScratchPadPtr& scratchpad);
+                     const dnnl::engine& engine);
     virtual ~SubgraphExecutor() = default;
 
     void execute(dnnl::stream strm, std::vector<MemoryPtr>& inMemPtrs, std::vector<MemoryPtr>& outMemPtrs);
@@ -171,13 +171,7 @@ protected:
 private:
     void reorder_execute(dnnl::stream strm, std::vector<MemoryPtr> inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs);
 
-    struct RequestedRepacking {
-        RequestedRepacking(MemoryDescPtr desc, MemoryPtr memory) : requested_desc(desc), scratch_mem(memory) {}
-        MemoryDescPtr requested_desc = {};
-        MemoryPtr scratch_mem = {};
-    };
-    std::unordered_map<size_t, RequestedRepacking> m_in_requested_repackings = {};
-    DnnlScratchPadPtr m_scratchpad = {};
+    std::unordered_map<size_t, MemoryPtr> m_in_requested_repackings = {};
 };
 
 }   // namespace node
