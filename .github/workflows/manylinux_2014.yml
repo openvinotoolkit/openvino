@@ -137,9 +137,10 @@ jobs:
             ${{ fromJSON(needs.docker.outputs.images).ov_build.manylinux2014_x86_64 }} \
             /bin/bash -c "
               cmake -DENABLE_CPPLINT=OFF -DENABLE_NCC_STYLE=OFF -DCMAKE_VERBOSE_MAKEFILE=ON -DBUILD_SHARED_LIBS=ON -DENABLE_PYTHON=OFF -DENABLE_WHEEL=OFF -S /work/src -B /work/build &&
-              cmake --build /work/build --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}" &&
-              cmake --install /work/build --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/install      
-     
+              cmake --build /work/build --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} &&
+              cmake --install /work/build --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/install
+            "
+            
       - name: Build Python API(Python 3.9)
         run: |
           docker run --rm \
@@ -160,8 +161,9 @@ jobs:
               export PATH=${{ env.PYTHON}}:\$PATH
               python3 -m pip install -r /work/src/src/bindings/python/wheel/requirements-dev.txt --force-reinstall &&
               cmake -DENABLE_CPPLINT=OFF -DENABLE_NCC_STYLE=OFF -DCMAKE_VERBOSE_MAKEFILE=ON -DBUILD_SHARED_LIBS=ON -DENABLE_WHEEL=ON -S /work/src -B /work/build &&
-              cmake --build /work/build --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}" &&
+              cmake --build /work/build --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} &&
               cmake --install /work/build --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/wheels --component python_wheels
+            "
         env:
           PYTHON: /opt/python/cp39-cp39/bin
       
