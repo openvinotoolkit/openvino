@@ -3,9 +3,6 @@ FROM openvinogithubactions.azurecr.io/quayio/pypa/manylinux2014_x86_64
 
 USER root
 
-RUN yum update -y && yum install -y \
-    python3-devel
-
 # Install build dependencies
 ADD install_build_dependencies.sh /install_build_dependencies.sh
 RUN chmod +x /install_build_dependencies.sh && /install_build_dependencies.sh
