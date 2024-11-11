@@ -121,7 +121,7 @@ jobs:
           docker run --rm \
             -v ${{ env.OPENVINO_REPO }}:/work/src \
             -v ov_build_cache:/work/build \
-            -v ${INSTALL_DIR}:/work/install \
+            -v ${{ env.INSTALL_DIR }}:/work/install \
             -e SCCACHE_AZURE_BLOB_CONTAINER \
             -e SCCACHE_AZURE_CONNECTION_STRING \
             -e SCCACHE_SERVER_PORT \
@@ -138,29 +138,33 @@ jobs:
               cmake --install /work/build --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/install
             "
             
-      - name: Build Python API(Python 3.9)
+      - name: Build Python API(Python 3.9-3.13)
         run: |
-          docker run --rm \
-            -v ${{ env.OPENVINO_REPO }}:/work/src \
-            -v ov_build_cache:/work/build \
-            -v ${{ env.INSTALL_DIR }}:/work/wheels \
-            -e SCCACHE_AZURE_BLOB_CONTAINER \
-            -e SCCACHE_AZURE_CONNECTION_STRING \
-            -e SCCACHE_SERVER_PORT \
-            -e SCCACHE_IGNORE_SERVER_IO_ERROR \
-            -e SCCACHE_CACHE_SIZE \
-            -e SCCACHE_AZURE_KEY_PREFIX \
-            -e CMAKE_CXX_COMPILER_LAUNCHER \
-            -e CMAKE_C_COMPILER_LAUNCHER \
-            -w /work/src \
-            ${{ fromJSON(needs.docker.outputs.images).ov_build.manylinux2014_x86_64 }} \
-            /bin/bash -c "
-              export PATH=${{ env.PYTHON}}:\$PATH
-              python3 -m pip install -r /work/src/src/bindings/python/wheel/requirements-dev.txt --force-reinstall &&
-              cmake -DENABLE_CPPLINT=OFF -DENABLE_NCC_STYLE=OFF -DCMAKE_VERBOSE_MAKEFILE=ON -DBUILD_SHARED_LIBS=ON -DENABLE_WHEEL=ON -S /work/src -B /work/build &&
-              cmake --build /work/build --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} &&
-              cmake --install /work/build --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/wheels --component python_wheels
-            "
+          SUPPORTED_PYTHON_VERSIONS=("cp39" "cp310" "cp311" "cp312" "cp313")
+          for PY_VER in $SUPPORTED_PYTHON_VERSIONS; do
+            docker run --rm \
+              -v ${{ env.OPENVINO_REPO }}:/work/src \
+              -v ov_build_cache:/work/build \
+              -v ${{ env.INSTALL_WHEELS_DIR }}:/work/wheels \
+              -e SCCACHE_AZURE_BLOB_CONTAINER \
+              -e SCCACHE_AZURE_CONNECTION_STRING \
+              -e SCCACHE_SERVER_PORT \
+              -e SCCACHE_IGNORE_SERVER_IO_ERROR \
+              -e SCCACHE_CACHE_SIZE \
+              -e SCCACHE_AZURE_KEY_PREFIX \
+              -e CMAKE_CXX_COMPILER_LAUNCHER \
+              -e CMAKE_C_COMPILER_LAUNCHER \
+              -w /work/src \
+              ${{ fromJSON(needs.docker.outputs.images).ov_build.manylinux2014_x86_64 }} \
+              /bin/bash -c "
+                export PATH=/opt/python/${PY_VER}-${PY_VER}/bin:\$PATH
+                python3 -m pip install -r /work/src/src/bindings/python/wheel/requirements-dev.txt --force-reinstall &&
+                cmake -DENABLE_CPPLINT=OFF -DENABLE_NCC_STYLE=OFF -DCMAKE_VERBOSE_MAKEFILE=ON -DBUILD_SHARED_LIBS=ON -DENABLE_WHEEL=ON -S /work/src -B /work/build &&
+                cmake --build /work/build --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} &&
+                cmake --install /work/build --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/wheels --component python_wheels
+              "
+          done
+          
         env:
           PYTHON: /opt/python/cp39-cp39/bin
 
