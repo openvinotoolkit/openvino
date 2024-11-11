@@ -692,7 +692,11 @@ void MemoryInput::createPrimitive() {
 
         std::vector<MemoryPtr> inputMemory;
         for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
-            inputMemory.emplace_back(getSrcMemoryAtPort(i));
+            auto srcEdgeMem = getSrcMemoryAtPort(i);
+            // create a separate input memory objects instead of share them. avoid data corruption.
+            auto mem = std::make_shared<Memory>(getEngine(), srcEdgeMem->getDescPtr(), srcEdgeMem->getMemoryBlock());
+            subgraphMemoryPtrs.push_back(mem);
+            inputMemory.emplace_back(std::move(mem));
         }
 
         OPENVINO_ASSERT(getOriginalOutputsNumber() == subGraph.GetOutputNodesMap().size(),
@@ -707,6 +711,17 @@ void MemoryInput::createPrimitive() {
         }
 
         subGraph.Activate(inputMemory, outputMemory);
+    }
+}
+
+void MemoryInput::prepareParams() {
+    if (haveSubgraph()) {
+        for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
+            // since the external and internal descriptors are compatible, we may pass the descriptor
+            subgraphMemoryPtrs[i]->redefineDesc(getSrcMemoryAtPort(i)->getDescPtr());
+        }
+    } else {
+        MemoryInputBase::prepareParams();
     }
 }
 
@@ -880,6 +895,12 @@ MemStatePtr MemoryInput::makeState() const {
 }
 
 bool MemoryInput::needShapeInfer() const {
+    if (haveSubgraph()) {
+        return true;
+    }
+    return MemoryInputBase::needShapeInfer();
+}
+bool MemoryInput::needPrepareParams() const {
     if (haveSubgraph()) {
         return true;
     }

@@ -210,8 +210,10 @@ public:
 
     MemStatePtr makeState() const override;
 
-    bool needShapeInfer() const override;
     std::shared_ptr<ov::Model> getSubGraph();
+    bool needPrepareParams() const override;
+    void prepareParams() override;
+    bool needShapeInfer() const override;
 
 protected:
     bool needInitGraphProcessing() const;
@@ -228,6 +230,7 @@ private:
 private:
     std::shared_ptr<ov::Model> body = nullptr;
     ov::intel_cpu::Graph subGraph;
+    std::vector<MemoryPtr> subgraphMemoryPtrs;
 
     ProxyMemoryBlockPtr memBlock = nullptr;
 };
