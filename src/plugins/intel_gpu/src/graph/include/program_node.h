@@ -131,6 +131,7 @@ public:
                                                                                  get_unique_id(), in_layouts, out_layouts, get_fused_primitives()));
         params->memory_deps = get_const_memory_deps();
         params->_can_be_optimized = this->optimized;
+        params->_runtime_skippable = this->runtime_skippable;
         params->in_port_to_shape_info_offset = get_input_port_to_shape_info_offset_map();
         params->out_port_to_shape_info_offset = get_output_port_to_shape_info_offset_map();
         auto deps = get_dependencies();
