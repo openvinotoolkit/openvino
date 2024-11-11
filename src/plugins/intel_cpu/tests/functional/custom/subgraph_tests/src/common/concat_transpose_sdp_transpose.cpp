@@ -361,7 +361,7 @@ public:
             val += 0.13f;
 
             state.set_state(new_state);
-    }
+        }
     }
     std::vector<ov::Tensor> run_test(std::shared_ptr<ov::Model> model) {
         function = model;
