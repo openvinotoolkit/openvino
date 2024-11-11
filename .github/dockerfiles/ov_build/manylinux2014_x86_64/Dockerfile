@@ -17,9 +17,7 @@ COPY .github/dockerfiles/ov_build/manylinux2014_x86_64/003-no-sys-random-on-olde
 RUN patch -p1 < 003-no-sys-random-on-older-glibc-node.patch
 
 # Configure and build Node.js
-RUN ./configure \
-    && make -j$(nproc) \
-    && make install
+RUN ./configure && make -j 4 && make install
 
 # Clean up
 WORKDIR /
