@@ -30,7 +30,7 @@ std::shared_ptr<LoopPort> LoopPort::clone_with_new_expr(const ExpressionPtr& new
 bool operator==(const LoopPort& lhs, const LoopPort& rhs) {
     if (&lhs == &rhs)
         return true;
-    return lhs.expr_port == rhs.expr_port && lhs.is_incremented == rhs.is_incremented && lhs.dim_idx == rhs.dim_idx;
+    return *lhs.expr_port == *rhs.expr_port && lhs.is_incremented == rhs.is_incremented && lhs.dim_idx == rhs.dim_idx;
 }
 
 bool operator!=(const LoopPort& lhs, const LoopPort& rhs) {
@@ -38,8 +38,8 @@ bool operator!=(const LoopPort& lhs, const LoopPort& rhs) {
 }
 
 bool operator<(const LoopPort& lhs, const LoopPort& rhs) {
-    return (lhs.expr_port < rhs.expr_port) ||
-           (lhs.expr_port == rhs.expr_port &&
+    return (*lhs.expr_port < *rhs.expr_port) ||
+           (*lhs.expr_port == *rhs.expr_port &&
             (lhs.is_incremented < rhs.is_incremented ||
              (lhs.is_incremented == rhs.is_incremented && lhs.dim_idx < rhs.dim_idx)));
 }
