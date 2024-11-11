@@ -149,7 +149,7 @@ jobs:
               -v ${{ env.OPENVINO_REPO }}:/work/src \
               -v ov_build_cache:/work/build \
               -v ${INSTALL_WHEELS_DIR}:/work/wheels \
-              -v ${{ env.PIP_CACHE_PATH }}: /work/pip_cache \
+              -v ${{ env.PIP_CACHE_PATH }}:/work/pip_cache \
               -e SCCACHE_AZURE_BLOB_CONTAINER \
               -e SCCACHE_AZURE_CONNECTION_STRING \
               -e SCCACHE_SERVER_PORT \
