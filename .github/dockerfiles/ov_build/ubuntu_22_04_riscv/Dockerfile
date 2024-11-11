@@ -63,7 +63,7 @@ RUN echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy main restricte
 RUN dpkg --add-architecture riscv64 && \
     apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/riscv64-sources.list && \
     apt-get install -y --no-install-recommends libpython3-dev:riscv64 \
-    apt-get -y install curl
+    apt-get -y install  curl
 
 RUN echo 'hi there'
 # RUN apt-get update
