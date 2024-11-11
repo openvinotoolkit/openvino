@@ -136,7 +136,7 @@ jobs:
       - name: Build Python API(Python 3.9-3.13)
         run: |
           SUPPORTED_PYTHON_VERSIONS=("cp39" "cp310" "cp311" "cp312" "cp313")
-          for PY_VER in $SUPPORTED_PYTHON_VERSIONS; do
+          for PY_VER in "${SUPPORTED_PYTHON_VERSIONS[@]}"; do
             docker run --rm \
               -v ${{ env.OPENVINO_REPO }}:/work/src \
               -v ov_build_cache:/work/build \
