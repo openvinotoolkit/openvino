@@ -106,11 +106,6 @@ jobs:
 
       - name: System info
         uses: ./src/.github/actions/system_info
-                 
-      # - name: Install python dependencies
-      #   run: |
-      #     # For Python API: build and wheel packaging
-      #     python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
 
       - name: Create docker build cache
         run: |
@@ -164,12 +159,9 @@ jobs:
                 cmake --install /work/build --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/wheels --component python_wheels
               "
           done
-          
-        env:
-          PYTHON: /opt/python/cp39-cp39/bin
 
       - name: Pack Artifacts
-        run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_package.tar.gz
+        run: tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_package.tar.gz
         working-directory: ${{ env.INSTALL_DIR }}
 
       #
