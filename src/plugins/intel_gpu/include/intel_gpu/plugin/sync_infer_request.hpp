@@ -118,6 +118,7 @@ private:
 
     void init_mappings();
     bool is_batched_input(const ov::Output<const ov::Node>& port) const;
+    uint64_t total_output_bytes = 0;
 };
 
 }  // namespace intel_gpu

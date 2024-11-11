@@ -142,6 +142,7 @@ public:
     int disable_runtime_skip_reorder;                           // Disable runtime skip reorder
     int disable_primitive_fusing;                               // Disable primitive fusing
     int disable_fake_alignment;                                 // Disable fake alignment
+    int use_usm_host;                                           // Set explicit usm_host usage for network input and output
     std::vector<std::string> dynamic_quantize_layers_without_onednn;  // Specify Fully-connected layers which enable Dynamic quantization
     int use_kv_cache_compression;                               // Enable KV-cache compression
     int dynamic_quantize_group_size;                            // Enable Dynamic quantization for fully connected primitive by specified group size
