@@ -710,7 +710,7 @@ ov::Tensor loadBinary(const ov::element::Type& modelPrecision, const ov::Shape& 
         }
 
     } else {
-        if (fileBytes == reqTensorBytes) {
+        if (fileBytes >= reqTensorBytes) {
             binaryFile.read(reinterpret_cast<char*>(requestedTensor.data()),
                             static_cast<std::streamsize>(reqTensorBytes));
         } else {
