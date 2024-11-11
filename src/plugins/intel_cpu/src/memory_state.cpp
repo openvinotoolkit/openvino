@@ -297,18 +297,19 @@ void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
         auto S = internal.size(3);
         auto nthr = parallel_get_max_threads();
         std::vector<PlainTensor> buffers(nthr);
+        m_scale_zp.resize<float>({L0, B, H, 2});
         parallel_for3d(B, H, L0, [&](size_t ithr, size_t b, size_t h, size_t m) {
             buffers[ithr].resize<float>({S});
-            cpu_convert(external.ptr_v(b, h, m),
+            cpu_convert(external.ptr_v(m, b, h),
                         buffers[ithr].ptr<float>(),
                         external.m_dt,
                         element::f32,
                         S);
             attn_quant_u8(buffers[ithr].ptr<float>(),
-                          internal.ptr<uint8_t>(b, h, m),
+                          internal.ptr<uint8_t>(m, b, h),
                           S,
-                          m_scale_zp.at<float>({b, h, m, size_t{0}}),
-                          m_scale_zp.at<float>({b, h, m, size_t{1}}));
+                          m_scale_zp.at<float>({m, b, h, size_t{0}}),
+                          m_scale_zp.at<float>({m, b, h, size_t{1}}));
         });
     } else {
         m_internal_mem->load(external_mem);
