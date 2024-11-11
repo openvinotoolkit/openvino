@@ -4,7 +4,7 @@ FROM openvinogithubactions.azurecr.io/quayio/pypa/manylinux2014_x86_64
 USER root
 
 # Define Node.js version
-ENV NODE_VERSION=22.9.0
+ENV NODE_VERSION=20.9.0
 
 
 RUN mkdir -p /tmp/node-build
@@ -21,7 +21,7 @@ WORKDIR /tmp/node-build/node-v${NODE_VERSION}
 COPY .github/dockerfiles/ov_build/manylinux2014_x86_64/003-no-sys-random-on-older-glibc-node.patch .
 RUN patch -p1 < 003-no-sys-random-on-older-glibc-node.patch \
     && ./configure --prefix=/usr/local \ 
-    && make \
+    && make $(nproc)\
     && make install
 
 # Clean up tmpfs to reduce final image size
