@@ -200,8 +200,8 @@ ov::pass::activations_scaling::ScaleDownMultipleLayers::ScaleDownMultipleLayers(
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        auto scaled_op
-            = std::dynamic_pointer_cast<ov::op::v0::MatMul>(pattern_map.at(scaled_op_m).get_node_shared_ptr());
+        auto scaled_op =
+            std::dynamic_pointer_cast<ov::op::v0::MatMul>(pattern_map.at(scaled_op_m).get_node_shared_ptr());
         if (!scaled_op || transformation_callback(scaled_op))
             return false;
 
