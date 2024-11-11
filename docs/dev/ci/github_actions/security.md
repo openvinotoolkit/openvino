@@ -1,6 +1,6 @@
 # Security best practices for GitHub Actions Workflows
 
-There are a few simple steps that we should follow to increase ensure our workflows are not vulnerable to common attacks:
+There are a few simple steps that we should follow to ensure our workflows are not vulnerable to common attacks:
 
 - Use the “permissions” key to make sure the GITHUB_TOKEN is configured with the least privileges for each job. Check [GitHub documentation](https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/controlling-permissions-for-github_token) on this also.
 
@@ -12,7 +12,7 @@ There are a few simple steps that we should follow to increase ensure our workfl
 
 - Be careful with user input.
 
-    Most of GitHub context variables propagated from user input, that means they should be treated as an untrusted and potentially malitious. There are some tactics you can use to mitigate the risk:
+    Most of GitHub context variables propagated from user input. That means they should be treated as an untrusted and potentially malitious. There are some tactics you can use to mitigate the risk:
     - Instead of using inline scripts, create an action and pass the variable as an argument
     - Put the value into an environment variable for the step, and use the variable in the script
 
