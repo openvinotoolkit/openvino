@@ -139,12 +139,12 @@ jobs:
             
       - name: Build Python API(Python 3.9-3.13)
         run: |
-          SUPPORTED_PYTHON_VERSIONS=("cp39" "cp310" "cp311" "cp312" "cp313")
+          SUPPORTED_PYTHON_VERSIONS=("cp310" "cp311" "cp312" "cp313")
           for PY_VER in "${SUPPORTED_PYTHON_VERSIONS[@]}"; do
             docker run --rm \
               -v ${{ env.OPENVINO_REPO }}:/work/src \
               -v ov_build_cache:/work/build \
-              -v ${{ env.INSTALL_WHEELS_DIR }}:/work/wheels \
+              -v ${INSTALL_WHEELS_DIR}:/work/wheels \
               -e SCCACHE_AZURE_BLOB_CONTAINER \
               -e SCCACHE_AZURE_CONNECTION_STRING \
               -e SCCACHE_SERVER_PORT \
