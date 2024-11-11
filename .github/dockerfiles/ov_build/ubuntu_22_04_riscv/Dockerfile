@@ -70,6 +70,7 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
-RUN apt-get update && apt-get install -y --no-install-recommends apt-utils
+RUN apt-get update
+RUN apt-get install -y --no-install-recommends apt-utils
 RUN apt-get -y install curl
 # RUN apt-get install libgomp1
