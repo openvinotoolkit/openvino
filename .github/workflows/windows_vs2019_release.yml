@@ -296,6 +296,7 @@ jobs:
           $ovCoreWheelPath=Get-ChildItem -Path . -Filter openvino-*.whl | % { $_.FullName }
           python3 -m pip install "$ovCoreWheelPath"
 
+        working-directory: ${{ env.INSTALL_WHEELS_DIR }}
       - name: Install Python API tests dependencies
         run: |
           # To enable pytest parallel features
