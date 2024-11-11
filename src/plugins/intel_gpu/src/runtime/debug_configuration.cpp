@@ -183,7 +183,8 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_DisableRuntimeSkipReorder", "Disable runtime skip reorder.");
     message_list.emplace_back("OV_GPU_DisablePrimitiveFusing", "Disable primitive fusing");
     message_list.emplace_back("OV_GPU_DisableFakeAlignment", "Disable fake alignment");
-    message_list.emplace_back("OV_GPU_UseUsmHost", "Set explicit policy for usm host usage for network input/output. 0: default, 1: use usm_host, 2: do not use usm_host");
+    message_list.emplace_back("OV_GPU_UseUsmHost", "Set explicit policy for usm host usage for network input/output. "
+                              "0: default, 1: use usm_host, 2: do not use usm_host");
     message_list.emplace_back("OV_GPU_KVCacheCompression", "Enable/Disable KV-cache compression");
     message_list.emplace_back("OV_GPU_DynamicQuantizeLayersWithoutOnednn", "Enable Dynamic quantization for specified Fully connected layers only, "
                                 "separated by space. Support case-insensitive and regular expression. For example .*fully_connected.*");

@@ -640,6 +640,7 @@ void SyncInferRequest::allocate_inputs() {
 void SyncInferRequest::allocate_outputs() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::allocate_outputs");
 
+    total_output_bytes = 0;
     // allocate outputs
     for (const auto& it : m_output_ports_map) {
         size_t output_idx = it.first;
