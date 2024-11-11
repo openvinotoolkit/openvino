@@ -343,6 +343,7 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
             impl_desc_type::winograd_acl,
             impl_desc_type::gemm_acl,
             impl_desc_type::acl,
+            impl_desc_type::brdgmm_avx512_dw,
             impl_desc_type::brgconv_avx512_amx_1x1,
             impl_desc_type::brgconv_avx512_amx,
             impl_desc_type::jit_avx512_amx_dw,
@@ -928,7 +929,8 @@ void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
         memory::data_type bdt = outDnnlDesc.get_data_type();
 #else
-        memory::data_type bdt = memory::data_type::f32;
+        // memory::data_type bdt = memory::data_type::f32;
+        memory::data_type bdt = outDnnlDesc.get_data_type();
 #endif
         biasDnnlDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(expectedBiasDims), bdt, memory::format_tag::any);
     }
