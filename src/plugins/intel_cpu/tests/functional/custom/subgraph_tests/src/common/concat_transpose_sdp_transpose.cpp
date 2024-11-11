@@ -361,11 +361,10 @@ public:
             val += 0.13f;
 
             state.set_state(new_state);
-        }
+    }
     }
     std::vector<ov::Tensor> run_test(std::shared_ptr<ov::Model> model) {
         function = model;
-        configuration[ov::hint::kv_cache_precision.name()] = "f16";
         prepare();
         std::vector<ov::Tensor> outputs;
         // case 1: initialization + pastkv reaches limitation, remove some state
