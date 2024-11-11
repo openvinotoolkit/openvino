@@ -255,10 +255,32 @@ for details of the usage.
 
    from nncf import Dataset
    from nncf.data import generate_text_data
+   from functools import partial
+
+   from transformers import AutoTokenizer, AutoModelForCausalLM
 
    # Example: Generating synthetic dataset
-   synthetic_data = generate_text_data(model, tokenizer)
-   nncf_dataset = nncf.Dataset(synthetic_data, transform_fn)
+   tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
+   hf_model = AutoModelForCausalLM.from_pretrained(
+        MODEL_ID, export=True, load_in_8bit=False
+   )
+
+   # Synthetic-based compression
+   synthetic_dataset = nncf.data.generate_text_data(hf_model, tokenizer, dataset_size=100)
+   quantization_dataset = nncf.Dataset(
+       synthetic_dataset, 
+       transform_fn # see example in NNCF repo how to make transform_fn
+   )
+
+   model = compress_weights(
+       model,
+       mode=CompressWeightsMode.INT4_ASYM,
+       group_size=64,
+       ratio=1.0,
+       dataset=quantization_dataset,
+       awq=True,
+       scale_estimation=True
+   )  # model is openvino.Model
 
 For data-aware weight compression refer to the following
 `example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino/tiny_llama>`__.
@@ -266,9 +288,16 @@ For data-aware weight compression refer to the following
 .. note::
 
   Some methods can be stacked on top of one another to achieve a better
-  accuracy-performance trade-off after weight quantization. For example, the Scale Estimation
-  method can be applied along with AWQ and mixed-precision quantization (the ``ratio`` parameter).
+  accuracy-performance trade-off after weight quantization. For example, the **Scale Estimation**
+  method can be applied along with **AWQ** and mixed-precision quantization (the ``ratio`` parameter).
 
+
+**Hugging Face Optimum-Intel API**
+
+Hugging Face Optimum-Intel provides an easy way to use NNCF Weight Compression capabilities to optimize
+various large Transformer models. Most of the options of the NNCF ``nncf.compress_weights()`` API are
+exposed in the ``.from_pretrained()`` method of Optimum-Intel classes. Optimum also has several datasets
+for data-aware quantization available out-of-the-box.
 The example below shows data-free 4-bit weight quantization
 applied on top of OpenVINO IR. Before trying the example, make sure Optimum Intel
 is installed in your environment by running the following command:
@@ -277,58 +306,32 @@ is installed in your environment by running the following command:
 
   pip install optimum[openvino]
 
-The first example loads a pre-trained Hugging Face model using the Optimum Intel API,
-compresses it to INT4 using NNCF, and then executes inference with a text phrase.
+.. code-block:: python
 
-If the model comes from `Hugging Face <https://huggingface.co/models>`__ and is supported
-by Optimum, it may be easier to use the Optimum Intel API to perform weight compression.
-The compression type is specified when the model is loaded using the ``load_in_8bit=True``
-or ``load_in_4bit=True`` parameter. The second example uses the Weight Compression API
-from Optimum Intel instead of NNCF to compress the model to INT8_ASYM.
+  from optimum.intel.openvino import OVModelForCausalLM, OVWeightQuantizationConfig
+  from transformers import AutoTokenizer, pipeline
 
-.. tab-set::
+  # Load and compress model from Hugging Face
+  model_id = "microsoft/Phi-3.5-mini-instruct"
+  model = OVModelForCausalLM.from_pretrained(
+      model_id,
+      export=True,
+      quantization_config=OVWeightQuantizationConfig(
+          bits=4,
+          quant_method="awq",
+          scale_estimation=True,
+          dataset="wikitext2",
+          group_size=64,
+          ratio=1.0
+      )
+  )
 
-  .. tab-item:: OpenVINO
-    :sync: openvino
-
-    .. code-block:: python
-
-      from nncf import compress_weights, CompressWeightsMode
-      from optimum.intel.openvino import OVModelForCausalLM
-      from transformers import AutoTokenizer, pipeline
-
-      # Load model from Hugging Face
-      model_id = "HuggingFaceH4/zephyr-7b-beta"
-      model = OVModelForCausalLM.from_pretrained(model_id, export=True, load_in_8bit=False, compile=False)
-
-      # Compress to INT4 Symmetric
-      model.model = compress_weights(model.model, mode=CompressWeightsMode.INT4_SYM)
-
-      # Inference
-      model.compile()
-      tokenizer = AutoTokenizer.from_pretrained(model_id)
-      pipe = pipeline("text-generation", model=model, tokenizer=tokenizer)
-      phrase = "The weather is"
-      results = pipe(phrase)
-      print(results)
-
-  .. tab-item:: Optimum-Intel
-
-    .. code-block:: python
-
-      from optimum.intel.openvino import OVModelForCausalLM
-      from transformers import AutoTokenizer, pipeline
-
-      # Load and compress model from Hugging Face
-      model_id = "HuggingFaceH4/zephyr-7b-beta"
-      model = OVModelForCausalLM.from_pretrained(model_id, export=True, load_in_8bit=True)
-
-      # Inference
-      tokenizer = AutoTokenizer.from_pretrained(model_id)
-      pipe = pipeline("text-generation", model=model, tokenizer=tokenizer)
-      phrase = "The weather is"
-      results = pipe(phrase)
-      print(results)
+  # Inference
+  tokenizer = AutoTokenizer.from_pretrained(model_id)
+  pipe = pipeline("text-generation", model=model, tokenizer=tokenizer)
+  phrase = "The weather is"
+  results = pipe(phrase)
+  print(results)
 
 
 Exporting and Loading Compressed Models
@@ -343,12 +346,12 @@ load the compressed model later for faster time to first inference.
 .. code-block:: python
 
   # Save compressed model for faster loading later
-  model.save_pretrained("zephyr-7b-beta-int4-sym-ov")
-  tokenizer.save_pretrained("zephyr-7b-beta-int4-sym-ov")
+  model.save_pretrained("Phi-3.5-mini-instruct-int4-sym-ov")
+  tokenizer.save_pretrained("Phi-3.5-mini-instruct-int4-sym-ov")
 
   # Load a saved model
-  model = OVModelForCausalLM.from_pretrained("zephyr-7b-beta-int4-sym-ov")
-  tokenizer = AutoTokenizer.from_pretrained("zephyr-7b-beta-int4-sym-ov")
+  model = OVModelForCausalLM.from_pretrained("Phi-3.5-mini-instruct-int4-sym-ov")
+  tokenizer = AutoTokenizer.from_pretrained("Phi-3.5-mini-instruct-int4-sym-ov")
 
 GPTQ Models
 ############
