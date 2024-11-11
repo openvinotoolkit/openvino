@@ -14,11 +14,6 @@ namespace auto_plugin {
 class AutoSchedule : public Schedule {
 public:
     using Ptr = std::shared_ptr<AutoSchedule>;
-    AutoSchedule(std::shared_ptr<std::mutex>& mtx,
-                 std::shared_ptr<std::map<unsigned int, std::list<std::string>>>& priority_map)
-        : Schedule(),
-          m_mtx(mtx),
-          m_priority_map(priority_map) {}
     virtual ~AutoSchedule();
     AutoCompileContext                                                     m_compile_context[CONTEXTNUM];
 
@@ -43,9 +38,6 @@ private:
     std::future<void>                                                    m_firstload_future;
     std::promise<void>                                                   m_firstload_promise;
     bool                                                                 m_exitflag = {false};
-    // hold the resource of static variable to avoid the destruction of the static variable.
-    std::shared_ptr<std::mutex>                                          m_mtx;
-    std::shared_ptr<std::map<unsigned int, std::list<std::string>>>      m_priority_map;
 };
 } // namespace auto_plugin
 } // namespace ov

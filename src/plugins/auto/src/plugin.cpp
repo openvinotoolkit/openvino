@@ -441,10 +441,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     auto_s_context->m_runtime_fallback = load_config.get_property(ov::intel_auto::enable_runtime_fallback);
     auto_s_context->m_bind_buffer = load_config.get_property(ov::intel_auto::device_bind_buffer);
     auto_s_context->m_schedule_policy = load_config.get_property(ov::intel_auto::schedule_policy);
+    auto_s_context->m_mtx = m_mtx;
+    auto_s_context->m_priority_map = m_priority_map;
     std::shared_ptr<ov::ICompiledModel> impl;
     std::shared_ptr<Schedule> scheduler =
         is_cumulative ? std::static_pointer_cast<Schedule>(std::make_shared<CumuSchedule>())
-                      : std::static_pointer_cast<Schedule>(std::make_shared<AutoSchedule>(m_mtx, m_priority_map));
+                      : std::static_pointer_cast<Schedule>(std::make_shared<AutoSchedule>());
     scheduler->launch(auto_s_context);
     ov::SoPtr<ov::IRemoteContext> device_context;
     try {
