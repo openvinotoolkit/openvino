@@ -105,7 +105,7 @@ jobs:
           submodules: 'true'
 
       - name: System info
-        uses: ./openvino/.github/actions/system_info
+        uses: ./src/.github/actions/system_info
                  
       # - name: Install python dependencies
       #   run: |
