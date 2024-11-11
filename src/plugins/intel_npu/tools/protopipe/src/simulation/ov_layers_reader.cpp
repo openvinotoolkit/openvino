@@ -129,9 +129,9 @@ static void cfgOutputPostproc(ov::preprocess::PrePostProcessor& ppp, const std::
 }
 
 static void cfgReshape(const std::shared_ptr<ov::Model>& model, 
-                       const AttrMap<std::vector<size_t>> shape_map) {
+                       const AttrMap<std::vector<size_t>> reshape_map) {
     std::map<std::string, ov::PartialShape> partial_shapes;
-    for (const auto& [layer_name, shape] : shape_map) {
+    for (const auto& [layer_name, shape] : reshape_map) {
         partial_shapes.emplace(layer_name, shape);
     }
     model->reshape(partial_shapes);
@@ -157,8 +157,8 @@ InOutLayers OpenVINOLayersReader::Impl::readFromModel(const std::string& model_p
         const auto iml_map = unpackLayerAttr(params.input_model_layout, input_names, "input model layout");
         cfgInputPreproc(ppp, model, ip_map, il_map, iml_map);
 
-        const auto shape_map = unpackLayerAttr(params.reshape, input_names, "shape");
-        cfgReshape(model, shape_map);
+        const auto reshape_map = unpackLayerAttr(params.reshape, input_names, "reshape");
+        cfgReshape(model, reshape_map);
 
         const auto& output_names = extractLayerNames(model->outputs());
         const auto op_map = unpackLayerAttr(params.output_precision, output_names, "output precision");
