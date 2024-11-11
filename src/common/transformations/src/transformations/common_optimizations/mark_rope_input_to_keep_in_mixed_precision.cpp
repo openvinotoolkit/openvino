@@ -32,6 +32,8 @@ ov::pass::MarkRopeInputsToKeepInMixedPrecision::MarkRopeInputsToKeepInMixedPreci
             ov::disable_fp16_compression(node->shared_from_this());
         };
         // skip constant, parameter and shapeof
+        // The inputs of cos_sin table generation are position_ids and a ShapeOf [batch, input_length]
+        // The parent of ShapeOf may change when IR changes so skip it to avoid unknown precision problem
         auto skip_node_predicate = [](ov::Node* node) -> bool {
             return ov::is_type<ov::op::v0::Constant>(node) || ov::is_type<ov::op::v0::Parameter>(node) ||
                    ov::is_type<ov::op::util::ShapeOfBase>(node);
