@@ -9,7 +9,7 @@
 #include "snippets/lowered/port_descriptor.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 
-#include "memory_desc/cpu_memory_desc.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -24,7 +24,7 @@ public:
 #endif
 
     std::vector<jit_snippets_call_args::loop_args_t> loop_args = {};
-    std::unordered_map<size_t, MemoryDescPtr> m_in_requested_descs = {};
+    std::unordered_map<size_t, CpuBlockedMemoryDescPtr> m_in_requested_descs = {};
 };
 
 class CPURuntimeConfigurator : public ov::snippets::RuntimeConfigurator {
@@ -57,8 +57,7 @@ protected:
     void update_requested_descs(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                 const std::vector<ov::snippets::VectorDims>& shapes,
                                 const std::vector<std::vector<size_t>>& layouts) const;
-    void adjust_offsets_from_descs(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
-                                   const std::vector<ov::snippets::VectorDims>& shapes,
+    void adjust_offsets_from_descs(const std::vector<ov::snippets::VectorDims>& shapes,
                                    const std::vector<std::vector<size_t>>& layouts) const;
 
     static const size_t rank6D;

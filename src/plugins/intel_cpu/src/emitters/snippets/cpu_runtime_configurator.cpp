@@ -75,7 +75,7 @@ void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRCPtr& l
         update_loop_args(linear_ir);
     }
     update_data_offsets(shapes, layouts);
-    adjust_offsets_from_descs(linear_ir, shapes, layouts);
+    adjust_offsets_from_descs(shapes, layouts);
     m_latest_shapes = std::move(shapes);
 }
 
@@ -179,13 +179,11 @@ void CPURuntimeConfigurator::update_requested_descs(const ov::snippets::lowered:
             const auto last_idx = shape.size() - 1;
             requested_order.insert(requested_order.end(), {last_idx - 1, last_idx, last_idx - 1});
 
-            auto cpu_desc = std::make_shared<CpuBlockedMemoryDesc>(precision, Shape(shape), requested_blocked_shape, requested_order);
-            optimal_descs[i] = MemoryDescUtils::convertToDnnlMemoryDesc(cpu_desc);
+            optimal_descs[i] = std::make_shared<CpuBlockedMemoryDesc>(precision, Shape(shape), requested_blocked_shape, requested_order);
         }
     }
 }
-void CPURuntimeConfigurator::adjust_offsets_from_descs(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
-                                                       const std::vector<ov::snippets::VectorDims>& shapes,
+void CPURuntimeConfigurator::adjust_offsets_from_descs(const std::vector<ov::snippets::VectorDims>& shapes,
                                                        const std::vector<std::vector<size_t>>& layouts) const {
     const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(m_config);
     auto& optimal_descs = cpu_config->m_in_requested_descs;
@@ -193,7 +191,7 @@ void CPURuntimeConfigurator::adjust_offsets_from_descs(const ov::snippets::lower
         if (optimal_descs.count(i)) {
             const auto& optimal_desc = optimal_descs[i];
             const auto& original_shape = shapes[i];
-            const auto& blocked_shape = optimal_desc->as<DnnlBlockedMemoryDesc>()->getBlockDims();
+            const auto& blocked_shape = optimal_desc->getBlockDims();
 
             ov::snippets::VectorDims shape_for_offset(m_config->tensor_rank - original_shape.size(), 1);
             shape_for_offset.insert(shape_for_offset.end(), blocked_shape.begin(), blocked_shape.end());

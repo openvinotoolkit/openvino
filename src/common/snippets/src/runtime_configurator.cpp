@@ -261,7 +261,7 @@ void RuntimeConfigurator::update_data_offsets(const std::vector<VectorDims>& sha
                                               const std::vector<std::vector<size_t>>& layouts) const {
     OPENVINO_ASSERT(shapes.size() == m_io_num, "Number of custom shapes must be 0 or be equal to m_io_num");
     OPENVINO_ASSERT(layouts.size() == m_io_num, "Number of custom layouts must be 0 or be equal to m_io_num");
-    for (size_t i = 0; i <  m_io_num; ++i) {
+    for (size_t i = 0; i < m_io_num; ++i) {
         // offsets represent distance between consecutive elements of corresponding dimension.
         // If a dim size == 1, then the next dim starts immediately and the stride is 0
         // case 1:
