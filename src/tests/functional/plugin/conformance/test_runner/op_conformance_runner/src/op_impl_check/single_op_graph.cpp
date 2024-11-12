@@ -525,6 +525,13 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Interpolat
     return std::make_shared<ov::Model>(results, params, "Interpolat-1");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v16::Identity>& node) {
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 4, 4})};
+    const auto identity = std::make_shared<ov::op::v16::Identity>(params[0]);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(identity)};
+    return std::make_shared<ov::Model>(results, params, "Identity");
+}
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v4::Interpolate> &node) {
     using InterpolateAttrs = op::v4::Interpolate::InterpolateAttrs;
     using InterpolateMode = op::v4::Interpolate::InterpolateMode;
@@ -2017,22 +2024,6 @@ std::shared_ptr<ov::Model> generateRNNCellBase(const std::shared_ptr<ov::op::Op>
                                                        ov::op::RecurrentSequenceDirection::FORWARD);
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(gru_sequence)};
         return std::make_shared<ov::Model>(results, params, "GRUSequence");
-    } else if (ov::is_type<ov::op::v0::LSTMSequence>(node)) {
-        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{5, 10, 10}}),
-                                   std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{5, 1, 10}}),
-                                   std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{5, 1, 10}}),
-                                   std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{5})};
-
-        const auto W = std::make_shared<ov::op::v0::Constant>(utils::create_and_fill_tensor(ov::element::f32, ov::Shape{1, 40, 10}));
-        const auto R = std::make_shared<ov::op::v0::Constant>(utils::create_and_fill_tensor(ov::element::f32, ov::Shape{1, 40, 10}));
-        const auto B = std::make_shared<ov::op::v0::Constant>(utils::create_and_fill_tensor(ov::element::f32, ov::Shape{1, 40}));
-        const auto P = std::make_shared<ov::op::v0::Constant>(utils::create_and_fill_tensor(ov::element::f32, ov::Shape{1, 30}));
-        RNNCellBaseNode = std::make_shared<ov::op::v0::LSTMSequence>(params.at(0), params.at(1), params.at(2), params.at(3),
-                                                                     W, R, B, 10, ov::op::RecurrentSequenceDirection::FORWARD);
-        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(RNNCellBaseNode->output(0)),
-                                 std::make_shared<ov::op::v0::Result>(RNNCellBaseNode->output(1)),
-                                 std::make_shared<ov::op::v0::Result>(RNNCellBaseNode->output(2))};
-        return std::make_shared<ov::Model>(results, params, "LSTMSeq1BaseGraph");
     } else if (ov::is_type<ov::op::v5::LSTMSequence>(node)) {
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{5, 10, 10}}),
                                    std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{5, 1, 10}}),
@@ -2205,6 +2196,7 @@ OpGenerator getOpGeneratorMap() {
 #include "openvino/opsets/opset13_tbl.hpp"
 #include "openvino/opsets/opset14_tbl.hpp"
 #include "openvino/opsets/opset15_tbl.hpp"
+#include "openvino/opsets/opset16_tbl.hpp"
 #undef _OPENVINO_OP_REG
     };
     return opGeneratorMap;

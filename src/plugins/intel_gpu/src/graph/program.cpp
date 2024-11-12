@@ -436,7 +436,7 @@ void program::prepare_nodes(topology const& topology) {
     }
 }
 
-// add node's dependecies from its primitive dependencies
+// add node's dependencies from its primitive dependencies
 void program::add_node_dependencies(program_node* node) {
     auto deps = node->get_primitive()->dependencies();
     // add pointers to node's dependencies
@@ -453,7 +453,7 @@ void program::add_node_dependencies(program_node* node) {
 }
 
 /* helper method for program constructor from list of nodes which
-   copies src_node dependecies to the destination node dest_node dependencies.
+   copies src_node dependencies to the destination node dest_node dependencies.
    But only to those which appaer in this program implementation nodes_map */
 void program::copy_node_dependencies(program_node* dest_node, program_node* src_node) {
     if (dest_node->get_primitive()->id != src_node->get_primitive()->id) {
@@ -1796,15 +1796,9 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
         for (auto& impl_id : impl_ids) {
             std::string type_name = get_node_ptr(impl_id)->get_selected_impl()->m_manager->get_type_info().name;
             ob << type_name;
-            if (get_node_ptr(impl_id)->get_selected_impl()->is_onednn()) {
-                ob << true;
-                auto params = get_node_ptr(impl_id)->get_kernel_impl_params();
-                ob.setKernelImplParams(params.get());
-                ob << get_node_ptr(impl_id)->selected_impl;
-            } else {
-                ob << false;
-                ob << get_node_ptr(impl_id)->selected_impl;
-            }
+            auto params = get_node_ptr(impl_id)->get_kernel_impl_params();
+            ob.setKernelImplParams(params.get());
+            ob << get_node_ptr(impl_id)->selected_impl;
             ob << get_node_ptr(impl_id)->get_selected_impl()->get_cached_kernel_ids(kernels_cache);
         }
     }
@@ -1930,15 +1924,10 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
             ib >> type_name;
             ov::DiscreteTypeInfo type(type_name.c_str());
             auto impl_manager = p_node.type()->get(type);
-            bool is_onednn;
-            ib >> is_onednn;
-            if (is_onednn) {
-                auto params = p_node.get_kernel_impl_params();
-                ib.setKernelImplParams(params.get());
-                ib >> p_node.selected_impl;
-            } else {
-                ib >> p_node.selected_impl;
-            }
+
+            auto params = p_node.get_kernel_impl_params();
+            ib.setKernelImplParams(params.get());
+            ib >> p_node.selected_impl;
 
             p_node.selected_impl->m_manager = impl_manager.get();
 

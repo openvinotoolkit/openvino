@@ -98,17 +98,6 @@ const std::vector<ov::AnyMap> NPULoadFromFileConfigs = {
     {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}};
 
 const std::vector<std::pair<ov::AnyMap, std::string>> NPUCompiledKernelsCacheTest = {
-    std::make_pair<ov::AnyMap, std::string>(
-        {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
-         ov::intel_npu::use_elf_compiler_backend(ov::intel_npu::ElfCompilerBackend::NO)},
-        "blob"),
-    std::make_pair<ov::AnyMap, std::string>(
-        {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
-         ov::intel_npu::use_elf_compiler_backend(ov::intel_npu::ElfCompilerBackend::NO)},
-        "blob"),
-    std::make_pair<ov::AnyMap, std::string>(
-        {ov::intel_npu::use_elf_compiler_backend(ov::intel_npu::ElfCompilerBackend::NO)},
-        "blob"),
     std::make_pair<ov::AnyMap, std::string>({ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
                                             "blob"),
     std::make_pair<ov::AnyMap, std::string>({ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}, "blob")};
