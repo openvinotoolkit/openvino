@@ -368,7 +368,7 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     }
     try {
         auto compile_start_time = std::chrono::high_resolution_clock::now();
-        if ((m_context->m_model)) {
+        if (m_context->m_model) {
             context.m_compiled_model = m_context->m_ov_core->compile_model(model, device, device_config);
         } else {
             context.m_compiled_model = m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);
