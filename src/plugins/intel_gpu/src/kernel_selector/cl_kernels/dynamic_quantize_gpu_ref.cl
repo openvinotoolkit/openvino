@@ -4,6 +4,8 @@
 
 #include "include/batch_headers/fetch_data.cl"
 
+#define UINT64_MAX 0xFFFFFFFFFFFFFFFF
+
 #if OUTPUT_DIMS != 4
 #error "dynamic_quantize_gpu_ref.cl: Unsupported output dimension"
 #endif
@@ -33,19 +35,20 @@ KERNEL(dynamic_quantize_gpu_ref)(
     const uint bf = (uint)get_global_id(0);
     const uint b = bf / INPUT0_FEATURE_NUM;
     const uint f = bf % INPUT0_FEATURE_NUM;
-    const uint y = (uint)get_global_id(1);
+    const uint y = (uint)get_global_id(1) * GROUP_SIZE_DIM2; // TODO mingyuki: need to check for per-token case
     const uint x = (uint)get_global_id(2);
 #ifdef SCALES_OUTPUT_ORDER
-    const uint scale_idx = FUNC_CALL(get_scales_offset)(OPTIONAL_SHAPE_INFO_TENSOR b, f, y, x);
+    // FIXME mingyuki: special handling of y looks weird
+    const uint scale_idx = FUNC_CALL(get_scales_offset)(OPTIONAL_SHAPE_INFO_TENSOR b, f, (uint)get_global_id(1), x);
 #else
-    const uint scale_idx = OUTPUT1_GET_INDEX_SAFE(b, f, y, x);
+    const uint scale_idx = OUTPUT1_GET_INDEX_SAFE(b, f, (uint)get_global_id(1), x);
 #endif
 
     half max_val = INPUT0_VAL_MIN;
     half min_val = INPUT0_VAL_MAX;
     for (int b_off = 0; b_off < (GROUP_SIZE_DIM0 == 1 ? 1 : INPUT0_BATCH_NUM); b_off++) {
     for (int f_off = 0; f_off < (GROUP_SIZE_DIM1 == 1 ? 1 : INPUT0_FEATURE_NUM); f_off++) {
-    for (int y_off = 0; y_off < (GROUP_SIZE_DIM2 == 1 ? 1 : INPUT0_SIZE_Y); y_off++) {
+    for (int y_off = 0; y_off < (GROUP_SIZE_DIM2 == UINT64_MAX ? INPUT0_SIZE_Y : GROUP_SIZE_DIM2); y_off++) {
 #if GROUP_SIZE_DIM3 == 1
         const uint offset = INPUT0_GET_INDEX(b + b_off, f + f_off, y + y_off, x);
         half val = input[offset];
@@ -96,7 +99,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
 
     for (int b_off = 0; b_off < (GROUP_SIZE_DIM0 == 1 ? 1 : INPUT0_BATCH_NUM); b_off++) {
     for (int f_off = 0; f_off < (GROUP_SIZE_DIM1 == 1 ? 1 : INPUT0_FEATURE_NUM); f_off++) {
-    for (int y_off = 0; y_off < (GROUP_SIZE_DIM2 == 1 ? 1 : INPUT0_SIZE_Y); y_off++) {
+    for (int y_off = 0; y_off < (GROUP_SIZE_DIM2 == UINT64_MAX ? INPUT0_SIZE_Y : GROUP_SIZE_DIM2); y_off++) {
 #if GROUP_SIZE_DIM3 == 1
         const uint in_offset = INPUT0_GET_INDEX(b + b_off, f + f_off, y + y_off, x);
         const uint out_offset = OUTPUT_GET_INDEX(b + b_off, f + f_off, y + y_off, x);

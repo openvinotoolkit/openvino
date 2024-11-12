@@ -71,20 +71,26 @@ CommonDispatchData DynamicQuantizeKernelRef::SetDefault(const dynamic_quantize_p
     OPENVINO_ASSERT(params.outputs[0].GetLayout() == DataLayout::bfyx, "It supports only 4d tensor");
 
     auto group_sizes = params.group_sizes;
-    group_sizes.resize(std::min((size_t)4, group_sizes.size()), 1);
+    group_sizes.resize(std::max((size_t)4, group_sizes.size()), 1);
     auto batch_size = group_sizes[0] == 1 ? params.outputs[0].Batch().v : 1;
     auto feature_size = group_sizes[1] == 1 ? params.outputs[0].Feature().v : 1;
     auto y_size = group_sizes[2] == 1 ? params.outputs[0].Y().v : 1;
     auto x_size = group_sizes[3] == 1 ? params.outputs[0].X().v : 1;
 
-    // TODO: mingyuki: update condition properly
-    OPENVINO_ASSERT(params.group_size == UINT64_MAX || params.outputs[0].Y().v % params.group_size == 0,
-        "Tensor size should be divisible by group size: ", params.outputs[0].Y().v);
+    OPENVINO_ASSERT(
+        (group_sizes[0] == 1 || group_sizes[0] == params.outputs[0].Batch().v   || group_sizes[0] == UINT64_MAX) &&
+        (group_sizes[1] == 1 || group_sizes[1] == params.outputs[0].Feature().v || group_sizes[1] == UINT64_MAX) &&
+        (group_sizes[2] == 1 || group_sizes[2] == params.outputs[0].Y().v       || group_sizes[2] == UINT64_MAX
+                || (params.outputs[0].Y().v % group_sizes[2] == 0 && params.outputs[0].X().v == 1)) &&   // Grouped quantization is only supported for 3d case
+        (group_sizes[3] == 1 || group_sizes[3] == params.outputs[0].X().v       || group_sizes[3] == UINT64_MAX),
+                    "[GPU] Unsupported dynamic quantization configuration: (",
+                            group_sizes[0], ",", group_sizes[1], ",", group_sizes[2], ",", group_sizes[3], ") - (",
+                            params.outputs[0].Batch().v, ",", params.outputs[0].Feature().v, ",", params.outputs[0].Y().v, ",", params.outputs[0].X().v, ")");
 
-    // TODO: mingyuki: update logic properly
-    // uint32_t ngroups;
-    // ngroups = params.group_size == UINT64_MAX ? 1 : params.outputs[0].Y().v / params.group_size;
+    if (params.group_sizes[2] > 1 && params.group_sizes[2] != UINT64_MAX)
+        y_size = params.outputs[0].Y().v / params.group_sizes[2];
 
+    // std::cout << __FILE__ << ":" << "mingyuki gws " << batch_size << ", " << feature_size << ", " << y_size << ", " << x_size << std::endl;
     dispatchData.gws = {batch_size * feature_size, y_size, x_size};
     dispatchData.lws = {1, 1, 1};
 
