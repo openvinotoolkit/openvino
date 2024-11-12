@@ -13,7 +13,8 @@
 ov::npuw::metrics::NRMSE::NRMSE(double threshold) : m_threshold(threshold) {}
 
 bool ov::npuw::metrics::NRMSE::operator()(const ov::SoPtr<ov::ITensor>& actual,
-                                          const ov::SoPtr<ov::ITensor>& reference) const {
+                                          const ov::SoPtr<ov::ITensor>& reference,
+                                          double* result) const {
     NPUW_ASSERT(actual->get_shape() == reference->get_shape());
     // Check for alignment:
     NPUW_ASSERT(actual->get_byte_size() == reference->get_byte_size());
@@ -32,13 +33,15 @@ bool ov::npuw::metrics::NRMSE::operator()(const ov::SoPtr<ov::ITensor>& actual,
         in_reference = ov::make_tensor(reference);
     }
 
+    // TODO: it might be more correct to make to_f32 function
+    //       to work with strided tensors
     NPUW_ASSERT(in_actual.is_continuous());
     NPUW_ASSERT(in_reference.is_continuous());
 
     ov::Tensor actual_f32;
     ov::Tensor reference_f32;
 
-    if (ov::element::Type_t::f32 == in_actual.get_element_type()) {
+    if (ov::element::f32 == in_actual.get_element_type()) {
         actual_f32 = in_actual;
     } else {
         ov::Tensor dst(ov::element::Type_t::f32, in_actual.get_shape());
@@ -46,7 +49,7 @@ bool ov::npuw::metrics::NRMSE::operator()(const ov::SoPtr<ov::ITensor>& actual,
         actual_f32 = std::move(dst);
     }
 
-    if (ov::element::Type_t::f32 == in_reference.get_element_type()) {
+    if (ov::element::f32 == in_reference.get_element_type()) {
         reference_f32 = in_reference;
     } else {
         ov::Tensor dst(ov::element::Type_t::f32, in_reference.get_shape());
@@ -65,13 +68,21 @@ bool ov::npuw::metrics::NRMSE::operator()(const ov::SoPtr<ov::ITensor>& actual,
     }
 
     if (squared_error <= std::numeric_limits<double>::epsilon()) {
-        LOG_INFO("NRMSE loss: 0.0, threshold: " << m_threshold << ".");
-        LOG_INFO("PASS");
+        if (result != nullptr) {
+            *result = 0.0;
+        }
         return true;
     }
 
     double rmse = sqrt(squared_error / size);
-    NPUW_ASSERT(rmse >= 0.0);
+   
+    if (rmse < 0.0) {
+        // Calculated RMSE metric is < 0.0, what is unexpected. So, return that tensors are unequal.
+        if (result != nullptr) {
+            *result = rmse;
+        }
+        return false;
+    }
 
     auto actual_min_max = std::minmax_element(actual_data, actual_data + size);
     auto reference_min_max = std::minmax_element(reference_data, reference_data + size);
@@ -80,9 +91,8 @@ bool ov::npuw::metrics::NRMSE::operator()(const ov::SoPtr<ov::ITensor>& actual,
                            std::max(0.f, *actual_min_max.second) - std::min(0.f, *actual_min_max.first)});
 
     double nrmse = rmse / den;
-    LOG_INFO("NRMSE loss: " << nrmse << ", threshold: " << m_threshold << ".");
-
-    bool success = nrmse <= m_threshold;
-    LOG_INFO((success ? "PASS" : "FAIL"));
-    return success;
+    if (result != nullptr) {
+        *result = nrmse;
+    }
+    return nrmse <= m_threshold;
 }

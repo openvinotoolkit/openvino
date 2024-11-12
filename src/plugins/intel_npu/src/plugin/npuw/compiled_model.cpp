@@ -181,6 +181,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         const double threshold_opt = m_cfg.get<::intel_npu::NPUW_ACC_THRESH>();
 
         m_acc_check = metrics::NRMSE(threshold_opt);
+        m_acc_check_name = "NRMSE";
+        m_acc_check_threshold = threshold_opt;
         m_ref_device = m_cfg.getString<::intel_npu::NPUW_ACC_DEVICE>();
         LOG_INFO("Accuracy check is enabled.");
     }
@@ -430,6 +432,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             }
         }
 
+        m_compiled_submodels[id].device_it = m_dev_list.cbegin();
+
         if (forced_sub_devices.count(id)) {
             std::string forced_device = forced_sub_devices[id];
             auto forced_dev_it = std::find(m_dev_list.begin(), m_dev_list.end(), forced_device);
@@ -470,9 +474,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         }
     };  // compile
 
-    for (std::size_t i = 0u; i < orderedSubgraphs.size(); i++) {
-        m_compiled_submodels[i].device_it = m_dev_list.cbegin();
-    }
     // Parallel compilation is unstable so is disabled by default.
     const bool par_opt = m_cfg.get<::intel_npu::NPUW_PARALLEL_COMPILE>();
     if (par_opt) {
@@ -481,18 +482,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         // TODO: Introduce npuw::serial(i, f) instead where f is a _funcall
         for (std::size_t i = 0u; i < idx_subgraph_to_compile.size(); i++) {
             compile(i);
-        }
-    }
-
-    for (std::size_t i = 0u; i < orderedSubgraphs.size(); i++) {
-        if (!m_compiled_submodels[i].replaced_by) {
-            continue;
-        } else {
-            auto real_id = m_compiled_submodels[i].replaced_by.value();
-            if (i != real_id) {
-                auto comp_desc = m_compiled_submodels[real_id];
-                m_compiled_submodels[i].device_it = m_compiled_submodels[real_id].device_it;
-            }
         }
     }
 
@@ -1298,7 +1287,7 @@ bool ov::npuw::CompiledModel::is_gather_closure(const std::size_t idx, const std
     return false;
 }
 
-void ov::npuw::CompiledModel::log_device_dist() const {
+void ov::npuw::CompiledModel::log_device_dist(ov::npuw::LogLevel log_lvl) const {
     std::unordered_map<std::string, execution_stats> stats_for_devices;
     execution_stats stats_for_optimized_out{0.f, 0ul};
 
@@ -1313,14 +1302,32 @@ void ov::npuw::CompiledModel::log_device_dist() const {
         stat.ops += real_cm.stat.ops;
     }
 
-    auto print_stats = [this](const std::string& device, const execution_stats& stat) {
+    auto print_stats = [this, log_lvl](const std::string& device, const execution_stats& stat) {
         float flops_prcnt = 100.f;
         float ops_prcnt = 100.f;
         if (m_total_stat.gflops > 0 && m_total_stat.ops > 0) {
             flops_prcnt = stat.gflops / static_cast<float>(m_total_stat.gflops) * 100;
             ops_prcnt = stat.ops / static_cast<float>(m_total_stat.ops) * 100;
         }
-        LOG_INFO(device << ": " << flops_prcnt << "% FLOPS, " << ops_prcnt << "% Layers");
+        std::stringstream log_msg;
+        log_msg << device << ": " << flops_prcnt << "% FLOPS, " << ops_prcnt << "% Layers";
+        switch (log_lvl) {
+            case LogLevel::Error:
+                LOG_ERROR(log_msg.str());
+                break;
+            case LogLevel::Warning:
+                LOG_WARN(log_msg.str());
+                break;
+            case LogLevel::Info:
+                LOG_INFO(log_msg.str());
+                break;
+            case LogLevel::Verbose:
+                LOG_VERB(log_msg.str());
+                break;
+            case LogLevel::Debug:
+                LOG_DEBUG(log_msg.str());
+                break;
+        }
     };
     for (auto&& device_st : stats_for_devices) {
         LOG_BLOCK();
@@ -1465,6 +1472,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::accuracy::check, NPUW_ACC_CHECK),
                           BIND(npuw::accuracy::threshold, NPUW_ACC_THRESH),
                           BIND(npuw::accuracy::reference_device, NPUW_ACC_DEVICE),
+                          BIND(npuw::accuracy::dump_failures, NPUW_ACC_DUMP_FAILS),
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
                           BIND(npuw::dump::full, NPUW_DUMP_FULL),
                           BIND(npuw::dump::subgraphs, NPUW_DUMP_SUBS),
