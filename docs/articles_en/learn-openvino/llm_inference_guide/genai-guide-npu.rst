@@ -56,7 +56,6 @@ You select one of the methods by setting the ``--group-size`` parameter to eithe
          Remember that the negative value of ``-1`` is required here, not ``1``.
 
 
-**For models exceeding 1 billion parameters**, it is recommended to use **channel-wise
 
 .. code-block:: console
 
