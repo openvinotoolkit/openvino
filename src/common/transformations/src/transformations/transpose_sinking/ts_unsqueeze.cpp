@@ -14,7 +14,6 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/transpose_sinking/ts_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -200,12 +199,22 @@ TSUnsqueezeBackward::TSUnsqueezeBackward() {
         if (!transpose_order || !unsqueeze_axes)
             return false;
 
+        auto transpose_order_values = transpose_order->cast_vector<size_t>();
+
         // if main_node does nothing, just swap them
         auto reshape = as_type_ptr<ov::op::v1::Reshape>(main_node);
         if (reshape && AreInputOutputShapesEqual(reshape) && !HasSpecialOne(unsqueeze_axes)) {
+            // insert Transpose before main_node on #0 input
             for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node, transpose_order, {0})) {
                 register_new_node(new_node);
             }
+            // transpose reshape const with Gather operation
+            auto axis = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, 0);
+            auto gather = ov::pass::transpose_sinking::utils::ChangeValuesOrder(reshape->input_value(1),
+                                                                                transpose_order_values,
+                                                                                axis);
+            main_node->input(1).replace_source_output(gather);
+
             main_node->validate_and_infer_types();
             RemoveTransposeConsumers(main_node);
             return true;
@@ -233,7 +242,6 @@ TSUnsqueezeBackward::TSUnsqueezeBackward() {
             }
         }
 
-        auto transpose_order_values = transpose_order->cast_vector<size_t>();
         auto old_transpose_order_values = transpose_order_values;
         std::vector<size_t> new_values;
 

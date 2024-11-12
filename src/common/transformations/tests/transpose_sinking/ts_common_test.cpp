@@ -1683,15 +1683,12 @@ TEST_F(TransformationTestsF, TransposeSinkingCommonReshapeUnsqueezeBackwardSameS
         auto ts_order = std::make_shared<Constant>(element::u64, Shape{3}, Shape{1, 0, 2});
         return std::make_shared<Transpose>(parent, ts_order);
     };
-    auto create_reshape = [](const std::shared_ptr<ov::Node>& parent) {
-        auto reshape_const = std::make_shared<Constant>(element::u64, Shape{3}, Shape{4, 5, 6});
-        return std::make_shared<Reshape>(parent, reshape_const, false);
-    };
 
     const Shape input_shape = {4, 5, 6};
     {
         auto X = std::make_shared<Parameter>(element::f32, input_shape);
-        auto reshape = create_reshape(X);
+        auto reshape_const = std::make_shared<Constant>(element::u64, Shape{3}, Shape{4, 5, 6});
+        auto reshape = std::make_shared<Reshape>(X, reshape_const, false);
         auto transpose = create_transpose(reshape);
         model = std::make_shared<Model>(ov::OutputVector{transpose}, ov::ParameterVector{X});
     }
@@ -1699,7 +1696,11 @@ TEST_F(TransformationTestsF, TransposeSinkingCommonReshapeUnsqueezeBackwardSameS
     {
         auto X = std::make_shared<Parameter>(element::f32, input_shape);
         auto transpose = create_transpose(X);
-        auto reshape = create_reshape(transpose);
+        auto reshape_const = std::make_shared<Constant>(element::u64, Shape{3}, Shape{4, 5, 6});
+        auto axis = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, 0);
+        auto indices = std::make_shared<Constant>(element::i32, Shape{3}, Shape{1, 0, 2});
+        auto gather = std::make_shared<ov::op::v8::Gather>(reshape_const, indices, axis);
+        auto reshape = std::make_shared<Reshape>(transpose, gather, false);
         model_ref = std::make_shared<Model>(ov::OutputVector{reshape}, ov::ParameterVector{X});
     }
 
