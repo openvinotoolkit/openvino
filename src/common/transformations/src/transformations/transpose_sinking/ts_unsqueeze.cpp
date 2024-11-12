@@ -200,7 +200,7 @@ TSUnsqueezeBackward::TSUnsqueezeBackward() {
         if (!transpose_order || !unsqueeze_axes)
             return false;
 
-        // if main_node does nothing, just remove it
+        // if main_node does nothing, just swap them
         auto reshape = as_type_ptr<ov::op::v1::Reshape>(main_node);
         if (reshape && AreInputOutputShapesEqual(reshape) && !HasSpecialOne(unsqueeze_axes)) {
             for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node, transpose_order, {0})) {
