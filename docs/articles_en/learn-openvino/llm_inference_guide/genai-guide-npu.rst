@@ -42,6 +42,10 @@ chat-tuned TinyLlama model:
          :name: channel-wise-quant
 
          optimum-cli export openvino -m TinyLlama/TinyLlama-1.1B-Chat-v1.0 --weight-format int4 --sym --ratio 1.0 --group_size -1
+         
+      .. important::
+         
+         Remember that the negative value of ``-1`` is required here, not ``1``.
 
    .. tab-item:: Group quantization
 
