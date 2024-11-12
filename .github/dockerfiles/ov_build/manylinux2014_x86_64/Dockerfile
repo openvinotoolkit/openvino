@@ -4,7 +4,7 @@ FROM openvinogithubactions.azurecr.io/quayio/pypa/manylinux2014_x86_64
 USER root
 
 # Define Node.js version
-ENV NODE_VERSION=20.9.0
+ENV NODE_VERSION=21.9.0
 
 
 RUN mkdir -p /tmp/node-build
