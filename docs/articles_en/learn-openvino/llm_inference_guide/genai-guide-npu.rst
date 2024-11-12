@@ -95,7 +95,7 @@ you need to add ``do_sample=False`` **to the** ``generate()`` **method:**
       :sync: py
 
       .. code-block:: python
-         :emphasize-lines: 4-5
+         :emphasize-lines: 4
 
          import openvino_genai as ov_genai
          model_path = "TinyLlama"
