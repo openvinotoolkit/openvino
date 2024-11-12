@@ -30,9 +30,7 @@ inline bool stand_alone(BRGEMM_TYPE type) {
     return type == BRGEMM_TYPE::STAND_ALONE;
 }
 
-inline bool with_amx(BRGEMM_TYPE type) {
-    return type == BRGEMM_TYPE::WITH_AMX;
-}
+inline bool with_amx(BRGEMM_TYPE type) { return type == BRGEMM_TYPE::WITH_AMX || type == BRGEMM_TYPE::WITH_AMX_F16; }
 
 inline bool with_compensations(BRGEMM_TYPE type) {
     return type == BRGEMM_TYPE::WITH_COMPENSATIONS;

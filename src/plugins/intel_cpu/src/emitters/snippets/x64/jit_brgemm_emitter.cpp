@@ -80,6 +80,11 @@ std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precision
         return {{element::i8, element::i8, element::u8},
                 {element::u8, element::i8, element::u8},
                 {element::bf16, element::bf16, element::u8}};
+    } else if (brgemm->get_type() == BRGEMM_TYPE::WITH_AMX_F16) {
+        return {{element::i8, element::i8, element::u8},
+                {element::u8, element::i8, element::u8},
+                {element::bf16, element::bf16, element::u8},
+                {element::f16, element::f16, element::u8}};
     }
     OV_CPU_JIT_EMITTER_THROW("got BrgemmCPU node with unsupported type");
 }
