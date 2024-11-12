@@ -75,7 +75,7 @@ ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_re
             OPENVINO_THROW("NPUW: TEMPORARY LIMITATION: Couldn't create reference infer "
                            "requests if 'nireq' is set to > 1!");
         }
-        LOG_INFO("Create reference subrequest for submodel [" << id << "] on " << m_npuw_model->m_ref_device << "...");
+        LOG_INFO("Create reference subrequest for Subgraph[" << id << "] on " << m_npuw_model->m_ref_device << "...");
         LOG_BLOCK();
         if (m_npuw_model->submodel_device(id) != m_npuw_model->m_ref_device) {
             auto& ref_submodel = m_npuw_model->m_compiled_submodels.at(id).ref_compiled_model;
@@ -85,14 +85,225 @@ ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_re
             m_ref_subrequests.at(id) = std::move(ref_infer_request);
             LOG_INFO("Done");
         } else {
-            LOG_INFO("Skip creation of reference subrequest for submodule["
-                     << id << "] on reference device: " << m_npuw_model->m_ref_device << ", as actual subrequest ["
-                     << id << "] has been already created on "
-                     << "it .");
+            LOG_INFO("Skip creation of reference subrequest for Subgraph["
+                    << id << "] on reference device: " << m_npuw_model->m_ref_device << ", as actual subrequest ["
+                    << id << "] has been already created on "
+                    << "it .");
         }
     }
 
     return rqs;
+}
+
+namespace {
+    void set_inputs(const ov::SoPtr<ov::IAsyncInferRequest>& from, ov::SoPtr<ov::IAsyncInferRequest>& to) {
+        const auto& from_comp_model = from->get_compiled_model();
+        const auto& to_comp_model = to->get_compiled_model();
+        for (size_t i = 0; i < from_comp_model->inputs().size(); i++) {
+            const auto& itnsr = from->get_tensor(from_comp_model->inputs()[i]);
+            to->set_tensor(to_comp_model->inputs()[i], itnsr);
+        }
+    }
+
+    void copy_results(const ov::SoPtr<ov::IAsyncInferRequest>& from, ov::SoPtr<ov::IAsyncInferRequest>& to) {
+        const auto& from_comp_model = from->get_compiled_model();
+        const auto& to_comp_model = to->get_compiled_model();
+        for (size_t i = 0; i < to_comp_model->outputs().size(); i++) {
+            const auto& from_tnsr = from->get_tensor(from_comp_model->outputs()[i]);
+            const auto& to_tnsr = to->get_tensor(to_comp_model->outputs()[i]);
+            from_tnsr->copy_to(to_tnsr._ptr);
+        }
+    }
+
+    std::stringstream create_launch_msg(std::size_t idx,  std::size_t real_idx) {
+        std::stringstream log_msg_stream;
+        log_msg_stream << "Launching subrequest[" << idx << "]" <<
+        ((real_idx == idx) ? std::string("...").c_str() :
+                             std::string(std::string(", which is actually subrequest[") +
+                                std::to_string(real_idx) + "]").c_str());
+        return log_msg_stream;
+    }
+} // anonymous namespace
+
+void ov::npuw::IBaseInferRequest::try_accurate_subinfer(std::size_t subidx, std::size_t offset,
+                                                        std::size_t len, bool& accuracy_failover) {
+    auto real_subidx = real(subidx);
+    auto& act_subr = m_subrequests.at(real_subidx);
+    if (!m_npuw_model->m_acc_check) {
+        act_subr->infer();
+        return;
+    }
+
+    std::stringstream log_msg_stream = create_launch_msg(subidx, real_subidx);
+    if (m_npuw_model->m_compiled_submodels[real_subidx].spatial && len != 0) {
+        log_msg_stream << ", on range : [" << offset << ", " << offset + len << ")";
+    }
+    log_msg_stream << "...";
+    LOG_INFO(log_msg_stream.str());
+    LOG_BLOCK();
+
+    if (m_npuw_model->m_compiled_submodels[real_subidx].switched_to_ref) {
+        LOG_INFO("Subrequest was inaccurate somewhere before, launching it on reference device.");
+
+        auto& act_subr = m_subrequests.at(real_subidx);
+        auto& ref_subr = m_ref_subrequests.at(real_subidx);
+
+        set_inputs(act_subr, ref_subr);
+        ref_subr->infer();
+        copy_results(ref_subr, act_subr);
+    } else {
+        act_subr->infer();
+        ensure_subrequest_is_accurate(subidx, accuracy_failover);
+    }
+}
+
+void ov::npuw::IBaseInferRequest::try_accurate_subinfer(std::size_t subidx, bool& accuracy_failover) {
+    try_accurate_subinfer(subidx, 0, 0, accuracy_failover);
+}
+
+void ov::npuw::IBaseInferRequest::try_accurate_substart_async(std::size_t subidx) {
+    auto real_subidx = real(subidx);
+    auto& act_subr = m_subrequests.at(real_subidx);
+    if (!m_npuw_model->m_acc_check) {
+        act_subr->start_async();
+        return;
+    }
+
+    std::stringstream log_msg_stream = create_launch_msg(subidx, real_subidx);
+    log_msg_stream << "...";
+    LOG_INFO(log_msg_stream.str());
+    LOG_BLOCK();
+
+    if (m_npuw_model->m_compiled_submodels[real_subidx].switched_to_ref) {
+        LOG_INFO("Subrequest was inaccurate somewhere before, launching it on reference device.");
+
+        auto& act_subr = m_subrequests.at(real_subidx);
+        auto& ref_subr = m_ref_subrequests.at(real_subidx);
+
+        set_inputs(act_subr, ref_subr);
+        ref_subr->start_async();
+    } else {
+        act_subr->start_async();
+    }
+}
+
+void ov::npuw::IBaseInferRequest::try_accurate_subwait(std::size_t subidx, bool& accuracy_failover) {
+    auto real_subidx = real(subidx);
+    auto& act_subr = m_subrequests.at(real_subidx);
+    if (!m_npuw_model->m_acc_check) {
+        act_subr->wait();
+        return;
+    }
+
+    LOG_BLOCK();
+
+    if (m_npuw_model->m_compiled_submodels[real_subidx].switched_to_ref) {
+        auto& act_subr = m_subrequests.at(real_subidx);
+        auto& ref_subr = m_ref_subrequests.at(real_subidx);
+
+        ref_subr->wait();
+        copy_results(ref_subr, act_subr);
+    } else {
+        act_subr->wait();
+        ensure_subrequest_is_accurate(subidx, accuracy_failover);
+    }
+}
+
+void ov::npuw::IBaseInferRequest::ensure_subrequest_is_accurate(std::size_t idx, bool& accuracy_failover) {
+    if (!m_npuw_model->m_acc_check) {
+         return;
+    }
+
+    LOG_INFO("Check if subrequest[" << idx << "] is accurate...");
+    LOG_BLOCK();
+
+    std::size_t real_idx = real(idx);
+    OPENVINO_ASSERT(m_npuw_model->m_compiled_submodels[real_idx].switched_to_ref == false);
+
+    if (m_npuw_model->submodel_device(idx) == m_npuw_model->m_ref_device) {
+        LOG_INFO("Skipped, subrequest[" << idx << "] is launched on reference device.");
+        return;
+    }
+
+    accuracy_failover = false;
+    auto& actual_subr = m_subrequests.at(real_idx);
+    auto& ref_subr = m_ref_subrequests.at(real_idx);
+
+    // Setting inputs:
+    set_inputs(actual_subr, ref_subr);
+
+    // Running inference:
+    ref_subr->infer();
+
+    // Comparing results of actual and reference inferfences:
+    LOG_INFO("Compare actual outputs against references:");
+    bool tensors_converge = true;
+    const auto& actual_comp_model = actual_subr->get_compiled_model();
+    const auto& ref_comp_model = ref_subr->get_compiled_model();
+    std::vector<bool> converges(actual_comp_model->outputs().size());
+    std::vector<double> metrics(actual_comp_model->outputs().size());
+    for (size_t i = 0; i < actual_comp_model->outputs().size(); i++) {
+        const auto& actual_tensor = actual_subr->get_tensor(actual_comp_model->outputs()[i]);
+        const auto& ref_tensor = ref_subr->get_tensor(ref_comp_model->outputs()[i]);
+        converges[i] = m_npuw_model->m_acc_check(actual_tensor, ref_tensor, &metrics[i]);
+        tensors_converge &= converges[i];
+    }
+    if (tensors_converge == false) {
+        if (ov::npuw::get_log_level() == ov::npuw::LogLevel::Error) {
+            // For just log level error print header message:
+            LOG_ERROR("Check if subrequest[" << idx << "] is accurate...");
+        }
+    }
+    // Log comparison details:
+    for (size_t i = 0; i < actual_comp_model->outputs().size(); i++) {
+        if (converges[i]) {
+            LOG_INFO(" - " << actual_comp_model->outputs()[i]);
+            LOG_BLOCK();
+            LOG_INFO(m_npuw_model->m_acc_check_name << " loss: " << metrics[i] <<
+                      ", threshold: " << m_npuw_model->m_acc_check_threshold << ".");
+            LOG_INFO("PASS");
+        } else {
+            LOG_ERROR(" - " << actual_comp_model->outputs()[i]);
+            LOG_BLOCK();
+            LOG_ERROR(m_npuw_model->m_acc_check_name << " loss: " << metrics[i] <<
+                      ", threshold: " << m_npuw_model->m_acc_check_threshold << ".");
+            LOG_ERROR("FAIL");
+        }
+    }
+
+    // If comparison fails, copy reference results to original tensors and mark subgraph as
+    // switched to reference:
+    if (tensors_converge) {
+        LOG_INFO("PASS");
+    } else {
+        LOG_ERROR("FAIL");
+        LOG_ERROR("Subrequest[" << idx << "] is inaccurate, failover to reference results.");
+        if (idx != real_idx) {
+            LOG_ERROR("As subrequest[" << idx << "] is actually " << "subrequest[" << real_idx <<
+                       "], all subrequests, corresponding to last, will be further " <<
+                       "launched on " << m_npuw_model->m_ref_device << ".'");
+        } else if (m_npuw_model->m_compiled_submodels[real_idx].replaced_by) {
+            LOG_ERROR("As subrequest[" << real_idx << "] is actually " << "a function, all " <<
+                      "subrequests, corresponding to it, will be further launched on " <<
+                      m_npuw_model->m_ref_device << ".");
+        }
+
+        if (m_npuw_model->m_cfg.get<::intel_npu::NPUW_ACC_DUMP_FAILS>()) {
+            const auto model = m_npuw_model->m_compiled_submodels[real_idx].model;
+            const auto model_path = "inaccurate_" + model->get_friendly_name() + ".xml";
+            ov::save_model(model, model_path);
+            dump_input_tensors(idx, true);
+            dump_output_tensors(idx, true);
+        }
+        
+        // Due to complex memory management logic it is safe to just copy
+        // results back to already properly allocated and linked tensors:
+        copy_results(ref_subr, actual_subr);
+        m_npuw_model->m_compiled_submodels[real_idx].switched_to_ref = true;
+        accuracy_failover = true;
+    }
+
+    LOG_INFO("Done");
 }
 
 ov::SoPtr<ov::ITensor> ov::npuw::IBaseInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
@@ -170,9 +381,9 @@ void ov::npuw::IBaseInferRequest::infer() {
     m_run_iter++;
 
     if (failover_happened) {
-        LOG_INFO("Refined device distribution:");
+        LOG_ERROR("Refined device distribution:");
         LOG_BLOCK();
-        m_npuw_model->log_device_dist();
+        m_npuw_model->log_device_dist(ov::npuw::LogLevel::Error);
     }
     m_now_idx.reset();
 }
@@ -432,12 +643,11 @@ void ov::npuw::IBaseInferRequest::bind_global_results(std::size_t idx, RqPtr req
     LOG_DEBUG("Done");
 }
 
-void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
+void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx, bool forced) {
     const std::string dump_ios_opt = m_npuw_model->m_cfg.get<::intel_npu::NPUW_DUMP_IO>();
     const std::size_t end_idx = m_npuw_model->m_compiled_submodels.size();
-    auto real_idx = m_npuw_model->m_compiled_submodels[idx].replaced_by.value_or(idx);
-
-    if (!ov::npuw::util::is_set(idx, dump_ios_opt, real_idx, end_idx)) {
+    const std::size_t real_idx = real(idx);
+    if (!ov::npuw::util::is_set(idx, dump_ios_opt, real_idx, end_idx) && !forced) {
         return;
     }
 
@@ -513,12 +723,12 @@ void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
     }
 }
 
-void ov::npuw::IBaseInferRequest::dump_output_tensors(std::size_t idx) {
+void ov::npuw::IBaseInferRequest::dump_output_tensors(std::size_t idx, bool forced) {
     const std::string dump_ios_opt = m_npuw_model->m_cfg.get<::intel_npu::NPUW_DUMP_IO>();
     const std::size_t end_idx = m_npuw_model->m_compiled_submodels.size();
     auto real_idx = m_npuw_model->m_compiled_submodels[idx].replaced_by.value_or(idx);
 
-    if (!ov::npuw::util::is_set(idx, dump_ios_opt, real_idx, end_idx)) {
+    if (!ov::npuw::util::is_set(idx, dump_ios_opt, real_idx, end_idx) && !forced) {
         return;
     }
 

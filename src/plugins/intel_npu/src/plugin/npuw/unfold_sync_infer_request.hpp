@@ -32,7 +32,6 @@ public:
     bool supports_async_pipeline() const override {
         return false;
     }
-    void update_subrequest_links(std::size_t) override {}
 
 private:
     void infer() override;
