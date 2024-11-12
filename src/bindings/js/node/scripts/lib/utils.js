@@ -70,7 +70,7 @@ function downloadFile(url, destination, filename, proxy = null) {
   const fullPath = path.resolve(destination, filename);
   const file = createWriteStream(fullPath);
 
-  if (new URL(url).protocol === 'http')
+  if (new URL(url).protocol === 'http:')
     throw new Error('Http link doesn\'t support');
 
   let agent;
