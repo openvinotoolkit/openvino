@@ -43,9 +43,6 @@ struct Context {
     std::set<PPtr> closures_to_f16;
     void to_f16(PPtr orig_param);
 
-    std::set<PPtr> closures_to_reshape_remove;
-    std::set<PPtr> closures_to_reshape_add;
-
     using O = ov::Output<ov::Node>;
     struct DQParMM {
         PPtr w, s;

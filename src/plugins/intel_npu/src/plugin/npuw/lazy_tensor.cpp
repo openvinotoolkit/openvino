@@ -130,9 +130,6 @@ bool LazyTensorImpl::operator==(const LazyTensorImpl& other) const {
     case TransformType::CONVERT:
         // everything is already compared above - skip
         break;
-    case TransformType::RESHAPE:
-        // everything is already compared above - skip
-        break;
     case TransformType::PERMUTE:
         if (std::get<std::vector<std::size_t>>(m_transform.second) !=
             std::get<std::vector<std::size_t>>(other.m_transform.second)) {
@@ -228,8 +225,6 @@ ov::Tensor LazyTensorImpl::eval() const {
         return ov::npuw::util::permute(m_parent->eval(), std::get<std::vector<std::size_t>>(m_transform.second));
     case TransformType::CONVERT:
         return ov::npuw::util::to_f16(m_parent->eval());
-    case TransformType::RESHAPE:
-        return ov::npuw::util::drop_last_dims(m_parent->eval());
     default:
         NPUW_ASSERT(false);
     }

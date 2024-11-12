@@ -19,7 +19,7 @@ namespace ov {
 namespace npuw {
 namespace weights {
 
-enum class TransformType : int { THIS, PERMUTE, CONVERT, RESHAPE, CONCAT, UNPACK };
+enum class TransformType : int { THIS, PERMUTE, CONVERT, CONCAT, UNPACK };
 
 // Forward declaration
 class LazyTensor;
