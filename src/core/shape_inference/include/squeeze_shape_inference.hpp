@@ -21,7 +21,7 @@ template <
         std::is_same<Squeeze, ov::op::v15::Squeeze>::value,
         bool>::type
 >
-bool validate_input(
+bool validate_input_and_try_set_output_shape (
     const Squeeze* op,
     std::unique_ptr<std::set<int64_t>>& unique_axes,
     const std::vector<T>& input_shapes,
@@ -100,7 +100,7 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
         return PartialShape::dynamic(arg_rank.get_length() - 1);
     };
 
-    if(util::validate_input(op, unique_axes, input_shapes, ta, output_shape, output_shape_for_squeezable_dim)){
+    if(util::validate_input_and_try_compute_output_shape(op, unique_axes, input_shapes, ta, output_shape, output_shape_for_squeezable_dim)){
         return output_shapes;
     }
 
@@ -181,49 +181,21 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
                                  const ITensorAccessor& ta = make_tensor_accessor()) {
     using DimType = typename T::value_type;
 
-    const auto number_of_inputs = input_shapes.size();
-    OPENVINO_ASSERT(!input_shapes.empty());
-
     const auto& arg_shape = input_shapes[0];
     const auto& arg_rank = arg_shape.rank();
     auto output_shapes = std::vector<TRShape>(1);
     auto& output_shape = output_shapes[0];
 
-    std::unique_ptr<std::set<int64_t>> unique_axes;
+    std::unique_ptr<std::set<int64_t>> unique_axes{};
 
-    if (number_of_inputs == 1) {
-        unique_axes.reset(new std::set<int64_t>());
-    } else if (number_of_inputs == 2) {
-        const auto& axes_shape = input_shapes[1];
-        NODE_VALIDATION_CHECK(op,
-                              axes_shape.is_dynamic() || ov::util::is_rank_compatible_any_of(axes_shape.rank(), {0, 1}),
-                              "Second input (axes) should not be of rank higher than 1. Got: ",
-                              axes_shape.rank().get_length());
+    auto output_shape_for_squeezable_dim = [&](){
+        return PartialShape::dynamic();
+    };
 
-        std::vector<int64_t> axes;
-        if (arg_rank.is_static() && axes_shape.is_static()) {
-            if (auto axes = get_input_const_data_as<TRShape, int64_t>(op, 1, ta)) {
-                // The values of `axes` input are known
-                ov::util::try_normalize_axes(*axes, arg_rank, *op);
-                unique_axes.reset(new std::set<int64_t>(axes->cbegin(), axes->cend()));
-            } else if (arg_rank.get_length() > 0 && shape_size(axes_shape.to_shape()) == 1) {
-                // The `axes` input is a single element tensor which is unique by definition, deducing output rank
-                const auto has_squeezable_dim =
-                    std::any_of(arg_shape.cbegin(), arg_shape.cend(), [](const DimType& dim) {
-                        return dim.compatible(1);
-                    });
-                if (has_squeezable_dim) {
-                    output_shape = PartialShape::dynamic();
-                } else {
-                    output_shape = arg_shape;
-                }
-                return output_shapes;
-            }
-        }
-    } else {
-        // Invalid number of inputs, empty error message for backward compatibility.
-        NODE_VALIDATION_CHECK(op, false);
+    if(util::validate_input_and_try_compute_output_shape(op, unique_axes, input_shapes, ta, output_shape, output_shape_for_squeezable_dim)){
+        return output_shapes;
     }
+
 
     if (!arg_rank.is_static() || (unique_axes == nullptr) || apply_allow_axis_skip(op, unique_axes, arg_shape)) {
         output_shape = PartialShape::dynamic();
