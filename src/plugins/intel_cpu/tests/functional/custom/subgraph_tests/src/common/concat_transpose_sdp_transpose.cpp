@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/type/float16.hpp"
 #include "openvino/opsets/opset13.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
@@ -207,6 +208,10 @@ public:
                 ov::Tensor t{ov::element::f32, shape};
                 strided_iota(static_cast<float*>(t.data()), t.get_size(), val, 0.1f);
                 inputs.insert({param, t});
+            } else if (param->get_element_type() == ov::element::f16) {
+                ov::Tensor t{ov::element::f16, shape};
+                strided_iota(static_cast<ov::float16*>(t.data()), t.get_size(), val, 0.1f);
+                inputs.insert({param, t});
             } else {
                 ASSERT_TRUE(param->get_element_type() == ov::element::bf16);
                 ov::Tensor t{ov::element::bf16, shape};
@@ -365,6 +370,15 @@ public:
     }
     std::vector<ov::Tensor> run_test(std::shared_ptr<ov::Model> model) {
         function = model;
+        // on spr, all kvccache precision will be covered and all paths for get/set_state will be tested
+        auto input_type = model->get_parameters()[0]->get_element_type();
+        if (input_type == ov::element::f32) {
+            configuration[ov::hint::kv_cache_precision.name()] = "f32";
+        } else if (input_type == ov::element::bf16) {
+            configuration[ov::hint::kv_cache_precision.name()] = "bf16";
+        } else {
+            configuration[ov::hint::kv_cache_precision.name()] = "u8";
+        }
         prepare();
         std::vector<ov::Tensor> outputs;
         // case 1: initialization + pastkv reaches limitation, remove some state
@@ -407,6 +421,15 @@ public:
 
 TEST_P(ConcatSDPTransposeTestSetState, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ElementType inType;
+    InputShapeAndTransposeOrder inputShapeAndOrders;
+    bool hasShapeOf;
+    std::tie(inType, inputShapeAndOrders, hasShapeOf) = this->GetParam();
+
+    // skip bf16 test on avx512 platform
+    if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
+        GTEST_SKIP();
+
     auto actualOutputs = run_test(function);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);
     CheckNumberOfNodesWithType(compiledModel, "Concatenation", 0);
@@ -438,7 +461,7 @@ const std::vector<InputShapeAndTransposeOrder> inputShapeAndReordersSetState = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTransposeTestSetState,
                          ConcatSDPTransposeTestSetState,
-                         ::testing::Combine(::testing::Values(ElementType::f32),
+                         ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16, ElementType::f16),
                                             ::testing::ValuesIn(inputShapeAndReordersSetState),
                                             ::testing::Values(false)),
                          ConcatSDPTransposeTest::getTestCaseName);
