@@ -64,7 +64,7 @@ implemented in your solutions. Click the buttons below to see the chosen benchma
          :outline:
          :expand:
 
-         :material-regular:`bar_chart;1.4em` OVMS for GenAI (incoming)
+         :material-regular:`bar_chart;1.4em` OVMS for GenAI
 
 
 
