@@ -21,7 +21,7 @@ WORKDIR /tmp/node-build/node-v${NODE_VERSION}
 COPY .github/dockerfiles/ov_build/manylinux2014_x86_64/003-no-sys-random-on-older-glibc-node.patch .
 RUN patch -p1 < 003-no-sys-random-on-older-glibc-node.patch \
     && ./configure --prefix=/usr/local \ 
-    && make -j $(nproc)\
+    && make -j$(nproc) \
     && make install
 
 # Clean up tmpfs to reduce final image size
