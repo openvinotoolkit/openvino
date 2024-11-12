@@ -255,12 +255,6 @@ bool AclDeconvExecutorBuilder::customIsSupported(const DeconvAttrs &deconvAttrs,
     auto dstTensorInfo  = aclDeconvTensorInfo.dstTensorInfo;
     auto deconv_info    = aclDeconvTensorInfo.deconv_info;
 
-    // After stride=8 up-sampling in ACL Deconvolution layer slower than reference
-    if (deconv_info.stride().first >= 8 || deconv_info.stride().second >= 8) {
-        DEBUG_LOG("AclDeconvExecutor does not support strides > 8:");
-        return false;
-    }
-
     unsigned int dilation_x = (deconvAttrs.dilation.size() > 1) ? deconvAttrs.dilation.at(1) : deconvAttrs.dilation.at(0);
     unsigned int dilation_y = deconvAttrs.dilation.at(0);
     if (!one_of(dilation_x, static_cast<unsigned int >(0), static_cast<unsigned int >(1)) ||

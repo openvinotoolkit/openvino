@@ -282,6 +282,11 @@ CPU::CPU() {
         OPENVINO_THROW("CPU affinity check failed. No CPU is eligible to run inference.");
     };
 
+    if (_proc_type_table.size() > 1) {
+        int cur_processor_id = sched_getcpu();
+        sort_table_by_cpu_id(cur_processor_id, _proc_type_table, _cpu_mapping_table);
+    }
+
     _org_proc_type_table = _proc_type_table;
 
     cpu_debug();
