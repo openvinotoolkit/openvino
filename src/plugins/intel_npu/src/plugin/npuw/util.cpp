@@ -52,10 +52,6 @@ inline uint8_t lo4(uint8_t x) {
     return x & 0xF;
 }
 
-inline uint8_t get_u4(uint8_t x, bool high) {
-    return high ? hi4(x) : lo4(x);
-}
-
 void unpack_nf4f16_scale(const ov::SoPtr<ov::ITensor>& from,
                          const ov::SoPtr<ov::ITensor>& scale,
                          const ov::SoPtr<ov::ITensor>& to,
@@ -73,11 +69,18 @@ void unpack_nf4f16_scale(const ov::SoPtr<ov::ITensor>& from,
     const auto* scale_ptr = scale->data<ov::float16>();
           auto* to_ptr    = to->data<ov::float16>();
 
-    ov::parallel_for(from->get_size(), [&](size_t idx) {
-        const float deq_w = ov::ConvertNF4::dequantize(get_u4(from_ptr[idx / 2], idx % 2));
-        const float scale = scale_ptr[idx / from_shape[1]];
-        to_ptr[idx] = deq_w * scale;
+    const auto size = from->get_size();
+    ov::parallel_for(size / 2, [&](size_t idx) {
+        const uint8_t nf4_2xval  = from_ptr[idx];
+        const float   low_scale  = scale_ptr[(idx * 2)     / from_shape[1]];
+        const float   high_scale = scale_ptr[(idx * 2 + 1) / from_shape[1]];
+        to_ptr[idx * 2    ] = ov::ConvertNF4::dequantize(lo4(nf4_2xval)) * low_scale;
+        to_ptr[idx * 2 + 1] = ov::ConvertNF4::dequantize(hi4(nf4_2xval)) * high_scale;
     });
+    if (size % 2 != 0) {
+        const float low_scale = scale_ptr[size - 1 / from_shape[1]];
+        to_ptr[size - 1] = ov::ConvertNF4::dequantize(lo4(from_ptr[size / 2 + 1])) * low_scale;
+    }
 }
 
 void unpack_nf4f16(const ov::SoPtr<ov::ITensor>& from,
@@ -90,9 +93,15 @@ void unpack_nf4f16(const ov::SoPtr<ov::ITensor>& from,
     const auto* from_ptr  = static_cast<const uint8_t*>(from->data());
           auto* to_ptr    = to->data<ov::float16>();
 
-    ov::parallel_for(from->get_size(), [&](size_t idx) {
-        to_ptr[idx] = ov::ConvertNF4::dequantize(get_u4(from_ptr[idx / 2], idx % 2));
+    const auto size = from->get_size();
+    ov::parallel_for(size / 2, [&](size_t idx) {
+        const uint8_t nf4_2xval = from_ptr[idx];
+        to_ptr[idx * 2    ] = ov::ConvertNF4::dequantize(lo4(nf4_2xval));
+        to_ptr[idx * 2 + 1] = ov::ConvertNF4::dequantize(hi4(nf4_2xval));
     });
+    if (size % 2 != 0) {
+        to_ptr[size - 1] = ov::ConvertNF4::dequantize(lo4(from_ptr[size / 2 + 1]));
+    }
 }
 
 }  // namespace
