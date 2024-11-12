@@ -51,11 +51,7 @@ public:
                                                        test_data._cpu_pinning,
                                                        test_data._streams_info_table_in};
         ASSERT_EQ(test_data._cpu_reservation, config.get_cpu_reservation());
-        if (test_data._cpu_reservation && !test_data._cpu_pinning) {
-            ASSERT_EQ(true, config.get_cpu_pinning());
-        } else {
-            ASSERT_EQ(test_data._cpu_pinning, config.get_cpu_pinning());
-        }
+        ASSERT_EQ(test_data._cpu_pinning, config.get_cpu_pinning());
         ASSERT_EQ(test_data._streams_info_table, config.get_streams_info_table());
         ASSERT_EQ(test_data._stream_processors, config.get_stream_processor_ids());
         if (test_data._cpu_reservation) {

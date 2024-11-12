@@ -163,10 +163,6 @@ void IStreamsExecutor::Config::update_executor_config() {
         return;
     }
 
-    if (_cpu_reservation && !_cpu_pinning) {
-        _cpu_pinning = true;
-    }
-
     if (!_streams_info_table.empty()) {
         streams_info_available = true;
         std::vector<int> threads_proc_type(HYPER_THREADING_PROC + 1, 0);
@@ -265,7 +261,7 @@ void IStreamsExecutor::Config::update_executor_config() {
         }
     }
 
-    if (_cpu_pinning) {
+    if (_cpu_pinning || _cpu_reservation) {
         reserve_available_cpus(_streams_info_table, _stream_processor_ids, _cpu_reservation ? CPU_USED : NOT_USED);
     }
 
