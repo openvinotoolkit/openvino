@@ -95,10 +95,10 @@ if(TARGET ie_wheel)
 endif()
 
 # install
-
-ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_WHEELS} HIDDEN)
-
-install(FILES ${openvino_wheel_path}
-        DESTINATION ${OV_CPACK_WHEELSDIR}
-        COMPONENT ${OV_CPACK_COMP_PYTHON_WHEELS}
-        ${OV_CPACK_COMP_PYTHON_WHEELS_EXCLUDE_ALL})
+if(TARGET openvino_dev_wheel)
+    ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_WHEELS} HIDDEN)
+    install(FILES ${openvino_wheel_path}
+            DESTINATION ${OV_CPACK_WHEELSDIR}
+            COMPONENT ${OV_CPACK_COMP_PYTHON_WHEELS}
+            ${OV_CPACK_COMP_PYTHON_WHEELS_EXCLUDE_ALL})
+endif()
