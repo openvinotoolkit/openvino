@@ -35,8 +35,8 @@ protected:
             int i = 0;
             auto& input = instance.input_memory(i);
             auto offset = onednn::get_offset(instance.get_input_layout(i),
-                                             _pd.dnnl::primitive_desc_base::src_desc(static_cast<int>(i)));
-            auto mem = input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(static_cast<int>(i)), offset);
+                                             _pd.dnnl::primitive_desc_base::src_desc(i));
+            auto mem = input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(i), offset);
             args.insert({DNNL_ARG_SRC_LAYER, mem});
         }
 
@@ -44,8 +44,8 @@ protected:
             int i = 1;
             auto& input = instance.input_memory(i);
             auto offset = onednn::get_offset(instance.get_input_layout(i),
-                                             _pd.dnnl::primitive_desc_base::src_desc(static_cast<int>(i)));
-            auto mem = input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(static_cast<int>(i)), offset);
+                                             _pd.dnnl::primitive_desc_base::src_desc(i));
+            auto mem = input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(i), offset);
             args.insert({DNNL_ARG_SRC_ITER, mem});
         }
 
@@ -53,8 +53,8 @@ protected:
             int i = 2;
             auto& input = instance.input_memory(i);
             auto offset = onednn::get_offset(instance.get_input_layout(i),
-                                             _pd.dnnl::primitive_desc_base::src_desc(static_cast<int>(i)));
-            auto mem = input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(static_cast<int>(i)), offset);
+                                             _pd.dnnl::primitive_desc_base::src_desc(i));
+            auto mem = input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(i), offset);
             args.insert({DNNL_ARG_SRC_ITER_C, mem});
         }
 
@@ -167,8 +167,6 @@ protected:
         OPENVINO_ASSERT(output_md.get_format_kind() != dnnl::memory::format_kind::any,
                         "[GPU] The format kind of the output memory descriptor of onednn lstm_seq cannot be 'any'.");
 
-        dnnl::memory::desc emptyMemDescriptorForPeephole;
-
         auto eng = engine.get_onednn_engine();
         return std::make_shared<dnnl::lstm_forward::primitive_desc>(
             eng,
@@ -233,12 +231,12 @@ public:
     }
 
     static std::unique_ptr<primitive_impl> create(const lstm_seq_node& arg, const kernel_impl_params& impl_params) {
-            auto& engine = impl_params.prog->get_engine();
-            auto& config = impl_params.prog->get_config();
-            auto attr = impl_params.attrs_onednn;
-            auto direction = arg.direction();
-            auto prim_desc = get_lstm_primitive_descriptor(impl_params, engine, *attr, direction);
-            return cldnn::make_unique<lstm_seq_onednn>(engine, config, attr, *prim_desc, get_weights_reorder(impl_params, *prim_desc));
+        auto& engine = impl_params.prog->get_engine();
+        auto& config = impl_params.prog->get_config();
+        auto attr = impl_params.attrs_onednn;
+        auto direction = arg.direction();
+        auto prim_desc = get_lstm_primitive_descriptor(impl_params, engine, *attr, direction);
+        return cldnn::make_unique<lstm_seq_onednn>(engine, config, attr, *prim_desc, get_weights_reorder(impl_params, *prim_desc));
     }
 };
 

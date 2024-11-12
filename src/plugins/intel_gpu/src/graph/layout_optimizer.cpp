@@ -110,33 +110,6 @@ std::pair<std::shared_ptr<primitive>, bool> reorder_factory::get_weights_reorder
     }
 }
 
-void reorder_factory::get_out_reorder(program& p, cldnn::program_node* prev, cldnn::program_node* node, int i) {
-    std::string permute_id = prev->id() + "_outreor_" + std::to_string(i);
-    std::vector<uint16_t> ord{1, 3, 0, 2};
-    auto permute = std::make_shared<cldnn::permute>(permute_id, input_info{prev->id()}, ord);
-    auto& permute_node = p.get_or_create(permute);
-    p.add_intermediate(permute_node, *node, *prev,  true);
-    auto prev_seq = static_cast<lstm_seq_node*>(prev);
-    prev_seq->permute_inserted = true;
-    prev->recalc_output_layouts(false);
-    permute_node.recalc_output_layout(false);
-    permute_node.set_selected_impl(permute_node.type()->create_impl(permute_node));
-    if (auto impl = permute_node.get_selected_impl()) {
-        auto params = permute_node.get_kernel_impl_params();
-        p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
-    }
-    node->recalc_output_layouts(false);
-    node->set_forced_impl_type(impl_types::ocl);
-    auto new_node_impl = node->type()->create_impl(*node);
-    if (new_node_impl) {
-        node->set_selected_impl(std::move(new_node_impl));
-        if (auto impl = node->get_selected_impl()) {
-            auto params = node->get_kernel_impl_params();
-            p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
-        }
-    }
-}
-
 void reorder_factory::select_implementation(program& p, program_node& node) {
     node.set_selected_impl(node.type()->create_impl(node));
     if (auto impl = node.get_selected_impl()) {
