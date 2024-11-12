@@ -28,8 +28,7 @@ the model with the proper conversion and optimization settings.
 
 | You may export LLMs via Optimum-Intel, using one of two compression methods:
 | **group quantization** - for both smaller and larger models,
-| **channel-wise quantization** - remarkably effective but for models exceeding 1 billion
-parameters.
+| **channel-wise quantization** - remarkably effective but for models exceeding 1 billion parameters.
 
 You select one of the methods by setting the ``--group-size`` parameter to either ``128`` or ``-1``, respectively. See the following examples:
 
