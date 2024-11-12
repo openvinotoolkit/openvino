@@ -21,7 +21,7 @@ public:
     BrgemmExternalRepackingAdjuster() = default;
     BrgemmExternalRepackingAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir, snippets::RuntimeConfigurator* configurator);
 
-    bool optimize(const ov::snippets::lowered::LinearIRCPtr& linear_ir) override;
+    bool run(const snippets::lowered::LinearIR& linear_ir) override;
 
 private:
     std::set<size_t> m_param_idces_with_external_repacking;

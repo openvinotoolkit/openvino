@@ -74,7 +74,7 @@ void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRCPtr& l
         update_loop_args(linear_ir);
     }
     update_data_offsets();
-    externalRepackingAdjuster.optimize(linear_ir);
+    externalRepackingAdjuster.run(*linear_ir);
     m_config->m_latest_shapes = std::move(m_config->shapes);
 }
 

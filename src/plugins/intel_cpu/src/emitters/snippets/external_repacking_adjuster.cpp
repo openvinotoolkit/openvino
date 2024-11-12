@@ -20,7 +20,8 @@ namespace intel_cpu {
 BrgemmExternalRepackingAdjuster::BrgemmExternalRepackingAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                                                  snippets::RuntimeConfigurator* configurator) {}
 
-bool BrgemmExternalRepackingAdjuster::optimize(const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
+bool BrgemmExternalRepackingAdjuster::run(ov::snippets::lowered::LinearIR& linear_ir) {
+    return false;
 }
 #else
 BrgemmExternalRepackingAdjuster::BrgemmExternalRepackingAdjuster(
@@ -41,7 +42,7 @@ BrgemmExternalRepackingAdjuster::BrgemmExternalRepackingAdjuster(
     }
 }
 
-bool BrgemmExternalRepackingAdjuster::optimize(const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
+bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& linear_ir) {
     if (m_param_idces_with_external_repacking.empty())
         return false;
 
@@ -53,7 +54,7 @@ bool BrgemmExternalRepackingAdjuster::optimize(const ov::snippets::lowered::Line
         const auto& K = *++shape.rbegin();
         const auto& N = *shape.rbegin();
 
-        const auto& precision = linear_ir->get_parameters()[i]->get_node()->get_output_element_type(0);
+        const auto& precision = linear_ir.get_parameters()[i]->get_node()->get_output_element_type(0);
         const auto vnni_factor = brgemm_utils::compute_vnni_factor(precision);
         // Firstly, batch dims are set
         VectorDims requested_blocked_shape(shape.begin(), shape.end() - cpu_config->tile_rank);

@@ -10,13 +10,15 @@
 
 namespace ov {
 namespace snippets {
-// TODO: inherit from lowered pass?
-class RuntimeOptimizer {
+class RuntimeOptimizer : public lowered::pass::Pass {
 public:
     RuntimeOptimizer() = default;
     RuntimeOptimizer(RuntimeConfigurator* configurator) : m_configurator(configurator) {}
 
-    virtual bool optimize(const ov::snippets::lowered::LinearIRCPtr& linear_ir) = 0;
+    virtual bool run(const snippets::lowered::LinearIR& linear_ir) = 0;
+    bool run(snippets::lowered::LinearIR& linear_ir) override final { // NOLINT
+        return run(const_cast<const snippets::lowered::LinearIR&>(linear_ir));
+    }
 
 protected:
     RuntimeConfigurator* m_configurator = nullptr;
