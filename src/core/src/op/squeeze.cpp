@@ -62,9 +62,8 @@ bool Squeeze::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
 namespace v15 {
 Squeeze::Squeeze() : util::SqueezeBase() {}
 
-Squeeze::Squeeze(const Output<Node>& data, const bool allow_axis_skip)
-    : util::SqueezeBase(data),
-      m_allow_axis_skip{allow_axis_skip} {
+Squeeze::Squeeze(const Output<Node>& data)
+    : util::SqueezeBase(data){
     constructor_validate_and_infer_types();
 }
 
@@ -80,7 +79,7 @@ std::shared_ptr<Node> Squeeze::clone_with_new_inputs(const OutputVector& new_arg
 
     switch (new_args.size()) {
     case 1:
-        return std::make_shared<Squeeze>(new_args[0], m_allow_axis_skip);
+        return std::make_shared<Squeeze>(new_args[0]);
     case 2:
         return std::make_shared<Squeeze>(new_args[0], new_args[1], m_allow_axis_skip);
     default:
