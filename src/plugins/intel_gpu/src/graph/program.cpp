@@ -436,7 +436,7 @@ void program::prepare_nodes(topology const& topology) {
     }
 }
 
-// add node's dependecies from its primitive dependencies
+// add node's dependencies from its primitive dependencies
 void program::add_node_dependencies(program_node* node) {
     auto deps = node->get_primitive()->dependencies();
     // add pointers to node's dependencies
@@ -453,7 +453,7 @@ void program::add_node_dependencies(program_node* node) {
 }
 
 /* helper method for program constructor from list of nodes which
-   copies src_node dependecies to the destination node dest_node dependencies.
+   copies src_node dependencies to the destination node dest_node dependencies.
    But only to those which appaer in this program implementation nodes_map */
 void program::copy_node_dependencies(program_node* dest_node, program_node* src_node) {
     if (dest_node->get_primitive()->id != src_node->get_primitive()->id) {
