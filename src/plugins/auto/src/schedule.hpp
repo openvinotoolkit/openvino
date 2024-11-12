@@ -43,7 +43,7 @@ protected:
     std::shared_ptr<ov::threading::IStreamsExecutor>                     m_executor;
     DeviceMap<NotBusyPriorityWorkerRequests>                             m_idle_worker_requests;
     DeviceMap<std::vector<WorkerInferRequest>>                           m_worker_requests;
-    DeviceMap<std::condition_variable>                                   m_worker_requests_cvs;
+    DeviceMap<std::condition_variable>                                   m_worker_requests_conds;
     TaskQueue                                                            m_infer_pipeline_tasks;
     DeviceMap<std::unique_ptr<TaskQueue>>                                m_infer_pipeline_tasks_device_specific;
     SoCompiledModel                                                      m_passthrough_compiled_model;

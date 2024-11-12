@@ -99,7 +99,7 @@ void Schedule::generate_workers(const std::string& device, const SoCompiledModel
             : it_numrequests->num_requests_per_devices;
     auto& worker_requests = m_worker_requests[device];
     auto& idle_worker_requests = m_idle_worker_requests[device];
-    auto& worker_requests_cv = m_worker_requests_cvs[device];
+    auto& worker_requests_cv = m_worker_requests_conds[device];
     worker_requests.resize(num_requests);
     m_infer_pipeline_tasks_device_specific[device] = std::unique_ptr<TaskQueue>(new TaskQueue);
     auto* idle_workerrequests_ptr = &(idle_worker_requests);
