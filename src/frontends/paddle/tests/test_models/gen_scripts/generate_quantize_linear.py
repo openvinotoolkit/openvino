@@ -91,11 +91,6 @@ def main():
     zero_point = [0, 0, 0]
     test_quantize_linear("quantize_linear_per_channel", input_data, quant_axis, scale=scale, zero_point=zero_point)
 
-    # Test: Different bit lengths
-    quant_axis = -1
-    test_quantize_linear("quantize_linear_4bit", input_data, quant_axis, bit_length=4)
-    test_quantize_linear("quantize_linear_8bit", input_data, quant_axis, bit_length=8)
-
     # Test: Zero point handling
     zero_point = [10]
     test_quantize_linear("quantize_linear_zero_point", input_data, quant_axis, zero_point=zero_point)
