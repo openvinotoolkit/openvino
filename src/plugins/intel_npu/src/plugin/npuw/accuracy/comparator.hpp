@@ -15,8 +15,9 @@ namespace metrics {
 class NRMSE {
 public:
     explicit NRMSE(double threshold);
-    bool operator()(const ov::SoPtr<ov::ITensor>& backup_tensor, const ov::SoPtr<ov::ITensor>& original_tensor) const;
-
+    bool operator()(const ov::SoPtr<ov::ITensor>& backup_tensor,
+                    const ov::SoPtr<ov::ITensor>& original_tensor,
+                    double* result = nullptr) const;
 private:
     double m_threshold{};
 };
