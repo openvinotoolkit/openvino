@@ -274,7 +274,6 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
             // Disconnect Multiply and Convert from their outputs
             auto matched_mulply = node_to_output.at(mulply).get_node_shared_ptr();
             auto matched_convrt = node_to_output.at(toFP32).get_node_shared_ptr();
-
             auto drop_outputs = [](std::shared_ptr<ov::Node> node) {
                 for (auto&& node_outputs : node->outputs()) {
                     for (auto&& node_reader_port : node_outputs.get_target_inputs()) {
@@ -313,7 +312,7 @@ void DCOFFPassMatMul::reconnect_root_to_convert(ov::pass::pattern::Matcher& m) {
     auto cvt = std::static_pointer_cast<ov::op::v0::Convert>(matched_convrt);
     auto matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_matmul);
 
-    // NB: In case convert dst type isn't f32
+    // NB: In case convert and matmul types don't match
     cvt->set_destination_type(matmul->inputs()[1].get_element_type());
 
     matched_matmul->input(1).replace_source_output(matched_convrt);
