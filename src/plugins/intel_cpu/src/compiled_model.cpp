@@ -343,8 +343,11 @@ void CompiledModel::export_model(std::ostream& modelStream) const {
 
 void CompiledModel::release_memory() {
     for (auto&& graph : m_graphs) {
-        GraphGuard::Lock graph_lock{graph};
-        auto ctx = graph_lock._graph.getGraphContext();
+        // try to lock mutex, since it may be already locked (e.g by an infer request)
+        std::unique_lock<std::mutex> lock(graph._mutex, std::try_to_lock);
+        OPENVINO_ASSERT(lock.owns_lock(),
+                "Attempt to call release_memory() on a graph locked by another thread");
+        auto ctx = graph.getGraphContext();
         ctx->getNetworkMemoryControl()->releaseMemory();
     }
 }

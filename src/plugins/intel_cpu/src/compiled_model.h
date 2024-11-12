@@ -115,7 +115,9 @@ public:
     }
 
     ~CompiledModelHandler() {
-        --(m_compiled_model->m_numRequests);
+        if (m_compiled_model) {
+            --(m_compiled_model->m_numRequests);
+        }
     }
 
     CompiledModelHandler(const CompiledModelHandler&) = delete;
