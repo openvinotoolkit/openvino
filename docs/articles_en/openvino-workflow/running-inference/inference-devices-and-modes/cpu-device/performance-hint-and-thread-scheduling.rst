@@ -93,15 +93,13 @@ Then the default settings for low-level performance properties on Windows and Li
 
 .. note::
 
-   From 5th Gen Intel Xeon Processors, new microarchitecture enabled new sub-NUMA clusters
+   Starting from 5th Gen Intel Xeon Processors, new microarchitecture enabled new sub-NUMA clusters
    feature. A sub-NUMA cluster (SNC) can create two or more localization domains (numa nodes)
-   within a processor by BIOS configuration. 
-   For most models, the best latency performance can be achieved using the number of CPU 
-   cores in a single numa node on multiple 5th Generation Intel Xeon processors platform,
-   which is default latency hint behavior. 
-   For other models, user can explicitly set ``ov::num_streams`` and
-   ``ov::hint::enable_hyper_threading`` to use more CPU cores for the best latency
-   performance.
+   within a socket by BIOS configuration. 
+   By default OpenVINO with latency hint uses single NUMA node for inference. Although such
+   behavior allows to achive best performance for most of the models, there might be corner
+   cases which require manual tuning of ``ov::num_streams`` and ``ov::hint::enable_hyper_threading parameters``.
+   Please find more detail about `Sub-NUMA Clustering <https://www.intel.com/content/www/us/en/developer/articles/technical/xeon-processor-scalable-family-technical-overview.html>`__ 
 
 Throughput Hint
 #####################
