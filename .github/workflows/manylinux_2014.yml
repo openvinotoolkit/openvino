@@ -135,7 +135,7 @@ jobs:
               cmake --build /work/build --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} &&
               cmake --install /work/build --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/install
             "
-      
+            
       - name: Pack Artifacts
         run: mkdir -p ${{ env.BUILD_DIR }} && tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_package.tar.gz
         working-directory: ${{ env.INSTALL_DIR }}
@@ -149,9 +149,9 @@ jobs:
             python_lib=${python_path}/lib/python${PY_VER}
             docker run --rm \
               -v ${{ env.OPENVINO_REPO }}:/work/src \
-              -v ov_build_cache:/work/build \
-              -v ${INSTALL_WHEELS_DIR}:/work/wheels \
+              -v ${{ env.INSTALL_WHEELS_DIR }}:/work/wheels \
               -v ${{ env.PIP_CACHE_PATH }}:/work/pip_cache \
+              -v ov_build_cache:/work/build \
               -e SCCACHE_AZURE_BLOB_CONTAINER \
               -e SCCACHE_AZURE_CONNECTION_STRING \
               -e SCCACHE_SERVER_PORT \
