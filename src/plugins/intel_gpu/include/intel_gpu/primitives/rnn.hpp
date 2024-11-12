@@ -51,7 +51,6 @@ struct RNNParams : public primitive_base<PType> {
               const padding& output_padding = padding(),
               const int num_outputs = 1)
         : primitive_base<PType>(id, {x}, num_outputs, {optional_data_type()}, {output_padding}),
-        id(id),
         x(x),
         initial_hidden_state(initial_hidden_state),
         initial_cell_state(initial_cell_state),
@@ -66,9 +65,7 @@ struct RNNParams : public primitive_base<PType> {
         activations(activations),
         activation_params(activation_params),
         offset_order(offset_order),
-        direction(direction),
-        output_padding(output_padding),
-        num_outputs(num_outputs) {
+        direction(direction) {
         std::vector<std::string> pids{initial_hidden_state.pid, initial_cell_state.pid, W.pid, R.pid, B.pid, seq_lenghts.pid, out1_prim_id, out2_prim_id};
         assert(direction == ov::op::RecurrentSequenceDirection::FORWARD || direction == ov::op::RecurrentSequenceDirection::REVERSE);
         for (auto pid : pids) {
@@ -78,7 +75,6 @@ struct RNNParams : public primitive_base<PType> {
         }
     }
 
-    primitive_id id;
     input_info x;
     input_info initial_hidden_state;
     input_info initial_cell_state;
@@ -99,12 +95,9 @@ struct RNNParams : public primitive_base<PType> {
     lstm_weights_order offset_order;
     /// @brief direction of LSTMSequence - only FORWARD or REVERSE, currently BIDIRECTIONAL not supported
     ov::op::RecurrentSequenceDirection direction;
-    padding output_padding;
-    int num_outputs;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
-        seed = hash_combine(seed, id);
         seed = hash_combine(seed, x.pid);
         seed = hash_combine(seed, initial_hidden_state.pid);
         seed = hash_combine(seed, initial_cell_state.pid);
@@ -122,7 +115,6 @@ struct RNNParams : public primitive_base<PType> {
         }
         seed = hash_combine(seed, offset_order);
         seed = hash_combine(seed, direction);
-        seed = hash_combine(seed, num_outputs);
         return seed;
     }
 
@@ -139,7 +131,6 @@ struct RNNParams : public primitive_base<PType> {
 
         #define cmp_fields(name) name == rhs_casted.name
         return act_params_eq &&
-               cmp_fields(id) &&
                cmp_fields(x) &&
                cmp_fields(initial_hidden_state) &&
                cmp_fields(initial_cell_state) &&
@@ -152,15 +143,12 @@ struct RNNParams : public primitive_base<PType> {
                cmp_fields(clip) &&
                cmp_fields(activations) &&
                cmp_fields(offset_order) &&
-               cmp_fields(direction) &&
-               cmp_fields(output_padding) &&
-               cmp_fields(num_outputs);
+               cmp_fields(direction);
         #undef cmp_fields
     }
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<PType>::save(ob);
-        ob << id;
         ob << x;
         ob << initial_hidden_state;
         ob << initial_cell_state;
@@ -175,13 +163,10 @@ struct RNNParams : public primitive_base<PType> {
         ob << activation_params;
         ob << make_data(&offset_order, sizeof(lstm_weights_order));
         ob << make_data(&direction, sizeof(ov::op::RecurrentSequenceDirection));
-        ob << output_padding;
-        ob << num_outputs;
     }
 
     void load(BinaryInputBuffer& ib) override{
         primitive_base<PType>::load(ib);
-        ib >> id;
         ib >> x;
         ib >> initial_hidden_state;
         ib >> initial_cell_state;
@@ -196,8 +181,6 @@ struct RNNParams : public primitive_base<PType> {
         ib >> activation_params;
         ib >> make_data(&offset_order, sizeof(lstm_weights_order));
         ib >> make_data(&direction, sizeof(ov::op::RecurrentSequenceDirection));
-        ib >> output_padding;
-        ib >> num_outputs;
     }
 };
 
