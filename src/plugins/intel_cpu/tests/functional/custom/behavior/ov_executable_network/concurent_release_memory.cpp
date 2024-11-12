@@ -6,22 +6,22 @@
 
 #include <common_test_utils/test_common.hpp>
 #include <common_test_utils/test_constants.hpp>
-#include <condition_variable>
 #include <openvino/core/model.hpp>
 #include <openvino/op/op.hpp>
 #include <openvino/openvino.hpp>
+
 #include <thread>
+#include <condition_variable>
 
 namespace ov {
-namespace intel_cpu {
-namespace cpu_unit_test {
+namespace test {
 // Openvino extension operation that sleeps for X us in its evaluate method
 
-class Sleep : public ov::op::Op {
+class SleepCustomOp : public ov::op::Op {
 public:
-    OPENVINO_OP("Sleep");
-    Sleep() = default;
-    Sleep(const ov::OutputVector& args,
+    OPENVINO_OP("SleepCustomOp");
+    SleepCustomOp() = default;
+    SleepCustomOp(const ov::OutputVector& args,
           size_t sleep,
           std::shared_ptr<std::mutex> mutex,
           std::shared_ptr<std::condition_variable> cv,
@@ -40,7 +40,7 @@ public:
 
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override {
         OPENVINO_ASSERT(new_args.size() == 1, "Incorrect number of new arguments");
-        auto new_op = std::make_shared<Sleep>(new_args, m_sleep, m_mutex, m_cv, m_ready_flag);
+        auto new_op = std::make_shared<SleepCustomOp>(new_args, m_sleep, m_mutex, m_cv, m_ready_flag);
         return new_op;
     }
 
@@ -80,15 +80,10 @@ private:
     std::shared_ptr<std::condition_variable> m_cv;
     std::shared_ptr<std::atomic<bool>> m_ready_flag;
 };
-}  // namespace cpu_unit_test
-}  // namespace intel_cpu
-}  // namespace ov
 
 class ReleaseMemoryMultiThreadTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        using namespace ov::intel_cpu::cpu_unit_test;
-
         param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
 
         constexpr size_t sleep_time = 5;  // us
@@ -96,7 +91,7 @@ protected:
         cv = std::make_shared<std::condition_variable>();
         ready_flag = std::make_shared<std::atomic<bool>>(false);
 
-        auto sleep = std::make_shared<Sleep>(ov::OutputVector{param}, sleep_time, mutex, cv, ready_flag);
+        auto sleep = std::make_shared<SleepCustomOp>(ov::OutputVector{param}, sleep_time, mutex, cv, ready_flag);
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(sleep)};
         ov::ParameterVector params{param};
 
@@ -115,6 +110,10 @@ protected:
     std::shared_ptr<std::condition_variable> cv;
     std::shared_ptr<std::atomic<bool>> ready_flag;
 };
+}  // namespace test
+}  // namespace ov
+
+using namespace ov::test;
 
 TEST_F(ReleaseMemoryMultiThreadTest, smoke_throwInferenceIsRunning) {
     // Create and infer a few infer requests concurrently
