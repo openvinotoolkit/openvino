@@ -141,6 +141,7 @@ void Schedule::generate_workers(const std::string& device, const SoCompiledModel
                     } else {
                         stop_retry_and_continue();
                     }
+                    std::unique_lock<std::mutex> lck(m_worker_infer_mutex);
                     if (idleGuard.release()->try_push(
                             std::make_pair(worker_request_ptr->m_index, worker_request_ptr))) {
                         // let's try to pop a task, as we know there is at least one idle request, schedule if
