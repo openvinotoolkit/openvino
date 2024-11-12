@@ -26,11 +26,12 @@ Export an LLM model via Hugging Face Optimum-Intel
 As **NPU supports only symmetrically-quantized 4-bit (INT4) models**, make sure to export
 the model with the proper conversion and optimization settings.
 
-You may export LLMs via Optimum-Intel, using one of two compression methods:
-channel-wise quantization or group quantization. You do so by setting the ``--group-size``
-parameter to ``-1`` or ``128``, respectively. See the following example, using a
-chat-tuned TinyLlama model:
-``
+| You may export LLMs via Optimum-Intel, using one of two compression methods:
+| **group quantization** - for both smaller and larger models,
+| **channel-wise quantization** - remarkably effective but for models exceeding 1 billion
+parameters.
+
+You select one of the methods by setting the ``--group-size`` parameter to either ``128`` or ``-1``, respectively. See the following examples:
 
 
 
