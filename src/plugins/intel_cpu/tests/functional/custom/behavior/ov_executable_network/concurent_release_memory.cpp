@@ -16,6 +16,9 @@
 namespace ov {
 namespace test {
 // Openvino extension operation that sleeps for X us in its evaluate method
+namespace {
+enum class TestSteps { INIT, ENTER_EVALUATE, RUN_EVALUATE };
+}  // namespace
 
 class SleepCustomOp : public ov::op::Op {
 public:
@@ -25,12 +28,12 @@ public:
           size_t sleep,
           std::shared_ptr<std::mutex> mutex,
           std::shared_ptr<std::condition_variable> cv,
-          std::shared_ptr<std::atomic<bool>> ready_flag)
+          std::shared_ptr<std::atomic<TestSteps>> test_step)
         : Op(args),
           m_sleep(sleep),
           m_mutex(mutex),
           m_cv(cv),
-          m_ready_flag(ready_flag) {
+          m_test_step(test_step) {
         constructor_validate_and_infer_types();
     }
 
@@ -40,7 +43,7 @@ public:
 
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override {
         OPENVINO_ASSERT(new_args.size() == 1, "Incorrect number of new arguments");
-        auto new_op = std::make_shared<SleepCustomOp>(new_args, m_sleep, m_mutex, m_cv, m_ready_flag);
+        auto new_op = std::make_shared<SleepCustomOp>(new_args, m_sleep, m_mutex, m_cv, m_test_step);
         return new_op;
     }
 
@@ -53,11 +56,17 @@ public:
     }
 
     bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override {
+        // signal entering the evaluate method
+        {
+            std::lock_guard<std::mutex> lock(*m_mutex);
+            m_test_step->store(TestSteps::ENTER_EVALUATE);
+        }
+        m_cv->notify_all();
         {
             // this is required to start all the evaluate calls at the same time
             std::unique_lock<std::mutex> lock(*m_mutex);
             m_cv->wait(lock, [&] {
-                return m_ready_flag->load();
+                return m_test_step->load() == TestSteps::RUN_EVALUATE;
             });
         }
         std::this_thread::sleep_for(std::chrono::microseconds(m_sleep));
@@ -78,7 +87,7 @@ private:
     size_t m_sleep;  // sleep time in us
     std::shared_ptr<std::mutex> m_mutex;
     std::shared_ptr<std::condition_variable> m_cv;
-    std::shared_ptr<std::atomic<bool>> m_ready_flag;
+    std::shared_ptr<std::atomic<TestSteps>> m_test_step;
 };
 
 class ReleaseMemoryMultiThreadTest : public ::testing::Test {
@@ -89,9 +98,9 @@ protected:
         constexpr size_t sleep_time = 5;  // us
         mutex = std::make_shared<std::mutex>();
         cv = std::make_shared<std::condition_variable>();
-        ready_flag = std::make_shared<std::atomic<bool>>(false);
+        test_step = std::make_shared<std::atomic<TestSteps>>(TestSteps::INIT);
 
-        auto sleep = std::make_shared<SleepCustomOp>(ov::OutputVector{param}, sleep_time, mutex, cv, ready_flag);
+        auto sleep = std::make_shared<SleepCustomOp>(ov::OutputVector{param}, sleep_time, mutex, cv, test_step);
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(sleep)};
         ov::ParameterVector params{param};
 
@@ -101,14 +110,14 @@ protected:
     }
 
 protected:
-    const size_t num_streams = 4;
+    const size_t num_streams = 1; // use only one async stream to simplify invocation order syncronization
     ov::Core core;
     ov::CompiledModel compiled_model;
     std::shared_ptr<ov::op::v0::Parameter> param;
 
     std::shared_ptr<std::mutex> mutex;
     std::shared_ptr<std::condition_variable> cv;
-    std::shared_ptr<std::atomic<bool>> ready_flag;
+    std::shared_ptr<std::atomic<TestSteps>> test_step;
 };
 }  // namespace test
 }  // namespace ov
@@ -128,14 +137,22 @@ TEST_F(ReleaseMemoryMultiThreadTest, smoke_throwInferenceIsRunning) {
         inferRequest.start_async();
     }
 
+    //wait till the infer request enters evaluate
+    {
+        std::unique_lock<std::mutex> lock(*mutex);
+        cv->wait(lock, [&] {
+            return test_step->load() == TestSteps::ENTER_EVALUATE;
+        });
+    }
+
     // While the infer requests are waiting on the cv, call release_memory.
     // We expect that the method will throw an exception when it is called while infer requests are running.
     EXPECT_THROW(compiled_model.release_memory(), ov::Exception);
 
+    // lets unlock cv
     {
-        // lets unlock cv
         std::lock_guard<std::mutex> lock(*mutex);
-        ready_flag->store(true);
+        test_step->store(TestSteps::RUN_EVALUATE);
     }
     cv->notify_all();
 
@@ -157,10 +174,18 @@ TEST_F(ReleaseMemoryMultiThreadTest, smoke_noThrowInferenceIsNotRunning) {
         inferRequest.start_async();
     }
 
+    //wait till the infer request enters evaluate
     {
-        // lets unlock cv
+        std::unique_lock<std::mutex> lock(*mutex);
+        cv->wait(lock, [&] {
+            return test_step->load() == TestSteps::ENTER_EVALUATE;
+        });
+    }
+
+    // lets unlock cv
+    {
         std::lock_guard<std::mutex> lock(*mutex);
-        ready_flag->store(true);
+        test_step->store(TestSteps::RUN_EVALUATE);
     }
     cv->notify_all();
 
