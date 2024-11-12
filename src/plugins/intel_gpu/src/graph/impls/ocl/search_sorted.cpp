@@ -3,10 +3,9 @@
 //
 
 #include "primitive_base.hpp"
-
-#include "search_sorted_inst.h"
-#include "search_sorted/search_sorted_kernel_selector.h"
 #include "search_sorted/search_sorted_kernel_base.h"
+#include "search_sorted/search_sorted_kernel_selector.h"
+#include "search_sorted_inst.h"
 
 namespace cldnn {
 namespace ocl {
@@ -27,28 +26,55 @@ struct search_sorted_impl : typed_primitive_impl_ocl<search_sorted> {
         const auto& primitive = impl_param.typed_desc<search_sorted>();
         auto params = get_default_params<kernel_selector::search_sorted_params>(impl_param);
 
+        // Manually add all inputs except first one, since get_default_params does not handle it.
+        for (size_t i = 1; i < impl_param.input_layouts.size(); ++i) {
+            params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
+        }
+
         params.right_mode = primitive->right_mode;
         return params;
+    }
+
+    // [NOTE]: Has to be added as a separete static function, since it is called via static dispatching in
+    // typed_primitive_impl_ocl::create()..
+    static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
+        auto updated_impl_params = canonicalize_fused_shapes(impl_params);
+
+        for (auto& input_layout : updated_impl_params.input_layouts) {
+            input_layout.set_partial_shape(extend_shape_to_rank_from_begin(input_layout.get_partial_shape()));
+        }
+
+        for (auto& output_layout : updated_impl_params.output_layouts) {
+            output_layout.set_partial_shape(extend_shape_to_rank_from_begin(output_layout.get_partial_shape()));
+        }
+
+        return updated_impl_params;
+    }
+
+    kernel_impl_params canonicalize_shapes(const kernel_impl_params& impl_params) const override {
+        return static_canonicalize_shapes(impl_params);
     }
 };
 
 namespace detail {
 
 attach_search_sorted_impl::attach_search_sorted_impl() {
-    implementation_map<search_sorted>::add(impl_types::ocl, typed_primitive_impl_ocl<search_sorted>::create<search_sorted_impl>, {
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::i64, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfzyx),
-        std::make_tuple(data_types::u8, format::bfzyx),
-        std::make_tuple(data_types::i32, format::bfzyx),
-        std::make_tuple(data_types::i64, format::bfzyx),
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-    });
+    implementation_map<search_sorted>::add(impl_types::ocl,
+                                           typed_primitive_impl_ocl<search_sorted>::create<search_sorted_impl>,
+                                           {
+                                               std::make_tuple(data_types::i8, format::bfyx),
+                                               std::make_tuple(data_types::u8, format::bfyx),
+                                               std::make_tuple(data_types::i32, format::bfyx),
+                                               std::make_tuple(data_types::i64, format::bfyx),
+                                               std::make_tuple(data_types::f32, format::bfyx),
+                                               std::make_tuple(data_types::f16, format::bfyx),
+                                               std::make_tuple(data_types::i8, format::bfzyx),
+                                               std::make_tuple(data_types::u8, format::bfzyx),
+                                               std::make_tuple(data_types::i32, format::bfzyx),
+                                               std::make_tuple(data_types::i64, format::bfzyx),
+                                               std::make_tuple(data_types::f32, format::bfzyx),
+                                               std::make_tuple(data_types::f16, format::bfzyx),
+                                           });
 }
 
 }  // namespace detail

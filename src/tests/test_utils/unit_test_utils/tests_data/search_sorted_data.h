@@ -16,6 +16,22 @@
 TEST_DATA(LIST(5),
           LIST(2, 3),
           false,
+          LIST(3, 3, 3, 3, 3),
+          LIST(3, 6, 9, 3, 6, 9),
+          LIST(0, 5, 5, 0, 5, 5),
+          "1d_tensor_0");
+
+TEST_DATA(LIST(5),
+          LIST(2, 3),
+          true,
+          LIST(3, 3, 3, 3, 3),
+          LIST(3, 6, 9, 3, 6, 9),
+          LIST(5, 5, 5, 5, 5, 5),
+          "1d_tensor_0_right_mode");
+
+TEST_DATA(LIST(5),
+          LIST(2, 3),
+          false,
           LIST(1, 3, 5, 7, 9),
           LIST(3, 6, 9, 3, 6, 9),
           LIST(1, 3, 4, 1, 3, 4),
@@ -83,4 +99,4 @@ TEST_DATA(LIST(2, 2, 5),
           LIST(1, 3, 5, 7, 9, 0, 2, 4, 6, 8, -20, 5, 10, 23, 41, 100, 125, 130, 132, 139),
           LIST(0, 6, 20, 1, 6, 9, 1, 0, 0, 9, 10, 20),
           LIST(0, 3, 5, 1, 4, 5, 1, 1, 1, 0, 0, 0),
-          "nd_tensor_3");
+          "nd_tensor_2_right_mode");
