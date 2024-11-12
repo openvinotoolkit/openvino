@@ -551,7 +551,9 @@ TensorWrapper SyncInferRequest::create_or_share_device_tensor(const TensorWrappe
     auto usm_host_raw_ptr = engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu &&
                             user_tensor_mem_type == cldnn::allocation_type::usm_host;
 
-    bool can_share = !is_convert_required(user_tensor->get_element_type(), element_type) && can_use_usm_host(engine, total_output_bytes) && !generic_remote_tensor;
+    bool can_share = !is_convert_required(user_tensor->get_element_type(), element_type)
+                     && can_use_usm_host(engine, total_output_bytes)
+                     && !generic_remote_tensor;
 
     if (usm_host_tensor && can_share && m_context == usm_host_tensor->get_impl()->get_context()) {
         return { usm_host_tensor->get_impl(), user_tensor_wrapper.owner };
