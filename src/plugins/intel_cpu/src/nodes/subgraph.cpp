@@ -1007,9 +1007,6 @@ void Subgraph::SubgraphExecutor::execute(dnnl::stream strm, std::vector<MemoryPt
 }
 
 void Subgraph::SubgraphExecutor::reorder_execute(dnnl::stream strm, std::vector<MemoryPtr> inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
-    std::cout << "[ INFO ] Reorder execute is called\n";
-    // TODO: discuss whether it is applicable to create new memory object from scratchpad on each inference
-    // As an alternative option, the separate memory object (not from scratchpad) can be created once on Executor constructor stage
     const auto internal_buffer_size = static_cast<size_t>(m_nthreads) * m_buffer_scratchpad_size;
     size_t offset = internal_buffer_size;
     for (const auto& requested_descs_elem : m_in_requested_descs) {
@@ -1021,9 +1018,6 @@ void Subgraph::SubgraphExecutor::reorder_execute(dnnl::stream strm, std::vector<
         scratch_mem->load(*inMemPtrs[in_idx]);
         inMemPtrs[in_idx] = scratch_mem;
         offset += requested_desc->getCurrentMemSize();
-        std::cout << "scratch_mem is used for requested desc " << in_idx
-                  << ", ptr = " << scratch_mem->getData() << std::endl;
-        std::cout << "m_scratch = " << m_buffer_scratchpad->getData() << std::endl;
     }
     exec_impl(inMemPtrs, outMemPtrs);
 }

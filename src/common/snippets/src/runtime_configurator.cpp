@@ -391,7 +391,6 @@ bool RuntimeConfigurator::MHAParallelWAOptimizer::optimize(std::vector<ov::snipp
     size_t new_batch_dim, new_kernel_dim;
     if (!SplitDimensionM::split(configurator->m_config->master_shape, concurrency, new_batch_dim, new_kernel_dim))
         return false;
-    std::cout << "[ INFO ] MHAParallelWAOptimizer works\n";
     auto& master_shape = configurator->m_config->master_shape;
     *++master_shape.rbegin() = new_kernel_dim;
     master_shape.insert(master_shape.cbegin() + master_shape.size() - 2, new_batch_dim);
