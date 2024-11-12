@@ -5,6 +5,7 @@
 #pragma once
 
 #include "snippets/runtime_configurator.hpp"
+#include "snippets/runtime_optimizer.hpp"
 
 #include "snippets/lowered/port_descriptor.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
@@ -15,15 +16,14 @@ namespace ov {
 namespace intel_cpu {
 
 class CPURuntimeConfigurator;
-class BrgemmExternalRepackingAdjuster {
+class BrgemmExternalRepackingAdjuster : public ov::snippets::RuntimeOptimizer {
 public:
     BrgemmExternalRepackingAdjuster() = default;
-    BrgemmExternalRepackingAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir, CPURuntimeConfigurator* configurator);
+    BrgemmExternalRepackingAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir, snippets::RuntimeConfigurator* configurator);
 
-    void optimize(const ov::snippets::lowered::LinearIRCPtr& linear_ir);
+    bool optimize(const ov::snippets::lowered::LinearIRCPtr& linear_ir) override;
 
 private:
-    CPURuntimeConfigurator* m_configurator = nullptr;
     std::set<size_t> m_param_idces_with_external_repacking;
 };
 

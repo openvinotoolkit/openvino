@@ -17,15 +17,15 @@ namespace ov {
 namespace intel_cpu {
 
 #ifdef OPENVINO_ARCH_ARM64
-BrgemmExternalRepackingAdjuster::BrgemmExternalRepackingAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
-}
+BrgemmExternalRepackingAdjuster::BrgemmExternalRepackingAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
+                                                                 snippets::RuntimeConfigurator* configurator) {}
 
-void BrgemmExternalRepackingAdjuster::optimize() {
+bool BrgemmExternalRepackingAdjuster::optimize(const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
 }
 #else
 BrgemmExternalRepackingAdjuster::BrgemmExternalRepackingAdjuster(
     const ov::snippets::lowered::LinearIRCPtr& linear_ir,
-    CPURuntimeConfigurator* configurator) : m_configurator(configurator) {
+    snippets::RuntimeConfigurator* configurator) : snippets::RuntimeOptimizer(configurator) {
     const auto& params = linear_ir->get_parameters();
     for (size_t i = 0; i < params.size(); ++i) {
         const auto& param = params[i];
@@ -41,7 +41,10 @@ BrgemmExternalRepackingAdjuster::BrgemmExternalRepackingAdjuster(
     }
 }
 
-void BrgemmExternalRepackingAdjuster::optimize(const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
+bool BrgemmExternalRepackingAdjuster::optimize(const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
+    if (m_param_idces_with_external_repacking.empty())
+        return false;
+
     const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(m_configurator->get_config());
     auto& optimal_descs = cpu_config->m_in_requested_descs;
     for (const auto& i : m_param_idces_with_external_repacking) {
@@ -73,6 +76,7 @@ void BrgemmExternalRepackingAdjuster::optimize(const ov::snippets::lowered::Line
         // TODO: Support non-planar layout
         OPENVINO_ASSERT(ov::snippets::utils::is_planar_layout(m_configurator->get_config()->layouts[i]));
     }
+    return true;
 }
 #endif
 
