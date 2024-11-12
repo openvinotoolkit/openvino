@@ -486,7 +486,7 @@ static constexpr Property<bool> enable_cpu_pinning{"ENABLE_CPU_PINNING"};
  * Cpu Reservation means reserve cpus which will not be used by other plugin. Developer can use this property to
  * enable or disable CPU reservation during inference on Windows and Linux. MacOS
  * does not support CPU reservation, and this property is always disabled.
- * This property defaults to false. If it explicitly set to true, cpu_pinning defaults to true.
+ * This property defaults to false.
  *
  * The following code is example to use this property.
  *
