@@ -25,7 +25,7 @@ from about 25GB to 4GB using 4-bit weight compression.
    compression may result in more accuracy reduction than with larger models.
    Therefore, weight compression is recommended for use with LLMs only.
 
-LLMs and other models that require
+LLMs and other GenAI models that require
 extensive memory to store the weights during inference can benefit
 from weight compression as it:
 
