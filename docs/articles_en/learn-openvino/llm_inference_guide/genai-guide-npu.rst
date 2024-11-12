@@ -100,7 +100,6 @@ you need to add ``do_sample=False`` **to the** ``generate()`` **method:**
          import openvino_genai as ov_genai
          model_path = "TinyLlama"
          pipe = ov_genai.LLMPipeline(model_path, "NPU")
-         # Add 'do_sample=False' to 'generate()' method.
          print(pipe.generate("The Sun is yellow because", max_new_tokens=100, do_sample=False))
 
    .. tab-item:: C++
