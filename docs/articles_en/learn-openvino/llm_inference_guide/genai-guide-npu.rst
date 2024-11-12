@@ -106,7 +106,7 @@ you need to add ``do_sample=False`` **to the** ``generate()`` **method:**
       :sync: cpp
 
       .. code-block:: cpp
-         :emphasize-lines: 8, 10
+         :emphasize-lines: 7, 9
 
          #include "openvino/genai/llm_pipeline.hpp"
          #include <iostream>
