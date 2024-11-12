@@ -2,7 +2,11 @@ import numpy as np
 import paddle
 from save_model import exportModel
 import sys
-
+from paddle.base.framework import in_dygraph_mode
+if paddle.__version__ >= '2.6.0':
+    from paddle.base.layer_helper import LayerHelper
+else:
+    from paddle.fluid.layer_helper import LayerHelper
 def randtool(dtype, low, high, shape):
     """
     np random tools
