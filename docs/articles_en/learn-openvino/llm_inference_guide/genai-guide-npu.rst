@@ -115,7 +115,6 @@ you need to add ``do_sample=False`` **to the** ``generate()`` **method:**
          int main(int argc, char* argv[]) {
             std::string model_path = "TinyLlama";
             ov::genai::GenerationConfig config;
-            // Add 'do_sample=false' to 'generate()' method.
             config.do_sample=false;
             config.max_new_tokens=100;
             std::cout << pipe.generate("The Sun is yellow because", config);
