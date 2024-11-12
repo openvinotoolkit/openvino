@@ -34,6 +34,9 @@ from openvino.ie_api import AsyncInferQueue
 
 from openvino._pyopenvino import Symbol
 from openvino._pyopenvino import Dimension
+from openvino._pyopenvino import Input
+from openvino._pyopenvino import Output
+from openvino._pyopenvino import Node
 from openvino._pyopenvino import Strides
 from openvino._pyopenvino import PartialShape
 from openvino._pyopenvino import Shape
