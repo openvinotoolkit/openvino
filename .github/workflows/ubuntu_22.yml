@@ -477,7 +477,7 @@ jobs:
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
             -S ${OPENVINO_CONTRIB_REPO}/modules/nvidia_plugin \
             -B ${NVIDIA_BUILD_DIR}
-          cmake --build ${NVIDIA_BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --verbose -- ov_nvidia_func_tests ov_nvidia_unit_tests
+          cmake --build ${NVIDIA_BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} --verbose -- ov_nvidia_func_tests ov_nvidia_unit_tests
 
       - name: Show ccache stats
         run: ${SCCACHE_PATH} --show-stats
