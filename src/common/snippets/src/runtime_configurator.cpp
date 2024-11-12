@@ -60,7 +60,7 @@ void RuntimeConfigurator::initialization(const lowered::LinearIRCPtr& linear_ir)
     init_buffer_info(linear_ir);
 
     OPENVINO_ASSERT(m_io_num > 0, "LinearIR must have parameters and results");
-    m_latest_shapes.resize(m_io_num);
+    m_config->m_latest_shapes.resize(m_io_num);
     m_config->io_data_offsets.resize(m_io_num);
     m_config->tile_rank = linear_ir->get_config().m_loop_depth;
     m_optimizer = MHAParallelWAOptimizer(linear_ir, this);
@@ -80,7 +80,7 @@ void RuntimeConfigurator::update(const lowered::LinearIRCPtr& linear_ir) {
     // because `ComputeAllocationSize` depends on subtensors which are updated in the table
     get_kernel_executor_table()->update_state(linear_ir);
     update_buffer_scratchpad_size(linear_ir);
-    m_latest_shapes = std::move(shapes);
+    m_config->m_latest_shapes = std::move(shapes);
 }
 
 void RuntimeConfigurator::update_tensor_rank(const ov::snippets::VectorDims& master_shape) {
@@ -272,7 +272,7 @@ void RuntimeConfigurator::update_data_offsets(const std::vector<VectorDims>& sha
         //    offsets: s1*s3, s3,       0,  1
         const auto& shape = shapes[i];
         OPENVINO_ASSERT(m_config->tensor_rank >= shape.size(), "Incorrect tensor rank!");
-        if (shape == m_latest_shapes[i])
+        if (shape == m_config->m_latest_shapes[i])
             continue;
         if (utils::is_dynamic_vdims(shape))
             return;

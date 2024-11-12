@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include "snippets/runtime_configurator.hpp"
-
-#include "snippets/lowered/port_descriptor.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
-
+#include "external_repacking_adjuster.hpp"
 #include "memory_desc/cpu_blocked_memory_desc.h"
+#include "snippets/lowered/port_descriptor.hpp"
+#include "snippets/runtime_configurator.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -56,19 +55,7 @@ protected:
                            std::vector<snippets::lowered::ExpandedLoopInfoPtr>> m_affected_uni2exp_map;
     } loopPortsAdjuster;
 
-    class BrgemmExternalRepackingAdjuster {
-    public:
-        BrgemmExternalRepackingAdjuster() = default;
-        BrgemmExternalRepackingAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir, CPURuntimeConfigurator* configurator);
-
-        void optimize(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
-                      const std::vector<ov::snippets::VectorDims>& shapes,
-                      const std::vector<std::vector<size_t>>& layouts);
-
-    private:
-        CPURuntimeConfigurator* m_configurator = nullptr;
-        std::set<size_t> m_param_idces_with_external_repacking;
-    } externalRepackingAdjuster;
+    BrgemmExternalRepackingAdjuster externalRepackingAdjuster;
 };
 
 }   // namespace intel_cpu

@@ -44,12 +44,15 @@ public:
     size_t tensor_rank = 0;
     size_t tile_rank = 0;
 
+    std::vector<ov::snippets::VectorDims> input_shapes = {};
+    std::vector<ov::snippets::VectorDims> input_layouts = {};
     std::vector<ov::snippets::VectorDims> io_data_offsets = {};
     ov::snippets::VectorDims master_shape = {};
 
     size_t buffer_scratchpad_size = 0;
     std::vector<size_t> buffer_cluster_offsets {};
     KernelExecutorTablePtr kernel_executor_table = std::make_shared<ov::snippets::KernelExecutorTable>();
+    std::vector<ov::snippets::VectorDims> m_latest_shapes = {};
 };
 
 /**
@@ -82,6 +85,20 @@ public:
      * @brief Reset KernelExecutor table
      */
     void reset_kernel_executor_table() const;
+
+    // Getters for private members
+    std::shared_ptr<RuntimeConfig> get_config() const { return m_config; }
+    size_t get_io_num() const { return m_io_num; }
+    size_t get_in_num() const { return m_in_num; }
+    const std::vector<snippets::lowered::PortDescriptorPtr>& get_io_descs() const { return m_io_descs; }
+    const std::vector<size_t>& get_io_data_sizes() const { return m_io_data_sizes; }
+    const std::map<size_t, std::set<lowered::BufferExpressionPtr>>& get_dynamic_buffer_clusters() const { return m_dynamic_buffer_clusters; }
+
+    static void compute_offsets(const ov::snippets::VectorDims& shape,
+                                ov::snippets::VectorDims& offsets,
+                                size_t offsets_size,
+                                size_t dim_step,
+                                size_t idx_stride);
 
 protected:
     /**
@@ -157,12 +174,6 @@ protected:
      */
     std::vector<std::vector<size_t>> extract_layouts() const;
 
-    static void compute_offsets(const ov::snippets::VectorDims& shape,
-                                ov::snippets::VectorDims& offsets,
-                                size_t offsets_size,
-                                size_t dim_step,
-                                size_t idx_stride);
-
     class MHAParallelWAOptimizer {
     public:
         MHAParallelWAOptimizer() = default;
@@ -208,8 +219,6 @@ protected:
     std::vector<size_t> m_io_data_sizes = {};
     // [cluster_id -> buffer expressions ]
     std::map<size_t, std::set<lowered::BufferExpressionPtr>> m_dynamic_buffer_clusters = {};
-
-    std::vector<ov::snippets::VectorDims> m_latest_shapes = {};
 };
 
 } // namespace snippets
