@@ -1683,12 +1683,15 @@ TEST_F(TransformationTestsF, TransposeSinkingCommonReshapeUnsqueezeBackwardSameS
         auto ts_order = std::make_shared<Constant>(element::u64, Shape{3}, Shape{1, 0, 2});
         return std::make_shared<Transpose>(parent, ts_order);
     };
+    auto create_reshape = [](const std::shared_ptr<ov::Node>& parent) {
+        auto reshape_const = std::make_shared<Constant>(element::u64, Shape{3}, Shape{4, 5, 6});
+        return std::make_shared<Reshape>(parent, reshape_const, false);
+    };
 
     const Shape input_shape = {4, 5, 6};
     {
         auto X = std::make_shared<Parameter>(element::f32, input_shape);
-        auto reshape_const = std::make_shared<Constant>(element::u64, Shape{3}, Shape{4, 5, 6});
-        auto reshape = std::make_shared<Reshape>(X, reshape_const, false);
+        auto reshape = create_reshape(X);
         auto transpose = create_transpose(reshape);
         model = std::make_shared<Model>(ov::OutputVector{transpose}, ov::ParameterVector{X});
     }
@@ -1696,8 +1699,28 @@ TEST_F(TransformationTestsF, TransposeSinkingCommonReshapeUnsqueezeBackwardSameS
     {
         auto X = std::make_shared<Parameter>(element::f32, input_shape);
         auto transpose = create_transpose(X);
-        model_ref = std::make_shared<Model>(ov::OutputVector{transpose}, ov::ParameterVector{X});
+        auto reshape = create_reshape(transpose);
+        model_ref = std::make_shared<Model>(ov::OutputVector{reshape}, ov::ParameterVector{X});
     }
+
+    manager.register_pass<TSUnsqueezeBackward>();
+}
+
+TEST_F(TransformationTestsF, TransposeSinkingCommonReshapeUnsqueezeBackwardSameShapeSpecialOne) {
+    auto create_transpose = [](const std::shared_ptr<ov::Node>& parent) {
+        auto ts_order = std::make_shared<Constant>(element::u64, Shape{3}, Shape{1, 0, 2});
+        return std::make_shared<Transpose>(parent, ts_order);
+    };
+
+    {
+        auto X = std::make_shared<Parameter>(element::f32, Shape{4, 5, 6});
+        auto reshape_const = std::make_shared<Constant>(element::i64, Shape{3}, std::vector<int>{4, 5, -1});
+        auto reshape = std::make_shared<Reshape>(X, reshape_const, false);
+        auto transpose = create_transpose(reshape);
+        model = std::make_shared<Model>(ov::OutputVector{transpose}, ov::ParameterVector{X});
+    }
+
+    model_ref = model->clone();
 
     manager.register_pass<TSUnsqueezeBackward>();
 }

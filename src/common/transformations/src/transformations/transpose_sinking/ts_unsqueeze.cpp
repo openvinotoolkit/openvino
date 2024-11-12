@@ -158,6 +158,23 @@ TSUnsqueezeForward::TSUnsqueezeForward() {
     transpose_sinking(matcher_name, sinking_transformation);
 }
 
+namespace {
+bool AreInputOutputShapesEqual(const std::shared_ptr<ov::op::v1::Reshape>& reshape) {
+    const auto input_shape = reshape->get_input_partial_shape(0);
+    const auto output_shape = reshape->get_output_partial_shape(0);
+
+    if (input_shape.is_dynamic() || output_shape.is_dynamic()) {
+        return false;
+    }
+    return input_shape == output_shape;
+}
+
+bool HasSpecialOne(const std::shared_ptr<ov::op::v0::Constant>& reshape_const) {
+    auto const_value = reshape_const->cast_vector<int>();
+    return std::find(const_value.begin(), const_value.end(), -1) != const_value.end();
+}
+}  // namespace
+
 TSUnsqueezeBackward::TSUnsqueezeBackward() {
     MATCHER_SCOPE(TSUnsqueezeBackward);
 
@@ -178,18 +195,21 @@ TSUnsqueezeBackward::TSUnsqueezeBackward() {
             return false;
         }
 
-        // if main_node does nothing, just remove it
-        if (main_node->get_input_partial_shape(0) == main_node->get_output_partial_shape(0)) {
-            auto parent_node = main_node->get_input_node_shared_ptr(0);
-            main_node->output(0).replace(parent_node->output(0));
-            register_new_node(transpose);
-            return true;
-        }
-
         auto transpose_order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
         auto unsqueeze_axes = ov::as_type_ptr<ov::op::v0::Constant>(main_node->get_input_node_shared_ptr(1));
         if (!transpose_order || !unsqueeze_axes)
             return false;
+
+        // if main_node does nothing, just remove it
+        auto reshape = as_type_ptr<ov::op::v1::Reshape>(main_node);
+        if (reshape && AreInputOutputShapesEqual(reshape) && !HasSpecialOne(unsqueeze_axes)) {
+            for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node, transpose_order, {0})) {
+                register_new_node(new_node);
+            }
+            main_node->validate_and_infer_types();
+            RemoveTransposeConsumers(main_node);
+            return true;
+        }
 
         std::vector<size_t> non_negative_axes;
         if (as_type_ptr<ov::op::v1::Reshape>(main_node)) {
