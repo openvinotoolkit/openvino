@@ -124,11 +124,11 @@ Places to Begin
 
       Cloud-ready deployments for microservice applications.
 
-      .. button-link:: openvino-workflow/running-inference.html
+      .. button-link:: openvino-workflow/model-server/ovms_what_is_openvino_model_server.html
          :color: primary
          :outline:
 
-         Try it out
+         Check out Model Server
 
    .. grid-item-card:: Model Compression
       :img-top: ./assets/images/home_begin_tile_06.png

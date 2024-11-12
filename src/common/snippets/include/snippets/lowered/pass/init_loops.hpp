@@ -25,7 +25,7 @@ public:
     bool run(LinearIR& linear_ir) override;
 
 private:
-    static void update_compile_parameters(const UnifiedLoopInfoPtr& loop_info, size_t loop_id);
+    static void update_compile_parameters(const UnifiedLoopInfoPtr& loop_info);
 };
 
 } // namespace pass

@@ -35,20 +35,21 @@ struct ZeProfilingTypeId<uint8_t> {
 };
 
 bool ProfilingPool::create() {
-    auto ret = _graph_profiling_ddi_table_ext.pfnProfilingPoolCreate(_graph_handle, _profiling_count, &_handle);
+    auto ret =
+        _init_structs->getProfilingDdiTable().pfnProfilingPoolCreate(_graph->get_handle(), _profiling_count, &_handle);
     return ((ZE_RESULT_SUCCESS == ret) && (_handle != nullptr));
 }
 
 ProfilingPool::~ProfilingPool() {
     if (_handle) {
-        _graph_profiling_ddi_table_ext.pfnProfilingPoolDestroy(_handle);
+        _init_structs->getProfilingDdiTable().pfnProfilingPoolDestroy(_handle);
     }
 }
 
 void ProfilingQuery::create(const ze_graph_profiling_pool_handle_t& profiling_pool) {
     THROW_ON_FAIL_FOR_LEVELZERO(
         "pfnProfilingQueryCreate",
-        _graph_profiling_ddi_table_ext.pfnProfilingQueryCreate(profiling_pool, _index, &_handle));
+        _init_structs->getProfilingDdiTable().pfnProfilingQueryCreate(profiling_pool, _index, &_handle));
 }
 
 LayerStatistics ProfilingQuery::getLayerStatistics() const {
@@ -59,7 +60,7 @@ LayerStatistics ProfilingQuery::getLayerStatistics() const {
 
 ProfilingQuery::~ProfilingQuery() {
     if (_handle) {
-        _graph_profiling_ddi_table_ext.pfnProfilingQueryDestroy(_handle);
+        _init_structs->getProfilingDdiTable().pfnProfilingQueryDestroy(_handle);
     }
 }
 
@@ -69,7 +70,7 @@ void ProfilingQuery::queryGetData(const ze_graph_profiling_type_t profilingType,
     if (_handle && pSize) {
         THROW_ON_FAIL_FOR_LEVELZERO(
             "pfnProfilingQueryGetData",
-            _graph_profiling_ddi_table_ext.pfnProfilingQueryGetData(_handle, profilingType, pSize, pData));
+            _init_structs->getProfilingDdiTable().pfnProfilingQueryGetData(_handle, profilingType, pSize, pData));
     }
 }
 
@@ -95,13 +96,14 @@ void ProfilingQuery::getProfilingProperties(ze_device_profiling_data_properties_
     if (_handle && properties) {
         THROW_ON_FAIL_FOR_LEVELZERO(
             "getProfilingProperties",
-            _graph_profiling_ddi_table_ext.pfnDeviceGetProfilingDataProperties(_device_handle, properties));
+            _init_structs->getProfilingDdiTable().pfnDeviceGetProfilingDataProperties(_init_structs->getDevice(),
+                                                                                      properties));
     }
 }
 
 void ProfilingQuery::verifyProfilingProperties() const {
     if (!_handle) {
-        OPENVINO_THROW("Can't get profiling statistics because profiling is disabled.");
+        OPENVINO_THROW("No available profiling data.");
     }
     const auto stringifyVersion = [](auto version) -> std::string {
         return std::to_string(ZE_MAJOR_VERSION(version)) + "." + std::to_string(ZE_MINOR_VERSION(version));
@@ -179,30 +181,29 @@ NpuInferStatistics NpuInferProfiling::getNpuInferStatistics() const {
     return npuPerfCounts;
 }
 
-NpuInferProfiling::NpuInferProfiling(ze_context_handle_t context,
-                                     ze_device_handle_t device_handle,
+NpuInferProfiling::NpuInferProfiling(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                                      ov::log::Level loglevel)
-    : _context(context),
-      _device_handle(device_handle),
+    : _init_structs(init_structs),
       _loglevel(loglevel),
       _logger("InferProfiling", loglevel) {
     /// Fetch and store the device timer resolution
     _dev_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES_1_2;
-    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties", zeDeviceGetProperties(_device_handle, &_dev_properties));
+    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
+                                zeDeviceGetProperties(_init_structs->getDevice(), &_dev_properties));
     /// Request mem allocations
     ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC,
                                      nullptr,
                                      ZE_HOST_MEM_ALLOC_FLAG_BIAS_CACHED};
     THROW_ON_FAIL_FOR_LEVELZERO(
         "zeMemAllocHost",
-        zeMemAllocHost(_context,
+        zeMemAllocHost(_init_structs->getContext(),
                        &desc,
                        sizeof(uint64_t),
                        64,
                        &npu_ts_infer_start));  // align to 64 bytes to match npu l2 cache line size
     THROW_ON_FAIL_FOR_LEVELZERO(
         "zeMemAllocHost",
-        zeMemAllocHost(_context,
+        zeMemAllocHost(_init_structs->getContext(),
                        &desc,
                        sizeof(uint64_t),
                        64,
@@ -235,13 +236,13 @@ int64_t NpuInferProfiling::convertCCtoUS(int64_t val_cc) const {
 NpuInferProfiling::~NpuInferProfiling() {
     /// deallocate npu_ts_infer_start and npu_ts_infer_end, allocated externally by ze driver
     if (npu_ts_infer_start != nullptr) {
-        auto ze_ret = zeMemFree(_context, npu_ts_infer_start);
+        auto ze_ret = zeMemFree(_init_structs->getContext(), npu_ts_infer_start);
         if (ZE_RESULT_SUCCESS != ze_ret) {
             _logger.error("zeMemFree on npu_ts_infer_start failed %#X", uint64_t(ze_ret));
         }
     }
     if (npu_ts_infer_end != nullptr) {
-        auto ze_ret = zeMemFree(_context, npu_ts_infer_end);
+        auto ze_ret = zeMemFree(_init_structs->getContext(), npu_ts_infer_end);
         if (ZE_RESULT_SUCCESS != ze_ret) {
             _logger.error("zeMemFree on npu_ts_infer_end failed %#X", uint64_t(ze_ret));
         }

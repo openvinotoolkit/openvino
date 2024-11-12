@@ -47,8 +47,7 @@ const std::vector<std::pair<std::string, ov::Any>> compiledModelProperties = {
     {ov::hint::model_priority.name(), ov::Any(ov::hint::Priority::HIGH)},
     {ov::intel_npu::tiles.name(), ov::Any(2)},
     {ov::intel_npu::profiling_type.name(), ov::Any(ov::intel_npu::ProfilingType::INFER)},
-    {ov::intel_npu::use_elf_compiler_backend.name(), ov::Any(ov::intel_npu::ElfCompilerBackend::NO)},
-    {ov::intel_npu::create_executor.name(), ov::Any(2)}};
+    {ov::intel_npu::defer_weights_load.name(), ov::Any(false)}};
 
 const std::string& expectedModelName = []() -> std::string {
     return ov::test::behavior::getDefaultNGraphFunctionForTheDevice()->get_friendly_name();

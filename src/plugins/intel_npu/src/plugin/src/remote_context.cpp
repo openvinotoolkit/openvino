@@ -29,7 +29,7 @@ std::optional<Type> extract_object(const ov::AnyMap& params, const ov::Property<
 
 namespace intel_npu {
 
-RemoteContextImpl::RemoteContextImpl(std::shared_ptr<const NPUBackends> backends, const Config& config)
+RemoteContextImpl::RemoteContextImpl(const std::shared_ptr<const NPUBackends>& backends, const Config& config)
     : _backends(backends),
       _config(config),
       _properties({l0_context(backends->getContext())}),
