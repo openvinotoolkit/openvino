@@ -102,6 +102,7 @@ class BinaryManager {
       )
       console.log('OpenVINO runtime archive downloaded.');
 
+      await removeDirectory(destinationPath);
       await this.unarchive(archiveFilePath, destinationPath);
       console.log('The archive was successfully extracted.');
     } catch(error) {

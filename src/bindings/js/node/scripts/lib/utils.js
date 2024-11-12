@@ -24,11 +24,11 @@ module.exports = {
 async function removeDirectory(path) {
   try {
     console.log(`Removing ${path}`);
-    await fs.rm(path, { recursive: true, force: true });
+    await fs.rm(path, { recursive: true });
   } catch (error) {
-    if (error.code === codeENOENT) console.log(`Path: ${path} doesn't exist`);
+    if (error.code !== codeENOENT) throw error;
 
-    throw error;
+    console.warn(`Path: ${path} doesn't exist`);
   }
 }
 
