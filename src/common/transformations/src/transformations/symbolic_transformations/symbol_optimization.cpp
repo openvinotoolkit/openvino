@@ -18,6 +18,7 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "transformations/symbolic_transformations/utils.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
@@ -84,27 +85,28 @@ int64_t get_idx_of_symbol_in_source(const ov::Output<ov::Node>& source, const st
 }
 
 ov::Output<ov::Node> alternative_source_from_existing_value(const std::shared_ptr<ov::Symbol>& symbol,
-                                                            const ov::Output<ov::Node>& original_output,
+                                                            const ov::Shape& original_shape,
+                                                            const ov::element::Type& original_et,
+                                                            const std::shared_ptr<ov::Node>& node_to_copy_rt_info,
                                                             STS_map& symbol_value_source) {
     auto alternative_source = ov::Output<ov::Node>();
     if (symbol_value_source.count(symbol)) {
         alternative_source = symbol_value_source[symbol];
-        const auto &original_shape = original_output.get_shape(), &alternative_shape = alternative_source.get_shape();
-        const auto &original_et = original_output.get_element_type(),
-                   &alternative_et = alternative_source.get_element_type();
+        const auto& alternative_shape = alternative_source.get_shape();
+        const auto& alternative_et = alternative_source.get_element_type();
         if (alternative_shape != original_shape && (original_shape.empty() || original_shape == ov::Shape{0})) {
             auto squeeze = std::make_shared<ov::op::v0::Squeeze>(alternative_source);
-            ov::copy_runtime_info(original_output.get_node_shared_ptr(), squeeze);
+            ov::copy_runtime_info(node_to_copy_rt_info, squeeze);
             alternative_source = squeeze->output(0);
         } else if (alternative_shape != original_shape) {
             auto shape = ov::op::v0::Constant::create(ov::element::i64, {original_shape.size()}, original_shape);
             auto reshape = std::make_shared<ov::op::v1::Reshape>(alternative_source, shape, false);
-            ov::copy_runtime_info(original_output.get_node_shared_ptr(), reshape);
+            ov::copy_runtime_info(node_to_copy_rt_info, reshape);
             alternative_source = reshape->output(0);
         }
         if (alternative_et != original_et) {
             auto convert = std::make_shared<ov::op::v0::Convert>(alternative_source, original_et);
-            ov::copy_runtime_info(original_output.get_node_shared_ptr(), convert);
+            ov::copy_runtime_info(node_to_copy_rt_info, convert);
             alternative_source = convert->output(0);
         }
     }
@@ -113,7 +115,9 @@ ov::Output<ov::Node> alternative_source_from_existing_value(const std::shared_pt
 
 ov::Output<ov::Node> alternative_source_from_shape_source(const STS_map& symbol_shape_source,
                                                           const std::shared_ptr<ov::Symbol>& symbol,
-                                                          const ov::Output<ov::Node>& original_output,
+                                                          const ov::Shape& original_shape,
+                                                          const ov::element::Type& original_et,
+                                                          const std::shared_ptr<ov::Node>& node_to_copy_rt_info,
                                                           STS_map& symbol_value_source) {
     auto alternative_source = ov::Output<ov::Node>();
     if (symbol_shape_source.count(symbol)) {
@@ -122,22 +126,46 @@ ov::Output<ov::Node> alternative_source_from_shape_source(const STS_map& symbol_
         const int64_t& idx = get_idx_of_symbol_in_source(source, symbol);
         if (idx == -1)
             return alternative_source;
-        const auto& original_et = original_output.get_element_type();
         std::shared_ptr<ov::Node> shape;
         if (original_et == ov::element::i32 || original_et == ov::element::i64) {
             shape = std::make_shared<ov::op::v3::ShapeOf>(source, original_et);
         } else {
             shape = std::make_shared<ov::op::v3::ShapeOf>(source);
-            ov::copy_runtime_info(original_output.get_node_shared_ptr(), shape);
+            ov::copy_runtime_info(node_to_copy_rt_info, shape);
             shape = std::make_shared<ov::op::v0::Convert>(shape, original_et);
         }
-        auto indices = ov::op::v0::Constant::create(ov::element::i64, original_output.get_shape(), {idx});
+        auto indices = ov::op::v0::Constant::create(ov::element::i64, original_shape, {idx});
         auto axis = ov::op::v0::Constant::create(ov::element::i64, {}, {0});
         auto gather = std::make_shared<ov::op::v8::Gather>(shape, indices, axis);
-        ov::copy_runtime_info(original_output.get_node_shared_ptr(), {shape, indices, axis, gather});
+        ov::copy_runtime_info(node_to_copy_rt_info, {shape, indices, axis, gather});
         alternative_source = gather;
         symbol_value_source[symbol] = alternative_source;
     }
+    return alternative_source;
+}
+
+ov::Output<ov::Node> get_alternative_source_from_value_or_shape_source(
+    const STS_map& symbol_shape_source,
+    const std::shared_ptr<ov::Symbol>& symbol,
+    const ov::Shape& original_shape,
+    const ov::element::Type& original_et,
+    const std::shared_ptr<ov::Node>& node_to_copy_rt_info,
+    STS_map& symbol_value_source) {
+    auto alternative_source = ov::Output<ov::Node>();
+    if (symbol == nullptr)
+        return alternative_source;
+    alternative_source = alternative_source_from_existing_value(symbol,
+                                                                original_shape,
+                                                                original_et,
+                                                                node_to_copy_rt_info,
+                                                                symbol_value_source);
+    if (!alternative_source.get_node_shared_ptr())
+        alternative_source = alternative_source_from_shape_source(symbol_shape_source,
+                                                                  symbol,
+                                                                  original_shape,
+                                                                  original_et,
+                                                                  node_to_copy_rt_info,
+                                                                  symbol_value_source);
     return alternative_source;
 }
 
@@ -145,14 +173,12 @@ ov::Output<ov::Node> get_alternative_source_from_value_or_shape_source(const STS
                                                                        const std::shared_ptr<ov::Symbol>& symbol,
                                                                        const ov::Output<ov::Node>& original_output,
                                                                        STS_map& symbol_value_source) {
-    auto alternative_source = ov::Output<ov::Node>();
-    if (symbol == nullptr)
-        return alternative_source;
-    alternative_source = alternative_source_from_existing_value(symbol, original_output, symbol_value_source);
-    if (!alternative_source.get_node_shared_ptr())
-        alternative_source =
-            alternative_source_from_shape_source(symbol_shape_source, symbol, original_output, symbol_value_source);
-    return alternative_source;
+    return get_alternative_source_from_value_or_shape_source(symbol_shape_source,
+                                                             symbol,
+                                                             original_output.get_shape(),
+                                                             original_output.get_element_type(),
+                                                             original_output.get_node_shared_ptr(),
+                                                             symbol_value_source);
 }
 
 ov::Output<ov::Node> alternative_source_from_concat_input_sources(const STS_map& symbol_shape_source,
@@ -198,7 +224,9 @@ ov::Output<ov::Node> alternative_source_from_concat_input_sources(const STS_map&
     return alternative_source;
 }
 
-void optimize_value_usage(ov::Output<ov::Node>& output, STS_map& symbol_shape_source, STS_map& symbol_value_source) {
+void optimize_single_value_usage(ov::Output<ov::Node>& output,
+                                 STS_map& symbol_shape_source,
+                                 STS_map& symbol_value_source) {
     auto value_symbols = output.get_tensor().get_value_symbol();
     if (value_symbols.size() != 1)
         return;
@@ -316,16 +344,16 @@ std::vector<std::shared_ptr<ov::Node>> topological_order(const std::shared_ptr<o
 }
 
 void save_shape_sources(const std::shared_ptr<ov::Node>& op, STS_map& symbol_shape_source) {
-    if (ov::is_type<ov::op::v0::ShapeOf>(op) || ov::is_type<ov::op::v3::ShapeOf>(op)) {
-        const auto& output = op->input_value(0);
+    bool is_shape = ov::is_type<ov::op::v0::ShapeOf>(op) || ov::is_type<ov::op::v3::ShapeOf>(op);
+    bool is_parameter = ov::is_type<ov::op::v0::Parameter>(op);
+    if (is_shape || is_parameter) {
+        const auto& output = is_shape ? op->input_value(0) : op->output(0);
         if (output.get_partial_shape().rank().is_dynamic())
             return;
         for (const auto& d : output.get_partial_shape()) {
-            if (d.is_static())
+            if (d.is_static() || d.get_symbol() == nullptr)
                 continue;
-            auto symbol = d.get_symbol();
-            if (symbol == nullptr)
-                continue;
+            auto symbol = ov::symbol::ancestor_of(d.get_symbol());
             if (symbol_shape_source.count(symbol))
                 continue;
             symbol_shape_source[symbol] = output;
@@ -344,11 +372,9 @@ void save_shape_sources(const std::shared_ptr<ov::Node>& op, STS_map& symbol_sha
             if (input.get_partial_shape().rank().is_dynamic())
                 continue;
             const auto dimension = input.get_partial_shape()[axis];
-            if (dimension.is_static())
+            if (dimension.is_static() || dimension.get_symbol() == nullptr)
                 continue;
-            auto symbol = dimension.get_symbol();
-            if (symbol == nullptr)
-                continue;
+            auto symbol = ov::symbol::ancestor_of(dimension.get_symbol());
             if (symbol_shape_source.count(symbol))
                 continue;
             symbol_shape_source[symbol] = input;
@@ -402,27 +428,74 @@ struct OutputValue {
     }
 };
 
-void save_and_update_value_sources(const std::shared_ptr<ov::Node>& op,
-                                   std::map<OutputValue, ov::Output<ov::Node>>& multi_symbol_source) {
-    for (auto& output : op->outputs()) {
-        if (output.get_tensor().get_value_symbol().size() < 2)
-            continue;  // singular values are handled by optimize_value_usage helper
-
-        if (auto result = OutputValue::make(output)) {
-            if (multi_symbol_source.count(*result)) {
-                auto alternative_source = multi_symbol_source[*result];
-                if (output.get_element_type() != alternative_source.get_element_type()) {
-                    auto convert = std::make_shared<ov::op::v0::Convert>(alternative_source, output.get_element_type());
-                    ov::copy_runtime_info(output.get_node_shared_ptr(), convert);
-                    alternative_source = convert->output(0);
-                }
-                if (output.get_partial_shape().is_dynamic() ||
-                    output.get_partial_shape() != alternative_source.get_partial_shape())
-                    continue;
-                output.replace(alternative_source);
+void optimize_multi_value_usage(ov::Output<ov::Node>& output,
+                                std::map<OutputValue, ov::Output<ov::Node>>& multi_symbol_source,
+                                STS_map& symbol_shape_source,
+                                STS_map& symbol_value_source) {
+    if (output.get_tensor().get_value_symbol().size() < 2)
+        return;  // singular values are handled by optimize_single_value_usage helper
+    auto result = OutputValue::make(output);
+    if (!result)
+        return;
+    if (multi_symbol_source.count(*result)) {
+        // multiple value source have been seen before
+        auto alternative_source = multi_symbol_source[*result];
+        if (output.get_element_type() != alternative_source.get_element_type()) {
+            auto convert = std::make_shared<ov::op::v0::Convert>(alternative_source, output.get_element_type());
+            // should this be a convert like? no, output should be erased ideally. or should we just avoid dynamic data type?
+            ov::copy_runtime_info(output.get_node_shared_ptr(), convert);
+            alternative_source = convert->output(0);
+        }
+        if (output.get_partial_shape() != alternative_source.get_partial_shape()) {
+            const auto& shape = ov::op::v0::Constant::create(ov::element::i32,
+                                                             ov::Shape{output.get_shape().size()},
+                                                             output.get_shape());
+            alternative_source = std::make_shared<ov::op::v1::Reshape>(alternative_source, shape, false)->output(0);
+        }
+        output.replace(alternative_source);
+    } else {
+        // new instance of multiple value source
+        ov::OutputVector to_be_concated;
+        for (const auto& el : result->value) {
+            if (el.is<int64_t>()) {
+                const auto& value = el.as<int64_t>();
+                const auto& constant = ov::op::v0::Constant::create(output.get_element_type(), ov::Shape{1}, {value});
+                to_be_concated.push_back(constant->output(0));
+            } else if (el.is<std::shared_ptr<ov::Symbol>>()) {
+                const auto& symbol = el.as<std::shared_ptr<ov::Symbol>>();
+                auto alternative_output =
+                    get_alternative_source_from_value_or_shape_source(symbol_shape_source,
+                                                                      symbol,
+                                                                      ov::Shape{1},
+                                                                      output.get_element_type(),
+                                                                      output.get_node_shared_ptr(),
+                                                                      symbol_value_source);
+                if (alternative_output.get_node_shared_ptr())
+                    to_be_concated.push_back(alternative_output);
+                else
+                    break;
             } else {
-                multi_symbol_source[*result] = output;
+                break;
             }
+        }
+        if (to_be_concated.size() != ov::shape_size(output.get_shape())) {
+            multi_symbol_source[*result] = output;
+        } else {
+            auto alternative_output = std::make_shared<ov::op::v0::Concat>(to_be_concated, 0)->output(0);
+            ov::copy_runtime_info(output.get_node_shared_ptr(), alternative_output.get_node_shared_ptr());
+            if (output.get_partial_shape() != alternative_output.get_partial_shape()) {
+                alternative_output = std::make_shared<ov::op::v1::Reshape>(
+                                         alternative_output,
+                                         ov::op::v0::Constant::create(ov::element::i32,
+                                                                      ov::Shape{output.get_shape().size()},
+                                                                      output.get_shape()),
+                                         false)
+                                         ->output(0);
+                ov::copy_runtime_info(output.get_node_shared_ptr(), alternative_output.get_node_shared_ptr());
+            }
+            ov::util::evaluate_both_bounds(alternative_output);
+            output.replace(alternative_output);
+            multi_symbol_source[*result] = alternative_output;
         }
     }
 }
@@ -434,6 +507,8 @@ bool ov::pass::OptimizeSymbolsUsedAsValues::run_on_model(const std::shared_ptr<o
     STS_map symbol_shape_source;
     STS_map symbol_value_source;
     std::map<OutputValue, ov::Output<ov::Node>> multi_symbol_source;
+    for (const auto& parameter : m->get_parameters())
+        save_shape_sources(parameter, symbol_shape_source);
     for (const auto& op : topological_order(m)) {
         // Result has output port which has shared (during validate_and_infer_type) tensor with input port.
         // Transformations may replace input of Result. After replacement and before Result::validate_and_infer_type --
@@ -443,13 +518,14 @@ bool ov::pass::OptimizeSymbolsUsedAsValues::run_on_model(const std::shared_ptr<o
         if (auto result = ov::as_type_ptr<op::v0::Result>(op))
             continue;
 
-        // LTS maps aren't shared with sub-graphs because inner graph can not access outer graph for label sources
+        // LTS maps aren't shared with sub-graphs because inner graph can not access outer graph for symbol sources
         ov::op::util::process_subgraph(*this, op);
 
-        for (auto& output : op->outputs())
-            optimize_value_usage(output, symbol_shape_source, symbol_value_source);
+        for (auto& output : op->outputs()) {
+            optimize_single_value_usage(output, symbol_shape_source, symbol_value_source);
+            optimize_multi_value_usage(output, multi_symbol_source, symbol_shape_source, symbol_value_source);
+        }
         save_shape_sources(op, symbol_shape_source);
-        save_and_update_value_sources(op, multi_symbol_source);
     }
     return true;
 }
