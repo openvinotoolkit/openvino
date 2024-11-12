@@ -207,6 +207,9 @@ program::program(engine& engine_ref,
       _task_executor(std::move(task_executor)),
       processing_order(),
       is_internal(is_internal) {
+    if (_engine.get_device_info().supports_immad) {
+        _config.set_property(ov::intel_gpu::use_onednn(true));
+    }
     _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
     init_program();
@@ -220,6 +223,9 @@ program::program(engine& engine, const ExecutionConfig& config)
       _config(config),
       processing_order() {
     init_primitives();
+    if (_engine.get_device_info().supports_immad) {
+        _config.set_property(ov::intel_gpu::use_onednn(true));
+    }
     _config.apply_user_properties(_engine.get_device_info());
     new_shape_infer = _config.get_property(ov::intel_gpu::allow_new_shape_infer);
     _layout_optimizer = cldnn::make_unique<layout_optimizer>();

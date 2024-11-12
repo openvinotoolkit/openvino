@@ -189,6 +189,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config);
+    if (context->get_engine().get_device_info().supports_immad) {
+        config.set_property(ov::intel_gpu::use_onednn(true));
+    }
     config.apply_user_properties(context->get_engine().get_device_info());
 
     set_cache_info(model, config);
@@ -210,6 +213,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config);
+    if (context_impl->get_engine().get_device_info().supports_immad) {
+        config.set_property(ov::intel_gpu::use_onednn(true));
+    }
     config.apply_user_properties(context_impl->get_engine().get_device_info());
 
     set_cache_info(model, config);
@@ -278,6 +284,9 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config);
+    if (ctx->get_engine().get_device_info().supports_immad) {
+        config.set_property(ov::intel_gpu::use_onednn(true));
+    }
     config.apply_user_properties(ctx->get_engine().get_device_info());
 
     ProgramBuilder prog(ctx->get_engine(), config);
@@ -327,6 +336,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(_orig_config);
+    if (context_impl->get_engine().get_device_info().supports_immad) {
+        config.set_property(ov::intel_gpu::use_onednn(true));
+    }
     config.apply_user_properties(context_impl->get_engine().get_device_info());
 
     cldnn::BinaryInputBuffer ib(model, context_impl->get_engine());

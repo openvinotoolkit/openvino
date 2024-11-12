@@ -168,7 +168,7 @@ struct primitive_type_base : primitive_type {
                     return true;
                 continue;
             } else {
-                if (impl_type == impl_types::onednn && !!node.get_program().get_layout_optimizer().contains_onednn_impls_optimization_attribute(&node))
+                if (impl_type == impl_types::onednn && !node.get_program().get_layout_optimizer().contains_onednn_impls_optimization_attribute(&node))
                     continue;
 
                 if (!impl->validate(node))
