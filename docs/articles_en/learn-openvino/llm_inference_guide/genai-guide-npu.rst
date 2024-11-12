@@ -85,9 +85,9 @@ Run generation using OpenVINO GenAI
 It is always recommended to install the latest available
 `driver <https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html>`__.
 
-**Currently the NPU pipeline supports greedy decoding only, so you need to
-add** ``do_sample=False`` **to the** ``generate()`` **method.**
-Use the following code snippet to perform generation with OpenVINO GenAI API:
+Use the following code snippet to perform generation with OpenVINO GenAI API.
+Note that **currently, the NPU pipeline supports greedy decoding only**. This means that
+you need to add ``do_sample=False`` **to the** ``generate()`` **method:**
 
 .. tab-set::
 
