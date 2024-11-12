@@ -33,27 +33,28 @@ parameters.
 
 You select one of the methods by setting the ``--group-size`` parameter to either ``128`` or ``-1``, respectively. See the following examples:
 
-
-
 .. tab-set::
-
-   .. tab-item:: Channel-wise quantization
-
-      .. code-block:: console
-         :name: channel-wise-quant
-
-         optimum-cli export openvino -m TinyLlama/TinyLlama-1.1B-Chat-v1.0 --weight-format int4 --sym --ratio 1.0 --group_size -1
-         
-      .. important::
-         
-         Remember that the negative value of ``-1`` is required here, not ``1``.
 
    .. tab-item:: Group quantization
 
       .. code-block:: console
          :name: group-quant
 
-         optimum-cli export openvino -m TinyLlama/TinyLlama-1.1B-Chat-v1.0 --weight-format int4 --sym --group-size 128 --ratio 1.0 TinyLlama
+         optimum-cli export openvino -m TinyLlama/TinyLlama-1.1B-Chat-v1.0 --weight-format int4 --sym --ratio 1.0 --group_size 128
+
+   .. tab-item:: Channel-wise quantization
+
+      .. code-block:: console
+         :name: channel-wise-quant
+         
+         optimum-cli export openvino -m <HF-tag> --weight-format int4 --sym --ratio 1.0 --group_size -1
+         
+         optimum-cli export openvino -m meta-llama/Llama-2-7b-chat-hf --weight-format int4 --sym --ratio 1.0 --group-size -1
+         
+      .. important::
+         
+         Remember that the negative value of ``-1`` is required here, not ``1``.
+
 
 **For models exceeding 1 billion parameters**, it is recommended to use **channel-wise
 quantization** that is remarkably effective. You can also use group quantization,
