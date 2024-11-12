@@ -73,7 +73,7 @@ is installed in your environment by running the following command:
 
 .. code-block:: python
 
-  pip install optimum[openvino]
+   pip install optimum[openvino]
 
 If the model comes from `Hugging Face <https://huggingface.co/models>`__ and is supported
 by Optimum, it may be easier to use the Optimum Intel API to perform weight compression
@@ -222,9 +222,9 @@ For data-aware weight compression refer to the following
 
 .. note::
 
-  Some methods can be stacked on top of one another to achieve a better
-  accuracy-performance trade-off after weight quantization. For example, the **Scale Estimation**
-  method can be applied along with **AWQ** and mixed-precision quantization (the ``ratio`` parameter).
+   Some methods can be stacked on top of one another to achieve a better
+   accuracy-performance trade-off after weight quantization. For example, the **Scale Estimation**
+   method can be applied along with **AWQ** and mixed-precision quantization (the ``ratio`` parameter).
 
 
 **Hugging Face Optimum-Intel API**
@@ -239,34 +239,34 @@ is installed in your environment by running the following command:
 
 .. code-block:: python
 
-  pip install optimum[openvino]
+   pip install optimum[openvino]
 
 .. code-block:: python
 
-  from optimum.intel.openvino import OVModelForCausalLM, OVWeightQuantizationConfig
-  from transformers import AutoTokenizer, pipeline
+   from optimum.intel.openvino import OVModelForCausalLM, OVWeightQuantizationConfig
+   from transformers import AutoTokenizer, pipeline
 
-  # Load and compress model from Hugging Face
-  model_id = "microsoft/Phi-3.5-mini-instruct"
-  model = OVModelForCausalLM.from_pretrained(
-      model_id,
-      export=True,
-      quantization_config=OVWeightQuantizationConfig(
-          bits=4,
-          quant_method="awq",
-          scale_estimation=True,
-          dataset="wikitext2",
-          group_size=64,
-          ratio=1.0
-      )
-  )
+   # Load and compress model from Hugging Face
+   model_id = "microsoft/Phi-3.5-mini-instruct"
+   model = OVModelForCausalLM.from_pretrained(
+       model_id,
+       export=True,
+       quantization_config=OVWeightQuantizationConfig(
+           bits=4,
+           quant_method="awq",
+           scale_estimation=True,
+           dataset="wikitext2",
+           group_size=64,
+           ratio=1.0
+       )
+   )
 
-  # Inference
-  tokenizer = AutoTokenizer.from_pretrained(model_id)
-  pipe = pipeline("text-generation", model=model, tokenizer=tokenizer)
-  phrase = "The weather is"
-  results = pipe(phrase)
-  print(results)
+   # Inference
+   tokenizer = AutoTokenizer.from_pretrained(model_id)
+   pipe = pipeline("text-generation", model=model, tokenizer=tokenizer)
+   phrase = "The weather is"
+   results = pipe(phrase)
+   print(results)
 
 
 Exporting and Loading Compressed Models
@@ -281,13 +281,13 @@ load the compressed model later for faster time to first inference.
 .. code-block:: python
    :name: save_pretrained
 
-  # Save compressed model for faster loading later
-  model.save_pretrained("Phi-3.5-mini-instruct-int4-sym-ov")
-  tokenizer.save_pretrained("Phi-3.5-mini-instruct-int4-sym-ov")
+   # Save compressed model for faster loading later
+   model.save_pretrained("Phi-3.5-mini-instruct-int4-sym-ov")
+   tokenizer.save_pretrained("Phi-3.5-mini-instruct-int4-sym-ov")
 
-  # Load a saved model
-  model = OVModelForCausalLM.from_pretrained("Phi-3.5-mini-instruct-int4-sym-ov")
-  tokenizer = AutoTokenizer.from_pretrained("Phi-3.5-mini-instruct-int4-sym-ov")
+   # Load a saved model
+   model = OVModelForCausalLM.from_pretrained("Phi-3.5-mini-instruct-int4-sym-ov")
+   tokenizer = AutoTokenizer.from_pretrained("Phi-3.5-mini-instruct-int4-sym-ov")
 
 
 Auto-tuning of Weight Compression Parameters
