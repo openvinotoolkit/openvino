@@ -14,20 +14,6 @@
 #include "transformations/utils/utils.hpp"
 
 namespace {
-// These deperecated functions are moved here as static to facilitate for IR v10
-static inline std::string create_ie_output_name(const ov::Output<const ov::Node>& output) {
-    const auto& prev_layer = output.get_node_shared_ptr();
-    auto out_name = prev_layer->get_friendly_name();
-    if (prev_layer->get_output_size() != 1) {
-        out_name += "." + std::to_string(output.get_index());
-    }
-    return out_name;
-}
-
-static inline std::string create_ie_output_name(const ov::Output<ov::Node>& output) {
-    return create_ie_output_name(ov::Output<const ov::Node>(output.get_node(), output.get_index()));
-}
-
 ov::element::Type to_legacy_type(const ov::element::Type& legacy_type, bool input) {
     if (input) {
         return legacy_type == ov::element::f16 ? ov::element::f32 : legacy_type;
@@ -90,7 +76,10 @@ void update_v10_model(std::shared_ptr<ov::Model>& model, bool frontendMode = fal
         // we need to add operation names as tensor names for inputs and outputs
         {
             for (const auto& result : model->get_results()) {
-                auto res_name = create_ie_output_name(result->input_value(0));
+                auto prev_layer = result->input_value(0).get_node_shared_ptr();
+                const std::string res_name = prev_layer->get_friendly_name() +
+                                             std::string(prev_layer->get_output_size() != 1 ? "." : "") +
+                                             std::to_string(result->input_value(0).get_index());
                 OPENVINO_ASSERT(leaf_names.find(res_name) == leaf_names.end() ||
                                     result->output(0).get_names().find(res_name) != result->output(0).get_names().end(),
                                 "Model operation names have collisions with tensor names.",

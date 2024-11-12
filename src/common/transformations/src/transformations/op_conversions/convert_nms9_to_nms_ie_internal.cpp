@@ -110,7 +110,8 @@ ov::pass::ConvertNMS9ToNMSIEInternal::ConvertNMS9ToNMSIEInternal() {
         if (nms_9->output(0).get_element_type() != output_0.get_element_type()) {
             output_0 = std::make_shared<ov::op::v0::Convert>(output_0, nms_9->output(0).get_element_type());
             output_0.get_node_shared_ptr()->set_friendly_name(
-                nms_9->output(0).get_node_shared_ptr()->get_friendly_name() + "." +
+                nms_9->output(0).get_node_shared_ptr()->get_friendly_name() +
+                std::string(nms_9->output(0).get_node_shared_ptr()->get_output_size() != 1 ? "." : "") +
                 std::to_string(output_0.get_index()));
             new_ops.emplace_back(output_0.get_node_shared_ptr());
         }
@@ -119,7 +120,8 @@ ov::pass::ConvertNMS9ToNMSIEInternal::ConvertNMS9ToNMSIEInternal() {
         if (nms_9->output(2).get_element_type() != output_2.get_element_type()) {
             output_2 = std::make_shared<ov::op::v0::Convert>(output_2, nms_9->output(2).get_element_type());
             output_2.get_node_shared_ptr()->set_friendly_name(
-                nms_9->output(2).get_node_shared_ptr()->get_friendly_name() + "." +
+                nms_9->output(2).get_node_shared_ptr()->get_friendly_name() +
+                std::string(nms_9->output(2).get_node_shared_ptr()->get_output_size() != 1 ? "." : "") +
                 std::to_string(output_2.get_index()));
             new_ops.emplace_back(output_2.get_node_shared_ptr());
         }
