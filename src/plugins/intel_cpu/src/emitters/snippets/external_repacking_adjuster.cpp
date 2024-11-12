@@ -41,14 +41,11 @@ BrgemmExternalRepackingAdjuster::BrgemmExternalRepackingAdjuster(
     }
 }
 
-void BrgemmExternalRepackingAdjuster::optimize(
-    const ov::snippets::lowered::LinearIRCPtr& linear_ir,
-    const std::vector<ov::snippets::VectorDims>& shapes,
-    const std::vector<std::vector<size_t>>& layouts) {
+void BrgemmExternalRepackingAdjuster::optimize(const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
     const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(m_configurator->get_config());
     auto& optimal_descs = cpu_config->m_in_requested_descs;
     for (const auto& i : m_param_idces_with_external_repacking) {
-        const auto& shape = shapes[i];
+        const auto& shape = m_configurator->get_config()->shapes[i];
         // TODO: support orbitrary order
         const auto& K = *++shape.rbegin();
         const auto& N = *shape.rbegin();
@@ -74,7 +71,7 @@ void BrgemmExternalRepackingAdjuster::optimize(
         auto& offsets = cpu_config->io_data_offsets[i];
         snippets::RuntimeConfigurator::compute_offsets(shape_for_offset, offsets, shape_for_offset.size(), m_configurator->get_io_data_sizes()[i], 0);
         // TODO: Support non-planar layout
-        OPENVINO_ASSERT(ov::snippets::utils::is_planar_layout(layouts[i]));
+        OPENVINO_ASSERT(ov::snippets::utils::is_planar_layout(m_configurator->get_config()->layouts[i]));
     }
 }
 #endif

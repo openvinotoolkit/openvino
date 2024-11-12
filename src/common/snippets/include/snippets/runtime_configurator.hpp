@@ -44,8 +44,8 @@ public:
     size_t tensor_rank = 0;
     size_t tile_rank = 0;
 
-    std::vector<ov::snippets::VectorDims> input_shapes = {};
-    std::vector<ov::snippets::VectorDims> input_layouts = {};
+    std::vector<ov::snippets::VectorDims> shapes = {};
+    std::vector<ov::snippets::VectorDims> layouts = {};
     std::vector<ov::snippets::VectorDims> io_data_offsets = {};
     ov::snippets::VectorDims master_shape = {};
 
@@ -163,8 +163,7 @@ protected:
      * @param shapes shapes used in offsets computation
      * @param layouts layouts used in offsets computation
      */
-    void update_data_offsets(const std::vector<ov::snippets::VectorDims>& shapes,
-                             const std::vector<std::vector<size_t>>& layouts) const;
+    void update_data_offsets() const;
     /**
      * @brief Extract shapes from m_io_descs
      */
@@ -182,7 +181,7 @@ protected:
          * @brief Checks if the current master shape can be optimized, and if yes, updates all the necessary runtime information
          * @return status if the optimization is applied
          */
-        bool optimize(std::vector<ov::snippets::VectorDims>& shapes, std::vector<std::vector<size_t>>& layots);
+        bool optimize();
 
     private:
         /**

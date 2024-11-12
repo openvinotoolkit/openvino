@@ -54,13 +54,13 @@ void CPURuntimeConfigurator::initialization(const ov::snippets::lowered::LinearI
 
 void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
     m_config->master_shape = linear_ir->get_master_shape();
+    m_config->shapes = extract_shapes();
+    m_config->layouts = extract_layouts();
     if (linear_ir->is_dynamic()) {
         update_loop_info(linear_ir);
     }
 
-    auto shapes = extract_shapes();
-    auto layouts = extract_layouts();
-    m_optimizer.optimize(shapes, layouts);
+    m_optimizer.optimize();
 
     if (linear_ir->is_dynamic())
         loopPortsAdjuster.optimize();
@@ -73,9 +73,9 @@ void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRCPtr& l
     if (linear_ir->is_dynamic()) {
         update_loop_args(linear_ir);
     }
-    update_data_offsets(shapes, layouts);
-    externalRepackingAdjuster.optimize(linear_ir, shapes, layouts);
-    m_config->m_latest_shapes = std::move(shapes);
+    update_data_offsets();
+    externalRepackingAdjuster.optimize(linear_ir);
+    m_config->m_latest_shapes = std::move(m_config->shapes);
 }
 
 void CPURuntimeConfigurator::update_tensor_rank(const ov::snippets::VectorDims& master_shape) {

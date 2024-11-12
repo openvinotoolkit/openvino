@@ -20,9 +20,7 @@ public:
     BrgemmExternalRepackingAdjuster() = default;
     BrgemmExternalRepackingAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir, CPURuntimeConfigurator* configurator);
 
-    void optimize(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
-                  const std::vector<ov::snippets::VectorDims>& shapes,
-                  const std::vector<std::vector<size_t>>& layouts);
+    void optimize(const ov::snippets::lowered::LinearIRCPtr& linear_ir);
 
 private:
     CPURuntimeConfigurator* m_configurator = nullptr;
