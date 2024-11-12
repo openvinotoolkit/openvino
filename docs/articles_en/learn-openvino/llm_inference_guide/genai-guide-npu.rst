@@ -164,8 +164,8 @@ Cache compiled models
 +++++++++++++++++++++
 
 Specify the ``NPUW_CACHE_DIR`` option in ``pipeline_config`` for NPU pipeline to
-cache compiled models. Using the code snippet below will help shorten
-initialization time of the next pipeline runs:
+cache the compiled models. Using the code snippet below shortens the initialization time
+of the pipeline runs coming next:
 
 .. tab-set::
 
