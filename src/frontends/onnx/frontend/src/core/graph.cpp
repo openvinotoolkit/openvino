@@ -446,10 +446,6 @@ void Graph::set_friendly_names(const Node& onnx_node, const ov::OutputVector& ov
         // null node does not have tensor
         if (!ov::op::util::is_null(ov_subgraph_outputs[i])) {
             ov_subgraph_outputs[i].get_tensor().set_names({onnx_node.output(static_cast<int>(i))});
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            ov::descriptor::set_ov_tensor_legacy_name(ov_subgraph_outputs[i].get_tensor(),
-                                                      onnx_node.output(static_cast<int>(i)));
-            OPENVINO_SUPPRESS_DEPRECATED_END
         }
     }
 }

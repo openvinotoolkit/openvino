@@ -22,7 +22,6 @@ void intel_npu::registerCompilerOptions(OptionsDesc& desc) {
     desc.add<STEPPING>();
     desc.add<MAX_TILES>();
     desc.add<DMA_ENGINES>();
-    desc.add<USE_ELF_COMPILER_BACKEND>();
     desc.add<DYNAMIC_SHAPE_TO_STATIC>();
     desc.add<EXECUTION_MODE_HINT>();
 }
@@ -72,50 +71,6 @@ std::string intel_npu::COMPILER_TYPE::toString(const ov::intel_npu::CompilerType
         strStream << "DRIVER";
     } else {
         OPENVINO_THROW("No valid string for current LOG_LEVEL option");
-    }
-
-    return strStream.str();
-}
-
-//
-// USE_ELF_COMPILER_BACKEND
-//
-
-std::string_view ov::intel_npu::stringifyEnum(ov::intel_npu::ElfCompilerBackend val) {
-    switch (val) {
-    case ov::intel_npu::ElfCompilerBackend::AUTO:
-        return "AUTO";
-    case ov::intel_npu::ElfCompilerBackend::NO:
-        return "NO";
-    case ov::intel_npu::ElfCompilerBackend::YES:
-        return "YES";
-    default:
-        return "<UNKNOWN>";
-    }
-}
-
-ov::intel_npu::ElfCompilerBackend intel_npu::USE_ELF_COMPILER_BACKEND::parse(std::string_view val) {
-    if (val == stringifyEnum(ov::intel_npu::ElfCompilerBackend::AUTO)) {
-        return ov::intel_npu::ElfCompilerBackend::AUTO;
-    } else if (val == stringifyEnum(ov::intel_npu::ElfCompilerBackend::NO)) {
-        return ov::intel_npu::ElfCompilerBackend::NO;
-    } else if (val == stringifyEnum(ov::intel_npu::ElfCompilerBackend::YES)) {
-        return ov::intel_npu::ElfCompilerBackend::YES;
-    }
-
-    OPENVINO_THROW("Value '", val, "' is not a valid USE_ELF_COMPILER_BACKEND option");
-}
-
-std::string intel_npu::USE_ELF_COMPILER_BACKEND::toString(const ov::intel_npu::ElfCompilerBackend& val) {
-    std::stringstream strStream;
-    if (val == ov::intel_npu::ElfCompilerBackend::AUTO) {
-        strStream << "AUTO";
-    } else if (val == ov::intel_npu::ElfCompilerBackend::NO) {
-        strStream << "NO";
-    } else if (val == ov::intel_npu::ElfCompilerBackend::YES) {
-        strStream << "YES";
-    } else {
-        OPENVINO_THROW("No valid string for current USE_ELF_COMPILER_BACKEND option");
     }
 
     return strStream.str();
