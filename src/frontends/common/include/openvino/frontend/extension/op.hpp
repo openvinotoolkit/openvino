@@ -25,7 +25,7 @@ inline const ov::OpSet& get_opset_by_name(const std::string& opset_name) {
     if (opsets.find(opset_name) != opsets.end())
         return opsets.at(opset_name)();
     if (opset_name.empty() || opset_name == "latest") {
-        return ov::get_opset15();
+        return ov::get_opset15();  // TODO (ticket: 156877): Update to 16 at the end of opset16 development
     } else {
         FRONT_END_GENERAL_CHECK(false, "Unsupported opset name: ", opset_name);
     }
