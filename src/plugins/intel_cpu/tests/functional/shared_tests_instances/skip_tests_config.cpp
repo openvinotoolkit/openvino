@@ -314,6 +314,9 @@ std::vector<std::string> disabledTestPatterns() {
     // fp32 floor for bf16 models: conversion issue
     retVector.emplace_back(R"(.*smoke.*ActivationLayerCPUTest.*CompareWithRefs/Floor_.*netPRC=bf16.*)");
 
+    // Issue: #27498
+    retVector.emplace_back(R"(.*smoke.*ActivationLayerCPUTest.*CompareWithRefs/Ceiling_.*netPRC=bf16.*)");
+
 #if defined(OPENVINO_ARCH_X86)
     retVector.emplace_back(R"(.*DetectionOutputLayerTest.*)");
     // WIP: plugin cannot be loaded for some reason
