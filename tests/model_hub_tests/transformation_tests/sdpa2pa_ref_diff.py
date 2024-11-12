@@ -319,6 +319,20 @@ ref_diff_map = {
             "ScaledDotProductAttention" : -2,
             "Assign" : -4,
     },
+    "katuni4ka/tiny-random-llava" : {
+            "Assign" : -4,
+            "Parameter" : 7,
+            "ReadValue" : -4,
+            "ScaledDotProductAttention" : -2,
+            "PagedAttentionExtension" : 2,
+    },
+    "katuni4ka/tiny-random-nanollava" : {
+            "Assign" : -4,
+            "Parameter" : 7,
+            "ReadValue" : -4,
+            "ScaledDotProductAttention" : -2,
+            "PagedAttentionExtension" : 2,
+    },
 }
 
 ref_diff_map_cache_eviction = {
@@ -637,4 +651,18 @@ ref_diff_map_cache_eviction = {
             "PagedAttentionExtension" : 2,
             "ScaledDotProductAttention" : -2,
     },
+    "katuni4ka/tiny-random-llava" : {
+        "ReadValue" : -4,
+        "Parameter" : 8,
+        "ScaledDotProductAttention" : -2,
+        "PagedAttentionExtension" : 2,
+        "Assign" : -4,
+	},
+	"katuni4ka/tiny-random-nanollava" : {
+        "ReadValue" : -4,
+        "Parameter" : 8,
+        "ScaledDotProductAttention" : -2,
+        "PagedAttentionExtension" : 2,
+        "Assign" : -4,
+	},
 }

@@ -53,15 +53,21 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     auto sliding_window = v0::Constant::create(element::i32, Shape{}, {0});  // sliding_window
 
-    auto has_parameter = [=](const std::shared_ptr<ov::Model>& model, const std::string& name) -> bool {
-        for (auto& t : model->inputs()) {
-            const auto& names = t.get_names();
+    auto has_parameter = [=](const std::shared_ptr<ov::Model>& model, const std::string& name) -> std::shared_ptr<v0::Parameter> {
+        for (auto& param : model->inputs()) {
+            const auto& names = param.get_names();
             if (names.find(name) != names.end()) {
-                return true;
+                if (auto casted_param = std::dynamic_pointer_cast<v0::Parameter>(param.get_node_shared_ptr())) {
+                    return casted_param;
+                } else {
+                    OPENVINO_THROW("The model is in the inconsistent state. Found input '",
+                                   name,
+                                   "', but couldn't cast it to v0::Parameter.");
+                }
             }
         }
 
-        return false;
+        return nullptr;
     };
 
     auto input_ids_name = has_parameter(model, "input_ids") ? "input_ids" : "inputs_embeds";
@@ -138,30 +144,22 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     }
 
     for (auto& param_name : {"beam_idx", "attention_mask"}) {
-        if (has_parameter(model, param_name)) {
-            if (const auto& param =
-                    std::dynamic_pointer_cast<v0::Parameter>(model->input(param_name).get_node_shared_ptr())) {
-                model->remove_parameter(param);
+        if (auto param = has_parameter(model, param_name)) {
+            model->remove_parameter(param);
 
-                if (param->output(0).get_target_inputs().size() == 0) {
-                    std::stringstream consumers;
-                    consumers << std::endl;
-                    for (auto& input : param->output(0).get_target_inputs()) {
-                        consumers << *input.get_node() << std::endl;
-                    }
-                    OPENVINO_ASSERT(param->output(0).get_target_inputs().size() == 0,
-                                    "PagedAttention transformation failed: couldn't remove ",
-                                    param->output(0).get_target_inputs().size(),
-                                    " inputs of ",
-                                    param_name,
-                                    " input: ",
-                                    consumers.str());
+            if (param->output(0).get_target_inputs().size() == 0) {
+                std::stringstream consumers;
+                consumers << std::endl;
+                for (auto& input : param->output(0).get_target_inputs()) {
+                    consumers << *input.get_node() << std::endl;
                 }
-            } else {
-                OPENVINO_THROW("The model is in the inconsistent state. Found input '",
-                               param_name,
-                               "', but couldn't cast it to v0::Parameter.");
-                return false;
+                OPENVINO_ASSERT(param->output(0).get_target_inputs().size() == 0,
+                                "PagedAttention transformation failed: couldn't remove ",
+                                param->output(0).get_target_inputs().size(),
+                                " inputs of ",
+                                param_name,
+                                " input: ",
+                                consumers.str());
             }
         }
     }
