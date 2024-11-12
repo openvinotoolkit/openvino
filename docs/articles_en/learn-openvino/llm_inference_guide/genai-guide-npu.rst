@@ -46,8 +46,6 @@ You select one of the methods by setting the ``--group-size`` parameter to eithe
       .. code-block:: console
          :name: channel-wise-quant
          
-         optimum-cli export openvino -m <HF-tag> --weight-format int4 --sym --ratio 1.0 --group_size -1
-         
          optimum-cli export openvino -m meta-llama/Llama-2-7b-chat-hf --weight-format int4 --sym --ratio 1.0 --group-size -1
          
       .. important::
