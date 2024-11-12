@@ -66,7 +66,7 @@ public:
 
 private:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
-    friend class CompiledModelHandler;
+    friend class CompiledModelHolder;
 
     const std::shared_ptr<ov::Model> m_model;
     const std::shared_ptr<const ov::IPlugin> m_plugin;
@@ -102,9 +102,9 @@ private:
 
 // This class provides safe access to the internal CompiledModel structures and helps to decouple SyncInferRequest and
 // the CompiledModel internal structures
-class CompiledModelHandler {
+class CompiledModelHolder {
 public:
-    CompiledModelHandler(std::shared_ptr<const CompiledModel> compiled_model)
+    CompiledModelHolder(std::shared_ptr<const CompiledModel> compiled_model)
         : m_compiled_model(std::move(compiled_model)) {
         OPENVINO_ASSERT(!m_compiled_model->m_graphs.empty(),
                         "No graph was found in the compiled model: ",
@@ -114,17 +114,17 @@ public:
         m_id = (m_compiled_model->m_numRequests)++;
     }
 
-    ~CompiledModelHandler() {
+    ~CompiledModelHolder() {
         if (m_compiled_model) {
             --(m_compiled_model->m_numRequests);
         }
     }
 
-    CompiledModelHandler(const CompiledModelHandler&) = delete;
-    CompiledModelHandler& operator=(const CompiledModelHandler&) = delete;
+    CompiledModelHolder(const CompiledModelHolder&) = delete;
+    CompiledModelHolder& operator=(const CompiledModelHolder&) = delete;
 
-    CompiledModelHandler(CompiledModelHandler&&) = default;
-    CompiledModelHandler& operator=(CompiledModelHandler&&) = default;
+    CompiledModelHolder(CompiledModelHolder&&) = default;
+    CompiledModelHolder& operator=(CompiledModelHolder&&) = default;
 
     const Graph& graph() const {
         return *m_graph;

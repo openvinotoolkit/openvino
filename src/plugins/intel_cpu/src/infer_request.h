@@ -17,7 +17,7 @@ class AsyncInferRequest;
 
 class SyncInferRequest : public ov::ISyncInferRequest {
 public:
-    SyncInferRequest(CompiledModelHandler compiled_model);
+    SyncInferRequest(CompiledModelHolder compiled_model);
 
     void infer() override;
 
@@ -113,7 +113,7 @@ private:
     openvino::itt::handle_t m_profiling_task;
     std::vector<MemStatePtr> m_memory_states;
     AsyncInferRequest* m_asyncRequest = nullptr;
-    CompiledModelHandler m_compiled_model;
+    CompiledModelHolder m_compiled_model;
 
     std::unordered_map<std::size_t, ov::Output<const ov::Node>> m_input_ports_map;
     std::unordered_map<std::size_t, ov::Output<const ov::Node>> m_output_ports_map;
