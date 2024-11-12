@@ -660,23 +660,34 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
         if (user_info.first && user_info.first->is_type<reshape>()) {
             auto reshape_desc = user_info.first->as<reshape>().get_primitive();
             auto reshape_mode = reshape_desc->mode;
+            auto reshape_axis = crop_axis;
             if (reshape_mode == reshape::reshape_mode::base) {
-                user_info.second.data_padding._dynamic_dims_mask = dyn_pad_sizes;
+                auto reshape_ps = user_info.second.get_partial_shape();
+                auto crop_dim_val = crop_layout.get_partial_shape()[crop_axis].get_length();
+
+                auto mul = 1;
+                reshape_axis = reshape_ps.size() - 1;
+                for (size_t i = reshape_ps.size(); i > 1; i--) {
+                    if (reshape_ps[i - 1].is_dynamic() || mul == crop_dim_val)
+                        break;
+
+                    mul *= reshape_ps[i - 1].get_length();
+                    reshape_axis = i - 1;
+                }
             } else if (reshape_mode == reshape::reshape_mode::unsqueeze || reshape_mode == reshape::reshape_mode::squeeze) {
                 auto reshape_ps = user_info.second.get_partial_shape();
                 auto output_pattern = reshape_desc->output_pattern;
 
-                auto reshape_axis = crop_axis;
                 for (size_t i = 0; i < output_pattern.size(); i++) {
                     if (output_pattern[i] <= static_cast<int64_t>(reshape_axis)) {
                         reshape_axis += reshape_mode == reshape::reshape_mode::unsqueeze ? 1 : -1;
                     }
                 }
-
-                padding::DynamicDimsMask dyn_pad_mask;
-                dyn_pad_mask[reshape_axis] = 1;
-                user_info.second.data_padding._dynamic_dims_mask = dyn_pad_mask;
             }
+
+            auto reshape_dyn_pad_mask = padding::DynamicDimsMask();
+            reshape_dyn_pad_mask[reshape_axis] = 1;
+            user_info.second.data_padding._dynamic_dims_mask = reshape_dyn_pad_mask;
         }
         return;
     }
@@ -704,13 +715,36 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
             auto reshape_desc = user_info.first->as<reshape>().get_primitive();
             auto reshape_mode = reshape_desc->mode;
             if (reshape_mode == reshape::reshape_mode::base) {
-                auto reshape_rank = user_info.second.get_partial_shape().size();
-                auto reshape_last_dim = user_info.second.get_partial_shape().to_shape()[reshape_rank - 1];
-                if (lower_sizes[crop_axis])
-                    lower_sizes[crop_axis] /= reshape_last_dim;
-                if (upper_sizes[crop_axis])
-                    upper_sizes[crop_axis] /= reshape_last_dim;
-                user_info.second.data_padding = padding(lower_sizes, upper_sizes, dyn_pad_sizes);
+                auto reshape_ps = user_info.second.get_partial_shape();
+                auto crop_dim_val = crop_layout.get_partial_shape()[crop_axis].get_length();
+
+                auto divider = 1;
+                auto reshape_axis = reshape_ps.size();
+                for (size_t i = reshape_ps.size(); i > 1; i--) {
+                    const auto& dim_value = reshape_ps[i - 1].get_length();
+                    if (divider * dim_value == crop_dim_val)
+                        break;
+
+                    divider *= dim_value;
+                    reshape_axis = i - 1;
+                }
+                reshape_axis -= 1;
+
+                const auto output_rank = std::max(reshape_ps.size(), static_cast<size_t>(4));
+                std::vector<int32_t> reshape_lower_sizes(output_rank, 0);
+                std::vector<int32_t> reshape_upper_sizes(output_rank, 0);
+                padding::DynamicDimsMask reshape_dyn_pad_mask;
+
+                reshape_lower_sizes[reshape_axis] = lower_sizes[crop_axis];
+                reshape_upper_sizes[reshape_axis] = upper_sizes[crop_axis];
+                reshape_dyn_pad_mask[reshape_axis] = 1;
+
+                if (reshape_lower_sizes[reshape_axis])
+                    reshape_lower_sizes[reshape_axis] /= divider;
+                if (reshape_upper_sizes[reshape_axis])
+                    reshape_upper_sizes[reshape_axis] /= divider;
+
+                user_info.second.data_padding = padding(reshape_lower_sizes, reshape_upper_sizes, reshape_dyn_pad_mask);
             } else {
                 auto reshape_ps = user_info.second.get_partial_shape();
                 auto output_pattern = reshape_desc->output_pattern;

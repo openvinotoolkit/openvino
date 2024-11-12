@@ -28,14 +28,11 @@ KERNEL(rope_ref)(
     uint r = rf < HALF_ROTARY_NDIMS ? rf * 2 : 0;
     uint f = rf < HEAD_SIZE - ROTARY_NDIMS ? rf * 2 : 0;
 
-#ifdef ENABLE_SLICE
-    uint input_idx = GET_DATA_INDEX(SLICED_INPUT0, p, b, h * HEAD_SIZE, 0);
-
-    input_idx += SLICED_FROM_START * (p * INPUT0_FEATURE_NUM + b + 1)
-              + SLICED_FROM_END * (p * INPUT0_FEATURE_NUM + b);
-#else
     uint input_idx = INPUT0_GET_INDEX(p, b, h * HEAD_SIZE, 0);
+#ifdef ENABLE_SLICE
+    input_idx += SLICED_FROM_START;
 #endif
+
     uint cos_sin_p = p < INPUT1_BATCH_NUM ? p : 0;
     uint cos_sin_b = b < INPUT1_FEATURE_NUM ? b : 0;
     uint cos_sin_idx = INPUT1_GET_INDEX(cos_sin_p, cos_sin_b, 0, 0);
@@ -69,14 +66,11 @@ KERNEL(rope_ref)(
     const uint h = (uint)get_global_id(2) / HALF_ROTARY_NDIMS;
     const uint r = (uint)get_global_id(2) % HALF_ROTARY_NDIMS;
 
-#ifdef ENABLE_SLICE
-    uint input_idx = GET_DATA_INDEX(SLICED_INPUT0, b, p, h * HEAD_SIZE, 0);
-
-    input_idx += SLICED_FROM_START * (b * INPUT0_FEATURE_NUM + p + 1)
-              + SLICED_FROM_END * (b * INPUT0_FEATURE_NUM + p);
-#else
     uint input_idx = INPUT0_GET_INDEX(b, p, h * HEAD_SIZE, 0);
+#ifdef ENABLE_SLICE
+    input_idx += SLICED_FROM_START;
 #endif
+
     uint cos_sin_b = b < INPUT1_BATCH_NUM ? b : 0;
     uint cos_sin_p = p + INPUT1_FEATURE_NUM - INPUT0_FEATURE_NUM < INPUT1_FEATURE_NUM ? p + INPUT1_FEATURE_NUM - INPUT0_FEATURE_NUM : 0;
     uint cos_sin_h = h < INPUT1_SIZE_Y ? h : 0;
@@ -119,15 +113,13 @@ KERNEL(rope_ref)(
     const uint p = (uint)get_global_id(2) / HALF_ROTARY_NDIMS;
     const uint r = (uint)get_global_id(2) % HALF_ROTARY_NDIMS;
 
-#ifdef ENABLE_SLICE
-    uint input_idx = GET_DATA_INDEX(SLICED_INPUT0, b, h, p, 0);
-
-    input_idx += SLICED_FROM_START * (b * INPUT0_FEATURE_NUM + h + 1)
-              + SLICED_FROM_END * (b * INPUT0_FEATURE_NUM + h);
-#elif ENABLE_TRANSPOSE
-    uint input_idx = GET_DATA_INDEX(TRANSPOSED_INPUT0, b, h, p, 0);
+#if ENABLE_TRANSPOSE
+    uint input_idx = INPUT0_GET_INDEX(b, p, h, 0);
 #else
     uint input_idx = INPUT0_GET_INDEX(b, h, p, 0);
+#ifdef ENABLE_SLICE
+    input_idx += SLICED_FROM_START;
+#endif
 #endif
 
     uint cos_sin_b = b < INPUT1_BATCH_NUM ? b : 0;

@@ -5,16 +5,16 @@
 #pragma once
 
 #include "intel_npu/config/config.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/runtime/itensor.hpp"
-#include "zero_init.hpp"
 #include "zero_remote_tensor.hpp"
 
 namespace intel_npu {
 
 class ZeroHostTensor : public ov::ITensor {
 public:
-    ZeroHostTensor(std::shared_ptr<ov::IRemoteContext> context,
-                   std::shared_ptr<ZeroInitStructsHolder> init_structs,
+    ZeroHostTensor(const std::shared_ptr<ov::IRemoteContext>& context,
+                   const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                    const ov::element::Type element_type,
                    const ov::Shape& shape,
                    const Config& config);

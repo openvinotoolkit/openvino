@@ -36,8 +36,23 @@ public:
             size_t globalWorkSizeDZ;
         };
 
+        struct BlockParams {
+            size_t output_block_width;
+            size_t output_block_height;
+            size_t output_block_depth;
+
+            size_t output_block_features;
+
+            size_t input_block_width;
+            size_t input_block_height;
+            size_t input_block_depth;
+
+            size_t feature_slm_split;
+        };
+
         CLDNNStyle cldnnStyle;
         GEMMStyle gemmStyle;
+        BlockParams blockParams;
     };
 
     std::string GetAutoTuneOptions(int autoTuneIndex) const;

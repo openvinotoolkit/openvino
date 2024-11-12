@@ -29,38 +29,15 @@ JitConstants RoPEKernelBase::GetJitConstants(const rope_params& params, RoPEKern
 
     if (params.slice_stop > params.slice_start) {
         jit.AddConstant(MakeJitConstant("ENABLE_SLICE", true));
-
-        auto f = toCodeString(params.inputs[0].Feature(), 1);
-        auto x = toCodeString(params.inputs[0].X(), 2);
-        auto y = toCodeString(params.inputs[0].Y(), 3);
-
-        auto sliced_val = toCodeString(params.slice_stop - params.slice_start);
-        auto sliced_x = params.axis == 3 ? sliced_val : x;
-        auto sliced_y = params.axis == 2 ? sliced_val : y;
-
-        jit.AddConstant(MakeJitConstant("SLICED_INPUT0_X_PITCH", 1));
-        jit.AddConstant(MakeJitConstant("SLICED_INPUT0_Y_PITCH", sliced_x));
-        jit.AddConstant(MakeJitConstant("SLICED_INPUT0_FEATURE_PITCH", sliced_x + "*" + sliced_y));
-        jit.AddConstant(MakeJitConstant("SLICED_INPUT0_BATCH_PITCH", sliced_x + "*" + sliced_y + "*" + f));
-        jit.AddConstant(MakeJitConstant("SLICED_INPUT0_OFFSET", 0));
         jit.AddConstant(MakeJitConstant("SLICED_FROM_START", toCodeString(params.slice_start)));
 
-        if (params.axis == 2) {
-            jit.AddConstant(MakeJitConstant("SLICED_FROM_END", "(" + y + "-" + toCodeString(params.slice_stop) + ")"));
-        } else if (params.axis == 3) {
-            jit.AddConstant(MakeJitConstant("SLICED_FROM_END", "(" + x + "-" + toCodeString(params.slice_stop) + ")"));
-        } else {
+        if (params.axis != 2 && params.axis != 3) {
             OPENVINO_THROW("[GPU] Invalid axis value for RoPE operation");
         }
     }
 
     if (params.transposed_input) {
         jit.AddConstant(MakeJitConstant("ENABLE_TRANSPOSE", true));
-        jit.AddConstant(MakeJitConstant("TRANSPOSED_INPUT0_OFFSET", 0));
-        jit.AddConstant(MakeJitConstant("TRANSPOSED_INPUT0_X_PITCH", 1));
-        jit.AddConstant(MakeJitConstant("TRANSPOSED_INPUT0_Y_PITCH", "INPUT0_FEATURE_PITCH"));
-        jit.AddConstant(MakeJitConstant("TRANSPOSED_INPUT0_FEATURE_PITCH", "INPUT0_Y_PITCH"));
-        jit.AddConstant(MakeJitConstant("TRANSPOSED_INPUT0_BATCH_PITCH", "INPUT0_BATCH_PITCH"));
     }
 
     if (!params.is_chatglm && (params.inputs[1].has_dynamic_pad() || params.inputs[2].has_dynamic_pad())) {

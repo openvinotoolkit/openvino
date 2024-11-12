@@ -76,6 +76,7 @@
 #include "plugin/transformations/increase_position_ids_precision.hpp"
 #include "plugin/transformations/group_norm_composition.hpp"
 #include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
+#include "plugin/transformations/optimize_subsequent_reshapes.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
@@ -179,14 +180,29 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
     if (all_has_types(consumers, { ov::op::v0::MatMul::get_type_info_static(), ov::op::v8::Gather::get_type_info_static() }))
         return true;
 
+    auto are_multiply_from_decompression = [&all_has_types](const ov::Input<ov::Node> consumer) {
+        if (!cldnn::one_of(consumer.get_node()->get_type_info(), { ov::op::v1::Multiply::get_type_info_static() }))
+            return false;
+        const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
+        if (all_has_types(child_consumers, { ov::opset1::MatMul::get_type_info_static(), ov::op::v8::Gather::get_type_info_static() }))
+            return true;
+        return false;
+    };
 
-    auto are_converts_from_decompression = [&all_has_types](const std::set<ov::Input<ov::Node>>& consumers) {
+    auto are_converts_from_decompression = [&all_has_types, &are_multiply_from_decompression](const std::set<ov::Input<ov::Node>>& consumers) {
         if (!all_has_types(consumers, { ov::opset1::Convert::get_type_info_static() }))
             return false;
         for (const auto& consumer : consumers) {
             const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
-            if (!all_has_types(child_consumers, { ov::opset1::MatMul::get_type_info_static(), ov::op::v8::Gather::get_type_info_static() }))
+            for (const auto& child_consumer : child_consumers) {
+                const auto& type_info = child_consumer.get_node()->get_type_info();
+                if (cldnn::one_of(type_info, { ov::opset1::MatMul::get_type_info_static(), ov::op::v8::Gather::get_type_info_static() }))
+                    continue;
+                if (are_multiply_from_decompression(child_consumer)) {
+                    continue;
+                }
                 return false;
+            }
         }
         return true;
     };
@@ -874,6 +890,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::RoPEFusionGPTJ>();
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
         pass_config->disable<ov::pass::RoPEShareCosSin>();
+
+        manager.register_pass<ov::intel_gpu::OptimizeSubsequentReshapes>();
 
         manager.register_pass<ov::intel_gpu::IncreasePositionIdsPrecision>();
         // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
