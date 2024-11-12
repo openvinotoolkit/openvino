@@ -489,7 +489,7 @@ void remove_redundant_reorders::run(program& p) {
                             (dep.get_output_layout().format == format::b_fs_yx_fsv16 ||
                              dep.get_output_layout().format == format::bfyx ||
                              (dep.get_output_layout().format == format::fs_b_yx_fsv32 &&
-                             !lo.get_optimization_attributes().use_onednn_impls));
+                             !lo.has_all_enabled_onednn_impls_optimization_attribute()));
 
         auto convert_color_opt = usr->is_type<convert_color>() && prim_desc->has_surface_input();
 

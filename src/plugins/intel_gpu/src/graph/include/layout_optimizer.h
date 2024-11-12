@@ -105,8 +105,7 @@ public:
         b_fs_zyx_fsv32_network,
         b_fs_yx_fsv16_network,
         b_fs_zyx_fsv16_network,
-        bs_fs_yx_bsv16_fsv16_network,
-        use_onednn_impls
+        bs_fs_yx_bsv16_fsv16_network
     };
 
     struct optimization_attributes {
@@ -117,7 +116,7 @@ public:
         int32_t b_fs_yx_fsv16_network = 0;
         int32_t b_fs_zyx_fsv16_network = 0;
         int32_t bs_fs_yx_bsv16_fsv16_network = 0;
-        int32_t use_onednn_impls = 0;
+        std::vector<std::string> onednn_impls = {};
     };
 
 private:
@@ -199,6 +198,15 @@ public:
 
     void set_optimization_attribute(optimization_attributes_type attribute, int32_t val);
     optimization_attributes get_optimization_attributes() { return _optimization_attributes; }
+
+    void add_onednn_impls_optimization_attribute(const std::string& val);
+    void add_all_onednn_impls_optimization_attribute();
+    bool has_all_enabled_onednn_impls_optimization_attribute();
+    bool contains_onednn_impls_optimization_attribute(const std::string& val);
+    bool contains_onednn_impls_optimization_attribute(const program_node*);
+    bool is_empty_onednn_impls_optimization_attribute();
+    void clear_onednn_impls_optimization_attribute();
+    std::vector<std::string> get_all_onednn_impls_optimization_attribute();
 
     void set_implementation_forcing(const ov::intel_gpu::ImplForcingMap& map);
     const std::map<primitive_id, std::pair<format::type, impl_types>>& get_implementation_forcing() const;

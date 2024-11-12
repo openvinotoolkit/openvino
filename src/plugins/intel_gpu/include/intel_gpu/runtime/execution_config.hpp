@@ -136,7 +136,7 @@ public:
         return get_property(property.name()).template as<T>();
     }
 
-    void apply_user_properties(const cldnn::device_info& info, bool has_lstm = false);
+    void apply_user_properties(const cldnn::device_info& info);
 
     std::string to_string() const;
 
