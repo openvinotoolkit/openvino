@@ -559,9 +559,34 @@ Iteration <number>:
     ```
     cd <path-to-OpenVINO-root-dir>
     mkdir src/plugins/intel_npu/tools/protopipe/build && cd src/plugins/intel_npu/tools/protopipe/build
-    cmake ../ -DOpenCV_DIR=/home/sneaga/work/opencv/build -DCMAKE_BUILD_TYPE=Release
+    cmake ../ -DOpenCV_DIR=<path-to-opencv-build-dir> -DCMAKE_BUILD_TYPE=Release
     cmake --build . --target protopipe --parallel
     ```
+### Standalone build
+1. Build `yaml-cpp`
+   ```
+   mkdir -p yaml-cpp_build && cd yaml-cpp_build
+   cmake <openvino-dir>/src/plugins/intel_npu/thirdparty/yaml-cpp -DCMAKE_INSTALL_PREFIX=install
+   cmake --build . --config Release --target install --parallel
+   ```
+2. Build `gflags`
+   ```
+   git clone https://github.com/gflags/gflags
+   cd gflags
+   mkdir -p gflags_build && cd gflags_build
+   cmake ../ -DCMAKE_INSTALL_PREFIX=install
+   cmake --build . --config Release --target install --parallel
+   ```
+3. Build `Protopipe`
+   ```
+   mkdir -p protopipe_build && cd protopipe_build
+   cmake <openvino-dir>/src/plugins/intel_npu/tools/protopipe \
+         -DOpenCV_DIR=<path-to-opencv-build>                  \
+         -Dyaml_cpp_DIR=<yaml-cpp-build-dir>                  \
+         -Dgflags_DIR=<gflags-build-dir>                      \
+
+   cmake --build . --config Release --target protopipe --parallel
+   ```
 ### Verify the installation
 **Note**: Make sure `opencv_*` libraries are visible in the environment:
 - Windows: 
