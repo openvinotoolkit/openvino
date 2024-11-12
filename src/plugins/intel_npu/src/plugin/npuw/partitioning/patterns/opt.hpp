@@ -181,11 +181,6 @@ public:
     ConvToMatmul(Context::Ref ctx);
 };
 
-class ConvToMatmul2 : public ov::pass::MatcherPass {
-public:
-    ConvToMatmul2(Context::Ref ctx);
-};
-
 }  // namespace opt
 }  // namespace patterns
 }  // namespace npuw
