@@ -67,6 +67,7 @@ jobs:
         id: handle_docker
         with:
           images: |
+            ov_build/ubuntu_22_04_x64_docker
             ov_build/manylinux2014_x86_64
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
@@ -80,6 +81,11 @@ jobs:
         shell: bash
     runs-on: aks-linux-16-cores-32gb-manylinux
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64_docker }}
+      volumes:
+        - /mount:/mount
+      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING -e DOCKER_CONFIG
     env:
       CMAKE_BUILD_TYPE: 'Release'
       OPENVINO_REPO: ${{ github.workspace }}/src
