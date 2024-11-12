@@ -37,7 +37,7 @@ Step 1: Set Up the OpenVINO Toolkit APT Repository
 
       .. code-block:: sh
 
-         sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+         sudo gpg --output /etc/apt/trusted.gpg.d/intel.gpg --dearmor GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
 
       .. note::
 
