@@ -46,7 +46,6 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::hint::execution_mode, ov::hint::ExecutionMode::PERFORMANCE),
         std::make_tuple(ov::hint::num_requests, 0),
         std::make_tuple(ov::hint::enable_cpu_pinning, false),
-        std::make_tuple(ov::hint::dynamic_quantization_group_size, 0),
 
         std::make_tuple(ov::intel_gpu::hint::host_task_priority, ov::hint::Priority::MEDIUM),
         std::make_tuple(ov::intel_gpu::hint::queue_throttle, ov::intel_gpu::hint::ThrottleLevel::MEDIUM),
@@ -58,8 +57,11 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::internal::query_model_ratio, 1.0f),
         std::make_tuple(ov::cache_mode, ov::CacheMode::OPTIMIZE_SPEED),
         std::make_tuple(ov::cache_encryption_callbacks, EncryptionCallbacks{}),
-        std::make_tuple(ov::hint::dynamic_quantization_group_size, 0),
+        std::make_tuple(ov::hint::dynamic_quantization_group_size, 32),
+        std::make_tuple(ov::hint::kv_cache_precision, ov::element::undefined),
         std::make_tuple(ov::intel_gpu::hint::enable_kernels_reuse, false),
+        std::make_tuple(ov::weights_path, ""),
+        std::make_tuple(ov::hint::activations_scale_factor, 0.f),
 
         // Legacy API properties
         std::make_tuple(ov::intel_gpu::nv12_two_inputs, false),
@@ -203,11 +205,19 @@ void ExecutionConfig::apply_debug_options(const cldnn::device_info& info) {
         set_property(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape(true));
     }
 
-    GPU_DEBUG_IF(debug_config->dynamic_quantize_group_size) {
+    GPU_DEBUG_IF(debug_config->dynamic_quantize_group_size != debug_config->DYNAMIC_QUANTIZE_GROUP_SIZE_NOT_SET) {
         if (debug_config->dynamic_quantize_group_size == -1)
             set_property(ov::hint::dynamic_quantization_group_size(UINT64_MAX));
         else
             set_property(ov::hint::dynamic_quantization_group_size(debug_config->dynamic_quantize_group_size));
+    }
+
+    GPU_DEBUG_IF(debug_config->use_kv_cache_compression != -1) {
+        GPU_DEBUG_IF(debug_config->use_kv_cache_compression == 1) {
+            set_property(ov::hint::kv_cache_precision(ov::element::i8));
+        } else {
+            set_property(ov::hint::kv_cache_precision(ov::element::undefined));
+        }
     }
 }
 
@@ -234,6 +244,11 @@ void ExecutionConfig::apply_user_properties(const cldnn::device_info& info) {
 
     if (info.supports_immad) {
         set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    }
+
+    // Enable KV-cache compression by default for non-systolic platforms
+    if (!is_set_by_user(ov::hint::kv_cache_precision) && !info.supports_immad) {
+        set_property(ov::hint::kv_cache_precision(ov::element::i8));
     }
 
     user_properties.clear();

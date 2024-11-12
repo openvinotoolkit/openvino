@@ -31,32 +31,6 @@ else()
 endif()
 set(WHEEL_BUILD "${OpenVINO_VERSION_BUILD}" CACHE STRING "Build number of this release" FORCE)
 
-# outbound requirements.txt files for openvino-dev package
-
-ov_cpack_add_component(${OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES} HIDDEN)
-
-set(REQUIREMENTS_IN "${CMAKE_CURRENT_SOURCE_DIR}/requirements_dev.txt.in")
-set(EXTRAS_LIST _ caffe kaldi onnx pytorch tensorflow tensorflow2)
-if(NOT (APPLE AND AARCH64))
-    list(APPEND EXTRAS_LIST mxnet)
-endif()
-
-foreach(EXTRAS IN LISTS EXTRAS_LIST)
-    if(EXTRAS STREQUAL "_")
-        set(REQUIREMENTS_OUT "requirements.txt")
-        set(EXTRAS "")
-    else()
-        set(REQUIREMENTS_OUT "requirements_${EXTRAS}.txt")
-        set(EXTRAS "[${EXTRAS}]")
-    endif()
-    configure_file(${REQUIREMENTS_IN} ${REQUIREMENTS_OUT})
-
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${REQUIREMENTS_OUT}
-            DESTINATION ${OV_CPACK_DEVREQDIR}
-            COMPONENT ${OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES}
-            ${OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES_EXCLUDE_ALL})
-endforeach()
-
 # check __init__.py files alignment
 
 function(ov_check_init_files_alignment init_files)
