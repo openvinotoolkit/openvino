@@ -32,9 +32,6 @@ parameter to ``-1`` or ``128``, respectively. See the following example, using a
 chat-tuned TinyLlama model:
 ``
 
-In this example, a chat-tuned TinyLlama model is used. As long as **NPU supports
-4-bit (INT4) symmetrically quantized models only**, make sure you use the recommended
-conversion and optimization settings:
 
 
 .. tab-set::
