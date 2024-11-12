@@ -57,9 +57,6 @@ You select one of the methods by setting the ``--group-size`` parameter to eithe
 
 
 **For models exceeding 1 billion parameters**, it is recommended to use **channel-wise
-quantization** that is remarkably effective. You can also use group quantization,
-however it might not be so efficient. You can try the suggested approach with
-the llama-2-7b-chat-hf model:
 
 .. code-block:: console
 
