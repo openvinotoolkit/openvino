@@ -690,9 +690,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::LoraSubgraphFusion);
 
-    ov::pass::Serialize serializer("initial_model.xml", "initial_model.bin");
-    serializer.run_on_model(model);
-
     manager.run_passes(model);
 }
 
