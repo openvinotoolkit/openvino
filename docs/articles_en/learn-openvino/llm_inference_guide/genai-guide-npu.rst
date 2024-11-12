@@ -82,7 +82,7 @@ which do not require specifying quantization parameters:
 Run generation using OpenVINO GenAI
 ###################################
 
-It is recommended to install the latest available
+It is always recommended to install the latest available
 `driver <https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html>`__.
 
 **Currently the NPU pipeline supports greedy decoding only, so you need to
