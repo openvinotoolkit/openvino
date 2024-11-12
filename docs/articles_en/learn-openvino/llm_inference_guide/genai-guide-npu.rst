@@ -57,11 +57,6 @@ You select one of the methods by setting the ``--group-size`` parameter to eithe
 
 
 
-.. code-block:: console
-
-   optimum-cli export openvino -m meta-llama/Llama-2-7b-chat-hf --weight-format int4 --sym --group-size -1 --ratio 1.0 Llama-2-7b-chat-hf
-
-
 You can also try using 4-bit (INT4)
 `GPTQ models <https://huggingface.co/models?other=gptq,4-bit&sort=trending>`__,
 which do not require specifying quantization parameters:
