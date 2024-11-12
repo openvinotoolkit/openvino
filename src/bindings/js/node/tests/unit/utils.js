@@ -7,7 +7,7 @@ const fs = require('node:fs/promises');
 const {
   downloadFile,
   checkIfPathExists,
-} = require('../../scripts/download_runtime');
+} = require('../../scripts/lib/utils');
 
 const modelDir = 'tests/unit/test_models/';
 const testModels = {

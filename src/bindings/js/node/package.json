@@ -3,7 +3,7 @@
   "version": "2024.4.0",
   "description": "OpenVINO™ utils for using from Node.js environment",
   "repository": {
-    "url": "https://github.com/openvinotoolkit/openvino.git",
+    "url": "git+https://github.com/openvinotoolkit/openvino.git",
     "type": "git"
   },
   "license": "Apache-2.0",
@@ -23,7 +23,7 @@
     "test:e2e": "mocha ./tests/e2e/electron-app.test.js",
     "tsc": "tsc",
     "postinstall": "npm run install_runtime",
-    "download_runtime": "node ./scripts/download_runtime.js",
+    "download_runtime": "node ./scripts/download-runtime.js",
     "install_runtime": "npm run download_runtime -- --ignore-if-exists"
   },
   "devDependencies": {
