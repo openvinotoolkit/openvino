@@ -119,9 +119,6 @@ The hints are used on the presumption that the application queries ``ov::optimal
 
 While an application is free to create more requests if needed (for example to support asynchronous inputs population) **it is very important to at least run the** ``ov::optimal_number_of_infer_requests`` **of the inference requests in parallel**. It is recommended for efficiency, or device utilization, reasons.
 
-Keep in mind that ``ov::hint::PerformanceMode::LATENCY`` does not necessarily imply using single inference request. For example, multi-socket CPUs can deliver as many requests at the same minimal latency as the number of NUMA nodes in the system.
-To make your application fully scalable, make sure to query the ``ov::optimal_number_of_infer_requests`` directly.
-
 .. _prefer-async-api:
 
 Prefer Async API
