@@ -13,9 +13,9 @@ runs:
     - name: Install OpenVINO Python wheels (Windows)
       shell: pwsh
       if: runner.os == 'Windows'
-      run: python3 -m pip install ${{ inputs.wheels-to-install }} --find-links ${{ inputs.wheels-dir-path }} --no-index --no-cache
+      run: python3 -m pip install ${{ inputs.wheels-to-install }} --find-links ${{ inputs.wheels-dir-path }}
 
     - name: Install OpenVINO Python wheels (Linux and macOS)
       shell: bash
       if: runner.os != 'Windows'
-      run: python3 -m pip install ${{ inputs.wheels-to-install }} --find-links ${{ inputs.wheels-dir-path }} --no-index --no-cache
+      run: python3 -m pip install ${{ inputs.wheels-to-install }} --find-links ${{ inputs.wheels-dir-path }}
