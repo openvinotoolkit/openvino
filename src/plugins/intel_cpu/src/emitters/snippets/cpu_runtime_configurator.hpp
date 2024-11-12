@@ -32,20 +32,8 @@ public:
     CPURuntimeConfigurator();
 
 protected:
-    /**
-     * @brief Update RuntimeConfig based on LinearIR
-     * @param linear_ir LinearIR
-     */
     void update(const ov::snippets::lowered::LinearIRCPtr& linear_ir) override;
-    /**
-     * @brief Update tensor rank based on master shape
-     * @param master_shape Master shape
-     */
     void update_tensor_rank(const ov::snippets::VectorDims& master_shape) override;
-    /**
-     * @brief Initializes tensor rank of config
-     * @param linear_ir LinearIR
-     */
     void init_tensor_rank(const ov::snippets::lowered::LinearIRCPtr& linear_ir) const override;
     void initialization(const ov::snippets::lowered::LinearIRCPtr& linear_ir) override;
     /**
@@ -53,12 +41,6 @@ protected:
      * @param linear_ir LinearIR
      */
     void update_loop_args(const ov::snippets::lowered::LinearIRCPtr& linear_ir) const;
-
-    void update_requested_descs(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
-                                const std::vector<ov::snippets::VectorDims>& shapes,
-                                const std::vector<std::vector<size_t>>& layouts) const;
-    void adjust_offsets_from_descs(const std::vector<ov::snippets::VectorDims>& shapes,
-                                   const std::vector<std::vector<size_t>>& layouts) const;
 
     static const size_t rank6D;
 
@@ -73,6 +55,20 @@ protected:
         std::unordered_map<snippets::lowered::UnifiedLoopInfoPtr,
                            std::vector<snippets::lowered::ExpandedLoopInfoPtr>> m_affected_uni2exp_map;
     } loopPortsAdjuster;
+
+    class BrgemmExternalRepackingAdjuster {
+    public:
+        BrgemmExternalRepackingAdjuster() = default;
+        BrgemmExternalRepackingAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir, CPURuntimeConfigurator* configurator);
+
+        void optimize(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
+                      const std::vector<ov::snippets::VectorDims>& shapes,
+                      const std::vector<std::vector<size_t>>& layouts);
+
+    private:
+        CPURuntimeConfigurator* m_configurator = nullptr;
+        std::set<size_t> m_param_idces_with_external_repacking;
+    } externalRepackingAdjuster;
 };
 
 }   // namespace intel_cpu
