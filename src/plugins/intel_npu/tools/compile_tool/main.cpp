@@ -14,10 +14,11 @@
 
 #include <gflags/gflags.h>
 
-#include "openvino/core/partial_shape.hpp"
-#include "openvino/openvino.hpp"
+#include <openvino/core/partial_shape.hpp>
+#include <openvino/openvino.hpp>
 
 #include "tools_helpers.hpp"
+
 
 static constexpr char help_message[] = "Optional. Print the usage message.";
 
@@ -168,64 +169,6 @@ bool isFP32(const ov::element::Type& type) {
     return type == ov::element::f32;
 }
 
-void boundDynamicShape(std::shared_ptr<ov::Model>& model) {
-    for (auto&& item : model->get_parameters()) {
-        auto shape = item->get_partial_shape();
-        if (shape.is_static()) {
-            continue;
-        }
-        auto rank = shape.rank();
-        if (rank.is_dynamic()) {
-            throw std::logic_error("Rank \"" + rank.to_string() + "\" of the shape \"" + shape.to_string() +
-                                   "\" is dynamic which is not supported by NPU");
-        }
-        auto layout = item->get_layout();
-        if (!ov::layout::has_batch(layout)) {
-            item->set_layout(ov::Layout(layout.to_string().insert(1, "N,")));
-            layout = item->get_layout();
-        }
-        if (shape[ov::layout::batch_idx(layout)].is_dynamic()) {
-            std::cout << "WARNING: Shape \"" + shape.to_string() + "\"" +
-                                 " has dynamic batch size which is not supported by NPU\n"
-                                 "         Setting batch to 1 forcibly"
-                      << std::endl;
-            ov::set_batch(model, 1);
-        }
-        shape = item->get_partial_shape();
-        if (shape.is_dynamic()) {
-            throw std::logic_error("Model's input shape \"" + shape.to_string() + "\"" +
-                                   " is dynamic which is not supported by NPU");
-        }
-    }
-}
-
-void setModelBatch(std::shared_ptr<ov::Model>& model, uint32_t batch = 1) {
-    if (batch == 1) {
-        return;
-    }
-    for (auto&& item : model->get_parameters()) {
-        auto shape = item->get_partial_shape();
-        auto rank = shape.rank();
-        if (rank.is_dynamic()) {
-            throw std::logic_error("Rank \"" + rank.to_string() + "\" of the shape \"" + shape.to_string() +
-                                   "\" is dynamic which is not supported by NPU");
-        }
-        auto layout = item->get_layout();
-        if (!ov::layout::has_batch(layout)) {
-            item->set_layout(ov::Layout(layout.to_string().insert(1, "N,")));
-            layout = item->get_layout();
-        }
-        if (shape[ov::layout::batch_idx(layout)].is_dynamic()) {
-            throw std::logic_error("ERROR: Shape \"" + shape.to_string() + "\"" +
-                                   " has dynamic batch size which is not supported by NPU\n"
-                                   "Cannot apply fixed batch: " +
-                                   std::to_string(batch) +
-                                   ". Please remove the parameter from config: \"override_model_batch_size\"");
-        }
-        ov::set_batch(model, batch);
-    }
-}
-
 void configurePrePostProcessing(std::shared_ptr<ov::Model>& model, const std::string& ip, const std::string& op,
                                 const std::string& iop, const std::string& il, const std::string& ol,
                                 const std::string& iol, const std::string& iml, const std::string& oml,
@@ -353,21 +296,6 @@ void configurePrePostProcessing(std::shared_ptr<ov::Model>& model, const std::st
     model = preprocessor.build();
 }
 
-void printInputAndOutputsInfoShort(const ov::Model& network) {
-    std::cout << "Network inputs:" << std::endl;
-    for (auto&& param : network.get_parameters()) {
-        auto l = param->get_layout();
-        std::cout << "    " << param->get_friendly_name() << " : " << param->get_element_type() << " / "
-                  << param->get_layout().to_string() << " / " << param->get_partial_shape().to_string() << std::endl;
-    }
-    std::cout << "Network outputs:" << std::endl;
-    for (auto&& result : network.get_results()) {
-        std::cout << "    " << result->get_friendly_name() << " : " << result->get_element_type() << " / "
-                  << result->get_layout().to_string() << " / " << result->get_output_partial_shape(0).to_string()
-                  << std::endl;
-    }
-}
-
 inline std::string fileNameNoExt(const std::string& filepath) {
     auto pos = filepath.rfind('.');
     if (pos == std::string::npos)
@@ -475,50 +403,6 @@ std::string getFileNameFromPath(const std::string& path,
 
 using TimeDiff = std::chrono::milliseconds;
 
-void reshape(ov::OutputVector inputs_info, InputsInfo& info_map, std::shared_ptr<ov::Model>& model) {
-    std::vector<InputsInfo> info_maps;
-    if (!FLAGS_shape.empty()) {
-        std::map<std::string, std::vector<std::string>> shapes_map = parseInputParameters(FLAGS_shape, inputs_info);
-
-        if (FLAGS_override_model_batch_size != 1) {
-            throw std::logic_error("Incompatible params: \"shape\" and \"override_model_batch_size\"");
-        }
-        for (auto& item : inputs_info) {
-            InputInfo info;
-            auto name = item.get_any_name();
-
-            if (!shapes_map.empty()) {
-                if (shapes_map.count(name)) {
-                    if (shapes_map.at(name).size() > 1) {
-                        // Example: -shape input1[..][..]
-                        throw std::logic_error("shape command line parameter doesn't support multiple "
-                                               "shapes for one input.");
-                    }
-                    info.partialShape = shapes_map.at(name)[0];
-                } else {
-                    info.partialShape = item.get_partial_shape();
-                }
-            }
-            info_map[name] = std::move(info);
-            info_maps.push_back(info_map);
-        }
-        std::map<std::string, ov::PartialShape> newShapes;
-        for (auto& item : info_maps) {
-            for (auto& map : item) {
-                if (!newShapes.count(map.first)) {
-                    newShapes[map.first] = map.second.partialShape;
-                }
-            }
-        }
-        model->reshape(newShapes);
-    } else {
-        if (FLAGS_d.find("NPU") != std::string::npos) {
-            boundDynamicShape(model);
-        }
-
-        setModelBatch(model, FLAGS_override_model_batch_size);
-    }
-}
 
 int main(int argc, char* argv[]) {
     try {
@@ -552,11 +436,14 @@ int main(int argc, char* argv[]) {
         InputsInfo info_map;
 
         std::cout << "Performing reshape" << std::endl;
-        reshape(std::move(inputs_info), info_map, model);
+        reshape(std::move(inputs_info), info_map, model, FLAGS_shape, FLAGS_override_model_batch_size, FLAGS_d);
 
         std::cout << "Configuring model pre & post processing" << std::endl;
         configurePrePostProcessing(model, FLAGS_ip, FLAGS_op, FLAGS_iop, FLAGS_il, FLAGS_ol, FLAGS_iol, FLAGS_iml,
                                    FLAGS_oml, FLAGS_ioml);
+        if (FLAGS_shape.empty()) {
+            setModelBatch(model, FLAGS_override_model_batch_size);
+        }
         std::cout << "Printing Input and Output Info from model" << std::endl;
         printInputAndOutputsInfoShort(*model);
         auto timeBeforeLoadNetwork = std::chrono::steady_clock::now();

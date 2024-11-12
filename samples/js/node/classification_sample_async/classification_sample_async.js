@@ -1,39 +1,30 @@
 const { addon: ov } = require('openvino-node');
 
 const args = require('args');
-const { cv } = require('opencv-wasm');
-const { getImageData } = require('../helpers.js');
+const Image = require('../image.js');
+const imagenetClassesMap = require('../../assets/datasets/imagenet_class_index.json');
 
-args.options([{
-  name: 'img',
-  defaultValue: [],
-}, {
-  name: 'model',
-}, {
-  name: 'device',
-}]);
-const { model: modelPath, device: deviceName, img: images } =
-  args.parse(process.argv);
+args.options([
+  {
+    name: 'img',
+    defaultValue: [],
+  },
+  {
+    name: 'model',
+  },
+  {
+    name: 'device',
+  },
+]);
+const {
+  model: modelPath,
+  device: deviceName,
+  img: imgPaths
+} = args.parse(process.argv);
 
-main(modelPath, images, deviceName);
+main(modelPath, imgPaths, deviceName);
 
-function completionCallback(result, imagePath) {
-  const predictions = Array.from(result.data)
-    .map((prediction, classId) => ({ prediction, classId }))
-    .sort(({ prediction: predictionA }, { prediction: predictionB }) =>
-      predictionA === predictionB ? 0 : predictionA > predictionB ? -1 : 1);
-
-  console.log(`Image path: ${imagePath}`);
-  console.log('Top 10 results:');
-  console.log('class_id probability');
-  console.log('--------------------');
-  predictions.slice(0, 10).forEach(({ classId, prediction }) =>
-    console.log(`${classId}\t ${prediction.toFixed(7)}`),
-  );
-  console.log();
-}
-
-async function main(modelPath, images, deviceName) {
+async function main(modelPath, imgPaths, deviceName) {
   //----------- Step 1. Initialize OpenVINO Runtime Core -----------------------
   console.log('Creating OpenVINO Runtime Core');
   const core = new ov.Core();
@@ -42,8 +33,6 @@ async function main(modelPath, images, deviceName) {
   console.log(`Reading the model: ${modelPath}`);
   // (.xml and .bin files) or (.onnx file)
   const model = await core.readModel(modelPath);
-  const [h, w] = model.inputs[0].shape.slice(-2);
-  const tensorShape = [1, h, w, 3];
 
   if (model.inputs.length !== 1)
     throw new Error('Sample supports only single input topologies');
@@ -52,56 +41,65 @@ async function main(modelPath, images, deviceName) {
     throw new Error('Sample supports only single output topologies');
 
   //----------- Step 3. Set up input -------------------------------------------
-  // Read input image
-  const imagesData = [];
+  const inputImages = [];
+  const [, inputHeight, inputWidth] = model.inputs[0].getShape();
 
-  for (const imagePath of images)
-    imagesData.push(await getImageData(imagePath));
+  // Read input image, resize it to the model's input size and convert it to a tensor.
+  for (const path of imgPaths) {
+    const img = await Image.load(path);
+    const resized = img.resize(inputWidth, inputHeight);
 
-  const preprocessedImages = imagesData.map((imgData) => {
-    // Use opencv-wasm to preprocess image.
-    const originalImage = cv.matFromImageData(imgData);
-    const image = new cv.Mat();
-    // The MobileNet model expects images in RGB format.
-    cv.cvtColor(originalImage, image, cv.COLOR_RGBA2RGB);
-    cv.resize(image, image, new cv.Size(w, h));
-
-    return new Uint8Array(image.data);
-  });
+    inputImages.push(resized);
+  }
 
   //----------- Step 4. Apply preprocessing ------------------------------------
   const _ppp = new ov.preprocess.PrePostProcessor(model);
   _ppp.input().tensor().setLayout('NHWC').setElementType(ov.element.u8);
-  _ppp.input().model().setLayout('NCHW');
+  _ppp.input().model().setLayout('NHWC');
   _ppp.output().tensor().setElementType(ov.element.f32);
   _ppp.build();
 
-  //----------------- Step 5. Loading model to the device ----------------------
+  //----------- Step 5. Loading model to the device ----------------------------
   console.log('Loading the model to the plugin');
   const compiledModel = await core.compileModel(model, deviceName);
   const outputName = compiledModel.output(0).toString();
 
-  //----------- Step 6. Collecting promises to react when they resolve ---------
-  console.log('Starting inference in asynchronous mode');
+  //----------- Step 6. Do inference -------------------------------------------
+  console.log('Starting inference\n');
 
   // Create infer request
   const inferRequest = compiledModel.createInferRequest();
-
-  const promises = preprocessedImages.map((tensorData, i) => {
-    const inferPromise = inferRequest.inferAsync([
-      new ov.Tensor(ov.element.u8, tensorShape, tensorData)
-    ]);
+  const promises = inputImages.map((img, i) => {
+    const inferPromise = inferRequest.inferAsync([img.toTensor()]);
 
     inferPromise.then(result =>
-      completionCallback(result[outputName], images[i]));
+      completionCallback(result[outputName], imgPaths[i]));
 
     return inferPromise;
   });
 
-  //----------- Step 7. Do inference -------------------------------------------
+  //----------- Step 7. Wait till all inferences execute -----------------------
   await Promise.all(promises);
   console.log('All inferences executed');
 
   console.log('\nThis sample is an API example, for any performance '
     + 'measurements please use the dedicated benchmark_app tool');
+}
+
+function completionCallback(result, imagePath) {
+  const predictions = Array.from(result.data)
+    .map((prediction, classId) => ({ prediction, classId }))
+    .sort(({ prediction: predictionA }, { prediction: predictionB }) =>
+      predictionA === predictionB ? 0 : predictionA > predictionB ? -1 : 1);
+
+  const imagenetClasses = ['background', ...Object.values(imagenetClassesMap)];
+
+  console.log(`Image path: ${imagePath}`);
+  console.log('Top 5 results:\n');
+  console.log('id\tprobability\tlabel');
+  console.log('---------------------------------');
+  predictions.slice(0, 5).forEach(({ classId, prediction }) =>
+    console.log(`${classId}\t${prediction.toFixed(7)}\t${imagenetClasses[classId][1]}`),
+  );
+  console.log();
 }

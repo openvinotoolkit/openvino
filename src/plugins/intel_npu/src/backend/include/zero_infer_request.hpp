@@ -11,19 +11,17 @@
 #include "intel_npu/common/sync_infer_request.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
-#include "zero_executor.hpp"
+#include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "zero_pipeline.hpp"
 #include "zero_profiling.hpp"
 #include "zero_remote_tensor.hpp"
-#include "zero_wrappers.hpp"
 
 namespace intel_npu {
 
 class ZeroInferRequest final : public SyncInferRequest {
 public:
-    explicit ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& backendPtr,
+    explicit ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
                               const std::shared_ptr<const ICompiledModel>& compiledModel,
-                              const std::shared_ptr<const IExecutor>& executor,
                               const Config& config);
 
     ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
@@ -65,7 +63,7 @@ private:
      * @param index The index corresponding to the position of the tensor inside the I/O structures.
      * @param isInput Used for identifying the structures to which the tensor belongs.
      */
-    void set_tensor_data(const std::shared_ptr<ov::ITensor> tensor, const size_t index, const bool isInput);
+    void set_tensor_data(const std::shared_ptr<ov::ITensor>& tensor, const size_t index, const bool isInput);
 
     /**
      * @brief Check the received remote tensor and copy it to the Level Zero tensor
@@ -73,7 +71,9 @@ private:
      * @param index The index corresponding to the position of the tensor inside the I/O structures.
      * @param isInput Used for identifying the structures to which the tensor belongs.
      */
-    void set_remote_tensor_data(const std::shared_ptr<ZeroRemoteTensor> tensor, const size_t index, const bool isInput);
+    void set_remote_tensor_data(const std::shared_ptr<ZeroRemoteTensor>& tensor,
+                                const size_t index,
+                                const bool isInput);
 
     void check_network_precision(const ov::element::Type_t precision) const override;
     void create_pipeline();
@@ -85,8 +85,7 @@ private:
     std::vector<std::optional<TensorData>>& get_input_tensors_data(size_t index) const;
 
     const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
-    const std::shared_ptr<const IExecutor> _executorPtr;
-    const ZeroExecutor* _executor;
+    const std::shared_ptr<IGraph> _graph;
     const Config _config;
     Logger _logger;
 
