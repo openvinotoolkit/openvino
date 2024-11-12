@@ -499,94 +499,30 @@ void regclass_Core(py::module m) {
     cls.def(
         "import_model",
         [](ov::Core& self,
-           const std::string& model_stream,
-           const std::string& device_name,
-           const std::map<std::string, py::object>& properties) {
-            auto _properties = Common::utils::properties_to_any_map(properties);
-            py::gil_scoped_release release;
-            std::stringstream _stream;
-            _stream << model_stream;
-            return self.import_model(_stream, device_name, _properties);
-        },
-        py::arg("model_stream"),
-        py::arg("device_name"),
-        py::arg("properties"),
-        R"(
-            Imports a compiled model from a previously exported one.
-
-            GIL is released while running this function.
-
-            :param model_stream: Input stream, containing a model previously exported, using export_model method.
-            :type model_stream: bytes
-            :param device_name: Name of device to which compiled model is imported.
-                                Note: if device_name is not used to compile the original model, an exception is thrown.
-            :type device_name: str
-            :param properties: Optional map of pairs: (property name, property value) relevant only for this load operation.
-            :type properties: dict, optional
-            :return: A compiled model.
-            :rtype: openvino.runtime.CompiledModel
-
-            :Example:
-            .. code-block:: python
-
-                user_stream = compiled.export_model()
-
-                with open('./my_model', 'wb') as f:
-                    f.write(user_stream)
-
-                # ...
-
-                new_compiled = core.import_model(user_stream, "CPU")
-        )");
-
-    // keep as second one to solve overload resolution problem
-    cls.def(
-        "import_model",
-        [](ov::Core& self,
            const py::object& model_stream,
            const std::string& device_name,
            const std::map<std::string, py::object>& properties) {
             const auto _properties = Common::utils::properties_to_any_map(properties);
-            if (!(py::isinstance(model_stream, pybind11::module::import("io").attr("BytesIO")))) {
+            if (!(py::isinstance(model_stream, pybind11::module::import("io").attr("BytesIO"))) &&
+                !py::isinstance<py::bytes>(model_stream)) {
                 throw py::type_error("CompiledModel.import_model(model_stream) incompatible function argument: "
-                                     "`model_stream` must be an io.BytesIO object but " +
+                                     "`model_stream` must be an io.BytesIO object or bytes but " +
                                      (std::string)(py::repr(model_stream)) + "` provided");
             }
-            std::random_device rd;
-            std::mt19937 gen(rd());
-            std::uniform_int_distribution<> distr(1000, 9999);
-            std::string filename = "model_stream_" + std::to_string(distr(gen)) + ".txt";
-            std::fstream _stream(filename, std::ios::out | std::ios::binary);
-            model_stream.attr("seek")(0);  // Always rewind stream!
-            if (_stream.is_open()) {
-                const py::bytes data = model_stream.attr("read")();
-                // convert the Python bytes object to C++ string
-                char* buffer;
-                Py_ssize_t length;
-                PYBIND11_BYTES_AS_STRING_AND_SIZE(data.ptr(), &buffer, &length);
-                _stream.write(buffer, length);
-                _stream.close();
+            py::buffer_info info;
+
+            if (py::isinstance(model_stream, pybind11::module::import("io").attr("BytesIO"))) {
+                model_stream.attr("seek")(0);
+                info = py::buffer(model_stream.attr("getbuffer")()).request();
             } else {
-                OPENVINO_THROW("Failed to open temporary file for model stream");
+                info = py::buffer(model_stream).request();
             }
 
-            ov::CompiledModel result;
-            std::fstream _fstream(filename, std::ios::in | std::ios::binary);
-            if (_fstream.is_open()) {
-                py::gil_scoped_release release;
-                result = self.import_model(_fstream, device_name, _properties);
-                _fstream.close();
-                if (std::remove(filename.c_str()) != 0) {
-                    const std::string abs_path =
-                        py::module_::import("os").attr("getcwd")().cast<std::string>() + "/" + filename;
-                    const std::string warning_message = "Temporary file " + abs_path + " failed to delete!";
-                    PyErr_WarnEx(PyExc_RuntimeWarning, warning_message.c_str(), 1);
-                }
-            } else {
-                OPENVINO_THROW("Failed to open temporary file for model stream");
-            }
+            Common::utils::MemoryBuffer mb(reinterpret_cast<char*>(info.ptr), info.size);
+            std::istream stream(&mb);
 
-            return result;
+            py::gil_scoped_release release;
+            return self.import_model(stream, device_name, _properties);
         },
         py::arg("model_stream"),
         py::arg("device_name"),
@@ -601,7 +537,7 @@ void regclass_Core(py::module m) {
 
 
             :param model_stream: Input stream, containing a model previously exported, using export_model method.
-            :type model_stream: io.BytesIO
+            :type model_stream: Union[io.BytesIO, bytes]
             :param device_name: Name of device to which compiled model is imported.
                                 Note: if device_name is not used to compile the original model, an exception is thrown.
             :type device_name: str
