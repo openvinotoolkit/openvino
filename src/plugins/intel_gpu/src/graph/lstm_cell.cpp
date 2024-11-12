@@ -22,18 +22,8 @@ std::vector<layout> lstm_cell_inst::calc_output_layouts(lstm_cell_node const& no
     auto input_pshape_x = input_layout_x.get_partial_shape();
     auto input_layout_hidden = impl_param.get_input_layout(1);
     auto input_pshape_hidden = input_layout_hidden.get_partial_shape();
-    int lstm_batch_size, lstm_hidden_size;
-    if (input_pshape_x[0].is_static()) {
-        lstm_batch_size = input_pshape_x[0].get_length();
-    } else {
-        lstm_batch_size = -1;
-    }
-
-    if (input_pshape_hidden[1].is_static()) {
-        lstm_hidden_size = input_pshape_hidden[1].get_length();
-    } else {
-        lstm_hidden_size = -1;
-    }
+    auto lstm_batch_size = input_pshape_x[0];
+    auto lstm_hidden_size = input_pshape_hidden[1];
 
     auto out_layout = cldnn::layout{ShapeType{lstm_batch_size, lstm_hidden_size}, input_layout_x.data_type, input_layout_x.format};
     return {out_layout, out_layout };
