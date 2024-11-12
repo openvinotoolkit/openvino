@@ -135,6 +135,13 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         std::shared_ptr<ov::Node> fc_input_bias = pattern_map.at(bias_m).get_node_shared_ptr();
         std::vector<std::shared_ptr<ov::Node>> result_nodes = {};
 
+        if (optional_zero_point) {
+            if ((fc_input_b->get_element_type() != ov::element::u4 && fc_input_b->get_element_type() != ov::element::u8) ||
+                (fc_input_zp->get_element_type() != ov::element::u8 && fc_input_zp->get_element_type() != ov::element::i8)) {
+                    return false;
+            }
+        }
+
         if (has_transpose) {
             const auto& transpose = pattern_map.at(transpose_m).get_node_shared_ptr();
             std::shared_ptr<ov::Node> transpose_const = pattern_map.at(transpose_const_m).get_node_shared_ptr();
