@@ -201,7 +201,6 @@ html_js_files = [
     'js/openvino_sphinx_theme.js',
     'js/splide.min.js',
     'js/sortable_tables.js',
-    'js/graphsLLM.js',
     'js/graphs.js',
     'js/gsearch.js',
     'js/hide_banner.js',
