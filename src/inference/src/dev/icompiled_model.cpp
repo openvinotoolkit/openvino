@@ -12,18 +12,10 @@
 
 // These deperecated functions are moved here as static to facilitate for IR v10
 static inline std::string create_ie_output_name(const ov::Output<const ov::Node>& output) {
-    std::string out_name;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto tensor_name = ov::descriptor::get_ov_tensor_legacy_name(output.get_tensor());
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    if (!tensor_name.empty()) {
-        out_name = std::move(tensor_name);
-    } else {
-        const auto& prev_layer = output.get_node_shared_ptr();
-        out_name = prev_layer->get_friendly_name();
-        if (prev_layer->get_output_size() != 1) {
-            out_name += "." + std::to_string(output.get_index());
-        }
+    const auto& prev_layer = output.get_node_shared_ptr();
+    auto out_name = prev_layer->get_friendly_name();
+    if (prev_layer->get_output_size() != 1) {
+        out_name += "." + std::to_string(output.get_index());
     }
     return out_name;
 }
