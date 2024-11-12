@@ -20,7 +20,7 @@ Pipeline::Pipeline(const Config& config,
                    const std::shared_ptr<IGraph>& graph,
                    zeroProfiling::ProfilingPool& profiling_pool,
                    zeroProfiling::ProfilingQuery& profiling_query,
-                   std::shared_ptr<zeroProfiling::NpuInferProfiling> npu_profiling,
+                   const std::shared_ptr<zeroProfiling::NpuInferProfiling>& npu_profiling,
                    const std::vector<std::vector<std::optional<TensorData>>>& inputTensorsData,
                    const std::vector<std::optional<TensorData>>& outputTensorsData,
                    size_t numberOfCommandLists,
@@ -30,7 +30,7 @@ Pipeline::Pipeline(const Config& config,
       _event_pool{initStructs->getDevice(),
                   initStructs->getContext(),
                   numberOfCommandLists ? static_cast<uint32_t>(numberOfCommandLists) : 1},
-      _npu_profiling(std::move(npu_profiling)),
+      _npu_profiling(npu_profiling),
       _logger("Pipeline", _config.get<LOG_LEVEL>()) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::Pipeline::Pipeline");
     _logger.debug("Pipeline - initialize started");
@@ -45,9 +45,7 @@ Pipeline::Pipeline(const Config& config,
     _logger.debug("Pipeline - emplace_back _event_pool and _command_queue");
     for (size_t i = 0; i < numberOfCommandLists; i++) {
         _command_lists.emplace_back(
-            std::make_unique<CommandList>(initStructs->getDevice(),
-                                          initStructs->getContext(),
-                                          initStructs->getGraphDdiTable(),
+            std::make_unique<CommandList>(initStructs,
                                           group_ordinal,
                                           initStructs->getMutableCommandListVersion() ? true : false));
         _events.emplace_back(std::make_unique<Event>(_event_pool.handle(), static_cast<uint32_t>(i)));

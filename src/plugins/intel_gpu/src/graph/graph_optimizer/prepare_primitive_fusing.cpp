@@ -736,8 +736,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input.is_type<strided_slice>();
 
-            should_fuse |= input.is_type<crop>();
-
             bool legacy_fusion = activation_node.get_dependencies().size() == 1 &&
                                  !input.can_be_optimized() &&
                                  !activation_node.is_constant() &&
@@ -922,8 +920,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                       (parents[i].first->is_type<gather>()) ||
                                       (parents[i].first->is_type<reduce>() &&
                                        reduce_supports_fusings(parents[i].first->as<reduce>())) ||
-                                      (parents[i].first->is_type<lrn>()) ||
-                                      (parents[i].first->is_type<crop>());
+                                      (parents[i].first->is_type<lrn>());
             }
 
             // Disable fusion to a node on constant path when second input is in data flow
@@ -1063,6 +1060,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                     fused_node->get_input_pshape().rbegin()->is_dynamic();
 
                 if (is_fc_lora || is_conv_lora || is_gemm_lora) {
+                    if (!can_fuse_parents[peer_idx]) {
+                        return;
+                    }
                     std::swap(peer_node, fused_node);
                 }
             }
