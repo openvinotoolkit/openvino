@@ -223,7 +223,7 @@ private:
                 std::make_shared<op::v0::Constant>(params.m_axes_type, params.m_axes_shape, params.m_axes_value.data());
             squeeze = std::make_shared<op::v15::Squeeze>(in, axes_node, true);
         } else {
-            squeeze = std::make_shared<op::v15::Squeeze>(in);
+            squeeze = std::make_shared<op::v15::Squeeze>(in, true);
         }
 
         return std::make_shared<ov::Model>(squeeze, ParameterVector{in});

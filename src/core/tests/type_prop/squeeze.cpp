@@ -667,10 +667,15 @@ TEST(SqueezeDynamicAxis, squeeze_dynamic_no_axes) {
     auto param = make_shared<ov::op::v0::Parameter>(element::f32, p_shape);
 
     const auto squeeze0 = std::make_shared<op::v0::Squeeze>(param);
-    const auto squeeze1 = std::make_shared<op::v15::Squeeze>(param);
+    const auto squeeze1 = std::make_shared<op::v15::Squeeze>(param, true);
+    const auto squeeze2 = std::make_shared<op::v15::Squeeze>(param, false);
 
     EXPECT_EQ(squeeze0->get_element_type(), element::f32);
     EXPECT_EQ(squeeze0->get_output_partial_shape(0), exp_shape);
+
+    EXPECT_EQ(squeeze1->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze1->get_output_partial_shape(0), exp_shape);
+    EXPECT_EQ(squeeze1->get_allow_axis_skip(), true);
 
     EXPECT_EQ(squeeze1->get_element_type(), element::f32);
     EXPECT_EQ(squeeze1->get_output_partial_shape(0), exp_shape);
