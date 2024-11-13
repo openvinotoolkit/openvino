@@ -59,22 +59,22 @@ struct search_sorted_impl : typed_primitive_impl_ocl<search_sorted> {
 namespace detail {
 
 attach_search_sorted_impl::attach_search_sorted_impl() {
+#define ADD_TYPE(type) std::make_tuple(data_types::type, format::bfyx), std::make_tuple(data_types::type, format::bfzyx)
+
     implementation_map<search_sorted>::add(impl_types::ocl,
                                            typed_primitive_impl_ocl<search_sorted>::create<search_sorted_impl>,
                                            {
-                                               std::make_tuple(data_types::i8, format::bfyx),
-                                               std::make_tuple(data_types::u8, format::bfyx),
-                                               std::make_tuple(data_types::i32, format::bfyx),
-                                               std::make_tuple(data_types::i64, format::bfyx),
-                                               std::make_tuple(data_types::f32, format::bfyx),
-                                               std::make_tuple(data_types::f16, format::bfyx),
-                                               std::make_tuple(data_types::i8, format::bfzyx),
-                                               std::make_tuple(data_types::u8, format::bfzyx),
-                                               std::make_tuple(data_types::i32, format::bfzyx),
-                                               std::make_tuple(data_types::i64, format::bfzyx),
-                                               std::make_tuple(data_types::f32, format::bfzyx),
-                                               std::make_tuple(data_types::f16, format::bfzyx),
+                                               ADD_TYPE(i8),
+                                               ADD_TYPE(u8),
+                                               ADD_TYPE(i16),
+                                               ADD_TYPE(u16),
+                                               ADD_TYPE(i32),
+                                               ADD_TYPE(u32),
+                                               ADD_TYPE(i64),
+                                               ADD_TYPE(f16),
+                                               ADD_TYPE(f32),
                                            });
+#undef ADD_TYPE
 }
 
 }  // namespace detail

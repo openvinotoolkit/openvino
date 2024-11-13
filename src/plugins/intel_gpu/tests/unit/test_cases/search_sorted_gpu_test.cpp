@@ -134,12 +134,13 @@ std::vector<SearchSortedTestParams> generateTestParams() {
 
 }  // namespace
 
-#define ROI_ALIGN_ROTATED_TEST_P(precision)                                          \
+#define SEARCH_SORTED_TEST_P(precision)                                              \
     TEST_P(search_sorted_test, ref_comp_##precision) {                               \
         Execute(PrepareInferenceParams<ov::element::Type_t::precision>(GetParam())); \
     }
 
-ROI_ALIGN_ROTATED_TEST_P(f32);
+SEARCH_SORTED_TEST_P(f16);
+SEARCH_SORTED_TEST_P(u8);
 
 INSTANTIATE_TEST_SUITE_P(search_sorted_test_suit,
                          search_sorted_test,

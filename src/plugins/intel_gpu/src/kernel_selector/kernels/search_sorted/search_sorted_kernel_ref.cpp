@@ -10,7 +10,10 @@ ParamsKey SearchSortedKernelRef::GetSupportedKey() const {
 
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
+    k.EnableInputDataType(Datatype::INT16);
+    k.EnableInputDataType(Datatype::UINT16);
     k.EnableInputDataType(Datatype::INT32);
+    k.EnableInputDataType(Datatype::UINT32);
     k.EnableInputDataType(Datatype::INT64);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::F16);
