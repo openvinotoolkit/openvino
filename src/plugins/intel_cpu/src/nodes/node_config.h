@@ -139,6 +139,11 @@ public:
         _desc = createPortDesc(desc, cmpMask);
     }
 
+    bool hasZeroDims() const {
+        const auto desc = getMemDesc();
+        return desc->getShape().hasZeroDims() && !desc->empty();
+    }
+
 private:
     PortDescBasePtr createPortDesc(const MemoryDescPtr& desc, BlockedMemoryDesc::CmpMask cmpMask) {
         if (desc->getType() & Blocked)

@@ -223,6 +223,10 @@ void Bucketize::prepareParams() {
                                  std::multiplies<size_t>());
 }
 
+bool Bucketize::canBeSkipped() const {
+    return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(0);
+}
+
 bool Bucketize::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
 }
