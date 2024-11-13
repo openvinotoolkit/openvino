@@ -14,7 +14,7 @@ LSTMSequence
 
 **Detailed description**
 
-A single cell in the sequence is implemented in the same way as in :doc:`LSTM Cell <lstm-cell-1>` operation. *LSTMSequence* represents a sequence of LSTM cells. The sequence can be connected differently depending on ``direction`` attribute that specifies the direction of traversing of input data along sequence dimension or specifies whether it should be a bidirectional sequence. The most of the attributes are in sync with the specification of ONNX LSTM operator defined `LSTMCell <https://github.com/onnx/onnx/blob/master/docs/Operators.md#lstm>`__ .
+A single cell in the sequence is implemented in the same way as in :doc:`LSTM Cell <lstm-cell-1>` operation. *LSTMSequence* represents a sequence of LSTM cells. The sequence can be connected differently depending on ``direction`` attribute that specifies the direction of traversing of input data along sequence dimension or specifies whether it should be a bidirectional sequence. The most of the attributes are in sync with the specification of ONNX LSTM operator defined `LSTMCell <https://github.com/onnx/onnx/blob/main/docs/Operators.md#lstm>`__ .
 
 
 **Attributes**

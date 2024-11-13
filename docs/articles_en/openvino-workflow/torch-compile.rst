@@ -288,7 +288,7 @@ PyTorch supports ``torch.compile`` officially on Windows from version 2.3.0 onwa
 For PyTorch versions below 2.3.0, the ``torch.compile`` feature is not supported on Windows
 officially. However, it can be accessed by running the following instructions:
 
-1. Install the PyTorch nightly wheel file - `2.1.0.dev20230713 <https://download.pytorch.org/whl/nightly/cpu/torch-2.1.0.dev20230713%2Bcpu-cp38-cp38-win_amd64.whl>`__ ,
+1. Install the PyTorch nightly wheel file - `2.1.0.dev20230713 <https://download.pytorch.org/whl/cpu/torch-2.1.0%2Bcpu-cp38-cp38-win_amd64.whl>`__ ,
 2. Update the file at ``<python_env_root>/Lib/site-packages/torch/_dynamo/eval_frames.py``
 3. Find the function called ``check_if_dynamo_supported()``:
 
@@ -374,7 +374,7 @@ The ``torch.compile`` feature is part of PyTorch 2.0, and is based on:
   (PEP 523) to dynamically modify Python bytecode right before it is executed (PyTorch operators
   that cannot be extracted to FX graph are executed in the native Python environment).
   It maintains the eager-mode capabilities using
-  `Guards <https://pytorch.org/docs/stable/torch.compiler_guards_overview.html>`__ to ensure the
+  `Guards <https://pytorch.org/docs/2.0/dynamo/guards-overview.html>`__ to ensure the
   generated graphs are valid.
 
 * **AOTAutograd** - generates the backward graph corresponding to the forward graph captured by TorchDynamo.

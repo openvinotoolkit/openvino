@@ -160,7 +160,7 @@ It is important to mention that sometimes it seems like transformation cannot be
 because the actual values of inputs or shapes are needed. In fact, manipulations of shapes or values can be implemented
 using operations that are added to the graph. Consider the
 ``extensions/front/onnx/flattenONNX_to_reshape.py`` transformation, which replaces an ONNX
-`Flatten <https://github.com/onnx/onnx/blob/master/docs/Operators.md#Flatten>`__ operation with a sub-graph of operations performing
+`Flatten <https://github.com/onnx/onnx/blob/main/docs/Operators.md#Flatten>`__ operation with a sub-graph of operations performing
 the following (when ``axis`` is not equal to 0 and 1):
 
 1. Calculate a shape of the ``Flatten`` input tensor, using the :doc:`ShapeOf <../../openvino-ir-format/operation-sets/operation-specs/shape/shape-of-3>` operation.

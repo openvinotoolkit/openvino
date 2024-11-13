@@ -96,7 +96,7 @@ Discontinued:
 
    |   *New solution:* API 2.0 launched in OpenVINO 2022.1
    |   *Old solution:* discontinued with OpenVINO 2024.0
-   |      `The last version supporting API 1.0 <https://docs.openvino.ai/2023.2/openvino_2_0_transition_guide.html>`__
+   |      `2023.2 is the last version supporting API 1.0 <https://docs.openvino.ai/archives/index.html#:~:text=2023.2,Release%20Notes>`__
 
 .. dropdown:: Compile tool
 
