@@ -68,7 +68,7 @@ JitConstants DynamicQuantizeKernelOpt::GetJitConstants(const dynamic_quantize_pa
     jit.AddConstant(MakeJitConstant("TOTAL_BLOCK_NUM", total_block_num));
     jit.AddConstant(MakeJitConstant("ALIGNED_BLOCK_NUM", aligned_block_num));
     jit.AddConstant(MakeJitConstant("BLOCK_NUM", block_num));
-    // jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", params.group_size));
+    jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", params.group_sizes.back()));
     jit.Merge(GetTensorFriendlyWorkGroupsJit(params.outputs[0]));
 
     return jit;
@@ -77,8 +77,12 @@ JitConstants DynamicQuantizeKernelOpt::GetJitConstants(const dynamic_quantize_pa
 CommonDispatchData DynamicQuantizeKernelOpt::SetDefault(const dynamic_quantize_params& params) const {
     CommonDispatchData dispatchData;
 
-    // if (params.group_size > 128) 
-    {
+    if (params.group_sizes.back() <= 128) {
+        // FIXME: it is only available when only last axis is quantized
+        auto bf_size = get_input_bf_size(params);
+        dispatchData.gws = {bf_size.first, bf_size.second / params.group_sizes.back()}; // FIXME: need generalization or 
+        dispatchData.lws = {1, 1, 1};
+    } else {
         auto vec_size = get_match_vector_size(params);
         auto bf_size = get_input_bf_size(params);
         size_t total_block_num = bf_size.second / (simd * vec_size);
@@ -88,12 +92,6 @@ CommonDispatchData DynamicQuantizeKernelOpt::SetDefault(const dynamic_quantize_p
         dispatchData.gws = {simd, block_num, batch};
         dispatchData.lws = {simd, block_num, 1};
     }
-    // } else {
-    //     auto bf_size = get_input_bf_size(params);
-        // dispatchData.gws = {bf_size.first, bf_size.second / params.group_size};
-    //     dispatchData.lws = {1, 1, 1};
-    // }
-
     return dispatchData;
 }
 
@@ -166,8 +164,9 @@ bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {
     if (dq_params.append_axis != -1)
         return false;
 
-    if (dq_params.group_sizes.back() != UINT64_MAX)
-        return false;
+    // FIXME: it is allowed to quantize 
+    // if (dq_params.group_sizes.back() != UINT64_MAX)
+    //     return false;
 
     // Allow only default scales order
     const auto& scales_output_order = dq_params.scales_output_order;
