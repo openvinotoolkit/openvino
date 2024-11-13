@@ -85,7 +85,6 @@ from tests import (
     xfail_issue_122775,
     xfail_issue_122776,
     skip_misalignment,
-    skip_issue_124587,
     xfail_issue_139934,
     xfail_issue_139936,
     xfail_issue_139937,
@@ -798,13 +797,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_qlinearmatmul_3D_uint8_float16_cpu",
         "OnnxBackendNodeModelTest.test_quantizelinear_blocked_asymmetric_cpu",
         "OnnxBackendNodeModelTest.test_quantizelinear_blocked_symmetric_cpu",
-    ),
-    (
-        skip_issue_124587,
-        "OnnxBackendNodeModelTest.test_split_variable_parts_1d_opset18_cpu",
-        "OnnxBackendNodeModelTest.test_split_variable_parts_2d_opset18_cpu",
-        "OnnxBackendNodeModelTest.test_split_variable_parts_default_axis_opset13_cpu",
-        "OnnxBackendNodeModelTest.test_split_variable_parts_default_axis_opset18_cpu",
     ),
     (
         xfail_issue_139934,
