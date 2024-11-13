@@ -164,7 +164,6 @@ _OPENVINO_OP_REG(AvgPool, ov::op::v14)
 _OPENVINO_OP_REG(MaxPool, ov::op::v14)
 
 _OPENVINO_OP_REG(ROIAlignRotated, ov::op::v15)
-
 _OPENVINO_OP_REG(EmbeddingBagOffsets, op::v15)
 _OPENVINO_OP_REG(EmbeddingBagPacked, op::v15)
 _OPENVINO_OP_REG(Col2Im, ov::op::v15)
@@ -175,6 +174,8 @@ _OPENVINO_OP_REG(BitwiseLeftShift, ov::op::v15)
 _OPENVINO_OP_REG(BitwiseRightShift, ov::op::v15)
 _OPENVINO_OP_REG(SliceScatter, ov::op::v15)
 _OPENVINO_OP_REG(SearchSorted, ov::op::v15)
+
+_OPENVINO_OP_REG(Identity, ov::op::v16)
 
 _OPENVINO_OP_REG(AUGRUCell, ov::op::internal)
 _OPENVINO_OP_REG(AUGRUSequence, ov::op::internal)

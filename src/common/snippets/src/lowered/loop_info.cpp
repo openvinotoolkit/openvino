@@ -99,7 +99,7 @@ template<>
 std::vector<LoopPort>::iterator LoopInfo::find_loop_port(const ExpressionPort& expr_port) {
     auto& ports = expr_port.get_type() == ExpressionPort::Input ? m_input_ports : m_output_ports;
     const auto it = std::find_if(ports.begin(), ports.end(),
-                                [&expr_port](const LoopPort& port) { return *port.expr_port.get() == expr_port; });
+                                [&expr_port](const LoopPort& port) { return *port.expr_port == expr_port; });
     return it;
 }
 
@@ -174,6 +174,19 @@ std::vector<LoopPort> LoopInfo::clone_loop_ports(const ExpressionMap& expr_map, 
 
 bool UnifiedLoopInfo::LoopPortDesc::is_dynamic() const {
     return utils::is_dynamic_value(ptr_increment) || utils::is_dynamic_value(finalization_offset);
+}
+
+bool UnifiedLoopInfo::LoopPortDesc::is_static() const {
+    return !is_dynamic();
+}
+
+bool operator==(const UnifiedLoopInfo::LoopPortDesc& lhs, const UnifiedLoopInfo::LoopPortDesc& rhs) {
+    if (&lhs == &rhs)
+        return true;
+    return lhs.ptr_increment == rhs.ptr_increment && lhs.finalization_offset == rhs.finalization_offset && lhs.data_size == rhs.data_size;
+}
+bool operator!=(const UnifiedLoopInfo::LoopPortDesc& lhs, const UnifiedLoopInfo::LoopPortDesc& rhs) {
+    return !(rhs == lhs);
 }
 
 UnifiedLoopInfo::UnifiedLoopInfo(size_t work_amount, size_t increment,
@@ -319,6 +332,18 @@ void UnifiedLoopInfo::sort_ports() {
     };
     reorder(m_input_ports, m_input_port_descs);
     reorder(m_output_ports, m_output_port_descs);
+}
+
+UnifiedLoopInfo::LoopPortInfo UnifiedLoopInfo::get_loop_port_info(const ExpressionPort& expr_port) {
+    OPENVINO_ASSERT(is_loop_port(expr_port), "Failed get_loop_port: expr_port is not a loop port");
+    const auto is_input = expr_port.get_type() == ExpressionPort::Input;
+    const auto& ports = is_input ? m_input_ports : m_output_ports;
+    const auto& descs = is_input ? m_input_port_descs : m_output_port_descs;
+    const auto it = std::find_if(ports.begin(), ports.end(),
+                                [&expr_port](const LoopPort& port) { return *port.expr_port == expr_port; });
+    const auto index = static_cast<size_t>(std::distance(ports.cbegin(), it));
+    OPENVINO_ASSERT(index < ports.size() && index < descs.size(), "LoopPortInfo has not been found!");
+    return {ports[index], descs[index]};
 }
 
 void UnifiedLoopInfo::replace_with_cloned_descs(size_t actual_port_idx, size_t new_count, bool is_input) {

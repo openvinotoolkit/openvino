@@ -173,17 +173,9 @@ void ZeGraphExtWrappers<TableExtension>::initialize_graph_through_command_list(z
     auto groupOrdinal = zeroUtils::findGroupOrdinal(_zeroInitStruct->getDevice(), deviceProperties);
 
     _logger.debug("ZeGraphExtWrappers::initialize_graph_through_command_list init start - create graph_command_list");
-    CommandList graph_command_list(_zeroInitStruct->getDevice(),
-                                   _zeroInitStruct->getContext(),
-                                   _zeroInitStruct->getGraphDdiTable(),
-                                   groupOrdinal);
+    CommandList graph_command_list(_zeroInitStruct, groupOrdinal);
     _logger.debug("ZeGraphExtWrappers::initialize_graph_through_command_list - create graph_command_queue");
-    CommandQueue graph_command_queue(_zeroInitStruct->getDevice(),
-                                     _zeroInitStruct->getContext(),
-                                     ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
-                                     _zeroInitStruct->getCommandQueueDdiTable(),
-                                     false,
-                                     groupOrdinal);
+    CommandQueue graph_command_queue(_zeroInitStruct, ZE_COMMAND_QUEUE_PRIORITY_NORMAL, groupOrdinal, false);
     _logger.debug("ZeGraphExtWrappers::initialize_graph_through_command_list - create fence");
     Fence fence(graph_command_queue);
 
@@ -396,7 +388,6 @@ ze_graph_handle_t ZeGraphExtWrappers<TableExtension>::getGraphHandle(
     const uint32_t& flags) const {
     ze_graph_handle_t graphHandle;
 
-    _logger.info("compileIR Using extension version: %s", typeid(TableExtension).name());
     createGraph(std::move(serializedIR), buildFlags, flags, &graphHandle);
 
     return graphHandle;

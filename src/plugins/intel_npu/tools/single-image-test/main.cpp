@@ -183,6 +183,21 @@ std::vector<std::string> splitStringList(const std::string& str, char delim) {
     return out;
 }
 
+std::string to_string(const std::vector<std::string>& c) {
+    std::stringstream stream;
+    std::string ret;
+    if (!c.empty()) {
+        stream << "[";
+        for (const auto &elem : c) {
+            stream << elem << ",";
+        }
+        ret = stream.str();
+        ret.pop_back();
+        ret += "]";
+    }
+    return ret;
+}
+
 std::map<std::string, std::string> parseArgMap(std::string argMap) {
     argMap.erase(std::remove_if(argMap.begin(), argMap.end(), ::isspace), argMap.end());
 
@@ -386,7 +401,23 @@ void convertBufferType(OutT* destination, const InT* source, size_t numberOfElem
     });
 }
 
-void cvToOV(const cv::Mat& cvImg, const ov::Tensor& tensor, const ov::Shape& shape, const ov::Layout& layout,
+struct BatchIndexer {
+    const size_t index = 0;
+    const size_t size = 1;
+
+    BatchIndexer(size_t lineIndex = 0, size_t lineCount = 1) : index(lineIndex), size(lineCount) {
+        OPENVINO_ASSERT(index < size, "Inconsistent parameters used for "
+                        "BatchIndexer construction, lineIndex: ", index,
+                        " must be lesser than lineCount: ", size);
+    }
+
+    std::string to_string() const {
+        std::stringstream sstream;
+        sstream << "["  << index << "/" << size << "]";
+        return sstream.str();
+    }
+};
+void cvToOV(const cv::Mat& cvImg, const BatchIndexer &cvImgInBatch, const ov::Tensor& tensor, const ov::Shape& shape, const ov::Layout& layout,
             const std::string& colorFormat) {
     const ov::element::Type& precision = tensor.get_element_type();
 
@@ -449,8 +480,12 @@ void cvToOV(const cv::Mat& cvImg, const ov::Tensor& tensor, const ov::Shape& sha
 
     if (layout == ov::Layout("NHWC")) {
         const auto dataBuffer = reinterpret_cast<uint8_t*>(tensor.data());
-
-        cv::Mat out(static_cast<int>(H), static_cast<int>(W), cvType, dataBuffer);
+        cv::Mat auxOut(static_cast<int>(H), static_cast<int>(W), cvType);
+        cv::Mat tensorOut(static_cast<int>(H), static_cast<int>(W), cvType, dataBuffer);
+        // only a first image from an input image array fills an original input tensor up.
+        // Subsequent images (if exist) will fill batch slices of the input tensor
+        // by its number in the input array respectively
+        cv::Mat &out = (cvImgInBatch.index == 0 ? tensorOut : auxOut);
 
         if (precision == ov::element::Type_t::f16) {
             const auto inPtr = in.ptr<float>();
@@ -466,13 +501,35 @@ void cvToOV(const cv::Mat& cvImg, const ov::Tensor& tensor, const ov::Shape& sha
             in.copyTo(out);
         }
 
-        for (size_t n = 1; n < N; ++n) {
+        // Being called sequentially with ascending `cvImgInBatch.index` value,
+        // it fills up rest of the batched tensor by
+        // a last requested image data until its ending from a batched slice position
+        // determined by parameter 'cvImgInBatch.index', so that filling N batched tensor
+        // by array of images size M, where M < N, will make up
+        // The final batched tensor will comprise
+        // [imgIdx_0, imgIdx_1,..., imgIdx_M, imgIdx_M,...,imgIdx_M] as its slices
+        if (cvImgInBatch.index == 0 && N != 1) {
+            std::cout << "Fill up all input batch slices up to " << N
+                      << " with image data from the array: ["
+                      << cvImgInBatch.to_string() << std::endl;
+        }
+        for (size_t n = std::max<size_t>(1, cvImgInBatch.index); n < N; ++n) {
+            if (n == std::max<size_t>(1, cvImgInBatch.index) && cvImgInBatch.index >= 1) {
+                std::cout << "Fill input batch slices starting from index "
+                          << n << " up to " << N << " with image data from the array: "
+                          << cvImgInBatch.to_string() << std::endl;
+            }
             cv::Mat batch(static_cast<int>(H), static_cast<int>(W), cvType,
                           dataBuffer + n * (out.size().area() * out.elemSize()));
             out.copyTo(batch);
         }
     } else if (layout == ov::Layout("NCHW")) {
-        auto tensorPlanes = ovToCV(tensor, shape, layout, 0);
+        ov::Tensor auxTensor(precision, shape);
+        const ov::Tensor &outTensor = (cvImgInBatch.index == 0 ? tensor : auxTensor);
+        // only a first image from an input image array fills an original input tensor up.
+        // Subsequent images (if exist) will fill batch slices of the input tensor
+        // by its number in the input array respectively
+        auto tensorPlanes = ovToCV(outTensor, shape, layout, 0);
 
         if (!(precision == ov::element::Type_t::f16 ||
             precision == ov::element::Type_t::bf16)) {
@@ -495,7 +552,24 @@ void cvToOV(const cv::Mat& cvImg, const ov::Tensor& tensor, const ov::Shape& sha
             }
         }
 
-        for (size_t n = 1; n < N; ++n) {
+        // Being called sequentially with ascending `cvImgInBatch.index` value,
+        // it fills up rest of the batched tensor by
+        // a last requested image data until its ending from a batched slice position
+        // determined by parameter 'cvImgInBatch.index', so that filling N batched tensor
+        // by array of images size M, where M < N, will make up
+        // The final batched tensor will comprise
+        // [imgIdx_0, imgIdx_1,..., imgIdx_M, imgIdx_M,...,imgIdx_M] as its slices
+        if (cvImgInBatch.index == 0 && N != 1) {
+            std::cout << "Fill up all input batch slices planes up to " << N
+                      << " with image data from the array: "
+                      << cvImgInBatch.to_string() << std::endl;
+        }
+        for (size_t n = std::max<size_t>(1, cvImgInBatch.index); n < N; ++n) {
+            if (n == std::max<size_t>(1, cvImgInBatch.index) && cvImgInBatch.index >= 1) {
+                std::cout << "Fill input batch slices planes starting from index "
+                          << n << " up to " << N << " with image data from the array: "
+                          << cvImgInBatch.to_string() << std::endl;
+            }
             const auto batchPlanes = ovToCV(tensor, shape, layout, n);
 
             OPENVINO_ASSERT(batchPlanes.size() == tensorPlanes.size());
@@ -654,27 +728,28 @@ std::string cleanName(std::string&& name) {
     return std::move(name);
 }
 
-ov::Tensor loadImage(const ov::element::Type& precision, const ov::Shape& shape, const ov::Layout& layout,
-                     const std::string& filePath, const std::string& colorFormat) {
-    const auto frame = cv::imread(filePath, cv::IMREAD_COLOR);
-    OPENVINO_ASSERT(!frame.empty(), "Failed to open input image file ", filePath);
-
+ov::Tensor loadImages(const ov::element::Type& precision, const ov::Shape& shape, const ov::Layout& layout,
+                     const std::vector<std::string>& filePaths, const std::string& colorFormat) {
     const ov::Tensor tensor(precision, shape);
+    for (size_t fileIndex = 0; fileIndex != filePaths.size(); fileIndex++) {
+        const auto &filePath = filePaths[fileIndex];
+        const auto frame = cv::imread(filePath, cv::IMREAD_COLOR);
+        OPENVINO_ASSERT(!frame.empty(), "Failed to open input image file ", filePath);
 
-    cvToOV(frame, tensor, shape, layout, colorFormat);
-
+        cvToOV(frame, BatchIndexer{fileIndex, filePaths.size()}, tensor, shape, layout, colorFormat);
+    }
     return tensor;
 }
 
-ov::Tensor loadBinary(const ov::element::Type& modelPrecision, const ov::Shape& shape, const ov::Layout& layout,
-                      const std::string& filePath, const ov::element::Type& dataPrecision) {
+void loadBinary(const std::string& filePath, const BatchIndexer &fileSourceInBatch, ov::Tensor &requestedTensor,
+                const ov::element::Type& modelPrecision, const ov::Shape& shape,
+                const ov::Layout& layout, const ov::element::Type& dataPrecision) {
     std::ifstream binaryFile(filePath, std::ios_base::binary | std::ios_base::ate);
     OPENVINO_ASSERT(binaryFile, "Failed to open input binary file: ", filePath);
     const auto fileSize = binaryFile.tellg();
     binaryFile.seekg(0, std::ios_base::beg);
     OPENVINO_ASSERT(binaryFile.good(), "While reading a file an error is encountered");
     const size_t fileBytes = static_cast<size_t>(fileSize);
-    ov::Tensor requestedTensor(modelPrecision, shape);
     const size_t reqTensorBytes = static_cast<size_t>(requestedTensor.get_byte_size());
 
     if (dataPrecision != modelPrecision && dataPrecision != ov::element::Type_t::undefined) {
@@ -688,7 +763,7 @@ ov::Tensor loadBinary(const ov::element::Type& modelPrecision, const ov::Shape& 
             std::cout << "File contains " << fileBytes
                       << " bytes, but it expected to be: " << inputTensor.get_byte_size()
                       << " while converting precision from " << dataPrecision << " to " << modelPrecision
-                      << ". Check whether it is possible to batch loading " << std::endl;
+                      << ". Check whether it is possible to fit it into batch loading " << std::endl;
             OPENVINO_ASSERT(ov::layout::has_batch(layout),
                             "Input layout has no batch dimenstion: ", layout.to_string());
             size_t N = shape[ov::layout::batch_idx(layout)];
@@ -703,12 +778,20 @@ ov::Tensor loadBinary(const ov::element::Type& modelPrecision, const ov::Shape& 
             const ov::Tensor convertedPrecisionTensor(modelPrecision, debatchedInputTensorShape);
             npu::utils::convertTensorPrecision(inputDebatchedTensor, convertedPrecisionTensor);
             std::list<ov::Tensor> tensorsToJoin;
-            std::generate_n(std::back_inserter(tensorsToJoin), N, [&convertedPrecisionTensor]() {
-                return convertedPrecisionTensor;
-            });
+            std::list<ov::Tensor> tensorsFromSplit = npu::utils::splitBatchedTensor(requestedTensor, layout, N);
+            // Constitute a new bathed tensor of size N from parts of it
+            // enumerated by indices from the interval [0...fileSourceInBatch.index],
+            // where fileSourceInBatch.index < N
+            // The rest parts of the new tensor [fileSourceInBatch.index+1...N]
+            // will be filled up by same content of an image of `fileSourceInBatch.index`
+            std::copy_n(tensorsFromSplit.begin(), std::min(fileSourceInBatch.index, N), std::back_inserter(tensorsToJoin));
+            if (fileSourceInBatch.index < N) {
+                std::generate_n(std::back_inserter(tensorsToJoin), N - fileSourceInBatch.index, [&convertedPrecisionTensor]() {
+                    return convertedPrecisionTensor;
+                });
+            }
             requestedTensor = npu::utils::joinTensors(tensorsToJoin, layout);
         }
-
     } else {
         if (fileBytes == reqTensorBytes) {
             binaryFile.read(reinterpret_cast<char*>(requestedTensor.data()),
@@ -716,22 +799,40 @@ ov::Tensor loadBinary(const ov::element::Type& modelPrecision, const ov::Shape& 
         } else {
             std::cout << "File contains " << fileBytes << " bytes, but it expected to be: " << reqTensorBytes
                       << " when datatypes match. "
-                      << ". Check whether it is possible to batch loading " << std::endl;
+                      << "Check whether it is possible to fit it into batch loading " << std::endl;
             OPENVINO_ASSERT(ov::layout::has_batch(layout),
                             "Input layout has no batch dimenstion: ", layout.to_string());
             size_t N = shape[ov::layout::batch_idx(layout)];
             OPENVINO_ASSERT(fileBytes * N == reqTensorBytes, "File contains ", fileBytes, " bytes, but ",
                             reqTensorBytes, " in batch size ", N, " expected");
 
-            // duplicate a binary into tensor memory if the tensor batched
-            for (size_t n = 0; n < N; ++n) {
+            if (fileSourceInBatch.index == 0 && N != 1) {
+                std::cout << "Fill up all input batch slices up to " << N
+                          << " with binary data from the array: "
+                          << fileSourceInBatch.to_string() << std::endl;
+            }
+            for (size_t n = std::max<size_t>(0, fileSourceInBatch.index); n < N; ++n) {
+                if (n == std::max<size_t>(1, fileSourceInBatch.index) && fileSourceInBatch.index >= 1) {
+                    std::cout << "Fill input batch slices starting from index "
+                              << n << " up to " << N
+                              << " with binary data from the data sources array: "
+                              << fileSourceInBatch.to_string() << std::endl;
+                }
                 binaryFile.seekg(0, std::ios_base::beg);
                 binaryFile.read(reinterpret_cast<char*>(requestedTensor.data()) + fileBytes * n,
                                 static_cast<std::streamsize>(fileBytes));
             }
         }
     }
+}
 
+ov::Tensor loadBinaries(const ov::element::Type& modelPrecision, const ov::Shape& shape, const ov::Layout& layout,
+                      const std::vector<std::string>& filePaths, const ov::element::Type& dataPrecision) {
+    ov::Tensor requestedTensor(modelPrecision, shape);
+    for (size_t fileIndex = 0; fileIndex != filePaths.size(); fileIndex++) {
+        const auto &filePath = filePaths[fileIndex];
+        loadBinary(filePath, BatchIndexer{fileIndex, filePaths.size()}, requestedTensor, modelPrecision, shape, layout, dataPrecision);
+    }
     return requestedTensor;
 }
 
@@ -752,12 +853,12 @@ ov::Tensor loadBinary(const ov::element::Type& modelPrecision, const ov::Shape& 
  * @return The tensor containing the loaded data.
  */
 ov::Tensor loadInput(const ov::element::Type& modelPrecision, const ov::Shape& shape, const ov::Layout& layout,
-                     const std::string& filePath, const std::string& colorFormat,
+                     const std::vector<std::string>& filePaths, const std::string& colorFormat,
                      const ov::element::Type& dataPrecision = ov::element::Type_t::undefined) {
     if (isImage(shape, layout) && !FLAGS_img_as_bin) {
-        return loadImage(modelPrecision, shape, layout, filePath, colorFormat);
+        return loadImages(modelPrecision, shape, layout, filePaths, colorFormat);
     } else {
-        return loadBinary(modelPrecision, shape, layout, filePath, dataPrecision);
+        return loadBinaries(modelPrecision, shape, layout, filePaths, dataPrecision);
     }
 }
 
@@ -1719,11 +1820,20 @@ static int runSingleImageTest() {
         std::map<RegexPtr, ov::Layout> outModelLayouts = parseLayoutRegex(FLAGS_oml);
 
         std::vector<std::string> inputFilesPerCase;
-        std::vector<std::vector<std::string>> inputFilesForOneInfer;
+        using FilesPerInput = std::vector<std::string>;
+        using FilesForModelInputs = std::vector<FilesPerInput>;
+        std::vector<FilesForModelInputs> inputFilesForOneInfer;
 
         inputFilesPerCase = splitStringList(FLAGS_input, ';');
         for (const auto& images : inputFilesPerCase) {
-            inputFilesForOneInfer.push_back(splitStringList(images, ','));
+            std::vector<std::string> filesPerModel = splitStringList(images, ',');
+            FilesForModelInputs entireModelFiles;
+            entireModelFiles.reserve(filesPerModel.size());
+            for (auto &&filesPerInput : filesPerModel) {
+                // from now on each input of a model support multiple image files as content of a batched input
+                entireModelFiles.push_back(splitStringList(filesPerInput, '|'));
+            }
+            inputFilesForOneInfer.push_back(std::move(entireModelFiles));
         }
 
         std::vector<std::string> inputBinPrecisionStrPerCase;
@@ -1896,8 +2006,13 @@ static int runSingleImageTest() {
                 }
             }
 
+            if (FLAGS_shape.empty()) {
+                setModelBatch(model, FLAGS_override_model_batch_size);
+            }
             std::cout << "Compile model" << std::endl;
-            compiledModel = core.compile_model(ppp.build(), FLAGS_device);
+            model = ppp.build();
+            printInputAndOutputsInfoShort(*model);
+            compiledModel = core.compile_model(model, FLAGS_device);
         } else {
             std::cout << "Import network " << FLAGS_network << std::endl;
 
@@ -1947,7 +2062,7 @@ static int runSingleImageTest() {
         for (size_t numberOfTestCase = 0; numberOfTestCase < inputFilesPerCase.size(); ++numberOfTestCase) {
             const auto inputsInfo = compiledModel.inputs();
             const auto outputsInfo = compiledModel.outputs();
-            std::vector<std::string> inputFiles = inputFilesForOneInfer[numberOfTestCase];
+            const FilesForModelInputs &inputFiles = inputFilesForOneInfer[numberOfTestCase];
             OPENVINO_ASSERT(inputFiles.size() == inputsInfo.size(), "Number of input files ", inputFiles.size(),
                             " doesn't match network configuration ", inputsInfo.size());
 
@@ -1984,7 +2099,7 @@ static int runSingleImageTest() {
                 inputDescriptors.emplace(inputInfo.get_any_name(), TensorDescriptor{precision, shape,
                                                                                     dataShape, inputLayout});
 
-                std::cout << "Load input #" << inputInd << " from " << inputFiles[inputInd] << " as " << precision
+                std::cout << "Load input #" << inputInd << " from " << to_string(inputFiles[inputInd]) << " as " << precision
                           << " " << inputLayout.to_string() << " " << shape << std::endl;
 
                 const ov::Tensor tensor =

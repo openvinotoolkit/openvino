@@ -85,7 +85,6 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}
       volumes:
         - /mount:/mount
-      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
@@ -95,14 +94,6 @@ jobs:
       OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       COVERITY_TOOL_DIR: /__w/openvino/openvino/coverity_tool
-      CMAKE_CXX_COMPILER_LAUNCHER: sccache
-      CMAKE_C_COMPILER_LAUNCHER: sccache
-      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
-      SCCACHE_SERVER_PORT: 35555
-      SCCACHE_ERROR_LOG: /__w/openvino/sccache_log.txt
-      SCCACHE_LOG: warn
-      SCCACHE_AZURE_KEY_PREFIX: coverity_lin
-      SCCACHE_CACHE_SIZE: 50G
 
     steps:
       - name: Clone OpenVINO
@@ -141,8 +132,6 @@ jobs:
       #
       # Build
       #
-      - name: Clean sccache stats
-        run: ${SCCACHE_PATH} --zero-stats
         
       - name: CMake configure - OpenVINO
         run: |
@@ -164,10 +153,7 @@ jobs:
           popd
 
       - name: Cmake build - OpenVINO with Coverity
-        run: ${COVERITY_TOOL_DIR}/cov-analysis*/bin/cov-build --dir ${BUILD_DIR}/cov-int cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
-        
-      - name: Show sccache stats
-        run: ${SCCACHE_PATH} --show-stats
+        run: ${COVERITY_TOOL_DIR}/cov-analysis*/bin/cov-build --dir ${BUILD_DIR}/cov-int cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: Pack Artefacts
         run: tar -cvf - cov-int | pigz > openvino.tgz
