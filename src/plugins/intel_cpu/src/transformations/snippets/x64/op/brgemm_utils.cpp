@@ -62,7 +62,9 @@ BRGEMM_TYPE get_brgemm_type(const ov::element::Type& element_type_a, bool transp
         return transpose_b ? BRGEMM_TYPE::REPACKING_ONLY : BRGEMM_TYPE::STAND_ALONE;
 
     OPENVINO_ASSERT(element_type_a != element::bf16 || mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16),
-                    "BF16 precision is not supported on this hardware");
+                    "BrgemmCPU BF16 precision is not supported on non avx512_core_bf16 system");
+    OPENVINO_ASSERT(element_type_a != element::f16 || mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16),
+                    "BrgemmCPU FP16 precision is not supported on non avx512_core_amx_fp16 system");
 
     if (one_of(element_type_a, element::u8, element::i8, element::bf16) &&
         dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx))

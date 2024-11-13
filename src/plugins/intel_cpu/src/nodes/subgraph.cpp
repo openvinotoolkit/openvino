@@ -348,13 +348,6 @@ Subgraph::Subgraph(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
 #endif
     const auto& tmp_snippet = ov::as_type_ptr<snippets::op::Subgraph>(op);
     OPENVINO_ASSERT(tmp_snippet, "Attempt to create Subgraph node from an invalid op type");
-    // if (tmp_snippet->get_friendly_name() == "DequantizeLinear_172_original") {
-    //     ov::pass::Manager mgr;
-    //     std::string xml = "DequantizeLinear_172_original.xml";
-    //     std::string bin = "DequantizeLinear_172_original.bin";
-    //     mgr.register_pass<ov::pass::Serialize>(xml, bin);
-    //     mgr.run_passes(tmp_snippet->body_ptr());
-    // }
     subgraph_attrs->snippet = tmp_snippet->clone();
     subgraph_attrs->bodyHash = getBodyHash(tmp_snippet);
 
