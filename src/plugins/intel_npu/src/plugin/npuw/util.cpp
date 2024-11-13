@@ -52,10 +52,10 @@ inline uint8_t lo4(uint8_t x) {
     return x & 0xF;
 }
 
-void unpack_nf4f16_scale(const ov::SoPtr<ov::ITensor>& from,
-                         const ov::SoPtr<ov::ITensor>& scale,
-                         const ov::SoPtr<ov::ITensor>& to,
-                         const ov::npuw::util::UnpackOptions& unpack_options) {
+void unpack_nf4f16(const ov::SoPtr<ov::ITensor>& from,
+                   const ov::SoPtr<ov::ITensor>& scale,
+                   const ov::SoPtr<ov::ITensor>& to,
+                   const ov::npuw::util::UnpackOptions& unpack_options) {
     auto from_shape = from->get_shape();
     auto scale_shape = scale->get_shape();
 
@@ -189,7 +189,7 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
     } else if (type_from == ov::element::i8) {
         ov::npuw::util::XARCH::unpack_i8f16_scale(from, scale, to, unpack_options);
     } else if (type_from == ov::element::nf4) {
-        unpack_nf4f16_scale(from, scale, to, unpack_options);
+        unpack_nf4f16(from, scale, to, unpack_options);
     } else {
         NPUW_ASSERT(false && "Unsupported combination");
     }
