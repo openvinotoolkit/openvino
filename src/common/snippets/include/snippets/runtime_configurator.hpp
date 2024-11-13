@@ -101,18 +101,11 @@ public:
      * This function calculates the offsets for each dimension of a tensor shape, which represent the distance between
      * consecutive elements of the corresponding dimension. If a dimension size is 1, the next dimension starts
      * immediately, and the stride is 0.
-     * @param shape The shape of the tensor.
-     * @param offsets The offsets which should be updated.
-     * @param offsets_size Requested offsets size vector.
-     * @param dim_step The initial step size for the dimensions.
+     * @param shape The shape for offset computation.
+     * @param idx The index to get the corresponding offsets and io_data_sizes.
      * @param idx_stride Defines the number of dimensions that should be skipped in the offsets vector.
      */
-    static void compute_offsets(const ov::snippets::VectorDims& shape,
-                                ov::snippets::VectorDims& offsets,
-                                size_t offsets_size,
-                                size_t dim_step,
-                                size_t idx_stride);
-
+    void compute_offsets(const ov::snippets::VectorDims& shape, size_t idx, size_t idx_stride) const;
     struct UnifiedLoopInfoRtParams {
         size_t work_amount = 0;
         std::vector<int64_t> ptr_increments;

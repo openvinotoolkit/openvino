@@ -61,8 +61,7 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
 
         ov::snippets::VectorDims shape_for_offset(cpu_config->tensor_rank - shape.size(), 1);
         shape_for_offset.insert(shape_for_offset.end(), requested_blocked_shape.begin(), requested_blocked_shape.end());
-        auto& offsets = cpu_config->io_data_offsets[i];
-        snippets::RuntimeConfigurator::compute_offsets(shape_for_offset, offsets, shape_for_offset.size(), m_configurator->get_io_data_sizes()[i], 0);
+        m_configurator->compute_offsets(shape_for_offset, i, 0);
         // Ticket 157339: Support non-planar layout
         OPENVINO_ASSERT(ov::snippets::utils::is_planar_layout(m_configurator->get_config()->layouts[i]));
     }

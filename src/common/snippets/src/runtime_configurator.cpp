@@ -281,10 +281,10 @@ void RuntimeConfigurator::update_data_offsets() const {
         if (utils::is_dynamic_vdims(shape))
             return;
 
-        auto& offsets = m_config->io_data_offsets[i];
         const auto idx_stride = m_config->tensor_rank - shape.size();
-        compute_offsets(shape, offsets, m_config->tensor_rank, m_io_data_sizes[i], idx_stride);
+        compute_offsets(shape, i, idx_stride);
 
+        auto& offsets = m_config->io_data_offsets[i];
         const auto& layout = layouts[i];
         if (!layout.empty()) {
             std::vector<size_t> reordered_offsets(offsets.size());
@@ -313,12 +313,11 @@ std::vector<std::vector<size_t>> RuntimeConfigurator::extract_layouts() const {
     return layouts;
 }
 
-void RuntimeConfigurator::compute_offsets(const ov::snippets::VectorDims& shape,
-                                          ov::snippets::VectorDims& offsets,
-                                          size_t offsets_size,
-                                          size_t dim_step,
-                                          size_t idx_stride) {
-    offsets.resize(offsets_size);
+void RuntimeConfigurator::compute_offsets(const ov::snippets::VectorDims& shape, size_t idx, size_t idx_stride) const {
+    auto& offsets = m_config->io_data_offsets[idx];
+    auto dim_step = m_io_data_sizes[idx];
+
+    offsets.resize(m_config->tensor_rank);
     std::fill(offsets.begin(), offsets.end(), 0);
     offsets[offsets.size() - 1] = dim_step;
     for (int i = static_cast<int>(shape.size()) - 2; i >= 0; i--) {
