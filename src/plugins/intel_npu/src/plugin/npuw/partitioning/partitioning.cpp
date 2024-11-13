@@ -1287,6 +1287,8 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
             HANDLE_CASE(boolean, bool);
             HANDLE_CASE(i4, int8_t);
             HANDLE_CASE(u4, uint8_t);
+            HANDLE_CASE(i16, int16_t);
+            HANDLE_CASE(u16, uint16_t);
             HANDLE_CASE(i32, int);
             HANDLE_CASE(i64, int64_t);
             HANDLE_CASE(f16, uint16_t);
@@ -1788,7 +1790,7 @@ void Partitioner::optimize(const std::string& func_name) {
 
         // Run Head/Tail passes
         ov::pass::GraphRewrite rewr;
-        rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatherCWu>(std::ref(ctx));
+        rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatheru>(std::ref(ctx));
         rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatherGQi>(std::ref(ctx));
         rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulCWu>(std::ref(ctx));
         // NB: This pass is disabled for reason! It doesn't make things better
@@ -1892,6 +1894,12 @@ void Partitioner::optimize(const std::string& func_name) {
                 auto new_elem_type = params_to_gather.pnew->get_element_type();
                 const auto& new_shape = params_to_gather.pnew->get_shape();
                 // Note: no allocation needed for this tensor - set to _closure and dummy in _lazy_closure
+                // FIXME: It turns out this tensor will be completely unused.
+                // It will just sit in the memory to do nothing.
+                // Most likely it may stay empty since we need a 1:1 matching between
+                // closure tensors and parameters (minus base).
+                // Based on our logic (when tensors get transferred from lazy tensors via bank
+                // to the closure), this tensor should be non-empty to avoid this process.
                 funcall.get()._closure.push_back(ov::Tensor(new_elem_type, new_shape));
                 funcall.get()._lazy_closure.push_back(LazyTensor(TransformType::THIS, ov::Tensor()));
             }

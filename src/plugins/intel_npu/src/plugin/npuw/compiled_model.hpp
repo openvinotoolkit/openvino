@@ -149,8 +149,6 @@ private:
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 
-    bool m_update_required;
-
     std::function<bool(const ov::SoPtr<ov::ITensor>&, const ov::SoPtr<ov::ITensor>&)> m_acc_check;
     std::string m_ref_device;
 

@@ -148,6 +148,7 @@ private:
             size_t dataRank;
             std::vector<int> auxTable;
             std::vector<uint8_t> pillow_working_buf;
+            size_t m_threads_num = 0lu;
     };
     std::shared_ptr<InterpolateExecutorBase> execPtr = nullptr;
 

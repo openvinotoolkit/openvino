@@ -82,6 +82,7 @@ pipeline.
   pipelines <#compare-inference-time-of-the-fp16-and-int8-pipelines>`__
 - `Interactive demo <#interactive-demo>`__
 
+
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 

@@ -8,7 +8,9 @@
 #endif
 #include <google/protobuf/port_undef.inc>
 
-#ifndef OV_PROTOBUF_ABSL_IS_USED
+#ifdef OV_PROTOBUF_ABSL_IS_USED
+#    include <absl/log/globals.h>
+#else
 #    include <google/protobuf/stubs/logging.h>
 #endif
 
@@ -47,7 +49,9 @@ ONNX_FRONTEND_C_API void* get_front_end_data() {
     };
 #ifndef OPENVINO_DEBUG_ENABLE
     // disable protobuf logging
-#    ifndef OV_PROTOBUF_ABSL_IS_USED
+#    ifdef OV_PROTOBUF_ABSL_IS_USED
+    absl::SetGlobalVLogLevel(0);
+#    else
     google::protobuf::SetLogHandler(nullptr);
 #    endif
 #endif

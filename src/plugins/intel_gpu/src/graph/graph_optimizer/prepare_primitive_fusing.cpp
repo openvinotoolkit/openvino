@@ -736,8 +736,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input.is_type<strided_slice>();
 
-            should_fuse |= input.is_type<crop>();
-
             bool legacy_fusion = activation_node.get_dependencies().size() == 1 &&
                                  !input.can_be_optimized() &&
                                  !activation_node.is_constant() &&
@@ -922,8 +920,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                       (parents[i].first->is_type<gather>()) ||
                                       (parents[i].first->is_type<reduce>() &&
                                        reduce_supports_fusings(parents[i].first->as<reduce>())) ||
-                                      (parents[i].first->is_type<lrn>()) ||
-                                      (parents[i].first->is_type<crop>());
+                                      (parents[i].first->is_type<lrn>());
             }
 
             // Disable fusion to a node on constant path when second input is in data flow
@@ -1063,6 +1060,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                     fused_node->get_input_pshape().rbegin()->is_dynamic();
 
                 if (is_fc_lora || is_conv_lora || is_gemm_lora) {
+                    if (!can_fuse_parents[peer_idx]) {
+                        return;
+                    }
                     std::swap(peer_node, fused_node);
                 }
             }
@@ -1071,7 +1071,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 auto eltw_in_size = peer_node->get_output_layout();
                 if (eltw_in_size.is_dynamic()
                     // this whitelist condition is temporarily and to be relaxed soon.
-                    && !fused_node->is_type<fully_connected>())
+                    && !fused_node->is_type<fully_connected>()
+                    && !fused_node->is_type<gemm>())
                     return;
             }
             if (parent1.first->is_type<convolution>() && !conv_supports_fusings(parent1.first->as<convolution>()))
