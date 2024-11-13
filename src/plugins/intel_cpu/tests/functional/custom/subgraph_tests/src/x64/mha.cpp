@@ -256,6 +256,9 @@ TEST_P(MHATest, CompareWithRefs) {
     if (inputPrecisions[0] == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
         GTEST_SKIP();
 
+    if (inputPrecisions[0] == ElementType::f16 && !ov::with_cpu_x86_avx512_core_amx_fp16())
+        GTEST_SKIP();
+
     if (!ov::with_cpu_x86_avx512_core())
         GTEST_SKIP();
 

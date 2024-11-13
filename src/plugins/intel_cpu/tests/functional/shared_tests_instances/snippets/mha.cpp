@@ -124,6 +124,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHABF16_4D,
                                             ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MHA::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAFP16_4D,
+                         MHA,
+                         ::testing::Combine(::testing::ValuesIn(transposedShape_4D()),
+                                            ::testing::ValuesIn(precision_fp16_if_supported(4)),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::ValuesIn({false, true}),
+                                            ::testing::Values(MHA::default_thread_count),
+                                            ::testing::Values(1),  // MHA + 5 Converts + 1 Transpose on output
+                                            ::testing::Values(1),  // MHA + 5 Converts on inputs and output
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values(CPUTestUtils::empty_plugin_config)),
+                         MHA::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAEnforceBF16,
                          MHA,
                          ::testing::Combine(::testing::ValuesIn(transposedShape_4D()),
