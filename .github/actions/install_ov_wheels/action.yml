@@ -16,7 +16,7 @@ runs:
         # Get the Python version
         $pyVersion = python3 -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')"
         
-        foreach ($wheel in $("${{ inputs.wheels-dir-path }}" -split ' ')) {
+        foreach ($wheel in $("${{ inputs.wheels-to-install }}" -split ' ')) {
             
             # Search for the python-specific wheel version and install it if exists
             $wheelPath = Get-ChildItem -Path ${{ inputs.wheels-dir-path }} -Filter "$wheel-*cp$pyVersion*.whl" | Select-Object -First 1
