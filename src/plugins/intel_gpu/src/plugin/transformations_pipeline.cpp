@@ -985,7 +985,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 }
 
                 bool has_wzp = root->get_input_size() > 4;
-                if ((root->get_input_element_type(1) == ov::element::i8 || root->get_input_element_type(1) == ov::element::u8) && has_wzp) {
+                if ((root->get_input_element_type(1) == ov::element::i8 || root->get_input_element_type(1) == ov::element::u8)
+                    && has_wzp
+                    && dynamic_quantization_group_size != UINT64_MAX) {
                     GPU_DEBUG_TRACE << root->get_friendly_name() << " : dynamic quantization is turned off because weight may not representable in 8 bit" << std::endl;
                     return true;
                 }

@@ -78,9 +78,8 @@ CommonDispatchData DynamicQuantizeKernelOpt::SetDefault(const dynamic_quantize_p
     CommonDispatchData dispatchData;
 
     if (params.group_sizes.back() <= 128) {
-        // FIXME: it is only available when only last axis is quantized
         auto bf_size = get_input_bf_size(params);
-        dispatchData.gws = {bf_size.first, bf_size.second / params.group_sizes.back()}; // FIXME: need generalization or 
+        dispatchData.gws = {bf_size.first, bf_size.second / params.group_sizes.back()};
         dispatchData.lws = {1, 1, 1};
     } else {
         auto vec_size = get_match_vector_size(params);
@@ -164,9 +163,10 @@ bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {
     if (dq_params.append_axis != -1)
         return false;
 
-    // FIXME: it is allowed to quantize 
-    // if (dq_params.group_sizes.back() != UINT64_MAX)
-    //     return false;
+    for (size_t i = 0; i < dq_params.group_sizes.size() - 1; i++) {
+        if (dq_params.group_sizes[i] != 1)
+            return false;
+    }
 
     // Allow only default scales order
     const auto& scales_output_order = dq_params.scales_output_order;

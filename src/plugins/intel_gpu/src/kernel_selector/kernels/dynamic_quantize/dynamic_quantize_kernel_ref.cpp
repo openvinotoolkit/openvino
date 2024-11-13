@@ -87,10 +87,10 @@ CommonDispatchData DynamicQuantizeKernelRef::SetDefault(const dynamic_quantize_p
                             group_sizes[0], ",", group_sizes[1], ",", group_sizes[2], ",", group_sizes[3], ") - (",
                             params.outputs[0].Batch().v, ",", params.outputs[0].Feature().v, ",", params.outputs[0].Y().v, ",", params.outputs[0].X().v, ")");
 
+    // Grouped quantization is supported only over y axis
     if (params.group_sizes[2] > 1 && params.group_sizes[2] != UINT64_MAX)
         y_size = params.outputs[0].Y().v / params.group_sizes[2];
 
-    // std::cout << __FILE__ << ":" << "mingyuki gws " << batch_size << ", " << feature_size << ", " << y_size << ", " << x_size << std::endl;
     dispatchData.gws = {batch_size * feature_size, y_size, x_size};
     dispatchData.lws = {1, 1, 1};
 
