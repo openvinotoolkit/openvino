@@ -551,6 +551,16 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
         content = std::regex_replace(content, std::regex(batchstr.str()), "");
     }
 
+    // NPU_RUN_INFERENCES_SEQUENTIALLY is not supported in versions < 6.2 - need to remove it
+    if ((compilerVersion.major < 6) || (compilerVersion.major == 6 && compilerVersion.minor < 3)) {
+        std::ostringstream batchstr;
+        batchstr << ov::intel_npu::run_inferences_sequentially.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER
+                 << "\\S+" << VALUE_DELIMITER;
+        logger.warning("NPU_RUN_INFERENCES_SEQUENTIALLY property is not suppored by this compiler version. Removing "
+                       "from parameters");
+        content = std::regex_replace(content, std::regex(batchstr.str()), "");
+    }
+
     // Remove the properties that are not used by the compiler WorkloadType is used only by compiled model
     std::ostringstream workloadtypestr;
     workloadtypestr << ov::workload_type.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;

@@ -43,12 +43,13 @@ public:
     void updateCommandList(const TensorData& tensorsData, uint32_t index, size_t commandListIndex);
 
 protected:
+    std::shared_ptr<IGraph> _graph;
     const Config _config;
     std::shared_ptr<CommandQueue> _command_queue;
     std::vector<std::unique_ptr<CommandList>> _command_lists;
     std::vector<std::unique_ptr<Fence>> _fences;
-    EventPool _event_pool;
-    std::vector<std::unique_ptr<Event>> _events;
+    std::shared_ptr<EventPool> _event_pool;
+    std::vector<std::shared_ptr<Event>> _events;
     bool sync_output_with_fences_ = true;
     std::shared_ptr<zeroProfiling::NpuInferProfiling> _npu_profiling;
     Logger _logger;

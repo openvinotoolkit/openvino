@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "intel_npu/network_metadata.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "openvino/runtime/profiling_info.hpp"
@@ -84,6 +85,18 @@ public:
         return _mutex;
     }
 
+    inline void set_event_vector_size(size_t numberOfCommandList) {
+        _previous_event_used.resize(numberOfCommandList);
+    }
+
+    inline void set_event_to_wait_for(const std::shared_ptr<Event>& event, size_t indexOfCommandList) {
+        _previous_event_used[indexOfCommandList] = event;
+    }
+
+    inline const std::shared_ptr<Event>& get_event_to_wait_for(size_t indexOfCommandList) const {
+        return _previous_event_used[indexOfCommandList];
+    }
+
 protected:
     ze_graph_handle_t _handle = nullptr;
     NetworkMetadata _metadata;
@@ -92,6 +105,7 @@ protected:
     std::vector<ArgumentDescriptor> _output_descriptors;
 
     std::shared_ptr<CommandQueue> _command_queue;
+    std::vector<std::shared_ptr<Event>> _previous_event_used;
 
     // Used to protect zero pipeline creation in the graph. The pipeline should be created only once per graph when the
     // first inference starts running

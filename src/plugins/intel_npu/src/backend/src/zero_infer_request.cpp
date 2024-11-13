@@ -271,9 +271,9 @@ void ZeroInferRequest::create_pipeline() {
     }
 
     // Find the corresponding command queue group.
-    _logger.debug("ZeroDevice::ZeroDevice - findGroupOrdinal");
+    _logger.debug("ZeroInferRequest::create_pipeline - findGroupOrdinal");
     auto groupOrdinal = zeroUtils::findGroupOrdinal(_initStructs->getDevice(), _properties);
-    _logger.debug("ZeroDevice::ZeroDevice - init completed");
+    _logger.debug("ZeroInferRequest::create_pipeline - init completed");
 
     _logger.debug("ZeroInferRequest::create_pipeline - constructing pipeline");
 

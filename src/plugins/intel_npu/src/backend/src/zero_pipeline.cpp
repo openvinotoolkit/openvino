@@ -8,6 +8,7 @@
 #include <ze_graph_ext.h>
 
 #include "intel_npu/common/itt.hpp"
+#include "intel_npu/config/runtime.hpp"
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
@@ -26,10 +27,10 @@ Pipeline::Pipeline(const Config& config,
                    size_t numberOfCommandLists,
                    uint32_t group_ordinal)
     : _config(config),
-      _command_queue(graph->get_command_queue()),
-      _event_pool{initStructs->getDevice(),
-                  initStructs->getContext(),
-                  numberOfCommandLists ? static_cast<uint32_t>(numberOfCommandLists) : 1},
+      _graph(graph),
+      _event_pool{std::make_shared<EventPool>(initStructs->getDevice(),
+                                              initStructs->getContext(),
+                                              numberOfCommandLists ? static_cast<uint32_t>(numberOfCommandLists) : 1)},
       _npu_profiling(npu_profiling),
       _logger("Pipeline", _config.get<LOG_LEVEL>()) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::Pipeline::Pipeline");
@@ -42,14 +43,15 @@ Pipeline::Pipeline(const Config& config,
     _command_lists.reserve(numberOfCommandLists);
     _events.reserve(numberOfCommandLists);
     _fences.reserve(numberOfCommandLists);
+    graph->set_event_vector_size(numberOfCommandLists);
     _logger.debug("Pipeline - emplace_back _event_pool and _command_queue");
     for (size_t i = 0; i < numberOfCommandLists; i++) {
         _command_lists.emplace_back(
             std::make_unique<CommandList>(initStructs,
                                           group_ordinal,
                                           initStructs->getMutableCommandListVersion() ? true : false));
-        _events.emplace_back(std::make_unique<Event>(_event_pool.handle(), static_cast<uint32_t>(i)));
-        _fences.emplace_back(std::make_unique<Fence>(*_command_queue));
+        _events.emplace_back(std::make_shared<Event>(_event_pool, static_cast<uint32_t>(i)));
+        _fences.emplace_back(std::make_unique<Fence>(*_graph->get_command_queue()));
     }
 
     for (size_t i = 0; i < numberOfCommandLists; i++) {
@@ -77,6 +79,12 @@ Pipeline::Pipeline(const Config& config,
             ++ioIndex;
         }
 
+        if (_config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+            if (_graph->get_event_to_wait_for(i)) {
+                _graph->get_event_to_wait_for(i)->AppendWaitOnEvent(*_command_lists.at(i));
+            }
+        }
+
         /// append timestamp command if feature was activated
         if (_npu_profiling != nullptr) {
             _command_lists.at(i)->appendBarrier();
@@ -90,6 +98,15 @@ Pipeline::Pipeline(const Config& config,
         if (_npu_profiling != nullptr) {
             _command_lists.at(i)->appendBarrier();
             _command_lists.at(i)->appendNpuTimestamp(reinterpret_cast<uint64_t*>(_npu_profiling->npu_ts_infer_end));
+        }
+
+        if (_config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+            if (_graph->get_event_to_wait_for(i)) {
+                _graph->get_event_to_wait_for(i)->AppendEventReset(*_command_lists.at(i));
+            }
+
+            _events.at(i)->AppendSignalEvent(*_command_lists.at(i));
+            _graph->set_event_to_wait_for(_events.at(i), i);
         }
 
         // appendBarrier used in L0 as well
@@ -108,9 +125,9 @@ void Pipeline::push() {
     for (size_t i = 0; i < _command_lists.size(); ++i) {
         OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
         if (sync_output_with_fences_) {
-            _command_queue->executeCommandList(*_command_lists.at(i), *_fences.at(i));
+            _graph->get_command_queue()->executeCommandList(*_command_lists.at(i), *_fences.at(i));
         } else {
-            _command_queue->executeCommandList(*_command_lists.at(i));
+            _graph->get_command_queue()->executeCommandList(*_command_lists.at(i));
         }
     }
 
