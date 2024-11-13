@@ -1959,7 +1959,6 @@ void Partitioner::optimize(const std::string& func_name) {
 
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulCWi>();
-    rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulCWi2>();
     rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQi>(std::ref(ctx));
     rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQ2i>(std::ref(ctx));
     rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQiP>(std::ref(ctx));

@@ -24,11 +24,6 @@ public:
     DQMatMulCWi();
 };
 
-class DQMatMulCWi2 : public ov::pass::MatcherPass {
-public:
-    DQMatMulCWi2();
-};
-
 struct Context {
     std::string pmm_dims;
     bool is_spatial = false;
