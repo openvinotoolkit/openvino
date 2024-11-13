@@ -65,10 +65,11 @@ static const char cache_dir_message[] = "Optional. Enables caching of loaded mod
 static const char load_from_file_message[] = "Optional. Loads model from file directly without read_model."
                                              " All CNNNetwork options (like re-shape) will be ignored";
 
-/// @brief message for run frequency
-static const char run_frequency_message[] =
-    "Execute at a fixed frequency. Note if the targeted rate per second cannot be reached, "
-    "the benchmark would start the next run immediately, trying its best to catch up.";
+/// @brief message for maximum inference rate
+static const char maximum_inference_rate_message[] =
+    "Optional. Maximum inference rate by frame per second"
+    "If not specified, default value is 0, the inference will run at maximium rate depending on a device capabilities. "
+    "Tweaking this value allow better accuracy in power usage measurement by limiting the execution.";
 
 /// @brief message for execution time
 static const char execution_time_message[] = "Optional. Time in seconds to execute topology.";
@@ -313,7 +314,7 @@ DEFINE_string(api, "async", api_message);
 DEFINE_uint64(nireq, 0, infer_requests_count_message);
 
 /// @brief Execute infer requests at a fixed frequency
-DEFINE_double(rfreq, 0, run_frequency_message);
+DEFINE_double(max_irate, 0, maximum_inference_rate_message);
 
 /// @brief Number of streams to use for inference on the CPU (also affects Hetero cases)
 DEFINE_string(nstreams, "", infer_num_streams_message);
@@ -396,7 +397,7 @@ static void show_usage() {
     std::cout << "    -hint  <performance hint> (latency or throughput or cumulative_throughput or none)   "
               << hint_message << std::endl;
     std::cout << "    -niter  <integer>             " << iterations_count_message << std::endl;
-    std::cout << "    -rfreq \"<float>\"            " << run_frequency_message << std::endl;
+    std::cout << "    -max_irate \"<float>\"        " << maximum_inference_rate_message << std::endl;
     std::cout << "    -t                            " << execution_time_message << std::endl;
     std::cout << std::endl;
     std::cout << "Input shapes" << std::endl;
