@@ -48,6 +48,17 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     initialize_properties();
     configure_stream_executors();
 
+    if (_config.get<SEPARATE_WEIGHTS>() && _initGraph != nullptr) {
+        if (_config.get<CREATE_EXECUTOR>() && !_config.get<DEFER_WEIGHTS_LOAD>()) {
+            begin = std::chrono::steady_clock::now();
+            _weightsInputs = _device->runInit(_initGraph, _initModel, get_context(), _config);
+            end = std::chrono::steady_clock::now();
+            std::cout << "run_init() call within the \"CompiledModel\" ctor "
+                      << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"
+                      << std::endl;
+        }
+    }
+
     OV_ITT_TASK_SKIP(COMPILED_MODEL);
 }
 
@@ -74,14 +85,16 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
             std::cout << "Init graph->initialize() "
                       << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"
                       << std::endl;
+
+            begin = std::chrono::steady_clock::now();
+            _weightsInputs = _device->runInit(_initGraph, _initModel, get_context(), _config);
+            end = std::chrono::steady_clock::now();
+            std::cout << "run_init() call during inference request creation "
+                      << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"
+                      << std::endl;
         }
 
         OPENVINO_ASSERT(_device != nullptr);
-        begin = std::chrono::steady_clock::now();
-        _weightsInputs = _device->runInit(_initGraph, _initModel, get_context(), _config);
-        end = std::chrono::steady_clock::now();
-        std::cout << "run_init() call " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
-                  << "[ms]" << std::endl;
 
         begin = std::chrono::steady_clock::now();
         syncInferRequest->set_weights_inputs(_weightsInputs);
