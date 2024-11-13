@@ -57,8 +57,12 @@ class TorchFXPythonDecoder (Decoder):
                         found_types.append(
                             OVAny(pt_to_ov_type_map[str(value.meta['tensor_meta'].dtype)]))
                     else:
-                        found_shapes.append(None)
-                        found_types.append(None)
+                        if hasattr(value, "meta") and ('val' in value.meta.keys()):
+                            found_shapes.append(value.meta["val"].shape)
+                            found_types.append(None)
+                        else:
+                            found_shapes.append(None)
+                            found_types.append(None)
                 elif self._nodes[i].op == 'output':
                     # Instead of putting output index, refer to its target
                     uargs = self.unpack_containers(self._nodes[i].args)
@@ -301,8 +305,10 @@ class TorchFXPythonDecoder (Decoder):
         return decoder
 
     def get_op_type(self):
-        if self.pt_module.op == 'call_function':
-            return str(self.pt_module.target)
+        if "getitem" in str(self.pt_module.target):
+             return str(self.pt_module.target)
+        elif self.pt_module.op == 'call_function':
+            return str(self.pt_module.target).split(': ')[1].strip('>')
         elif self.pt_module.op == 'get_attr':
             return 'get_attr'  # FIXME should be aligned with get_attr from TS implementation
         else:
