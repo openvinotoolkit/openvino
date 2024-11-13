@@ -677,9 +677,9 @@ TEST(SqueezeDynamicAxis, squeeze_dynamic_no_axes) {
     EXPECT_EQ(squeeze1->get_output_partial_shape(0), exp_shape);
     EXPECT_EQ(squeeze1->get_allow_axis_skip(), true);
 
-    EXPECT_EQ(squeeze1->get_element_type(), element::f32);
-    EXPECT_EQ(squeeze1->get_output_partial_shape(0), exp_shape);
-    EXPECT_EQ(squeeze1->get_allow_axis_skip(), false);
+    EXPECT_EQ(squeeze2->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze2->get_output_partial_shape(0), exp_shape);
+    EXPECT_EQ(squeeze2->get_allow_axis_skip(), false);
 }
 
 }  // namespace

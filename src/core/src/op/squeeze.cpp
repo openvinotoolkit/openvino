@@ -64,7 +64,9 @@ Squeeze::Squeeze() : util::SqueezeBase() {}
 
 Squeeze::Squeeze(const Output<Node>& data, const bool allow_axis_skip)
     : util::SqueezeBase(data),
-      m_allow_axis_skip{allow_axis_skip} {}
+      m_allow_axis_skip{allow_axis_skip} {
+        constructor_validate_and_infer_types();
+}
 
 Squeeze::Squeeze(const Output<Node>& data, const Output<Node>& axes, const bool allow_axis_skip)
     : util::SqueezeBase(data, axes),
