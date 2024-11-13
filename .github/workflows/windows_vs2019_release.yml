@@ -142,7 +142,8 @@ jobs:
         uses: ./openvino/.github/actions/install_ov_wheels
         with:
           wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
-          wheels-to-install: 'openvino'
+          install-core-wheel: true
+          install-tokenizers-wheel: false
 
       - name: Samples tests
         run: |
@@ -301,7 +302,8 @@ jobs:
         uses: ./openvino/.github/actions/install_ov_wheels
         with:
           wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
-          wheels-to-install: 'openvino'
+          install-core-wheel: true
+          install-tokenizers-wheel: false
 
       - name: Install Python API tests dependencies
         run: |
@@ -462,7 +464,8 @@ jobs:
         uses: ./openvino/.github/actions/install_ov_wheels
         with:
           wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
-          wheels-to-install: 'openvino'
+          install-core-wheel: true
+          install-tokenizers-wheel: false
 
       - name: Install Python API tests dependencies
         run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/bindings/python/requirements_test.txt
