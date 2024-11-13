@@ -746,13 +746,6 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
 
         inst->reset_events();
 
-        // TODO: Ideally, we should reset all the flags here, but for some reason
-        // SHAPE_CHANGED flag reset drops the performance
-        // inst->unset_flag(ExecutionFlags::SHAPE_CHANGED);
-        inst->unset_flag(ExecutionFlags::MEMORY_CHANGED);
-        inst->unset_flag(ExecutionFlags::SKIP);
-        inst->unset_flag(ExecutionFlags::IMPL_CHANGED);
-
         if (inst->is_input()) {
             inst->add_dep_events(events);
         }
@@ -769,6 +762,11 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     // provide proper event to execution. Flushing pipeline should prevent this kind of issues.
     // In scenarios with a big number of very small networks it can provide performance drop.
     get_stream().flush();
+
+    // Reset all flags for the next execution
+    for (auto& inst : _exec_order) {
+        inst->reset_flags();
+    }
 }
 
 std::vector<primitive_id> network::get_input_ids() const {
