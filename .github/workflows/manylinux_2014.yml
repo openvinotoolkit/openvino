@@ -142,13 +142,11 @@ jobs:
             
       - name: Build Python API(Python 3.9-3.13)
         run: |
-          SUPPORTED_PYTHON_VERSIONS=("3.9" "3.10" "3.11" "3.12" "3.13")
+          SUPPORTED_PYTHON_VERSIONS=("39" "310" "311" "312" "313")
           for PY_VER in "${SUPPORTED_PYTHON_VERSIONS[@]}"; do
-            python_path=/opt/python/cp${PY_VER//./}-cp${PY_VER//./}
-            python_include=${python_path}/include/python${PY_VER}
-            python_lib=${python_path}/lib/python${PY_VER}
+            python_path=/opt/python/cp${PY_VER}-cp${PY_VER}/bin
             docker run --rm \
-              -v ${{ env.OPENVINO_REPO }}:/work/src \
+              -v ${{ env.OPENVINO_REPO }}/src/bindings/python:/work/src \
               -v ${{ env.INSTALL_WHEELS_DIR }}:/work/wheels \
               -v ${{ env.PIP_CACHE_PATH }}:/work/pip_cache \
               -v ov_build_cache:/work/build \
@@ -163,13 +161,13 @@ jobs:
               -w /work/src \
               ${{ fromJSON(needs.docker.outputs.images).ov_build.manylinux2014_x86_64 }} \
               /bin/bash -c "
-                export PATH=${python_path}/bin:\$PATH
+                export PATH=${python_path}:\$PATH
                 PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
                 export "PIP_CACHE_DIR=/work/pip_cache/${PIP_VER}"
                 python3 -m pip install -r /work/src/src/bindings/python/wheel/requirements-dev.txt &&
-                cmake -DPython3_EXECUTABLE=${python_path}/bin/python3 -DPython3_INCLUDE_DIR=${python_include} -DPython3_LIBRARY=${python_lib} -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -S /work/src -B /work/build &&
-                cmake --build /work/build --parallel $(nproc) --target ie_wheel --config ${{ env.CMAKE_BUILD_TYPE }} &&
-                cmake --install /work/build --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/wheels --component python_wheels
+                cmake -DOpenVINODeveloperPackage_DIR=/work/build -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -S /work/src -B /work/build_py${PY_VER} &&
+                cmake --build /work/build_py${PY_VER} --parallel $(nproc) --target ie_wheel --config ${{ env.CMAKE_BUILD_TYPE }} &&
+                cmake --install /work/build_py${PY_VER} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/wheels --component python_wheels
               "
           done
 
