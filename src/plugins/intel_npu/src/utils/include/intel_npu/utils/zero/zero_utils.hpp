@@ -175,10 +175,6 @@ static inline ov::element::Type_t getOVPrecision(const ze_graph_argument_precisi
     }
 }
 
-static inline ov::Shape getOVShape(const _ze_graph_argument_properties_3_t zeMetadata) {
-    return std::vector<size_t>(zeMetadata.dims, zeMetadata.dims + zeMetadata.dims_count);
-}
-
 static inline std::size_t layoutCount(const ze_graph_argument_layout_t val) {
     switch (val) {
     case ZE_GRAPH_ARGUMENT_LAYOUT_NCHW:

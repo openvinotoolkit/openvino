@@ -157,18 +157,15 @@ std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runIni
               << "[ms]" << std::endl;
 
     begin = std::chrono::steady_clock::now();
-    for (const auto& descriptor : initGraph->get_input_descriptors()) {
-        size_t id = std::stoi(std::string(descriptor.info.name).substr(INIT_INPUT_WEIGHTS_PREFIX.length()));
+    for (const IODescriptor& descriptor : initGraph->get_metadata().inputs) {
+        size_t id = std::stoi(descriptor.nameFromCompiler);
         OPENVINO_ASSERT(constantIdToTensorData.count(id), "Mismatch between weights IDs and parsed inputs");
         const ov::SoPtr<ov::ITensor> hostTensor =
-            createHostTensor(context._ptr,
-                             zeroUtils::getOVPrecision(descriptor.info.devicePrecision),
-                             zeroUtils::getOVShape(descriptor.info),
-                             config);
+            createHostTensor(context._ptr, descriptor.precision, descriptor.shapeFromCompiler.to_shape(), config);
 
         OPENVINO_ASSERT(constantIdToTensorData.at(id).size == hostTensor->get_byte_size(),
                         "Byte size mismatch for ",
-                        descriptor.info.name);
+                        descriptor.nameFromCompiler);
         std::memcpy(hostTensor->data(), constantIdToTensorData.at(id).mem, hostTensor->get_byte_size());
 
         inputTensorsData.push_back({TensorData{hostTensor->data(), hostTensor->get_byte_size()}});
@@ -179,15 +176,12 @@ std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runIni
               << "[ms]" << std::endl;
 
     begin = std::chrono::steady_clock::now();
-    for (const auto& descriptor : initGraph->get_output_descriptors()) {
+    for (const IODescriptor& descriptor : initGraph->get_metadata().outputs) {
         const ov::SoPtr<ov::ITensor> hostTensor =
-            createHostTensor(context._ptr,
-                             zeroUtils::getOVPrecision(descriptor.info.devicePrecision),
-                             zeroUtils::getOVShape(descriptor.info),
-                             config);
+            createHostTensor(context._ptr, descriptor.precision, descriptor.shapeFromCompiler.to_shape(), config);
+
         outputTensorsData.push_back(TensorData{hostTensor->data(), hostTensor->get_byte_size()});
-        outputHostTensors.emplace(std::string(descriptor.info.name).substr(INIT_OUTPUT_WEIGHTS_PREFIX.length()),
-                                  hostTensor._ptr);
+        outputHostTensors.emplace(descriptor.nameFromCompiler, hostTensor._ptr);
     }
     end = std::chrono::steady_clock::now();
     std::cout << "Creating output tensors "
