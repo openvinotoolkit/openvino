@@ -187,7 +187,7 @@ Disable memory allocation
 +++++++++++++++++++++++++
 
 In case of execution failures, either silent or with errors, try to update the NPU driver to
-`newer than 31.0.100.3053 <https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html>`__.
+`32.0.100.3104 or newer <https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html>`__.
 If the update is not possible, set the ``DISABLE_OPENVINO_GENAI_NPU_L0``
 environment variable to disable NPU memory allocation, which might be supported
 only on newer drivers for Intel Core Ultra 200V processors.
