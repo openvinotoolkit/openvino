@@ -15,9 +15,8 @@ template <class T,
           class TRShape = result_shape_t<T>,
           class Lambda,
           class Squeeze,
-          typename = typename std::enable_if<std::is_same<Squeeze, ov::op::v0::Squeeze>::value ||
-                                                 std::is_same<Squeeze, ov::op::v15::Squeeze>::value,
-                                             bool>::type>
+          typename std::enable_if<std::is_same<Squeeze, ov::op::v0::Squeeze>::value ||
+                                                 std::is_same<Squeeze, ov::op::v15::Squeeze>::value>::type* = nullptr>
 bool validate_input_and_try_set_output_shape(const Squeeze* op,
                                              std::unique_ptr<std::set<int64_t>>& unique_axes,
                                              const std::vector<T>& input_shapes,
