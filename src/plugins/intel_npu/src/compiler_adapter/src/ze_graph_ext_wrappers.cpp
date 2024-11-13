@@ -298,6 +298,10 @@ std::unordered_set<std::string> ZeGraphExtWrappers::queryGraph(std::pair<size_t,
 
         return getQueryResultFromSupportedLayers(result, hGraphQueryNetwork);
     }
+    _logger.warning("queryGraph - Driver version is %d.%d, queryNetwork is unsupported.",
+                    ZE_MAJOR_VERSION(_graphExtVersion),
+                    ZE_MINOR_VERSION(_graphExtVersion));
+    return std::unordered_set<std::string>();
 }
 
 ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(std::pair<size_t, std::shared_ptr<uint8_t>> serializedIR,
