@@ -8,7 +8,7 @@
 
 #include "ctc_loss.hpp"
 #include "ctc_loss_inst.hpp"
-#include "kernel_base.hpp"
+#include "utils/kernel_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -53,8 +53,9 @@ protected:
 
 std::unique_ptr<primitive_impl> CTCLoss::create_impl(const program_node& node, const kernel_impl_params& params) const {
     assert(node.is_type<ctc_loss>());
-    CTCLossGenerator gen;
-    return cldnn::make_unique<primitive_impl_ocl>(gen.get_kernels_data(node, params), std::string(get_type_info().name));
+    return nullptr;
+    // CTCLossGenerator gen;
+    // return cldnn::make_unique<primitive_impl_ocl>(gen.get_kernels_data(node, params), std::string(get_type_info().name));
 }
 
 }  // namespace ocl

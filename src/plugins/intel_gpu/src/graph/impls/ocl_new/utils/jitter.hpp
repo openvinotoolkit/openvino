@@ -121,12 +121,39 @@ private:
     std::string text;
 };
 
-inline JitTerm operator+(const JitTerm& lhs, const JitTerm& rhs) { return JitTerm{"(" + lhs.str() + " + " + rhs.str() + ")"}; }
-inline JitTerm operator-(const JitTerm& lhs, const JitTerm& rhs) { return JitTerm{"(" + lhs.str() + " - " + rhs.str() + ")"}; }
-inline JitTerm operator*(const JitTerm& lhs, const JitTerm& rhs) { return JitTerm{"(" + lhs.str() + " * " + rhs.str() + ")"}; }
-inline JitTerm operator/(const JitTerm& lhs, const JitTerm& rhs) { return JitTerm{"(" + lhs.str() + " / " + rhs.str() + ")"}; }
-inline JitTerm operator%(const JitTerm& lhs, const JitTerm& rhs) { return JitTerm{"(" + lhs.str() + " % " + rhs.str() + ")"}; }
 inline JitTerm neg(const JitTerm& arg) { return JitTerm{"(-" + arg.str() + ")"}; }
+inline JitTerm operator+(const JitTerm& lhs, const JitTerm& rhs) {
+    if (lhs.str() == "0")
+        return rhs;
+    if (rhs.str() == "0")
+        return lhs;
+    return JitTerm{"(" + lhs.str() + " + " + rhs.str() + ")"};
+}
+
+inline JitTerm operator-(const JitTerm& lhs, const JitTerm& rhs) {
+    if (lhs.str() == "0")
+        return neg(rhs);
+    if (rhs.str() == "0")
+        return lhs;
+    return JitTerm{"(" + lhs.str() + " - " + rhs.str() + ")"};
+}
+
+inline JitTerm operator*(const JitTerm& lhs, const JitTerm& rhs) {
+    if (lhs.str() == "0" || rhs.str() == "0")
+        return JitTerm{"0"};
+    if (lhs.str() == "1")
+        return rhs;
+    if (rhs.str() == "1")
+        return lhs;
+
+    return JitTerm{"(" + lhs.str() + " * " + rhs.str() + ")"};
+}
+inline JitTerm operator/(const JitTerm& lhs, const JitTerm& rhs) {
+    if (rhs.str() == "1")
+        return lhs;
+    return JitTerm{"(" + lhs.str() + " / " + rhs.str() + ")"};
+}
+inline JitTerm operator%(const JitTerm& lhs, const JitTerm& rhs) { return JitTerm{"(" + lhs.str() + " % " + rhs.str() + ")"}; }
 inline  JitTerm ternary(const JitTerm& condition, const JitTerm& true_expr, const JitTerm& false_expr) {
     return JitTerm{"(" + condition.str() + " ? " + true_expr.str() + " : " + false_expr.str() + ")"};
 }
@@ -149,9 +176,9 @@ public:
     std::vector<JitTerm> m_pad_upper;
     JitTerm m_offset;
 
-    LayoutJitter(const layout& l, size_t shape_info_idx) {
+    LayoutJitter(const layout& l, size_t shape_info_offset) {
         OPENVINO_ASSERT(!format::is_weights_format(l.format));
-        make_definitions(l, shape_info_idx);
+        make_definitions(l, shape_info_offset);
     }
 
     std::map<ChannelName, size_t> channels_map;

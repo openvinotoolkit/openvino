@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "group_normalization_ref.hpp"
-#include "impls/ocl/kernel_base.hpp"
+#include "utils/jitter.hpp"
+#include "utils/kernel_base.hpp"
 #include "intel_gpu/primitives/group_normalization.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "primitive_ocl_base.hpp"
@@ -15,6 +16,12 @@ namespace {
 
 using namespace ov::intel_gpu::ocl;
 
+void common_jit_constants(JitConstants& jit_constants, const kernel_impl_params& params) {
+    auto desc = params.typed_desc<group_normalization>();
+    jit_constants.make("EPSILON", static_cast<float>(desc->epsilon));
+    jit_constants.make("NUM_GROUPS", desc->num_groups);
+}
+
 class GroupNormalizationGeneratorCalcMeanRef : public ov::intel_gpu::ocl::SingleKernelGenerator {
 public:
     GroupNormalizationGeneratorCalcMeanRef() : SingleKernelGenerator("group_normalization_gpu_ref") {}
@@ -22,6 +29,7 @@ public:
 protected:
     JitConstants get_jit_constants(const program_node& node, const kernel_impl_params& params) const override {
         auto jit_constants = SingleKernelGenerator::get_jit_constants(node, params);
+        common_jit_constants(jit_constants, params);
         jit_constants.make("MEAN_KERNEL_ENABLED", 1);
         return jit_constants;
     }
@@ -52,12 +60,6 @@ protected:
 
         return f;
     }
-
-    std::vector<layout> get_interanl_buffers(const program_node& node, const kernel_impl_params& params) const override {
-        auto desc = params.typed_desc<group_normalization>();
-        int64_t batch = params.output_layouts[0].get_shape()[0];
-        return { layout{ov::PartialShape{batch * desc->num_groups}, ov::element::f32, format::bfyx } };
-    }
 };
 
 class GroupNormalizationGeneratorCalcStd : public ov::intel_gpu::ocl::SingleKernelGenerator {
@@ -67,6 +69,7 @@ public:
 protected:
     JitConstants get_jit_constants(const program_node& node, const kernel_impl_params& params) const override {
         auto jit_constants = SingleKernelGenerator::get_jit_constants(node, params);
+        common_jit_constants(jit_constants, params);
         jit_constants.make("STANDARD_DEVIATION_KERNEL_ENABLED", 1);
         return jit_constants;
     }
@@ -97,12 +100,6 @@ protected:
         };
         return f;
     }
-
-    std::vector<layout> get_interanl_buffers(const program_node& node, const kernel_impl_params& params) const override {
-        auto desc = params.typed_desc<group_normalization>();
-        int64_t batch = params.output_layouts[0].get_shape()[0];
-        return { layout{ov::PartialShape{batch * desc->num_groups}, ov::element::f32, format::bfyx } };
-    }
 };
 
 class GroupNormalizationGeneratorNormalize : public ov::intel_gpu::ocl::SingleKernelGenerator {
@@ -112,6 +109,7 @@ public:
 protected:
     JitConstants get_jit_constants(const program_node& node, const kernel_impl_params& params) const override {
         auto jit_constants = SingleKernelGenerator::get_jit_constants(node, params);
+        common_jit_constants(jit_constants, params);
         jit_constants.make("NORMALIZE_KERNEL_ENABLED", 1);
         jit_constants.make("INPUT_INDICES_ORDER", "batch, feature, z, y, x");
         return jit_constants;
@@ -149,20 +147,46 @@ protected:
     }
 };
 
-class GroupNormalizationGeneratorRef : public ov::intel_gpu::ocl::MultiStageKernelGenerator {
-public:
-    GroupNormalizationGeneratorRef() : MultiStageKernelGenerator(
-            GroupNormalizationGeneratorCalcMeanRef(),
-            GroupNormalizationGeneratorCalcStd(),
-            GroupNormalizationGeneratorNormalize()
-    ) {}
+// class GroupNormalizationGeneratorRef : public ov::intel_gpu::ocl::MultiStageKernelGenerator {
+// public:
+//     GroupNormalizationGeneratorRef() : MultiStageKernelGenerator(
+//             GroupNormalizationGeneratorCalcMeanRef(),
+//             GroupNormalizationGeneratorCalcStd(),
+//             GroupNormalizationGeneratorNormalize()
+//     ) {}
 
-    JitConstants get_jit_constants(const program_node& node, const kernel_impl_params& params) const override {
-        JitConstants jit_constants;
+//     JitConstants get_jit_constants(const program_node& node, const kernel_impl_params& params) const override {
+//         JitConstants jit_constants;
+//         auto desc = params.typed_desc<group_normalization>();
+//         jit_constants.make("EPSILON", static_cast<float>(desc->epsilon));
+//         jit_constants.make("NUM_GROUPS", desc->num_groups);
+//         return jit_constants;
+//     }
+// };
+
+class GroupNormalizationRefImpl : public PrimitiveImplOCL {
+public:
+    size_t CALC_MEAN_STAGE;
+    size_t CALC_STD_STAGE;
+    size_t NORMALIZE_STAGE;
+
+    GroupNormalizationRefImpl(const program_node& node, const kernel_impl_params& params)
+        : PrimitiveImplOCL(std::string(GroupNormalizationRef::get_type_info_static().name)) {
+        CALC_MEAN_STAGE = add_stage<GroupNormalizationGeneratorCalcMeanRef>(node, params);
+        CALC_STD_STAGE = add_stage<GroupNormalizationGeneratorCalcStd>(node, params);
+        NORMALIZE_STAGE = add_stage<GroupNormalizationGeneratorNormalize>(node, params);
+    }
+
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<GroupNormalizationRefImpl>(*this);
+    }
+
+    std::vector<layout> get_internal_buffer_layouts(const kernel_impl_params& params) const override {
         auto desc = params.typed_desc<group_normalization>();
-        jit_constants.make("EPSILON", static_cast<float>(desc->epsilon));
-        jit_constants.make("NUM_GROUPS", desc->num_groups);
-        return jit_constants;
+        int64_t batch = params.output_layouts[0].get_shape()[0];
+        auto buf = layout{ov::PartialShape{batch * desc->num_groups}, ov::element::f32, format::bfyx };
+        return { buf, buf };
     }
 };
 
@@ -170,8 +194,7 @@ public:
 
 std::unique_ptr<primitive_impl> GroupNormalizationRef::create_impl(const program_node& node, const kernel_impl_params& params) const {
     assert(node.is_type<group_normalization>());
-    GroupNormalizationGeneratorRef gen;
-    return cldnn::make_unique<primitive_impl_ocl>(gen.get_kernels_data(node, params), std::string(get_type_info().name));
+    return cldnn::make_unique<GroupNormalizationRefImpl>(node, params);
 }
 
 }  // namespace ocl

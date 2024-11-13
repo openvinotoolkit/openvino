@@ -6,7 +6,6 @@
 
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
-#include "intel_gpu/graph/serialization/cl_kernel_data_serializer.hpp"
 #include "intel_gpu/graph/serialization/helpers.hpp"
 #include "intel_gpu/graph/serialization/set_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
@@ -14,7 +13,7 @@
 #include "intel_gpu/graph/program.hpp"
 
 #include "primitive_inst.h"
-#include "kernel_base.hpp"
+#include "utils/kernel_base.hpp"
 
 
 #include <vector>
@@ -27,15 +26,24 @@ namespace ocl {
 Base class for all GPU implementation of specified primitive type.
 For example, all gpu convolution implementations should derive from primitive_impl_ocl<convolution>.
 */
-struct primitive_impl_ocl : public primitive_impl {
-    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::primitive_impl_ocl)
+struct PrimitiveImplOCL : public primitive_impl {
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::PrimitiveImplOCL)
 
     std::vector<ov::intel_gpu::ocl::KernelData> _kernel_data;
     std::vector<kernel::ptr> _kernels;
 
-    primitive_impl_ocl() = default;
+    template<typename StageType, typename... Args>
+    size_t add_stage(const program_node& node, const kernel_impl_params& params, Args&&... args) {
+        static_assert(std::is_base_of<ov::intel_gpu::ocl::KernelGeneratorBase, StageType>::value, "StageType must derive from KernelGeneratorBase");
+        auto stage = cldnn::make_unique<StageType>(std::forward<Args>(args)...);
+        _kernel_data.push_back(stage->get_kernel_data(node, params));
 
-    primitive_impl_ocl(const primitive_impl_ocl& other)
+        return _kernel_data.size() - 1;
+    }
+
+    PrimitiveImplOCL() = default;
+
+    PrimitiveImplOCL(const PrimitiveImplOCL& other)
     : primitive_impl(other._weights_reorder_params, other._kernel_name, other._is_dynamic)
     , _kernel_data(other._kernel_data)
     , _kernels({}) {
@@ -46,10 +54,7 @@ struct primitive_impl_ocl : public primitive_impl {
         this->m_manager = other.m_manager;
     }
 
-    primitive_impl_ocl(const std::vector<ov::intel_gpu::ocl::KernelData>& kd, const std::string& impl_name)
-        : primitive_impl(nullptr, impl_name),
-          _kernel_data(kd) {
-    }
+    PrimitiveImplOCL(const std::string& impl_name) : primitive_impl(nullptr, impl_name) {}
 
     bool is_cpu() const override { return false; }
 
@@ -62,7 +67,6 @@ struct primitive_impl_ocl : public primitive_impl {
     }
 
     void update(primitive_inst& inst, const kernel_impl_params& impl_params) override {
-        // auto new_impl_params = this->canonicalize_shapes(impl_params);
         update_dispatch_data(impl_params);
         inst.update_shape_info_tensor(impl_params);
     }
@@ -117,20 +121,7 @@ protected:
         return _kernels;
     }
 
-    std::vector<layout> get_internal_buffer_layouts() const override {
-        std::vector<layout> layouts;
-        for (auto& kd : _kernel_data) {
-            layouts.insert(layouts.end(), kd.internal_buffers.begin(), kd.internal_buffers.end());
-        }
-
-        return layouts;
-    }
-
     void set_arguments(primitive_inst& instance) override {
-        // if (instance.can_be_optimized() || is_cpu()) {
-        //     return;
-        // }
-
         OPENVINO_ASSERT(_kernels.size() == _kernel_data.size(), "[GPU] Mismatch between compiled kernels count and expected kernels data\n",
                                                                 "[GPU] Compiled kernels count: ", _kernels.size(), "\n",
                                                                 "[GPU] KernelData count: ", _kernel_data.size(), "\n",
@@ -154,10 +145,6 @@ protected:
     }
 
     void set_arguments(primitive_inst& instance, kernel_arguments_data& args) override {
-        // if (instance.can_be_optimized()) {
-        //     return;
-        // }
-
         stream& stream = instance.get_network().get_stream();
 
         for (size_t k = 0; k < _kernels.size(); ++k) {
@@ -166,11 +153,6 @@ protected:
 
             stream.set_arguments(*_kernels[k], _kernel_data[k].params, args);
         }
-    }
-
-
-    std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<primitive_impl_ocl>(*this);
     }
 
     event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
