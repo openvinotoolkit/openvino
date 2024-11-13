@@ -79,7 +79,7 @@ CommonDispatchData DynamicQuantizeKernelOpt::SetDefault(const dynamic_quantize_p
 
     if (params.group_sizes.back() <= 128) {
         auto bf_size = get_input_bf_size(params);
-        dispatchData.gws = {bf_size.first, bf_size.second / params.group_sizes.back()};
+        dispatchData.gws = {bf_size.first, bf_size.second / params.group_sizes.back(), 1};
         dispatchData.lws = {1, 1, 1};
     } else {
         auto vec_size = get_match_vector_size(params);

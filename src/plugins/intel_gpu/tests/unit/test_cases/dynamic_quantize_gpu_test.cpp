@@ -58,7 +58,10 @@ public:
         dq_config.scale_dt = data_types::f16;
         dq_config.zp_dt = data_types::undefined;
         dq_config.group_sizes = group_sizes;
-        dq_config.scales_zp_output_order = { 0, 1, 2, 3 };
+        dq_config.scales_zp_output_order = { 0, 1, 2};
+
+        if (data_shape.size() == 4)
+            dq_config.scales_zp_output_order.emplace_back(3);
         dq_config.output_storage_type = ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
 
         if (quantization_type == QuantizationType::Asymmetric) {
@@ -157,11 +160,11 @@ TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_single_batch) {
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_small_size_grouped) {
-    this->test_dynamic_quantization(false, {1, 1, 1, 4096}, {64, 1, 1, 4096}, QuantizationType::Symmetric, 32);
+    this->test_dynamic_quantization(false, {1, 1, 4096}, {64, 1, 4096}, QuantizationType::Symmetric, 32);
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_single_batch_grouped) {
-    this->test_dynamic_quantization(false, {-1, 1, 1, 4096}, {1, 1, 1, 4096}, QuantizationType::Symmetric, 32);
+    this->test_dynamic_quantization(false, {-1, 1, 4096}, {1, 1, 4096}, QuantizationType::Symmetric, 32);
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_ref_only) {
@@ -185,29 +188,29 @@ TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_unaligned_dynamic) {
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache) {
-    this->test_dynamic_quantization(false, {-1, 8, -1, 96}, {1, 8, 1, 96}, QuantizationType::Symmetric, "dynamic_quantize_gpu_kv_cache");
+    this->test_dynamic_quantization(false, {-1, 8, -1, 96}, {1, 8, 1, 96}, QuantizationType::Symmetric, UINT64_MAX, "dynamic_quantize_gpu_kv_cache");
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_batched) {
-    this->test_dynamic_quantization(false, {-1, 4, -1, 64}, {1, 4, 35, 64}, QuantizationType::Symmetric, "dynamic_quantize_gpu_kv_cache");
+    this->test_dynamic_quantization(false, {-1, 4, -1, 64}, {1, 4, 35, 64}, QuantizationType::Symmetric, UINT64_MAX, "dynamic_quantize_gpu_kv_cache");
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_reordered) {
-    this->test_dynamic_quantization(false, {-1, -1, 8, 96}, {1, 1, 8, 96}, QuantizationType::Symmetric, "dynamic_quantize_gpu_kv_cache");
+    this->test_dynamic_quantization(false, {-1, -1, 8, 96}, {1, 1, 8, 96}, QuantizationType::Symmetric, UINT64_MAX, "dynamic_quantize_gpu_kv_cache");
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_batched_reordered) {
-    this->test_dynamic_quantization(false, {-1, -1, 4, 64}, {1, 35, 4, 64}, QuantizationType::Symmetric, "dynamic_quantize_gpu_kv_cache");
+    this->test_dynamic_quantization(false, {-1, -1, 4, 64}, {1, 35, 4, 64}, QuantizationType::Symmetric, UINT64_MAX, "dynamic_quantize_gpu_kv_cache");
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_asym) {
-    this->test_dynamic_quantization(false, {-1, 8, -1, 96}, {1, 8, 1, 96}, QuantizationType::Asymmetric, "dynamic_quantize_gpu_kv_cache");
+    this->test_dynamic_quantization(false, {-1, 8, -1, 96}, {1, 8, 1, 96}, QuantizationType::Asymmetric, UINT64_MAX, "dynamic_quantize_gpu_kv_cache");
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_batched_asym) {
-    this->test_dynamic_quantization(false, {-1, 4, -1, 64}, {1, 4, 35, 64}, QuantizationType::Asymmetric, "dynamic_quantize_gpu_kv_cache");
+    this->test_dynamic_quantization(false, {-1, 4, -1, 64}, {1, 4, 35, 64}, QuantizationType::Asymmetric, UINT64_MAX, "dynamic_quantize_gpu_kv_cache");
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_kv_cache_reordered_asym) {
-    this->test_dynamic_quantization(false, {-1, -1, 8, 96}, {1, 1, 8, 96}, QuantizationType::Asymmetric, "dynamic_quantize_gpu_kv_cache");
+    this->test_dynamic_quantization(false, {-1, -1, 8, 96}, {1, 1, 8, 96}, QuantizationType::Asymmetric, UINT64_MAX, "dynamic_quantize_gpu_kv_cache");
 }
