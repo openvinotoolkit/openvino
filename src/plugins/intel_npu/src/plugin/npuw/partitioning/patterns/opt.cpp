@@ -1517,12 +1517,11 @@ ConvToMatmul::ConvToMatmul(Context::Ref ctx) {
             return shape.size() == 4 && shape[0] == 1 && shape[1] == 1;
         };
 
-        if (((matched_node_param->get_element_type() == ov::element::i4 &&
-              matched_node_param2->get_element_type() == ov::element::f32 &&
-              ov::op::util::is_parameter(matched_node_param2)) ||
-             (matched_node_param->get_element_type() == ov::element::i8 &&
-              matched_node_param2->get_element_type() == ov::element::f16 &&
-              ov::op::util::is_constant(matched_node_param2))) &&
+        if ((matched_node_param->get_element_type() == ov::element::i4 ||
+             matched_node_param->get_element_type() == ov::element::i8) &&
+            (matched_node_param2->get_element_type() == ov::element::f32 ||
+             matched_node_param2->get_element_type() == ov::element::f16) &&
+            (ov::op::util::is_parameter(matched_node_param2) || ov::op::util::is_constant(matched_node_param2)) &&
             check_shape(shape) && check_shape(shape2) && check_transpose_shape(tr_in_shape) &&
             check_transpose_shape(tr_out_shape)) {
             // Add Reshape before Params/Const
