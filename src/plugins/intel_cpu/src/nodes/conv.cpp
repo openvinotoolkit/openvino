@@ -805,7 +805,6 @@ void Convolution::initSupportedPrimitiveDescriptors() {
         NodeConfig config(inConfs, outConfs);
         const impl_desc_type impl_type = parse_impl_name(prim_desc.impl_info_str());
 
-        // DEBUG_LOG("supportedPrimitiveDescriptors add impl_type:", impl_type);
         supportedPrimitiveDescriptors.emplace_back(config, impl_type);
     };
 #ifdef CPU_DEBUG_CAPS
@@ -833,8 +832,6 @@ void Convolution::initSupportedPrimitiveDescriptors() {
         DnnlExtensionUtils::for_each_implementation(desc,
                                                     first_match,
                                                     [&](impl_desc_type implType) {
-                                                        // auto& prioritys =  getImplPriority();
-                                                        // std::cout << "#getImplPriority()[0]" << impl_type_to_string(prioritys[0]) << std::endl;
                                                         return contains(getImplPriority(), implType);
                                                     },
                                                     add_supported_desc);

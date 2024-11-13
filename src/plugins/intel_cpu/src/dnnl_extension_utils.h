@@ -15,7 +15,6 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/type/element_type.hpp"
 #include "common/c_types_map.hpp"
-#include <iostream>
 
 namespace ov {
 namespace intel_cpu {
@@ -84,17 +83,11 @@ public:
 
         while (itpd) {
             const impl_desc_type descImplType = parse_impl_name(itpd.impl_info_str());
-            // std::cout <<"descImplType_origin:" << itpd.impl_info_str() << std::endl;
-            // std::cout <<"descImplType_hex_value:" << std::hex << static_cast<int64_t>(descImplType) << std::endl;
-            // std::cout <<"descImplType_cpu_str:" << impl_type_to_string(descImplType) << std::endl;
             if (comparator(descImplType)) {
                 func(itpd);
                 if (first_match)
                     break;
-            } else {
-                // std::cout <<"not match descImplType:" << impl_type_to_string(descImplType) << std::endl;
             }
-
             if (!itpd.next_impl())
                 break;
         }

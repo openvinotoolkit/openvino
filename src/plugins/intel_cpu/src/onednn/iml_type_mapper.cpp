@@ -3,7 +3,6 @@
 //
 
 #include "iml_type_mapper.h"
-#include "utils/debug_capabilities.h"
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -145,9 +144,6 @@ const char* impl_type_to_string(impl_desc_type type) {
     CASE(gemm_shl);
 
 #undef CASE
-// #ifdef CPU_DEBUG_CAPS
-//     DEBUG_LOG("find a unknown impl Type:", type);
-// #endif
     return "unknown";
 }
 
