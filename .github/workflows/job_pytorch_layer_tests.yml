@@ -122,7 +122,7 @@ jobs:
       - name: Install flash_attn module
         run: |
           # due to flash_attn issues, it needs to be installed separately from other packages
-          pip install flash_attn
+          pip install flash_attn --no-build-isolation
 
       - name: PyTorch Layer Tests
         if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287, 142196
