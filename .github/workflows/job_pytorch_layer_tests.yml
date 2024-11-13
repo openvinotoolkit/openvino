@@ -105,8 +105,7 @@ jobs:
         uses: ./openvino/.github/actions/install_ov_wheels
         with:
           wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
-          install-core-wheel: true
-          install-tokenizers-wheel: false
+          wheels-to-install: 'openvino'
 
       - name: Install Pytorch Layer tests dependencies
         run: |

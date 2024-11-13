@@ -4,12 +4,8 @@ inputs:
   wheels-dir-path:
     description: 'Path to the directory in which wheels are located'
     required: true
-  install-core-wheel:
-    description: 'Whether to install the OpenVINO Core wheel (openvino-*.whl)'
-    required: true
-  install-tokenizers-wheel:
-    description: 'Whether to install the OpenVINO Dev wheel (openvino_tokenizes*.whl)'
-    required: true
+  wheels-to-install:
+    description: 'List of wheel names to install in the form of "openvino openvino-tokenizers"'
 runs:
   using: 'composite'
   steps:
@@ -17,28 +13,39 @@ runs:
       shell: pwsh
       if: runner.os == 'Windows'
       run: |
-        if ( "${{ inputs.install-core-wheel }}" -eq "true" )
-        {
-            $pyVersion = python3 -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')"
-            $ovCoreWheelPath = Get-ChildItem -Path ${{ inputs.wheels-dir-path }} -Filter "openvino-*cp$pyVersion*.whl" | % { $_.FullName }
-            python3 -m pip install $ovCoreWheelPath
-        }
+        # Get the Python version
+        $pyVersion = python3 -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')"
         
-        if ( "${{ inputs.install-tokenizers-wheel }}" -eq "true" )
-        {
-            $ovTokenizersWheelPath = Get-ChildItem -Path ${{ inputs.wheels-dir-path }} -Filter openvino_tokenizers-*.whl | % { $_.FullName }
-            python3 -m pip install "$ovTokenizersWheelPath"
+        foreach ($wheel in $("${{ inputs.wheels-dir-path }}" -split ' ')) {
+            
+            # Search for the python-specific wheel version and install it if exists
+            $wheelPath = Get-ChildItem -Path ${{ inputs.wheels-dir-path }} -Filter "$wheel-*cp$pyVersion*.whl" | Select-Object -First 1
+            if ($wheelPath) {
+                python3 -m pip install $wheelPath.FullName
+            } else {
+                # If the python-specific version does not exist, install by name only
+                $wheelPathByName = Get-ChildItem -Path ${{ inputs.wheels-dir-path }} -Filter "$wheel-*.whl" | Select-Object -First 1
+                if ($wheelPathByName) {
+                    python3 -m pip install $wheelPathByName.FullName
+                } else {
+                    Write-Host "Wheel for $wheel not found."
+                }
+            }
         }
+
     - name: Install OpenVINO Python wheels (Linux and macOS)
       shell: bash
       if: runner.os != 'Windows'
       run: |
-        if [[ "${{ inputs.install-core-wheel }}" == "true" ]]; then
-          py_version=$(python3 -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')")
-          ov_wheel_path=$(find ${{ inputs.wheels-dir-path }} -name "openvino-*cp$py_version*.whl")
-          python3 -m pip install $ov_wheel_path
-        fi
-        
-        if [[ "${{ inputs.install-tokenizers-wheel }}" == "true" ]]; then
-          python3 -m pip install ${{ inputs.wheels-dir-path }}/openvino_tokenizers-*.whl
-        fi
+        py_version=$(python3 -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')")
+        for wheel in "${{ inputs.wheels-to-install }}"; do
+          
+          # Search for the python-specific wheel version and install it if exists
+          wheel_path=$(find ${{ inputs.wheels-dir-path }} -name "$wheel-*cp$py_version*.whl")
+          if [ -z "${wheel_path}" ]; then
+            python3 -m pip install $wheel_path
+          else
+            # If the python-specific version does not exist, install by name only
+            python3 -m pip install ${{ inputs.wheels-dir-path }}/$wheel-*.whl
+          fi
+        done
