@@ -32,11 +32,10 @@ pytest-forked; sys_platform != 'win32'
 pytest-xdist
 pytest-html
 pytest
-py
 radon
 retrying
 tox
-types-pkg_resources
+types-setuptools
 wheel
 singledispatchmethod
 torch

@@ -25,3 +25,6 @@ pytest-timeout==2.1.0
 jax<=0.4.14
 jaxlib<=0.4.14
 torch>=1.13,<2.2
+super-image==0.1.7
+# huggingface-hub required for super-image
+huggingface-hub==0.25.2
