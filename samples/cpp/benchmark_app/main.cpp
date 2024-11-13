@@ -7,6 +7,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -59,6 +60,10 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
     }
     if (FLAGS_api != "async" && FLAGS_api != "sync") {
         throw std::logic_error("Incorrect API. Please set -api option to `sync` or `async` value.");
+    }
+    if (FLAGS_api == "sync" && FLAGS_nireq > FLAGS_niter) {
+        throw std::logic_error(
+            "Number of iterations should be greater than number of infer requests when using sync API.");
     }
     if (!FLAGS_hint.empty() && FLAGS_hint != "throughput" && FLAGS_hint != "tput" && FLAGS_hint != "latency" &&
         FLAGS_hint != "cumulative_throughput" && FLAGS_hint != "ctput" && FLAGS_hint != "none") {
@@ -1153,6 +1158,12 @@ int main(int argc, char* argv[]) {
 
             execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
             processedFramesN += batchSize;
+
+            if (FLAGS_max_irate > 0) {
+                auto nextRunFinishTime = 1 / FLAGS_max_irate * processedFramesN * 1.0e9;
+                std::this_thread::sleep_for(
+                    std::chrono::nanoseconds(static_cast<int64_t>(nextRunFinishTime - execTime)));
+            }
         }
 
         // wait the latest inference executions
