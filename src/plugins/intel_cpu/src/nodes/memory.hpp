@@ -205,7 +205,6 @@ public:
 
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
-    void selectOptimalPrimitiveDescriptor() override;
     void createPrimitive() override;
 
     MemStatePtr makeState() const override;

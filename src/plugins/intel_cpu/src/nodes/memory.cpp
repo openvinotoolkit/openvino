@@ -598,9 +598,6 @@ bool MemoryInput::needInitGraphProcessing() const {
 }
 
 void MemoryInput::initOptimalPrimitiveDescriptor() {
-    if (haveSubgraph()) {
-        return MemoryInputBase::initOptimalPrimitiveDescriptor();
-    }
     // Mimic the child node memory desc to avoid extra reorder
     static const Type preferredTypes[] = {
         Type::ScaledDotProductAttention,
@@ -654,10 +651,7 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
     config.outConfs.front().setMemDesc(mem_desc);
     // bypass any checks, we enforce the child descriptor
     selectedPd->setConfig(config);
-}
 
-void MemoryInput::selectOptimalPrimitiveDescriptor() {
-    MemoryInputBase::selectOptimalPrimitiveDescriptor();
     if (haveSubgraph()) {
         auto* prim_desc = getSelectedPrimitiveDescriptor();
         OPENVINO_ASSERT(prim_desc);
