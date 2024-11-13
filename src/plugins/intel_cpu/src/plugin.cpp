@@ -7,6 +7,7 @@
 #include "cpu_streams_calculation.hpp"
 #include "internal_properties.hpp"
 #include "itt.h"
+#include "openvino/core/parallel.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
@@ -532,7 +533,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     conf.applyRtInfo(model);
     conf.readProperties(config, modelType);
 
-    auto context = std::make_shared<GraphContext>(conf, fake_w_cache, false);
+    auto context = std::make_shared<GraphContext>(conf, fake_w_cache, false, nullptr);
 
     auto supported = ov::get_supported_nodes(
         model,

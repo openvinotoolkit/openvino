@@ -15,6 +15,7 @@
 #include <utility>
 #include <vector>
 
+#include "allocation_context.hpp"
 #include "cpu_memory.h"
 #include "cpu_shape.h"
 #include "cpu_types.h"
@@ -128,6 +129,40 @@ public:
 
     void setExecutorFactory(ExecutorFactoryLegacyPtr factory) {
         executorFactory = std::move(factory);
+    }
+
+    bool hasZeroInputDims() const {
+        const auto& inputConfigs = getConfig().inConfs;
+        return std::any_of(inputConfigs.begin(), inputConfigs.end(), [](const PortConfig& portConfig) {
+            return portConfig.hasZeroDims();
+        });
+    }
+
+    bool hasZeroInputDimsAtPort(size_t portIdx) const {
+        const auto& inputConfigs = getConfig().inConfs;
+        OPENVINO_ASSERT(portIdx < inputConfigs.size(),
+                        "Attempt to get NodeDesc input configuration for port ",
+                        portIdx,
+                        ". Number of inputs is ",
+                        inputConfigs.size());
+        return inputConfigs[portIdx].hasZeroDims();
+    }
+
+    bool hasZeroOutputDims() const {
+        const auto& outputConfigs = getConfig().outConfs;
+        return std::any_of(outputConfigs.begin(), outputConfigs.end(), [](const PortConfig& portConfig) {
+            return portConfig.hasZeroDims();
+        });
+    }
+
+    bool hasZeroOutputDimsAtPort(size_t portIdx) const {
+        const auto& outputConfigs = getConfig().outConfs;
+        OPENVINO_ASSERT(portIdx < outputConfigs.size(),
+                        "Attempt to get NodeDesc output configuration for port ",
+                        portIdx,
+                        ". Number of outputs is ",
+                        outputConfigs.size());
+        return outputConfigs[portIdx].hasZeroDims();
     }
 
 private:
@@ -292,6 +327,9 @@ public:
 
     bool isInPlace() const;
 
+    virtual bool canBeSkipped() const {
+        return getSelectedPrimitiveDescriptor()->hasZeroInputDims();
+    }
     // must be called only after Graph::ResolveEdgeConflicts()
     virtual bool isExecutable() const {
         return !hasEmptyInputTensors();
@@ -513,6 +551,17 @@ public:
 
     int getExecIndex() const {
         return execIndex;
+    }
+
+    /**
+     * @brief Register node to the allocation \context
+     *
+     * The main use case are nodes with nested graphs.
+     * Use this method to make nested graphs a part of global allocation procedure
+     */
+    virtual int registerToAllocationContext(int offset, AllocationContext& context) {
+        (void)context;  // nothing to register by default
+        return offset;
     }
 
     const std::string& getTypeStr() const {

@@ -968,6 +968,10 @@ void NonMaxSuppression::checkOutput(const Shape& shape, const std::string& name,
     }
 }
 
+bool NonMaxSuppression::canBeSkipped() const {
+    return !isDynamicNode() && Node::canBeSkipped();
+}
+
 bool NonMaxSuppression::isExecutable() const {
     return isDynamicNode() || Node::isExecutable();
 }

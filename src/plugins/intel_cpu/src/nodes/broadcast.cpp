@@ -189,6 +189,10 @@ bool Broadcast::needShapeInfer() const {
     return false;
 }
 
+bool Broadcast::canBeSkipped() const {
+    return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(0);
+}
+
 bool Broadcast::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
 }

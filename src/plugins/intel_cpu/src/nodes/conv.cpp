@@ -182,7 +182,15 @@ public:
 
         std::vector<NodePtr> nodes(nodesSet.begin(), nodesSet.end());
 
-        _graph->CreateGraph(nodes, edges, context, "fused_subgraph");
+        _graph->Init(nodes, edges, context, "fused_subgraph");
+    }
+
+    int RegisterToAllocationContext(int offset, AllocationContext& context) {
+        return _graph->RegisterToAllocationContext(offset, context);
+    }
+
+    void Activate() const {
+        _graph->Activate();
     }
 
     std::shared_ptr<Input> getInput(size_t idx) const {
@@ -788,10 +796,6 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
     attr.set_post_ops(ops);
 }
 
-void Convolution::selectOptimalPrimitiveDescriptor() {
-    selectPreferPrimitiveDescriptor(getImplPriority(), true);
-}
-
 void Convolution::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty()) {
         return;
@@ -902,6 +906,35 @@ void Convolution::initSupportedPrimitiveDescriptors() {
             add_supported_desc(first_desc);
         }
     }
+}
+
+void Convolution::selectOptimalPrimitiveDescriptor() {
+    selectPreferPrimitiveDescriptor(getImplPriority(), true);
+    /* preemptively create a fallback subgraph to include it into global memory reuse
+     * pros:
+     * - less total memory usage when fallback is actually needed (by size of intermediate memory)
+     * - no runtime overhead of graph creation when fallback is needed for the first time
+     * cons:
+     * - more total memory usage when fallback is not needed (by size of a graph data structure itself)
+     */
+    if (withSum && isDynamicNode()) {
+        subgraph = std::make_shared<FusedSubgraph>(fusedWith, *this, context);
+    }
+}
+
+int Convolution::registerToAllocationContext(int offset, AllocationContext& context) {
+    if (subgraph)
+        return subgraph->RegisterToAllocationContext(offset, context);
+
+    return Node::registerToAllocationContext(offset, context);
+}
+
+void Convolution::createPrimitive() {
+    if (subgraph) {
+        subgraph->Activate();
+    }
+
+    Node::createPrimitive();
 }
 
 bool Convolution::created() const {
@@ -1671,9 +1704,7 @@ void Convolution::redefineOutputMemory(const std::vector<VectorDims>& newOutputS
         const auto& sumInpMem = getParentEdgeAt(sumPortNum)->getMemory();
         if (newOutputShapes.front() != sumInpMem.getStaticDims()) {
             withSumBroadcast = true;
-            if (!subgraph) {
-                subgraph = std::make_shared<FusedSubgraph>(fusedWith, *this, context);
-            }
+
             auto inp0 = subgraph->getInput(0);
             inp0->redefineOutputMemory(newOutputShapes);
 

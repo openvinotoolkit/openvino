@@ -157,6 +157,10 @@ void EmbeddingSegmentsSum::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
+bool EmbeddingSegmentsSum::canBeSkipped() const {
+    return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(0);
+}
+
 bool EmbeddingSegmentsSum::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
 }

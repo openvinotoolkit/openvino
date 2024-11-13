@@ -235,6 +235,10 @@ void MemoryOutputBase::assignState(const MemStatePtr& newState) {
     assignExtMemory(state->output_mem(), state->internal_desc());
 }
 
+bool MemoryOutputBase::canBeSkipped() const {
+    return false;
+}
+
 bool MemoryOutputBase::isExecutable() const {
     return true;
 }
@@ -500,6 +504,10 @@ void MemoryInputBase::deregisterSibling(MemoryOutputBase* node) {
     }
 }
 
+bool MemoryInputBase::canBeSkipped() const {
+    return false;
+}
+
 bool MemoryInputBase::isExecutable() const {
     return true;
 }
@@ -691,36 +699,55 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
 
 // @todo add ascii diagramm for memory mapping / reuse
 void MemoryInput::createPrimitive() {
-    MemoryInputBase::createPrimitive();
     if (haveSubgraph()) {
-        OPENVINO_ASSERT(getOriginalInputsNumber() == subGraph->inputsNumber(),
-                        "Number of node inputs must be equal the number of inner graph's inputs: ",
-                        getOriginalInputsNumber(),
-                        " != ",
-                        subGraph->inputsNumber());
+        CPU_NODE_ASSERT(getParentEdges().size() == subGraph->inputsNumber(),
+                        "Number of node inputs must be equal the number of inner graph's inputs");
 
-        std::vector<MemoryPtr> inputMemory;
-        for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
             auto srcEdgeMem = getSrcMemoryAtPort(i);
             // create a separate input memory objects instead of share them. avoid data corruption.
             auto mem = std::make_shared<Memory>(getEngine(), srcEdgeMem->getDescPtr(), srcEdgeMem->getMemoryBlock());
             subgraphMemoryPtrs.push_back(mem);
-            inputMemory.emplace_back(std::move(mem));
         }
 
-        OPENVINO_ASSERT(getOriginalOutputsNumber() == subGraph->outputsNumber(),
-                        "Number of node outputs must be equal the number of inner graph's outputs: ",
-                        getOriginalOutputsNumber(),
-                        " != ",
-                        subGraph->outputsNumber());
-
-        std::vector<MemoryPtr> outputMemory;
-        for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
-            outputMemory.emplace_back(getDstMemoryAtPort(i));
-        }
-
-        subGraph->Activate(inputMemory, outputMemory);
+        subGraph->Activate();
     }
+
+    MemoryInputBase::createPrimitive();
+}
+
+int MemoryInput::registerToAllocationContext(int offset, AllocationContext& context) {
+    if (!haveSubgraph()) {
+        return Node::registerToAllocationContext(offset, context);
+    }
+
+    CPU_NODE_ASSERT(getParentEdges().size() == subGraph->inputsNumber(),
+                    "Number of node inputs must be equal the number of inner graph's inputs");
+
+    for (size_t i = 0; i < subGraph->inputsNumber(); i++) {
+        auto parentEdge = getParentEdgeAt(i);
+        auto inputEdges = subGraph->getInputNodeByIndex(i)->getChildEdgesAtPort(0);
+        for (const auto& inputEdge : inputEdges) {
+            CPU_NODE_ASSERT(inputEdge->getStatus() == Edge::Status::Uninitialized,
+                            "Expected Uninitialized state for edge: ",
+                            *this);
+            inputEdge->sharedMemFrom(parentEdge);
+        }
+    }
+
+    CPU_NODE_ASSERT(subGraph->outputsNumber() <= getChildEdges().size(),
+                    "Number of inner graph's outputs must be not greater than number of node outputs");
+
+    for (size_t i = 0; i < subGraph->outputsNumber(); i++) {
+        auto childEdge = getChildEdgeAt(i);
+        auto outputEdge = subGraph->getOutputNodeByIndex(i)->getParentEdgeAt(0);
+        CPU_NODE_ASSERT(outputEdge->getStatus() == Edge::Status::Uninitialized,
+                        "Expected Uninitialized state for edge: ",
+                        *outputEdge);
+        outputEdge->sharedMemFrom(childEdge);
+    }
+
+    return subGraph->RegisterToAllocationContext(offset, context);
 }
 
 void MemoryInput::runDynamic(dnnl::stream strm) {
