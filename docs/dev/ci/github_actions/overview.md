@@ -11,6 +11,7 @@ detailed instructions where necessary.
   * [Required workflows](#required-workflows)
   * [Workflow structure](#structure-of-the-workflows)
   * [Workflow and job organisation](#workflows-and-jobs-organisation)
+  * [Security considerations](#security-considerations)
 * [Finding results, artifacts and logs](#finding-results-artifacts-and-logs)
 * [Custom actions overview](#custom-actions)
 * [Machines overview](#machines)
@@ -204,6 +205,10 @@ Overview of the [Linux workflow's](../../../../.github/workflows/ubuntu_22.yml) 
 * A job must define `steps` - a series of commands to execute in the predefined environment.
   * All the steps are executed in the shell specified by the `shell` key under `defaults: run:`
     unless a shell is specified directly in a step.
+
+### Security considerations
+
+Please consult [workflow security guidelines](security.md) before submitting a PR with GitHub Actions workflows changes.
 
 ## Finding Results, Artifacts, and Logs
 
