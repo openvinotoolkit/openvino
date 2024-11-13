@@ -53,7 +53,8 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     auto sliding_window = v0::Constant::create(element::i32, Shape{}, {0});  // sliding_window
 
-    auto has_parameter = [=](const std::shared_ptr<ov::Model>& model, const std::string& name) -> std::shared_ptr<v0::Parameter> {
+    auto has_parameter = [=](const std::shared_ptr<ov::Model>& model,
+                             const std::string& name) -> std::shared_ptr<v0::Parameter> {
         for (auto& param : model->inputs()) {
             const auto& names = param.get_names();
             if (names.find(name) != names.end()) {

@@ -55,3 +55,4 @@ rjieba==0.1.11
 # - katuni4ka/tiny-random-internlm2
 transformers_stream_generator==0.0.5
 einops==0.8.0
+flash_attn==2.6.3
