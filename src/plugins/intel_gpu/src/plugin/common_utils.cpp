@@ -88,6 +88,7 @@ void convert_and_copy(const void* src_ptr, ov::element::Type src_et, void* dst_p
     CASE(ov::element::f16, ov::element::f16, ov::float16, ov::float16);
     CASE(ov::element::bf16, ov::element::f32, ov::bfloat16, float);
     CASE(ov::element::bf16, ov::element::f16, ov::bfloat16, ov::float16);
+    CASE(ov::element::boolean, ov::element::u8, bool, uint8_t);
 
     OPENVINO_THROW("[GPU] Unsupported element types combination for copy: ", src_et, " -> ", dst_et);
 }

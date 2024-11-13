@@ -581,7 +581,8 @@ void network::allocate_primitives() {
 
     // Update the output memory address of optimized-out layer if it is not valid.
     for (auto const& node : po) {
-        if (node->can_be_optimized() && !node->is_dynamic()) {
+        if (node->can_be_optimized() && !node->is_dynamic() &&
+            (node->get_dependencies().empty() || !node->get_dependency(0).is_type<read_value>())) {
             auto opt_inst = _primitives.at(node->id());
             // build deps when prim_inst does not update dependencies yet.
             if (!node->get_dependencies().empty() && opt_inst->dependencies().empty()) {
