@@ -205,6 +205,14 @@ def test_init_with_scalar(init_value, src_dtype, dst_dtype, shared_flag, data_ge
     assert np.allclose(const_data, expected_result)
 
 
+def test_cant_change_data_in_const():
+    arr_0 = np.ones([1, 3, 32, 32])
+    ov_const = ops.constant(arr_0)
+    arr_1 = np.ones([1, 3, 32, 32]) + 1
+    with pytest.raises(ValueError, match="assignment destination is read-only"):
+        ov_const.data[:] = arr_1
+
+
 @pytest.mark.parametrize(
     ("ov_type", "numpy_dtype"),
     [
