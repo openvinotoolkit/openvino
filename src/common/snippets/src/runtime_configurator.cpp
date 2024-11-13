@@ -8,7 +8,6 @@
 #include "snippets/lowered/pass/init_loops.hpp"
 #include "snippets/lowered/pass/insert_specific_iterations.hpp"
 #include "snippets/mha_parallel_wa_optimizer.hpp"
-#include "snippets/runtime_optimizer.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/utils/loop_utils.hpp"
 #include "snippets/utils/utils.hpp"
@@ -329,7 +328,7 @@ void RuntimeConfigurator::compute_offsets(const ov::snippets::VectorDims& shape,
 }
 
 void RuntimeConfigurator::set_kernel_executor_table(std::shared_ptr<KernelExecutorTable> table) const {
-    OPENVINO_ASSERT(table, "Failed to update Kernel Executo Table: passed table is missed");
+    OPENVINO_ASSERT(table, "Failed to update Kernel Executor Table: passed table is missed");
     m_config->kernel_executor_table = std::move(table);
 }
 

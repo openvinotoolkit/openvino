@@ -6,7 +6,7 @@
 
 #include "cpu_runtime_configurator.hpp"
 #include "snippets/lowered/linear_ir.hpp"
-#include "snippets/lowered/loop_manager.hpp"
+#include "snippets/lowered/loop_info.hpp"
 #include "snippets/runtime_optimizer.hpp"
 
 namespace ov {

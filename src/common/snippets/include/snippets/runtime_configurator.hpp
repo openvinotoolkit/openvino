@@ -205,7 +205,7 @@ protected:
     // [cluster_id -> buffer expressions ]
     std::map<size_t, std::set<lowered::BufferExpressionPtr>> m_dynamic_buffer_clusters = {};
 
-    // WA: until 148891 is not implemented, 2 pass pipelines for runtime optimizers are necessary since different
+    // WA: until ticket 148891 is not implemented, 2 pass pipelines for runtime optimizers are necessary since different
     // optimizers must be called at different pipeline stages.
     // - Intermediate optimizers must be called right after `update_loop_info`
     // - Final optimizers must be called after all other RuntimeConfigurator's update methods

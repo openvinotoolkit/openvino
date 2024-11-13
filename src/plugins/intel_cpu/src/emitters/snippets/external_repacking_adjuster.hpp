@@ -4,13 +4,9 @@
 
 #pragma once
 
+#include "cpu_runtime_configurator.hpp"
 #include "snippets/runtime_configurator.hpp"
 #include "snippets/runtime_optimizer.hpp"
-
-#include "snippets/lowered/port_descriptor.hpp"
-#include "emitters/snippets/jit_snippets_call_args.hpp"
-
-#include "memory_desc/cpu_blocked_memory_desc.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -24,7 +20,7 @@ class CPURuntimeConfigurator;
 class BrgemmExternalRepackingAdjuster : public ov::snippets::lowered::pass::RuntimeOptimizer {
 public:
     BrgemmExternalRepackingAdjuster() = default;
-    BrgemmExternalRepackingAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir, snippets::RuntimeConfigurator* configurator);
+    BrgemmExternalRepackingAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir, CPURuntimeConfigurator* configurator);
 
     bool run(const snippets::lowered::LinearIR& linear_ir) override;
 

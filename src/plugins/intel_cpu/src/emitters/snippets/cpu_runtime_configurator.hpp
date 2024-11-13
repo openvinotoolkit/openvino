@@ -41,9 +41,6 @@ protected:
     void initialization(const ov::snippets::lowered::LinearIRCPtr& linear_ir) override;
 
     static const size_t rank6D;
-
-private:
-    snippets::lowered::pass::PassPipeline m_cpu_runtime_optimizers;
 };
 
 }   // namespace intel_cpu

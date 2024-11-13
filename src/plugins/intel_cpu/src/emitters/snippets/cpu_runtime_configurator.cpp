@@ -4,17 +4,12 @@
 
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 
-#include "memory_desc/cpu_blocked_memory_desc.h"
-#include "memory_desc/cpu_memory_desc_utils.h"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/utils/utils.hpp"
 
 #ifndef OPENVINO_ARCH_ARM64
 #include "brgemm_copy_b_loop_ports_adjuster.hpp"
 #include "external_repacking_adjuster.hpp"
-#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #endif
 namespace ov {
 namespace intel_cpu {

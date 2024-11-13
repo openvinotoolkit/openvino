@@ -3,12 +3,15 @@
 //
 
 #include "brgemm_copy_b_loop_ports_adjuster.hpp"
+
+#include "snippets/lowered/loop_manager.hpp"
 #include "transformations/snippets/x64/pass/lowered/adjust_brgemm_copy_b_loop_ports.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-BrgemmCopyBLoopPortsAdjuster::BrgemmCopyBLoopPortsAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir, CPURuntimeConfigurator* configurator)
+BrgemmCopyBLoopPortsAdjuster::BrgemmCopyBLoopPortsAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
+                                                           CPURuntimeConfigurator* configurator)
     : ov::snippets::lowered::pass::RuntimeOptimizer(configurator) {
     const auto& pass = std::make_shared<intel_cpu::pass::AdjustBrgemmCopyBLoopPorts>();
     pass->run(*linear_ir);

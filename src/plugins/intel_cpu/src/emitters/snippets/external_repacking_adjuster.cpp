@@ -6,7 +6,6 @@
 
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 #include "memory_desc/cpu_blocked_memory_desc.h"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "snippets/utils/utils.hpp"
 
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
@@ -15,9 +14,9 @@
 namespace ov {
 namespace intel_cpu {
 
-BrgemmExternalRepackingAdjuster::BrgemmExternalRepackingAdjuster(
-    const ov::snippets::lowered::LinearIRCPtr& linear_ir,
-    snippets::RuntimeConfigurator* configurator) : snippets::lowered::pass::RuntimeOptimizer(configurator) {
+BrgemmExternalRepackingAdjuster::BrgemmExternalRepackingAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
+                                                                 CPURuntimeConfigurator* configurator)
+    : snippets::lowered::pass::RuntimeOptimizer(configurator) {
     const auto& params = linear_ir->get_parameters();
     for (size_t i = 0; i < params.size(); ++i) {
         const auto& param = params[i];
@@ -41,7 +40,6 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
     auto& optimal_descs = cpu_config->m_in_requested_descs;
     for (const auto& i : m_param_idces_with_external_repacking) {
         const auto& shape = m_configurator->get_config()->shapes[i];
-        // TODO: support orbitrary order
         const auto& K = *++shape.rbegin();
         const auto& N = *shape.rbegin();
 
@@ -65,7 +63,7 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
         shape_for_offset.insert(shape_for_offset.end(), requested_blocked_shape.begin(), requested_blocked_shape.end());
         auto& offsets = cpu_config->io_data_offsets[i];
         snippets::RuntimeConfigurator::compute_offsets(shape_for_offset, offsets, shape_for_offset.size(), m_configurator->get_io_data_sizes()[i], 0);
-        // TODO: Support non-planar layout
+        // Ticket 157339: Support non-planar layout
         OPENVINO_ASSERT(ov::snippets::utils::is_planar_layout(m_configurator->get_config()->layouts[i]));
     }
     return true;
