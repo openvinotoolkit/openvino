@@ -70,6 +70,10 @@ namespace CPUTestUtils {
     const auto conv_avx2_dw_2D_nspc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx2_dw"}, "jit_avx2_dw"};
     const auto conv_avx2_dw_3D_nspc = CPUSpecificParams{{ndhwc}, {ndhwc}, {"jit_avx2_dw"}, "jit_avx2_dw"};
 
+    const auto conv_avx2_dw_1D_nspc_brgconv = CPUSpecificParams{{nwc}, {nwc}, {"brgconv_avx2_dw"}, "brgconv_avx2_dw"};
+    const auto conv_avx2_dw_2D_nspc_brgconv = CPUSpecificParams{{nhwc}, {nhwc}, {"brgconv_avx2_dw"}, "brgconv_avx2_dw"};
+    const auto conv_avx2_dw_3D_nspc_brgconv = CPUSpecificParams{{ndhwc}, {ndhwc}, {"brgconv_avx2_dw"}, "brgconv_avx2_dw"};
+
     const auto conv_avx2_1D_nspc_brgconv = CPUSpecificParams{{nwc}, {nwc}, {"brgconv_avx2"}, "brgconv_avx2"};
     const auto conv_avx2_2D_nspc_brgconv = CPUSpecificParams{{nhwc}, {nhwc}, {"brgconv_avx2"}, "brgconv_avx2"};
     const auto conv_avx2_3D_nspc_brgconv = CPUSpecificParams{{ndhwc}, {ndhwc}, {"brgconv_avx2"}, "brgconv_avx2"};
@@ -94,6 +98,10 @@ namespace CPUTestUtils {
     const auto conv_avx512_dw_1D_nspc = CPUSpecificParams{{nwc}, {nwc}, {"jit_avx512_dw"}, "jit_avx512_dw"};
     const auto conv_avx512_dw_2D_nspc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx512_dw"}, "jit_avx512_dw"};
     const auto conv_avx512_dw_3D_nspc = CPUSpecificParams{{ndhwc}, {ndhwc}, {"jit_avx512_dw"}, "jit_avx512_dw"};
+
+    const auto conv_avx512_dw_1D_nspc_brgconv = CPUSpecificParams{{nwc}, {nwc}, {"brgconv_avx512_dw"}, "brgconv_avx512_dw"};
+    const auto conv_avx512_dw_2D_nspc_brgconv = CPUSpecificParams{{nhwc}, {nhwc}, {"brgconv_avx512_dw"}, "brgconv_avx512_dw"};
+    const auto conv_avx512_dw_3D_nspc_brgconv = CPUSpecificParams{{ndhwc}, {ndhwc}, {"brgconv_avx512_dw"}, "brgconv_avx512_dw"};
 
     const auto conv_avx512_1D_nspc_amx = CPUSpecificParams{{nwc}, {nwc}, {"jit_avx512_amx"}, "jit_avx512_amx"};
     const auto conv_avx512_2D_nspc_amx = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx512_amx"}, "jit_avx512_amx"};

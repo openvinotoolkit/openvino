@@ -1222,7 +1222,9 @@ const std::vector<CPUSpecificParams> CPUParams_DW_1D = {conv_sse42_dw_1D,
                                                         conv_avx512_dw_1D,
                                                         conv_sse42_dw_1D_nspc,
                                                         conv_avx2_dw_1D_nspc,
-                                                        conv_avx512_dw_1D_nspc};
+                                                        conv_avx512_dw_1D_nspc,
+                                                        conv_avx2_dw_1D_nspc_brgconv,
+                                                        conv_avx512_dw_1D_nspc_brgconv};
 
 std::vector<InputShape> inputShapes1dDW = {{{}, {{2, 32, 7}}},
                                            {// dynamic shapes
@@ -1277,7 +1279,9 @@ const std::vector<CPUSpecificParams> CPUParams_DW_2D = {conv_sse42_dw_2D,
                                                         conv_avx512_dw_2D,
                                                         conv_sse42_dw_2D_nspc,
                                                         conv_avx2_dw_2D_nspc,
-                                                        conv_avx512_dw_2D_nspc};
+                                                        conv_avx512_dw_2D_nspc,
+                                                        conv_avx2_dw_2D_nspc_brgconv,
+                                                        conv_avx512_dw_2D_nspc_brgconv};
 
 std::vector<InputShape> inputShapes2dDW = {{{}, {{2, 32, 7, 7}}},
                                            {// dynamic shapes
@@ -1328,7 +1332,9 @@ const std::vector<CPUSpecificParams> CPUParams_DW_3D = {conv_sse42_dw_3D,
                                                         conv_avx512_dw_3D,
                                                         conv_sse42_dw_3D_nspc,
                                                         conv_avx2_dw_3D_nspc,
-                                                        conv_avx512_dw_3D_nspc};
+                                                        conv_avx512_dw_3D_nspc,
+                                                        conv_avx2_dw_3D_nspc_brgconv,
+                                                        conv_avx512_dw_3D_nspc_brgconv};
 
 std::vector<InputShape> inputShapes3dDW = {{{}, {{2, 32, 7, 7, 7}}},
                                            {// dynamic shapes
