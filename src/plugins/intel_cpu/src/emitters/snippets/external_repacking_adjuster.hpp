@@ -16,6 +16,11 @@ namespace ov {
 namespace intel_cpu {
 
 class CPURuntimeConfigurator;
+/**
+ * @class BrgemmExternalRepackingAdjuster
+ * @brief A runtime optimizer that creates the memory descs for BRGEMM inputs which require external repacking.
+ * The generated memory descs are stored in the CPU runtime config.
+ */
 class BrgemmExternalRepackingAdjuster : public ov::snippets::lowered::pass::RuntimeOptimizer {
 public:
     BrgemmExternalRepackingAdjuster() = default;

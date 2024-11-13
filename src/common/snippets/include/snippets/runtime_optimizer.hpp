@@ -12,6 +12,11 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
+/**
+ * @class RuntimeOptimizer
+ * @brief Base class for runtime optimizers that operate on LinearIR and RuntimeConfigurator during
+ * RuntimeConfigurator::update stage.
+ */
 class RuntimeOptimizer : public ConstPass {
 public:
     RuntimeOptimizer() = default;

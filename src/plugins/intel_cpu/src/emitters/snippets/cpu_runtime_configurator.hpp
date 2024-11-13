@@ -27,7 +27,6 @@ public:
 
 class CPURuntimeConfigurator : public ov::snippets::RuntimeConfigurator {
 public:
-    OPENVINO_RTTI("CPURuntimeConfigurator", "0", ov::snippets::RuntimeConfigurator)
     CPURuntimeConfigurator();
 
     /**

@@ -65,22 +65,6 @@ public:
     RuntimeConfigurator(std::shared_ptr<RuntimeConfig> c);
     virtual ~RuntimeConfigurator() = default;
 
-    // Note that get_type_info_static and get_type_info are needed to mimic OPENVINO_RTTI interface,
-    // so the standard OPENVINO_RTTI(...) macros could be used in derived classes.
-    _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() {
-        static ::ov::DiscreteTypeInfo type_info_static {"RuntimeConfigurator"};
-        type_info_static.hash();
-        return type_info_static;
-    }
-
-    virtual const DiscreteTypeInfo& get_type_info() const {
-        return get_type_info_static();
-    }
-
-    const char* get_type_name() const {
-        return get_type_info().name;
-    }
-
     /**
      * @brief Update RuntimeConfig based on new state of LinearIR and return its
      * @param linear_ir LinearIR
@@ -111,6 +95,18 @@ public:
     const std::vector<size_t>& get_io_data_sizes() const { return m_io_data_sizes; }
     const std::map<size_t, std::set<lowered::BufferExpressionPtr>>& get_dynamic_buffer_clusters() const { return m_dynamic_buffer_clusters; }
 
+    /**
+     * @brief Computes the offsets for each dimension of a tensor shape.
+     *
+     * This function calculates the offsets for each dimension of a tensor shape, which represent the distance between
+     * consecutive elements of the corresponding dimension. If a dimension size is 1, the next dimension starts
+     * immediately, and the stride is 0.
+     * @param shape The shape of the tensor.
+     * @param offsets The offsets which should be updated.
+     * @param offsets_size Requested offsets size vector.
+     * @param dim_step The initial step size for the dimensions.
+     * @param idx_stride Defines the number of dimensions that should be skipped in the offsets vector.
+     */
     static void compute_offsets(const ov::snippets::VectorDims& shape,
                                 ov::snippets::VectorDims& offsets,
                                 size_t offsets_size,
@@ -122,6 +118,11 @@ public:
         std::vector<int64_t> ptr_increments;
         std::vector<int64_t> finalization_offsets;
     };
+    /**
+     * @brief Retrieves the runtime parameters for a given UnifiedLoopInfo.
+     * @param unified_loop_info The UnifiedLoopInfo for which the runtime parameters are to be retrieved.
+     * @return A LoopInfoRuntimeParams object containing the runtime parameters.
+     */
     static UnifiedLoopInfoRtParams get_loop_runtime_params(const lowered::UnifiedLoopInfoPtr& unified_loop_info);
     using LoopInfoRuntimeParamsMap = std::unordered_map<lowered::UnifiedLoopInfoPtr, UnifiedLoopInfoRtParams>;
     /**
@@ -129,6 +130,11 @@ public:
      * @param linear_ir LinearIR
      */
     static void update_loop_info(const lowered::LinearIRCPtr& linear_ir);
+    /**
+     * @brief Updates the ExpandedLoopInfo based on the initialized runtime parameters.
+     * @param expanded_loop_info The ExpandedLoopInfo to be updated.
+     * @param initialized_info_map A map containing the initialized runtime parameters for UnifiedLoopInfo.
+     */
     static void update_expanded_loop_info(const lowered::ExpandedLoopInfoPtr& expanded_loop_info,
                                           LoopInfoRuntimeParamsMap& initializated_info_map);
     /**

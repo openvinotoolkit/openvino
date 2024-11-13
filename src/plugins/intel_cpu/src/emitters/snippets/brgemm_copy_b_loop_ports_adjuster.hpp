@@ -12,6 +12,10 @@
 namespace ov {
 namespace intel_cpu {
 
+/**
+ * @class BrgemmCopyBLoopPortsAdjuster
+ * @brief A runtime optimizer that adjusts blocked loops parameters for Brgemm operations which require repacking.
+ */
 class BrgemmCopyBLoopPortsAdjuster : public ov::snippets::lowered::pass::RuntimeOptimizer {
 public:
     BrgemmCopyBLoopPortsAdjuster() = default;
