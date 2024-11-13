@@ -67,14 +67,9 @@ public:
         }
 
         auto reorder_1 = reorder("reorder_1", input_info("input"), layout{ input_ps, data_types::f16, format::bfyx });
-<<<<<<< HEAD
         auto dyn_quan_prim = dynamic_quantize("dyn_quan_prim", input_info("reorder_1"), dq_config);
         auto reorder_data = reorder("reorder_data", input_info("dyn_quan_prim", 0), layout{ input_ps, data_types::f16, format::bfyx });
         auto reorder_scale = reorder("reorder_scale", input_info("dyn_quan_prim", 1), layout{ scales_ps, data_types::f16, format::bfyx });
-=======
-        auto dyn_quan_prim = dynamic_quantize("dyn_quan_prim", input_info("reorder_1"), group_size, {data_types::f16, data_types::i8});
-        auto reorder_2 = reorder("reorder_2", input_info("dyn_quan_prim"), layout{ input_ps, data_types::f16, format::bfyx });
->>>>>>> a6506df2f0 (WIP: dynamic_quantization at arbitrary group size)
 
         // Implemented dynamic quantize kernel
         auto get_ref_results = [&]() {
