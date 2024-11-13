@@ -55,5 +55,3 @@ rjieba==0.1.11
 # - katuni4ka/tiny-random-internlm2
 transformers_stream_generator==0.0.5
 einops==0.8.0
-
-https://github.com/Dao-AILab/flash-attention/releases/download/v2.6.3/flash_attn-2.6.3+cu118torch2.0cxx11abiFALSE-cp310-cp310-linux_x86_64.whl
