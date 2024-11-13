@@ -5,7 +5,7 @@
 #pragma once
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
-#include "emitters/snippets/x64/kernel_executors/brgemm.hpp"
+#include "emitters/snippets/x64/kernel_executors/brgemm_base.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -28,11 +28,13 @@ private:
     std::vector<size_t> m_memory_offsets{};
     // Note: cluster ids order: A, B, C (+ scratchpad, if needed). Values can be dynamic_value if there is no buffer
     std::vector<size_t> m_buffer_ids{};
-    std::shared_ptr<BrgemmKernelExecutor> m_kernel_executor = nullptr;
+    std::shared_ptr<BrgemmBaseKernelExecutor> m_kernel_executor = nullptr;
 
 #ifdef SNIPPETS_DEBUG_CAPS
     friend std::string init_info_jit_brgemm_emitter(const jit_brgemm_emitter *emitter);
 #endif
+
+    bool m_is_with_amx {false};
 };
 
 }   // namespace intel_cpu

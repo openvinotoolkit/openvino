@@ -5,10 +5,13 @@
 #include "jit_brgemm_emitter.hpp"
 
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-#include "snippets/utils/utils.hpp"
-#include "emitters/plugin/x64/utils.hpp"
-#include "utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
+#include "emitters/snippets/x64/kernel_executors/brgemm.hpp"
+#include "emitters/snippets/x64/kernel_executors/brgemm_amx.hpp"
+#include "emitters/plugin/x64/utils.hpp"
+
+#include "snippets/utils/utils.hpp"
+#include "utils.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;
@@ -27,11 +30,14 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa,
     const auto& brg0Prc = brgemm_node->get_input_element_type(0);
     const auto& brg1Prc = brgemm_node->get_input_element_type(1);
     const auto brgemm_type = brgemm_node->get_type();
-    BrgemmKernelConfig kernel_config(brg0Prc, brg1Prc, with_amx(brgemm_type), with_compensations(brgemm_type),
-                                     brgemm_utils::get_primitive_isa(brg0Prc, with_amx(brgemm_type)));
-    m_kernel_executor = kernel_table->register_kernel<BrgemmKernelExecutor>(expr,
-                                                                            compiled_kernel_cache,
-                                                                            kernel_config);
+    m_is_with_amx = brgemm_utils::with_amx(brgemm_type);
+    if (m_is_with_amx) {
+        BrgemmAMXKernelConfig kernel_config(brg0Prc, brg1Prc, brgemm_utils::get_primitive_isa(brg0Prc, true));
+        m_kernel_executor = kernel_table->register_kernel<BrgemmAMXKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
+    } else {
+        BrgemmKernelConfig kernel_config(brg0Prc, brg1Prc, with_compensations(brgemm_type), brgemm_utils::get_primitive_isa(brg0Prc, false));
+        m_kernel_executor = kernel_table->register_kernel<BrgemmKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
+    }
     // Note: even if the Brgemm node is dynamic, the first shapeInfer and RuntimeConfigurator::update()
     // are performed before the BrgemmKernelExecutor registration. So we have to trigger update() manually
     // for both static and the 1st dynamic shapes.
@@ -85,15 +91,21 @@ void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
     EmitABIRegSpills spill(h);
     spill.preamble();
 
-    h->mov(h->rbp, reinterpret_cast<uint64_t>(BrgemmKernelExecutor::execute));
-    auto reserved_stack_size = sizeof(BrgemmKernelExecutor::call_args);
+    h->mov(h->rbp, m_is_with_amx ? reinterpret_cast<uint64_t>(BrgemmAMXKernelExecutor::execute)
+                                 : reinterpret_cast<uint64_t>(BrgemmKernelExecutor::execute));
+    auto reserved_stack_size = m_is_with_amx ? sizeof(BrgemmAMXKernelExecutor::call_args) : sizeof(BrgemmKernelExecutor::call_args);
     // Reserve memory on the stack
     h->sub(h->rsp, reserved_stack_size);
 
     const bool is_dynamic_case = std::any_of(m_memory_offsets.cbegin(), m_memory_offsets.cend(), ov::snippets::utils::is_dynamic_value<size_t>);
     Xbyak::Reg64 aux_reg = is_dynamic_case ? ov::intel_cpu::utils::get_aux_gpr(mem_ptrs_idxs) : Xbyak::Reg64();
 
-    const std::vector<size_t> brgemm_args_offsets {GET_OFF_BRGEMM_ARGS(A), GET_OFF_BRGEMM_ARGS(B), GET_OFF_BRGEMM_ARGS(C), GET_OFF_BRGEMM_ARGS(scratch)};
+    std::vector<size_t> brgemm_args_offsets;
+    if (m_is_with_amx) {
+        brgemm_args_offsets = {GET_OFF_BRGEMM_AMX_ARGS(A), GET_OFF_BRGEMM_AMX_ARGS(B), GET_OFF_BRGEMM_AMX_ARGS(C), GET_OFF_BRGEMM_AMX_ARGS(scratch)};
+    } else {
+        brgemm_args_offsets = {GET_OFF_BRGEMM_ARGS(A), GET_OFF_BRGEMM_ARGS(B), GET_OFF_BRGEMM_ARGS(C), GET_OFF_BRGEMM_ARGS(scratch)};
+    }
     const auto& mem_ptrs = utils::transform_idxs_to_regs(mem_ptrs_idxs);
     for (size_t i = 0; i < mem_ptrs.size(); i++) {
         if (ov::snippets::utils::is_dynamic_value(m_memory_offsets[i]))
@@ -108,8 +120,10 @@ void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
         h->mov(h->qword[h->rsp + brgemm_args_offsets.back()], reinterpret_cast<uintptr_t>(nullptr));
 
     // abi_param1 always contains jit_snippets_call_args which has amx tile config for each thread
-    h->lea(h->r10, h->ptr[abi_param1 + GET_OFF(amx_tile_config)]);
-    h->mov(h->qword[h->rsp + GET_OFF_BRGEMM_ARGS(amx_tile_config)], h->r10);
+    if (m_is_with_amx) {
+        h->lea(h->r10, h->ptr[abi_param1 + GET_OFF(amx_tile_config)]);
+        h->mov(h->qword[h->rsp + GET_OFF_BRGEMM_AMX_ARGS(amx_tile_config)], h->r10);
+    }
 
     h->mov(abi_param1, reinterpret_cast<uintptr_t>(m_kernel_executor.get()));
     h->mov(abi_param2, h->rsp);
