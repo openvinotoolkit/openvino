@@ -358,10 +358,14 @@ py::array array_from_constant_copy(ov::op::v0::Constant&& c, py::dtype& dst_dtyp
 py::array array_from_constant_view(ov::op::v0::Constant&& c) {
     const auto& ov_type = c.get_element_type();
     const auto dtype = Common::type_helpers::get_dtype(ov_type);
+    py::array data;
     if (ov_type.bitwidth() < Common::values::min_bitwidth) {
-        return py::array(dtype, c.get_byte_size(), c.get_data_ptr(), py::cast(c));
+        data = py::array(dtype, c.get_byte_size(), c.get_data_ptr(), py::cast(c));
+    } else {
+        data = py::array(dtype, c.get_shape(), constant_helpers::_get_strides(c), c.get_data_ptr(), py::cast(c));
     }
-    return py::array(dtype, c.get_shape(), constant_helpers::_get_strides(c), c.get_data_ptr(), py::cast(c));
+    data.attr("flags").attr("writeable") = false;
+    return data;
 }
 
 };  // namespace array_helpers
