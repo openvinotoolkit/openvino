@@ -25,7 +25,7 @@ on:
 permissions: read-all
 
 env:
-  PIP_CACHE_PATH: /mount/caches/pip/win
+  PIP_CACHE_PATH: "C:\\mount\\caches\\pip\\win"
   PYTHON_VERSION: '3.11'
 
 jobs:
