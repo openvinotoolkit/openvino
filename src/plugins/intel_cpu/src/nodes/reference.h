@@ -24,6 +24,9 @@ public:
     bool needPrepareParams() const override {
         return false;
     }
+    bool canBeSkipped() const override {
+        return false;
+    }
     bool isExecutable() const override {
         return true;
     }

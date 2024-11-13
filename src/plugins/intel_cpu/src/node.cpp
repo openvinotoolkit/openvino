@@ -1757,7 +1757,7 @@ bool Node::isOutputTensorAtPortEmpty(size_t port) const {
         return outputShapes[port].hasZeroDims();
     }
     auto&& mem = getChildEdgeAt(port)->getMemory();
-    if (mem.isDefined()) {
+    if (mem.isDefined() && !mem.getDesc().empty()) {
         return mem.getShape().hasZeroDims();
     }
     return false;

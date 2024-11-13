@@ -255,7 +255,7 @@ Edge::ReorderStatus Edge::needReorder() {
 }
 
 void Edge::reuse(MemoryPtr ptr) {
-    OPENVINO_ASSERT(ptr != nullptr, "Attempt to reuse initialized memory in ", *this);
+    OPENVINO_ASSERT(ptr != nullptr, "Attempt to reuse uninitialized memory in ", *this);
     memoryPtr = std::move(ptr);
     changeStatus(Status::Allocated);
 
@@ -432,12 +432,17 @@ const MemoryDesc& Edge::getOutputDesc() const {
     return *memDescPtr;
 }
 
-const MemoryDesc& Edge::getDesc() const {
+const MemoryDesc& Edge::getOriginalDesc() const {
+    OPENVINO_ASSERT(!one_of(status, Status::Validated, Status::Allocated),
+                    "Desc of an Allocated edge ",
+                    *this,
+                    " must be accessed through the memory object");
+
     if (getInputDesc().getPrecision() == element::undefined)
         return getInputDesc();
 
     if (!getInputDesc().isCompatible(getOutputDesc()))
-        OPENVINO_THROW("Cannot get descriptor for edge: ", getParent()->getName(), "->", getChild()->getName());
+        OPENVINO_THROW("Cannot get descriptor for edge: ", *this);
 
     return getInputDesc();
 }
@@ -466,7 +471,7 @@ void Edge::validate() {
     getChild();
 
     if (status != Status::Allocated || !memoryPtr) {
-        OPENVINO_THROW("Error memory is not allocated!");
+        OPENVINO_THROW("Error memory is not allocated for edge: ", *this);
     }
     status = Status::Validated;
 }
