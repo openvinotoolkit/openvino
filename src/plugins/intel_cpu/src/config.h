@@ -51,14 +51,16 @@ struct Config {
     std::string device_id = {};
     float fcSparseWeiDecompressionRate = 1.0f;
     uint64_t fcDynamicQuantizationGroupSize = 32;
-    ov::element::Type kvCachePrecision = ov::element::f16;
     bool fcDynamicQuantizationGroupSizeSetExplicitly = false;
+    bool kvCachePrecisionSetExplicitly = false;
 #if defined(OV_CPU_WITH_ACL)
     bool aclFastMath = false;
 #endif
 #if defined(OPENVINO_ARCH_X86_64)
+    ov::element::Type kvCachePrecision = ov::element::u8;
     size_t rtCacheCapacity = 5000ul;
 #else
+    ov::element::Type kvCachePrecision = ov::element::f16;
     // TODO: Executor cache may leads to incorrect behavior on oneDNN ACL primitives
     size_t rtCacheCapacity = 0ul;
 #endif
