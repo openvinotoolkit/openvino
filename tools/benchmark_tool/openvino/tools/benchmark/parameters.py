@@ -72,6 +72,10 @@ def parse_args():
     args.add_argument('-niter', '--number_iterations', type=check_positive, required=False, default=None,
                       help='Optional. Number of iterations. '
                            'If not specified, the number of iterations is calculated depending on a device.')
+    args.add_argument('-max_irate', '--maximum_inference_rate', type=float, required=False, default=0,
+                      help='Optional. Maximum inference rate by frame per second. '
+                           'If not specified, default value is 0, the inference will run at maximium rate depending on a device capabilities. '
+                           'Tweaking this value allow better accuracy in power usage measurement by limiting the execution.')
     args.add_argument('-t', '--time', type=check_positive, required=False, default=None,
                       help='Optional. Time in seconds to execute topology.')
 

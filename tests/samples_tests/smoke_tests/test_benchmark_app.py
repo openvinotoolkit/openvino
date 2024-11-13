@@ -38,13 +38,16 @@ def create_random_4bit_bin_file(tmp_path, shape, name):
         f.write(raw_data)
 
 
-def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape=None, nstreams=None, layout=None, pin=None, cache=None, tmp_path=None, model='bvlcalexnet-12.onnx', inp='dog-224x224.bmp', batch='1', niter='10', tm=None):
+def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape=None, nstreams=None,
+           layout=None, pin=None, cache=None, tmp_path=None, model='bvlcalexnet-12.onnx',
+           inp='dog-224x224.bmp', batch='1', niter='10', max_irate=None, tm=None):
     output = get_cmd_output(
         get_executable(sample_language),
         *prepend(cache, inp, model, tmp_path),
         *('-nstreams', nstreams) if nstreams else '',
         *('-layout', layout) if layout else '',
         *('-nireq', nireq) if nireq else '',
+        *('-max_irate', max_irate) if max_irate else '',
         *('-shape', shape) if shape else '',
         *('-data_shape', data_shape) if data_shape else '',
         *('-hint', 'none') if nstreams or pin else '',
@@ -82,6 +85,13 @@ def test_benchmark_app_help(sample_language):
 @pytest.mark.parametrize('device', get_devices())
 def test_nireq(sample_language, api, nireq, device, cache, tmp_path):
     verify(sample_language, device, api=api, nireq=nireq, cache=cache, tmp_path=tmp_path)
+
+
+@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
+@pytest.mark.parametrize('max_irate', ['', '0', '10'])
+@pytest.mark.parametrize('device', get_devices())
+def test_max_irate(sample_language, device, max_irate, cache, tmp_path):
+    verify(sample_language, device, max_irate=max_irate, cache=cache, tmp_path=tmp_path)
 
 
 @pytest.mark.skipif('CPU' not in get_devices(), reason='affinity is a CPU property')

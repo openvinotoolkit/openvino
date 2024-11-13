@@ -7,6 +7,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -1157,6 +1158,12 @@ int main(int argc, char* argv[]) {
 
             execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
             processedFramesN += batchSize;
+
+            if (FLAGS_max_irate > 0) {
+                auto nextRunFinishTime = 1 / FLAGS_max_irate * processedFramesN * 1.0e9;
+                std::this_thread::sleep_for(
+                    std::chrono::nanoseconds(static_cast<int64_t>(nextRunFinishTime - execTime)));
+            }
         }
 
         // wait the latest inference executions
