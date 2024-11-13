@@ -5,7 +5,7 @@
 from typing import Optional
 import numpy as np
 
-from openvino import Node
+from openvino._pyopenvino import Node
 from openvino.utils.decorators import nameable_op
 from openvino.utils.node_factory import NodeFactory
 from openvino.utils.types import (
