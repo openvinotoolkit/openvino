@@ -65,16 +65,16 @@ void unpack_nf4f16_scale(const ov::SoPtr<ov::ITensor>& from,
     NPUW_ASSERT(from->get_size() == to->get_size());
     NPUW_ASSERT(from_shape[0] == scale_shape[0]);
 
-    const auto* from_ptr  = static_cast<const uint8_t*>(from->data());
+    const auto* from_ptr = static_cast<const uint8_t*>(from->data());
     const auto* scale_ptr = scale->data<ov::float16>();
-          auto* to_ptr    = to->data<ov::float16>();
+    auto* to_ptr = to->data<ov::float16>();
 
     const auto size = from->get_size();
     ov::parallel_for(size / 2, [&](size_t idx) {
-        const uint8_t nf4_2xval  = from_ptr[idx];
-        const float   low_scale  = scale_ptr[(idx * 2)     / from_shape[1]];
-        const float   high_scale = scale_ptr[(idx * 2 + 1) / from_shape[1]];
-        to_ptr[idx * 2    ] = ov::ConvertNF4::dequantize(lo4(nf4_2xval)) * low_scale;
+        const uint8_t nf4_2xval = from_ptr[idx];
+        const float low_scale = scale_ptr[(idx * 2) / from_shape[1]];
+        const float high_scale = scale_ptr[(idx * 2 + 1) / from_shape[1]];
+        to_ptr[idx * 2] = ov::ConvertNF4::dequantize(lo4(nf4_2xval)) * low_scale;
         to_ptr[idx * 2 + 1] = ov::ConvertNF4::dequantize(hi4(nf4_2xval)) * high_scale;
     });
     if (size % 2 != 0) {
@@ -90,13 +90,13 @@ void unpack_nf4f16(const ov::SoPtr<ov::ITensor>& from,
     NPUW_ASSERT(to->is_continuous());
     NPUW_ASSERT(from->get_size() == to->get_size());
 
-    const auto* from_ptr  = static_cast<const uint8_t*>(from->data());
-          auto* to_ptr    = to->data<ov::float16>();
+    const auto* from_ptr = static_cast<const uint8_t*>(from->data());
+    auto* to_ptr = to->data<ov::float16>();
 
     const auto size = from->get_size();
     ov::parallel_for(size / 2, [&](size_t idx) {
         const uint8_t nf4_2xval = from_ptr[idx];
-        to_ptr[idx * 2    ] = ov::ConvertNF4::dequantize(lo4(nf4_2xval));
+        to_ptr[idx * 2] = ov::ConvertNF4::dequantize(lo4(nf4_2xval));
         to_ptr[idx * 2 + 1] = ov::ConvertNF4::dequantize(hi4(nf4_2xval));
     });
     if (size % 2 != 0) {
@@ -136,8 +136,7 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
     auto type_to = to->get_element_type();
 
     // FIXME: Move under common switch when XARCH::unpack is implemented
-    if (type_from == ov::element::nf4 &&
-        type_to   == ov::element::f16) {
+    if (type_from == ov::element::nf4 && type_to == ov::element::f16) {
         unpack_nf4f16(from, to, unpack_options);
         return;
     }

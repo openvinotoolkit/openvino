@@ -16,8 +16,8 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/op/label.hpp"  // any_input
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
 
 namespace ov {
