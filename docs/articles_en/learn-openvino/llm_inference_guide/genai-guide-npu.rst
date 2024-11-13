@@ -23,7 +23,7 @@ Install required dependencies:
 Export an LLM model via Hugging Face Optimum-Intel
 ##################################################
 
-As **NPU supports only symmetrically-quantized 4-bit (INT4) models**, make sure to export
+Since **symmetrically-quantized 4-bit (INT4) models are preffered for inference on NPU**, make sure to export
 the model with the proper conversion and optimization settings.
 
 | You may export LLMs via Optimum-Intel, using one of two compression methods:
