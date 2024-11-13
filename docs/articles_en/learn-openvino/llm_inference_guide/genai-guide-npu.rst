@@ -79,7 +79,7 @@ which do not require specifying quantization parameters:
 Run generation using OpenVINO GenAI
 ###################################
 
-It is always recommended to install the latest available
+It is typically recommended to install the latest available
 `driver <https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html>`__.
 
 Use the following code snippet to perform generation with OpenVINO GenAI API.
