@@ -532,7 +532,6 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::GroupConvolutionBackpropData, ShapeInferPaddingTA, util::bit::mask(2)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::Interpolate, ShapeInferTA, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::LSTMCell, ShapeInferTA, util::bit::mask()),
-    _OV_OP_SHAPE_INFER_MASK_REG(opset1::LSTMSequence, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::MatMul, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::MaxPool, ShapeInferPaddingTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::NonMaxSuppression, ShapeInferTA, util::bit::mask(2)),

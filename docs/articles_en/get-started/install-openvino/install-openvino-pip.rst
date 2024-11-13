@@ -16,26 +16,8 @@ Install Intel® Distribution of OpenVINO™ Toolkit from PyPI Repository
      (all x86_64 / arm64 architectures)
    * macOS offers support only for CPU inference
 
-
-.. tab-set::
-
-   .. tab-item:: System Requirements
-      :sync: system-requirements
-
-      | Full requirement listing is available in:
-      | :doc:`System Requirements Page <../../../about-openvino/release-notes-openvino/system-requirements>`
-      | `PyPI OpenVINO page <https://pypi.org/project/openvino/>`__
-
-
-   .. tab-item:: Processor Notes
-      :sync: processor-notes
-
-      | To see if your processor includes the integrated graphics technology and supports iGPU
-        inference, refer to:
-      | `Product Specifications <https://ark.intel.com/>`__
-
-
-
+   Before installing OpenVINO, see the
+   :doc:`System Requirements page <../../../about-openvino/release-notes-openvino/system-requirements>`.
 
 Installing OpenVINO Runtime
 ###########################

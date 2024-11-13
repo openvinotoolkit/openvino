@@ -212,16 +212,6 @@ void ExecutionConfig::apply_debug_options(const cldnn::device_info& info) {
             set_property(ov::hint::dynamic_quantization_group_size(debug_config->dynamic_quantize_group_size));
     }
 
-    int KVCacheCompression = 0;
-    if (const auto env_var = std::getenv("KVCacheCompression")) {
-        std::istringstream ss(env_var);
-        ss >> KVCacheCompression;
-    }
-
-    if (KVCacheCompression == 1) {
-        set_property(ov::hint::kv_cache_precision(ov::element::i8));
-    }
-
     GPU_DEBUG_IF(debug_config->use_kv_cache_compression != -1) {
         GPU_DEBUG_IF(debug_config->use_kv_cache_compression == 1) {
             set_property(ov::hint::kv_cache_precision(ov::element::i8));
@@ -254,6 +244,11 @@ void ExecutionConfig::apply_user_properties(const cldnn::device_info& info) {
 
     if (info.supports_immad) {
         set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    }
+
+    // Enable KV-cache compression by default for non-systolic platforms
+    if (!is_set_by_user(ov::hint::kv_cache_precision) && !info.supports_immad) {
+        set_property(ov::hint::kv_cache_precision(ov::element::i8));
     }
 
     user_properties.clear();

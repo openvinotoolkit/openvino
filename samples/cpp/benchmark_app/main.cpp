@@ -60,6 +60,10 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
     if (FLAGS_api != "async" && FLAGS_api != "sync") {
         throw std::logic_error("Incorrect API. Please set -api option to `sync` or `async` value.");
     }
+    if (FLAGS_api == "sync" && FLAGS_nireq > FLAGS_niter) {
+        throw std::logic_error(
+            "Number of iterations should be greater than number of infer requests when using sync API.");
+    }
     if (!FLAGS_hint.empty() && FLAGS_hint != "throughput" && FLAGS_hint != "tput" && FLAGS_hint != "latency" &&
         FLAGS_hint != "cumulative_throughput" && FLAGS_hint != "ctput" && FLAGS_hint != "none") {
         throw std::logic_error("Incorrect performance hint. Please set -hint option to"

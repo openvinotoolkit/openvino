@@ -38,6 +38,7 @@ public:
     size_t get_offset() const { return m_offset; }
     size_t get_allocation_size() const { return m_allocation_size; }
     size_t get_byte_size() const;
+    ov::element::Type get_data_type() const;
 
     void set_reg_group(size_t reg_group) { m_reg_group = reg_group; }
     void set_cluster_id(size_t cluster) { m_cluster_id = cluster; }
