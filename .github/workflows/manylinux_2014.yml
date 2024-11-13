@@ -146,7 +146,7 @@ jobs:
           for PY_VER in "${SUPPORTED_PYTHON_VERSIONS[@]}"; do
             python_path=/opt/python/cp${PY_VER}-cp${PY_VER}/bin
             docker run --rm \
-              -v ${{ env.OPENVINO_REPO }}/src:/work/src \
+              -v ${{ env.OPENVINO_REPO }}:/work/src \
               -v ${{ env.INSTALL_WHEELS_DIR }}:/work/wheels \
               -v ${{ env.PIP_CACHE_PATH }}:/work/pip_cache \
               -v ov_build_cache:/work/build \
