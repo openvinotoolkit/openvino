@@ -1156,8 +1156,9 @@ int main(int argc, char* argv[]) {
             processedFramesN += batchSize;
 
             if (FLAGS_max_irate > 0) {
-                int64_t nextRunFinishTime = 1 / FLAGS_max_irate * processedFramesN * 1.0e9;
-                std::this_thread::sleep_for(std::chrono::nanoseconds(nextRunFinishTime - execTime));
+                auto nextRunFinishTime = 1 / FLAGS_max_irate * processedFramesN * 1.0e9;
+                std::this_thread::sleep_for(
+                    std::chrono::nanoseconds(static_cast<int64_t>(nextRunFinishTime - execTime)));
             }
         }
 
