@@ -4,7 +4,7 @@ There are a few simple steps that we should follow to ensure our workflows are n
 
 ## Adjust `GITHUB_TOKEN` permissions
 
-Use the “permissions” key to make sure the GITHUB_TOKEN is configured with the least privileges for each job.
+Use the `permissions` key to make sure the `GITHUB_TOKEN` is configured with the least privileges for each job.
 
 Start with relatively safe permissions:
 
@@ -69,11 +69,11 @@ jobs:
 
 ## Handle secrets correctly
 
-**Never ever** use plain-text secrets hard-coded in GitHub Actions Workflow. If you need to use secrets, contact a member of OpenVINO GitHub Actions task force first.
+**Never ever** use plain-text secrets hard-coded in GitHub Actions Workflow. If you need to use secrets, contact a member of the OpenVINO GitHub Actions task force first.
 
 ## Be careful with user input.
 
-Most of GitHub context variables propagated from user input. That means they should be treated as an untrusted and potentially malitious. There are some tactics you can use to mitigate the risk:
+Most of GitHub context variables propagated from user input. That means they should be treated as an untrusted and potentially malicious. There are some tactics you can use to mitigate the risk:
 - Instead of using inline scripts, create an action and pass the variable as an argument
 - Put the value into an environment variable for the step, and use the variable in the script
 
