@@ -59,7 +59,7 @@ protected:
     ov::element::Type m_dcoff_type;
     DCOFFParamRef m_params_to;
 
-    std::shared_ptr<ov::Node> paramA, paramB, toFP32, mulply;
+    std::shared_ptr<ov::Node> paramA, paramB, toFP32, mulply, cvtopt;
     bool matcher_callback(ov::pass::pattern::Matcher& m);
 
 public:
