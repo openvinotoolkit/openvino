@@ -49,7 +49,7 @@ void CPURuntimeConfigurator::initialization(const ov::snippets::lowered::LinearI
     if (linear_ir->is_dynamic()) {
         loopPortsAdjuster = BrgemmCopyBLoopPortsAdjuster(linear_ir);
     }
-    externalRepackingAdjuster = BrgemmExternalRepackingAdjuster(linear_ir, this);
+    m_runtime_optimizers.register_pass<BrgemmExternalRepackingAdjuster>(linear_ir, this);
 }
 
 void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
@@ -74,7 +74,7 @@ void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRCPtr& l
         update_loop_args(linear_ir);
     }
     update_data_offsets();
-    externalRepackingAdjuster.run(*linear_ir);
+    m_runtime_optimizers.run(*linear_ir);
     m_config->m_latest_shapes = std::move(m_config->shapes);
 }
 

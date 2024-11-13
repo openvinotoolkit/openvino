@@ -10,7 +10,9 @@
 
 namespace ov {
 namespace snippets {
-class RuntimeOptimizer : public lowered::pass::Pass {
+namespace lowered {
+namespace pass {
+class RuntimeOptimizer : public Pass {
 public:
     RuntimeOptimizer() = default;
     RuntimeOptimizer(RuntimeConfigurator* configurator) : m_configurator(configurator) {}
@@ -23,5 +25,14 @@ public:
 protected:
     RuntimeConfigurator* m_configurator = nullptr;
 };
+
+class RuntimeOptimizersPipeline : public PassPipeline {
+public:
+    void run(const lowered::LinearIR& linear_ir) const {
+        PassPipeline::run(const_cast<snippets::lowered::LinearIR&>(linear_ir));
+    }
+};
+} // namespace pass
+} // namespace lowered
 } // namespace snippets
 } // namespace ov

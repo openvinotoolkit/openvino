@@ -4,9 +4,10 @@
 
 #pragma once
 
+#include "runtime_optimizer.hpp"
+#include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
-#include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/pass/pass.hpp"
 
 namespace ov {
@@ -218,6 +219,8 @@ protected:
     std::vector<size_t> m_io_data_sizes = {};
     // [cluster_id -> buffer expressions ]
     std::map<size_t, std::set<lowered::BufferExpressionPtr>> m_dynamic_buffer_clusters = {};
+
+    ov::snippets::lowered::pass::RuntimeOptimizersPipeline m_runtime_optimizers;
 };
 
 } // namespace snippets

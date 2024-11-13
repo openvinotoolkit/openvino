@@ -16,7 +16,7 @@ namespace ov {
 namespace intel_cpu {
 
 class CPURuntimeConfigurator;
-class BrgemmExternalRepackingAdjuster : public ov::snippets::RuntimeOptimizer {
+class BrgemmExternalRepackingAdjuster : public ov::snippets::lowered::pass::RuntimeOptimizer {
 public:
     BrgemmExternalRepackingAdjuster() = default;
     BrgemmExternalRepackingAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir, snippets::RuntimeConfigurator* configurator);
