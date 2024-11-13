@@ -96,11 +96,11 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
     };
 
     if (util::validate_input_and_try_set_output_shape(op,
-                                                          unique_axes,
-                                                          input_shapes,
-                                                          ta,
-                                                          output_shape,
-                                                          output_shape_for_squeezable_dim)) {
+                                                      unique_axes,
+                                                      input_shapes,
+                                                      ta,
+                                                      output_shape,
+                                                      output_shape_for_squeezable_dim)) {
         return output_shapes;
     }
 
@@ -193,11 +193,11 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
     };
 
     if (util::validate_input_and_try_set_output_shape(op,
-                                                        unique_axes,
-                                                        input_shapes,
-                                                        ta,
-                                                        output_shape,
-                                                        output_shape_for_squeezable_dim)) {
+                                                      unique_axes,
+                                                      input_shapes,
+                                                      ta,
+                                                      output_shape,
+                                                      output_shape_for_squeezable_dim)) {
         return output_shapes;
     }
 
