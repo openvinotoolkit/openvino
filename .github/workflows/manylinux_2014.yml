@@ -102,7 +102,7 @@ jobs:
       SCCACHE_AZURE_KEY_PREFIX: manylinux_2014
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: ${{ github.workspace }}/manifest.yml
-      PRODUCT_TYPE: public_manylinux2014_x86_64_Release
+      PRODUCT_TYPE: public_manylinux2014_x86_64_release
       
     steps:
       - name: Clone OpenVINO
