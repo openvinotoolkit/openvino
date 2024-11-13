@@ -94,7 +94,7 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
         return PartialShape::dynamic(arg_rank.get_length() - 1);
     };
 
-    if (util::validate_input_and_try_set_output_shape(op,
+    if (ov::op::util::validate_input_and_try_set_output_shape(op,
                                                       unique_axes,
                                                       input_shapes,
                                                       ta,
@@ -191,7 +191,7 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
         return PartialShape::dynamic();
     };
 
-    if (util::validate_input_and_try_set_output_shape(op,
+    if (ov::op::util::validate_input_and_try_set_output_shape(op,
                                                       unique_axes,
                                                       input_shapes,
                                                       ta,
