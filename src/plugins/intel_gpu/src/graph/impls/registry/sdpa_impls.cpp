@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 #include "registry.hpp"
-#include "intel_gpu/primitives/ctc_loss.hpp"
 #include "primitive_inst.h"
 
 #if OV_GPU_WITH_OCL
-    #include "impls/ocl_new/ctc_loss.hpp"
+    #include "impls/ocl_new/sdpa_ref.hpp"
 #endif
 
 namespace ov {
@@ -15,9 +15,9 @@ namespace intel_gpu {
 
 using namespace cldnn;
 
-const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<ctc_loss>::get_implementations() {
+const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<scaled_dot_product_attention>::get_implementations() {
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
-        OV_GPU_CREATE_INSTANCE_OCL(ocl::CTCLoss, shape_types::static_shape)
+        OV_GPU_CREATE_INSTANCE_OCL(ocl::SDPARef, shape_types::any)
     };
 
     return impls;

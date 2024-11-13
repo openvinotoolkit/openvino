@@ -73,20 +73,16 @@ JitConstants SingleKernelGenerator::make_base_jit_constants(const program_node& 
     jit_constants.add(make_jit_constant("KERNEL(name)", "__kernel void " + entry_point));
     jit_constants.add(make_jit_constant("KERNEL_ID", entry_point));
 
-    size_t shape_info_idx = 0;
+    const auto& in_offsets_map = params.in_port_to_shape_info_offset;
+    const auto& out_offsets_map = params.out_port_to_shape_info_offset;
+
     for (size_t i = 0; i < params.input_layouts.size(); i++) {
-        jit_constants.add(make_layout_jit_constants("INPUT" + to_code_string(i), params.input_layouts[i], shape_info_idx));
-        if (params.input_layouts[i].is_dynamic())
-            shape_info_idx++;
+        jit_constants.add(make_layout_jit_constants("INPUT" + to_code_string(i), params.input_layouts[i], in_offsets_map.at(i)));
     }
 
-    jit_constants.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], shape_info_idx++));
-    if (params.input_layouts[0].is_dynamic())
-        shape_info_idx++;
+    jit_constants.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
     for (size_t i = 1; i < params.output_layouts.size(); i++) {
-        jit_constants.add(make_layout_jit_constants("OUTPUT" + to_code_string(i), params.output_layouts[i], shape_info_idx++));
-        if (params.input_layouts[i].is_dynamic())
-            shape_info_idx++;
+        jit_constants.add(make_layout_jit_constants("OUTPUT" + to_code_string(i), params.output_layouts[i], out_offsets_map.at(i)));
     }
 
     if (params.is_dynamic()) {
@@ -134,6 +130,7 @@ KernelData SingleKernelGenerator::get_kernel_data(const program_node& node, cons
     auto entry_point = get_entry_point(node, params);
     auto jit = get_jit_constants(node, params);
     auto dispatch_data_f = get_dispatch_data_func(params);
+    auto dispatch_data = dispatch_data_f(params);
     jit.add(m_jit_constants);
 
     kernel_str->entry_point = entry_point;
@@ -144,9 +141,9 @@ KernelData SingleKernelGenerator::get_kernel_data(const program_node& node, cons
     kernel_str->has_microkernels = false;
     kernel_str->str = build_code(get_name(), jit, entry_point);
     kd.code.kernelString = kernel_str;
-    kd.params.workGroups = dispatch_data_f(params).work_groups;
+    kd.params.workGroups = dispatch_data.work_groups;
     kd.params.arguments = get_arguments_desc(node, params);
-    kd.internal_buffers = get_interanl_buffers(node, params);
+    kd.internal_buffers = {};
     kd.update_dispatch_data_func = dispatch_data_f;
 
     return kd;

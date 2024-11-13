@@ -56,7 +56,7 @@ struct scaled_dot_product_attention_impl : multi_stage_primitive<scaled_dot_prod
     }
 
 protected:
-    std::vector<layout> get_internal_buffer_layouts_impl() const override {
+    std::vector<layout> get_internal_buffer_layouts(const kernel_impl_params& params) const override {
         // Look for the first sdpa_opt kernel entry. Currently, it can be used as default sdpa, indirect sdpa, or for both default
         // and indirect cases. All of sdpa_opt kernels use the same internal buffers, so we can find the first sdpa_opt and
         // use its` internal buffers configuration. The following scenarios are possible:
@@ -424,6 +424,3 @@ attach_scaled_dot_product_attention_impl::attach_scaled_dot_product_attention_im
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
-
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::scaled_dot_product_attention_impl)
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::scaled_dot_product_attention)

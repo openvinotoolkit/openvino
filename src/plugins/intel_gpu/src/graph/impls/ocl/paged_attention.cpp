@@ -97,7 +97,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         ob << make_data(&has_rotated_blocks, sizeof(bool));
     }
 
-    std::vector<layout> get_internal_buffer_layouts_impl() const override {
+    std::vector<layout> get_internal_buffer_layouts(const kernel_impl_params& params) const override {
         /*
         * Internal buffers allocation owners and users:
         * +--------------------------------------+--------------------+--------------------+

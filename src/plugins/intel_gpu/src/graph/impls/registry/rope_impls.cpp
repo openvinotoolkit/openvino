@@ -7,7 +7,7 @@
 #include "primitive_inst.h"
 
 #if OV_GPU_WITH_OCL
-    #include "impls/ocl/rope_ref.hpp"
+    #include "impls/ocl_new/rope_ref.hpp"
 #endif
 
 namespace ov {

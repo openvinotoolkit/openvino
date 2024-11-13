@@ -1051,7 +1051,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
     {
         if (_impl == nullptr)
             return;
-        const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
+        const auto& ibuf_layouts = _impl->get_internal_buffer_layouts(*_impl_params);
         if (ibuf_layouts.empty())
             return;
         GPU_DEBUG_CODE(std::string memalloc_info = "");
@@ -2125,7 +2125,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
 memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
     if (_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr)
         return nullptr;
-    const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
+    const auto& ibuf_layouts = _impl->get_internal_buffer_layouts(*_impl_params);
     if (ibuf_layouts.empty())
         return nullptr;
 
@@ -2206,7 +2206,7 @@ memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
 void primitive_inst::allocate_internal_buffers(bool reset) {
     if (_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr)
         return;
-    const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
+    const auto& ibuf_layouts = _impl->get_internal_buffer_layouts(*_impl_params);
     if (ibuf_layouts.empty())
         return;
 

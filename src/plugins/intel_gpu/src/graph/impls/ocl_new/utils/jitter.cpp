@@ -79,7 +79,7 @@ int get_channel_index(ChannelName channel_name, size_t rank, bool is_weights_fmt
 
 }  // namespace
 
-void LayoutJitter::make_definitions(const layout& l, size_t shape_info_tensor_idx) {
+void LayoutJitter::make_definitions(const layout& l, size_t shape_info_offset) {
     const auto fmt = l.format;
     const bool is_weights_fmt = format::is_weights_format(fmt);
     const bool is_grouped = format::is_grouped(fmt);
@@ -113,7 +113,7 @@ void LayoutJitter::make_definitions(const layout& l, size_t shape_info_tensor_id
         actual_channels_order.push_back(default_channels_order[dims_order[i]]);
     }
 
-    size_t dyn_pad_offset = shape_info_tensor_idx * (max_rank + 1);
+    size_t dyn_pad_offset = shape_info_offset + max_rank;
 
     m_dims.resize(max_rank);
     m_pad_lower.resize(max_rank);
@@ -121,13 +121,13 @@ void LayoutJitter::make_definitions(const layout& l, size_t shape_info_tensor_id
     m_strides.resize(max_rank);
 
     const JitTerm one{"1"};
-    const JitTerm zero{"1"};
+    const JitTerm zero{"0"};
     const JitTerm shape_info{"shape_info"};
 
     for (size_t i = 0; i < complete_channels_order.size(); i++) {
         auto target_channel = complete_channels_order[i];
         int channel_index = get_channel_index(target_channel, rank, is_weights_fmt, is_grouped);
-        const size_t shape_info_dim_offset = shape_info_tensor_idx * max_rank + i;
+        const size_t shape_info_dim_offset = shape_info_offset + i;
         channels_map[target_channel] = i;
 
         bool invalid_channel = ((channel_index < 0) || (channel_index >= static_cast<int>(rank)));
@@ -158,7 +158,7 @@ void LayoutJitter::make_definitions(const layout& l, size_t shape_info_tensor_id
         }
     }
 
-       for (size_t i = 0; i < complete_channels_order.size(); i++) {
+    for (size_t i = 0; i < complete_channels_order.size(); i++) {
         auto target_channel = complete_channels_order[i];
         int channel_index = get_channel_index(target_channel, rank, is_weights_fmt, is_grouped);
         bool valid_channel = ((channel_index >= 0) && (channel_index < static_cast<int>(rank)));
@@ -169,11 +169,13 @@ void LayoutJitter::make_definitions(const layout& l, size_t shape_info_tensor_id
                 auto channel_it = std::find(actual_channels_order.begin(), actual_channels_order.end(), target_channel);
                 m_strides[i] = JitTerm{"1"};
                 for (channel_it++; channel_it != actual_channels_order.end(); channel_it++) {
-                    auto idx = channels_map[*channel_it];
+                    auto idx = std::distance(default_channels_order.begin(),
+                                             std::find(default_channels_order.begin(), default_channels_order.end(), *channel_it));
+                    auto idx_ext = channels_map[*channel_it];
                     if (pad._lower_size[idx] || pad._upper_size[idx] || pad._dynamic_dims_mask[idx])
-                        m_strides[i] = m_strides[i] * (m_dims[idx] + m_pad_lower[idx] + m_pad_upper[idx]);
+                        m_strides[i] = m_strides[i] * (m_dims[idx_ext] + m_pad_lower[idx_ext] + m_pad_upper[idx_ext]);
                     else
-                        m_strides[i] = m_strides[i] * m_dims[idx];
+                        m_strides[i] = m_strides[i] * m_dims[idx_ext];
                 }
             } else {
                 m_strides[i] = JitTerm{"NOT_IMPLEMENTED"};
@@ -184,7 +186,23 @@ void LayoutJitter::make_definitions(const layout& l, size_t shape_info_tensor_id
     if (!pad.is_dynamic()) {
         m_offset = JitTerm{to_code_string(pad._lower_size[channels_map[ChannelName::X]])};
     } else {
-        m_offset = JitTerm{"NOT_IMPLEMENTED"};
+        std::vector<JitTerm> padded_pitches = {
+                m_strides[channels_map.at(ChannelName::X)] * m_pad_lower[channels_map.at(ChannelName::X)],
+                m_strides[channels_map.at(ChannelName::Y)] * m_pad_lower[channels_map.at(ChannelName::Y)],
+                m_strides[channels_map.at(ChannelName::Z)] * m_pad_lower[channels_map.at(ChannelName::Z)],
+                m_strides[channels_map.at(ChannelName::W)] * m_pad_lower[channels_map.at(ChannelName::W)],
+                m_strides[channels_map.at(ChannelName::U)] * m_pad_lower[channels_map.at(ChannelName::U)],
+                m_strides[channels_map.at(ChannelName::V)] * m_pad_lower[channels_map.at(ChannelName::V)],
+                m_strides[channels_map.at(ChannelName::FEATURE)] * m_pad_lower[channels_map.at(ChannelName::FEATURE)],
+                m_strides[channels_map.at(ChannelName::BATCH)] * m_pad_lower[channels_map.at(ChannelName::BATCH)],
+        };
+
+        JitTerm offset{"0"};
+        for (size_t i = 0; i < padded_pitches.size(); ++i) {
+            offset = offset + padded_pitches[i];
+        }
+
+        m_offset = offset;
     }
 }
 
@@ -409,8 +427,8 @@ JitConstants make_indexing_jit_functions(const std::string& name, const layout& 
     JitTerm raw_index_func_name = concat(base_func_name, raw_suffix)(args);
 
     JitTerm index_func_val = base_val_name(tensor_name, args);
-    JitTerm safe_index_func_val = concat(base_func_name, safe_suffix)(tensor_name, args);
-    JitTerm raw_index_func_val = concat(base_func_name, raw_suffix)(tensor_name, args);
+    JitTerm safe_index_func_val = concat(base_val_name, safe_suffix)(tensor_name, args);
+    JitTerm raw_index_func_val = concat(base_val_name, raw_suffix)(tensor_name, args);
 
     if (l.is_static()) {
         const JitTerm offset {to_code_string(l.get_linear_offset())};
@@ -441,7 +459,7 @@ JitConstants make_indexing_jit_functions(const std::string& name, const layout& 
     return definitions;
 }
 
-JitConstants make_layout_jit_constants(const std::string& name, const cldnn::layout& value, size_t shape_info_tensor_idx) {
+JitConstants make_layout_jit_constants(const std::string& name, const cldnn::layout& value, size_t shape_info_offset) {
     JitConstants definitions{
         {name + "_VIEW_OFFSET", to_code_string(0)}, // FIXME
         {name + "_LENGTH", to_code_string(value.is_static() ? value.count() : 0)},
@@ -493,7 +511,7 @@ JitConstants make_layout_jit_constants(const std::string& name, const cldnn::lay
 
 
     if (format::is_weights_format(value.format)) {
-        LayoutJitter jitter(value, shape_info_tensor_idx);
+        LayoutJitter jitter(value, shape_info_offset);
         definitions.add({
             make_jit_constant(name + "_OFFSET", jitter.offset()),
 
@@ -526,7 +544,7 @@ JitConstants make_layout_jit_constants(const std::string& name, const cldnn::lay
             make_jit_constant(name + "_GROUPS_PITCH", jitter.stride(ChannelName::G)),
         });
     } else {
-        LayoutJitter jitter(value, shape_info_tensor_idx);
+        LayoutJitter jitter(value, shape_info_offset);
         definitions.add(make_indexing_jit_functions(name, value));
         definitions.add({
             make_jit_constant(name + "_OFFSET", jitter.offset()),
