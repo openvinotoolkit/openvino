@@ -640,10 +640,10 @@ TEST(SqueezeDynamicAxis, squeeze_dynamic_non_const_axes) {
 }
 
 TEST(SqueezeDynamicAxis, squeeze_dynamic_empty_axes) {
-    auto p_shape = PartialShape{1, 2, -1, 4};
-    auto axes_node = make_shared<ov::op::v0::Constant>(element::u64, Shape{});
-    auto exp_shape = PartialShape{2, -1, 4};
-    auto param = make_shared<ov::op::v0::Parameter>(element::f32, p_shape);
+    const auto p_shape = PartialShape{1, 2, -1, 4};
+    const auto axes_node = make_shared<ov::op::v0::Constant>(element::u64, Shape{});
+    const auto exp_shape = PartialShape{2, -1, 4};
+    const auto param = make_shared<ov::op::v0::Parameter>(element::f32, p_shape);
 
     const auto squeeze0 = std::make_shared<op::v0::Squeeze>(param, axes_node);
     const auto squeeze1 = std::make_shared<op::v15::Squeeze>(param, axes_node, true);
@@ -661,10 +661,10 @@ TEST(SqueezeDynamicAxis, squeeze_dynamic_empty_axes) {
     EXPECT_EQ(squeeze2->get_allow_axis_skip(), false);
 }
 TEST(SqueezeDynamicAxis, squeeze_dynamic_no_axes) {
-    auto p_shape = PartialShape{1, 2, -1, 4};
-    auto axes_node = make_shared<ov::op::v0::Constant>(element::u64, Shape{});
-    auto exp_shape = PartialShape::dynamic();
-    auto param = make_shared<ov::op::v0::Parameter>(element::f32, p_shape);
+    const auto p_shape = PartialShape{1, 2, -1, 4};
+    const auto axes_node = make_shared<ov::op::v0::Constant>(element::u64, Shape{});
+    const auto exp_shape = PartialShape::dynamic();
+    const auto param = make_shared<ov::op::v0::Parameter>(element::f32, p_shape);
 
     const auto squeeze0 = std::make_shared<op::v0::Squeeze>(param);
     const auto squeeze1 = std::make_shared<op::v15::Squeeze>(param, true);
