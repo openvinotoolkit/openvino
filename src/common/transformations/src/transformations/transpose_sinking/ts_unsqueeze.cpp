@@ -98,6 +98,22 @@ bool unsqueeze_axes_to_shape(const Output<Node>& input_node,
     }
     return true;
 }
+
+bool AreInputOutputShapesEqual(const std::shared_ptr<ov::op::v1::Reshape>& reshape) {
+    const auto input_shape = reshape->get_input_partial_shape(0);
+    const auto output_shape = reshape->get_output_partial_shape(0);
+
+    if (input_shape.is_dynamic() || output_shape.is_dynamic()) {
+        return false;
+    }
+    return input_shape == output_shape;
+}
+
+bool HasSpecialOne(const std::shared_ptr<ov::op::v0::Constant>& reshape_const) {
+    auto const_value = reshape_const->cast_vector<int64_t>();
+    return std::find(const_value.begin(), const_value.end(), -1) != const_value.end();
+}
+
 }  // namespace
 
 TSUnsqueezeForward::TSUnsqueezeForward() {
@@ -111,6 +127,28 @@ TSUnsqueezeForward::TSUnsqueezeForward() {
         if (!unsqueeze_axes) {
             return false;
         }
+        auto ts_order_values = transpose_info.transpose_const->cast_vector<size_t>();
+
+        // if main_node does nothing, just swap them
+        auto reshape = as_type_ptr<ov::op::v1::Reshape>(main_node);
+        if (reshape && AreInputOutputShapesEqual(reshape) && !HasSpecialOne(unsqueeze_axes)) {
+            TransposeInputsInfo transpose_input_info = {transpose_info.transpose, transpose_info.transpose_const, 0};
+            // remove input Transpose
+            auto success = sink_forward::UpdateInputTransposes(main_node, transpose_input_info, {0});
+            if (!success) {
+                return false;
+            }
+
+            const auto reshape_order = ov::pass::transpose_sinking::utils::ReverseTransposeOrder(ts_order_values);
+            // transpose reshape const with Gather operation
+            auto axis = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, 0);
+            auto gather =
+                ov::pass::transpose_sinking::utils::ChangeValuesOrder(reshape->input_value(1), reshape_order, axis);
+            main_node->input(1).replace_source_output(gather);
+
+            default_outputs_update(main_node, transpose_input_info);
+            return true;
+        }
 
         std::vector<size_t> non_negative_axes;
         if (as_type_ptr<ov::op::v1::Reshape>(main_node)) {
@@ -123,7 +161,6 @@ TSUnsqueezeForward::TSUnsqueezeForward() {
             non_negative_axes =
                 ov::util::try_get_normalized_axis_vector(unsqueeze_axes->get_tensor_view(), rank, *main_node);
         }
-        auto ts_order_values = transpose_info.transpose_const->cast_vector<size_t>();
 
         ts_order_values = GetOrderBeforeReduction(non_negative_axes, ts_order_values);
         auto new_transpose_order = ov::op::v0::Constant::create(transpose_info.transpose_const->get_element_type(),
@@ -156,23 +193,6 @@ TSUnsqueezeForward::TSUnsqueezeForward() {
 
     transpose_sinking(matcher_name, sinking_transformation);
 }
-
-namespace {
-bool AreInputOutputShapesEqual(const std::shared_ptr<ov::op::v1::Reshape>& reshape) {
-    const auto input_shape = reshape->get_input_partial_shape(0);
-    const auto output_shape = reshape->get_output_partial_shape(0);
-
-    if (input_shape.is_dynamic() || output_shape.is_dynamic()) {
-        return false;
-    }
-    return input_shape == output_shape;
-}
-
-bool HasSpecialOne(const std::shared_ptr<ov::op::v0::Constant>& reshape_const) {
-    auto const_value = reshape_const->cast_vector<int>();
-    return std::find(const_value.begin(), const_value.end(), -1) != const_value.end();
-}
-}  // namespace
 
 TSUnsqueezeBackward::TSUnsqueezeBackward() {
     MATCHER_SCOPE(TSUnsqueezeBackward);
