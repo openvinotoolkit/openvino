@@ -21,18 +21,18 @@ constexpr std::size_t STANDARD_PAGE_SIZE = 4096;
 
 namespace intel_npu {
 
-ZeroRemoteTensor::ZeroRemoteTensor(std::shared_ptr<ov::IRemoteContext> context,
-                                   std::shared_ptr<ZeroInitStructsHolder> init_structs,
+ZeroRemoteTensor::ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& context,
+                                   const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                                    const ov::element::Type& element_type,
                                    const ov::Shape& shape,
                                    const Config& config,
                                    TensorType tensor_type,
                                    MemType mem_type,
                                    void* mem)
-    : RemoteTensor(std::move(context), element_type, shape),
+    : RemoteTensor(context, element_type, shape),
       _config(config),
       _logger("ZeroRemoteContext", _config.get<LOG_LEVEL>()),
-      _init_structs(std::move(init_structs)),
+      _init_structs(init_structs),
       _tensor_type(tensor_type),
       _mem_type(mem_type),
       _mem(mem) {
