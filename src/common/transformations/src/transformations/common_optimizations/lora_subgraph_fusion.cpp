@@ -9,6 +9,7 @@
 
 #include "itt.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
@@ -26,12 +27,19 @@ ov::pass::LoraSubgraphFusion::LoraSubgraphFusion() {
     auto lora_input_m = any_input();
     auto transpose_const1_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
     auto transpose1_m = optional<ov::op::v1::Transpose>({lora_input_m, transpose_const1_m}, consumers_count(1));
+
     auto read_value1_m = wrap_type<ov::op::util::ReadValueBase>();
-    auto matmul1_m = wrap_type<ov::op::v0::MatMul>({transpose1_m, read_value1_m}, consumers_count(1));
+    auto convert1_m = optional<ov::op::v0::Convert>(read_value1_m, consumers_count(1));
+    auto matmul1_m = wrap_type<ov::op::v0::MatMul>({transpose1_m, convert1_m}, consumers_count(1));
+
     auto read_value2_m = wrap_type<ov::op::util::ReadValueBase>();
-    auto multiply_m = wrap_type<ov::op::v1::Multiply>({matmul1_m, read_value2_m}, consumers_count(1));
+    auto convert2_m = optional<ov::op::v0::Convert>(read_value2_m, consumers_count(1));
+    auto multiply_m = wrap_type<ov::op::v1::Multiply>({matmul1_m, convert2_m}, consumers_count(1));
+
     auto read_value3_m = wrap_type<ov::op::util::ReadValueBase>();
-    auto matmul2_m = wrap_type<ov::op::v0::MatMul>({multiply_m, read_value3_m}, consumers_count(1));
+    auto convert3_m = optional<ov::op::v0::Convert>(read_value3_m, consumers_count(1));
+    auto matmul2_m = wrap_type<ov::op::v0::MatMul>({multiply_m, convert3_m}, consumers_count(1));
+
     auto transpose_const2_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
     auto transpose2_m = optional<ov::op::v1::Transpose>({matmul2_m, transpose_const2_m}, consumers_count(1));
     auto main_flow_m = wrap_type<ov::op::v0::MatMul, ov::op::v1::Convolution>({lora_input_m, any_input()});
@@ -41,11 +49,14 @@ ov::pass::LoraSubgraphFusion::LoraSubgraphFusion() {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& lora_input = pattern_map.at(lora_input_m);
         const auto& matmul1 = pattern_map.at(matmul1_m);
-        const auto& read_value1 = pattern_map.at(read_value1_m);
+        const auto& state_1 =
+            pattern_map.count(convert1_m) ? pattern_map.at(convert1_m) : pattern_map.at(read_value1_m);
         const auto& multiply = pattern_map.at(multiply_m);
-        const auto& read_value2 = pattern_map.at(read_value2_m);
+        const auto& state_2 =
+            pattern_map.count(convert2_m) ? pattern_map.at(convert2_m) : pattern_map.at(read_value2_m);
         const auto& matmul2 = pattern_map.at(matmul2_m);
-        const auto& read_value3 = pattern_map.at(read_value3_m);
+        const auto& state_3 =
+            pattern_map.count(convert3_m) ? pattern_map.at(convert3_m) : pattern_map.at(read_value3_m);
         const auto& main_flow = pattern_map.at(main_flow_m);
         const auto& add = pattern_map.at(add_m);
 
@@ -70,15 +81,15 @@ ov::pass::LoraSubgraphFusion::LoraSubgraphFusion() {
             pattern_map.count(transpose1_m) ? pattern_map.at(transpose1_m).get_node()->input(0)
                                             : matmul1.get_node()->input(0),
             matmul1.get_node()->input(1),
-            find_connected_input(multiply.get_node(), read_value2.get_node()),
+            find_connected_input(multiply.get_node(), state_2.get_node()),
             matmul2.get_node()->input(1),
         };
         const ov::OutputVector external_connections{
             main_flow,
             lora_input,
-            read_value1,
-            read_value2,
-            read_value3,
+            state_1,
+            state_2,
+            state_3,
         };
 
         ov::ParameterVector subgraph_parameters;

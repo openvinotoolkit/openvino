@@ -112,9 +112,9 @@ public:
 
 // Head vocab unpacks
 
-class DQUnpackDictGatherCWu : public ov::pass::MatcherPass {
+class DQUnpackDictGatheru : public ov::pass::MatcherPass {
 public:
-    DQUnpackDictGatherCWu(Context::Ref ctx);
+    DQUnpackDictGatheru(Context::Ref ctx);
 };
 
 class DQUnpackDictGatherGQi : public ov::pass::MatcherPass {

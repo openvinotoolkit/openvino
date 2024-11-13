@@ -20,12 +20,16 @@ on:
         description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
         type: string
         required: true
+      python-version:
+        description: 'Python version to setup. E.g., "3.11"'
+        type: string
+        required: true
 
 permissions: read-all
 
 env:
-  PIP_CACHE_PATH: /mount/caches/pip/linux
-  PYTHON_VERSION: '3.11'
+  PIP_CACHE_PATH_LINUX: /mount/caches/pip/linux
+  PIP_CACHE_PATH_WIN: "C:\\mount\\caches\\pip\\win"
   TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
@@ -63,13 +67,13 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install pigz
 
-      - name: Setup Python ${{ env.PYTHON_VERSION }}
+      - name: Setup Python ${{ inputs.python-version }}
         uses: ./.github/actions/setup_python
         with:
-          version: ${{ env.PYTHON_VERSION }}
-          pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH || '' }}
-          should-setup-pip-paths: ${{ runner.os == 'Linux' }}
-          self-hosted-runner: ${{ runner.os == 'Linux' }}
+          version: ${{ inputs.python-version }}
+          pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH_LINUX || env.PIP_CACHE_PATH_WIN }}
+          should-setup-pip-paths: ${{ runner.os != 'macOS' }}
+          self-hosted-runner: ${{ runner.os != 'macOS' }}
 
       - name: Clone OpenVINO Tokenizers
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2

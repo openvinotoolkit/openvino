@@ -14,7 +14,7 @@ concurrency:
 
 env:
   TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
-  PIP_CACHE_PATH: /mount/caches/pip/win
+  PIP_CACHE_PATH: "C:\\mount\\caches\\pip\\win"
   PYTHON_VERSION: '3.11'
 
 permissions: read-all
@@ -189,7 +189,7 @@ jobs:
           path: ${{ env.OPENVINO_JS_LIBS_DIR }}
 
       - name: Setup Node ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v4.0.4
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -235,6 +235,7 @@ jobs:
       runner: 'aks-win-4-cores-8gb'
       shell: pwsh
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: '3.11'
     if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
 
   Python_Unit_Tests:
@@ -286,7 +287,7 @@ jobs:
         with:
           version: ${{ env.PYTHON_VERSION }}
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'false'
+          should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
 
       - name: Install OpenVINO Python wheels

@@ -8,6 +8,7 @@
 #include "openvino/core/validation_util.hpp"
 
 #include "intel_gpu/primitives/kv_cache.hpp"
+#include "intel_gpu/primitives/read_value.hpp"
 #include "intel_gpu/plugin/usm_host_tensor.hpp"
 #include "intel_gpu/plugin/sync_infer_request.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
@@ -591,6 +592,12 @@ void SyncInferRequest::allocate_input(const ov::Output<const ov::Node>& port, si
     auto element_type = port.get_element_type();
 
     m_user_inputs[input_idx] = { create_host_tensor(shape, element_type), TensorOwner::PLUGIN };
+    if (element_type == ov::element::string) {
+        // In case the element type is string and input data is an empty string,
+        // it produces the segmentation fault unless the each element of tensor.data is initialized.
+        auto data = m_user_inputs.at(input_idx).ptr->data<std::string>();
+        std::uninitialized_fill_n(data, m_user_inputs.at(input_idx).ptr->get_size(), std::string());
+    }
     ov::ISyncInferRequest::set_tensor(port, m_user_inputs.at(input_idx).ptr);
 }
 
@@ -646,19 +653,40 @@ void SyncInferRequest::allocate_states() {
         bool indirect_kv_cache = false;
         int64_t beam_axis = 0;
         int64_t concat_axis = 0;
+        bool compressed = false;
+        bool has_zp_state = false;
         auto kv_cache_shape = vi.second.m_layout.get_partial_shape();
+        std::vector<cldnn::layout> states_layouts;
         for (auto& p : state_prims) {
             if (auto kv_cache_prim = dynamic_cast<const cldnn::kv_cache*>(p)) {
                 indirect_kv_cache = kv_cache_prim->indirect;
                 beam_axis = ov::util::normalize(kv_cache_prim->gather_axis, kv_cache_shape.size());
                 concat_axis = ov::util::normalize(kv_cache_prim->concat_axis, kv_cache_shape.size());
+                compressed = kv_cache_prim->compressed;
+                has_zp_state = kv_cache_prim->get_compression_zp_inputs_num() > 0;
+            } else if (auto read_value = dynamic_cast<const cldnn::read_value*>(p)) {
+                states_layouts = read_value->output_layouts;
             }
         }
 
-        if (indirect_kv_cache) {
-            m_variables.emplace(vi.first, std::make_shared<VariableStateIndirectKVCache>(vi.second, m_context, m_shape_predictor, beam_axis, concat_axis));
+        if (compressed) {
+            m_variables.emplace(vi.first, std::make_shared<VariableStateIndirectKVCacheCompressed>(vi.second,
+                                                                                                   m_context,
+                                                                                                   m_shape_predictor,
+                                                                                                   states_layouts,
+                                                                                                   beam_axis,
+                                                                                                   concat_axis,
+                                                                                                   has_zp_state));
+        } else if (indirect_kv_cache) {
+            m_variables.emplace(vi.first, std::make_shared<VariableStateIndirectKVCache>(vi.second,
+                                                                                         m_context,
+                                                                                         m_shape_predictor,
+                                                                                         beam_axis,
+                                                                                         concat_axis));
         } else {
-            m_variables.emplace(vi.first, std::make_shared<VariableState>(vi.second, m_context, m_shape_predictor));
+            m_variables.emplace(vi.first, std::make_shared<VariableState>(vi.second,
+                                                                          m_context,
+                                                                          m_shape_predictor));
         }
     }
 }

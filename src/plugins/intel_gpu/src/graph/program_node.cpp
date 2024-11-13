@@ -90,7 +90,8 @@ void program_node::replace_dependency(size_t idx, std::pair<program_node*, int32
 std::vector<layout> const program_node::get_input_layouts() const {
     std::vector<layout> layouts;
     for (size_t i = 0; i < dependencies.size(); i++) {
-        layouts.push_back(get_input_layout(i));
+        auto input_layout = get_input_layout(i);
+        layouts.push_back(input_layout);
     }
     return layouts;
 }

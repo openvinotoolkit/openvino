@@ -132,6 +132,10 @@ tutorials <https://huggingface.co/learn/nlp-course/chapter2/2?fw=pt#behind-the-p
 
 .. parsed-literal::
 
+    2024-11-05 01:36:48.403025: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-11-05 01:36:48.436519: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2024-11-05 01:36:49.095185: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
     Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
     - This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
     - This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
@@ -196,8 +200,15 @@ Note how we reuse our real ``encoded_input``, passing it to the
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4779: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
+
+
+.. parsed-literal::
+
+    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:5006: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
+    `loss_type=None` was set in the config but it is unrecognised.Using the default loss: `ForCausalLMLoss`.
 
 
 Converted Model Inference
@@ -333,10 +344,6 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
     To disable this warning, you can either:
     	- Avoid using `tokenizers` before the fork if possible
     	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
-    2024-10-23 01:23:29.312809: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-10-23 01:23:29.347879: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-10-23 01:23:29.943155: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Initialize and Convert the Model Automatically using OVModel class
@@ -375,11 +382,6 @@ inference run.
     Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
     - This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
     - This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
-
-
-.. parsed-literal::
-
-    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
 
 
 Convert model using Optimum CLI interface
@@ -434,7 +436,7 @@ Full list of supported arguments available via ``--help``
 
 .. parsed-literal::
 
-    2024-10-23 01:23:44.450300: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-11-05 01:37:12.161579: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
     usage: optimum-cli export openvino [-h] -m MODEL [--task TASK]
                                        [--framework {pt,tf}] [--trust-remote-code]
                                        [--weight-format {fp32,fp16,int8,int4,mxfp4}]
@@ -465,20 +467,20 @@ Full list of supported arguments available via ``--help``
       --task TASK           The task to export the model for. If not specified,
                             the task will be auto-inferred based on the model.
                             Available tasks depend on the model, but are among:
-                            ['audio-xvector', 'text-to-audio', 'fill-mask',
-                            'feature-extraction', 'text-generation', 'zero-shot-
-                            image-classification', 'text-to-image', 'text2text-
-                            generation', 'zero-shot-object-detection', 'automatic-
-                            speech-recognition', 'text-classification', 'semantic-
-                            segmentation', 'masked-im', 'image-to-text',
-                            'sentence-similarity', 'object-detection',
-                            'inpainting', 'audio-frame-classification', 'image-to-
-                            image', 'token-classification', 'question-answering',
-                            'audio-classification', 'image-segmentation', 'image-
-                            classification', 'mask-generation', 'multiple-choice',
-                            'depth-estimation']. For decoder models, use `xxx-
-                            with-past` to export the model using past key values
-                            in the decoder.
+                            ['mask-generation', 'image-classification', 'fill-
+                            mask', 'audio-xvector', 'audio-frame-classification',
+                            'sentence-similarity', 'multiple-choice', 'automatic-
+                            speech-recognition', 'text-to-image', 'token-
+                            classification', 'image-to-text', 'image-
+                            segmentation', 'question-answering', 'depth-
+                            estimation', 'semantic-segmentation', 'feature-
+                            extraction', 'text-generation', 'zero-shot-object-
+                            detection', 'text-to-audio', 'zero-shot-image-
+                            classification', 'object-detection', 'text2text-
+                            generation', 'audio-classification', 'image-to-image',
+                            'masked-im', 'inpainting', 'text-classification']. For
+                            decoder models, use `xxx-with-past` to export the
+                            model using past key values in the decoder.
       --framework {pt,tf}   The framework to use for the export. If not provided,
                             will attempt to use the local checkpoint's original
                             framework or what is available in the environment.
@@ -583,10 +585,11 @@ compression:
 
 .. parsed-literal::
 
-    2024-10-23 01:23:49.987001: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-11-05 01:37:17.680673: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
     Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
     - This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
     - This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+    `loss_type=None` was set in the config but it is unrecognised.Using the default loss: `ForCausalLMLoss`.
     Tokenizer won't be converted.
 
 

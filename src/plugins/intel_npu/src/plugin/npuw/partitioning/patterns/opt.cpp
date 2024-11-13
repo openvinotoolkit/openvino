@@ -59,11 +59,21 @@ Context::PPtr Context::concat(ov::ParameterVector&& v, std::size_t dim) {
 }
 
 Context::PPtr Context::unpack(Context::PPtr w, Context::PPtr z, Context::PPtr s, ov::element::Type type) {
-    // FIXME: Assume CW only
-    NPUW_ASSERT(w->get_shape().size() == 2);
-    NPUW_ASSERT(z->get_shape().size() == 2);
-    NPUW_ASSERT(s->get_shape().size() == 2);
-    auto new_param = std::make_shared<ov::op::v0::Parameter>(type, w->get_shape());
+    const auto& w_shape = w->get_shape();
+    const auto& s_shape = s->get_shape();
+
+    Context::PPtr new_param;
+    if (w_shape.size() == 3 && s_shape.size() == 3) {
+        // Assume already reshaped tensor (as it does with unpack)
+        ov::Shape new_shape = {w_shape[0], w_shape[1] * w_shape[2]};
+        new_param = std::make_shared<ov::op::v0::Parameter>(type, new_shape);
+    } else if (w_shape.size() == 2 && s_shape.size() == 2) {
+        new_param = std::make_shared<ov::op::v0::Parameter>(type, w_shape);
+    } else {
+        NPUW_ASSERT(false && "Yet unsupported combination");
+    }
+
+    NPUW_ASSERT(new_param);
     params_to_unpack[new_param] = {w, z, s};
     return new_param;
 }
@@ -350,8 +360,8 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
 
         if (ov::element::i4 == matched_qweight->get_element_type() && qweight_shape.size() == 3 &&
             ov::element::f16 == matched_qcoeff->get_element_type() && qcoeff_shape.size() == 3 &&
-            act_shape.size() == 3 && act_shape[1] == 1 && qcoeff_shape[0] == qweight_shape[0] && qcoeff_shape[2] == 1 &&
-            qcoeff_shape[1] == qweight_shape[1] && !matched_matmul->get_transpose_a() &&
+            act_shape.size() == 3 && act_shape[0] == 1 && act_shape[1] == 1 && qcoeff_shape[0] == qweight_shape[0] &&
+            qcoeff_shape[2] == 1 && qcoeff_shape[1] == qweight_shape[1] && !matched_matmul->get_transpose_a() &&
             matched_matmul->get_transpose_b()) {
             // Mark W closure to transpose, and transpose the respective parameter
             ctx.get().permute(matched_qweight, {1, 0, 2});
@@ -377,9 +387,6 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
             auto split_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
             auto split_a = std::make_shared<ov::op::v1::Split>(rshp_act, split_axis, NSPLIT);
             auto split_w = std::make_shared<ov::op::v1::Split>(matched_qweight, split_axis, NSPLIT);
-
-            std::vector<std::size_t> rshp_scale_v = {1, 1, qcoeff_shape[0]};
-            auto rshp_scale_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, rshp_scale_v);
 
             // Do the CW MM for every split
             std::vector<std::shared_ptr<ov::Node>> to_concat;
@@ -583,9 +590,13 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
         auto qcoeff_shape = matched_qcoeff->output(0).get_shape();
         auto act_shape = matched_out_mmi.get_shape();
 
+        const auto just_one = [](std::size_t a, std::size_t b) {
+            return (a == 1 && b > 1) || (a > 1 && b == 1);
+        };
+
         if (ov::element::i4 == matched_qweight->get_element_type() && qweight_shape.size() == 3 &&
             ov::element::f16 == matched_qcoeff->get_element_type() && qcoeff_shape.size() == 3 &&
-            act_shape.size() == 3 && act_shape[1] > 1 &&  // multi-token case
+            act_shape.size() == 3 && just_one(act_shape[0], act_shape[1]) &&  // multi-token case
             qcoeff_shape[0] == qweight_shape[0] && qcoeff_shape[1] == qweight_shape[1] && qcoeff_shape[2] == 1 &&
             !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
             // Mark W closure to transpose, and transpose the respective parameter
@@ -601,9 +612,12 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
             matched_qcoeff->set_partial_shape(ts_shape);
             matched_qcoeff->validate_and_infer_types();
 
+            // Select proper activation shape
+            std::size_t act_dim = act_shape[0] > act_shape[1] ? 0 : 1;
+
             // Reshape the Act to group format
             const auto NSPLIT = qweight_shape[1];
-            std::vector<std::size_t> rshp_act_v = {act_shape[1], NSPLIT, act_shape[2] / NSPLIT};
+            std::vector<std::size_t> rshp_act_v = {act_shape[act_dim], NSPLIT, act_shape[2] / NSPLIT};
             auto rshp_act_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, rshp_act_v);
             auto rshp_act = std::make_shared<ov::op::v1::Reshape>(matched_out_mmi, rshp_act_c, false);
 
@@ -615,7 +629,7 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
             auto split_w = std::make_shared<ov::op::v1::Split>(matched_qweight, split_axis_w, NSPLIT);
             auto split_s = std::make_shared<ov::op::v1::Split>(matched_qcoeff, split_axis_w, NSPLIT);
 
-            std::vector<std::size_t> r_a_v = {1, act_shape[1], act_shape[2] / NSPLIT};
+            std::vector<std::size_t> r_a_v = {1, act_shape[act_dim], act_shape[2] / NSPLIT};
             auto r_a_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, r_a_v);
 
             // Do the CW MM for every split
@@ -640,6 +654,13 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
             if (matched_matmul->output(0).get_element_type() == ov::element::f32) {
                 // Convert the result to f32 to maintain the graph contracts, if needed
                 out = std::make_shared<ov::op::v0::Convert>(out, ov::element::f32);
+            }
+
+            if (act_shape[0] > act_shape[1]) {
+                std::vector<std::size_t> new_out_size = {act_shape[0], act_shape[1], qweight_shape[0]};
+                auto new_out_shape =
+                    std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, new_out_size);
+                out = std::make_shared<ov::op::v1::Reshape>(out, new_out_shape, false);
             }
 
             // Now.. Reconnect the matmul readers to the new output (reducesum)
@@ -933,7 +954,7 @@ DQLiftGatherSymGQ::DQLiftGatherSymGQ() {
 // the respective block (mainly, a head) was turned a function
 // (e.g. with FUNCALL_FOR_ALL) As in this case the DQDictMatMulCWu
 // compile-time converts asymmetric MM to fp16, do the same thing here
-DQUnpackDictGatherCWu::DQUnpackDictGatherCWu(Context::Ref ctx) {
+DQUnpackDictGatheru::DQUnpackDictGatheru(Context::Ref ctx) {
     auto pids = opp::wrap_type<ov::op::v0::Parameter>();
     auto cvtids = opp::optional<ov::op::v0::Convert>({pids->output(0)});
 
@@ -966,14 +987,23 @@ DQUnpackDictGatherCWu::DQUnpackDictGatherCWu(Context::Ref ctx) {
 
         // Strip down the DQ subgraph, replace the original Q-ed closure tensor with unpacked fp16
         auto new_wi = ctx.get().unpack(matched_qweight, matched_qzerop, matched_qcoeff, ov::element::f16);
-        auto gather_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
-        auto new_g = std::make_shared<ov::op::v8::Gather>(new_wi, matched_out_ids, gather_c);
+        auto w_shape = matched_node_qweight->get_shape();
+        auto new_w_shape = new_wi->get_shape();
+        std::shared_ptr<ov::Node> gather_in = new_wi;
+        if (new_w_shape.size() == 2 && w_shape.size() == 3) {
+            NPUW_ASSERT(new_w_shape[0] == w_shape[0] && w_shape[1] * w_shape[2] == new_w_shape[1]);
+            auto new_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, w_shape);
+            gather_in = std::make_shared<ov::op::v1::Reshape>(new_wi, new_const, false);
+        }
+        NPUW_ASSERT(gather_in);
 
+        auto gather_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
+        auto new_g = std::make_shared<ov::op::v8::Gather>(gather_in, matched_out_ids, gather_c);
         matched_node_cvt->input(0).replace_source_output(new_g);
 
         return true;  // root has changed
     };
-    register_matcher(std::make_shared<opp::Matcher>(qcvtm, "DQDictGatherCWu"), std::move(callback));
+    register_matcher(std::make_shared<opp::Matcher>(qcvtm, "DQDictGatheru"), std::move(callback));
 }
 
 // This is a follow-up to DQLiftGatherSymGQ step, which happens if the respective
@@ -1013,7 +1043,7 @@ DQUnpackDictGatherGQi::DQUnpackDictGatherGQi(Context::Ref ctx) {
 
         return true;  // root has changed
     };
-    register_matcher(std::make_shared<opp::Matcher>(qcvtm, "DQDictGatherCWu"), std::move(callback));
+    register_matcher(std::make_shared<opp::Matcher>(qcvtm, "DQDictGatherGQu"), std::move(callback));
 }
 
 // Identify the case* where the FP16/32 vocab tensor is gathered with

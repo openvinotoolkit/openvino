@@ -54,7 +54,7 @@ TEST_P(TestCompiledModelNPU, samePlatformProduceTheSameBlob) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED() {
         std::string platform = ov::test::utils::getTestsPlatformFromEnvironmentOr("3720");
 
-        configuration[ov::intel_npu::create_executor.name()] = "0";
+        configuration[ov::intel_npu::defer_weights_load.name()] = true;
         auto configuration1 = configuration;
         configuration1[ov::intel_npu::platform.name()] = platform;
         const auto& ov_model1 = buildSingleLayerSoftMaxNetwork();

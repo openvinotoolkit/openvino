@@ -3,6 +3,7 @@
 #
 
 add_subdirectory(logger)
-if(ENABLE_ZEROAPI_BACKEND)
+
+if(ENABLE_NPU_PLUGIN_ENGINE)
     add_subdirectory(zero)
 endif()

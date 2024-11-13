@@ -5,7 +5,7 @@ on:
   merge_group:
   push:
     branches:
-      # - master
+      - master
       - 'releases/**'
 
 concurrency:
@@ -146,6 +146,7 @@ jobs:
       shell: bash
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_arm64 }}", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: '3.11'
     if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
 
   CXX_Unit_Tests:

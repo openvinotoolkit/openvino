@@ -1287,6 +1287,8 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
             HANDLE_CASE(boolean, bool);
             HANDLE_CASE(i4, int8_t);
             HANDLE_CASE(u4, uint8_t);
+            HANDLE_CASE(i16, int16_t);
+            HANDLE_CASE(u16, uint16_t);
             HANDLE_CASE(i32, int);
             HANDLE_CASE(i64, int64_t);
             HANDLE_CASE(f16, uint16_t);
@@ -1788,7 +1790,7 @@ void Partitioner::optimize(const std::string& func_name) {
 
         // Run Head/Tail passes
         ov::pass::GraphRewrite rewr;
-        rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatherCWu>(std::ref(ctx));
+        rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatheru>(std::ref(ctx));
         rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatherGQi>(std::ref(ctx));
         rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulCWu>(std::ref(ctx));
         // NB: This pass is disabled for reason! It doesn't make things better

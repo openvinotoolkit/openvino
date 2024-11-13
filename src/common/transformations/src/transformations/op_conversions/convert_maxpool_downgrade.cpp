@@ -57,10 +57,6 @@ ov::pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
         ov::copy_runtime_info(maxpool_v8_node, maxpool_v1_node);
         maxpool_v8_node->clear_control_dependencies();
 
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        ov::descriptor::set_ov_tensor_legacy_name(maxpool_v1_node->output(0).get_tensor(), out_name);
-        OPENVINO_SUPPRESS_DEPRECATED_END
-
         return true;
     };
 

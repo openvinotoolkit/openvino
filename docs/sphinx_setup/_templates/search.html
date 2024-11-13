@@ -2,133 +2,100 @@
 {% set title = _('Search') %}
 
 {%- block content %}
-    {% block docs_navbar %}
-    {{ super() }}
-    {% include 'baner.html' %}
-    {% endblock %}
+{% block docs_navbar %}
+{{ super() }}
+{% include 'baner.html' %}
+{% endblock %}
 
-    {% block body %}
-          <atomic-search-interface id="search"
-            fields-to-include='["ovversion", "ovdoctype", "filetype", "date", "source", "author", "sourcetype", "language", "description"]'>
-            <atomic-search-layout>
-            
-              <atomic-layout-section section="search">
-                <atomic-search-box>
-                  <atomic-search-box-query-suggestions></atomic-search-box-query-suggestions>
-                </atomic-search-box>
-              </atomic-layout-section>
-            
-              <!-- ADDITIONAL FILTERS SECTION-->
-              <atomic-layout-section section="facets">
-                <div class="view-selector-container">
-                  <button id="view-selector-grid" class="view-selector">
-                    <i class="fas fa-th"></i> Grid
-                  </button>
-                  <button id="view-selector-list" class="view-selector">
-                    <i class="fas fa-list"></i> List
-                  </button>
-                </div>
-                <atomic-facet-manager>
-                  <atomic-facet field="ovversion" label="Version" sort-criteria="alphanumericDescending"></atomic-facet>
-                  <!-- <atomic-facet field="ovdoctype" label="Document type"></atomic-facet> -->
-                  <!-- <atomic-facet field="language" label="Language"></atomic-facet> -->
-                </atomic-facet-manager>
-              </atomic-layout-section>
-            
-              <atomic-layout-section section="main">
-              
-                <atomic-layout-section section="status">
-                  <!-- RESULTS SUMMARY SECTION -->
-                  <atomic-breadbox></atomic-breadbox>
-                  <atomic-query-summary></atomic-query-summary>
-                  <atomic-refine-toggle></atomic-refine-toggle>
-                
-                  <!-- SORT SECTION -->
-                  <atomic-sort-dropdown>
-                    <atomic-sort-expression label="relevance" expression="relevancy"></atomic-sort-expression>
-                    <atomic-sort-expression label="most-recent" expression="date descending"></atomic-sort-expression>
-                  </atomic-sort-dropdown>
-                
-                  <atomic-did-you-mean></atomic-did-you-mean>
-                  <atomic-notifications></atomic-notifications>
-                
-                </atomic-layout-section>
-              
-                <atomic-layout-section section="results">
-                
-                  <atomic-result-list id="atomic-result-list" display="grid">
-                  
-                    <atomic-result-template>
-                      <template>
-                        <!-- RESULT TOP BADGES SECTION -->
-                        <atomic-result-section-badges>
-                          <atomic-result-badge>
-                            <atomic-result-multi-value-text field="ovversion"></atomic-result-multi-value-text>
-                          </atomic-result-badge>
-                        
-                          <atomic-result-badge
-                            icon="https://raw.githubusercontent.com/Rush/Font-Awesome-SVG-PNG/master/black/svg/language.svg">
-                            <atomic-result-multi-value-text field="language"></atomic-result-multi-value-text>
-                          </atomic-result-badge>
-                        
-                          <atomic-field-condition must-match-is-recommendation="true">
-                            <atomic-result-badge label="Recommended"></atomic-result-badge>
-                          </atomic-field-condition>
-                        
-                          <atomic-field-condition must-match-is-top-result="true">
-                            <atomic-result-badge label="Top Result"></atomic-result-badge>
-                          </atomic-field-condition>
-                        </atomic-result-section-badges>
-                      
-                        <!-- RESULT ICON SECTION -->
-                        <atomic-result-section-visual>
-                          <atomic-icon class="icon" icon="assets://gform.svg"></atomic-result-icon>
-                          <!-- EXAMPLE OF CHANGING ICON -->
-                          <!-- <atomic-field-condition must-match-ovversion="2021.4">
-                            <atomic-icon class="icon" icon="assets://gsheet.svg"></atomic-icon>
-                          </atomic-field-condition>
-                          <atomic-field-condition must-match-ovversion="2022.2">
-                            <atomic-icon class="icon" icon="assets://html.svg"></atomic-icon>
-                          </atomic-field-condition>
-                          <atomic-field-condition must-not-match-ovversion="2022.2, 2021.4">
-                            <atomic-icon class="icon" icon="assets://gform.svg"></atomic-icon>
-                          </atomic-field-condition> -->
-                        </atomic-result-section-visual>
-                      
-                        <atomic-result-section-title>
-                          <atomic-result-link target="_blank"></atomic-result-link>
-                        </atomic-result-section-title>
-                      
-                        <atomic-result-section-excerpt>
-                          <atomic-result-text field="excerpt"></atomic-result-text>
-                        </atomic-result-section-excerpt>
-                      
-                        <atomic-result-section-bottom-metadata>
-                          <atomic-field-condition class="field" if-defined="description">
-                            <atomic-result-text field="description"></atomic-result-text>
-                          </atomic-field-condition>
-                        </atomic-result-section-bottom-metadata>
-                      </template>
-                    </atomic-result-template>
-                  
-                  </atomic-result-list>
-                
-                  <atomic-query-error></atomic-query-error>
-                  <atomic-no-results></atomic-no-results>
-                
-                </atomic-layout-section>
-              
-                <atomic-layout-section section="pagination">
-                  <atomic-load-more-results></atomic-load-more-results>
-                </atomic-layout-section>
-              
-              </atomic-layout-section>
-            </atomic-search-layout>
-          </atomic-search-interface>
-    {% endblock %}
+{% block body %}
+<atomic-search-interface id="search" localization-compatibility-version="v4"
+fields-to-include='["ovversion", "ovdoctype", "ovversioncategory", "filetype", "date", "source", "author", "sourcetype", "language", "description"]'>
+  <atomic-search-layout>
+    <atomic-layout-section section="search">
+      <atomic-search-box>
+        <atomic-search-box-query-suggestions></atomic-search-box-query-suggestions>
+      </atomic-search-box>
+    </atomic-layout-section>
+    <atomic-layout-section section="facets">
+      <div class="view-selector-container">
+        <button id="view-selector-grid" class="view-selector">
+          <i class="fas fa-th"></i> Grid
+        </button>
+        <button id="view-selector-list" class="view-selector">
+          <i class="fas fa-list"></i> List
+        </button>
+      </div>
+      <atomic-facet 
+        facet-id="ovversion" field="ovversion" label="Version">
+      </atomic-facet>
+      <!-- <atomic-category-facet 
+        field="ovversioncategory" label="Categories"
+        sort-criteria="occurrences"
+        delimiting-character="/">
+      </atomic-category-facet> -->
+      <atomic-facet facet-id="ovdoctype" field="ovdoctype" label="Category" with-search="true"></atomic-facet>
+    </atomic-layout-section>
+    <atomic-layout-section section="main">
+      <atomic-layout-section section="status">
+        <atomic-breadbox></atomic-breadbox>
+        <atomic-query-summary></atomic-query-summary>
+        <atomic-refine-toggle></atomic-refine-toggle>
+        <atomic-sort-dropdown>
+          <atomic-sort-expression label="relevance" expression="relevancy"></atomic-sort-expression>
+          <atomic-sort-expression label="most-recent" expression="date descending"></atomic-sort-expression>
+        </atomic-sort-dropdown>
+        <atomic-did-you-mean></atomic-did-you-mean>
+        <atomic-notifications></atomic-notifications>
+      </atomic-layout-section>
+      <atomic-layout-section section="results">
+        <atomic-result-list id="atomic-result-list" display="grid">
+          <atomic-result-template>
+            <template>
+              <atomic-result-section-badges>
+                <atomic-result-badge>
+                  <atomic-result-multi-value-text field="ovversion"></atomic-result-multi-value-text>
+                </atomic-result-badge>
+                <atomic-result-badge
+                  icon="https://raw.githubusercontent.com/Rush/Font-Awesome-SVG-PNG/master/black/svg/language.svg">
+                  <atomic-result-multi-value-text field="language"></atomic-result-multi-value-text>
+                </atomic-result-badge>
+                <atomic-field-condition must-match-is-recommendation="true">
+                  <atomic-result-badge label="Recommended"></atomic-result-badge>
+                </atomic-field-condition>
+                <atomic-field-condition must-match-is-top-result="true">
+                  <atomic-result-badge label="Top Result"></atomic-result-badge>
+                </atomic-field-condition>
+              </atomic-result-section-badges>
+              <atomic-result-section-visual>
+                <atomic-icon class="icon" icon="assets://gform.svg"></atomic-result-icon>
+              </atomic-result-section-visual>
+              <atomic-result-section-title>
+                <atomic-result-link target="_blank"></atomic-result-link>
+              </atomic-result-section-title>
+              <atomic-result-section-excerpt>
+                <atomic-result-text field="excerpt"></atomic-result-text>
+              </atomic-result-section-excerpt>
+              <atomic-result-section-bottom-metadata>
+                <atomic-field-condition class="field" if-defined="description">
+                  <atomic-result-text field="description"></atomic-result-text>
+                </atomic-field-condition>
+              </atomic-result-section-bottom-metadata>
+            </template>
+          </atomic-result-template>
+        </atomic-result-list>
+        <atomic-query-error></atomic-query-error>
+        <atomic-no-results></atomic-no-results>
+      </atomic-layout-section>
+      <atomic-layout-section section="pagination">
+        <atomic-load-more-results></atomic-load-more-results>
+      </atomic-layout-section>
+    </atomic-layout-section>
+  </atomic-search-layout>
+</atomic-search-interface>
+{% endblock %}
 
-  {%- block scripts_end %}
-  {{ _webpack.body_post() }}
-  {%- endblock %}
+{%- block scripts_end %}
+{{ _webpack.body_post() }}
+{%- endblock %}
 
 {%- endblock %}
