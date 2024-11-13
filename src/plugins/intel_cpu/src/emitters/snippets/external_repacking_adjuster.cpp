@@ -2,28 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "emitters/snippets/cpu_runtime_configurator.hpp"
+#include "emitters/snippets/external_repacking_adjuster.hpp"
 
+#include "emitters/snippets/cpu_runtime_configurator.hpp"
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "snippets/utils/utils.hpp"
 
-#ifndef OPENVINO_ARCH_ARM64
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
-#endif
 
 namespace ov {
 namespace intel_cpu {
 
-#ifdef OPENVINO_ARCH_ARM64
-BrgemmExternalRepackingAdjuster::BrgemmExternalRepackingAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
-                                                                 snippets::RuntimeConfigurator* configurator) {}
-
-bool BrgemmExternalRepackingAdjuster::run(ov::snippets::lowered::LinearIR& linear_ir) {
-    return false;
-}
-#else
 BrgemmExternalRepackingAdjuster::BrgemmExternalRepackingAdjuster(
     const ov::snippets::lowered::LinearIRCPtr& linear_ir,
     snippets::RuntimeConfigurator* configurator) : snippets::lowered::pass::RuntimeOptimizer(configurator) {
@@ -79,7 +70,6 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
     }
     return true;
 }
-#endif
 
 }   // namespace intel_cpu
 }   // namespace ov

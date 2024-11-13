@@ -11,9 +11,10 @@
 #include "snippets/utils/utils.hpp"
 
 #ifndef OPENVINO_ARCH_ARM64
+#include "brgemm_copy_b_loop_ports_adjuster.hpp"
+#include "external_repacking_adjuster.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
-#include "transformations/snippets/x64/pass/lowered/adjust_brgemm_copy_b_loop_ports.hpp"
 #endif
 namespace ov {
 namespace intel_cpu {
@@ -46,10 +47,11 @@ CPURuntimeConfigurator::CPURuntimeConfigurator() : ov::snippets::RuntimeConfigur
 
 void CPURuntimeConfigurator::initialization(const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
     RuntimeConfigurator::initialization(linear_ir);
-    if (linear_ir->is_dynamic()) {
-        loopPortsAdjuster = BrgemmCopyBLoopPortsAdjuster(linear_ir);
-    }
-    m_runtime_optimizers.register_pass<BrgemmExternalRepackingAdjuster>(linear_ir, this);
+#ifndef OPENVINO_ARCH_ARM64
+    if (linear_ir->is_dynamic())
+        m_intermediate_runtime_optimizers.register_pass<BrgemmCopyBLoopPortsAdjuster>(linear_ir, this);
+    m_final_runtime_optimizers.register_pass<BrgemmExternalRepackingAdjuster>(linear_ir, this);
+#endif
 }
 
 void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
@@ -60,10 +62,7 @@ void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRCPtr& l
         update_loop_info(linear_ir);
     }
 
-    m_optimizer.optimize();
-
-    if (linear_ir->is_dynamic())
-        loopPortsAdjuster.optimize();
+    m_intermediate_runtime_optimizers.run(*linear_ir);
 
     // Update KernelExecutor Table should be before `update_buffer_scratchpad_size`
     // because `ComputeAllocationSize` depends on subtensors which are updated in the table
@@ -74,7 +73,7 @@ void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRCPtr& l
         update_loop_args(linear_ir);
     }
     update_data_offsets();
-    m_runtime_optimizers.run(*linear_ir);
+    m_final_runtime_optimizers.run(*linear_ir);
     m_config->m_latest_shapes = std::move(m_config->shapes);
 }
 
@@ -108,42 +107,5 @@ void CPURuntimeConfigurator::update_loop_args(const ov::snippets::lowered::Linea
         }
     }
 }
-#ifdef OPENVINO_ARCH_ARM64
-CPURuntimeConfigurator::BrgemmCopyBLoopPortsAdjuster::BrgemmCopyBLoopPortsAdjuster(
-    const ov::snippets::lowered::LinearIRCPtr& linear_ir,
-    CPURuntimeConfigurator* configurator) {}
-
-void CPURuntimeConfigurator::BrgemmCopyBLoopPortsAdjuster::optimize(
-    const ov::snippets::lowered::LinearIRCPtr& linear_ir,
-    const std::vector<ov::snippets::VectorDims>& shapes,
-    const std::vector<std::vector<size_t>>& layouts) {}
-#else
-CPURuntimeConfigurator::BrgemmCopyBLoopPortsAdjuster::BrgemmCopyBLoopPortsAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
-    const auto& pass = std::make_shared<intel_cpu::pass::AdjustBrgemmCopyBLoopPorts>();
-    pass->run(*linear_ir);
-    const auto& affected_uni_loops = pass->get_affected_loops();
-    const auto& loop_map = linear_ir->get_loop_manager()->get_map();
-    for (const auto& p : loop_map) {
-        if (const auto& exp_loop = ov::as_type_ptr<snippets::lowered::ExpandedLoopInfo>(p.second)) {
-            const auto& uni_loop = exp_loop->get_unified_loop_info();
-            if (affected_uni_loops.count(uni_loop))
-                m_affected_uni2exp_map[uni_loop].push_back(exp_loop);
-        }
-    }
-}
-
-void CPURuntimeConfigurator::BrgemmCopyBLoopPortsAdjuster::optimize() {
-    for (const auto& p : m_affected_uni2exp_map) {
-        const auto& uni_loop = p.first;
-        const auto& exp_loops = p.second;
-        snippets::RuntimeConfigurator::LoopInfoRuntimeParamsMap initialized_info;
-        if (intel_cpu::pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(uni_loop)) {
-            initialized_info[uni_loop] = get_loop_runtime_params(uni_loop);
-            for (const auto& exp_loop : exp_loops)
-                update_expanded_loop_info(exp_loop, initialized_info);
-        }
-    }
-}
-#endif
 } // namespace intel_cpu
 } // namespace ov
