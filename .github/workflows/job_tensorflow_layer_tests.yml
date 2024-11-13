@@ -105,7 +105,7 @@ jobs:
         uses: ./openvino/.github/actions/install_ov_wheels
         with:
           wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
-          wheels-to-install: 'openvino openvino-tokenizers'
+          wheels-to-install: 'openvino openvino_tokenizers'
 
       - name: Install Python Layer tests dependencies
         run: |

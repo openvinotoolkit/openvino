@@ -5,7 +5,7 @@ inputs:
     description: 'Path to the directory in which wheels are located'
     required: true
   wheels-to-install:
-    description: 'List of wheel names to install in the form of "openvino openvino-tokenizers"'
+    description: 'List of wheel names to install in the form of "openvino openvino_tokenizers"'
 runs:
   using: 'composite'
   steps:
