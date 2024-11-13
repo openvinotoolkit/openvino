@@ -11,24 +11,19 @@
 namespace ov {
 namespace op {
 namespace util {
-template <
-    class T,
-    class TRShape = result_shape_t<T>,
-    class Lambda,
-    class Squeeze,
-    typename = typename std::enable_if<
-        std::is_same<Squeeze, ov::op::v0::Squeeze>::value ||
-        std::is_same<Squeeze, ov::op::v15::Squeeze>::value,
-        bool>::type
->
-bool validate_input_and_try_set_output_shape (
-    const Squeeze* op,
-    std::unique_ptr<std::set<int64_t>>& unique_axes,
-    const std::vector<T>& input_shapes,
-    const ITensorAccessor& ta,
-    TRShape& output_shape,
-    Lambda output_shape_for_squeezable_dim
-) {
+template <class T,
+          class TRShape = result_shape_t<T>,
+          class Lambda,
+          class Squeeze,
+          typename = typename std::enable_if<std::is_same<Squeeze, ov::op::v0::Squeeze>::value ||
+                                                 std::is_same<Squeeze, ov::op::v15::Squeeze>::value,
+                                             bool>::type>
+bool validate_input_and_try_set_output_shape(const Squeeze* op,
+                                             std::unique_ptr<std::set<int64_t>>& unique_axes,
+                                             const std::vector<T>& input_shapes,
+                                             const ITensorAccessor& ta,
+                                             TRShape& output_shape,
+                                             Lambda output_shape_for_squeezable_dim) {
     using DimType = typename T::value_type;
 
     OPENVINO_ASSERT(!input_shapes.empty());
@@ -42,8 +37,8 @@ bool validate_input_and_try_set_output_shape (
     } else if (number_of_inputs == 2) {
         const auto& axes_shape = input_shapes[1];
         NODE_VALIDATION_CHECK(op,
-                              axes_shape.is_dynamic() || ov::util::is_rank_compatible_any_of(axes_shape.rank(), {0,
-                              1}), "Second input (axes) should not be of rank higher than 1. Got: ",
+                              axes_shape.is_dynamic() || ov::util::is_rank_compatible_any_of(axes_shape.rank(), {0, 1}),
+                              "Second input (axes) should not be of rank higher than 1. Got: ",
                               axes_shape.rank().get_length());
 
         std::vector<int64_t> axes{};
@@ -96,11 +91,16 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
     auto& output_shape = output_shapes[0];
     std::unique_ptr<std::set<int64_t>> unique_axes{};
 
-    auto output_shape_for_squeezable_dim = [&](){
+    auto output_shape_for_squeezable_dim = [&]() {
         return PartialShape::dynamic(arg_rank.get_length() - 1);
     };
 
-    if(util::validate_input_and_try_compute_output_shape(op, unique_axes, input_shapes, ta, output_shape, output_shape_for_squeezable_dim)){
+    if (util::validate_input_and_try_set_output_shape(op,
+                                                          unique_axes,
+                                                          input_shapes,
+                                                          ta,
+                                                          output_shape,
+                                                          output_shape_for_squeezable_dim)) {
         return output_shapes;
     }
 
@@ -188,14 +188,18 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
 
     std::unique_ptr<std::set<int64_t>> unique_axes{};
 
-    auto output_shape_for_squeezable_dim = [&](){
+    auto output_shape_for_squeezable_dim = [&]() {
         return PartialShape::dynamic();
     };
 
-    if(util::validate_input_and_try_compute_output_shape(op, unique_axes, input_shapes, ta, output_shape, output_shape_for_squeezable_dim)){
+    if (util::validate_input_and_try_set_output_shape(op,
+                                                        unique_axes,
+                                                        input_shapes,
+                                                        ta,
+                                                        output_shape,
+                                                        output_shape_for_squeezable_dim)) {
         return output_shapes;
     }
-
 
     if (!arg_rank.is_static() || (unique_axes == nullptr) || apply_allow_axis_skip(op, unique_axes, arg_shape)) {
         output_shape = PartialShape::dynamic();

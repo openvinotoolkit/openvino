@@ -62,8 +62,7 @@ bool Squeeze::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
 namespace v15 {
 Squeeze::Squeeze() : util::SqueezeBase() {}
 
-Squeeze::Squeeze(const Output<Node>& data)
-    : util::SqueezeBase(data){
+Squeeze::Squeeze(const Output<Node>& data) : util::SqueezeBase(data) {
     constructor_validate_and_infer_types();
 }
 

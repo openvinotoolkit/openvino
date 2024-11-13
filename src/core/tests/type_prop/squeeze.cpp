@@ -659,7 +659,6 @@ TEST(SqueezeDynamicAxis, squeeze_dynamic_empty_axes) {
     EXPECT_EQ(squeeze2->get_element_type(), element::f32);
     EXPECT_EQ(squeeze2->get_output_partial_shape(0), exp_shape);
     EXPECT_EQ(squeeze2->get_allow_axis_skip(), false);
-
 }
 TEST(SqueezeDynamicAxis, squeeze_dynamic_no_axes) {
     auto p_shape = PartialShape{1, 2, -1, 4};
