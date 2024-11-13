@@ -20,14 +20,13 @@ using namespace ov;
 using namespace ov::op;
 using namespace ov::pass::pattern;
 
-namespace {
 /**
  * @ingroup ov_transformation_common_api
  * @brief TBA
  */
 class TRANSFORMATIONS_API MarkDequantization : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MarkDQ", "0");
+    OPENVINO_RTTI("MarkDequantization", "0");
     explicit MarkDequantization(const element::TypeVector& precisions,
                                 bool fold_subtract_const = false,
                                 bool fold_multiply_const = true);
@@ -42,6 +41,8 @@ public:
     OPENVINO_RTTI("KeepConstsPrecision", "0");
     explicit KeepConstsPrecision(const element::TypeVector& precisions);
 };
+
+namespace {
 
 bool check_precision(const ov::element::Type_t type_to_check, const ov::element::TypeVector& precisions) {
     return std::find(precisions.begin(), precisions.end(), type_to_check) != precisions.end();
