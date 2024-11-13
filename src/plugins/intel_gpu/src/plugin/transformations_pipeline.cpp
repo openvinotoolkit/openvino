@@ -196,36 +196,10 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
 
     const auto consumers = node->get_output_target_inputs(0);
 
-    ov::element::Type w_type, zp_type;
-    for (size_t i = 0; i < node->get_input_size(); ++i) {
-        if (node->get_input_node_shared_ptr(i)->get_type_info() == ov::opset1::Convert::get_type_info_static()) {
-            if (node->get_input_node_shared_ptr(i)->get_input_size() > 0 &&
-                node->get_input_node_shared_ptr(i)->get_input_node_shared_ptr(0)->get_output_size() == 1) {
-                w_type = node->get_input_node_shared_ptr(i)->get_input_node_shared_ptr(0)->get_element_type();
-            }
-        } else if (node->get_input_node_shared_ptr(i)->get_type_info() == ov::opset1::Subtract::get_type_info_static()) {
-            auto input_node = node->get_input_node_shared_ptr(i);
-            for (size_t j = 0; j < input_node->get_input_size(); ++j) {
-                if (input_node->get_input_node_shared_ptr(j)->get_type_info() == ov::opset1::Convert::get_type_info_static()) {
-                    if (input_node->get_input_node_shared_ptr(j)->get_input_size() > 0) {
-                        w_type = input_node->get_input_node_shared_ptr(j)->get_input_node_shared_ptr(0)->get_element_type();
-                    }
-                } else if (input_node->get_input_node_shared_ptr(j)->get_type_info() == ov::opset1::Constant::get_type_info_static()) {
-                    zp_type = input_node->get_input_node_shared_ptr(j)->get_element_type();
-                }
-            }
-        }
-    }
-    bool unsupported_compressed_weights = supports_immad && w_type != ov::element::undefined && zp_type != ov::element::undefined &&
-                                          ((w_type != ov::element::Type_t::u4 && w_type != ov::element::Type_t::u8) ||
-                                           (zp_type != ov::element::Type_t::u8 && zp_type != ov::element::Type_t::i8));
-
     for (const auto& consumer : consumers) {
         const auto& type_info = consumer.get_node()->get_type_info();
         if (cldnn::one_of(type_info, target_consumers)) {
             if (cldnn::one_of(type_info, convolutions) && consumer.get_node()->input_value(0).get_partial_shape().is_dynamic()) {
-                return false;
-            } else if (cldnn::one_of(type_info, ov::opset1::MatMul::get_type_info_static()) && unsupported_compressed_weights) {
                 return false;
             }
             return true;
@@ -241,8 +215,6 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
             const auto& type_info = child_consumer.get_node()->get_type_info();
             if (cldnn::one_of(type_info, target_consumers)) {
                 if (cldnn::one_of(type_info, convolutions) && child_consumer.get_node()->input_value(0).get_partial_shape().is_dynamic()) {
-                    return false;
-                } else if (cldnn::one_of(type_info, ov::opset1::MatMul::get_type_info_static()) && unsupported_compressed_weights) {
                     return false;
                 }
                 return true;
@@ -260,8 +232,6 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
                 const auto& type_info = child_consumer.get_node()->get_type_info();
                 if (cldnn::one_of(type_info, target_consumers)) {
                     if (cldnn::one_of(type_info, convolutions) && child_consumer.get_node()->input_value(0).get_partial_shape().is_dynamic()) {
-                        return false;
-                    } else if (cldnn::one_of(type_info, ov::opset1::MatMul::get_type_info_static()) && unsupported_compressed_weights) {
                         return false;
                     }
                     return true;
@@ -282,8 +252,6 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
                 const auto& type_info = child_consumer.get_node()->get_type_info();
                 if (cldnn::one_of(type_info, target_consumers)) {
                     if (cldnn::one_of(type_info, convolutions) && child_consumer.get_node()->input_value(0).get_partial_shape().is_dynamic()) {
-                        return false;
-                    } else if (cldnn::one_of(type_info, ov::opset1::MatMul::get_type_info_static()) && unsupported_compressed_weights) {
                         return false;
                     }
                     return true;
@@ -407,8 +375,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // it expects to have the same data type for weights and zero points (apply it only for u8 data type, since other compression
         // types are not supported by oneDNN)
         manager.register_pass<ov::pass::MarkDequantizationSubgraph>(supported_woq_types, !device_info.supports_immad);
-
+        GPU_DEBUG_TRACE << "is_model_quantized: " << is_model_quantized << std::endl;
         pass_config->set_callback<ov::pass::MarkDequantizationSubgraph>([&](const std::shared_ptr<const ov::Node> node) {
+            GPU_DEBUG_TRACE_DETAIL << node->get_friendly_name() << ": " << !is_decompression_multiply(node, device_info.supports_immad) << std::endl;
             return !is_decompression_multiply(node, device_info.supports_immad);
         });
 
