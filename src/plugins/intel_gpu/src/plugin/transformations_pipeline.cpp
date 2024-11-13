@@ -199,7 +199,8 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
     ov::element::Type w_type, zp_type;
     for (size_t i = 0; i < node->get_input_size(); ++i) {
         if (node->get_input_node_shared_ptr(i)->get_type_info() == ov::opset1::Convert::get_type_info_static()) {
-            if (node->get_input_node_shared_ptr(i)->get_input_size() > 0) {
+            if (node->get_input_node_shared_ptr(i)->get_input_size() > 0 &&
+                node->get_input_node_shared_ptr(i)->get_input_node_shared_ptr(0)->get_output_size() == 1) {
                 w_type = node->get_input_node_shared_ptr(i)->get_input_node_shared_ptr(0)->get_element_type();
             }
         } else if (node->get_input_node_shared_ptr(i)->get_type_info() == ov::opset1::Subtract::get_type_info_static()) {
