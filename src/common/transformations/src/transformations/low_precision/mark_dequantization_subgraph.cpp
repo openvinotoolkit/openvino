@@ -153,6 +153,11 @@ KeepConstsPrecision::KeepConstsPrecision(const element::TypeVector& precisions) 
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) -> bool {
         const auto& pt_map = m.get_pattern_value_map();
+        const auto multiply = m.get_match_root();
+
+        if (transformation_callback(multiply)) {
+            return false;
+        }
 
         NodeVector keep_const_precisions = {};
         for (const auto& pattern_node : {input_pattern, zp_pattern, scale_pattern}) {
