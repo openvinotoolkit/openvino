@@ -196,7 +196,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-20.04
+    runs-on: aks-linux-2-cores-8gb
     container:
       image: openvinogithubactions.azurecr.io/dockerio/library/fedora:33
     env:
