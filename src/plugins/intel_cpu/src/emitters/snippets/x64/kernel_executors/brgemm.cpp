@@ -246,7 +246,7 @@ void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::Expression
         // Note: We check `is_incremented` attribute only for not incremented ports because
         //       this `is_incremented = true` can be changed by `CleanRepeatedDataPointerShifts` optimization
         auto check_port = [&](const ov::snippets::lowered::LoopPort& p) { return p.dim_idx == 0; };
-        OPENVINO_ASSERT(in_ports.size() == 2 && !in_ports.front().is_incremented && std::all_of(in_ports.cbegin(), in_ports.cend(), check_port) &&
+        OPENVINO_ASSERT(in_ports.size() >= 2 && !in_ports.front().is_incremented && std::all_of(in_ports.cbegin(), in_ports.cend(), check_port) &&
                         out_ports.size() == 1 && check_port(out_ports.back()),
                         "Incorrect Loop by Brgemm dimension N");
         N = current_expanded_loop_info->get_increment();
@@ -269,7 +269,7 @@ void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::Expression
         // Quick validation check: Should we check that port is really Brgemm port?
         // Note: We check `is_incremented` attribute only for not incremented ports because
         //       this `is_incremented = true` can be changed by `CleanRepeatedDataPointerShifts` optimization
-        OPENVINO_ASSERT(in_ports.size() == 2 && in_ports.front().dim_idx == 0 && in_ports.back().dim_idx == 1 &&
+        OPENVINO_ASSERT(in_ports.size() >= 2 && in_ports.front().dim_idx == 0 && in_ports.back().dim_idx == 1 &&
                         out_ports.size() == 1 && !out_ports.front().is_incremented,
                         "Incorrect Loop by Brgemm dimension K");
         K = current_expanded_loop_info->get_increment();
@@ -286,7 +286,7 @@ void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::Expression
     OV_CPU_JIT_EMITTER_ASSERT(brgemm_node, "Got invalid node type in update_config");
     // In case of data repacking LDB is chosen in accordance with repacking buffer size
     if (with_repacking(brgemm_node->get_type()))
-        LDB = brgemm_utils::repacking::compute_out_leading_dim(N, brgemm_node->get_input_element_type(1));
+        LDB = brgemm_utils::repacking::compute_LDB(LDB, brgemm_node->get_input_element_type(1));
 
     config.update(DIM_CAST(M), DIM_CAST(N), DIM_CAST(K), LDA, LDB, LDC, beta);
 }
@@ -303,6 +303,8 @@ void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* executor, call_ar
     }
 
     cpu::x64::brgemm_kernel_params_t brgemm_p;
+    // Note: compensations should be applied only once, so we do it only on the first iteration, when beta == 0
+    size_t is_with_comp = config.get_beta() == 0 && config.is_with_comp();
 
     brgemm_p.batch = nullptr;  // default value
     brgemm_p.ptr_A = args->A;
@@ -311,8 +313,8 @@ void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* executor, call_ar
     brgemm_p.ptr_D = args->C;
     brgemm_p.ptr_buf = args->scratch;
     brgemm_p.ptr_bias = nullptr;
-    brgemm_p.do_post_ops = static_cast<size_t>(config.is_with_comp());
-    brgemm_p.do_apply_comp = static_cast<size_t>(config.is_with_comp());
+    brgemm_p.do_post_ops = is_with_comp;
+    brgemm_p.do_apply_comp = is_with_comp;
     brgemm_p.skip_accm = 0;
     brgemm_p.BS = 1;  // default value
     OV_CPU_JIT_EMITTER_ASSERT(kernel->compiled_kernel, "has nullptr kernel");
