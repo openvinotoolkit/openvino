@@ -5,7 +5,6 @@
 #include "intel_gpu/graph/topology.hpp"
 #include <vector>
 #include <memory>
-#include "intel_gpu/primitives/rnn.hpp"
 
 namespace cldnn {
 
@@ -17,9 +16,6 @@ void topology::add_primitive(std::shared_ptr<primitive> desc) {
 
         // adding the same primitive more than once is not an error
         return;
-    }
-    if (desc->get_type_info() == "lstm_seq") {
-        lstm_present = true;
     }
     _primitives.insert({id, desc});
 }

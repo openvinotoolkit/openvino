@@ -53,14 +53,6 @@ public:
     std::pair<std::shared_ptr<primitive>, bool> get_weights_reorder(primitive_id input_id,
                                                                     std::shared_ptr<WeightsReorderParams> reorder_params);
 
-    void add_lstm_weights_reorder(primitive_id input_id, std::shared_ptr<WeightsReorderParams> reorder_params, program& p, cldnn::program_node&, \
-                           cldnn::program_node&, size_t);
-
-    void add_lstm_bias_reorder(primitive_id input_id, std::shared_ptr<WeightsReorderParams> reorder_params, program& p, cldnn::program_node&, \
-                        cldnn::program_node&);
-
-    void select_implementation(program& p, program_node& node);
-
 private:
     struct cache_key {
         primitive_id data_source;
@@ -114,7 +106,7 @@ public:
         int32_t b_fs_yx_fsv16_network = 0;
         int32_t b_fs_zyx_fsv16_network = 0;
         int32_t bs_fs_yx_bsv16_fsv16_network = 0;
-        std::vector<std::string> onednn_impls = {};
+        std::map<primitive_type_id, bool> onednn_impls = {};
     };
 
 private:
@@ -197,14 +189,32 @@ public:
     void set_optimization_attribute(optimization_attributes_type attribute, int32_t val);
     optimization_attributes get_optimization_attributes() { return _optimization_attributes; }
 
-    void add_onednn_impls_optimization_attribute(const std::string& val);
+    template <typename PT>
+    void enable_onednn_for() {
+        _optimization_attributes.onednn_impls[PT::type_id()] = true;
+    }
+
+    template <typename PT>
+    void disable_onednn_for() {
+        _optimization_attributes.onednn_impls[PT::type_id()] = false;
+    }
     void add_all_onednn_impls_optimization_attribute();
     bool has_all_enabled_onednn_impls_optimization_attribute();
-    bool contains_onednn_impls_optimization_attribute(const std::string& val);
+    template <typename PT>
+    bool is_enabled_onednn_for() {
+        auto type_id = PT::type_id();
+        auto it = _optimization_attributes.onednn_impls.find(type_id);
+        if (it == _optimization_attributes.onednn_impls.end()) {
+            return false;
+        }
+
+        return it->second;
+    }
+    void set_value_onednn(primitive_type_id p_type, bool val);
     bool contains_onednn_impls_optimization_attribute(const program_node*);
     bool is_empty_onednn_impls_optimization_attribute();
     void clear_onednn_impls_optimization_attribute();
-    std::vector<std::string> get_all_onednn_impls_optimization_attribute();
+    std::map<primitive_type_id, bool> get_all_onednn_impls_optimization_attribute();
 
     void set_implementation_forcing(const ov::intel_gpu::ImplForcingMap& map);
     const std::map<primitive_id, std::pair<format::type, impl_types>>& get_implementation_forcing() const;

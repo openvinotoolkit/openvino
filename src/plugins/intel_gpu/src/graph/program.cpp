@@ -70,6 +70,9 @@
 #include "unique_inst.hpp"
 #include "condition_inst.h"
 #include "to_string_utils.h"
+#include "intel_gpu/graph/serialization/map_serializer.hpp"
+
+#include "intel_gpu/primitives/rnn.hpp"
 
 // TODO: Remove once we have interface for kernels cache
 #include "impls/ocl/kernels_cache.hpp"
@@ -135,15 +138,6 @@ std::shared_ptr<ICompilationContext> program::make_compilation_context(const Exe
                                                                  "Task executor config for CompilationContext in GPU plugin", _num_async_build_threads));
 }
 
-bool program::has_lstm(topology const& topology) {
-    for (auto primitive_pair : topology.get_primitives()) {
-        if (primitive_pair.second->type_string() == "lstm_seq") {
-            return true;
-        }
-    }
-    return false;
-}
-
 program::program(engine& engine_ref,
                  topology const& topology,
                  const ExecutionConfig& config,
@@ -160,18 +154,17 @@ program::program(engine& engine_ref,
       is_internal(is_internal),
       _is_body_program(is_body_program),
       _compilation_context(compilation_context) {
-    if (topology.lstm_present || _engine.get_device_info().supports_immad) {
+    if (_engine.get_device_info().supports_immad) {
         _config.set_property(ov::intel_gpu::use_onednn(true));
     }
-    _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
     GPU_DEBUG_INFO << "Program config\n" << _config.to_string();
     init_program();
     prepare_nodes(topology);
     program_node::reset_unique_id();
-
     if (no_optimizations) {
         init_graph();
+        _config.apply_user_properties(_engine.get_device_info());
     } else {
         build_program(is_internal);
         if (_is_body_program) {
@@ -512,6 +505,7 @@ void program::set_options() {
 
 void program::build_program(bool is_internal) {
     init_graph();
+    _config.apply_user_properties(_engine.get_device_info());
     { pre_optimize_graph(is_internal); }
     run_graph_compilation();
     { post_optimize_graph(is_internal); }
@@ -541,6 +535,9 @@ void program::init_graph() {
     for (auto& node : processing_order) {
         if (!node->is_type<data>())
             node->get_output_layouts();
+        if (node->is_type<lstm_seq>()) {
+            _config.set_property(ov::intel_gpu::use_onednn(true));
+        }
     }
     // Perform initial shape_of subgraphs markup
     apply_opt_pass<mark_shape_of_subgraphs>();
@@ -1656,7 +1653,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
                 lo.add_all_onednn_impls_optimization_attribute();
             } else {
                 if (get_config().get_property(ov::intel_gpu::use_onednn)) {
-                    lo.add_onednn_impls_optimization_attribute("lstm_seq");
+                    lo.enable_onednn_for<lstm_seq>();
                 }
             }
         }
@@ -1803,9 +1800,11 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
 
     ob << _is_body_program;
     ob << _can_be_optimized;
-    ob << get_layout_optimizer().get_all_onednn_impls_optimization_attribute().size();
-    for (auto onednn_impl : get_layout_optimizer().get_all_onednn_impls_optimization_attribute()) {
-        ob << onednn_impl;
+    auto onednn_impls_size = get_layout_optimizer().get_all_onednn_impls_optimization_attribute().size();
+    ob << onednn_impls_size;
+    for (const auto& onednn_impl : get_layout_optimizer().get_all_onednn_impls_optimization_attribute()) {
+        ob << make_data(onednn_impl.first, sizeof(onednn_impl.first));
+        ob << onednn_impl.second;
     }
 
     processing_order.save(ob);
@@ -1941,9 +1940,11 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
     size_t num_of_onednn_impls;
     ib >> num_of_onednn_impls;
     for (size_t num = 0; num < num_of_onednn_impls; num++) {
-        std::string primitive_name;
-        ib >> primitive_name;
-        get_layout_optimizer().add_onednn_impls_optimization_attribute(primitive_name);
+        primitive_type_id ptype{};
+        bool enabled;
+        ib >> make_data(ptype, sizeof(ptype));
+        ib >> enabled;
+        get_layout_optimizer().set_value_onednn(ptype, enabled);
     }
 
     _loaded_from_cache = true;

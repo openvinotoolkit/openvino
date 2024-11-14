@@ -27,7 +27,6 @@
 #include "pooling_inst.h"
 #include "reduce_inst.h"
 #include "one_hot_inst.h"
-#include "permute_inst.h"
 #include "quantize_inst.h"
 #include "mvn_inst.h"
 #include "depth_to_space_inst.h"
@@ -108,131 +107,6 @@ std::pair<std::shared_ptr<primitive>, bool> reorder_factory::get_weights_reorder
         _cached_reorders[ckey] = reorder;
         return std::make_pair(reorder, false);
     }
-}
-
-void reorder_factory::select_implementation(program& p, program_node& node) {
-    node.set_selected_impl(node.type()->create_impl(node));
-    if (auto impl = node.get_selected_impl()) {
-        auto params = node.get_kernel_impl_params();
-        p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
-    }
-}
-
-void reorder_factory::add_lstm_weights_reorder(primitive_id input_id,
-                                                                                 std::shared_ptr<WeightsReorderParams> reorder_params, program& p, \
-                                                                                 cldnn::program_node& prev, cldnn::program_node& node, size_t i) {
-    OPENVINO_ASSERT(reorder_params != nullptr, "[GPU] WeightsReorderParams is not initialized.");
-    std::string reorder_id = input_id + "_reo_" + std::to_string(i);
-    auto hiddenSize = reorder_params->get_output_layout().get_shape()[1] / 4;
-    auto inputSize = static_cast<int>(reorder_params->get_output_layout().get_shape()[3]);
-    int size_third;
-    const int W_idx = 3;
-    if (i == W_idx) {
-        size_third = inputSize;
-    } else {
-        size_third = static_cast<int>(hiddenSize);
-    }
-    auto cropSizeR = cldnn::tensor{1, static_cast<int>(hiddenSize), 1, size_third, 1};
-    cldnn::layout reorder_layout;
-    if (i ==  W_idx) {
-        reorder_layout = reorder_params->get_output_layout();
-    } else {
-        reorder_layout = reorder_params->get_output_layout();
-        auto reorder_layout_new_shape = reorder_layout.get_shape();
-        reorder_layout_new_shape[3] = hiddenSize;
-        reorder_layout = reorder_layout.clone_with_other_shape(reorder_layout_new_shape);
-    }
-    auto reorder = std::make_shared<cldnn::reorder>(reorder_id, input_id, reorder_layout);
-    auto& reorder_node = p.get_or_create(reorder);
-    std::string crop_id_b = input_id + "_c";
-    auto get_crop_node = [&](int cropNum) -> cldnn::program_node& {
-        auto crop_id = primitive_id(crop_id_b + std::to_string(cropNum));
-        auto crop_prim = std::make_shared<cldnn::crop>(crop_id, reorder_id, cropSizeR, cldnn::tensor{0, static_cast<int>(cropNum*hiddenSize), 0, 0, 0});
-        return p.get_or_create(crop_prim);
-    };
-
-    auto& crop0_node = get_crop_node(0);
-    auto& crop1_node = get_crop_node(1);
-    auto& crop2_node = get_crop_node(2);
-    auto& crop3_node = get_crop_node(3);
-    std::vector<input_info> con_input{input_info(crop_id_b + "1"), input_info(crop_id_b + "0"), input_info(crop_id_b + "2"), input_info(crop_id_b + "3")};
-    cldnn::primitive_id concat_id{input_id + "cont"};
-    auto con = std::make_shared<cldnn::concatenation>(concat_id, con_input, 0);
-    auto& con_node = p.get_or_create(con);
-    p.add_intermediate(con_node, node, prev, true);
-    p.add_intermediate(reorder_node, con_node, prev, true);
-    p.add_intermediate(crop1_node, con_node, reorder_node, true);
-    p.add_connection(reorder_node, crop0_node, 0);
-    p.add_connection(reorder_node, crop2_node, 0);
-    p.add_connection(reorder_node, crop3_node, 0);
-    p.add_connection(crop0_node, con_node, 0);
-    p.add_connection(crop2_node, con_node, 0);
-    p.add_connection(crop3_node, con_node, 0);
-    std::string permute_id = input_id + "_perx";
-    std::vector<uint16_t> ord{2, 4, 3, 0, 1};
-    auto permute = std::make_shared<cldnn::permute>(permute_id, input_info{concat_id}, ord);
-    auto& permute_node = p.get_or_create(permute);
-    p.add_intermediate(permute_node, node, con_node,  true);
-    auto set_implementation_and_output = [this, &p](program_node& node) {
-        node.get_output_layout(false);
-        select_implementation(p, node);
-        p.mark_if_constant(node);
-        node.recalc_output_layout(false);
-    };
-    set_implementation_and_output(reorder_node);
-    set_implementation_and_output(crop1_node);
-    set_implementation_and_output(crop0_node);
-    set_implementation_and_output(crop2_node);
-    set_implementation_and_output(crop3_node);
-    set_implementation_and_output(con_node);
-    set_implementation_and_output(permute_node);
-}
-
-void reorder_factory::add_lstm_bias_reorder(primitive_id input_id,
-                                                                                 std::shared_ptr<WeightsReorderParams> reorder_params, program& p, \
-                                                                                 cldnn::program_node& prev, cldnn::program_node& node) {
-    OPENVINO_ASSERT(reorder_params != nullptr, "[GPU] WeightsReorderParams is not initialized.");
-    auto hiddenSize = reorder_params->get_output_layout().get_shape()[1] / 4;
-    auto cropSize = cldnn::tensor{1, static_cast<int>(hiddenSize), 1, 1};
-    std::string crop_id_b = input_id + "_c";
-    auto get_crop_node = [&](int cropNum) -> cldnn::program_node& {
-        auto crop_id = primitive_id(crop_id_b + std::to_string(cropNum));
-        auto crop_prim = std::make_shared<cldnn::crop>(crop_id,  input_id, cropSize, cldnn::tensor{0, static_cast<int>(cropNum*hiddenSize), 0, 0});
-        return p.get_or_create(crop_prim);
-    };
-    auto& crop0_node = get_crop_node(0);
-    auto& crop1_node = get_crop_node(1);
-    auto& crop2_node = get_crop_node(2);
-    auto& crop3_node = get_crop_node(3);
-    std::vector<input_info> con_input{input_info(crop1_node.id()), input_info(crop0_node.id()), input_info(crop2_node.id()), input_info(crop3_node.id())};
-    cldnn::primitive_id concat_id{input_id + "concat"};
-    auto con = std::make_shared<cldnn::concatenation>(concat_id, con_input, 2);
-    auto& con_node = p.get_or_create(con);
-    p.add_intermediate(con_node, node, prev, true);
-    p.add_intermediate(crop1_node, con_node, prev, true);
-    p.add_connection(prev, crop0_node, 0);
-    p.add_connection(prev, crop2_node, 0);
-    p.add_connection(prev, crop3_node, 0);
-    p.add_connection(crop0_node, con_node, 0);
-    p.add_connection(crop2_node, con_node, 0);
-    p.add_connection(crop3_node, con_node, 0);
-    std::string permute_id = input_id + "_pex";
-    std::vector<uint16_t> ord{0, 3, 2, 1};
-    auto permute = std::make_shared<cldnn::permute>(permute_id, input_info{concat_id}, ord);
-    auto& permute_node = p.get_or_create(permute);
-    p.add_intermediate(permute_node, node, con_node,  true);
-    auto set_implementation_and_output = [this, &p](program_node& node) {
-        node.get_output_layout(false);
-        select_implementation(p, node);
-        p.mark_if_constant(node);
-        node.recalc_output_layout(false);
-    };
-    set_implementation_and_output(crop0_node);
-    set_implementation_and_output(crop1_node);
-    set_implementation_and_output(crop2_node);
-    set_implementation_and_output(crop3_node);
-    set_implementation_and_output(con_node);
-    set_implementation_and_output(permute_node);
 }
 
 bool layout_optimizer::is_format_supported(program_node& node, format::type fmt) {
@@ -1553,37 +1427,38 @@ void layout_optimizer::set_optimization_attribute(optimization_attributes_type a
     }
 }
 
-void layout_optimizer::add_onednn_impls_optimization_attribute(const std::string& val) {
-    _optimization_attributes.onednn_impls.push_back(val);
-}
-
 void layout_optimizer::add_all_onednn_impls_optimization_attribute() {
-    _optimization_attributes.onednn_impls.push_back("concatenation");
-    _optimization_attributes.onednn_impls.push_back("convolution");
-    _optimization_attributes.onednn_impls.push_back("deconvolution");
-    _optimization_attributes.onednn_impls.push_back("fully_connected");
-    _optimization_attributes.onednn_impls.push_back("gemm");
-    _optimization_attributes.onednn_impls.push_back("lstm_seq");
-    _optimization_attributes.onednn_impls.push_back("pooling");
-    _optimization_attributes.onednn_impls.push_back("reduce");
-    _optimization_attributes.onednn_impls.push_back("reorder");
+    enable_onednn_for<concatenation>();
+    enable_onednn_for<convolution>();
+    enable_onednn_for<deconvolution>();
+    enable_onednn_for<fully_connected>();
+    enable_onednn_for<gemm>();
+    enable_onednn_for<lstm_seq>();
+    enable_onednn_for<pooling>();
+    enable_onednn_for<reduce>();
+    enable_onednn_for<reorder>();
 }
 
 bool layout_optimizer::has_all_enabled_onednn_impls_optimization_attribute() {
-    return contains_onednn_impls_optimization_attribute("concatenation") && contains_onednn_impls_optimization_attribute("convolution") && \
-        contains_onednn_impls_optimization_attribute("deconvolution") && contains_onednn_impls_optimization_attribute("fully_connected") && \
-        contains_onednn_impls_optimization_attribute("fully_connected") && contains_onednn_impls_optimization_attribute("gemm") && \
-        contains_onednn_impls_optimization_attribute("lstm_seq") && contains_onednn_impls_optimization_attribute("pooling") && \
-        contains_onednn_impls_optimization_attribute("reduce") && contains_onednn_impls_optimization_attribute("reorder");
+    return is_enabled_onednn_for<concatenation>() && is_enabled_onednn_for<convolution>() && is_enabled_onednn_for<deconvolution>() && \
+        is_enabled_onednn_for<fully_connected>() && is_enabled_onednn_for<gemm>() && is_enabled_onednn_for<lstm_seq>() && \
+        is_enabled_onednn_for<pooling>() && is_enabled_onednn_for<reduce>() && is_enabled_onednn_for<reorder>();
 }
-bool layout_optimizer::contains_onednn_impls_optimization_attribute(const std::string& val) {
-    auto it = std::find(_optimization_attributes.onednn_impls.begin(), _optimization_attributes.onednn_impls.end(), val);
-    return it != _optimization_attributes.onednn_impls.end();
+
+
+
+void layout_optimizer::set_value_onednn(primitive_type_id p_type, bool val) {
+    _optimization_attributes.onednn_impls[p_type] = val;
 }
 
 bool layout_optimizer::contains_onednn_impls_optimization_attribute(const program_node* node) {
-    auto node_name = prim_map_storage::instance().get_type_string(node->type());
-    return contains_onednn_impls_optimization_attribute(node_name);
+    auto type_id = node->type();
+    auto it = _optimization_attributes.onednn_impls.find(type_id);
+    if (it == _optimization_attributes.onednn_impls.end()) {
+        return false;
+    }
+
+    return it->second;
 }
 
 bool layout_optimizer::is_empty_onednn_impls_optimization_attribute() {
@@ -1594,7 +1469,7 @@ void layout_optimizer::clear_onednn_impls_optimization_attribute() {
     _optimization_attributes.onednn_impls.clear();
 }
 
-std::vector<std::string> layout_optimizer::get_all_onednn_impls_optimization_attribute() {
+std::map<primitive_type_id, bool> layout_optimizer::get_all_onednn_impls_optimization_attribute() {
     return _optimization_attributes.onednn_impls;
 }
 

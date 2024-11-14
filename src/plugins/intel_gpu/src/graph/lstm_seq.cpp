@@ -3,7 +3,6 @@
 //
 #include "lstm_seq_inst.h"
 #include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
@@ -16,8 +15,6 @@ layout lstm_seq_inst::calc_output_layout(lstm_seq_node const& node, kernel_impl_
 
 template<typename ShapeType>
 std::vector<layout> lstm_seq_inst::calc_output_layouts(lstm_seq_node const& node, kernel_impl_params const& impl_param) {
-    auto desc = impl_param.typed_desc<lstm_seq>();
-
     auto input_layout_x = impl_param.get_input_layout(0);
     auto input_pshape_x = input_layout_x.get_partial_shape();
     auto input_layout_hidden = impl_param.get_input_layout(1);

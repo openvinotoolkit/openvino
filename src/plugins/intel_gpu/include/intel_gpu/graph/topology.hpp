@@ -19,8 +19,6 @@ struct topology {
 public:
     using ptr = std::shared_ptr<topology>;
 
-    bool lstm_present = false;
-
     explicit topology(const topology_map& map) : _primitives(map) {}
     topology() : _primitives({}) {}
 
