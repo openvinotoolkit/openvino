@@ -639,47 +639,71 @@ TEST(SqueezeDynamicAxis, squeeze_dynamic_non_const_axes) {
     EXPECT_EQ(squeeze->get_allow_axis_skip(), allow_axis_skip);
 }
 
-TEST(SqueezeDynamicAxis, squeeze_dynamic_empty_axes) {
-    const auto p_shape = PartialShape{1, 2, -1, 4};
+TEST(SqueezeNoAxis, squeeze_v0_empty_axis) {
+    const auto param = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 2, -1, 4});
     const auto axes_node = make_shared<ov::op::v0::Constant>(element::u64, Shape{});
     const auto exp_shape = PartialShape{2, -1, 4};
-    const auto param = make_shared<ov::op::v0::Parameter>(element::f32, p_shape);
 
-    const auto squeeze0 = std::make_shared<op::v0::Squeeze>(param, axes_node);
-    const auto squeeze1 = std::make_shared<op::v15::Squeeze>(param, axes_node, true);
-    const auto squeeze2 = std::make_shared<op::v15::Squeeze>(param, axes_node, false);
+    const auto squeeze = std::make_shared<op::v0::Squeeze>(param, axes_node);
 
-    EXPECT_EQ(squeeze0->get_element_type(), element::f32);
-    EXPECT_EQ(squeeze0->get_output_partial_shape(0), exp_shape);
-
-    EXPECT_EQ(squeeze1->get_element_type(), element::f32);
-    EXPECT_EQ(squeeze1->get_output_partial_shape(0), exp_shape);
-    EXPECT_EQ(squeeze1->get_allow_axis_skip(), true);
-
-    EXPECT_EQ(squeeze2->get_element_type(), element::f32);
-    EXPECT_EQ(squeeze2->get_output_partial_shape(0), exp_shape);
-    EXPECT_EQ(squeeze2->get_allow_axis_skip(), false);
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape);
 }
-TEST(SqueezeDynamicAxis, squeeze_dynamic_no_axes) {
-    const auto p_shape = PartialShape{1, 2, -1, 4};
+
+TEST(SqueezeNoAxis, squeeze_v15_empty_axis_with_allow_axis_skip_set) {
+    const auto param = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 2, -1, 4});
     const auto axes_node = make_shared<ov::op::v0::Constant>(element::u64, Shape{});
+    const auto exp_shape = PartialShape{2, -1, 4};
+
+    const auto squeeze = std::make_shared<op::v15::Squeeze>(param, axes_node, true);
+
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape);
+    EXPECT_EQ(squeeze->get_allow_axis_skip(), true);
+}
+
+TEST(SqueezeNoAxis, squeeze_v15_empty_axis_with_allow_axis_skip_unset) {
+    const auto param = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 2, -1, 4});
+    const auto axes_node = make_shared<ov::op::v0::Constant>(element::u64, Shape{});
+    const auto exp_shape = PartialShape{2, -1, 4};
+
+    const auto squeeze = std::make_shared<op::v15::Squeeze>(param, axes_node, false);
+
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape);
+    EXPECT_EQ(squeeze->get_allow_axis_skip(), false);
+}
+
+TEST(SqueezeNoAxis, squeeze_v0_no_axis) {
     const auto exp_shape = PartialShape::dynamic();
-    const auto param = make_shared<ov::op::v0::Parameter>(element::f32, p_shape);
+    const auto param = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 2, -1, 4});
 
-    const auto squeeze0 = std::make_shared<op::v0::Squeeze>(param);
-    const auto squeeze1 = std::make_shared<op::v15::Squeeze>(param, true);
-    const auto squeeze2 = std::make_shared<op::v15::Squeeze>(param, false);
+    const auto squeeze = std::make_shared<op::v0::Squeeze>(param);
 
-    EXPECT_EQ(squeeze0->get_element_type(), element::f32);
-    EXPECT_EQ(squeeze0->get_output_partial_shape(0), exp_shape);
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape);
+}
 
-    EXPECT_EQ(squeeze1->get_element_type(), element::f32);
-    EXPECT_EQ(squeeze1->get_output_partial_shape(0), exp_shape);
-    EXPECT_EQ(squeeze1->get_allow_axis_skip(), true);
+TEST(SqueezeNoAxis, squeeze_v15_no_axis_with_allow_axis_skip_set) {
+    const auto param = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 2, -1, 4});
+    const auto exp_shape = PartialShape::dynamic();
 
-    EXPECT_EQ(squeeze2->get_element_type(), element::f32);
-    EXPECT_EQ(squeeze2->get_output_partial_shape(0), exp_shape);
-    EXPECT_EQ(squeeze2->get_allow_axis_skip(), false);
+    const auto squeeze = std::make_shared<op::v15::Squeeze>(param, true);
+
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape);
+    EXPECT_EQ(squeeze->get_allow_axis_skip(), true);
+}
+
+TEST(SqueezeNoAxis, squeeze_v15_no_axis_with_allow_axis_skip_unset) {
+    const auto param = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 2, -1, 4});
+    const auto exp_shape = PartialShape::dynamic();
+
+    const auto squeeze = std::make_shared<op::v15::Squeeze>(param, false);
+
+    EXPECT_EQ(squeeze->get_element_type(), element::f32);
+    EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape);
+    EXPECT_EQ(squeeze->get_allow_axis_skip(), false);
 }
 
 }  // namespace
