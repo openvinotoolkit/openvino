@@ -30,14 +30,17 @@ public:
     size_t size() const {
         return m_byte_size;
     }
+    void updateOffset(size_t offset) {
+        m_offset = offset;
+    }
     void* get_ptr(size_t offset) const {
         return m_aligned_buffer + offset;
     }
     void* get_ptr() {
-        return m_aligned_buffer;
+        return m_aligned_buffer + m_offset;
     }
     const void* get_ptr() const {
-        return m_aligned_buffer;
+        return m_aligned_buffer + m_offset;
     }
     template <typename T>
     T* get_ptr() {
@@ -61,6 +64,7 @@ protected:
     char* m_allocated_buffer;
     char* m_aligned_buffer;
     size_t m_byte_size;
+    size_t m_offset = 0;
 };
 
 template <>
