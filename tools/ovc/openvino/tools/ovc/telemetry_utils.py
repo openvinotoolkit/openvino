@@ -100,7 +100,7 @@ def arg_to_str(arg):
 def send_params_info(params: dict):
     """
     This function sends information about used command line parameters.
-    :param params: command line parameters dictionary.
+    :param params: command-line parameters dictionary.
     """
     t = tm.Telemetry()
     params_with_paths = get_params_with_paths_list()
