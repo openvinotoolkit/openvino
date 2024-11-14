@@ -53,6 +53,7 @@ public:
 protected:
     struct StaticBaseParams {
         StaticBaseParams(const element::Type& in0_dtype, const element::Type& in1_dtype, dnnl::impl::cpu::x64::cpu_isa_t primitive_isa);
+        virtual ~StaticBaseParams() = default;
 
         const dnnl_data_type_t dt_in0 {dnnl_f32}, dt_in1 {dnnl_f32};
         const dnnl::impl::cpu::x64::cpu_isa_t isa {dnnl::impl::cpu::x64::isa_undef};

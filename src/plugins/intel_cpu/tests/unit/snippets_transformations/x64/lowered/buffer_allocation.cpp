@@ -3,6 +3,7 @@
 //
 
 #include "openvino/opsets/opset.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/mark_loops.hpp"
@@ -255,6 +256,11 @@ TEST_P(MHAFP32BufferAllocationTest, BufferAllocationCPU) {
 }
 
 TEST_P(MHABF16AMXBufferAllocationTest, BufferAllocationCPU) {
+    // Scratchpad memory for AMX with CopyA (dynamic case) has allocation size which depends on element count in vector register.
+    // So the current `expected_allocation_size` in the test is targeted on real AVX512 platforms with vector registers with 512 bits.
+    // If the test infrastructure has AVX2, the allocation size will not be matched.
+    if (m_linear_ir.is_dynamic() && !with_cpu_x86_avx512_core())
+        GTEST_SKIP();
     Validate();
 }
 
