@@ -371,9 +371,20 @@ void Graph::Activate(const std::vector<MemoryPtr>& externalInputMemory,
 
     std::tie(m_executableGraphNodes, m_executableSyncNodesInds) = ExtractExecutableNodesAndSyncPoints(syncNodesInds, graphNodes);
 
-    status = hasDynNodes ? (parallel_get_max_threads() > 1 ? Status::ReadyDynamic : Status::ReadyDynamicSeq)
-        : Status::ReadyStatic;
-
+    if (hasDynNodes) {
+        status = Status::ReadyDynamic;
+        // Here we use the following heuristic: if the number of sync nodes is less than 10 times of the number of exec
+        // nodes, it does make sense to use Sequential dynamic shapes processing due to the high overheads on context
+        // switching when the dynamic shapes are being processed in parallel and there are a lot of sync points. Also
+        // this rule works for short graphs (usually subgraphs) when the amount of nodes is to low to process them in
+        // parallel.
+        const auto exec2sync = m_executableGraphNodes.size() / m_executableSyncNodesInds.size();
+        if (exec2sync < 10 || parallel_get_max_threads() < 2) {
+            status = Status::ReadyDynamicSeq;
+        }
+    } else {
+        status = Status::ReadyStatic;
+    }
     CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
 
@@ -1286,23 +1297,40 @@ public:
         if (origin_nested_levels < 2) {
             set_max_nested_levels(2);
         }
+        // In OpenMP, an exception that is thrown in a parallel region must be caught and handled in the same region by the same thread.
+        // Therefore, need to pass the error message and throw a new exception outside the parallel region.
+        const char* what = nullptr;
 
         #pragma omp parallel
         #pragma omp sections
         {
             #pragma omp section
             {
-                updateDynParams(startCounter, stopIndx);
+                try {
+                    updateDynParams(startCounter, stopIndx);
+                } catch (std::exception& e) {
+                    what = e.what();
+                } catch (...) {
+                    what = "[ CPU ] Could not update dynamic parameters.";
+                }
             }
             #pragma omp section
             {
-                updateShapes(startCounter, stopIndx);
+                try {
+                    updateShapes(startCounter, stopIndx);
+                } catch (std::exception& e) {
+                    what = e.what();
+                } catch (...) {
+                    what = "[ CPU ] Could not update shapes.";
+                }
             }
         }
 
         if (origin_nested_levels != 2) {
             set_max_nested_levels(origin_nested_levels);
         }
+
+        OPENVINO_ASSERT(what == nullptr, what);
     }
 };
 #endif

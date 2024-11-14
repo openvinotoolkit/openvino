@@ -116,44 +116,6 @@ inline std::ostream& operator<<(std::ostream& out, const CompilerType& fmt) {
 /**
  * @brief [Only for NPU Plugin]
  * Type: String. Default is "AUTO".
- * This option is added for enabling ELF backend.
- * Possible values: "AUTO", "YES", "NO".
- */
-
-enum class ElfCompilerBackend {
-    AUTO = 0,
-    NO = 1,
-    YES = 2,
-};
-
-/**
- * @brief Prints a string representation of ov::intel_npu::ElfCompilerBackend to a stream
- * @param out An output stream to send to
- * @param fmt A elf compiler backend value to print to a stream
- * @return A reference to the `out` stream
- * @note Configuration API v 2.0
- */
-inline std::ostream& operator<<(std::ostream& out, const ElfCompilerBackend& fmt) {
-    switch (fmt) {
-    case ElfCompilerBackend::AUTO: {
-        out << "AUTO";
-    } break;
-    case ElfCompilerBackend::NO: {
-        out << "NO";
-    } break;
-    case ElfCompilerBackend::YES: {
-        out << "YES";
-    } break;
-    default:
-        out << static_cast<uint32_t>(fmt);
-        break;
-    }
-    return out;
-}
-
-/**
- * @brief [Only for NPU Plugin]
- * Type: String. Default is "AUTO".
  * This option is added for enabling batching on plugin.
  * Possible values: "AUTO", "COMPILER", "PLUGIN".
  */
@@ -329,14 +291,6 @@ static constexpr ov::Property<std::string> dynamic_shape_to_static{"NPU_DYNAMIC_
 static constexpr ov::Property<ProfilingType> profiling_type{"NPU_PROFILING_TYPE"};
 
 /**
- * @brief
- * Type: String. Default is "AUTO".
- * Sets the format in which the compiled model is stored.
- * Possible values: "AUTO", "YES", "NO".
- */
-static constexpr ov::Property<ElfCompilerBackend> use_elf_compiler_backend{"NPU_USE_ELF_COMPILER_BACKEND"};
-
-/**
  * @brief [Only for NPU Plugin]
  * Type: String. Default is "AUTO".
  * This option is added for enabling batching on plugin, otherwise batching will be handled by compiler.
@@ -350,6 +304,13 @@ static constexpr ov::Property<BatchMode> batch_mode{"NPU_BATCH_MODE"};
  * This option allows to omit creating an executor and therefore to omit running an inference when its value is 0
  */
 static constexpr ov::Property<int64_t> create_executor{"NPU_CREATE_EXECUTOR"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: boolean, default is false
+ * This option allows to omit loading the weights until inference is created
+ */
+static constexpr ov::Property<bool> defer_weights_load{"NPU_DEFER_WEIGHTS_LOAD"};
 
 /**
  * @brief Read-only property to get the name of used backend

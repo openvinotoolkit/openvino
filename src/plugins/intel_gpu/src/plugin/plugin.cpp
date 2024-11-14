@@ -35,6 +35,7 @@
 #include "openvino/runtime/performance_heuristics.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/weights_path.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
@@ -330,8 +331,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
 
     cldnn::BinaryInputBuffer ib(model, context_impl->get_engine());
 
+    ov::CacheMode cache_mode;
+    ib >> cldnn::make_data(&cache_mode, sizeof(ov::CacheMode));
+
+    if (cache_mode != config.get_property(ov::cache_mode)) {
+        return nullptr;
+    }
+
+    std::string weights_path = config.get_property(ov::weights_path);
     if (config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE &&
-        config.get_property(ov::weights_path).empty()) {
+        !ov::util::validate_weights_path(weights_path)) {
         return nullptr;
     }
 
@@ -540,6 +549,7 @@ std::vector<ov::PropertyName> Plugin::get_caching_properties() const {
         ov::PropertyName{ov::hint::execution_mode.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::dynamic_quantization_group_size.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::hint::activations_scale_factor.name(), PropertyMutability::RW},
     };
 
     return caching_properties;
@@ -585,7 +595,9 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::enable_cpu_pinning.name(), PropertyMutability::RW},
         ov::PropertyName{ov::device::id.name(), PropertyMutability::RW},
-        ov::PropertyName{ov::hint::dynamic_quantization_group_size.name(), PropertyMutability::RW}
+        ov::PropertyName{ov::hint::dynamic_quantization_group_size.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::hint::activations_scale_factor.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::weights_path.name(), PropertyMutability::RO},
     };
 
     return supported_properties;

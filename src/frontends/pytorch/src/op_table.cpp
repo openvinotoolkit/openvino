@@ -331,12 +331,15 @@ OP_CONVERTER(translate_zeros_like_fx);
 const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
     return {
         {"aten::__and__", op::translate_bitwise_and},
+        {"aten::__iand__", op::inplace_op<op::translate_bitwise_and>},
         {"aten::__derive_index", op::translate_derive_index},
         {"aten::__getitem__", op::translate_getitem},
         {"aten::__not__", op::translate_1to1_match_1_inputs<opset10::LogicalNot>},
         {"aten::__or__", op::translate_bitwise_or},
+        {"aten::__ior__", op::inplace_op<op::translate_bitwise_or>},
         {"aten::__range_length", op::translate_range_length},
         {"aten::__xor__", op::translate_bitwise_xor},
+        {"aten::__ixor__", op::inplace_op<op::translate_bitwise_xor>},
         {"aten::_convolution", op::translate_convolution},
         {"aten::_convolution_mode", op::translate_convolution_mode},
         {"aten::_native_multi_head_attention", op::translate_native_multi_head_attention},

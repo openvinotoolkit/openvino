@@ -54,7 +54,9 @@ JitConstants DynamicQuantizeKernelRef::GetJitConstants(const dynamic_quantize_pa
     jit.AddConstant(MakeJitConstant("ASYMMETRIC_QUANTIZATION", params.use_asymmetric_quantization));
     jit.AddConstant(MakeJitConstant("GROUP_SCALES_WITH_ZP", params.combine_scales_and_zp));
 
-    const auto& group_sizes = params.group_sizes;
+    auto group_sizes = params.group_sizes;
+    group_sizes.resize(std::min((size_t)4, group_sizes.size()), 1);
+
     for (size_t i = 0; i < group_sizes.size(); i++) {
         jit.AddConstant(MakeJitConstant("GROUP_SIZE_DIM" + std::to_string(i), group_sizes[i]));
     }
@@ -68,7 +70,8 @@ CommonDispatchData DynamicQuantizeKernelRef::SetDefault(const dynamic_quantize_p
 
     OPENVINO_ASSERT(params.outputs[0].GetLayout() == DataLayout::bfyx, "It supports only 4d tensor");
 
-    const auto& group_sizes = params.group_sizes;
+    auto group_sizes = params.group_sizes;
+    group_sizes.resize(std::min((size_t)4, group_sizes.size()), 1);
     auto batch_size = group_sizes[0] == 1 ? params.outputs[0].Batch().v : 1;
     auto feature_size = group_sizes[1] == 1 ? params.outputs[0].Feature().v : 1;
     auto y_size = group_sizes[2] == 1 ? params.outputs[0].Y().v : 1;
@@ -132,10 +135,6 @@ KernelsPriority DynamicQuantizeKernelRef::GetKernelsPriority(const Params& /*par
 
 bool DynamicQuantizeKernelRef::Validate(const Params& params) const {
     if (!KernelBaseOpenCL::Validate(params))
-        return false;
-
-    const auto& prim_params = static_cast<const dynamic_quantize_params&>(params);
-    if (prim_params.group_sizes.size() != 4)
         return false;
 
     return true;

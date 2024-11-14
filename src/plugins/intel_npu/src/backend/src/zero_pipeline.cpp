@@ -11,26 +11,26 @@
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
-#include "zero_types.hpp"
+#include "intel_npu/utils/zero/zero_types.hpp"
 
 namespace intel_npu {
 
 Pipeline::Pipeline(const Config& config,
-                   const std::shared_ptr<const IExecutor>& executorPtr,
+                   const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
+                   const std::shared_ptr<IGraph>& graph,
                    zeroProfiling::ProfilingPool& profiling_pool,
                    zeroProfiling::ProfilingQuery& profiling_query,
-                   std::shared_ptr<zeroProfiling::NpuInferProfiling> npu_profiling,
+                   const std::shared_ptr<zeroProfiling::NpuInferProfiling>& npu_profiling,
                    const std::vector<std::vector<std::optional<TensorData>>>& inputTensorsData,
                    const std::vector<std::optional<TensorData>>& outputTensorsData,
-                   const size_t numberOfCommandLists)
+                   size_t numberOfCommandLists,
+                   uint32_t group_ordinal)
     : _config(config),
-      _executor(static_cast<const ZeroExecutor*>(executorPtr.get())),
-      _command_queue(*_executor->getCommandQueue()),
-      _event_pool{_executor->getInitStructs()->getDevice(),
-                  _executor->getInitStructs()->getContext(),
-                  numberOfCommandLists ? static_cast<uint32_t>(numberOfCommandLists) : 1,
-                  _config},
-      _npu_profiling(std::move(npu_profiling)),
+      _command_queue(graph->get_command_queue()),
+      _event_pool{initStructs->getDevice(),
+                  initStructs->getContext(),
+                  numberOfCommandLists ? static_cast<uint32_t>(numberOfCommandLists) : 1},
+      _npu_profiling(npu_profiling),
       _logger("Pipeline", _config.get<LOG_LEVEL>()) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::Pipeline::Pipeline");
     _logger.debug("Pipeline - initialize started");
@@ -45,38 +45,35 @@ Pipeline::Pipeline(const Config& config,
     _logger.debug("Pipeline - emplace_back _event_pool and _command_queue");
     for (size_t i = 0; i < numberOfCommandLists; i++) {
         _command_lists.emplace_back(
-            std::make_unique<CommandList>(_executor->getInitStructs()->getDevice(),
-                                          _executor->getInitStructs()->getContext(),
-                                          _executor->getInitStructs()->getGraphDdiTable(),
-                                          _config,
-                                          _executor->get_group_ordinal(),
-                                          _executor->getInitStructs()->getMutableCommandListVersion() ? true : false));
-        _events.emplace_back(std::make_unique<Event>(_event_pool.handle(), static_cast<uint32_t>(i), _config));
-        _fences.emplace_back(std::make_unique<Fence>(_command_queue, _config));
+            std::make_unique<CommandList>(initStructs,
+                                          group_ordinal,
+                                          initStructs->getMutableCommandListVersion() ? true : false));
+        _events.emplace_back(std::make_unique<Event>(_event_pool.handle(), static_cast<uint32_t>(i)));
+        _fences.emplace_back(std::make_unique<Fence>(*_command_queue));
     }
 
     for (size_t i = 0; i < numberOfCommandLists; i++) {
         size_t ioIndex = 0;
-        for (const auto& desc : _executor->get_input_descriptors()) {
+        for (const auto& desc : graph->get_input_descriptors()) {
             if (inputTensorsData.at(ioIndex).size() > 1) {
-                _executor->setArgumentValue(desc.idx, inputTensorsData.at(ioIndex).at(i)->mem);
+                graph->set_argument_value(desc.idx, inputTensorsData.at(ioIndex).at(i)->mem);
 
                 ++ioIndex;
                 continue;
             }
 
-            _executor->setArgumentValue(desc.idx,
-                                        static_cast<unsigned char*>(inputTensorsData.at(ioIndex).at(0)->mem) +
-                                            (i * inputTensorsData.at(ioIndex).at(0)->size) / numberOfCommandLists);
+            graph->set_argument_value(desc.idx,
+                                      static_cast<unsigned char*>(inputTensorsData.at(ioIndex).at(0)->mem) +
+                                          (i * inputTensorsData.at(ioIndex).at(0)->size) / numberOfCommandLists);
 
             ++ioIndex;
         }
 
         ioIndex = 0;
-        for (const auto& desc : _executor->get_output_descriptors()) {
-            _executor->setArgumentValue(desc.idx,
-                                        static_cast<unsigned char*>(outputTensorsData.at(ioIndex)->mem) +
-                                            (i * outputTensorsData.at(ioIndex)->size) / numberOfCommandLists);
+        for (const auto& desc : graph->get_output_descriptors()) {
+            graph->set_argument_value(desc.idx,
+                                      static_cast<unsigned char*>(outputTensorsData.at(ioIndex)->mem) +
+                                          (i * outputTensorsData.at(ioIndex)->size) / numberOfCommandLists);
             ++ioIndex;
         }
 
@@ -86,7 +83,8 @@ Pipeline::Pipeline(const Config& config,
             _command_lists.at(i)->appendNpuTimestamp(reinterpret_cast<uint64_t*>(_npu_profiling->npu_ts_infer_start));
         }
 
-        _command_lists.at(i)->appendGraphExecute(_executor->graph(), profiling_query.getHandle());
+        _command_lists.at(i)->appendGraphExecute(static_cast<ze_graph_handle_t>(graph->get_handle()),
+                                                 profiling_query.getHandle());
 
         /// append timestamp command if feature was activated
         if (_npu_profiling != nullptr) {
@@ -108,11 +106,11 @@ void Pipeline::push() {
     _logger.debug("Pipeline - push() started");
 
     for (size_t i = 0; i < _command_lists.size(); ++i) {
-        OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
+        OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
         if (sync_output_with_fences_) {
-            _command_queue.executeCommandList(*_command_lists.at(i), *_fences.at(i));
+            _command_queue->executeCommandList(*_command_lists.at(i), *_fences.at(i));
         } else {
-            _command_queue.executeCommandList(*_command_lists.at(i));
+            _command_queue->executeCommandList(*_command_lists.at(i));
         }
     }
 
@@ -121,7 +119,7 @@ void Pipeline::push() {
 
 void Pipeline::pull() {
     _logger.debug("Pipeline - pull() started");
-    OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_PULL, itt::domains::LevelZeroBackend, "Pipeline", "pull");
+    OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PULL, itt::domains::LevelZeroBackend, "Pipeline", "pull");
 
     for (size_t i = 0; i < _command_lists.size(); ++i) {
         if (sync_output_with_fences_) {
