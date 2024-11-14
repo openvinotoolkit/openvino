@@ -138,10 +138,9 @@ std::string rankToLegacyLayoutString(const size_t rank) {
 
 namespace intel_npu {
 
-DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct, ov::intel_npu::CompilerType compilerType)
+DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
     : _zeroInitStruct(zeroInitStruct),
-      _logger("DriverCompilerAdapter", Logger::global().level()),
-      ICompilerAdapter(compilerType) {
+      _logger("DriverCompilerAdapter", Logger::global().level()) {
     _logger.debug("initialize DriverCompilerAdapter start");
 
     uint32_t graphExtVersion = _zeroInitStruct->getGraphDdiTable().version();
