@@ -38,51 +38,20 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-typedef std::tuple<std::string,                 // Device name
-                   ov::AnyMap                   // Config
-                   >
-    CompileAndModelCachingParams;
+bool containsCacheStatus(const std::string& str, const std::string cmpstr);   
+void checkCacheDirectory(); 
 
-
-inline std::shared_ptr<ov::Model> createModel1() {
+inline std::shared_ptr<ov::Model> getConstantGraph() {
+    auto now = std::chrono::system_clock::now();
+    auto timestamp = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
+    std::printf("=========print now timestamp #%ld#\n", timestamp);
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, 3, 2, 2});
     param->set_friendly_name("input");
     auto const_value = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1, 1, 1, 1}, {1});
     const_value->set_friendly_name("const_val");
     auto add = std::make_shared<ov::op::v1::Add>(param, const_value);
-    add->set_friendly_name("add");
+    add->set_friendly_name("add" + std::to_string(timestamp));
     return std::make_shared<ov::Model>(ov::OutputVector{add->output(0)}, ov::ParameterVector{param});
-}
-
-inline std::shared_ptr<ov::Model> createModel2() {
-    auto data1 = std::make_shared<op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 2, 2});
-    data1->set_friendly_name("input1");
-    data1->get_output_tensor(0).set_names({"tensor_input1"});
-    auto op = std::make_shared<op::v0::Relu>(data1);
-    op->set_friendly_name("Relu");
-    op->get_output_tensor(0).set_names({"tensor_Relu"});
-    auto res = std::make_shared<op::v0::Result>(op);
-    res->set_friendly_name("Result1");
-    res->get_output_tensor(0).set_names({"tensor_output1"});
-    return std::make_shared<Model>(ResultVector{res}, ParameterVector{data1});
-}
-
-inline std::shared_ptr<ov::Model> createModel3() {
-    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, 3, 2, 2});
-    param->set_friendly_name("input");
-    auto const_value = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1, 1, 1, 1}, {1});
-    const_value->set_friendly_name("const_val");
-    auto add = std::make_shared<ov::op::v1::Add>(param, const_value);
-    add->set_friendly_name("add");
-    auto subtract = std::make_shared<ov::op::v1::Subtract>(add, const_value);
-    subtract->set_friendly_name("sub");
-    auto reshape_val = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
-    reshape_val->set_friendly_name("reshape_val");
-    auto reshape = std::make_shared<ov::op::v1::Reshape>(subtract, reshape_val, true);
-    reshape->set_friendly_name("reshape");
-    auto result = std::make_shared<ov::op::v0::Result>(reshape);
-    result->set_friendly_name("res");
-    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 }
 
 bool containsCacheStatus(const std::string& str, const std::string cmpstr) {  
@@ -113,13 +82,18 @@ void checkCacheDirectory() {
     }
 #endif
 
-    std::printf("======check cache path: #%s#\n", path.c_str());
+    std::printf("======check cache path: #%s#\n", path.string().c_str());
     if (std::filesystem::exists(path) && std::filesystem::is_directory(path)) {
         for (const auto& entry : std::filesystem::directory_iterator(path)) {
-            std::printf("  ====cache content: #%s# \n", entry.path().c_str());
+            std::printf("  ====cache content: #%s# \n", entry.path().string().c_str());
         }
     }
 }
+
+typedef std::tuple<std::string,                 // Device name
+                   ov::AnyMap                   // Config
+                   >
+    CompileAndModelCachingParams;
 
 class CompileAndDriverCaching : public testing::WithParamInterface<CompileAndModelCachingParams>,
                                 public OVPluginTestBase {
@@ -149,6 +123,13 @@ public:
         if (!initStruct) {
             GTEST_SKIP() << "ZeroInitStructsHolder init failed, ZeroInitStructsHolder is a nullptr";
         }
+
+        ze_graph_dditable_ext_decorator& graph_ddi_table_ext = initStruct->getGraphDdiTable();
+        uint32_t graphDdiExtVersion = graph_ddi_table_ext.version();
+        if (graphDdiExtVersion < ZE_GRAPH_EXT_VERSION_1_5) {
+            GTEST_SKIP() << "Skipping test for Driver version less than 1.5, current driver version: " << graphDdiExtVersion;
+        }
+        
         APIBaseTest::SetUp();
     }
 
@@ -172,10 +153,11 @@ protected:
 TEST_P(CompileAndDriverCaching, CompilationCacheWithEmptyConfig) {
     checkCacheDirectory();
     ze_graph_dditable_ext_decorator& graph_ddi_table_ext = initStruct->getGraphDdiTable();
-    std::string driverLogInitContent = ::intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext);
-
+    std::string driverLogInitContent = ::intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext);//this line not used.
+    std::printf("==[1.1][EmptyConfig] driver log content : #%s#\n", driverLogInitContent.c_str());
+    
     ov::CompiledModel execNet;
-    function = createModel1();
+    function = getConstantGraph();
 
     //first compilation.
     auto startFirst = std::chrono::high_resolution_clock::now(); 
@@ -185,8 +167,10 @@ TEST_P(CompileAndDriverCaching, CompilationCacheWithEmptyConfig) {
 
     std::string firstCompilationDriverLog = ::intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext);
     //To avoid problems with repeatedly calling functiontest
-    EXPECT_TRUE(containsCacheStatus(firstCompilationDriverLog, "cache_status_t::stored") || containsCacheStatus(firstCompilationDriverLog, "cache_status_t::found"));
+    std::printf("==[1.2][EmptyConfig] driver log content : #%s#\n", firstCompilationDriverLog.c_str());
+    EXPECT_TRUE(containsCacheStatus(firstCompilationDriverLog, "cache_status_t::stored"));
 
+    checkCacheDirectory();
     //second compilation
     auto startSecond = std::chrono::high_resolution_clock::now(); 
     OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
@@ -194,7 +178,11 @@ TEST_P(CompileAndDriverCaching, CompilationCacheWithEmptyConfig) {
     std::chrono::duration<double> durationSecond = endSecond - startSecond;
 
     std::string secondCompilationDriverLog = ::intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext);
-    EXPECT_TRUE(containsCacheStatus(secondCompilationDriverLog, "cache_status_t::stored") || containsCacheStatus(secondCompilationDriverLog, "cache_status_t::found"));
+    std::printf("==[1.3][EmptyConfig] driver log content : #%s#\n", secondCompilationDriverLog.c_str());
+    EXPECT_TRUE(containsCacheStatus(secondCompilationDriverLog, "cache_status_t::found"));
+
+    std::printf("==[1.4]testsuit time (1): %f, (2): %f\n", durationFirst.count(), durationSecond.count());
+    checkCacheDirectory();
 }
 
 TEST_P(CompileAndDriverCaching, CompilationCacheWithOVCacheConfig) {
@@ -203,11 +191,12 @@ TEST_P(CompileAndDriverCaching, CompilationCacheWithOVCacheConfig) {
     
     //Check the initial state if this testp is called separately
     std::string driverLogInitContent = ::intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext);
+    std::printf("==[2.1][OVCacheConfig] driver log content : #%s#\n", driverLogInitContent.c_str());
 
     configuration[ov::cache_dir.name()] = "./testCacheDir";
     m_cachedir = configuration[ov::cache_dir.name()].as<std::string>();
     ov::CompiledModel execNet;
-    function = createModel2();
+    function = getConstantGraph();
 
     //first compilation will long and will generate the model cache.
     auto startFirst = std::chrono::high_resolution_clock::now(); 
@@ -216,8 +205,10 @@ TEST_P(CompileAndDriverCaching, CompilationCacheWithOVCacheConfig) {
     std::chrono::duration<double> durationFirst = endFirst - startFirst;
 
     std::string firstCompilationDriverLog = ::intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext);
+    std::printf("==[2.2][OVCacheConfig] driver log content : #%s#\n", firstCompilationDriverLog.c_str());
     EXPECT_TRUE(firstCompilationDriverLog == driverLogInitContent);
 
+    checkCacheDirectory();
     //second  compilation
     auto startSecond = std::chrono::high_resolution_clock::now(); 
     OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
@@ -225,7 +216,11 @@ TEST_P(CompileAndDriverCaching, CompilationCacheWithOVCacheConfig) {
     std::chrono::duration<double> durationSecond = endSecond - startSecond;
 
     std::string secondCompilationDriverLog = ::intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext);
+    std::printf("==[2.3][OVCacheConfig] driver log content : #%s#\n", secondCompilationDriverLog.c_str());
     EXPECT_TRUE(secondCompilationDriverLog == driverLogInitContent);
+
+    std::printf("==[2.4]testsuit time (1): %f, (2): %f\n", durationFirst.count(), durationSecond.count());
+    checkCacheDirectory();
 }
 
 TEST_P(CompileAndDriverCaching, CompilationCacheWithBypassConfig) {
@@ -233,10 +228,11 @@ TEST_P(CompileAndDriverCaching, CompilationCacheWithBypassConfig) {
     ze_graph_dditable_ext_decorator& graph_ddi_table_ext = initStruct->getGraphDdiTable();
     //Check the initial state if this testp is called separately
     std::string driverLogInitContent = ::intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext);
+    std::printf("==[3.1][bypassConfig] driver log content1 : #%s#\n", driverLogInitContent.c_str());
 
     configuration[ov::intel_npu::bypass_umd_caching.name()] = true;
     ov::CompiledModel execNet;
-    function = createModel3();
+    function = getConstantGraph();
 
     //first compilation will long and will generate the model cache.
     auto startFirst = std::chrono::high_resolution_clock::now(); 
@@ -245,8 +241,10 @@ TEST_P(CompileAndDriverCaching, CompilationCacheWithBypassConfig) {
     std::chrono::duration<double> durationFirst = endFirst - startFirst;
 
     std::string firstCompilationDriverLog = ::intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext);
+    std::printf("==[3.2][bypassConfig] driver log content1 : #%s#\n", firstCompilationDriverLog.c_str());
     EXPECT_TRUE(firstCompilationDriverLog == driverLogInitContent);
 
+    checkCacheDirectory();
     //second compilation
     auto startSecond = std::chrono::high_resolution_clock::now();
     OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
@@ -254,7 +252,11 @@ TEST_P(CompileAndDriverCaching, CompilationCacheWithBypassConfig) {
     std::chrono::duration<double> durationSecond = endSecond - startSecond;
 
     std::string secondCompilationDriverLog = ::intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext);
+    std::printf("==[3.3][bypassConfig] driver log content1 : #%s#\n", secondCompilationDriverLog.c_str());
     EXPECT_TRUE(secondCompilationDriverLog == driverLogInitContent);
+
+    std::printf("==[3.4]testsuit time (1): %f, (2): %f\n", durationFirst.count(), durationSecond.count());
+    checkCacheDirectory();
 }
 
 }  // namespace behavior
