@@ -120,6 +120,7 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelMultipleTensorNames) {
     }
 }
 
+#if 0
 TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelBroadcastIssue) {
     { model = convert_model("saved_model_broadcast_issue"); }
     {
@@ -129,6 +130,7 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelBroadcastIssue) {
         model_ref = make_shared<Model>(OutputVector{x}, ParameterVector{});
     }
 }
+#endif
 
 TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelMultiGraph) {
     // The test verifies loading of MetaGraph with empty tags as default

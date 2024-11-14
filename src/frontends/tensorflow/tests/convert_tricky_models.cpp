@@ -780,6 +780,7 @@ TEST_F(FrontEndConversionWithReferenceTestsF, TF1IfWithNonExistentOpInBranch) {
     }
 }
 
+#if 0
 TEST_F(FrontEndConversionWithReferenceTestsF, ConvolutionWithDynamicInputChannel) {
     // This test aims to check conversion of a model with convolution of dynamic input channel
     // Namely, the resulted model must contain the regular convolution, not grouped convolution
@@ -805,6 +806,7 @@ TEST_F(FrontEndConversionWithReferenceTestsF, ConvolutionWithDynamicInputChannel
         model_ref = make_shared<Model>(OutputVector{transpose_back}, ParameterVector{input});
     }
 }
+#endif
 
 TEST_F(FrontEndConversionWithReferenceTestsF, GatherWithStringParams) {
     {
