@@ -4,7 +4,7 @@
 
 #include "acl_lowp_fullyconnected.hpp"
 
-#include "acl_weights.hpp"
+#include "acl_fullyconnected_utils.hpp"
 #include "arm_compute/runtime/NEON/functions/NEGEMMLowpMatrixMultiplyCore.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "nodes/common/cpu_convert.h"

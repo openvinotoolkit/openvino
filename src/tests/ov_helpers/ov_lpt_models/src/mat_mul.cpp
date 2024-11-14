@@ -79,7 +79,7 @@ std::shared_ptr<ov::Model> MatMulFunction::getOriginal(
         const bool transpose1,
         const bool transpose2,
         const bool signedOnWeights,
-        const bool perChannelWeights,
+        const bool perChannelWeightsDequantization,
         const bool relu,
         const bool fq) {
     const auto paramNode = std::make_shared<ov::opset1::Parameter>(precision, inputShape1);
@@ -103,7 +103,7 @@ std::shared_ptr<ov::Model> MatMulFunction::getOriginal(
                 inputShape2.to_shape(),
                 generate_values<float>(inputShape2.to_shape(), 10.f));
 
-        parentOnWeights = perChannelWeights ?
+        parentOnWeights = perChannelWeightsDequantization ?
                           ov::test::utils::make_fake_quantize(
                                   weightsConst, precision, 256ul,
                                   Shape{channel, 1},
