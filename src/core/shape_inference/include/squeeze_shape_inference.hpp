@@ -18,12 +18,11 @@ template <class T,
           class Squeeze,
           typename std::enable_if<std::is_same<Squeeze, ov::op::v0::Squeeze>::value ||
                                   std::is_same<Squeeze, ov::op::v15::Squeeze>::value>::type* = nullptr>
-bool validate_input_and_try_set_output_shape(const Squeeze* op,
-                                             ov::optional<std::set<int64_t>>& unique_axes,
-                                             const std::vector<T>& input_shapes,
-                                             const ITensorAccessor& ta,
-                                             TRShape& output_shape,
-                                             Lambda output_shape_for_squeezable_dim) {
+ov::optional<std::vector<TRShape>> validate_input_and_try_get_output_shape(const Squeeze* op,
+                                                                           ov::optional<std::set<int64_t>>& unique_axes,
+                                                                           const std::vector<T>& input_shapes,
+                                                                           const ITensorAccessor& ta,
+                                                                           Lambda output_shape_for_squeezable_dim) {
     using DimType = typename T::value_type;
 
     OPENVINO_ASSERT(!input_shapes.empty());
@@ -53,12 +52,13 @@ bool validate_input_and_try_set_output_shape(const Squeeze* op,
                     std::any_of(arg_shape.cbegin(), arg_shape.cend(), [](const DimType& dim) {
                         return dim.compatible(1);
                     });
+                auto output_shapes = std::vector<TRShape>(1);
                 if (has_squeezable_dim) {
-                    output_shape = output_shape_for_squeezable_dim();
+                    output_shapes[0] = output_shape_for_squeezable_dim();
                 } else {
-                    output_shape = arg_shape;
+                    output_shapes[0] = arg_shape;
                 }
-                return true;
+                return output_shapes;
             }
         }
     } else {
@@ -66,14 +66,17 @@ bool validate_input_and_try_set_output_shape(const Squeeze* op,
         NODE_VALIDATION_CHECK(op, false);
     }
 
-    return false;
+    return {};
 }
 
 template <class T, class TRShape = result_shape_t<T>>
-void set_output_shape(const ov::optional<std::set<int64_t>>& unique_axes, const T& arg_shape, TRShape& output_shape) {
+std::vector<TRShape> get_output_shape(const ov::optional<std::set<int64_t>>& unique_axes, const T& arg_shape) {
     using DimType = typename T::value_type;
 
     const auto& arg_rank = arg_shape.rank();
+
+    auto output_shapes = std::vector<TRShape>(1);
+    auto& output_shape = output_shapes[0];
 
     if (arg_rank.is_static() && !!unique_axes) {
         output_shape.resize(0);
@@ -116,6 +119,8 @@ void set_output_shape(const ov::optional<std::set<int64_t>>& unique_axes, const 
     } else {
         output_shape = PartialShape::dynamic();
     }
+
+    return output_shapes;
 }
 }  // namespace util
 namespace v0 {
@@ -134,26 +139,22 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
                                  const ITensorAccessor& ta = make_tensor_accessor()) {
     const auto& arg_shape = input_shapes[0];
     const auto& arg_rank = arg_shape.rank();
-    auto output_shapes = std::vector<TRShape>(1);
-    auto& output_shape = output_shapes[0];
     ov::optional<std::set<int64_t>> unique_axes{};
 
     auto output_shape_for_squeezable_dim = [&]() {
         return PartialShape::dynamic(arg_rank.get_length() - 1);
     };
 
-    if (ov::op::util::validate_input_and_try_set_output_shape(op,
-                                                              unique_axes,
-                                                              input_shapes,
-                                                              ta,
-                                                              output_shape,
-                                                              output_shape_for_squeezable_dim)) {
-        return output_shapes;
+    if (const auto& output_shapes =
+            ov::op::util::validate_input_and_try_get_output_shape(op,
+                                                                  unique_axes,
+                                                                  input_shapes,
+                                                                  ta,
+                                                                  output_shape_for_squeezable_dim)) {
+        return *output_shapes;
+    } else {
+        return ov::op::util::get_output_shape(unique_axes, arg_shape);
     }
-
-    ov::op::util::set_output_shape(unique_axes, arg_shape, output_shape);
-
-    return output_shapes;
 }
 }  // namespace v0
 
@@ -188,30 +189,24 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
                                  const ITensorAccessor& ta = make_tensor_accessor()) {
     const auto& arg_shape = input_shapes[0];
     const auto& arg_rank = arg_shape.rank();
-    auto output_shapes = std::vector<TRShape>(1);
-    auto& output_shape = output_shapes[0];
-
     ov::optional<std::set<int64_t>> unique_axes{};
 
     auto output_shape_for_squeezable_dim = [&]() {
         return PartialShape::dynamic();
     };
 
-    if (ov::op::util::validate_input_and_try_set_output_shape(op,
-                                                              unique_axes,
-                                                              input_shapes,
-                                                              ta,
-                                                              output_shape,
-                                                              output_shape_for_squeezable_dim)) {
-        return output_shapes;
-    }
-
-    if (!arg_rank.is_static() || !unique_axes || apply_allow_axis_skip(op, unique_axes, arg_shape)) {
-        output_shape = PartialShape::dynamic();
+    if (const auto& output_shapes =
+            ov::op::util::validate_input_and_try_get_output_shape(op,
+                                                                  unique_axes,
+                                                                  input_shapes,
+                                                                  ta,
+                                                                  output_shape_for_squeezable_dim)) {
+        return *output_shapes;
+    } else if (!arg_rank.is_static() || !unique_axes || apply_allow_axis_skip(op, unique_axes, arg_shape)) {
+        return {PartialShape::dynamic()};
     } else {
-        ov::op::util::set_output_shape(unique_axes, arg_shape, output_shape);
+        return ov::op::util::get_output_shape(unique_axes, arg_shape);
     }
-    return output_shapes;
 }
 }  // namespace v15
 }  // namespace op
