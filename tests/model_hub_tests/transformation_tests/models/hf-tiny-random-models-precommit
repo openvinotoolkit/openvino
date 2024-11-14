@@ -2,7 +2,7 @@ hf-internal-testing/tiny-random-LlamaForCausalLM,https://huggingface.co/trl-inte
 hf-internal-testing/tiny-random-CohereForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-CohereForCausalLM
 hf-internal-testing/tiny-random-GPTJForCausalLM,https://huggingface.co/trl-internal-testing/tiny-random-GPTJForCausalLM
 hf-internal-testing/tiny-random-GPTNeoForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-GPTNeoForCausalLM,xfail,CVS-157416
-hf-internal-testing/tiny-random-GPTNeoXForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-GPTNeoXForCausalLMk
+hf-internal-testing/tiny-random-GPTNeoXForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-GPTNeoXForCausalLM
 hf-internal-testing/tiny-random-MistralForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-MistralForCausalLM
 hf-internal-testing/tiny-random-CodeGenForCausalLM,https://huggingface.co/hf-internal-testing/tiny-random-CodeGenForCausalLM
 hf-internal-testing/Mixtral-tiny,https://huggingface.co/hf-internal-testing/Mixtral-tiny
