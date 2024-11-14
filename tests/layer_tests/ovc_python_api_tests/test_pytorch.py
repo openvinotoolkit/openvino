@@ -365,6 +365,7 @@ def create_pytorch_jit_script_function(tmp_dir):
     ref_model = make_ref_pt_model_two_inputs(inp_shape)
     return scripted_fn, ref_model, {'input': [(inp_shape, Type.f32), (inp_shape, Type.f32)]}
 
+
 def create_pytorch_nn_module_layout_list(tmp_dir):
     from openvino.runtime import Layout
     pt_model = make_pt_model_two_inputs()
@@ -545,6 +546,8 @@ def create_pytorch_nn_module_scale_list_compression_enabled(tmp_dir):
     return pt_model, ref_model, {'input': [(shape, np.float32), (shape, np.float32)],
                                  'scale_values': [[1, 1, 1], [1, 1, 1]],
                                  'compress_to_fp16': True, 'use_convert_model_from_mo': True}
+
+
 def create_pytorch_nn_module_with_compressed_constants(tmp_dir):
     import torch
 
