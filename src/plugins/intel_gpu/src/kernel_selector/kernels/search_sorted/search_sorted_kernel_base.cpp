@@ -40,7 +40,19 @@ KernelsData SearchSortedKernelBase::GetCommonKernelsData(const Params& params) c
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = k_data.kernels[0];
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, "", false, false, 2);
+    FillCLKernelData(kernel,
+                     dispatchData,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entry_point,
+                     "",
+                     false,
+                     false,
+                     2,
+                     GetFusedPrimitiveInputsCount(params),
+                     1,
+                     prim_params.outputs[0].is_dynamic());
 
     return {k_data};
 }
