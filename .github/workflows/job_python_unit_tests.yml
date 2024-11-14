@@ -112,6 +112,11 @@ jobs:
           # layer test requirements
           python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
 
+      - name: Install ONNX tests dependencies
+        run: |
+          #  ONNX tests requirements
+          python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements_onnx
+
       #
       # Tests
       #
