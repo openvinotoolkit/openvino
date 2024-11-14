@@ -148,6 +148,7 @@ void CumuSchedule::init() {
         // initialize containers before run async task, if not initialized, it will hang during infer
         m_idle_worker_requests[device.device_name];
         m_worker_requests[device.device_name];
+        m_worker_requests_conds[device.device_name];
         m_infer_pipeline_tasks_device_specific[device.device_name] = nullptr;
     }
     // load devices other than CPU first

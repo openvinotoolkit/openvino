@@ -58,11 +58,13 @@ bool Schedule::run_pipeline_task(ov::threading::Task& pipeline_task,
                                  std::mutex& worker_infer_mutex) {
     WorkerInferRequest* worker_request_ptr = nullptr;
     std::pair<int, WorkerInferRequest*> worker;
-    std::unique_lock<std::mutex> lck(worker_infer_mutex);
-    if (!idle_workerrequests.try_pop(worker)) {
-        idle_workerrequests_cv.wait(lck, [&idle_workerrequests, &worker] {
-            return idle_workerrequests.try_pop(worker);
-        });
+    {
+        std::unique_lock<std::mutex> lck(worker_infer_mutex);
+        if (!idle_workerrequests.try_pop(worker)) {
+            idle_workerrequests_cv.wait(lck, [&idle_workerrequests, &worker] {
+                return idle_workerrequests.try_pop(worker);
+            });
+        }
     }
     if (worker.second) {
         worker_request_ptr = worker.second;
