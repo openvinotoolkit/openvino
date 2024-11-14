@@ -18,7 +18,7 @@ ov::pass::Gelu7Downgrade::Gelu7Downgrade() {
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
-        auto gelu_node = std::dynamic_pointer_cast<ov::op::v7::Gelu>(pattern_to_output.at(gelu).get_node_shared_ptr());
+        auto gelu_node = ov::as_type_ptr<ov::op::v7::Gelu>(pattern_to_output.at(gelu).get_node_shared_ptr());
 
         if (gelu_node == nullptr || transformation_callback(gelu_node)) {
             return false;

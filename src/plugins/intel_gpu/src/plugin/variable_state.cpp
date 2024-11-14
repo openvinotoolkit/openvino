@@ -70,6 +70,11 @@ void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
     m_layout.set_partial_shape(src_shape);
     update_device_buffer();
 
+    if (actual_size == 0) {
+        set();
+        return;
+    }
+
     // check whether the src tensor is padded
     std::vector<size_t> src_stride_no_pad(src_rank, 1);
     std::vector<int32_t> upper_pad(src_rank, 0);
@@ -118,6 +123,12 @@ ov::element::Type VariableState::get_user_specified_type() const {
 }
 
 ov::SoPtr<ov::ITensor> VariableState::get_state() const {
+    if (m_memory == nullptr) {
+        const auto& pshape = m_layout.get_partial_shape();
+        const auto& shape = get_tensor_shape(pshape);
+        return m_context->create_host_tensor(get_user_specified_type(), shape);
+    }
+
     auto tensor = m_context->create_host_tensor(get_user_specified_type(), m_memory->get_layout().get_shape());
 
     convert_and_copy(m_memory, tensor._ptr.get(), m_context->get_engine().get_service_stream());

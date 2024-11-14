@@ -4,6 +4,7 @@ Hello NPU
 Working with NPU in OpenVINO™
 -----------------------------
 
+
 **Table of contents:**
 
 
@@ -47,6 +48,7 @@ Working with NPU in OpenVINO™
 
 -  `Limitations <#limitations>`__
 -  `Conclusion <#conclusion>`__
+
 
 This is a self-contained example that relies solely on its own code.
 
@@ -144,9 +146,12 @@ To get the value of a property, such as the device name, we can use the
 
 .. code:: ipython3
 
+    import openvino.properties as props
+
+
     device = "NPU"
 
-    core.get_property(device, "FULL_DEVICE_NAME")
+    core.get_property(device, props.device.full_name)
 
 
 
@@ -161,13 +166,13 @@ Each device also has a specific property called
 ``SUPPORTED_PROPERTIES``, that enables viewing all the available
 properties in the device. We can check the value for each property by
 simply looping through the dictionary returned by
-``core.get_property("NPU", "SUPPORTED_PROPERTIES")`` and then querying
-for that property.
+``core.get_property("NPU", props.supported_properties)`` and then
+querying for that property.
 
 .. code:: ipython3
 
     print(f"{device} SUPPORTED_PROPERTIES:\n")
-    supported_properties = core.get_property(device, "SUPPORTED_PROPERTIES")
+    supported_properties = core.get_property(device, props.supported_properties)
     indent = len(max(supported_properties, key=len))
 
     for property_key in supported_properties:
@@ -247,6 +252,7 @@ for details how to convert pytorch model.
     if not model_path.exists():
         hf_hub.snapshot_download("katuni4ka/resnet50_fp16", local_dir=model_path.parent)
         print("IR model saved to {}".format(model_path))
+        model = core.read_model(model_path)
     else:
         print("Read IR model from {}".format(model_path))
         model = core.read_model(model_path)
@@ -373,7 +379,7 @@ as follow
     core = ov.Core()
 
     # Set cache folder
-    core.set_property({"CACHE_DIR": cache_folder})
+    core.set_property({props.cache_dir(): cache_folder})
 
     # Compile the model
     model = core.read_model(model=model_path)
@@ -384,7 +390,7 @@ as follow
     core = ov.Core()
 
     # Set cache folder
-    core.set_property({"CACHE_DIR": cache_folder})
+    core.set_property({props.cache_dir(): cache_folder})
 
     # Compile the model as before
     model = core.read_model(model=model_path)
@@ -432,24 +438,28 @@ optimizes for fast inference times while the “THROUGHPUT” performance
 hint optimizes for high overall bandwidth or FPS.
 
 To use the “LATENCY” performance hint, add
-``{"PERFORMANCE_HINT": "LATENCY"}`` when compiling the model as shown
-below. For NPU, this automatically minimizes the batch size and number
-of parallel streams such that all of the compute resources can focus on
-completing a single inference as fast as possible.
+``{hints.performance_mode(): hints.PerformanceMode.LATENCY}`` when
+compiling the model as shown below. For NPU, this automatically
+minimizes the batch size and number of parallel streams such that all of
+the compute resources can focus on completing a single inference as fast
+as possible.
 
 .. code:: ipython3
 
-    compiled_model = core.compile_model(model, device, {"PERFORMANCE_HINT": "LATENCY"})
+    import openvino.properties.hint as hints
+
+
+    compiled_model = core.compile_model(model, device, {hints.performance_mode(): hints.PerformanceMode.LATENCY})
 
 To use the “THROUGHPUT” performance hint, add
-``{"PERFORMANCE_HINT": "THROUGHPUT"}`` when compiling the model. For
-NPUs, this creates multiple processing streams to efficiently utilize
-all the execution cores and optimizes the batch size to fill the
-available memory.
+``{hints.performance_mode(): hints.PerformanceMode.THROUGHPUT}`` when
+compiling the model. For NPUs, this creates multiple processing streams
+to efficiently utilize all the execution cores and optimizes the batch
+size to fill the available memory.
 
 .. code:: ipython3
 
-    compiled_model = core.compile_model(model, device, {"PERFORMANCE_HINT": "THROUGHPUT"})
+    compiled_model = core.compile_model(model, device, {hints.performance_mode(): hints.PerformanceMode.THROUGHPUT})
 
 Performance Comparison with benchmark_app
 -----------------------------------------
@@ -884,6 +894,7 @@ different performance hints.
 
 Discover the power of Neural Processing Unit (NPU) with OpenVINO through
 these interactive Jupyter notebooks:
+
 - `hello-world <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/hello-world>`__:
   Start your OpenVINO journey by performing inference on an OpenVINO IR
   model.
@@ -897,9 +908,9 @@ Model Optimization and Conversion
 -  `tflite-to-openvino <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/tflite-to-openvino>`__:
    Learn the process of converting TensorFlow Lite models to OpenVINO IR
    format.
--  `yolov7-optimization <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/yolov7-optimization>`__:
+-  `yolov7-optimization <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/226-yolov7-optimization>`__:
    Optimize the YOLOv7 model for enhanced performance in OpenVINO.
--  `yolov8-optimization <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/yolov8-optimization>`__:
+-  `yolov8-optimization <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/yolov8-optimization>`__:
    Convert and optimize YOLOv8 models for efficient deployment with
    OpenVINO.
 

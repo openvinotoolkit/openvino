@@ -68,7 +68,7 @@ ov::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
 
         if (!is_single_value) {
             float v;
-            auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(mul_constant);
+            auto constant = ov::as_type_ptr<ov::op::v0::Constant>(mul_constant);
             if (constant) {
                 is_single_value = op::util::get_single_value(constant, v);
                 if (is_single_value) {
@@ -130,7 +130,7 @@ ov::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
         // will lead to shape inconsistency in remaining graph. This check must be
         // removed in future when FQ will have correct validate_and_infer function
         // for cases with NUMPY broadcast.
-        auto fq_casted = std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(new_fq_node);
+        auto fq_casted = ov::as_type_ptr<ov::op::v0::FakeQuantize>(new_fq_node);
         if (!fq_casted) {
             return false;
         }

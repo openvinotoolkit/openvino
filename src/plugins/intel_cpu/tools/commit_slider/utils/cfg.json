@@ -84,6 +84,7 @@
         "venvDir": "{workPath}/venv/",
         "venvName": "tempVenv"
     },
+    "buildEnvVars": [],
     "preliminaryCheckCfg": {
         "leftCheck": true,
         "rightCheck": false,

@@ -6,20 +6,20 @@ from common.tflite_layer_test_class import TFLiteLayerTest
 from common.utils.tflite_utils import parametrize_tests
 
 test_ops = [
-    {'op_name': 'EQUAL', 'op_func': tf.math.equal},
-    {'op_name': 'FLOOR_MOD', 'op_func': tf.math.floormod, 'kwargs_to_prepare_input': 'positive'},
-    {'op_name': 'FLOOR_DIV', 'op_func': tf.math.floordiv, 'kwargs_to_prepare_input': 'positive'},
-    {'op_name': 'GREATER', 'op_func': tf.math.greater},
-    {'op_name': 'GREATER_EQUAL', 'op_func': tf.math.greater_equal},
-    {'op_name': 'LESS', 'op_func': tf.math.less},
-    {'op_name': 'LESS_EQUAL', 'op_func': tf.math.less_equal},
-    {'op_name': 'LOGICAL_AND', 'op_func': tf.math.logical_and, 'kwargs_to_prepare_input': 'boolean', 'dtype': tf.bool},
-    {'op_name': 'LOGICAL_OR', 'op_func': tf.math.logical_or, 'kwargs_to_prepare_input': 'boolean', 'dtype': tf.bool},
-    {'op_name': 'MAXIMUM', 'op_func': tf.math.maximum},
-    {'op_name': 'MINIMUM', 'op_func': tf.math.minimum},
-    {'op_name': 'NOT_EQUAL', 'op_func': tf.math.not_equal},
-    {'op_name': 'POW', 'op_func': tf.math.pow, 'kwargs_to_prepare_input': 'positive'},
-    {'op_name': 'SQUARED_DIFFERENCE', 'op_func': tf.math.squared_difference},
+    {'op_name': 'EQUAL', 'op_func': 'tf.math.equal'},
+    {'op_name': 'FLOOR_MOD', 'op_func': 'tf.math.floormod', 'kwargs_to_prepare_input': 'positive'},
+    {'op_name': 'FLOOR_DIV', 'op_func': 'tf.math.floordiv', 'kwargs_to_prepare_input': 'positive'},
+    {'op_name': 'GREATER', 'op_func': 'tf.math.greater'},
+    {'op_name': 'GREATER_EQUAL', 'op_func': 'tf.math.greater_equal'},
+    {'op_name': 'LESS', 'op_func': 'tf.math.less'},
+    {'op_name': 'LESS_EQUAL', 'op_func': 'tf.math.less_equal'},
+    {'op_name': 'LOGICAL_AND', 'op_func': 'tf.math.logical_and', 'kwargs_to_prepare_input': 'boolean', 'dtype': tf.bool},
+    {'op_name': 'LOGICAL_OR', 'op_func': 'tf.math.logical_or', 'kwargs_to_prepare_input': 'boolean', 'dtype': tf.bool},
+    {'op_name': 'MAXIMUM', 'op_func': 'tf.math.maximum'},
+    {'op_name': 'MINIMUM', 'op_func': 'tf.math.minimum'},
+    {'op_name': 'NOT_EQUAL', 'op_func': 'tf.math.not_equal'},
+    {'op_name': 'POW', 'op_func': 'tf.math.pow', 'kwargs_to_prepare_input': 'positive'},
+    {'op_name': 'SQUARED_DIFFERENCE', 'op_func': 'tf.math.squared_difference'},
 ]
 
 test_params = [
@@ -44,7 +44,7 @@ class TestTFLiteBinaryLayerTest(TFLiteLayerTest):
                                                      name=self.inputs[0])
             place_holder1 = tf.compat.v1.placeholder(params.get('dtype', tf.float32), params['shape'],
                                                      name=self.inputs[1])
-            params['op_func'](place_holder0, place_holder1, name=self.outputs[0])
+            eval(params['op_func'])(place_holder0, place_holder1, name=self.outputs[0])
             net = sess.graph_def
         return net
 

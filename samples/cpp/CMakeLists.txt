@@ -76,12 +76,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 
     # disable some noisy warnings
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251 /wd4275 /wd4267 /wd4819")
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-    if(WIN32)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qdiag-disable:177")
-    else()
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -diag-disable:177")
-    endif()
 endif()
 
 if(APPLE)

@@ -38,7 +38,7 @@ public:
 class ov::pass::RoPEFusionChatGLM : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("RoPEFusionChatGLM", "0");
-    RoPEFusionChatGLM(int split_output_id);
+    RoPEFusionChatGLM(int split_output_id, const bool support_2d_rope = false);
 };
 
 class ov::pass::RoPEFusionQwen : public ov::pass::MatcherPass {
@@ -84,7 +84,7 @@ private:
 class ov::pass::RoPEFusion : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("RoPEFusion", "0");
-    RoPEFusion() {
+    RoPEFusion(bool support_2d_rope = false) {
         add_matcher<ov::pass::RoPEFusionGPTNEOX>();
         add_matcher<ov::pass::RoPEFusionGPTJ>();
         // optional heads & tails are fused in separate matcher pass,
@@ -95,6 +95,10 @@ public:
 
         add_matcher<ov::pass::RoPEFusionChatGLM>(0);
         add_matcher<ov::pass::RoPEFusionChatGLM>(1);
+        if (support_2d_rope) {
+            add_matcher<ov::pass::RoPEFusionChatGLM>(0, true);
+            add_matcher<ov::pass::RoPEFusionChatGLM>(1, true);
+        }
 
         add_matcher<ov::pass::RoPEFusionQwen>(0);
         add_matcher<ov::pass::RoPEFusionQwen>(1);

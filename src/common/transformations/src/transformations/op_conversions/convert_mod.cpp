@@ -23,7 +23,7 @@ ov::pass::ConvertMod::ConvertMod() {
     auto mod = ov::pass::pattern::wrap_type<ov::op::v1::Mod>();
 
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto mod = std::dynamic_pointer_cast<ov::op::v1::Mod>(m.get_match_root());
+        auto mod = ov::as_type_ptr<ov::op::v1::Mod>(m.get_match_root());
         if (!mod) {
             return false;
         }

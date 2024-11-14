@@ -938,6 +938,7 @@ TEST(reorder_gpu, basic_convert_int8) {
 
     ExecutionConfig cfg = get_test_default_config(engine);
     cfg.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "reorder_input", "reorder2"}));
+    cfg.set_property(ov::intel_gpu::optimize_data(true)); // to enable onednn
     network network(engine, topology, cfg);
 
     network.set_input_data("input", input_memory);
@@ -987,6 +988,7 @@ TEST(reorder_gpu, basic_convert_uint8) {
 
     ExecutionConfig cfg = get_test_default_config(engine);
     cfg.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "reorder_input", "reorder2" }));
+    cfg.set_property(ov::intel_gpu::optimize_data(true)); // to enable onednn
     network network(engine, topology, cfg);
 
     network.set_input_data("input", input_memory);
@@ -1914,7 +1916,6 @@ TEST(reorder_gpu_opt, non_trivial_remove_redundant)
     net.set_input_data("in", in);
     auto outputs = net.execute();
     auto executed_primitives = net.get_executed_primitives();
-    auto all_primitives = net.get_all_primitives();
 
     if (engine.get_device_info().supports_immad) {
         // Currently, oneDNN only supports in_order_queue

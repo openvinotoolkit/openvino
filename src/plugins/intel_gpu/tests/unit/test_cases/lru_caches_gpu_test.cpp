@@ -164,8 +164,8 @@ TEST(lru_cache, collisions) {
     shape_of1_node.set_preferred_impl_type(impl_types::ocl);
     shape_of2_node.set_preferred_impl_type(impl_types::ocl);
 
-    auto impl1 = shape_of1_node.type()->choose_impl(shape_of1_node);
-    auto impl2 = shape_of2_node.type()->choose_impl(shape_of2_node);
+    auto impl1 = shape_of1_node.type()->create_impl(shape_of1_node);
+    auto impl2 = shape_of2_node.type()->create_impl(shape_of2_node);
 
     // Ensure that hashes for primitive, input layouts and full impl params are same due to collision
     ASSERT_EQ(shape_of1_prim->hash(), shape_of2_prim->hash());

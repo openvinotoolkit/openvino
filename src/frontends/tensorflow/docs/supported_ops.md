@@ -419,7 +419,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | ExperimentalUnbatchDataset                              | NO                            |                               |
 | ExperimentalUniqueDataset                               | NO                            |                               |
 | Expint                                                  | NO                            |                               |
-| Expm1                                                   | NO                            |                               |
+| Expm1                                                   | YES                           |                               |
 | ExtractGlimpse                                          | NO                            |                               |
 | ExtractGlimpseV2                                        | NO                            |                               |
 | ExtractImagePatches                                     | YES                           |                               |
@@ -1130,7 +1130,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | SparseReduceSumSparse                                   | NO                            |                               |
 | SparseReorder                                           | NO                            |                               |
 | SparseReshape                                           | YES                           |                               |
-| SparseSegmentMean                                       | NO                            |                               |
+| SparseSegmentMean                                       | YES                           |                               |
 | SparseSegmentMeanGrad                                   | NO                            |                               |
 | SparseSegmentMeanGradV2                                 | NO                            |                               |
 | SparseSegmentMeanWithNumSegments                        | NO                            |                               |

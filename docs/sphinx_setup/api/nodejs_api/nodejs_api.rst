@@ -37,6 +37,18 @@ For more details, refer to the
 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/docs/README.md#openvino-node-package-developer-documentation>`__
 
 
+
+API Development
+#####################
+
+OpenVINO 2024.4 has introduced the following methods:
+
+- :ref:`Model.clone() <clone>`
+- :ref:`Model.getOutputElementType() <getOutputElementType>`
+- :ref:`CompiledModel.getProperty() <getProperty>`
+- :ref:`CompiledModel.setProperty() <setProperty>`
+
+
 Additional Resources
 #####################
 

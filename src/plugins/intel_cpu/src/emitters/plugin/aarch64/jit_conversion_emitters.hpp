@@ -14,8 +14,6 @@ class jit_convert_emitter : public jit_emitter {
 public:
     jit_convert_emitter(dnnl::impl::cpu::aarch64::jit_generator *host, dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                         const std::shared_ptr<ov::Node>& n, ov::element::Type exec_prc = ov::element::f32);
-    jit_convert_emitter(dnnl::impl::cpu::aarch64::jit_generator *host, dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                        ov::element::Type input_prc, ov::element::Type output_prc, ov::element::Type exec_prc = ov::element::f32);
 
     size_t get_inputs_count() const override;
 
@@ -60,8 +58,6 @@ class jit_convert_truncation_emitter : public jit_convert_emitter {
 public:
     jit_convert_truncation_emitter(dnnl::impl::cpu::aarch64::jit_generator *host, dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                    const std::shared_ptr<ov::Node>& n, ov::element::Type exec_prc = ov::element::f32);
-    jit_convert_truncation_emitter(dnnl::impl::cpu::aarch64::jit_generator *host, dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                                   ov::element::Type input_prc, ov::element::Type output_prc, ov::element::Type exec_prc = ov::element::f32);
 
 private:
     void emit_impl(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const override;
@@ -77,8 +73,6 @@ class jit_convert_saturation_emitter : public jit_convert_emitter {
 public:
     jit_convert_saturation_emitter(dnnl::impl::cpu::aarch64::jit_generator *host, dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                    const std::shared_ptr<ov::Node>& n, ov::element::Type exec_prc = ov::element::f32);
-    jit_convert_saturation_emitter(dnnl::impl::cpu::aarch64::jit_generator *host, dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                                   ov::element::Type input_prc, ov::element::Type output_prc, ov::element::Type exec_prc = ov::element::f32);
 
 private:
     void emit_impl(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const override;

@@ -146,9 +146,17 @@ OutputVector translate_stack_fx(const NodeContext& context) {
         num_elements -= 1;
     }
 
+    OutputVector stack_inputs;
     for (size_t i = 0; i < num_elements; i++) {
-        auto stack_input =
-            context.mark_node(std::make_shared<v0::Unsqueeze>(context.get_input(static_cast<int>(i)), dim));
+        stack_inputs.push_back(context.get_input(static_cast<int>(i)));
+    }
+
+    // returns the u4 constant if the stack operation is a part of the decompression pattern
+    if (const auto& u4_const = u4_compression_stack(stack_inputs, axis))
+        return {u4_const};
+
+    for (size_t i = 0; i < num_elements; i++) {
+        auto stack_input = context.mark_node(std::make_shared<v0::Unsqueeze>(stack_inputs[i], dim));
         list_elems.push_back(stack_input);
     }
     return translate_cat_common(context, list_elems, axis, true);

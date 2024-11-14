@@ -14,7 +14,9 @@
 #include <memory>
 #include <string>
 
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/mmap_object.hpp"
 
 namespace ov {
 
@@ -76,9 +78,10 @@ public:
      * Otherwise, model will not be read from cache and will be loaded as usual
      *
      * @param id Id of cache (hash of the model)
+     * @param enable_mmap use mmap or ifstream to read model file
      * @param reader Lambda function to be called when input stream is created
      */
-    virtual void read_cache_entry(const std::string& id, StreamReader reader) = 0;
+    virtual void read_cache_entry(const std::string& id, bool enable_mmap, StreamReader reader) = 0;
 
     /**
      * @brief Callback when OpenVINO intends to remove cache entry
@@ -129,13 +132,22 @@ private:
         writer(stream);
     }
 
-    void read_cache_entry(const std::string& id, StreamReader reader) override {
+    void read_cache_entry(const std::string& id, bool enable_mmap, StreamReader reader) override {
         // Fix the bug caused by pugixml, which may return unexpected results if the locale is different from "C".
         ScopedLocale plocal_C(LC_ALL, "C");
-        auto blobFileName = getBlobFile(id);
-        if (ov::util::file_exists(blobFileName)) {
-            std::ifstream stream(blobFileName, std::ios_base::binary);
-            reader(stream);
+        auto blob_file_name = getBlobFile(id);
+        if (ov::util::file_exists(blob_file_name)) {
+            if (enable_mmap) {
+                auto mmap = ov::load_mmap_object(blob_file_name);
+                auto shared_buffer =
+                    std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mmap->data(), mmap->size(), mmap);
+                OwningSharedStreamBuffer buf(shared_buffer);
+                std::istream stream(&buf);
+                reader(stream);
+            } else {
+                std::ifstream stream(blob_file_name, std::ios_base::binary);
+                reader(stream);
+            }
         }
     }
 

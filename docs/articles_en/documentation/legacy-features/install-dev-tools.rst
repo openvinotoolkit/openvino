@@ -257,7 +257,3 @@ Additional Resources
 ####################
 
 - `Intel® Distribution of OpenVINO™ toolkit home page <https://software.intel.com/en-us/openvino-toolkit>`__
-- For IoT Libraries & Code Samples, see `Intel® IoT Developer Kit <https://github.com/intel-iot-devkit>`__ .
-
-
-

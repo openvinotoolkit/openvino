@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "gemm_onednn.hpp"
 #include "gemm_inst.h"
+#include "intel_gpu/runtime/utils.hpp"
 #include "primitive_onednn_base.h"
-#include "impls/registry/implementation_map.hpp"
-
-#include "kernel_selector_common.h"
 
 #include <oneapi/dnnl/dnnl.hpp>
 
@@ -32,9 +31,13 @@ protected:
         auto dnnl_engine = engine.get_onednn_engine();
 
         {
+            dnnl::memory input1_mem;
             auto& weights = instance.input_memory(1);
             auto offset = onednn::get_offset(instance.get_input_layout(1), _pd.dnnl::primitive_desc_base::weights_desc(0));
-            args.insert({DNNL_ARG_WEIGHTS, weights.get_onednn_memory(_pd.weights_desc(0), offset)});
+            if (instance.get_input_layout(1).count() != 0) {
+                input1_mem = weights.get_onednn_memory(_pd.weights_desc(0), offset);
+            }
+            args.insert({DNNL_ARG_WEIGHTS, input1_mem});
         }
 
         if (instance.inputs_memory_count() == 3) {
@@ -87,11 +90,16 @@ protected:
         const auto& in0_l = in_layouts[0];
         const auto& in1_l = in_layouts[1];
 
-        size_t in0_batched_size = in0_l.count() / (in0_l.spatial(0) * in0_l.spatial(1));
-        size_t in1_batched_size = in1_l.count() / (in1_l.spatial(0) * in1_l.spatial(1));
-        size_t out_batched_size = out_l.count() / (out_l.spatial(0) * out_l.spatial(1));
+        bool batched_dims_can_be_removed = false;
 
-        auto batched_dims_can_be_removed = in0_batched_size == 1 && in1_batched_size == 1 && out_batched_size == 1;
+        if (in0_l.count() != 0 && in1_l.count() != 0) {
+            size_t in0_batched_size = in0_l.count() / (in0_l.spatial(0) * in0_l.spatial(1));
+            size_t in1_batched_size = in1_l.count() / (in1_l.spatial(0) * in1_l.spatial(1));
+            size_t out_batched_size = out_l.count() / (out_l.spatial(0) * out_l.spatial(1));
+
+            batched_dims_can_be_removed = in0_batched_size == 1 && in1_batched_size == 1 && out_batched_size == 1;
+        }
+
         if (gemm_with_bias) {
             const auto& bias_l = in_layouts[2];
             size_t bias_batched_size = bias_l.count() / (bias_l.spatial(0) * bias_l.spatial(1));
@@ -435,34 +443,24 @@ public:
 
         return cldnn::make_unique<gemm_onednn>(engine, config, attr, *prim_desc);
     }
+
+    event::ptr execute_impl(const std::vector<event::ptr>& events, typed_primitive_inst<gemm>& instance) override {
+        if (instance.get_input_layout(0).count() == 0 ||
+            instance.get_input_layout(1).count() == 0) {
+            stream& stream = instance.get_network().get_stream();
+            stream.enqueue_barrier();
+            return instance.output_memory_ptr()->fill(stream, false);
+        }
+
+        return parent::execute_impl(events, instance);
+    }
 };
 
-namespace detail {
-
-attach_gemm_onednn::attach_gemm_onednn() {
-    std::vector<data_types> dt = {
-        data_types::f32,
-        data_types::f16,
-        data_types::u8,
-        data_types::i8,
-    };
-    std::vector<format::type> fmt = {
-        format::bfyx,
-        format::bfxy,
-        format::byxf,
-        format::byfx,
-        format::bxfy,
-        format::fybx,  //format used for gemm fusion
-        format::fyxb,  //format used for gemm fusion
-        format::xbfy, // format used for gemm fusion
-        format::ybfx, // format used for gemm fusion
-        format::bfzyx,
-        format::bfwzyx,
-    };
-    implementation_map<gemm>::add(impl_types::onednn, gemm_onednn::create, dt, fmt);
+std::unique_ptr<primitive_impl> GemmImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const  {
+    assert(node.is_type<gemm>());
+    return onednn::gemm_onednn::create(static_cast<const gemm_node&>(node), params);
 }
 
-}  // namespace detail
 }  // namespace onednn
 }  // namespace cldnn
 

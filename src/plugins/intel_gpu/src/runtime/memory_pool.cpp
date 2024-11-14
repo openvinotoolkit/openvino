@@ -306,7 +306,7 @@ memory::ptr memory_pool::get_memory(const layout& layout,
     }
     if (do_reuse) {
         // reusable within the same network
-        if (!layout.format.is_image() && layout.data_padding == padding{{0, 0, 0, 0}, 0}) {
+        if (!layout.format.is_image() && !layout.data_padding) {
             // non-padded buffers
             return get_from_non_padded_pool(layout, prim_id, unique_id, network_id, restrictions, type, reset, is_dynamic);
         } else if (!layout.format.is_image()) {

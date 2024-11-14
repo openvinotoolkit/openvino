@@ -62,7 +62,7 @@ class TestBucketize(CommonTFLayerTest):
                        ie_device, precision, ir_version, temp_dir,
                        use_legacy_frontend):
         if ie_device == 'GPU' and boundaries_size == 0:
-            pytest.skip("149852: accuracy error for boundaries_size == 0 on GPU")
+            pytest.skip("152562: sporadic accuracy issue for boundaries_size == 0 on GPU")
         if platform.machine() in ["aarch64", "arm64", "ARM64"] and boundaries_size == 0:
             pytest.skip("149853: segmentation fault or signal 11 for boundaries_size == 0 on CPU")
         self._test(*self.create_bucketize_net(input_shape, input_type, boundaries_size),

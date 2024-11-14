@@ -1,12 +1,6 @@
 SpeechBrain Emotion Recognition with OpenVINO
 =============================================
 
-.. warning::
-
-   Important note: This notebook requires python >= 3.9. Please make
-   sure that your environment fulfill to this requirement before running
-   it
-
 `SpeechBrain <https://github.com/speechbrain/speechbrain>`__ is an
 open-source PyTorch toolkit that accelerates Conversational AI
 development, i.e., the technology behind speech assistants, chatbots,
@@ -18,6 +12,7 @@ repo <https://github.com/speechbrain/speechbrain>`__ and
 
 This notebook tutorial demonstrates optimization and inference of
 speechbrain emotion recognition model with OpenVINO.
+
 
 **Table of contents:**
 
@@ -68,14 +63,14 @@ Imports
     import torch
     import torchaudio
     from speechbrain.inference.interfaces import foreign_class
-
+    
     import openvino as ov
 
 
 .. parsed-literal::
 
     torchvision is not available - cannot save figures
-
+    
 
 Prepare base model
 ~~~~~~~~~~~~~~~~~~
@@ -144,7 +139,7 @@ Perform emotion recognition on the sample audio file.
 .. parsed-literal::
 
     Emotion Recognition with SpeechBrain PyTorch model: ['ang']
-
+    
 
 SpeechBrain model optimization with Intel OpenVINO
 --------------------------------------------------
@@ -164,9 +159,9 @@ Step 1: Prepare input tensor
     signal, sr = torchaudio.load(str("./anger.wav"), channels_first=False)
     norm_audio = classifier.audio_normalizer(signal, sr)
     signals.append(norm_audio)
-
+    
     sequence_length = norm_audio.shape[-1]
-
+    
     wavs = torch.stack(signals, dim=0)
     wav_len = torch.tensor([sequence_length] * batch_size).unsqueeze(0)
 
@@ -188,18 +183,17 @@ Step 3: OpenVINO model inference
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    core = ov.Core()
-
-    # Device selection
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    import requests
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget()
+    
     device
 
 
@@ -213,13 +207,15 @@ Step 3: OpenVINO model inference
 
 .. code:: ipython3
 
+    core = ov.Core()
+    
     # OpenVINO Compiled model
     compiled_model = core.compile_model(ov_model, device.value)
-
+    
     # Perform model inference
     output_tensor = compiled_model(wavs)[0]
     output_tensor = torch.from_numpy(output_tensor)
-
+    
     # output post-processing
     outputs = classifier.mods.avg_pool(output_tensor, wav_len)
     outputs = outputs.view(outputs.shape[0], -1)
@@ -227,11 +223,11 @@ Step 3: OpenVINO model inference
     ov_out_prob = classifier.hparams.softmax(outputs)
     score, index = torch.max(ov_out_prob, dim=-1)
     text_lab = classifier.hparams.label_encoder.decode_torch(index)
-
+    
     print(f"Emotion Recognition with OpenVINO Model: {text_lab}")
 
 
 .. parsed-literal::
 
     Emotion Recognition with OpenVINO Model: ['ang']
-
+    

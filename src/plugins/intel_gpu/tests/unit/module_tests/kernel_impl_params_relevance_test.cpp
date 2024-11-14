@@ -44,7 +44,7 @@ TEST(kernel_impl_params_relevance, weights_layout) {
     network.set_input_data("input", actual_input_data);
 
     // 2. Force reference `fully_connected_gpu_bfyx_ref` kernel impl before execution,
-    //    so during _node->type()->choose_impl(*_node, updated_params); call for static kernel version reference
+    //    so during _node->type()->choose_impl(*_node); call for static kernel version reference
     //    impl will be used. Call execute() to trigger desired kernel compilation
     auto fc_ref_impl = ov::intel_gpu::ImplementationDesc(format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl);
     auto force_impl_prop = ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc", fc_ref_impl} });

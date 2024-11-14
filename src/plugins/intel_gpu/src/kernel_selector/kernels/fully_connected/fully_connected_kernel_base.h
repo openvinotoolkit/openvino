@@ -34,6 +34,7 @@ public:
         uint32_t rg_count = 0;
 
         bool use_slm = false;
+        uint32_t outer_n = 0;
 
         // Gemm style params
         uint32_t tile_m = 0;

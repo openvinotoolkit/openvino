@@ -134,17 +134,14 @@ void RuntimeConfigurator::init_data_info(const lowered::LinearIRCPtr& linear_ir)
 }
 
 void RuntimeConfigurator::init_buffer_info(const lowered::LinearIRCPtr& linear_ir) {
-    std::map<size_t, std::set<lowered::ExpressionPtr>> dynamic_buffer_clusters, static_buffer_clusters;
+    std::map<size_t, std::set<lowered::BufferExpressionPtr>> dynamic_buffer_clusters, static_buffer_clusters;
 
     // All needed checks are in Validate pass
     const auto& buffer_expressions = linear_ir->get_buffers();
     for (const auto& buffer_expr : buffer_expressions) {
-        const auto buffer = ov::as_type_ptr<op::Buffer>(buffer_expr->get_node());
-        OPENVINO_ASSERT(buffer, "Expected Buffer ops in Buffer expressions of LinearIR");
-
         // TODO [143395] : MemoryManager should provide exact containers with needed buffers (static or dynamic) without any `is_defined()`
-        auto& clusters = buffer->is_defined() ? static_buffer_clusters : dynamic_buffer_clusters;
-        clusters[buffer->get_cluster_id()].insert(buffer_expr);
+        auto& clusters = buffer_expr->is_defined() ? static_buffer_clusters : dynamic_buffer_clusters;
+        clusters[buffer_expr->get_cluster_id()].insert(buffer_expr);
     }
 
     const auto cluster_count = dynamic_buffer_clusters.size() + static_buffer_clusters.size();
@@ -156,7 +153,7 @@ void RuntimeConfigurator::init_buffer_info(const lowered::LinearIRCPtr& linear_i
         const auto& cluster = p.second;
 
         OPENVINO_ASSERT(cluster.size() > 0, "Incorrect size of buffer cluster");
-        size_t cluster_offset = ov::as_type_ptr<op::Buffer>((*cluster.cbegin())->get_node())->get_offset();
+        size_t cluster_offset = (*cluster.cbegin())->get_offset();
         m_config->buffer_cluster_offsets[cluster_id] = cluster_offset;
     }
 
@@ -246,7 +243,8 @@ void RuntimeConfigurator::update_buffer_scratchpad_size(const lowered::LinearIRC
             // No need to calculate allocation size of Buffers which are in Loops with `work_amount = 0` - they won't be executed
             if (is_not_executed(buffer_expr))
                 continue;
-            const auto& allocation_size = lowered::pass::ComputeBufferAllocationSize::get_allocation_size(loop_manager, buffer_expr, m_config->tile_rank);
+            buffer_expr->init_allocation_size(loop_manager, m_config->tile_rank);
+            const auto& allocation_size = buffer_expr->get_allocation_size();
             OPENVINO_ASSERT(!utils::is_dynamic_value(allocation_size), "Buffer scratchpad size must be defined!");
             additional_size = std::max(allocation_size * buffer_expr->get_node()->get_element_type().size(), additional_size);
         }
@@ -479,21 +477,21 @@ std::unordered_set<size_t> RuntimeConfigurator::MHAParallelWAOptimizer::find_uns
     return unsqueezed_params;
 }
 
-std::unordered_set<ExpandedLoopInfoPtr> RuntimeConfigurator::MHAParallelWAOptimizer::find_loops_to_split(
+std::vector<ExpandedLoopInfoPtr> RuntimeConfigurator::MHAParallelWAOptimizer::find_loops_to_split(
     const lowered::LinearIRCPtr& linear_ir,
     const std::unordered_set<size_t>& unsqueezed_params) {
     const auto loop_manager = linear_ir->get_loop_manager();
-    std::unordered_set<ExpandedLoopInfoPtr> loops_to_split;
+    std::set<size_t> loop_idces_to_split;
     std::vector<size_t> prev_loop_idces;
 
-    auto add_loops_to_split = [&](const ExpressionPtr& expr) {
+    auto add_loop_idx_to_split = [&](const ExpressionPtr& expr) {
         const auto& loop_idces = expr->get_loop_ids();
         if (loop_idces != prev_loop_idces) {
             prev_loop_idces = loop_idces;
             for (const auto& loop_id : loop_idces) {
                 const auto expanded_loop_info = loop_manager->get_loop_info<ExpandedLoopInfo>(loop_id);
                 if (expanded_loop_info->get_dim_idx() == m_dim_idx) {
-                    loops_to_split.insert(expanded_loop_info);
+                    loop_idces_to_split.insert(loop_id);
                 }
             }
         }
@@ -507,8 +505,13 @@ std::unordered_set<ExpandedLoopInfoPtr> RuntimeConfigurator::MHAParallelWAOptimi
         // Ops after non related params mustn't be traversed
         if (unsqueezed_params.count(i++))
             continue;
-        utils::visit_path(param, visited, add_loops_to_split, false);
+        utils::visit_path(param, visited, add_loop_idx_to_split, false);
     }
+
+    const auto& loops_map = linear_ir->get_loop_manager()->get_map();
+    std::vector<ExpandedLoopInfoPtr> loops_to_split;
+    for (const auto& id : loop_idces_to_split)
+        loops_to_split.push_back(ov::as_type_ptr<ExpandedLoopInfo>(loops_map.at(id)));
     return loops_to_split;
 }
 

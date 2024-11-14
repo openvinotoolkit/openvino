@@ -23,7 +23,7 @@ function(_ov_get_tbb_location tbb_target _tbb_lib_location_var)
         get_target_property(_imported_configs ${target} IMPORTED_CONFIGURATIONS)
         if(NOT _imported_configs)
             # if IMPORTED_CONFIGURATIONS property is not set, then set a common list
-            set(_imported_configs RELEASE NONE)
+            set(_imported_configs RELEASE DEBUG NONE)
             if(NOT OV_GENERATOR_MULTI_CONFIG)
                 string(TOUPPER ${CMAKE_BUILD_TYPE} _build_type)
                 list(APPEND _imported_configs ${_build_type})

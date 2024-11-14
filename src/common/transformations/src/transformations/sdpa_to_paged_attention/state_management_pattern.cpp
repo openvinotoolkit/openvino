@@ -205,7 +205,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                 }
                 rank = rank.get_length();
                 auto axis = unsqueeze->input_value(1).get_node_shared_ptr();
-                auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(axis);
+                auto constant = ov::as_type_ptr<ov::op::v0::Constant>(axis);
                 if (!constant) {
                     return ov::Dimension();
                 }
@@ -343,8 +343,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                 // by -1. If we encounter the Alibi being a constant, we may do the additional
                 // checking of the values to be negative and, if it fails, we won't multiply
                 // the values by -1.
-                if (auto alibi_constant =
-                        std::dynamic_pointer_cast<v0::Constant>(pattern_map.at(alibi).get_node_shared_ptr())) {
+                if (auto alibi_constant = ov::as_type_ptr<v0::Constant>(pattern_map.at(alibi).get_node_shared_ptr())) {
                     auto alibi_constant_values = alibi_constant->cast_vector<float>();
                     bool all_values_nagative =
                         std::all_of(alibi_constant_values.begin(), alibi_constant_values.end(), [&](float value) {
@@ -384,12 +383,18 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
 
         auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments);
 
+        // The output shape of PagedAttention will be converted to [batch, 1, head_num, head_size_v], the head_size_v
+        // may be different from head_size_q/head_size_k. The head_size_v could be got from the shape of value input
+        auto hidden_dim_v = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(v_target_layout),
+                                                         v0::Constant::create(element::i64, Shape{}, {-1}),
+                                                         v0::Constant::create(element::i64, Shape{}, {0}));
+
         auto pa_shape = std::make_shared<v0::Concat>(
             OutputVector{
                 v0::Constant::create(element::i64, Shape{1}, {0}),
                 v0::Constant::create(element::i64, Shape{1}, {1}),
                 v0::Constant::create(element::i64, Shape{1}, {-1}),
-                std::make_shared<v0::Unsqueeze>(hidden_dim, v0::Constant::create(element::i64, Shape{}, {0})),
+                std::make_shared<v0::Unsqueeze>(hidden_dim_v, v0::Constant::create(element::i64, Shape{}, {0})),
             },
             0);
         auto pa_reshape = std::make_shared<v1::Reshape>(paged_attention->output(0), pa_shape, true);
@@ -409,7 +414,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         //  add_kv_parameter(mapping[v_gather])
 
         if (pattern_map.find(v_past_par) != pattern_map.end()) {
-            auto param = std::dynamic_pointer_cast<v0::Parameter>(pattern_map.at(v_past_par).get_node_shared_ptr());
+            auto param = ov::as_type_ptr<v0::Parameter>(pattern_map.at(v_past_par).get_node_shared_ptr());
             if (param) {
                 return false;
             }
@@ -417,7 +422,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         }
 
         if (pattern_map.find(k_past_par) != pattern_map.end()) {
-            auto param = std::dynamic_pointer_cast<v0::Parameter>(pattern_map.at(k_past_par).get_node_shared_ptr());
+            auto param = ov::as_type_ptr<v0::Parameter>(pattern_map.at(k_past_par).get_node_shared_ptr());
             if (param) {
                 return false;
             }

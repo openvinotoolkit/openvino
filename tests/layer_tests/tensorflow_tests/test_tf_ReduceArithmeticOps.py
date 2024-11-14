@@ -2,10 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+import platform
 import pytest
 from common.tf_layer_test_class import CommonTFLayerTest
 
 rng = np.random.default_rng(475912)
+
 
 class TestReduceArithmeticOps(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
@@ -74,7 +76,7 @@ class TestComplexProd(CommonTFLayerTest):
             complex = tf.raw_ops.Complex(real=param_real, imag=param_imag)
 
             result = tf.raw_ops.Prod(input=complex, axis=axis, keep_dims=keep_dims, name="Prod")
-            
+
             tf.raw_ops.Real(input=result)
             tf.raw_ops.Imag(input=result)
 
@@ -95,9 +97,11 @@ class TestComplexProd(CommonTFLayerTest):
     @pytest.mark.precommit
     def test_reduce(self, params, keep_dims, ie_device, precision, ir_version, temp_dir,
                     use_legacy_frontend):
+        if platform.machine() in ["aarch64", "arm64", "ARM64"]:
+            pytest.skip("GFI-26601: accuracy error on ARM")
         if ie_device == 'GPU' and params['shape'] in [[2, 3, 5], [3, 1, 2, 4]]:
             pytest.skip('GPU plugin accuracy error')
         self._test(*self.create_complex_prod_net(**params, keep_dims=keep_dims, ir_version=ir_version,
-                                           use_legacy_frontend=use_legacy_frontend),
+                                                 use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)

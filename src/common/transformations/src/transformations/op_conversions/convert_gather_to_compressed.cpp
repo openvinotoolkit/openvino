@@ -24,7 +24,6 @@ ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed() {
     auto compressed_constant = [](const ov::Output<ov::Node>& output) {
         return (output.get_element_type() == ov::element::u8 || output.get_element_type() == ov::element::i8 ||
                 output.get_element_type() == ov::element::u4 || output.get_element_type() == ov::element::i4) &&
-               output.get_target_inputs().size() == 1 &&
                (output.get_shape().size() == 2 || output.get_shape().size() == 3);
     };
 
@@ -62,20 +61,19 @@ ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed() {
         OPENVINO_ASSERT(pattern_map.count(dicts_m));
         OPENVINO_ASSERT(pattern_map.count(convert_m));
         ov::Shape dicts_shape = pattern_map.at(dicts_m).get_node_shared_ptr()->get_shape();
-        auto gather_node =
-            std::dynamic_pointer_cast<ov::op::v8::Gather>(pattern_map.at(gather_m).get_node_shared_ptr());
+        auto gather_node = ov::as_type_ptr<ov::op::v8::Gather>(pattern_map.at(gather_m).get_node_shared_ptr());
         if (!gather_node || transformation_callback(gather_node)) {
             return false;
         }
 
         auto reshape_const_to_2d = [](std::shared_ptr<ov::Node> node) -> std::shared_ptr<ov::Node> {
-            auto convert = std::dynamic_pointer_cast<ov::op::v0::Convert>(node);
+            auto convert = ov::as_type_ptr<ov::op::v0::Convert>(node);
             if (convert != nullptr) {
                 return node;
-            } else if (std::dynamic_pointer_cast<ov::op::v1::Reshape>(node) != nullptr) {
+            } else if (ov::as_type_ptr<ov::op::v1::Reshape>(node) != nullptr) {
                 return node;
             } else {
-                auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
+                auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
                 OPENVINO_ASSERT(constant != nullptr);
                 ov::Shape current_shape = constant->get_shape();
                 if (current_shape.size() <= 2)

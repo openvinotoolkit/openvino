@@ -106,7 +106,7 @@ private:
 /// \brief Base class for operations like back propagation convolution
 class OPENVINO_API ConvolutionFwdPropBase : public ConvolutionBase {
 public:
-    OPENVINO_OP("ConvolutionFwdPropBase", "util");
+    OPENVINO_OP("ConvolutionFwdPropBase", "util", ConvolutionBase);
 
     /// \brief Constructs a conversion operation.
     ConvolutionFwdPropBase() = default;

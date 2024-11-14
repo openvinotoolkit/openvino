@@ -31,7 +31,7 @@ ov::pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
     auto maxpool_v8_pattern = pattern::wrap_type<ov::op::v8::MaxPool>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto maxpool_v8_node = std::dynamic_pointer_cast<ov::op::v8::MaxPool>(m.get_match_root());
+        auto maxpool_v8_node = ov::as_type_ptr<ov::op::v8::MaxPool>(m.get_match_root());
 
         if (!maxpool_v8_node || maxpool_v8_node->get_output_target_inputs(1).size() != 0)
             return false;
@@ -56,10 +56,6 @@ ov::pass::ConvertMaxPool8ToMaxPool1::ConvertMaxPool8ToMaxPool1() {
         maxpool_v8_node->output(0).replace(maxpool_v1_node->output(0));
         ov::copy_runtime_info(maxpool_v8_node, maxpool_v1_node);
         maxpool_v8_node->clear_control_dependencies();
-
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        ov::descriptor::set_ov_tensor_legacy_name(maxpool_v1_node->output(0).get_tensor(), out_name);
-        OPENVINO_SUPPRESS_DEPRECATED_END
 
         return true;
     };
@@ -86,7 +82,7 @@ ov::pass::ConvertMaxPool14ToMaxPool8::ConvertMaxPool14ToMaxPool8() {
         using ov::op::v8::Gather;
         using ov::op::v12::Pad;
 
-        const auto max_pool_v14 = std::dynamic_pointer_cast<ov::op::v14::MaxPool>(m.get_match_root());
+        const auto max_pool_v14 = ov::as_type_ptr<ov::op::v14::MaxPool>(m.get_match_root());
         if (!max_pool_v14 || transformation_callback(max_pool_v14)) {
             return false;
         }

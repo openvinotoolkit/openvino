@@ -56,6 +56,7 @@ struct multi_stage_primitive : public typed_primitive_impl<PType> {
         this->_kernel_name = other._kernel_name;
         this->can_reuse_memory = other.can_reuse_memory;
         this->_is_dynamic = other._is_dynamic;
+        this->m_manager = other.m_manager;
     }
 
     multi_stage_primitive(const std::vector<kernel_selector::kernel_data>& kd)

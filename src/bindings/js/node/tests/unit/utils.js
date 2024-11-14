@@ -4,7 +4,10 @@
 
 const path = require('path');
 const fs = require('node:fs/promises');
-const { downloadFile, checkIfPathExists } = require('../../scripts/download_runtime');
+const {
+  downloadFile,
+  checkIfPathExists,
+} = require('../../scripts/lib/utils');
 
 const modelDir = 'tests/unit/test_models/';
 const testModels = {
@@ -25,7 +28,7 @@ module.exports = {
   testModels,
 };
 
-function getModelPath(isFP16=false) {
+function getModelPath(isFP16 = false) {
   const modelName = `test_model_fp${isFP16 ? 16 : 32}`;
 
   return {
@@ -63,7 +66,8 @@ async function isModelAvailable(model) {
   const modelExists = await checkIfPathExists(modelPath);
   if (modelExists) return;
 
-  console.log('\n\nTestModel cannot be found.\nPlease run `npm run test_setup`.\n\n');
+  console.log(
+    '\n\nTestModel cannot be found.\nPlease run `npm run test_setup`.\n\n',
+  );
   process.exit(1);
-
 }

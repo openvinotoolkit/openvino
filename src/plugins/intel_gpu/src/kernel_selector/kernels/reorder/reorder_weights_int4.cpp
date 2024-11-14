@@ -21,6 +21,8 @@ ParamsKey ReorderWeightsKernelInt4::GetSupportedKey() const {
     k.EnableOutputWeightsLayout(WeightsLayout::os_iyx_osv16);
     k.EnableOutputWeightsLayout(WeightsLayout::os_iyx_osv32);
     k.EnableOutputWeightsLayout(WeightsLayout::os_is_yx_osv32_isv2);
+    k.EnableOutputWeightsLayout(WeightsLayout::os_iyx_osv64);
+    k.EnableOutputWeightsLayout(WeightsLayout::os_is_yx_osv64_isv2);
     k.EnableOutputWeightsLayout(WeightsLayout::oiyx);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
@@ -44,6 +46,10 @@ ReorderWeightsKernelInt4::DispatchData ReorderWeightsKernelInt4::SetDefault(cons
         dispatchData.gws = { Align(output.OFM().v, 32), output.IFM().v / 2, 1 };
     } else if (output.GetLayout() == WeightsLayout::os_iyx_osv16) {
         dispatchData.gws = { Align(output.OFM().v, 16), output.IFM().v / 2, 1 };
+    } else if (output.GetLayout() == WeightsLayout::os_iyx_osv64) {
+        dispatchData.gws = { Align(output.OFM().v, 64) / 2, output.IFM().v, 1 };
+    } else if (output.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
+        dispatchData.gws = { Align(output.OFM().v, 64), output.IFM().v / 2, 1 };
     } else {
         dispatchData.gws = { CeilDiv(output.LogicalSize(), 2), 1, 1 };
     }
@@ -65,6 +71,8 @@ bool ReorderWeightsKernelInt4::Validate(const Params& params) const {
     bool supported_case = input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::os_iyx_osv32;
     supported_case |= input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2;
     supported_case |= input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::os_iyx_osv16;
+    supported_case |= input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::os_iyx_osv64;
+    supported_case |= input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2;
     supported_case |= input.GetLayout() == WeightsLayout::ioyx && output.GetLayout() == WeightsLayout::oiyx;
     supported_case |= input.GetLayout() == WeightsLayout::ioyx && output.GetLayout() == WeightsLayout::os_iyx_osv32;
     return supported_case;

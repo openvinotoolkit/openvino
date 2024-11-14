@@ -49,6 +49,7 @@ used to convert the models to OpenVINO™ IR format. Additionally, we
 demonstrate how to improve pipeline latency with the quantization UNet
 model using `NNCF <https://github.com/openvinotoolkit/nncf>`__.
 
+
 **Table of contents:**
 
 
@@ -91,7 +92,7 @@ Prerequisites
 .. code:: ipython3
 
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu\
-    "torch>=2.1" transformers diffusers "git+https://github.com/huggingface/optimum-intel.git" "gradio>=4.19" "openvino>=2023.3.0" "peft==0.6.2"
+    "torch>=2.1" transformers "diffusers>=0.24.0" "git+https://github.com/huggingface/optimum-intel.git" "gradio>=4.19" "openvino>=2023.3.0" "peft>=0.6.2"
 
 Prepare PyTorch model
 ---------------------
@@ -246,16 +247,16 @@ Select inference device for text-to-image generation
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    import requests
     
-    core = ov.Core()
-    
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget()
     
     device
 
@@ -350,11 +351,9 @@ improve model inference speed.
 
 .. code:: ipython3
 
-    to_quantize = widgets.Checkbox(
-        value=True,
-        description="Quantization",
-        disabled=False,
-    )
+    from notebook_utils import quantization_widget
+    
+    to_quantize = quantization_widget()
     
     to_quantize
 
@@ -378,6 +377,19 @@ improve model inference speed.
     open("skip_kernel_extension.py", "w").write(r.text)
     
     int8_pipe = None
+    
+    core = ov.Core()
+    
+    
+    def create_int8_pipe(model_dir, unet_int8_path, device, core, unet_device="CPU"):
+        int8_pipe = OVStableDiffusionXLPipeline.from_pretrained(model_dir, device=device, compile=True)
+        del int8_pipe.unet.request
+        del int8_pipe.unet.model
+        gc.collect()
+        int8_pipe.unet.model = core.read_model(unet_int8_path)
+        int8_pipe.unet.request = core.compile_model(int8_pipe.unet.model, unet_device or device)
+        return int8_pipe
+    
     
     if to_quantize.value and "GPU" in device.value:
         to_quantize.value = False
@@ -508,15 +520,6 @@ sensitive ``Convolution`` layers in FP16 precision.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
-    def create_int8_pipe(model_dir, unet_int8_path, device, core, unet_device='CPU'):
-        int8_pipe = OVStableDiffusionXLPipeline.from_pretrained(model_dir, device=device, compile=True)
-        del int8_pipe.unet.request
-        del int8_pipe.unet.model
-        gc.collect()
-        int8_pipe.unet.model = core.read_model(unet_int8_path)
-        int8_pipe.unet.request = core.compile_model(int8_pipe.unet.model, unet_device or device)
-        return int8_pipe
     
     int8_text2image_pipe = create_int8_pipe(model_dir, UNET_INT8_OV_PATH, device.value, core)
     
@@ -675,6 +678,8 @@ launch the interactive demo.
 
 .. code:: ipython3
 
+    import ipywidgets as widgets
+    
     quantized_model_present = UNET_INT8_OV_PATH.exists()
     
     use_quantized_model = widgets.Checkbox(

@@ -57,7 +57,7 @@ ov::pass::UniqueDecomposition::UniqueDecomposition() {
     matcher_pass_callback callback = [=](pattern::Matcher& matcher) {
         NodeRegistry rg;
 
-        auto unique_node = std::dynamic_pointer_cast<ov::op::v10::Unique>(matcher.get_match_root());
+        auto unique_node = ov::as_type_ptr<ov::op::v10::Unique>(matcher.get_match_root());
         if (!unique_node) {
             return false;
         }

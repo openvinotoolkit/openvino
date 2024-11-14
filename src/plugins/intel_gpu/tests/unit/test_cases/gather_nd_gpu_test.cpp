@@ -752,6 +752,51 @@ TEST(gather_nd_gpu_fp16, d22_i32_ir2_batch0) {
     DoTestV8(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 3, 1, 1, 1 });
 }
 
+TEST(gather_nd_gpu_fp16, d1333_i11164_ir5_batch0) {
+    auto& engine = get_test_engine();
+
+    const int indices_rank = 5;
+    const int batch_dims = 0;
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 3, 3, 3 } }); // data
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 1, 1, 4, 6, 1 } }); // indices
+    // expected output dim: {1,1,1,6}
+
+    set_values(input0, {
+        ov::float16(0), ov::float16(1), ov::float16(2),
+        ov::float16(3), ov::float16(4), ov::float16(5),
+        ov::float16(6), ov::float16(7), ov::float16(8),
+
+        ov::float16(10), ov::float16(11), ov::float16(12),
+        ov::float16(13), ov::float16(14), ov::float16(15),
+        ov::float16(16), ov::float16(17), ov::float16(18),
+
+        ov::float16(20), ov::float16(21), ov::float16(22),
+        ov::float16(23), ov::float16(24), ov::float16(25),
+        ov::float16(26), ov::float16(27), ov::float16(28),
+    });
+
+    set_values(input1, {
+        ov::float16(0), ov::float16(0), ov::float16(0), ov::float16(0),
+        ov::float16(0), ov::float16(0), ov::float16(0), ov::float16(1),
+        ov::float16(0), ov::float16(0), ov::float16(0), ov::float16(2),
+        ov::float16(0), ov::float16(0), ov::float16(1), ov::float16(0),
+        ov::float16(0), ov::float16(0), ov::float16(1), ov::float16(1),
+        ov::float16(0), ov::float16(0), ov::float16(1), ov::float16(2),
+    });
+
+    std::vector<float> expected_results = {
+        ov::float16(0),
+        ov::float16(1),
+        ov::float16(2),
+        ov::float16(3),
+        ov::float16(4),
+        ov::float16(5),
+    };
+
+    DoTestV5(engine,input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 1, 1, 6, 1 });
+    DoTestV8(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 1, 1, 6, 1 });
+}
+
 TEST(gather_nd_gpu_fp16, export_import) {
     auto& engine = get_test_engine();
 

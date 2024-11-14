@@ -1,4 +1,3 @@
-clang==12.0.1; python_version == '3.8'
 clang==12.0.1; python_version == '3.9'
 clang==14.0; python_version == '3.10'
 clang==14.0; python_version == '3.11'

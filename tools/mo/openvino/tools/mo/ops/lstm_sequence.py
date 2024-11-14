@@ -54,7 +54,7 @@ class LSTMSequence(Op):
             'sequence_dim', # sequence dimension index in input shape
             'blobs_wrb',    # input blobs have three separate components W, R and B like in ONNX/LSTM
             'has_num_directions',  # if True, output shape has 4 dimensions; 3D otherwise
-            'format',       # format type of input blobs for different frameworks (onnx, tf, mxnet)
+            'format',       # format type of input blobs for different frameworks (onnx, tf)
         ]
 
     def backend_attrs(self):

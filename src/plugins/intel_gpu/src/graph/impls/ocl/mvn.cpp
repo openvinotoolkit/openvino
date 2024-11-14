@@ -25,7 +25,7 @@ struct mvn_impl : typed_primitive_impl_ocl<mvn> {
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        if (is_dynamic()) {
+        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
@@ -163,6 +163,8 @@ attach_mvn_impl::attach_mvn_impl() {
 
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv32),
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv32),
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
 
         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
     });

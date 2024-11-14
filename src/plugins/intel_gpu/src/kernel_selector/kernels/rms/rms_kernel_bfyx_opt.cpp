@@ -74,12 +74,18 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
         }
 
         const std::string lws_0 = "get_local_size(0)";
-        auto item_num_and_lws = get_item_num_and_lws(params, stoi(data_size));
+        // data_size string starts digit when it has static dim.
+        bool is_static_data_size = std::isdigit(data_size[0]);
+        size_t stack_size = 33;
+        if (is_static_data_size) {
+            auto item_num_and_lws = get_item_num_and_lws(params, stoi(data_size));
+            stack_size = cldnn::ceil_div(std::stoi(data_size), item_num_and_lws.second);
+        }
         jit.AddConstants({
             MakeJitConstant("DATA_SIZE", data_size),
             MakeJitConstant("LWS", lws_0),
             MakeJitConstant("SLM_SIZE", dispatchData.maxSlmSize),
-            MakeJitConstant("STACK_SIZE", cldnn::ceil_div(std::stoi(data_size), item_num_and_lws.second))
+            MakeJitConstant("STACK_SIZE", stack_size)
         });
     } else {
         jit.AddConstants({

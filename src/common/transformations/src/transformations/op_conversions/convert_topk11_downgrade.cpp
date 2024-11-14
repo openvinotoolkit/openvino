@@ -16,7 +16,7 @@ ov::pass::ConvertTopK11ToTopK3::ConvertTopK11ToTopK3() {
     const auto topk_v11_pattern = pattern::wrap_type<ov::op::v11::TopK>();
 
     const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
-        const auto topk_v11 = std::dynamic_pointer_cast<ov::op::v11::TopK>(m.get_match_root());
+        const auto topk_v11 = ov::as_type_ptr<ov::op::v11::TopK>(m.get_match_root());
         if (!topk_v11 || transformation_callback(topk_v11)) {
             return false;
         }
