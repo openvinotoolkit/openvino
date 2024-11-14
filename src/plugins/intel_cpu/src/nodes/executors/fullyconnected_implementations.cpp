@@ -27,6 +27,7 @@
 #include "ov_optional.hpp"
 #include "utils/cpp/maybe_unused.hpp"
 #include "utils/debug_capabilities.h"
+#include "nodes/executors/kleidiai/kleidiai_mm.hpp"
 
 #if defined(OV_CPU_WITH_ACL)
 #include "nodes/executors/acl/acl_fullyconnected.hpp"
@@ -208,6 +209,27 @@ OV_CPU_MAYBE_UNUSED_FUNCTION static inline bool noPostOps(const FCConfig& config
 template <>
 const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
     static const std::vector<ExecutorImplementation<FCAttrs>> fullyconnectedImplementations {
+        OV_CPU_INSTANCE_KLEIDIAI(
+            "fullyconnected_kleidiai",
+            ExecutorType::Kleidiai,
+            OperationType::MatMul,
+            ShapeTolerance::Agnostic,
+            // supports
+            [](const FCConfig& config) -> bool {
+                return MatMulKleidiAIExecutor::supports(config);
+            },
+            // requiresFallback
+            [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {
+                return {};
+            },
+            // acceptsShapes
+            [](const MemoryArgs& memory) -> bool {
+                return true;
+            },
+            // create
+            [](const FCAttrs& attrs, const PostOps& postOps, const MemoryArgs& memory, ExecutorContext::CPtr context) {
+                return std::make_shared<MatMulKleidiAIExecutor>(attrs, postOps, memory, context);
+            })
         OV_CPU_INSTANCE_MLAS_X64(
             "fullyconnected_mlas",
             ExecutorType::Mlas,

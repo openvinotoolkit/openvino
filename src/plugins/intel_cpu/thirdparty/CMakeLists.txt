@@ -171,8 +171,11 @@ endif()
 
 if(ENABLE_KLEIDIAI_FOR_CPU)
     set(KLEIDIAI_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(TEMP_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libs" FORCE)
     add_subdirectory(kleidiai)
-    ov_install_static_lib(kleidiai ${OV_CPACK_COMP_CORE})
+    # ov_install_static_lib(kleidiai ${OV_CPACK_COMP_CORE})
+    set(BUILD_SHARED_LIBS ${TEMP_BUILD_SHARED_LIBS} CACHE BOOL "Build shared libs" FORCE)
 endif()
 
 ov_add_onednn()
