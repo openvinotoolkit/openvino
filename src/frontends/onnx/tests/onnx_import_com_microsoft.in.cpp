@@ -1356,3 +1356,42 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_quickgelu) {
         test_case.run();
     }
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fusedmatmul_2x3) {
+    const auto model = convert_model("com.microsoft/fusedmatmul_2D.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<float> data_A{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f};
+    const std::vector<float> data_B{7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f};
+    const std::vector<float> expected_output{66.75f, 73.5f, 87.f, 96.f};
+
+    test_case.add_input<float>(Shape{3, 2}, data_A);
+    test_case.add_input<float>(Shape{3, 2}, data_B);
+    test_case.add_expected_output<float>(Shape{2, 2}, expected_output);
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fusedmatmul_2x5x3x6x4_2x6x3x4x7) {
+    const auto model = convert_model("com.microsoft/fusedmatmul_trans_and_transbatch_enabled.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<float> data_A = {1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,  8.0f,  9.0f,  10.0f,
+                                       11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f,
+                                       21.0f, 22.0f, 23.0f, 24.0f, 25.0f, 26.0f, 27.0f, 28.0f, 29.0f, 30.0f,
+                                       31.0f, 32.0f, 33.0f, 34.0f, 35.0f, 36.0f, 37.0f, 38.0f, 39.0f, 40.0f};
+
+    const std::vector<float> data_B = {1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,  8.0f,  9.0f,  10.0f,
+                                       11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f,
+                                       21.0f, 22.0f, 23.0f, 24.0f, 25.0f, 26.0f, 27.0f, 28.0f, 29.0f, 30.0f};
+
+    const std::vector<float> expected_output = {87.5f,   200.0f,  312.5f,  95.0f,   220.0f,  345.0f,  102.5f,  240.0f,
+                                                377.5f,  110.0f,  260.0f,  410.0f,  1325.0f, 1687.5f, 2050.0f, 1370.0f,
+                                                1745.0f, 2120.0f, 1415.0f, 1802.5f, 2190.0f, 1460.0f, 1860.0f, 2260.0f};
+
+    test_case.add_input<float>(Shape{2, 5, 4}, data_A);
+    test_case.add_input<float>(Shape{2, 3, 5}, data_B);
+    test_case.add_expected_output<float>(Shape{2, 4, 3}, expected_output);
+
+    test_case.run();
+}
