@@ -124,7 +124,7 @@ GPU Device Plugin
 NPU Device Plugin
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-* `Remote Tensor API <https://docs.openvino.ai/nightly/openvino-workflow/running-inference/inference-devices-and-modes/npu-device/remote-tensor-api-npu-plugin.html>`__
+* `Remote Tensor API <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/npu-device/remote-tensor-api-npu-plugin.html>`__
   is now supported.
 * You can now query the available number of tiles (ov::intel_npu::max_tiles) and force a
   specific number of tiles to be used by the model, per inference request
