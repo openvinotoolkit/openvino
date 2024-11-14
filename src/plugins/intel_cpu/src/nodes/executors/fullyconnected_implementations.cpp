@@ -90,7 +90,7 @@ static const TypeMapping aclFCTypeMapping {
 
 static const TypeMapping aclLowpFCTypeMapping {
     // {src, wei, bia, dst}                  pt<src, wei, bias, dst>
-    {{_i8, _i8, _any, _f32},                 pt(bypass(), bypass(), just(), bypass())}
+    {{_i8, _i8, _any, _f32},                 pt(bypass(), bypass(), just<f32>(), bypass())}
 };
 
 static const MappingNotation dnnlConvolutionMappingNotation {

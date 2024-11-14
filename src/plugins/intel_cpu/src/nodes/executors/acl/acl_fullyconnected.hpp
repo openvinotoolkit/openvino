@@ -11,42 +11,6 @@
 namespace ov {
 namespace intel_cpu {
 
-struct ACLFCAttrs {
-    ov::element::Type inputPrecision;
-    bool isConvertedWeights = false;
-    bool isWeightsRepacked = false;
-    bool weightsNonTransposed;
-};
-
-namespace acl_fc_executor {
-
-class ACLWeightsConverter : public ACLCommonExecutor {
-public:
-    ACLWeightsConverter() = default;
-    void updateTensorsShapes(ACLShapes& aclMemoryShapes) override {}
-    arm_compute::Status validateTensorsInfo(const ACLInfos & aclMemoryInfos) override;
-    ACLFunction configureFunction(const ACLTensors & aclMemoryTensors) override;
-};
-
-class ACLWeightFormatGenerator : public ACLCommonExecutor {
-public:
-    ACLWeightFormatGenerator(const FCAttrs& attrs,
-                             const PostOps& postOps,
-                             const MemoryArgs& memory);
-    void updateTensorsShapes(ACLShapes& aclMemoryShapes) override;
-    arm_compute::Status validateTensorsInfo(const ACLInfos & aclMemoryInfos) override;
-    ACLFunction configureFunction(const ACLTensors & aclMemoryTensors) override;
-    arm_compute::WeightFormat getOptImplWeightFormat() {
-        return expectedWeightFormat;
-    }
-private:
-    arm_compute::FullyConnectedLayerInfo fullyConnectedLayerInfo;
-    ACLFCAttrs aclfcAttrs;
-    arm_compute::WeightFormat expectedWeightFormat;
-};
-
-}  // namespace acl_fc_executor
-
 class ACLFullyConnectedExecutor : public ACLCommonExecutor {
 public:
     ACLFullyConnectedExecutor(const FCAttrs& attrs,

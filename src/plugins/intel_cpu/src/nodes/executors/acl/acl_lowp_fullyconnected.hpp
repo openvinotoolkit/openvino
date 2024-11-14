@@ -37,7 +37,8 @@ protected:
 
 private:
     arm_compute::GEMMInfo gemmInfo;
-    arm_compute::WeightsInfo weightsInfo;
+    arm_compute::WeightFormat expectedWeightFormat;
+    arm_compute::TensorInfo weiTensorInfo;
 
     MemoryCPtr packedWeights;
     ACLFCAttrs aclfcAttrs;

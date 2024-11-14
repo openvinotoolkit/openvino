@@ -58,7 +58,7 @@ ACLLowpFullyConnectedExecutor::ACLLowpFullyConnectedExecutor(const FCAttrs &attr
                                                              const MemoryArgs &memory,
                                                              const ExecutorContext::CPtr& context) : dequantizationScales(attrs.dequantizationScales) {
     initFCAttrs(attrs, aclTensorAttrs, aclfcAttrs, memory, gemmInfo, postOps);
-    packedWeights = acl_fc_executor::prepareWeightMemory(memory, context, attrs, aclfcAttrs, postOps);
+    packedWeights = acl_fc_executor::prepareWeightMemory(memory, context, attrs, aclfcAttrs, postOps, expectedWeightFormat, weiTensorInfo);
 }
 
 bool ACLLowpFullyConnectedExecutor::supports(const FCConfig &config) {
