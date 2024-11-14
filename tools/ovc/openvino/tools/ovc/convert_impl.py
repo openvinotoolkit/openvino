@@ -32,7 +32,7 @@ from openvino.tools.ovc.version import VersionChecker
 from openvino.tools.ovc.utils import check_values_equal
 from openvino.tools.ovc.logger import init_logger
 from openvino.tools.ovc.telemetry_utils import send_params_info, send_conversion_result, \
-    init_mo_telemetry
+    init_ovc_telemetry
 from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, \
     extract_input_info_from_example, get_pytorch_decoder_for_model_on_disk
 from openvino.tools.ovc.moc_frontend.paddle_frontend_utils import paddle_frontend_converter
@@ -428,7 +428,7 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
         tracemalloc.start()
 
     simplified_ie_version = VersionChecker().get_ie_simplified_version()
-    telemetry = init_mo_telemetry()
+    telemetry = init_ovc_telemetry()
     telemetry.start_session('ovc')
     telemetry.send_event('ovc', 'version', simplified_ie_version)
     # Initialize logger with 'ERROR' as default level to be able to form nice messages
@@ -484,11 +484,11 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
 
         argv.feManager = FrontEndManager()
 
-        # send telemetry with params info
-        send_params_info(argv, cli_parser)
-
         non_default_params = get_non_default_params(argv, cli_parser)
         argv.is_python_api_used = python_api_used
+
+        # send telemetry with params info
+        send_params_info(non_default_params)
 
         argv.framework = model_framework
 

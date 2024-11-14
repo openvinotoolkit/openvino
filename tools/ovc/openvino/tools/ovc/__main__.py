@@ -4,7 +4,7 @@
 import sys
 
 from openvino.tools.ovc.main import main
-from openvino.tools.ovc.telemetry_utils import init_mo_telemetry
+from openvino.tools.ovc.telemetry_utils import init_ovc_telemetry
 
-init_mo_telemetry()
+init_ovc_telemetry()
 sys.exit(main())
