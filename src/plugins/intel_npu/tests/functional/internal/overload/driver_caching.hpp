@@ -113,10 +113,10 @@ void checkCacheDirectory() {
     }
 #endif
 
-    std::printf("======check cache path: #%s#\n", path.c_str());
+    std::printf("======check cache path: #%s#\n", path.string().c_str());
     if (std::filesystem::exists(path) && std::filesystem::is_directory(path)) {
         for (const auto& entry : std::filesystem::directory_iterator(path)) {
-            std::printf("  ====cache content: #%s# \n", entry.path().c_str());
+            std::printf("  ====cache content: #%s# \n", entry.path().string().c_str());
         }
     }
 }
@@ -149,6 +149,13 @@ public:
         if (!initStruct) {
             GTEST_SKIP() << "ZeroInitStructsHolder init failed, ZeroInitStructsHolder is a nullptr";
         }
+
+        ze_graph_dditable_ext_decorator& graph_ddi_table_ext = initStruct->getGraphDdiTable();
+        uint32_t graphDdiExtVersion = graph_ddi_table_ext.version();
+        if (graphDdiExtVersion < ZE_GRAPH_EXT_VERSION_1_5) {
+            GTEST_SKIP() << "Skipping test for Driver version less than 1.5, current driver version: " << graphDdiExtVersion;
+        }
+        
         APIBaseTest::SetUp();
     }
 
