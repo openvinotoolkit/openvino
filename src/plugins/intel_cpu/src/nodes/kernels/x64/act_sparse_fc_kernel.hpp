@@ -1,0 +1,32 @@
+// Copyright (C) 2018-2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <array>
+#include <cstddef>
+#include <vector>
+
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
+
+namespace ov {
+namespace Extensions {
+namespace Cpu {
+namespace XARCH {
+
+float dynPruneLinear(float* x, float* W2, float threshold, float zero_point, float* y2, int M, int IC, int OC);
+void dynPruneLinear_i8(const float* input,
+                       float threshold,
+                       float zero_point,
+                       const uint8_t* W,
+                       const uint8_t* zp,
+                       const float* scales,
+                       float* output,
+                       int M,
+                       int IC,
+                       int OC);
+
+}  // namespace XARCH
+}  // namespace Cpu
+}  // namespace Extensions
+}  // namespace ov

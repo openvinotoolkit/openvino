@@ -134,6 +134,7 @@ enum class Type {
     QKVProjection,
     RMS,
     SearchSorted,
+    ActSparseFC,
 };
 
 enum class Algorithm {

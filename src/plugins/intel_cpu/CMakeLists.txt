@@ -330,6 +330,14 @@ cross_compiled_file(${TARGET_NAME}
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX2 ANY
+                    src/nodes/kernels/x64/act_sparse_fc_kernel.cpp
+        API         src/nodes/kernels/x64/act_sparse_fc_kernel.hpp
+        NAME        dynPruneLinear dynPruneLinear_i8
+        NAMESPACE   ov::Extensions::Cpu::XARCH
+)
+
 # system dependencies must go last
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::pugixml)
 ov_set_threading_interface_for(${TARGET_NAME})

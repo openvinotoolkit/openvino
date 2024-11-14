@@ -102,16 +102,26 @@ ov::intel_cpu::ActivationSparsityFusion::ActivationSparsityFusion() {
         config.oc = 0;
         config.threshold = thr[0];
 
+        auto const_weight = ov::as_type_ptr<opset1::Constant>(pattern_map.at(fc_weight_u8).get_node_shared_ptr());
+        if (const_weight) {
+            const auto& w_shape = const_weight->get_shape();
+            config.oc = w_shape[0];
+            config.ic = w_shape[1];
+        } else {
+            return false;
+        }
+
         auto old_node = root;
         auto new_node = std::make_shared<ActSparseFCNode>(new_args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
-        std::cout << m.get_match_root() << std::endl;
 
         // callback is for plugin implementation to check if it can be supported
         // if (!transformation_callback(new_node)) {
         //    return false;
         //}
-        return false;
+
+        if (std::getenv("NO_SPARSE"))
+            return false;
         ov::replace_node(old_node, new_node);
 
         std::cout << m.get_match_root() << std::endl;

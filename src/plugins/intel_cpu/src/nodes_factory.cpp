@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
+#include "nodes/act_sparse_fc.h"
 #include "nodes/adaptive_pooling.h"
 #include "nodes/batch_to_space.h"
 #include "nodes/bin_conv.h"
@@ -230,6 +230,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(MHA, Type::MHA);
     INTEL_CPU_NODE(PagedAttention, Type::PagedAttention);
     INTEL_CPU_NODE(RMSNorm, Type::RMS);
+    INTEL_CPU_NODE(ActSparseFC, Type::ActSparseFC);
 #endif
 }
 
