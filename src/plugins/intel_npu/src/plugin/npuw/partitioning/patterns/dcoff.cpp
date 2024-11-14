@@ -709,7 +709,7 @@ DCOFFPassReshape4::DCOFFPassReshape4(DCOffMode dcoff_mode, ov::element::Type dco
         auto matched_paramA = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeA);
         auto matched_paramC = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeC);
 
-        auto matched_out_mulply = node_to_output.at(mulply);
+        const auto& matched_out_mulply = node_to_output.at(mulply);
 
         if (ov::element::i4 == matched_paramA->get_element_type() &&
             (ov::element::f16 == matched_paramC->get_element_type() ||
