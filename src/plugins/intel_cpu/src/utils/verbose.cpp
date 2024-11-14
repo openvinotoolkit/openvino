@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "openvino/core/type/element_type.hpp"
 #include "utils/general_utils.h"
 #ifdef CPU_DEBUG_CAPS
 
@@ -119,15 +120,25 @@ void Verbose::printInfo() {
 
     for (size_t i = 0; i < node->getParentEdges().size(); i++) {
         std::string prefix("src:" + std::to_string(i) + ':');
-        formatMemDesc(MemoryDescUtils::convertToDnnlMemoryDesc(
-                          node->getParentEdgeAt(i)->getMemory().getDesc().clone())->getDnnlDesc().get(),
+
+        auto desc = node->getParentEdgeAt(i)->getMemory().getDescPtr();
+        if (desc->getPrecision() == ov::element::i64) { // workaround for oneDNN not having s64 bit type
+            desc = desc->cloneWithNewPrecision(ov::element::i32);
+        }
+
+        formatMemDesc(MemoryDescUtils::convertToDnnlMemoryDesc(desc)->getDnnlDesc().get(),
                       prefix);
     }
 
     for (size_t i = 0; i < node->getChildEdges().size(); i++) {
         std::string prefix("dst:" + std::to_string(i) + ':');
-        formatMemDesc(MemoryDescUtils::convertToDnnlMemoryDesc(
-                          node->getChildEdgeAt(i)->getMemory().getDesc().clone())->getDnnlDesc().get(),
+
+        auto desc = node->getChildEdgeAt(i)->getMemory().getDescPtr();
+        if (desc->getPrecision() == ov::element::i64) { // workaround for oneDNN not having s64 bit type
+            desc = desc->cloneWithNewPrecision(ov::element::i32);
+        }
+
+        formatMemDesc(MemoryDescUtils::convertToDnnlMemoryDesc(desc)->getDnnlDesc().get(),
                       prefix);
     }
 
