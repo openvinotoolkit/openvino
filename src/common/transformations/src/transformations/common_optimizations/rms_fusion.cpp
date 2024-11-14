@@ -13,6 +13,7 @@
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rms.hpp"
 #include "transformations/utils/utils.hpp"
@@ -57,11 +58,15 @@ RMSFusion::RMSFusion(bool force_tail_convert) {
     auto sqrt = wrap_type<ov::op::v0::Sqrt>({add_eps});
 
     // 1/Sqrt(ReduceMean(x^2,axes)+eps)
-    auto const_div = wrap_type<ov::op::v0::Constant>(constant_value(-1));
-    auto div = wrap_type<ov::op::v1::Power>({sqrt, const_div});
+    auto const_pow = wrap_type<ov::op::v0::Constant>(constant_value(-1));
+    auto pow = wrap_type<ov::op::v1::Power>({sqrt, const_pow});
+
+    auto const_div = wrap_type<ov::op::v0::Constant>(constant_value(1));
+    auto div = wrap_type<ov::op::v1::Divide>({const_div, sqrt});
+    auto div_or_pow = std::make_shared<pattern::op::Or>(OutputVector{div, pow});
 
     // x * 1/Sqrt(ReduceMean(x^2,axes)+eps)
-    auto mul1 = wrap_type<ov::op::v1::Multiply>({x, div});
+    auto mul1 = wrap_type<ov::op::v1::Multiply>({x, div_or_pow});
 
     // x * 1/Sqrt(ReduceMean(x^2,axes)+eps) * gamma
     auto gamma = wrap_type<ov::op::v0::Constant>(type_matches(element::f32));
