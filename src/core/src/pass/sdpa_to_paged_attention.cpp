@@ -28,7 +28,7 @@ static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> nod
     // Set name for both node and output tensor (should be only one tensor, and any other names will be overriden by a
     // given single name)
     node->set_friendly_name(name);
-    OPENVINO_ASSERT(node->get_output_size() == 1);  // Should I use assert here?
+    OPENVINO_ASSERT(node->get_output_size() == 1);
     node->get_output_tensor(0).set_names({name});
     return node;
 }
@@ -55,10 +55,10 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     auto has_parameter = [=](const std::shared_ptr<ov::Model>& model,
                              const std::string& name) -> std::shared_ptr<v0::Parameter> {
-        for (auto& param : model->inputs()) {
+        for (const auto& param : model->inputs()) {
             const auto& names = param.get_names();
-            if (names.find(name) != names.end()) {
-                if (auto casted_param = std::dynamic_pointer_cast<v0::Parameter>(param.get_node_shared_ptr())) {
+            if (names.count(name)) {
+                if (auto casted_param = ov::as_type_ptr<v0::Parameter>(param.get_node_shared_ptr())) {
                     return casted_param;
                 } else {
                     OPENVINO_THROW("The model is in the inconsistent state. Found input '",
