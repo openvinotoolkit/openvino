@@ -158,6 +158,11 @@ static bool is_weight_horizontal(const fully_connected_params& params, size_t ou
             && output_f / 4 /* tile_ofm=4 */ > min_num_threads * 1.5);
 }
 
+static bool is_weight_small_kn(const fully_connected_params& params, size_t output_f) {
+    size_t min_num_threads = params.engineInfo.computeUnitsCount * simd;
+    return output_f / 2 /*most frequently used tile_ofm*/ <= min_num_threads;
+}
+
 static bool is_suitable_outer_ofm(const fully_connected_params& params, size_t output_f) {
     size_t min_num_threads = params.engineInfo.computeUnitsCount * simd;
     return (params.weights.OFM().v > params.weights.IFM().v * 6
@@ -412,6 +417,11 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
                 } else if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
                     return selector.Default(tune_params(1, 1, 4, 4, 1, 1, 1, EXE_MODE_DEFAULT));
                 }
+            } else if (is_weight_small_kn(params, output_f)) {
+                if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2)
+                    return selector.Default(tune_params(1, 1, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
+                else
+                    return selector.Default(tune_params(1, 2, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
             } else {
                 if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
                     return selector.Default(tune_params(1, 1, 4, 4, 1, 1, 1, EXE_MODE_DEFAULT));
