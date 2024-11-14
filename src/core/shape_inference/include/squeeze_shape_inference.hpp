@@ -139,7 +139,6 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
                                  const std::vector<T>& input_shapes,
                                  const ITensorAccessor& ta = make_tensor_accessor()) {
     const auto& arg_shape = input_shapes[0];
-    const auto& arg_rank = arg_shape.rank();
     ov::optional<std::set<int64_t>> unique_axes{};
 
     if (const auto& output_shapes =
