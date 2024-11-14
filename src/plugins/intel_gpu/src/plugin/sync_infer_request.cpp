@@ -782,7 +782,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     auto device_tensor_et = convert_to_supported_device_type(element_type);
     bool convert_needed = is_convert_required(element_type, device_tensor_et);
 
-    if (is_remote_tensor_impl && !need_lockable_mem) {
+    if (is_remote_tensor_impl) {
         if (convert_needed) {
             m_plugin_inputs[input_idx] = { create_device_tensor(pshape,
                                                                 cldnn::element_type_to_data_type(element_type),

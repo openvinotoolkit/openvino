@@ -32,9 +32,9 @@ If the results are unsatisfactory, add datasets and perform the same steps, star
 OpenVINO Training Extensions Components
 #######################################
 
-* `OpenVINO Training Extensions API <https://github.com/openvinotoolkit/training_extensions/tree/develop/src/otx/api>`__
+* `OpenVINO Training Extensions API <https://github.com/openvinotoolkit/training_extensions/tree/develop/src/otx/>`__
 * `OpenVINO Training Extensions CLI <https://github.com/openvinotoolkit/training_extensions/tree/develop/src/otx/cli>`__
-* `OpenVINO Training Extensions Algorithms <https://github.com/openvinotoolkit/training_extensions/tree/develop/src/otx/algorithms>`__
+* `OpenVINO Training Extensions Algorithms <https://github.com/openvinotoolkit/training_extensions/tree/develop/src/otx/algo>`__
 
 Tutorials
 #########
