@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <utility>
+
 #include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
@@ -12,19 +14,25 @@ namespace pass {
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief MarkDequantizationSubgraph marks dequantization subgraph, that is:
- *     Convert->Subtract(optional)->Multiply
- * in two ways:
- * - first Convert is marked with DisableConstantFolding attribute, also if Subtract is present
- *   and its second input is a Convert - that Convert is marked with DisableConstantFolding as well,
- * - Subtract and Multiply are marked with 'DequantizationNode' attribute
+ * @brief TBA
  */
-class TRANSFORMATIONS_API MarkDequantizationSubgraph : public MatcherPass {
+class TRANSFORMATIONS_API MarkDequantizationAndDecompression : public ModelPass {
 public:
-    OPENVINO_RTTI("MarkDequantizationSubgraph", "0");
-    MarkDequantizationSubgraph(const element::TypeVector& precisions,
-                               const bool fold_subtract_const = false,
-                               const bool disable_fold_multiply_const = false);
+    OPENVINO_RTTI("MarkDequantizationAndDecompression", "0");
+    explicit MarkDequantizationAndDecompression(element::TypeVector precisions,
+                                                const bool fold_subtract_const = false,
+                                                const bool fold_multiply_const = true)
+        : m_fold_subtract_const(fold_subtract_const),
+          m_fold_multiply_const(fold_multiply_const),
+          m_precisions(std::move(precisions)) {}
+
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+
+private:
+    bool m_fold_subtract_const = false;
+    bool m_fold_multiply_const = true;
+    element::TypeVector m_precisions;
 };
+
 }  // namespace pass
 }  // namespace ov
