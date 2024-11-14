@@ -632,7 +632,7 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
 }
 
 void Plugin::unregister_priority(const unsigned int& priority, const std::string& device_name) {
-    if (m_mtx.get() && m_priority_map) {
+    if (m_mtx && m_priority_map) {
         std::lock_guard<std::mutex> lck(*m_mtx);
         auto& priority_devices = (*m_priority_map)[priority];
         for (auto iter = priority_devices.begin(); iter != priority_devices.end();) {
