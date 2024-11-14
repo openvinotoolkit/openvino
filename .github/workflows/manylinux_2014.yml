@@ -88,6 +88,7 @@ jobs:
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING -e DOCKER_CONFIG -v ${{ github.workspace }}:${{ github.workspace }}
     env:
       CMAKE_BUILD_TYPE: 'Release'
+      ARCH: 'x86_64'
       OPENVINO_REPO: ${{ github.workspace }}/src
       INSTALL_DIR: ${{ github.workspace }}/install/openvino
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
@@ -99,6 +100,9 @@ jobs:
       SCCACHE_SERVER_PORT: 35555
       SCCACHE_CACHE_SIZE: 50G
       SCCACHE_AZURE_KEY_PREFIX: manylinux_2014
+      ARTIFACTS_SHARE: "/mount/build-artifacts"
+      MANIFEST_PATH: ${{ github.workspace }}/manifest.yml
+      PRODUCT_TYPE: public_manylinux2014_x86_64_release
       
     steps:
       - name: Clone OpenVINO
@@ -109,6 +113,17 @@ jobs:
 
       - name: System info
         uses: ./src/.github/actions/system_info
+        
+      - name: Generate product manifest and set CI_BUILD_NUMBER & CI_BUILD_DEV_TAG
+        id: create_manifest
+        uses: ./src/.github/actions/create_manifest
+        with:
+          repos: |
+            ${{ env.OPENVINO_REPO }}
+          product_type: ${{ env.PRODUCT_TYPE }}
+          target_arch: ${{ env.ARCH }}
+          build_type: ${{ env.CMAKE_BUILD_TYPE }}
+          save_to: ${{ env.MANIFEST_PATH }}
 
       - name: Create docker build cache
         run: |
@@ -128,6 +143,8 @@ jobs:
             -e SCCACHE_AZURE_KEY_PREFIX \
             -e CMAKE_CXX_COMPILER_LAUNCHER \
             -e CMAKE_C_COMPILER_LAUNCHER \
+            -e CI_BUILD_NUMBER \
+            -e CI_BUILD_DEV_TAG \
             -w /work/src \
             ${{ fromJSON(needs.docker.outputs.images).ov_build.manylinux2014_x86_64 }} \
             /bin/bash -c "
@@ -158,6 +175,8 @@ jobs:
               -e SCCACHE_AZURE_KEY_PREFIX \
               -e CMAKE_CXX_COMPILER_LAUNCHER \
               -e CMAKE_C_COMPILER_LAUNCHER \
+              -e CI_BUILD_NUMBER \
+              -e CI_BUILD_DEV_TAG \
               -w /work/src \
               ${{ fromJSON(needs.docker.outputs.images).ov_build.manylinux2014_x86_64 }} \
               /bin/bash -c "
@@ -189,3 +208,29 @@ jobs:
           name: openvino_wheels
           path: ${{ env.INSTALL_WHEELS_DIR }}/wheels/*.whl
           if-no-files-found: 'error'
+          
+      - name: Store artifacts to a shared drive
+        id: store_artifacts
+        if: ${{ always() }}
+        uses: ./src/.github/actions/store_artifacts
+        with:
+          artifacts: |
+            ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+            ${{ env.MANIFEST_PATH }}
+            ${{ env.INSTALL_WHEELS_DIR }}/wheels
+          storage_dir: ${{ env.PRODUCT_TYPE }}
+          storage_root: ${{ env.ARTIFACTS_SHARE }}
+          
+  Overall_Status:
+    name: ci/gha_overall_status_manylinux2014
+    needs: [Smart_CI, Build]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check status of all jobs
+        if: >-
+          ${{
+            contains(needs.*.result, 'failure') ||
+            contains(needs.*.result, 'cancelled')
+          }}
+        run: exit 1
