@@ -155,7 +155,7 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     const auto num_heads = node.get_attribute_value<int64_t>("num_heads");
 
     if(ov::op::util::is_null(nodes[1]) || ov::op::util::is_null(nodes[2])) {
-        const auto split_result = detail::split_to_QKV(input, num_heads, {});
+        const auto split_result = detail::split_to_QKV(input, static_cast<int>(num_heads), {});
         Q = split_result[0];
         K = split_result[1];
         V = split_result[2];
