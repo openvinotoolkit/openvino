@@ -76,8 +76,12 @@ is installed in your environment by running the following command:
    pip install optimum[openvino]
 
 If the model comes from `Hugging Face <https://huggingface.co/models>`__ and is supported
-by Optimum, it may be easier to use the Optimum Intel API to perform weight compression
-when the model is loaded with the ``load_in_8bit=True`` parameter.
+by Optimum, it may be easier to use the **Optimum Intel API**, which employs NNCF weight
+compression capabilities to optimize various large Transformer models.
+
+The NNCF ``nncf.compress_weights()`` API, with most of its options, is exposed in the
+``.from_pretrained()`` method of Optimum Intel classes. Optimum also has several datasets
+for data-aware quantization available out-of-the-box.
 
 .. tab-set::
 
@@ -94,7 +98,7 @@ when the model is loaded with the ``load_in_8bit=True`` parameter.
         from transformers import AutoTokenizer, pipeline
 
         # Load a model and compress it with NNCF.
-        model_id = "HuggingFaceH4/zephyr-7b-beta"
+        model_id = "microsoft/Phi-3.5-mini-instruct"
         model = OVModelForCausalLM.from_pretrained(model_id, export=True, load_in_8bit=False, compile=False)
         model.model = compress_weights(model.model, mode=CompressWeightsMode.INT8_ASYM)
 
@@ -114,12 +118,23 @@ when the model is loaded with the ``load_in_8bit=True`` parameter.
 
       .. code-block:: python
 
-         from optimum.intel.openvino import OVModelForCausalLM
+         from optimum.intel.openvino import OVModelForCausalLM, OVWeightQuantizationConfig
          from transformers import AutoTokenizer, pipeline
 
-         # Load a model and compress it with Optimum Intel.
-         model_id = "HuggingFaceH4/zephyr-7b-beta"
-         model = OVModelForCausalLM.from_pretrained(model_id, export=True, load_in_8bit=True)
+         # Load and compress a model from Hugging Face.
+         model_id = "microsoft/Phi-3.5-mini-instruct"
+         model = OVModelForCausalLM.from_pretrained(
+             model_id,
+             export=True,
+             quantization_config=OVWeightQuantizationConfig(
+                 bits=8,
+                 quant_method="awq",
+                 scale_estimation=True,
+                 dataset="wikitext2",
+                 group_size=64,
+                 ratio=1.0
+             )
+         )
 
          # Inference
          tokenizer = AutoTokenizer.from_pretrained(model_id)
@@ -127,6 +142,16 @@ when the model is loaded with the ``load_in_8bit=True`` parameter.
          phrase = "The weather is"
          results = pipe(phrase)
          print(results)
+
+
+      You can also use the optimum-cli command line tool to the same effect:
+
+      .. code-block:: console
+
+         optimum-cli export openvino --model microsoft/Phi-3.5-mini-instruct --weight-format int4 --awq --scale-estimation --dataset wikitext2 --group-size 64 --ratio 1.0 ov_phi-3.5-mini-instruct
+
+      For more details, refer to the article on how to
+      :doc:`infer LLMs using Optimum Intel <../../learn-openvino/llm_inference_guide/llm-inference-hf>`.
 
 The model can also be :ref:`saved into a compressed format <save_pretrained>`,
 resulting in a smaller binary file.
@@ -204,7 +229,7 @@ for details of the usage.
    synthetic_dataset = nncf.data.generate_text_data(hf_model, tokenizer, dataset_size=100)
    quantization_dataset = nncf.Dataset(
        synthetic_dataset,
-       transform_fn # see example in NNCF repo how to make transform_fn
+       transform_fn # See the example in NNCF repo to learn how to make transform_fn.
    )
 
    model = compress_weights(
@@ -215,7 +240,7 @@ for details of the usage.
        dataset=quantization_dataset,
        awq=True,
        scale_estimation=True
-   )  # model is openvino.Model
+   )  # The model is openvino.Model.
 
 For data-aware weight compression refer to the following
 `example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino/tiny_llama>`__.
@@ -225,48 +250,6 @@ For data-aware weight compression refer to the following
    Some methods can be stacked on top of one another to achieve a better
    accuracy-performance trade-off after weight quantization. For example, the **Scale Estimation**
    method can be applied along with **AWQ** and mixed-precision quantization (the ``ratio`` parameter).
-
-
-**Hugging Face Optimum-Intel API**
-
-Hugging Face Optimum-Intel provides an easy way to use NNCF Weight Compression capabilities to optimize
-various large Transformer models. Most of the options of the NNCF ``nncf.compress_weights()`` API are
-exposed in the ``.from_pretrained()`` method of Optimum-Intel classes. Optimum also has several datasets
-for data-aware quantization available out-of-the-box.
-The example below shows data-free 4-bit weight quantization
-applied on top of OpenVINO IR. Before trying the example, make sure Optimum Intel
-is installed in your environment by running the following command:
-
-.. code-block:: python
-
-   pip install optimum[openvino]
-
-.. code-block:: python
-
-   from optimum.intel.openvino import OVModelForCausalLM, OVWeightQuantizationConfig
-   from transformers import AutoTokenizer, pipeline
-
-   # Load and compress model from Hugging Face
-   model_id = "microsoft/Phi-3.5-mini-instruct"
-   model = OVModelForCausalLM.from_pretrained(
-       model_id,
-       export=True,
-       quantization_config=OVWeightQuantizationConfig(
-           bits=4,
-           quant_method="awq",
-           scale_estimation=True,
-           dataset="wikitext2",
-           group_size=64,
-           ratio=1.0
-       )
-   )
-
-   # Inference
-   tokenizer = AutoTokenizer.from_pretrained(model_id)
-   pipe = pipeline("text-generation", model=model, tokenizer=tokenizer)
-   phrase = "The weather is"
-   results = pipe(phrase)
-   print(results)
 
 
 Exporting and Loading Compressed Models
@@ -288,6 +271,11 @@ load the compressed model later for faster time to first inference.
    # Load a saved model
    model = OVModelForCausalLM.from_pretrained("Phi-3.5-mini-instruct-int4-sym-ov")
    tokenizer = AutoTokenizer.from_pretrained("Phi-3.5-mini-instruct-int4-sym-ov")
+
+.. tip::
+
+   Models optimized with with NNCF or Optimum Intel can be used with
+   :doc:`OpenVINO GenAI <../../learn-openvino/llm_inference_guide/genai-guide>`.
 
 
 Auto-tuning of Weight Compression Parameters

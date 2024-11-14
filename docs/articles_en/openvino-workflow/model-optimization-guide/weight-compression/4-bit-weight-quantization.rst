@@ -143,8 +143,7 @@ environment by running the following command:
    pip install optimum[openvino]
 
 If the model comes from `Hugging Face <https://huggingface.co/models>`__ and is supported
-by Optimum, it may be easier to use the Optimum Intel API to perform weight compression
-when the model is loaded with the ``load_in_4bit=True`` parameter.
+by Optimum, it may be easier to use the Optimum Intel API to perform weight compression.
 
 .. tab-set::
 
@@ -161,7 +160,7 @@ when the model is loaded with the ``load_in_4bit=True`` parameter.
          from transformers import AutoTokenizer, pipeline
 
          # Load a model and compress it with NNCF.
-         model_id = "HuggingFaceH4/zephyr-7b-beta"
+         model_id = "microsoft/Phi-3.5-mini-instruct"
          model = OVModelForCausalLM.from_pretrained(model_id, export=True, load_in_8bit=False, compile=False)
          model.model = compress_weights(model.model, mode=CompressWeightsMode.INT4_SYM)
 
@@ -176,17 +175,28 @@ when the model is loaded with the ``load_in_4bit=True`` parameter.
    .. tab-item:: Compression with Optimum-Intel
       :sync: optimum
 
-      Load a pre-trained Hugging Face model, compress it to INT4,
-      using the Optimum Intel API, and then execute inference with a text phrase:
+      Load a pre-trained Hugging Face model, compress it to INT4, using the
+      Optimum Intel API, and then execute inference with a text phrase:
 
       .. code-block:: python
 
-         from optimum.intel.openvino import OVModelForCausalLM
+         from optimum.intel.openvino import OVModelForCausalLM, OVWeightQuantizationConfig
          from transformers import AutoTokenizer, pipeline
 
-         # Load a model and compress it with Optimum Intel.
-         model_id = "HuggingFaceH4/zephyr-7b-beta"
-         model = OVModelForCausalLM.from_pretrained(model_id, export=True, load_in_4bit=True)
+         # Load and compress a model from Hugging Face.
+         model_id = "microsoft/Phi-3.5-mini-instruct"
+         model = OVModelForCausalLM.from_pretrained(
+             model_id,
+             export=True,
+             quantization_config=OVWeightQuantizationConfig(
+                 bits=4,
+                 quant_method="awq",
+                 scale_estimation=True,
+                 dataset="wikitext2",
+                 group_size=64,
+                 ratio=1.0
+             )
+         )
 
          # Inference
          tokenizer = AutoTokenizer.from_pretrained(model_id)
@@ -194,6 +204,17 @@ when the model is loaded with the ``load_in_4bit=True`` parameter.
          phrase = "The weather is"
          results = pipe(phrase)
          print(results)
+
+
+      You can also use the optimum-cli command line tool to the same effect:
+
+      .. code-block:: console
+
+         optimum-cli export openvino --model microsoft/Phi-3.5-mini-instruct --weight-format int4 --awq --scale-estimation --dataset wikitext2 --group-size 64 --ratio 1.0 ov_phi-3.5-mini-instruct
+
+      For more details, refer to the article on how to
+      :doc:`infer LLMs using Optimum Intel <../../../learn-openvino/llm_inference_guide/llm-inference-hf>`.
+
 
 The model can be also :ref:`saved into a compressed format <save_pretrained>`,
 resulting in a smaller binary file.
