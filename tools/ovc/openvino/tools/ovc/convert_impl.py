@@ -433,7 +433,7 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
     telemetry.send_event('ovc', 'version', simplified_ie_version)
     # Initialize logger with 'ERROR' as default level to be able to form nice messages
     # before arg parser deliver log_level requested by user
-    #init_logger('ERROR', False)
+    init_logger('ERROR', False)
     argv = None
     # Minimize modifications among other places in case if multiple pieces are passed as input_model
     if python_api_used:
