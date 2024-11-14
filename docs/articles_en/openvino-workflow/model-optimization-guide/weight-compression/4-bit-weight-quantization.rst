@@ -143,7 +143,12 @@ environment by running the following command:
    pip install optimum[openvino]
 
 If the model comes from `Hugging Face <https://huggingface.co/models>`__ and is supported
-by Optimum, it may be easier to use the Optimum Intel API to perform weight compression.
+by Optimum, it may be easier to use the **Optimum Intel API**, which employs NNCF weight
+compression capabilities to optimize various large Transformer models.
+
+The NNCF ``nncf.compress_weights()`` API, with most of its options, is exposed in the
+``.from_pretrained()`` method of Optimum Intel classes. Optimum also has several datasets
+for data-aware quantization available out-of-the-box.
 
 .. tab-set::
 
