@@ -213,12 +213,12 @@ macro(ov_define_setup_py_packaging_vars)
 
     # define version (syncronize with tools/openvino_dev/CMakeLists.txt)
     if(DEFINED ENV{CI_BUILD_DEV_TAG} AND NOT "$ENV{CI_BUILD_DEV_TAG}" STREQUAL "")
-        set(WHEEL_VERSION "${OpenVINO_VERSION}.$ENV{CI_BUILD_DEV_TAG}" CACHE STRING "Version of this release" FORCE)
+        set(WHEEL_VERSION "${OpenVINO_VERSION}.$ENV{CI_BUILD_DEV_TAG}")
         set(wheel_pre_release ON)
     else()
-        set(WHEEL_VERSION ${OpenVINO_VERSION} CACHE STRING "Version of this release" FORCE)
+        set(WHEEL_VERSION ${OpenVINO_VERSION})
     endif()
-    set(WHEEL_BUILD "${OpenVINO_VERSION_BUILD}" CACHE STRING "Build number of this release" FORCE)
+    set(WHEEL_VERSION "${WHEEL_VERSION}+${OpenVINO_VERSION_BUILD}" CACHE STRING "Version of this release" FORCE)
 
     # Common vars used by setup.py
     set(PY_PACKAGES_DIR ${OV_CPACK_PYTHONDIR})
@@ -240,7 +240,6 @@ macro(ov_define_setup_py_packaging_vars)
         SETUPTOOLS_EXT_SUFFIX=${PYTHON_MODULE_EXTENSION}
         # versions
         WHEEL_VERSION=${WHEEL_VERSION}
-        WHEEL_BUILD=${WHEEL_BUILD}
         # build locations
         OPENVINO_SOURCE_DIR=${OpenVINO_SOURCE_DIR}
         OPENVINO_BINARY_DIR=${OpenVINO_BINARY_DIR}

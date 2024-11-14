@@ -91,8 +91,9 @@ elseif(LINUX)
 
     set(PLATFORM_TAG "${platform}_${_arch}")
 endif()
+list(APPEND setup_py_env PLATFORM_TAG=${PLATFORM_TAG})
 
-set(openvino_wheel_name "openvino-${WHEEL_VERSION}-${WHEEL_BUILD}-${PYTHON_TAG}-${ABI_TAG}-${PLATFORM_TAG}.whl")
+set(openvino_wheel_name "openvino-${WHEEL_VERSION}-${PYTHON_TAG}-${ABI_TAG}-${PLATFORM_TAG}.whl")
 set(openvino_wheels_output_dir "${CMAKE_BINARY_DIR}/wheels")
 set(openvino_wheel_path "${openvino_wheels_output_dir}/${openvino_wheel_name}")
 
@@ -112,16 +113,12 @@ if(pip_version VERSION_GREATER_EQUAL 22.0)
             --no-deps
             --wheel-dir ${openvino_wheels_output_dir}
             --verbose
-            --build-option --build-number=${WHEEL_BUILD}
-            --build-option --plat-name=${PLATFORM_TAG}
             "${CMAKE_CURRENT_SOURCE_DIR}/..")
 else()
     # for --config-setting explanation see https://github.com/pypa/setuptools/issues/2491
     set(wheel_build_command
         ${Python3_EXECUTABLE} -m build "${CMAKE_CURRENT_SOURCE_DIR}/.."
         --outdir ${openvino_wheels_output_dir}
-        --config-setting=--build-option=--build-number=${WHEEL_BUILD}
-        --config-setting=--build-option=--plat-name=${PLATFORM_TAG}
         --config-setting=--quiet
         --wheel)
 endif()
