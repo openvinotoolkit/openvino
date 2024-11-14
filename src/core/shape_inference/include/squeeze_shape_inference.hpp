@@ -120,13 +120,13 @@ void set_output_shape(const ov::optional<std::set<int64_t>>& unique_axes, const 
 }  // namespace util
 namespace v0 {
 /**
- * \brief Do Squeeze shape inference.
+ * @brief Do Squeeze shape inference.
  *
- * \tparam T             Type of input/output shapes.
+ * @tparam T             Type of input/output shapes.
  *
- * \param op             Squeeze operator pointer.
- * \param input_shapes   Squeeze input shapes.
- * \param ta             Tensor accessor to constant data.
+ * @param op             Squeeze operator pointer.
+ * @param input_shapes   Squeeze input shapes.
+ * @param ta             Tensor accessor to constant data.
  */
 template <class T, class TRShape = result_shape_t<T>>
 std::vector<TRShape> shape_infer(const Squeeze* op,
