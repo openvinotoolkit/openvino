@@ -118,7 +118,7 @@ jobs:
         run: |
           # pytorch test requirements
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_pytorch
-      
+
       - name: PyTorch Layer Tests
         if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287, 142196
         # due to CVS-152795, parallel run is not possible on Windows
