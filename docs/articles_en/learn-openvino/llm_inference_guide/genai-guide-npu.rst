@@ -39,17 +39,35 @@ You select one of the methods by setting the ``--group-size`` parameter to eithe
       .. code-block:: console
          :name: group-quant
 
-         optimum-cli export openvino -m TinyLlama/TinyLlama-1.1B-Chat-v1.0 --weight-format int4 --sym --ratio 1.0 --group_size 128
+         optimum-cli export openvino -m TinyLlama/TinyLlama-1.1B-Chat-v1.0 --weight-format int4 --sym --ratio 1.0 --group_size 128 TinyLlama-1.1B-Chat-v1.0
 
    .. tab-item:: Channel-wise quantization
 
-      .. code-block:: console
-         :name: channel-wise-quant
-         
-         optimum-cli export openvino -m meta-llama/Llama-2-7b-chat-hf --weight-format int4 --sym --ratio 1.0 --group-size -1
-         
+      .. tab-set::
+
+         .. tab-item:: Data-free quantization
+
+
+            .. code-block:: console
+               :name: channel-wise-data-free-quant
+
+               optimum-cli export openvino -m meta-llama/Llama-2-7b-chat-hf --weight-format int4 --sym --ratio 1.0 --group-size -1 Llama-2-7b-chat-hf
+
+         .. tab-item:: Data-aware quantization
+
+            If you want to improve accuracy, make sure you:
+
+            1. Update NNCF: ``pip install nncf==2.13``
+            2. Use ``--scale_estimation`` and accuracy aware quantization ``--awq --dataset=wikitext2``:
+
+               .. code-block:: console
+                  :name: channel-wise-data-aware-quant
+
+                  optimum-cli export openvino -m meta-llama/Llama-2-7b-chat-hf --weight-format int4 --sym --group-size -1 --ratio 1.0 --awq --scale-estimation --dataset=wikitext2  Llama-2-7b-chat-hf
+
+
       .. important::
-         
+
          Remember that the negative value of ``-1`` is required here, not ``1``.
 
 
