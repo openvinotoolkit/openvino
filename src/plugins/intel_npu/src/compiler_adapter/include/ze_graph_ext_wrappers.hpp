@@ -37,7 +37,9 @@ public:
 
     ze_graph_handle_t getGraphHandle(const std::vector<uint8_t>& network) const;
 
-    NetworkMetadata getNetworkMeta(ze_graph_handle_t graphHandle) const;
+    ze_graph_handle_t getGraphHandle(const std::shared_ptr<ov::AlignedBuffer>& mmapNetwork) const override;
+
+    NetworkMetadata getNetworkMeta(ze_graph_handle_t graphHandle) const override;
 
     _ze_result_t destroyGraph(ze_graph_handle_t graphHandle);
 

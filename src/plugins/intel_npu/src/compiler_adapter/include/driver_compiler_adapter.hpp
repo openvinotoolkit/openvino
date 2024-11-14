@@ -19,11 +19,13 @@ namespace intel_npu {
 
 class DriverCompilerAdapter final : public ICompilerAdapter {
 public:
-    DriverCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct);
+    DriverCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct, ov::intel_npu::CompilerType compilerType);
 
     std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 
     std::shared_ptr<IGraph> parse(std::vector<uint8_t> network, const Config& config) const override;
+
+    std::shared_ptr<IGraph> parse(const std::shared_ptr<ov::AlignedBuffer>& mmapNetwork, const Config& config) const;
 
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 

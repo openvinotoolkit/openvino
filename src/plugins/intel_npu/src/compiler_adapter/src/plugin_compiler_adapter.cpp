@@ -49,9 +49,10 @@ ov::SoPtr<intel_npu::ICompiler> loadCompiler(const std::string& libpath) {
 
 namespace intel_npu {
 
-PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
+PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct, ov::intel_npu::CompilerType compilerType)
     : _zeroInitStruct(zeroInitStruct),
-      _logger("PluginCompilerAdapter", Logger::global().level()) {
+      _logger("PluginCompilerAdapter", Logger::global().level()),
+      ICompilerAdapter(compilerType) {
     _logger.debug("initialize PluginCompilerAdapter start");
 
     _logger.info("MLIR compiler will be used.");
