@@ -6,6 +6,7 @@
 
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "ov_optional.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -18,7 +19,7 @@ template <class T,
           typename std::enable_if<std::is_same<Squeeze, ov::op::v0::Squeeze>::value ||
                                   std::is_same<Squeeze, ov::op::v15::Squeeze>::value>::type* = nullptr>
 bool validate_input_and_try_set_output_shape(const Squeeze* op,
-                                             std::unique_ptr<std::set<int64_t>>& unique_axes,
+                                             ov::optional<std::set<int64_t>>& unique_axes,
                                              const std::vector<T>& input_shapes,
                                              const ITensorAccessor& ta,
                                              TRShape& output_shape,
@@ -32,7 +33,7 @@ bool validate_input_and_try_set_output_shape(const Squeeze* op,
     const auto& arg_rank = arg_shape.rank();
 
     if (number_of_inputs == 1) {
-        unique_axes.reset(new std::set<int64_t>());
+        unique_axes.emplace(std::set<int64_t>{});
     } else if (number_of_inputs == 2) {
         const auto& axes_shape = input_shapes[1];
         NODE_VALIDATION_CHECK(op,
@@ -40,12 +41,12 @@ bool validate_input_and_try_set_output_shape(const Squeeze* op,
                               "Second input (axes) should not be of rank higher than 1. Got: ",
                               axes_shape.rank().get_length());
 
-        std::vector<int64_t> axes{};
+        std::vector<int64_t> axes;
         if (arg_rank.is_static() && axes_shape.is_static()) {
             if (auto axes = get_input_const_data_as<TRShape, int64_t>(op, 1, ta)) {
                 // The values of `axes` input are known
                 ov::util::try_normalize_axes(*axes, arg_rank, *op);
-                unique_axes.reset(new std::set<int64_t>(axes->cbegin(), axes->cend()));
+                unique_axes.emplace(axes->cbegin(), axes->cend());
             } else if (arg_rank.get_length() > 0 && shape_size(axes_shape.to_shape()) == 1) {
                 // The `axes` input is a single element tensor which is unique by definition, deducing output rank
                 const auto has_squeezable_dim =
@@ -69,9 +70,7 @@ bool validate_input_and_try_set_output_shape(const Squeeze* op,
 }
 
 template <class T, class TRShape = result_shape_t<T>>
-void set_output_shape(const std::unique_ptr<std::set<int64_t>>& unique_axes,
-                      const T& arg_shape,
-                      TRShape& output_shape) {
+void set_output_shape(const ov::optional<std::set<int64_t>>& unique_axes, const T& arg_shape, TRShape& output_shape) {
     using DimType = typename T::value_type;
 
     const auto& arg_rank = arg_shape.rank();
@@ -96,7 +95,7 @@ void set_output_shape(const std::unique_ptr<std::set<int64_t>>& unique_axes,
         } else {
             int64_t idx = 0;
             auto rm_axis_iter = unique_axes->cbegin();
-            auto rm_axis_end = unique_axes->cend();
+            const auto rm_axis_end = unique_axes->cend();
 
             // Returns true if dimension not squeezable on axis from input axes.
             const auto not_squeezable_at_axis = [&rm_axis_iter, &rm_axis_end, &idx](const DimType& dim) {
@@ -137,7 +136,7 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
     const auto& arg_rank = arg_shape.rank();
     auto output_shapes = std::vector<TRShape>(1);
     auto& output_shape = output_shapes[0];
-    std::unique_ptr<std::set<int64_t>> unique_axes{};
+    ov::optional<std::set<int64_t>> unique_axes{};
 
     auto output_shape_for_squeezable_dim = [&]() {
         return PartialShape::dynamic(arg_rank.get_length() - 1);
@@ -161,7 +160,7 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
 namespace v15 {
 template <typename T>
 bool apply_allow_axis_skip(const ov::op::v15::Squeeze* const op,
-                           const std::unique_ptr<std::set<int64_t>>& unique_axes,
+                           const ov::optional<std::set<int64_t>>& unique_axes,
                            const T& arg_shape) {
     using DimType = typename T::value_type;
     int64_t i{-1};
@@ -192,7 +191,7 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
     auto output_shapes = std::vector<TRShape>(1);
     auto& output_shape = output_shapes[0];
 
-    std::unique_ptr<std::set<int64_t>> unique_axes{};
+    ov::optional<std::set<int64_t>> unique_axes{};
 
     auto output_shape_for_squeezable_dim = [&]() {
         return PartialShape::dynamic();
