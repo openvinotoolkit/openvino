@@ -119,7 +119,7 @@ to see if your case needs any of them.
 
 .. code-block:: python
 
-   from openvino import get_cmake_path
+   from openvino.utils import get_cmake_path
    cmake_path = get_cmake_path()
 
 For detailed instructions on how to use these configurations in your build setup, check out the
