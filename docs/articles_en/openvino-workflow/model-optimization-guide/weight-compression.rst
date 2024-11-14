@@ -126,14 +126,7 @@ for data-aware quantization available out-of-the-box.
          model = OVModelForCausalLM.from_pretrained(
              model_id,
              export=True,
-             quantization_config=OVWeightQuantizationConfig(
-                 bits=8,
-                 quant_method="awq",
-                 scale_estimation=True,
-                 dataset="wikitext2",
-                 group_size=64,
-                 ratio=1.0
-             )
+             quantization_config=OVWeightQuantizationConfig(bits=8)
          )
 
          # Inference
@@ -148,7 +141,7 @@ for data-aware quantization available out-of-the-box.
 
       .. code-block:: console
 
-         optimum-cli export openvino --model microsoft/Phi-3.5-mini-instruct --weight-format int4 --awq --scale-estimation --dataset wikitext2 --group-size 64 --ratio 1.0 ov_phi-3.5-mini-instruct
+         optimum-cli export openvino --model microsoft/Phi-3.5-mini-instruct --weight-format int8 ov_phi-3.5-mini-instruct
 
       For more details, refer to the article on how to
       :doc:`infer LLMs using Optimum Intel <../../learn-openvino/llm_inference_guide/llm-inference-hf>`.
