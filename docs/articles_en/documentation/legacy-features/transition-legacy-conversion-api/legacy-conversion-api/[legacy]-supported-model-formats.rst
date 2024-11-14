@@ -120,7 +120,7 @@ Here are code examples of how to use these methods with different model formats:
 
               For more details on conversion, refer to the
               :doc:`guide <[legacy]-supported-model-formats/[legacy]-convert-tensorflow>`
-              and an example `tutorial <https://docs.openvino.ai/2024/notebooks/tensorflow-to-openvino-with-output.html>`__
+              and an example `tutorial <https://docs.openvino.ai/2024/notebooks/tensorflow-classification-to-openvino-with-output.html>`__
               on this topic.
 
             * The ``read_model()`` and ``compile_model()`` methods:
@@ -592,7 +592,7 @@ to OpenVINO IR or ONNX before running inference should be considered the default
    OpenVINO versions of 2023 are mostly compatible with the old instructions,
    through a deprecated MO tool, installed with the deprecated OpenVINO Developer Tools package.
 
-   `OpenVINO 2023.0 <https://docs.openvino.ai/archive/2023.0/Supported_Model_Formats.html>`__ is the last
+   `OpenVINO 2023.0 <https://docs.openvino.ai/archives/index.html>`__ is the last
    release officially supporting the MO conversion process for the legacy formats.
 
 
