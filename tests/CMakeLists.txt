@@ -9,3 +9,4 @@ add_subdirectory(e2e_tests)
 
 install(FILES requirements_pytorch DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
 install(FILES requirements_tensorflow DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+install(FILES requirements_onnx DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
