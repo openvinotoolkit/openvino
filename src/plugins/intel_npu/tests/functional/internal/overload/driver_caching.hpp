@@ -202,6 +202,8 @@ TEST_P(CompileAndDriverCaching, CompilationCacheWithEmptyConfig) {
 
     std::string secondCompilationDriverLog = ::intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext);
     EXPECT_TRUE(containsCacheStatus(secondCompilationDriverLog, "cache_status_t::stored") || containsCacheStatus(secondCompilationDriverLog, "cache_status_t::found"));
+
+    std::printf("==[1.4]testsuit time (1): %f, (2): %f\n", durationFirst.count(), durationSecond.count());
 }
 
 TEST_P(CompileAndDriverCaching, CompilationCacheWithOVCacheConfig) {
@@ -233,6 +235,8 @@ TEST_P(CompileAndDriverCaching, CompilationCacheWithOVCacheConfig) {
 
     std::string secondCompilationDriverLog = ::intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext);
     EXPECT_TRUE(secondCompilationDriverLog == driverLogInitContent);
+
+    std::printf("==[2.4]testsuit time (1): %f, (2): %f\n", durationFirst.count(), durationSecond.count());
 }
 
 TEST_P(CompileAndDriverCaching, CompilationCacheWithBypassConfig) {
@@ -262,6 +266,8 @@ TEST_P(CompileAndDriverCaching, CompilationCacheWithBypassConfig) {
 
     std::string secondCompilationDriverLog = ::intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext);
     EXPECT_TRUE(secondCompilationDriverLog == driverLogInitContent);
+
+    std::printf("==[3.4]testsuit time (1): %f, (2): %f\n", durationFirst.count(), durationSecond.count());
 }
 
 }  // namespace behavior
