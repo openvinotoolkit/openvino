@@ -200,9 +200,6 @@ program::program(engine& engine_ref,
       _task_executor(std::move(task_executor)),
       processing_order(),
       is_internal(is_internal) {
-    if (_engine.get_device_info().supports_immad) {
-        _config.set_property(ov::intel_gpu::use_onednn(true));
-    }
     _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
     init_program();
