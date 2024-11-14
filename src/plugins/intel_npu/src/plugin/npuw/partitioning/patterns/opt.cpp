@@ -1425,7 +1425,7 @@ SliceLastMatmul::SliceLastMatmul() {
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
 
-        auto matched_out_matmul = node_to_output.at(matmul);
+        auto& matched_out_matmul = node_to_output.at(matmul);
 
         auto shape = matched_out_matmul.get_node()->input(0).get_shape();
 
@@ -1461,7 +1461,7 @@ SliceLastMatmulAdd::SliceLastMatmulAdd() {
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
 
-        auto matched_out_matmul = node_to_output.at(matmul);
+        auto& matched_out_matmul = node_to_output.at(matmul);
 
         auto shape = matched_out_matmul.get_node()->input(0).get_shape();
 
@@ -1497,7 +1497,7 @@ SliceLastMatmulTranspose::SliceLastMatmulTranspose() {
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
 
-        auto matched_out_matmul = node_to_output.at(matmul);
+        auto& matched_out_matmul = node_to_output.at(matmul);
 
         auto shape = matched_out_matmul.get_node()->input(0).get_shape();
 
@@ -1535,7 +1535,7 @@ SliceLastMatmulMultiply::SliceLastMatmulMultiply() {
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
 
-        auto matched_out_matmul = node_to_output.at(matmul);
+        auto& matched_out_matmul = node_to_output.at(matmul);
 
         auto shape = matched_out_matmul.get_node()->input(0).get_shape();
 
