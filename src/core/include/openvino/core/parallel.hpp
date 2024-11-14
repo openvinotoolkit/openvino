@@ -63,6 +63,9 @@ inline void parallel_set_num_threads(int) {
 inline int parallel_get_env_threads() {
     return 0;
 }
+inline void set_max_nested_levels(int levels) {
+    return;
+}
 #    if OV_THREAD == OV_THREAD_TBB
 #        define PARTITIONING , tbb::static_partitioner()
 
@@ -121,11 +124,12 @@ inline int get_max_nested_levels() {
 // Controls the number of nested parallel blocks.
 // This flag has higher priority than pragma num_threads.
 inline void set_max_nested_levels(int levels) {
-#    if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
-    return omp_set_nested(levels);
-#    else
+#    if _OPENMP < 201811
+    omp_set_nested(levels); // This routine has been deprecated in OMP_5.0
+#    endif
+#    if _OPENMP >= 200805
     return omp_set_max_active_levels(levels);
-#    endif  // defined(_MSC_VER) && !defined(__INTEL_COMPILER)
+#    endif
 }
 
 #elif OV_THREAD == OV_THREAD_SEQ

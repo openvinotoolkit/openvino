@@ -169,6 +169,7 @@ void Plugin::get_performance_streams(Config& config, const std::shared_ptr<ov::M
 }
 
 void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported) const {
+    set_max_nested_levels(std::numeric_limits<int32_t>::max());
     const auto model_prefer_name = std::string("MODEL_PREFER_THREADS");
     if (imported && model->has_rt_info("intel_cpu_hints_config")) {
         // load model_prefer_threads from cache
