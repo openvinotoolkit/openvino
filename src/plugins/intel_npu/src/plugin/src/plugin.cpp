@@ -631,7 +631,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             if (localProperties.count(ov::cache_dir.name()) || !_globalConfig.get<CACHE_DIR>().empty()) {
                 OPENVINO_THROW("Option 'CACHE_DIR' is not supported with NPU_USE_NPUW!");
             }
-            return std::make_shared<ov::npuw::CompiledModel>(model->clone(), shared_from_this(), localProperties);
+            return ov::npuw::CompiledModelFactory::create(model->clone(), shared_from_this(), localProperties);
         } else {
             // NPUW is disabled, remove the key from the properties
             localProperties.erase(useNpuwKey);

@@ -7,9 +7,11 @@
 #include <memory>
 #include <string>
 
+#include "llm_compiled_model.hpp"
 #include "accuracy/comparator.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "just_sync_infer_request.hpp"
+#include "llm_infer_request.hpp"
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -85,10 +87,19 @@ ov::npuw::DeviceProperties get_properties_per_device(const std::shared_ptr<const
 }  // namespace npuw
 }  // namespace ov
 
+std::shared_ptr<ov::npuw::ICompiledModel>
+ov::npuw::CompiledModelFactory::create(const std::shared_ptr<ov::Model>& model,
+                                       const std::shared_ptr<const ov::IPlugin>& plugin,
+                                       const ov::AnyMap& properties) {
+    //return std::make_shared<ov::npuw::CompiledModel>(model, plugin, properties);
+    std::cout << "[LOG_DEBUG] CompiledModelFactory::create " << std::endl;
+    return std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, properties);
+}
+
 ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                        const std::shared_ptr<const ov::IPlugin>& plugin,
                                        const ov::AnyMap& properties)
-    : ov::ICompiledModel(model, plugin),
+    : ov::npuw::ICompiledModel(model, plugin),
       m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
       m_cfg(m_options_desc),
       m_name(model->get_friendly_name()),
