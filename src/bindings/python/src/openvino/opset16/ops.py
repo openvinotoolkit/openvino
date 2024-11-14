@@ -6,7 +6,7 @@
 from functools import partial
 from typing import Optional
 
-from openvino import Node
+from openvino._pyopenvino import Node
 from openvino.utils.decorators import nameable_op
 from openvino.opset_utils import _get_node_factory
 from openvino.utils.types import NodeInput, as_nodes
