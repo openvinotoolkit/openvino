@@ -41,7 +41,6 @@ inline bool can_use_usm_host(const cldnn::engine& engine, const uint64_t total_o
 
     const auto& device_info = engine.get_device_info();
     if ((device_info.gfx_ver.major == 12 && device_info.gfx_ver.minor == 60) ||
-        (device_info.gfx_ver.major >= 20 && device_info.dev_type == cldnn::device_type::discrete_gpu) ||
         (device_info.dev_type == cldnn::device_type::discrete_gpu && total_output_bytes > 4*1048576)) {
         // WA: Disable USM host memory for infer request`s tensors for PVC and subsequent dGPUs, as kernel access
         // to system memory is slower than using an explicit memcpy (Host <-> Device) call with the copy engine
