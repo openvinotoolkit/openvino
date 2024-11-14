@@ -1501,7 +1501,7 @@ ConvToMatmul::ConvToMatmul(Context::Ref ctx) {
         auto matched_node_transpose_in = node_to_output.at(transpose_in).get_node_shared_ptr();
         auto matched_node_transpose_out = node_to_output.at(transpose_out).get_node_shared_ptr();
         auto matched_node_multiply = node_to_output.at(multiply).get_node_shared_ptr();
-        auto matched_node_param2_out = uat::_(node_to_output).at_or_at(convert2, multiply);
+        const auto& matched_node_param2_out = uat::_(node_to_output).at_or_at(convert2, multiply);
 
         const auto& shape = matched_node_param->get_shape();
         const auto& shape2 = matched_node_param2->get_shape();
