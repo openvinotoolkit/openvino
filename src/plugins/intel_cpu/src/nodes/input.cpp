@@ -5,6 +5,7 @@
 #include "input.h"
 
 #include "cpu/x64/jit_generator.hpp"
+#include "nodes/node_config.h"
 #include "openvino/core/parallel.hpp"
 #include "shape_inference/shape_inference_pass_through.hpp"
 
@@ -286,21 +287,20 @@ void Input::cloneBlobIfRequired() {
         return ptr;
     };
 
-    auto isBlobAligned = [&, this] () {
-        const void *ptr = constOp->get_data_ptr();
+    auto isBlobAligned = [&] () {
         bool blobAlignedOnSSE = true;
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         // Majority of arithmetic and data processing instructions in legacy SSE isa requires
         // the memory address in the operands must be aligned on 16-byte boundary. To ensure
         // safely reusing ngraph const blob memory, need to check address alignment.
+        const void *ptr = constOp->get_data_ptr();
         blobAlignedOnSSE = mayiuse(cpu_isa_t::avx2) || ((reinterpret_cast<uintptr_t>(ptr) & 15) == 0);
 #endif
-        const bool blobAlignedWithPrec = prec.size() > 1 ? (reinterpret_cast<size_t>(ptr) % prec.size()) == 0 : true;
-        return blobAlignedWithPrec && blobAlignedOnSSE;
+        return blobAlignedOnSSE;
     };
 
     // The presence of subnormals is better to determined at IR read time.
-    auto hasSubnormals = [&, this] () {
+    auto hasSubnormals = [&] () {
         if (prec == ov::element::f32) {
             uint32_t const *u32data = constOp->get_data_ptr<uint32_t>();
 
@@ -343,29 +343,7 @@ void Input::cloneBlobIfRequired() {
         return false;
     };
 
-    // WA for CVS-46304
-    auto isWA = [&, this] () {
-        auto outputs = constOp->outputs();
-        for (const auto& output : outputs) {
-            auto node = output.get_node();
-            if (!node
-                || TypeFromName(node->get_type_name()) != Type::FullyConnected)
-                continue;
-            if (mayiuse(cpu_isa_t::avx512_core)) {
-                if (size % 16)
-                    return true;
-            } else if (mayiuse(cpu_isa_t::avx)) {
-                if (size % 8)
-                    return true;
-            } else if (mayiuse(cpu_isa_t::sse41)) {
-                if (size % 4)
-                    return true;
-            }
-        }
-        return false;
-    };
-
-    auto blobKey = [&, this] () {
+    auto blobKey = [&] () {
         char ptr[32];
         snprintf(ptr, sizeof ptr, "%p", constOp->get_data_ptr());
         return getName()
@@ -373,18 +351,19 @@ void Input::cloneBlobIfRequired() {
                 + "_" + ptr;
     };
 
-    auto weightCache = context->getWeightsCache();
-
-    if (weightCache) {
-        MemoryPtr ptr = *weightCache->findOrCreate(blobKey(), cloneBlob);
-        memoryPtr = std::const_pointer_cast<const IMemory>(ptr);
-    // IRs already have all subnormals flushed to zero, but in
-    // read_model scenario with directly loaded original model still can have subnormals
-    } else if (prec != element::string && isBlobAligned() && (!needFlushDenormalsToZero || !hasSubnormals()) && !isWA()) {
-        memoryPtr = std::make_shared<Memory>(getEngine(), memDesc, constOp->get_data_ptr());
-    } else {
-        memoryPtr = std::const_pointer_cast<const IMemory>(cloneBlob());
-    }
+    const auto weightCache = context->getWeightsCache();
+    const bool clone_is_not_needed =
+        prec != element::string &&
+        // IRs already have all subnormals flushed to zero, but in
+        // read_model scenario with directly loaded original model still can have subnormals
+        isBlobAligned() && (!needFlushDenormalsToZero || !hasSubnormals()) &&
+        // Blob should be cloned in cache only if original weights are stored on other numa node.
+        // This is possible only in multistream case on multisocket machine.
+        // TODO: don't clone blob for multisocket + multistream case if current stream is run on the numa node where original weights are stored.
+        (!weightCache || context->getNumNumaNodes() == 1 || context->getCPUStreamExecutor()->get_streams_num() == 1);
+    memoryPtr = clone_is_not_needed ? std::make_shared<Memory>(getEngine(), memDesc, constOp->get_data_ptr())
+                                    : std::const_pointer_cast<const IMemory>(
+                                          weightCache ? *weightCache->findOrCreate(blobKey(), cloneBlob) : cloneBlob());
 }
 
 static std::vector<Shape> createInputShapes(const Shape& shape,
@@ -439,6 +418,23 @@ Input::Input(MemoryDescPtr memDesc, const std::string& name, const std::string& 
     extMemDesc = memDesc;
 }
 
+Input::Input(const std::shared_ptr<ov::Node>& op,
+             const GraphContext::CPtr context,
+             InputConfig config)
+    : Input(op, context) {
+    extMemDesc = config.desc;
+    m_isInPlace = config.inPlace;
+}
+
+Input::Input(const std::shared_ptr<ov::Node>& op,
+             const GraphContext::CPtr context,
+             OutputConfig config)
+    : Input(op, context) {
+    extMemDesc = config.desc;
+    m_useParentMemoryDescForOutput = config.useParentMemoryDescForOutput;
+    m_isInPlace = config.inPlace;
+}
+
 MemoryCPtr Input::getMemoryPtr() const {
     return memoryPtr;
 }
@@ -468,17 +464,38 @@ void Input::initSupportedPrimitiveDescriptors() {
     }
 }
 
+void Input::initOptimalPrimitiveDescriptor() {
+    if (m_useParentMemoryDescForOutput || extMemDesc)
+        return;
+
+    Node::initOptimalPrimitiveDescriptor();
+}
+
+void Input::selectOptimalPrimitiveDescriptor() {
+    if (!(m_useParentMemoryDescForOutput && getType() == Type::Output))
+        return Node::selectOptimalPrimitiveDescriptor();
+
+    // ignore previous configuration
+    supportedPrimitiveDescriptors.clear();
+
+    // and just use parent memory descriptor for Output node to avoid reorders insertion
+    NodeConfig config({PortConfig(getParentOutputMemDesc(getParentEdgeAt(0)), BlockedMemoryDesc::FULL_MASK, 0)}, {});
+
+    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
+    selectPrimitiveDescriptorByIndex(0);
+}
+
 void Input::createPrimitive() {
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto dstMemPtr = getDstMemoryAtPort(i);
-        if (!dstMemPtr || !dstMemPtr->isAllocated())
-            THROW_CPU_NODE_ERR("has unallocated memory object at port ", i,
+        if (!dstMemPtr)
+            THROW_CPU_NODE_ERR("has null memory object at port ", i,
                               " to node ", getChildEdgeAt(i)->getChild()->getName(), ".");
     }
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto srcMemPtr = getSrcMemoryAtPort(i);
-        if (!srcMemPtr || !srcMemPtr->isAllocated())
-            THROW_CPU_NODE_ERR("has unallocated memory object at port ", i,
+        if (!srcMemPtr)
+            THROW_CPU_NODE_ERR("has null memory object at port ", i,
                               " from node ", getParentEdgeAt(i)->getParent()->getName(), ".");
     }
 
@@ -515,15 +532,14 @@ void Input::initSupportedPdDefault() {
 
 void Input::initSupportedPdFromMemDesc() {
     NodeConfig config;
-    PortConfig portConfig;
-    portConfig.inPlace(-1);
-    portConfig.constant(false);
-    portConfig.setMemDesc(extMemDesc);
+    PortConfig portConfig(extMemDesc, BlockedMemoryDesc::FULL_MASK, m_isInPlace ? 0 : -1, false);
+
     if (getType() == Type::Input || getType() == Type::MemoryInput) {
         config.outConfs.push_back(portConfig);
     } else if (getType() == Type::Output) {
         config.inConfs.push_back(portConfig);
     }
+
     supportedPrimitiveDescriptors.emplace_back(std::move(config), impl_desc_type::unknown);
 }
 

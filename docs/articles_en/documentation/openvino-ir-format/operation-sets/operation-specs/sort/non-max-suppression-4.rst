@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_sort_NonMaxSuppression_4}
-
 NonMaxSuppression
 =================
 
@@ -60,20 +58,20 @@ class must not exceed ``max_output_boxes_per_class``.
 
 **Inputs**:
 
-*   **1**: ``boxes`` - tensor of type *T* and shape ``[num_batches, num_boxes, 4]`` with box coordinates. **Required.**
+* **1**: ``boxes`` - tensor of type *T* and shape ``[num_batches, num_boxes, 4]`` with box coordinates. **Required.**
 
-*   **2**: ``scores`` - tensor of type *T* and shape ``[num_batches, num_classes, num_boxes]`` with box scores. **Required.**
+* **2**: ``scores`` - tensor of type *T* and shape ``[num_batches, num_classes, num_boxes]`` with box scores. **Required.**
 
-*   **3**: ``max_output_boxes_per_class`` - scalar tensor of type *T_MAX_BOXES* specifying maximum number of boxes to be selected per class. Optional with default value 0 meaning select no boxes.
+* **3**: ``max_output_boxes_per_class`` - scalar tensor of type *T_MAX_BOXES* specifying maximum number of boxes to be selected per class. Optional with default value 0 meaning select no boxes.
 
-*   **4**: ``iou_threshold`` - scalar tensor of type *T_THRESHOLDS* specifying intersection over union threshold. Optional with default value 0 meaning keep all boxes.
+* **4**: ``iou_threshold`` - scalar tensor of type *T_THRESHOLDS* specifying intersection over union threshold. Optional with default value 0 meaning keep all boxes.
 
-*   **5**: ``score_threshold`` - scalar tensor of type *T_THRESHOLDS* specifying minimum score to consider box for the processing. Optional with default value 0.
+* **5**: ``score_threshold`` - scalar tensor of type *T_THRESHOLDS* specifying minimum score to consider box for the processing. Optional with default value 0.
 
 **Outputs**:
 
-*   **1**: ``selected_indices`` - tensor of type *T_IND* and shape ``[min(num_boxes, max_output_boxes_per_class) * num_batches * num_classes, 3]`` containing information about selected boxes as triplets ``[batch_index, class_index, box_index]``.
-The output tensor is filled with -1s for output tensor elements if the total number of selected boxes is less than the output tensor size.
+* **1**: ``selected_indices`` - tensor of type *T_IND* and shape ``[min(num_boxes, max_output_boxes_per_class) * num_batches * num_classes, 3]`` containing information about selected boxes as triplets ``[batch_index, class_index, box_index]``.
+  The output tensor is filled with -1s for output tensor elements if the total number of selected boxes is less than the output tensor size.
 
 **Types**
 

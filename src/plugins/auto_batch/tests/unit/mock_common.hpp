@@ -6,7 +6,7 @@
 #include <gmock/gmock.h>
 
 #include <iostream>
-
+#include "common_test_utils/test_assertions.hpp"
 #include "compiled_model.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "plugin.hpp"

@@ -17,6 +17,16 @@
 #    include <sched.h>
 #endif
 
+#if !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && (defined(__arm__) || defined(__aarch64__))
+#    include <asm/hwcap.h> /* Get HWCAP bits from asm/hwcap.h */
+#    include <sys/auxv.h>
+#    define ARM_COMPUTE_CPU_FEATURE_HWCAP_FPHP    (1 << 9)
+#    define ARM_COMPUTE_CPU_FEATURE_HWCAP_ASIMDHP (1 << 10)
+#elif defined(__APPLE__) && defined(__aarch64__)
+#    include <sys/sysctl.h>
+#    include <sys/types.h>
+#endif
+
 #include "dev/threading/parallel_custom_arena.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/visibility.hpp"
@@ -92,8 +102,16 @@ bool with_cpu_x86_avx512_core_amx_bf16() {
     return get_cpu_info().has(Xbyak::util::Cpu::tAMX_BF16);
 }
 
+bool with_cpu_x86_avx512_core_amx_fp16() {
+    return get_cpu_info().has(Xbyak::util::Cpu::tAMX_FP16);
+}
+
 bool with_cpu_x86_avx512_core_amx() {
     return with_cpu_x86_avx512_core_amx_int8() || with_cpu_x86_avx512_core_amx_bf16();
+}
+
+bool with_cpu_neon_fp16() {
+    return false;
 }
 
 #else  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
@@ -131,10 +149,30 @@ bool with_cpu_x86_avx512_core_amx_int8() {
 bool with_cpu_x86_avx512_core_amx_bf16() {
     return false;
 }
+bool with_cpu_x86_avx512_core_amx_fp16() {
+    return false;
+}
 bool with_cpu_x86_avx512_core_amx() {
     return false;
 }
-
+bool with_cpu_neon_fp16() {
+#    if !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
+        !defined(__arm__) && defined(__aarch64__)
+    const uint32_t hwcaps = getauxval(AT_HWCAP);
+    return hwcaps & (ARM_COMPUTE_CPU_FEATURE_HWCAP_FPHP | ARM_COMPUTE_CPU_FEATURE_HWCAP_ASIMDHP);
+#    elif !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
+        !defined(__aarch64__) && defined(__arm__)
+    return false;
+#    elif defined(__aarch64__) && defined(__APPLE__)
+    int64_t result(0);
+    size_t size = sizeof(result);
+    const std::string& cap = "hw.optional.neon_fp16";
+    sysctlbyname(cap.c_str(), &result, &size, NULL, 0);
+    return result > 0;
+#    else
+    return false;
+#    endif
+}
 #endif  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
 
 bool check_open_mp_env_vars(bool include_omp_num_threads) {
@@ -320,26 +358,10 @@ int get_org_numa_id(int numa_node_id) {
 #    ifndef _WIN32
 int get_number_of_cpu_cores(bool bigCoresOnly) {
     CPU& cpu = cpu_info();
-    unsigned numberOfProcessors = cpu._processors;
     unsigned totalNumberOfCpuCores = cpu._cores;
     OPENVINO_ASSERT(totalNumberOfCpuCores != 0, "Total number of cpu cores can not be 0.");
-    cpu_set_t usedCoreSet, currentCoreSet, currentCpuSet;
-    CPU_ZERO(&currentCpuSet);
-    CPU_ZERO(&usedCoreSet);
-    CPU_ZERO(&currentCoreSet);
 
-    sched_getaffinity(0, sizeof(currentCpuSet), &currentCpuSet);
-
-    for (unsigned processorId = 0u; processorId < numberOfProcessors; processorId++) {
-        if (CPU_ISSET(processorId, &currentCpuSet)) {
-            unsigned coreId = processorId % totalNumberOfCpuCores;
-            if (!CPU_ISSET(coreId, &usedCoreSet)) {
-                CPU_SET(coreId, &usedCoreSet);
-                CPU_SET(processorId, &currentCoreSet);
-            }
-        }
-    }
-    int phys_cores = CPU_COUNT(&currentCoreSet);
+    int phys_cores = totalNumberOfCpuCores;
 #        if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
     auto core_types = custom::info::core_types();
     if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
@@ -412,15 +434,16 @@ void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_tab
                                                cpu._proc_type_table,
                                                stream_processors,
                                                cpu_status);
-
-    OPENVINO_DEBUG << "[ threading ] stream_processors:";
+#    ifdef ENABLE_OPENVINO_DEBUG
+    OPENVINO_DEBUG("[ threading ] stream_processors:");
     for (size_t i = 0; i < stream_processors.size(); i++) {
-        OPENVINO_DEBUG << "{";
+        OPENVINO_DEBUG("{");
         for (size_t j = 0; j < stream_processors[i].size(); j++) {
-            OPENVINO_DEBUG << stream_processors[i][j] << ",";
+            OPENVINO_DEBUG(stream_processors[i][j], ",");
         }
-        OPENVINO_DEBUG << "},";
+        OPENVINO_DEBUG("},");
     }
+#    endif
 }
 
 void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {

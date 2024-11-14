@@ -75,7 +75,7 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
 
         auto output_shape = op->get_output_partial_shape(0);
         auto output_type = op->get_output_element_type(0);
-        if (const auto& param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(op)) {
+        if (const auto& param = ov::as_type_ptr<ov::op::v0::Parameter>(op)) {
             if (param->get_partial_shape().compatible(output_shape)) {
                 auto shape = param->get_partial_shape();
                 PartialShape::merge_into(shape, output_shape);
@@ -86,7 +86,7 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                 param->set_element_type(output_type);
                 is_changed = true;
             }
-        } else if (std::dynamic_pointer_cast<ov::op::v1::Convolution>(op)) {
+        } else if (ov::as_type_ptr<ov::op::v1::Convolution>(op)) {
             is_changed |= inherit_output_rank(op, {0, 1});
             // Inherit channels from weights
             const auto& weigths_pshape = op->get_input_partial_shape(1);
@@ -95,7 +95,7 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                 op->get_input_tensor(0).m_partial_shape[1] = weigths_pshape[1];
             }
             is_changed |= inherit_output_type(op, {0, 1});
-        } else if (std::dynamic_pointer_cast<ov::op::v1::GroupConvolution>(op)) {
+        } else if (ov::as_type_ptr<ov::op::v1::GroupConvolution>(op)) {
             is_changed |= inherit_output_rank(op, {0, 1});
             // Inherit channels from weights
             const auto& weigths_pshape = op->get_input_partial_shape(1);
@@ -104,7 +104,7 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                 op->get_input_tensor(0).m_partial_shape[1] = weigths_pshape[0] * weigths_pshape[2];
             }
             is_changed |= inherit_output_type(op, {0, 1});
-        } else if (std::dynamic_pointer_cast<ov::op::v1::ConvolutionBackpropData>(op)) {
+        } else if (ov::as_type_ptr<ov::op::v1::ConvolutionBackpropData>(op)) {
             is_changed |= inherit_output_rank(op, {0, 1});
             // Inherit channels from weights
             const auto& weigths_pshape = op->get_input_partial_shape(1);
@@ -113,7 +113,7 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                 op->get_input_tensor(0).m_partial_shape[1] = weigths_pshape[0];
             }
             is_changed |= inherit_output_type(op, {0, 1});
-        } else if (std::dynamic_pointer_cast<ov::op::v1::GroupConvolutionBackpropData>(op)) {
+        } else if (ov::as_type_ptr<ov::op::v1::GroupConvolutionBackpropData>(op)) {
             is_changed |= inherit_output_rank(op, {0, 1});
             // Inherit channels from weights
             const auto& weigths_pshape = op->get_input_partial_shape(1);
@@ -122,7 +122,7 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                 op->get_input_tensor(0).m_partial_shape[1] = weigths_pshape[0] * weigths_pshape[1];
             }
             is_changed |= inherit_output_type(op, {0, 1});
-        } else if (std::dynamic_pointer_cast<ov::op::v8::DeformableConvolution>(op)) {
+        } else if (ov::as_type_ptr<ov::op::v8::DeformableConvolution>(op)) {
             is_changed |= inherit_output_rank(op, {0, 1, 2, 3});
             is_changed |= inherit_output_type(op, {0, 1, 2, 3});
         } else if (std::dynamic_pointer_cast<ov::op::util::PadBase>(op)) {
@@ -159,7 +159,7 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                 }
             }
             is_changed |= inherit_output_type(op, {0, 1});
-        } else if (const auto& concat = std::dynamic_pointer_cast<ov::op::v0::Concat>(op)) {
+        } else if (const auto& concat = ov::as_type_ptr<ov::op::v0::Concat>(op)) {
             std::vector<size_t> input_idxs(op->get_input_size());
             std::iota(input_idxs.begin(), input_idxs.end(), 0);
 
@@ -178,10 +178,10 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                 }
             }
             is_changed |= inherit_output_type(op, input_idxs);
-        } else if (std::dynamic_pointer_cast<ov::op::v8::Slice>(op)) {
+        } else if (ov::as_type_ptr<ov::op::v8::Slice>(op)) {
             is_changed |= inherit_output_rank(op, {0});
             is_changed |= inherit_output_type(op, {0});
-        } else if (std::dynamic_pointer_cast<ov::op::v0::Squeeze>(op)) {
+        } else if (ov::as_type_ptr<ov::op::v0::Squeeze>(op)) {
             auto in0_pshape = op->get_input_partial_shape(0);
             auto in0_rank = in0_pshape.rank();
             if (output_shape.rank().is_static()) {
@@ -210,7 +210,7 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                 }
             }
             is_changed |= inherit_output_type(op, {0});
-        } else if (std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(op)) {
+        } else if (ov::as_type_ptr<ov::op::v0::Unsqueeze>(op)) {
             auto in0_rank = op->get_input_partial_shape(0).rank();
             auto in1_pshape = op->get_input_partial_shape(1);
             if (output_shape.rank().is_static() && in0_rank.is_dynamic() && in1_pshape.is_static()) {
@@ -219,7 +219,7 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                     PartialShape::dynamic(output_shape.rank().get_length() - num_dims);
             }
             is_changed |= inherit_output_type(op, {0});
-        } else if (const auto& if_op = std::dynamic_pointer_cast<ov::op::v8::If>(op)) {
+        } else if (const auto& if_op = ov::as_type_ptr<ov::op::v8::If>(op)) {
             auto then_body = if_op->get_then_body();
             auto else_body = if_op->get_else_body();
             // First set types and shapes to Result nodes
@@ -282,10 +282,19 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                 if_op->get_input_tensor(0).m_element_type = element::boolean;
                 is_changed = true;
             }
-        } else if (std::dynamic_pointer_cast<ov::op::v1::ConvertLike>(op)) {
+
+            // in case TensorFlow models, we can deduce predicate shape that must be a scalar
+            // If operations created by fusing Switch-Merge sub-graph contain tf_switch_merge_if rt-info
+            if (if_op->get_rt_info().count("tf_switch_merge_if") &&
+                if_op->get_rt_info()["tf_switch_merge_if"].as<bool>() &&
+                if_op->input_value(0).get_partial_shape().rank().is_dynamic()) {
+                if_op->get_input_tensor(0).m_partial_shape = ov::PartialShape({});
+                is_changed = true;
+            }
+        } else if (ov::as_type_ptr<ov::op::v1::ConvertLike>(op)) {
             is_changed |= inherit_output_shape(op, {0});
             is_changed |= inherit_output_type(op, {1});
-        } else if (std::dynamic_pointer_cast<ov::op::v1::Transpose>(op)) {
+        } else if (ov::as_type_ptr<ov::op::v1::Transpose>(op)) {
             auto transpose_order = ov::util::get_constant_from_source(op->input_value(1));
             if (output_shape.rank().is_static()) {
                 if (transpose_order) {

@@ -40,9 +40,9 @@ static ov::PartialShape resolve_shape(const ov::PartialShape& then_pshape, const
             return ov::PartialShape::dynamic();
         }
     }
-    std::vector<ov::Dimension> new_dims;
+    ov::PartialShape new_dims;
 
-    // If rangs are equal each dimesion of then_body output is union with each dimension of
+    // If ranges are equal each dimension of then_body output is union with each dimension of
     // else_body
     for (auto then_it = then_pshape.cbegin(), else_it = else_pshape.cbegin(); then_it != then_pshape.cend();
          then_it++, else_it++) {
@@ -57,7 +57,7 @@ static ov::PartialShape resolve_shape(const ov::PartialShape& then_pshape, const
         }
     }
 
-    return ov::PartialShape(new_dims);
+    return new_dims;
 }
 
 bool ov::op::v8::If::visit_attributes(AttributeVisitor& visitor) {

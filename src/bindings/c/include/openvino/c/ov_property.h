@@ -108,6 +108,15 @@ OPENVINO_C_VAR(const char*)
 ov_property_key_cache_mode;
 
 /**
+ * @brief Write-only property<ov_encryption_callbacks*> to set encryption and decryption function for model cache.
+ * If ov_property_key_cache_encryption_callbacks is set, model topology will be encrypted when saving to the cache and
+ * decrypted when loading from the cache. This property is set in ov_core_compile_model_* only
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_cache_encryption_callbacks;
+
+/**
  * @brief Read-write property<uint32_t string> to set/get the number of executor logical partitions.
  * @ingroup ov_property_c_api
  */

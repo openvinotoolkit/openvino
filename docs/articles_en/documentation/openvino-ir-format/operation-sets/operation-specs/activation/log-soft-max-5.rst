@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_activation_LogSoftmax_5}
-
 LogSoftMax
 ==========
 
 
 .. meta::
-  :description: Learn about LogSoftmax-5 - an activation operation, which 
+  :description: Learn about LogSoftmax-5 - an activation operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *LogSoftmax-5*

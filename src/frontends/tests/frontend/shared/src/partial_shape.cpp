@@ -37,10 +37,10 @@ void FrontEndPartialShapeTest::doLoadFromFile() {
 ///////////////////////////////////////////////////////////////////
 
 TEST_P(FrontEndPartialShapeTest, testCheckOldPartialShape) {
-    ASSERT_NO_THROW(doLoadFromFile());
+    OV_ASSERT_NO_THROW(doLoadFromFile());
 
     std::shared_ptr<ov::Model> model;
-    ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel));
+    OV_ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel));
     auto ops = model->get_ordered_ops();
     auto it = std::find_if(ops.begin(), ops.end(), [&](const std::shared_ptr<ov::Node>& node) {
         return node->get_friendly_name().find(m_partShape.m_tensorName) != std::string::npos;
@@ -51,14 +51,14 @@ TEST_P(FrontEndPartialShapeTest, testCheckOldPartialShape) {
 }
 
 TEST_P(FrontEndPartialShapeTest, testSetNewPartialShape) {
-    ASSERT_NO_THROW(doLoadFromFile());
+    OV_ASSERT_NO_THROW(doLoadFromFile());
     Place::Ptr place;
-    ASSERT_NO_THROW(place = m_inputModel->get_place_by_tensor_name(m_partShape.m_tensorName));
+    OV_ASSERT_NO_THROW(place = m_inputModel->get_place_by_tensor_name(m_partShape.m_tensorName));
     ASSERT_NE(place, nullptr);
-    ASSERT_NO_THROW(m_inputModel->set_partial_shape(place, ov::PartialShape{m_partShape.m_newPartialShape}));
+    OV_ASSERT_NO_THROW(m_inputModel->set_partial_shape(place, ov::PartialShape{m_partShape.m_newPartialShape}));
 
     std::shared_ptr<ov::Model> model;
-    ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel));
+    OV_ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel));
     auto ops = model->get_ordered_ops();
     auto it = std::find_if(ops.begin(), ops.end(), [&](const std::shared_ptr<ov::Node>& node) {
         return node->get_friendly_name().find(m_partShape.m_tensorName) != std::string::npos;

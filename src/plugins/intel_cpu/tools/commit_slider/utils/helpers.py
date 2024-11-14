@@ -112,7 +112,7 @@ def getBlobDiff(file1, file2):
 
 def absolutizePaths(cfg):
     pl = sys.platform
-    if pl == "linux" or pl == "linux2":
+    if pl in ["linux", "linux2", "darwin"]:
         cfg["workPath"] = cfg["linWorkPath"]
         cfg["os"] = "linux"
     elif pl == "win32":
@@ -198,6 +198,12 @@ def runCommandList(commit, cfgData):
     gitPath = cfgData["gitPath"]
     buildPath = cfgData["buildPath"]
     defRepo = gitPath
+    newEnv = os.environ.copy()
+    if "buildEnvVars" in cfgData:
+        for env in cfgData["buildEnvVars"]:
+            envKey = env["name"]
+            envVal = env["val"]
+            newEnv[envKey] = envVal
     for cmd in commandList:
         if "tag" in cmd:
             if cmd["tag"] == "preprocess":
@@ -241,7 +247,8 @@ def runCommandList(commit, cfgData):
         proc = subprocess.Popen(
             formattedCmd, cwd=cwd, stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            encoding="utf-8", errors="replace"
+            encoding="utf-8", errors="replace",
+            env=newEnv
         )
         for line in proc.stdout:
             if cfgData["verboseOutput"]:
@@ -290,12 +297,9 @@ def fetchAppOutput(cfg, commit):
         for item in [
                 {"src": cfg["venvCfg"]["venvName"], "dst": "venvName"},
                 {"src": cfg["appPath"], "dst": "appPath"},
-                {"src": sys.executable, "dst": "py"},
-                # for AC case
-                {"src": cfg["dlbConfig"]["appCmd"], "dst": "appCmd"},
-                {"src": cfg["dlbConfig"]["toolPath"], "dst": "toolPath"}
+                {"src": sys.executable, "dst": "py"}
                 ]:
-            appCmd = multistepStrFormat(
+            appCmd = CfgManager.multistepStrFormat(
                 appCmd,
                 item["dst"],
                 item["src"]
@@ -646,7 +650,8 @@ def formatJSON(content, formatLambda):
     return content
 
 def applySubstitutionRules(cfg: map, rules: list, commit: str=None):
-    # if commit is None, the rule is considered as static,
+    # if commit is None or rule['type'] == 'static',
+    # the rule is considered as static,
     # substitution proceeds as simple string replacing
 
     serviceCfg = cfg["serviceConfig"]
@@ -682,14 +687,15 @@ def applySubstitutionRules(cfg: map, rules: list, commit: str=None):
             srcPos = srcPos[item]
         for item in pathToDst:
             dstPos = dstPos[item]
+        ruleIsStatic = True if rule["type"] == "static" else False
         dstPos = formatJSON(
             dstPos,
             lambda content:
-            multistepStrFormat(
+            CfgManager.multistepStrFormat(
                 content,
                 rule["placeholder"],
                 getMapValueByShortHash(srcPos, commit)\
-                    if commit is not None\
+                    if commit is not None and not ruleIsStatic\
                     else srcPos
             )
         )
@@ -703,12 +709,6 @@ def getMapValueByShortHash(map: dict, commit: str):
     raise Exception("No {} in {}".format(
         commit, map.keys()
     ))
-
-def multistepStrFormat(input: str, placeholder: str, substitution: str):
-    return input.replace(
-        '{}{}{}'.format('{', placeholder, '}'),
-        substitution
-    )
 
 def deepMapUpdate(content: map, path: list, substitution):
     if not path:

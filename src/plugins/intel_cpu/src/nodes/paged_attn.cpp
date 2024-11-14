@@ -13,7 +13,6 @@
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
 #include "openvino/util/common_util.hpp"
-#include "shape_inference/custom/paged_attn.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 
 #include "utils/plain_tensor.hpp"
@@ -55,11 +54,13 @@ bool PagedAttentionKey::operator==(const PagedAttentionKey& rhs) const {
 }
 
 PagedAttention::PagedAttention(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, PAShapeInferFactory(op)) {
+    : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW("CPU: " + errorMessage);
     }
+    // output score may have no child
+    m_hasScore = !op->get_output_target_inputs(1).empty();
 }
 
 void PagedAttention::initSupportedPrimitiveDescriptors() {
@@ -113,6 +114,8 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
 
     config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
         rtPrecision, getOutputShapeAtPort(0)));
+    config.outConfs[1].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+        ov::element::f32, getOutputShapeAtPort(1)));
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }
@@ -143,12 +146,45 @@ void PagedAttention::createPrimitive() {
 void PagedAttention::execute(dnnl::stream strm) {
     auto orginInputNumber = getOriginalInputsNumber();
     std::vector<MemoryPtr> inputs(orginInputNumber);
-    auto output = getDstMemoryAtPort(0);
+    std::vector<MemoryPtr> outputs(m_hasScore ? 2 : 1);
+
     for (size_t i = 0; i < orginInputNumber; i++) {
         inputs[i] = getSrcMemoryAtPort(i);
     }
 
-    m_executor->execute(inputs, output);
+    auto outDims = inputs[0]->getStaticDims();
+    const auto& keyDims = inputs[1]->getStaticDims();
+    const auto& valueDims = inputs[2]->getStaticDims();
+    // value head_size may be not same with key
+    if (keyDims[1] != valueDims[1]) {
+        // The outDims[1] should be `num_heads * v_head_size`, it can be got from:
+        // because:
+        //   q: query_ps[1] = num_heads * head_size
+        //   k: key_ps[1] = num_kv_heads * head_size
+        //   v: value_ps[1] = num_kv_heads * v_head_size
+        // therefore:
+        //   q * v / k = (num_heads * head_size) * (num_kv_heads * v_head_size) /
+        //               (num_kv_heads * head_size) = num_heads * v_head_size
+        outDims[1] = outDims[1] * valueDims[1] / keyDims[1];
+    }
+    if (m_hasScore) {
+        size_t len = 0;
+        const auto& pastLensDims = inputs[5]->getStaticDims();
+        auto pastLens = inputs[5]->getDataAs<const int32_t>();
+        for (size_t i = 0; i < pastLensDims[0]; i++)
+            len += pastLens[i];
+        len += outDims[0];
+        VectorDims scoreDims{len};
+        redefineOutputMemory({outDims, scoreDims});
+    } else {
+        redefineOutputMemory(0, outDims);
+    }
+
+    outputs[0] = getDstMemoryAtPort(0);
+    if (m_hasScore)
+        outputs[1] = getDstMemoryAtPort(1);
+
+    m_executor->execute(inputs, outputs);
 }
 
 bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
@@ -168,6 +204,8 @@ ov::element::Type PagedAttention::getRuntimePrecision() const {
     // bf16 should be enabled only when platform supports
     if (rtPrecision == ov::element::bf16 && ov::with_cpu_x86_bfloat16()) {
         rtPrecision = ov::element::bf16;
+    } else if (rtPrecision == ov::element::f16 && ov::with_cpu_x86_avx512_core_fp16()) {
+        rtPrecision = ov::element::f16;
     } else {
         rtPrecision = ov::element::f32;
     }

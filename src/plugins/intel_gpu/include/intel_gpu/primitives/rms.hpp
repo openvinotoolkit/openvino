@@ -22,9 +22,8 @@ struct rms : public primitive_base<rms> {
     rms(const primitive_id& id,
         const input_info& input,
         const input_info& gamma,
-        const float epsilon,
-        const padding& output_padding = padding())
-        : primitive_base(id, {input, gamma}, {output_padding}),
+        const float epsilon)
+        : primitive_base(id, {input, gamma}),
           epsilon(epsilon) {}
 
     /// @brief Epsilon for not dividing by zero while normalizing

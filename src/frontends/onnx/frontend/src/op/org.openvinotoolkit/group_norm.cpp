@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/org.openvinotoolkit/group_norm.hpp"
-
-#include "core/node.hpp"
+#include "core/operator_set.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/group_normalization.hpp"
 #include "openvino/op/squeeze.hpp"
@@ -14,8 +12,8 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace org_openvinotoolkit {
+namespace opset_1 {
 ov::OutputVector group_norm(const ov::frontend::onnx::Node& node) {
     auto inputs = node.get_ov_inputs();
     FRONT_END_GENERAL_CHECK(inputs.size() == 3,
@@ -38,8 +36,18 @@ ov::OutputVector group_norm(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v12::GroupNormalization>(data, scale, bias, num_groups, eps)};
 }
 
-}  // namespace set_1
-}  // namespace op
+static bool register_multiple_translators(void) {
+    ONNX_OP_M("ExperimentalDetectronGroupNorm",
+              OPSET_SINCE(1),
+              org_openvinotoolkit::opset_1::group_norm,
+              OPENVINO_ONNX_DOMAIN);
+    ONNX_OP_M("GroupNorm", OPSET_SINCE(1), org_openvinotoolkit::opset_1::group_norm, OPENVINO_ONNX_DOMAIN);
+    return true;
+}
+
+static bool registered = register_multiple_translators();
+}  // namespace opset_1
+}  // namespace org_openvinotoolkit
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

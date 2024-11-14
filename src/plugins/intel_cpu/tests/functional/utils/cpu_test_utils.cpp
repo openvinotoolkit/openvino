@@ -8,6 +8,7 @@
 #include "cpu_test_utils.hpp"
 
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 #include "utils/general_utils.h"
 #include "utils/rt_info/memory_formats_attribute.hpp"
@@ -409,30 +410,6 @@ void CPUTestsBase::updateSelectedType(const std::string& primitiveType,
     selectedType += execType.get_type_name();
 }
 
-std::vector<CPUSpecificParams> filterCPUSpecificParams(const std::vector<CPUSpecificParams>& paramsVector) {
-    auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
-        for (auto& format : formats) {
-            if (format == nCw16c)
-                format = nCw8c;
-            if (format == nChw16c)
-                format = nChw8c;
-            if (format == nCdhw16c)
-                format = nCdhw8c;
-        }
-    };
-
-    std::vector<CPUSpecificParams> filteredParamsVector = paramsVector;
-
-    if (!ov::with_cpu_x86_avx512f()) {
-        for (auto& param : filteredParamsVector) {
-            adjustBlockedFormatByIsa(std::get<0>(param));
-            adjustBlockedFormatByIsa(std::get<1>(param));
-        }
-    }
-
-    return filteredParamsVector;
-}
-
 inline void CheckNumberOfNodesWithTypeImpl(std::shared_ptr<const ov::Model> function,
                                            const std::unordered_set<std::string>& nodeTypes,
                                            size_t expectedCount) {
@@ -471,4 +448,93 @@ void CheckNumberOfNodesWithType(const ov::CompiledModel& compiledModel,
                                 size_t expectedCount) {
     CheckNumberOfNodesWithTypes(compiledModel, {nodeType}, expectedCount);
 }
+
+
+// deduce the actual precision of the operation given the ngraph level operation precision and the plugin config
+ov::element::Type
+CPUTestsBase::deduce_expected_precision(const ov::element::Type& opPrecision,
+                                        const ov::AnyMap& configuration) {
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    return opPrecision;
+#endif
+#if defined(OPENVINO_ARCH_RISCV64)
+    return opPrecision;
+#endif
+#if defined(OPENVINO_ARCH_X86_64)
+    // if is not float
+    if (!opPrecision.is_real()) {
+        return opPrecision;
+    }
+    ov::element::Type inferencePrecision = ov::element::f32;
+    bool inferencePrecisionSetExplicitly = false;
+    const std::string precisionKey = ov::hint::inference_precision.name();
+    const auto& it = configuration.find(precisionKey);
+    if (it != configuration.end()) {
+        auto inferencePrecisionConfig = it->second.as<ov::element::Type>();
+        inferencePrecisionSetExplicitly = true;
+        // TODO also need to check (dnnl::impl::cpu::x64::avx2_vnni_2)
+        if ((inferencePrecisionConfig == ov::element::bf16 && ov::with_cpu_x86_avx512_core())
+                || (inferencePrecisionConfig == ov::element::f16 && ov::with_cpu_x86_avx512_core_fp16())
+                || (inferencePrecisionConfig == ov::element::f32)
+                || (inferencePrecisionConfig == ov::element::undefined)) {
+            inferencePrecision = inferencePrecisionConfig;
+        }
+    }
+    if (!inferencePrecisionSetExplicitly) {
+        const std::string executionModeKey = ov::hint::execution_mode.name();
+        const auto& configIt = configuration.find(executionModeKey);
+        if (configIt != configuration.end() && configIt->second.as<ov::hint::ExecutionMode>() == ov::hint::ExecutionMode::PERFORMANCE) {
+            inferencePrecision = ov::element::f32;
+            if (ov::with_cpu_x86_bfloat16()) {
+                inferencePrecision = ov::element::bf16;
+            }
+        } else {
+            inferencePrecision = ov::element::undefined;
+        }
+    }
+
+    ov::element::Type deducedType = opPrecision;
+    // enforceInferPrecision stage
+    if (inferencePrecision == ov::element::bf16) {
+        deducedType = ov::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
+    }
+
+    // ngraph transform pipeline stage
+    if (inferencePrecision == ov::element::f16) {
+        if (deducedType == ov::element::f32) {
+            deducedType = ov::element::f16;
+        }
+    }
+    if (deducedType == ov::element::bf16) {
+        deducedType = ov::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
+    } else if (deducedType == ov::element::f16) {
+        if (inferencePrecision != ov::element::f16 && inferencePrecision != ov::element::undefined) {
+            deducedType = ov::element::f32;
+        }
+    } else {
+        deducedType = ov::element::f32;
+    }
+
+    return deducedType;
+#endif
+}
+
+bool containsNonSupportedFormat(const std::vector<cpu_memory_format_t>& formats, const std::vector<cpu_memory_format_t>& non_supported_f) {
+    for (const auto& format : formats) {
+        if (std::find(non_supported_f.begin(), non_supported_f.end(), format) != non_supported_f.end()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool containsSupportedFormatsOnly(const std::vector<cpu_memory_format_t>& formats, const std::vector<cpu_memory_format_t>& supported_f) {
+    for (const auto& format : formats) {
+        if (std::find(supported_f.begin(), supported_f.end(), format) == supported_f.end()) {
+            return false;
+        }
+    }
+    return true;
+}
+
 }  // namespace CPUTestUtils

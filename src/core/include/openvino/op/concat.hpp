@@ -37,13 +37,6 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     /// \return The concatenation axis.
-    int64_t get_concatenation_axis() const {
-        return m_concat_axis;
-    }
-    void set_concatenation_axis(int64_t concatenation_axis) {
-        m_concat_axis = concatenation_axis;
-    }
-    /// \return The concatenation axis.
     int64_t get_axis() const {
         return m_axis;
     }

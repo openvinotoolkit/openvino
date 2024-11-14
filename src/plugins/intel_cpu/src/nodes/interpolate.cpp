@@ -1862,9 +1862,9 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
 
             const auto &interpShapeCalcMode = interpAttr.shape_calculation_mode;
             if (interpShapeCalcMode == ngInterpShapeCalcMode::SCALES) {
-                shapeCalcMode = InterpolateShapeCalcMode::scales;
+                interpAttrs.shapeCalcMode = InterpolateShapeCalcMode::scales;
             } else if (interpShapeCalcMode == ngInterpShapeCalcMode::SIZES) {
-                shapeCalcMode = InterpolateShapeCalcMode::sizes;
+                interpAttrs.shapeCalcMode = InterpolateShapeCalcMode::sizes;
             } else {
                 OPENVINO_THROW(errorPrefix, " has unsupported shape calculation mode");
             }
@@ -1925,14 +1925,14 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
 
             const auto &interpShapeCalcMode = interpAttr.shape_calculation_mode;
             if (interpShapeCalcMode == ngInterpShapeCalcMode::SCALES) {
-                shapeCalcMode = InterpolateShapeCalcMode::scales;
+                interpAttrs.shapeCalcMode = InterpolateShapeCalcMode::scales;
                 const auto scalesNode = std::dynamic_pointer_cast<const ov::op::v0::Constant>(interp->get_input_node_shared_ptr(SIZE_OR_SCALE_ID_V11));
                 if (scalesNode) {
                     scales = scalesNode->cast_vector<float>();
                     isScaleConstant = true;
                 }
             } else if (interpShapeCalcMode == ngInterpShapeCalcMode::SIZES) {
-                shapeCalcMode = InterpolateShapeCalcMode::sizes;
+                interpAttrs.shapeCalcMode = InterpolateShapeCalcMode::sizes;
             } else {
                 OPENVINO_THROW(errorPrefix, " has unsupported shape calculation mode");
             }
@@ -2021,7 +2021,13 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
         return;
 
     ov::element::Type inputPrecision = getOriginalInputPrecisionAtPort(DATA_ID);
-    if ((inputPrecision != ov::element::i8) && (inputPrecision != ov::element::u8) && (inputPrecision != ov::element::bf16)) {
+
+#if defined(OV_CPU_WITH_ACL)
+    bool isInputPrecisionSupported = one_of(inputPrecision, ov::element::i8, ov::element::u8, ov::element::f16);
+#else
+    bool isInputPrecisionSupported = one_of(inputPrecision, ov::element::i8, ov::element::u8, ov::element::bf16);
+#endif
+    if (!isInputPrecisionSupported) {
         inputPrecision = ov::element::f32;
     }
 
@@ -2039,9 +2045,11 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
         outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(DATA_ID);
     }
 
+#if !defined(OV_CPU_WITH_ACL)
     if (!mayiuse(cpu::x64::sse41)) {
         inputPrecision = outputPrecision = ov::element::f32;
     }
+#endif
 
     auto targetShapeType = ov::element::i32;
     auto scalesType = ov::element::f32;
@@ -2066,7 +2074,7 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
     auto pushDesc = [&](LayoutType dataFormat, impl_desc_type implDetail, bool is_version11, bool useAclExecutor = false) {
         config.inConfs[DATA_ID].setMemDesc(creatorsMap.at(dataFormat)->createSharedDesc(inputPrecision, getInputShapeAtPort(DATA_ID)));
         if (is_version11) {
-            if (shapeCalcMode == InterpolateShapeCalcMode::sizes) {
+            if (interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::sizes) {
                 config.inConfs[SIZE_OR_SCALE_ID_V11].setMemDesc(
                     creatorsMap.at(LayoutType::ncsp)->createSharedDesc(targetShapeType, getInputShapeAtPort(SIZE_OR_SCALE_ID_V11)));
             } else {
@@ -2115,6 +2123,8 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
         canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
         if (canUseAclExecutor)
             return;
+        //fallback to f32 if ref is used
+        inputPrecision = outputPrecision = ov::element::f32;
 #endif
 
         if (dataRank == 4) {
@@ -2147,6 +2157,8 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
         canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
         if (canUseAclExecutor)
             return;
+        //fallback to f32 if ref is used
+        inputPrecision = outputPrecision = ov::element::f32;
 #endif
 
         if (!mayiuse(cpu::x64::sse41) || interpAttrs.mode == InterpolateMode::linear) {
@@ -2186,7 +2198,7 @@ bool Interpolate::needShapeInfer() const {
     if (Node::inputShapesModified()) {
         return true;
     }
-    if (shapeCalcMode == InterpolateShapeCalcMode::scales) {
+    if (interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::scales) {
         if (lastScales.empty()) {
             return true;
         }
@@ -2213,9 +2225,9 @@ bool Interpolate::needShapeInfer() const {
 void Interpolate::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 
-    const size_t port = shapeCalcMode == InterpolateShapeCalcMode::sizes ? TARGET_SHAPE_ID : get_scale_id();
+    const size_t port = interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::sizes ? TARGET_SHAPE_ID : get_scale_id();
     const auto &memory = getParentEdgeAt(port)->getMemory();
-    if (shapeCalcMode == InterpolateShapeCalcMode::scales) {
+    if (interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::scales) {
         const float *scales = memory.getDataAs<const float>();
         lastScales.assign(scales, scales + memory.getDesc().getShape().getElementsCount());
     } else {
@@ -2249,27 +2261,27 @@ void Interpolate::prepareParams() {
     }
 
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " did not allocate destination memory");
+    if (!dstMemPtr || !dstMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined destination memory");
 
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
-    if (!srcMemPtr || !srcMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " did not allocate input memory");
+    if (!srcMemPtr || !srcMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined input memory");
 
-    if (shapeCalcMode == InterpolateShapeCalcMode::sizes) {
+    if (interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::sizes) {
         auto tsMemPtr = getSrcMemoryAtPort(TARGET_SHAPE_ID);
-        if (!tsMemPtr || !tsMemPtr->isAllocated())
-            OPENVINO_THROW(errorPrefix, " did not allocate target shape memory");
+        if (!tsMemPtr || !tsMemPtr->isDefined())
+            OPENVINO_THROW(errorPrefix, " has undefined target shape memory");
     } else {
         auto scaleMemPtr = getSrcMemoryAtPort(get_scale_id());
-        if (!scaleMemPtr || !scaleMemPtr->isAllocated())
-            OPENVINO_THROW(errorPrefix, " did not allocate scales memory");
+        if (!scaleMemPtr || !scaleMemPtr->isDefined())
+            OPENVINO_THROW(errorPrefix, " has undefined scales memory");
     }
 
     if (isAxesSpecified) {
         auto axesMemPtr = getSrcMemoryAtPort(get_axis_id());
-        if (!axesMemPtr || !axesMemPtr->isAllocated())
-            OPENVINO_THROW(errorPrefix, " did not allocate axes memory");
+        if (!axesMemPtr || !axesMemPtr->isDefined())
+            OPENVINO_THROW(errorPrefix, " has undefined axes memory");
     }
 
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
@@ -2295,7 +2307,7 @@ void Interpolate::prepareParams() {
         interpAttrs.layout = InterpolateLayoutType::by_channel;
     }
 
-    if (shapeCalcMode == InterpolateShapeCalcMode::scales) {
+    if (interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::scales) {
         if (!isScaleConstant) {
             const auto& scalesMem = getParentEdgeAt(get_scale_id())->getMemory();
             const float* scalesData = scalesMem.getDataAs<const float>();
@@ -2365,10 +2377,10 @@ void Interpolate::prepareParams() {
 void Interpolate::createPrimitive() {
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!srcMemPtr || !srcMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " did not allocate input memory");
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " did not allocate destination memory");
+    if (!srcMemPtr)
+        OPENVINO_THROW(errorPrefix, " has null input memory");
+    if (!dstMemPtr)
+        OPENVINO_THROW(errorPrefix, " has null destination memory");
 
     if (dstMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
         interpAttrs.layout = InterpolateLayoutType::planar;
@@ -2448,7 +2460,7 @@ std::vector<float> Interpolate::getScales(const VectorDims &srcDimPad, const Vec
         if (interpAttrs.mode == InterpolateMode::bilinear_pillow || interpAttrs.mode == InterpolateMode::bicubic_pillow) {
             fullScales[axis] = static_cast<float>(dstDim[axis]) / static_cast<float>(srcDimPad[axis]);
         } else {
-            fullScales[axis] = (shapeCalcMode == InterpolateShapeCalcMode::scales) ? scales[i] :
+            fullScales[axis] = (interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::scales) ? scales[i] :
                                                                                      static_cast<float>(dstDim[axis]) / static_cast<float>(srcDimPad[axis]);
         }
     }
@@ -2816,23 +2828,27 @@ void Interpolate::InterpolateJitExecutor::pillowCGathered(const uint8_t *in_ptr_
     bool xPass = IW != OW;
     bool yPass = IH != OH;
 
-    parallel_for(B, [&](size_t b) {
+    auto b_loop = [&](size_t b) {
         auto arg = jit_interpolate_call_args();
         arg.src_ptr[0] = in_ptr_ + (IW * IH * C * b) * srcDataSize;
         if (xPass && yPass) {
-            size_t threadsNum = parallel_get_num_threads();
-            size_t parallelNum = B;
+            size_t parallel_num = B;
             // IH * OW * C buf needed
-            if (parallelNum < threadsNum) {
-                arg.src_ptr[1] = static_cast<uint8_t*>(&pillow_working_buf[(b * OW * IH * C) * srcDataSize]);
+            size_t buffer_size = static_cast<size_t>(OW * IH * C);
+            if (parallel_num < m_threads_num) {
+                arg.src_ptr[1] = static_cast<uint8_t*>(&pillow_working_buf[b * buffer_size * srcDataSize]);
             } else {
-                size_t threadsIdx = parallel_get_thread_num();
-                arg.src_ptr[1] = static_cast<uint8_t*>(&pillow_working_buf[(threadsIdx * OW * IH * C) * srcDataSize]);
+                size_t threads_idx = parallel_get_thread_num();
+                arg.src_ptr[1] = static_cast<uint8_t*>(&pillow_working_buf[threads_idx * buffer_size * srcDataSize]);
             }
         }
         arg.dst = out_ptr_ + (OW * OH * C * b) * dstDataSize;
         arg.weight_ptr[0] = reinterpret_cast<float*>(&auxTable[2]);
         (*interpolateKernel)(&arg);
+    };
+
+    parallel_nt_static(m_threads_num, [&](const int ithr, const int nthr) {
+        for_1d(ithr, nthr, B, b_loop);
     });
 }
 
@@ -3693,22 +3709,22 @@ void Interpolate::InterpolateRefExecutor::pillowRef(const uint8_t *in_ptr_, uint
     //             |  |
     //             |  |
     //             ----
-    parallel_for2d(B, C, [&](size_t b, size_t c) {
+    auto bc_loop = [&](size_t b, size_t c) {
         const uint8_t *in_ptr_nc = in_ptr_ + (IW * IH * C * b + IW * IH * c) * srcDataSize;
         uint8_t *out_ptr_nc = out_ptr_ + (OW * OH * C * b + OW * OH * c) * dstDataSize;
         uint8_t *xpass_out_ptr_nc = nullptr;
         const uint8_t *ypass_in_ptr_nc = nullptr;
         if (xPass && yPass) {
-            size_t threadsNum = parallel_get_num_threads();
-            size_t parallelNum = B * C;
+            size_t parallel_num = B * C;
             // IH * OW buf needed
-            if (parallelNum < threadsNum) {
+            if (parallel_num < m_threads_num) {
                 xpass_out_ptr_nc = static_cast<uint8_t*>(&pillow_working_buf[(OW * IH * C * b + OW * IH * c) * srcDataSize]);
                 ypass_in_ptr_nc = static_cast<const uint8_t*>(&pillow_working_buf[(OW * IH * C * b + OW * IH * c) * srcDataSize]);
             } else {
                 size_t threadsIdx = parallel_get_thread_num();
-                xpass_out_ptr_nc = static_cast<uint8_t*>(&pillow_working_buf[(threadsIdx * OW * IH) * srcDataSize]);
-                ypass_in_ptr_nc = static_cast<const uint8_t*>(&pillow_working_buf[(threadsIdx * OW * IH) * srcDataSize]);
+                size_t buffer_size = static_cast<size_t>(OW * IH);
+                xpass_out_ptr_nc = static_cast<uint8_t*>(&pillow_working_buf[threadsIdx * buffer_size * srcDataSize]);
+                ypass_in_ptr_nc = static_cast<const uint8_t*>(&pillow_working_buf[threadsIdx * buffer_size * srcDataSize]);
             }
         } else if (xPass && !yPass) {
             xpass_out_ptr_nc = out_ptr_nc;
@@ -3756,6 +3772,10 @@ void Interpolate::InterpolateRefExecutor::pillowRef(const uint8_t *in_ptr_, uint
                 }
             }
         }
+    };
+
+    parallel_nt_static(m_threads_num, [&](const int ithr, const int nthr) {
+        for_2d(ithr, nthr, B, C, bc_loop);
     });
 }
 
@@ -3763,16 +3783,16 @@ void Interpolate::InterpolateExecutorBase::create_pillow_working_buf(Interpolate
     if (srcDimPad5d[3] == dstDim5d[3] || srcDimPad5d[4] == dstDim5d[4])
         return;
     size_t bufSize = srcDimPad5d[3] * dstDim5d[4] * srcDataSize; // IH * OW
-    size_t threadsNum = parallel_get_num_threads();
+    m_threads_num = parallel_get_max_threads();
     if (layout == InterpolateLayoutType::planar) {
         // B and C execute in parallel, need separate buf
-        size_t parallelNum = srcDimPad5d[0] * srcDimPad5d[1];
-        bufSize *= std::min(threadsNum, parallelNum);
+        size_t parallel_num = srcDimPad5d[0] * srcDimPad5d[1];
+        bufSize *= std::min(m_threads_num, parallel_num);
     } else {
         bufSize *= srcDimPad5d[1]; // *C
         // B execute in parallel, need separate buf
-        size_t parallelNum = srcDimPad5d[0];
-        bufSize *= std::min(threadsNum, parallelNum);
+        size_t parallel_num = srcDimPad5d[0];
+        bufSize *= std::min(m_threads_num, parallel_num);
     }
     pillow_working_buf.resize(bufSize);
 }

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "../interpolate.hpp"
+#include "nodes/executors/interpolate.hpp"
 #include "arm_compute/runtime/NEON/functions/NEScale.h"
 #include "arm_compute/runtime/Tensor.h"
 

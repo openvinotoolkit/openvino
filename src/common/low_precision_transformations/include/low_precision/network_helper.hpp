@@ -187,7 +187,9 @@ public:
 
     static size_t getParentOutputIndex(const std::shared_ptr<ov::Node>& parent, const std::shared_ptr<ov::Node>& child);
 
-    static FakeQuantizeDequantizationValues createEmptyValues(const FakeQuantizeDequantization& dequantization, const element::Type precision);
+    static FakeQuantizeDequantizationValues createEmptyValues(
+        const FakeQuantizeDequantization& dequantization,
+        const element::Type& precision = element::undefined);
 
     static bool isZeroConst(const std::shared_ptr<Node>& node);
     static bool checkZeroPoint(const std::shared_ptr<Node>& node, const DataPrecision& dataPrecision = DataPrecision());

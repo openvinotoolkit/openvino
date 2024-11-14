@@ -3,9 +3,10 @@
 //
 
 #include "read_value_inst.h"
-#include "implementation_map.hpp"
+#include "impls/registry/implementation_map.hpp"
 #include "register.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
+
+#include "intel_gpu/plugin/multi_tensor_variable_state.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -60,12 +61,26 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
             if (instance.get_impl_params()->input_layouts.size() > 0) {
                 variable.get_memory()->copy_from(stream, instance.dep_memory(0), true);
             } else {
-                variable.get_memory()->fill(stream, 0);
+                variable.get_memory()->fill(stream);
             }
         }
 
         if (!instance.can_be_optimized()) {
-            return instance.output_memory(0).copy_from(stream, *variable.get_memory(), false);
+            GPU_DEBUG_TRACE_DETAIL << "Copy variable's memory to new read_value's output buffer\n";
+            std::vector<cldnn::event::ptr> res_events;
+            res_events.push_back(instance.output_memory(0).copy_from(stream, *variable.get_memory(), false));
+
+            if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
+                auto scales_state = compressed_cache_variable->get_compression_scale_state();
+                res_events.push_back(instance.output_memory(1).copy_from(stream, *scales_state->get_memory(), false));
+
+                if (compressed_cache_variable->has_zp_state()) {
+                    auto zp_state = compressed_cache_variable->get_compression_zp_state();
+                    res_events.push_back(instance.output_memory(1).copy_from(stream, *zp_state->get_memory(), false));
+                }
+            }
+
+            return stream.aggregate_events(res_events, res_events.size() > 1);
         }
 
         return instance.get_network().get_stream().create_user_event(true);

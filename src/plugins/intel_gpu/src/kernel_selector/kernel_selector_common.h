@@ -19,6 +19,10 @@
 #define EXE_MODE_AGE_BASED "-cl-no-subgroup-ifp"
 #define EXE_MODE_NO_PRERA_SCH "-cl-intel-no-prera-scheduling"
 
+namespace micro {
+struct MicroKernelPackage;
+}  // namspace
+
 namespace kernel_selector {
 
 #ifndef UNUSED
@@ -64,7 +68,11 @@ struct KernelCode {
 struct clKernelData {
     KernelCode code;
     KernelParams params;
+    std::vector<std::shared_ptr<micro::MicroKernelPackage>> micro_kernels;
     bool skip_execution = false;
+
+    void save(cldnn::BinaryOutputBuffer& ob) const;
+    void load(cldnn::BinaryInputBuffer& ib);
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

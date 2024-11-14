@@ -1,0 +1,47 @@
+name: 'Create manifest'
+description: 'Creates manifest containing versions of the product and the corresponding repositories'
+inputs:
+  repos:
+    description: "Multi-line list of repositories to include to manifest"
+    required: true
+  product_type:
+    description: "Unique string to reflect product configuration"
+    required: true
+  save_to:
+    description: "Path to save manifest to"
+    required: true
+  action_path:
+    description: "Action path, if not set - taken from github context"
+    required: false
+  target_arch:
+    description: "Target architecture"
+    required: true
+  build_type:
+    description: "Build type: release | debug | release_with_debug"
+    required: true
+  trigger_repo_sha:
+    description: "Commit hash of a trigger repo. If not set - taken from github context"
+    required: false
+
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Python dependencies
+      shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
+      run: >-
+        pip install -r ${{ env.ACTION_PATH }}/requirements.txt
+      env:
+        ACTION_PATH: ${{ runner.os == 'Windows' && '$env:GITHUB_ACTION_PATH' || '$GITHUB_ACTION_PATH' }}
+
+    - name: 'Create manifest'
+      id: create_manifest
+      shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
+      run: >-
+        python3 ${{ env.ACTION_PATH }}/create_manifest.py
+        --target_arch "${{ inputs.target_arch }}" --build_type "${{ inputs.build_type }}"
+        --save_to "${{ inputs.save_to }}" --product_type "${{ inputs.product_type }}" -r "${{ inputs.repos }}"
+      env:
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        TRIGGER_REPO_SHA: ${{ inputs.trigger_repo_sha || github.event.pull_request.head.sha || github.sha }}
+        ACTION_PATH: ${{ runner.os == 'Windows' && '$env:GITHUB_ACTION_PATH' || '$GITHUB_ACTION_PATH' }}

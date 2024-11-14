@@ -67,3 +67,41 @@
 #    define OPENVINO_ARCH_RISCV64
 #    define OPENVINO_ARCH_64_BIT
 #endif
+
+/**
+ * @brief Define no dangling attribute.
+ * Use it as C++ attribute e.g. OV_NO_DANGLING void my_func();
+ */
+#if defined(__GNUC__) && (__GNUC__ >= 14)
+#    define OV_NO_DANGLING [[gnu::no_dangling]]
+#else
+#    define OV_NO_DANGLING
+#endif
+
+#if !(defined(_MSC_VER) && __cplusplus == 199711L)
+#    if __cplusplus >= 201103L
+#        define OPENVINO_CPP_VER_11
+#        if __cplusplus >= 201402L
+#            define OPENVINO_CPP_VER_14
+#            if __cplusplus >= 201703L
+#                define OPENVINO_CPP_VER_17
+#                if __cplusplus >= 202002L
+#                    define OPENVINO_CPP_VER_20
+#                endif
+#            endif
+#        endif
+#    endif
+#elif defined(_MSC_VER) && __cplusplus == 199711L
+#    if _MSVC_LANG >= 201103L
+#        define OPENVINO_CPP_VER_11
+#        if _MSVC_LANG >= 201402L
+#            define OPENVINO_CPP_VER_14
+#            if _MSVC_LANG >= 201703L
+#                define OPENVINO_CPP_VER_17
+#                if _MSVC_LANG >= 202002L
+#                    define OPENVINO_CPP_VER_20
+#                endif
+#            endif
+#        endif
+#    endif
+#endif

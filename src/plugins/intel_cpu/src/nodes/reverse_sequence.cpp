@@ -84,12 +84,12 @@ void ReverseSequence::prepareParams() {
     const auto& seqLengthsMemPtr = getSrcMemoryAtPort(REVERSESEQUENCE_LENGTHS);
     const auto& dstMemPtr = getDstMemoryAtPort(0);
 
-    if (!dataMemPtr || !dataMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " has not allocated input memory of 'data'");
-    if (!seqLengthsMemPtr || !seqLengthsMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " has not allocated input memory of 'seq_lengths'");
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " has not allocated output memory");
+    if (!dataMemPtr || !dataMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined input memory of 'data'");
+    if (!seqLengthsMemPtr || !seqLengthsMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined input memory of 'seq_lengths'");
+    if (!dstMemPtr || !dstMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined output memory");
     if (getSelectedPrimitiveDescriptor() == nullptr)
         OPENVINO_THROW(errorPrefix, " has unidentified preferable primitive descriptor");
 

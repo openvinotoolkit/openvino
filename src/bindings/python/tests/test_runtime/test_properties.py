@@ -62,6 +62,13 @@ def test_properties_rw_base():
             ),
         ),
         (
+            props.WorkloadType,
+            (
+                (props.WorkloadType.DEFAULT, "WorkloadType.DEFAULT", 0),
+                (props.WorkloadType.EFFICIENT, "WorkloadType.EFFICIENT", 1),
+            ),
+        ),
+        (
             hints.Priority,
             (
                 (hints.Priority.LOW, "Priority.LOW", 0),
@@ -259,6 +266,11 @@ def test_properties_ro(ov_property_ro, expected_value):
         ),
         (props.force_tbb_terminate, "FORCE_TBB_TERMINATE", ((True, True), (False, False))),
         (props.enable_mmap, "ENABLE_MMAP", ((True, True), (False, False))),
+        (
+            props.weights_path,
+            "WEIGHTS_PATH",
+            (("./model.bin", "./model.bin"),),
+        ),
         (hints.inference_precision, "INFERENCE_PRECISION_HINT", ((Type.f32, Type.f32),)),
         (
             hints.model_priority,
@@ -323,6 +335,11 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((64, 64),),
         ),
         (hints.kv_cache_precision, "KV_CACHE_PRECISION", ((Type.f32, Type.f32),)),
+        (
+            hints.activations_scale_factor,
+            "ACTIVATIONS_SCALE_FACTOR",
+            ((0.0, 0.0),),
+        ),
         (
             intel_cpu.denormals_optimization,
             "CPU_DENORMALS_OPTIMIZATION",

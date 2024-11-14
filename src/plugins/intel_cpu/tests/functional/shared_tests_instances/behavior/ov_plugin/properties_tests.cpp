@@ -84,19 +84,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
 // OV Class GetMetric
 //
 
-INSTANTIATE_TEST_SUITE_P(smoke_HeteroOVGetMetricPropsTest,
-                         OVGetMetricPropsTest,
-                         ::testing::Values("HETERO"));
-
 INSTANTIATE_TEST_SUITE_P(smoke_OVGetMetricPropsTest, OVGetMetricPropsTest, ::testing::Values("CPU"));
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_HeteroOVCheckGetSupportedROMetricsPropsTests,
-    OVCheckGetSupportedROMetricsPropsTests,
-    ::testing::Combine(::testing::Values("HETERO"),
-                       ::testing::ValuesIn(OVCheckGetSupportedROMetricsPropsTests::configureProperties(
-                           {ov::device::full_name.name()}))),
-    OVCheckGetSupportedROMetricsPropsTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_OVCheckGetSupportedROMetricsPropsTests,
@@ -109,13 +97,6 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(smoke_OVGetAvailableDevicesPropsTest,
                          OVGetAvailableDevicesPropsTest,
                          ::testing::Values("CPU"));
-
-const std::vector<ov::AnyMap> multiConfigs = {{ov::device::priorities(ov::test::utils::DEVICE_CPU)}};
-
-INSTANTIATE_TEST_SUITE_P(smoke_OVClassSetDevicePriorityConfigPropsTest,
-                         OVClassSetDevicePriorityConfigPropsTest,
-                         ::testing::Combine(::testing::Values("HETERO"),
-                                            ::testing::ValuesIn(multiConfigs)));
 
 const std::vector<ov::AnyMap> configsDeviceProperties = {
     {ov::device::properties("CPU", ov::num_streams(2))},

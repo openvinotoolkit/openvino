@@ -129,7 +129,7 @@ protected:
             all_events.push_back(ev);
         }
 
-        return aggregate_events(all_events, stream, all_events.size() > 1);
+        return stream.aggregate_events(all_events, all_events.size() > 1);
     }
 
     bool need_indirect_load(const gemm_inst& inst) const {
@@ -154,6 +154,13 @@ protected:
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, gemm_inst& instance) override {
+        if (instance.get_input_layout(0).count() == 0 ||
+            instance.get_input_layout(1).count() == 0) {
+            stream& stream = instance.get_network().get_stream();
+            stream.enqueue_barrier();
+            return instance.output_memory_ptr()->fill(stream, false);
+        }
+
         if (need_indirect_load(instance))
             return execute_stage(events, instance, indirect_gemm);
         else
@@ -303,12 +310,19 @@ public:
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kernel_params = get_kernel_params(impl_param, true, false);
-        (_kernels_data[default_gemm].update_dispatch_data_func)(kernel_params, _kernels_data[default_gemm]);
+        // If model loaded from cache, params are not initialized, so we create a new object and reuse it in the future
+        if (_kernels_data[default_gemm].params == nullptr) {
+            _kernels_data[default_gemm].params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true, false));
+        }
+        update_shapes(*_kernels_data[default_gemm].params, impl_param);
+        (_kernels_data[default_gemm].update_dispatch_data_func)(*_kernels_data[default_gemm].params, _kernels_data[default_gemm]);
 
         if (_kernels_data.size() == 2) {
-            auto kernel_params = get_kernel_params(impl_param, true, true);
-            (_kernels_data[indirect_gemm].update_dispatch_data_func)(kernel_params, _kernels_data[indirect_gemm]);
+            if (_kernels_data[indirect_gemm].params == nullptr) {
+                _kernels_data[indirect_gemm].params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true, true));
+            }
+            update_shapes(*_kernels_data[indirect_gemm].params, impl_param);
+            (_kernels_data[indirect_gemm].update_dispatch_data_func)(*_kernels_data[indirect_gemm].params, _kernels_data[indirect_gemm]);
         }
     }
 };

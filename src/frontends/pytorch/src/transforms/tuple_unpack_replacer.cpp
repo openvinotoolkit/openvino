@@ -145,8 +145,8 @@ bool TupleUnpackInBodyReplacer::run_on_model(const std::shared_ptr<Model>& model
                     int else_p_idx = inputs_mapping[j].second;
                     if (else_p_idx > else_body_idx && else_body_idx != -1)
                         else_p_idx--;
-                    auto then_p = then_p_idx == -1 ? nullptr : then_body->get_parameters()[then_p_idx];
-                    auto else_p = else_p_idx == -1 ? nullptr : else_body->get_parameters()[else_p_idx];
+                    const auto& then_p = then_p_idx == -1 ? nullptr : then_body->get_parameters()[then_p_idx];
+                    const auto& else_p = else_p_idx == -1 ? nullptr : else_body->get_parameters()[else_p_idx];
                     if (then_p || else_p)
                         new_if->set_invariant_inputs(if_op->input_value(j), {then_p, else_p});
                 }

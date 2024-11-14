@@ -1,6 +1,4 @@
-.. {#openvino_docs_pooling_shape_rules}
-
-Shape calculation rules for Pooling Operators
+Shape Calculation Rules for Pooling Operators
 =============================================
 
 .. meta::

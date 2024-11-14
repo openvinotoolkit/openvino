@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_sort_MatrixNms_8}
-
 MatrixNonMaxSuppression
 =======================
 

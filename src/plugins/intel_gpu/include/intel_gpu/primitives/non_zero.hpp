@@ -17,9 +17,8 @@ struct count_nonzero : public primitive_base<count_nonzero> {
     /// @param id This primitive id.
     /// @param data Input data primitive id.
     count_nonzero(const primitive_id& id,
-                  const input_info& data,
-                  const padding& output_padding = padding())
-        : primitive_base(id, {data}, {output_padding}) {}
+                  const input_info& data)
+        : primitive_base(id, {data}) {}
 
     bool operator==(const primitive& rhs) const override {
         return compare_common_params(rhs);
@@ -37,9 +36,8 @@ struct gather_nonzero : public primitive_base<gather_nonzero> {
     /// @param output_shape Output shape [rank of data, number of nonzero elements]
     gather_nonzero(const primitive_id& id,
                    const input_info& data,
-                   const input_info& output_shape,
-                   const padding& output_padding = padding())
-        : primitive_base(id, {data, output_shape}, {output_padding}) {}
+                   const input_info& output_shape)
+        : primitive_base(id, {data, output_shape}) {}
 
     bool operator==(const primitive& rhs) const override {
         return compare_common_params(rhs);

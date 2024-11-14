@@ -19,7 +19,7 @@ ov::pass::RNNCellDecomposition::RNNCellDecomposition() {
     MATCHER_SCOPE(RNNCellDecomposition);
     auto rnn_cell = ov::pass::pattern::wrap_type<ov::op::v0::RNNCell>();
     matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
-        auto rnn_cell = std::dynamic_pointer_cast<ov::op::v0::RNNCell>(m.get_match_root());
+        auto rnn_cell = ov::as_type_ptr<ov::op::v0::RNNCell>(m.get_match_root());
         if (!rnn_cell || transformation_callback(rnn_cell)) {
             return false;
         }

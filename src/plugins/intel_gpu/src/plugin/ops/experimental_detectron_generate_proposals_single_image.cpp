@@ -31,7 +31,6 @@ static void CreateExperimentalDetectronGenerateProposalsSingleImageOp(
                              attrs.min_size, attrs.nms_threshold, attrs.pre_nms_count, attrs.post_nms_count};
 
         prim.num_outputs = op->get_output_size();
-        prim.output_paddings = get_output_paddings(op);
         prim.output_data_types = get_output_data_types(op, {{ov::element::i64, ov::element::i32}});
 
         p.add_primitive(*op, prim);

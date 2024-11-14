@@ -1,4 +1,5 @@
-FROM openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+ARG REGISTRY="docker.io"
+FROM ${REGISTRY}/library/ubuntu:20.04
 
 USER root
 
@@ -22,6 +23,8 @@ RUN apt-get update && \
         ca-certificates \
         gpg-agent \
         tzdata \
+        # parallel gzip
+        pigz \
         # Pythons
         python3.8-dev \
         python3.8-venv \
@@ -32,7 +35,7 @@ RUN apt-get update && \
         libhdf5-dev \
         # For Java API
         default-jdk \
-        # Compiler
+        # Compiler, required for multi-isa build
         gcc-10 \
         g++-10 \
         && \
@@ -71,3 +74,11 @@ RUN python3.11 -m venv venv
 ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
+
+# Install Node
+ENV NODE_VERSION=21.7.3
+ENV NVM_DIR=/.nvm
+RUN mkdir -p $NVM_DIR
+RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+RUN . "$NVM_DIR/nvm.sh" && nvm install ${NODE_VERSION}
+ENV PATH="$NVM_DIR/versions/node/v${NODE_VERSION}/bin/:${PATH}"

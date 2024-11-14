@@ -27,7 +27,6 @@ static void CreateGenerateProposalsIEInternalOp(
         cldnn::generate_proposals prim{layer_type_name_ID(op), inputs, op->get_attrs()};
 
         prim.num_outputs = op->get_output_size();
-        prim.output_paddings = get_output_paddings(op);
         prim.output_data_types = get_output_data_types(op, {{ov::element::i64, ov::element::i32}});
 
         p.add_primitive(*op, prim);

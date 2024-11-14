@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/opsets/opset8.hpp"
@@ -48,6 +49,11 @@ TEST(get_constant_from_source, extract_static_dim_from_dynamic_shape_check) {
     ASSERT_TRUE(extract_static_dimension->get_output_tensor(0).get_upper_value());
 }
 
+TEST(get_constant_from_source, return_nullptr_for_empty_output) {
+    auto res = ov::util::get_constant_from_source(ov::Output<ov::Node>());
+    ASSERT_EQ(res, nullptr);
+}
+
 TEST(constantfold_subgraph, split) {
     std::vector<float> input{0, 1, 2, 3, 4, 5, 6, 7, 8};
     auto constant = ov::opset8::Constant::create(ov::element::f32, ov::Shape{input.size()}, input);
@@ -82,3 +88,183 @@ TEST(constantfold_subgraph, shapeof) {
     std::vector<int64_t> expected{3};
     ASSERT_EQ(expected, actual);
 }
+
+namespace ov {
+namespace test {
+
+using op::v0::Concat;
+using op::v0::Constant;
+using op::v0::Parameter;
+
+using testing::HasSubstr;
+using testing::Values;
+
+using NormalizeAxisTest = testing::Test;
+
+TEST_F(NormalizeAxisTest, try_normalize_dynamic_rank) {
+    OV_EXPECT_THROW(util::try_normalize_axis(3, Rank(4, 5)), Exception, testing::_);
+}
+
+TEST_F(NormalizeAxisTest, try_normalize_invalid_axis) {
+    OV_EXPECT_THROW(util::try_normalize_axis(-7, Rank(6)),
+                    Exception,
+                    HasSubstr("Axis -7 out of the tensor rank range [-6, 5]"));
+    OV_EXPECT_THROW(util::try_normalize_axis(6, Rank(6)),
+                    Exception,
+                    HasSubstr("Axis 6 out of the tensor rank range [-6, 5]"));
+}
+
+TEST_F(NormalizeAxisTest, try_normalize_invalid_axis_with_node_description) {
+    auto node = Parameter(element::i32, PartialShape::dynamic(2));
+    node.set_friendly_name("My node");
+    const auto n_rank = node.get_output_partial_shape(0).rank();
+
+    OV_EXPECT_THROW(util::try_normalize_axis(-7, n_rank, node),
+                    Exception,
+                    HasSubstr("My node':\nAxis -7 out of the tensor rank range [-2, 1]"));
+    OV_EXPECT_THROW(util::try_normalize_axis(2, n_rank, node),
+                    Exception,
+                    HasSubstr("My node':\nAxis 2 out of the tensor rank range [-2, 1]"));
+}
+
+TEST_F(NormalizeAxisTest, validate_node_axis) {
+    const auto shape = PartialShape{2, 4, 5, 6};
+    const auto p = std::make_shared<Parameter>(element::i32, shape);
+    const auto node = std::make_shared<Concat>(NodeVector{1, p}, -1);
+
+    OV_EXPECT_THROW(util::validate_axis(-5, shape.rank(), *node.get()),
+                    NodeValidationFailure,
+                    HasSubstr("Axis -5 out of the tensor rank range [-4, 3]"));
+    OV_EXPECT_THROW(util::validate_axis(4, shape.rank(), *node),
+                    NodeValidationFailure,
+                    HasSubstr("Axis 4 out of the tensor rank range [-4, 3]"));
+}
+
+TEST_F(NormalizeAxisTest, validate_axes_correct) {
+    const auto axes = std::vector<int64_t>{-2, 4, 3, 0, -1};
+    const auto node = Parameter(element::i32, PartialShape::dynamic(6));
+
+    OV_ASSERT_NO_THROW(util::validate_axes(axes, Rank(6), node));
+}
+
+TEST_F(NormalizeAxisTest, validate_axes_in_correct) {
+    const auto axes = std::vector<int64_t>{-2, 4, 3, 0, -1};
+    const auto node = Parameter(element::i16, PartialShape::dynamic(4));
+
+    OV_EXPECT_THROW(util::validate_axes(axes, Rank(3), node),
+                    Exception,
+                    HasSubstr("Axis 4 out of the tensor rank range [-3, 2]"));
+}
+
+TEST_F(NormalizeAxisTest, normalize_axes) {
+    auto axes = std::vector<int64_t>{-2, 4, 3, 0, -1};
+    const auto exp_axes = std::vector<int64_t>{4, 4, 3, 0, 5};
+
+    util::normalize_axes(axes, 6);
+
+    EXPECT_EQ(exp_axes, axes);
+}
+
+TEST_F(NormalizeAxisTest, try_normalize_axes) {
+    auto axes = std::vector<int64_t>{-2, 4, 3, 0, -1};
+    const auto exp_axes = std::vector<int64_t>{4, 4, 3, 0, 5};
+    const auto node = Parameter(element::i64, PartialShape::dynamic(6));
+
+    util::try_normalize_axes(axes, Rank(6), node);
+
+    EXPECT_EQ(exp_axes, axes);
+}
+
+TEST_F(NormalizeAxisTest, try_get_normalize_axis_vector) {
+    const auto const_axes = Constant::create(element::i64, Shape{6}, {-2, 1, 0, -3, 2, -1});
+
+    const auto axes = util::try_get_normalized_axis_vector(const_axes->get_tensor_view(), Rank(4), *const_axes);
+
+    EXPECT_EQ(AxisVector({2, 1, 0, 1, 2, 3}), axes);
+}
+
+TEST_F(NormalizeAxisTest, try_get_normalize_axis_vector_fail) {
+    const auto const_axes = Constant::create(element::i64, Shape{6}, {-2, 1, 0, -3, 2, -1});
+
+    OV_EXPECT_THROW(util::try_get_normalized_axis_vector(const_axes->get_tensor_view(), Rank(2), *const_axes),
+                    Exception,
+                    HasSubstr("Axis -3 out of the tensor rank range [-2, 1]"));
+}
+
+TEST_F(NormalizeAxisTest, try_get_normalize_axis_set) {
+    const auto const_axes = Constant::create(element::i64, Shape{6}, {-2, 1, 0, -3, 2, -1});
+
+    const auto axes = util::try_get_normalized_axis_set(const_axes->get_tensor_view(), Rank(4), *const_axes);
+
+    EXPECT_EQ(AxisSet({0, 1, 2, 3}), axes);
+}
+
+TEST_F(NormalizeAxisTest, try_get_normalize_axis_set_fail) {
+    const auto const_axes = Constant::create(element::i32, Shape{6}, {-2, 1, 0, -3, 2, -1});
+
+    OV_EXPECT_THROW(util::try_get_normalized_axis_set(const_axes->get_tensor_view(), Rank(2), *const_axes),
+                    Exception,
+                    HasSubstr("Axis -3 out of the tensor rank range [-2, 1]"));
+}
+
+using NormalizeAxisParam = std::tuple<int64_t,  // axis
+                                      size_t,   // normalized axis
+                                      Rank      // Rank
+                                      >;
+
+class NormalizeAxisTestP : public NormalizeAxisTest, public testing::WithParamInterface<NormalizeAxisParam> {};
+
+INSTANTIATE_TEST_SUITE_P(positive_axis,
+                         NormalizeAxisTestP,
+                         Values(NormalizeAxisParam(0, 0, Rank{0}),
+                                NormalizeAxisParam{0, 0, Rank{5}},
+                                NormalizeAxisParam{3, 3, Rank{5}},
+                                NormalizeAxisParam{4, 4, Rank{5}}),
+                         testing::PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(negative_axis,
+                         NormalizeAxisTestP,
+                         Values(NormalizeAxisParam{-5, 0, Rank{5}},
+                                NormalizeAxisParam{-3, 2, Rank{5}},
+                                NormalizeAxisParam{-1, 4, Rank{5}}),
+                         testing::PrintToStringParamName());
+
+TEST_P(NormalizeAxisTestP, is_axis_valid) {
+    const auto& axis = std::get<0>(GetParam());
+    const auto& rank = std::get<2>(GetParam());
+
+    EXPECT_TRUE(util::is_axis_valid(axis, rank.get_length()));
+}
+
+TEST_P(NormalizeAxisTestP, is_axis_valid_scalar_rank) {
+    const auto& axis = std::get<0>(GetParam());
+
+    if (axis) {
+        EXPECT_FALSE(util::is_axis_valid(axis, 0));
+    }
+}
+
+TEST_P(NormalizeAxisTestP, validate_axis) {
+    const auto axes_node = Parameter(element::i64, PartialShape::dynamic(5));
+    const auto& axis = std::get<0>(GetParam());
+
+    EXPECT_NO_THROW(util::validate_axis(axis, axes_node.get_output_partial_shape(0).rank(), axes_node));
+}
+
+TEST_P(NormalizeAxisTestP, normalize_axis_rank) {
+    const auto& axis = std::get<0>(GetParam());
+    const auto& exp_axis = std::get<1>(GetParam());
+    const auto& rank = std::get<2>(GetParam());
+
+    EXPECT_EQ(exp_axis, util::normalize_axis(axis, rank.get_length()));
+}
+
+TEST_P(NormalizeAxisTestP, try_normalize_axis) {
+    const auto& axis = std::get<0>(GetParam());
+    const auto& exp_axis = std::get<1>(GetParam());
+    const auto& rank = std::get<2>(GetParam());
+
+    EXPECT_EQ(exp_axis, util::try_normalize_axis(axis, rank));
+}
+}  // namespace test
+}  // namespace ov

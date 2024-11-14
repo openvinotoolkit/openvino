@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/com.microsoft/embed_layer_normalization.hpp"
-
 #include "core/null_node.hpp"
+#include "core/operator_set.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -15,15 +14,14 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
-
 using namespace ov::op;
 using ov::Shape;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace com_microsoft {
+namespace opset_1 {
 ov::OutputVector embed_layer_normalization(const ov::frontend::onnx::Node& node) {
     auto nodes = node.get_ov_inputs();
     auto num_nodes = nodes.size();
@@ -99,8 +97,9 @@ ov::OutputVector embed_layer_normalization(const ov::frontend::onnx::Node& node)
     }
     return {result, mask_index};
 }
-}  // namespace set_1
-}  // namespace op
+ONNX_OP("EmbedLayerNormalization", OPSET_SINCE(1), com_microsoft::opset_1::embed_layer_normalization, MICROSOFT_DOMAIN);
+}  // namespace opset_1
+}  // namespace com_microsoft
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

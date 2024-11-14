@@ -39,8 +39,9 @@ The notebook contains the following steps:
 3. Run Inference pipeline with OpenVINO.
 4. Run Interactive demo for Tiny-SD model
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Create PyTorch Models pipeline <#create-pytorch-models-pipeline>`__
@@ -60,6 +61,16 @@ Table of contents:
    -  `Image-to-Image generation <#image-to-image-generation>`__
    -  `Interactive Demo <#interactive-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -69,7 +80,7 @@ Install required dependencies
 
 .. code:: ipython3
 
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "torch>=2.1" torchvision "openvino>=2023.3.0" "diffusers>=0.18.0" "transformers>=4.30.2" "gradio>=4.19"
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "torch>=2.1" torchvision "openvino>=2023.3.0" "opencv-python" "pillow" "diffusers>=0.18.0" "transformers>=4.30.2" "gradio>=4.19"
 
 Create PyTorch Models pipeline
 ------------------------------
@@ -98,30 +109,6 @@ First, load the pre-trained weights of all components of the model.
     
     del pipe
     gc.collect()
-
-
-.. parsed-literal::
-
-    2023-09-18 15:58:40.831193: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-09-18 15:58:40.870576: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-09-18 15:58:41.537042: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    text_encoder/model.safetensors not found
-
-
-
-.. parsed-literal::
-
-    Loading pipeline components...:   0%|          | 0/5 [00:00<?, ?it/s]
-
-
-
-
-.. parsed-literal::
-
-    27
-
-
 
 Convert models to OpenVINO Intermediate representation format
 -------------------------------------------------------------
@@ -216,21 +203,7 @@ hidden states.
         print(f"Text encoder will be loaded from {TEXT_ENCODER_OV_PATH}")
     
     del text_encoder
-    gc.collect()
-
-
-.. parsed-literal::
-
-    Text encoder will be loaded from text_encoder.xml
-
-
-
-
-.. parsed-literal::
-
-    0
-
-
+    gc.collect();
 
 U-net
 ~~~~~
@@ -292,21 +265,7 @@ Model predicts the ``sample`` state for the next step.
     else:
         print(f"Unet will be loaded from {UNET_OV_PATH}")
     del unet
-    gc.collect()
-
-
-.. parsed-literal::
-
-    Unet will be loaded from unet.xml
-
-
-
-
-.. parsed-literal::
-
-    0
-
-
+    gc.collect();
 
 VAE
 ~~~
@@ -410,22 +369,7 @@ of the pipeline, it will be better to convert them to separate models.
         print(f"VAE decoder will be loaded from {VAE_DECODER_OV_PATH}")
     
     del vae
-    gc.collect()
-
-
-.. parsed-literal::
-
-    VAE encoder will be loaded from vae_encodr.xml
-    VAE decoder will be loaded from vae_decoder.xml
-
-
-
-
-.. parsed-literal::
-
-    0
-
-
+    gc.collect();
 
 Prepare Inference Pipeline
 --------------------------
@@ -852,14 +796,16 @@ Select device from dropdown list for running inference using OpenVINO.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    import requests
     
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget()
     
     device
 
@@ -874,6 +820,8 @@ Select device from dropdown list for running inference using OpenVINO.
 
 .. code:: ipython3
 
+    core = ov.Core()
+    
     text_enc = core.compile_model(TEXT_ENCODER_OV_PATH, device.value)
 
 Calibrate UNet for GPU inference
@@ -1143,10 +1091,6 @@ Interactive Demo
 
     import gradio as gr
     
-    sample_img_url = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/tower.jpg"
-    
-    img = load_image(sample_img_url).save("tower.jpg")
-    
     
     def generate_from_text(text, negative_text, seed, num_steps, _=gr.Progress(track_tqdm=True)):
         result = ov_pipe(text, negative_prompt=negative_text, num_inference_steps=num_steps, seed=seed)
@@ -1163,90 +1107,26 @@ Interactive Demo
             strength=strength,
         )
         return result["sample"][0]
+
+.. code:: ipython3
+
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/tiny-sd-image-generation/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
     
+    from gradio_helper import make_demo
     
-    with gr.Blocks() as demo:
-        with gr.Tab("Text-to-Image generation"):
-            with gr.Row():
-                with gr.Column():
-                    text_input = gr.Textbox(lines=3, label="Positive prompt")
-                    negative_text_input = gr.Textbox(lines=3, label="Negative prompt")
-                    seed_input = gr.Slider(0, 10000000, value=751, label="Seed")
-                    steps_input = gr.Slider(1, 50, value=20, step=1, label="Steps")
-                out = gr.Image(label="Result", type="pil")
-            sample_text = (
-                "futuristic synthwave city, retro sunset, crystals, spires, volumetric lighting, studio Ghibli style, rendered in unreal engine with clean details"
-            )
-            sample_text2 = "RAW studio photo of tiny cute happy  cat in a yellow raincoat in the woods, rain, a character portrait, soft lighting, high resolution, photo realistic, extremely detailed"
-            negative_sample_text = ""
-            negative_sample_text2 = "bad anatomy, blurry, noisy, jpeg artifacts, low quality, geometry, mutation, disgusting. ugly"
-            btn = gr.Button()
-            btn.click(
-                generate_from_text,
-                [text_input, negative_text_input, seed_input, steps_input],
-                out,
-            )
-            gr.Examples(
-                [
-                    [sample_text, negative_sample_text, 42, 20],
-                    [sample_text2, negative_sample_text2, 1561, 25],
-                ],
-                [text_input, negative_text_input, seed_input, steps_input],
-            )
-        with gr.Tab("Image-to-Image generation"):
-            with gr.Row():
-                with gr.Column():
-                    i2i_input = gr.Image(label="Image", type="pil")
-                    i2i_text_input = gr.Textbox(lines=3, label="Text")
-                    i2i_negative_text_input = gr.Textbox(lines=3, label="Negative prompt")
-                    i2i_seed_input = gr.Slider(0, 10000000, value=42, label="Seed")
-                    i2i_steps_input = gr.Slider(1, 50, value=10, step=1, label="Steps")
-                    strength_input = gr.Slider(0, 1, value=0.5, label="Strength")
-                i2i_out = gr.Image(label="Result", type="pil")
-            i2i_btn = gr.Button()
-            sample_i2i_text = "amazing watercolor painting"
-            i2i_btn.click(
-                generate_from_image,
-                [
-                    i2i_input,
-                    i2i_text_input,
-                    i2i_negative_text_input,
-                    i2i_seed_input,
-                    i2i_steps_input,
-                    strength_input,
-                ],
-                i2i_out,
-            )
-            gr.Examples(
-                [["tower.jpg", sample_i2i_text, "", 6400023, 40, 0.3]],
-                [
-                    i2i_input,
-                    i2i_text_input,
-                    i2i_negative_text_input,
-                    i2i_seed_input,
-                    i2i_steps_input,
-                    strength_input,
-                ],
-            )
+    demo = make_demo(text_to_text_fn=generate_from_text, image_to_image_fn=generate_from_image)
     
     try:
         demo.queue().launch(debug=False)
     except Exception:
         demo.queue().launch(share=True, debug=False)
-    # if you are launching remotely, specify server_name and server_port
-    # demo.launch(server_name='your server name', server_port='server port in int')
-    # Read more in the docs: https://gradio.app/docs/
+    # If you are launching remotely, specify server_name and server_port
+    # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
+    # To learn more please refer to the Gradio docs: https://gradio.app/docs/
 
+.. code:: ipython3
 
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7863
-    
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

@@ -11,7 +11,16 @@ bool evaluate(const std::shared_ptr<ov::op::v8::Gather>& op,
               ov::TensorVector& outputs,
               const ov::TensorVector& inputs) {
     using T = typename ov::element_type_traits<ET>::value_type;
-    if (op->get_input_element_type(1) == ov::element::i64) {
+    if (op->get_input_element_type(1) == ov::element::u64) {
+        ov::reference::gather<T, uint64_t>(inputs[0].data<T>(),
+                                           inputs[1].data<uint64_t>(),
+                                           outputs[0].data<T>(),
+                                           op->get_input_shape(0),
+                                           op->get_input_shape(1),
+                                           op->get_output_shape(0),
+                                           op->get_axis(),
+                                           op->get_batch_dims());
+    } else if (op->get_input_element_type(1) == ov::element::i64) {
         ov::reference::gather<T, int64_t>(inputs[0].data<T>(),
                                           inputs[1].data<int64_t>(),
                                           outputs[0].data<T>(),

@@ -30,7 +30,6 @@ SoftmaxKernelBase::DispatchData SoftmaxKernelBase::SetDefault(const softmax_para
     dispatchData.normIndex = 0;
     dispatchData.dataSetsCount = 0;
     dispatchData.dataSetSize = 0;
-    dispatchData.maxSlmSize = 0;
 
     return dispatchData;
 }
@@ -81,10 +80,6 @@ bool SoftmaxKernelBaseBF::Validate(const Params& p) const {
 
     const softmax_params& params = static_cast<const softmax_params&>(p);
     const auto& input = params.inputs[0];
-
-    if (!params.activations.empty()) {
-        return false;
-    }
 
     if (input.GetLayout() == DataLayout::bf || input.GetLayout() == DataLayout::fb) {
         return true;

@@ -176,7 +176,7 @@ TEST_P(TransformationsAfterSplitTransformation, Run) {
     SimpleLowPrecisionTransformer transformer;
     getTransformerWithTransformationByName(transformer, params, layerName);
 
-    ASSERT_NO_THROW(transformer.transform(model));
+    OV_ASSERT_NO_THROW(transformer.transform(model));
 }
 
 const std::vector<std::string> transformationNames = {

@@ -33,10 +33,10 @@ inline void (FUNC_NAME)(
     // full dispatch pipeline.
     uint feature_mini_block = gid % DISPATCH_FSV;
     uint batch_mini_block = gid / DISPATCH_FSV % DISPATCH_BSV;
-    uint feature_mega_block = gid / (DISPATCH_FSV * DISPATCH_BSV) % (CEIL_DIV(TILE_OUT_F_NUM, TILE_OFM * SIMD) / DISPATCH_FSV);
-    uint batch_mega_block = gid / (DISPATCH_FSV * DISPATCH_BSV * CEIL_DIV(TILE_OUT_F_NUM, TILE_OFM * SIMD) / DISPATCH_FSV);
+    uint feature_mega_block = gid / (DISPATCH_FSV * DISPATCH_BSV) % (CEIL_DIV(TILE_OUT_F_NUM, OUTER_OFM * TILE_OFM * SIMD) / DISPATCH_FSV);
+    uint batch_mega_block = gid / (DISPATCH_FSV * DISPATCH_BSV * CEIL_DIV(TILE_OUT_F_NUM, OUTER_OFM * TILE_OFM * SIMD) / DISPATCH_FSV);
 
-    uint out_f = (feature_mega_block * DISPATCH_FSV + feature_mini_block) * (TILE_OFM * SIMD);
+    uint out_f = (feature_mega_block * DISPATCH_FSV + feature_mini_block) * (OUTER_OFM * TILE_OFM * SIMD);
     uint out_b = ((batch_mega_block * DISPATCH_BSV + batch_mini_block) * FORCED_TILE_B);
 
     ACCUMULATOR_VEC_TYPE acc[FORCED_TILE_B] = { };
@@ -88,6 +88,11 @@ inline void (FUNC_NAME)(
         ACCUMULATOR_VEC_TYPE d_zp = decompression_zp[0];
     #endif
     ACCUMULATOR_TYPE* d_zps = (ACCUMULATOR_TYPE*)(&d_zp);
+#endif
+
+#if OUTER_OFM > 1
+    uint input_offset_init = input_offset;
+    unroll_for (uint oi = 0; oi < OUTER_OFM; ++oi) {
 #endif
 
 #if REALIGN_FP16_OFFSET
@@ -171,11 +176,8 @@ inline void (FUNC_NAME)(
                     }
                 }
             #endif
-            #if TILE_OFM == 1 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
-            weights_offset += TILE_K_OFM_PACKED * 2 * SIMD;
-            #else
-            weights_offset += TILE_K_OFM_PACKED * SIMD;
-            #endif
+            weights_offset += TILE_K_OFM_PACKED * TILE_OFM_PER_OSV_SIZE * SIMD;
+
             unroll_for (uint kii = 0; kii < TILE_K; ++kii) {
                 const uint total_k = ki * TILE_K + kii;
                 unroll_for (uint bi = 0; bi < FORCED_TILE_B; ++bi) {
@@ -276,11 +278,8 @@ inline void (FUNC_NAME)(
                     }
                 }
             #endif
-            #if TILE_OFM == 1 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
-            weights_offset += TILE_K_OFM_PACKED * 2 * SIMD;
-            #else
-            weights_offset += TILE_K_OFM_PACKED * SIMD;
-            #endif
+            weights_offset += TILE_K_OFM_PACKED * TILE_OFM_PER_OSV_SIZE * SIMD;
+
             unroll_for (uint kii = 0; kii < TILE_K; ++kii) {
                 unroll_for (uint fi = 0; fi < TILE_OFM; ++fi) {
                     unroll_for (uint bi = 0; bi < FORCED_TILE_B; ++bi) {
@@ -301,10 +300,13 @@ inline void (FUNC_NAME)(
     ACTIVATION_VEC_TYPE activated[FORCED_TILE_B] = { };
     for (uint bi = 0; bi < FORCED_TILE_B; ++bi) {
         activated[bi] = TO_ACTIVATION_VEC_TYPE(acc[bi]);
+#if OUTER_OFM > 1
+        acc[bi] = 0;
+#endif
     }
 
 #if BIAS_TERM
-    #if TILE_OUT_F_NUM % (TILE_OFM * SIMD) == 0
+    #if TILE_OUT_F_NUM % (OUTER_OFM * TILE_OFM * SIMD) == 0
         BIAS_VEC_TYPE bias = BIAS_BLOCK_READ(biases, out_f);
     #else
         BIAS_VEC_TYPE bias = 0;
@@ -339,7 +341,7 @@ inline void (FUNC_NAME)(
     // Write results
     uint output_offset = out_f * TILE_OUT_F_PITCH + out_b * TILE_OUT_B_PITCH + OUTPUT_OFFSET;
 
-    if (USE_BLOCK_WRITE && (TILE_OUT_F_NUM % (TILE_OFM * SIMD) == 0 || out_f + (TILE_OFM * SIMD) <= TILE_OUT_F_NUM)) {
+    if (USE_BLOCK_WRITE && (TILE_OUT_F_NUM % (OUTER_OFM * TILE_OFM * SIMD) == 0 || out_f + (OUTER_OFM * TILE_OFM * SIMD) <= TILE_OUT_F_NUM)) {
 #if IS_DYNAMIC
         #define WRITE_OUTPUT(bi) do {                                       \
                 if (bi + out_b < BATCH_SIZE)                                \
@@ -384,7 +386,7 @@ inline void (FUNC_NAME)(
 #if IS_DYNAMIC
                     bi + out_b < BATCH_SIZE &&
 #endif
-                    (TILE_OUT_F_NUM % (TILE_OFM * SIMD) == 0 ||
+                    (TILE_OUT_F_NUM % (OUTER_OFM * TILE_OFM * SIMD) == 0 ||
                     out_f + fi * SIMD + sglid < TILE_OUT_F_NUM);
                 if (should_write) {
                     output[output_offset] = ((OUTPUT_TYPE*)(&result[bi]))[fi];
@@ -394,6 +396,11 @@ inline void (FUNC_NAME)(
             output_offset += TILE_OUT_B_PITCH - TILE_OFM * SIMD;
         }
     }
+#if OUTER_OFM > 1
+    out_f += TILE_OFM * SIMD;
+    input_offset = input_offset_init;
+    }
+#endif
     // =====================================================================================================================================
 }
 

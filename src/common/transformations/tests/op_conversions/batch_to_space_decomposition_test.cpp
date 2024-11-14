@@ -219,7 +219,7 @@ void op_convertion_type_test(const Params& params) {
     Manager m;
     m.register_pass<Conversion>(by_elements);
     m.register_pass<ConstantFolding>();
-    ASSERT_NO_THROW(m.run_passes(f));
+    OV_ASSERT_NO_THROW(m.run_passes(f));
     EXPECT_EQ(f->get_result()->get_input_shape(0), (Shape{1, 1}));
 }
 

@@ -30,8 +30,9 @@ first inference.
 
    auto
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
+
 
 -  `Import modules and create Core <#import-modules-and-create-core>`__
 -  `Convert the model to OpenVINO IR
@@ -61,6 +62,16 @@ Table of contents:
    -  `Inference with LATENCY hint <#inference-with-latency-hint>`__
    -  `Difference in FPS and latency <#difference-in-fps-and-latency>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Import modules and create Core
 ------------------------------
 
@@ -71,17 +82,14 @@ Import modules and create Core
     import platform
     
     # Install required packages
-    %pip install -q "openvino>=2023.1.0" Pillow torch torchvision tqdm --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "openvino>=2023.1.0" "matplotlib>=3.4" Pillow torch torchvision tqdm --extra-index-url https://download.pytorch.org/whl/cpu
     
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    if platform.system() == "Darwin":
+        %pip install -q "numpy<2.0.0"
 
 
 .. parsed-literal::
 
-    Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -96,7 +104,7 @@ Import modules and create Core
     
     core = ov.Core()
     
-    if "GPU" not in core.available_devices:
+    if not any("GPU" in device for device in core.available_devices):
         display(
             Markdown(
                 '<div class="alert alert-block alert-danger"><b>Warning: </b> A GPU device is not available. This notebook requires GPU device to have meaningful results. </div>'
@@ -105,7 +113,7 @@ Import modules and create Core
 
 
 
-.. container:: alert alert-block alert-danger
+.. warning::
 
    Warning: A GPU device is not available. This notebook requires GPU
    device to have meaningful results.
@@ -174,8 +182,11 @@ By default, ``compile_model`` API will select **AUTO** as
 
 .. code:: ipython3
 
+    import openvino.properties.log as log
+    
+    
     # Set LOG_LEVEL to LOG_INFO.
-    core.set_property("AUTO", {"LOG_LEVEL": "LOG_INFO"})
+    core.set_property("AUTO", {log.level(): log.Level.INFO})
     
     # Load the model onto the target device.
     compiled_model = core.compile_model(ov_model)
@@ -186,15 +197,16 @@ By default, ``compile_model`` API will select **AUTO** as
 
 .. parsed-literal::
 
-    [23:28:01.3129]I[plugin.cpp:418][AUTO] device:CPU, config:LOG_LEVEL=LOG_INFO
-    [23:28:01.3129]I[plugin.cpp:418][AUTO] device:CPU, config:PERFORMANCE_HINT=LATENCY
-    [23:28:01.3130]I[plugin.cpp:418][AUTO] device:CPU, config:PERFORMANCE_HINT_NUM_REQUESTS=0
-    [23:28:01.3130]I[plugin.cpp:418][AUTO] device:CPU, config:PERF_COUNT=NO
-    [23:28:01.3130]I[plugin.cpp:423][AUTO] device:CPU, priority:0
-    [23:28:01.3130]I[schedule.cpp:17][AUTO] scheduler starting
-    [23:28:01.3130]I[auto_schedule.cpp:131][AUTO] select device:CPU
-    [23:28:01.4657]I[auto_schedule.cpp:109][AUTO] device:CPU compiling model finished
-    [23:28:01.4659]I[plugin.cpp:451][AUTO] underlying hardware does not support hardware context
+    [22:41:57.1267]I[plugin.cpp:421][AUTO] device:CPU, config:LOG_LEVEL=LOG_INFO
+    [22:41:57.1268]I[plugin.cpp:421][AUTO] device:CPU, config:PERFORMANCE_HINT=LATENCY
+    [22:41:57.1268]I[plugin.cpp:421][AUTO] device:CPU, config:PERFORMANCE_HINT_NUM_REQUESTS=0
+    [22:41:57.1268]I[plugin.cpp:421][AUTO] device:CPU, config:PERF_COUNT=NO
+    [22:41:57.1268]I[plugin.cpp:426][AUTO] device:CPU, priority:0
+    [22:41:57.1268]I[schedule.cpp:17][AUTO] scheduler starting
+    [22:41:57.1269]I[auto_schedule.cpp:181][AUTO] select device:CPU
+    [22:41:57.2582]I[auto_schedule.cpp:346][AUTO] Device: [CPU]: Compile model took 131.300219 ms
+    [22:41:57.2583]I[auto_schedule.cpp:112][AUTO] device:CPU compiling model finished
+    [22:41:57.2584]I[plugin.cpp:454][AUTO] underlying hardware does not support hardware context
     Successfully compiled model without a device_name.
 
 
@@ -208,7 +220,7 @@ By default, ``compile_model`` API will select **AUTO** as
 .. parsed-literal::
 
     Deleted compiled_model
-    [23:28:01.4767]I[schedule.cpp:303][AUTO] scheduler ending
+    [22:41:57.2639]I[schedule.cpp:308][AUTO] scheduler ending
 
 
 Explicitly pass AUTO as device_name to Core::compile_model API
@@ -222,7 +234,7 @@ improve readability of your code.
 .. code:: ipython3
 
     # Set LOG_LEVEL to LOG_NONE.
-    core.set_property("AUTO", {"LOG_LEVEL": "LOG_NONE"})
+    core.set_property("AUTO", {log.level(): log.Level.NO})
     
     compiled_model = core.compile_model(model=ov_model, device_name="AUTO")
     
@@ -318,7 +330,7 @@ Load the model to GPU device and perform inference
 
 .. code:: ipython3
 
-    if "GPU" not in core.available_devices:
+    if not any("GPU" in device for device in core.available_devices):
         print(f"A GPU device is not available. Available devices are: {core.available_devices}")
     else:
         # Start time.
@@ -366,7 +378,7 @@ executed on CPU until GPU is ready.
 
 .. parsed-literal::
 
-    Time to load model using AUTO device and get first inference: 0.18 seconds.
+    Time to load model using AUTO device and get first inference: 0.12 seconds.
 
 
 .. code:: ipython3
@@ -507,12 +519,15 @@ Loop for inference and update the FPS/Latency every
 
 .. code:: ipython3
 
+    import openvino.properties.hint as hints
+    
+    
     THROUGHPUT_hint_context = InferContext(metrics_update_interval, metrics_update_num)
     
     print("Compiling Model for AUTO device with THROUGHPUT hint")
     sys.stdout.flush()
     
-    compiled_model = core.compile_model(model=ov_model, config={"PERFORMANCE_HINT": "THROUGHPUT"})
+    compiled_model = core.compile_model(model=ov_model, config={hints.performance_mode(): hints.PerformanceMode.THROUGHPUT})
     
     infer_queue = ov.AsyncInferQueue(compiled_model, 0)  # Setting to 0 will query optimal number by default.
     infer_queue.set_callback(completion_callback)
@@ -538,12 +553,12 @@ Loop for inference and update the FPS/Latency every
 
     Compiling Model for AUTO device with THROUGHPUT hint
     Start inference,  6 groups of FPS/latency will be measured over  10s intervals
-    throughput:  177.51fps, latency:  32.04ms, time interval: 10.01s
-    throughput:  179.73fps, latency:  32.54ms, time interval: 10.01s
-    throughput:  178.74fps, latency:  32.73ms, time interval: 10.01s
-    throughput:  179.46fps, latency:  32.59ms, time interval: 10.01s
-    throughput:  178.98fps, latency:  32.74ms, time interval: 10.02s
-    throughput:  178.58fps, latency:  32.79ms, time interval: 10.01s
+    throughput:  179.70fps, latency:  32.12ms, time interval: 10.00s
+    throughput:  183.61fps, latency:  31.86ms, time interval: 10.01s
+    throughput:  183.96fps, latency:  31.88ms, time interval: 10.01s
+    throughput:  183.98fps, latency:  31.91ms, time interval: 10.00s
+    throughput:  183.26fps, latency:  31.98ms, time interval: 10.01s
+    throughput:  183.40fps, latency:  32.01ms, time interval: 10.00s
     Done
 
 
@@ -562,7 +577,7 @@ Loop for inference and update the FPS/Latency for each
     print("Compiling Model for AUTO Device with LATENCY hint")
     sys.stdout.flush()
     
-    compiled_model = core.compile_model(model=ov_model, config={"PERFORMANCE_HINT": "LATENCY"})
+    compiled_model = core.compile_model(model=ov_model, config={hints.performance_mode(): hints.PerformanceMode.LATENCY})
     
     # Setting to 0 will query optimal number by default.
     infer_queue = ov.AsyncInferQueue(compiled_model, 0)
@@ -589,12 +604,12 @@ Loop for inference and update the FPS/Latency for each
 
     Compiling Model for AUTO Device with LATENCY hint
     Start inference,  6 groups fps/latency will be out with  10s interval
-    throughput:  136.40fps, latency:  6.83ms, time interval: 10.01s
-    throughput:  137.96fps, latency:  6.81ms, time interval: 10.00s
-    throughput:  137.97fps, latency:  6.80ms, time interval: 10.00s
-    throughput:  137.97fps, latency:  6.80ms, time interval: 10.00s
-    throughput:  138.06fps, latency:  6.80ms, time interval: 10.00s
-    throughput:  133.29fps, latency:  7.06ms, time interval: 10.01s
+    throughput:  130.56fps, latency:  7.18ms, time interval: 10.00s
+    throughput:  142.51fps, latency:  6.61ms, time interval: 10.01s
+    throughput:  142.47fps, latency:  6.62ms, time interval: 10.00s
+    throughput:  142.46fps, latency:  6.61ms, time interval: 10.00s
+    throughput:  142.63fps, latency:  6.61ms, time interval: 10.00s
+    throughput:  142.73fps, latency:  6.60ms, time interval: 10.00s
     Done
 
 

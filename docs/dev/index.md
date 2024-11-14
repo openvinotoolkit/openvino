@@ -97,7 +97,6 @@ The OpenVINO Repository includes the following components. Click on the componen
  </code>
 </pre>
 
-src\core\README.md
 
 ### OpenVINO Components
 

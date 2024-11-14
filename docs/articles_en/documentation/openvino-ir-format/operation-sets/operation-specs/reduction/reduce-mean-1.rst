@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_reduction_ReduceMean_1}
-
 ReduceMean
 ==========
 
@@ -107,7 +105,7 @@ Particular cases:
             </port>
         </output>
     </layer>
-=
+
 
 .. code-block:: xml
    :force:

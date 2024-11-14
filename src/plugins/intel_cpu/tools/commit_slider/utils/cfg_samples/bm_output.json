@@ -1,5 +1,5 @@
 {
-    "appCmd" : "./benchmark_app -m <model_path> -d CPU -t 10",
+    "appCmd" : "{appCmd}",
     "makeCmd" : "cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON=OFF -DTHREADING=TBB -DENABLE_INTEL_GPU=OFF -DENABLE_SAMPLES=ON -DENABLE_TESTS=OFF -DENABLE_HETERO=OFF -DENABLE_TEMPLATE=OFF -DENABLE_CPU_DEBUG_CAPS=OFF -DENABLE_DEBUG_CAPS=OFF -DENABLE_OPENVINO_DEBUG=OFF -DCMAKE_CXX_FLAGS=-Wno-deprecated -DCMAKE_C_FLAGS=-Wno-deprecated -DCMAKE_CXX_FLAGS=-Wno-deprecated-declarations -DCMAKE_C_FLAGS=-Wno-deprecated-declarations ..",
     "runConfig" : {
         "commitList" : {
@@ -7,6 +7,7 @@
         },
         "mode" : "checkOutput",
         "traversal" : "firstFailedVersion",
-        "stopPattern" : "(.)*<bm_error_message>(.)*"
-    }
+        "stopPattern" : "(.)*{bm_error_message}(.)*"
+    },
+    "extendBuildCommand":true
 }

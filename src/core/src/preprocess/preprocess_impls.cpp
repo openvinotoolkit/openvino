@@ -69,7 +69,7 @@ InputInfo::InputInfoImpl::InputInfoData InputInfo::InputInfoImpl::create_new_par
                            [&](int64_t v) -> const Dimension& {
                                return new_param_shape[v];
                            });
-            new_param_shape = PartialShape(dims);
+            new_param_shape = PartialShape(std::move(dims));
         }
     } else {
         Layout new_layout;
@@ -77,7 +77,7 @@ InputInfo::InputInfoImpl::InputInfoData InputInfo::InputInfoImpl::create_new_par
             get_preprocess()->calculate_param_shape(new_param_shape, res.m_model_layout);
         if (res.m_tensor_layout.empty()) {
             // Reusing param's layout according to converted calculated layout
-            res.m_tensor_layout = new_layout;
+            res.m_tensor_layout = std::move(new_layout);
         }
     }
 
@@ -384,13 +384,6 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
         node.get_node_shared_ptr()->set_friendly_name(orig_parent->get_friendly_name() + "." +
                                                       std::to_string(result->get_input_source_output(0).get_index()));
     }
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto tensor_name = ov::descriptor::get_ov_tensor_legacy_name(result->get_input_tensor(0));
-    if (!tensor_name.empty()) {
-        ov::descriptor::set_ov_tensor_legacy_name(node.get_tensor(), tensor_name);
-    }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     // Reset friendly name of input node to avoid names collision
     // when there is at a new node inserted by post-processing steps

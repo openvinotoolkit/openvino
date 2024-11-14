@@ -32,10 +32,10 @@ void swiglu_ref(const memory::ptr input, memory::ptr output, int32_t split_lengt
         for (uint32_t f = 0; f < feature_size; ++f) {
             for (uint32_t y = 0; y < y_size; ++y) {
                 for (uint32_t x = 0; x < x_size; ++x) {
-                    auto tensor_src = tensor(batch(b), feature(f), spatial(x, y, 0, 0));
-                    auto tensor_dst = tensor(batch(b), feature(f), spatial(x, y, 0, 0));
-                    size_t src_offset = input_layout.get_linear_offset(tensor_src);
-                    size_t dst_offset = output_layout.get_linear_offset(tensor_dst);
+                    size_t src_offset = input_layout.get_linear_offset({static_cast<int32_t>(b), static_cast<int32_t>(f),
+                                                                        static_cast<int32_t>(x), static_cast<int32_t>(y), 0, 0});
+                    size_t dst_offset = output_layout.get_linear_offset({static_cast<int32_t>(b), static_cast<int32_t>(f),
+                                                                        static_cast<int32_t>(x), static_cast<int32_t>(y), 0, 0});
                     res = src[src_offset];
                     res = (res / (static_cast<T>(1) + (std::exp((-(static_cast<T>(1) * res))))));
                     res *= src[src_offset + static_cast<size_t>(split_length)];
@@ -63,7 +63,7 @@ TEST(swiglu_gpu_test, swiglu_test_bfyx_dyn) {
 
     topology topology;
     topology.add(input_layout("input", input_layout_dynamic));
-    topology.add(swiglu("swiglu", input_info("input"), -1, 3, tensor()));
+    topology.add(swiglu("swiglu", input_info("input"), -1, 3, ov::intel_gpu::op::SwiGLU::GluType::Swish, 0, tensor()));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));

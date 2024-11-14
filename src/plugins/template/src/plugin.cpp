@@ -64,7 +64,7 @@ ov::SoPtr<ov::IRemoteContext> ov::template_plugin::Plugin::get_default_context(
 // ! [plugin:transform_model]
 void transform_model(const std::shared_ptr<ov::Model>& model) {
     // Perform common optimizations and device-specific transformations
-    ov::pass::Manager passManager;
+    ov::pass::Manager passManager("Plugin:Template");
     // Example: register CommonOptimizations transformation from transformations library
     passManager.register_pass<ov::pass::CommonOptimizations>();
     // Disable some transformations
@@ -221,6 +221,7 @@ ov::SupportedOpsMap ov::template_plugin::Plugin::query_model(const std::shared_p
 #include "openvino/opsets/opset13_tbl.hpp"
 #include "openvino/opsets/opset14_tbl.hpp"
 #include "openvino/opsets/opset15_tbl.hpp"
+#include "openvino/opsets/opset16_tbl.hpp"
         // clang-format on
 #undef _OPENVINO_OP_REG
             return op_super_set.contains_type(node->get_type_info());

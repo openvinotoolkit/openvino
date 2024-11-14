@@ -36,28 +36,6 @@ if(NOT DEFINED OpenVINODeveloperPackage_RELOCATABLE)
 endif()
 
 #
-# Settings for FindPython3.cmake
-#
-
-if(NOT DEFINED Python3_USE_STATIC_LIBS)
-    set(Python3_USE_STATIC_LIBS OFF)
-endif()
-
-if(NOT DEFINED Python3_FIND_VIRTUALENV)
-    set(Python3_FIND_VIRTUALENV FIRST)
-endif()
-
-if(NOT DEFINED Python3_FIND_IMPLEMENTATIONS)
-    set(Python3_FIND_IMPLEMENTATIONS CPython PyPy)
-endif()
-
-if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.18)
-    set(python3_development_component Development.Module)
-else()
-    set(python3_development_component Development)
-endif()
-
-#
 # Check python requirements
 #
 
@@ -101,7 +79,14 @@ function(ov_check_python_build_conditions)
         set(python_debug OFF)
     endif()
 
-    if((Python3_Development.Module_FOUND OR Python3_Development_FOUND) AND NOT python_debug)
+    set(is_compiler_supported ON)
+    # Python bindings compiled with the 14.28 toolset (19.28 compiler) could not be imported by another Pybind module linked with OpenVINO
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.29)
+        set(is_compiler_supported OFF)
+        message(${message_mode} "MSVC toolset version 14.28 or lower (19.28 compiler) is not supported. Please update your toolset (${CMAKE_CXX_COMPILER_VERSION}).")
+    endif()
+
+    if((Python3_Development.Module_FOUND OR Python3_Development_FOUND) AND NOT python_debug AND is_compiler_supported)
         set(ENABLE_PYTHON_DEFAULT ON PARENT_SCOPE)
     else()
         set(ENABLE_PYTHON_DEFAULT OFF PARENT_SCOPE)
@@ -137,6 +122,9 @@ set(INIT_FILES_RUNTIME "${OpenVINOPython_SOURCE_DIR}/src/openvino/__init__.py"
 ov_check_init_files_alignment("${INIT_FILES_RUNTIME}")
 
 ov_option(ENABLE_PYTHON "Enables OpenVINO Python API build" ${ENABLE_PYTHON_DEFAULT})
+
+ov_dependent_option (ENABLE_PYTHON_PACKAGING "Enables packaging of Python API in APT / YUM" OFF
+    "ENABLE_PYTHON;LINUX" OFF)
 
 #
 # Check for wheel package
@@ -201,7 +189,7 @@ endif()
 if(CMAKE_CROSSCOMPILING)
     set(pybind11_min_version 2.12.0)
 else()
-    set(pybind11_min_version 2.10.0)
+    set(pybind11_min_version 2.12.0)
 endif()
 # search for FindPython3.cmake instead of legacy modules
 set(PYBIND11_FINDPYTHON ON)
@@ -270,7 +258,9 @@ endmacro()
 macro(ov_define_setup_py_dependencies)
     foreach(_target
             # Python API dependencies
-            _pyopenvino py_ov_frontends
+            pyopenvino py_ov_frontends
+            # C API
+            openvino_c
             # plugins
             ov_plugins
             # frontends
@@ -388,7 +378,7 @@ if(ENABLE_PYTHON_PACKAGING)
     ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_OPENVINO}_package_${pyversion} HIDDEN)
 
     install(DIRECTORY ${ov_python_package_prefix}/ ${telemetry_python_package_prefix}/
-            DESTINATION ${CMAKE_INSTALL_PREFIX}
+            DESTINATION .
             COMPONENT ${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_${pyversion}
             ${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE_EXCLUDE_ALL}
             USE_SOURCE_PERMISSIONS)
@@ -402,6 +392,10 @@ if(ENABLE_TESTS)
     add_subdirectory(tests/mock/mock_py_frontend)
     add_subdirectory(tests/mock/pyngraph_fe_mock_api)
     install(FILES constraints.txt
+            DESTINATION tests/bindings/python
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
+    install(FILES requirements_test.txt
             DESTINATION tests/bindings/python
             COMPONENT tests
             EXCLUDE_FROM_ALL)

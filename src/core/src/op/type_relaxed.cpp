@@ -56,9 +56,10 @@ void TypeRelaxedBase::restore_input_data_types(Node& node, const element::TypeVe
     }
 }
 
-TemporaryReplaceOutputType::TemporaryReplaceOutputType(Output<Node> output, element::Type tmp_type) : m_output(output) {
+TemporaryReplaceOutputType::TemporaryReplaceOutputType(Output<Node> output, element::Type tmp_type)
+    : m_output(std::move(output)),
+      orig_type(m_output.get_element_type()) {
     // save original element type in order to restore it in the destructor
-    orig_type = m_output.get_element_type();
     ov::descriptor::set_element_type(m_output.get_tensor(), tmp_type);
 }
 

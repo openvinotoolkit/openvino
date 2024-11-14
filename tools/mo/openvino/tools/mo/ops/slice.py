@@ -16,7 +16,6 @@ several internal operations are introduced. The internal MO Slice operation beha
 A number of transformations take place on the front phase to convert framework slicing:
  - AttributedSlice, TFSlice -> Slice 
  - CaffeSlice -> Split 
- - MXSlice -> StridedSlice 
 """
 
 
@@ -59,7 +58,7 @@ class CaffeSlice(Op):
 
 class TFSlice(Op):
     """
-    TFSlice differs from Slice in ONNX, Caffe and MXNet.
+    TFSlice differs from Slice in ONNX, Caffe.
     TFSlice has 'begin' and 'size' inputs while Slice has 'start', 'end', 'step', and 'axis' inputs.
     https://www.tensorflow.org/api_docs/python/tf/slice
     Is replaced with internal Slice op on the front phase.
@@ -74,26 +73,6 @@ class TFSlice(Op):
             'in_ports_count': 3,
             'out_ports_count': 1,
             'infer': None,
-        }, attrs)
-
-
-class MXSlice(Op):
-    """
-    Slice operation in MXNet is different from ONNX, Caffe, Tensorflow. It has begin, end & step attributes
-    https://mxnet.apache.org/versions/1.6/api/python/docs/api/symbol/op/index.html#mxnet.symbol.op.slice
-    Is replaced with the StridedSlice from opset on the front phase.
-    """
-    op = 'MXSlice'
-    enabled = False
-
-    def __init__(self, graph: Graph, attrs: dict):
-        super().__init__(graph, {
-            'kind': 'op',
-            'type': None,
-            'op': self.op,
-            'in_ports_count': 1,
-            'out_ports_count': 1,
-            'infer': None
         }, attrs)
 
 

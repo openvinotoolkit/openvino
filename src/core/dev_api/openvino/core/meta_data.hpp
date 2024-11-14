@@ -6,6 +6,10 @@
 
 #include "openvino/core/any.hpp"
 
+namespace pugi {
+class xml_node;
+}
+
 namespace ov {
 
 /**
@@ -30,6 +34,16 @@ public:
      * @brief Destructor
      */
     virtual ~Meta() = default;
+};
+
+class MetaDataWithPugixml : public Meta {
+public:
+    /**
+     * @brief Returns meta unchanged meta information. Throws ov::Exception if the meta was potentially changed
+     *
+     * @return const pugi::xml_node& with meta information
+     */
+    virtual const pugi::xml_node& get_pugi_node() const = 0;
 };
 
 }  // namespace ov

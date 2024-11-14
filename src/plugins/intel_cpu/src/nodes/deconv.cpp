@@ -219,6 +219,9 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op,
     for (size_t i = 0; i < deconvAttrs.dilation.size(); i++) {
         deconvAttrs.kernel.push_back(weightDims[withGroups + 2 + i]);
     }
+#if defined(OV_CPU_WITH_ACL)
+    deconvAttrs.aclFastMath = context->getConfig().aclFastMath;
+#endif
 
     externOutShape = inputShapes.size() == 3;
     biasPort = externOutShape ? 3 : 2;
@@ -270,9 +273,9 @@ void Deconvolution::createDnnlCompatibleWeights() {
                                      Shape(dnnlCompatibleWeiDims),
                                      blockedDims,
                                      order);
-    // Create the memory with the edge memory mgr. In the case of the weight memory changes when inference,
+    // Create the memory with the edge memory block. In the case of the weight memory changes when inference,
     // dnnlCompatibleWeights memory would be updated automatically via update inform mechanism.
-    dnnlCompatibleWeights = std::make_shared<Memory>(getEngine(), desc, blob->getMemoryMngr());
+    dnnlCompatibleWeights = std::make_shared<Memory>(getEngine(), desc, blob->getMemoryBlock());
 }
 
 bool Deconvolution::canBeExecutedInInt8() const {
@@ -415,22 +418,38 @@ std::pair<VectorDims, VectorDims> Deconvolution::makeDummyInOutShape() {
     return {inShape.getStaticDims(), outShape.getStaticDims()};
 }
 
-std::vector<memory::format_tag> Deconvolution::getAvailableFormatsForDims(const Shape &dims) const {
-    if (dims.getRank() == 0)
+std::vector<memory::format_tag> Deconvolution::getAvailableFormatsForDims(const Shape& dims) const {
+    if (dims.getRank() == 0) {
         return {memory::format_tag::x};
-    else if (dims.getRank() == 1)
+    } else if (dims.getRank() == 1) {
         return {memory::format_tag::x};
-    else if (dims.getRank() == 2)
+    } else if (dims.getRank() == 2) {
         return {memory::format_tag::nc};
-    else if (dims.getRank() == 3)
-        return {memory::format_tag::tnc, memory::format_tag::ntc,
-                memory::format_tag::ncw, memory::format_tag::nCw8c, memory::format_tag::nCw16c };
-    else if (dims.getRank() == 4)
-        return {memory::format_tag::nchw, memory::format_tag::nChw8c,
-                memory::format_tag::nChw16c, memory::format_tag::nhwc };
-    else if (dims.getRank() == 5)
-        return {memory::format_tag::ncdhw, memory::format_tag::nCdhw8c,
-                memory::format_tag::nCdhw16c, dnnl::memory::format_tag::ndhwc };
+    } else if (dims.getRank() == 3) {
+        // Ticket 156640
+        if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx_fp16)) {
+            return {memory::format_tag::ncw,
+                    memory::format_tag::nCw8c,
+                    memory::format_tag::nCw16c,
+                    memory::format_tag::nwc};
+        } else {
+            return {memory::format_tag::tnc,
+                    memory::format_tag::ntc,
+                    memory::format_tag::ncw,
+                    memory::format_tag::nCw8c,
+                    memory::format_tag::nCw16c};
+        }
+    } else if (dims.getRank() == 4) {
+        return {memory::format_tag::nchw,
+                memory::format_tag::nChw8c,
+                memory::format_tag::nChw16c,
+                memory::format_tag::nhwc};
+    } else if (dims.getRank() == 5) {
+        return {memory::format_tag::ncdhw,
+                memory::format_tag::nCdhw8c,
+                memory::format_tag::nCdhw16c,
+                dnnl::memory::format_tag::ndhwc};
+    }
     return {memory::format_tag::any};
 }
 
@@ -495,7 +514,7 @@ void Deconvolution::getSupportedDescriptors() {
                     creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), getInputShapeAtPort(i)));
         }
 
-        for (size_t i = 0; i < getChildEdges().size(); ++i) {
+        for (size_t i = 0; i < config.outConfs.size(); ++i) {
             config.outConfs[i].setMemDesc(
                     creatorsMap.at(format)->createSharedDesc(getOriginalOutputPrecisionAtPort(0), getOutputShapeAtPort(i)));
         }
@@ -812,12 +831,12 @@ void Deconvolution::prepareParams() {
     auto srcMemPtr = getSrcMemoryAtPort(0);
     auto wghMemPtr = getSrcMemoryAtPort(1);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW("Destination memory has not been allocated.");
-    if (!srcMemPtr || !srcMemPtr->isAllocated())
-        OPENVINO_THROW("Input memory has not been allocated.");
-    if (!wghMemPtr || !wghMemPtr->isAllocated())
-        OPENVINO_THROW("Weight memory has not been allocated.");
+    if (!dstMemPtr || !dstMemPtr->isDefined())
+        OPENVINO_THROW("Destination memory is undefined.");
+    if (!srcMemPtr || !srcMemPtr->isDefined())
+        OPENVINO_THROW("Input memory is undefined.");
+    if (!wghMemPtr || !wghMemPtr->isDefined())
+        OPENVINO_THROW("Weight memory is undefined.");
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
         OPENVINO_THROW("Preferable primitive descriptor is not set for node ", getName(), ".");
@@ -869,8 +888,8 @@ void Deconvolution::prepareParams() {
 
     if (withBiases) {
         biasMemPtr = getSrcMemoryAtPort(biasPort);
-        if (!biasMemPtr || !biasMemPtr->isAllocated())
-            OPENVINO_THROW("Bias memory  memory didn't allocate.");
+        if (!biasMemPtr || !biasMemPtr->isDefined())
+            OPENVINO_THROW("Bias memory  memory is undefined.");
         biasDesc = biasMemPtr->getDescWithType<DnnlMemoryDesc>();
     }
     bool is1x1PaddingAsymmetric  = false;
@@ -1094,8 +1113,8 @@ std::vector<int32_t> Deconvolution::readOutputSpatialDims() const {
         OPENVINO_THROW("Can't get output spatial dims. Inputs number = ", getParentEdges().size());
     }
     const auto &shapeMemPtr = getSrcMemoryAtPort(2);
-    if (!shapeMemPtr || !shapeMemPtr->isAllocated()) {
-        OPENVINO_THROW("'output_shape' input memory is not allocated.");
+    if (!shapeMemPtr || !shapeMemPtr->isDefined()) {
+        OPENVINO_THROW("'output_shape' input memory is undefined.");
     }
     const auto spDimsNum = getInputShapeAtPort(0).getRank() - 2;
     if (shapeMemPtr->getStaticDims()[0] != spDimsNum) {
@@ -1145,7 +1164,7 @@ void Deconvolution::initSupportedPrimitiveDescriptors() {
                     creatorsMap.at(format)->createSharedDesc(getOriginalInputPrecisionAtPort(0), getInputShapeAtPort(i)));
         }
 
-        for (size_t i = 0; i < getChildEdges().size(); ++i) {
+        for (size_t i = 0; i < config.outConfs.size(); ++i) {
             config.outConfs[i].setMemDesc(
                     creatorsMap.at(format)->createSharedDesc(getOriginalOutputPrecisionAtPort(0), getOutputShapeAtPort(i)));
         }

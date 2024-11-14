@@ -37,8 +37,9 @@ with OpenVINO to optimize their inference performance.
 
    RAG
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Select model for inference <#select-model-for-inference>`__
@@ -49,6 +50,9 @@ Table of contents:
 
    -  `LLM conversion and Weights Compression using
       Optimum-CLI <#llm-conversion-and-weights-compression-using-optimum-cli>`__
+
+      -  `Weight compression with AWQ <#weight-compression-with-awq>`__
+
    -  `Convert embedding model using
       Optimum-CLI <#convert-embedding-model-using-optimum-cli>`__
    -  `Convert rerank model using
@@ -72,6 +76,16 @@ Table of contents:
 
 -  `Run QA over Document <#run-qa-over-document>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -81,30 +95,57 @@ Install required dependencies
 
 .. code:: ipython3
 
-    %pip uninstall -q -y openvino-dev openvino openvino-nightly optimum optimum-intel
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu\
-    "git+https://github.com/huggingface/optimum-intel.git"\
-    "git+https://github.com/openvinotoolkit/nncf.git"\
-    "datasets"\
-    "accelerate"\
-    "openvino-nightly"\
-    "gradio"\
-    "onnx" "einops" "transformers_stream_generator" "tiktoken" "transformers>=4.38.1" "bitsandbytes" "chromadb" "sentence_transformers" "langchain>=0.1.15" "langchainhub" "unstructured" "scikit-learn" "python-docx" "pypdf" 
-
-
-.. parsed-literal::
-
-    WARNING: Skipping openvino-dev as it is not installed.
-    WARNING: Skipping openvino as it is not installed.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
+    import os
+    import requests
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    with open("notebook_utils.py", "w") as f:
+        f.write(r.text)
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/pip_helper.py",
+    )
+    open("pip_helper.py", "w").write(r.text)
+    
+    from pip_helper import pip_install
+    
+    os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
+    
+    pip_install("--pre", "-U", "openvino>=2024.2.0", "--extra-index-url", "https://storage.openvinotoolkit.org/simple/wheels/nightly")
+    pip_install("--pre", "-U", "openvino-tokenizers[transformers]", "--extra-index-url", "https://storage.openvinotoolkit.org/simple/wheels/nightly")
+    pip_install(
+        "-q",
+        "--extra-index-url",
+        "https://download.pytorch.org/whl/cpu",
+        "git+https://github.com/huggingface/optimum-intel.git",
+        "git+https://github.com/openvinotoolkit/nncf.git",
+        "datasets",
+        "accelerate",
+        "gradio>=4.19",
+        "onnx<1.16.2",
+        "einops",
+        "transformers_stream_generator",
+        "tiktoken",
+        "transformers>=4.43.1",
+        "faiss-cpu",
+        "sentence_transformers",
+        "langchain>=0.2.0",
+        "langchain-community>=0.2.15",
+        "langchainhub",
+        "unstructured",
+        "scikit-learn",
+        "python-docx",
+        "pypdf",
+    )
 
 .. code:: ipython3
 
     import os
     from pathlib import Path
     import requests
+    import shutil
     import io
     
     # fetch model configuration
@@ -118,10 +159,21 @@ Install required dependencies
     
     if not config_dst_path.exists():
         if config_shared_path.exists():
-            os.symlink(config_shared_path, config_dst_path)
+            try:
+                os.symlink(config_shared_path, config_dst_path)
+            except Exception:
+                shutil.copy(config_shared_path, config_dst_path)
         else:
             r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/llm_config.py")
-            with open("llm_config.py", "w") as f:
+            with open("llm_config.py", "w", encoding="utf-8") as f:
+                f.write(r.text)
+    elif not os.path.islink(config_dst_path):
+        print("LLM config will be updated")
+        if config_shared_path.exists():
+            shutil.copy(config_shared_path, config_dst_path)
+        else:
+            r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/llm_config.py")
+            with open("llm_config.py", "w", encoding="utf-8") as f:
                 f.write(r.text)
     
     if not text_example_en_path.exists():
@@ -135,6 +187,12 @@ Install required dependencies
         content = io.BytesIO(r.content)
         with open("text_example_cn.pdf", "wb") as f:
             f.write(content.read())
+
+
+.. parsed-literal::
+
+    LLM config will be updated
+
 
 Select model for inference
 --------------------------
@@ -153,6 +211,7 @@ The available embedding model options are:
 -  `bge-small-zh-v1.5 <https://huggingface.co/BAAI/bge-small-zh-v1.5>`__
 -  `bge-large-en-v1.5 <https://huggingface.co/BAAI/bge-large-en-v1.5>`__
 -  `bge-large-zh-v1.5 <https://huggingface.co/BAAI/bge-large-zh-v1.5>`__
+-  `bge-m3 <https://huggingface.co/BAAI/bge-m3>`__
 
 BGE embedding is a general Embedding Model. The model is pre-trained
 using RetroMAE and trained on large-scale pair data using contrastive
@@ -160,6 +219,7 @@ learning.
 
 The available rerank model options are:
 
+-  `bge-reranker-v2-m3 <https://huggingface.co/BAAI/bge-reranker-v2-m3>`__
 -  `bge-reranker-large <https://huggingface.co/BAAI/bge-reranker-large>`__
 -  `bge-reranker-base <https://huggingface.co/BAAI/bge-reranker-base>`__
 
@@ -169,12 +229,11 @@ bi-encoder) but more time-consuming than embedding model. Therefore, it
 can be used to re-rank the top-k documents returned by embedding model.
 
 You can also find available LLM model options in
-`llm-chatbot <../llm-chatbot/README.md>`__ notebook.
+`llm-chatbot <llm-chatbot-with-output.html>`__ notebook.
 
 .. code:: ipython3
 
     from pathlib import Path
-    import openvino as ov
     import torch
     import ipywidgets as widgets
     from transformers import (
@@ -242,7 +301,7 @@ quality.
 
 .. parsed-literal::
 
-    Dropdown(description='Model:', index=9, options=('tiny-llama-1b-chat', 'gemma-2b-it', 'red-pajama-3b-chat', 'g…
+    Dropdown(description='Model:', index=12, options=('tiny-llama-1b-chat', 'gemma-2b-it', 'red-pajama-3b-chat', '…
 
 
 
@@ -254,7 +313,7 @@ quality.
 
 .. parsed-literal::
 
-    Selected LLM model neural-chat-7b-v3-1
+    Selected LLM model phi-3-mini-instruct
 
 
 `Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
@@ -355,6 +414,46 @@ sacrifice of the model size and inference latency.
     Checkbox(value=False, description='Prepare FP16 model')
 
 
+Weight compression with AWQ
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+
+`Activation-aware Weight
+Quantization <https://arxiv.org/abs/2306.00978>`__ (AWQ) is an algorithm
+that tunes model weights for more accurate INT4 compression. It slightly
+improves generation quality of compressed LLMs, but requires significant
+additional time for tuning weights on a calibration dataset. We use
+``wikitext-2-raw-v1/train`` subset of the
+`Wikitext <https://huggingface.co/datasets/Salesforce/wikitext>`__
+dataset for calibration.
+
+Below you can enable AWQ to be additionally applied during model export
+with INT4 precision.
+
+   **Note**: Applying AWQ requires significant memory and time.
+
+..
+
+   **Note**: It is possible that there will be no matching patterns in
+   the model to apply AWQ, in such case it will be skipped.
+
+.. code:: ipython3
+
+    enable_awq = widgets.Checkbox(
+        value=False,
+        description="Enable AWQ",
+        disabled=not prepare_int4_model.value,
+    )
+    display(enable_awq)
+
+
+
+.. parsed-literal::
+
+    Checkbox(value=False, description='Enable AWQ')
+
+
 .. code:: ipython3
 
     pt_model_id = llm_model_configuration["model_id"]
@@ -449,6 +548,11 @@ sacrifice of the model size and inference latency.
                 "group_size": 128,
                 "ratio": 0.5,
             },
+            "qwen2.5-7b-instruct": {"sym": True, "group_size": 128, "ratio": 1.0},
+            "qwen2.5-3b-instruct": {"sym": True, "group_size": 128, "ratio": 1.0},
+            "qwen2.5-14b-instruct": {"sym": True, "group_size": 128, "ratio": 1.0},
+            "qwen2.5-1.5b-instruct": {"sym": True, "group_size": 128, "ratio": 1.0},
+            "qwen2.5-0.5b-instruct": {"sym": True, "group_size": 128, "ratio": 1.0},
             "default": {
                 "sym": False,
                 "group_size": 128,
@@ -464,6 +568,8 @@ sacrifice of the model size and inference latency.
         int4_compression_args = " --group-size {} --ratio {}".format(model_compression_params["group_size"], model_compression_params["ratio"])
         if model_compression_params["sym"]:
             int4_compression_args += " --sym"
+        if enable_awq.value:
+            int4_compression_args += " --awq --dataset wikitext2 --num-samples 128"
         export_command_base += int4_compression_args
         if remote_code:
             export_command_base += " --trust-remote-code"
@@ -499,7 +605,7 @@ Let’s compare model size for different compression types
 
 .. parsed-literal::
 
-    Size of model with INT4 compressed weights is 5069.90 MB
+    Size of model with INT4 compressed weights is 2319.41 MB
 
 
 Convert embedding model using Optimum-CLI
@@ -528,7 +634,7 @@ filter them out according the LLM you selected.
 
 .. parsed-literal::
 
-    Dropdown(description='Embedding Model:', options=('bge-small-en-v1.5', 'bge-large-en-v1.5'), value='bge-small-…
+    Dropdown(description='Embedding Model:', options=('bge-small-en-v1.5', 'bge-large-en-v1.5', 'bge-m3'), value='…
 
 
 
@@ -577,7 +683,7 @@ Convert rerank model using Optimum-CLI
 
 .. parsed-literal::
 
-    Dropdown(description='Rerank Model:', options=('bge-reranker-large', 'bge-reranker-base'), value='bge-reranker…
+    Dropdown(description='Rerank Model:', options=('bge-reranker-v2-m3', 'bge-reranker-large', 'bge-reranker-base'…
 
 
 
@@ -589,7 +695,7 @@ Convert rerank model using Optimum-CLI
 
 .. parsed-literal::
 
-    Selected bge-reranker-large model
+    Selected bge-reranker-v2-m3 model
 
 
 Since ``rerank`` model is sort of sentence classification task, its
@@ -619,27 +725,23 @@ Select device for embedding model inference
 
 .. code:: ipython3
 
-    core = ov.Core()
+    from notebook_utils import device_widget
     
-    support_devices = core.available_devices
-    if "NPU" in support_devices:
-        support_devices.remove("NPU")
-    
-    embedding_device = widgets.Dropdown(
-        options=support_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
-    )
+    embedding_device = device_widget()
     
     embedding_device
+
+
+.. parsed-literal::
+
+    [ERROR] 03:22:19.719 [NPUBackends] Cannot find backend for inference. Make sure the device is available.
 
 
 
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU', 'GPU', 'AUTO'), value='CPU')
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
 
 
 
@@ -650,8 +752,23 @@ Select device for embedding model inference
 
 .. parsed-literal::
 
-    Embedding model will be loaded to CPU device for text embedding
+    Embedding model will be loaded to AUTO device for text embedding
 
+
+Optimize the BGE embedding model’s parameter precision when loading
+model to NPU device.
+
+.. code:: ipython3
+
+    from notebook_utils import optimize_bge_embedding
+    
+    USING_NPU = embedding_device.value == "NPU"
+    
+    npu_embedding_dir = embedding_model_id.value + "-npu"
+    npu_embedding_path = Path(npu_embedding_dir) / "openvino_model.xml"
+    if USING_NPU and not Path(npu_embedding_dir).exists():
+        shutil.copytree(embedding_model_id.value, npu_embedding_dir)
+        optimize_bge_embedding(Path(embedding_model_id.value) / "openvino_model.xml", npu_embedding_path)
 
 Select device for rerank model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -660,21 +777,21 @@ Select device for rerank model inference
 
 .. code:: ipython3
 
-    rerank_device = widgets.Dropdown(
-        options=support_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
-    )
+    rerank_device = device_widget()
     
     rerank_device
+
+
+.. parsed-literal::
+
+    [ERROR] 03:22:20.604 [NPUBackends] Cannot find backend for inference. Make sure the device is available.
 
 
 
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU', 'GPU', 'AUTO'), value='CPU')
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
 
 
 
@@ -685,7 +802,7 @@ Select device for rerank model inference
 
 .. parsed-literal::
 
-    Rerenk model will be loaded to CPU device for text reranking
+    Rerenk model will be loaded to AUTO device for text reranking
 
 
 Select device for LLM model inference
@@ -695,21 +812,23 @@ Select device for LLM model inference
 
 .. code:: ipython3
 
-    llm_device = widgets.Dropdown(
-        options=support_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
-    )
+    from notebook_utils import device_widget
+    
+    llm_device = device_widget("CPU", exclude=["NPU"])
     
     llm_device
+
+
+.. parsed-literal::
+
+    [ERROR] 03:22:21.229 [NPUBackends] Cannot find backend for inference. Make sure the device is available.
 
 
 
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU', 'GPU', 'AUTO'), value='CPU')
+    Dropdown(description='Device:', options=('CPU', 'AUTO'), value='CPU')
 
 
 
@@ -743,11 +862,13 @@ of LangChain.
 
     from langchain_community.embeddings import OpenVINOBgeEmbeddings
     
-    embedding_model_name = embedding_model_id.value
-    embedding_model_kwargs = {"device": embedding_device.value}
+    embedding_model_name = npu_embedding_dir if USING_NPU else embedding_model_id.value
+    batch_size = 1 if USING_NPU else 4
+    embedding_model_kwargs = {"device": embedding_device.value, "compile": False}
     encode_kwargs = {
         "mean_pooling": embedding_model_configuration["mean_pooling"],
         "normalize_embeddings": embedding_model_configuration["normalize_embeddings"],
+        "batch_size": batch_size,
     }
     
     embedding = OpenVINOBgeEmbeddings(
@@ -755,6 +876,9 @@ of LangChain.
         model_kwargs=embedding_model_kwargs,
         encode_kwargs=encode_kwargs,
     )
+    if USING_NPU:
+        embedding.ov_model.reshape(1, 512)
+    embedding.ov_model.compile()
     
     text = "This is a test document."
     embedding_result = embedding.embed_query(text)
@@ -763,20 +887,12 @@ of LangChain.
 
 .. parsed-literal::
 
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
+    Compiling the model to AUTO ...
 
 
 .. parsed-literal::
 
-    2024-04-28 21:05:33.318682: I tensorflow/core/util/port.cc:111] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-04-28 21:05:33.322370: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2024-04-28 21:05:33.366644: E tensorflow/compiler/xla/stream_executor/cuda/cuda_dnn.cc:9342] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
-    2024-04-28 21:05:33.366676: E tensorflow/compiler/xla/stream_executor/cuda/cuda_fft.cc:609] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
-    2024-04-28 21:05:33.366714: E tensorflow/compiler/xla/stream_executor/cuda/cuda_blas.cc:1518] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
-    2024-04-28 21:05:33.376052: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-04-28 21:05:34.068587: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    Compiling the model to CPU ...
+    [ERROR] 03:22:26.363 [NPUBackends] Cannot find backend for inference. Make sure the device is available.
 
 
 
@@ -815,7 +931,7 @@ class of LangChain.
 
 .. parsed-literal::
 
-    Compiling the model to CPU ...
+    Compiling the model to AUTO ...
 
 
 Load LLM model
@@ -867,6 +983,11 @@ inference framework.
 
     from langchain_community.llms.huggingface_pipeline import HuggingFacePipeline
     
+    import openvino.properties as props
+    import openvino.properties.hint as hints
+    import openvino.properties.streams as streams
+    
+    
     if model_to_run.value == "INT4":
         model_dir = int4_model_dir
     elif model_to_run.value == "INT8":
@@ -875,7 +996,10 @@ inference framework.
         model_dir = fp16_model_dir
     print(f"Loading model from {model_dir}")
     
-    ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": ""}
+    ov_config = {hints.performance_mode(): hints.PerformanceMode.LATENCY, streams.num(): "1", props.cache_dir(): ""}
+    
+    if "GPU" in llm_device.value and "qwen2-7b-instruct" in llm_model_id.value:
+        ov_config["GPU_ENABLE_SDPA_OPTIMIZATION"] = "NO"
     
     # On a GPU device a model is executed in FP16 precision. For red-pajama-3b-chat model there known accuracy
     # issues caused by this, which we avoid by setting precision hint to "f32".
@@ -894,23 +1018,20 @@ inference framework.
         pipeline_kwargs={"max_new_tokens": 2},
     )
     
+    if llm.pipeline.tokenizer.eos_token_id:
+        llm.pipeline.tokenizer.pad_token_id = llm.pipeline.tokenizer.eos_token_id
+    
     llm.invoke("2 + 2 =")
 
 
 .. parsed-literal::
 
-    The argument `trust_remote_code` is to be used along with export=True. It will be ignored.
-
-
-.. parsed-literal::
-
-    Loading model from neural-chat-7b-v3-1/INT4_compressed_weights
+    Loading model from phi-3-mini-instruct/INT4_compressed_weights
 
 
 .. parsed-literal::
 
     Compiling the model to CPU ...
-    Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
 
 
 
@@ -1034,24 +1155,10 @@ The most common full sequence from raw data to answer looks like:
         ".txt": (TextLoader, {"encoding": "utf8"}),
     }
     
-    chinese_examples = [
-        ["英特尔®酷睿™ Ultra处理器可以降低多少功耗？"],
-        ["相比英特尔之前的移动处理器产品，英特尔®酷睿™ Ultra处理器的AI推理性能提升了多少？"],
-        ["英特尔博锐® Enterprise系统提供哪些功能？"],
-    ]
-    
-    english_examples = [
-        ["How much power consumption can Intel® Core™ Ultra Processors help save?"],
-        ["Compared to Intel’s previous mobile processor, what is the advantage of Intel® Core™ Ultra Processors for Artificial Intelligence?"],
-        ["What can Intel vPro® Enterprise systems offer?"],
-    ]
-    
     if model_language.value == "English":
         text_example_path = "text_example_en.pdf"
     else:
         text_example_path = "text_example_cn.pdf"
-    
-    examples = chinese_examples if (model_language.value == "Chinese") else english_examples
 
 We can build a RAG pipeline of LangChain through
 `create_retrieval_chain <https://python.langchain.com/docs/modules/chains/>`__,
@@ -1065,7 +1172,7 @@ which will help to create a chain to connect RAG components including:
 .. code:: ipython3
 
     from langchain.prompts import PromptTemplate
-    from langchain.vectorstores import Chroma
+    from langchain_community.vectorstores import FAISS
     from langchain.chains.retrieval import create_retrieval_chain
     from langchain.chains.combine_documents import create_stuff_documents_chain
     from langchain.docstore.document import Document
@@ -1074,6 +1181,7 @@ which will help to create a chain to connect RAG components including:
     import gradio as gr
     
     stop_tokens = llm_model_configuration.get("stop_tokens")
+    rag_prompt_template = llm_model_configuration["rag_prompt_template"]
     
     
     class StopOnTokens(StoppingCriteria):
@@ -1131,43 +1239,53 @@ which will help to create a chain to connect RAG components including:
     text_processor = llm_model_configuration.get("partial_text_processor", default_partial_text_processor)
     
     
-    def create_vectordb(docs, spliter_name, chunk_size, chunk_overlap, vector_search_top_k, vector_search_top_n, run_rerank, search_method, score_threshold):
+    def create_vectordb(
+        docs, spliter_name, chunk_size, chunk_overlap, vector_search_top_k, vector_rerank_top_n, run_rerank, search_method, score_threshold, progress=gr.Progress()
+    ):
         """
         Initialize a vector database
     
         Params:
           doc: orignal documents provided by user
+          spliter_name: spliter method
           chunk_size:  size of a single sentence chunk
           chunk_overlap: overlap size between 2 chunks
           vector_search_top_k: Vector search top k
+          vector_rerank_top_n: Search rerank top n
+          run_rerank: whether run reranker
+          search_method: top k search method
+          score_threshold: score threshold when selecting 'similarity_score_threshold' method
     
         """
+        global db
+        global retriever
+        global combine_docs_chain
+        global rag_chain
+    
+        if vector_rerank_top_n > vector_search_top_k:
+            gr.Warning("Search top k must >= Rerank top n")
+    
         documents = []
         for doc in docs:
-            documents.extend(load_single_document(doc.name))
+            if type(doc) is not str:
+                doc = doc.name
+            documents.extend(load_single_document(doc))
     
         text_splitter = TEXT_SPLITERS[spliter_name](chunk_size=chunk_size, chunk_overlap=chunk_overlap)
     
         texts = text_splitter.split_documents(documents)
-    
-        global db
-        db = Chroma.from_documents(texts, embedding)
-    
-        global retriever
+        db = FAISS.from_documents(texts, embedding)
         if search_method == "similarity_score_threshold":
             search_kwargs = {"k": vector_search_top_k, "score_threshold": score_threshold}
         else:
             search_kwargs = {"k": vector_search_top_k}
         retriever = db.as_retriever(search_kwargs=search_kwargs, search_type=search_method)
         if run_rerank:
-            reranker.top_n = vector_search_top_n
+            reranker.top_n = vector_rerank_top_n
             retriever = ContextualCompressionRetriever(base_compressor=reranker, base_retriever=retriever)
-        prompt = PromptTemplate.from_template(llm_model_configuration["rag_prompt_template"])
-    
-        global combine_docs_chain
+        prompt = PromptTemplate.from_template(rag_prompt_template)
         combine_docs_chain = create_stuff_documents_chain(llm, prompt)
     
-        global rag_chain
         rag_chain = create_retrieval_chain(retriever, combine_docs_chain)
     
         return "Vector database is Ready"
@@ -1178,16 +1296,20 @@ which will help to create a chain to connect RAG components including:
         Update retriever
     
         Params:
-          vector_search_top_k: size of searching results
-          vector_rerank_top_n:  size of rerank results
-          run_rerank: whether run rerank step
-          search_method: search method used by vector store
+          vector_search_top_k: Vector search top k
+          vector_rerank_top_n: Search rerank top n
+          run_rerank: whether run reranker
+          search_method: top k search method
+          score_threshold: score threshold when selecting 'similarity_score_threshold' method
     
         """
-        global retriever
         global db
-        global rag_chain
+        global retriever
         global combine_docs_chain
+        global rag_chain
+    
+        if vector_rerank_top_n > vector_search_top_k:
+            gr.Warning("Search top k must >= Rerank top n")
     
         if search_method == "similarity_score_threshold":
             search_kwargs = {"k": vector_search_top_k, "score_threshold": score_threshold}
@@ -1199,22 +1321,10 @@ which will help to create a chain to connect RAG components including:
             reranker.top_n = vector_rerank_top_n
         rag_chain = create_retrieval_chain(retriever, combine_docs_chain)
     
-    
-    def user(message, history):
-        """
-        callback function for updating user messages in interface on submit button click
-    
-        Params:
-          message: current message
-          history: conversation history
-        Returns:
-          None
-        """
-        # Append the user's message to the conversation history
-        return "", history + [[message, ""]]
+        return "Vector database is Ready"
     
     
-    def bot(history, temperature, top_p, top_k, repetition_penalty, hide_full_prompt):
+    def bot(history, temperature, top_p, top_k, repetition_penalty, hide_full_prompt, do_rag):
         """
         callback function for running chatbot on submit button click
     
@@ -1226,15 +1336,16 @@ which will help to create a chain to connect RAG components including:
           top_k: parameter for control the range of tokens considered by the AI model based on their cumulative probability, selecting number of tokens with highest probability.
           repetition_penalty: parameter for penalizing tokens based on how frequently they occur in the text.
           hide_full_prompt: whether to show searching results in promopt.
+          do_rag: whether do RAG when generating texts.
     
         """
         streamer = TextIteratorStreamer(
             llm.pipeline.tokenizer,
-            timeout=60.0,
+            timeout=3600.0,
             skip_prompt=hide_full_prompt,
             skip_special_tokens=True,
         )
-        llm.pipeline._forward_params = dict(
+        pipeline_kwargs = dict(
             max_new_tokens=512,
             temperature=temperature,
             do_sample=temperature > 0.0,
@@ -1244,9 +1355,14 @@ which will help to create a chain to connect RAG components including:
             streamer=streamer,
         )
         if stop_tokens is not None:
-            llm.pipeline._forward_params["stopping_criteria"] = StoppingCriteriaList(stop_tokens)
+            pipeline_kwargs["stopping_criteria"] = StoppingCriteriaList(stop_tokens)
     
-        t1 = Thread(target=rag_chain.invoke, args=({"input": history[-1][0]},))
+        llm.pipeline_kwargs = pipeline_kwargs
+        if do_rag:
+            t1 = Thread(target=rag_chain.invoke, args=({"input": history[-1][0]},))
+        else:
+            input_text = rag_prompt_template.format(input=history[-1][0], context="")
+            t1 = Thread(target=llm.invoke, args=(input_text,))
         t1.start()
     
         # Initialize an empty string to store the generated text
@@ -1261,248 +1377,56 @@ which will help to create a chain to connect RAG components including:
         llm.pipeline.model.request.cancel()
     
     
-    with gr.Blocks(
-        theme=gr.themes.Soft(),
-        css=".disclaimer {font-variant-caps: all-small-caps;}",
-    ) as demo:
-        gr.Markdown("""<h1><center>QA over Document</center></h1>""")
-        gr.Markdown(f"""<center>Powered by OpenVINO and {llm_model_id.value} </center>""")
-        with gr.Row():
-            with gr.Column(scale=1):
-                docs = gr.File(
-                    label="Step 1: Load text files",
-                    value=[text_example_path],
-                    file_count="multiple",
-                    file_types=[
-                        ".csv",
-                        ".doc",
-                        ".docx",
-                        ".enex",
-                        ".epub",
-                        ".html",
-                        ".md",
-                        ".odt",
-                        ".pdf",
-                        ".ppt",
-                        ".pptx",
-                        ".txt",
-                    ],
-                )
-                load_docs = gr.Button("Step 2: Build Vector Store")
-                db_argument = gr.Accordion("Vector Store Configuration", open=False)
-                with db_argument:
-                    spliter = gr.Dropdown(
-                        ["Character", "RecursiveCharacter", "Markdown", "Chinese"],
-                        value="RecursiveCharacter",
-                        label="Text Spliter",
-                        info="Method used to splite the documents",
-                        multiselect=False,
-                    )
-    
-                    chunk_size = gr.Slider(
-                        label="Chunk size",
-                        value=700,
-                        minimum=100,
-                        maximum=2000,
-                        step=50,
-                        interactive=True,
-                        info="Size of sentence chunk",
-                    )
-    
-                    chunk_overlap = gr.Slider(
-                        label="Chunk overlap",
-                        value=100,
-                        minimum=0,
-                        maximum=400,
-                        step=10,
-                        interactive=True,
-                        info=("Overlap between 2 chunks"),
-                    )
-    
-                langchain_status = gr.Textbox(
-                    label="Vector Store Status",
-                    value="Vector Store is Not ready",
-                    interactive=False,
-                )
-                with gr.Accordion("Generation Configuration", open=False):
-                    with gr.Row():
-                        with gr.Column():
-                            with gr.Row():
-                                temperature = gr.Slider(
-                                    label="Temperature",
-                                    value=0.1,
-                                    minimum=0.0,
-                                    maximum=1.0,
-                                    step=0.1,
-                                    interactive=True,
-                                    info="Higher values produce more diverse outputs",
-                                )
-                        with gr.Column():
-                            with gr.Row():
-                                top_p = gr.Slider(
-                                    label="Top-p (nucleus sampling)",
-                                    value=1.0,
-                                    minimum=0.0,
-                                    maximum=1,
-                                    step=0.01,
-                                    interactive=True,
-                                    info=(
-                                        "Sample from the smallest possible set of tokens whose cumulative probability "
-                                        "exceeds top_p. Set to 1 to disable and sample from all tokens."
-                                    ),
-                                )
-                        with gr.Column():
-                            with gr.Row():
-                                top_k = gr.Slider(
-                                    label="Top-k",
-                                    value=50,
-                                    minimum=0.0,
-                                    maximum=200,
-                                    step=1,
-                                    interactive=True,
-                                    info="Sample from a shortlist of top-k tokens — 0 to disable and sample from all tokens.",
-                                )
-                        with gr.Column():
-                            with gr.Row():
-                                repetition_penalty = gr.Slider(
-                                    label="Repetition Penalty",
-                                    value=1.1,
-                                    minimum=1.0,
-                                    maximum=2.0,
-                                    step=0.1,
-                                    interactive=True,
-                                    info="Penalize repetition — 1.0 to disable.",
-                                )
-            with gr.Column(scale=4):
-                chatbot = gr.Chatbot(
-                    height=600,
-                    label="Step 3: Input Query",
-                )
-                with gr.Row():
-                    with gr.Column():
-                        with gr.Row():
-                            msg = gr.Textbox(
-                                label="QA Message Box",
-                                placeholder="Chat Message Box",
-                                show_label=False,
-                                container=False,
-                            )
-                    with gr.Column():
-                        with gr.Row():
-                            submit = gr.Button("Submit")
-                            stop = gr.Button("Stop")
-                            clear = gr.Button("Clear")
-                gr.Examples(examples, inputs=msg, label="Click on any example and press the 'Submit' button")
-                retriever_argument = gr.Accordion("Retriever Configuration", open=True)
-                with retriever_argument:
-                    with gr.Row():
-                        with gr.Row():
-                            do_rerank = gr.Checkbox(
-                                value=True,
-                                label="Rerank searching result",
-                                interactive=True,
-                            )
-                            hide_context = gr.Checkbox(
-                                value=True,
-                                label="Hide searching result in prompt",
-                                interactive=True,
-                            )
-                        with gr.Row():
-                            search_method = gr.Dropdown(
-                                ["similarity_score_threshold", "similarity", "mmr"],
-                                value="similarity_score_threshold",
-                                label="Searching Method",
-                                info="Method used to search vector store",
-                                multiselect=False,
-                                interactive=True,
-                            )
-                        with gr.Row():
-                            score_threshold = gr.Slider(
-                                0.01,
-                                0.99,
-                                value=0.5,
-                                step=0.01,
-                                label="Similarity Threshold",
-                                info="Only working for 'similarity score threshold' method",
-                                interactive=True,
-                            )
-                        with gr.Row():
-                            vector_rerank_top_n = gr.Slider(
-                                1,
-                                10,
-                                value=2,
-                                step=1,
-                                label="Rerank top n",
-                                info="Number of rerank results",
-                                interactive=True,
-                            )
-                        with gr.Row():
-                            vector_search_top_k = gr.Slider(
-                                1,
-                                50,
-                                value=10,
-                                step=1,
-                                label="Search top k",
-                                info="Number of searching results, must >= Rerank top n",
-                                interactive=True,
-                            )
-        load_docs.click(
-            create_vectordb,
-            inputs=[docs, spliter, chunk_size, chunk_overlap, vector_search_top_k, vector_rerank_top_n, do_rerank, search_method, score_threshold],
-            outputs=[langchain_status],
-            queue=False,
-        )
-        submit_event = msg.submit(user, [msg, chatbot], [msg, chatbot], queue=False).then(
-            bot,
-            [chatbot, temperature, top_p, top_k, repetition_penalty, hide_context],
-            chatbot,
-            queue=True,
-        )
-        submit_click_event = submit.click(user, [msg, chatbot], [msg, chatbot], queue=False).then(
-            bot,
-            [chatbot, temperature, top_p, top_k, repetition_penalty, hide_context],
-            chatbot,
-            queue=True,
-        )
-        stop.click(
-            fn=request_cancel,
-            inputs=None,
-            outputs=None,
-            cancels=[submit_event, submit_click_event],
-            queue=False,
-        )
-        clear.click(lambda: None, None, chatbot, queue=False)
-        vector_search_top_k.release(
-            update_retriever,
-            [vector_search_top_k, vector_rerank_top_n, do_rerank, search_method, score_threshold],
-        )
-        vector_rerank_top_n.release(
-            update_retriever,
-            [vector_search_top_k, vector_rerank_top_n, do_rerank, search_method, score_threshold],
-        )
-        do_rerank.change(
-            update_retriever,
-            [vector_search_top_k, vector_rerank_top_n, do_rerank, search_method, score_threshold],
-        )
-        search_method.change(
-            update_retriever,
-            [vector_search_top_k, vector_rerank_top_n, do_rerank, search_method, score_threshold],
-        )
-        score_threshold.change(
-            update_retriever,
-            [vector_search_top_k, vector_rerank_top_n, do_rerank, search_method, score_threshold],
-        )
-    
-    
-    demo.queue()
-    # if you are launching remotely, specify server_name and server_port
-    #  demo.launch(server_name='your server name', server_port='server port in int')
-    # if you have any issue to launch on your platform, you can pass share=True to launch method:
-    # demo.launch(share=True)
-    # it creates a publicly shareable link for the interface. Read more in the docs: https://gradio.app/docs/
-    demo.launch()
+    # initialize the vector store with example document
+    create_vectordb(
+        [text_example_path],
+        "RecursiveCharacter",
+        chunk_size=400,
+        chunk_overlap=50,
+        vector_search_top_k=10,
+        vector_rerank_top_n=2,
+        run_rerank=True,
+        search_method="similarity_score_threshold",
+        score_threshold=0.5,
+    )
+
+
+
+
+.. parsed-literal::
+
+    'Vector database is Ready'
+
+
+
+Next we can create a Gradio UI and run demo.
 
 .. code:: ipython3
 
-    # please run this cell for stopping gradio interface
-    demo.close()
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/llm-rag-langchain/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
+    
+    from gradio_helper import make_demo
+    
+    demo = make_demo(
+        load_doc_fn=create_vectordb,
+        run_fn=bot,
+        stop_fn=request_cancel,
+        update_retriever_fn=update_retriever,
+        model_name=llm_model_id.value,
+        language=model_language.value,
+    )
+    
+    try:
+        demo.queue().launch()
+    except Exception:
+        demo.queue().launch(share=True)
+    # If you are launching remotely, specify server_name and server_port
+    # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
+    # To learn more please refer to the Gradio docs: https://gradio.app/docs/
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

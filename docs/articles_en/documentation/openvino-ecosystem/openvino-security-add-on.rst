@@ -1,5 +1,3 @@
-.. {#ovsa_get_started}
-
 OpenVINO™ Security Add-on
 ===========================
 
@@ -19,7 +17,7 @@ In this release, one person performs the role of both the Model Developer and th
 Overview
 ########
 
-The OpenVINO™ Security Add-on works with the :doc:`OpenVINO™ Model Server <../../ovms_what_is_openvino_model_server>` on Intel® architecture. Together, the OpenVINO™ Security Add-on and the OpenVINO™ Model Server provide a way for Model Developers and Independent Software Vendors to use secure packaging and secure model execution to enable access control to the OpenVINO™ models, and for model Users to run inference within assigned limits.
+The OpenVINO™ Security Add-on works with the :doc:`OpenVINO™ Model Server <../../openvino-workflow/model-server/ovms_what_is_openvino_model_server>` on Intel® architecture. Together, the OpenVINO™ Security Add-on and the OpenVINO™ Model Server provide a way for Model Developers and Independent Software Vendors to use secure packaging and secure model execution to enable access control to the OpenVINO™ models, and for model Users to run inference within assigned limits.
 
 The OpenVINO™ Security Add-on consists of three components that run in Kernel-based Virtual Machines (KVMs). These components provide a way to run security-sensitive operations in an isolated environment. A brief description of the three components are as follows. Click each triangled line for more information about each.
 
@@ -226,15 +224,16 @@ This example in this step uses the following names. Your configuration might use
 4. Save and close the network configuration file.
 5. Run two commands to activate the updated network configuration file. If you use ssh, you might lose network connectivity when issuing these commands. If so, reconnect to the network.
 
-.. code-block:: sh
+   .. code-block:: sh
 
-   sudo netplan generate
+      sudo netplan generate
 
-.. code-block:: sh
+   .. code-block:: sh
 
-   sudo netplan apply
+      sudo netplan apply
 
-   A bridge is created and an IP address is assigned to the new bridge.
+      A bridge is created and an IP address is assigned to the new bridge.
+
 6. Verify the new bridge:
 
    .. code-block:: sh
@@ -581,7 +580,7 @@ Building OpenVINO™ Security Add-on depends on OpenVINO™ Model Server docker 
 
 1. Download the `OpenVINO™ Model Server software <https://github.com/openvinotoolkit/model_server>`__
 
-2. Build the `OpenVINO™ Model Server Docker images <https://github.com/openvinotoolkit/model_server/blob/main/docs/docker_container.md>`__
+2. Build the `OpenVINO™ Model Server Docker images <https://github.com/openvinotoolkit/model_server/blob/main/docs/developer_guide.md#step-1-compile-source-code>`__
 
    .. code-block:: sh
 
@@ -736,7 +735,7 @@ How to Use the OpenVINO™ Security Add-on
 
 This section requires interactions between the Model Developer/Independent Software vendor and the User. All roles must complete all applicable :ref:`set up steps <setup_host>` and :ref:`installation steps <install_ovsa>` before beginning this section.
 
-This document uses the :doc:`face-detection-retail-0004 <../../omz_models_model_face_detection_retail_0004>` model as an example.
+This document uses the `face-detection-retail-0004 <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/face-detection-retail-0004/README.md>`__ model as an example.
 
 The following figure describes the interactions between the Model Developer, Independent Software Vendor, and User.
 

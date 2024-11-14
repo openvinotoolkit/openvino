@@ -10,7 +10,9 @@
  */
 #pragma once
 
+#include <algorithm>
 #include <array>
+#include <cctype>
 #include <iomanip>
 #include <istream>
 #include <map>
@@ -578,6 +580,12 @@ static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization
  */
 static constexpr Property<element::Type, PropertyMutability::RW> kv_cache_precision{"KV_CACHE_PRECISION"};
 
+/**
+ * @brief This property scales down activations to prevent overflows when inference precision is f16.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<float, PropertyMutability::RW> activations_scale_factor{"ACTIVATIONS_SCALE_FACTOR"};
+
 }  // namespace hint
 
 /**
@@ -691,6 +699,54 @@ static constexpr Property<std::string> cache_dir{"CACHE_DIR"};
 static constexpr Property<bool, PropertyMutability::RO> loaded_from_cache{"LOADED_FROM_CACHE"};
 
 /**
+ * @brief Enum to define possible workload types
+ *
+ * Workload type represents the execution priority for an inference.
+ *
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+enum class WorkloadType {
+    DEFAULT = 0,    // Default execution priority
+    EFFICIENT = 1,  // Lower execution priority
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const WorkloadType& mode) {
+    switch (mode) {
+    case WorkloadType::DEFAULT:
+        return os << "DEFAULT";
+    case WorkloadType::EFFICIENT:
+        return os << "EFFICIENT";
+    default:
+        OPENVINO_THROW("Unsupported workload type");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, WorkloadType& mode) {
+    std::string str;
+    is >> str;
+    std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) {
+        return std::tolower(c);
+    });
+    if (str == "default") {
+        mode = WorkloadType::DEFAULT;
+    } else if (str == "efficient") {
+        mode = WorkloadType::EFFICIENT;
+    } else {
+        OPENVINO_THROW("Unsupported workload type: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief Read-write property to select in which mode the workload will be executed
+ * This is only supported by NPU.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<WorkloadType, PropertyMutability::RW> workload_type{"WORKLOAD_TYPE"};
+
+/**
  * @brief Enum to define possible cache mode
  * @ingroup ov_runtime_cpp_prop_api
  */
@@ -733,6 +789,22 @@ inline std::istream& operator>>(std::istream& is, CacheMode& mode) {
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<CacheMode, PropertyMutability::RW> cache_mode{"CACHE_MODE"};
+
+struct EncryptionCallbacks {
+    std::function<std::string(const std::string&)> encrypt;
+    std::function<std::string(const std::string&)> decrypt;
+};
+
+/**
+ * @brief Write-only property to set encryption/decryption function for saving/loading model cache.
+ * If cache_encryption_callbacks is set, the model topology will be encrypted when saving to the cache and decrypted
+ * when loading from the cache. This property is set in core.compile_model only.
+ * - First value of the struct is encryption function.
+ * - Second value of the struct is decryption function.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<EncryptionCallbacks, PropertyMutability::WO> cache_encryption_callbacks{
+    "CACHE_ENCRYPTION_CALLBACKS"};
 
 /**
  * @brief Read-only property to provide information about a range for streams on platforms where streams are supported.
@@ -810,7 +882,6 @@ static constexpr Property<bool, PropertyMutability::RW> enable_mmap{"ENABLE_MMAP
  * @brief Namespace with device properties
  */
 namespace device {
-
 /**
  * @brief the property for setting of required device to execute on
  * values: device id starts from "0" - first device, "1" - second device, etc
@@ -893,7 +964,8 @@ struct Properties : public Property<std::map<std::string, std::map<std::string, 
     inline util::EnableIfAllStringAny<std::pair<std::string, Any>, Properties...> operator()(
         const std::string& device_name,
         Properties&&... configs) const {
-        return {name() + std::string("_") + device_name, AnyMap{std::pair<std::string, Any>{configs}...}};
+        return {name() + std::string("_") + device_name,
+                AnyMap{std::pair<std::string, Any>{std::forward<Properties>(configs)}...}};
     }
 };
 
@@ -1042,8 +1114,8 @@ inline std::istream& operator>>(std::istream& is, Type& device_type) {
 static constexpr Property<Type, PropertyMutability::RO> type{"DEVICE_TYPE"};
 
 /**
- * @brief Read-only property which defines Giga OPS per second count (GFLOPS or GIOPS) for a set of precisions supported
- * by specified device
+ * @brief Read-only property which defines Giga OPS per second count (GFLOPS or GIOPS) for a set of precisions
+ * supported by specified device
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::map<element::Type, float>, PropertyMutability::RO> gops{"DEVICE_GOPS"};
@@ -1279,4 +1351,10 @@ static constexpr Property<Affinity> affinity{"AFFINITY"};
  */
 static constexpr Property<std::vector<std::string>, PropertyMutability::RO> execution_devices{"EXECUTION_DEVICES"};
 
+/**
+ * @brief Path to the file with model's weights.
+ *
+ * @note This property is used for weightless caching. Only used when ov::CacheMode Property is set to "OPTIMIZE_SIZE".
+ */
+static constexpr Property<std::string, PropertyMutability::RW> weights_path{"WEIGHTS_PATH"};
 }  // namespace ov

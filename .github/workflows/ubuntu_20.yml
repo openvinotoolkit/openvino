@@ -1,0 +1,178 @@
+name: Linux (Ubuntu 20.04, Python 3.9)
+on:
+  schedule:
+    # at 00:00 on Wednesday and Saturday
+    - cron: '0 0 * * 3,6'
+  workflow_dispatch:
+  pull_request:
+  merge_group:
+  push:
+    branches:
+      - master
+      - 'releases/**'
+
+concurrency:
+  # github.ref is not unique in post-commit
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-ubuntu-20
+  cancel-in-progress: true
+
+permissions: read-all
+
+env:
+  PIP_CACHE_PATH: /mount/caches/pip/linux
+
+jobs:
+  Smart_CI:
+    runs-on: ubuntu-latest
+    outputs:
+      affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+      changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
+      skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
+    steps:
+      - name: checkout action
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          sparse-checkout: .github/actions/smart-ci
+
+      - name: Get affected components
+        id: smart_ci
+        uses: ./.github/actions/smart-ci
+        with:
+          repository: ${{ github.repository }}
+          pr: ${{ github.event.number }}
+          commit_sha: ${{ github.sha }}
+          ref_name: ${{ github.ref_name }}
+          component_pattern: "category: (.*)"
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          skip_when_only_listed_labels_set: 'docs'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg'
+
+      - name: Show affected components
+        run: |
+          echo "${{ toJSON(steps.smart_ci.outputs.affected_components) }}"
+        shell: bash
+
+  Docker:
+    needs: Smart_CI
+    if: "!needs.smart_ci.outputs.skip_workflow"
+    runs-on: aks-linux-4-cores-16gb-docker-build
+    container:
+      image: openvinogithubactions.azurecr.io/docker_build:0.2
+      volumes:
+        - /mount:/mount
+    outputs:
+      images: "${{ steps.handle_docker.outputs.images }}"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: ./.github/actions/handle_docker
+        id: handle_docker
+        with:
+          images: |
+            ov_build/ubuntu_20_04_x64
+            ov_test/ubuntu_20_04_x64
+          registry: 'openvinogithubactions.azurecr.io'
+          dockerfiles_root_dir: '.github/dockerfiles'
+          changed_components: ${{ needs.smart_ci.outputs.changed_components }}
+
+  Build:
+    needs: [Docker, Smart_CI]
+    uses: ./.github/workflows/job_build_linux.yml
+    with:
+      runner: 'aks-linux-16-cores-32gb'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      event-name: ${{ github.event_name }}
+      os: 'ubuntu_20_04'
+      build-contrib: true
+      build-debian-packages: true
+      build-js: true
+      build-rpm-packages: false
+      cmake-options: |- 
+            -G "Ninja Multi-Config" \
+            -DENABLE_CPPLINT=OFF \
+            -DENABLE_NCC_STYLE=OFF \
+            -DENABLE_TESTS=ON \
+            -DENABLE_STRICT_DEPENDENCIES=OFF \
+            -DENABLE_SYSTEM_OPENCL=ON \
+            -DCMAKE_VERBOSE_MAKEFILE=ON \
+            -DCPACK_GENERATOR=TGZ \
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+
+  CXX_Unit_Tests:
+    name: C++ unit tests
+    needs: [ Docker, Build, Smart_CI ]
+    uses: ./.github/workflows/job_cxx_unit_tests.yml
+    with:
+      runner: 'aks-linux-4-cores-16gb'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64 }}
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      os: 'ubuntu_20_04'
+
+  Debian_Packages:
+    name: Debian Packages
+    needs: [ Docker, Build ]
+    uses: ./.github/workflows/job_debian_packages.yml
+    with:
+      runner: 'aks-linux-4-cores-16gb'
+      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
+
+  Samples:
+    needs: [ Docker, Build, Smart_CI ]
+    if: fromJSON(needs.smart_ci.outputs.affected_components).samples
+    uses: ./.github/workflows/job_samples_tests.yml
+    with:
+      runner: 'aks-linux-4-cores-16gb'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+
+  iGPU:
+    name: iGPU Tests
+    needs: [ Build, Smart_CI ]
+    uses: ./.github/workflows/job_gpu_tests.yml
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        TEST_TYPE: ['unit', 'func']
+    with:
+      device: 'igpu'
+      test_type: ${{ matrix.TEST_TYPE }}
+      runner: "[ 'self-hosted', 'igpu' ]"
+      container: '{"image": "ubuntu:20.04", "volumes": ["/dev/dri:/dev/dri"], "options": "--group-add 109 --group-add 44
+        --device /dev/dri:/dev/dri"}'
+    # if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
+    if: ${{ 'false' }} # Ticket: 152280
+
+  dGPU:
+    name: dGPU Tests
+    needs: [ Build, Smart_CI ]
+    uses: ./.github/workflows/job_gpu_tests.yml
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        TEST_TYPE: ['unit', 'func']
+    with:
+      device: 'dgpu'
+      test_type: ${{ matrix.TEST_TYPE }}
+      runner: "[ 'self-hosted', 'dgpu' ]"
+      container: '{"image": "ubuntu:20.04", "volumes": ["/dev/dri:/dev/dri"], "options": "--group-add 109 --group-add 44
+        --device /dev/dri/card0:/dev/dri/card0  --device /dev/dri/renderD128:/dev/dri/renderD128"}'
+    # if: ${{ github.event_name == 'schedule' }}
+    if: ${{ 'false' }} # Ticket: 152280
+
+  Overall_Status:
+    name: ci/gha_overall_status_ubuntu_20
+    needs: [Smart_CI, Build, Debian_Packages, Samples]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check status of all jobs
+        if: >-
+          ${{
+            contains(needs.*.result, 'failure') ||
+            contains(needs.*.result, 'cancelled')
+          }}
+        run: exit 1

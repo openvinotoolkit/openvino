@@ -40,7 +40,8 @@ public:
     ///
     Output(const std::shared_ptr<Node>& node, size_t index);
 
-    /// \brief Constructs a Output, referencing the zeroth output of the node.
+    /// \brief Constructs a Output, referencing the default output of the node.
+    ///        If the node doesn't have a default output, an exception will be thrown.
     /// \param node A `shared_ptr` to the node for the output handle.
     template <typename T>
     Output(const std::shared_ptr<T>& node) : Output(node ? node->get_default_output() : Output<Node>()) {}
@@ -61,25 +62,25 @@ public:
     /// \return The index of the output referred to by this output handle.
     size_t get_index() const;
     /// \return A reference to the tensor descriptor for this output.
-    descriptor::Tensor& get_tensor() const;
+    OV_NO_DANGLING descriptor::Tensor& get_tensor() const;
     /// \return A shared point to the tensor ptr for this output.
     std::shared_ptr<descriptor::Tensor> get_tensor_ptr() const;
     /// \return Set new tensor desc shared pointer to this output
     void set_tensor_ptr(std::shared_ptr<descriptor::Tensor> tensor_ptr);
     /// \return The element type of the output referred to by this output handle.
-    const element::Type& get_element_type() const;
+    OV_NO_DANGLING const element::Type& get_element_type() const;
     /// \return The shape of the output referred to by this output handle.
-    const Shape& get_shape() const;
+    OV_NO_DANGLING const Shape& get_shape() const;
     /// \return The partial shape of the output referred to by this output handle.
-    const PartialShape& get_partial_shape() const;
+    OV_NO_DANGLING const PartialShape& get_partial_shape() const;
 
     /// \return The reference to runtime info map
     RTMap& get_rt_info();
     /// \return The constant reference to runtime info map
-    const RTMap& get_rt_info() const;
+    OV_NO_DANGLING const RTMap& get_rt_info() const;
 
     /// \return The tensor names associated with this output
-    const std::unordered_set<std::string>& get_names() const;
+    OV_NO_DANGLING const std::unordered_set<std::string>& get_names() const;
     /// \return Any tensor names associated with this output
     std::string get_any_name() const;
     /// \return Set tensor names associated with this output
@@ -149,20 +150,20 @@ public:
     /// \return The index of the output referred to by this output handle.
     size_t get_index() const;
     /// \return A reference to the tensor descriptor for this output.
-    descriptor::Tensor& get_tensor() const;
+    OV_NO_DANGLING descriptor::Tensor& get_tensor() const;
     /// \return A shared point to the tensor ptr for this output.
     std::shared_ptr<descriptor::Tensor> get_tensor_ptr() const;
     /// \return The element type of the output referred to by this output handle.
-    const element::Type& get_element_type() const;
+    OV_NO_DANGLING const element::Type& get_element_type() const;
     /// \return The shape of the output referred to by this output handle.
-    const Shape& get_shape() const;
+    OV_NO_DANGLING const Shape& get_shape() const;
     /// \return The partial shape of the output referred to by this output handle.
-    const PartialShape& get_partial_shape() const;
+    OV_NO_DANGLING const PartialShape& get_partial_shape() const;
 
     /// \return The constant reference to runtime info map
-    const RTMap& get_rt_info() const;
+    OV_NO_DANGLING const RTMap& get_rt_info() const;
     /// \return The tensor names associated with this output
-    const std::unordered_set<std::string>& get_names() const;
+    OV_NO_DANGLING const std::unordered_set<std::string>& get_names() const;
     /// \return Any tensor name associated with this output
     std::string get_any_name() const;
     /// \return A set containing handles for all inputs targeted by the output referenced by

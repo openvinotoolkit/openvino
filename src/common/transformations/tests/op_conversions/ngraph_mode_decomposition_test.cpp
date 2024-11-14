@@ -38,7 +38,7 @@ TEST(TransformationTests, ModDecompositionTests) {
         m.register_pass<ov::pass::ConvertMod>();
         m.register_pass<ov::pass::CheckUniqueNames>(unh);
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
     ASSERT_EQ(f->get_ops().size(), 12);
 }

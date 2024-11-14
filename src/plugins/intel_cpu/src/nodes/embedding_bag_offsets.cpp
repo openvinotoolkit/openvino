@@ -98,7 +98,7 @@ void EmbeddingBagOffset::initFromInputs() {
     indicesData_ = getSrcDataAtPortAs<const int>(INDICES_IDX);
     offsetsData_ = getSrcDataAtPortAs<const int>(OFFSETS_IDX);
 
-    if (getParentEdges().size() > DEFAULT_INDEX_IDX) {
+    if (getParentEdges().size() > DEFAULT_INDEX_IDX && *getSrcDataAtPortAs<const int>(DEFAULT_INDEX_IDX) != -1) {
         defaultIndices_ = getSrcDataAtPortAs<const int>(DEFAULT_INDEX_IDX);
     }
 }

@@ -6,10 +6,10 @@ import pytest
 from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 
-class TestGelu(PytorchLayerTest):
+class TestGather(PytorchLayerTest):
     def _prepare_input(self, m, n, max_val, out=False):
         import numpy as np
-        index = np.random.randint(0, max_val, (m, n))
+        index = np.random.randint(0, max_val, (m, n)).astype(np.int64)
         inp = np.random.randn(m, n).astype(np.float32)
         if out:
             axis = int(max_val == n)

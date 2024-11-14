@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "dev/threading/parallel_custom_arena.hpp"
+#include "dev/threading/thread_affinity.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "os/cpu_map_info.hpp"
@@ -41,7 +42,7 @@ CPU::CPU() {
                 }
                 std::string cache_info;
                 std::getline(cache_file, cache_info);
-                one_info[n] = cache_info;
+                one_info[n] = std::move(cache_info);
             }
 
             if (cache_index == -1) {
@@ -80,7 +81,7 @@ CPU::CPU() {
                 }
                 std::string cache_info;
                 std::getline(cache_file, cache_info);
-                one_info[n] = cache_info;
+                one_info[n] = std::move(cache_info);
             }
 
             if (cache_index == -1) {
@@ -108,16 +109,17 @@ CPU::CPU() {
             }
             std::string cache_info;
             std::getline(cache_file, cache_info);
-            node_info_table.push_back(cache_info);
+            node_info_table.emplace_back(std::move(cache_info));
             node_index++;
         }
     };
 
     auto check_valid_cpu = [&]() {
-        cpu_set_t mask;
-        CPU_ZERO(&mask);
+        ov::threading::CpuSet mask;
+        int ncpus = 0;
+        std::tie(mask, ncpus) = ov::threading::get_process_mask();
 
-        if ((_processors == 0) || (sched_getaffinity(0, sizeof(cpu_set_t), &mask) == -1)) {
+        if ((_processors == 0) || mask == nullptr) {
             return -1;
         }
 
@@ -128,7 +130,7 @@ CPU::CPU() {
 
         numa_node_list.assign(_sockets, std::vector<int>());
         for (int i = 0; i < _processors; i++) {
-            if (CPU_ISSET(i, &mask)) {
+            if (CPU_ISSET(i, mask)) {
                 valid_cpu_mapping_table.emplace_back(_cpu_mapping_table[i]);
                 if (_cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == MAIN_CORE_PROC) {
                     phy_core_list.emplace_back(_cpu_mapping_table[i][CPU_MAP_CORE_ID]);
@@ -188,7 +190,11 @@ CPU::CPU() {
         } else {
             _processors = valid_cpu_mapping_table.size();
             _cpu_mapping_table.swap(valid_cpu_mapping_table);
-            update_valid_processor_linux(phy_core_list, _numa_nodes, _cores, _proc_type_table, _cpu_mapping_table);
+            update_valid_processor_linux(std::move(phy_core_list),
+                                         _numa_nodes,
+                                         _cores,
+                                         _proc_type_table,
+                                         _cpu_mapping_table);
             return 0;
         }
     };
@@ -275,6 +281,11 @@ CPU::CPU() {
     if (check_valid_cpu() < 0) {
         OPENVINO_THROW("CPU affinity check failed. No CPU is eligible to run inference.");
     };
+
+    if (_proc_type_table.size() > 1) {
+        int cur_processor_id = sched_getcpu();
+        sort_table_by_cpu_id(cur_processor_id, _proc_type_table, _cpu_mapping_table);
+    }
 
     _org_proc_type_table = _proc_type_table;
 
@@ -458,7 +469,7 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
         return;
     };
 
-    std::vector<int> line_value_0({0, 0, 0, 0, -1, -1});
+    const std::vector<int> line_value_0({0, 0, 0, 0, -1, -1});
 
     for (int n = 0; n < _processors; n++) {
         if (-1 == _cpu_mapping_table[n][CPU_MAP_SOCKET_ID]) {

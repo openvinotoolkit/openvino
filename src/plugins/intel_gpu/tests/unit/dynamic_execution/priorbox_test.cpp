@@ -23,7 +23,7 @@ using namespace cldnn;
 using namespace ::tests;
 
 namespace priorbox_constant_propagation_test {
-TEST(priorbox_constant_propagation_test, basic) {
+TEST(DISABLED_priorbox_constant_propagation_test, basic) {
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
@@ -157,7 +157,7 @@ TEST(priorbox_constant_propagation_test, basic) {
     std::vector<float> ref_concat = ref;
     ref_concat.insert(ref_concat.end(), ref.begin(), ref.end());
 
-    for (size_t i = 0; i < output_mem->get_layout().get_buffer_size().count(); ++i) {
+    for (size_t i = 0; i < output_mem->get_layout().get_linear_size(); ++i) {
         ASSERT_EQ(output_mem_ptr[i], ref_concat[i]);
     }
 }

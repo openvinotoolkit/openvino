@@ -2,7 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(WIN32)
+macro(ov_search_api_validator)
+    if(NOT ENABLE_API_VALIDATOR)
+        return()
+    endif()
+
     # CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION is only set when
     # Visual Studio generators are used, but we need it
     # when we use Ninja as well
@@ -12,7 +16,7 @@ if(WIN32)
             set(CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION ${WINDOWS_SDK_VERSION})
             message(STATUS "Use ${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION} Windows SDK version")
         else()
-          message(FATAL_ERROR "WindowsSDKVersion environment variable is not set,\
+            message(FATAL_ERROR "WindowsSDKVersion environment variable is not set,\
 can't find Windows SDK version. Try to use vcvarsall.bat script")
         endif()
     endif()
@@ -41,6 +45,11 @@ can't find Windows SDK version. Try to use vcvarsall.bat script")
             message(STATUS "Found apivalidator: ${ONECORE_API_VALIDATOR}")
         endif()
     endif()
+endmacro()
+
+
+if(ENABLE_API_VALIDATOR)
+    ov_search_api_validator()
 endif()
 
 function(_ov_add_api_validator_post_build_step_recursive)

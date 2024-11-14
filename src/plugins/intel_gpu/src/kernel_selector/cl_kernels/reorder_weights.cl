@@ -571,7 +571,10 @@ KERNEL (reorder_weights)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE
 #else
     uint output_idx = FUNC_CALL(get_output_index)(g, o, i, OUTPUT_SIZE_Z - z - 1, OUTPUT_SIZE_Y - y - 1, OUTPUT_SIZE_X - x - 1);
 #endif
-
+#ifdef BF16_INPUT
+    output[output_idx] = TO_OUTPUT_TYPE(_convert_as_bfloat16_float(input[input_idx]));
+#else
     output[output_idx] = TO_OUTPUT_TYPE(input[input_idx]);
+#endif
 }
 #endif

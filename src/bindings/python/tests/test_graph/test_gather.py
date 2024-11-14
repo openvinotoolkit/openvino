@@ -47,5 +47,5 @@ def test_gather_string(data_str, input_shape, indices, axis, expected_shape, bat
     assert list(node.get_output_shape(0)) == expected_shape
     assert node.get_output_element_type(0) == Type.string
 
-    node.evaluate([out_tensor], [Tensor(input_data), Tensor(input_indices), Tensor(input_axis)])
+    node.evaluate([out_tensor], [Tensor(input_data, shared_memory=False), Tensor(input_indices), Tensor(input_axis)])
     assert np.array(data_str[indices[0]]) == out_tensor.str_data

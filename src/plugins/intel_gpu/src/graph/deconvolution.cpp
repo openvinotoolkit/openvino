@@ -326,12 +326,6 @@ deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node co
     }
 
     CLDNN_ERROR_NOT_EQUAL(node.id(),
-                            "deconvolution padding filling value",
-                            node.get_output_layout().data_padding.filling_value(),
-                            "padding mode",
-                            0.0f,
-                            "Unknown padding mode in deconvolution.");
-    CLDNN_ERROR_NOT_EQUAL(node.id(),
                             "Weights feature maps number",
                             filter_inst.ifm() * filter_inst.group(),
                             "input feature maps number",

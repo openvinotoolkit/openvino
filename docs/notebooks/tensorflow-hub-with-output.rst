@@ -23,8 +23,9 @@ You have the flexibility to run this tutorial notebook in its entirety
 or selectively execute specific sections, as each section operates
 independently.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
+
 
 -  `Install required packages <#install-required-packages>`__
 -  `Image classification <#image-classification>`__
@@ -45,6 +46,16 @@ Table of contents:
       IR <#convert-the-model-to-openvino-ir>`__
    -  `Select inference device <#select-inference-device>`__
    -  `Inference <#inference>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 .. |Colab| image:: https://colab.research.google.com/assets/colab-badge.svg
    :target: https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/tensorflow-hub/tensorflow-hub.ipynb
@@ -69,35 +80,19 @@ Install required packages
         %pip install -q "matplotlib>=3.4,<3.7"
     
     %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
-    %pip install -q "tensorflow-macos>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version <= '3.8'" # macOS M1 and M2
     %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
-    %pip install -q "tensorflow>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version <= '3.8'" # macOS x86
     %pip install -q "tensorflow>=2.5; sys_platform != 'darwin' and python_version > '3.8'"
-    %pip install -q "tensorflow>=2.5,<=2.12.0; sys_platform != 'darwin' and python_version <= '3.8'"
     %pip install -q tf_keras tensorflow_hub
 
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -164,7 +159,7 @@ Import libraries
 Download the classifier
 ~~~~~~~~~~~~~~~~~~~~~~~
 
- Select a MobileNetV2
+Select a MobileNetV2
 pre-trained model `from TensorFlow
 Hub <https://tfhub.dev/google/imagenet/mobilenet_v2_100_224/classification/5>`__
 and wrap it as a Keras layer with ``hub.KerasLayer``.
@@ -173,17 +168,10 @@ and wrap it as a Keras layer with ``hub.KerasLayer``.
 
     model = hub.KerasLayer(MODEL_URL, input_shape=IMAGE_SHAPE + (3,))
 
-
-.. parsed-literal::
-
-    2024-05-16 02:25:28.519894: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
-    2024-05-16 02:25:28.520063: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
-
-
 Download a single image to try the model on
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
- The input ``images`` are
+The input ``images`` are
 expected to have color values in the range [0,1], following the `common
 image input
 conventions <https://www.tensorflow.org/hub/common_signatures/images#input>`__.
@@ -192,10 +180,12 @@ For this model, the size of the input images is fixed to ``height`` x
 
 .. code:: ipython3
 
-    Path(IMAGE_PATH).parent.mkdir(parents=True, exist_ok=True)
+    IMAGE_PATH = Path(IMAGE_PATH)
+    
+    IMAGE_PATH.parent.mkdir(parents=True, exist_ok=True)
     
     r = requests.get(IMAGE_URL)
-    with Path(IMAGE_PATH).open("wb") as f:
+    with IMAGE_PATH.open("wb") as f:
         f.write(r.content)
     grace_hopper = PIL.Image.open(IMAGE_PATH).resize(IMAGE_SHAPE)
     grace_hopper
@@ -235,7 +225,9 @@ additional arguments required. Then, we save the model to disk using
 
 .. code:: ipython3
 
-    if not Path(MODEL_PATH).exists():
+    MODEL_PATH = Path(MODEL_PATH)
+    
+    if not MODEL_PATH.exists():
         converted_model = ov.convert_model(model)
         ov.save_model(converted_model, MODEL_PATH)
 
@@ -248,16 +240,16 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    import requests
     
-    core = ov.Core()
-    
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget()
     
     device
 
@@ -272,6 +264,8 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
+    core = ov.Core()
+    
     compiled_model = core.compile_model(MODEL_PATH, device_name=device.value)
 
 Inference
@@ -387,13 +381,13 @@ Hub <https://tfhub.dev/google/magenta/arbitrary-image-stylization-v1-256/2>`__.
 .. code:: ipython3
 
     CONTENT_IMAGE_URL = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/525babb8-1289-45f8-a3a5-e248f74dfb24"
-    CONTENT_IMAGE_PATH = "./data/YellowLabradorLooking_new.jpg"
+    CONTENT_IMAGE_PATH = Path("./data/YellowLabradorLooking_new.jpg")
     
     STYLE_IMAGE_URL = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/c212233d-9a33-4979-b8f9-2a94a529026e"
-    STYLE_IMAGE_PATH = "./data/Vassily_Kandinsky%2C_1913_-_Composition_7.jpg"
+    STYLE_IMAGE_PATH = Path("./data/Vassily_Kandinsky%2C_1913_-_Composition_7.jpg")
     
     MODEL_URL = "https://www.kaggle.com/models/google/arbitrary-image-stylization-v1/frameworks/tensorFlow1/variations/256/versions/2"
-    MODEL_PATH = "./models/arbitrary-image-stylization-v1-256.xml"
+    MODEL_PATH = Path("./models/arbitrary-image-stylization-v1-256.xml")
 
 Load the model
 ~~~~~~~~~~~~~~
@@ -427,8 +421,8 @@ needed. After converting, we save the model to disk using
 
 .. code:: ipython3
 
-    if not Path(MODEL_PATH).exists():
-        Path(MODEL_PATH).parent.mkdir(parents=True, exist_ok=True)
+    if not MODEL_PATH.exists():
+        MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
         converted_model = ov.convert_model(model)
         ov.save_model(converted_model, MODEL_PATH)
 
@@ -441,17 +435,6 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
-    core = ov.Core()
-    
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
-    
     device
 
 
@@ -474,18 +457,18 @@ Inference
 
 .. code:: ipython3
 
-    if not Path(STYLE_IMAGE_PATH).exists():
+    if not STYLE_IMAGE_PATH.exists():
         r = requests.get(STYLE_IMAGE_URL)
-        with open(STYLE_IMAGE_PATH, "wb") as f:
+        with STYLE_IMAGE_PATH.open("wb") as f:
             f.write(r.content)
-    if not Path(CONTENT_IMAGE_PATH).exists():
+    if not CONTENT_IMAGE_PATH.exists():
         r = requests.get(CONTENT_IMAGE_URL)
-        with open(CONTENT_IMAGE_PATH, "wb") as f:
+        with CONTENT_IMAGE_PATH.open("wb") as f:
             f.write(r.content)
     
     
     def load_image(dst):
-        image = cv2.imread(dst)
+        image = cv2.imread(str(dst))
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # Convert image color to RGB space
         image = image / 255  # Normalize to [0, 1] interval
         image = image.astype(np.float32)

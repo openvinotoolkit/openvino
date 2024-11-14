@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_pooling_AdaptiveMaxPool_8}
-
 AdaptiveMaxPool
 ===============
 
 
 .. meta::
-  :description: Learn about AdaptiveMaxPool-8 - a pooling operation, which can 
+  :description: Learn about AdaptiveMaxPool-8 - a pooling operation, which can
                 be performed on two required input tensors.
 
 **Versioned name**: *AdaptiveMaxPool-8*
@@ -18,7 +16,7 @@ AdaptiveMaxPool
 The kernel dimensions are calculated using the following formulae for the ``NCDHW`` input case:
 
 .. math::
-  
+
   \begin{array}{lcl}
   d_{start} &=& \lfloor i \cdot \frac{D_{in}}{D_{out}}\rfloor\\
   d_{end}   &=& \lceil(i+1) \cdot \frac{D_{in}}{D_{out}}\rceil\\
@@ -31,7 +29,7 @@ The kernel dimensions are calculated using the following formulae for the ``NCDH
 The output is calculated following this formula:
 
 .. math::
-   
+
    Output(i,j,k) = max(Input[d_{start}:d_{end}, h_{start}:h_{end}, w_{start}:w_{end}])
 
 **Attributes**:
@@ -63,7 +61,7 @@ The output is calculated following this formula:
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="AdaptiveMaxPool" ... >
        <data output_type="i64"/>
        <input>

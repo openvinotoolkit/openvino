@@ -43,6 +43,7 @@ class TestEdsrConvertModel(TestTorchConvertModel):
         url = 'https://paperswithcode.com/media/datasets/Set5-0000002728-07a9793f_zA3bDjj.jpg'
         image = Image.open(requests.get(url, stream=True).raw)
         assert model_name in name_to_class, "Unexpected model name"
+        print(f"scale: {self.scale}")
         model = name_to_class[model_name].from_pretrained(
             f'eugenesiow/{model_name}', scale=self.scale)
         inputs = ImageLoader.load_image(image)
@@ -55,31 +56,34 @@ class TestEdsrConvertModel(TestTorchConvertModel):
         cleanup_dir(hf_hub_cache_dir)
         super().teardown_method()
 
-    @pytest.mark.parametrize("name,scale", [("edsr", 2)])
+    @pytest.mark.parametrize("name", ["edsr"])
     @pytest.mark.precommit
-    def test_convert_model_precommit(self, name, scale, ie_device):
-        self.scale = scale
+    def test_convert_model_precommit(self, name, ie_device):
+        self.scale = random.randint(2, 4)
         self.run(name, None, ie_device)
 
     @pytest.mark.nightly
-    @pytest.mark.parametrize("name,scale", [
-        ("a2n", random.randint(2, 4)),
-        ("awsrn-bam", random.randint(2, 4)),
-        ("carn", random.randint(2, 4)),
-        ("carn-bam", random.randint(2, 4)),
-        ("drln", random.randint(2, 4)),
-        ("drln-bam", random.randint(2, 4)),
-        ("edsr", random.randint(2, 4)),
-        ("edsr-base", random.randint(2, 4)),
-        ("msrn", random.randint(2, 4)),
-        ("msrn-bam", random.randint(2, 4)),
-        ("mdsr", random.randint(2, 4)),
-        ("mdsr-bam", random.randint(2, 4)),
-        ("pan", random.randint(2, 4)),
-        ("pan-bam", random.randint(2, 4)),
-        ("han", 4),
-        ("rcan-bam", 4),
+    @pytest.mark.parametrize("name", [
+        "a2n",
+        "awsrn-bam",
+        "carn",
+        "carn-bam",
+        "drln",
+        "drln-bam",
+        "edsr",
+        "edsr-base",
+        "msrn",
+        "msrn-bam",
+        "mdsr",
+        "mdsr-bam",
+        "pan",
+        "pan-bam",
+        "han",
+        "rcan-bam",
     ])
-    def test_convert_model_all_models(self, name, scale, ie_device):
-        self.scale = scale
+    def test_convert_model_all_models(self, name, ie_device):
+        if name in ["han", "rcan-bam"]:
+            self.scale = 4
+        else:
+            self.scale = random.randint(2, 4)
         self.run(name, None, ie_device)

@@ -6,6 +6,8 @@
 
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -26,7 +28,9 @@ ov::pass::PositionIDsReplacer::PositionIDsReplacer(const Output<Node>& position_
     auto convert = pattern::wrap_type<v0::Convert>({add_offset});
     auto position_embed = pattern::wrap_type<v8::Gather>({pattern::any_input(), convert, pattern::any_input()});
 
-    auto add = pattern::wrap_type<v1::Add>({input_embed, position_embed});
+    auto mul = pattern::optional<v0::MatMul>({input_embed, pattern::any_input()});
+
+    auto add = pattern::wrap_type<v1::Add>({mul, position_embed});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();

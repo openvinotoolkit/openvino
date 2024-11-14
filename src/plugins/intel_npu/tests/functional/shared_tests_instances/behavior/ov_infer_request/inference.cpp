@@ -10,7 +10,7 @@ namespace {
 
 using namespace ov::test::behavior;
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestInferenceTests,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests, OVInferRequestInferenceTests,
                          ::testing::Combine(::testing::Values(tensor_roi::roi_nchw(), tensor_roi::roi_1d()),
                                             ::testing::Values(ov::test::utils::DEVICE_NPU)),
                          ov::test::utils::appendPlatformTypeTestName<OVInferRequestInferenceTests>);

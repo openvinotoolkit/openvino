@@ -53,6 +53,8 @@ void regclass_graph_Type(py::module m) {
     type.attr("f8e4m3") = ov::element::f8e4m3;
     type.attr("f8e5m2") = ov::element::f8e5m2;
     type.attr("string") = ov::element::string;
+    type.attr("f4e2m1") = ov::element::f4e2m1;
+    type.attr("f8e8m0") = ov::element::f8e8m0;
 
     type.def("__hash__", &ov::element::Type::hash);
     type.def("__repr__", [](const ov::element::Type& self) {

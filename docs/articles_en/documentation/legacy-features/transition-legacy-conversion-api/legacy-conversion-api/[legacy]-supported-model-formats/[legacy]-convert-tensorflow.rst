@@ -1,5 +1,3 @@
-.. {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow}
-
 [LEGACY] Converting a TensorFlow Model
 ============================================
 
@@ -61,7 +59,7 @@ To convert such TensorFlow model, run the `mo` script with a path to the MetaGra
 
 
 3. **SavedModel format**. In this case, a model consists of a special directory with a ``.pb`` file
-and several subfolders: ``variables``, ``assets``, and ``assets.extra``. For more information about the SavedModel directory, refer to the `README <https://github.com/tensorflow/tensorflow/tree/master/tensorflow/python/saved_model#components>`__ file in the TensorFlow repository.
+and several subfolders: ``variables``, ``assets``, and ``assets.extra``. For more information about the SavedModel directory, refer to the `README <https://github.com/tensorflow/tensorflow/tree/master/tensorflow/python/saved_model>`__ file in the TensorFlow repository.
 To convert such TensorFlow model, run the ``mo`` script with a path to the SavedModel directory:
 
 .. code-block:: sh
@@ -333,7 +331,7 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
 Supported TensorFlow and TensorFlow 2 Keras Layers
 ##################################################
 
-For the list of supported standard layers, refer to the :doc:`Supported Operations <../../../../../about-openvino/compatibility-and-support/supported-operations-framework-frontend>` page.
+For the list of supported standard layers, refer to the :doc:`Supported Operations <../../../../../about-openvino/compatibility-and-support/supported-operations>` page.
 
 Frequently Asked Questions (FAQ)
 ################################

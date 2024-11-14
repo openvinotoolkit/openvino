@@ -2,22 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/com.microsoft/skip_layer_normalization.hpp"
-
+#include "core/operator_set.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
-
 using namespace ov::op;
 using ov::Shape;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace com_microsoft {
+namespace opset_1 {
 ov::OutputVector skip_layer_normalization(const ov::frontend::onnx::Node& node) {
     auto nodes = node.get_ov_inputs();
     auto num_nodes = nodes.size();
@@ -47,8 +45,9 @@ ov::OutputVector skip_layer_normalization(const ov::frontend::onnx::Node& node) 
     // - we'd have to unroll MVN to have them
     return result->outputs();
 }
-}  // namespace set_1
-}  // namespace op
+ONNX_OP("SkipLayerNormalization", OPSET_SINCE(1), com_microsoft::opset_1::skip_layer_normalization, MICROSOFT_DOMAIN);
+}  // namespace opset_1
+}  // namespace com_microsoft
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

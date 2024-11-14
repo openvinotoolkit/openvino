@@ -65,6 +65,22 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         "FullyConnected",
         "u8"
     },
+    // 4D with Dq on weights, with convert on scales
+    {
+        { 1, 1, 3, 4 },
+        { 256ul, {{1, 1, 1}, {1, 1, 1}, {1, 3, 1}, {1, 3, 1}}, {0.f}, {255.f}, {0.f, 0.f, 0.f}, {255.f, 25.5f, 255.f} },
+        { std::vector<float>(4 * 2, 2.f), ov::element::i8, ov::Shape{ 2, 4 } },
+        {},
+        {
+            ov::element::f32,
+            {},
+            ov::builder::subgraph::DequantizationOperations::Multiply({0.1f, 0.01f}, ov::element::f32, ov::Shape{ 2, 1 })
+                .setConstantPrecision(ov::element::f16)
+                .setAddConvert(true)
+        },
+        "FullyConnected",
+        "u8"
+    },
     // 3D with the same values
     {
         { 1, 3, 4 },

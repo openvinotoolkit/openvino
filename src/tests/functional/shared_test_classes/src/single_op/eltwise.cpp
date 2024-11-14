@@ -123,6 +123,14 @@ void EltwiseLayerTest::SetUp() {
                 secondary_input = std::make_shared<ov::op::v0::Constant>(tensor);
                 break;
             }
+            case EltwiseTypes::LEFT_SHIFT:
+            case EltwiseTypes::RIGHT_SHIFT: {
+                in_data.start_from = 0;
+                in_data.range = 4;
+                auto tensor = ov::test::utils::create_and_fill_tensor(model_type, shape, in_data);
+                secondary_input = std::make_shared<ov::op::v0::Constant>(tensor);
+                break;
+            }
             default: {
                 in_data.start_from = 1;
                 in_data.range = 9;

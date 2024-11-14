@@ -114,11 +114,11 @@ const std::vector<SoftMaxConfig> unsupportedConfigsFP32{
      4},
 };
 
-
 const auto OptimizedParams = testing::Combine(testing::Values(ElementType::f32, ElementType::bf16),
                                               testing::ValuesIn(optimizedConfigsFP32),
                                               testing::Values(ov::test::utils::DEVICE_CPU),
-                                              testing::Values(notOptimizedCPUSpec));
+                                              testing::Values(notOptimizedCPUSpec),
+                                              testing::Values(CPUTestUtils::empty_plugin_config));
 
 INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_Optimized_CPU,
                          SoftMaxLayerCPUTest,
@@ -128,7 +128,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_Optimized_CPU,
 const auto NotOptimizedParams = testing::Combine(testing::Values(ElementType::f32, ElementType::bf16),
                                                  testing::ValuesIn(notOptimizedConfigsFP32),
                                                  testing::Values(ov::test::utils::DEVICE_CPU),
-                                                 testing::Values(notOptimizedCPUSpec));
+                                                 testing::Values(notOptimizedCPUSpec),
+                                                 testing::Values(CPUTestUtils::empty_plugin_config));
 
 INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_CPU,
                          SoftMaxLayerCPUTest,
@@ -138,7 +139,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_CPU,
 const auto UnsupportedParams = testing::Combine(testing::Values(ElementType::f32, ElementType::bf16),
                                                 testing::ValuesIn(unsupportedConfigsFP32),
                                                 testing::Values(ov::test::utils::DEVICE_CPU),
-                                                testing::Values(notOptimizedCPUSpec));
+                                                testing::Values(notOptimizedCPUSpec),
+                                                testing::Values(CPUTestUtils::empty_plugin_config));
 
 INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_Unsupported_CPU,
                          SoftMaxLayerCPUTest,

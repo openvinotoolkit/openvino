@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/softmax.hpp"
+#include "openvino/op/softmax.hpp"
 
+#include "core/operator_set.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "openvino/op/softmax.hpp"
 #include "utils/reshape.hpp"
-
 using namespace ov::op;
 
 namespace ov {
@@ -26,8 +25,8 @@ std::shared_ptr<ov::Node> onnx_softmax(const ov::Output<ov::Node> data, const in
 }
 }  // namespace
 
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector softmax(const ov::frontend::onnx::Node& node) {
     const auto data = node.get_ov_inputs().at(0);
     const auto data_rank = data.get_partial_shape().rank();
@@ -49,8 +48,9 @@ ov::OutputVector softmax(const ov::frontend::onnx::Node& node) {
 
     return {result};
 }
-}  // namespace set_1
-namespace set_11 {
+ONNX_OP("Softmax", OPSET_RANGE(1, 10), ai_onnx::opset_1::softmax);
+}  // namespace opset_1
+namespace opset_11 {
 ov::OutputVector softmax(const ov::frontend::onnx::Node& node) {
     const auto data = node.get_ov_inputs().at(0);
     const auto data_rank = data.get_partial_shape().rank();
@@ -72,8 +72,9 @@ ov::OutputVector softmax(const ov::frontend::onnx::Node& node) {
 
     return {result};
 }
-}  // namespace set_11
-namespace set_13 {
+ONNX_OP("Softmax", OPSET_RANGE(11, 12), ai_onnx::opset_11::softmax);
+}  // namespace opset_11
+namespace opset_13 {
 ov::OutputVector softmax(const ov::frontend::onnx::Node& node) {
     const auto data = node.get_ov_inputs().at(0);
 
@@ -81,8 +82,9 @@ ov::OutputVector softmax(const ov::frontend::onnx::Node& node) {
 
     return {std::make_shared<v8::Softmax>(data, axis)};
 }
-}  // namespace set_13
-}  // namespace op
+ONNX_OP("Softmax", OPSET_SINCE(13), ai_onnx::opset_13::softmax);
+}  // namespace opset_13
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

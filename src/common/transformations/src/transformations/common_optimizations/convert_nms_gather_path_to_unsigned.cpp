@@ -102,7 +102,7 @@ public:
 
                 for (size_t body_idx = 0; body_idx < models.size(); ++body_idx) {
                     handle_params(multi_subgraph_op, models[body_idx], static_cast<int>(body_idx));
-                    ov::pass::Manager manager;
+                    ov::pass::Manager manager("PropagateNMSPath");
                     manager.register_pass<ov::pass::PropagateNMSPath>();
                     manager.run_passes(models[body_idx]);
                     handle_results(multi_subgraph_op, models[body_idx], static_cast<int>(body_idx));

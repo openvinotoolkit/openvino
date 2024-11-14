@@ -25,9 +25,8 @@ struct multinomial : public primitive_base<multinomial> {
           bool log_probs,
           std::uint64_t global_seed,
           std::uint64_t op_seed,
-          std::int64_t num_samples,
-          const padding& output_padding = padding())
-        : primitive_base{id, {cdf, random_probabilities}, {output_padding}},
+          std::int64_t num_samples)
+        : primitive_base{id, {cdf, random_probabilities}},
           output_data_type {output_data_type},
           with_replacement {with_replacement},
           log_probs {log_probs},

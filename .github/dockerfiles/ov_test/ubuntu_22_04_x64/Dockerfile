@@ -1,4 +1,5 @@
-FROM openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
+ARG REGISTRY="docker.io"
+FROM ${REGISTRY}/library/ubuntu:22.04
 
 USER root
 
@@ -22,18 +23,22 @@ RUN apt-get update && \
         ca-certificates \
         gpg-agent \
         tzdata \
+        # parallel gzip
+        pigz \
         # Python
         python3.11-dev \
         python3.11-venv \
         python3.11-distutils \
         libhdf5-dev \
+        # For TF Models tests
+        wget \
         && \
     rm -rf /var/lib/apt/lists/*
 
-# Install build dependencies
-ADD install_build_dependencies.sh /install_build_dependencies.sh
-RUN chmod +x /install_build_dependencies.sh && \
-    /install_build_dependencies.sh && \
+# Install openvino dependencies
+ADD scripts/install_dependencies/install_openvino_dependencies.sh /install_openvino_dependencies.sh
+RUN chmod +x /install_openvino_dependencies.sh && \
+    /install_openvino_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
 # Setup pip

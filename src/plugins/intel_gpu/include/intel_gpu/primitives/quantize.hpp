@@ -23,17 +23,15 @@ struct quantize : public primitive_base<quantize> {
              const input_info& output_low,
              const input_info& output_high,
              const int levels,
-             const data_types output_data_type,
-             const padding& output_padding = padding())
-        : primitive_base(id, {input, input_low, input_high, output_low, output_high}, {output_padding}, {optional_data_type{output_data_type}})
+             const data_types output_data_type)
+        : primitive_base(id, {input, input_low, input_high, output_low, output_high}, 1, {optional_data_type{output_data_type}})
         , levels(levels) {}
 
     quantize(const primitive_id& id,
              const std::vector<input_info>& inputs,
              const int levels,
-             const data_types output_data_type,
-             const padding& output_padding = padding())
-        : primitive_base(id, inputs, {output_padding}, {optional_data_type{output_data_type}})
+             const data_types output_data_type)
+        : primitive_base(id, inputs, 1, {optional_data_type{output_data_type}})
         , levels(levels) {}
 
     quantize() : primitive_base("", {}), levels(0) {}

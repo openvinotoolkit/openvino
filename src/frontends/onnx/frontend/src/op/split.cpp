@@ -2,19 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/split.hpp"
-
-#include "openvino/op/constant.hpp"
-#include "openvino/op/variadic_split.hpp"
 #include "utils/split.hpp"
 
+#include "core/operator_set.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/variadic_split.hpp"
 using namespace ov::op;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector split(const ov::frontend::onnx::Node& node) {
     const auto input = node.get_ov_inputs().at(0);
     const auto axis = node.get_attribute_value<int64_t>("axis", 0);
@@ -28,9 +27,10 @@ ov::OutputVector split(const ov::frontend::onnx::Node& node) {
     }
 }
 
-}  // namespace set_1
+ONNX_OP("Split", OPSET_RANGE(1, 12), ai_onnx::opset_1::split);
+}  // namespace opset_1
 
-namespace set_13 {
+namespace opset_13 {
 ov::OutputVector split(const ov::frontend::onnx::Node& node) {
     const auto inputs = node.get_ov_inputs();
     const auto axis = node.get_attribute_value<int64_t>("axis", 0);
@@ -44,8 +44,9 @@ ov::OutputVector split(const ov::frontend::onnx::Node& node) {
     }
 }
 
-}  // namespace set_13
-}  // namespace op
+ONNX_OP("Split", OPSET_SINCE(13), ai_onnx::opset_13::split);
+}  // namespace opset_13
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

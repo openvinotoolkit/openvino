@@ -4,6 +4,7 @@
 
 #include "primitive_base.hpp"
 
+#include "reorder.hpp"
 #include "reorder_inst.h"
 #include "reorder/reorder_kernel_selector.h"
 #include "reorder/reorder_kernel_base.h"
@@ -26,14 +27,10 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        if (is_dynamic()) {
+        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
             auto& kernel_selector = kernel_selector_t::Instance();
-            if (!_kernel_data.kernelName.empty()) {
-                auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
-                kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
-            } else {
-                GPU_DEBUG_TRACE_DETAIL << "Fail to update dispatch data because kernel name is empty" << std::endl;
-            }
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
         }
     }
 
@@ -119,8 +116,13 @@ public:
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kernel_params = get_kernel_params(impl_param, true);
-        (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
+        // If model loaded from cache, params are not initialized, so we create a new object and reuse it in the future
+        if (_kernel_data.params == nullptr) {
+            _kernel_data.params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true));
+        }
+
+        update_shapes(*_kernel_data.params, impl_param);
+        (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
     }
 
     static std::unique_ptr<primitive_impl> create(const reorder_node& arg, const kernel_impl_params& impl_param) {
@@ -158,31 +160,19 @@ public:
     }
 };
 
-namespace detail {
-
-attach_reorder_impl::attach_reorder_impl() {
-    implementation_map<reorder>::add(impl_types::ocl, shape_types::static_shape, reorder_impl::create, {});
-
-    auto types = {
-        data_types::f32,
-        data_types::f16,
-        data_types::u8,
-        data_types::i8,
-        data_types::i32,
-        data_types::i64,
-    };
-
-    auto formats = {
-        format::bfyx,
-        format::bfzyx,
-        format::bfwzyx,
-    };
-    implementation_map<reorder>::add(impl_types::ocl, shape_types::dynamic_shape, reorder_impl::create, types, formats);
-
-    WeightsReordersFactory::add(cldnn::impl_types::ocl, shape_types::static_shape, reorder_impl::create_reorder_weights);
+std::unique_ptr<primitive_impl> ReorderImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
+    assert(node.is_type<reorder>());
+    return ocl::reorder_impl::create(static_cast<const reorder_node&>(node), params);
 }
 
-}  // namespace detail
+std::unique_ptr<primitive_impl> ReorderImplementationManager::create_impl(const kernel_impl_params& params) const {
+    bool is_reorder_weights = format::is_weights_format(params.get_input_layout().format) ||
+                              format::is_weights_format(params.get_output_layout().format);
+    OPENVINO_ASSERT(is_reorder_weights);
+
+    return ocl::reorder_impl::create_reorder_weights(params);
+}
+
 }  // namespace ocl
 }  // namespace cldnn
 

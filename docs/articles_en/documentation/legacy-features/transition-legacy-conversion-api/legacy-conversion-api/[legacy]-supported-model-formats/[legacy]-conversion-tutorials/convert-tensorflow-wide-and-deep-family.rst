@@ -1,5 +1,3 @@
-.. {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_WideAndDeep_Family_Models}
-
 Converting TensorFlow Wide and Deep Family Models
 =================================================
 

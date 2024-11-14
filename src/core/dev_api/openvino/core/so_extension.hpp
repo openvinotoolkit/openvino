@@ -13,9 +13,7 @@ namespace detail {
 
 class OPENVINO_API SOExtension : public Extension {
 public:
-    ~SOExtension() {
-        m_ext = {};
-    }
+    virtual ~SOExtension() override;
 
     SOExtension(const Extension::Ptr& ext, const std::shared_ptr<void>& so) : m_ext(ext), m_so(so) {}
 

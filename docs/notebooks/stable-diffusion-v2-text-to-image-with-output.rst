@@ -22,7 +22,7 @@ In previous notebooks, we already discussed how to run `Text-to-Image
 generation and Image-to-Image generation using Stable Diffusion
 v1 <stable-diffusion-text-to-image-with-output.html>`__
 and `controlling its generation process using
-ControlNet <./controlnet-stable-diffusion/controlnet-stable-diffusion.ipynb>`__.
+ControlNet <controlnet-stable-diffusion-with-output.html>`__.
 Now is turn of Stable Diffusion v2.
 
 Stable Diffusion v2: What’s new?
@@ -78,8 +78,9 @@ implementation. If you would like to get started and run the notebook
 quickly, check out `stable-diffusion-v2-text-to-image-demo
 notebook <stable-diffusion-v2-with-output.html>`__.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Stable Diffusion v2 for Text-to-Image
@@ -104,6 +105,16 @@ Table of contents:
 
 -  `Run Text-to-Image generation <#run-text-to-image-generation>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -115,12 +126,6 @@ install required packages
 
     %pip install -q "diffusers>=0.14.0" "openvino>=2023.1.0" "datasets>=2.14.6" "transformers>=4.25.1" "gradio>=4.19" "torch>=2.1" Pillow opencv-python --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "nncf>=2.9.0"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-
 
 Stable Diffusion v2 for Text-to-Image Generation
 ------------------------------------------------
@@ -142,7 +147,7 @@ and original model
 Stable Diffusion in Diffusers library
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
- To work with Stable Diffusion
+To work with Stable Diffusion
 v2, we will use Hugging Face
 `Diffusers <https://github.com/huggingface/diffusers>`__ library. To
 experiment with Stable Diffusion models, Diffusers exposes the
@@ -908,15 +913,16 @@ First, you should create instances of OpenVINO Model.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    import requests
     
-    core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget()
     
     device
 
@@ -933,6 +939,8 @@ First, you should create instances of OpenVINO Model.
 
     ov_config = {"INFERENCE_PRECISION_HINT": "f32"} if device.value != "CPU" else {}
     
+    
+    core = ov.Core()
     text_enc = core.compile_model(TEXT_ENCODER_OV_PATH, device.value)
     unet_model = core.compile_model(UNET_OV_PATH, device.value)
     vae_decoder = core.compile_model(VAE_DECODER_OV_PATH, device.value, ov_config)
@@ -996,11 +1004,9 @@ improve model inference speed.
 
 .. code:: ipython3
 
-    to_quantize = widgets.Checkbox(
-        value=True,
-        description="Quantization",
-        disabled=False,
-    )
+    from notebook_utils import quantization_widget
+    
+    to_quantize = quantization_widget()
     
     to_quantize
 
@@ -1033,7 +1039,7 @@ Prepare calibration dataset
 
 
 We use a portion of
-`conceptual_captions <https://huggingface.co/datasets/conceptual_captions>`__
+`conceptual_captions <https://huggingface.co/datasets/google-research-datasets/conceptual_captions>`__
 dataset from Hugging Face as calibration data. To collect intermediate
 model inputs for calibration we should customize ``CompiledModel``.
 
@@ -1072,7 +1078,7 @@ model inputs for calibration we should customize ``CompiledModel``.
         ov_pipe.unet = CompiledModelDecorator(original_unet, calibration_data, keep_prob=0.7)
         disable_progress_bar(ov_pipe)
     
-        dataset = datasets.load_dataset("conceptual_captions", split="train").shuffle(seed=42)
+        dataset = datasets.load_dataset("google-research-datasets/conceptual_captions", split="train", trust_remote_code=True).shuffle(seed=42)
     
         # Run inference for data collection
         pbar = tqdm(total=calibration_dataset_size)
@@ -1250,7 +1256,7 @@ pipelines, we use median inference time on calibration subset.
     %%skip not $to_quantize.value
     
     validation_size = 10
-    validation_dataset = datasets.load_dataset("conceptual_captions", split="train", streaming=True).take(validation_size)
+    validation_dataset = datasets.load_dataset("google-research-datasets/conceptual_captions", split="train", streaming=True, trust_remote_code=True).take(validation_size)
     validation_data = [batch["caption"] for batch in validation_dataset]
     
     fp_latency = calculate_inference_time(ov_pipe, validation_data)
@@ -1288,10 +1294,12 @@ launch the interactive demo.
 
 .. code:: ipython3
 
+    import ipywidgets as widgets
+    
     quantized_model_present = int8_ov_pipe is not None
     
     use_quantized_model = widgets.Checkbox(
-        value=True if quantized_model_present else False,
+        value=quantized_model_present,
         description="Use quantized model",
         disabled=not quantized_model_present,
     )
@@ -1309,39 +1317,15 @@ launch the interactive demo.
 
 .. code:: ipython3
 
-    import gradio as gr
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/stable-diffusion-v2/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
     
+    from gradio_helper import make_demo
     
     pipeline = int8_ov_pipe if use_quantized_model.value else ov_pipe
     
-    
-    def generate(prompt, negative_prompt, seed, num_steps, _=gr.Progress(track_tqdm=True)):
-        result = pipeline(
-            prompt,
-            negative_prompt=negative_prompt,
-            num_inference_steps=num_steps,
-            seed=seed,
-        )
-        return result["sample"][0]
-    
-    
-    gr.close_all()
-    demo = gr.Interface(
-        generate,
-        [
-            gr.Textbox(
-                "valley in the Alps at sunset, epic vista, beautiful landscape, 4k, 8k",
-                label="Prompt",
-            ),
-            gr.Textbox(
-                "frames, borderline, text, charachter, duplicate, error, out of frame, watermark, low quality, ugly, deformed, blur",
-                label="Negative prompt",
-            ),
-            gr.Slider(value=42, label="Seed", maximum=10000000),
-            gr.Slider(value=25, label="Steps", minimum=1, maximum=50),
-        ],
-        "image",
-    )
+    demo = make_demo(pipeline)
     
     try:
         demo.queue().launch()

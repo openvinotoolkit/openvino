@@ -9,6 +9,7 @@
 
 #include "cpu_memory.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
+#include "common_test_utils/test_assertions.hpp"
 
 using namespace ov::intel_cpu;
 
@@ -54,7 +55,7 @@ TEST(MemoryTest, ConcurrentResizeGetPrimitive) {
         dnnl::memory dnnl_mem;
         auto desc = std::make_shared<CpuBlockedMemoryDesc>(ov::element::f32, Shape{10, 2});
         Memory cpu_mem1(eng, desc);
-        Memory cpu_mem2(eng, desc, cpu_mem1.getMemoryMngr());
+        Memory cpu_mem2(eng, desc, cpu_mem1.getMemoryBlock());
         auto desc2 = std::make_shared<CpuBlockedMemoryDesc>(ov::element::f32, Shape{10, 20});
 
         std::atomic<bool> lock{true};
@@ -82,20 +83,20 @@ TEST(StaticMemoryTest, UnsupportedDnnlPrecision) {
     const dnnl::engine eng(dnnl::engine::kind::cpu, 0);
     CpuBlockedMemoryDesc memDescSupportedPrc(ov::element::f32, {5, 4, 7, 10});
     MemoryPtr testMemory;
-    ASSERT_NO_THROW(testMemory = std::make_shared<StaticMemory>(eng, memDescSupportedPrc));
-    ASSERT_TRUE(testMemory->isAllocated());
+    OV_ASSERT_NO_THROW(testMemory = std::make_shared<StaticMemory>(eng, memDescSupportedPrc));
+    ASSERT_TRUE(testMemory->isDefined());
     dnnl::memory dnnl_memory;
     void* raw_data_ptr = nullptr;
-    ASSERT_NO_THROW(raw_data_ptr = testMemory->getData());
+    OV_ASSERT_NO_THROW(raw_data_ptr = testMemory->getData());
     ASSERT_FALSE(nullptr == raw_data_ptr);
-    ASSERT_NO_THROW(dnnl_memory = testMemory->getPrimitive());
+    OV_ASSERT_NO_THROW(dnnl_memory = testMemory->getPrimitive());
     ASSERT_TRUE(dnnl_memory);
 
     CpuBlockedMemoryDesc memDescUnSupportedPrc(ov::element::i64, {5, 4, 7, 10});
-    ASSERT_NO_THROW(testMemory = std::make_shared<StaticMemory>(eng, memDescUnSupportedPrc));
-    ASSERT_TRUE(testMemory->isAllocated());
+    OV_ASSERT_NO_THROW(testMemory = std::make_shared<StaticMemory>(eng, memDescUnSupportedPrc));
+    ASSERT_TRUE(testMemory->isDefined());
     raw_data_ptr = nullptr;
-    ASSERT_NO_THROW(raw_data_ptr = testMemory->getData());
+    OV_ASSERT_NO_THROW(raw_data_ptr = testMemory->getData());
     ASSERT_FALSE(nullptr == raw_data_ptr);
     dnnl_memory = dnnl::memory();
     ASSERT_THROW(dnnl_memory = testMemory->getPrimitive(), ov::Exception);

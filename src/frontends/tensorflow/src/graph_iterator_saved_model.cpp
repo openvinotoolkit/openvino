@@ -30,7 +30,15 @@ bool GraphIteratorSavedModel::is_valid_signature(const ::tensorflow::SignatureDe
 }
 
 bool GraphIteratorSavedModel::is_supported(const std::string& path) {
-    return ov::util::directory_exists(path) && ov::util::file_exists(ov::util::path_join({path, "saved_model.pb"}));
+    if (ov::util::directory_exists(path)) {
+        FRONT_END_GENERAL_CHECK(util::file_exists(ov::util::path_join({path, "saved_model.pb"})),
+                                "Could not open the file: \"",
+                                util::path_to_string(ov::util::path_join({path, "saved_model.pb"})),
+                                '"');
+        return true;
+    } else {
+        return false;
+    }
 }
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)

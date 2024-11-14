@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/stft.hpp"
-
 #include "core/null_node.hpp"
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -17,15 +16,14 @@
 #include "openvino/op/util/op_types.hpp"
 #include "utils/common.hpp"
 #include "utils/dft.hpp"
-
 using namespace ov::op;
 using ov::Shape;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_17 {
+namespace ai_onnx {
+namespace opset_17 {
 
 ov::OutputVector stft(const ov::frontend::onnx::Node& node) {
     const ov::OutputVector ov_inputs{node.get_ov_inputs()};
@@ -123,8 +121,9 @@ ov::OutputVector stft(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::Concat>(all_signals, 0)};
 }
 
-}  // namespace set_17
-}  // namespace op
+ONNX_OP("STFT", OPSET_SINCE(1), ai_onnx::opset_17::stft);
+}  // namespace opset_17
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

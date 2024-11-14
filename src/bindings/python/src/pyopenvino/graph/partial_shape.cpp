@@ -18,6 +18,17 @@
 
 namespace py = pybind11;
 
+template <typename T>
+bool compare_shape(const ov::PartialShape& a, const T& b) {
+    if (a.is_dynamic()) {
+        throw py::type_error("Cannot compare dynamic shape with " + std::string(py::str(py::type::of(b))));
+    }
+    return a.size() == b.size() &&
+           std::equal(a.begin(), a.end(), b.begin(), [](const ov::Dimension& elem_a, const py::handle& elem_b) {
+               return elem_a == elem_b.cast<int64_t>();
+           });
+}
+
 void regclass_graph_PartialShape(py::module m) {
     py::class_<ov::PartialShape, std::shared_ptr<ov::PartialShape>> shape(m, "PartialShape");
     shape.doc() = "openvino.runtime.PartialShape wraps ov::PartialShape";
@@ -177,6 +188,19 @@ void regclass_graph_PartialShape(py::module m) {
         "__eq__",
         [](const ov::PartialShape& a, const ov::Shape& b) {
             return a == b;
+        },
+        py::is_operator());
+    shape.def(
+        "__eq__",
+        [](const ov::PartialShape& a, const py::tuple& b) {
+            return compare_shape<py::tuple>(a, b);
+        },
+        py::is_operator());
+
+    shape.def(
+        "__eq__",
+        [](const ov::PartialShape& a, const py::list& b) {
+            return compare_shape<py::list>(a, b);
         },
         py::is_operator());
 

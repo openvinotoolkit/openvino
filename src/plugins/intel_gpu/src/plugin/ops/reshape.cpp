@@ -9,6 +9,7 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/core/validation_util.hpp"
 
 #include "intel_gpu/primitives/reshape.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
@@ -30,6 +31,11 @@ static void CreateCommonReshapeOp(ProgramBuilder& p, const std::shared_ptr<ov::N
         std::vector<int64_t> output_pattern = {};
         if (second_const_input != nullptr) {
             output_pattern = second_const_input->cast_vector<int64_t>();
+            if (mode == cldnn::reshape::reshape_mode::unsqueeze) {
+                ov::util::try_normalize_axes(output_pattern, op->get_output_partial_shape(0).rank(), *op);
+            } else if (mode == cldnn::reshape::reshape_mode::squeeze) {
+                ov::util::try_normalize_axes(output_pattern, op->get_input_partial_shape(0).rank(), *op);
+            }
         }
 
         // If second input is absent (it's optional in Squeeze op) or it's constant, create reshape with single input and compile time out pattern

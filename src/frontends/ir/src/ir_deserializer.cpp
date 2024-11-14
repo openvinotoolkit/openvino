@@ -9,6 +9,7 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/meta_data.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/loop.hpp"
@@ -584,10 +585,17 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
     return function;
 }
 
-class MetaDataParser : public ov::Meta {
+class MetaDataParser : public ov::MetaDataWithPugixml {
 public:
-    MetaDataParser(const std::string& name, const pugi::xml_node& meta) : m_name(name) {
+    MetaDataParser(const std::string& name, const pugi::xml_node& meta, bool accessible_by_pugixml_node = true)
+        : m_name(name),
+          m_accessible_by_pugixml_node(accessible_by_pugixml_node) {
         m_meta.append_copy(meta);
+        if (accessible_by_pugixml_node) {
+            m_meta_node = m_meta.child(m_name.c_str());
+        } else {
+            m_meta_node = pugi::xml_node();
+        }
     }
 
     operator const ov::AnyMap&() const override {
@@ -599,6 +607,14 @@ public:
         parse();
         return m_parsed_map;
     }
+
+    const pugi::xml_node& get_pugi_node() const override {
+        if (!m_meta_node.empty() && !m_accessible_by_pugixml_node) {
+            // Meta cannot be accessed by pugixml node. Return empty node
+            m_meta_node = pugi::xml_node();
+        }
+        return m_meta_node;
+    };
 
 private:
     bool has_attr(const pugi::xml_node& node, const std::string& name = "value") const {
@@ -618,9 +634,14 @@ private:
 
     ov::AnyMap parse_node(const pugi::xml_node& node) const {
         ov::AnyMap result;
-        const std::string node_name = node.name();
+        // Old version may produce nodes like <name value="..."/>, but it may brake xml-naming convention
+        // Now it should look like <info name="..." value="..."/>.
+        // Also we keep an option to read an old XMLs where it doesn't have name attribute
+        const auto name_attr = node.attribute("name");
+        const std::string node_name = name_attr.empty() ? node.name() : name_attr.value();
         for (const auto& data : node.children()) {
-            const std::string data_name = data.name();
+            const auto name_attr = data.attribute("name");
+            const std::string data_name = name_attr.empty() ? data.name() : name_attr.value();
             // WA for legacy POT config
             if (data_name == "config" && node_name == "quantization_parameters") {
                 // Read legacy pot config
@@ -641,14 +662,18 @@ private:
 
     void parse() const {
         std::call_once(m_oc, [this]() {
+            m_accessible_by_pugixml_node = false;
             const pugi::xml_node& node = m_meta.child(m_name.c_str());
             m_parsed_map = parse_node(node);
         });
     }
+
     pugi::xml_document m_meta;
     const std::string m_name;
     mutable ov::AnyMap m_parsed_map;
     mutable std::once_flag m_oc;
+    mutable std::atomic_bool m_accessible_by_pugixml_node;
+    mutable pugi::xml_node m_meta_node;
 };
 
 void ov::XmlDeserializer::read_meta_data(const std::shared_ptr<ov::Model>& model, const pugi::xml_node& meta_section) {
@@ -658,12 +683,17 @@ void ov::XmlDeserializer::read_meta_data(const std::shared_ptr<ov::Model>& model
     for (const auto& data : meta_section.children()) {
         if (data.empty())
             continue;
+        // Old version may produce nodes like <name value="..."/>, but it may brake xml-naming convention
+        // Now it should look like <info name="..." value="..."/>.
+        // Also we keep an option to read an old XMLs where it doesn't have name attribute
+        const auto name_attr = data.attribute("name");
+        const auto node_name = name_attr.empty() ? data.name() : name_attr.value();
         if (!data.attribute("value").empty()) {
-            rt_info[data.name()] = pugixml::get_str_attr(data, "value");
+            rt_info[node_name] = pugixml::get_str_attr(data, "value");
         } else {
             // Use meta data for set of parameters
             std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>(data.name(), data);
-            rt_info[data.name()] = meta;
+            rt_info[node_name] = meta;
         }
     }
 }
@@ -671,29 +701,31 @@ void ov::XmlDeserializer::read_meta_data(const std::shared_ptr<ov::Model>& model
 void ov::XmlDeserializer::read_legacy_meta_data(const std::shared_ptr<ov::Model>& model,
                                                 const std::unordered_set<std::string>& names,
                                                 const pugi::xml_node& root_section) {
-    const auto& read_meta = [](const std::shared_ptr<ov::Model>& model,
-                               const std::string& name,
-                               const pugi::xml_node& meta_section) {
-        auto& rt_info = model->get_rt_info();
-        if (name == "meta_data") {
-            for (const auto& data : meta_section.children()) {
-                const std::string& section_name = data.name();
-                // Rename cli_parameters to conversion_parameters
-                if (section_name == "cli_parameters") {
-                    std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>("cli_parameters", data);
-                    rt_info["conversion_parameters"] = meta;
-                } else if (!data.attribute("value").empty()) {
-                    rt_info[data.name()] = pugixml::get_str_attr(data, "value");
-                } else {
-                    OPENVINO_THROW("Unsupported legacy argument: ", data.name());
+    const auto& read_meta =
+        [](const std::shared_ptr<ov::Model>& model, const std::string& name, const pugi::xml_node& meta_section) {
+            auto& rt_info = model->get_rt_info();
+            if (name == "meta_data") {
+                for (const auto& data : meta_section.children()) {
+                    const std::string& section_name = data.name();
+                    // Rename cli_parameters to conversion_parameters
+                    if (section_name == "cli_parameters") {
+                        std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>("cli_parameters", data);
+                        rt_info["conversion_parameters"] = meta;
+                    } else if (!data.attribute("value").empty()) {
+                        rt_info[data.name()] = pugixml::get_str_attr(data, "value");
+                    } else {
+                        OPENVINO_THROW("Unsupported legacy argument: ", data.name());
+                    }
                 }
+            } else if (name == "quantization_parameters") {
+                // Rename quantization_parameters to optimization
+                // Legacy implementation. Have to be parsed inside MetaDataParser. Do not allow to serialize it as raw
+                // pugi::xml_node.
+                std::shared_ptr<ov::Meta> meta =
+                    std::make_shared<MetaDataParser>("quantization_parameters", meta_section, false);
+                rt_info["optimization"] = meta;
             }
-        } else if (name == "quantization_parameters") {
-            // Rename quantization_parameters to optimization
-            std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>("quantization_parameters", meta_section);
-            rt_info["optimization"] = meta;
-        }
-    };
+        };
     for (const auto& it : names)
         read_meta(model, it, root_section.child(it.c_str()));
 }
@@ -913,6 +945,13 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
         if (aw_data) {
             rtInfo["alt_width"] = aw_data.value();
         }
+        const auto size = dn.attribute("size");
+        const auto offset = dn.attribute("offset");
+        if (size && offset) {
+            rtInfo[ov::WeightlessCacheAttribute::get_type_info_static()] =
+                ov::WeightlessCacheAttribute(static_cast<size_t>(pugixml::get_uint64_attr(dn, "size")),
+                                             static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset")));
+        }
     }
 
     ovNode->set_friendly_name(params.name);
@@ -929,16 +968,9 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
             std::string attribute_name, attribute_version;
             // For view:
             // <attribute name="old_api_map_order" version="0" value="0,3,1,2"/>
-            if (!getStrAttribute(item, "name", attribute_name)) {
-                std::stringstream ss;
-                item.print(ss);
-                OPENVINO_THROW("rt_info attribute has no \"name\" field: ", ss.str());
-            }
-            if (!getStrAttribute(item, "version", attribute_version)) {
-                std::stringstream ss;
-                item.print(ss);
-                OPENVINO_THROW("rt_info attribute: ", attribute_name, " has no \"version\" field: ", ss.str());
-            }
+            if (!getStrAttribute(item, "name", attribute_name) || !getStrAttribute(item, "version", attribute_version))
+                continue;
+
             const auto& type_info = ov::DiscreteTypeInfo(attribute_name.c_str(), attribute_version.c_str());
             auto attr = attrs_factory.create_by_type_info(type_info);
             if (!attr.empty()) {

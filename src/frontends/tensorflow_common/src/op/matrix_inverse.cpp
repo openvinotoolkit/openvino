@@ -13,7 +13,7 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 OutputVector translate_matrix_inverse_op(const NodeContext& node) {
-    default_op_checks(node, 1, {"MatrixInverse"});
+    default_op_checks(node, 1, {"MatrixInverse", "BatchMatrixInverse"});
     // retrieve the input tensor
     auto input = node.get_input(0);
 

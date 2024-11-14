@@ -10,6 +10,8 @@
 
 #include "openvino/frontend/extension/holder.hpp"
 
+using ::ONNX_NAMESPACE::ModelProto;
+
 namespace ov {
 namespace frontend {
 namespace onnx {
@@ -33,10 +35,12 @@ public:
                const bool enable_mmap = false,
                ExtensionHolder extensions = {});
 #endif
+    InputModel(std::shared_ptr<ModelProto> model_proto, ExtensionHolder extensions = {});
 
     std::vector<ov::frontend::Place::Ptr> get_inputs() const override;
     std::vector<ov::frontend::Place::Ptr> get_outputs() const override;
     ov::frontend::Place::Ptr get_place_by_tensor_name(const std::string& tensor_name) const override;
+    ov::frontend::Place::Ptr get_place_by_input_index(size_t input_idx) const override;
     ov::frontend::Place::Ptr get_place_by_operation_name(const std::string& operation_name) const override;
     ov::frontend::Place::Ptr get_place_by_operation_name_and_input_port(const std::string& operation_name,
                                                                         int input_port_index) override;

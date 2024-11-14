@@ -1,4 +1,5 @@
-FROM openvinogithubactions.azurecr.io/dockerhub/nvidia/cuda:11.8.0-runtime-ubuntu20.04
+ARG REGISTRY="docker.io"
+FROM ${REGISTRY}/nvidia/cuda:11.8.0-runtime-ubuntu20.04
 
 USER root
 
@@ -23,6 +24,8 @@ RUN apt-get update && \
         ca-certificates \
         gpg-agent \
         tzdata \
+        # parallel gzip
+        pigz \
         # Pythons
         python3.8-dev \
         python3.8-venv \
@@ -32,9 +35,6 @@ RUN apt-get update && \
         python3.11-distutils \
         # For Java API
         default-jdk \
-        # Compiler \
-        gcc-10 \
-        g++-10 \
         && \
     rm -rf /var/lib/apt/lists/*
 
@@ -43,10 +43,6 @@ ADD install_build_dependencies.sh /install_build_dependencies.sh
 RUN chmod +x /install_build_dependencies.sh && \
     /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
-
-# Set gcc-10 as a default compiler
-RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 30 && \
-    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 30
 
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"

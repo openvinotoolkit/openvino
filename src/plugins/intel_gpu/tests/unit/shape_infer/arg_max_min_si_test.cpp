@@ -64,7 +64,7 @@ TEST_P(arg_max_min_test, shape_infer) {
 
     auto arg_max_min_prim = std::make_shared<arg_max_min>("output", p.inputs.empty() ? input_prim_ids : p.inputs,
                                                           p.mode, p.top_k, p.axis,
-                                                          ov::op::TopKSortType::SORT_VALUES, false, false, padding(),
+                                                          ov::op::TopKSortType::SORT_VALUES, false, false,
                                                           p.output_data_type, p.num_outputs);
     std::vector<padding> output_paddings;
     std::vector<optional_data_type> output_data_types;

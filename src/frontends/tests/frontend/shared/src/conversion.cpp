@@ -76,10 +76,10 @@ TEST_P(FrontEndConversionExtensionTest, TestConversionExtension) {
                                                   }));
     }
     std::shared_ptr<InputModel> input_model;
-    ASSERT_NO_THROW(input_model = frontend->load(m_param.m_modelName));
+    OV_ASSERT_NO_THROW(input_model = frontend->load(m_param.m_modelName));
     ASSERT_NE(input_model, nullptr);
     std::shared_ptr<ov::Model> model;
-    ASSERT_NO_THROW(model = frontend->convert(input_model));
+    OV_ASSERT_NO_THROW(model = frontend->convert(input_model));
     ASSERT_NE(model, nullptr);
     EXPECT_EQ(invoked, true);
 }
@@ -89,9 +89,9 @@ TEST_P(FrontEndConversionExtensionTest, TestConversionExtensionViaSO) {
     const auto& lib_path = get_lib_path("test_builtin_extensions");
     frontend->add_extension(lib_path);
     std::shared_ptr<InputModel> input_model;
-    ASSERT_NO_THROW(input_model = frontend->load(m_param.m_modelName));
+    OV_ASSERT_NO_THROW(input_model = frontend->load(m_param.m_modelName));
     ASSERT_NE(input_model, nullptr);
     std::shared_ptr<ov::Model> model;
-    ASSERT_NO_THROW(model = frontend->convert(input_model));
+    OV_ASSERT_NO_THROW(model = frontend->convert(input_model));
     ASSERT_NE(model, nullptr);
 }

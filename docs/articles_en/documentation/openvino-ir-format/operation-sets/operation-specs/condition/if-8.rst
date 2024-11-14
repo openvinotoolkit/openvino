@@ -1,50 +1,48 @@
-.. {#openvino_docs_ops_infrastructure_If_8}
-
 If
 ==
 
 
 .. meta::
-  :description: Learn about If-8 - an element-wise, condition operation, which 
+  :description: Learn about If-8 - an element-wise, condition operation, which
                 can be performed on multiple tensors in OpenVINO.
 
 **Versioned name**: *If-8*
 
 **Category**: *Condition*
 
-**Short description**: *If* operation contains two internal networks(subgraphs) such as ``then_body`` and ``else_body``, 
-and performs one of them depending on ``cond`` value. If ``cond`` is  ``True``, ``then_body`` is executed. If ``cond`` is  ``False``, 
-the operation executes the ``else_body`` subgraph. 
+**Short description**: *If* operation contains two internal networks(subgraphs) such as ``then_body`` and ``else_body``,
+and performs one of them depending on ``cond`` value. If ``cond`` is  ``True``, ``then_body`` is executed. If ``cond`` is  ``False``,
+the operation executes the ``else_body`` subgraph.
 
 **Detailed description**
 
-*If* must not contain empty subgraphs. Each of them must have at least one operation ``Result``. 
+*If* must not contain empty subgraphs. Each of them must have at least one operation ``Result``.
 Also the number of outputs from *If* always must be greater than zero and equal to the number of outputs from each subgraph.
 
 **If attributes**:
 
 * **Subgraphs**:
 
-  ``then_body``/``else_body`` are subgraphs that are executed depending on the ``cond`` value. 
-  The subgraph is described operation by operation as a typical IR network. 
+  ``then_body``/``else_body`` are subgraphs that are executed depending on the ``cond`` value.
+  The subgraph is described operation by operation as a typical IR network.
   The subgraph has inputs (``Parameter`` operations) and outputs (``Result`` operations).
 
-  * **Subgraph's inputs** - inputs to the subgraph which associated with *If* inputs via *port_map*. 
+  * **Subgraph's inputs** - inputs to the subgraph which associated with *If* inputs via *port_map*.
 
     The subgraph can have any number of inputs (even zero).
 
   * **Subgraph's outputs** - outputs from the subgraph which associated with *If* outputs via *port_map*.
 
-    The subgraph must contain at least one output. Each *If* output is associated with one output from the subgraph. 
-    Therefore the number of ``then_body`` outputs is equal to the number of outputs from *If* and 
+    The subgraph must contain at least one output. Each *If* output is associated with one output from the subgraph.
+    Therefore the number of ``then_body`` outputs is equal to the number of outputs from *If* and
     the number of ``else_body`` outputs.
     The type of the subgraph output and the type of the associated output from *If* must be equal.
 
 
 * **Port maps**:
 
-  *port_map* is a set of rules to map input or output data tensors of *If* operation onto the subgraph data tensors. 
-  The ``port_map`` entries can be ``input`` and ``output``. Each entry describes a corresponding mapping rule. 
+  *port_map* is a set of rules to map input or output data tensors of *If* operation onto the subgraph data tensors.
+  The ``port_map`` entries can be ``input`` and ``output``. Each entry describes a corresponding mapping rule.
   *If* has two *port_maps*: ``then_port_map`` for ``then_body`` and ``else_port_map`` for ``else_body``.
 
   * **Port map attributes**:
@@ -59,18 +57,18 @@ Also the number of outputs from *If* always must be greater than zero and equal 
 
     * *internal_layer_id*
 
-      * **Description**: *internal_layer_id* is a ``Parameter`` or ``Result`` operation ID inside 
-      the subgraph to map to.
+      * **Description**: *internal_layer_id* is a ``Parameter`` or ``Result`` operation ID inside
+        the subgraph to map to.
       * **Range of values**: IDs of the ``Parameter`` or ``Result`` operations in the subgraph
       * **Type**: ``unsigned int``
       * **Default value**: None
-      * **Required**: *yes* 
+      * **Required**: *yes*
 
 **If Inputs**
 
 
-* **cond**: A scalar or 1D tensor with 1 element of ``boolean`` type specifying which subgraph to execute. 
-``True`` value means to execute the ``then_body``, ``False`` - ``else_body``. *Required*.
+* **cond**: A scalar or 1D tensor with 1 element of ``boolean`` type specifying which subgraph to execute.
+  ``True`` value means to execute the ``then_body``, ``False`` - ``else_body``. *Required*.
 
 * **Multiple other inputs**: Tensors of different types and shapes. *Optional*.
 

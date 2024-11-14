@@ -49,9 +49,6 @@ bool MultiplyTransformation::transform(TransformationContext& context, ov::pass:
     multiply = NetworkHelper::separateInStandaloneBranch(multiply, defaultPrecisions);
     decomposeFakeQuantizeForWeightsPath(multiply);
 
-    NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(multiply, defaultPrecisions, 0));
-    NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(multiply, defaultPrecisions, 1));
-
     const auto dequantization1 = NetworkHelper::getDequantization(multiply, defaultPrecisions, 0);
     const auto dequantization2 = NetworkHelper::getDequantization(multiply, defaultPrecisions, 1);
 

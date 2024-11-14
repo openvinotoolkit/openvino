@@ -33,8 +33,9 @@ more accurate, informational, and comprehensive answers.
 
    image
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
+
 
 -  `Install requirements <#install-requirements>`__
 -  `Original model inference <#original-model-inference>`__
@@ -49,7 +50,25 @@ Table of contents:
 -  `Compiling models and prepare
    pipeline <#compiling-models-and-prepare-pipeline>`__
 -  `Inference <#inference>`__
--  `Interactive inference <#interactive-inference>`__
+-  `Quantization <#quantization>`__
+
+   -  `Prepare calibration datasets <#prepare-calibration-datasets>`__
+   -  `Run quantization <#run-quantization>`__
+   -  `Run Weights Compression <#run-weights-compression>`__
+   -  `Compare model file sizes <#compare-model-file-sizes>`__
+   -  `Compare inference time of the FP32 and optimized
+      pipelines <#compare-inference-time-of-the-fp32-and-optimized-pipelines>`__
+
+-  `Interactive inference <#interactive-inference>`__ 
+   
+
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 Install requirements
 --------------------
@@ -59,14 +78,14 @@ Install requirements
 .. code:: ipython3
 
     %pip install --upgrade pip
-    %pip install -q "openvino>=2024.0.0"
-    %pip install -q "transformers>=4.35" Pillow "gradio>=4.19" opencv-python
+    %pip install -q "openvino>=2024.0.0" "nncf>=2.11.0" "datasets>=2.20.0"
+    %pip install -q "transformers>=4.35" Pillow "gradio>=4.19" opencv-python "matplotlib>=3.4"
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu torch torchvision
 
 
 .. parsed-literal::
 
-    Requirement already satisfied: pip in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (24.0)
+    Requirement already satisfied: pip in /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (24.3.1)
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
@@ -133,15 +152,10 @@ example <https://huggingface.co/microsoft/kosmos-2-patch14-224>`__
 
 .. parsed-literal::
 
-    2024-05-16 00:29:11.534432: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-05-16 00:29:11.569240: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-11-05 01:44:54.753766: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-11-05 01:44:54.788691: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-05-16 00:29:12.061235: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
-      warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
-      warnings.warn(
-    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+    2024-11-05 01:44:55.309895: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -360,11 +374,11 @@ Vision model accept ``pixel_values`` and returns ``image_embeds``.
 .. parsed-literal::
 
     [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4371: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4713: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/kosmos2/modeling_kosmos2.py:469: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/kosmos2/modeling_kosmos2.py:465: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attn_weights.size() != (bsz * self.num_heads, tgt_len, src_len):
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/kosmos2/modeling_kosmos2.py:509: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/kosmos2/modeling_kosmos2.py:505: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attn_output.size() != (bsz * self.num_heads, tgt_len, self.head_dim):
 
 
@@ -392,7 +406,7 @@ Convert Image To Text Projection model
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:165: UserWarning: The .grad attribute of a Tensor that is not a leaf Tensor is being accessed. Its .grad attribute won't be populated during autograd.backward(). If you indeed want the .grad field to be populated for a non-leaf Tensor, use .retain_grad() on the non-leaf Tensor. If you access the non-leaf Tensor by mistake, make sure you access the leaf Tensor instead. See github.com/pytorch/pytorch/pull/30531 for more informations. (Triggered internally at aten/src/ATen/core/TensorBody.h:489.)
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:165: UserWarning: The .grad attribute of a Tensor that is not a leaf Tensor is being accessed. Its .grad attribute won't be populated during autograd.backward(). If you indeed want the .grad field to be populated for a non-leaf Tensor, use .retain_grad() on the non-leaf Tensor. If you access the non-leaf Tensor by mistake, make sure you access the leaf Tensor instead. See github.com/pytorch/pytorch/pull/30531 for more informations. (Triggered internally at aten/src/ATen/core/TensorBody.h:489.)
       if a.grad is not None:
 
 
@@ -527,13 +541,13 @@ generated text by ``AutoProcessor``.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/kosmos2/modeling_kosmos2.py:808: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/kosmos2/modeling_kosmos2.py:804: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if max_pos > self.weights.size(0):
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/kosmos2/modeling_kosmos2.py:1117: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/kosmos2/modeling_kosmos2.py:1113: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if input_shape[-1] > 1:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/kosmos2/modeling_kosmos2.py:924: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/kosmos2/modeling_kosmos2.py:920: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attention_mask.size() != (batch_size, 1, seq_length, src_len):
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/kosmos2/modeling_kosmos2.py:1210: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/kosmos2/modeling_kosmos2.py:1206: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if past_key_values_length > 0:
 
 
@@ -547,16 +561,18 @@ from the dropdown list:
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    import requests
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
     
     
     core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
     
     device
 
@@ -631,6 +647,7 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
                 out_features=model.text_model.config.vocab_size,
                 bias=False,
             )
+            self._supports_cache_class = False
     
         def get_input_embeddings(self) -> nn.Module:
             return self.model.embed_tokens
@@ -833,30 +850,38 @@ Inference
 
 .. code:: ipython3
 
-    generated_ids_ = ov_model.generate(
-        pixel_values=inputs["pixel_values"],
-        input_ids=inputs["input_ids"],
-        attention_mask=inputs["attention_mask"],
-        image_embeds=None,
-        image_embeds_position_mask=inputs["image_embeds_position_mask"],
-        max_new_tokens=128,
-    )
+    def generate_entities(model):
+        generated_ids = model.generate(
+            pixel_values=inputs["pixel_values"],
+            input_ids=inputs["input_ids"],
+            attention_mask=inputs["attention_mask"],
+            image_embeds=None,
+            image_embeds_position_mask=inputs["image_embeds_position_mask"],
+            max_new_tokens=128,
+        )
     
-    generated_text = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
+        generated_text = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
     
-    # Specify `cleanup_and_extract=False` in order to see the raw model generation.
-    processed_text = processor.post_process_generation(generated_text, cleanup_and_extract=False)
-    print(f"Raw model generation: {processed_text}")
-    # `<grounding> An image of<phrase> a snowman</phrase><object><patch_index_0044><patch_index_0863></object> warming himself by<phrase> a fire</phrase><object><patch_index_0005><patch_index_0911></object>.`
+        # Specify `cleanup_and_extract=False` in order to see the raw model generation.
+        processed_text = processor.post_process_generation(generated_text, cleanup_and_extract=False)
+        print(f"Raw model generation: {processed_text}")
+        # `<grounding> An image of<phrase> a snowman</phrase><object><patch_index_0044><patch_index_0863></object> warming himself by<phrase> a fire</phrase><object><patch_index_0005><patch_index_0911></object>.`
     
-    # By default, the generated  text is cleanup and the entities are extracted.
-    processed_text, entities = processor.post_process_generation(generated_text)
+        # By default, the generated  text is cleanup and the entities are extracted.
+        processed_text, entities = processor.post_process_generation(generated_text)
     
-    print(f"Cleaned up generated text: {processed_text=}")
-    # `An image of a snowman warming himself by a fire.`
+        print(f"Cleaned up generated text: {processed_text=}")
+        # `An image of a snowman warming himself by a fire.`
     
-    print(f"Extracted entities: {entities}")
-    # `[('a snowman', (12, 21), [(0.390625, 0.046875, 0.984375, 0.828125)]), ('a fire', (41, 47), [(0.171875, 0.015625, 0.484375, 0.890625)])]`
+        print(f"Extracted entities: {entities}")
+        # `[('a snowman', (12, 21), [(0.390625, 0.046875, 0.984375, 0.828125)]), ('a fire', (41, 47), [(0.171875, 0.015625, 0.484375, 0.890625)])]`
+        return entities
+
+.. code:: ipython3
+
+    entities = generate_entities(ov_model)
+    new_image = draw_entity_boxes_on_image(image, entities)
+    display(new_image)
 
 
 .. parsed-literal::
@@ -866,14 +891,507 @@ Inference
     Extracted entities: [('a snowman', (12, 21), [(0.390625, 0.046875, 0.984375, 0.828125)]), ('a fire', (41, 47), [(0.171875, 0.015625, 0.484375, 0.890625)])]
 
 
+
+.. image:: kosmos2-multimodal-large-language-model-with-output_files/kosmos2-multimodal-large-language-model-with-output_29_1.png
+
+
+Quantization
+------------
+
+
+
+`NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
+post-training quantization by adding quantization layers into model
+graph and then using a subset of the training dataset to initialize the
+parameters of these additional quantization layers. Quantized operations
+are executed in ``INT8`` instead of ``FP32``/``FP16`` making model
+inference faster.
+
+Please select below whether you would like to run quantization to
+improve model inference speed.
+
+   **NOTE**: Quantization is time and memory consuming operation.
+   Running quantization code below may take some time.
+
 .. code:: ipython3
 
-    new_image = draw_entity_boxes_on_image(image, entities)
-    display(new_image)
+    from notebook_utils import quantization_widget
+    
+    to_quantize = quantization_widget()
+    to_quantize
 
 
 
-.. image:: kosmos2-multimodal-large-language-model-with-output_files/kosmos2-multimodal-large-language-model-with-output_29_0.png
+
+.. parsed-literal::
+
+    Checkbox(value=True, description='Quantization')
+
+
+
+Let’s load ``skip magic`` extension to skip quantization if
+``to_quantize`` is not selected
+
+.. code:: ipython3
+
+    # Fetch `skip_kernel_extension` module
+    import requests
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
+    )
+    open("skip_kernel_extension.py", "w").write(r.text)
+    
+    ov_optimized_model = None
+    
+    %load_ext skip_kernel_extension
+
+Prepare calibration datasets
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+We use a portion of
+`KoalaAI/StockImages-CC0 <https://huggingface.co/datasets/KoalaAI/StockImages-CC0>`__
+dataset from Hugging Face as calibration data.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    INT8_VISION_MODEL_IR_PATH = models_base_folder / "vision_model_int8.xml"
+    INT8_IMAGE_TO_TEXT_PROJECTION_MODEL_IR_PATH = models_base_folder / "image_to_text_projection_model_int8.xml"
+    INT4_FIRST_STAGE_MODEL_PATH = models_base_folder / "kosmos_input_embed_int4.xml"
+    INT4_SECOND_STAGE_MODEL_PATH = models_base_folder / "kosmos_with_past_int4.xml"
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    import datasets
+    
+    prompt = "<grounding>An image of"
+    subset_size = 200
+    
+    dataset = datasets.load_dataset("KoalaAI/StockImages-CC0", split="train", streaming=True, trust_remote_code=True)
+    dataset = dataset.shuffle(seed=42).take(subset_size).select_columns(["image"])
+
+To collect intermediate model inputs for calibration we should customize
+``CompiledModel`` and ``InferRequest``.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    from tqdm.notebook import tqdm
+    from transformers import set_seed
+    
+    set_seed(42)
+    
+    def collect_calibration_data(pipeline, dataset, subset_size):
+        calibration_dataset = {
+            "vision_model": [],
+            "image_to_text_proj": [],
+        }
+        for data in tqdm(dataset, total=subset_size, desc="Collecting calibration dataset"):
+            img = data["image"]
+            pixel_values = processor(text=prompt, images=img, return_tensors="pt")["pixel_values"]
+            vision_model_output = pipeline.vision_model(pixel_values)
+            image_embeds = model.vision_model.model.post_layernorm(vision_model_output[0])
+    
+            image_embeds = nn.functional.normalize(image_embeds, dim=-1)
+            calibration_dataset["vision_model"].append(pixel_values)
+            calibration_dataset["image_to_text_proj"].append(image_embeds.detach().numpy())
+        return calibration_dataset
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    if not (INT8_VISION_MODEL_IR_PATH.exists() and INT8_IMAGE_TO_TEXT_PROJECTION_MODEL_IR_PATH.exists()):
+        calibration_dataset = collect_calibration_data(ov_model, dataset, subset_size)
+
+
+
+.. parsed-literal::
+
+    Collecting calibration dataset:   0%|          | 0/200 [00:00<?, ?it/s]
+
+
+Run Quantization
+~~~~~~~~~~~~~~~~
+
+
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    import nncf
+    
+    if not INT8_VISION_MODEL_IR_PATH.exists():
+        vision_model = core.read_model(VISION_MODEL_IR_PATH)
+        quantized_model = nncf.quantize(
+            model=vision_model,
+            calibration_dataset=nncf.Dataset(calibration_dataset["vision_model"]),
+            subset_size=subset_size,
+            model_type=nncf.ModelType.TRANSFORMER,
+        )
+        ov.save_model(quantized_model, INT8_VISION_MODEL_IR_PATH)
+
+
+.. parsed-literal::
+
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    if not INT8_IMAGE_TO_TEXT_PROJECTION_MODEL_IR_PATH.exists():
+        image_to_text_proj_model = core.read_model(IMAGE_TO_TEXT_PROJECTION_MODEL_IR_PATH)
+        quantized_model = nncf.quantize(
+            model=image_to_text_proj_model,
+            calibration_dataset=nncf.Dataset(calibration_dataset["image_to_text_proj"]),
+            subset_size=subset_size,
+            model_type=nncf.ModelType.TRANSFORMER,
+        )
+        ov.save_model(quantized_model, INT8_IMAGE_TO_TEXT_PROJECTION_MODEL_IR_PATH)
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+Run Weights Compression
+^^^^^^^^^^^^^^^^^^^^^^^
+
+
+
+Quantizing of the Text Model does not significantly improve inference
+performance but can lead to a substantial degradation of accuracy. The
+weight compression will be applied to footprint reduction.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    import nncf
+    
+    if not INT4_FIRST_STAGE_MODEL_PATH.exists():
+        model_stage_1 = core.read_model(FIRST_STAGE_MODEL_PATH)
+        quantized_model = nncf.compress_weights(model_stage_1, nncf.CompressWeightsMode.INT4_ASYM)
+        ov.save_model(quantized_model, INT4_FIRST_STAGE_MODEL_PATH)
+    
+    if not INT4_SECOND_STAGE_MODEL_PATH.exists():
+        model_stage_2 = core.read_model(SECOND_STAGE_MODEL_PATH)
+        quantized_model = nncf.compress_weights(model_stage_2, nncf.CompressWeightsMode.INT4_ASYM)
+        ov.save_model(quantized_model, INT4_SECOND_STAGE_MODEL_PATH)
+
+
+.. parsed-literal::
+
+    INFO:nncf:Statistics of the bitwidth distribution:
+    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │              8 │ 11% (3 / 146)               │ 0% (0 / 143)                           │
+    ├────────────────┼─────────────────────────────┼────────────────────────────────────────┤
+    │              4 │ 89% (143 / 146)             │ 100% (143 / 143)                       │
+    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    INFO:nncf:Statistics of the bitwidth distribution:
+    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
+    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
+    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
+    │              8 │ 11% (3 / 146)               │ 0% (0 / 143)                           │
+    ├────────────────┼─────────────────────────────┼────────────────────────────────────────┤
+    │              4 │ 89% (143 / 146)             │ 100% (143 / 143)                       │
+    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+Let’s compare the images generated by the original and optimized
+pipelines.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    ov_optimized_model = Kosmos2ForConditionalGenerationWrapper(
+        INT8_VISION_MODEL_IR_PATH,
+        INT8_IMAGE_TO_TEXT_PROJECTION_MODEL_IR_PATH,
+        INT4_FIRST_STAGE_MODEL_PATH,
+        INT4_SECOND_STAGE_MODEL_PATH,
+        device,
+    )
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    import matplotlib.pyplot as plt
+    
+    
+    def visualize_results(orig_img: Image, optimized_img: Image):
+        """
+        Helper function for results visualization
+    
+        Parameters:
+           orig_img (Image.Image): generated image using FP16 models
+           optimized_img (Image.Image): generated image using quantized models
+        Returns:
+           fig (matplotlib.pyplot.Figure): matplotlib generated figure contains drawing result
+        """
+        orig_title = "FP32 model"
+        control_title = "INT8 model"
+        figsize = (20, 20)
+        fig, axs = plt.subplots(1, 2, figsize=figsize, sharex="all", sharey="all")
+        list_axes = list(axs.flat)
+        for a in list_axes:
+            a.set_xticklabels([])
+            a.set_yticklabels([])
+            a.get_xaxis().set_visible(False)
+            a.get_yaxis().set_visible(False)
+            a.grid(False)
+        list_axes[0].imshow(np.array(orig_img))
+        list_axes[1].imshow(np.array(optimized_img))
+        list_axes[0].set_title(orig_title, fontsize=15)
+        list_axes[1].set_title(control_title, fontsize=15)
+    
+        fig.subplots_adjust(wspace=0.01, hspace=0.01)
+        fig.tight_layout()
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    int_entities = generate_entities(ov_optimized_model)
+    int_image = draw_entity_boxes_on_image(image, int_entities)
+    visualize_results(new_image, int_image)
+
+
+.. parsed-literal::
+
+    Raw model generation: <grounding> An image of<phrase> a snowman</phrase><object><patch_index_0044><patch_index_0863></object> warming himself by<phrase> a fire</phrase><object><patch_index_0006><patch_index_0879></object>.
+    Cleaned up generated text: processed_text='An image of a snowman warming himself by a fire.'
+    Extracted entities: [('a snowman', (12, 21), [(0.390625, 0.046875, 0.984375, 0.828125)]), ('a fire', (41, 47), [(0.203125, 0.015625, 0.484375, 0.859375)])]
+
+
+
+.. image:: kosmos2-multimodal-large-language-model-with-output_files/kosmos2-multimodal-large-language-model-with-output_48_1.png
+
+
+Compare model file sizes
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    fp32_model_paths = [VISION_MODEL_IR_PATH, IMAGE_TO_TEXT_PROJECTION_MODEL_IR_PATH, FIRST_STAGE_MODEL_PATH, SECOND_STAGE_MODEL_PATH]
+    int8_model_paths = [INT8_VISION_MODEL_IR_PATH, INT8_IMAGE_TO_TEXT_PROJECTION_MODEL_IR_PATH, INT4_FIRST_STAGE_MODEL_PATH, INT4_SECOND_STAGE_MODEL_PATH]
+    
+    for fp32_path, int8_path in zip(fp32_model_paths, int8_model_paths):
+        fp32_ir_model_size = fp32_path.with_suffix(".bin").stat().st_size
+        int8_model_size = int8_path.with_suffix(".bin").stat().st_size
+        print(f"{fp32_path.stem} compression rate: {fp32_ir_model_size / int8_model_size:.3f}")
+
+
+.. parsed-literal::
+
+    vision_model compression rate: 3.956
+    image_to_text_projection_model compression rate: 3.899
+    kosmos_input_embed compression rate: 3.475
+    kosmos_with_past compression rate: 3.475
+
+
+Compare inference time of the FP32 and optimized pipelines
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+To measure the inference performance of the ``FP32`` and optimized
+pipelines, we use mean inference time on 7 samples.
+
+   **NOTE**: For the most accurate performance estimation, it is
+   recommended to run ``benchmark_app`` in a terminal/command prompt
+   after closing other applications.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    import time
+    
+    def calculate_inference_time(pipeline, dataset):
+        inference_time = []
+        for data in dataset.take(7):
+            img = data["image"]
+            inputs = processor(text=prompt, images=img, return_tensors="pt")
+    
+            start = time.perf_counter()
+            _ = pipeline.generate(
+                pixel_values=inputs["pixel_values"],
+                input_ids=inputs["input_ids"],
+                attention_mask=inputs["attention_mask"],
+                image_embeds=None,
+                image_embeds_position_mask=inputs["image_embeds_position_mask"],
+                max_new_tokens=128,
+            )
+    
+            end = time.perf_counter()
+            delta = end - start
+            inference_time.append(delta)
+        return np.mean(inference_time)
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    fp_latency = calculate_inference_time(ov_model, dataset)
+    print(f"FP32 pipeline: {fp_latency:.3f} seconds")
+    int_latency = calculate_inference_time(ov_optimized_model, dataset)
+    print(f"Optimized pipeline: {int_latency:.3f} seconds")
+    print(f"Performance speed-up: {fp_latency / int_latency:.3f}")
+
+
+.. parsed-literal::
+
+    FP32 pipeline: 2.746 seconds
+    Optimized pipeline: 1.140 seconds
+    Performance speed-up: 2.409
 
 
 Interactive inference
@@ -881,26 +1399,44 @@ Interactive inference
 
 
 
+Please select below whether you would like to use the quantized models
+to launch the interactive demo.
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    quantized_models_present = ov_optimized_model is not None
+    
+    use_quantized_models = widgets.Checkbox(
+        value=quantized_models_present,
+        description="Use quantized models",
+        disabled=not quantized_models_present,
+    )
+    
+    use_quantized_models
+
+
+
+
+.. parsed-literal::
+
+    Checkbox(value=True, description='Use quantized models')
+
+
+
 .. code:: ipython3
 
     import gradio as gr
     
-    
-    images = {
-        "snowman.png": "https://huggingface.co/microsoft/kosmos-2-patch14-224/resolve/main/snowman.png",
-        "two_dogs.jpg": "https://huggingface.co/microsoft/kosmos-2-patch14-224/resolve/main/two_dogs.jpg",
-        "six_planes.png": "https://ydshieh-kosmos-2.hf.space/file=/home/user/app/images/six_planes.png",
-    }
-    for image_name, url in images.items():
-        image = Image.open(requests.get(url, stream=True).raw)
-        image.save(image_name)
+    pipeline = ov_optimized_model if use_quantized_models.value else ov_model
     
     
     def generate(image, prompt, use_bbox, _=gr.Progress(track_tqdm=True)):
         if use_bbox:
             prompt = "<grounding> " + prompt
         inputs = processor(text=prompt, images=image, return_tensors="pt")
-        generated_ids_ = ov_model.generate(
+        generated_ids_ = pipeline.generate(
             pixel_values=inputs["pixel_values"],
             input_ids=inputs["input_ids"],
             attention_mask=inputs["attention_mask"],
@@ -916,21 +1452,16 @@ Interactive inference
         return new_image, processed_text
     
     
-    demo = gr.Interface(
-        generate,
-        [
-            gr.Image(label="Input image"),
-            gr.Textbox(label="Prompt"),
-            gr.Checkbox(label="Show bounding boxes", value=True),
-        ],
-        ["image", "text"],
-        examples=[
-            ["snowman.png", "An image of"],
-            ["two_dogs.jpg", "Describe this image in detail:"],
-            ["six_planes.png", "What is going on?"],
-        ],
-        allow_flagging="never",
-    )
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/kosmos2-multimodal-large-language-model/gradio_helper.py"
+        )
+        open("gradio_helper.py", "w").write(r.text)
+    
+    from gradio_helper import make_demo
+    
+    demo = make_demo(fn=generate)
+    
     try:
         demo.queue().launch(debug=False)
     except Exception:
@@ -952,3 +1483,8 @@ Interactive inference
 
 
 
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

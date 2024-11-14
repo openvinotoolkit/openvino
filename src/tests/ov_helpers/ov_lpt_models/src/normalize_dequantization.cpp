@@ -4,6 +4,7 @@
 
 #include "ov_lpt_models/normalize_dequantization.hpp"
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_ops/type_relaxed.hpp"
 
@@ -14,9 +15,17 @@ namespace subgraph {
     std::shared_ptr<ov::Model> NormalizeDequantizationFunction::getOriginal(
         const ov::element::Type precision,
         const ov::Shape& inputShape,
-        const ov::builder::subgraph::DequantizationOperations dequantization) {
-        const auto input = std::make_shared<ov::op::v0::Parameter>(precision, inputShape);
-
+        const ov::builder::subgraph::DequantizationOperations dequantization,
+        bool constant_path) {
+        std::shared_ptr<ov::Node> input;
+        ov::ParameterVector params;
+        if (constant_path) {
+            input = ov::test::utils::make_constant(precision, inputShape);
+        } else {
+            auto param = std::make_shared<ov::op::v0::Parameter>(precision, inputShape);
+            params.push_back(param);
+            input = param;
+        }
         const auto deq = makeDequantization(input, dequantization);
 
         const auto op =
@@ -30,7 +39,7 @@ namespace subgraph {
 
         return std::make_shared<ov::Model>(
             ov::ResultVector{ std::make_shared<ov::opset1::Result>(targetOp) },
-            ov::ParameterVector{ input },
+            params,
             "NormalizeDequantizationFunction");
     }
 

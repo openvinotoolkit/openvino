@@ -1,12 +1,10 @@
-.. {#openvino_docs_ops_sort_NonMaxSuppression_1}
-
 NonMaxSuppression
 =================
 
 
 .. meta::
-  :description: Learn about NonMaxSuppression-1 - a sorting and maximization 
-                operation, which can be performed on two required and three 
+  :description: Learn about NonMaxSuppression-1 - a sorting and maximization
+                operation, which can be performed on two required and three
                 optional input tensors.
 
 **Versioned name**: *NonMaxSuppression-1*
@@ -52,24 +50,24 @@ class must not exceed ``max_output_boxes_per_class``.
 
 **Inputs**:
 
-*   **1**: ``boxes`` - floating-point tensor of shape ``[num_batches, num_boxes, 4]`` with box coordinates. **Required.**
+* **1**: ``boxes`` - floating-point tensor of shape ``[num_batches, num_boxes, 4]`` with box coordinates. **Required.**
 
-*   **2**: ``scores`` - floating-point tensor of shape ``[num_batches, num_classes, num_boxes]`` with box scores. **Required.**
+* **2**: ``scores`` - floating-point tensor of shape ``[num_batches, num_classes, num_boxes]`` with box scores. **Required.**
 
-*   **3**: ``max_output_boxes_per_class`` - integer scalar tensor specifying maximum number of boxes to be selected per class. Optional with default value 0 meaning select no boxes.
+* **3**: ``max_output_boxes_per_class`` - integer scalar tensor specifying maximum number of boxes to be selected per class. Optional with default value 0 meaning select no boxes.
 
-*   **4**: ``iou_threshold`` - floating-point scalar tensor specifying intersection over union threshold. Optional with default value 0 meaning keep all boxes.
+* **4**: ``iou_threshold`` - floating-point scalar tensor specifying intersection over union threshold. Optional with default value 0 meaning keep all boxes.
 
-*   **5**: ``score_threshold`` - floating-point scalar tensor specifying minimum score to consider box for the processing. Optional with default value 0.
+* **5**: ``score_threshold`` - floating-point scalar tensor specifying minimum score to consider box for the processing. Optional with default value 0.
 
 **Outputs**:
 
-*   **1**: ``selected_indices`` - integer tensor of shape ``[min(num_boxes, max_output_boxes_per_class * num_classes), 3]`` containing information about selected boxes as triplets ``[batch_index, class_index, box_index]``.
-The output tensor is filled with -1s for output tensor elements if the total number of selected boxes is less than the output tensor size.
+* **1**: ``selected_indices`` - integer tensor of shape ``[min(num_boxes, max_output_boxes_per_class * num_classes), 3]`` containing information about selected boxes as triplets ``[batch_index, class_index, box_index]``.
+  The output tensor is filled with -1s for output tensor elements if the total number of selected boxes is less than the output tensor size.
 
 **Example**
 
-.. code-block::  cpp 
+.. code-block::  cpp
 
   <layer ... type="NonMaxSuppression" ... >
       <data box_encoding="corner" sort_result_descending="1"/>

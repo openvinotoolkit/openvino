@@ -23,22 +23,22 @@
 #endif
 
 #ifdef REDUCE_MODE
-    #define SUM 1
-    #define PROD 2
-    #define MIN 3
-    #define MAX 4
-    #define MEAN 5
+    #define SUM_MODE 1
+    #define PROD_MODE 2
+    #define MIN_MODE 3
+    #define MAX_MODE 4
+    #define MEAN_MODE 5
 
     #if USE_INIT_VAL == 0
-        #if REDUCE_MODE == SUM
+        #if REDUCE_MODE == SUM_MODE
             #define REDUCTION_NEUTRAL_VALUE INPUT0_VAL_ZERO
-        #elif REDUCE_MODE == PROD
+        #elif REDUCE_MODE == PROD_MODE
             #define REDUCTION_NEUTRAL_VALUE INPUT0_VAL_ONE
-        #elif REDUCE_MODE == MIN
+        #elif REDUCE_MODE == MIN_MODE
             #define REDUCTION_NEUTRAL_VALUE INPUT0_VAL_MAX
-        #elif REDUCE_MODE == MAX
+        #elif REDUCE_MODE == MAX_MODE
             #define REDUCTION_NEUTRAL_VALUE INPUT0_VAL_MIN
-        #elif REDUCE_MODE == MEAN
+        #elif REDUCE_MODE == MEAN_MODE
             #define REDUCTION_NEUTRAL_VALUE INPUT0_VAL_ZERO
         #else
             #error "Invalid REDUCE_MODE value"
@@ -47,15 +47,15 @@
 
     inline INPUT2_TYPE FUNC(reduce)(INPUT2_TYPE a, INPUT2_TYPE b)
     {
-    #if REDUCE_MODE == SUM
+    #if REDUCE_MODE == SUM_MODE
         return a + b;
-    #elif REDUCE_MODE == PROD
+    #elif REDUCE_MODE == PROD_MODE
         return a * b;
-    #elif REDUCE_MODE == MIN
-        return min(a, b);
-    #elif REDUCE_MODE == MAX
-        return max(a, b);
-    #elif REDUCE_MODE == MEAN
+    #elif REDUCE_MODE == MIN_MODE
+        return MIN(a, b);
+    #elif REDUCE_MODE == MAX_MODE
+        return MAX(a, b);
+    #elif REDUCE_MODE == MEAN_MODE
         return (a + b) / (INPUT2_TYPE)(1 + USE_INIT_VAL);
     #else
         #error "Invalid REDUCE_MODE value"
@@ -205,11 +205,11 @@ KERNEL(scatter_elements_update_ref)(const __global INPUT0_TYPE* data,
 }
 
 #ifdef REDUCE_MODE
-    #undef SUM
-    #undef PROD
-    #undef MIN
-    #undef MAX
-    #undef MEAN
+    #undef SUM_MODE
+    #undef PROD_MODE
+    #undef MIN_MODE
+    #undef MAX_MODE
+    #undef MEAN_MODE
     #undef REDUCTION_NEUTRAL_VALUE
 #endif
 

@@ -67,8 +67,9 @@ represented on the image below:
 In this tutorial, we consider how to use ImageBind for multimodal
 zero-shot classification.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Instantiate PyTorch model <#instantiate-pytorch-model>`__
@@ -111,6 +112,16 @@ Table of contents:
       -  `Text model <#text-model>`__
       -  `Audio model <#audio-model>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Prerequisites
 -------------
 
@@ -120,8 +131,8 @@ Prerequisites
 
     import platform
     
-    %pip install -q "torch>=2.0.1" "torchvision>=0.15.2,<0.17.0" "torchaudio>=2.0.2" --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q datasets librosa soundfile pytorchvideo ftfy "timm>=0.6.7" einops fvcore "openvino>=2024.0.0" "nncf>=2.9.0" numpy scipy --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "torch>=2.0.1" "torchvision>=0.15.2,<0.17.0" "torchaudio>=2.0.2" "matplotlib>=3.4" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q datasets regex librosa soundfile pytorchvideo ftfy "timm>=0.6.7" einops fvcore "openvino>=2024.0.0" "nncf>=2.9.0" numpy scipy --extra-index-url https://download.pytorch.org/whl/cpu
     
     
     if platform.system() != "Windows":
@@ -166,17 +177,6 @@ card <https://github.com/facebookresearch/ImageBind/blob/main/model_card.md>`__.
     # Instantiate model
     model = imagebind_model.imagebind_huge(pretrained=True)
     model.eval();
-
-
-.. parsed-literal::
-
-    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/torchvision/transforms/functional_tensor.py:5: UserWarning: The torchvision.transforms.functional_tensor module is deprecated in 0.15 and will be **removed in 0.17**. Please don't rely on it. You probably just need to use APIs in torchvision.transforms.functional or in torchvision.transforms.v2.functional.
-      warnings.warn(
-    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/torchvision/transforms/_functional_video.py:6: UserWarning: The 'torchvision.transforms._functional_video' module is deprecated since 0.12 and will be removed in the future. Please use the 'torchvision.transforms.functional' module instead.
-      warnings.warn(
-    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/torchvision/transforms/_transforms_video.py:22: UserWarning: The 'torchvision.transforms._transforms_video' module is deprecated since 0.12 and will be removed in the future. Please use the 'torchvision.transforms' module instead.
-      warnings.warn(
-
 
 Prepare input data
 ------------------
@@ -265,14 +265,16 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    import requests
     
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget()
     
     device
 
@@ -287,6 +289,10 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
+    import openvino as ov
+    
+    core = ov.Core()
+    
     ov_modality_models = {}
     
     modalities = [ModalityType.TEXT, ModalityType.VISION, ModalityType.AUDIO]
@@ -641,7 +647,7 @@ quantize image and text models.
         """
         Prepares a vision-text dataset for quantization by collecting vision and text data.
         """
-        dataset = load_dataset("conceptual_captions", streaming=False)
+        dataset = load_dataset("google-research-datasets/conceptual_captions", streaming=False, trust_remote_code=True)
         train_dataset = dataset["train"].shuffle(seed=0)
         dataloader = torch.utils.data.DataLoader(train_dataset, collate_fn=collate_fn, batch_size=1)
         vision_data, text_data = collect_vision_text_data(dataloader, opt_init_steps)
@@ -677,7 +683,7 @@ consists of 5-second-long recordings organized into 50 semantic classes.
         Collects audio data from the dataloader by calling the `collect_audio_data` function.
         Returns a list containing the collected calibration audio data batches.
         """
-        audio_dataset = load_dataset("ashraq/esc50", streaming=True)
+        audio_dataset = load_dataset("ashraq/esc50", streaming=True, trust_remote_code=True)
         train_dataset = audio_dataset["train"].shuffle(seed=42, buffer_size=1000)
     
         def collate_fn(examples):
@@ -704,7 +710,7 @@ consists of 5-second-long recordings organized into 50 semantic classes.
 Apply quantization
 ~~~~~~~~~~~~~~~~~~
 
- ### Apply quantization
+
 
 .. code:: ipython3
 
@@ -765,8 +771,7 @@ Quantize ImageBind model for text modality
 Quantize ImageBind model for audio modality
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
- #### Quantize ImageBind model
-for audio modality
+
 
 .. code:: ipython3
 

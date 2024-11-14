@@ -33,8 +33,7 @@ ov::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter() {
     matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto scatter = m.get_match_root();
         auto broadcast = scatter->input_value(1).get_node_shared_ptr();
-        auto axis_const =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(scatter->input_value(3).get_node_shared_ptr());
+        auto axis_const = ov::as_type_ptr<ov::op::v0::Constant>(scatter->input_value(3).get_node_shared_ptr());
 
         if (!axis_const) {
             return false;
@@ -61,9 +60,8 @@ ov::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter() {
             return false;
         }
 
-        const auto axis = ov::util::normalize_axes(scatter->get_friendly_name(),
-                                                   axis_const->cast_vector<int64_t>(),
-                                                   data_pshape.rank())[0];
+        const auto axis =
+            ov::util::try_normalize_axis(axis_const->cast_vector<int64_t>()[0], data_pshape.rank(), *scatter);
 
         struct Range {
             uint64_t l, r;

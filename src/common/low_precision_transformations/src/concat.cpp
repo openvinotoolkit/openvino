@@ -40,11 +40,11 @@ ConcatTransformation::ConcatTransformation(const Params& params) : LayerTransfor
 }
 
 bool ConcatTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
-    std::shared_ptr<ov::opset1::Concat> concat = ov::as_type_ptr<ov::opset1::Concat>(m.get_match_root());
-    if (!canBeTransformed(context, concat)) {
+    if (!canBeTransformed(context, m.get_match_root())) {
         return false;
     }
 
+    const auto concat = ov::as_type_ptr<ov::opset1::Concat>(NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions));
     std::vector<FakeQuantizeDequantization> layerDequantizations;
     layerDequantizations.reserve(concat->get_input_size());
     for (size_t parentIndex = 0ul; parentIndex < concat->get_input_size(); parentIndex++) {
@@ -100,9 +100,8 @@ bool ConcatTransformation::transform(TransformationContext& context, ov::pass::p
         [](const FakeQuantizeDequantization& value) { return !value.isLowPrecision(); });
 
     bool DqWithDifferentPrecision = someDqInLowPrecision && someDqInFpPrecision;
-    const auto axis = ov::util::normalize_axis(concat->get_friendly_name(),
-                                               concat->get_axis(),
-                                               concat->get_output_partial_shape(0).rank());
+    const auto axis =
+        ov::util::try_normalize_axis(concat->get_axis(), concat->get_output_partial_shape(0).rank(), *concat);
 
     OutputVector dataNodes;
     NodeVector convertNodes;
@@ -196,7 +195,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ov::pass::p
     NetworkHelper::copyInfo(concat, newConcat);
     updateOutput(context, lastDequantization, newConcat);
 
-    OPENVINO_DEBUG << "LPT: done: " << newConcat;
+    OPENVINO_DEBUG("LPT: done: ", newConcat);
     return true;
 }
 
@@ -217,7 +216,7 @@ bool ConcatTransformation::canBeTransformed(const TransformationContext& context
         return false;
     }
 
-    const size_t normalizedAxis = ov::util::normalize_axis(concat->get_friendly_name(), axis, outRank);
+    const size_t normalizedAxis = ov::util::try_normalize_axis(axis, outRank, *concat);
     if (outPShape[normalizedAxis].is_dynamic()) {
         return false;
     }

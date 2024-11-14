@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
+#include "sub_memory_manager.hpp"
 #include "cache/multi_cache.h"
 #include "config.h"
 #include "dnnl_scratch_pad.h"
@@ -17,6 +18,8 @@ namespace node {
 class MemoryStatesRegister;
 } // namespace node
 
+class NetworkMemoryControl;
+
 class GraphContext {
 public:
     typedef std::shared_ptr<GraphContext> Ptr;
@@ -25,7 +28,8 @@ public:
     GraphContext(const Config& config,
                  WeightsSharing::Ptr w_cache,
                  bool isGraphQuantized,
-                 ov::threading::IStreamsExecutor::Ptr streamExecutor = nullptr);
+                 ov::threading::IStreamsExecutor::Ptr streamExecutor = nullptr,
+                 std::shared_ptr<SubMemoryManager> sub_memory_manager = nullptr);
 
     const Config& getConfig() const {
         return config;
@@ -62,12 +66,20 @@ public:
         return cpuStreamExecutor;
     }
 
+    std::shared_ptr<SubMemoryManager> getSubMemory() const {
+        return subMemoryManager;
+    }
+
     int getNumNumaNodes() const {
         return numNumaNodes;
     }
 
     const std::shared_ptr<node::MemoryStatesRegister>& getMemoryStatesRegister() const {
         return memoryStatesRegister;
+    }
+
+    const std::shared_ptr<NetworkMemoryControl>& getNetworkMemoryControl() const {
+        return networkMemoryControl;
     }
 
 private:
@@ -86,9 +98,12 @@ private:
 
     ov::threading::CPUStreamsExecutor::Ptr cpuStreamExecutor;   // cpu stream executor for current graph
 
+    std::shared_ptr<SubMemoryManager> subMemoryManager;
+
     int numNumaNodes = 1;
 
     std::shared_ptr<node::MemoryStatesRegister> memoryStatesRegister;
+    std::shared_ptr<NetworkMemoryControl> networkMemoryControl;
 };
 
 }  // namespace intel_cpu

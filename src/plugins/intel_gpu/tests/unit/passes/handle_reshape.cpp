@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/primitives/permute.hpp"
 #include "test_utils.h"
 #include "random_generator.hpp"
 
@@ -16,7 +17,6 @@
 #include "broadcast_inst.h"
 #include "fully_connected_inst.h"
 #include "pass_manager.h"
-#include "to_string_utils.h"
 
 #include "program_wrapper.h"
 
@@ -44,9 +44,7 @@ TEST(handle_reshape, dont_remove_reshape_that_changes_rank) {
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto prog = program::build_program(engine, topology, config, false, true);
 
-    layout_optimizer lo(true);
-
-    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
     program_wrapper::apply_opt_pass<handle_reshape>(*prog);
 
     ASSERT_NE(prog, nullptr);
@@ -75,11 +73,9 @@ TEST(handle_reshape, dont_remove_reshape_that_changes_rank_chain) {
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto prog = program::build_program(engine, topology, config, false, true);
 
-    layout_optimizer lo(true);
-
-    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
     program_wrapper::apply_opt_pass<handle_reshape>(*prog);
-    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, lo);
+    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog);
 
     for (auto& n : prog->get_processing_order()) {
         n->recalc_output_layout(true);
@@ -112,7 +108,7 @@ TEST(handle_reshape, skip_reorder_node_to_split_when_onndnn_not_support) {
     topology.add(eltwise("e1", input_info("input"), input_info("data"), eltwise_mode::sum));
     topology.add(reshape("reshape", input_info("e1"), tensor(9, 1, 1, 1024), cldnn::reshape::reshape_mode::base));
     topology.add(reorder("convert_to_f32", input_info("reshape"), { data_types::f32, format::bfyx, { 9, 1, 1, 1024} }));
-    topology.add(fully_connected("matmul", input_info("reshape"), "weights", "bias", cldnn::padding(), 3, 2));
+    topology.add(fully_connected("matmul", input_info("reshape"), "weights", "bias", 3, 2));
     topology.add(reorder("convert_to_f32_matmul", input_info("matmul"), { data_types::f32, format::bfyx, { 9, 1, 1, 1024} }));
     topology.add(eltwise("e2", input_info("convert_to_f32"), input_info("convert_to_f32_matmul"), eltwise_mode::sum));
 
@@ -121,11 +117,10 @@ TEST(handle_reshape, skip_reorder_node_to_split_when_onndnn_not_support) {
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto prog = program::build_program(engine, topology, config, false, true);
 
-    layout_optimizer lo(true);
-    lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
+    prog->get_layout_optimizer().set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
     reorder_factory rf;
 
-    program_wrapper::apply_opt_pass<reorder_inputs>(*prog, lo, rf);
+    program_wrapper::apply_opt_pass<reorder_inputs>(*prog, rf);
     program_wrapper::apply_opt_pass<handle_reshape>(*prog);
 
     ASSERT_NE(prog, nullptr);
@@ -152,8 +147,6 @@ TEST(handle_reshape, correct_parameters_propagation) {
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto prog = program::build_program(engine, topology, config, false, true);
-
-    layout_optimizer lo(true);
 
     program_wrapper::apply_opt_pass<handle_reshape>(*prog);
 
@@ -194,8 +187,6 @@ TEST(handle_reshape, correct_parameters_propagation_2_inputs) {
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto prog = program::build_program(engine, topology, config, false, true);
-
-    layout_optimizer lo(true);
 
     program_wrapper::apply_opt_pass<handle_reshape>(*prog);
 
@@ -309,8 +300,6 @@ TEST(handle_reshape, reshape_opt_out_layout_update) {
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto prog = program::build_program(engine, topology, config, false, true);
-
-    layout_optimizer lo(true);
 
     program_wrapper::apply_opt_pass<handle_reshape>(*prog);
 

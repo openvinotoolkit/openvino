@@ -1,10 +1,33 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import sys
 from pathlib import Path
 
 from common.utils.common_utils import generate_ir
+from common.utils.common_utils import shell
+
 from openvino.test_utils import compare_functions
+from openvino.tools.ovc import ovc
+
+
+def generate_ir_ovc(coverage=False, **kwargs):
+    # Get OVC file directory
+    ovc_path = Path(ovc.__file__).parent
+
+    ovc_runner = ovc_path.joinpath('main.py').as_posix()
+    if coverage:
+        params = [sys.executable, '-m', 'coverage', 'run', '-p', '--source={}'.format(ovc_runner.parent),
+                  '--omit=*_test.py', ovc_runner]
+    else:
+        params = [sys.executable, ovc_runner]
+    for key, value in kwargs.items():
+        if key == "input_model":
+            params.append((str(value)))
+        else:
+            params.extend(("--{}".format(key), str(value)))
+    exit_code, stdout, stderr = shell(params)
+    return exit_code, stderr
 
 
 class CommonMOConvertTest:
@@ -54,16 +77,26 @@ class CommonMOConvertTest:
         flag, msg = compare_functions(ir_test, ir_ref)
         assert flag, msg
 
-    def _test_by_ref_graph(self, temp_dir, test_params, ref_graph, compare_tensor_names=True, compare_layout=True):
+    def _test_by_ref_graph(self, temp_dir, test_params, ref_graph, compare_tensor_names=True,
+                           compare_layout=True, ovc=False):
         """
         Generates IR using MO Python API, reads it and compares with reference graph.
         """
         from openvino import Core
         core = Core()
 
-        test_params.update({"model_name": 'model_test', "output_dir": temp_dir})
-        self.generate_ir_python_api(**test_params)
-        ir_test = core.read_model(Path(temp_dir, 'model_test.xml'))
+        if ovc:
+            ir_file_name = Path(temp_dir, 'model_test.xml')
+            test_params.update({"output_model": ir_file_name})
+            exit_code, stderr = generate_ir_ovc(coverage=False, **test_params)
+            assert not exit_code, stderr
+        else:
+            test_params.update({"model_name": 'model_test', "output_dir": temp_dir})
+            ir_file_name = Path(temp_dir, 'model_test.xml')
+            self.generate_ir_python_api(**test_params)
+
+        ir_test = core.read_model(ir_file_name)
+
         flag, msg = compare_functions(ir_test, ref_graph, compare_tensor_names=compare_tensor_names)
         assert flag, msg
 

@@ -71,7 +71,7 @@ TEST(type_prop, concat_deduce_axis_oob) {
 
     OV_EXPECT_THROW(ignore = make_shared<ov::op::v0::Concat>(ov::NodeVector{param0, param1, param2}, 3),
                     ov::AssertFailure,
-                    HasSubstr("Concat Parameter axis 3 out of the tensor rank range"));
+                    HasSubstr("Axis 3 out of the tensor rank range"));
 }
 
 TEST(type_prop, concat_deduce_axis_barely_in_bounds) {
@@ -256,7 +256,7 @@ TEST(type_prop, concat_partial_negative_axis_incorrect) {
 
     OV_EXPECT_THROW(ignore = make_shared<ov::op::v0::Concat>(ov::NodeVector{param0, param1, param2}, -4),
                     ov::AssertFailure,
-                    HasSubstr("Concat Parameter axis -4 out of the tensor rank range"));
+                    HasSubstr("Axis -4 out of the tensor rank range"));
 }
 
 /** \brief Test uses evaluate lower/upper and symbol of concat op. */

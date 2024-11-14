@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_movement_Gather_8}
-
 Gather
 ======
 
@@ -195,7 +193,7 @@ Example 7 with indices out of the range:
 **Outputs**
 
 * **1**: The resulting tensor of type *T* that consists of elements from ``data`` tensor gathered by ``indices``. The shape
-of the output tensor is ``data.shape[:axis] + indices.shape[batch_dims:] + data.shape[axis + 1:]``
+  of the output tensor is ``data.shape[:axis] + indices.shape[batch_dims:] + data.shape[axis + 1:]``
 
 **Types**
 

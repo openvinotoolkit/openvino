@@ -21,7 +21,7 @@ ModelProto parse_from_file(const std::string& file_path) {
     std::ifstream file_stream{file_path.c_str(), std::ios::in | std::ios::binary};
 
     if (!file_stream.is_open()) {
-        OPENVINO_THROW("Could not open the file: " + file_path);
+        OPENVINO_THROW("Could not open the file: \"" + file_path, '"');
     };
 
     auto model_proto = parse_from_istream(file_stream);
@@ -34,7 +34,7 @@ ModelProto parse_from_file(const std::wstring& file_path) {
     std::ifstream file_stream{file_path.c_str(), std::ios::in | std::ios::binary};
 
     if (!file_stream.is_open()) {
-        OPENVINO_THROW("Could not open the file: " + ov::util::wstring_to_string(file_path));
+        OPENVINO_THROW("Could not open the file: \"", ov::util::wstring_to_string(file_path), '"');
     };
 
     auto model_proto = parse_from_istream(file_stream);

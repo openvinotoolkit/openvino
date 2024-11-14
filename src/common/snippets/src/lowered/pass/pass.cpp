@@ -3,8 +3,9 @@
 //
 
 #include "snippets/lowered/pass/pass.hpp"
+#include "snippets/utils/linear_ir_pass_dumper.hpp"
 
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov {
 namespace snippets {
@@ -33,6 +34,8 @@ void PassPipeline::run(LinearIR& linear_ir) const {
 void PassPipeline::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) const {
     for (const auto& pass : m_passes) {
         OPENVINO_ASSERT(pass != nullptr, "PassPipeline has empty pass!");
+        SNIPPETS_DEBUG_LIR_PASS_DUMP(linear_ir, pass);
+
         if (m_pass_config->is_disabled(pass->get_type_info())) {
             continue;
         }

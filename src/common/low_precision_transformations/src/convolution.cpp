@@ -354,7 +354,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ov::pa
         ov::disable_constant_folding(onWeights);
     }
 
-    OPENVINO_DEBUG << "LPT: done: " << convolution;
+    OPENVINO_DEBUG("LPT: done: ", convolution);
     return true;
 }
 } // namespace low_precision

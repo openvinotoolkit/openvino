@@ -72,6 +72,23 @@ static inline std::vector<std::string> GetDefaultOrder(size_t size) {
     return default_order;
 }
 
+static inline std::string GetOrderString(const std::vector<std::string>& order) {
+    std::string order_str = order[0];
+    for (size_t i = 1; i < order.size(); i++)
+        order_str += ", " + order[i];
+
+    return order_str;
+}
+
+static std::string GetDataIndexOrder(const gather_elements_params& params, size_t axis) {
+    auto idx_order = GetDefaultOrder(params.outputs[0].GetDims().size());
+    auto index_macro = "indices[out_idx]";
+
+    idx_order[axis] = index_macro;
+
+    return GetOrderString(idx_order);
+}
+
 CommonDispatchData GatherElementsKernelRef::SetDefault(const gather_elements_params& params) const {
     CommonDispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
@@ -119,6 +136,7 @@ JitConstants GatherElementsKernelRef::GetJitConstants(const gather_elements_para
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     jit.AddConstant(MakeJitConstant("AXIS", GetGatherElementsChannelIndex(params)));
+    jit.AddConstant(MakeJitConstant("DATA_INDEX_ORDER", GetDataIndexOrder(params, GetGatherElementsChannelIndex(params))));
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order = GetDefaultOrder(params.inputs[0].GetDims().size());

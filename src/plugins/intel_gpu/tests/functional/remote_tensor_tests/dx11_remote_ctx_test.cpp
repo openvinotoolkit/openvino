@@ -113,7 +113,7 @@ struct DX11CachedTexture_Test : DX11RemoteCtx_Test {
     void SetUp() override {
         DX11RemoteCtx_Test::SetUp();
         ASSERT_FALSE(intel_adapters.empty());
-        ASSERT_NO_THROW(std::tie(device_ptr, ctx_ptr) =
+        OV_ASSERT_NO_THROW(std::tie(device_ptr, ctx_ptr) =
                         create_device_with_ctx(*intel_adapters.begin()));
 
         // create textures
@@ -183,7 +183,7 @@ struct DX11CachedTexture_Test : DX11RemoteCtx_Test {
             request.set_tensor(param_input_y, tensor.first);
             request.set_tensor(param_input_uv, tensor.second);
 
-            ASSERT_NO_THROW(request.infer());
+            OV_ASSERT_NO_THROW(request.infer());
             auto output_tensor = request.get_tensor(model->get_results().at(0));
         }
 
@@ -204,7 +204,7 @@ TEST_F(DX11RemoteCtx_Test, smoke_make_shared_context) {
     CComPtr<ID3D11Device> device_ptr;
     CComPtr<ID3D11DeviceContext> ctx_ptr;
 
-    ASSERT_NO_THROW(std::tie(device_ptr, ctx_ptr) =
+    OV_ASSERT_NO_THROW(std::tie(device_ptr, ctx_ptr) =
         create_device_with_ctx(intel_adapters[0]));
 
     auto gpu_context = core.get_default_context("GPU").as<ov::intel_gpu::ocl::ClContext>();
@@ -215,7 +215,7 @@ TEST_F(DX11RemoteCtx_Test, smoke_make_shared_context) {
         CComPtr<ID3D11Device> device_ptr;
         CComPtr<ID3D11DeviceContext> ctx_ptr;
 
-        ASSERT_NO_THROW(std::tie(device_ptr, ctx_ptr) =
+        OV_ASSERT_NO_THROW(std::tie(device_ptr, ctx_ptr) =
             create_device_with_ctx(adapter));
         ASSERT_THROW(ov::intel_gpu::ocl::D3DContext gpu_context(core, device_ptr),
             std::runtime_error);
@@ -231,7 +231,7 @@ TEST_F(DX11CachedTexture_Test, smoke_make_shared_nv12_tensor_cached) {
     const size_t total_run_number = 4;
     for (size_t i = 0; i < total_run_number; i++) {
         for (const auto& t : dx11_textures) {
-            ASSERT_NO_THROW(auto tensor = context.create_tensor_nv12(texture_description.Height, texture_description.Width, t));
+            OV_ASSERT_NO_THROW(auto tensor = context.create_tensor_nv12(texture_description.Height, texture_description.Width, t));
         }
     }
 }

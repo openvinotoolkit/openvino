@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_detection_PSROIPooling_1}
-
 PSROIPooling
 ============
 
 
 .. meta::
-  :description: Learn about PSROIPooling-1 - an object detection operation, 
+  :description: Learn about PSROIPooling-1 - an object detection operation,
                 which can be performed on two required input tensors.
 
 **Versioned name**: *PSROIPooling-1*
@@ -73,10 +71,10 @@ ROIs coordinates are specified in absolute values for the average mode and in no
 
 **Inputs**:
 
-*   **1**: 4D input tensor with shape ``[N, C, H, W]`` and type *T*  with feature maps. **Required.**
+* **1**: 4D input tensor with shape ``[N, C, H, W]`` and type *T*  with feature maps. **Required.**
 
-*   **2**: 2D input tensor with shape ``[num_boxes, 5]``. It contains a list of five element tuples that describe a region of interest: ``[batch_id, x_1, y_1, x_2, y_2]``. **Required.**
-Batch indices must be in the range of ``[0, N-1]``.
+* **2**: 2D input tensor with shape ``[num_boxes, 5]``. It contains a list of five element tuples that describe a region of interest: ``[batch_id, x_1, y_1, x_2, y_2]``. **Required.**
+  Batch indices must be in the range of ``[0, N-1]``.
 
 **Outputs**:
 

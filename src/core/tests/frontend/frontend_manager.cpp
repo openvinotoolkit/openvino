@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/util/file_util.hpp"
@@ -22,13 +23,13 @@ static std::string mock_fe_path() {
 TEST(FrontEndManagerTest, testAvailableFrontEnds) {
     FrontEndManager fem;
     class MockFrontEnd : public FrontEnd {};
-    ASSERT_NO_THROW(fem.register_front_end("mock", []() {
+    OV_ASSERT_NO_THROW(fem.register_front_end("mock", []() {
         return std::make_shared<MockFrontEnd>();
     }));
     auto frontends = fem.get_available_front_ends();
     ASSERT_NE(std::find(frontends.begin(), frontends.end(), "mock"), frontends.end());
     FrontEnd::Ptr fe;
-    ASSERT_NO_THROW(fe = fem.load_by_framework("mock"));
+    OV_ASSERT_NO_THROW(fe = fem.load_by_framework("mock"));
 
     FrontEndManager fem2 = std::move(fem);
     frontends = fem2.get_available_front_ends();
@@ -51,7 +52,7 @@ TEST(FrontEndManagerTest, testMockPluginFrontEnd) {
     EXPECT_NE(std::find(frontends.begin(), frontends.end(), "mock1"), frontends.end());
 
     FrontEnd::Ptr fe;
-    ASSERT_NO_THROW(fe = fem.load_by_framework("mock1"));
+    OV_ASSERT_NO_THROW(fe = fem.load_by_framework("mock1"));
     EXPECT_EQ(fe->get_name(), "mock1");
 }
 
@@ -62,7 +63,7 @@ TEST(FrontEndManagerTest, testFEMDestroy_FrontEndHolder) {
         fem.register_front_end("mock1", mock_fe_path());
         auto frontends = fem.get_available_front_ends();
         EXPECT_NE(std::find(frontends.begin(), frontends.end(), "mock1"), frontends.end());
-        ASSERT_NO_THROW(fe = fem.load_by_framework("mock1"));
+        OV_ASSERT_NO_THROW(fe = fem.load_by_framework("mock1"));
     }
     EXPECT_EQ(fe->get_name(), "mock1");
 }
@@ -117,7 +118,7 @@ TEST(FrontEndManagerTest, testDefaultFrontEnd) {
     FrontEndManager fem;
     fem.register_front_end("mock1", mock_fe_path());
     FrontEnd::Ptr fe;
-    ASSERT_NO_THROW(fe = fem.load_by_model(""));
+    OV_ASSERT_NO_THROW(fe = fem.load_by_model());
     ASSERT_EQ(nullptr, fe);
 
     class MockFrontEnd : public FrontEnd {};

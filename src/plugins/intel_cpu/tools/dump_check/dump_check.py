@@ -76,7 +76,7 @@ def fill_tensors_from_image(input, input_file):
 class IEB:
     precision_table = {
         5:(np.float32, 4),
-        9:(np.int16, 2),
+        3:(np.int16, 2),
         14:(np.uint8, 1),
         8:(np.int8, 1),
         10:(np.int32, 4),
@@ -174,7 +174,6 @@ def dump_tensors(core, model, dump_dir = "./cpu_dump", dump_ports="OUT", device_
                 "INFERENCE_NUM_THREADS":1}
     if infer_bf16 == True:
         device_config["INFERENCE_PRECISION_HINT"] = "bf16"
-        device_config["ENFORCE_BF16"] = "YES"
     print("compiling model with {}".format(device_config))
     exec_net = core.compile_model(model, device_target, device_config)
     req = exec_net.create_infer_request()

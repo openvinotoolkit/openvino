@@ -15,6 +15,9 @@ from openvino.runtime.exceptions import UserInputError
 from openvino.runtime import Model, Node, Tensor, Type
 from openvino.runtime.utils.types import NumericData, get_shape, get_dtype
 
+from onnx.helper import float32_to_float8e5m2, float32_to_float8e4m3
+from onnx.numpy_helper import float8e5m2_to_float32, float8e4m3_to_float32
+
 import tests
 
 log = logging.getLogger(__name__)
@@ -32,6 +35,12 @@ def get_runtime():
     else:
         return runtime()
 
+def get_onnx_test_dtype(ov_type):
+    is_ov_float8 = ov_type == Type.f8e4m3 or ov_type == Type.f8e5m2
+    if is_ov_float8:
+        return np.float32
+    else:
+        return get_dtype(ov_type)
 
 class Runtime(object):
     """Represents a graph runtime environment."""
@@ -83,6 +92,12 @@ class Computation(object):
             # custom conversion for bf16
             if self.results[i].get_output_element_type(0) == Type.bf16:
                 converted_buffers.append((source_buffers[key].view(target_dtype)).astype(target_dtype))
+            elif self.results[i].get_output_element_type(0) == Type.f8e5m2:
+                data_f8 = source_buffers[key].tobytes()
+                converted_buffers.append(float8e5m2_to_float32(np.frombuffer(data_f8, dtype=np.uint8), fn=False, uz=False).reshape(source_buffers[key].shape).view(target_dtype))
+            elif self.results[i].get_output_element_type(0) == Type.f8e4m3:
+                data_f8 = source_buffers[key].tobytes()
+                converted_buffers.append(float8e4m3_to_float32(np.frombuffer(data_f8, dtype=np.uint8), fn=True, uz=False).reshape(source_buffers[key].shape).view(target_dtype))
             else:
                 converted_buffers.append(source_buffers[key].astype(target_dtype))
         return converted_buffers
@@ -95,6 +110,14 @@ class Computation(object):
             if parameter.get_output_element_type(0) == Type.bf16:
                 input_tensors.append(Tensor(Type.bf16, input_val.shape))
                 input_tensors[-1].data[:] = input_val.view(np.float16)
+            elif parameter.get_output_element_type(0) == Type.f8e5m2:
+                input_tensors.append(Tensor(Type.f8e5m2, input_val.shape))
+                _float32_to_float8e5m2 = np.vectorize(float32_to_float8e5m2, excluded=["fn", "uz"])
+                input_tensors[-1].data[:] = _float32_to_float8e5m2(input_val.astype(dtype=np.float32), fn=False, uz=False)
+            elif parameter.get_output_element_type(0) == Type.f8e4m3:
+                input_tensors.append(Tensor(Type.f8e4m3, input_val.shape))
+                _float32_to_float8e4m3 = np.vectorize(float32_to_float8e4m3, excluded=["fn", "uz"])
+                input_tensors[-1].data[:] = _float32_to_float8e4m3(input_val.astype(dtype=np.float32), fn=True, uz=False)
             else:
                 input_tensors.append(Tensor(input_val))
         return input_tensors
@@ -123,7 +146,8 @@ class Computation(object):
 
         compiled_model = self.runtime.backend.compile_model(model, self.runtime.backend_name)
         is_bfloat16 = any(parameter.get_output_element_type(0) == Type.bf16 for parameter in self.parameters)
-        if is_bfloat16:
+        is_float8 = any(parameter.get_output_element_type(0) == Type.f8e4m3 or parameter.get_output_element_type(0) == Type.f8e5m2 for parameter in self.parameters)
+        if is_bfloat16 or is_float8:
             input_values = self.convert_to_tensors(input_values)
         request = compiled_model.create_infer_request()
         result_buffers = request.infer(dict(zip(param_names, input_values)))
@@ -136,6 +160,6 @@ class Computation(object):
             result_buffers = [t.data for t in request.output_tensors]
         """
         # # Since OV overwrite result data type we have to convert results to the original one.
-        original_dtypes = [get_dtype(result.get_output_element_type(0)) for result in self.results]
+        original_dtypes = [get_onnx_test_dtype(result.get_output_element_type(0)) for result in self.results]
         converted_buffers = self.convert_buffers(result_buffers, original_dtypes)
         return converted_buffers

@@ -41,8 +41,9 @@ public:
                 cur_node = cur_node->get_input_node_shared_ptr(0);
             }
             if (!ov::is_type<opset6::Constant>(cur_node)) {
-                OPENVINO_DEBUG << "Can't find Constant weights for Convolution: "
-                               << m_output.get_node()->get_friendly_name() << std::endl;
+                OPENVINO_DEBUG("Can't find Constant weights for Convolution: ",
+                               m_output.get_node()->get_friendly_name(),
+                               "\n");
                 return false;
             }
 
@@ -99,17 +100,18 @@ public:
                     dim_order = new_order;
                 } else {
                     if (ov::is_type<opset6::Reshape>(cur_node) || ov::is_type<opset6::MatMul>(cur_node)) {
-                        OPENVINO_DEBUG << "Can't init mask for MatMul: " << matmul->get_friendly_name()
-                                       << " because of node " << cur_node->get_friendly_name()
-                                       << " in the way from weights to Matmul" << std::endl;
+                        OPENVINO_DEBUG("Can't init mask for MatMul: ",
+                                       matmul->get_friendly_name(),
+                                       " because of node ",
+                                       cur_node->get_friendly_name(),
+                                       " in the way from weights to Matmul\n");
                         return false;
                     }
                 }
                 cur_node = cur_node->get_input_node_shared_ptr(0);
             }
             if (!ov::is_type<opset6::Constant>(cur_node)) {
-                OPENVINO_DEBUG << "Can't find Constant weights for MatMul: " << matmul->get_friendly_name()
-                               << std::endl;
+                OPENVINO_DEBUG("Can't find Constant weights for MatMul: ", matmul->get_friendly_name(), "\n");
                 return false;
             }
             // 2. Get constant rank to set mask on last dimension
@@ -117,7 +119,7 @@ public:
             const auto shape_rank = const_op->get_shape().size();
             const size_t shift = (matmul->get_transpose_b()) ? 2 : 1;
             if (shape_rank < shift) {
-                OPENVINO_DEBUG << "Can't init mask for MatMul: " << matmul->get_friendly_name() << std::endl;
+                OPENVINO_DEBUG("Can't init mask for MatMul: ", matmul->get_friendly_name(), "\n");
                 return false;
             }
             const auto idx = shape_rank - shift;

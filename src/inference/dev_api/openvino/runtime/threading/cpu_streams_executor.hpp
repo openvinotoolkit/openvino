@@ -49,11 +49,13 @@ public:
 
     int get_stream_id() override;
 
+    int get_streams_num();
+
     int get_numa_node_id() override;
 
     int get_socket_id() override;
 
-    void run_sub_stream(Task task, int id) override;
+    std::vector<int> get_rank() override;
 
 private:
     struct Impl;

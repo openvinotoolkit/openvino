@@ -19,6 +19,8 @@ This document provides description and default values for CMake options that can
         * `ON` is default for x86 platforms; `OFF`, otherwise.
     * `ENABLE_INTEL_GPU` enables Intel GPU plugin compilation:
         * `ON` is default for x86 platforms; not available, otherwise.
+    * `ENABLE_INTEL_NPU` enables Intel NPU plugin compilation:
+        * `ON` is default for Windows and Linux x86 platforms; not available, otherwise.
     * `ENABLE_HETERO` enables HETERO plugin build:
         * `ON` is default.
     * `ENABLE_MULTI` enables MULTI plugin build:
@@ -41,6 +43,8 @@ This document provides description and default values for CMake options that can
     * `ENABLE_OV_TF_LITE_FRONTEND` enables [TensorFlow Lite] frontend plugin for OpenVINO Runtime:
         * `ON` is default.
     * `ENABLE_OV_PYTORCH_FRONTEND` enables [PyTorch] frontend plugin for OpenVINO Runtime:
+        * `ON` is default.
+    * `ENABLE_OV_JAX_FRONTEND` enables [JAX] frontend plugin for OpenVINO Runtime:
         * `ON` is default.
     * `ENABLE_OV_IR_FRONTEND` enables OpenVINO Intermediate Representation frontend plugin for OpenVINO Runtime:
         * `ON` is default.
@@ -189,3 +193,4 @@ In this case OpenVINO CMake scripts take `TBBROOT` environment variable into acc
 [PyTorch]:https://pytorch.org/
 [FlatBuffers]:https://google.github.io/flatbuffers/
 [oneTBB]:https://github.com/oneapi-src/oneTBB
+[JAX]:https://github.com/google/jax

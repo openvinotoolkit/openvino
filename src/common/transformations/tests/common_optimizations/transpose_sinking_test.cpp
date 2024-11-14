@@ -96,7 +96,7 @@ TEST_P(TransposeSinkingFQ, TransposeFQReduce) {
     manager.register_pass<ov::pass::TransposeReduction>();
     manager.register_pass<ov::pass::CheckUniqueNames>(unh);
     manager.run_passes(f);
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
 
     auto fc = FunctionsComparator::no_default()
                   .enable(FunctionsComparator::NODES)
@@ -226,7 +226,7 @@ TEST_P(TransposeSinking, TransposeReduction) {
     manager.register_pass<ov::pass::TransposeReduction>();
     manager.register_pass<ov::pass::CheckUniqueNames>(unh);
     manager.run_passes(f);
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
 
     auto fc = FunctionsComparator::no_default()
                   .enable(FunctionsComparator::NODES)

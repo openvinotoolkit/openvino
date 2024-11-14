@@ -14,7 +14,7 @@
 ov::pass::ConvertGP9ToGPIEInternal::ConvertGP9ToGPIEInternal() {
     matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         const auto root = m.get_match_root();
-        const auto old_node = std::dynamic_pointer_cast<ov::op::v9::GenerateProposals>(root);
+        const auto old_node = ov::as_type_ptr<ov::op::v9::GenerateProposals>(root);
         if (!old_node) {
             return false;
         }

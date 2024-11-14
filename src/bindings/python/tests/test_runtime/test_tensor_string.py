@@ -258,7 +258,7 @@ def test_empty_tensor_populate(init_type, init_shape, string_data, data_getter):
 
 def test_invalid_bytes_replaced():
     string_data = np.array(b"\xe2\x80")
-    tensor = ov.Tensor(string_data)
+    tensor = ov.Tensor(string_data, shared_memory=False)
 
     # Encoded:
     check_bytes_based(tensor, string_data, to_flat=True)

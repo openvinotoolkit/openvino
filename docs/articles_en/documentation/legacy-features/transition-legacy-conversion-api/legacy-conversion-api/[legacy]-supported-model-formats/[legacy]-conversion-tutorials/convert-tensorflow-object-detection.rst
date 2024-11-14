@@ -1,5 +1,3 @@
-.. {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models}
-
 Converting TensorFlow Object Detection API Models
 =================================================
 
@@ -88,6 +86,11 @@ Speech Recognition, Natural Language Processing and others. Refer to the links b
 
 * :doc:`OpenVINO Samples <../../../../../../learn-openvino/openvino-samples>`
 * :doc:`Open Model Zoo Demos <../../../../model-zoo>`
+
+.. important::
+
+   Due to the deprecation of Open Model Zoo, models in the OpenVINO IR format are now
+   published on `Hugging Face <https://huggingface.co/OpenVINO>`__.
 
 Feeding Input Images to the Samples
 ###################################

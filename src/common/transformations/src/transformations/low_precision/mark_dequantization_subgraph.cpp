@@ -14,7 +14,8 @@
 #include "transformations/utils/utils.hpp"
 
 ov::pass::MarkDequantizationSubgraph::MarkDequantizationSubgraph(const element::TypeVector& precisions,
-                                                                 const bool fold_subtract_const) {
+                                                                 const bool fold_subtract_const,
+                                                                 const bool disable_fold_multiply_const) {
     // Dequantization subgraph may have two forms: with and without Subtract
     //
     //    Input                                 Input
@@ -99,6 +100,15 @@ ov::pass::MarkDequantizationSubgraph::MarkDequantizationSubgraph(const element::
 
         // mark Multiply as dequantization node
         ov::mark_as_dequantization_node(multiply);
+        auto scale = multiply->get_input_node_shared_ptr(1);
+        if (ov::is_type<ov::op::v0::Convert>(scale) &&
+            ov::is_type<ov::op::v0::Constant>(scale->get_input_node_ptr(0))) {
+            if (disable_fold_multiply_const) {
+                ov::disable_constant_folding(scale);
+                ov::unmark_as_decompression(scale);
+                ov::enable_keep_const_precision(scale->get_input_node_shared_ptr(0));
+            }
+        }
 
         return false;
     };

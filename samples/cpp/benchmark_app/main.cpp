@@ -7,6 +7,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -59,6 +60,10 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
     }
     if (FLAGS_api != "async" && FLAGS_api != "sync") {
         throw std::logic_error("Incorrect API. Please set -api option to `sync` or `async` value.");
+    }
+    if (FLAGS_api == "sync" && FLAGS_nireq > FLAGS_niter) {
+        throw std::logic_error(
+            "Number of iterations should be greater than number of infer requests when using sync API.");
     }
     if (!FLAGS_hint.empty() && FLAGS_hint != "throughput" && FLAGS_hint != "tput" && FLAGS_hint != "latency" &&
         FLAGS_hint != "cumulative_throughput" && FLAGS_hint != "ctput" && FLAGS_hint != "none") {
@@ -942,6 +947,7 @@ int main(int argc, char* argv[]) {
         // create vector to store remote input blobs buffer
         std::vector<::gpu::BufferType> clInputsBuffer;
         bool useGpuMem = false;
+        bool useNpuMem = false;
 
         std::map<std::string, ov::TensorVector> inputsData;
         if (isFlagSetInCommandLine("use_device_mem")) {
@@ -962,6 +968,12 @@ int main(int argc, char* argv[]) {
                         app_inputs_info[0],
                         nireq);
                 }
+            } else if (device_name.find("NPU") == 0) {
+                inputsData = ::npu::get_remote_input_tensors(inputFiles,
+                                                             app_inputs_info,
+                                                             compiledModel,
+                                                             inferRequestsQueue.requests.size());
+                useNpuMem = true;
             } else {
                 OPENVINO_THROW("Requested device doesn't support `use_device_mem` option.");
             }
@@ -1031,6 +1043,8 @@ int main(int argc, char* argv[]) {
                     const auto& inputTensor = inputsData.at(inputName)[i % inputsData.at(inputName).size()];
                     // for remote blobs setTensor is used, they are already allocated on the device
                     if (useGpuMem) {
+                        inferRequest->set_tensor(inputName, inputTensor);
+                    } else if (useNpuMem) {
                         inferRequest->set_tensor(inputName, inputTensor);
                     } else {
                         auto requestTensor = inferRequest->get_tensor(inputName);
@@ -1144,6 +1158,12 @@ int main(int argc, char* argv[]) {
 
             execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
             processedFramesN += batchSize;
+
+            if (FLAGS_max_irate > 0) {
+                auto nextRunFinishTime = 1 / FLAGS_max_irate * processedFramesN * 1.0e9;
+                std::this_thread::sleep_for(
+                    std::chrono::nanoseconds(static_cast<int64_t>(nextRunFinishTime - execTime)));
+            }
         }
 
         // wait the latest inference executions

@@ -24,8 +24,9 @@ of increased latency, however.
 
 .. |image0| image:: https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformers/model_doc/oneformer_architecture.png
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
+
 
 -  `Install required libraries <#install-required-libraries>`__
 -  `Prepare the environment <#prepare-the-environment>`__
@@ -45,6 +46,16 @@ Table of contents:
 
 -  `Interactive Demo <#interactive-demo>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Install required libraries
 --------------------------
 
@@ -52,20 +63,7 @@ Install required libraries
 
 .. code:: ipython3
 
-    import platform
-    
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "transformers>=4.26.0" "openvino>=2023.1.0" "nncf>=2.7.0" "gradio>=4.19" "torch>=2.1" scipy ipywidgets Pillow tqdm
-    
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "transformers>=4.26.0" "openvino>=2023.1.0" "nncf>=2.7.0" "gradio>=4.19" "torch>=2.1" "matplotlib>=3.4" scipy ipywidgets Pillow tqdm
 
 Prepare the environment
 -----------------------
@@ -101,7 +99,7 @@ variables.
     )
     
     open("notebook_utils.py", "w").write(r.text)
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
 
 .. code:: ipython3
 
@@ -129,17 +127,6 @@ images and post-process model outputs for visualization.
         "shi-labs/oneformer_coco_swin_large",
     )
     id2label = model.config.id2label
-
-
-.. parsed-literal::
-
-    2023-10-06 14:00:53.306851: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-10-06 14:00:53.342792: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-10-06 14:00:53.913248: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /home/nsavel/venvs/ov_notebooks_tmp/lib/python3.8/site-packages/transformers/models/oneformer/image_processing_oneformer.py:427: FutureWarning: The `reduce_labels` argument is deprecated and will be removed in v4.27. Please use `do_reduce_labels` instead.
-      warnings.warn(
-
 
 .. code:: ipython3
 
@@ -177,17 +164,6 @@ should provide PyTorch model instance and example input to
             model = openvino.convert_model(model, example_input=dummy_input)
         openvino.save_model(model, IR_PATH, compress_to_fp16=False)
 
-
-.. parsed-literal::
-
-    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
-
-
-.. parsed-literal::
-
-    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-
-
 Select inference device
 -----------------------
 
@@ -197,16 +173,9 @@ Select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
     core = openvino.Core()
     
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
     
     device
 
@@ -467,13 +436,11 @@ improve model inference speed.
 
 .. code:: ipython3
 
+    from notebook_utils import quantization_widget
+    
     compiled_quantized_model = None
     
-    to_quantize = widgets.Checkbox(
-        value=False,
-        description="Quantization",
-        disabled=False,
-    )
+    to_quantize = quantization_widget(False)
     
     to_quantize
 
@@ -726,7 +693,6 @@ Interactive Demo
 .. code:: ipython3
 
     import time
-    import gradio as gr
     
     quantized_model_present = compiled_quantized_model is not None
     
@@ -751,50 +717,16 @@ Interactive Demo
         plt.close("all")
         result = stack_images_horizontally(segmentation_image, legend_image)
         return result, f"{end_time - start_time:.2f}"
+
+.. code:: ipython3
+
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/oneformer-segmentation/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
     
+    from gradio_helper import make_demo
     
-    with gr.Blocks() as demo:
-        with gr.Row():
-            with gr.Column():
-                inp_img = gr.Image(label="Image", type="pil")
-                inp_task = gr.Radio(["semantic", "instance", "panoptic"], label="Task", value="semantic")
-                inp_device = gr.Dropdown(label="Device", choices=core.available_devices + ["AUTO"], value="AUTO")
-            with gr.Column():
-                out_result = gr.Image(label="Result (Original)" if quantized_model_present else "Result")
-                inference_time = gr.Textbox(label="Time (seconds)")
-                out_result_quantized = gr.Image(label="Result (Quantized)", visible=quantized_model_present)
-                inference_time_quantized = gr.Textbox(label="Time (seconds)", visible=quantized_model_present)
-        run_button = gr.Button(value="Run")
-        run_button.click(
-            segment_wrapper,
-            [inp_img, inp_task, gr.Number(0, visible=False)],
-            [out_result, inference_time],
-        )
-        run_quantized_button = gr.Button(value="Run quantized", visible=quantized_model_present)
-        run_quantized_button.click(
-            segment_wrapper,
-            [inp_img, inp_task, gr.Number(1, visible=False)],
-            [out_result_quantized, inference_time_quantized],
-        )
-        gr.Examples(examples=[["sample.jpg", "semantic"]], inputs=[inp_img, inp_task])
-    
-        def on_device_change_begin():
-            return (
-                run_button.update(value="Changing device...", interactive=False),
-                run_quantized_button.update(value="Changing device...", interactive=False),
-                inp_device.update(interactive=False),
-            )
-    
-        def on_device_change_end():
-            return (
-                run_button.update(value="Run", interactive=True),
-                run_quantized_button.update(value="Run quantized", interactive=True),
-                inp_device.update(interactive=True),
-            )
-    
-        inp_device.change(on_device_change_begin, outputs=[run_button, run_quantized_button, inp_device]).then(compile_model, inp_device).then(
-            on_device_change_end, outputs=[run_button, run_quantized_button, inp_device]
-        )
+    demo = make_demo(run_fn=segment_wrapper, compile_model_fn=compile_model, quantized=quantized_model_present)
     
     try:
         demo.launch(debug=False)
@@ -804,16 +736,7 @@ Interactive Demo
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
 
+.. code:: ipython3
 
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-    
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

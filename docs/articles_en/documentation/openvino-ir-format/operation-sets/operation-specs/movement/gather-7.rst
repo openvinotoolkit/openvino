@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_movement_Gather_7}
-
 Gather
 ======
 
@@ -13,7 +11,7 @@ Gather
 **Category**: *Data movement*
 
 **Short description**: *Gather* operation takes slices of data of the first input tensor according to the indices
- specified with the second input tensor and axis from the third input. Semantics of this operation is identical to
+specified with the second input tensor and axis from the third input. Semantics of this operation is identical to
 TensorFlow `Gather <https://www.tensorflow.org/api_docs/python/tf/gather>`__ operation.
 
 **Detailed description**

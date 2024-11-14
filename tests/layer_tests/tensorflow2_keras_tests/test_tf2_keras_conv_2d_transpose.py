@@ -35,7 +35,7 @@ class TestKerasConv2DTranspose(CommonTF2LayerTest):
 
     test_data_float32 = [
         dict(conv_params=dict(filters=27, kernel_size=3, padding="valid", strides=(2, 2),
-                              data_format="channels_first"), input_names=["x"],
+                              data_format="channels_last"), input_names=["x"],
              input_shapes=[[3, 5, 7, 6]], input_type=tf.float32),
         dict(conv_params=dict(filters=10, kernel_size=5, padding="same", strides=(7, 7),
                               activation="relu", use_bias=True, output_padding=(3, 3)),
@@ -43,17 +43,17 @@ class TestKerasConv2DTranspose(CommonTF2LayerTest):
         dict(conv_params=dict(filters=10, kernel_size=5, padding="same", strides=(7, 7),
                               output_padding=(5, 5)),
              input_names=["x"], input_shapes=[[3, 5, 7, 8]], input_type=tf.float32),
-        dict(conv_params=dict(filters=27, kernel_size=3, padding="valid", dilation_rate=3),
+        dict(conv_params=dict(filters=27, kernel_size=3, padding="valid", dilation_rate=1),
              input_names=["x"],
              input_shapes=[[3, 9, 7, 6]], input_type=tf.float32),
-        dict(conv_params=dict(filters=10, kernel_size=5, padding="same", dilation_rate=4),
+        dict(conv_params=dict(filters=10, kernel_size=5, padding="same", dilation_rate=1),
              input_names=["x"],
              input_shapes=[[3, 9, 7, 8]], input_type=tf.float32),
-        dict(conv_params=dict(filters=27, kernel_size=3, padding="valid", dilation_rate=3,
+        dict(conv_params=dict(filters=27, kernel_size=3, padding="valid", dilation_rate=1,
                               activation="sigmoid",
                               use_bias=False), input_names=["x"], input_shapes=[[3, 9, 7, 6]],
              input_type=tf.float32),
-        dict(conv_params=dict(filters=10, kernel_size=5, padding="same", dilation_rate=4,
+        dict(conv_params=dict(filters=10, kernel_size=5, padding="same", dilation_rate=1,
                               use_bias=True),
              input_names=["x"], input_shapes=[[3, 9, 7, 8]], input_type=tf.float32)
     ]

@@ -22,7 +22,7 @@ class LSTM(Op):
             'gate_order': None,
             'normalized': False,
             'multilayers': False,
-            'format': None,  # format type of input blobs for different frameworks (onnx, tf, mxnet),
+            'format': None,  # format type of input blobs for different frameworks (onnx, tf),
 
             'activation_alpha': None,
             'activation_beta': None,

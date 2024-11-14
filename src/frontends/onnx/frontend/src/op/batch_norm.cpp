@@ -2,22 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/batch_norm.hpp"
+#include "openvino/op/batch_norm.hpp"
 
 #include <cstdint>
 #include <memory>
 
 #include "core/null_node.hpp"
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
-#include "openvino/op/batch_norm.hpp"
-
 using namespace ov::op;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 // This version supports ONNX BatchNormalization-1 and BatchNormalization-6
 ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
     ov::OutputVector inputs{node.get_ov_inputs()};
@@ -51,7 +50,8 @@ ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
 
     OPENVINO_THROW("Cannot create OpenVINO batch norm with unsupported number of inputs");
 }
-}  // namespace set_1
+ONNX_OP("BatchNormalization", OPSET_RANGE(1, 6), ai_onnx::opset_1::batch_norm);
+}  // namespace opset_1
 /*
      Opset 6 is skipped because there are no significant difference between opset1 and opset6.
      Found difference is:
@@ -59,7 +59,7 @@ ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
         to avoid overflow for float16 inputs.
  */
 
-namespace set_7 {
+namespace opset_7 {
 // This version supports ONNX BatchNormalization-7 and BatchNormalization-9
 ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
     ov::OutputVector inputs{node.get_ov_inputs()};
@@ -77,7 +77,8 @@ ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
 
     return {std::make_shared<v5::BatchNormInference>(x, scale, bias, mean, var, epsilon)};
 }
-}  // namespace set_7
+ONNX_OP("BatchNormalization", OPSET_RANGE(7, 13), ai_onnx::opset_7::batch_norm);
+}  // namespace opset_7
 /*
     Opset 9 is skipped because there are no significant difference between opset7 and opset9.
     Found difference is:
@@ -87,7 +88,7 @@ ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
 
  */
 
-namespace set_14 {
+namespace opset_14 {
 // This version supports ONNX BatchNormalization-14 BatchNormalization-15
 ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
     ov::OutputVector inputs{node.get_ov_inputs()};
@@ -105,7 +106,8 @@ ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
                      "Training mode of BatchNormalization is not supported.");
     return {std::make_shared<v5::BatchNormInference>(x, scale, bias, mean, var, epsilon)};
 }
-}  // namespace set_14
+ONNX_OP("BatchNormalization", OPSET_SINCE(14), ai_onnx::opset_14::batch_norm);
+}  // namespace opset_14
 /*
      Opset 15 is skipped because there are no significant difference between opset14 and opset15.
      Found difference is:
@@ -113,7 +115,7 @@ ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
         to avoid overflow for float16 inputs.
  */
 
-}  // namespace op
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

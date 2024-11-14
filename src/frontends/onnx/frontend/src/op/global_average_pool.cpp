@@ -2,22 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/global_average_pool.hpp"
-
+#include "core/operator_set.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
-
 using namespace ov::op;
 using ov::Shape;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector global_average_pool(const ov::frontend::onnx::Node& node) {
     // Generate axes for reduce operation which contain all spatial dims indexes.
     // Examples:
@@ -43,8 +41,9 @@ ov::OutputVector global_average_pool(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::ReduceMean>(data, reduce_axes, true)};
 }
 
-}  // namespace set_1
-}  // namespace op
+ONNX_OP("GlobalAveragePool", OPSET_SINCE(1), ai_onnx::opset_1::global_average_pool);
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

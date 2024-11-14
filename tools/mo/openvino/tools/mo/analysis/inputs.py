@@ -38,21 +38,6 @@ class InputsAnalysis(AnalyzeAction):
         return inputs_to_ignore
 
     @classmethod
-    def ignore_mxnet_softmax_inputs(cls, graph: Graph):
-        """
-        MxNet Softmax layers may have additional inputs which should be ignored. Refer to the
-        openvino/tools/mo/front/mxnet/check_softmax_node_inputs.py.
-        """
-        inputs_to_ignore = set()
-        softmax_nodes = []
-        [softmax_nodes.extend(graph.get_op_nodes(op=op)) for op in ('SoftMax', 'SoftmaxActivation', 'SoftmaxOutput')]
-        for softmax_node in softmax_nodes:
-            for i in range(1, len(softmax_node.in_nodes())):
-                if softmax_node.in_node(i).has_valid('op') and softmax_node.in_node(i).op == 'Parameter':
-                    inputs_to_ignore.add(softmax_node.in_node(i).id)
-        return inputs_to_ignore
-
-    @classmethod
     def iterator_get_next_analysis(cls, graph: Graph, inputs_desc: dict):
         message = None
         op_nodes = graph.get_op_nodes(op='IteratorGetNext')
@@ -80,9 +65,6 @@ class InputsAnalysis(AnalyzeAction):
         inputs_desc = dict()
         message = InputsAnalysis.iterator_get_next_analysis(graph, inputs_desc)
         inputs_to_ignore = InputsAnalysis.fifo_queue_analysis(graph, inputs_desc)
-        if graph.graph['fw'] == 'mxnet':
-            inputs_to_ignore.update(InputsAnalysis.ignore_mxnet_softmax_inputs(graph))
-
         inputs = graph.get_op_nodes(op='Parameter')
         for input in inputs:
             inputs_desc[input.name] = {'shape': input.soft_get('shape', None),

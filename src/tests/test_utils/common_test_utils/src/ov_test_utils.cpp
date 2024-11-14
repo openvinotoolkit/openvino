@@ -59,6 +59,9 @@ void TransformationTestsF::SetUp() {
 }
 
 void TransformationTestsF::TearDown() {
+    if (test_skipped) {
+        return;
+    }
     OPENVINO_ASSERT(model != nullptr, "Test Model is not initialized.");
 
     std::shared_ptr<ov::Model> cloned_function;
@@ -73,7 +76,7 @@ void TransformationTestsF::TearDown() {
     manager.run_passes(model);
 
     if (!m_disable_rt_info_check) {
-        ASSERT_NO_THROW(check_rt_info(model));
+        OV_ASSERT_NO_THROW(check_rt_info(model));
     }
 
     if (acc_enabled) {

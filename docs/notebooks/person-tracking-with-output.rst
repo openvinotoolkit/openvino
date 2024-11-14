@@ -93,8 +93,9 @@ realtime tracking,” in ICIP, 2016, pp. 3464–3468.
 
 .. |deepsort| image:: https://user-images.githubusercontent.com/91237924/221744683-0042eff8-2c41-43b8-b3ad-b5929bafb60b.png
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
+
 
 -  `Imports <#imports>`__
 -  `Download the Model <#download-the-model>`__
@@ -115,22 +116,24 @@ Table of contents:
    -  `Initialize tracker <#initialize-tracker>`__
    -  `Run Live Person Tracking <#run-live-person-tracking>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. code:: ipython3
 
-    import platform
-
-    %pip install -q "openvino-dev>=2024.0.0"
-    %pip install -q opencv-python requests scipy tqdm
-
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q "openvino>=2024.0.0"
+    %pip install -q opencv-python requests scipy tqdm "matplotlib>=3.4"
 
 
 .. parsed-literal::
 
-    Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
@@ -186,32 +189,17 @@ We will use pre-trained models from OpenVINO’s `Open Model
 Zoo <https://docs.openvino.ai/2024/documentation/legacy-features/model-zoo.html>`__
 to start the test.
 
-Use ``omz_downloader``, which is a command-line tool from the
-``openvino-dev`` package. It automatically creates a directory structure
-and downloads the selected model. This step is skipped if the model is
-already downloaded. The selected model comes from the public directory,
-which means it must be converted into OpenVINO Intermediate
-Representation (OpenVINO IR).
-
-   **NOTE**: Using a model outside the list can require different pre-
-   and post-processing.
-
 In this case, `person detection
-model <https://docs.openvino.ai/2024/omz_models_model_person_detection_0202.html>`__
+model <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/person-detection-0202/README.md>`__
 is deployed to detect the person in each frame of the video, and
 `reidentification
-model <https://docs.openvino.ai/2024/omz_models_model_person_reidentification_retail_0287.html>`__
+model <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/person-reidentification-retail-0287/README.md>`__
 is used to output embedding vector to match a pair of images of a person
 by the cosine distance.
 
-If you want to download another model (``person-detection-xxx`` from
-`Object Detection Models
-list <https://docs.openvino.ai/2024/omz_models_group_intel.html#object-detection-models>`__,
-``person-reidentification-retail-xxx`` from `Reidentification Models
-list <https://docs.openvino.ai/2024/omz_models_group_intel.html#reidentification-models>`__),
-replace the name of the model in the code below.
-
 .. code:: ipython3
+
+    from notebook_utils import download_ir_model
 
     # A directory where the model will be downloaded.
     base_model_dir = "model"
@@ -219,45 +207,29 @@ replace the name of the model in the code below.
     # The name of the model from Open Model Zoo
     detection_model_name = "person-detection-0202"
 
-    download_command = (
-        f"omz_downloader " f"--name {detection_model_name} " f"--precisions {precision} " f"--output_dir {base_model_dir} " f"--cache_dir {base_model_dir}"
+
+    download_det_model_url = (
+        f"https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1/{detection_model_name}/{precision}/{detection_model_name}.xml"
     )
-    ! $download_command
 
-    detection_model_path = f"model/intel/{detection_model_name}/{precision}/{detection_model_name}.xml"
-
+    detection_model_path = download_ir_model(download_det_model_url, Path(base_model_dir) / detection_model_name / precision)
 
     reidentification_model_name = "person-reidentification-retail-0287"
+    download_reid_model_url = f"https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1/{reidentification_model_name}/{precision}/{reidentification_model_name}.xml"
 
-    download_command = (
-        f"omz_downloader " f"--name {reidentification_model_name} " f"--precisions {precision} " f"--output_dir {base_model_dir} " f"--cache_dir {base_model_dir}"
-    )
-    ! $download_command
+    reidentification_model_path = download_ir_model(download_reid_model_url, Path(base_model_dir) / reidentification_model_name / precision)
 
-    reidentification_model_path = f"model/intel/{reidentification_model_name}/{precision}/{reidentification_model_name}.xml"
 
 
 .. parsed-literal::
 
-    ################|| Downloading person-detection-0202 ||################
-
-    ========== Downloading model/intel/person-detection-0202/FP16/person-detection-0202.xml
+    model/person-detection-0202/FP16/person-detection-0202.bin:   0%|          | 0.00/3.47M [00:00<?, ?B/s]
 
 
-    ========== Downloading model/intel/person-detection-0202/FP16/person-detection-0202.bin
 
+.. parsed-literal::
 
-    ################|| Downloading person-reidentification-retail-0287 ||################
-
-    ========== Downloading model/intel/person-reidentification-retail-0287/person-reidentification-retail-0267.onnx
-
-
-    ========== Downloading model/intel/person-reidentification-retail-0287/FP16/person-reidentification-retail-0287.xml
-
-
-    ========== Downloading model/intel/person-reidentification-retail-0287/FP16/person-reidentification-retail-0287.bin
-
-
+    model/person-reidentification-retail-0287/FP16/person-reidentification-retail-0287.bin:   0%|          | 0.00/…
 
 
 Load model
@@ -333,14 +305,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = utils.device_widget()
 
     device
 
@@ -367,9 +332,9 @@ Data Processing
 Data Processing includes data preprocess and postprocess functions.
 
 - Data preprocess function is used to change the layout and shape of input
-data, according to requirement of the network input format.
+  data, according to requirement of the network input format.
 - Data postprocess function is used to extract the useful information from
-network’s original output and visualize it.
+  network’s original output and visualize it.
 
 .. code:: ipython3
 

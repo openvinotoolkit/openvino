@@ -26,7 +26,13 @@ OutputVector make_random_normal(pass::NodeRegistry& registry,
     const uint64_t global_seed = 0;
 
     // ONNX specifies the seed as a float, but OpenVINO uses uint64_t
-    const auto op_seed = static_cast<uint64_t>(seed * 1000);
+    // OpenVINO supports only uint64 seeds with a meaningful 0 value (seed will be auto-generated).
+    // Because we use a seed as a just meaningful identifier we may
+    // just interpret its value as a 32-bit value (float zero value is same with
+    // uint32 zero value).
+    // Float -0 value will be interpreted as a valid uint32 value.
+    const void* seed_ptr = &seed;  // To prevent strict-aliasing error
+    const uint64_t op_seed = static_cast<const uint64_t>(*static_cast<const uint32_t*>(seed_ptr));
 
     // We need to use two op_seeds to make sure we get different results for two RandomUniform series
     // But we also have to keep original logic and pass "0" (auto-generated seed) to RandomUniform

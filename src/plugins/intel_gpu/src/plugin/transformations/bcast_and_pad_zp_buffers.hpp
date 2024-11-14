@@ -14,7 +14,7 @@ namespace intel_gpu {
 class BroadcastAndPadZeroPointBuffers : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("BroadcastAndPadZeroPointBuffers", "0");
-    BroadcastAndPadZeroPointBuffers(size_t alignment = 1);
+    BroadcastAndPadZeroPointBuffers(size_t alignment = 1, bool supports_immad = false);
 };
 
 }  // namespace intel_gpu

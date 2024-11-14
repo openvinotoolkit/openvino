@@ -1,5 +1,3 @@
-.. {#openvino_sample_benchmark_tool}
-
 Benchmark Tool
 ====================
 
@@ -14,10 +12,7 @@ This page demonstrates how to use the Benchmark Tool to estimate deep learning i
 
 .. note::
 
-   The Python version is recommended for benchmarking models that will be used
-   in Python applications, and the C++ version is recommended for benchmarking
-   models that will be used in C++ applications. Both tools have a similar
-   command interface and backend.
+   Use either Python or C++ version, depending on the language of your application.
 
 
 Basic Usage
@@ -226,8 +221,12 @@ should be used purposefully. For more information, see the
 
 .. note::
 
-   If the latency or throughput hint is set, it will automatically configure streams
-   and batch sizes for optimal performance based on the specified device.)
+   * If either the latency or throughput hint is set, it will automatically configure streams,
+     batch sizes, and the number of parallel infer requests for optimal performance, based on the specified device.
+
+   * Optionally, you can specify the number of parallel infer requests with the ``-nireq``
+     option. Setting a high value may improve throughput at the expense
+     of latency, while a low value may give the opposite result.
 
 Number of iterations
 ++++++++++++++++++++
@@ -245,6 +244,13 @@ There are several options for setting the number of inference iterations:
 
 The more iterations a model runs, the better the statistics will be for determining
 average latency and throughput.
+
+Maximum inference rate
+++++++++++++++++++++++
+
+By default, the benchmarking app will run inference at maximum rate based on device capabilities.
+The maximum inferance rate can be configured by ``-max_irate <MAXIMUM_INFERENCE_RATE>`` option.
+Tweaking this value allow better accuracy in power usage measurement by limiting the number of executions.
 
 Inputs
 ++++++++++++++++++++
@@ -338,7 +344,7 @@ following usage message:
             [Step 1/11] Parsing and validating input arguments
             [ INFO ] Parsing input parameters
             usage: benchmark_app.py [-h [HELP]] [-i PATHS_TO_INPUT [PATHS_TO_INPUT ...]] -m PATH_TO_MODEL [-d TARGET_DEVICE]
-                                    [-hint {throughput,cumulative_throughput,latency,none}] [-niter NUMBER_ITERATIONS] [-t TIME] [-b BATCH_SIZE] [-shape SHAPE]
+                                    [-hint {throughput,cumulative_throughput,latency,none}] [-niter NUMBER_ITERATIONS] [-max_irate MAXIMUM_INFERENCE_RATE] [-t TIME] [-b BATCH_SIZE] [-shape SHAPE]
                                     [-data_shape DATA_SHAPE] [-layout LAYOUT] [-extensions EXTENSIONS] [-c PATH_TO_CLDNN_CONFIG] [-cdir CACHE_DIR] [-lfile [LOAD_FROM_FILE]]
                                     [-api {sync,async}] [-nireq NUMBER_INFER_REQUESTS] [-nstreams NUMBER_STREAMS] [-inference_only [INFERENCE_ONLY]]
                                     [-infer_precision INFER_PRECISION] [-ip {bool,f16,f32,f64,i8,i16,i32,i64,u8,u16,u32,u64}]
@@ -537,6 +543,9 @@ following usage message:
                                            'none': no device performance mode will be set.
                                           Using explicit 'nstreams' or other device-specific options, please set hint to 'none'
                 -niter  <integer>             Optional. Number of iterations. If not specified, the number of iterations is calculated depending on a device.
+                -max_irate <float>            Optional. Maximum inference rate by frame per second.
+                                          If not specified, default value is 0, the inference will run at maximium rate depending on a device capabilities.
+                                          Tweaking this value allow better accuracy in power usage measurement by limiting the execution.
                 -t                            Optional. Time in seconds to execute topology.
 
             Input shapes

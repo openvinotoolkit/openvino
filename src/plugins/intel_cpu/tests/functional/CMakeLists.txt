@@ -37,16 +37,30 @@ else()
     set(EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/custom/extension ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/onnx)
 endif()
 
+if(NOT RISCV64)
+    list(APPEND EXCLUDED_SOURCE_PATHS
+         ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/riscv64
+         ${CMAKE_CURRENT_SOURCE_DIR}/utils/riscv64)
+elseif(NOT OV_CPU_WITH_SHL)
+    list(APPEND EXCLUDED_SOURCE_PATHS
+         ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/riscv64/shl)
+endif()
+
+if(NOT (X86 OR X86_64))
+    list(APPEND EXCLUDED_SOURCE_PATHS
+         ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/x64
+         ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/x64
+         ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/snippets/x64
+         ${CMAKE_CURRENT_SOURCE_DIR}/utils/x64)
+endif()
+
 if(NOT (ARM OR AARCH64))
     list(APPEND EXCLUDED_SOURCE_PATHS
          ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/arm
          ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/arm
+         ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/snippets/arm
          ${CMAKE_CURRENT_SOURCE_DIR}/utils/arm)
 else()
-    list(APPEND EXCLUDED_SOURCE_PATHS
-         ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/x64
-         ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/x64
-         ${CMAKE_CURRENT_SOURCE_DIR}/utils/x64)
     # temporary disable all custom tests for ARM
     list(APPEND EXCLUDED_SOURCE_PATHS
         ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests

@@ -56,10 +56,8 @@ struct prior_box : public primitive_base<prior_box> {
               const std::vector<float>& fixed_size = {},
               const std::vector<float>& density = {},
               const bool support_opset8 = false,
-              const bool min_max_aspect_ratios_order = true,
-              const padding& output_padding = padding()
-              )
-        : primitive_base{id, inputs, {output_padding}},
+              const bool min_max_aspect_ratios_order = true)
+        : primitive_base{id, inputs},
           output_size(output_size),
           img_size(img_size),
           min_sizes(min_sizes),
@@ -89,9 +87,8 @@ struct prior_box : public primitive_base<prior_box> {
               const float offset,
               const std::vector<float>& widths,
               const std::vector<float>& heights,
-              data_types output_dt,
-              const padding& output_padding = padding())
-        : primitive_base(id, inputs, {output_padding}, {optional_data_type{output_dt}}),
+              data_types output_dt)
+        : primitive_base(id, inputs, 1, {optional_data_type{output_dt}}),
           img_size(img_size),
           flip(false),
           clip(clip),

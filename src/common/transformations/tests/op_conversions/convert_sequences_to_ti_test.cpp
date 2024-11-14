@@ -56,7 +56,7 @@ TEST(TransformationTests, ConvertLSTMSequenceToTensorIterator) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertLSTMSequenceToTensorIterator>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -162,7 +162,7 @@ TEST(TransformationTests, ConvertLSTMSequenceToTensorIteratorDynamic) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertLSTMSequenceToTensorIterator>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -272,7 +272,7 @@ TEST(TransformationTests, ConvertQuantizedLSTMSequenceToTensorIterator) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertLSTMSequenceToTensorIterator>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -377,7 +377,7 @@ TEST(TransformationTests, ConvertRNNSequenceToTensorIterator) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertRNNSequenceToTensorIterator>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -466,7 +466,7 @@ TEST(TransformationTests, ConvertRNNSequenceToTensorIteratorDynamic) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertRNNSequenceToTensorIterator>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -554,7 +554,7 @@ TEST(TransformationTests, ConvertGRUSequenceToTensorIterator) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertGRUSequenceToTensorIterator>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -643,7 +643,7 @@ TEST(TransformationTests, ConvertGRUSequenceToTensorIteratorDynamic) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertGRUSequenceToTensorIterator>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -736,7 +736,7 @@ TEST(TransformationTests, ConvertQuantizedGRUSequenceToTensorIterator) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertGRUSequenceToTensorIterator>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -873,7 +873,7 @@ TEST(TransformationTests, ConvertLSTMSequenceWithDynSeqLenToTensorIterator) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertLSTMSequenceToTensorIterator>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {

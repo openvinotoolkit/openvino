@@ -22,22 +22,24 @@ public:
     CPU();
     ~CPU(){};
     void cpu_debug() {
-        OPENVINO_DEBUG << "[ threading ] cpu_mapping_table:";
+#ifdef ENABLE_OPENVINO_DEBUG
+        OPENVINO_DEBUG("[ threading ] cpu_mapping_table:");
         for (size_t i = 0; i < _cpu_mapping_table.size(); i++) {
-            OPENVINO_DEBUG << _cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID] << " "
-                           << _cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID] << " "
-                           << _cpu_mapping_table[i][CPU_MAP_SOCKET_ID] << " " << _cpu_mapping_table[i][CPU_MAP_CORE_ID]
-                           << " " << _cpu_mapping_table[i][CPU_MAP_CORE_TYPE] << " "
-                           << _cpu_mapping_table[i][CPU_MAP_GROUP_ID] << " "
-                           << _cpu_mapping_table[i][CPU_MAP_USED_FLAG];
+            OPENVINO_DEBUG(_cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID] , " ",
+                           _cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID], " ",
+                           _cpu_mapping_table[i][CPU_MAP_SOCKET_ID], " ", _cpu_mapping_table[i][CPU_MAP_CORE_ID],
+                           " ", _cpu_mapping_table[i][CPU_MAP_CORE_TYPE], " ",
+                           _cpu_mapping_table[i][CPU_MAP_GROUP_ID], " ",
+                           _cpu_mapping_table[i][CPU_MAP_USED_FLAG]);
         }
-        OPENVINO_DEBUG << "[ threading ] org_proc_type_table:";
+        OPENVINO_DEBUG("[ threading ] org_proc_type_table:");
         for (size_t i = 0; i < _proc_type_table.size(); i++) {
-            OPENVINO_DEBUG << _proc_type_table[i][ALL_PROC] << " " << _proc_type_table[i][MAIN_CORE_PROC] << " "
-                           << _proc_type_table[i][EFFICIENT_CORE_PROC] << " "
-                           << _proc_type_table[i][HYPER_THREADING_PROC] << " " << _proc_type_table[i][PROC_NUMA_NODE_ID]
-                           << " " << _proc_type_table[i][PROC_SOCKET_ID];
+            OPENVINO_DEBUG(_proc_type_table[i][ALL_PROC], " ", _proc_type_table[i][MAIN_CORE_PROC], " ",
+                           _proc_type_table[i][EFFICIENT_CORE_PROC], " ",
+                           _proc_type_table[i][HYPER_THREADING_PROC], " ", _proc_type_table[i][PROC_NUMA_NODE_ID],
+                           " ", _proc_type_table[i][PROC_SOCKET_ID]);
         }
+#endif
     }
     int _processors = 0;
     int _numa_nodes = 0;
@@ -51,6 +53,39 @@ public:
     std::map<int, int> _numaid_mapping_table;
     std::mutex _cpu_mutex;
     int _socket_idx = 0;
+
+private:
+    /**
+     * @brief      Sort proc_type_table by CPU ID on which application is running. The numa node containing this CPU ID
+     * will move to first row.
+     * @param[in]  _processor_id CPU ID on which application is running.
+     * @param[in] _proc_type_table summary table of number of processors per type
+     * @param[in] _cpu_mapping_table CPU mapping table for each processor
+     * @return
+     */
+    void sort_table_by_cpu_id(const int _processor_id,
+                              std::vector<std::vector<int>>& _proc_type_table,
+                              const std::vector<std::vector<int>>& _cpu_mapping_table) {
+        int current_numa_node = 0;
+        int current_socket = 0;
+
+        for (auto& row : _cpu_mapping_table) {
+            if (_processor_id == row[CPU_MAP_PROCESSOR_ID]) {
+                current_numa_node = row[CPU_MAP_NUMA_NODE_ID];
+                current_socket = row[CPU_MAP_SOCKET_ID];
+                break;
+            }
+        }
+        for (size_t i = 1; i < _proc_type_table.size(); i++) {
+            if ((current_numa_node == _proc_type_table[i][PROC_NUMA_NODE_ID]) &&
+                (current_socket == _proc_type_table[i][PROC_SOCKET_ID])) {
+                std::rotate(_proc_type_table.begin() + 1, _proc_type_table.begin() + i, _proc_type_table.end());
+                break;
+            }
+        }
+    };
+
+    friend class LinuxSortProcTableTests;
 };
 
 CPU& cpu_info();

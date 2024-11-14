@@ -25,7 +25,7 @@ struct crop_impl : typed_primitive_impl_ocl<crop> {
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        if (is_dynamic()) {
+        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
@@ -47,16 +47,22 @@ public:
         }
         return params;
     }
-        void update_dispatch_data(const kernel_impl_params& impl_param) override {
-            auto kernel_params = get_kernel_params(impl_param, true);
-            auto runtime_offset = convert_data_tensor(impl_param.get_input_layout(), impl_param.input_offsets[0]).GetFirstElementOffset();
-            kernel_selector::ScalarDescriptor s;
-            s.t = kernel_selector::ScalarDescriptor::Types::UINT32;
-            s.v.u32 = static_cast<uint32_t>(runtime_offset);
-            OPENVINO_ASSERT(_kernel_data.kernels[0].params.scalars.size() == 1,
-                    "[GPU] Scalar field for runtime offset is not added for crop shape agnostic impl");
-            _kernel_data.kernels[0].params.scalars[0] = s;
-            (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
+
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        // If model loaded from cache, params are not initialized, so we create a new object and reuse it in the future
+        if (_kernel_data.params == nullptr) {
+            _kernel_data.params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true));
+        }
+
+        update_shapes(*_kernel_data.params, impl_param);
+        auto runtime_offset = convert_data_tensor(impl_param.get_input_layout(), impl_param.input_offsets[0]).GetFirstElementOffset();
+        kernel_selector::ScalarDescriptor s;
+        s.t = kernel_selector::ScalarDescriptor::Types::UINT32;
+        s.v.u32 = static_cast<uint32_t>(runtime_offset);
+        OPENVINO_ASSERT(_kernel_data.kernels[0].params.scalars.size() == 1,
+                "[GPU] Scalar field for runtime offset is not added for crop shape agnostic impl");
+        _kernel_data.kernels[0].params.scalars[0] = s;
+        (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
     }
 };
 

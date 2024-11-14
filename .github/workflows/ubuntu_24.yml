@@ -1,0 +1,181 @@
+name: Linux (Ubuntu 24.04, Python 3.12)
+on:
+  workflow_dispatch:
+  pull_request:
+  merge_group:
+  push:
+    branches:
+      - master
+      - 'releases/**'
+
+concurrency:
+  # github.ref is not unique in post-commit
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-ubuntu-24
+  cancel-in-progress: true
+
+permissions: read-all
+
+env:
+  PIP_CACHE_PATH: /mount/caches/pip/linux
+
+jobs:
+  Smart_CI:
+    runs-on: ubuntu-latest
+    outputs:
+      affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+      changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
+      skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
+    steps:
+      - name: checkout action
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          sparse-checkout: .github/actions/smart-ci
+
+      - name: Get affected components
+        id: smart_ci
+        uses: ./.github/actions/smart-ci
+        with:
+          repository: ${{ github.repository }}
+          pr: ${{ github.event.number }}
+          commit_sha: ${{ github.sha }}
+          ref_name: ${{ github.ref_name }}
+          component_pattern: "category: (.*)"
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          skip_when_only_listed_labels_set: 'docs'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg'
+
+      - name: Show affected components
+        run: |
+          echo "${{ toJSON(steps.smart_ci.outputs.affected_components) }}"
+        shell: bash
+
+  Docker:
+    needs: Smart_CI
+    if: "!needs.smart_ci.outputs.skip_workflow"
+    runs-on: aks-linux-4-cores-16gb-docker-build
+    container:
+      image: openvinogithubactions.azurecr.io/docker_build:0.2
+      volumes:
+        - /mount:/mount
+    outputs:
+      images: "${{ steps.handle_docker.outputs.images }}"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: ./.github/actions/handle_docker
+        id: handle_docker
+        with:
+          images: |
+            ov_build/ubuntu_24_04_x64
+            ov_test/ubuntu_24_04_x64
+          registry: 'openvinogithubactions.azurecr.io'
+          dockerfiles_root_dir: '.github/dockerfiles'
+          changed_components: ${{ needs.smart_ci.outputs.changed_components }}
+
+  Build:
+    needs: [Docker, Smart_CI]
+    uses: ./.github/workflows/job_build_linux.yml
+    with:
+      runner: 'aks-linux-16-cores-32gb'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      event-name: ${{ github.event_name }}
+      os: 'ubuntu_24_04'
+      build-rpm-packages: false
+      build-js: true
+      build-debian-packages: true
+      build-contrib: true
+      cmake-options: |- 
+            -G "Ninja Multi-Config" \
+            -DENABLE_CPPLINT=OFF \
+            -DENABLE_NCC_STYLE=OFF \
+            -DENABLE_TESTS=ON \
+            -DENABLE_STRICT_DEPENDENCIES=OFF \
+            -DENABLE_SYSTEM_OPENCL=ON \
+            -DCMAKE_VERBOSE_MAKEFILE=ON \
+            -DCPACK_GENERATOR=TGZ \
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+
+  CXX_Unit_Tests:
+    name: C++ unit tests
+    needs: [ Docker, Build, Smart_CI ]
+    uses: ./.github/workflows/job_cxx_unit_tests.yml
+    with:
+      runner: 'aks-linux-4-cores-16gb'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      os: 'ubuntu_24_04'
+
+  Debian_Packages:
+    name: Debian Packages
+    needs: [ Docker, Build ]
+    uses: ./.github/workflows/job_debian_packages.yml
+    with:
+      runner: 'aks-linux-4-cores-16gb'
+      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:24.04'
+
+  Samples:
+    needs: [ Docker, Build, Smart_CI ]
+    if: fromJSON(needs.smart_ci.outputs.affected_components).samples
+    uses: ./.github/workflows/job_samples_tests.yml
+    with:
+      runner: 'aks-linux-4-cores-16gb'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+
+  Python_Unit_Tests:
+    name: Python unit tests
+    needs: [ Docker, Build, Smart_CI ]
+    uses: ./.github/workflows/job_python_unit_tests.yml
+    with:
+      runner: 'aks-linux-4-cores-16gb'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: '3.12'
+
+  Pytorch_Layer_Tests:
+    name: Pytorch Layer Tests
+    needs: [ Docker, Build, Smart_CI ]
+    uses: ./.github/workflows/job_pytorch_layer_tests.yml
+    with:
+      runner: 'aks-linux-4-cores-16gb'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: '3.12'
+
+  TensorFlow_Layer_Tests:
+    name: TensorFlow Layer Tests
+    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
+    uses: ./.github/workflows/job_tensorflow_layer_tests.yml
+    with:
+      runner: 'aks-linux-4-cores-16gb'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: '3.12'
+
+  Openvino_tokenizers:
+    name: OpenVINO tokenizers extension
+    needs: [ Build, Smart_CI, Docker ]
+    uses: ./.github/workflows/job_tokenizers.yml
+    with:
+      runner: 'aks-linux-4-cores-16gb'
+      shell: bash
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: '3.12'
+    if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
+
+  Overall_Status:
+    name: ci/gha_overall_status_ubuntu_24
+    needs: [Smart_CI, Build, Debian_Packages, Samples, Python_Unit_Tests, Pytorch_Layer_Tests, TensorFlow_Layer_Tests, Openvino_tokenizers]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check status of all jobs
+        if: >-
+          ${{
+            contains(needs.*.result, 'failure') ||
+            contains(needs.*.result, 'cancelled')
+          }}
+        run: exit 1

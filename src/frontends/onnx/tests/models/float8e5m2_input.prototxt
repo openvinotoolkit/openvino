@@ -1,0 +1,57 @@
+ir_version: 9
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  name: "test"
+  node {
+    input: "I"
+    output: "O"
+    op_type: "Shape"
+  }
+  node {
+    input: "I"
+    output: "V"
+    op_type: "Identity"
+  }
+  input {
+    name: "I"
+    type {
+      tensor_type {
+        elem_type: 19
+        shape {
+          dim {
+            dim_value: 6
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "O"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "V"
+    type {
+      tensor_type {
+        elem_type: 19
+        shape {
+          dim {
+            dim_value: 6
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 17
+}

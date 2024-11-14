@@ -95,7 +95,6 @@ TEST(add_intermediate_gpu, test1)
     auto new_reorder = std::make_shared<reorder>("reorder", input_info("nothing"), input->get_layout());
     program::ptr prog = program::build_program(engine, topology, config, false, true);
     prog->add_intermediate(new_reorder, prog->get_node("conv1a"), 0);
-    prog->dump_program("custom_dump", true);
 
     program_wrapper::build(*prog);
 
@@ -156,7 +155,6 @@ TEST(add_intermediate_gpu, test2)
 
     prog->add_intermediate(new_conv, prog->get_node("conv2a"), 0, true, true);
     program_wrapper::add_connection(*prog, prog->get_or_create(weights_node), prog->get_or_create(new_conv));
-    prog->dump_program("custom_dump", true);
 
     program_wrapper::build(*prog);
 

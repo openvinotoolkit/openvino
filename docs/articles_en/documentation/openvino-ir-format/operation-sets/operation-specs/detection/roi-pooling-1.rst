@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_detection_ROIPooling_1}
-
 ROIPooling
 ==========
 
 
 .. meta::
-  :description: Learn about ROIPooling-1 - an object detection operation, 
+  :description: Learn about ROIPooling-1 - an object detection operation,
                 which can be performed on two required input tensors.
 
 **Versioned name**: *ROIPooling-1*
@@ -61,10 +59,10 @@ The box height and width have different representation based on **method** attri
 
 **Inputs**:
 
-*   **1**: 4D input tensor of shape ``[N, C, H, W]`` with feature maps of type *T*. **Required.**
+* **1**: 4D input tensor of shape ``[N, C, H, W]`` with feature maps of type *T*. **Required.**
 
-*   **2**: 2D input tensor of shape ``[NUM_ROIS, 5]`` describing region of interest box consisting of 5 element tuples of type *T*: ``[batch_id, x_1, y_1, x_2, y_2]``. **Required.**
-Batch indices must be in the range of ``[0, N-1]``.
+* **2**: 2D input tensor of shape ``[NUM_ROIS, 5]`` describing region of interest box consisting of 5 element tuples of type *T*: ``[batch_id, x_1, y_1, x_2, y_2]``. **Required.**
+  Batch indices must be in the range of ``[0, N-1]``.
 
 
 **Outputs**:

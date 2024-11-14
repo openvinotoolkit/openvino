@@ -24,7 +24,7 @@ public:
 
         auto promise = std::make_shared<std::promise<void>>();
 
-        std::lock_guard<std::mutex> lock(_mutex);
+        std::lock_guard<std::recursive_mutex> lock(_mutex);
 
         if (_task_keys.find(key) == _task_keys.end()) {
             if (_task_executor != nullptr) {
@@ -38,7 +38,7 @@ public:
     }
 
     void remove_keys(std::vector<kernel_impl_params>&& keys) override {
-        std::lock_guard<std::mutex> lock(_mutex);
+        std::lock_guard<std::recursive_mutex> lock(_mutex);
         if (!_task_keys.empty()) {
             for (auto key : keys) {
                 if (_task_keys.find(key) != _task_keys.end()) {
@@ -66,7 +66,7 @@ public:
         wait_all();
 
         {
-            std::lock_guard<std::mutex> lock(_mutex);
+            std::lock_guard<std::recursive_mutex> lock(_mutex);
             if (_task_executor != nullptr)
                 _task_executor.reset();
             _task_keys.clear();
@@ -84,7 +84,7 @@ public:
 private:
     ov::threading::IStreamsExecutor::Config _task_executor_config;
     std::shared_ptr<ov::threading::IStreamsExecutor> _task_executor;
-    std::mutex _mutex;
+    std::recursive_mutex _mutex;
     std::unordered_map<kernel_impl_params, std::future<void>, kernel_impl_params::Hasher> _task_keys;
     std::atomic_bool _stop_compilation{false};
 };

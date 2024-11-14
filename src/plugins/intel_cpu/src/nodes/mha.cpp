@@ -298,7 +298,7 @@ private:
             emitters[seed].reset(new jit_store_emitter(this, isa, ov::element::f32, dst_prc, elt_num));
         }
 
-        emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx()), 0}, {static_cast<size_t>(reg_dst.getIdx())},
+        emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
                                   pool_aux_vmm_idxs, pool_aux_gpr_idxs);
     }
 
@@ -480,7 +480,7 @@ private:
             emitters[seed].reset(new jit_store_emitter(this, isa, ov::element::f32, dst_prc, elt_num));
         }
 
-        emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx()), 0}, {static_cast<size_t>(reg_dst.getIdx())},
+        emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
                                   pool_aux_vmm_idxs, pool_aux_gpr_idxs);
     }
 
@@ -639,7 +639,7 @@ private:
             emitters[seed].reset(new jit_store_emitter(this, isa, src_prc, dst_prc, elt_num));
         }
 
-        emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx()), 0}, {static_cast<size_t>(reg_dst.getIdx())},
+        emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
                                   pool_aux_vmm_idxs, pool_aux_gpr_idxs);
     }
 
@@ -801,7 +801,7 @@ void MHA::initSupportedPrimitiveDescriptors() {
 
 void MHA::init_brgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel, bool use_amx) {
 #ifdef OPENVINO_ARCH_X86_64
-    brgemm_t brgDesc;
+    brgemm_desc_t brgDesc;
     brgemm_strides_t strides {static_cast<dnnl_dim_t>(ctx.M * ctx.K), static_cast<dnnl_dim_t>(ctx.K * ctx.N)};
 
     const bool is_int8 = one_of(ctx.dt_in0, data_type::u8, data_type::s8) && one_of(ctx.dt_in1, data_type::u8, data_type::s8);
@@ -859,9 +859,10 @@ void MHA::init_brgemm_copy_b(std::unique_ptr<jit_brgemm_matmul_copy_b_t>& brgCop
     brgemm_matmul_conf_t brgCopyKernelConf;
     brgCopyKernelConf.src_dt = dt_in0;
     brgCopyKernelConf.wei_dt = dt_in1;
+    brgCopyKernelConf.orig_wei_dt = dt_in1;
     brgCopyKernelConf.wei_n_blk = N_blk;
     brgCopyKernelConf.wei_tag = dnnl_abcd;
-    brgCopyKernelConf.copy_B_wei_stride = 0;
+    brgCopyKernelConf.transposed_B = false;
     brgCopyKernelConf.LDB = LDB;
     brgCopyKernelConf.N = N;
     brgCopyKernelConf.N_tail = N_tail;
@@ -872,6 +873,7 @@ void MHA::init_brgemm_copy_b(std::unique_ptr<jit_brgemm_matmul_copy_b_t>& brgCop
     brgCopyKernelConf.b_dt_sz = DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt));
     brgCopyKernelConf.tr_b_dt_sz = DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt));
     brgCopyKernelConf.req_wei_vnni_downconvert = false;
+    brgCopyKernelConf.copy_B_wei_stride = brgCopyKernelConf.N * brgCopyKernelConf.b_dt_sz;
 
     if (is_with_amx) {
         brgCopyKernelConf.isa = avx512_core_amx;
@@ -932,7 +934,7 @@ void MHA::prepareParams() {
 
     bool isAMXSupported = mayiuse(avx512_core_amx);
 
-    size_t numThreads = parallel_get_max_threads();
+    m_threads_num = parallel_get_max_threads();
 
     size_t matmulOptimalM = 32;
 
@@ -1070,21 +1072,21 @@ void MHA::prepareParams() {
     bufferCompensation1Size = rnd_up(N1, N1_blk);
 
     if (brgCopyAKernel0) {
-        bufferMatMul0In0.resize(numThreads * bufferMatMul0In0Size);
+        bufferMatMul0In0.resize(m_threads_num  * bufferMatMul0In0Size);
     }
-    bufferMatMul0In1.resize(numThreads * bufferMatMul0In1Size);
-    bufferMatMul0Out.resize(numThreads * bufferMatMul0OutSize);
-    bufferMatMul1In1.resize(numThreads * bufferMatMul1In1Size);
-    bufferMatMul1Out.resize(numThreads * bufferMatMul1OutSize);
+    bufferMatMul0In1.resize(m_threads_num  * bufferMatMul0In1Size);
+    bufferMatMul0Out.resize(m_threads_num  * bufferMatMul0OutSize);
+    bufferMatMul1In1.resize(m_threads_num  * bufferMatMul1In1Size);
+    bufferMatMul1Out.resize(m_threads_num  * bufferMatMul1OutSize);
     if (brgemmCtx0.is_with_comp) {
-        bufferCompensation0.resize(numThreads * bufferCompensation0Size);
+        bufferCompensation0.resize(m_threads_num  * bufferCompensation0Size);
     }
     if (brgemmCtx1.is_with_comp) {
-        bufferCompensation1.resize(numThreads * bufferCompensation1Size);
+        bufferCompensation1.resize(m_threads_num  * bufferCompensation1Size);
     }
 
     if (brgemmCtx0.is_with_amx || brgemmCtx1.is_with_amx) {
-        wsp.resize(numThreads * wsp_size_per_thread);
+        wsp.resize(m_threads_num  * wsp_size_per_thread);
     }
 
     {
@@ -1222,7 +1224,7 @@ void MHA::mhaImpl() {
 
     auto outPrcSize = outputPrecision.size();
 
-    parallel_for2d(dimsMatMul0Out[0], dimsMatMul0Out[1], [&](size_t i0, size_t i1) {
+    auto spatial_loop = [&](size_t i0, size_t i1) {
         size_t threadNum = parallel_get_thread_num();
 
         auto pTranspose0In0_aux = pTranspose0In0 + (i0 * strTranspose0In0[0] + i1 * strTranspose0In0[2]) * inputPrecisions[0].size(); // order 0213
@@ -1415,6 +1417,10 @@ void MHA::mhaImpl() {
                 (*convertReorderKernel)(&call_args);
             }
         }
+    };
+
+    parallel_nt_static(m_threads_num, [&](const int ithr, const int nthr) {
+        for_2d(ithr, nthr, dimsMatMul0Out[0], dimsMatMul0Out[1], spatial_loop);
     });
 }
 

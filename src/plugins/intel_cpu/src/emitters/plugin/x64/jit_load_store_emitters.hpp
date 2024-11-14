@@ -66,6 +66,8 @@ public:
     * \|/
     * dst_prc
     */
+
+    // offset in load emitter is the offset of src gpr register, should be parsed from in_idxs.
     void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const override;
 
     size_t get_inputs_num() const override;
@@ -123,6 +125,8 @@ public:
     * dst_prc
     * note: FP32/I32-->BF16(x*) is supported only on at least avx512-core plateform
     */
+
+    // offset in store emitter is the offset of dst gpr register, should be parsed from out_idxs.
     void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const override;
 
     size_t get_inputs_num() const override;

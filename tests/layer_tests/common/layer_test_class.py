@@ -1,17 +1,16 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import defusedxml.ElementTree as ET
 import itertools
+import numpy as np
 import os
 import re
 import warnings
-from pathlib import Path
-
-import defusedxml.ElementTree as ET
-import numpy as np
 from common.constants import test_device, test_precision
 from common.layer_utils import InferAPI
 from common.utils.common_utils import generate_ir_python_api
+from pathlib import Path
 
 
 class CommonLayerTest:
@@ -167,19 +166,21 @@ class CommonLayerTest:
         is_ok = True
         from common.utils.common_utils import allclose
         for framework_out_name in framework_res:
-            ie_out_name = framework_out_name
-            if ie_out_name not in infer_res and len(infer_res) == 1:
+            if framework_out_name not in infer_res and len(infer_res) == 1:
                 ie_res = list(infer_res.values())[0]
             else:
-                ie_res = infer_res[ie_out_name]
+                ie_res = infer_res[framework_out_name]
 
             if not allclose(ie_res, framework_res[framework_out_name],
                             atol=framework_eps,
                             rtol=framework_eps):
                 is_ok = False
-                print("Max diff is {}".format(
-                    np.array(
-                        abs(infer_res[ie_out_name] - framework_res[framework_out_name])).max()))
+                if ie_res.dtype != bool:
+                    fw_res = np.array(framework_res[framework_out_name])
+                    diff = np.array(abs(ie_res - fw_res)).max()
+                    print("Max diff is {}".format(diff))
+                else:
+                    print("Boolean results are not equal")
             else:
                 print("Accuracy validation successful!\n")
                 print("absolute eps: {}, relative eps: {}".format(framework_eps, framework_eps))

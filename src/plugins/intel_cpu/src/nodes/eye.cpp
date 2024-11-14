@@ -104,8 +104,8 @@ void Eye::executeSpecified() {
     const size_t colNum = getColNum();
     const int64_t shift = getDiagIndex();
     auto outPtr = getDstMemoryAtPort(0);
-    if (!outPtr || !outPtr ->isAllocated())
-        THROW_ERROR(errorPrefix, "Destination memory didn't allocate.");
+    if (!outPtr || !outPtr ->isDefined())
+        THROW_ERROR(errorPrefix, "Destination memory is undefined.");
     T *dst = outPtr->getDataAs<T>();
 
     const size_t batchVolume = getBatchVolume(getBatchShape());

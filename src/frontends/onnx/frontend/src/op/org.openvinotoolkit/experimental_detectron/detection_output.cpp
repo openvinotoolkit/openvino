@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/org.openvinotoolkit/experimental_detectron/detection_output.hpp"
-
-#include "core/node.hpp"
+#include "core/operator_set.hpp"
 #include "openvino/op/experimental_detectron_detection_output.hpp"
 
 using namespace ov::op;
@@ -12,8 +10,8 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace org_openvinotoolkit {
+namespace opset_1 {
 ov::OutputVector experimental_detectron_detection_output(const ov::frontend::onnx::Node& node) {
     using DetectionOutput = v6::ExperimentalDetectronDetectionOutput;
 
@@ -37,8 +35,12 @@ ov::OutputVector experimental_detectron_detection_output(const ov::frontend::onn
     return {detection_output->output(0), detection_output->output(1), detection_output->output(2)};
 }
 
-}  // namespace set_1
-}  // namespace op
+ONNX_OP("ExperimentalDetectronDetectionOutput",
+        OPSET_SINCE(1),
+        org_openvinotoolkit::opset_1::experimental_detectron_detection_output,
+        OPENVINO_ONNX_DOMAIN);
+}  // namespace opset_1
+}  // namespace org_openvinotoolkit
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

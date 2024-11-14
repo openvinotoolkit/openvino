@@ -320,12 +320,12 @@ TEST(type_prop, rdft_invalid_axes) {
     auto axes = op::v0::Constant::create(element::i64, Shape{1}, {3});
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::v9::RDFT>(data, axes),
                     ov::Exception,
-                    HasSubstr("Parameter axis 3 out of the tensor rank range [-3, 2]"));
+                    HasSubstr("Axis 3 out of the tensor rank range [-3, 2]"));
 
     axes = op::v0::Constant::create(element::i64, Shape{1}, {-4});
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::v9::RDFT>(data, axes),
                     ov::Exception,
-                    HasSubstr("Parameter axis -4 out of the tensor rank range [-3, 2]"));
+                    HasSubstr("Axis -4 out of the tensor rank range [-3, 2]"));
 
     axes = op::v0::Constant::create(element::i64, Shape{2}, {0, -3});
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::v9::RDFT>(data, axes),

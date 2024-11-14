@@ -45,7 +45,7 @@ std::shared_ptr<ov::Model> SoftmaxFunction::initOriginal() const {
 
 std::shared_ptr<ov::Model> SoftmaxFunction::initLowered() const {
     auto data = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
-    const auto normalized_axis = ov::util::normalize_axis("", axis, data->get_output_partial_shape(0).rank());
+    const auto normalized_axis = ov::util::try_normalize_axis(axis, data->get_output_partial_shape(0).rank());
 
     const auto reduce_max = std::make_shared<ov::snippets::op::ReduceMax>(data, normalized_axis);
     const auto subtract = std::make_shared<ov::op::v1::Subtract>(data, reduce_max);
@@ -78,11 +78,11 @@ std::shared_ptr<ov::Model> TransposeSoftmaxEltwiseFunction::initOriginal() const
     const auto transpose0Param = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[0]);
     const auto transpose0Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{m_order.size()}, m_order);
     const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(transpose0Param, transpose0Const);
-    const auto mulConst = ov::test::utils::make_constant(ov::element::f32, transpose2->get_shape());
-    const auto mul = std::make_shared<ov::op::v1::Multiply>(transpose2, mulConst);
+    const auto mul1Param = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[1]);
+    const auto mul = std::make_shared<ov::op::v1::Multiply>(transpose2, mul1Param);
     const auto softMax = std::make_shared<ov::op::v8::Softmax>(mul, m_axis);
     const auto hswish = std::make_shared<ov::op::v4::HSwish>(softMax);
-    return std::make_shared<ov::Model>(ov::NodeVector{hswish}, ov::ParameterVector{transpose0Param},
+    return std::make_shared<ov::Model>(ov::NodeVector{hswish}, ov::ParameterVector{transpose0Param, mul1Param},
                                        "softmax_transpose");
 }
 

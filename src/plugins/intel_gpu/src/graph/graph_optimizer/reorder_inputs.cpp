@@ -9,10 +9,8 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "program_helpers.h"
-#include "mvn_inst.h"
 #include "to_string_utils.h"
 #include "pooling_inst.h"
-#include "reshape_inst.h"
 #include "fully_connected_inst.h"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -26,15 +24,14 @@
 #include <list>
 #include <map>
 #include <set>
-#include <tuple>
 
 using namespace cldnn;
 
 // ToDo remove friendship relation from program
 
-reorder_inputs::reorder_inputs(layout_optimizer& lo_ref, reorder_factory& rf_ref) : base_pass("reorder_inputs"), _lo(lo_ref), _rf(rf_ref) {}
+reorder_inputs::reorder_inputs(reorder_factory& rf_ref) : base_pass("reorder_inputs"), _rf(rf_ref) {}
 
-void reorder_inputs::run(program& p) { run(p, _lo, _rf); }
+void reorder_inputs::run(program& p) { run(p, _rf); }
 
 namespace {
 
@@ -59,7 +56,7 @@ std::map<program_node*, format::type> get_preferred_formats(program& p, layout_o
             onednn_impls_counter++;
     }
 
-    if (onednn_impls_counter < 1 && lo.get_optimization_attributes().use_onednn_impls) {
+    if (lo.get_optimization_attributes().use_onednn_impls && onednn_impls_counter < 1) {
         should_update_fmt_map = true;
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 0);
         GPU_DEBUG_LOG << "Disable oneDNN implementations globally" << std::endl;
@@ -532,6 +529,15 @@ const char *dir_msg(direction_e dir) {
         return "backward";
 }
 
+static bool is_weights_dependency(program_node* predecessor, program_node* successor) {
+    bool is_weights_dep = false;
+    if (successor->is_type<convolution>() || successor->is_type<deconvolution>() || successor->is_type<fully_connected>()) {
+        size_t dep_idx = successor->get_dependency_index(*predecessor);
+        is_weights_dep = dep_idx == successor->get_primitive()->input_size();
+    }
+    return is_weights_dep;
+}
+
 // If there is layout mismatch between two layers, add reorder
 template <direction_e dir>
 void insert_reorders_in_dir(program& p, const std::map<program_node*, format::type>& fmt_map, reorder_factory& rf, layout_optimizer& lo, program_node* node) {
@@ -543,6 +549,9 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
             continue;
 
         if (fmt_map.count(next) > 0 && fmt_map.at(next) == fmt)
+            continue;
+
+        if (is_weights_dependency(node, next))
             continue;
 
         // We have three (potentially) conflicting information here for format
@@ -594,6 +603,9 @@ void insert_reorders_in_dir<direction_e::backwards>(program& p, const std::map<p
             continue;
 
         if (fmt_map.count(next.first) > 0 && fmt_map.at(next.first) == fmt)
+            continue;
+
+        if (is_weights_dependency(next.first, node))
             continue;
 
         // We have three (potentially) conflicting information here for format
@@ -666,8 +678,10 @@ void insert_reorders(program& p, const std::map<program_node*, format::type>& fm
 
 }  // namespace
 
-void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) {
+void reorder_inputs::run(program& p, reorder_factory& rf) {
     GPU_DEBUG_GET_INSTANCE(debug_config);
+
+    auto& lo = p.get_layout_optimizer();
 
     auto fmt_map = get_preferred_formats(p, lo);
 
@@ -742,6 +756,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
 
                 if (new_input.first) {
                     p.add_intermediate(new_input.first, detection_output_node, i, !new_input.second);
+                    detection_output_node.recalc_output_layouts();
                 }
             }
         }
@@ -756,6 +771,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                 layout{ input_layout.get_partial_shape(), input_layout.data_type, new_format });
             if (reorder.first) {
                 p.add_intermediate(reorder.first, deconv_node, 0, !reorder.second);
+                deconv_node.recalc_output_layouts();
             }
         }
 
@@ -878,7 +894,8 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             new_layout.data_type = data_types::f32;
             auto new_input = rf.get_reorder(input.id(), input_layout, new_layout);
             if (new_input.first) {
-               p.add_intermediate(new_input.first, fc_node, 0);
+               p.add_intermediate(new_input.first, fc_node, 0, !new_input.second);
+               fc_node.recalc_output_layouts();
             }
         }
 
@@ -905,6 +922,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             auto new_input = rf.get_reorder(input->id(), dep.second, input_layout, new_layout);
             if (new_input.first) {
                p.add_intermediate(new_input.first, pooling_node, 0);
+               pooling_node.recalc_output_layouts();
             }
         }
     };

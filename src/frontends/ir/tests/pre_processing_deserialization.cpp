@@ -68,6 +68,6 @@ TEST_F(IRFrontendTestsPreProcessing, pre_processing) {
 
     std::shared_ptr<ov::Model> model;
 
-    ASSERT_NO_THROW(model = core.read_model(xmlFileName, binFileName));
+    OV_ASSERT_NO_THROW(model = core.read_model(xmlFileName, binFileName));
     ASSERT_TRUE(!!model);
 }

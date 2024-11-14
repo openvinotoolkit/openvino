@@ -1,0 +1,201 @@
+div.dt-buttons>.dt-button, div.dt-buttons>div.dt-button-split .dt-button {
+    border-radius: 0px !important;
+    background-color: white !important;
+    border: 1px solid  #aaa !important;
+    background:none !important;
+}
+
+div.dt-container .dt-paging .dt-paging-button:hover {
+    color: white !important;
+    border: 1px solid #aaa;
+    background:none !important;
+    background-color: var(--bttn-act-bg-hover) !important
+}
+
+div.dt-buttons>.dt-button:hover, div.dt-buttons>div.dt-button-split .dt-button:hover {
+    background-color: var(--bttn-act-bg-hover) !important;
+    color: white !important;
+}
+
+table.dataTable thead th {
+    font-weight: 400 !important;
+}
+
+table.dataTable {
+    table-layout: fixed;
+    width: 100%;
+}
+
+.dt-container {
+    background-color: white !important;
+    padding: .5rem !important;
+    border: 1px solid rgba(211, 211, 211, 0.4);
+}
+
+th span p {
+    margin-bottom: .15rem !important;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+
+
+    @supports (-webkit-line-clamp: 2) {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: initial;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+}
+
+table.dataTable.stripe>tbody>tr:nth-child(odd)>*, table.dataTable.display>tbody>tr:nth-child(odd)>* {
+    box-shadow: inset 0 0 0 9999px #D7E2F6 !important;
+    background: var(--sd-color-info-bg) !important;
+}
+
+table.dataTable>thead>tr>th, table.dataTable>thead>tr>td {
+    border-bottom: 0 !important;
+}
+
+div.dt-container .dt-search input {
+    border-radius: 0px !important
+}
+
+div.dt-button-collection {
+    background-color: white;
+    border-radius: 0px !important;
+    box-shadow: 3px 4px 10px 1px rgba(0, 0, 0, 0.3);
+    box-sizing: border-box;
+}
+
+div.dt-button-collection .dt-button-active:after {
+    position: absolute;
+    top: 50%;
+    margin-top: -10px;
+    right: 1em;
+    display: inline-block;
+    content: "✓";
+    color: inherit;
+}
+
+div.dt-button-collection {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 300px !important;
+    margin-top: 3px;
+    margin-bottom: 3px;
+    padding: .75em 0;
+    border: 1px solid rgba(0, 0, 0, 0.4);
+    background-color: white;
+    overflow: hidden;
+    z-index: 2002;
+    border-radius: 5px;
+    box-shadow: 3px 4px 10px 1px rgba(0, 0, 0, 0.3);
+    box-sizing: border-box;
+}
+
+button, input, optgroup, select, textarea {
+    font-size:small;
+}
+
+
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+    background: var(--bttn-act-bg-hover) !important;
+    color: white !important;
+    border-color: var(--bttn-act-bg-hover) !important;
+    border-radius: 0px !important;
+    border: 1px !important
+}
+div.dt-container .dt-search input {
+    border-radius: 0px !important
+}
+
+div.dt-button-collection {
+    background-color: white;
+    border-radius: 0px !important;
+    box-shadow: 3px 4px 10px 1px rgba(0, 0, 0, 0.3);
+    box-sizing: border-box;
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
+    color: #666 !important;
+    background-color: transparent !important;
+    border-radius: 0px !important;
+    border: 1px !important;
+}
+
+div.dt-button-collection .dt-button-active:after {
+    position: absolute;
+    top: 50%;
+    margin-top: -10px;
+    right: 1em;
+    display: inline-block;
+    content: "✓";
+    color: inherit;
+}
+
+.column-container {
+    display: inline-block;
+    position: relative;
+    padding-left: 20px;
+
+}
+
+div.dt-button-collection {
+    width: 300px !important;
+    margin-top: 3px;
+    margin-bottom: 3px;
+    padding: .75em 0;
+    border: 1px solid rgba(0, 0, 0, 0.4);
+    background-color: white;
+    overflow: hidden;
+    z-index: 2002;
+    border-radius: 0px;
+    box-shadow: 3px 4px 10px 1px rgba(0, 0, 0, 0.3);
+    box-sizing: border-box;
+}
+
+button, input, optgroup, select, textarea {
+    font-size:small;
+}
+
+table.dataTable thead>tr>th.dt-orderable-asc span.dt-column-order, table.dataTable thead>tr>th.dt-orderable-desc span.dt-column-order, table.dataTable thead>tr>th.dt-ordering-asc span.dt-column-order, table.dataTable thead>tr>th.dt-ordering-desc span.dt-column-order, table.dataTable thead>tr>td.dt-orderable-asc span.dt-column-order, table.dataTable thead>tr>td.dt-orderable-desc span.dt-column-order, table.dataTable thead>tr>td.dt-ordering-asc span.dt-column-order, table.dataTable thead>tr>td.dt-ordering-desc span.dt-column-order {
+    left: 5px !important;
+}
+
+table.dataTable thead>tr>th.dt-orderable-asc, table.dataTable thead>tr>th.dt-orderable-desc, table.dataTable thead>tr>th.dt-ordering-asc, table.dataTable thead>tr>th.dt-ordering-desc, table.dataTable thead>tr>td.dt-orderable-asc, table.dataTable thead>tr>td.dt-orderable-desc, table.dataTable thead>tr>td.dt-ordering-asc, table.dataTable thead>tr>td.dt-ordering-desc {
+    padding-right: 2px !important;
+}
+
+table.dataTable thead>tr>th.dt-orderable-asc, table.dataTable thead>tr>th.dt-orderable-desc, table.dataTable thead>tr>th.dt-ordering-asc, table.dataTable thead>tr>th.dt-ordering-desc, table.dataTable thead>tr>td.dt-orderable-asc, table.dataTable thead>tr>td.dt-orderable-desc, table.dataTable thead>tr>td.dt-ordering-asc, table.dataTable thead>tr>td.dt-ordering-desc {
+    padding-left: 20px !important;
+    text-align:left !important;
+}
+
+div.dt-container .dt-paging .dt-paging-button {
+    box-sizing: border-box;
+    display: inline-block;
+    min-width: 1.5em;
+    padding: .5em 1em;
+    margin-left: 2px;
+    text-align: center;
+    text-decoration: none !important;
+    cursor: pointer;
+    color: inherit !important;
+    border: 1px solid transparent;
+    border-radius: 0px !important;
+    background: transparent;
+}
+
+div.dt-container .dt-paging .dt-paging-button.current, div.dt-container .dt-paging .dt-paging-button.current:hover {
+    background: none !important;
+    background-color: var(--bttn-act-bg-active) !important;
+    border-color: var(--bttn-act-bg-active) !important;
+    border-radius: 0px !important;
+    color: white !important;
+    border: 1px !important
+}
+table.dataTable thead>tr>th.dt-orderable-asc span.dt-column-order:before, table.dataTable thead>tr>th.dt-orderable-asc span.dt-column-order:after, table.dataTable thead>tr>th.dt-orderable-desc span.dt-column-order:before, table.dataTable thead>tr>th.dt-orderable-desc span.dt-column-order:after, table.dataTable thead>tr>th.dt-ordering-asc span.dt-column-order:before, table.dataTable thead>tr>th.dt-ordering-asc span.dt-column-order:after, table.dataTable thead>tr>th.dt-ordering-desc span.dt-column-order:before, table.dataTable thead>tr>th.dt-ordering-desc span.dt-column-order:after, table.dataTable thead>tr>td.dt-orderable-asc span.dt-column-order:before, table.dataTable thead>tr>td.dt-orderable-asc span.dt-column-order:after, table.dataTable thead>tr>td.dt-orderable-desc span.dt-column-order:before, table.dataTable thead>tr>td.dt-orderable-desc span.dt-column-order:after, table.dataTable thead>tr>td.dt-ordering-asc span.dt-column-order:before, table.dataTable thead>tr>td.dt-ordering-asc span.dt-column-order:after, table.dataTable thead>tr>td.dt-ordering-desc span.dt-column-order:before, table.dataTable thead>tr>td.dt-ordering-desc span.dt-column-order:after {
+    padding-bottom: 2px !important;
+}

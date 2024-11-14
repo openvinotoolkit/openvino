@@ -405,11 +405,15 @@ TEST_F(RTInfoDeserialization, node_v11) {
                 <attribute name="old_api_map_element_type" version="0" value="f16"/>
                 <attribute name="old_api_map_order" version="0" value="0,2,3,1"/>
                 <attribute name="fused_names" version="0" value="in1"/>
+                <attribute name="if no version" value="then ignore"/>
+                <attribute name="fused_names" version="1" comment="unknown version"/>
             </rt_info>
             <output>
                 <port id="0" precision="FP32" names="input_tensor">
                     <rt_info>
                         <attribute name="layout" version="0" layout="[N,H,W,C]"/>
+                        <no_name version="0" value="param1"/>
+                        <empty_node/>
                     </rt_info>
                     <dim>1</dim>
                     <dim>22</dim>
@@ -818,4 +822,70 @@ TEST_F(RTInfoDeserialization, indexes_input_and_output_v11) {
     ASSERT_EQ(2, f->get_results().size());
     ASSERT_EQ(f->get_results()[0]->get_friendly_name(), "output2");
     ASSERT_EQ(f->get_results()[1]->get_friendly_name(), "output1");
+}
+
+TEST_F(RTInfoDeserialization, node_naming_v11) {
+    std::string model = R"V0G0N(
+<net name="Network" version="11">
+	<layers>
+		<layer id="0" name="input" type="Parameter" version="opset1">
+			<data shape="1,3,224,224" element_type="f32" />
+			<output>
+				<port id="0" precision="FP32" names="input">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>224</dim>
+					<dim>224</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="output" type="Result" version="opset1">
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>224</dim>
+					<dim>224</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0" />
+	</edges>
+	<rt_info>
+		<framework>
+			<item0 value="0" /> <!-- Old-style notation, may cause an issue if starts with an unexpected character. Compatibility. -->
+			<info name="item1" value="1" /> <!-- New-style notation, name can contain any characters -->
+		</framework>
+		<info name="conversion_parameters"> <!-- New-style whole block -->
+			<info name="input_model" value="DIR\model.onnx" />
+			<info name="is_python_api_used" value="True" />
+		</info>
+	</rt_info>
+</net>
+)V0G0N";
+    auto f = getWithIRFrontend(model);
+    ASSERT_NE(nullptr, f);
+
+    auto check_version = [](const std::shared_ptr<ov::Model>& f, int ref_version) {
+        auto& rt_info = f->get_rt_info();
+        ASSERT_TRUE(rt_info.count("version"));
+        ASSERT_TRUE(rt_info.at("version").is<int64_t>());
+        ASSERT_EQ(rt_info.at("version").as<int64_t>(), ref_version);
+    };
+    check_version(f, 11);
+
+    auto& rt_info = f->get_rt_info();
+    ASSERT_TRUE(rt_info.count("framework"));
+    ASSERT_TRUE(rt_info.count("conversion_parameters"));
+
+    auto& item0 = f->get_rt_info<std::string>("framework", "item0");
+    ASSERT_EQ(item0, "0");
+
+    auto& item1 = f->get_rt_info<std::string>("framework", "item1");
+    ASSERT_EQ(item1, "1");
+
+    auto& is_python_api_used = f->get_rt_info<std::string>("conversion_parameters", "is_python_api_used");
+    ASSERT_EQ(is_python_api_used, "True");
 }

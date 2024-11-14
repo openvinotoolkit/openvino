@@ -71,7 +71,7 @@ TEST(StaticShapeInferenceTest, RMSNormIncorrectAxisValParam) {
 
     OV_EXPECT_THROW(shape_inference(op.get(), static_input_shapes, const_data),
                     NodeValidationFailure,
-                    HasSubstr("Parameter axis 5 out of the tensor rank range [-4, 3]"));
+                    HasSubstr("Axis 5 out of the tensor rank range [-4, 3]"));
 }
 
 TEST(StaticShapeInferenceTest, RMSNormIncorrectAxisValConst) {
@@ -85,7 +85,7 @@ TEST(StaticShapeInferenceTest, RMSNormIncorrectAxisValConst) {
 
     OV_EXPECT_THROW(shape_inference(op.get(), static_input_shapes),
                     NodeValidationFailure,
-                    HasSubstr("Parameter axis 5 out of the tensor rank range [-4, 3]"));
+                    HasSubstr("Axis 5 out of the tensor rank range [-4, 3]"));
 }
 
 TEST(StaticShapeInferenceTest, RMSNormIncorrectAxisShapeDim) {

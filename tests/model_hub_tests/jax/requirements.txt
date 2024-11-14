@@ -1,0 +1,10 @@
+-c ../../constraints.txt
+numpy
+pytest
+pytest-html
+transformers
+requests
+jax
+jaxlib
+flax
+pillow

@@ -24,7 +24,7 @@ OPENVINO_TEST(ops_registration, check_importing_abs_in_all_opset_versions) {
     for (int version = 1; version <= ONNX_OPSET_VERSION; ++version) {
         const auto changed_opset_model = change_opset_version(editor.model_string(), {version});
         std::stringstream model_stream{changed_opset_model};
-        ASSERT_NO_THROW(ONNXModelEditor(model_stream).get_function());
+        OV_ASSERT_NO_THROW(ONNXModelEditor(model_stream).get_function());
     }
 }
 

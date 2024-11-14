@@ -106,7 +106,7 @@ TEST(optimized_out_execution_test, concat_blocked_format) {
     auto output_mem = outputs.begin()->second.get_memory();
     cldnn::mem_lock<ov::float16> output_mem_ptr(output_mem, get_test_stream());
 
-    for (size_t i = 0; i < output_mem->get_layout().get_buffer_size().count(); ++i) {
+    for (size_t i = 0; i < output_mem->get_layout().get_linear_size(); ++i) {
         ASSERT_EQ(output_mem_ptr[i], ref[i]);
     }
 }

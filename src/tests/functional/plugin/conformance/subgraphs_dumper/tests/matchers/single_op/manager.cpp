@@ -35,29 +35,29 @@ protected:
 };
 
 TEST_F(MatchersManagerTest, constructor) {
-    ASSERT_NO_THROW(auto m = MatchersManager());
-    ASSERT_NO_THROW(auto m = MatchersManager(test_map));
+    OV_ASSERT_NO_THROW(auto m = MatchersManager());
+    OV_ASSERT_NO_THROW(auto m = MatchersManager(test_map));
 }
 
 TEST_F(MatchersManagerTest, set_matchers) {
-    ASSERT_NO_THROW(this->set_matchers(test_map));
+    OV_ASSERT_NO_THROW(this->set_matchers(test_map));
     ASSERT_EQ(this->m_matchers, test_map);
 }
 
 TEST_F(MatchersManagerTest, get_matchers) {
-    ASSERT_NO_THROW(this->set_matchers(test_map));
-    ASSERT_NO_THROW(this->get_matchers());
+    OV_ASSERT_NO_THROW(this->set_matchers(test_map));
+    OV_ASSERT_NO_THROW(this->get_matchers());
     ASSERT_EQ(this->m_matchers, this->get_matchers());
 }
 
 TEST_F(MatchersManagerTest, get_config) {
-    ASSERT_NO_THROW(this->get_config(test_abs));
+    OV_ASSERT_NO_THROW(this->get_config(test_abs));
 }
 
 TEST_F(MatchersManagerTest, match) {
     this->set_matchers(test_map);
-    ASSERT_NO_THROW(this->match(test_parameter, test_abs));
-    ASSERT_NO_THROW(this->match(test_abs, test_abs));
+    OV_ASSERT_NO_THROW(this->match(test_parameter, test_abs));
+    OV_ASSERT_NO_THROW(this->match(test_abs, test_abs));
     ASSERT_TRUE(this->match(test_abs, test_abs));
     ASSERT_TRUE(this->match(test_parameter, test_parameter));
     ASSERT_FALSE(this->match(test_parameter, test_abs));

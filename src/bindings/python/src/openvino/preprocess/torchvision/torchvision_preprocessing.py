@@ -294,12 +294,13 @@ class _(TransformConverterBase):
 
         target_h, target_w = _setup_size(transform.size, "Incorrect size type for Resize operation")
 
-        # rescale the smaller image edge
-        current_h, current_w = meta["image_dimensions"]
-        if current_h > current_w:
-            target_h = int(transform.size * (current_h / current_w))
-        elif current_w > current_h:
-            target_w = int(transform.size * (current_w / current_h))
+        if isinstance(transform.size, int):
+            # rescale the smaller image edge
+            current_h, current_w = meta["image_dimensions"]
+            if current_h > current_w:
+                target_h = int(transform.size * (current_h / current_w))
+            elif current_w > current_h:
+                target_w = int(transform.size * (current_w / current_h))
 
         ppp.input(input_idx).tensor().set_layout(Layout("NCHW"))
 

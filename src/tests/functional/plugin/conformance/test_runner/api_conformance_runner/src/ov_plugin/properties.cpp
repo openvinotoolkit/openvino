@@ -25,6 +25,7 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVPropertiesIncorrectTests,
 const std::vector<ov::AnyMap> default_properties = {
         {},
         {ov::enable_profiling(false)},
+        {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
 };
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVPropertiesTests,
@@ -32,6 +33,12 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVPropertiesTests,
                 ::testing::Values(ov::test::utils::target_device),
                 ::testing::ValuesIn(default_properties)),
         OVPropertiesTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVPropertiesDefaultTests,
+        ::testing::Combine(
+                ::testing::Values(ov::test::utils::target_device),
+                ::testing::ValuesIn(default_properties)),
+        OVPropertiesDefaultTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCheckGetSupportedROMetricsPropsTests,
         ::testing::Combine(
@@ -75,17 +82,18 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckSetIncorrectRWMetricsPropsTests,
                                 {}, sw_plugin_in_target_device(ov::test::utils::target_device)))),
         OVCheckSetIncorrectRWMetricsPropsTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
-        ::testing::Combine(
-                ::testing::Values(ov::test::utils::target_device),
-                ::testing::Values(ov::AnyMap({}))),
-        OVCheckChangePropComplieModleGetPropTests_DEVICE_ID::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    ov_plugin,
+    OVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
+    ::testing::Combine(::testing::Values(ov::test::utils::target_device), ::testing::Values(ov::AnyMap({}))),
+    MARK_MANDATORY_PROPERTY_FOR_HW_DEVICE(OVCheckChangePropComplieModleGetPropTests_DEVICE_ID::getTestCaseName));
 
-INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCheckChangePropComplieModleGetPropTests_InferencePrecision,
-        ::testing::Combine(
-                ::testing::Values(ov::test::utils::target_device),
-                ::testing::Values(ov::AnyMap({}))),
-        OVCheckChangePropComplieModleGetPropTests_InferencePrecision::getTestCaseName);
+/* Add prefix mandatory_ to suffix (getTestCaseName) of HW plugin test cases */
+INSTANTIATE_TEST_SUITE_P(
+    ov_plugin,
+    OVCheckChangePropComplieModleGetPropTests_InferencePrecision,
+    ::testing::Combine(::testing::Values(ov::test::utils::target_device), ::testing::Values(ov::AnyMap({}))),
+    MARK_MANDATORY_PROPERTY_FOR_HW_DEVICE(OVCheckChangePropComplieModleGetPropTests_InferencePrecision::getTestCaseName));
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckMetricsPropsTests_ModelDependceProps,
         ::testing::Combine(
@@ -97,17 +105,19 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckMetricsPropsTests_ModelDependceProps,
 // OV Class GetMetric
 //
 
-INSTANTIATE_TEST_SUITE_P(
-        ov_plugin_mandatory, OVGetMetricPropsTest,
-        ::testing::Values(ov::test::utils::target_device));
+INSTANTIATE_TEST_SUITE_P(ov_plugin,
+                         OVGetMetricPropsTest,
+                         ::testing::Values(ov::test::utils::target_device),
+                         MARK_MANDATORY_API_FOR_HW_DEVICE_WITHOUT_PARAM());
 
 INSTANTIATE_TEST_SUITE_P(
         ov_plugin, OVGetMetricPropsOptionalTest,
         ::testing::Values(ov::test::utils::target_device));
 
-INSTANTIATE_TEST_SUITE_P(
-        ov_plugin_mandatory, OVGetAvailableDevicesPropsTest,
-        ::testing::Values(ov::test::utils::target_device));
+INSTANTIATE_TEST_SUITE_P(ov_plugin,
+                         OVGetAvailableDevicesPropsTest,
+                         ::testing::Values(ov::test::utils::target_device),
+                         MARK_MANDATORY_API_FOR_HW_DEVICE_WITHOUT_PARAM());
 
 //
 // OV Class GetConfig

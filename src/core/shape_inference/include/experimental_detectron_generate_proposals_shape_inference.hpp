@@ -70,7 +70,7 @@ std::vector<TRShape> shape_infer(const ExperimentalDetectronGenerateProposalsSin
     }
 
     auto post_nms_count = static_cast<typename TShape::value_type>(op->get_attrs().post_nms_count);
-    auto output_shapes = std::vector<TRShape>(2, TRShape{post_nms_count});
+    auto output_shapes = std::vector<TRShape>(2, TRShape{std::move(post_nms_count)});
     output_shapes[0].push_back(4);
     return output_shapes;
 }

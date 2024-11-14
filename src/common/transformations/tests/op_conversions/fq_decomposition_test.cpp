@@ -88,7 +88,7 @@ protected:
             manager.register_pass<ov::pass::FakeQuantizeDecomposition>();
             manager.run_passes(f);
 
-            ASSERT_NO_THROW(check_rt_info(f));
+            OV_ASSERT_NO_THROW(check_rt_info(f));
         }
 
         {

@@ -29,13 +29,11 @@ struct reshape : public primitive_base<reshape> {
     /// @param output_shape Requested memory shape (excluding padding).
     /// A dimension could be 0, in this case,  the value is taken from the input tensor.
     /// At most one dimension of the new shape can be -1. In this case, the value is inferred from the size of the tensor and the remaining dimensions.
-    /// @param output_padding Requested memory padding.
     reshape(const primitive_id& id,
             const input_info& input,
             const tensor& output_shape,
-            reshape_mode mode = reshape_mode::base,
-            const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding})
+            reshape_mode mode = reshape_mode::base)
+        : primitive_base(id, {input})
         , output_shape(output_shape)
         , output_pattern({})
         , output_partial_shape({})
@@ -47,9 +45,8 @@ struct reshape : public primitive_base<reshape> {
             const input_info& pattern_id,
             bool special_zero,
             const ov::PartialShape& output_partial_shape,
-            reshape_mode mode = reshape_mode::base,
-            const padding& output_padding = padding())
-        : primitive_base(id, {input, pattern_id}, {output_padding})
+            reshape_mode mode = reshape_mode::base)
+        : primitive_base(id, {input, pattern_id})
         , output_shape(tensor())
         , special_zero(special_zero)
         , output_pattern({})
@@ -62,9 +59,8 @@ struct reshape : public primitive_base<reshape> {
             bool special_zero,
             const std::vector<int64_t>& output_pattern,
             const ov::PartialShape& output_partial_shape,
-            reshape_mode mode = reshape_mode::base,
-            const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding})
+            reshape_mode mode = reshape_mode::base)
+        : primitive_base(id, {input})
         , output_shape(tensor())
         , special_zero(special_zero)
         , output_pattern(output_pattern)

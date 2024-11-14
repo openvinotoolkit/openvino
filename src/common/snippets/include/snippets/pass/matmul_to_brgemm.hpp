@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
-#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 
 #include "snippets/op/brgemm.hpp"
 
@@ -22,9 +21,6 @@ class MatMulToBrgemm: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("MatMulToBrgemm", "0");
     MatMulToBrgemm();
-
-private:
-    void init_ports(const std::shared_ptr<op::Brgemm>& brgemm) const;
 };
 
 

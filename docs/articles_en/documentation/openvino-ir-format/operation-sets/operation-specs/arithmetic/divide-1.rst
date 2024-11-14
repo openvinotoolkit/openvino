@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_arithmetic_Divide_1}
-
 Divide
 ======
 
 
 .. meta::
-  :description: Learn about Divide-1 - an element-wise, arithmetic operation, which 
+  :description: Learn about Divide-1 - an element-wise, arithmetic operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Divide-1*
@@ -19,7 +17,7 @@ Before performing arithmetic operation, input tensors *a* and *b* are broadcaste
 After broadcasting *Divide* performs division operation for the input tensors *a* and *b* using the formula below:
 
 .. math::
-   
+
    o_{i} = \frac{a_{i}}{b_{i}}
 
 The result of division by zero is undefined.
@@ -30,7 +28,7 @@ The result of division by zero is undefined.
 
   * **Description**: specifies if floor division should be calculate. This attribute is supported only for integer data types.
   * **Range of values**:
-    
+
     * false - regular division
     * true - floor division
   * **Type**: ``boolean``
@@ -41,7 +39,7 @@ The result of division by zero is undefined.
 
   * **Description**: specifies rules used for auto-broadcasting of input tensors.
   * **Range of values**:
-    
+
     * *none* - no auto-broadcasting is allowed, all input shapes must match,
     * *numpy* - numpy broadcasting rules, description is available in :doc:`Broadcast Rules For Elementwise Operations <../../broadcast-rules>`,
     * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in :doc:`Broadcast Rules For Elementwise Operations <../../broadcast-rules>`.
@@ -68,7 +66,7 @@ The result of division by zero is undefined.
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="Divide">
        <data auto_broadcast="none" m_pythondiv="true"/>
        <input>
@@ -93,7 +91,7 @@ The result of division by zero is undefined.
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="Divide">
        <data auto_broadcast="numpy" m_pythondiv="false"/>
        <input>

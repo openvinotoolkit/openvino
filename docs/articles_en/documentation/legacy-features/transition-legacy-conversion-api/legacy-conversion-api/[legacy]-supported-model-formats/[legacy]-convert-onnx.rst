@@ -1,5 +1,3 @@
-.. {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX}
-
 [LEGACY] Converting an ONNX Model
 =============================================
 
@@ -58,7 +56,7 @@ There are no ONNX-specific parameters, so only framework-agnostic parameters are
 Supported ONNX Layers
 #####################
 
-For the list of supported standard layers, refer to the :doc:`Supported Operations <../../../../../about-openvino/compatibility-and-support/supported-operations-framework-frontend>` page.
+For the list of supported standard layers, refer to the :doc:`Supported Operations <../../../../../about-openvino/compatibility-and-support/supported-operations>` page.
 
 Additional Resources
 ####################

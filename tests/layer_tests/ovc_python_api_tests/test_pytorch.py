@@ -1,14 +1,17 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import os
+import tempfile
 import unittest
 from typing import Tuple, List
 
 import numpy as np
-import openvino.runtime as ov
 import pytest
 import torch
 from common.mo_convert_test_class import CommonMOConvertTest
+
+import openvino.runtime as ov
 from openvino.runtime import PartialShape, Dimension, Model, Type
 
 
@@ -81,6 +84,42 @@ def make_pt_model_with_optional_input():
     return NeuralNetwork()
 
 
+def make_pt_model_with_tuple_input():
+    from torch import nn
+
+    class NeuralNetwork(nn.Module):
+        def __init__(self):
+            super(NeuralNetwork, self).__init__()
+            self.linear_relu_stack = nn.Sequential(
+                nn.ReLU(),
+                nn.Sigmoid(),
+            )
+
+        def forward(self, x: tuple, y):
+            logits = self.linear_relu_stack(x[0] + x[1] + x[2] + y)
+            return logits
+
+    return NeuralNetwork()
+
+
+def make_pt_model_with_dict_input():
+    from torch import nn
+
+    class NeuralNetwork(nn.Module):
+        def __init__(self):
+            super(NeuralNetwork, self).__init__()
+            self.linear_relu_stack = nn.Sequential(
+                nn.ReLU(),
+                nn.Sigmoid(),
+            )
+
+        def forward(self, x: dict):
+            logits = self.linear_relu_stack(x["x"] + x["y"] + x["z"])
+            return logits
+
+    return NeuralNetwork()
+
+
 def make_ref_pt_model_one_input(shape, dtype=np.float32):
     shape = PartialShape(shape)
     param1 = ov.opset8.parameter(shape, name="input_0", dtype=dtype)
@@ -94,7 +133,7 @@ def make_ref_pt_model_one_input(shape, dtype=np.float32):
     return model
 
 
-def make_ref_pt_model_two_inputs(shape, dtype=np.float32):
+def make_ref_pt_model_two_inputs(shape, dtype=np.float32, reorder=False):
     if len(shape) == 2:
         param1 = ov.opset8.parameter(PartialShape(
             shape[0]), name="input_0", dtype=dtype)
@@ -104,6 +143,8 @@ def make_ref_pt_model_two_inputs(shape, dtype=np.float32):
         shape = PartialShape(shape)
         param1 = ov.opset8.parameter(shape, name="input_0", dtype=dtype)
         param2 = ov.opset8.parameter(shape, name="input_1", dtype=dtype)
+    if reorder:
+        param1, param2 = param2, param1
     if dtype == Type.dynamic:
         cl = ov.opset8.convert_like(param2, param1)
         mul = ov.opset8.multiply(param1, cl)
@@ -138,6 +179,49 @@ def make_ref_pt_model_with_optional_inputs(shape, dtype=np.float32, z_exist=Fals
     sigm = ov.opset8.sigmoid(relu)
 
     parameter_list = [param1, param2]
+    model = Model([sigm], parameter_list, "test")
+    return model
+
+
+def make_ref_pt_model_with_tuple_input(shape, dtype=np.float32):
+    param1 = ov.opset8.parameter(PartialShape(
+        shape[0]), name="input_0", dtype=dtype)
+    param2 = ov.opset8.parameter(PartialShape(
+        shape[1]), name="input_1", dtype=dtype)
+    param3 = ov.opset8.parameter(PartialShape(
+        shape[2]), name="input_2", dtype=dtype)
+    param4 = ov.opset8.parameter(PartialShape(
+        shape[3]), name="y", dtype=dtype)
+
+    op = ov.opset8.add(param1, param2)
+    op2 = ov.opset8.add(op, param3)
+    op3 = ov.opset8.add(op2, param4)
+    relu = ov.opset8.relu(op3)
+    if dtype != np.float32:
+        relu = ov.opset8.convert(relu, np.float32)
+    sigm = ov.opset8.sigmoid(relu)
+
+    parameter_list = [param1, param2, param3, param4]
+    model = Model([sigm], parameter_list, "test")
+    return model
+
+
+def make_ref_pt_model_with_dict_input(shape, dtype=np.float32):
+    param1 = ov.opset8.parameter(PartialShape(
+        shape[0]), name="x", dtype=dtype)
+    param2 = ov.opset8.parameter(PartialShape(
+        shape[1]), name="y", dtype=dtype)
+    param3 = ov.opset8.parameter(PartialShape(
+        shape[2]), name="z", dtype=dtype)
+
+    op = ov.opset8.add(param1, param2)
+    op2 = ov.opset8.add(op, param3)
+    relu = ov.opset8.relu(op2)
+    if dtype != np.float32:
+        relu = ov.opset8.convert(relu, np.float32)
+    sigm = ov.opset8.sigmoid(relu)
+
+    parameter_list = [param1, param2, param3]
     model = Model([sigm], parameter_list, "test")
     return model
 
@@ -499,6 +583,14 @@ def create_pytorch_nn_module_shapes_list_static_via_input(tmp_dir):
     return pt_model, ref_model, {'input': [([1, 3, 20, 20], np.float32), ([1, 3, 20, 20], np.float32)]}
 
 
+def create_pytorch_nn_module_reorder_inputs(tmp_dir):
+    pt_model = make_pt_model_two_inputs()
+    ref_model = make_ref_pt_model_two_inputs([[-1, -1, -1, -1], [-1]])
+
+    return pt_model, ref_model, {"input": ["x", "y"],
+                                 "example_input": [torch.zeros((1, 3, 10, 10)), torch.ones((10))],}
+
+
 def create_pytorch_nn_module_shapes_list_dynamic(tmp_dir):
     pt_model = make_pt_model_two_inputs()
     inp_shapes = [[Dimension(-1), 3, 20, Dimension(20, -1)],
@@ -684,7 +776,8 @@ def create_pytorch_module_convert_pytorch_frontend_oob(tmp_dir):
     net = ConvModel()
     shape = PartialShape([-1, 3, -1, -1])
     param1 = ov.opset10.parameter(shape, dtype=np.float32)
-    weights = ov.opset10.constant(net.weights.numpy(force=True), dtype=np.float16)
+    weights = ov.opset10.constant(
+        net.weights.numpy(force=True), dtype=np.float16)
     decompress_weights = ov.opset10.convert(weights, np.float32)
     conv = ov.opset10.convolution(param1, decompress_weights, strides=[1, 1],
                                   pads_begin=[0, 0], pads_end=[0, 0],
@@ -718,6 +811,40 @@ def create_pytorch_module_with_optional_inputs_case3(tmp_dir):
     ref_model = make_ref_pt_model_with_optional_inputs(
         [3, 3, 3, 3], z_exist=True)
     return net, ref_model, {"example_input": example_input, "input": [[3, 3, 3, 3], [3, 3, 3, 3]]}
+
+
+def create_pytorch_module_with_tuple_case1(tmp_dir):
+    net = make_pt_model_with_tuple_input()
+    example_input = ((torch.zeros((1, 3, 10, 10)), torch.ones((1, 3, 10, 10)), torch.ones((1, 3, 10, 10))), torch.ones((1, 3, 10, 10)))
+    ref_model = make_ref_pt_model_with_tuple_input(([-1, -1, -1, -1], [-1, -1, -1, -1], [-1, -1, -1, -1], [-1, -1, -1, -1]))
+    return net, ref_model, {"example_input": example_input}
+
+def create_pytorch_module_with_tuple_case2(tmp_dir):
+    net = make_pt_model_with_tuple_input()
+    example_input = {"x": (torch.zeros((1, 3, 10, 10)), torch.ones((1, 3, 10, 10)), torch.ones((1, 3, 10, 10))), "y": torch.ones((1, 3, 10, 10))}
+    ref_model = make_ref_pt_model_with_tuple_input(([-1, -1, -1, -1], [-1, -1, -1, -1], [-1, -1, -1, -1], [-1, -1, -1, -1]))
+    return net, ref_model, {"example_input": example_input}
+
+
+def create_pytorch_module_with_tuple_case3(tmp_dir):
+    net = make_pt_model_with_tuple_input()
+    example_input = ((torch.zeros((1, 3, 10, 10)), torch.ones((1, 3, 10, 10)), torch.ones((1, 3, 10, 10))), torch.ones((1, 3, 10, 10)))
+    ref_model = make_ref_pt_model_with_tuple_input(([3, 3, 3, 3], [3, 3, 3, 3], [3, 3, 3, 3], [3, 3, 3, 3]))
+    return net, ref_model, {"example_input": example_input, "input": [[3, 3, 3, 3], [3, 3, 3, 3], [3, 3, 3, 3], [3, 3, 3, 3]]}
+
+
+def create_pytorch_module_with_dict_case1(tmp_dir):
+    net = make_pt_model_with_dict_input()
+    example_input = ({"x": torch.zeros((1, 3, 10, 10)), "y": torch.ones((1, 3, 10, 10)), "z": torch.ones((1, 3, 10, 10))},)
+    ref_model = make_ref_pt_model_with_dict_input(([-1, -1, -1, -1], [-1, -1, -1, -1], [-1, -1, -1, -1]))
+    return net, ref_model, {"example_input": example_input}
+
+
+def create_pytorch_module_with_dict_case2(tmp_dir):
+    net = make_pt_model_with_dict_input()
+    example_input = ({"x": torch.zeros((1, 3, 10, 10)), "y": torch.ones((1, 3, 10, 10)), "z": torch.ones((1, 3, 10, 10))},)
+    ref_model = make_ref_pt_model_with_dict_input(([3, 3, 3, 3], [3, 3, 3, 3], [3, 3, 3, 3]))
+    return net, ref_model, {"example_input": example_input, "input": {"x": [3, 3, 3, 3], "y": [3, 3, 3, 3], "z": [3, 3, 3, 3]}}
 
 
 def create_pytorch_module_with_compressed_int8_constant_compress_to_fp16_default(tmp_dir):
@@ -798,8 +925,10 @@ def create_pytorch_module_with_nested_inputs(tmp_dir):
             return torch.cat([z1, zeros1], 1), torch.cat([z2, zeros2], 2)
 
     net = PTModel()
-    constant_zeros1 = ov.opset10.constant(np.zeros((1, 1), dtype=np.float32), dtype=np.float32)
-    constant_zeros2 = ov.opset10.constant(np.zeros((1, 5, 1), dtype=np.float32), dtype=np.float32)
+    constant_zeros1 = ov.opset10.constant(
+        np.zeros((1, 1), dtype=np.float32), dtype=np.float32)
+    constant_zeros2 = ov.opset10.constant(
+        np.zeros((1, 5, 1), dtype=np.float32), dtype=np.float32)
     shape1 = PartialShape([1, -1])
     shape2 = PartialShape([1, 5, -1])
     param1 = ov.opset10.parameter(shape1, dtype=np.float32)
@@ -821,8 +950,10 @@ def create_pytorch_module_with_nested_inputs_compress_to_fp16_default(tmp_dir):
             return torch.cat([z1, zeros1], 1), torch.cat([z2, zeros2], 2)
 
     net = PTModel()
-    constant_zeros1 = ov.opset10.constant(np.zeros((1, 1), dtype=np.float32), dtype=np.float16)
-    constant_zeros2 = ov.opset10.constant(np.zeros((1, 5, 1), dtype=np.float32), dtype=np.float16)
+    constant_zeros1 = ov.opset10.constant(
+        np.zeros((1, 1), dtype=np.float32), dtype=np.float16)
+    constant_zeros2 = ov.opset10.constant(
+        np.zeros((1, 5, 1), dtype=np.float32), dtype=np.float16)
     const1_decompress = ov.opset10.convert(constant_zeros1, np.float32)
     const2_decompress = ov.opset10.convert(constant_zeros2, np.float32)
     shape1 = PartialShape([1, -1])
@@ -845,8 +976,10 @@ def create_pytorch_module_with_nested_inputs2(tmp_dir):
             return torch.cat([z1, zeros1], 1) + x, torch.cat([z2, zeros2], 2)
 
     net = PTModel()
-    constant_zeros1 = ov.opset10.constant(np.zeros((1, 1), dtype=np.float32), dtype=np.float32)
-    constant_zeros2 = ov.opset10.constant(np.zeros((1, 5, 1), dtype=np.float32), dtype=np.float32)
+    constant_zeros1 = ov.opset10.constant(
+        np.zeros((1, 1), dtype=np.float32), dtype=np.float32)
+    constant_zeros2 = ov.opset10.constant(
+        np.zeros((1, 5, 1), dtype=np.float32), dtype=np.float32)
     shape1 = PartialShape([1, -1])
     shape2 = PartialShape([1, 5, -1])
     param0 = ov.opset10.parameter(PartialShape([-1, -1]), dtype=np.float32)
@@ -873,8 +1006,10 @@ def create_pytorch_module_with_nested_inputs3(tmp_dir):
     net = PTModel()
     shape1 = PartialShape([1, -1])
     shape2 = PartialShape([1, 5, -1])
-    constant_zeros1 = ov.opset10.constant(np.zeros((1, 1), dtype=np.float32), dtype=np.float32)
-    constant_zeros2 = ov.opset10.constant(np.zeros((1, 5, 1), dtype=np.float32), dtype=np.float32)
+    constant_zeros1 = ov.opset10.constant(
+        np.zeros((1, 1), dtype=np.float32), dtype=np.float32)
+    constant_zeros2 = ov.opset10.constant(
+        np.zeros((1, 5, 1), dtype=np.float32), dtype=np.float32)
     param1 = ov.opset10.parameter(shape1, dtype=np.float32)
     param2 = ov.opset10.parameter(shape2, dtype=np.float32)
     param3 = ov.opset10.parameter(PartialShape([-1, -1]), dtype=np.float32)
@@ -897,8 +1032,10 @@ def create_pytorch_module_with_nested_inputs4(tmp_dir):
             return torch.cat([z1, zeros1], 1) + x, torch.cat([z2, zeros2], 2) * y
 
     net = PTModel()
-    constant_zeros1 = ov.opset10.constant(np.zeros((1, 1), dtype=np.float32), dtype=np.float32)
-    constant_zeros2 = ov.opset10.constant(np.zeros((1, 5, 1), dtype=np.float32), dtype=np.float32)
+    constant_zeros1 = ov.opset10.constant(
+        np.zeros((1, 1), dtype=np.float32), dtype=np.float32)
+    constant_zeros2 = ov.opset10.constant(
+        np.zeros((1, 5, 1), dtype=np.float32), dtype=np.float32)
     shape1 = PartialShape([1, -1])
     shape2 = PartialShape([1, 5, -1])
     param1 = ov.opset10.parameter(shape1, dtype=np.float32)
@@ -926,8 +1063,10 @@ def create_pytorch_module_with_nested_inputs5(tmp_dir):
             return torch.cat([z1, zeros1], 1) + x, torch.cat([z2, zeros2], 2) * y
 
     net = PTModel()
-    constant_zeros1 = ov.opset10.constant(np.zeros((1, 1), dtype=np.float32), dtype=np.float32)
-    constant_zeros2 = ov.opset10.constant(np.zeros((1, 5, 1), dtype=np.float32), dtype=np.float32)
+    constant_zeros1 = ov.opset10.constant(
+        np.zeros((1, 1), dtype=np.float32), dtype=np.float32)
+    constant_zeros2 = ov.opset10.constant(
+        np.zeros((1, 5, 1), dtype=np.float32), dtype=np.float32)
     shape1 = PartialShape([1, -1])
     shape2 = PartialShape([1, 5, -1])
     param0 = ov.opset10.parameter(PartialShape([-1, -1]), dtype=np.float32)
@@ -956,8 +1095,10 @@ def create_pytorch_module_with_nested_inputs6(tmp_dir):
             return torch.cat([z1, zeros1], 1) + x, torch.cat([z2, zeros2], 2)
 
     net = PTModel()
-    constant_zeros1 = ov.opset10.constant(np.zeros((1, 1), dtype=np.float32), dtype=np.float32)
-    constant_zeros2 = ov.opset10.constant(np.zeros((1, 5, 1), dtype=np.float32), dtype=np.float32)
+    constant_zeros1 = ov.opset10.constant(
+        np.zeros((1, 1), dtype=np.float32), dtype=np.float32)
+    constant_zeros2 = ov.opset10.constant(
+        np.zeros((1, 5, 1), dtype=np.float32), dtype=np.float32)
     shape1 = PartialShape([1, -1])
     shape2 = PartialShape([1, 5, -1])
     param0 = ov.opset10.parameter(PartialShape([-1, -1]), dtype=np.float32)
@@ -982,7 +1123,8 @@ def create_pytorch_module_with_nested_list_and_single_input(tmp_dir):
     net = PTModel()
     constant_one = ov.opset10.constant(np.ones((1, 1)), dtype=np.float32)
     const_zero = ov.opset10.constant(0, dtype=np.int64)
-    constant_zeros1 = ov.opset10.constant(np.zeros((1, 1), dtype=np.float32), dtype=np.float32)
+    constant_zeros1 = ov.opset10.constant(
+        np.zeros((1, 1), dtype=np.float32), dtype=np.float32)
 
     param = ov.opset10.parameter(PartialShape([-1, -1, -1]), dtype=np.float32)
     gather = ov.opset10.gather(param, const_zero, const_zero)
@@ -1004,7 +1146,8 @@ def create_pytorch_module_with_single_input_as_list(tmp_dir):
     net = PTModel()
     constant_one = ov.opset10.constant(np.ones((1,)), dtype=np.float32)
     const_zero = ov.opset10.constant(0, dtype=np.int64)
-    constant_zeros1 = ov.opset10.constant(np.zeros((1,), dtype=np.float32), dtype=np.float32)
+    constant_zeros1 = ov.opset10.constant(
+        np.zeros((1,), dtype=np.float32), dtype=np.float32)
 
     param = ov.opset10.parameter(PartialShape([-1, -1]), dtype=np.float32)
     gather = ov.opset10.gather(param, const_zero, const_zero)
@@ -1031,66 +1174,85 @@ def create_pytorch_module_with_nested_dict_input(tmp_dir):
     return net, ref_model, {
         "example_input": (
             {
-            "1": torch.tensor([1, 2], dtype=torch.float32), 
-            "2": torch.tensor([3, 4], dtype=torch.float32)
-            }, 
+                "1": torch.tensor([1, 2], dtype=torch.float32),
+                "2": torch.tensor([3, 4], dtype=torch.float32)
+            },
             torch.tensor([5, 6], dtype=torch.float32)
         )}
 
 
+def create_pytorch_module_with_output(tmp_dir):
+    class PTModel(torch.nn.Module):
+        def forward(self, a, b):
+            return a + b
+
+    net = PTModel()
+    return net, None, {
+        "example_input": (
+            torch.tensor([5, 6], dtype=torch.float32),
+            torch.tensor([5, 6], dtype=torch.float32),
+        ), "output": "some_name"}
+
+
 class TestMoConvertPyTorch(CommonMOConvertTest):
     test_data = [
-        create_pytorch_nn_module_case1,
-        create_pytorch_nn_module_case2,
-        create_pytorch_nn_module_case3,
-        create_pytorch_nn_module_case4,
-        create_pytorch_nn_module_case5,
-        create_pytorch_nn_module_case6,
-        create_pytorch_nn_module_case7,
-        create_pytorch_nn_module_torch_size,
-        create_pytorch_nn_module_sample_input_int32,
-        create_pytorch_nn_module_sample_input_int32_two_inputs,
-        create_pytorch_jit_script_module,
-        create_pytorch_jit_script_function,
-        create_pytorch_nn_module_layout_list,
-        create_pytorch_nn_module_layout_list_case2,
-        create_pytorch_nn_module_mean_list_compression_default,
-        create_pytorch_nn_module_mean_list_compression_disabled,
-        create_pytorch_nn_module_mean_list_compression_enabled,
-        create_pytorch_nn_module_scale_list_compression_default,
-        create_pytorch_nn_module_scale_list_compression_disabled,
-        create_pytorch_nn_module_scale_list_compression_enabled,
-        create_pytorch_nn_module_with_compressed_constants,
-        create_pytorch_nn_module_shapes_list_static,
-        create_pytorch_nn_module_shapes_list_static_via_input,
-        create_pytorch_nn_module_shapes_list_dynamic,
-        create_pytorch_nn_module_shapes_list_dynamic_via_input,
-        create_pytorch_nn_module_shapes_list_dynamic_single_input,
-        create_pytorch_nn_module_shapes_list_static_single_input,
-        create_pytorch_nn_module_shapes_list_dynamic_single_input_via_input,
-        create_pytorch_nn_module_shapes_list_static_single_input_via_input,
-        create_pytorch_nn_module_convert_pytorch_frontend1,
-        create_pytorch_nn_module_convert_pytorch_frontend2,
-        create_pytorch_nn_module_convert_pytorch_frontend3,
-        create_pytorch_nn_module_convert_pytorch_frontend4,
-        create_pytorch_jit_script_module_convert_pytorch_frontend,
-        create_pytorch_jit_trace_module_convert_pytorch_frontend,
-        create_pytorch_module_convert_pytorch_frontend_oob,
-        create_pytorch_module_with_optional_inputs_case1,
-        create_pytorch_module_with_optional_inputs_case2,
-        create_pytorch_module_with_optional_inputs_case3,
-        create_pytorch_nn_module_with_scalar_input,
-        create_pytorch_module_with_compressed_int8_constant,
-        create_pytorch_module_with_compressed_int8_constant_compress_to_fp16_default,
-        create_pytorch_module_with_nested_inputs,
-        create_pytorch_module_with_nested_inputs2,
-        create_pytorch_module_with_nested_inputs3,
-        create_pytorch_module_with_nested_inputs4,
-        create_pytorch_module_with_nested_inputs5,
-        create_pytorch_module_with_nested_inputs6,
-        create_pytorch_module_with_nested_list_and_single_input,
-        create_pytorch_module_with_single_input_as_list,
-        create_pytorch_module_with_nested_dict_input
+        'create_pytorch_nn_module_case1',
+        'create_pytorch_nn_module_case2',
+        'create_pytorch_nn_module_case3',
+        'create_pytorch_nn_module_case4',
+        'create_pytorch_nn_module_case5',
+        'create_pytorch_nn_module_case6',
+        'create_pytorch_nn_module_case7',
+        'create_pytorch_nn_module_torch_size',
+        'create_pytorch_nn_module_sample_input_int32',
+        'create_pytorch_nn_module_sample_input_int32_two_inputs',
+        'create_pytorch_jit_script_module',
+        'create_pytorch_jit_script_function',
+        'create_pytorch_nn_module_layout_list',
+        'create_pytorch_nn_module_layout_list_case2',
+        'create_pytorch_nn_module_mean_list_compression_default',
+        'create_pytorch_nn_module_mean_list_compression_disabled',
+        'create_pytorch_nn_module_mean_list_compression_enabled',
+        'create_pytorch_nn_module_scale_list_compression_default',
+        'create_pytorch_nn_module_scale_list_compression_disabled',
+        'create_pytorch_nn_module_scale_list_compression_enabled',
+        'create_pytorch_nn_module_with_compressed_constants',
+        'create_pytorch_nn_module_shapes_list_static',
+        'create_pytorch_nn_module_shapes_list_static_via_input',
+        'create_pytorch_nn_module_reorder_inputs',
+        'create_pytorch_nn_module_shapes_list_dynamic',
+        'create_pytorch_nn_module_shapes_list_dynamic_via_input',
+        'create_pytorch_nn_module_shapes_list_dynamic_single_input',
+        'create_pytorch_nn_module_shapes_list_static_single_input',
+        'create_pytorch_nn_module_shapes_list_dynamic_single_input_via_input',
+        'create_pytorch_nn_module_shapes_list_static_single_input_via_input',
+        'create_pytorch_nn_module_convert_pytorch_frontend1',
+        'create_pytorch_nn_module_convert_pytorch_frontend2',
+        'create_pytorch_nn_module_convert_pytorch_frontend3',
+        'create_pytorch_nn_module_convert_pytorch_frontend4',
+        'create_pytorch_jit_script_module_convert_pytorch_frontend',
+        'create_pytorch_jit_trace_module_convert_pytorch_frontend',
+        'create_pytorch_module_convert_pytorch_frontend_oob',
+        'create_pytorch_module_with_optional_inputs_case1',
+        'create_pytorch_module_with_optional_inputs_case2',
+        'create_pytorch_module_with_optional_inputs_case3',
+        'create_pytorch_module_with_tuple_case1',
+        'create_pytorch_module_with_tuple_case2',
+        'create_pytorch_module_with_tuple_case3',
+        'create_pytorch_module_with_dict_case1',
+        'create_pytorch_module_with_dict_case2',
+        'create_pytorch_nn_module_with_scalar_input',
+        'create_pytorch_module_with_compressed_int8_constant',
+        'create_pytorch_module_with_compressed_int8_constant_compress_to_fp16_default',
+        'create_pytorch_module_with_nested_inputs',
+        'create_pytorch_module_with_nested_inputs2',
+        'create_pytorch_module_with_nested_inputs3',
+        'create_pytorch_module_with_nested_inputs4',
+        'create_pytorch_module_with_nested_inputs5',
+        'create_pytorch_module_with_nested_inputs6',
+        'create_pytorch_module_with_nested_list_and_single_input',
+        'create_pytorch_module_with_single_input_as_list',
+        'create_pytorch_module_with_nested_dict_input'
     ]
 
     @pytest.mark.parametrize("create_model", test_data)
@@ -1098,13 +1260,30 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
     @pytest.mark.precommit
     def test_mo_import_from_memory(self, create_model, ie_device, precision, ir_version,
                                    temp_dir, use_legacy_frontend):
-        fw_model, graph_ref, mo_params = create_model(temp_dir)
+        fw_model, graph_ref, mo_params = eval(create_model)(temp_dir)
 
         test_params = {'input_model': fw_model}
         if mo_params is not None:
             test_params.update(mo_params)
         self._test_by_ref_graph(temp_dir, test_params,
                                 graph_ref, compare_tensor_names=False)
+
+    @pytest.mark.parametrize("create_model,exception", [
+        ('create_pytorch_module_with_output', AssertionError)
+    ])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_mo_import_from_memory_negative(self, create_model, exception,
+                                            ie_device, precision, ir_version,
+                                            temp_dir, use_legacy_frontend):
+        fw_model, graph_ref, mo_params = eval(create_model)(temp_dir)
+
+        test_params = {'input_model': fw_model}
+        if mo_params is not None:
+            test_params.update(mo_params)
+        with pytest.raises(exception):
+            self._test_by_ref_graph(temp_dir, test_params,
+                                    graph_ref, compare_tensor_names=False)
 
 
 def create_pt_model_with_custom_op():
@@ -1137,7 +1316,7 @@ class ConvertRaises(unittest.TestCase):
         from openvino.tools.ovc import convert_model
         pytorch_model, _, _ = create_pytorch_nn_module_case1('')
 
-        with self.assertRaisesRegex(Exception, ".*No node with name.*"):
+        with self.assertRaisesRegex(Exception, "Input for tensor name \'input1\[1, 10\]\' is not found."):
             convert_model(pytorch_model, input='input1[1, 10]')
 
     def test_incorrect_inputs_2(self):
@@ -1145,7 +1324,7 @@ class ConvertRaises(unittest.TestCase):
         pytorch_model, _, _ = create_pytorch_nn_module_case1('')
 
         # check that it accepts specified names as is, without parsing into 2 different inputs
-        with self.assertRaisesRegex(Exception, 'No node with name input1,input2'):
+        with self.assertRaisesRegex(Exception, 'Input for tensor name \'input1,input2\' is not found.'):
             convert_model(pytorch_model, input='input1,input2')
 
     def test_incorrect_inputs_3(self):
@@ -1153,7 +1332,7 @@ class ConvertRaises(unittest.TestCase):
         pytorch_model, _, _ = create_pytorch_nn_module_case1('')
 
         # check that it accepts specified names as is, without parsing into 2 different inputs
-        with self.assertRaisesRegex(Exception, 'No node with name input1\[1, 10\],input2\[2, 100\]'):
+        with self.assertRaisesRegex(Exception, 'Input for tensor name \'input1\[1, 10\],input2\[2, 100\]\' is not found.'):
             convert_model(pytorch_model, input='input1[1, 10],input2[2, 100]')
 
     def test_incorrect_inputs_4(self):
@@ -1161,8 +1340,9 @@ class ConvertRaises(unittest.TestCase):
         pytorch_model, _, _ = create_pytorch_nn_module_case1('')
 
         # check that it accepts specified names as is, without parsing into 2 different inputs
-        with self.assertRaisesRegex(Exception, 'No node with name input1\[1, 10\]'):
-            convert_model(pytorch_model, input=['input1[1, 10]', 'input2[2, 100]'])
+        with self.assertRaisesRegex(Exception, 'Input for tensor name \'input1\[1, 10\]\' is not found.'):
+            convert_model(pytorch_model, input=[
+                          'input1[1, 10]', 'input2[2, 100]'])
 
     def test_failed_extension(self):
         from openvino.tools.ovc import convert_model
@@ -1181,11 +1361,13 @@ class ConvertRaises(unittest.TestCase):
 
     def test_failed_extension(self):
         import tempfile
+        import os
         from openvino.tools.ovc import convert_model
 
         with self.assertRaisesRegex(Exception, ".*Cannot recognize input model.*"):
-            with tempfile.NamedTemporaryFile() as tmpfile:
+            with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
                 convert_model(tmpfile.name)
+            os.remove(tmpfile.name)
 
 
 def create_model_three_inputs():
@@ -1257,4 +1439,169 @@ class TestPytorchConversionParams(CommonMOConvertTest):
         ref_model = params['ref_model']
 
         test_params.update({'input_model': fw_model})
-        self._test_by_ref_graph(temp_dir, test_params, ref_model, compare_tensor_names=False)
+        self._test_by_ref_graph(temp_dir, test_params,
+                                ref_model, compare_tensor_names=False)
+
+
+def pytorch_nn_module_with_enabled_compression(tmp_dir):
+    import torch
+
+    class NeuralNetwork(torch.nn.Module):
+        def __init__(self):
+            super(NeuralNetwork, self).__init__()
+            self.y = torch.arange(10, dtype=torch.float16)
+
+        def forward(self, x, z):
+            return (x + self.y.to(torch.float32)) * z
+
+    param_1 = ov.opset13.parameter([10], dtype=np.float32)
+    param_2 = ov.opset13.parameter([10], dtype=np.float32)
+    const_1 = ov.opset13.constant(np.arange(10), dtype=np.float16)
+    convert_1 = ov.opset13.convert(const_1, np.float32)
+    add_1 = ov.opset13.add(param_1, convert_1)
+    mul_1 = ov.opset13.multiply(add_1, param_2)
+
+    ov_model_ref = Model([mul_1], [param_1, param_2], "test")
+    fw_model = NeuralNetwork()
+    return fw_model, ov_model_ref, {'input': [([10], np.float32), ([10], np.float32)],
+                                    'example_input': (torch.zeros(10), torch.zeros(10))}
+
+
+def pytorch_nn_module_with_disabled_compression(tmp_dir):
+    import torch
+
+    class NeuralNetwork(torch.nn.Module):
+        def __init__(self):
+            super(NeuralNetwork, self).__init__()
+            self.y = torch.arange(10, dtype=torch.float32)
+
+        def forward(self, x, z):
+            return (x + self.y) * z
+
+    param_1 = ov.opset13.parameter([-1], dtype=np.float32)
+    param_2 = ov.opset13.parameter([-1], dtype=np.float32)
+    const_1 = ov.opset13.constant(np.arange(10), dtype=np.float32)
+    add_1 = ov.opset13.add(param_1, const_1)
+    mul_1 = ov.opset13.multiply(add_1, param_2)
+
+    ov_model_ref = Model([mul_1], [param_1, param_2], "test")
+    fw_model = NeuralNetwork()
+    return fw_model, ov_model_ref, {'example_input': (torch.zeros(10), torch.zeros(10)),
+                                    'compress_to_fp16': 'False'}
+
+
+class TestConvertModelForPyTorchModelOnDisk(CommonMOConvertTest):
+    test_data = [
+        'create_pytorch_nn_module_case1',
+        'create_pytorch_nn_module_case2',
+        'create_pytorch_nn_module_case3',
+        'create_pytorch_nn_module_sample_input_int32_two_inputs',
+        'pytorch_nn_module_with_enabled_compression'
+    ]
+
+    @pytest.mark.parametrize('create_model', test_data)
+    @pytest.mark.parametrize('model_format', ['exported_program', 'torch_script'])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_convert_model_for_pytorch_model_on_disk(self, create_model, model_format,
+                                                     ie_device, precision, ir_version,
+                                                     temp_dir, use_legacy_frontend):
+        fw_model, graph_ref, ovc_params = eval(create_model)(temp_dir)
+
+        with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
+            if model_format == 'torch_script':
+                scripted_model = torch.jit.script(fw_model)
+                scripted_model.save(tmpfile.name)
+                test_params = {'input_model': tmpfile.name}
+                if ovc_params is not None:
+                    test_params.update(ovc_params)
+            else:
+                example_input = ovc_params['example_input']
+                exported_program = torch.export.export(fw_model, example_input)
+                torch.export.save(exported_program, tmpfile.name)
+                test_params = {'input_model': tmpfile.name}
+                if ovc_params is not None:
+                    test_params.update(ovc_params)
+
+            self._test_by_ref_graph(temp_dir, test_params,
+                                    graph_ref, compare_tensor_names=False)
+        os.remove(tmpfile.name)
+
+
+def ovc_case1(tmp_dir):
+    pt_model = make_pt_model_two_inputs()
+    ref_model = make_ref_pt_model_two_inputs([1, 3, 10, 10])
+
+    sample_input1 = torch.zeros(1, 3, 10, 10)
+    sample_input2 = torch.zeros(1, 3, 10, 10)
+    sample_input = sample_input1, sample_input2
+
+    return pt_model, ref_model, {'example_input': sample_input}
+
+
+def pytorch_nn_module_case2(tmp_dir):
+    pt_model = make_pt_model_two_inputs()
+    ref_model = make_ref_pt_model_two_inputs([-1, 3, -1, -1])
+
+    sample_input1 = torch.zeros(1, 3, 10, 10)
+    sample_input2 = torch.zeros(1, 3, 10, 10)
+    sample_input = sample_input1, sample_input2
+
+    return pt_model, ref_model, {'input': '[-1,3,-1,-1],[-1,3,-1,-1]',
+                                 'example_input': sample_input}
+
+
+def nested_dict_input_ovc_case2(tmp_dir):
+    class PTModel(torch.nn.Module):
+        def forward(self, a, b):
+            return a["1"] * a["2"] + b
+
+    net = PTModel()
+    a1 = ov.opset10.parameter(PartialShape([-1]), dtype=np.float32)
+    a2 = ov.opset10.parameter(PartialShape([-1]), dtype=np.float32)
+    b = ov.opset10.parameter(PartialShape([-1]), dtype=np.float32)
+    mul = ov.opset10.multiply(a1, a2)
+    add = ov.opset10.add(mul, b)
+    ref_model = Model([add], [a1, a2, b], "test")
+    example_input = (
+        {
+            "1": torch.tensor([1, 2], dtype=torch.float32),
+            "2": torch.tensor([3, 4], dtype=torch.float32)
+        },
+        torch.tensor([5, 6], dtype=torch.float32)
+    )
+    return net, ref_model, {'example_input': example_input}
+
+
+class TestOVCForExportedProgramOnDisk(CommonMOConvertTest):
+    test_data = [
+        'create_pytorch_nn_module_case1',
+        'pytorch_nn_module_case2',
+        'nested_dict_input_ovc_case2',
+        'pytorch_nn_module_with_disabled_compression'
+    ]
+
+    @pytest.mark.parametrize('create_model', test_data)
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_ovc_for_exported_program_on_disk(self, create_model,
+                                              ie_device, precision, ir_version,
+                                              temp_dir, use_legacy_frontend):
+        fw_model, graph_ref, ovc_params = eval(create_model)(temp_dir)
+        example_input = ovc_params['example_input']
+        del ovc_params['example_input']
+
+        ep_file_name = None
+        with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
+            exported_program = torch.export.export(fw_model, tuple(example_input))
+            torch.export.save(exported_program, tmpfile.name)
+            ep_file_name = tmpfile.name
+
+            test_params = {'input_model': ep_file_name}
+            if ovc_params is not None:
+                test_params.update(ovc_params)
+
+            self._test_by_ref_graph(temp_dir, test_params,
+                                    graph_ref, compare_tensor_names=False,
+                                    ovc=True)
+        os.remove(ep_file_name)

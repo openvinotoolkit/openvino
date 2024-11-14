@@ -1,8 +1,9 @@
 Paint By Example: Exemplar-based Image Editing with Diffusion Models
 ====================================================================
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
+
 
 -  `Stable Diffusion in Diffusers
    library <#stable-diffusion-in-diffusers-library>`__
@@ -22,10 +23,20 @@ Table of contents:
 
 -  `Interactive inference <#interactive-inference>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Stable Diffusion in Diffusers library
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
- To work with Stable Diffusion,
+To work with Stable Diffusion,
 we will use the Hugging Face
 `Diffusers <https://github.com/huggingface/diffusers>`__ library. To
 experiment with in-painting we can use Diffusers which exposes the
@@ -47,14 +58,7 @@ This is the overall flow of the application:
 .. code:: ipython3
 
     %pip install -q "torch>=2.1" torchvision --extra-index-url "https://download.pytorch.org/whl/cpu"
-    %pip install -q "diffusers>=0.25.0" "peft==0.6.2" "openvino>=2023.2.0" "transformers>=4.25.1" ipywidgets opencv-python pillow "nncf>=2.7.0" "gradio==3.44.1" tqdm
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
+    %pip install -q "diffusers>=0.25.0" "peft>=0.6.2" "openvino>=2023.2.0" "transformers>=4.25.1" "matplotlib>=3.4" ipywidgets opencv-python pillow "nncf>=2.7.0" "gradio==3.44.1" tqdm
 
 Download the model from `HuggingFace
 Paint-by-Example <https://huggingface.co/Fantasy-Studio/Paint-by-Example>`__.
@@ -103,7 +107,7 @@ Download default images.
     
     open("notebook_utils.py", "w").write(r.text)
     
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget, quantization_widget
     
     download_file(
         "https://github-production-user-asset-6210df.s3.amazonaws.com/103226580/286377210-edc98e97-0e43-4796-b771-dacd074c39ea.png",
@@ -739,17 +743,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    from openvino import Core
-    import ipywidgets as widgets
-    
-    core = Core()
-    
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
     
     device
 
@@ -776,6 +770,8 @@ This can take a while to run.
 .. code:: ipython3
 
     ov_config = {"INFERENCE_PRECISION_HINT": "f32"} if device.value != "CPU" else {}
+    
+    core = ov.Core()
     
     
     def get_ov_pipeline():
@@ -829,17 +825,11 @@ improve model inference speed.
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
     UNET_INT8_OV_PATH = Path("model/unet_int8.xml")
     int8_ov_pipe_inpaint = None
     
     
-    to_quantize = widgets.Checkbox(
-        value=True,
-        description="Quantization",
-        disabled=False,
-    )
+    to_quantize = quantization_widget()
     
     to_quantize
 
@@ -1035,17 +1025,17 @@ Create a quantized model from the pre-trained converted OpenVINO model.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1056,17 +1046,17 @@ Create a quantized model from the pre-trained converted OpenVINO model.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1082,17 +1072,17 @@ Create a quantized model from the pre-trained converted OpenVINO model.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1103,17 +1093,17 @@ Create a quantized model from the pre-trained converted OpenVINO model.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1224,6 +1214,8 @@ can choose both, FP16 and INT8.
 
 .. code:: ipython3
 
+    import ipywidgets as widgets
+    
     available_models = ["FP16"]
     
     if UNET_INT8_OV_PATH.exists():
@@ -1257,17 +1249,13 @@ can choose both, FP16 and INT8.
         int8_ov_pipe_inpaint = None
     
     
-    gc.collect();
-
-Choose a source image and a reference image, draw a mask in source image
-and push “Paint!”
+    gc.collect()
 
 .. code:: ipython3
 
     # Code adapated from https://huggingface.co/spaces/Fantasy-Studio/Paint-by-Example/blob/main/app.py
     
     import os
-    import gradio as gr
     
     
     def predict(input_dict, reference, seed, steps):
@@ -1342,80 +1330,30 @@ and push “Paint!”
         result.save("output/result.png")
     
         return result
+
+Choose a source image and a reference image, draw a mask in source image
+and push “Paint!”
+
+.. code:: ipython3
+
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/paint-by-example/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
     
+    from gradio_helper import make_demo
     
-    example = {}
-    title = f"# {model_to_use.value} pipeline"
-    ref_dir = "data/reference"
-    image_dir = "data/image"
-    ref_list = [os.path.join(ref_dir, file) for file in os.listdir(ref_dir) if file.endswith(".jpg")]
-    ref_list.sort()
-    image_list = [os.path.join(image_dir, file) for file in os.listdir(image_dir) if file.endswith(".png")]
-    image_list.sort()
-    
-    
-    image_blocks = gr.Blocks()
-    with image_blocks as demo:
-        gr.Markdown(title)
-        with gr.Group():
-            with gr.Row():
-                with gr.Column():
-                    image = gr.Image(
-                        source="upload",
-                        tool="sketch",
-                        elem_id="image_upload",
-                        type="pil",
-                        label="Source Image",
-                    )
-                    reference = gr.Image(
-                        source="upload",
-                        elem_id="image_upload",
-                        type="pil",
-                        label="Reference Image",
-                    )
-    
-                with gr.Column():
-                    image_out = gr.Image(label="Output", elem_id="output-img")
-                    steps = gr.Slider(
-                        label="Steps",
-                        value=15,
-                        minimum=2,
-                        maximum=75,
-                        step=1,
-                        interactive=True,
-                    )
-                    seed = gr.Slider(0, 10000, label="Seed (0 = random)", value=0, step=1)
-    
-                    with gr.Row(elem_id="prompt-container"):
-                        btn = gr.Button("Paint!")
-    
-            with gr.Row():
-                with gr.Column():
-                    gr.Examples(
-                        image_list,
-                        inputs=[image],
-                        label="Examples - Source Image",
-                        examples_per_page=12,
-                    )
-                with gr.Column():
-                    gr.Examples(
-                        ref_list,
-                        inputs=[reference],
-                        label="Examples - Reference Image",
-                        examples_per_page=12,
-                    )
-    
-            btn.click(
-                fn=predict,
-                inputs=[image, reference, seed, steps],
-                outputs=[image_out],
-            )
+    demo = make_demo(fn=predict)
     
     # Launching the Gradio app
     try:
-        image_blocks.launch(debug=False, height=680)
+        demo.launch(debug=False, height=680)
     except Exception:
-        image_blocks.queue().launch(share=True, debug=False, height=680)
+        demo.queue().launch(share=True, debug=False, height=680)
     # if you are launching remotely, specify server_name and server_port
     # image_blocks.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

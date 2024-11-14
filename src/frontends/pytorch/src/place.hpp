@@ -19,6 +19,8 @@ class Place : public ov::frontend::Place {
 
 public:
     Place(const ov::frontend::InputModel& input_model, size_t tensor_index);
+    // Fake place of the input. If name is non-empty it is used as id of the input, otherwise input_index is used
+    Place(const ov::frontend::InputModel& input_model, const std::string& name, size_t input_index);
 
     ~Place() override = default;
 
@@ -28,9 +30,7 @@ public:
     bool is_output() const override {
         return m_is_output;
     }
-    bool is_equal(const Ptr& another) const override {
-        return this == another.get();
-    }
+    bool is_equal(const Ptr& another) const override;
     std::vector<std::string> get_names() const override {
         return m_names;
     }
@@ -50,13 +50,18 @@ public:
         }
         return m_tensor_index == another_pt->get_tensor_index();
     }
+    size_t get_input_index() const {
+        return m_input_index;
+    }
 
 private:
     const ov::frontend::InputModel& m_input_model;
     const size_t m_tensor_index;
     std::vector<std::string> m_names;
-    element::Type m_type = element::dynamic;
+    bool m_is_fake = false;
+    size_t m_input_index = 0;  // Only used for fake place
     PartialShape m_pshape;
+    element::Type m_type = element::dynamic;
     bool m_is_input = false;
     bool m_is_output = false;
 };

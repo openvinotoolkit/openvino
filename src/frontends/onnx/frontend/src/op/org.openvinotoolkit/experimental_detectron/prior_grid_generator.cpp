@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/org.openvinotoolkit/experimental_detectron/prior_grid_generator.hpp"
-
-#include "core/node.hpp"
+#include "core/operator_set.hpp"
 #include "openvino/op/experimental_detectron_prior_grid_generator.hpp"
 
 using namespace ov::op;
@@ -12,8 +10,8 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace org_openvinotoolkit {
+namespace opset_1 {
 ov::OutputVector experimental_detectron_prior_grid_generator(const ov::frontend::onnx::Node& node) {
     using PriorGridGenerator = v6::ExperimentalDetectronPriorGridGenerator;
 
@@ -31,8 +29,12 @@ ov::OutputVector experimental_detectron_prior_grid_generator(const ov::frontend:
 
     return {std::make_shared<PriorGridGenerator>(priors, feature_map, im_data, attrs)};
 }
-}  // namespace set_1
-}  // namespace op
+ONNX_OP("ExperimentalDetectronPriorGridGenerator",
+        OPSET_SINCE(1),
+        org_openvinotoolkit::opset_1::experimental_detectron_prior_grid_generator,
+        OPENVINO_ONNX_DOMAIN);
+}  // namespace opset_1
+}  // namespace org_openvinotoolkit
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

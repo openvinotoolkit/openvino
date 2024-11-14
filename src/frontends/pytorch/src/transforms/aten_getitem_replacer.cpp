@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/constant.hpp"
@@ -47,7 +48,7 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
             return false;
 
         ov::pass::NodeRegistry rg;
-        auto input_node = getitem->input_value(0).get_node_shared_ptr();
+        const auto& input_node = getitem->input_value(0).get_node_shared_ptr();
         if (auto torch_split = cast_fw_node(input_node, "aten::split")) {
             auto rank = torch_split->input(1).get_partial_shape().rank();
             if (rank.is_dynamic()) {
@@ -94,8 +95,9 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
                 auto split = rg.make<v8::Slice>(input, split_slice_start, split_slice_end, const_1, axis_1d);
                 replace_node(getitem, split);
             } else {
-                auto getitem_index_ptr = getitem->input_value(1).get_node_shared_ptr();
-                auto getitem_index_const = std::dynamic_pointer_cast<v0::Constant>(getitem_index_ptr);
+                auto getitem_index_const = ov::util::get_constant_from_source(getitem->input_value(1));
+                if (!getitem_index_const)
+                    return false;
                 auto split = rg.make<v1::VariadicSplit>(torch_split->get_input_source_output(0),
                                                         torch_split->get_input_source_output(2),
                                                         torch_split->get_input_source_output(1));
@@ -111,8 +113,8 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
                 getitem->output(0).replace(split->outputs()[index]);
             }
         } else if (auto list_construct = cast_fw_node(input_node, "prim::ListConstruct")) {
-            auto getitem_idx = getitem->input_value(1).get_node_shared_ptr();
-            auto getitem_idx_const = std::dynamic_pointer_cast<v0::Constant>(getitem_idx);
+            auto getitem_idx = getitem->input_value(1);
+            auto getitem_idx_const = ov::util::get_constant_from_source(getitem_idx);
             if (getitem_idx_const) {
                 auto idx = getitem_idx_const->cast_vector<int64_t>();
                 getitem->output(0).replace(list_construct->input_value(idx[0]));
@@ -122,7 +124,7 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
                 auto gather = rg.make<v8::Gather>(input_concat, getitem_idx, zero);
                 replace_node(getitem, gather);
             }
-        } else if (auto chunk = cast_fw_node(input_node, "aten::chunk")) {
+        } else if (auto chunk = cast_fw_node(input_node, {"aten::chunk", "aten::unsafe_chunk"})) {
             auto input_tensor = chunk->get_input_source_output(0);
             auto chunks_i32 = chunk->get_input_source_output(1);
             auto dim_i32 = chunk->get_input_source_output(2);

@@ -21,7 +21,7 @@ ov::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
         ov::pass::pattern::wrap_type<ov::op::v0::DepthToSpace>({pattern::any_input(pattern::has_static_shape())});
 
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto dts_node = std::dynamic_pointer_cast<ov::op::v0::DepthToSpace>(m.get_match_root());
+        auto dts_node = ov::as_type_ptr<ov::op::v0::DepthToSpace>(m.get_match_root());
         if (!dts_node || transformation_callback(dts_node)) {
             return false;
         }

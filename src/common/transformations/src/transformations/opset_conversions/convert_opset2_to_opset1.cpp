@@ -14,7 +14,7 @@
 
 bool ov::pass::ConvertOpSet2ToOpSet1::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(ConvertOpSet2ToOpSet1);
-    ov::pass::Manager manager(get_pass_config());
+    ov::pass::Manager manager(get_pass_config(), "ConvertOpSet2ToOpSet1");
     manager.set_per_pass_validation(false);
 
     manager.register_pass<ov::pass::ConvertSpaceToBatch>();

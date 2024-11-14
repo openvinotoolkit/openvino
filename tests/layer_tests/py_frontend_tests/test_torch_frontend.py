@@ -432,7 +432,7 @@ def test_multiple_module_extension():
     converted_model = fe.convert(input_model)
     assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
-        "Parameter", "Convert", "Convert", "Cos", "Constant", "Relu", "Multiply", "Add", "Result"]
+        "Parameter", "Convert", "Convert", "Cos", "Constant", "Convert", "Relu", "Multiply", "Add", "Result"]
 
     converted_model = convert_model(model, example_input=(
         torch.randn(100),), extension=[ModuleExtension(CosModel, "aten::sin"), ModuleExtension(model.relu_module, "aten::tan")])
@@ -687,16 +687,21 @@ def test_patched_16bit_model_converts():
     from openvino.frontend.pytorch import patch_model
     from openvino import convert_model, compile_model
     import copy
+    import inspect
+    from transformers.pytorch_utils import Conv1D
 
     class ModelWithLinear(torch.nn.Module):
         def __init__(self):
             super().__init__()
 
             self.branch1 = torch.nn.Sequential(
-                torch.nn.Linear(64, 32), torch.nn.ReLU()
+                torch.nn.Embedding(10, 64),
+                torch.nn.Linear(64, 32),
+                torch.nn.ReLU()
             )
             self.branch2 = torch.nn.Sequential(
-                torch.nn.Linear(128, 64), torch.nn.ReLU()
+                Conv1D(256, 128),
+                torch.nn.Linear(256, 64), torch.nn.ReLU()
             )
             self.buffer = torch.ones(32)
 
@@ -705,13 +710,16 @@ def test_patched_16bit_model_converts():
             out2 = self.branch2(x2)
             return (out1 + self.buffer, out2)
 
-    example = (torch.randn(32, 64), torch.randn(32, 128))
+    example = (torch.randint(0, 10, [32, 64]), torch.randn(32, 128))
     model_ref = ModelWithLinear()
     with torch.no_grad():
         res_ref = model_ref(*example)
     model_fp16 = copy.deepcopy(model_ref).half()
 
     patch_model.__make_16bit_traceable(model_fp16)
+    # verify torch.nn.Linear signature after patching
+    signature = inspect.signature(model_ref.branch1[0].forward).parameters
+    assert ["input"] == list(signature)
     # the approach with patching only works for node with no grad
     with torch.no_grad():
         converted_model = convert_model(model_fp16, example_input=example)

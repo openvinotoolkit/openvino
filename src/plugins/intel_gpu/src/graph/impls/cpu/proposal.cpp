@@ -4,8 +4,7 @@
 
 #include "proposal_inst.h"
 #include "intel_gpu/runtime/engine.hpp"
-#include "implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
+#include "impls/registry/implementation_map.hpp"
 #include "register.hpp"
 
 #include <algorithm>
@@ -389,7 +388,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
     event::ptr execute_impl(const std::vector<event::ptr>& events, proposal_inst& instance) override {
         auto& stream = instance.get_network().get_stream();
 
-        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
+        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.all_dependencies_cpu_impl();
 
         if (!pass_through_events) {
             for (auto e : events) {
@@ -457,9 +456,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
             // - image_info[3] = { img_height, img_width, img_depth }
             // - image_info[4] = { img_height, img_width, scale_min_bbox_y, scale_min_bbox_x }
             // - image_info[6] = { img_height, img_width, img_depth, scale_min_bbox_y, scale_min_bbox_x, scale_depth_index }
-            if (count != 3 && count != 4 && count != 6) {
-                CLDNN_ERROR_MESSAGE(arg.id(), "image_info must have either 3, 4 or 6 items");
-            }
+            OPENVINO_ASSERT(one_of(count, {3, 4, 6}), arg.id(), "image_info must have either 3, 4 or 6 items");
         }
 
         return make_unique<proposal_impl>(arg);

@@ -241,7 +241,7 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
         ov::disable_constant_folding(onWeights);
     }
 
-    OPENVINO_DEBUG << "LPT: done: " << convolutionBackpropData;
+    OPENVINO_DEBUG("LPT: done: ", convolutionBackpropData);
     return true;
 }
 

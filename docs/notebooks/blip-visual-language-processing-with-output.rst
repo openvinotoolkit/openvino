@@ -30,8 +30,9 @@ The tutorial consists of the following parts:
 5. Compare original and optimized models
 6. Launch interactive demo
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
+
 
 -  `Background <#background>`__
 
@@ -69,6 +70,15 @@ Table of contents:
       models <#compare-inference-time-of-the-fp16-and-optimized-models>`__
 
 -  `Interactive demo <#interactive-demo>`__
+
+
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 Background
 ----------
@@ -270,7 +280,7 @@ text and vision modalities and postprocessing of generation results.
 
     import platform
 
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "torch>=2.1.0" torchvision "transformers>=4.26.0" "gradio>=4.19" "openvino>=2023.3.0" "datasets>==2.14.6" "nncf>=2.8.1" "tqdm"
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "torch>=2.1.0" torchvision "transformers>=4.26.0" "gradio>=4.19" "openvino>=2023.3.0" "datasets>=2.14.6" "nncf>=2.8.1" "tqdm"
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
     else:
@@ -289,7 +299,7 @@ text and vision modalities and postprocessing of generation results.
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
     open("notebook_utils.py", "w").write(r.text)
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget, quantization_widget
 
     # get model and processor
     processor = BlipProcessor.from_pretrained("Salesforce/blip-vqa-base")
@@ -594,14 +604,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
 
     device
 
@@ -725,11 +728,7 @@ The optimization process contains the following steps:
 
 .. code:: ipython3
 
-    to_quantize = widgets.Checkbox(
-        value=True,
-        description="Quantization",
-        disabled=False,
-    )
+    to_quantize = quantization_widget()
 
     to_quantize
 
@@ -831,7 +830,7 @@ understanding of vision, language and commonsense knowledge to answer.
         Prepares a vision-text dataset for quantization.
         """
         split = f"train[:{opt_init_steps}]" if not streaming else "train"
-        dataset = load_dataset("HuggingFaceM4/VQAv2", split=split, streaming=streaming)
+        dataset = load_dataset("HuggingFaceM4/VQAv2", split=split, streaming=streaming, trust_remote_code=True)
         dataset = dataset.shuffle(seed=42)
         if streaming:
             dataset = dataset.take(opt_init_steps)
@@ -878,17 +877,17 @@ Quantize vision model
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -899,17 +898,17 @@ Quantize vision model
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -926,17 +925,17 @@ Quantize vision model
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -947,17 +946,17 @@ Quantize vision model
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -988,17 +987,17 @@ Quantize text encoder
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1009,17 +1008,17 @@ Quantize text encoder
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1036,17 +1035,17 @@ Quantize text encoder
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1057,17 +1056,17 @@ Quantize text encoder
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1113,17 +1112,17 @@ The optimization process contains the following steps:
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1332,6 +1331,8 @@ launch the interactive demo.
 
 .. code:: ipython3
 
+    import ipywidgets as widgets
+
     use_quantized_model = widgets.Checkbox(
         description="Use quantized model",
         value=int8_model is not None,
@@ -1367,20 +1368,18 @@ launch the interactive demo.
         html = f"<p>Processing time: {elapsed:.4f}</p>"
         return answer, html
 
+.. code:: ipython3
 
-    demo = gr.Interface(
-        generate_answer,
-        [
-            gr.Image(label="Image"),
-            gr.Textbox(
-                label="Question",
-                info="If this field is empty, an image caption will be generated",
-            ),
-        ],
-        [gr.Text(label="Answer"), gr.HTML()],
-        examples=[["demo.jpg", ""], ["demo.jpg", question]],
-        allow_flagging="never",
-    )
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/blip-visual-language-processing/gradio_helper.py"
+        )
+        open("gradio_helper.py", "w").write(r.text)
+
+    from gradio_helper import make_demo
+
+    demo = make_demo(fn=generate_answer)
+
     try:
         demo.launch(debug=False)
     except Exception:

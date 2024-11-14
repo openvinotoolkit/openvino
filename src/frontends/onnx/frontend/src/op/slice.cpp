@@ -2,22 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/slice.hpp"
+#include "openvino/op/slice.hpp"
 
 #include "core/null_node.hpp"
+#include "core/operator_set.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "openvino/op/slice.hpp"
-
 using namespace ov::op;
 using ov::Shape;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_10 {
+namespace ai_onnx {
+namespace opset_10 {
 ov::OutputVector slice(const ov::frontend::onnx::Node& node) {
     using ov::op::util::is_null;
 
@@ -44,9 +43,10 @@ ov::OutputVector slice(const ov::frontend::onnx::Node& node) {
         return {std::make_shared<v8::Slice>(data, starts, ends, steps)};
     }
 }
-}  // namespace set_10
+ONNX_OP("Slice", OPSET_SINCE(10), ai_onnx::opset_10::slice);
+}  // namespace opset_10
 
-namespace set_1 {
+namespace opset_1 {
 ov::OutputVector slice(const ov::frontend::onnx::Node& node) {
     ov::Output<ov::Node> data = node.get_ov_inputs().at(0);
     const auto starts_atr = node.get_attribute_value<std::vector<int64_t>>("starts");
@@ -66,8 +66,9 @@ ov::OutputVector slice(const ov::frontend::onnx::Node& node) {
         return {std::make_shared<v8::Slice>(data, starts, ends, steps, axes)};
     }
 }
-}  // namespace set_1
-}  // namespace op
+ONNX_OP("Slice", OPSET_RANGE(1, 9), ai_onnx::opset_1::slice);
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

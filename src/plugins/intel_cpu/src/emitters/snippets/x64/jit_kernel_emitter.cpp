@@ -4,7 +4,8 @@
 
 #include "jit_kernel_emitter.hpp"
 
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
+#include "utils.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;
@@ -12,18 +13,6 @@ using namespace dnnl::impl::cpu::x64;
 
 namespace ov {
 namespace intel_cpu {
-
-inline static std::vector<Reg64> transform_idxs_to_regs(const std::vector<size_t>& idxs) {
-    std::vector<Reg64> regs(idxs.size());
-    std::transform(idxs.begin(), idxs.end(), regs.begin(), [](size_t idx){return Reg64(static_cast<int>(idx));});
-    return regs;
-}
-
-inline static std::vector<size_t> transform_snippets_regs_to_idxs(const std::vector<snippets::Reg>& regs) {
-    std::vector<size_t> idxs(regs.size());
-    std::transform(regs.cbegin(), regs.cend(), idxs.begin(), [](const snippets::Reg& reg) { return reg.idx; });
-    return idxs;
-}
 
 jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_emitter(h, isa), reg_runtime_params_idx(abi_param1.getIdx()) {
@@ -34,6 +23,7 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov
     jcp = *reinterpret_cast<const jit_snippets_compile_args*>(kernel->compile_params);
     const auto& parameters = body->get_parameters();
     const auto& results = body->get_results();
+    const auto& buffers = body->get_buffers();
     num_inputs = parameters.size();
     num_outputs = results.size();
     for (const auto& param : parameters)
@@ -42,18 +32,21 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov
         mem_access_exprs.push_back(result);
 
     std::set<size_t> unique_buffers;
-    for (const auto& expr : *body) {
-        if (const auto buffer = ov::as_type_ptr<snippets::op::Buffer>(expr->get_node())) {
-            const auto buffer_id = buffer->get_id();
-            if (unique_buffers.count(buffer_id) == 0) {
-                mem_access_exprs.push_back(expr);
-                unique_buffers.insert(buffer_id);
-            }
-        } else {
-            if (std::find(parameters.cbegin(), parameters.cend(), expr) == parameters.cend() &&
-                std::find(results.cbegin(), results.cend(), expr) == results.cend())
-                general_exprs.emplace_back(expr);
+    for (const auto& buffer_expr : buffers) {
+        const auto buffer_reg_group = buffer_expr->get_reg_group();
+        if (unique_buffers.count(buffer_reg_group) == 0) {
+            mem_access_exprs.push_back(buffer_expr);
+            unique_buffers.insert(buffer_reg_group);
         }
+    }
+
+    using ExprSet = std::unordered_set<snippets::lowered::ExpressionPtr>;
+    const ExprSet params_set(parameters.cbegin(), parameters.cend());
+    const ExprSet results_set(results.cbegin(), results.cend());
+    const ExprSet buffers_set(buffers.cbegin(), buffers.cend());
+    for (const auto& expr : *body) {
+        if (params_set.count(expr) == 0 && results_set.count(expr) == 0 && buffers_set.count(expr) == 0)
+            general_exprs.emplace_back(expr);
     }
     num_unique_buffers = unique_buffers.size();
 }
@@ -115,13 +108,13 @@ void jit_kernel_emitter::init_body_regs(const std::set<size_t>& kernel_regs,
 void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     h->preamble();
 
-    auto data_ptr_regs = transform_idxs_to_regs(data_ptr_regs_idx);
+    auto data_ptr_regs = utils::transform_idxs_to_regs(data_ptr_regs_idx);
 
     init_data_pointers(data_ptr_regs);
     for (const auto& expression : *body) {
         const auto reg_info = expression->get_reg_info();
-        auto in_regs = transform_snippets_regs_to_idxs(reg_info.first);
-        auto out_regs = transform_snippets_regs_to_idxs(reg_info.second);
+        auto in_regs = utils::transform_snippets_regs_to_idxs(reg_info.first);
+        auto out_regs = utils::transform_snippets_regs_to_idxs(reg_info.second);
         const auto& emitter = expression->get_emitter();
         emitter->emit_code(in_regs, out_regs, vec_regs_pool, gp_regs_pool);
     }
@@ -187,16 +180,16 @@ void jit_kernel_static_emitter::init_data_pointers(const std::vector<Xbyak::Reg6
             h->mov(data_ptr_regs[i], h->ptr[reg_runtime_params + GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*)]);
         init_ptr_with_offset(data_ptr_regs[i], data_offsets[i], reg_tmp);
     }
-    // a rare case when num_params is maximal, so we have no spare gprs
-    // * Static case: we can use reg_runtime_params as the last reg_tmp for the last iteration (and corrupt it), since
-    //     it won't be used anymore
-    // * Dynamic case: we will need reg_runtime_params to pass runtime args to LoopScheduler, so we have to
-    //     push a reg on the stack, and restore it value afterward
+    // A rare case when num_params is maximal, so we have no spare gprs
+    // Note that we need to push-pop runtime params because some kernels might need them even in the static case
+    // (e.g. brgemm emitter for amx tile configuration access)
     if (last_iter_explicitly) {
+        h->push(reg_runtime_params);
         h->mov(data_ptr_regs[i], h->ptr[reg_runtime_params + GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*)]);
         reg_tmp = reg_runtime_params;
         // can corrupt reg_runtime_params, since we won't use it anymore
         init_ptr_with_offset(data_ptr_regs[i], data_offsets[i], reg_tmp);
+        h->pop(reg_runtime_params);
     }
 }
 

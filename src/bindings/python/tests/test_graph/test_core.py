@@ -319,6 +319,12 @@ def test_partial_shape_refinement():
     assert not ps2.relaxes(ps1)
 
 
+@pytest.mark.parametrize("shape_to_compare", [[1, 2, 3], (1, 2, 3)])
+def test_shape_equals(shape_to_compare):
+    shape = Shape([1, 2, 3])
+    assert shape == shape_to_compare
+
+
 def test_partial_shape_equals():
     ps1 = PartialShape.dynamic()
     ps2 = PartialShape.dynamic()
@@ -336,6 +342,56 @@ def test_partial_shape_equals():
     ps1 = PartialShape.dynamic(rank=3)
     ps2 = PartialShape.dynamic(rank=3)
     assert ps1 == ps2
+
+    ps = PartialShape([1, 2, 3])
+    tuple_ps = (1, 2, 3)
+    list_ps = [1, 2, 3]
+    assert ps == tuple_ps
+    assert ps == list_ps
+
+    ps = PartialShape.dynamic(rank=3)
+    tuple_ps = (0, 0, 0)
+    list_ps = [0, 0, 0]
+    assert ps.get_min_shape() == tuple_ps
+    assert ps.get_min_shape() == list_ps
+
+    ps = PartialShape.dynamic()
+    tuple_ps = ()
+    list_ps = []
+    assert ps.get_min_shape() == tuple_ps
+    assert ps.get_min_shape() == list_ps
+
+    ps = PartialShape([Dimension(1), Dimension(2), Dimension(3), Dimension.dynamic()])
+    tuple_ps = (1, 2, 3, 0)
+    list_ps = [1, 2, 3, 0]
+    assert ps.get_min_shape() == tuple_ps
+    assert ps.get_min_shape() == list_ps
+
+    ps = PartialShape([Dimension(1, 10), Dimension(2), Dimension(3)])
+    tuple_ps_min = (1, 2, 3)
+    tuple_ps_max = (10, 2, 3)
+    list_ps_min = [1, 2, 3]
+    list_ps_max = [10, 2, 3]
+    assert ps.get_min_shape() == tuple_ps_min
+    assert ps.get_max_shape() == tuple_ps_max
+    assert ps.get_min_shape() == list_ps_min
+    assert ps.get_max_shape() == list_ps_max
+
+    with pytest.raises(TypeError) as e:
+        ps = PartialShape.dynamic()
+        tuple_ps = ()
+        assert ps == tuple_ps
+    assert (
+        "Cannot compare dynamic shape with <class 'tuple'>" in str(e.value)
+    )
+
+    with pytest.raises(TypeError) as e:
+        ps = PartialShape.dynamic()
+        list_ps = []
+        assert ps == list_ps
+    assert (
+        "Cannot compare dynamic shape with <class 'list'>" in str(e.value)
+    )
 
 
 def test_input_shape_read_only():

@@ -35,6 +35,7 @@ public:
     std::vector<ov::frontend::Place::Ptr> get_inputs() const override;
     std::vector<ov::frontend::Place::Ptr> get_outputs() const override;
     ov::frontend::Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const override;
+    ov::frontend::Place::Ptr get_place_by_input_index(size_t input_idx) const override;
 
     ///// Naming and annotation  /////
     void set_name_for_tensor(const Place::Ptr& tensor, const std::string& new_name) override;

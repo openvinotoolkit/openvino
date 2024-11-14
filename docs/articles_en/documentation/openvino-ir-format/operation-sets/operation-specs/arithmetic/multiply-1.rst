@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_arithmetic_Multiply_1}
-
 Multiply
 ========
 
 
 .. meta::
-  :description: Learn about Multiply-1 - an element-wise, arithmetic operation, which 
+  :description: Learn about Multiply-1 - an element-wise, arithmetic operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Multiply-1*

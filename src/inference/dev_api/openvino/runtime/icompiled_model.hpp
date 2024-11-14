@@ -134,6 +134,12 @@ public:
      */
     ov::SoPtr<ov::IRemoteContext> get_context() const;
 
+    /**
+     * @brief Release intermediate memory
+     * 
+     */
+    virtual void release_memory();
+
     virtual ~ICompiledModel() = default;
 
 private:

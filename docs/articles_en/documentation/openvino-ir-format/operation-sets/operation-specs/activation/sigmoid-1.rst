@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_activation_Sigmoid_1}
-
 Sigmoid
 =======
 
 
 .. meta::
-  :description: Learn about Sigmoid-1 - an element-wise, activation operation, which 
+  :description: Learn about Sigmoid-1 - an element-wise, activation operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Sigmoid-1*
@@ -22,7 +20,7 @@ Sigmoid
 
 For each element from the input tensor calculates corresponding element in the output tensor with the following formula:
 
-.. math:: 
+.. math::
 
    sigmoid( x ) = \frac{1}{1+e^{-x}}
 

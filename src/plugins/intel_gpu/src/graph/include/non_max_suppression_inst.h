@@ -186,4 +186,40 @@ public:
 
 using non_max_suppression_inst = typed_primitive_inst<non_max_suppression>;
 
+template <>
+struct typed_program_node<non_max_suppression_gather> : typed_program_node_base<non_max_suppression_gather> {
+    using parent = typed_program_node_base<non_max_suppression_gather>;
+    using parent::parent;
+
+public:
+    typed_program_node(const std::shared_ptr<non_max_suppression_gather> prim, program& prog) : parent(prim, prog) {
+        can_be_optimized(true);
+        set_runtime_skippable(true);
+    }
+
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {0, 1, 2}; }
+};
+
+using non_max_suppression_gather_node = typed_program_node<non_max_suppression_gather>;
+
+template <>
+class typed_primitive_inst<non_max_suppression_gather> : public typed_primitive_inst_base<non_max_suppression_gather> {
+public:
+    using parent = typed_primitive_inst_base<non_max_suppression_gather>;
+    using parent::parent;
+
+    static layout calc_output_layout(const non_max_suppression_gather_node& node, const kernel_impl_params& impl_param);
+    template <typename ShapeType>
+    static std::vector<layout> calc_output_layouts(const non_max_suppression_gather_node& node, const kernel_impl_params& impl_param);
+    static std::string to_string(const non_max_suppression_gather_node& node);
+
+    typed_primitive_inst(network& network, non_max_suppression_gather_node const& node);
+    void update_output_memory() override;
+
+private:
+    void on_execute() override;
+};
+
+using non_max_suppression_gather_inst = typed_primitive_inst<non_max_suppression_gather>;
+
 }  // namespace cldnn

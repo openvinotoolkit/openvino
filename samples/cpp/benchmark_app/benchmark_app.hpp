@@ -4,10 +4,6 @@
 
 #pragma once
 
-#if defined(HAVE_GPU_DEVICE_MEM_SUPPORT)
-#    define HAVE_DEVICE_MEM_SUPPORT
-#endif
-
 #include <iostream>
 #include <string>
 #include <vector>
@@ -68,6 +64,12 @@ static const char cache_dir_message[] = "Optional. Enables caching of loaded mod
 // @brief message for single load network
 static const char load_from_file_message[] = "Optional. Loads model from file directly without read_model."
                                              " All CNNNetwork options (like re-shape) will be ignored";
+
+/// @brief message for maximum inference rate
+static const char maximum_inference_rate_message[] =
+    "Optional. Maximum inference rate by frame per second"
+    "If not specified, default value is 0, the inference will run at maximium rate depending on a device capabilities. "
+    "Tweaking this value allow better accuracy in power usage measurement by limiting the execution.";
 
 /// @brief message for execution time
 static const char execution_time_message[] = "Optional. Time in seconds to execute topology.";
@@ -185,11 +187,9 @@ static const char infer_threads_pinning_message[] =
     "\t\t\t\tthreads->(NUMA)nodes(\"NUMA\") or \n"
     "\t\t\t\tcompletely disable(\"NO\") CPU inference threads pinning";
 
-#ifdef HAVE_DEVICE_MEM_SUPPORT
 // @brief message for switching memory allocation type option
 static const char use_device_mem_message[] =
     "Optional. Switch between host and device memory allocation for input and output buffers.";
-#endif
 
 /// @brief message for latency percentile settings
 static const char infer_latency_percentile_message[] =
@@ -313,6 +313,9 @@ DEFINE_string(api, "async", api_message);
 /// @brief Number of infer requests in parallel
 DEFINE_uint64(nireq, 0, infer_requests_count_message);
 
+/// @brief Execute infer requests at a fixed frequency
+DEFINE_double(max_irate, 0, maximum_inference_rate_message);
+
 /// @brief Number of streams to use for inference on the CPU (also affects Hetero cases)
 DEFINE_string(nstreams, "", infer_num_streams_message);
 
@@ -347,10 +350,8 @@ DEFINE_uint64(nthreads, 0, infer_num_threads_message);
 // @brief Enable plugin messages
 DEFINE_string(pin, "", infer_threads_pinning_message);
 
-#ifdef HAVE_DEVICE_MEM_SUPPORT
 /// @brief Define flag for switching beetwen host and device memory allocation for input and output buffers
 DEFINE_bool(use_device_mem, false, use_device_mem_message);
-#endif
 
 /// @brief The percentile which will be reported in latency metric
 DEFINE_uint64(latency_percentile, 50, infer_latency_percentile_message);
@@ -396,6 +397,7 @@ static void show_usage() {
     std::cout << "    -hint  <performance hint> (latency or throughput or cumulative_throughput or none)   "
               << hint_message << std::endl;
     std::cout << "    -niter  <integer>             " << iterations_count_message << std::endl;
+    std::cout << "    -max_irate \"<float>\"        " << maximum_inference_rate_message << std::endl;
     std::cout << "    -t                            " << execution_time_message << std::endl;
     std::cout << std::endl;
     std::cout << "Input shapes" << std::endl;
@@ -426,9 +428,7 @@ static void show_usage() {
     std::cout << "    -nthreads  <integer>          " << infer_num_threads_message << std::endl;
     std::cout << "    -pin  <string>  (\"YES\"|\"CORE\") / \"HYBRID_AWARE\" / (\"NO\"|\"NONE\") / \"NUMA\"  "
               << infer_threads_pinning_message << std::endl;
-#ifdef HAVE_DEVICE_MEM_SUPPORT
     std::cout << "    -use_device_mem           " << use_device_mem_message << std::endl;
-#endif
     std::cout << std::endl;
     std::cout << "Statistics dumping options:" << std::endl;
     std::cout << "    -latency_percentile     " << infer_latency_percentile_message << std::endl;

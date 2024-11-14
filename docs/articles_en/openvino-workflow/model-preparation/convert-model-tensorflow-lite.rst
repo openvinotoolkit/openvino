@@ -1,5 +1,3 @@
-.. {#convert-model-tensorflow_Lite}
-
 Converting a TensorFlow Lite Model
 ==================================
 
@@ -9,7 +7,10 @@ Converting a TensorFlow Lite Model
                  TensorFlow Lite format to the OpenVINO Model.
 
 
-To convert an TensorFlow Lite model, run model conversion with the path to the ``.tflite`` model file:
+You can download a TensorFlow Lite model from
+`Kaggle <https://www.kaggle.com/models?framework=tfLite&subtype=module,placeholder&tfhub-redirect=true>`__
+or `Hugging Face <https://huggingface.co/models>`__.
+To convert the model, run model conversion with the path to the ``.tflite`` model file:
 
 .. tab-set::
 
@@ -28,16 +29,27 @@ To convert an TensorFlow Lite model, run model conversion with the path to the `
 
          ovc your_model_file.tflite
 
-.. note:: TensorFlow Lite model file can be loaded by ``openvino.Core.read_model`` or ``openvino.Core.compile_model`` methods by OpenVINO runtime API without preparing OpenVINO IR first. Refer to the :doc:`inference example <../running-inference/integrate-openvino-with-your-application>` for more details. Using ``openvino.convert_model`` is still recommended if model load latency matters for the inference application.
+.. note::
+
+   TensorFlow Lite model file can be loaded by ``openvino.Core.read_model`` or
+   ``openvino.Core.compile_model`` methods by OpenVINO runtime API without preparing
+   OpenVINO IR first. Refer to the
+   :doc:`inference example <../running-inference/integrate-openvino-with-your-application>`
+   for more details. Using ``openvino.convert_model`` is still recommended if model
+   load latency matters for the inference application.
 
 Supported TensorFlow Lite Layers
 ###################################
 
-For the list of supported standard layers, refer to the :doc:`Supported Operations <../../about-openvino/compatibility-and-support/supported-operations-framework-frontend>` page.
+For the list of supported standard layers, refer to the
+:doc:`Supported Operations <../../about-openvino/compatibility-and-support/supported-operations>`
+page.
 
 Supported TensorFlow Lite Models
 ###################################
 
-More than eighty percent of public TensorFlow Lite models are supported from open sources `TensorFlow Hub <https://tfhub.dev/s?deployment-format=lite&subtype=module,placeholder>`__ and `MediaPipe <https://developers.google.com/mediapipe>`__.
+More than eighty percent of public TensorFlow Lite models are supported from open
+sources `Kaggle <https://www.kaggle.com/models?framework=tfLite&subtype=module,placeholder&tfhub-redirect=true>`__
+and `MediaPipe <https://developers.google.com/mediapipe>`__.
 Unsupported models usually have custom TensorFlow Lite operations.
 

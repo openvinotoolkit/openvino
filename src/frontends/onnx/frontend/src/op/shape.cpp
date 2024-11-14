@@ -2,24 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/shape.hpp"
-
 #include <cstdint>
 
 #include "core/null_node.hpp"
+#include "core/operator_set.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
-
 using namespace ov::op;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
+namespace ai_onnx {
 
-namespace set_15 {
+namespace opset_15 {
 
 ov::OutputVector shape(const ov::frontend::onnx::Node& node) {
     using ov::op::util::is_null;
@@ -41,17 +39,19 @@ ov::OutputVector shape(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v8::Slice>(input_shape, start, end, default_step)};
 }
 
-}  // namespace set_15
+ONNX_OP("Shape", OPSET_SINCE(15), ai_onnx::opset_15::shape);
+}  // namespace opset_15
 
-namespace set_1 {
+namespace opset_1 {
 
 ov::OutputVector shape(const ov::frontend::onnx::Node& node) {
     const auto data = node.get_ov_inputs().at(0);
     return {std::make_shared<v3::ShapeOf>(data)};
 }
 
-}  // namespace set_1
-}  // namespace op
+ONNX_OP("Shape", OPSET_RANGE(1, 14), ai_onnx::opset_1::shape);
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

@@ -1392,7 +1392,7 @@ TEST(pre_post_process, preprocess_reverse_channels_no_shape_inference) {
     PrePostProcessor p(f);
     p.input(0).tensor().set_layout("NCHW");
     p.input(0).preprocess().reverse_channels();
-    ASSERT_NO_THROW(p.build());
+    OV_ASSERT_NO_THROW(p.build());
     // Ensure that {?,3,?,?} is not transformed to {?,?,?,?}
     EXPECT_EQ(out_shape, f->output(0).get_partial_shape());
 }

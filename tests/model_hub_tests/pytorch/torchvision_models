@@ -21,11 +21,19 @@ efficientnet_b7,none
 efficientnet_v2_l,none
 efficientnet_v2_m,none
 efficientnet_v2_s,none
+fasterrcnn_mobilenet_v3_large_320_fpn,none,skip,Not supported
+fasterrcnn_mobilenet_v3_large_fpn,none,skip,Not supported
+fasterrcnn_resnet50_fpn,none,skip,Not supported
+fasterrcnn_resnet50_fpn_v2,none,skip,Not supported
 fcn_resnet101,none
 fcn_resnet50,none
+fcos_resnet50_fpn,none,skip,Not supported
 googlenet,none
 inception_v3,none
+keypointrcnn_resnet50_fpn,none,skip,Not supported
 lraspp_mobilenet_v3_large,none
+maskrcnn_resnet50_fpn,none,skip,Not supported
+maskrcnn_resnet50_fpn_v2,none,skip,Not supported
 maxvit_t,none
 mc3_18,none
 mnasnet0_5,none
@@ -37,10 +45,22 @@ mobilenet_v3_large,none
 mobilenet_v3_small,none
 mvit_v1_b,none
 mvit_v2_s,none
+quantized_googlenet,none
+quantized_inception_v3,none
+quantized_mobilenet_v2,none
+quantized_mobilenet_v3_large,none
+quantized_resnet18,none
+quantized_resnet50,none
+quantized_resnext101_32x8d,none
+quantized_resnext101_64x4d,none
+quantized_shufflenet_v2_x0_5,none
+quantized_shufflenet_v2_x1_0,none
+quantized_shufflenet_v2_x1_5,none
+quantized_shufflenet_v2_x2_0,none
 r2plus1d_18,none
 r3d_18,none
-raft_large,none
-raft_small,none
+raft_large,none,xfail_export,Mutating module attribute corr_pyramid during export
+raft_small,none,xfail_export,Mutating module attribute corr_pyramid during export
 regnet_x_16gf,none
 regnet_x_1_6gf,none
 regnet_x_32gf,none
@@ -64,6 +84,8 @@ resnet50,none
 resnext101_32x8d,none
 resnext101_64x4d,none
 resnext50_32x4d,none
+retinanet_resnet50_fpn,none,skip,Not supported
+retinanet_resnet50_fpn_v2,none,skip,Not supported
 s3d,none
 shufflenet_v2_x0_5,none
 shufflenet_v2_x1_0,none
@@ -71,6 +93,8 @@ shufflenet_v2_x1_5,none
 shufflenet_v2_x2_0,none
 squeezenet1_0,none
 squeezenet1_1,none
+ssd300_vgg16,none,skip,Not supported
+ssdlite320_mobilenet_v3_large,none,skip,Not supported
 swin3d_b,none
 swin3d_s,none
 swin3d_t,none

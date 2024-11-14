@@ -61,7 +61,7 @@ TEST(TFTelemetryTest, test_nonexistent_add) {
     FrontEndManager fem;
     FrontEnd::Ptr frontEnd;
     InputModel::Ptr inputModel;
-    ASSERT_NO_THROW(frontEnd = fem.load_by_framework(TF_FE));
+    OV_ASSERT_NO_THROW(frontEnd = fem.load_by_framework(TF_FE));
     ASSERT_NE(frontEnd, nullptr);
 
     TelemetryMock m_test_telemetry;
@@ -77,7 +77,7 @@ TEST(TFTelemetryTest, test_nonexistent_add) {
 
     auto model_filename = FrontEndTestUtils::make_model_path(std::string(TEST_TENSORFLOW_MODELS_DIRNAME) +
                                                              std::string("nonexistent_add/nonexistent_add.pb"));
-    ASSERT_NO_THROW(inputModel = frontEnd->load(model_filename));
+    OV_ASSERT_NO_THROW(inputModel = frontEnd->load(model_filename));
     ASSERT_NE(inputModel, nullptr);
     shared_ptr<ov::Model> model;
 

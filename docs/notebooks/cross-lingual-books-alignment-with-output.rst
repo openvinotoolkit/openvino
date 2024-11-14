@@ -37,8 +37,9 @@ Prerequisites
 -  ``seaborn`` - for alignment matrix visualization
 -  ``ipywidgets`` - for displaying HTML and JS output in the notebook
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
+
 
 -  `Get Books <#get-books>`__
 -  `Clean Text <#clean-text>`__
@@ -54,18 +55,21 @@ Table of contents:
 -  `Speed up Embeddings
    Computation <#speed-up-embeddings-computation>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. |image0| image:: https://user-images.githubusercontent.com/51917466/254582697-18f3ab38-e264-4b2c-a088-8e54b855c1b2.png
 
 .. code:: ipython3
 
-    import platform
-
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
-
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu requests pysbd transformers "torch>=2.1" "openvino>=2023.1.0" seaborn ipywidgets
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu requests pysbd transformers "torch>=2.1" "openvino>=2023.1.0" seaborn ipywidgets "matplotlib>=3.4"
 
 Get Books
 ---------
@@ -90,6 +94,11 @@ To get the texts, we will pass the IDs to the
 .. code:: ipython3
 
     import requests
+
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    open("notebook_utils.py", "w").write(r.text)
 
 
     def get_book_by_id(book_id: int, gutendex_url: str = "https://gutendex.com/") -> str:
@@ -197,7 +206,7 @@ which in a raw format looks like this:
 
 .. parsed-literal::
 
-    '\ufeffThe Project Gutenberg eBook of Anna Karenina\r\n    \r\nThis ebook is for the use of anyone anywhere in the United States and\r\nmost other parts of the world at no cost and with almost no restrictions\r\nwhatsoever. You may copy it, give it away or re-use it under the terms\r\nof the Project Gutenberg License included with this ebook or online\r\nat www.gutenberg.org. If you are not located in the United States,\r\nyou will have to check the laws of the country where you are located\r\nbefore using this eBook.\r\n\r\nTitle: Anna Karenina\r\n\r\n\r\nAuthor: graf Leo Tolstoy\r\n\r\nTranslator: Constance Garnett\r\n\r\nRelease date: July 1, 1998 [eBook #1399]\r\n                Most recently updated: April 9, 2023\r\n\r\nLanguage: English\r\n\r\n\r\n\r\n*** START OF THE PROJECT GUTENBERG EBOOK ANNA KARENINA \*\*\*\r\n[Illustration]\r\n\r\n\r\n\r\n\r\n ANNA KARENINA \r\n\r\n by Leo Tolstoy \r\n\r\n Translated by Constance Garnett \r\n\r\nContents\r\n\r\n\r\n PART ONE\r\n PART TWO\r\n PART THREE\r\n PART FOUR\r\n PART FIVE\r\n PART SIX\r\n PART SEVEN\r\n PART EIGHT\r\n\r\n\r\n\r\n\r\nPART ONE\r\n\r\nChapter 1\r\n\r\n\r\nHappy families are all alike; every unhappy family is unhappy in its\r\nown way.\r\n\r\nEverything was in confusion in the Oblonskys’ house. The wife had\r\ndiscovered that the husband was carrying on an intrigue with a French\r\ngirl, who had been a governess in their family, and she had announced\r\nto her husband that she could not go on living in the same house with\r\nhim. This position of affairs had now lasted three days, and not only\r\nthe husband and wife themselves, but all the me'
+    '\ufeffThe Project Gutenberg eBook of Anna Karenina\r\n    \r\nThis ebook is for the use of anyone anywhere in the United States and\r\nmost other parts of the world at no cost and with almost no restrictions\r\nwhatsoever. You may copy it, give it away or re-use it under the terms\r\nof the Project Gutenberg License included with this ebook or online\r\nat www.gutenberg.org. If you are not located in the United States,\r\nyou will have to check the laws of the country where you are located\r\nbefore using this eBook.\r\n\r\nTitle: Anna Karenina\r\n\r\n\r\nAuthor: graf Leo Tolstoy\r\n\r\nTranslator: Constance Garnett\r\n\r\nRelease date: July 1, 1998 [eBook #1399]\r\n                Most recently updated: April 9, 2023\r\n\r\nLanguage: English\r\n\r\n\r\n\r\n\*\*\* START OF THE PROJECT GUTENBERG EBOOK ANNA KARENINA \*\*\*\r\n[Illustration]\r\n\r\n\r\n\r\n\r\n ANNA KARENINA \r\n\r\n by Leo Tolstoy \r\n\r\n Translated by Constance Garnett \r\n\r\nContents\r\n\r\n\r\n PART ONE\r\n PART TWO\r\n PART THREE\r\n PART FOUR\r\n PART FIVE\r\n PART SIX\r\n PART SEVEN\r\n PART EIGHT\r\n\r\n\r\n\r\n\r\nPART ONE\r\n\r\nChapter 1\r\n\r\n\r\nHappy families are all alike; every unhappy family is unhappy in its\r\nown way.\r\n\r\nEverything was in confusion in the Oblonskys’ house. The wife had\r\ndiscovered that the husband was carrying on an intrigue with a French\r\ngirl, who had been a governess in their family, and she had announced\r\nto her husband that she could not go on living in the same house with\r\nhim. This position of affairs had now lasted three days, and not only\r\nthe husband and wife themselves, but all the me'
 
 
 
@@ -210,7 +219,7 @@ which in a raw format looks like this:
 
 .. parsed-literal::
 
-    'The Project Gutenberg EBook of Anna Karenina, 1. Band, by Leo N. Tolstoi\r\n\r\nThis eBook is for the use of anyone anywhere at no cost and with\r\nalmost no restrictions whatsoever.  You may copy it, give it away or\r\nre-use it under the terms of the Project Gutenberg License included\r\nwith this eBook or online at www.gutenberg.org\r\n\r\n\r\nTitle: Anna Karenina, 1. Band\r\n\r\nAuthor: Leo N. Tolstoi\r\n\r\nRelease Date: February 18, 2014 [EBook #44956]\r\n\r\nLanguage: German\r\n\r\nCharacter set encoding: ISO-8859-1\r\n\r\n\*\*\* START OF THIS PROJECT GUTENBERG EBOOK ANNA KARENINA, 1. BAND \*\*\*\r\n\r\n\r\n\r\n\r\nProduced by Norbert H. Langkau, Jens Nordmann and the\r\nOnline Distributed Proofreading Team at http://www.pgdp.net\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n                             Anna Karenina.\r\n\r\n\r\n                        Roman aus dem Russischen\r\n\r\n                                  des\r\n\r\n                         Grafen Leo N. Tolstoi.\r\n\r\n\r\n\r\n                  Nach der siebenten Auflage übersetzt\r\n\r\n                                  von\r\n\r\n                              Hans Moser.\r\n\r\n\r\n                              Erster Band.\r\n\r\n\r\n\r\n                                Leipzig\r\n\r\n                Druck und Verlag von Philipp Reclam jun.\r\n\r\n                   \*       \*       \*       \*       *\r\n\r\n\r\n\r\n\r\n                              Erster Teil.\r\n\r\n                               »Die Rache ist mein, ich will vergelten.«\r\n\r\n                                   1.\r\n\r\n\r\nAlle glücklichen Familien sind einander ähnlich; jede unglücklich'
+    'The Project Gutenberg EBook of Anna Karenina, 1. Band, by Leo N. Tolstoi\r\n\r\nThis eBook is for the use of anyone anywhere at no cost and with\r\nalmost no restrictions whatsoever.  You may copy it, give it away or\r\nre-use it under the terms of the Project Gutenberg License included\r\nwith this eBook or online at www.gutenberg.org\r\n\r\n\r\nTitle: Anna Karenina, 1. Band\r\n\r\nAuthor: Leo N. Tolstoi\r\n\r\nRelease Date: February 18, 2014 [EBook #44956]\r\n\r\nLanguage: German\r\n\r\nCharacter set encoding: ISO-8859-1\r\n\r\n\*\*\* START OF THIS PROJECT GUTENBERG EBOOK ANNA KARENINA, 1. BAND \*\*\*\r\n\r\n\r\n\r\n\r\nProduced by Norbert H. Langkau, Jens Nordmann and the\r\nOnline Distributed Proofreading Team at http://www.pgdp.net\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n                             Anna Karenina.\r\n\r\n\r\n                        Roman aus dem Russischen\r\n\r\n                                  des\r\n\r\n                         Grafen Leo N. Tolstoi.\r\n\r\n\r\n\r\n                  Nach der siebenten Auflage übersetzt\r\n\r\n                                  von\r\n\r\n                              Hans Moser.\r\n\r\n\r\n                              Erster Band.\r\n\r\n\r\n\r\n                                Leipzig\r\n\r\n                Druck und Verlag von Philipp Reclam jun.\r\n\r\n                   *       *       *       *       *\r\n\r\n\r\n\r\n\r\n                              Erster Teil.\r\n\r\n                               »Die Rache ist mein, ich will vergelten.«\r\n\r\n                                   1.\r\n\r\n\r\nAlle glücklichen Familien sind einander ähnlich; jede unglücklich'
 
 
 
@@ -407,12 +416,12 @@ languages. It has the same architecture as the BERT model but has been
 trained on a different task: to produce identical embeddings for
 translation pairs.
 
-|image1|
+|image01|
 
 This makes LaBSE a great choice for our task and it can be reused for
 different language pairs still producing good results.
 
-.. |image1| image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/627d3a39-7076-479f-a7b1-392f49a0b83e
+.. |image01| image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/627d3a39-7076-479f-a7b1-392f49a0b83e
 
 .. code:: ipython3
 
@@ -484,15 +493,10 @@ For starting work, we should select device for inference first:
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    from notebook_utils import device_widget
 
     core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
 
     device
 
@@ -836,11 +840,10 @@ Save the OpenVINO model to disk for future use:
 
 .. code:: ipython3
 
-    from openvino.runtime import serialize
+    from pathlib import Path
 
-
-    ov_model_path = "ov_model/model.xml"
-    serialize(ov_model, ov_model_path)
+    ov_model_path = Path("ov_model/model.xml")
+    ov.save_model(ov_model, ov_model_path)
 
 To read the model from disk, use the ``read_model`` method of the
 ``Core`` object:
@@ -882,11 +885,13 @@ parameters for execution on the available hardware.
 
     from typing import Any
 
+    import openvino.properties.hint as hints
+
 
     compiled_throughput_hint = core.compile_model(
         ov_model,
         device_name=device.value,
-        config={"PERFORMANCE_HINT": "THROUGHPUT"},
+        config={hints.performance_mode(): hints.PerformanceMode.THROUGHPUT},
     )
 
 To further optimize hardware utilization, let’s change the inference
@@ -1020,7 +1025,10 @@ Let’s compare the models and plot the results.
 
 .. code:: ipython3
 
-    cpu_name = core.get_property("CPU", "FULL_DEVICE_NAME")
+    import openvino.properties as props
+
+
+    cpu_name = core.get_property("CPU", props.device.full_name)
 
     plot = sns.barplot(benchmark_dataframe, errorbar="sd")
     plot.set(ylabel="Sentences Per Second", title=f"Sentence Embeddings Benchmark\n{cpu_name}")

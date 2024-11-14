@@ -48,6 +48,9 @@ public:
     const ov::Shape& get_shape() const override;
     const ov::Strides& get_strides() const override;
 
+    void copy_to(const std::shared_ptr<ov::ITensor>& dst, size_t src_offset, size_t dst_offset, const ov::Shape& roi_shape) const override;
+    void copy_from(const std::shared_ptr<const ov::ITensor>& src, size_t src_offset, size_t dst_offset, const ov::Shape& roi_shape) override;
+
     void allocate();
     bool deallocate() noexcept;
 

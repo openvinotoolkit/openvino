@@ -40,7 +40,6 @@ static void CreateExperimentalDetectronDetectionOutputOp(
                                                             attrs.max_delta_log_wh,
                                                             attrs.deltas_weights};
         prim.num_outputs = op->get_output_size();
-        prim.output_paddings = get_output_paddings(op);
         prim.output_data_types = get_output_data_types(op, {{ov::element::i64, ov::element::i32}});
 
         p.add_primitive(*op, prim);

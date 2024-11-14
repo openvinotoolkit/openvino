@@ -170,7 +170,7 @@ std::string get_dir_path(const ExecutionConfig& config) {
 
 void dump_graph_init(std::ofstream& graph,
                      const program& program,
-                     std::function<std::shared_ptr<primitive_inst>(const primitive_id&)> get_primitive_inst) {
+                     std::function<std::shared_ptr<const primitive_inst>(const primitive_id&)> get_primitive_inst) {
     const std::string invalid_layout_msg = "(invalid layout)";
 
     const auto dump_mem_info = [&invalid_layout_msg, &get_primitive_inst](const program_node* ptr) {
@@ -262,14 +262,22 @@ void dump_graph_init(std::ofstream& graph,
         }
         graph << "];\n";
 
+        // To print duplicated connection port between two nodes.
+        // <user_node, user's input port>
+        std::set<std::pair<program_node *, int>> marked_connection;
+
         for (auto& user : node->get_users()) {
             bool doubled = true;
             auto it = user->get_dependencies().begin();
             while (it != user->get_dependencies().end()) {
-                if (it->first == node)
+                int input_port = it - user->get_dependencies().begin();
+                if (it->first == node && marked_connection.find({node, input_port}) == marked_connection.end()) {
+                    marked_connection.emplace(user, input_port);
                     break;
+                }
                 ++it;
             }
+
             if (it == user->get_dependencies().end())
                 doubled = false;
             graph << "    " << get_node_id(node) << " -> " << get_node_id(user)

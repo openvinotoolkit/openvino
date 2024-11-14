@@ -6,7 +6,7 @@
 
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/op/loop.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov {

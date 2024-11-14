@@ -8,6 +8,7 @@
 
 #include <string>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/runtime_attribute.hpp"
 
 using namespace ov;
@@ -223,7 +224,7 @@ TEST_F(AnyTests, AnyAsMapOfMapOfAnysFromString) {
     ov::AnyMap map;
     ASSERT_TRUE(any.is<std::string>());
     ASSERT_FALSE(any.is<ov::AnyMap>());
-    ASSERT_NO_THROW(map = any.as<ov::AnyMap>());
+    OV_ASSERT_NO_THROW(map = any.as<ov::AnyMap>());
     ASSERT_EQ(string_props, ov::Any(map).as<std::string>());
 
     // check map1
@@ -232,7 +233,7 @@ TEST_F(AnyTests, AnyAsMapOfMapOfAnysFromString) {
     ASSERT_TRUE(map["map1"].is<std::string>());
     ASSERT_FALSE(map["map1"].is<ov::AnyMap>());
     ASSERT_FALSE(map["map1"].is<MapStrDouble>());
-    ASSERT_NO_THROW(map1 = map["map1"].as<MapStrDouble>());
+    OV_ASSERT_NO_THROW(map1 = map["map1"].as<MapStrDouble>());
     ASSERT_EQ(2, map1.size());
 
     // check map1:prop1
@@ -244,7 +245,7 @@ TEST_F(AnyTests, AnyAsMapOfMapOfAnysFromString) {
     ov::AnyMap map2;
     ASSERT_TRUE(map["map2"].is<std::string>());
     ASSERT_FALSE(map["map2"].is<ov::AnyMap>());
-    ASSERT_NO_THROW(map2 = map["map2"].as<ov::AnyMap>());
+    OV_ASSERT_NO_THROW(map2 = map["map2"].as<ov::AnyMap>());
     ASSERT_EQ(1, map2.size());
 
     // check map1:prop1
@@ -260,7 +261,7 @@ TEST_F(AnyTests, AnyAsMapOfMapOfMapOfAnysFromString) {
     ov::AnyMap map;
     ASSERT_TRUE(any.is<std::string>());
     ASSERT_FALSE(any.is<ov::AnyMap>());
-    ASSERT_NO_THROW(map = any.as<ov::AnyMap>());
+    OV_ASSERT_NO_THROW(map = any.as<ov::AnyMap>());
     ASSERT_EQ(3, map.size());
     ASSERT_EQ(string_props, ov::Any(map).as<std::string>());
 
@@ -282,13 +283,13 @@ TEST_F(AnyTests, AnyAsMapOfMapOfMapOfAnysFromString) {
     ov::AnyMap map1;
     ASSERT_TRUE(map["map1"].is<std::string>());
     ASSERT_FALSE(map["map1"].is<ov::AnyMap>());
-    ASSERT_NO_THROW(map1 = map["map1"].as<ov::AnyMap>());
+    OV_ASSERT_NO_THROW(map1 = map["map1"].as<ov::AnyMap>());
 
     // check subprop
     ov::AnyMap subprop_map;
     ASSERT_TRUE(map1["subprop_map"].is<std::string>());
     ASSERT_FALSE(map1["subprop_map"].is<ov::AnyMap>());
-    ASSERT_NO_THROW(subprop_map = map1["subprop_map"].as<ov::AnyMap>());
+    OV_ASSERT_NO_THROW(subprop_map = map1["subprop_map"].as<ov::AnyMap>());
 
     // check prop
     ASSERT_TRUE(subprop_map["prop"].is<std::string>());
@@ -364,7 +365,7 @@ TEST_F(AnyTests, AnyMapSharesComplexValues) {
     const std::string string_props = "{map1:{subprop_map:{prop:value}},prop1:1,prop2:2.0}";
     ov::Any any(string_props);
     ov::AnyMap map;
-    ASSERT_NO_THROW(map = any.as<ov::AnyMap>());
+    OV_ASSERT_NO_THROW(map = any.as<ov::AnyMap>());
 
     AnyMap copy_map = map;
 
@@ -525,7 +526,7 @@ void PrintTo(const Any& object, std::ostream* stream) {
 TEST_F(AnyTests, PrintToEmpty) {
     Any p;
     std::stringstream stream;
-    ASSERT_NO_THROW(p.print(stream));
+    OV_ASSERT_NO_THROW(p.print(stream));
     ASSERT_EQ(stream.str(), std::string{});
 }
 
@@ -533,7 +534,7 @@ TEST_F(AnyTests, PrintToIntAny) {
     int value = -5;
     Any p = value;
     std::stringstream stream;
-    ASSERT_NO_THROW(p.print(stream));
+    OV_ASSERT_NO_THROW(p.print(stream));
     ASSERT_EQ(stream.str(), std::to_string(value));
 }
 
@@ -542,7 +543,7 @@ TEST_F(AnyTests, ReadToIntAny) {
     std::stringstream strm;
     strm << value;
     Any p = int{};
-    ASSERT_NO_THROW(p.read(strm));
+    OV_ASSERT_NO_THROW(p.read(strm));
     ASSERT_FALSE(strm.fail());
     ASSERT_EQ(value, p.as<int>());
 }
@@ -551,7 +552,7 @@ TEST_F(AnyTests, PrintToUIntAny) {
     unsigned int value = 5;
     Any p = value;
     std::stringstream stream;
-    ASSERT_NO_THROW(p.print(stream));
+    OV_ASSERT_NO_THROW(p.print(stream));
     ASSERT_EQ(stream.str(), std::to_string(value));
 }
 
@@ -559,14 +560,14 @@ TEST_F(AnyTests, PrintToSize_tAny) {
     std::size_t value = 5;
     Any p = value;
     std::stringstream stream;
-    ASSERT_NO_THROW(p.print(stream));
+    OV_ASSERT_NO_THROW(p.print(stream));
     ASSERT_EQ(stream.str(), std::to_string(value));
 }
 
 TEST_F(AnyTests, PrintToFloatAny) {
     Any p = 5.5f;
     std::stringstream stream;
-    ASSERT_NO_THROW(p.print(stream));
+    OV_ASSERT_NO_THROW(p.print(stream));
     ASSERT_EQ(stream.str(), std::string{"5.5"});
 }
 
@@ -574,21 +575,21 @@ TEST_F(AnyTests, PrintToStringAny) {
     std::string value = "some text";
     Any p = value;
     std::stringstream stream;
-    ASSERT_NO_THROW(p.print(stream));
+    OV_ASSERT_NO_THROW(p.print(stream));
     ASSERT_EQ(stream.str(), value);
 }
 
 TEST_F(AnyTests, PrintToVectorOfInts) {
     Any p = std::vector<int>{-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5};
     std::stringstream stream;
-    ASSERT_NO_THROW(p.print(stream));
+    OV_ASSERT_NO_THROW(p.print(stream));
     ASSERT_EQ(stream.str(), std::string{"-5 -4 -3 -2 -1 0 1 2 3 4 5"});
 }
 
 TEST_F(AnyTests, PrintToVectorOfUInts) {
     Any p = std::vector<unsigned int>{0, 1, 2, 3, 4, 5};
     std::stringstream stream;
-    ASSERT_NO_THROW(p.print(stream));
+    OV_ASSERT_NO_THROW(p.print(stream));
     ASSERT_EQ(stream.str(), std::string{"0 1 2 3 4 5"});
 }
 
@@ -608,7 +609,7 @@ TEST_F(AnyTests, PrintToVectorOfFloats) {
 TEST_F(AnyTests, PrintToVectorOfStrings) {
     Any p = std::vector<std::string>{"zero", "one", "two", "three", "four", "five"};
     std::stringstream stream;
-    ASSERT_NO_THROW(p.print(stream));
+    OV_ASSERT_NO_THROW(p.print(stream));
     ASSERT_EQ(stream.str(), std::string{"zero one two three four five"});
 }
 
@@ -619,7 +620,7 @@ TEST_F(AnyTests, PrintToMapOfAnys) {
     std::stringstream stream;
     {
         Any p = refMap;
-        ASSERT_NO_THROW(p.print(stream));
+        OV_ASSERT_NO_THROW(p.print(stream));
         ASSERT_EQ(stream.str(), std::string{"{testParamInt:4,testParamString:test}"});
     }
 }
@@ -640,7 +641,7 @@ TEST_F(AnyTests, PrintToMapOfMapsOfAnys) {
     std::stringstream stream;
     {
         Any p = refMap;
-        ASSERT_NO_THROW(p.print(stream));
+        OV_ASSERT_NO_THROW(p.print(stream));
         ASSERT_EQ(
             stream.str(),
             std::string{
@@ -656,8 +657,8 @@ TEST_F(AnyTests, accessUsingBaseReference) {
         auto p = Any::make<Derived>();
         ASSERT_TRUE(p.is<Derived>());
         ASSERT_TRUE(p.is<Base>());
-        ASSERT_NO_THROW(p.as<Derived>());
-        ASSERT_NO_THROW(p.as<Base>());
+        OV_ASSERT_NO_THROW(p.as<Derived>());
+        OV_ASSERT_NO_THROW(p.as<Base>());
         ASSERT_EQ(typeid(Derived), p.as<Base>().type_info());
     }
     ASSERT_EQ(1, DestructorTest::constructorCount);
@@ -678,7 +679,7 @@ TEST_F(AnyTests, accessUsingWrongBaseReference) {
     Any p = WrongDerived{};
     ASSERT_TRUE(p.is<WrongDerived>());
     ASSERT_FALSE(p.is<WrongBase>());
-    ASSERT_NO_THROW(p.as<WrongDerived>());
+    OV_ASSERT_NO_THROW(p.as<WrongDerived>());
     ASSERT_THROW(p.as<WrongBase>(), ov::Exception);
 }
 

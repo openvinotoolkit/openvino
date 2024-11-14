@@ -2,28 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/lp_norm.hpp"
-
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
+#include "utils/common.hpp"
 #include "utils/norm.hpp"
-
 using namespace ov::op;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector lp_norm(const ov::frontend::onnx::Node& node) {
     const ov::Output<ov::Node> data{node.get_ov_inputs().at(0)};
     const auto data_shape = data.get_partial_shape();
     const auto data_rank = data_shape.rank();
     const std::int64_t p_norm{node.get_attribute_value<std::int64_t>("p", 2)};
     const std::int64_t axis{node.get_attribute_value<std::int64_t>("axis", -1)};
-    const size_t normalize_axis = ov::util::normalize_axis(node.get_description(), axis, data_rank);
+    const auto normalize_axis = common::normalize_axis(node.get_description(), axis, data_rank);
 
     CHECK_VALID_NODE(node,
                      p_norm == 1 || p_norm == 2,
@@ -38,8 +36,9 @@ ov::OutputVector lp_norm(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::Divide>(data, norm)};
 }
 
-}  // namespace set_1
-}  // namespace op
+ONNX_OP("LpNormalization", OPSET_SINCE(1), ai_onnx::opset_1::lp_norm);
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

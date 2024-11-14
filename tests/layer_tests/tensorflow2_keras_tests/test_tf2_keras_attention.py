@@ -8,15 +8,14 @@ from common.tf2_layer_test_class import CommonTF2LayerTest
 
 
 class TestKerasAttention(CommonTF2LayerTest):
-    def create_keras_attention_net(self, causal, dropout, use_scale, input_names, input_shapes,
+    def create_keras_attention_net(self, dropout, use_scale, input_names, input_shapes,
                                    input_type, ir_version):
         # create TensorFlow 2 model with Keras Attention operation
         tf.keras.backend.clear_session()  # For easy reset of notebook state
         inputs = []
         for ind in range(len(input_names)):
             inputs.append(tf.keras.Input(shape=input_shapes[ind][1:], name=input_names[ind]))
-        y = tf.keras.layers.Attention(causal=causal, dropout=dropout, use_scale=use_scale)(inputs,
-                                                                                           training=False)
+        y = tf.keras.layers.Attention(dropout=dropout, use_scale=use_scale)(inputs, training=False)
         tf2_net = tf.keras.Model(inputs=inputs, outputs=[y])
 
         # TODO: add reference IR net. Now it is omitted and tests only inference result that is more important
@@ -25,7 +24,7 @@ class TestKerasAttention(CommonTF2LayerTest):
         return tf2_net, ref_net
 
     test_data_float32 = [
-        dict(use_scale=True, causal=True, dropout=0.5, input_names=["query", "value"],
+        dict(use_scale=True, dropout=0.5, input_names=["query", "value"],
              input_shapes=[[5, 4, 3], [5, 4, 3]], input_type=tf.float32)]
 
     @pytest.mark.parametrize("params", test_data_float32)
@@ -38,27 +37,27 @@ class TestKerasAttention(CommonTF2LayerTest):
                    use_legacy_frontend=use_legacy_frontend, **params)
 
     test_data_extended_float32 = [
-        dict(use_scale=False, causal=True, dropout=0.0,
+        dict(use_scale=False, dropout=0.0,
              input_names=["input1_query", "input2_value"],
              input_shapes=[[5, 4], [5, 4]], input_type=tf.float32),
-        dict(use_scale=True, causal=False, dropout=0.5,
+        dict(use_scale=True, dropout=0.5,
              input_names=["input1_query", "input2_value"],
              input_shapes=[[2, 1, 4], [2, 1, 4]], input_type=tf.float32),
-        dict(use_scale=False, causal=False, dropout=0.8,
+        dict(use_scale=False, dropout=0.8,
              input_names=["input1_query", "input2_value"],
              input_shapes=[[3, 2, 5], [3, 2, 5]], input_type=tf.float32),
-        dict(use_scale=True, causal=True, dropout=0.0,
+        dict(use_scale=True, dropout=0.0,
              input_names=["input1_query", "input2_value", "input3_key"],
              input_shapes=[[4, 3], [4, 3], [4, 3]], input_type=tf.float32),
-        dict(use_scale=False, causal=True, dropout=0.5,
+        dict(use_scale=False, dropout=0.5,
              input_names=["input1_query", "input2_value", "input3_key"],
              input_shapes=[[5, 3, 4], [5, 3, 4], [5, 3, 4]],
              input_type=tf.float32),
-        dict(use_scale=True, causal=False, dropout=0.5,
+        dict(use_scale=True, dropout=0.5,
              input_names=["input1_query", "input2_value", "input3_key"],
              input_shapes=[[2, 1, 1], [2, 1, 1], [2, 1, 1]],
              input_type=tf.float32),
-        dict(use_scale=False, causal=False, dropout=0.8,
+        dict(use_scale=False, dropout=0.8,
              input_names=["input1_query", "input2_value", "input3_key"],
              input_shapes=[[5, 3, 3], [5, 3, 3], [5, 3, 3]],
              input_type=tf.float32)

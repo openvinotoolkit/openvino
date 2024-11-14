@@ -74,6 +74,11 @@
 'category: NPU':
 - 'src/plugins/intel_npu/**/*'
 
+'category: NPUW':
+- 'src/plugins/intel_npu/src/plugin/npuw/**/*'
+- 'src/plugins/intel_npu/tests/functional/behavior/npuw/**/*'
+- 'src/plugins/intel_npu/tests/unit/behavior/npuw/**/*'
+
 'category: HETERO':
 - 'src/plugins/hetero/**/*'
 
@@ -97,8 +102,10 @@
 
 'category: MO':
 - 'tools/mo/**/*'
-- 'tools/ovc/**/*'
 - 'tests/layer_tests/mo_python_api_tests/**/*'
+
+'category: OVC':
+- 'tools/ovc/**/*'
 - 'tests/layer_tests/ovc_python_api_tests/**/*'
 
 'category: ONNX FE':
@@ -141,11 +148,14 @@
 'category: TF FE':
 - 'src/frontends/tensorflow/**/*'
 - 'src/frontends/tensorflow_common/**/*'
+- 'src/bindings/python/src/openvino/frontend/tensorflow/**/*'
 - 'tests/layer_tests/tensorflow_tests/**/*'
 - 'tests/layer_tests/tensorflow2_keras_tests/**/*'
 - 'tests/layer_tests/jax_tests/**/*'
+- 'tests/requirements_tensorflow'
 - any: ['tests/model_hub_tests/**',
-        '!tests/model_hub_tests/pytorch/**/*']
+        '!tests/model_hub_tests/pytorch/**/*',
+        '!tests/model_hub_tests/jax/**/*']
 
 'category: TFL FE':
 - 'src/frontends/tensorflow_lite/**/*'
@@ -158,8 +168,18 @@
 - 'src/bindings/python/src/openvino/frontend/pytorch/**/*'
 - 'tests/layer_tests/py_frontend_tests/test_torch_decoder.py'
 - 'tests/layer_tests/py_frontend_tests/test_torch_frontend.py'
+- 'tests/requirements_pytorch'
 - any: ['tests/model_hub_tests/**',
-        '!tests/model_hub_tests/tensorflow/**/*']
+        '!tests/model_hub_tests/tensorflow/**/*',
+        '!tests/model_hub_tests/jax/**/*']
+
+'category: JAX FE':
+- 'src/frontends/jax/**/*'
+- 'src/bindings/python/src/openvino/frontend/jax/**/*'
+- 'tests/layer_tests/jax_tests/**/*'
+- any: ['tests/model_hub_tests/**',
+        '!tests/model_hub_tests/tensorflow/**/*',
+        '!tests/model_hub_tests/pytorch/**/*']
 
 'category: tools':
 - any: ['tools/**',

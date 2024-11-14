@@ -38,15 +38,15 @@ public:
     /// \return The index of the input referred to by this input handle.
     size_t get_index() const;
     /// \return The element type of the input referred to by this input handle.
-    const element::Type& get_element_type() const;
+    OV_NO_DANGLING const element::Type& get_element_type() const;
     /// \return The shape of the input referred to by this input handle.
-    const Shape& get_shape() const;
+    OV_NO_DANGLING const Shape& get_shape() const;
     /// \return The partial shape of the input referred to by this input handle.
-    const PartialShape& get_partial_shape() const;
+    OV_NO_DANGLING const PartialShape& get_partial_shape() const;
     /// \return A handle to the output that is connected to this input.
     Output<Node> get_source_output() const;
     /// \return A reference to the tensor descriptor for this input.
-    descriptor::Tensor& get_tensor() const;
+    OV_NO_DANGLING descriptor::Tensor& get_tensor() const;
     /// \return A shared pointer to the tensor descriptor for this input.
     std::shared_ptr<descriptor::Tensor> get_tensor_ptr() const;
     /// \return true if this input is relevant to its node's output shapes; else false.
@@ -61,7 +61,7 @@ public:
     /// \return The reference to runtime info map
     RTMap& get_rt_info();
     /// \return The constant reference to runtime info map
-    const RTMap& get_rt_info() const;
+    OV_NO_DANGLING const RTMap& get_rt_info() const;
 
     bool operator==(const Input& other) const;
     bool operator!=(const Input& other) const;
@@ -90,15 +90,15 @@ public:
     /// \return The index of the input referred to by this input handle.
     size_t get_index() const;
     /// \return The element type of the input referred to by this input handle.
-    const element::Type& get_element_type() const;
+    OV_NO_DANGLING const element::Type& get_element_type() const;
     /// \return The shape of the input referred to by this input handle.
-    const Shape& get_shape() const;
+    OV_NO_DANGLING const Shape& get_shape() const;
     /// \return The partial shape of the input referred to by this input handle.
-    const PartialShape& get_partial_shape() const;
+    OV_NO_DANGLING const PartialShape& get_partial_shape() const;
     /// \return A handle to the output that is connected to this input.
     Output<Node> get_source_output() const;
     /// \return A reference to the tensor descriptor for this input.
-    descriptor::Tensor& get_tensor() const;
+    OV_NO_DANGLING descriptor::Tensor& get_tensor() const;
     /// \return A shared pointer to the tensor descriptor for this input.
     std::shared_ptr<descriptor::Tensor> get_tensor_ptr() const;
     /// \return true if this input is relevant to its node's output shapes; else false.
@@ -107,7 +107,7 @@ public:
     bool get_is_relevant_to_values() const;
 
     /// \return The constant reference to runtime info map
-    const RTMap& get_rt_info() const;
+    OV_NO_DANGLING const RTMap& get_rt_info() const;
 
     bool operator==(const Input& other) const;
     bool operator!=(const Input& other) const;

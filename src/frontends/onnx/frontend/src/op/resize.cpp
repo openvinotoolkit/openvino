@@ -2,19 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/resize.hpp"
-
 #include "core/null_node.hpp"
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/interpolate.hpp"
 #include "utils/common.hpp"
-
 using namespace ov::op;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
+namespace ai_onnx {
 namespace {
 static const std::unordered_set<std::string> supported_modes = {"nearest", "linear", "cubic"};
 
@@ -111,7 +109,7 @@ InterpolateAttrs get_resize_attrs(const ov::frontend::onnx::Node& node) {
 }
 }  // namespace
 
-namespace set_11 {
+namespace opset_11 {
 ov::OutputVector resize(const ov::frontend::onnx::Node& node) {
     // roi input (inputs.at(2)) is ignored because it is used only
     // in "tf_crop_and_resize" which is not handled now
@@ -130,9 +128,10 @@ ov::OutputVector resize(const ov::frontend::onnx::Node& node) {
         return {std::make_shared<v11::Interpolate>(data, scales, attrs)};
     }
 }
-}  // namespace set_11
+ONNX_OP("Resize", OPSET_SINCE(11), ai_onnx::opset_11::resize);
+}  // namespace opset_11
 
-namespace set_1 {
+namespace opset_1 {
 ov::OutputVector resize(const ov::frontend::onnx::Node& node) {
     const auto inputs = node.get_ov_inputs();
     const auto& data = inputs.at(0);
@@ -150,8 +149,9 @@ ov::OutputVector resize(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v11::Interpolate>(data, scales, attrs)};
 }
 
-}  // namespace set_1
-}  // namespace op
+ONNX_OP("Resize", OPSET_RANGE(1, 10), ai_onnx::opset_1::resize);
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

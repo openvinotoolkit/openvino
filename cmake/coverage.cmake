@@ -112,6 +112,13 @@ if(ENABLE_OV_IR_FRONTEND)
         PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 endif()
 
+if(ENABLE_OV_JAX_FRONTEND)
+    ov_coverage_extract(INPUT "openvino" OUTPUT "jax_frontend"
+        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/frontends/jax/*")
+    ov_coverage_genhtml(INFO_FILE "jax_frontend"
+        PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
+endif()
+
 if(ENABLE_OV_ONNX_FRONTEND)
     ov_coverage_extract(INPUT "openvino" OUTPUT "onnx_frontend"
         PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/frontends/onnx/*")

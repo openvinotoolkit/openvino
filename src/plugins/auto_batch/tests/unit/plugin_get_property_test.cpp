@@ -51,7 +51,7 @@ TEST_P(GetPropertyTest, GetPropertyTestCase) {
         ASSERT_ANY_THROW(m_plugin->get_property(m_property_name, options));
     } else {
         ov::Any value;
-        ASSERT_NO_THROW(value = m_plugin->get_property(m_property_name, options));
+        OV_ASSERT_NO_THROW(value = m_plugin->get_property(m_property_name, options));
         if (m_property_name == ov::device::full_name.name()) {
             EXPECT_EQ(value.as<std::string>(), "BATCH");
             return;

@@ -9,6 +9,7 @@
 #include "common_test_utils/all_close.hpp"
 #include "common_test_utils/all_close_f.hpp"
 #include "common_test_utils/test_tools.hpp"
+#include "openvino/core/type/element_iterator.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/util/file_util.hpp"
 
@@ -18,6 +19,23 @@ namespace test {
 class TestCase {
 public:
     TestCase(const std::shared_ptr<ov::Model>& function, const std::string& dev = "TEMPLATE");
+
+    /// \brief This method is used to eliminate issue caused by calling .data for vector<bool>
+    template <typename T, typename std::enable_if<!std::is_same<T, bool>::value, bool>::type = true>
+    void copy_values_to_tensor(ov::Tensor& tensor, const std::vector<T>& values) {
+        if (!ov::element::is_nibble_type(tensor.get_element_type())) {
+            std::copy(values.begin(), values.end(), tensor.data<T>());
+        } else {
+            size_t size = sizeof(T) * values.size();
+            if (tensor.get_byte_size() < size)
+                size = tensor.get_byte_size();
+            std::memcpy(tensor.data(), values.data(), size);
+        }
+    }
+    template <typename T, typename std::enable_if<std::is_same<T, bool>::value, bool>::type = true>
+    void copy_values_to_tensor(ov::Tensor& tensor, const std::vector<bool>& values) {
+        std::copy(values.begin(), values.end(), tensor.data<bool>());
+    }
 
     template <typename T>
     void add_input(const ov::Shape& shape, const std::vector<T>& values) {
@@ -44,8 +62,7 @@ public:
 
         if (is_dynamic) {
             ov::Tensor tensor(params.at(m_input_index)->get_element_type(), shape);
-
-            std::copy(values.begin(), values.end(), tensor.data<T>());
+            copy_values_to_tensor<T>(tensor, values);
             m_request.set_input_tensor(m_input_index, tensor);
         } else {
             auto tensor = m_request.get_input_tensor(m_input_index);
@@ -56,7 +73,7 @@ public:
                             tensor.get_size(),
                             " and values size is ",
                             values.size());
-            std::copy(values.begin(), values.end(), tensor.data<T>());
+            copy_values_to_tensor<T>(tensor, values);
         }
 
         ++m_input_index;
@@ -122,7 +139,7 @@ public:
                         m_output_index);
 
         ov::Tensor tensor(results[m_output_index]->get_output_element_type(0), expected_shape);
-        std::copy(values.begin(), values.end(), tensor.data<T>());
+        copy_values_to_tensor<T>(tensor, values);
 
         m_expected_outputs.push_back(std::move(tensor));
 

@@ -212,7 +212,7 @@ bool ConvolutionKernel_bfyx_os_iyx_osv16::Validate(const Params& p) const {
     const size_t acceptable_filter_size = 1024;     // This acceptable size was decided by heuristics
     const auto& params = static_cast<const convolution_params&>(p);
     auto filter_size = params.filterSize.x * params.filterSize.y;
-    if (filter_size > acceptable_filter_size) {
+    if (filter_size >= acceptable_filter_size) {
         return false;
     }
 

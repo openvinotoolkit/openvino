@@ -36,6 +36,14 @@ void graph_initializations::set_outputs(program& p) {
 
 void graph_initializations::run(program& p) {
     set_outputs(p);
+
+    auto forcing_map = p.get_config().get_property(ov::intel_gpu::force_implementations);
+    for (auto& kv : forcing_map) {
+        if (p.has_node(kv.first)) {
+            p.get_node(kv.first).set_forced_impl_type(kv.second.impl_type);
+        }
+    }
+
     p.get_processing_order().calc_processing_order(p);
 }
 }  // namespace cldnn

@@ -12,19 +12,19 @@ namespace intel_gpu {
 class TransposeFusion: public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("TransposeFusion", "0");
-    TransposeFusion();
+    TransposeFusion(bool supports_immad = false);
 };
 
 class TransposeMatMulMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("TransposeMatMulMatcher", "0");
-    TransposeMatMulMatcher();
+    TransposeMatMulMatcher(bool supports_immad);
 };
 
 class TransposeMatMulTransposeMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("TransposeMatMulTransposeMatcher", "0");
-    TransposeMatMulTransposeMatcher();
+    TransposeMatMulTransposeMatcher(bool supports_immad);
 };
 
 class TransposeSDPAMatcher : public ov::pass::MatcherPass {

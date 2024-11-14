@@ -93,7 +93,7 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
             auto list_itr = list.begin();
 
             while (list_itr != list.end()) {
-                if (list_itr->_memory.get() == mem &&
+                if (list_itr->_memory.get()->get_internal_params().mem == mem->get_internal_params().mem &&
                     list_itr->_network_id == network_id &&
                     list_itr->_type == type) {
                     auto user_it = list_itr->_users.find({MEM_USER(unique_id, network_id, prim_id, _layout_bytes_count)});
@@ -306,7 +306,7 @@ memory::ptr memory_pool::get_memory(const layout& layout,
     }
     if (do_reuse) {
         // reusable within the same network
-        if (!layout.format.is_image() && layout.data_padding == padding{{0, 0, 0, 0}, 0}) {
+        if (!layout.format.is_image() && !layout.data_padding) {
             // non-padded buffers
             return get_from_non_padded_pool(layout, prim_id, unique_id, network_id, restrictions, type, reset, is_dynamic);
         } else if (!layout.format.is_image()) {

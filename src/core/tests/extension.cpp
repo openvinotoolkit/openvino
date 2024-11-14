@@ -5,6 +5,7 @@
 #include "openvino/core/extension.hpp"
 
 #include <gtest/gtest.h>
+#include <stdio.h>
 
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -18,9 +19,31 @@ inline std::string get_extension_path() {
                                                     std::string("openvino_template_extension") + OV_BUILD_POSTFIX);
 }
 
+inline std::wstring get_extension_wdir() {
+    std::wstring dir = ov::util::string_to_wstring(ov::test::utils::getExecutableDirectory());
+    dir.push_back(ov::util::FileTraits<wchar_t>::file_separator);
+    dir += ov::util::string_to_wstring("晚安_путь_к_файлу");
+    dir.push_back(ov::util::FileTraits<wchar_t>::file_separator);
+    ov::util::create_directory_recursive(dir);
+    return dir;
+}
+
 TEST(extension, load_extension) {
     EXPECT_NO_THROW(ov::detail::load_extensions(get_extension_path()));
 }
+
+#if defined(_WIN32)
+TEST(extension, load_extension_wstring) {
+    std::wstring wdir = get_extension_wdir();
+    std::wstring wdir_ext_path = wdir + ov::util::string_to_wstring(ov::util::make_plugin_library_name<char>(
+                                            "",
+                                            std::string("openvino_template_extension") + OV_BUILD_POSTFIX));
+    _wrename(ov::util::string_to_wstring(get_extension_path()).c_str(), wdir_ext_path.c_str());
+    EXPECT_NO_THROW(ov::detail::load_extensions(wdir_ext_path));
+    _wrename(wdir_ext_path.c_str(), ov::util::string_to_wstring(get_extension_path()).c_str());
+    _wrmdir(wdir.c_str());
+}
+#endif
 
 TEST(extension, load_extension_and_cast) {
     std::vector<ov::Extension::Ptr> so_extensions = ov::detail::load_extensions(get_extension_path());

@@ -4,8 +4,9 @@ OpenVINO™ Model conversion
 This notebook shows how to convert a model from original framework
 format to OpenVINO Intermediate Representation (IR).
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
+
 
 -  `OpenVINO IR format <#openvino-ir-format>`__
 -  `Fetching example models <#fetching-example-models>`__
@@ -25,18 +26,25 @@ Table of contents:
    -  `Reversing Input Channels <#reversing-input-channels>`__
    -  `Cutting Off Parts of a Model <#cutting-off-parts-of-a-model>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. code:: ipython3
 
     # Required imports. Please execute this cell first.
-    %pip install --upgrade pip
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu \
-    "openvino-dev>=2024.0.0" "requests" "tqdm" "transformers[onnx]>=4.31" "torch>=2.1" "torchvision" "tensorflow_hub" "tensorflow"
+    "openvino>=2024.4.0" "requests" "tqdm" "transformers>=4.31" "onnx!=1.16.2" "torch>=2.1" "torchvision" "tensorflow_hub" "tensorflow"
 
 
 .. parsed-literal::
 
-    Requirement already satisfied: pip in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (24.0)
-    Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -155,7 +163,7 @@ NLP model from Hugging Face and export it in ONNX format:
 .. code:: ipython3
 
     from transformers import AutoModelForSequenceClassification, AutoTokenizer
-    from transformers.onnx import export, FeaturesManager
+    import torch
     
     ONNX_NLP_MODEL_PATH = MODEL_DIRECTORY_PATH / "distilbert.onnx"
     
@@ -164,39 +172,27 @@ NLP model from Hugging Face and export it in ONNX format:
     # initialize tokenizer
     tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased-finetuned-sst-2-english")
     
-    # get model onnx config function for output feature format sequence-classification
-    model_kind, model_onnx_config = FeaturesManager.check_supported_model_or_raise(hf_model, feature="sequence-classification")
-    # fill onnx config based on pytorch model config
-    onnx_config = model_onnx_config(hf_model.config)
-    
-    # export to onnx format
-    export(
-        preprocessor=tokenizer,
-        model=hf_model,
-        config=onnx_config,
-        opset=onnx_config.default_onnx_opset,
-        output=ONNX_NLP_MODEL_PATH,
-    )
+    if not ONNX_NLP_MODEL_PATH.exists():
+        inputs = tokenizer("Hi, how are you?", return_tensors="pt")
+        input_names = list(inputs.keys())
+        dynamic_axes = {input_name: {0: "batch_size", 1: "seq_length"} for input_name in input_names}
+        torch.onnx.export(
+            hf_model, args=dict(inputs), input_names=input_names, output_names=["logits"], dynamic_axes=dynamic_axes, f=ONNX_NLP_MODEL_PATH, opset_version=14
+        )
+        print(f"ONNX model exported to {ONNX_NLP_MODEL_PATH}")
 
 
 .. parsed-literal::
 
-    2024-05-15 23:49:16.064636: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-05-15 23:49:16.099980: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-11-04 22:48:30.842642: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-11-04 22:48:30.876775: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-05-15 23:49:16.617080: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
-      warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/distilbert/modeling_distilbert.py:234: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
-      mask, torch.tensor(torch.finfo(scores.dtype).min)
-
-
+    2024-11-04 22:48:31.539454: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
 
-    (['input_ids', 'attention_mask'], ['logits'])
-
+    ONNX model exported to model/distilbert.onnx
 
 
 Fetch
@@ -664,12 +660,8 @@ frameworks conversion guides.
 
 .. parsed-literal::
 
-    2024-05-15 23:49:36.583572: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
-    2024-05-15 23:49:36.583606: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:168] retrieving CUDA diagnostic information for host: iotg-dev-workstation-07
-    2024-05-15 23:49:36.583610: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:175] hostname: iotg-dev-workstation-07
-    2024-05-15 23:49:36.583842: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:199] libcuda reported version is: 470.223.2
-    2024-05-15 23:49:36.583866: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:203] kernel reported version is: 470.182.3
-    2024-05-15 23:49:36.583871: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
+    2024-11-04 22:48:47.716205: W tensorflow/core/common_runtime/gpu/gpu_device.cc:1956] Cannot dlopen some GPU libraries. Please make sure the missing libraries mentioned above are installed properly if you would like to use GPU. Follow the guide at https://www.tensorflow.org/install/gpu for how to download and setup the required libraries for your platform.
+    Skipping registering GPU devices...
 
 
 Migration from Legacy conversion API
@@ -719,21 +711,12 @@ Resnet50 model that was exported to the ONNX format:
     prep.input("input.1").model().set_layout(ov.Layout("nchw"))
     ov_model = prep.build()
 
-.. code:: ipython3
+.. code:: python
 
-    # Legacy Model Optimizer API
-    from openvino.tools import mo
-    
-    ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, layout="nchw")
+   # Legacy Model Optimizer API
+   from openvino.tools import mo
 
-
-.. parsed-literal::
-
-    huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
-    To disable this warning, you can either:
-    	- Avoid using `tokenizers` before the fork if possible
-    	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
-
+   ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, layout="nchw")
 
 Changing Model Layout
 ^^^^^^^^^^^^^^^^^^^^^
@@ -760,15 +743,17 @@ and the layout of an original model:
     prep.input("input.1").model().set_layout(ov.Layout("nchw"))
     ov_model = prep.build()
 
-.. code:: ipython3
+Legacy Model Optimizer API
+==========================
 
-    # Legacy Model Optimizer API
-    from openvino.tools import mo
-    
-    ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, layout="nchw->nhwc")
-    
-    # alternatively use source_layout and target_layout parameters
-    ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, source_layout="nchw", target_layout="nhwc")
+.. code:: python
+
+   from openvino.tools import mo
+
+   ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, layout="nchw->nhwc")
+
+   # alternatively use source_layout and target_layout parameters
+   ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, source_layout="nchw", target_layout="nhwc")
 
 Specifying Mean and Scale Values
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -796,17 +781,18 @@ more examples.
     
     ov_model = prep.build()
 
-.. code:: ipython3
+.. code:: python
 
-    # Legacy Model Optimizer API
-    from openvino.tools import mo
-    
-    
-    ov_model = mo.convert_model(
-        ONNX_CV_MODEL_PATH,
-        mean_values=[255 * x for x in [0.485, 0.456, 0.406]],
-        scale_values=[255 * x for x in [0.229, 0.224, 0.225]],
-    )
+   # Legacy Model Optimizer API
+
+   from openvino.tools import mo
+
+
+   ov_model = mo.convert_model(
+       ONNX_CV_MODEL_PATH,
+       mean_values=[255 * x for x in [0.485, 0.456, 0.406]],
+       scale_values=[255 * x for x in [0.229, 0.224, 0.225]],
+   )
 
 Reversing Input Channels
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -831,12 +817,12 @@ the color channels before inference.
     prep.input("input.1").preprocess().reverse_channels()
     ov_model = prep.build()
 
-.. code:: ipython3
+.. code:: python
 
-    # Legacy Model Optimizer API
-    from openvino.tools import mo
-    
-    ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, reverse_input_channels=True)
+   # Legacy Model Optimizer API
+   from openvino.tools import mo
+
+   ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, reverse_input_channels=True)
 
 Cutting Off Parts of a Model
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^

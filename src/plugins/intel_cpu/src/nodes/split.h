@@ -28,7 +28,10 @@ public:
     bool needPrepareParams() const override;
     bool needShapeInfer() const override;
     void prepareParams() override;
-    void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
+    void createPrimitive() override;
+    void executeDynamicImpl(dnnl::stream strm) override {
+        execute(strm);
+    }
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
 private:

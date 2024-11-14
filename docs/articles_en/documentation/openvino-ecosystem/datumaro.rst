@@ -1,5 +1,3 @@
-.. {#datumaro_documentation}
-
 Datumaro
 ========
 
@@ -20,8 +18,6 @@ Plus, enjoy `Jupyter notebooks <https://github.com/openvinotoolkit/datumaro/tree
 
 Detailed Workflow
 #################
-
-``
 
 .. image:: ../../assets/images/datumaro.png
 

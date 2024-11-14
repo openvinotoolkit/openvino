@@ -2017,10 +2017,10 @@ void MVN::MVNRefExecutor::exec(const uint8_t *src_data, uint8_t *dst_data, const
 void MVN::prepareParams() {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW("Destination memory didn't allocate.");
-    if (!srcMemPtr || !srcMemPtr->isAllocated())
-        OPENVINO_THROW("Input memory didn't allocate.");
+    if (!dstMemPtr || !dstMemPtr->isDefined())
+        OPENVINO_THROW("Destination memory is undefined.");
+    if (!srcMemPtr || !srcMemPtr->isDefined())
+        OPENVINO_THROW("Input memory is undefined.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
         OPENVINO_THROW("Preferable primitive descriptor is not set.");
 
@@ -2417,9 +2417,9 @@ void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data, uint8_t* dst_data, c
     const size_t H = shape5d[3];
     const size_t W = shape5d[4];
 
-    size_t threads_num = parallel_get_num_threads();
+    const size_t threads_num = parallel_get_max_threads();
     size_t aux_buffer_size = mvnAttrs.execAcrossChannels_ ? 1 : rnd_up(C, blk_size) + blk_size;
-    parallel_for(N, [&](size_t b) {
+    auto b_loop = [&](size_t b) {
         std::vector<float> mean_buffer(aux_buffer_size * threads_num, 0.f);
         std::vector<float> variance_buffer;
         if (mvnAttrs.normalizeVariance_) {
@@ -2429,7 +2429,7 @@ void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data, uint8_t* dst_data, c
 
         // kernel_type: 0 for mean, 1 for variance, 2 for normalization
         auto worker = [&](const bool across_channel, const int kernel_type) {
-            parallel_nt(0, [&](const int ithr, const int nthr) {
+            parallel_nt(threads_num, [&](const int ithr, const int nthr) {
                 size_t start = 0, end = 0;
                 splitter(D * H * W, nthr, ithr, start, end);
 
@@ -2512,6 +2512,10 @@ void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data, uint8_t* dst_data, c
             }
             worker(false, 2);
         }
+    };
+
+    parallel_nt_static(threads_num, [&](const int ithr, const int nthr) {
+        for_1d(ithr, nthr, N, b_loop);
     });
 }
 
@@ -2529,15 +2533,15 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
     const size_t H = shape5d[3];
     const size_t W = shape5d[4];
 
-    size_t CB = div_up(C, blk_size);
+    const size_t CB = div_up(C, blk_size);
 
-    size_t C0 = W * blk_size;
-    size_t C1 = C0 * H;
-    size_t C2 = C1 * D;
-    size_t C3 = C2 * CB;
-    size_t C5 = C * D * H * W;
+    const size_t C0 = W * blk_size;
+    const size_t C1 = C0 * H;
+    const size_t C2 = C1 * D;
+    const size_t C3 = C2 * CB;
+    const size_t C5 = C * D * H * W;
 
-    size_t threads_num = parallel_get_num_threads();
+    const size_t threads_num = parallel_get_max_threads();
     size_t aux_buffer_size = mvnAttrs.execAcrossChannels_ ? blk_size : rnd_up(C, blk_size);
     aux_buffer_size += blk_size;
     std::vector<float> mean_buffer(aux_buffer_size * threads_num);
@@ -2562,7 +2566,11 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
                 //                      //  |
                 //                      // \|/
                 /////////////////////////////////
-                auto mean_buffer_ptr = &mean_buffer[aux_buffer_size * parallel_get_thread_num()];
+                auto thread_idx = static_cast<size_t>(parallel_get_thread_num());
+                if (thread_idx >= threads_num) {
+                    return mean_internal;
+                }
+                auto mean_buffer_ptr = &mean_buffer[aux_buffer_size * thread_idx];
                 for (size_t i = 0; i < blk_size; i++)
                     mean_buffer_ptr[i] = 0.f;
 
@@ -2589,7 +2597,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
                     size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
 
                     float variance_internal = 0.0f;
-                    auto variance_buffer_ptr = &variance_buffer[aux_buffer_size * parallel_get_thread_num()];
+                    auto variance_buffer_ptr = &variance_buffer[aux_buffer_size * static_cast<size_t>(parallel_get_thread_num())];
                     for (size_t i = 0; i < blk_size; i++)
                         variance_buffer_ptr[i] = 0.f;
 
@@ -2651,7 +2659,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
 
             // one thread for one C*W size(the same H) to get C size result for the same H, added to last group result
             // keep the compute order the same as planar
-            parallel_for2d(D, H, [&](size_t thr_idx, size_t d, size_t h) {
+            auto dh_loop = [&](size_t thr_idx, size_t d, size_t h) {
                 for (size_t cb = 0; cb < CB; cb++) {
                     size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
                     auto mean_buffer_ptr = &mean_buffer[blk_size * cb + aux_buffer_size * thr_idx];
@@ -2665,6 +2673,10 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
                     arg.post_op_data = post_ops_data_;
                     (*mvn_mean_kernel)(&arg);
                 }
+            };
+
+            parallel_nt_static(threads_num, [&](const int ithr, const int nthr) {
+                for_2d(ithr, nthr, D, H, dh_loop);
             });
 
             for (size_t i = 1; i < threads_num; i++) {
@@ -2678,7 +2690,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
                 for (size_t i = 0; i < variance_buffer.size(); i++)
                     variance_buffer[i] = 0.f;
 
-                parallel_for2d(D, H, [&](size_t thr_idx, size_t d, size_t h) {
+                auto dh_loop = [&](size_t thr_idx, size_t d, size_t h) {
                     for (size_t cb = 0; cb < CB; cb++) {
                         size_t src_offset = b_offset + cb * C2 + d * C1 + h * C0;
                         auto mean_buffer_ptr = &mean_buffer[blk_size * cb];
@@ -2694,7 +2706,12 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, co
                         arg.post_op_data = post_ops_data_;
                         (*mvn_variance_kernel)(&arg);
                     }
+                };
+
+                parallel_nt_static(threads_num, [&](const int ithr, const int nthr) {
+                    for_2d(ithr, nthr, D, H, dh_loop);
                 });
+
                 for (size_t i = 1; i < threads_num; i++) {
                     for (size_t c = 0; c < C; c++)
                         variance_buffer[c] += variance_buffer[c + aux_buffer_size * i];

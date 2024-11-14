@@ -343,6 +343,14 @@ ONNXModelEditor::ONNXModelEditor(std::istream& model_stream,
                   delete impl;
               }} {}
 
+ONNXModelEditor::ONNXModelEditor(std::shared_ptr<ModelProto> model_proto, frontend::ExtensionHolder extensions)
+    : m_model_path{""},
+      m_mmap_cache{nullptr},
+      m_extensions{std::move(extensions)},
+      m_pimpl{new ONNXModelEditor::Impl{model_proto}, [](Impl* impl) {
+                  delete impl;
+              }} {}
+
 const std::string& ONNXModelEditor::model_path() const {
     return m_model_path;
 }
@@ -415,7 +423,7 @@ PartialShape ONNXModelEditor::get_tensor_shape(const std::string& tensor_name) c
     } else {
         auto shape_infer_applied = onnx_shapes.infer_shapes();
         if (!shape_infer_applied) {
-            OPENVINO_WARN << "Cannot replace existing shapes during get_tensor_shape";
+            OPENVINO_WARN("Cannot replace existing shapes during get_tensor_shape");
             return PartialShape::dynamic();
         }
         auto node_it = std::find_if(std::begin(onnx_graph->value_info()),
@@ -543,8 +551,11 @@ void ONNXModelEditor::set_input_values(
         auto onnx_initializer = find_graph_initializer(*onnx_graph, name);
 
         if (!onnx_initializer && !onnx_input) {
-            OPENVINO_INFO << "There is no input nor initializer named '" << name << "' in original model '"
-                          << m_model_path << "'.";
+            OPENVINO_INFO("There is no input nor initializer named '",
+                          name,
+                          "' in original model '",
+                          m_model_path,
+                          "'.");
         }
 
         if (!onnx_initializer) {

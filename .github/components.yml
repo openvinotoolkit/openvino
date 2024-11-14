@@ -13,6 +13,9 @@ LP_transformations:
     - TFL_FE
     - ONNX_FE
     - PDPD_FE
+    - JAX_FE
+  build:
+    - TOKENIZERS # TF_FE tests depends on tokenizers build
 
 preprocessing:
   revalidate:
@@ -32,12 +35,14 @@ CPU:
     - PyTorch_FE
     - TF_FE
     - ONNX_FE
+    - JAX_FE
   build:
     - AUTO
     - HETERO
     - AUTO_BATCH
     - TEMPLATE
     - IR_FE
+    - TOKENIZERS # TF_FE tests depends on tokenizers build
 
 GPU:
   build:
@@ -106,6 +111,7 @@ IR_FE:
 ONNX_FE:
   revalidate:
     - MO
+    - OVC
     - ONNX_RT
   build:
     - CPU
@@ -114,6 +120,7 @@ ONNX_FE:
 PDPD_FE:
   revalidate:
     - MO
+    - OVC
   build:
     - CPU
     - Python_API
@@ -121,14 +128,16 @@ PDPD_FE:
 TF_FE:
   revalidate:
     - MO
+    - OVC
   build:
     - CPU
     - Python_API
-    - TOKENIZERS
+    - TOKENIZERS # TF_FE tests depends on tokenizers build
 
 TFL_FE:
   revalidate:
     - MO
+    - OVC
   build:
     - CPU
     - Python_API
@@ -136,10 +145,18 @@ TFL_FE:
 PyTorch_FE:
   revalidate:
     - MO
+    - OVC
   build:
     - CPU
     - Python_API
-    - TOKENIZERS
+
+JAX_FE:
+  revalidate:
+    - MO
+    - OVC
+  build:
+    - CPU
+    - Python_API
 
 C_API:
   build:
@@ -154,7 +171,9 @@ Python_API:
   revalidate:
     - samples
     - MO
+    - OVC
     - tools
+    - TF_FE
   build:
     - CPU
     - HETERO
@@ -164,9 +183,10 @@ Python_API:
     - IR_FE
     - ONNX_FE
     - PDPD_FE
-    - TF_FE
     - TFL_FE
     - PyTorch_FE
+    - JAX_FE
+    - TOKENIZERS # TF_FE tests depends on tokenizers build
 
 JS_API:
   build:
@@ -194,12 +214,25 @@ IE_Tests:
   build:
     - IR_FE
 
+OVC:
+  revalidate:
+    - PyTorch_FE
+    - TF_FE
+    - TFL_FE
+    - ONNX_FE
+    - PDPD_FE
+    - JAX_FE
+  build:
+    - Python_API
+    - TOKENIZERS # TF_FE tests depends on tokenizers build
+
 MO:
   revalidate:
     - PyTorch_FE
     - TF_FE
   build:
     - Python_API
+    - TOKENIZERS # TF_FE tests depends on tokenizers build
 
 tools:
   build:
@@ -223,5 +256,6 @@ ONNX_RT:
   build: []
 
 TOKENIZERS:
-  revalidate: []
+  revalidate:
+    - TF_FE
   build: []

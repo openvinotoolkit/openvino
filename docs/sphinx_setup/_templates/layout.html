@@ -4,26 +4,21 @@
 {{ super() }}
 <link href="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/css/splide.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/js/splide.min.js"></script>
-
-<script type="module" src="https://static.cloud.coveo.com/atomic/v2/atomic.esm.js"></script> 
-<link rel="stylesheet" href="https://static.cloud.coveo.com/atomic/v2/themes/coveo.css">
-
+<script type="module" src="https://static.cloud.coveo.com/atomic/v3/atomic.esm.js"></script> 
+<link rel="stylesheet" href="https://static.cloud.coveo.com/atomic/v3/themes/coveo.css">
 <link rel="stylesheet" href="{{ pathto('_static/css/viewer.min.css', 1) }}" type="text/css" />
 <link rel="stylesheet" href="{{ pathto('_static/css/custom.css', 1) }}" type="text/css" />
 <link rel="stylesheet" href="{{ pathto('_static/css/banner.css', 1) }}" type="text/css" />
+<link href="https://cdn.datatables.net/v/dt/jq-3.7.0/dt-2.0.8/b-3.0.2/b-colvis-3.0.2/b-print-3.0.2/datatables.min.css" rel="stylesheet">
 <link rel="stylesheet" href="{{ pathto('_static/css/coveo_custom.css', 1) }}" type="text/css" />
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/0.5.7/chartjs-plugin-annotation.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-barchart-background@1.3.0/build/Plugin.Barchart.Background.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-deferred@1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.1/papaparse.min.js"></script>
 <script src="{{ pathto('_static/js/viewer.min.js', 1) }}"></script>
 <script src="/assets/versions_raw.js"></script>
 {% endblock %}
-
 {% block docs_navbar %}
 {{ super() }}
 {% include 'baner.html' %}
+<script src="https://cdn.datatables.net/v/dt/jq-3.7.0/dt-2.0.8/b-3.0.2/b-colvis-3.0.2/b-print-3.0.2/datatables.min.js"></script>
+<script src="{{ pathto('_static/js/openVinoDataTables.js', 1) }}"></script>
 {% endblock %}

@@ -139,11 +139,9 @@ void ReduceCPULayerTest::SetUp() {
 
     function = makeNgraphFunction(netPrecision, params, reduce, "Reduce");
 
-    if (ov::with_cpu_x86_avx512_core_amx()) {
-        if (netPrecision == ov::element::f32 && configuration.count(ov::hint::inference_precision.name()) &&
-            configuration.at(ov::hint::inference_precision.name()) == ov::element::f16) {
-            abs_threshold = 5e-3;
-        }
+    if (netPrecision == ov::element::f32 && configuration.count(ov::hint::inference_precision.name()) &&
+        configuration.at(ov::hint::inference_precision.name()) == ov::element::f16) {
+        abs_threshold = 5e-3;
     }
 }
 
@@ -254,10 +252,7 @@ const std::vector<std::map<std::string, ov::element::Type>> additionalConfig() {
     static const std::vector<std::map<std::string, ov::element::Type>> additionalConfig = {
         {{ov::hint::inference_precision.name(), ov::element::f32}},
         {{ov::hint::inference_precision.name(), ov::element::bf16}},
-// ARM doesn't support FP16 for now
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         {{ov::hint::inference_precision.name(), ov::element::f16}},
-#endif
     };
     return additionalConfig;
 }
@@ -277,6 +272,13 @@ const std::vector<ov::test::utils::ReductionType>& reductionTypesInt32() {
             ov::test::utils::ReductionType::L1,
     };
     return reductionTypesInt32;
+}
+
+const std::vector<ov::test::utils::ReductionType>& reductionTypesNativeInt32() {
+    static const std::vector<ov::test::utils::ReductionType> reductionTypesNativeInt32 = {
+            ov::test::utils::ReductionType::Prod,
+    };
+    return reductionTypesNativeInt32;
 }
 
 }  // namespace Reduce

@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <random>
 #include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -92,7 +93,7 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequence) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertTensorIteratorToLSTMSequence>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -187,7 +188,7 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequenceDynamicReshapeCase)
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertTensorIteratorToLSTMSequence>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -277,7 +278,7 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequenceDynamicSqueezeCase)
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertTensorIteratorToLSTMSequence>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -363,7 +364,7 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequence) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertTensorIteratorToRNNSequence>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -443,7 +444,7 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequenceDynamicReshapeCase) 
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertTensorIteratorToRNNSequence>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -524,7 +525,7 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequenceDynamicSqueezeCase) 
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertTensorIteratorToRNNSequence>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -604,7 +605,7 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequence) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertTensorIteratorToGRUSequence>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -684,7 +685,7 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequenceDynamicReshapeCase) 
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertTensorIteratorToGRUSequence>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -765,7 +766,7 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequenceDynamicSqueezeCase) 
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertTensorIteratorToGRUSequence>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -1265,3 +1266,218 @@ TEST_P(FuseLSTMSequencesToBidirectionalLSTMSequenceTest, FusionTest) {
 INSTANTIATE_TEST_SUITE_P(FuseLSTMSequencesToBidirectionalLSTMSequence,
                          FuseLSTMSequencesToBidirectionalLSTMSequenceTest,
                          testing::Combine(testing::Values(false, true), testing::Values(false, true)));
+
+using LoopWithLSTMCellToLSTMSequenceFusionParam = std::tuple<std::string,  // f activation function
+                                                             std::string,  // g activation function
+                                                             std::string,  // h activation function
+                                                             size_t,       // input size
+                                                             size_t,       // hidden size
+                                                             bool>;        // with mul-by-one pattern
+
+class LoopWithLSTMCellToLSTMSequenceFusionTest
+    : public testing::WithParamInterface<LoopWithLSTMCellToLSTMSequenceFusionParam>,
+      public TransformationTestsF {};
+
+namespace {
+void generate_weights_value(std::vector<float>& weights_value, const Shape& weights_shape) {
+    weights_value.resize(shape_size(weights_shape));
+    std::mt19937 rng(9812);
+    std::uniform_real_distribution<float> distribution(-300, 300);
+    for (size_t i = 0; i < weights_value.size(); ++i) {
+        weights_value[i] = distribution(rng);
+    }
+}
+
+std::shared_ptr<Node> stitch_mul_by_one_pattern(const std::shared_ptr<Node>& in_node) {
+    auto shape_of = std::make_shared<op::v3::ShapeOf>(in_node);
+    auto concat_value = std::make_shared<op::v0::Constant>(element::i64, Shape{1}, 1);
+    auto concat = std::make_shared<op::v0::Concat>(OutputVector{concat_value, shape_of}, 0);
+    auto broadcast_value = std::make_shared<op::v0::Constant>(element::f32, Shape{1}, 1);
+    auto broadcast = std::make_shared<op::v3::Broadcast>(broadcast_value, concat);
+    auto squeeze_axes = std::make_shared<op::v0::Constant>(element::i64, Shape{1}, 0);
+    auto squeeze = std::make_shared<op::v0::Squeeze>(broadcast, squeeze_axes);
+    return std::make_shared<op::v1::Multiply>(in_node, squeeze);
+}
+}  // namespace
+
+TEST_P(LoopWithLSTMCellToLSTMSequenceFusionTest, FusionTest) {
+    const auto& param = GetParam();
+    const std::string& f_activation = std::get<0>(param);
+    const std::string& g_activation = std::get<1>(param);
+    const std::string& h_activation = std::get<2>(param);
+    size_t input_size = std::get<3>(param);
+    size_t hidden_size = std::get<4>(param);
+    bool with_mul_by_one_pattern = std::get<5>(param);
+    size_t batch_size = 2;
+    size_t time_len = 10;
+
+    // generate weights values
+    // w must be of a shape [input_size, hidden_size]
+    // r must be of a shape [hidden_size, hidden_size]
+    // b must be of a shape [hidden_size]
+    Shape w_shape({4 * hidden_size, input_size});
+    Shape r_shape({4 * hidden_size, hidden_size});
+    Shape b_shape({4 * hidden_size});
+    std::vector<float> w, r, b;
+    generate_weights_value(w, w_shape);
+    generate_weights_value(r, r_shape);
+    generate_weights_value(b, b_shape);
+
+    {
+        // create body graph with LSTMCell
+        auto xi = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, batch_size, input_size});
+        auto squeeze_axis = std::make_shared<op::v0::Constant>(element::i64, Shape{}, 0);
+        std::shared_ptr<ov::Node> xi_squeeze = std::make_shared<op::v0::Squeeze>(xi, squeeze_axis);
+        if (with_mul_by_one_pattern) {
+            xi_squeeze = stitch_mul_by_one_pattern(xi_squeeze);
+        }
+        auto init_hidden_state = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, hidden_size});
+        std::shared_ptr<ov::Node> hidden_state_to_lstm_cell = init_hidden_state;
+        if (with_mul_by_one_pattern) {
+            hidden_state_to_lstm_cell = stitch_mul_by_one_pattern(init_hidden_state);
+        }
+        auto init_cell_state = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, hidden_size});
+        auto w_const = op::v0::Constant::create(element::f32, w_shape, w);
+        auto r_const = op::v0::Constant::create(element::f32, r_shape, r);
+        auto b_const = op::v0::Constant::create(element::f32, b_shape, b);
+        auto lstm_cell =
+            std::make_shared<op::v4::LSTMCell>(xi_squeeze,
+                                               hidden_state_to_lstm_cell,
+                                               init_cell_state,
+                                               w_const,
+                                               r_const,
+                                               b_const,
+                                               hidden_size,
+                                               std::vector<std::string>{f_activation, g_activation, h_activation});
+
+        auto hidden_state_res = std::make_shared<op::v0::Result>(lstm_cell->output(0));
+        auto cell_state_res = std::make_shared<op::v0::Result>(lstm_cell->output(1));
+        auto unsqueeze_axis = std::make_shared<op::v0::Constant>(element::i64, Shape{}, 0);
+        auto unsqueeze_hidden_state = std::make_shared<op::v0::Unsqueeze>(lstm_cell->output(0), unsqueeze_axis);
+        auto unsqueeze_hidden_state_res = std::make_shared<op::v0::Result>(unsqueeze_hidden_state);
+
+        // conditional graph
+        auto num_iters = std::make_shared<op::v0::Parameter>(element::i32, Shape{1});
+        auto counter = std::make_shared<op::v0::Parameter>(element::i32, Shape{1});
+        auto increment = std::make_shared<op::v0::Constant>(element::i32, Shape{}, 1);
+        auto add = std::make_shared<op::v1::Add>(counter, increment);
+        auto updated_counter = std::make_shared<op::v0::Result>(add);
+        auto less = std::make_shared<op::v1::Less>(add, num_iters);
+        auto less_res = std::make_shared<op::v0::Result>(less);
+
+        auto body_graph = std::make_shared<Model>(
+            ResultVector{hidden_state_res, cell_state_res, unsqueeze_hidden_state_res, less_res, updated_counter},
+            ParameterVector{xi, init_hidden_state, init_cell_state, num_iters, counter});
+
+        // create main graph with Loop
+        auto x = std::make_shared<op::v0::Parameter>(element::f32, Shape{time_len, batch_size, input_size});
+        auto h_init = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, hidden_size});
+        auto c_init = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, hidden_size});
+        auto execution_cond = std::make_shared<op::v0::Constant>(ov::element::boolean, ov::Shape{}, true);
+        auto max_iter = std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{1}, -1);
+        auto num_iter_const =
+            std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{1}, static_cast<int32_t>(time_len));
+        auto counter_const = std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{1}, 0);
+
+        auto loop_node = std::make_shared<op::v5::Loop>(max_iter, execution_cond);
+
+        loop_node->set_function(body_graph);
+        loop_node->set_special_body_ports(ov::op::v5::Loop::SpecialBodyPorts{-1, 3});
+
+        // set inputs for Loop
+        // x input will be sliced for each time step
+        loop_node->set_sliced_input(xi, x, 0, 1, 1, -1, 0);
+        // set back edges for cell and hidden states
+        // since they are changing through timeline
+        loop_node->set_merged_input(init_hidden_state, h_init, hidden_state_res);
+        loop_node->set_merged_input(init_cell_state, c_init, cell_state_res);
+        loop_node->set_invariant_input(num_iters, num_iter_const);
+        loop_node->set_merged_input(counter, counter_const, updated_counter);
+
+        // set external outputs for Loop node
+        // concatenated cell and hidden states from all time steps
+        auto hs = loop_node->get_concatenated_slices(unsqueeze_hidden_state_res, 0, 1, 1, -1, 0);
+        auto hs_res = std::make_shared<op::v0::Result>(hs);
+
+        model = std::make_shared<Model>(ResultVector{hs_res}, ParameterVector{x, h_init, c_init});
+        manager.register_pass<ov::pass::ConvertLoopWithSlicedInputConcatOutputToLSTMSequence>();
+    }
+
+    {
+        auto x = std::make_shared<op::v0::Parameter>(element::f32, Shape{time_len, batch_size, input_size});
+        auto h_init = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, hidden_size});
+        auto c_init = std::make_shared<op::v0::Parameter>(element::f32, Shape{batch_size, hidden_size});
+
+        // transpose x since LSTMSequence expects x in a format [batch_size, time_len, input_size]
+        auto tr_order =
+            std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{1, 0, 2});
+        auto tr_x = std::make_shared<op::v1::Transpose>(x, tr_order);
+        // prepare init hidden and cell states to have a format [batch_size, num_directions, hidden_size]
+        // where num_directions equals one
+        auto unsqueeze_axis =
+            std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{1});
+        auto h_init_unsqueeze = std::make_shared<op::v0::Unsqueeze>(h_init, unsqueeze_axis);
+        auto c_init_unsqueeze = std::make_shared<op::v0::Unsqueeze>(c_init, unsqueeze_axis);
+        // prepare seq_lens
+        auto batch_size = std::make_shared<op::v3::ShapeOf>(x, element::i64)->output(0);
+        auto begin = std::make_shared<op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int32_t>{1});
+        auto end = std::make_shared<op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int32_t>{2});
+        auto stride = std::make_shared<op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int32_t>{1});
+        batch_size = std::make_shared<op::v1::StridedSlice>(batch_size,
+                                                            begin,
+                                                            end,
+                                                            stride,
+                                                            std::vector<int64_t>{0},
+                                                            std::vector<int64_t>{0});
+        auto num_iter_const =
+            std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{1}, static_cast<int32_t>(time_len));
+        auto seq_lens = std::make_shared<op::v1::Broadcast>(num_iter_const, batch_size);
+        // prepare W, R, B weights to a format with num_directions dimension
+        auto w_const = op::v0::Constant::create(element::f32, w_shape, w);
+        auto r_const = op::v0::Constant::create(element::f32, r_shape, r);
+        auto b_const = op::v0::Constant::create(element::f32, b_shape, b);
+        auto unsqueeze_axis2 =
+            std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{0});
+        auto w = std::make_shared<op::v0::Unsqueeze>(w_const, unsqueeze_axis2);
+        auto r = std::make_shared<op::v0::Unsqueeze>(r_const, unsqueeze_axis2);
+        auto b = std::make_shared<op::v0::Unsqueeze>(b_const, unsqueeze_axis2);
+
+        // create LSTMSequence
+        auto lstm_sequence = std::make_shared<ov::op::v5::LSTMSequence>(
+            tr_x,
+            h_init_unsqueeze,
+            c_init_unsqueeze,
+            seq_lens,
+            w,
+            r,
+            b,
+            hidden_size,
+            ov::op::RecurrentSequenceDirection::FORWARD,
+            std::vector<float>{},
+            std::vector<float>{},
+            std::vector<std::string>{f_activation, g_activation, h_activation},
+            0.0f);
+
+        // prepare output
+        auto squeeze_axis = std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{1}, 1);
+        auto squeeze_output_hs = std::make_shared<op::v0::Squeeze>(lstm_sequence->output(0), squeeze_axis);
+        auto tr_order2 =
+            std::make_shared<op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{1, 0, 2});
+        auto tr_squeeze_output_hs = std::make_shared<op::v1::Transpose>(squeeze_output_hs, tr_order2);
+        auto output_hs_res = std::make_shared<op::v0::Result>(tr_squeeze_output_hs);
+        model_ref = std::make_shared<Model>(ResultVector{output_hs_res}, ParameterVector{x, h_init, c_init});
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+INSTANTIATE_TEST_SUITE_P(LoopWithLSTMCellToLSTMSequenceFusion,
+                         LoopWithLSTMCellToLSTMSequenceFusionTest,
+                         testing::Combine(testing::Values("sigmoid", "tanh"),
+                                          testing::Values("sigmoid", "relu"),
+                                          testing::Values("tanh", "relu"),
+                                          testing::Values(2, 3),
+                                          testing::Values(3, 4),
+                                          testing::Values(true, false)));

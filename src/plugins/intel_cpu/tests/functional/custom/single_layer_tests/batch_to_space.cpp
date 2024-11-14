@@ -77,7 +77,11 @@ public:
                 tensor = ov::Tensor(param_type, static_shape, blockShape.data());
                 break;
             }
-            case 2:
+            case 2: {
+                ASSERT_EQ(ov::shape_size(static_shape), cropsBegin.size());
+                tensor = ov::Tensor(param_type, static_shape, cropsBegin.data());
+                break;
+            }
             case 3: {
                 ASSERT_EQ(ov::shape_size(static_shape), cropsEnd.size());
                 tensor = ov::Tensor(param_type, static_shape, cropsEnd.data());
@@ -400,6 +404,52 @@ INSTANTIATE_TEST_SUITE_P(smoke_DynamicBatchToSpaceCPULayerTestCase2_5D,
 INSTANTIATE_TEST_SUITE_P(smoke_DynamicBatchToSpaceCPULayerTestCaseWithBlocked2_5D,
                          BatchToSpaceCPULayerTest,
                          dynamicBatchToSpaceParamsWithBlockedSet5D2,
+                         BatchToSpaceCPULayerTest::getTestCaseName);
+
+std::vector<InputShape> dynamicInputShapesZeroDimOutput = {
+    {{-1, -1, -1, -1, -1}, {{2, 16, 1, 5, 5}}},
+    {{5}, {{5}, {5}, {5}}},
+    {{5}, {{5}, {5}, {5}}},
+    {{5}, {{5}, {5}, {5}}}
+};
+
+const std::vector<int64_t> blockShapeZeroDimOutput = {1, 1, 2, 1, 1};
+const std::vector<int64_t> cropsBeginZeroDimOutput = {0, 0, 0, 0, 0};
+const std::vector<int64_t> cropsEndZeroDimOutput = {0, 0, 2, 0, 0};
+
+const auto dynamicBatchToSpaceParamsSetZeroDimOutput = ::testing::Combine(::testing::Values(dynamicInputShapesZeroDimOutput),
+                                                                          ::testing::Values(blockShapeZeroDimOutput),
+                                                                          ::testing::Values(cropsBeginZeroDimOutput),
+                                                                          ::testing::Values(cropsEndZeroDimOutput),
+                                                                          ::testing::Values(ov::element::Type_t::f32),
+                                                                          ::testing::ValuesIn(cpuParams_5D));
+
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicBatchToSpaceCPULayerTestCaseZeroDimOutput,
+                         BatchToSpaceCPULayerTest,
+                         dynamicBatchToSpaceParamsSetZeroDimOutput,
+                         BatchToSpaceCPULayerTest::getTestCaseName);
+
+std::vector<InputShape> dynamicInputShapesOutputDimOne = {
+    {{-1, -1, -1, -1, -1}, {{2, 16, 1, 5, 5}}},
+    {{5}, {{5}, {5}, {5}}},
+    {{5}, {{5}, {5}, {5}}},
+    {{5}, {{5}, {5}, {5}}}
+};
+
+const std::vector<int64_t> blockShapeOutputDimOne = {1, 1, 2, 1, 1};
+const std::vector<int64_t> cropsBeginOutputDimOne = {0, 0, 0, 0, 0};
+const std::vector<int64_t> cropsEndOutputDimOne = {0, 0, 1, 0, 0};
+
+const auto dynamicBatchToSpaceParamsSetOutputDimOne = ::testing::Combine(::testing::Values(dynamicInputShapesOutputDimOne),
+                                                                         ::testing::Values(blockShapeOutputDimOne),
+                                                                         ::testing::Values(cropsBeginOutputDimOne),
+                                                                         ::testing::Values(cropsEndOutputDimOne),
+                                                                         ::testing::Values(ov::element::Type_t::f32),
+                                                                         ::testing::ValuesIn(cpuParams_5D));
+
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicBatchToSpaceCPULayerTestCaseOutputDimOne,
+                         BatchToSpaceCPULayerTest,
+                         dynamicBatchToSpaceParamsSetOutputDimOne,
                          BatchToSpaceCPULayerTest::getTestCaseName);
 
 }  // namespace

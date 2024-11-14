@@ -585,8 +585,12 @@ FakeQuantizeDequantization NetworkHelper::foldDequantization(const std::shared_p
 
 std::shared_ptr<ov::Node> NetworkHelper::separateInStandaloneBranch(std::shared_ptr<ov::Node> node,
     const std::vector<ov::element::Type>& defaultPrecisions) {
-    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(node, defaultPrecisions);
-    if (dequantization.isShared() && !dequantization.empty()) {
+    auto inputs = node->input_values();
+    auto separate_branch = [&](size_t input_idx) {
+        const auto dequantization = NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(node, defaultPrecisions, input_idx));
+        if (dequantization.empty() || !dequantization.isShared())
+            return false;
+
         Output<Node> parent = dequantization.data;
         if (dequantization.convert != nullptr) {
             auto convert = dequantization.convert->clone_with_new_inputs({ parent });
@@ -619,22 +623,27 @@ std::shared_ptr<ov::Node> NetworkHelper::separateInStandaloneBranch(std::shared_
             parent = multiply->output(0);
         }
 
-        std::vector<Output<Node>> inputs = node->input_values();
         const auto originalParent = dequantization.multiply ?
             dequantization.multiply->shared_from_this() :
             dequantization.subtract->shared_from_this();
 
         const size_t inputIndex = NetworkHelper::getChildInputIndex(originalParent, node);
         inputs[inputIndex] = parent;
-        const std::shared_ptr<Node> newNode = node->clone_with_new_inputs(inputs);
-        copy_runtime_info(node, newNode);
-        replace_node(node, newNode);
-        newNode->set_friendly_name(node->get_friendly_name());
+        return true;
+    };
 
-        return newNode;
-    }
+    bool branch_separation_happened = false;
+    for (size_t i = 0; i < node->get_input_size(); ++i)
+        branch_separation_happened |= separate_branch(i);
 
-    return node;
+    if (!branch_separation_happened)
+        return node;
+
+    const auto newNode = node->clone_with_new_inputs(inputs);
+    copy_runtime_info(node, newNode);
+    replace_node(node, newNode);
+    newNode->set_friendly_name(node->get_friendly_name());
+    return newNode;
 }
 
 std::shared_ptr<ov::opset1::FakeQuantize> NetworkHelper::fuseConvert(const std::shared_ptr<ov::opset1::FakeQuantize>& fakeQuantize) {
@@ -691,6 +700,15 @@ size_t NetworkHelper::calculateLevels(
     float& dequantizationSub,
     float& updatedOutputLowValue,
     float& updatedOutputHighValue) {
+    if (combinedIntervalHigh == combinedIntervalLow) {
+        // degenerate case: quantization to a point
+        dequantizationMul = 1.f;
+        dequantizationSub = 0.f;
+        updatedOutputLowValue = combinedIntervalLow;
+        updatedOutputHighValue = combinedIntervalHigh;
+        return 1ull;
+    }
+
     const float maxOutputInterval = combinedIntervalHigh - combinedIntervalLow;
     // FQ -> SUB_quantization -> MUL_quantization -[INT8]-> SUB_dequantization -> MUL_dequantization ->
     const float quantizationMul = (dataPrecisionMax - dataPrecisionMin) / maxOutputInterval;
@@ -882,38 +900,27 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
     std::vector<float> shifts(outputSize, 0.f);
     std::vector<float> scales(outputSize);
 
-    // compute dequantizations (in double for INT32)
-    if (precision == element::i32 || precision == element::u32) {
-        for (size_t i = 0; i < outputSize; ++i) {
-            if (outputHighValues[i] != outputLowValues[i]) {
+    for (size_t i = 0; i < outputSize; ++i) {
+        if (outputHighValues[i] != outputLowValues[i]) {
+            // compute dequantizations (in double for INT32)
+            if (precision == element::i32 || precision == element::u32) {
                 shifts[i] = static_cast<float>(
                             (static_cast<double>(min) * outputHighValues[i] - static_cast<double>(max) * outputLowValues[i]) /
                             (static_cast<double>(outputHighValues[i]) - outputLowValues[i]));
                 scales[i] = static_cast<float>(
                         (static_cast<double>(outputHighValues[i]) - outputLowValues[i]) / (static_cast<double>(max) - min));
-                if (shifts[i] == -0.f) {
-                    shifts[i] = 0.f;
-                }
             } else {
-                scales[i] = outputHighValues[i];
-                minValues[i] = 1.f;
-                maxValues[i] = 1.f;
-            }
-        }
-    } else {
-        for (size_t i = 0; i < outputSize; ++i) {
-            if (outputHighValues[i] != outputLowValues[i]) {
                 shifts[i] = (min * outputHighValues[i] - max * outputLowValues[i]) /
                             (outputHighValues[i] - outputLowValues[i]);
                 scales[i] = (outputHighValues[i] - outputLowValues[i]) / (max - min);
-                if (shifts[i] == -0.f) {
-                    shifts[i] = 0.f;
-                }
-            } else {
-                scales[i] = outputHighValues[i];
-                minValues[i] = 1.f;
-                maxValues[i] = 1.f;
             }
+            if (shifts[i] == -0.f) {
+                shifts[i] = 0.f;
+            }
+        } else {
+            scales[i] = 1.f;
+            minValues[i] = outputHighValues[i];
+            maxValues[i] = outputHighValues[i];
         }
     }
 
@@ -981,15 +988,12 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
     std::shared_ptr<ov::Node> convert2;
     if (updatePrecision) {
         std::shared_ptr<Node> convert;
-        std::shared_ptr<ov::opset1::Constant> newFqConstant = ov::as_type_ptr<ov::opset1::Constant>(newFQ);
 
-        if (ov::is_type<ov::opset1::Constant>(newFQ)) {
-            convert = foldConvert(newFQ->output(0), precision);
-        } else if (ov::is_type<ov::opset1::FakeQuantize>(newFQ)) {
+        if (ov::is_type<ov::opset1::FakeQuantize>(newFQ)) {
             newFQ = setOutDataPrecision(ov::as_type_ptr<ov::opset1::FakeQuantize>(newFQ), precision);
             convert = newFQ;
         } else {
-            THROW_IE_LPT_EXCEPTION(*newFQ) << "unexpected operation type";
+            convert = foldConvert(newFQ->output(0), precision);
         }
 
         convert2 = std::make_shared<ov::opset1::Convert>(convert, element::f32);
@@ -1289,8 +1293,19 @@ FakeQuantizeDequantization NetworkHelper::normalizeDequantization(FakeQuantizeDe
         return dequantization;
     }
 
-    // task: 79740
-    if (dequantization.multiply != nullptr && ov::as_type_ptr<ov::opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(0))) {
+    // Note: Dequantization operations might have converts between DQ constant and eltwise
+    auto is_branch_const = [](const ov::Output<ov::Node>& in) {
+        auto node = in.get_node_shared_ptr();
+        return (ov::is_type<ov::opset1::Constant>(node)) ||
+               (ov::is_type<ov::opset1::Convert>(node) && ov::is_type<ov::opset1::Constant>(node->get_input_node_shared_ptr(0)));
+    };
+
+    // Eltwise is unnormalized if it has constant 0th input and non-constant 1st input
+    auto unnormalized_eltwise = [&is_branch_const](const std::shared_ptr<ov::Node>& eltwise) {
+        return eltwise != nullptr && is_branch_const(eltwise->input_value(0)) && !is_branch_const(eltwise->input_value(1));
+    };
+
+    if (unnormalized_eltwise(dequantization.multiply)) {
         const auto leftParent = dequantization.multiply->input_value(0);
         const auto rightParent = dequantization.multiply->input_value(1);
         std::shared_ptr<ov::opset1::Multiply> normalized_multiply = ov::as_type_ptr<ov::opset1::Multiply>(
@@ -1298,7 +1313,7 @@ FakeQuantizeDequantization NetworkHelper::normalizeDequantization(FakeQuantizeDe
         replace_node(dequantization.multiply, normalized_multiply);
         dequantization.multiply = normalized_multiply;
     }
-    if (dequantization.subtract != nullptr && ov::as_type_ptr<ov::opset1::Constant>(dequantization.subtract->get_input_node_shared_ptr(0))) {
+    if (unnormalized_eltwise(dequantization.subtract)) {
         const auto leftParent = dequantization.subtract->input_value(0);
         const auto rightParent = dequantization.subtract->input_value(1);
         std::shared_ptr<ov::opset1::Subtract> normalized_subtract = ov::as_type_ptr<ov::opset1::Subtract>(
@@ -1352,7 +1367,8 @@ std::shared_ptr<ov::opset1::Constant> NetworkHelper::normalizeDequantizationShap
     return normalizedConstant;
 }
 
-FakeQuantizeDequantizationValues NetworkHelper::createEmptyValues(const FakeQuantizeDequantization& dequantization, const element::Type precision) {
+FakeQuantizeDequantizationValues NetworkHelper::createEmptyValues(const FakeQuantizeDequantization& dequantization, const element::Type& prc) {
+    const auto precision = prc == element::undefined ? dequantization.getPrecision() : prc;
     const std::shared_ptr<Node> multiplyConstant = dequantization.multiply ?
         dequantization.multiplyConstant->get_element_type() != precision ?
             foldConvert(dequantization.multiplyConstant->output(0), precision) :
@@ -1561,7 +1577,11 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationBefor
     std::vector<std::vector<std::shared_ptr<ov::opset1::Constant>>> multiplyConstants, subtractConstants;
     if (is_type<ov::opset1::Concat>(operation)) {
         const auto concatNode = as_type_ptr<ov::opset1::Concat>(operation);
-        auto axis = concatNode->get_concatenation_axis();
+        int64_t axis = -1;
+        if (concatNode->get_output_partial_shape(0).rank().is_static()) {
+            const auto rank = concatNode->get_output_partial_shape(0).rank().get_length();
+            axis = ov::util::normalize(concatNode->get_axis(), rank);
+        }
         if (dequantization.multiply && dequantization.multiplyConstant->get_shape().size() > 1 && dequantization.multiplyConstant->get_shape()[axis] != 1) {
             multiplyConstants = NetworkHelper::splitConstantsBeforeConcat(operation, { dequantization.multiplyConstant });
         }
@@ -1659,7 +1679,11 @@ std::vector<std::vector<std::shared_ptr<ov::opset1::Constant>>> NetworkHelper::s
     std::vector<std::vector<std::shared_ptr<ov::opset1::Constant>>> newConstants(currConstants.size());
     auto number_of_concat_inputs = concat->get_input_size();
     const auto concatNode = as_type_ptr<ov::opset1::Concat>(concat);
-    const auto concat_axis = concatNode->get_concatenation_axis();
+        int64_t concat_axis = -1;
+        if (concatNode->get_output_partial_shape(0).rank().is_static()) {
+            const auto rank = concatNode->get_output_partial_shape(0).rank().get_length();
+            concat_axis = ov::util::normalize(concatNode->get_axis(), rank);
+        }
     std::vector<int64_t> shape_axis(number_of_concat_inputs);
     for (size_t i{ 0 }; i < number_of_concat_inputs; ++i) {
         auto shape = concat->get_input_partial_shape(i);

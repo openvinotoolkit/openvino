@@ -33,13 +33,13 @@ layout strided_slice_inst::calc_output_layout(strided_slice_node const& node, ke
 template<typename ShapeType>
 std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node const& /*node*/, const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<strided_slice>();
-    auto input0_layout = impl_param.get_input_layout(0);
+    const auto& input0_layout = impl_param.get_input_layout(0);
     auto input0_shape = input0_layout.get<ShapeType>();
 
     auto& constant_mem = impl_param.memory_deps;
-    auto begin_data = desc->begin;
-    auto end_data = desc->end;
-    auto strides_data = desc->strides;
+    const auto& begin_data = desc->begin;
+    const auto& end_data = desc->end;
+    const auto& strides_data = desc->strides;
 
     if ((begin_data.empty() && !constant_mem.count(1))
         || (end_data.empty() && !constant_mem.count(2))
@@ -51,7 +51,7 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
             return count;
         };
 
-        auto input0_pshape = input0_layout.get_partial_shape();
+        const auto& input0_pshape = input0_layout.get_partial_shape();
         auto input0_len = input0_pshape.size();
         auto num_of_new_axis_bit = num_of_axis_mask_bit(desc->new_axis_mask);
         auto num_of_shrink_axis_bit = num_of_axis_mask_bit(desc->shrink_axis_mask);
@@ -122,9 +122,9 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
     std::unordered_map<size_t, ov::Tensor> const_data;
     const auto ta = ov::make_tensor_accessor(const_data);
     if (!begin_data.empty() && !end_data.empty() && !strides_data.empty()) {
-        auto begin_tensor = make_tensor({ begin_shape, data_types::i64, format::bfyx }, static_cast<void*>(begin_data.data()));
-        auto end_tensor = make_tensor({ end_shape, data_types::i64, format::bfyx }, static_cast<void*>(end_data.data()));
-        auto strides_tensor = make_tensor({ strides_shape, data_types::i64, format::bfyx }, static_cast<void*>(strides_data.data()));
+        auto begin_tensor = make_tensor({ begin_shape, data_types::i64, format::bfyx }, const_cast<void*>(static_cast<const void*>(begin_data.data())));
+        auto end_tensor = make_tensor({ end_shape, data_types::i64, format::bfyx }, const_cast<void*>(static_cast<const void*>(end_data.data())));
+        auto strides_tensor = make_tensor({ strides_shape, data_types::i64, format::bfyx }, const_cast<void*>(static_cast<const void*>(strides_data.data())));
 
         const_data.emplace(1, begin_tensor);
         const_data.emplace(2, end_tensor);
@@ -201,6 +201,12 @@ void strided_slice_inst::update_output_memory() {
 
     GPU_DEBUG_TRACE_DETAIL << id() << " : update_output_memory with mem of input " << get_node().get_dependency(0).id()
                            << " : " << input_memory_ptr()->buffer_ptr() << std::endl;
+    // Can_be_optimized nodes are allocating from memory_pool too. In this case,
+    // we need release the legacy output memory from memory pool explicitly.
+    if (static_cast<bool>(_outputs[0]) &&
+        _node->get_program().get_config().get_property(ov::intel_gpu::enable_memory_pool)) {
+        _network.get_memory_pool().release_memory(_outputs[0].get(), _node->get_unique_id(), _node->id(), _network.get_id());
+    }
     _outputs[0] = input_memory_ptr();
     _mem_allocated = false;
 }

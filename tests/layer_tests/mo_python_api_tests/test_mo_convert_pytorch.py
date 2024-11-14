@@ -958,53 +958,53 @@ def create_pytorch_module_with_nested_inputs6(tmp_dir):
 
 class TestMoConvertPyTorch(CommonMOConvertTest):
     test_data = [
-        create_pytorch_nn_module_case1,
-        create_pytorch_nn_module_case2,
-        create_pytorch_nn_module_case3,
-        create_pytorch_nn_module_case4,
-        create_pytorch_nn_module_case5,
-        create_pytorch_nn_module_case6,
-        create_pytorch_nn_module_case7,
-        create_pytorch_nn_module_torch_size,
-        create_pytorch_nn_module_sample_input_int32,
-        create_pytorch_nn_module_sample_input_int32_two_inputs,
-        create_pytorch_jit_script_module,
-        create_pytorch_jit_script_function,
-        create_pytorch_nn_module_layout_list,
-        create_pytorch_nn_module_layout_list_case2,
-        create_pytorch_nn_module_mean_list_compression_default,
-        create_pytorch_nn_module_mean_list_compression_disabled,
-        create_pytorch_nn_module_mean_list_compression_enabled,
-        create_pytorch_nn_module_scale_list_compression_default,
-        create_pytorch_nn_module_scale_list_compression_disabled,
-        create_pytorch_nn_module_scale_list_compression_enabled,
-        create_pytorch_nn_module_shapes_list_static,
-        create_pytorch_nn_module_shapes_list_static_via_input,
-        create_pytorch_nn_module_shapes_list_dynamic,
-        create_pytorch_nn_module_shapes_list_dynamic_via_input,
-        create_pytorch_nn_module_shapes_list_dynamic_single_input,
-        create_pytorch_nn_module_shapes_list_static_single_input,
-        create_pytorch_nn_module_shapes_list_dynamic_single_input_via_input,
-        create_pytorch_nn_module_shapes_list_static_single_input_via_input,
-        create_pytorch_nn_module_convert_pytorch_frontend1,
-        create_pytorch_nn_module_convert_pytorch_frontend2,
-        create_pytorch_nn_module_convert_pytorch_frontend3,
-        create_pytorch_nn_module_convert_pytorch_frontend4,
-        create_pytorch_jit_script_module_convert_pytorch_frontend,
-        create_pytorch_jit_trace_module_convert_pytorch_frontend,
-        create_pytorch_module_convert_pytorch_frontend_oob,
-        create_pytorch_module_with_optional_inputs_case1,
-        create_pytorch_module_with_optional_inputs_case2,
-        create_pytorch_module_with_optional_inputs_case3,
-        create_pytorch_nn_module_with_scalar_input,
-        create_pytorch_module_with_compressed_int8_constant,
-        create_pytorch_module_with_compressed_int8_constant_compress_to_fp16_default,
-        create_pytorch_module_with_nested_inputs,
-        create_pytorch_module_with_nested_inputs2,
-        create_pytorch_module_with_nested_inputs3,
-        create_pytorch_module_with_nested_inputs4,
-        create_pytorch_module_with_nested_inputs5,
-        create_pytorch_module_with_nested_inputs6
+        'create_pytorch_nn_module_case1',
+        'create_pytorch_nn_module_case2',
+        'create_pytorch_nn_module_case3',
+        'create_pytorch_nn_module_case4',
+        'create_pytorch_nn_module_case5',
+        'create_pytorch_nn_module_case6',
+        'create_pytorch_nn_module_case7',
+        'create_pytorch_nn_module_torch_size',
+        'create_pytorch_nn_module_sample_input_int32',
+        'create_pytorch_nn_module_sample_input_int32_two_inputs',
+        'create_pytorch_jit_script_module',
+        'create_pytorch_jit_script_function',
+        'create_pytorch_nn_module_layout_list',
+        'create_pytorch_nn_module_layout_list_case2',
+        'create_pytorch_nn_module_mean_list_compression_default',
+        'create_pytorch_nn_module_mean_list_compression_disabled',
+        'create_pytorch_nn_module_mean_list_compression_enabled',
+        'create_pytorch_nn_module_scale_list_compression_default',
+        'create_pytorch_nn_module_scale_list_compression_disabled',
+        'create_pytorch_nn_module_scale_list_compression_enabled',
+        'create_pytorch_nn_module_shapes_list_static',
+        'create_pytorch_nn_module_shapes_list_static_via_input',
+        'create_pytorch_nn_module_shapes_list_dynamic',
+        'create_pytorch_nn_module_shapes_list_dynamic_via_input',
+        'create_pytorch_nn_module_shapes_list_dynamic_single_input',
+        'create_pytorch_nn_module_shapes_list_static_single_input',
+        'create_pytorch_nn_module_shapes_list_dynamic_single_input_via_input',
+        'create_pytorch_nn_module_shapes_list_static_single_input_via_input',
+        'create_pytorch_nn_module_convert_pytorch_frontend1',
+        'create_pytorch_nn_module_convert_pytorch_frontend2',
+        'create_pytorch_nn_module_convert_pytorch_frontend3',
+        'create_pytorch_nn_module_convert_pytorch_frontend4',
+        'create_pytorch_jit_script_module_convert_pytorch_frontend',
+        'create_pytorch_jit_trace_module_convert_pytorch_frontend',
+        'create_pytorch_module_convert_pytorch_frontend_oob',
+        'create_pytorch_module_with_optional_inputs_case1',
+        'create_pytorch_module_with_optional_inputs_case2',
+        'create_pytorch_module_with_optional_inputs_case3',
+        'create_pytorch_nn_module_with_scalar_input',
+        'create_pytorch_module_with_compressed_int8_constant',
+        'create_pytorch_module_with_compressed_int8_constant_compress_to_fp16_default',
+        'create_pytorch_module_with_nested_inputs',
+        'create_pytorch_module_with_nested_inputs2',
+        'create_pytorch_module_with_nested_inputs3',
+        'create_pytorch_module_with_nested_inputs4',
+        'create_pytorch_module_with_nested_inputs5',
+        'create_pytorch_module_with_nested_inputs6'
     ]
 
     @pytest.mark.parametrize("create_model", test_data)
@@ -1012,7 +1012,7 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
     @pytest.mark.precommit
     def test_mo_import_from_memory(self, create_model, ie_device, precision, ir_version,
                                    temp_dir, use_legacy_frontend):
-        fw_model, graph_ref, mo_params = create_model(temp_dir)
+        fw_model, graph_ref, mo_params = eval(create_model)(temp_dir)
 
         test_params = {'input_model': fw_model}
         test_params.update({'use_convert_model_from_mo': True})
@@ -1123,8 +1123,9 @@ class ConvertRaises(unittest.TestCase):
         from openvino.tools.mo import convert_model
 
         with self.assertRaisesRegex(Exception, ".*PyTorch Frontend doesn't support provided model type.*"):
-            with tempfile.NamedTemporaryFile() as tmpfile:
+            with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
                 convert_model(tmpfile.name, framework="pytorch")
+            os.remove(tmpfile.name)
 
 
 def create_pytorch_layer_norm(tmp_dir):
@@ -1224,13 +1225,13 @@ def create_pytorch_not_precision_sensitive(tmp_dir):
 
 class TestPrecisionSensitive():
     test_data = [
-        create_pytorch_layer_norm,
-        create_pytorch_normalize,
-        create_pytorch_precision_sensitive_with_div,
-        create_pytorch_precision_sensitive_div_as_pow,
-        create_pytorch_precision_sensitive_for_exp_reduce,
-        create_pytorch_precision_sensitive_two_inp_1,
-        create_pytorch_precision_sensitive_two_inp_2,
+        'create_pytorch_layer_norm',
+        'create_pytorch_normalize',
+        'create_pytorch_precision_sensitive_with_div',
+        'create_pytorch_precision_sensitive_div_as_pow',
+        'create_pytorch_precision_sensitive_for_exp_reduce',
+        'create_pytorch_precision_sensitive_two_inp_1',
+        'create_pytorch_precision_sensitive_two_inp_2',
     ]
 
     @pytest.mark.parametrize("create_model", test_data)
@@ -1244,7 +1245,7 @@ class TestPrecisionSensitive():
         import numpy.testing as npt
         from pathlib import Path
 
-        fw_model, ref_model, mo_params = create_model(temp_dir)
+        fw_model, ref_model, mo_params = eval(create_model)(temp_dir)
 
         test_params = {'input_model': fw_model}
         if mo_params is not None:

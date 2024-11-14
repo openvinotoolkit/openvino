@@ -210,10 +210,6 @@ void error_on_mismatch_layout(const std::string& file,
 
         if (layout_1.data_padding != layout_2.data_padding) {
             error_msg << layout_1_id << " data padding mismatch: " << layout_2_id << " data padding." << std::endl;
-            error_msg << layout_1_id << " upper data padding: " << layout_1.data_padding.upper_size() << ", "
-                      << layout_2_id << " upper data padding: " << layout_2.data_padding.upper_size() << std::endl;
-            error_msg << layout_1_id << " lower data padding: " << layout_1.data_padding.lower_size() << ", "
-                      << layout_2_id << " lower data padding: " << layout_2.data_padding.lower_size() << std::endl;
         }
         if (layout_1.data_type != layout_2.data_type) {
             error_msg << layout_1_id << " data type mismatch: " << layout_2_id << " data type." << std::endl;

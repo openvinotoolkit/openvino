@@ -9,6 +9,7 @@
 #include <string>
 
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/file_util.hpp"
 

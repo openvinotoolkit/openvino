@@ -57,7 +57,7 @@ private:
 
     Shape inShape;
 
-    bool isMaxPool8 = false;
+    bool isNotMaxPool1 = false;
     bool useACL = false;
 };
 

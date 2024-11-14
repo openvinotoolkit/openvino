@@ -17,9 +17,8 @@ d2_params = [{'kernel_size': [3, 3], 'stride': 1, 'padding': 0},
              {'kernel_size': [2, 1], 'stride': [2, 1], 'padding': 0},
              {'kernel_size': [2, 1], 'stride': None, 'padding': 0},
              {'kernel_size': [2, 1], 'stride': [], 'padding': 0},
+             {'kernel_size': [8, 8], 'stride': [8, 4], 'padding': 1},
              ]
-
-d2_params_corner_case = [{'kernel_size': [8, 8], 'stride': [8, 4], 'padding': 1}]
 
 d1_params = [{'kernel_size': 3, 'stride': 1, 'padding': 0},
              {'kernel_size': (4,), 'stride': 1, 'padding': 1},
@@ -37,10 +36,8 @@ d3_params = [{'kernel_size': [3, 3, 3], 'stride': 1, 'padding': 0},
 
 
 class TestPooling(PytorchLayerTest):
-    def _prepare_input(self, ndim=4):
-        import numpy as np
-        shape = (1, 3, 15, 15, 15)
-        return (np.random.randn(*shape[:ndim]).astype(np.float32),)
+    def _prepare_input(self):
+        return (self.input_tensor,)
 
     def create_model(self, op_type, kernel_size, stride, padding, dilation=1, ceil_mode=True, count_include_pad=True, dtype=torch.float32):
         class aten_avg_pooling_base(torch.nn.Module):
@@ -130,132 +127,147 @@ class TestPooling(PytorchLayerTest):
 
         return aten_pooling(), ref_net, f"aten::{op_type}"
 
+    @pytest.mark.parametrize("input_shape", [[1, 3, 15], [3, 15]])
     @pytest.mark.parametrize("params", d1_params)
     @pytest.mark.parametrize("ceil_mode", [True, False])
     @pytest.mark.parametrize("count_include_pad", [True, False])
+    @pytest.mark.parametrize("is_dynamic_shapes", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
-    def test_avg_pool1d(self, params, ceil_mode, count_include_pad, ie_device, precision, ir_version):
+    def test_avg_pool1d(self, input_shape, params, ceil_mode, count_include_pad, ie_device, precision, ir_version, is_dynamic_shapes):
+        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
         self._test(*self.create_model("avg_pool1d", **params, ceil_mode=ceil_mode, count_include_pad=count_include_pad),
-                   ie_device, precision, ir_version, kwargs_to_prepare_input={'ndim': 3}, trace_model=True,
-                   dynamic_shapes=False)
+                   ie_device, precision, ir_version, trace_model=True,
+                   dynamic_shapes=is_dynamic_shapes)
 
-    @pytest.mark.parametrize(
-        "params",
-        d2_params
-        + [
-            pytest.param(
-                {"kernel_size": [8, 8], "stride": [8, 4], "padding": 1},
-                marks=pytest.mark.xfail(reason="Sliding windows that would start in the right padded are ignored.")
-            )
-        ])
+    @pytest.mark.parametrize("input_shape", [[1, 3, 15, 15], [3, 15, 15]])
+    @pytest.mark.parametrize("params", d2_params)
     @pytest.mark.parametrize("ceil_mode", [True, False])
     @pytest.mark.parametrize("count_include_pad", [True, False])
+    @pytest.mark.parametrize("is_dynamic_shapes", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
-    def test_avg_pool2d(self, params, ceil_mode, count_include_pad, ie_device, precision, ir_version):
+    def test_avg_pool2d(self, input_shape, params, ceil_mode, count_include_pad, ie_device, precision, ir_version, is_dynamic_shapes):
+        if ceil_mode and count_include_pad and np.array_equal(np.array(params["kernel_size"]), np.array([8, 8])):
+            pytest.xfail("Ticket - 150292")
+        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
         self._test(*self.create_model("avg_pool2d", **params, ceil_mode=ceil_mode, count_include_pad=count_include_pad),
-                   ie_device, precision, ir_version, trace_model=True, freeze_model=False, dynamic_shapes=False)
+                   ie_device, precision, ir_version, trace_model=True, freeze_model=False, dynamic_shapes=is_dynamic_shapes)
 
+    @pytest.mark.parametrize("input_shape", [[1, 3, 15, 15, 15], [3, 15, 15, 15]])
     @pytest.mark.parametrize("params", d3_params)
     @pytest.mark.parametrize("ceil_mode", [True, False])
     @pytest.mark.parametrize("count_include_pad", [True, False])
+    @pytest.mark.parametrize("is_dynamic_shapes", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
-    def test_avg_pool3d(self, params, ceil_mode, count_include_pad, ie_device, precision, ir_version):
+    def test_avg_pool3d(self, input_shape, params, ceil_mode, count_include_pad, ie_device, precision, ir_version, is_dynamic_shapes):
+        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
         self._test(*self.create_model("avg_pool3d", **params, ceil_mode=ceil_mode, count_include_pad=count_include_pad),
-                   ie_device, precision, ir_version, kwargs_to_prepare_input={'ndim': 5}, trace_model=True,
-                   dynamic_shapes=False)
+                   ie_device, precision, ir_version, trace_model=True,
+                   dynamic_shapes=is_dynamic_shapes)
 
+    @pytest.mark.parametrize("input_shape", [[1, 3, 15], [3, 15]])
     @pytest.mark.parametrize("params", d1_params)
     @pytest.mark.parametrize("ceil_mode", [True, False])
     @pytest.mark.parametrize("dilation", [1, 2])
+    @pytest.mark.parametrize("is_dynamic_shapes", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
-    def test_max_pool1d(self, params, ceil_mode, dilation, ie_device, precision, ir_version):
+    def test_max_pool1d(self, input_shape, params, ceil_mode, dilation, ie_device, precision, ir_version, is_dynamic_shapes):
+        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
         self._test(*self.create_model("max_pool1d", **params, ceil_mode=ceil_mode, dilation=dilation),
-                   ie_device, precision, ir_version, kwargs_to_prepare_input={'ndim': 3}, dynamic_shapes=False)
+                   ie_device, precision, ir_version, dynamic_shapes=is_dynamic_shapes)
 
-    @pytest.mark.parametrize("params", d2_params + d2_params_corner_case)
+    @pytest.mark.parametrize("input_shape", [[1, 3, 15, 15], [3, 15, 15]])
+    @pytest.mark.parametrize("params", d2_params)
     @pytest.mark.parametrize("ceil_mode", [True, False])
     @pytest.mark.parametrize("dilation", [1, 2])
     @pytest.mark.parametrize("dtype", [torch.float32, torch.int32])
+    @pytest.mark.parametrize("is_dynamic_shapes", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
-    def test_max_pool2d(self, params, ceil_mode, dilation, dtype, ie_device, precision, ir_version):
+    def test_max_pool2d(self, input_shape, params, ceil_mode, dilation, dtype, ie_device, precision, ir_version, is_dynamic_shapes):
         to_trace = False
         if params["stride"] == []:
             to_trace = True
+        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
         self._test(*self.create_model("max_pool2d", **params, ceil_mode=ceil_mode, dilation=dilation, dtype=dtype),
-                   ie_device, precision, ir_version, dynamic_shapes=False, trace_model=to_trace)
+                   ie_device, precision, ir_version, dynamic_shapes=is_dynamic_shapes, trace_model=to_trace)
 
+    @pytest.mark.parametrize("input_shape", [[1, 3, 15, 15, 15], [3, 15, 15, 15]])
     @pytest.mark.parametrize("params", d3_params)
     @pytest.mark.parametrize("ceil_mode", [True, False])
     @pytest.mark.parametrize("dilation", [1, 2])
+    @pytest.mark.parametrize("is_dynamic_shapes", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
-    def test_max_pool3d(self, params, ceil_mode, dilation, ie_device, precision, ir_version):
+    def test_max_pool3d(self, input_shape, params, ceil_mode, dilation, ie_device, precision, ir_version, is_dynamic_shapes):
+        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
         self._test(*self.create_model("max_pool3d", **params, ceil_mode=ceil_mode, dilation=dilation),
-                   ie_device, precision, ir_version, kwargs_to_prepare_input={'ndim': 5}, dynamic_shapes=False)
+                   ie_device, precision, ir_version,  dynamic_shapes=is_dynamic_shapes)
 
+    @pytest.mark.parametrize("input_shape", [[1, 3, 15], [3, 15]])
     @pytest.mark.parametrize("params", d1_params)
     @pytest.mark.parametrize("ceil_mode", [True, False])
     @pytest.mark.parametrize("dilation", [1, 2])
+    @pytest.mark.parametrize("is_dynamic_shapes", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
-    def test_max_pool1d_indices(self, params, ceil_mode, dilation, ie_device, precision, ir_version):
-        if ceil_mode and (np.array(params["padding"]).any() != 0):
-            pytest.skip("ticket 122418")
+    def test_max_pool1d_indices(self, input_shape, params, ceil_mode, dilation, ie_device, precision, ir_version, is_dynamic_shapes):
+        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
         self._test(*self.create_model("max_pool1d_with_indices", **params, ceil_mode=ceil_mode, dilation=dilation),
-                   ie_device, precision, ir_version, kwargs_to_prepare_input={'ndim': 3}, dynamic_shapes=False)
+                   ie_device, precision, ir_version, dynamic_shapes=is_dynamic_shapes)
 
-    @pytest.mark.parametrize("params", d2_params + d2_params_corner_case)
+    @pytest.mark.parametrize("input_shape", [[1, 3, 15, 15], [3, 15, 15]])
+    @pytest.mark.parametrize("params", d2_params)
     @pytest.mark.parametrize("ceil_mode", [True, False])
     @pytest.mark.parametrize("dilation", [1, 2])
+    @pytest.mark.parametrize("is_dynamic_shapes", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
-    def test_max_pool2d_indices(self, params, ceil_mode, dilation,  ie_device, precision, ir_version):
-        if ceil_mode and (np.array(params["padding"]).any() != 0):
-            pytest.skip("ticket 122418")
+    def test_max_pool2d_indices(self, input_shape, params, ceil_mode, dilation,  ie_device, precision, ir_version, is_dynamic_shapes):
         to_trace = False
         if params["stride"] == []:
             to_trace = True
+        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
         self._test(*self.create_model("max_pool2d_with_indices", **params, ceil_mode=ceil_mode, dilation=dilation),
-                   ie_device, precision, ir_version, dynamic_shapes=False, trace_model=to_trace)
+                   ie_device, precision, ir_version, dynamic_shapes=is_dynamic_shapes, trace_model=to_trace)
 
+    @pytest.mark.parametrize("input_shape", [[1, 3, 15, 15, 15], [3, 15, 15, 15]])
     @pytest.mark.parametrize("params", d3_params)
     @pytest.mark.parametrize("ceil_mode", [True, False])
     @pytest.mark.parametrize("dilation", [1, 2])
+    @pytest.mark.parametrize("is_dynamic_shapes", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
-    def test_max_pool3d_indices(self, params, ceil_mode, dilation, ie_device, precision, ir_version):
-        if ceil_mode and (np.array(params["padding"]).any() != 0):
-            pytest.skip("ticket 122418")
+    def test_max_pool3d_indices(self, input_shape, params, ceil_mode, dilation, ie_device, precision, ir_version, is_dynamic_shapes):
+        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
         self._test(*self.create_model("max_pool3d_with_indices", **params, ceil_mode=ceil_mode, dilation=dilation),
-                   ie_device, precision, ir_version, kwargs_to_prepare_input={'ndim': 5}, dynamic_shapes=False)
+                   ie_device, precision, ir_version, dynamic_shapes=is_dynamic_shapes)

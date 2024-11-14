@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_string_tensors}
-
 String Tensors
 ==============
 
@@ -10,11 +8,11 @@ String Tensors
 OpenVINO tensors can hold not only numerical data, like floating-point or integer numbers,
 but also textual information, represented as one or multiple strings.
 Such a tensor is called a string tensor and can be passed as input or retrieved as output of a text-processing model, such as
-`tokenizers and detokenizers <https://github.com/openvinotoolkit/openvino_contrib/tree/master/modules/custom_operations/user_ie_extensions/tokenizer/python>`__.
+`tokenizers and detokenizers <https://github.com/openvinotoolkit/openvino_tokenizers/tree/master>`__.
 
 While this section describes basic API to handle string tensors, more practical examples that leverage both
 string tensors and OpenVINO tokenizer can be found in
-`GenAI Samples <https://github.com/openvinotoolkit/openvino.genai/tree/master/text_generation/causal_lm/cpp>`__.
+`GenAI Samples <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/greedy_causal_lm>`__.
 
 
 Representation
@@ -203,6 +201,6 @@ Additional Resources
 
 * Learn about the :doc:`basic steps to integrate inference in your application <integrate-openvino-with-your-application>`.
 
-* Use `OpenVINO tokenizers <https://github.com/openvinotoolkit/openvino_contrib/tree/master/modules/custom_operations/user_ie_extensions/tokenizer/python>`__ to produce models that use string tensors to work with textual information as pre- and post-processing for the large language models.
+* Use `OpenVINO tokenizers <https://github.com/openvinotoolkit/openvino_contrib/tree/releases/2024/0/modules/custom_operations/user_ie_extensions/tokenizer/python>`__ to produce models that use string tensors to work with textual information as pre- and post-processing for the large language models.
 
-* Check out `GenAI Samples <https://github.com/openvinotoolkit/openvino.genai/tree/master/text_generation/causal_lm/cpp>`__ to see how string tensors are used in real-life applications.
+* Check out `GenAI Samples <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/greedy_causal_lm>`__ to see how string tensors are used in real-life applications.

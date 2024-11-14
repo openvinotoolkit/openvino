@@ -66,7 +66,32 @@ std::vector<EltwiseTypes> eltwiseOpTypes = {
         EltwiseTypes::MOD
 };
 
+std::vector<EltwiseTypes> smoke_intOnly_eltwiseOpTypes = {
+        EltwiseTypes::RIGHT_SHIFT,
+        EltwiseTypes::BITWISE_AND
+};
+
+std::vector<ov::test::ElementType> intOnly_netPrecisions = {
+        ov::element::i32,
+        ov::element::i16,
+        ov::element::u16
+};
+
 ov::AnyMap additional_config = {};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_intOnly_CompareWithRefs,
+    EltwiseLayerTest,
+    ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes)),
+                       ::testing::ValuesIn(smoke_intOnly_eltwiseOpTypes),
+                       ::testing::ValuesIn(secondaryInputTypes),
+                       ::testing::ValuesIn(opTypes),
+                       ::testing::ValuesIn(intOnly_netPrecisions),
+                       ::testing::Values(ov::element::undefined),
+                       ::testing::Values(ov::element::undefined),
+                       ::testing::Values(ov::test::utils::DEVICE_GPU),
+                       ::testing::Values(additional_config)),
+    EltwiseLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_CompareWithRefs,

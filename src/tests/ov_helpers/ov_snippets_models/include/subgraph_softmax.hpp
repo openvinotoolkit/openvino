@@ -56,7 +56,9 @@ protected:
 class TransposeSoftmaxEltwiseFunction : public TransposeSoftmaxFunction {
 public:
     explicit TransposeSoftmaxEltwiseFunction(const std::vector<PartialShape>& inputShapes, const std::vector<int64_t>& order, const int64_t axis)
-            : TransposeSoftmaxFunction(inputShapes, order, axis) {}
+            : TransposeSoftmaxFunction(inputShapes, order, axis) {
+        OPENVINO_ASSERT(input_shapes.size() == 2, "Got invalid number of input shapes");
+    }
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 };

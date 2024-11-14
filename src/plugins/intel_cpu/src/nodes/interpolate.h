@@ -148,6 +148,7 @@ private:
             size_t dataRank;
             std::vector<int> auxTable;
             std::vector<uint8_t> pillow_working_buf;
+            size_t m_threads_num = 0lu;
     };
     std::shared_ptr<InterpolateExecutorBase> execPtr = nullptr;
 
@@ -223,7 +224,6 @@ private:
     static size_t getSpatialDimsNum(const Dim rank);
 
     bool hasPad = false;
-    InterpolateShapeCalcMode shapeCalcMode = InterpolateShapeCalcMode::sizes;
 
     bool isAxesSpecified = false;
     std::vector<int> axes;

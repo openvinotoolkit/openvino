@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_activation_Clamp_1}
-
 Clamp
 =====
 
 
 .. meta::
-  :description: Learn about Clamp-1 - an element-wise, activation operation, which 
+  :description: Learn about Clamp-1 - an element-wise, activation operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Clamp-1*
@@ -25,7 +23,7 @@ Clamp
 Let *min_value* and *max_value* be *min* and *max*, respectively. The mathematical formula of *Clamp* is as follows:
 
 .. math::
-   
+
    clamp( x_{i} )=\min\big( \max\left( x_{i},\ min\_value \right),\ max\_value \big)
 
 **Attributes**:
@@ -61,7 +59,7 @@ Let *min_value* and *max_value* be *min* and *max*, respectively. The mathematic
 
 .. code-block:: xml
    :force:
-   
+
    <layer id="1" name="clamp_node" type="Clamp">
        <data min="10" max="50" />
        <input>

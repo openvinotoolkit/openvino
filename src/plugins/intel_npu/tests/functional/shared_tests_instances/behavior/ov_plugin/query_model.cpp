@@ -10,11 +10,11 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_OVClassModelTestP, OVClassModelTestP,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_OVClassModelTestP, OVClassModelTestP,
                          ::testing::Values(ov::test::utils::DEVICE_NPU),
                          (ov::test::utils::appendPlatformTypeTestName<OVClassModelTestP>));
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_OVClassQueryModelTestTests, OVClassQueryModelTest,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_OVClassQueryModelTestTests, OVClassQueryModelTest,
                          ::testing::Values(ov::test::utils::DEVICE_NPU),
                          (ov::test::utils::appendPlatformTypeTestName<OVClassQueryModelTest>));
 

@@ -4,10 +4,9 @@
 
 #pragma once
 
-#include "openvino/cc/pass/itt.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 #include "transformations_visibility.hpp"
@@ -15,7 +14,7 @@
 namespace ov {
 namespace pass {
 
-class PositionIDsReplacer;
+class TRANSFORMATIONS_API PositionIDsReplacer;
 
 }  // namespace pass
 }  // namespace ov

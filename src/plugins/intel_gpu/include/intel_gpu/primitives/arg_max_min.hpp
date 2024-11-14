@@ -43,10 +43,9 @@ struct arg_max_min : public primitive_base<arg_max_min> {
                 ov::op::TopKSortType sort = ov::op::TopKSortType::SORT_VALUES,
                 bool values_first = false,
                 bool stable = false,
-                const padding& output_padding = padding(),
                 data_types output_data_type = data_types::f32,
                 const size_t num_outputs = 1)
-        : primitive_base(id, inputs, {output_padding}, {optional_data_type{output_data_type}}, num_outputs),
+        : primitive_base(id, inputs, num_outputs, {optional_data_type{output_data_type}}),
           mode(mode),
           top_k(top_k),
           axis(axis),
@@ -64,10 +63,9 @@ struct arg_max_min : public primitive_base<arg_max_min> {
                 ov::op::TopKSortType sort = ov::op::TopKSortType::SORT_VALUES,
                 bool values_first = false,
                 bool stable = false,
-                const padding& output_padding = padding(),
                 data_types output_data_type = data_types::f32,
                 const size_t num_outputs = 1)
-        : primitive_base(id, {input, topk_id}, {output_padding}, {optional_data_type{output_data_type}}, num_outputs),
+        : primitive_base(id, {input, topk_id}, num_outputs, {optional_data_type{output_data_type}}),
           mode(mode),
           top_k(top_k),
           axis(axis),

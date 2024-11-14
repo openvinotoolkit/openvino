@@ -35,6 +35,7 @@
 #include "openvino/runtime/performance_heuristics.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/weights_path.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
@@ -83,17 +84,18 @@ std::string Plugin::get_device_id(const ov::AnyMap& config) const {
     return id;
 }
 
-void Plugin::transform_model(std::shared_ptr<ov::Model>& model, const ExecutionConfig& config) const {
+void Plugin::transform_model(std::shared_ptr<ov::Model>& model, const ExecutionConfig& config, const std::shared_ptr<RemoteContextImpl>& context) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::transform_model");
-    auto deviceInfo = m_device_map.at(config.get_property(ov::device::id))->get_info();
-    TransformationsPipeline transformations(config, deviceInfo);
+    TransformationsPipeline transformations(config, context);
 
     auto start = Time::now();
     transformations.apply(model);
     GPU_DEBUG_LOG << "Transformations time: " << std::chrono::duration_cast<ms>(Time::now() - start).count() << " ms" << std::endl;
 }
 
-std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_ptr<const ov::Model>& model, const ExecutionConfig& config) const {
+std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_ptr<const ov::Model>& model,
+                                                             const ExecutionConfig& config,
+                                                             const std::shared_ptr<RemoteContextImpl>& context) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::clone_and_transform_model");
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_DEFINE_MEM_LOGGER("Plugin::clone_and_transform_model");
@@ -106,7 +108,7 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
         ov::pass::VisualizeTree(path_base + ".svg").run_on_model(cloned_model);
     }
 
-    transform_model(cloned_model, config);
+    transform_model(cloned_model, config, context);
 
     // Transformations for some reason may drop output tensor names, so here we copy those from the original model
     auto new_results = cloned_model->get_results();
@@ -144,7 +146,11 @@ Plugin::Plugin() {
     register_primitives();
 
     // Set OCL runtime which should be always available
+#ifdef OV_GPU_WITH_SYCL
+    cldnn::device_query device_query(cldnn::engine_types::sycl, cldnn::runtime_types::ocl);
+#else
     cldnn::device_query device_query(cldnn::engine_types::ocl, cldnn::runtime_types::ocl);
+#endif
     m_device_map = device_query.get_available_devices();
 
     // Set default configs for each device
@@ -155,6 +161,22 @@ Plugin::Plugin() {
     // Set common info for compiled_model_runtime_properties
     auto& ov_version = ov::get_openvino_version();
     m_compiled_model_runtime_properties["OV_VERSION"] = ov_version.buildNumber;
+}
+
+void Plugin::set_cache_info(const std::shared_ptr<const ov::Model>& model, ExecutionConfig& config) const {
+    // WEIGHTS_PATH is used for the weightless cache mechanism which is used only with
+    // ov::CacheMode::OPTIMIZE_SIZE setting. Not setting WEIGHTS_PATH will result in not
+    // using that mechanism.
+    if (config.get_property(ov::cache_mode) != ov::CacheMode::OPTIMIZE_SIZE) {
+        return;
+    }
+
+    const auto& rt_info = model->get_rt_info();
+    auto weights_path = rt_info.find("__weights_path");
+    if (weights_path != rt_info.end()) {
+        ov::AnyMap weights_path_property{{"WEIGHTS_PATH", weights_path->second}};
+        config.set_property(weights_path_property);
+    }
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
@@ -169,7 +191,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     config.set_user_property(orig_config);
     config.apply_user_properties(context->get_engine().get_device_info());
 
-    auto transformed_model = clone_and_transform_model(model, config);
+    set_cache_info(model, config);
+
+    auto transformed_model = clone_and_transform_model(model, config, context);
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model::CreateCompiledModel");
         return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context, config);
@@ -188,7 +212,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     config.set_user_property(orig_config);
     config.apply_user_properties(context_impl->get_engine().get_device_info());
 
-    auto transformed_model = clone_and_transform_model(model, config);
+    set_cache_info(model, config);
+
+    auto transformed_model = clone_and_transform_model(model, config, context_impl);
     return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context_impl, config);
 }
 
@@ -259,10 +285,10 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     float query_model_ratio = config.get_property(ov::internal::query_model_ratio.name()).as<float>();
 
     auto supported = ov::get_supported_nodes(model,
-        [&config,this](std::shared_ptr<ov::Model>& model) {
+        [&config,&ctx,this](std::shared_ptr<ov::Model>& model) {
             std::map<std::string, ov::PartialShape> shapes;
             std::map<std::string, std::pair<int64_t, int64_t>> batch_dim;
-            transform_model(model, config);
+            transform_model(model, config, ctx);
         },
         [&prog](std::shared_ptr<ov::Node> node) {
             return prog.is_op_supported(node);
@@ -303,10 +329,21 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     config.set_user_property(_orig_config);
     config.apply_user_properties(context_impl->get_engine().get_device_info());
 
-    if (config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE)
-        return nullptr;
-
     cldnn::BinaryInputBuffer ib(model, context_impl->get_engine());
+
+    ov::CacheMode cache_mode;
+    ib >> cldnn::make_data(&cache_mode, sizeof(ov::CacheMode));
+
+    if (cache_mode != config.get_property(ov::cache_mode)) {
+        return nullptr;
+    }
+
+    std::string weights_path = config.get_property(ov::weights_path);
+    if (config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE &&
+        !ov::util::validate_weights_path(weights_path)) {
+        return nullptr;
+    }
+
     return std::make_shared<CompiledModel>(ib, shared_from_this(), context_impl, config, loaded_from_cache);
 }
 
@@ -505,11 +542,14 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
 }
 
 std::vector<ov::PropertyName> Plugin::get_caching_properties() const {
-    static const std::vector<ov::PropertyName> caching_properties =  {
+    static const std::vector<ov::PropertyName> caching_properties = {
         ov::PropertyName{ov::device::architecture.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::execution_units_count.name(), PropertyMutability::RO},
         ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::execution_mode.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::hint::dynamic_quantization_group_size.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::hint::activations_scale_factor.name(), PropertyMutability::RW},
     };
 
     return caching_properties;
@@ -555,6 +595,9 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::enable_cpu_pinning.name(), PropertyMutability::RW},
         ov::PropertyName{ov::device::id.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::hint::dynamic_quantization_group_size.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::hint::activations_scale_factor.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::weights_path.name(), PropertyMutability::RO},
     };
 
     return supported_properties;
@@ -567,7 +610,8 @@ std::vector<ov::PropertyName> Plugin::get_supported_internal_properties() const 
             ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
             ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::internal::query_model_ratio.name(), PropertyMutability::RW}};
+            ov::PropertyName{ov::internal::query_model_ratio.name(), PropertyMutability::RW},
+            ov::PropertyName{ov::internal::caching_with_mmap.name(), PropertyMutability::RO}};
     return supported_internal_properties;
 }
 
@@ -708,7 +752,7 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
             return static_cast<uint32_t>(max_batch_size);
         }
 
-        TransformationsPipeline transformations(config, device_info);
+        TransformationsPipeline transformations(config, context);
         transformations.apply(cloned_model);
         program = std::make_shared<ProgramBuilder>(cloned_model, engine, config, true);
         std::pair<int64_t, int64_t> device_memory_usage = program->get_compiled_program()->get_estimated_device_mem_usage();
@@ -777,7 +821,7 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
                         << ", L3_cache_size is (MB): " << float(L3_cache_size) / 1024 / 1024 << std::endl;
     }
     auto config = m_configs_map.at(device_id);
-    auto cloned_model = clone_and_transform_model(model, config);
+    auto cloned_model = clone_and_transform_model(model, config, context);
     ov::MemBandwidthPressure memPressure = ov::mem_bandwidth_pressure_tolerance(cloned_model, L3_cache_size);
     uint32_t batch = 1;
     if (memPressure.max_mem_tolerance != ov::MemBandwidthPressure::UNKNOWN)

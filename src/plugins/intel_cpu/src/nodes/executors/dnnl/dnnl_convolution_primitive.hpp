@@ -61,6 +61,10 @@ public:
         return m_implType;
     }
 
+    static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc,
+                                                            const DnnlMemoryDescPtr dstDesc,
+                                                            bool weightsNonTransposed);
+
     // create shape agnostic data using FC attributes (1x1 Convolution as FC executor)
     static DnnlShapeAgnosticDataPtr createShapeAgnosticData(const FCAttrs& attrs,
                                                             const PostOps& postOps,

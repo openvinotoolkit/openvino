@@ -1,5 +1,3 @@
-.. {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_QuartzNet}
-
 Converting a PyTorch QuartzNet Model
 ====================================
 
@@ -22,7 +20,7 @@ Downloading the Pre-trained QuartzNet Model
 To download the pre-trained model, refer to the `NeMo Speech Models Catalog <https://ngc.nvidia.com/catalog/models/nvidia:nemospeechmodels>`__.
 Here are the instructions on how to obtain QuartzNet in ONNX format.
 
-1. Install the NeMo toolkit, using the `instructions <https://github.com/NVIDIA/NeMo/tree/main#installation>`__.
+1. Install the NeMo toolkit, using the `instructions <https://github.com/NVIDIA/NeMo/blob/main/README.md#install-nemo-framework>`__.
 
 2. Run the following code:
 

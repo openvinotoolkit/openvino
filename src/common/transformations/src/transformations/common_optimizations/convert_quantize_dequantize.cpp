@@ -91,15 +91,14 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
         auto data = pattern_map[data_pattern];
         auto input_low = pattern_map[input_low_pattern];
         auto input_high = pattern_map[input_high_pattern];
-        auto output_low =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map[output_low_pattern].get_node_shared_ptr());
+        auto output_low = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map[output_low_pattern].get_node_shared_ptr());
         if (!output_low)
             return false;
         auto output_high =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map[output_high_pattern].get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_map[output_high_pattern].get_node_shared_ptr());
         if (!output_high)
             return false;
-        auto fq = std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(pattern_map[fq_pattern].get_node_shared_ptr());
+        auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(pattern_map[fq_pattern].get_node_shared_ptr());
         if (!fq)
             return false;
         auto zero_point = pattern_map[zero_point_pattern];

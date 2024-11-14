@@ -8,7 +8,7 @@
 #include "set_tpp_leading_dim.hpp"
 #include "snippets/op/brgemm.hpp"
 #include "snippets/lowered/loop_manager.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -16,13 +16,6 @@ namespace tpp {
 namespace pass {
 namespace {
 using ExpressionPort = snippets::lowered::ExpressionPort;
-bool is_planar_layout(const std::vector<size_t>& layout) {
-    for (size_t i = 0; i < layout.size(); i++) {
-        if (layout[i] != i)
-            return false;
-    }
-    return true;
-}
 // Note: Buffer is directly connected to the port if it remains in the same loops with the port's expression
 //  Directly connected Buffers store data densely, so strides are defined by subternsor dims
 //  Indirectly connected Buffers (with loops between the expr and Buffer) store data according
@@ -74,19 +67,19 @@ size_t get_leading_dim(ExpressionPort port, const snippets::lowered::LoopManager
     bool full_dim_substituted = false;
     for (size_t i = 1; i <= subtensor.size(); i++) {
         const auto idx = subtensor.size() - i;
-        if (subtensor[idx] == snippets::lowered::PortDescriptor::ServiceDimensions::FULL_DIM) {
+        if (ov::snippets::utils::is_full_dim_value(subtensor[idx])) {
             // the reason that we don't support FULL_DIM substitution for an arbitrary layout is that
             // the layout and subtersor can (and usually do) have different ranks
             full_dim_substituted = true;
             subtensor[idx] = shape[shape.size() - i];
         }
     }
-    OPENVINO_ASSERT(!full_dim_substituted || is_planar_layout(layout),
+    OPENVINO_ASSERT(!full_dim_substituted || ov::snippets::utils::is_planar_layout(layout),
                     "Only planar layouts are supported for FULL_DIM substitution");
 
     if (has_directly_connected_buffer(port, loop_mngr)) {
         shape = port_desc->get_subtensor();
-        OPENVINO_ASSERT(is_planar_layout(layout), "Only planar layouts are supported for Buffers");
+        OPENVINO_ASSERT(ov::snippets::utils::is_planar_layout(layout), "Only planar layouts are supported for Buffers");
         const auto rank_diff = static_cast<int64_t>(layout.size()) - static_cast<int64_t>(shape.size());
         if (rank_diff > 0)
             layout.erase(layout.end() - rank_diff, layout.end());

@@ -23,7 +23,7 @@ bool TransparentBaseTransformation::transform(TransformationContext& context, ov
     op = NetworkHelper::separateInStandaloneBranch(op, defaultPrecisions);
     const auto newOperation = moveDequantizationAfter(context, op, NetworkHelper::getDequantization(op, defaultPrecisions));
 
-    OPENVINO_DEBUG << "LPT: done: " << newOperation;
+    OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;
 }
 

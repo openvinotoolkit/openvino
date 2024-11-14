@@ -21,7 +21,7 @@ ov::pass::low_precision::PropagatePrecisions::PropagatePrecisions(const Attribut
 
 bool ov::pass::low_precision::PropagatePrecisions::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(PropagatePrecisions);
-    ov::pass::Manager manager;
+    ov::pass::Manager manager("LPT:PropagatePrecisions");
     manager.set_per_pass_validation(false);
     std::shared_ptr<ov::pass::GraphRewrite> precisionsPropagation = manager.register_pass<ov::pass::GraphRewrite>();
     precisionsPropagation->add_matcher<low_precision::CreateAttribute<PrecisionsAttribute, opset1::FakeQuantize>>(params, AttributeSource::OutputPort);

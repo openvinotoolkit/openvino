@@ -17,6 +17,7 @@
 #include "cpu_memory.h"
 #include "cpu_tensor.h"
 #include "openvino/runtime/itensor.hpp"
+#include "common_test_utils/test_assertions.hpp"
 
 
 using namespace ov::intel_cpu;
@@ -62,7 +63,6 @@ public:
     MockIMemory(MemoryDescPtr desc) : m_pMemDesc(desc) {}
     MockIMemory(const MemoryDesc& desc) : m_pMemDesc(desc.clone()) {}
 
-    MOCK_METHOD(bool, isAllocated, (), (const, noexcept, override));
     MOCK_METHOD(MemoryDesc&, getDesc, (), (const, override));
     MOCK_METHOD(MemoryDescPtr, getDescPtr, (), (const, override));
 
@@ -72,7 +72,7 @@ public:
 
     MOCK_METHOD(void, redefineDesc, (MemoryDescPtr), (override));
     MOCK_METHOD(void, load, (const IMemory&, bool), (const, override));
-    MOCK_METHOD(MemoryMngrPtr, getMemoryMngr, (), (const, override));
+    MOCK_METHOD(MemoryBlockPtr, getMemoryBlock, (), (const, override));
 
     MOCK_METHOD(dnnl::memory, getPrimitive, (), (const, override));
     MOCK_METHOD(void, nullify, (), (override));
@@ -211,7 +211,7 @@ TEST_F(CPUTensorTest, canSetShape) {
 
         const void* orig_data = t->data();
         ASSERT_EQ(t->get_shape(), ov_origShape);
-        ASSERT_NO_THROW(t->set_shape(ov_newShape));
+        OV_ASSERT_NO_THROW(t->set_shape(ov_newShape));
         ASSERT_EQ(ov_newShape, t->get_shape());
         ASSERT_EQ(byte_strides(ov::row_major_strides(ov_newShape), t->get_element_type()), t->get_strides());
         ASSERT_NE(orig_data, t->data());

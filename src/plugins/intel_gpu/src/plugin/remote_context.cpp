@@ -28,7 +28,12 @@ Type extract_object(const ov::AnyMap& params, const ov::Property<Type>& p) {
 
 RemoteContextImpl::RemoteContextImpl(const std::string& device_name, std::vector<cldnn::device::ptr> devices) : m_device_name(device_name) {
     OPENVINO_ASSERT(devices.size() == 1, "[GPU] Currently context can be created for single device only");
+#ifdef OV_GPU_WITH_SYCL
+    const auto engine_type = cldnn::engine_types::sycl;
+#else
     const auto engine_type = cldnn::engine_types::ocl;
+#endif
+
     const auto runtime_type = cldnn::runtime_types::ocl;
 
     m_engine = cldnn::engine::create(engine_type, runtime_type, devices.front());

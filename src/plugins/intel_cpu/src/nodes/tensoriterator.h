@@ -130,14 +130,15 @@ private:
     void prepareDynamicBuffers();
     void prepareLoopBodyCurrentIteration();
     void prepareContinueCond();
-    void prepareInitialCond();
-    void prepareTripCount();
+    void prepareInitialCond(const bool compileStage);
+    void prepareTripCount(const bool compileStage);
 
     /* Dynamic support */
     void reshapeSubgraphInput();
     void reshapeAndFillOutput(dnnl::stream strm);
     bool checkForInputAndBodyShapesInequality() const;
     int getNumIteration(const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) const;
+    void prepareParamsImpl(const bool compileStage);
 
     /* run dynamic subgraph inside a static node */
     bool runAsDynamic() const;

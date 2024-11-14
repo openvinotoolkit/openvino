@@ -21,7 +21,7 @@
 
 bool ov::pass::SmartReshape::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(SmartReshape);
-    ov::pass::Manager static_manager;
+    ov::pass::Manager static_manager("SmartReshape:static");
     // This pass must be called first in pipeline
     static_manager.register_pass<ov::pass::InitNodeInfo>();
     static_manager.register_pass<ov::pass::ReshapeTo1D>();
@@ -37,7 +37,7 @@ bool ov::pass::SmartReshape::run_on_model(const std::shared_ptr<ov::Model>& f) {
     static_manager.register_pass<ov::pass::ReshapeSinkingMatMul>();
     static_manager.run_passes(f);
 
-    ov::pass::Manager dynamic_manager;
+    ov::pass::Manager dynamic_manager("SmartReshape:dynamic");
     // function revalidation will cause "fake" dynamism due to ShapeOf ops insertions
     // we turn it off to have access to originally static shapes
     dynamic_manager.set_per_pass_validation(false);

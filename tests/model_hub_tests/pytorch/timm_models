@@ -23,13 +23,15 @@ convformer_b36.sail_in1k,None
 convformer_m36.sail_in1k,None
 convformer_s18.sail_in1k,None
 convformer_s36.sail_in1k,None
-convit_base.fb_in1k,None,xfail,Trace failed
+convit_base.fb_in1k,None,xfail_trace,Trace failed
 convmixer_1024_20_ks9_p14.in1k,None
 convmixer_1536_20.in1k,None
 convnext_atto_ols.a2_in1k,None
 convnext_base.clip_laion2b,None
 convnext_large_mlp.clip_laion2b_augreg,None
 convnext_tiny_hnf.a2h_in1k,None
+convnext_zepto_rms.ra4_e3600_r224_in1k,None
+convnext_zepto_rms_ols.ra4_e3600_r224_in1k,None
 convnextv2_base.fcmae,None
 crossvit_15_dagger_240.in1k,None
 crossvit_base_240.in1k,None
@@ -46,6 +48,7 @@ cspresnext50.ra_in1k,None
 darknet53.c2ns_in1k,None
 darknetaa53.c2ns_in1k,None
 davit_base.msft_in1k,None
+davit_base_fl.msft_florence2,None
 deit_base_distilled_patch16_224.fb_in1k,None
 deit_base_patch16_224.fb_in1k,None
 deit3_base_patch16_224.fb_in1k,None
@@ -81,7 +84,7 @@ dpn68b.mx_in1k,None
 dpn92.mx_in1k,None
 dpn98.mx_in1k,None
 eca_botnext26ts_256.c1_in1k,None
-eca_halonext26ts.c1_in1k,None
+eca_halonext26ts.c1_in1k,None,xfail_export,Accuracy validation failed
 eca_nfnet_l0.ra2_in1k,None
 eca_nfnet_l1.ra2_in1k,None
 eca_nfnet_l2.ra3_in1k,None
@@ -106,7 +109,7 @@ efficientformerv2_l.snap_dist_in1k,None
 efficientformerv2_s0.snap_dist_in1k,None
 efficientformerv2_s1.snap_dist_in1k,None
 efficientformerv2_s2.snap_dist_in1k,None
-efficientnet_b0.ra_in1k,None
+efficientnet_b0.ra4_e3600_r224_in1k,None
 efficientnet_b1.ft_in1k,None
 efficientnet_b1_pruned.in1k,None
 efficientnet_b2.ra_in1k,None
@@ -123,13 +126,13 @@ efficientnet_es_pruned.in1k,None
 efficientnet_lite0.ra_in1k,None
 efficientnetv2_rw_s.ra2_in1k,None
 efficientnetv2_rw_t.ra2_in1k,None
-efficientvit_b0.r224_in1k,None
-efficientvit_b1.r224_in1k,None
-efficientvit_b2.r224_in1k,None
-efficientvit_b3.r224_in1k,None
-efficientvit_l1.r224_in1k,None
-efficientvit_l2.r224_in1k,None
-efficientvit_l3.r224_in1k,None
+efficientvit_b0.r224_in1k,None,xfail_export,SpecViolationError: Node.meta _enter_autocast is missing val field.
+efficientvit_b1.r224_in1k,None,xfail_export,SpecViolationError: Node.meta _enter_autocast is missing val field.
+efficientvit_b2.r224_in1k,None,xfail_export,SpecViolationError: Node.meta _enter_autocast is missing val field.
+efficientvit_b3.r224_in1k,None,xfail_export,SpecViolationError: Node.meta _enter_autocast is missing val field.
+efficientvit_l1.r224_in1k,None,xfail_export,SpecViolationError: Node.meta _enter_autocast is missing val field.
+efficientvit_l2.r224_in1k,None,xfail_export,SpecViolationError: Node.meta _enter_autocast is missing val field.
+efficientvit_l3.r224_in1k,None,xfail_export,SpecViolationError: Node.meta _enter_autocast is missing val field.
 efficientvit_m0.r224_in1k,None
 efficientvit_m1.r224_in1k,None
 efficientvit_m2.r224_in1k,None
@@ -144,6 +147,9 @@ eva02_base_patch14_224.mim_in22k,None
 eva02_base_patch16_clip_224.merged2b,None
 eva02_large_patch14_clip_224.merged2b,None
 fastvit_ma36.apple_dist_in1k,None
+fastvit_mci0.apple_mclip,None
+fastvit_mci1.apple_mclip,None
+fastvit_mci2.apple_mclip,None,xfail,Accuracy validation failed
 fastvit_s12.apple_dist_in1k,None
 fastvit_sa12.apple_dist_in1k,None
 fastvit_sa24.apple_dist_in1k,None
@@ -188,6 +194,9 @@ hgnetv2_b3.ssld_stage1_in22k_in1k,None
 hgnetv2_b4.ssld_stage1_in22k_in1k,None
 hgnetv2_b5.ssld_stage1_in22k_in1k,None
 hgnetv2_b6.ssld_stage1_in22k_in1k,None
+hiera_base_224.mae,None
+hiera_base_plus_224.mae,None
+hiera_small_abswin_256.sbb2_e200_in12k,None,xfail_export,Unsupported aten._upsample_bicubic2d_aa.default
 hrnet_w18_small.gluon_in1k,None
 hrnet_w18_small_v2.gluon_in1k,None
 hrnet_w18_ssld.paddle_in1k,None
@@ -217,10 +226,17 @@ legacy_seresnext101_32x4d.in1k,None
 legacy_seresnext26_32x4d.in1k,None
 legacy_seresnext50_32x4d.in1k,None
 legacy_xception.tf_in1k,None
-levit_128.fb_dist_in1k,None
-levit_128s.fb_dist_in1k,None
+levit_128.fb_dist_in1k,None,xfail,Accuracy validation failed
+levit_128s.fb_dist_in1k,None,xfail,Accuracy validation failed
 levit_conv_128.fb_dist_in1k,None
 levit_conv_128s.fb_dist_in1k,None
+mambaout_base.in1k,None
+mambaout_base_plus_rw.sw_e150_in12k,None
+mambaout_base_short_rw.sw_e500_in1k,None
+mambaout_base_tall_rw.sw_e500_in1k,None
+mambaout_base_wide_rw.sw_e500_in1k,None
+mambaout_kobe.in1k,None
+mambaout_small_rw.sw_e450_in1k,None
 maxvit_base_tf_224.in1k,None
 maxvit_nano_rw_256.sw_in1k,None
 maxvit_rmlp_base_rw_224.sw_in12k,None
@@ -231,11 +247,19 @@ mixer_b16_224.goog_in21k,None
 mixer_l16_224.goog_in21k,None
 mixnet_s.ft_in1k,None
 mnasnet_small.lamb_in1k,None
+mobilenet_edgetpu_v2_m.ra4_e3600_r224_in1k,None
+mobilenetv1_100.ra4_e3600_r224_in1k,None
+mobilenetv1_100h.ra4_e3600_r224_in1k,None
 mobilenetv2_050.lamb_in1k,None
 mobilenetv2_110d.ra_in1k,None
 mobilenetv2_120d.ra_in1k,None
+mobilenetv3_large_150d.ra4_e3600_r256_in1k,None
 mobilenetv3_rw.rmsp_in1k,None
 mobilenetv3_small_050.lamb_in1k,None
+mobilenetv4_conv_aa_large.e230_r384_in12k,None
+mobilenetv4_conv_blur_medium.e500_r224_in1k,None
+mobilenetv4_conv_small.e1200_r224_in1k,None
+mobilenetv4_hybrid_medium.e200_r256_in12k,None
 mobileone_s0.apple_in1k,None
 mobileone_s1.apple_in1k,None
 mobileone_s2.apple_in1k,None
@@ -275,6 +299,7 @@ pvt_v2_b2_li.in1k,None
 pvt_v2_b3.in1k,None
 pvt_v2_b4.in1k,None
 pvt_v2_b5.in1k,None
+rdnet_base.nv_in1k,None
 regnetv_040.ra3_in1k,None
 regnetx_002.pycls_in1k,None
 regnetx_004_tv.tv2_in1k,None
@@ -324,6 +349,8 @@ resnest50d.in1k,None
 resnest50d_1s4x24d.in1k,None
 resnest50d_4s2x40d.in1k,None
 resnet101.a1_in1k,None
+resnet101_clip.openai,None
+resnet101_clip_gap.openai,None
 resnet101c.gluon_in1k,None
 resnet101d.gluon_in1k,None
 resnet101s.gluon_in1k,None
@@ -344,10 +371,18 @@ resnet33ts.ra2_in1k,None
 resnet34.a1_in1k,None
 resnet34d.ra2_in1k,None
 resnet50.a1_in1k,None
+resnet50_clip.openai,None
+resnet50_clip_gap.openai,None
 resnet50_gn.a1h_in1k,None
 resnet50c.gluon_in1k,None
 resnet50d.a1_in1k,None
 resnet50s.gluon_in1k,None
+resnet50x16_clip.openai,None
+resnet50x16_clip_gap.openai,None
+resnet50x4_clip.openai,None
+resnet50x4_clip_gap.openai,None
+resnet50x64_clip.openai,None
+resnet50x64_clip_gap.openai,None
 resnet51q.ra2_in1k,None
 resnet61q.ra2_in1k,None
 resnetaa101d.sw_in12k,None
@@ -380,6 +415,8 @@ resnext50_32x4d.a1_in1k,None
 resnext50d_32x4d.bt_in1k,None
 rexnet_100.nav_in1k,None
 rexnetr_200.sw_in12k,None
+sam2_hiera_base_plus,None
+sam2_hiera_tiny.r224,None
 samvit_base_patch16.sa1b,None
 sebotnet33ts_256.a1h_in1k,None
 sehalonet33ts.ra2_in1k,None
@@ -388,7 +425,7 @@ selecsls60.in1k,None
 selecsls60b.in1k,None
 semnasnet_075.rmsp_in1k,None
 senet154.gluon_in1k,None
-sequencer2d_s.in1k,None
+sequencer2d_s.in1k,None,xfail_export,No conversion rule found for operations aten.mkldnn_rnn_layer.default
 seresnet152d.ra2_in1k,None
 seresnet33ts.ra2_in1k,None
 seresnet50.a1_in1k,None
@@ -416,6 +453,19 @@ swinv2_base_window16_256.ms_in1k,None
 swinv2_base_window8_256.ms_in1k,None
 swinv2_cr_small_224.sw_in1k,None
 swinv2_cr_tiny_ns_224.sw_in1k,None
+test_byobnet.r160_in1k,None
+test_convnext.r160_in1k,None
+test_convnext2.r160_in1k,None
+test_convnext3.r160_in1k,None
+test_efficientnet.r160_in1k,None
+test_efficientnet_evos.r160_in1k,None
+test_efficientnet_gn.r160_in1k,None
+test_efficientnet_ln.r160_in1k,None
+test_nfnet.r160_in1k,None
+test_resnet.r160_in1k,None
+test_vit.r160_in1k,None
+test_vit2.r160_in1k,None
+test_vit3.r160_in1k,None
 tf_efficientnet_b0.aa_in1k,None
 tf_efficientnet_b1.aa_in1k,None
 tf_efficientnet_b2.aa_in1k,None
@@ -467,25 +517,40 @@ vgg16_bn.tv_in1k,None
 vgg19.tv_in1k,None
 vgg19_bn.tv_in1k,None
 visformer_tiny.in1k,None
+vit_base_mci_224.apple_mclip,None
 vit_base_patch14_dinov2.lvd142m,None
 vit_base_patch14_reg4_dinov2.lvd142m,None
 vit_base_patch16_224.augreg2_in21k_ft_in1k,None
 vit_base_patch16_224_miil.in21k,None
 vit_base_patch16_clip_224.datacompxl,None
 vit_base_patch16_clip_quickgelu_224.metaclip_2pt5b,None
+vit_base_patch16_rope_reg1_gap_256.sbb_in1k,None,xfail_trace,Argument shapes are inconsistent
 vit_base_patch16_rpn_224.sw_in1k,None
 vit_base_patch16_siglip_224.webli,None
+vit_base_patch16_siglip_gap_224.webli,None
 vit_base_patch32_224.augreg_in1k,None
 vit_base_patch32_clip_224.datacompxl,None
 vit_base_patch32_clip_quickgelu_224.metaclip_2pt5b,None
 vit_base_patch8_224.augreg2_in21k_ft_in1k,None
 vit_base_r50_s16_224.orig_in21k,None
+vit_betwixt_patch16_reg1_gap_256.sbb_in1k,None
+vit_betwixt_patch16_reg4_gap_256.sbb2_e200_in12k,None
+vit_betwixt_patch16_rope_reg4_gap_256.sbb_in1k,None,xfail_trace,Argument shapes are inconsistent
+vit_betwixt_patch32_clip_224.tinyclip_laion400m,None
 vit_huge_patch14_224.mae,None
 vit_huge_patch14_gap_224.in1k_ijepa,None
+vit_intern300m_patch14_448.ogvl_dist,None
 vit_large_patch14_clip_224.datacompxl,None
 vit_large_patch14_clip_quickgelu_224.dfn2b,None
 vit_large_r50_s32_224.augreg_in21k,None
+vit_little_patch16_reg1_gap_256.sbb_in12k,None
+vit_little_patch16_reg4_gap_256.sbb_in1k,None
 vit_medium_patch16_gap_240.sw_in12k,None
+vit_medium_patch16_reg1_gap_256.sbb_in1k,None
+vit_medium_patch16_reg4_gap_256.sbb_in12k,None
+vit_mediumd_patch16_reg4_gap_256.sbb2_e200_in12k,None
+vit_mediumd_patch16_rope_reg1_gap_256.sbb_in1k,None,xfail_trace,Argument shapes are inconsistent
+vit_pwee_patch16_reg1_gap_256.sbb_in1k,None
 vit_relpos_base_patch16_224.sw_in1k,None
 vit_relpos_base_patch16_clsgap_224.sw_in1k,None
 vit_relpos_base_patch32_plus_rpn_256.sw_in1k,None
@@ -493,13 +558,20 @@ vit_relpos_medium_patch16_cls_224.sw_in1k,None
 vit_relpos_medium_patch16_rpn_224.sw_in1k,None
 vit_small_r26_s32_224.augreg_in21k,None
 vit_so400m_patch14_siglip_224.webli,None
+vit_so400m_patch14_siglip_gap_224.pali_mix,None,skip,Access to model google/paligemma-3b-mix-224-jax is restricted
+vit_so400m_patch16_siglip_256.webli_i18n,None
+vit_so400m_patch16_siglip_gap_256.webli_i18n,None
 vit_srelpos_small_patch16_224.sw_in1k,None
 vit_tiny_r_s16_p8_224.augreg_in21k,None
-volo_d1_224.sail_in1k,None,xfail,Unsupported aten::col2im
-volo_d2_224.sail_in1k,None,xfail,Unsupported aten::col2im
-volo_d3_224.sail_in1k,None,xfail,Unsupported aten::col2im
-volo_d4_224.sail_in1k,None,xfail,Unsupported aten::col2im
-volo_d5_224.sail_in1k,None,xfail,Unsupported aten::col2im
+vit_wee_patch16_reg1_gap_256.sbb_in1k,None
+vit_xsmall_patch16_clip_224.tinyclip_yfcc15m,None
+vitamin_base_224.datacomp1b_clip,None,xfail,RuntimeError Error in loading state_dict for VisionTransformer
+vitamin_large2_224.datacomp1b_clip,None
+volo_d1_224.sail_in1k,None
+volo_d2_224.sail_in1k,None
+volo_d3_224.sail_in1k,None
+volo_d4_224.sail_in1k,None
+volo_d5_224.sail_in1k,None
 wide_resnet101_2.tv2_in1k,None
 wide_resnet50_2.racm_in1k,None
 xception41.tf_in1k,None

@@ -96,7 +96,9 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
             tuning_data.tile_m_size = tuning_data.simd_size;
         }
         // Increasing tile_n_size has performance improvement when m_size and n_size are not shallow and n_size is aligned at 32.
-        if (m_size >= 128 && n_size >= 128 && (n_size % 32 == 0) && tuning_data.simd_size == 16 && params.fused_ops.empty())
+        // TODO: Support TILE_K_LEFTOVER true case at static shape
+        if (m_size >= 128 && n_size >= 128 && (n_size % 32 == 0) && tuning_data.simd_size == 16 &&
+            (k_size % tuning_data.tile_k_size == 0) && params.fused_ops.empty())
             tuning_data.tile_n_size = 32;
 
         GPU_DEBUG_LOG << params.layerID << ": m_size: " << m_size << ", n_size: " << n_size << ", k_size: " << k_size << std::endl;
@@ -203,14 +205,10 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
         else
             jit.AddConstant(MakeJitConstant("TRANSPOSE_OUTPUT", 0 /* set as TRANSPOSE_X_LAST */));
 
-        bool has_dynamic_k_padding = params.transpose_input0 ? params.inputs[0].Y().pad.is_dynamic
-                                                             : params.inputs[0].X().pad.is_dynamic;
-        bool has_dynamic_n_padding = params.transpose_input1 ? params.inputs[1].Y().pad.is_dynamic
-                                                             : params.inputs[1].X().pad.is_dynamic;
-        if (has_dynamic_k_padding)
-            jit.AddConstant(MakeJitConstant("HAS_DYNAMIC_K_PADDING", 1));
-        if (has_dynamic_n_padding)
-            jit.AddConstant(MakeJitConstant("HAS_DYNAMIC_N_PADDING", 1));
+        if (dims0_padded.has_dynamic_pad)
+            jit.AddConstant(MakeJitConstant("INPUT0_HAS_DYNAMIC_PADDING", 1));
+        if (dims1_padded.has_dynamic_pad)
+            jit.AddConstant(MakeJitConstant("INPUT1_HAS_DYNAMIC_PADDING", 1));
     } else {
         auto get_transposed_dim_size = [](const kernel_selector::DataTensor &data_tensor,
                                           const std::vector<int64_t>& dims_order, const std::string dim) {

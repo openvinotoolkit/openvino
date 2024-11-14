@@ -1085,7 +1085,7 @@ void BinaryConvolution::createPrimitive() {
     int r_pad_no_tail = nstl::max(0, (jcp.ow - jcp.ur_w_tail - 1) * jcp.stride_w
                                      + (jcp.kw - 1) * (jcp.dilate_w + 1) - (jcp.iw + jcp.l_pad - 1));
 
-    bool args_ok = jcp.l_pad <= jcp.ur_w && (r_pad_no_tail <= jcp.ur_w) && (jcp.l_pad <= jcp.ur_w) &&
+    bool args_ok = (jcp.l_pad <= jcp.ur_w) && (r_pad_no_tail <= jcp.ur_w) &&
                    IMPLICATION(jcp.kw > 7, (jcp.t_pad == 0 && jcp.l_pad == 0) || (jcp.stride_w == 1 && jcp.stride_h == 1));
     if (!args_ok)
         OPENVINO_THROW("BinaryConvolution with name '", getName(), "' has unsupported parameters");

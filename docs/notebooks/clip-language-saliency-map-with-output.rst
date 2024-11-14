@@ -79,8 +79,9 @@ used to build the saliency map. Here is how it can be done:
 5. Update the corresponding region on the ``saliency map``.
 6. Repeat steps 2-5 multiple times (``n_iters``).
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
+
 
 -  `Initial Implementation with Transformers and
    Pytorch <#initial-implementation-with-transformers-and-pytorch>`__
@@ -99,6 +100,16 @@ Table of contents:
 -  `Interactive demo with Gradio <#interactive-demo-with-gradio>`__
 -  `What To Do Next <#what-to-do-next>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. |image0| image:: https://user-images.githubusercontent.com/29454499/218967961-9858efd5-fff2-4eb0-bde9-60852f4b31cb.JPG
 .. |image1| image:: https://openaiassets.blob.core.windows.net/$web/clip/draft/20210104b/overview-a.svg
 
@@ -111,7 +122,7 @@ Initial Implementation with Transformers and Pytorch
 
     # Install requirements
     %pip install -q "openvino>=2023.1.0"
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu transformers "torch>=2.1" "gradio>=4.19"
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu transformers "numpy<2" "torch>=2.1" "gradio>=4.19"
 
 .. code:: ipython3
 
@@ -126,15 +137,11 @@ Initial Implementation with Transformers and Pytorch
     import tqdm
     from PIL import Image
     from transformers import CLIPModel, CLIPProcessor
-
-
-.. parsed-literal::
-
-    2023-09-12 14:10:49.435909: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-09-12 14:10:49.470573: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-09-12 14:10:50.130215: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    open("notebook_utils.py", "w").write(r.text)
 
 To get the CLIP model, you will use the ``transformers`` library and the
 official ``openai/clip-vit-base-patch16`` from OpenAI. You can use any
@@ -208,7 +215,7 @@ parameters at the end, when you get an optimized model.
     query = "Who developed the Theory of General Relativity?"
     image_path = Path("example.jpg")
     
-    r = requests.get("https://www.storypick.com/wp-content/uploads/2016/01/AE-2.jpg")
+    r = requests.get("https://github.com/user-attachments/assets/a5bedef2-e915-4286-bcc9-d599083a99a6")
     
     with image_path.open("wb") as f:
         f.write(r.content)
@@ -495,14 +502,9 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    from notebook_utils import device_widget
     
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
     
     device
 
@@ -598,6 +600,7 @@ performance hint.
 .. code:: ipython3
 
     from typing import Dict, Any
+    import openvino.properties.hint as hints
     
     
     image_model = core.read_model(image_model_path)
@@ -605,7 +608,7 @@ performance hint.
     image_model = core.compile_model(
         model=image_model,
         device_name=device.value,
-        config={"PERFORMANCE_HINT": "THROUGHPUT"},
+        config={hints.performance_mode(): hints.PerformanceMode.THROUGHPUT},
     )
 
 .. code:: ipython3
@@ -862,26 +865,14 @@ Interactive demo with Gradio
 
 .. code:: ipython3
 
-    import gradio as gr
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/clip-language-saliency-map/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
     
+    from gradio_helper import make_demo
     
-    def _process(image, query, n_iters, min_crop_size, _=gr.Progress(track_tqdm=True)):
-        saliency_map = build_saliency_map(image, query, n_iters, min_crop_size, _tqdm=tqdm.tqdm, include_query=False)
+    demo = make_demo(build_saliency_map)
     
-        return saliency_map
-    
-    
-    demo = gr.Interface(
-        _process,
-        [
-            gr.Image(label="Image", type="pil"),
-            gr.Textbox(label="Query"),
-            gr.Slider(1, 10000, n_iters, label="Number of iterations"),
-            gr.Slider(1, 200, min_crop_size, label="Minimum crop size"),
-        ],
-        gr.Plot(label="Result"),
-        examples=[[image_path, query]],
-    )
     try:
         demo.queue().launch(debug=False)
     except Exception:
@@ -927,4 +918,4 @@ can explore the CLIP capabilities further. For example:
    `NNCF <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/quantizing-models-post-training/basic-quantization-flow.html>`__
    to get further acceleration. You can find example how to quantize
    CLIP model in `this
-   notebook <../clip-zero-shot-image-classification>`__
+   notebook <clip-zero-shot-image-classification-with-output.html>`__

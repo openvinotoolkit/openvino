@@ -48,6 +48,16 @@ public:
         FRONT_END_NOT_IMPLEMENTED(get_input);
     }
 
+    /// \brief Returns output of Variable node (or Variable value).
+    /// Variable is a special node that stores a value represented with a sub-graph.
+    /// Variable has a concrete value at each conversion step.
+    /// The current (consuming) operation node can change its value
+    /// so consumers of this Variable will have a new value at next conversion steps.
+    /// See ov::frontend::Variable class for more details.
+    virtual Output<Node> get_input_by_reference(int idx) const {
+        FRONT_END_NOT_IMPLEMENTED(get_input_by_reference);
+    }
+
     /// \brief Returns values from Constant input with the given index as ov::Any.
     ///        Throws an exception if the input cannot be represented as Constant.
     virtual Any get_values_from_const_input(int idx) const {

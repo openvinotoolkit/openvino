@@ -2,10 +2,10 @@
 
 ## Folders
 
-- `./docs` - documentation
-- `./node` - openvino-node npm package
+- [./docs](../docs/) - documentation
+- [./node](../node/) - openvino-node npm package
 
-## openvino-node Package Developer Documentation
+## `openvino-node` Package Developer Documentation
 
 ### Components
 
@@ -28,7 +28,6 @@
   ```bash
   cmake \
     -DCMAKE_BUILD_TYPE=Release \
-    -DENABLE_FASTER_BUILD=ON \
     -DCPACK_GENERATOR=NPM \
     -DENABLE_SYSTEM_TBB=OFF -UTBB* \
     -DENABLE_TESTS=OFF \
@@ -74,6 +73,10 @@
 ## Samples
 
 [OpenVINO™ Node.js Bindings Examples of Usage](../../../../samples/js/node/README.md)
+
+## Contributing
+
+Your contributions are welcome! Make sure to read the [Contribution Guide](https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/CONTRIBUTING.md) to learn how you can get involved.
 
 ## See Also
 

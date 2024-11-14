@@ -121,8 +121,9 @@ struct kernel_string {
     std::string options;
     std::string entry_point;
     bool batch_compilation;
+    bool has_microkernels;
 
-    kernel_string() : str(""), jit(""), undefs(""), options(""), entry_point(""), batch_compilation(false) {}
+    kernel_string() : str(""), jit(""), undefs(""), options(""), entry_point(""), batch_compilation(false), has_microkernels(false) {}
 
     std::string get_str() const { return str + jit + undefs + options + entry_point; }
     size_t get_hash() const { return std::hash<std::string>()(get_str()); }

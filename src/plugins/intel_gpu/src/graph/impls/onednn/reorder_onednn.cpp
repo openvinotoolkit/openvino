@@ -2,17 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "impls/onednn/utils.hpp"
+#include "reorder_onednn.hpp"
 #include "reorder_inst.h"
+#include "impls/onednn/utils.hpp"
 #include "primitive_onednn_base.h"
-#include "implementation_map.hpp"
-
-#include "kernel_selector_common.h"
+#include "impls/registry/implementation_manager.hpp"
 
 #include <oneapi/dnnl/dnnl.hpp>
 
-#include <algorithm>
 #include <memory>
+
 namespace cldnn {
 namespace onednn {
 
@@ -103,8 +102,10 @@ public:
         ib >> prim_cache;
 
         _scratchpad_md = _pd.scratchpad_desc();
-
-        _prim = dnnl::reorder(_pd, prim_cache);
+        if (prim_cache.size() > 0)
+            _prim = dnnl::reorder(_pd, prim_cache);
+        else
+            _prim = dnnl::reorder(_pd);
 #endif
     }
 
@@ -116,7 +117,7 @@ public:
         } else {
             auto& engine = impl_params.prog->get_engine();
             auto& config = impl_params.prog->get_config();
-            auto attr = arg.get_onednn_primitive_attributes();
+            auto attr = impl_params.attrs_onednn;
             auto prim_desc = get_reorder_primitive_descriptor(impl_params, *attr);
             return cldnn::make_unique<reorder_onednn>(engine, config, attr, *prim_desc);
         }
@@ -147,14 +148,19 @@ public:
     }
 };
 
-namespace detail {
-
-attach_reorder_onednn::attach_reorder_onednn() {
-    implementation_map<reorder>::add(impl_types::onednn, reorder_onednn::create, {});
-    WeightsReordersFactory::add(cldnn::impl_types::onednn, shape_types::static_shape, reorder_onednn::create_reorder_weights);
+std::unique_ptr<primitive_impl> ReorderImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
+    assert(node.is_type<reorder>());
+    return onednn::reorder_onednn::create(static_cast<const reorder_node&>(node), params);
 }
 
-}  // namespace detail
+std::unique_ptr<primitive_impl> ReorderImplementationManager::create_impl(const kernel_impl_params& params) const {
+    bool is_reorder_weights = format::is_weights_format(params.get_input_layout().format) ||
+                              format::is_weights_format(params.get_output_layout().format);
+    OPENVINO_ASSERT(is_reorder_weights);
+
+    return onednn::reorder_onednn::create_reorder_weights(params);
+}
+
 }  // namespace onednn
 }  // namespace cldnn
 

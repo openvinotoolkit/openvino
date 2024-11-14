@@ -1,9 +1,11 @@
-.. {#openvino_docs_OV_UG_supported_plugins_CPU}
-
 CPU Device
 ==========
 
+.. toctree::
+   :maxdepth: 1
+   :hidden:
 
+   cpu-device/performance-hint-and-thread-scheduling
 
 .. meta::
    :description: The CPU plugin in the Intel® Distribution of OpenVINO™ toolkit
@@ -51,24 +53,27 @@ the ``ov::Core::compile_model()`` method:
          :fragment: [compile_model_default]
 
 
-Supported Inference Data Types
-###########################################################
+Supported Model Precision
+#########################
 
 CPU plugin supports the following data types as inference precision of internal primitives:
 
 - Floating-point data types:
 
-  - ``f32`` (Intel® x86-64, Arm®)
-  - ``bf16`` (Intel® x86-64)
-  - ``f16`` (Intel® x86-64, Arm®)
+  - ``FP32`` (Intel® x86-64, Arm®)
+  - ``BF16`` (Intel® x86-64)
+  - ``FP16`` (Intel® x86-64, Arm®)
+  - ``:ref:`MXFP4 <mxfp4_support>``` (Intel® x86-64)
+
 - Integer data types:
 
-  - ``i32`` (Intel® x86-64, Arm®)
+  - ``INT32`` (Intel® x86-64, Arm®)
+
 - Quantized data types:
 
-  - ``u8`` (Intel® x86-64)
-  - ``i8`` (Intel® x86-64)
-  - ``u1`` (Intel® x86-64)
+  - ``uINT8`` (Intel® x86-64)
+  - ``INT8`` (Intel® x86-64)
+  - ``uINT1`` (Intel® x86-64)
 
 :doc:`Hello Query Device C++ Sample <../../../learn-openvino/openvino-samples/hello-query-device>` can be used to print out supported data types for all detected devices.
 
@@ -205,11 +210,11 @@ For more details and code examples, see the :doc:`Precision Control <../optimize
 Supported Features
 ###########################################################
 
-Multi-device Execution
+Automatic Device Selection
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 If a system includes OpenVINO-supported devices other than the CPU (e.g. an integrated GPU), then any supported model can be executed on all the devices simultaneously.
-This can be achieved by specifying ``MULTI:CPU,GPU.0`` as a target device in case of simultaneous usage of CPU and GPU.
+This can be achieved by specifying ``AUTO:CPU,GPU.0`` as a target device, and adding the ``CUMULATIVE_THROUGHPUT`` parameter.
 
 .. tab-set::
 
@@ -218,17 +223,19 @@ This can be achieved by specifying ``MULTI:CPU,GPU.0`` as a target device in cas
 
       .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_cpu.py
          :language: py
-         :fragment: [compile_model_multi]
+         :fragment: [compile_model_auto]
 
    .. tab-item:: C++
       :sync: cpp
 
       .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_cpu.cpp
          :language: cpp
-         :fragment: [compile_model_multi]
+         :fragment: [compile_model_auto]
 
 
-For more details, see the :doc:`Multi-device execution <multi-device>` article.
+For more details, see the :doc:`Automatic Device Selection <auto-device-selection>`.
+
+.. _multi_stream_execution:
 
 Multi-stream Execution
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -238,19 +245,13 @@ property is set for CPU plugin, then multiple streams are created for the model.
 host thread, which means that incoming infer requests can be processed simultaneously. Each stream is pinned to its own group of
 physical cores with respect to NUMA nodes physical memory usage to minimize overhead on data transfer between NUMA nodes.
 
-For more details, see the :doc:`optimization guide <../optimize-inference>` and :doc:`threads scheduling introduction <cpu-device/performance-hint-and-threads-scheduling>`.
+For more details, see the :doc:`optimization guide <../optimize-inference>` and :doc:`thread scheduling introduction <cpu-device/performance-hint-and-thread-scheduling>`.
 
 .. note::
 
    When it comes to latency, be aware that running only one stream on multi-socket platform may introduce additional overheads
    on data transfer between NUMA nodes. In that case it is better to use the ``ov::hint::PerformanceMode::LATENCY`` performance hint.
    For more details see the :doc:`performance hints <../optimize-inference/high-level-performance-hints>` overview.
-
- .. toctree::
-    :maxdepth: 1
-    :hidden:
- 
-    cpu-device/performance-hint-and-threads-scheduling
 
 Dynamic Shapes
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -392,7 +393,7 @@ Multi-Threading Optimization
 
 CPU inference will infer an input or multiple inputs in parallel on multiple logical processors.
 
-For more details, see the :doc:`threads scheduling introduction <cpu-device/performance-hint-and-threads-scheduling>`.
+For more details, see the :doc:`thread scheduling introduction <cpu-device/performance-hint-and-thread-scheduling>`.
 
 
 Denormals Optimization

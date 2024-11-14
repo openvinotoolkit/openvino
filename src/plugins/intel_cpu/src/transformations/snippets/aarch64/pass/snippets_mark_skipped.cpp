@@ -5,7 +5,7 @@
 
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/op/subgraph.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 #include "transformations/utils/utils.hpp"
 #include "transformations/utils.hpp"
@@ -73,10 +73,14 @@ bool isFullyConnected(const std::shared_ptr<const ov::Node>& node) {
 }
 
 bool SupportsFusingWithConvolution_Simple(const std::shared_ptr<const Node> &node) {
-    // Note: some other operations support this fusing (Abs, Clamp, Elu, Sigmoid, SoftPlus, Sqrt).
+    // Note: some other operations support this fusing (SoftPlus, Sqrt).
     // Skip them here, when they are supported by Snippets ARM. Ticket: 141170.
-    return ov::is_type<ov::op::v0::Tanh>(node) ||
-           ov::is_type<ov::op::v0::Relu>(node);
+    return ov::is_type<ov::op::v0::Abs>(node) ||
+           ov::is_type<ov::op::v0::Clamp>(node) ||
+           ov::is_type<ov::op::v0::Elu>(node) ||
+           ov::is_type<ov::op::v0::Relu>(node) ||
+           ov::is_type<ov::op::v0::Sigmoid>(node) ||
+           ov::is_type<ov::op::v0::Tanh>(node);
 }
 // Convolution is a special case, since it supports peculiar fusings
 bool isSuitableConvolutionParent(const std::shared_ptr<const Node> &node) {
@@ -188,6 +192,28 @@ void MarkSubgraphOpAsSkipped(const std::shared_ptr<Node> &node) {
     }
 }
 
+bool isSuitableConvert(const std::shared_ptr<const Node>& node) {
+    if (!ov::is_type<ov::op::v0::Convert>(node))
+        return false;
+    auto isSuitableParent = [](const std::shared_ptr<const Node>& node) {
+        for (const auto& input : node->inputs()) {
+            const auto parent = input.get_source_output().get_node_shared_ptr();
+            if (!ov::is_type<ov::op::v3::ReadValue>(parent))
+                return false;
+        }
+        return true;
+    };
+    auto isSuitableChild = [](const std::shared_ptr<const Node>& node) {
+        for (const auto &out : node->outputs()) {
+            const auto &child = out.get_node_shared_ptr();
+            if (!ov::is_type<ov::op::v3::Assign>(child))
+                return false;
+        }
+        return true;
+    };
+    return isSuitableParent(node) || isSuitableChild(node);
+}
+
 auto is_skipped_op(const std::shared_ptr<ov::Node>& op) -> bool {
     return ov::is_type<ov::op::v0::Constant>(op) ||
            ov::is_type<ov::op::v0::Parameter>(op) ||
@@ -221,6 +247,9 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
                 SetNodeFusingType(node, NodeFusingType::FusedWithMatMul);
                 channelAxis = out_rank.is_static() ? out_rank.get_length() - 1 : DEFAULT_AXIS;
             }
+        } else if (isSuitableConvert(node)) {
+            SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
+            channelAxis = DEFAULT_AXIS;
         } else {
             for (const auto fusingChainType : getContinuableChains(node)) {
                 if (isSuitableChildForFusingBias(node, channelAxis)) {

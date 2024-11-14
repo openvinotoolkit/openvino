@@ -78,3 +78,19 @@ def test_symbol():
 
     new_dimension.set_symbol(dimension.get_symbol())
     assert dimension.get_symbol() == new_dimension.get_symbol(), "Check: Two symbols are equal: Symbol.__eq__"
+
+
+def test_symbol_hash():
+    symbol = Symbol()
+    assert isinstance(hash(symbol), int)
+
+    hash1 = hash(symbol)
+    hash2 = hash(symbol)
+    assert hash1 == hash2
+
+    symbol1 = Symbol()
+    symbol2 = Symbol()
+    assert hash(symbol1) != hash(symbol2)
+
+    symbols = {symbol1: "symbol1", symbol2: "symbol2"}
+    assert symbols[symbol1] == "symbol1"

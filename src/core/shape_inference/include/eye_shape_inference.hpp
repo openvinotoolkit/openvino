@@ -47,7 +47,8 @@ std::vector<TRShape> shape_infer(const Eye* op,
                                  const ITensorAccessor& ta = make_tensor_accessor()) {
     const auto& inputs_count = input_shapes.size();
     NODE_VALIDATION_CHECK(op, (inputs_count == 3 || inputs_count == 4));
-    TRShape output_shape;
+    auto output_shapes = std::vector<TRShape>(1);
+    auto& output_shape = output_shapes[0];
 
     for (size_t i = 0; i < 3; ++i) {
         util::check_1D_or_scalar_shape(op, input_shapes[i], eye::shape_names[i]);
@@ -66,7 +67,8 @@ std::vector<TRShape> shape_infer(const Eye* op,
                 output_shape = PartialShape::dynamic(batch_shape[0].get_length());
             }
         } else {
-            return {ov::PartialShape::dynamic()};
+            output_shape = PartialShape::dynamic();
+            return output_shapes;
         }
     }
 
@@ -86,7 +88,7 @@ std::vector<TRShape> shape_infer(const Eye* op,
         }
     }
 
-    return {output_shape};
+    return output_shapes;
 }
 }  // namespace v9
 }  // namespace op

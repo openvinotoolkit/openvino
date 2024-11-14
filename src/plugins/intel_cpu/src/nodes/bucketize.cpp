@@ -189,12 +189,12 @@ void Bucketize::prepareParams() {
     auto inputTensorMemPtr = getSrcMemoryAtPort(INPUT_TENSOR_PORT);
     auto inputBinsMemPtr = getSrcMemoryAtPort(INPUT_BINS_PORT);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW("Destination memory didn't allocate.");
-    if (!inputTensorMemPtr || !inputTensorMemPtr->isAllocated())
-        OPENVINO_THROW("Input tensor didn't allocate.");
-    if (!inputBinsMemPtr || !inputBinsMemPtr->isAllocated())
-        OPENVINO_THROW("Input bins didn't allocate.");
+    if (!dstMemPtr || !dstMemPtr->isDefined())
+        OPENVINO_THROW("Destination memory is undefined.");
+    if (!inputTensorMemPtr || !inputTensorMemPtr->isDefined())
+        OPENVINO_THROW("Input tensor is undefined.");
+    if (!inputBinsMemPtr || !inputBinsMemPtr->isDefined())
+        OPENVINO_THROW("Input bins is undefined.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
         OPENVINO_THROW("Preferable primitive descriptor is not set.");
 

@@ -2,19 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/affine.hpp"
-
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/multiply.hpp"
-
 using namespace ov::op;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector affine(const ov::frontend::onnx::Node& node) {
     // Affine is an obsolete experimental ONNX operation.
     // It takes one input tensor and produces one output tensor where
@@ -33,8 +31,9 @@ ov::OutputVector affine(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::Add>(std::make_shared<v1::Multiply>(data, alpha_const), beta_const)};
 }
 
-}  // namespace set_1
-}  // namespace op
+ONNX_OP("Affine", OPSET_SINCE(1), ai_onnx::opset_1::affine);
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

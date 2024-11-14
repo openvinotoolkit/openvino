@@ -77,6 +77,13 @@ OPENVINO_RUNTIME_API int get_number_of_blocked_cores();
 OPENVINO_RUNTIME_API bool with_cpu_x86_sse42();
 
 /**
+ * @brief      Checks whether CPU supports ARM NEON FP16 capability
+ * @ingroup    ov_dev_api_system_conf
+ * @return     `True` is ARM NEON FP16 instructions are available, `false` otherwise
+ */
+OPENVINO_RUNTIME_API bool with_cpu_neon_fp16();
+
+/**
  * @brief      Checks whether CPU supports AVX capability
  * @ingroup    ov_dev_api_system_conf
  * @return     `True` is AVX instructions are available, `false` otherwise
@@ -145,6 +152,13 @@ OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx_int8();
  * @return     `True` is tAMX_BF16 instructions are available, `false` otherwise
  */
 OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx_bf16();
+
+/**
+ * @brief      Checks whether CPU supports AMX fp16 capability
+ * @ingroup    ov_dev_api_system_conf
+ * @return     `True` is tAMX_FP16 instructions are available, `false` otherwise
+ */
+OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx_fp16();
 
 /**
  * @brief      Checks whether CPU supports AMX capability

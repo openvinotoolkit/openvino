@@ -61,13 +61,21 @@ size_t store_emitter_params::hash() const {
     return seed;
 }
 
-static int get_aux_regs_as_temp(const int elem_count, const int data_size, bool is_pure_move,
+static int get_aux_regs_as_temp(const int elem_count, const int data_size, bool is_pure_move, bool is_store_as_real16,
                                 const int avx512_threshold_for_mask = 0, const bool is_fill = false) {
     if (mayiuse(cpu::x64::avx512_core) && is_fill)
         return 1;
-
+    // for pure move, there are direct no-mask instructions to move on full xmm/ymm/zmm, so aux_gpr is not needed.
+    // for move+convert:
+    // there are direct no-mask instructions to load i8/u8/i16/u16/bf16/fp16 to full xmm/ymm/zmm as f32/i32, so aux_gpr is not needed.
+    // there are direct no-mask instructions to store i32 on full xmm/ymm/zmm to i8/u8/i16/u16, so aux_gpr is not needed.
+    // store f32 on full xmm/ymm/zmm to bf16/fp16, need convert to bf16/fp16 on vmm, then store vmm to memory, use store_dword_to_word/byte_base condition.
+    // store_num == 16, vector: 16 * f32 -> 16 * bf16 -> ymm(256bit) -> store
+    // store_num == 8,  vector:  8 * f32 ->  8 * bf16 -> xmm(128bit)  -> store
+    // store_num == 4,  vector:  4 * f32 ->  4 * bf16 ->       64bit  -> masked instruction with aux_gpr needed
+    // f32<->i32 is on full vmm, so aux_gpr is not needed.
     const int byte_size = elem_count * data_size;
-    if ((is_pure_move && one_of(byte_size, 16, 32, 64)) || (!is_pure_move && one_of(elem_count, 4, 8, 16)))
+    if ((is_pure_move && one_of(byte_size, 16, 32, 64)) || (!is_pure_move && one_of(elem_count, 4, 8, 16) && !is_store_as_real16))
         return 0;
     if ((mayiuse(cpu::x64::avx512_core) && (byte_size > avx512_threshold_for_mask)) || (one_of(byte_size % 16, 1, 2, 3)))
         return 1;
@@ -92,7 +100,7 @@ size_t jit_load_emitter::aux_gprs_count() const {
     const auto is_pure_load = (src_prc_ == dst_prc_) ||
                                 (one_of(src_prc_, ov::element::f32, ov::element::i32) &&
                                  one_of(dst_prc_, ov::element::f32, ov::element::i32));
-    int count = get_aux_regs_as_temp(load_num_, static_cast<int>(src_prc_.size()), is_pure_load, threshold_for_mask_emu_load, is_fill_);
+    int count = get_aux_regs_as_temp(load_num_, static_cast<int>(src_prc_.size()), is_pure_load, false, threshold_for_mask_emu_load, is_fill_);
 
     // 1 for table address
     if (is_fill_)
@@ -102,6 +110,7 @@ size_t jit_load_emitter::aux_gprs_count() const {
 }
 
 void jit_load_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
+    // offset in load emitter is the offset of src gpr register, should be parsed from in_idxs.
     const int offset = in_idxs.size() == 2 ? in_idxs[1] : 0;
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(Reg64(in_idxs[0]), static_cast<int>(out_idxs[0]), offset);
@@ -630,7 +639,8 @@ size_t jit_store_emitter::aux_gprs_count() const {
     const auto is_pure_store = (src_prc_ == dst_prc_) ||
                                 (one_of(src_prc_, ov::element::f32, ov::element::i32) &&
                                  one_of(dst_prc_, ov::element::f32, ov::element::i32));
-    int count = get_aux_regs_as_temp(store_num_, static_cast<int>(dst_prc_.size()), is_pure_store, threshold_for_mask_emu_store);
+    const auto is_store_as_real16 = one_of(dst_prc_, ov::element::bf16, ov::element::f16);
+    int count = get_aux_regs_as_temp(store_num_, static_cast<int>(dst_prc_.size()), is_pure_store, is_store_as_real16, threshold_for_mask_emu_store);
 
     // for table value in truncation arithmetic mode
     if (is_truncation_emulation())
@@ -667,7 +677,8 @@ void jit_store_emitter::emit_data() const {
 }
 
 void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
-    const int offset = in_idxs.size() == 2 ? in_idxs[1] : 0;
+    // offset in store emitter is the offset of dst gpr register, should be parsed from out_idxs.
+    const int offset = out_idxs.size() == 2 ? out_idxs[1] : 0;
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(static_cast<int>(in_idxs[0]), Reg64(out_idxs[0]), offset);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -695,7 +706,8 @@ void jit_store_emitter::emit_isa(const int in_vec_idx, const Xbyak::Reg64 &reg_d
 
     data_idx = in_vec_idx;
     data_reg_updated = false;
-    aux_src_idx = aux_vec_idxs.back(); // for avoid src pollution
+    if (!aux_vec_idxs.empty())
+        aux_src_idx = aux_vec_idxs.back(); // to avoid src pollution
     if (src_prc_ != dst_prc_) {
         switch (src_prc_) {
             case ov::element::f32:

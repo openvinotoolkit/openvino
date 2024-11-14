@@ -63,7 +63,7 @@ ov::AnyMap ov::auto_plugin::CompiledModel::get_device_supported_properties(AutoC
     OPENVINO_ASSERT(context.m_compiled_model);
     auto device_supported_properties = context.m_compiled_model->get_property(ov::supported_properties.name());
     for (auto&& property_name : device_supported_properties.as<std::vector<ov::PropertyName>>()) {
-        // for lto issue, explictly do the conversion here
+        // For LTO issue, explicitly do the conversion here
         std::string query_name = property_name;
         device_properties[property_name] = context.m_compiled_model->get_property(query_name);
     }

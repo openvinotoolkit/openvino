@@ -21,7 +21,7 @@
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "intel_gpu/runtime/itt.hpp"
-#include "runtime/kernels_cache.hpp"
+#include "impls/ocl/kernels_cache.hpp"
 
 // TODO: add generic interface for weights_reorder_params and get rid of this dependency
 #include "impls/ocl/kernel_selector_helper.h"
@@ -40,6 +40,8 @@ class primitive_inst;
 template <class PType>
 class typed_primitive_inst;
 
+struct ImplementationManager;
+
 /*
     Base class for all implementations.
 */
@@ -53,12 +55,13 @@ struct primitive_impl {
     virtual ~primitive_impl() = default;
 
     virtual std::vector<layout> get_internal_buffer_layouts() const = 0;
+    virtual std::set<size_t> get_lockable_internal_buffers() const { return {}; }
     virtual void set_node_params(const program_node&) {}
     virtual const std::string& get_type_info() const = 0;
     virtual void set_arguments(primitive_inst& instance) = 0;
     virtual void set_arguments(primitive_inst& instance, kernel_arguments_data& args) = 0;
     virtual event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) = 0;
-    std::string get_kernel_name() const { return _kernel_name; }
+    const std::string& get_kernel_name() const { return _kernel_name; }
 
     // class typed_primitive_gpu_impl override this with return false;
     virtual bool is_cpu() const { return true; }
@@ -99,13 +102,16 @@ struct primitive_impl {
 
     // If this flag is set as false, the memory allocated for this primitive is not allowed to be reused
     bool can_reuse_memory = true;
+    bool can_share_kernels = false;
 
     void set_dynamic(bool val) { _is_dynamic = val; }
     bool is_dynamic() const { return _is_dynamic; }
 
-    virtual void update_dispatch_data(const kernel_impl_params& impl_params) {
-        OPENVINO_ASSERT(_is_dynamic, "[GPU] update_dispatch_data is called for static shape implementation ", _kernel_name);
-        OPENVINO_ASSERT(false, "[GPU] update_dispatch_data is not implemented for dynamic implemenation ", _kernel_name);
+    virtual void update(primitive_inst& inst, const kernel_impl_params& impl_params) { }
+
+    virtual bool requires_update(primitive_inst& inst, const kernel_impl_params& impl_params) const {
+        OPENVINO_ASSERT(_is_dynamic, "[GPU] requires_update() is called for static shape implementation ", _kernel_name);
+        return false;
     }
 
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params);
@@ -122,10 +128,24 @@ struct primitive_impl {
 
     std::shared_ptr<kernel_impl_params> get_weights_reorder_kernel_params() const;
 
+    const ImplementationManager* m_manager = nullptr;
+
 protected:
     std::shared_ptr<WeightsReorderParams> _weights_reorder_params = nullptr;
     std::string _kernel_name;
     bool _is_dynamic = false;
+};
+
+struct ImplementationsFactory {
+    ImplementationsFactory(const program_node* node);
+
+    const program_node* m_node;
+    std::vector<std::shared_ptr<ImplementationManager>> m_available_impls;
+    program::ImplementationsCache& m_static_impls_cache;
+    std::vector<std::shared_ptr<primitive_impl>> m_dynamic_impls_cache;
+
+    std::shared_ptr<primitive_impl> get_primitive_impl_for_params(primitive_inst& inst, const kernel_impl_params& params, bool use_async_compilation);
+    bool has(impl_types impl_type) const;
 };
 
 /*
@@ -166,8 +186,8 @@ public:
         return true;
     }
     primitive_type_id type() const { return _type; }
-    primitive_id id() const { return _id; }
-    primitive_id org_id() const { return _org_id; }
+    const primitive_id& id() const { return _id; }
+    const primitive_id& org_id() const { return _org_id; }
     bool can_be_optimized() const { return _can_be_optimized; }
     void set_can_be_optimized(bool optimized) {
         // TODO: consolidate to _impl_param in the future
@@ -240,6 +260,8 @@ public:
     void do_runtime_skip_broadcast();
     void do_runtime_in_place_concat();
     void do_runtime_in_place_kv_cache();
+    void do_runtime_in_place_crop();
+    void do_runtime_skip_scatter_update();
     void configure_shape_of_dependencies();
 
     memory::ptr fused_memory(size_t dep_id) const {
@@ -302,6 +324,9 @@ public:
     virtual void update_output_memory() {}
 
     virtual int32_t get_prealloc_iter_num() { return -1; }
+    virtual void update_shape_info_tensor(const kernel_impl_params& params);
+    kernel_impl_params get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param);
+    bool all_dependencies_cpu_impl() const;
 
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
@@ -313,8 +338,8 @@ protected:
     bool update_shape_done_by_other = false;
     bool allocation_done_by_other = false;
     std::unique_ptr<kernel_impl_params> _impl_params;
-    std::unique_ptr<primitive_impl> _impl;
-    std::unique_ptr<primitive_impl> _dynamic_impl = nullptr;
+    std::shared_ptr<primitive_impl> _impl;
+    std::shared_ptr<ImplementationsFactory> _impls_factory = nullptr;
 
     // this is a set of dependencies in terms of memory, if execution of this primitive requires data from another one,
     // it should be added to this set
@@ -375,13 +400,14 @@ protected:
     bool _is_constant = false;
     bool _needs_completion_event = false;
 
-    size_t _max_output_layout_count = 0;
+    std::vector<size_t> _max_output_layout_count;
     std::vector<size_t> max_intermediates_memory_sizes;
 
     std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr,
                                               bool reset_mem = true,
                                               bool runtime_alloc = false);
     memory::ptr allocate_internal_buffer(size_t idx, bool reset = true);
+    void allocate_shape_info_memory();
     static std::vector<primitive_inst*> build_exec_deps(
         std::vector<std::pair<primitive_inst*, int32_t>> const& mem_deps);
     int32_t get_index_in_deps(memory::cptr arg) const;
@@ -392,12 +418,11 @@ protected:
 
     virtual void update_shape();
     virtual event::ptr update_weights();
-    virtual void update_shape_info_tensor(const kernel_impl_params& params);
 
     void fill_shape_info_data(const layout& runtime_layout, const layout& node_layout, int32_t* shape_info_ptr, size_t& offset);
     bool use_async_compilation();
     // if primitive_inst doesn't replace impl to new impl(static impl with opt kerenl or dynamic impl), return false
-    bool update_impl();
+    bool update_impl(bool use_async_compilation);
     event::ptr realloc_if_needed();
 
     cldnn::network::ptr get_unfused_subgraph();
@@ -437,12 +462,7 @@ protected:
     }
 
     virtual bool need_reset_output_memory() const {
-        std::vector<std::pair<primitive_id, size_t>> users;
-        for (auto u : _node->get_users())
-            users.emplace_back(u->id(), u->get_dependency_index(*_node));
-
-        for (const auto& u : users) {
-            auto user_inst = _network.get_primitive(u.first);
+        for (const auto& user_inst : get_user_insts()) {
             // Check users of optimized_out inst, as the optimized out inst will not be able to
             // reset it's memory
             if (user_inst->can_be_optimized()) {
@@ -451,13 +471,11 @@ protected:
                 continue;
             }
 
-            if (user_inst->need_reset_input_memory(u.second))
+            if (user_inst->need_reset_input_memory(user_inst->get_node().get_dependency_index(*_node)))
                 return true;
         }
         return false;
     }
-
-    kernel_impl_params get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param);
 
     // This could be implemented via single map std::unordered_map<instrumentation::perf_counter_key, std::tuple<int64_t, size_t>>
     // but the overhead on using perf_counter_key as map key is too big, thus we use hash as map key

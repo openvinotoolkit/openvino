@@ -130,19 +130,19 @@ NMS9Attributes get_nms9_attrs(const std::shared_ptr<ov::Node>& root) {
     attrs.sort_result_descending = false;
     attrs.is_supported_nms = false;
 
-    auto nms_5 = std::dynamic_pointer_cast<ov::op::v5::NonMaxSuppression>(root);
+    auto nms_5 = ov::as_type_ptr<ov::op::v5::NonMaxSuppression>(root);
     if (nms_5) {
         return get_nms9_attrs_from_nms5(nms_5);
     }
-    auto nms_4 = std::dynamic_pointer_cast<ov::op::v4::NonMaxSuppression>(root);
+    auto nms_4 = ov::as_type_ptr<ov::op::v4::NonMaxSuppression>(root);
     if (nms_4) {
         return get_nms9_attrs_from_nms4(nms_4);
     }
-    auto nms_3 = std::dynamic_pointer_cast<ov::op::v3::NonMaxSuppression>(root);
+    auto nms_3 = ov::as_type_ptr<ov::op::v3::NonMaxSuppression>(root);
     if (nms_3) {
         return get_nms9_attrs_from_nms3(nms_3);
     }
-    auto nms_1 = std::dynamic_pointer_cast<ov::op::v1::NonMaxSuppression>(root);
+    auto nms_1 = ov::as_type_ptr<ov::op::v1::NonMaxSuppression>(root);
     if (nms_1) {
         return get_nms9_attrs_from_nms1(nms_1);
     }
@@ -184,7 +184,7 @@ bool nms_to_nms9_callback_func(pass::pattern::Matcher& m, pass::MatcherPass* imp
     nms_9->set_friendly_name(root->get_friendly_name());
     ov::copy_runtime_info(root, nms_9);
     // nms0-4 have one output, nms5/9 have 3 outputs.
-    if (std::dynamic_pointer_cast<ov::op::v5::NonMaxSuppression>(root))
+    if (ov::as_type_ptr<ov::op::v5::NonMaxSuppression>(root))
         ov::replace_node(root, nms_9);
     else
         root->output(0).replace(nms_9->output(0));

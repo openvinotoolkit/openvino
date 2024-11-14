@@ -44,7 +44,7 @@ std::vector<TRShape> shape_infer(const util::GatherBase* op,
         axis_is_set = true;
 
         if (data_rank.is_static()) {
-            axis = ov::util::normalize_axis(op, axis, data_rank);
+            axis = ov::util::try_normalize_axis(axis, data_rank, *op);
         }
         // batch_dims, axis both can be positive by default or after normalization if data_rank &
         // indices_rank are static.
@@ -106,7 +106,7 @@ std::vector<TRShape> shape_infer(const util::GatherBase* op,
         auto out_rank = data_rank + indices_rank - 1 - batch_dims;
         if (batch_dims < 0)
             out_rank = out_rank - indices_rank.get_max_length();
-        output_pshape = PartialShape::dynamic(out_rank);
+        output_pshape = PartialShape::dynamic(std::move(out_rank));
     }
     return output_shapes;
 }

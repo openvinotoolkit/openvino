@@ -14,8 +14,9 @@ IR model.
 Source of the
 `model <https://www.paddlepaddle.org.cn/hubdetail?name=mobilenet_v3_large_imagenet_ssld&en_category=ImageClassification>`__.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
+
 
 -  `Preparation <#preparation>`__
 
@@ -32,6 +33,16 @@ Table of contents:
 -  `Timing and Comparison <#timing-and-comparison>`__
 -  `Select inference device <#select-inference-device>`__
 -  `References <#references>`__
+
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
 Preparation
 -----------
@@ -52,7 +63,7 @@ Imports
     else:
         %pip install -q "paddlepaddle>=2.5.1"
     %pip install -q "paddleclas>=2.5.2" --no-deps
-    %pip install -q "prettytable" "ujson" "visualdl>=2.5.3" "faiss-cpu>=1.7.1" Pillow tqdm
+    %pip install -q "prettytable" "ujson" "visualdl>=2.5.3" "faiss-cpu>=1.7.1" Pillow tqdm "matplotlib>=3.4"
     # Install openvino package
     %pip install -q "openvino>=2023.1.0"
 
@@ -64,7 +75,7 @@ Imports
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
     paddleclas 2.5.2 requires easydict, which is not installed.
     paddleclas 2.5.2 requires gast==0.3.3, but you have gast 0.4.0 which is incompatible.
-    paddleclas 2.5.2 requires opencv-python==4.6.0.66, but you have opencv-python 4.9.0.80 which is incompatible.
+    paddleclas 2.5.2 requires opencv-python==4.6.0.66, but you have opencv-python 4.10.0.84 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
@@ -78,11 +89,11 @@ Imports
 
 .. parsed-literal::
 
-    --2024-05-16 00:54:56--  http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
+    --2024-11-05 02:15:59--  http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
     Resolving proxy-dmz.intel.com (proxy-dmz.intel.com)... 10.241.208.166
     Connecting to proxy-dmz.intel.com (proxy-dmz.intel.com)|10.241.208.166|:911... connected.
     Proxy request sent, awaiting response... 404 Not Found
-    2024-05-16 00:54:56 ERROR 404: Not Found.
+    2024-11-05 02:16:00 ERROR 404: Not Found.
     
     dpkg: error: cannot access archive 'libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb': No such file or directory
 
@@ -108,13 +119,13 @@ Imports
     
     open("notebook_utils.py", "w").write(r.text)
     
-    from notebook_utils import download_file
+    from notebook_utils import download_file, device_widget
 
 
 .. parsed-literal::
 
-    2024-05-16 00:54:58 INFO: Loading faiss with AVX512 support.
-    2024-05-16 00:54:58 INFO: Successfully loaded faiss with AVX512 support.
+    2024-11-05 02:16:02 INFO: Loading faiss with AVX512 support.
+    2024-11-05 02:16:02 INFO: Successfully loaded faiss with AVX512 support.
 
 
 Settings
@@ -198,7 +209,7 @@ inference on that image, and then show the top three prediction results.
 
 .. parsed-literal::
 
-    [2024/05/16 00:55:27] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
+    [2024/11/05 02:16:41] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
     Labrador retriever, 0.75138
     German short-haired pointer, 0.02373
     Great Dane, 0.01848
@@ -264,7 +275,7 @@ clipping values.
 
 .. parsed-literal::
 
-    2024-05-16 00:55:27 WARNING: Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
+    2024-11-05 02:16:42 WARNING: Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
 
 
 .. parsed-literal::
@@ -276,7 +287,7 @@ clipping values.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7fa3f4283910>
+    <matplotlib.image.AxesImage at 0x7f192c379400>
 
 
 
@@ -332,15 +343,8 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
     core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
     
     device
 
@@ -422,12 +426,15 @@ Note that many optimizations are possible to improve the performance.
 
 .. code:: ipython3
 
+    import openvino.properties as props
+    
+    
     # Show device information
     core = ov.Core()
     devices = core.available_devices
     
     for device_name in devices:
-        device_full_name = core.get_property(device_name, "FULL_DEVICE_NAME")
+        device_full_name = core.get_property(device_name, props.device.full_name)
         print(f"{device_name}: {device_full_name}")
 
 
@@ -455,7 +462,7 @@ Note that many optimizations are possible to improve the performance.
 
 .. parsed-literal::
 
-    PaddlePaddle model on CPU: 0.0076 seconds per image, FPS: 132.29
+    PaddlePaddle model on CPU: 0.0074 seconds per image, FPS: 134.37
     
     PaddlePaddle result:
     Labrador retriever, 0.75138
@@ -516,7 +523,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    OpenVINO IR model in OpenVINO Runtime (AUTO): 0.0029 seconds per image, FPS: 340.41
+    OpenVINO IR model in OpenVINO Runtime (AUTO): 0.0027 seconds per image, FPS: 373.31
     
     OpenVINO result:
     Labrador retriever, 0.74909

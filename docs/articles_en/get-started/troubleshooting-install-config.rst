@@ -1,5 +1,3 @@
-.. {#openvino_docs_get_started_guide_troubleshooting}
-
 Troubleshooting Guide for OpenVINO™ Installation & Configuration
 ================================================================
 
@@ -61,7 +59,7 @@ Troubleshooting Guide for OpenVINO™ Installation & Configuration
 .. dropdown:: Check the versions of Python and PIP
 
    To check your Python version, run ``python -VV`` or ``python --version``. The supported
-   Python versions are 64-bit, between 3.8 and 3.11. If your Python version does not meet the
+   Python versions are 64-bit, between 3.9 and 3.12. If your Python version does not meet the
    requirements, you need to upgrade:
 
    * For Windows, **do not install Python from the Windows Store** as it can cause issues.
@@ -142,4 +140,18 @@ Troubleshooting Guide for OpenVINO™ Installation & Configuration
    For specific issues, see Errors with Installing via PIP for Users in China and Proxy issues
    with installing OpenVINO on Linux from Docker questions above.
 
+.. dropdown:: a Yocto Image error when adding the "meta-intel" layer
 
+   When using the ``bitbake-layers add-layer meta-intel`` command, the following error might
+   occur:
+
+   .. code-block:: sh
+
+      NOTE: Starting bitbake server...
+      ERROR: The following required tools (as specified by HOSTTOOLS) appear to be unavailable in PATH, please install them in order to proceed: chrpath diffstat pzstd zstd
+
+   To resolve the issue, install the ``chrpath diffstat zstd`` tools:
+
+   .. code-block:: sh
+
+      sudo apt-get install chrpath diffstat zstd

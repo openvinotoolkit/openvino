@@ -61,7 +61,7 @@ void * memory_ptr = NULL;
 //! [part4]
 // Get input port for model with one input
 ov_output_const_port_t* input_port = NULL;
-ov_model_const_input(model, &input_port);
+ov_compiled_model_input(compiled_model, &input_port);
 // Get the input shape from input port
 ov_shape_t input_shape;
 ov_const_port_get_shape(input_port, &input_shape);

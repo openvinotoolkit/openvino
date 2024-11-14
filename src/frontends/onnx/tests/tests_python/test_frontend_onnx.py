@@ -10,6 +10,8 @@ from onnx.helper import make_graph, make_model, make_tensor_value_info
 import pytest
 from pathlib import Path
 from itertools import chain
+import tempfile
+import shutil
 
 from openvino.frontend import FrontEndManager
 from tests.runtime import get_runtime
@@ -318,8 +320,15 @@ def test_load_by_model():
     decoded_function = fe.decode(model)
     assert decoded_function
 
-    assert not fem.load_by_model("test.xx")
-    assert not fem.load_by_model("onnx.yy")
+    with pytest.raises(Exception) as e:
+        fem.load_by_model("test.xx")
+
+    assert e.match(r'Could not open the file: "test.xx"')
+
+    with pytest.raises(Exception) as e:
+        fem.load_by_model("onnx.yy")
+
+    assert e.match(r'Could not open the file: "onnx.yy"')
 
 
 def test_onnx_conversion_extension_check_attributes():
@@ -772,12 +781,11 @@ def test_op_extension_via_frontend_extension_map_attributes():
 
 
 def get_builtin_extensions_path():
-    win_folder_path = Path(__file__).parent.parent.parent.parent
-    linux_folder_path = win_folder_path.joinpath("lib")
+    ci_tests_path = Path(__file__).resolve().parents[3]
     for lib_path in chain(
-        win_folder_path.glob("*.dll"), linux_folder_path.glob("*.so")
+        ci_tests_path.glob("*.dll"), ci_tests_path.glob("*.so")
     ):
-        if "libtest_builtin_extensions" in lib_path.name:
+        if "test_builtin_extensions" in lib_path.name:
             return str(lib_path)
     return ""
 
@@ -818,6 +826,32 @@ def test_so_extension_via_frontend_decode_input_model():
         load_decoded_model()
     )  # decoded model has longer lifetime than frontend
     assert decoded_model
+
+
+@pytest.mark.skipif(
+    len(get_builtin_extensions_path()) == 0,
+    reason="The extension library path was not found",
+)
+def test_add_extension_unicode_paths():
+    skip_if_onnx_frontend_is_disabled()
+
+    test_directory = Path(__file__).resolve().parent
+    unicode_characters = r"晚安_путь_к_файлу"
+    with tempfile.TemporaryDirectory(dir=test_directory, prefix=unicode_characters) as temp_dir:
+        extension_path = Path(get_builtin_extensions_path())
+        temp_extension_path = Path(temp_dir) / extension_path.name
+        shutil.copyfile(extension_path, temp_extension_path)
+
+        assert os.path.exists(temp_extension_path), "Could not create an extension library with unicode path."
+
+        def convert_model(path):
+            fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+            fe.add_extension(path)
+            in_model = fe.load(onnx_model_2_filename)
+            converted_model = fe.convert(in_model)
+            assert converted_model
+
+        convert_model(temp_extension_path)
 
 
 def test_load_bytesio_model():

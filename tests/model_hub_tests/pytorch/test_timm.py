@@ -6,18 +6,18 @@ import os
 import pytest
 import timm
 import torch
-from models_hub_common.utils import get_models_list
+from models_hub_common.utils import get_models_list, retry
 
-from torch_utils import TestTorchConvertModel, process_pytest_marks
+from torch_utils import TestTorchConvertModel
 
 
 def filter_timm(timm_list: list) -> list:
     unique_models = dict()
     filtered_list = []
-    ignore_list = ["base", "atto", "femto", "xxtiny", "xxsmall", "xxs", "pico",
-                   "xtiny", "xmall", "xs", "nano", "tiny", "s", "mini", "small",
-                   "lite", "medium", "m", "big", "large", "l", "xlarge", "xl",
-                   "huge", "xxlarge", "gigantic", "giant", "enormous"]
+    ignore_list = ["base", "zepto", "atto", "femto", "xxtiny", "xxsmall", "xxs",
+                   "pico", "xtiny", "xmall", "xs", "nano", "tiny", "s", "mini",
+                   "small", "lite", "medium", "m", "big", "large", "l", "xlarge",
+                   "xl", "huge", "xxlarge", "gigantic", "giant", "enormous"]
     ignore_set = set(ignore_list)
     for name in sorted(timm_list):
         if "x_" in name:
@@ -42,15 +42,12 @@ def filter_timm(timm_list: list) -> list:
     return sorted([v[1] for v in unique_models.values()])
 
 
-def get_all_models() -> list:
-    return process_pytest_marks(os.path.join(os.path.dirname(__file__), "timm_models"))
-
-
 # To make tests reproducible we seed the random generator
 torch.manual_seed(0)
 
 
 class TestTimmConvertModel(TestTorchConvertModel):
+    @retry(3, exceptions=(OSError,), delay=5)
     def load_model(self, model_name, model_link):
         m = timm.create_model(model_name, pretrained=True)
         cfg = timm.get_pretrained_cfg(model_name)
@@ -75,17 +72,24 @@ class TestTimmConvertModel(TestTorchConvertModel):
                                       "vit_base_patch8_224.augreg_in21k",
                                       "beit_base_patch16_224.in22k_ft_in22k",
                                       "sequencer2d_l.in1k",
-                                      "gcresnext26ts.ch_in1k"])
+                                      "gcresnext26ts.ch_in1k",
+                                      "volo_d2_224.sail_in1k"])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, ie_device):
         self.mode = "trace"
         self.run(name, None, ie_device)
 
     @pytest.mark.nightly
-    @pytest.mark.parametrize("name", get_all_models())
+    @pytest.mark.parametrize("name,link,mark,reason", get_models_list(os.path.join(os.path.dirname(__file__), "timm_models")))
     @pytest.mark.parametrize("mode", ["trace", "export"])
-    def test_convert_model_all_models(self, mode, name, ie_device):
+    def test_convert_model_all_models(self, mode, name, link, mark, reason, ie_device):
         self.mode = mode
+        assert mark is None or mark in [
+            'skip', 'xfail', 'xfail_trace', 'xfail_export'], f"Incorrect test case for {name}"
+        if mark == 'skip':
+            pytest.skip(reason)
+        elif mark in ['xfail', f'xfail_{mode}']:
+            pytest.xfail(reason)
         self.run(name, None, ie_device)
 
     @pytest.mark.nightly

@@ -34,6 +34,10 @@ else()
     set(MLAS_LIBRARY "mlas")
 endif()
 
+if (ENABLE_SHL_FOR_CPU)
+    set(SHL_LIBRARY "shl")
+endif()
+
 ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -61,10 +65,18 @@ ov_add_test_target(
             ov_snippets_models
             snippets_test_utils
             ${MLAS_LIBRARY}
+            ${SHL_LIBRARY}
         ADD_CPPLINT
         LABELS
             OV UNIT CPU
 )
+
+if (ENABLE_SNIPPETS_LIBXSMM_TPP)
+    add_definitions(-DSNIPPETS_LIBXSMM_TPP -DLIBXSMM_DEFAULT_CONFIG)
+    target_compile_definitions(xsmm PRIVATE __BLAS=0)
+    target_link_libraries(${TARGET_NAME} PRIVATE xsmm)
+    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:xsmm,INCLUDE_DIRECTORIES>)
+endif()
 
 # LTO
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})

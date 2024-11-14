@@ -16,7 +16,6 @@
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/util/file_util.hpp"
 
-using namespace testing;
 using namespace ov::util;
 
 TEST(CoreTests, Throw_on_register_plugin_twice) {

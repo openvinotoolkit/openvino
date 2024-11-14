@@ -90,6 +90,11 @@ std::vector<EltwiseTypes> eltwise_op_types_dynamic = {
         EltwiseTypes::POWER,
 };
 
+std::vector<EltwiseTypes> bitshift_types = {
+        EltwiseTypes::LEFT_SHIFT,
+        EltwiseTypes::RIGHT_SHIFT
+};
+
 ov::test::Config additional_config = {};
 
 const auto multiply_params = ::testing::Combine(
@@ -176,5 +181,53 @@ const auto single_thread_params = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_SingleThread, EltwiseLayerTest, single_thread_params, EltwiseLayerTest::getTestCaseName);
 
+std::vector<ov::test::ElementType> intOnly_netPrecisions = {
+        ov::element::i32,
+        ov::element::i8,
+        ov::element::u8,
+        ov::element::u16,
+        ov::element::i16,
+        ov::element::u32,
+};
+
+std::vector<std::vector<ov::Shape>> in_shapes_static_small_set = {
+        {{2}},
+        {{2, 10}, {1}},
+        {{4, 3, 8}, {1, 8}},
+        {{2, 7, 5, 4}, {1, 7, 1, 1}},
+        {{1, 7, 5, 1}, {2, 7, 1, 4}},
+};
+
+const auto bitwise_shift_params_static = ::testing::Combine(
+        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(in_shapes_static_small_set)),
+        ::testing::ValuesIn(bitshift_types),
+        ::testing::ValuesIn(secondary_input_types),
+        ::testing::ValuesIn(op_types_dynamic),
+        ::testing::ValuesIn(intOnly_netPrecisions),
+        ::testing::Values(ov::element::undefined),
+        ::testing::Values(ov::element::undefined),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
+        ::testing::Values(additional_config));
+
+INSTANTIATE_TEST_SUITE_P(smoke_shared_CompareWithRefs_BitwiseShift_Static,
+                         EltwiseLayerTest,
+                         bitwise_shift_params_static,
+                         EltwiseLayerTest::getTestCaseName);
+
+const auto bitwise_shift_params_dynamic = ::testing::Combine(
+        ::testing::ValuesIn(in_shapes_dynamic),
+        ::testing::ValuesIn(bitshift_types),
+        ::testing::ValuesIn(secondary_input_types_dynamic),
+        ::testing::ValuesIn(op_types_dynamic),
+        ::testing::ValuesIn(intOnly_netPrecisions),
+        ::testing::Values(ov::element::undefined),
+        ::testing::Values(ov::element::undefined),
+        ::testing::Values(ov::test::utils::DEVICE_CPU),
+        ::testing::Values(additional_config));
+
+INSTANTIATE_TEST_SUITE_P(smoke_shared_CompareWithRefs_BitwiseShift_Dynamic,
+                         EltwiseLayerTest,
+                         bitwise_shift_params_dynamic,
+                         EltwiseLayerTest::getTestCaseName);
 
 } // namespace

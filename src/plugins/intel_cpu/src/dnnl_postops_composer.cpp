@@ -615,12 +615,13 @@ static MemoryPtr prepackDecompressionParams(const MemoryCPtr& paramsPtr,
     return dstMem;
 }
 
-void DnnlPostOpsComposer::appendDecompressionScales(const MemoryCPtr& scales_ptr, bool needTranspose) {
+void DnnlPostOpsComposer::appendDecompressionScales(const MemoryCPtr& scales_ptr, bool needTranspose, ov::element::Type dstPrecision) {
     if (scales_ptr == nullptr)
         return;
 
-    auto scalesMem = prepackDecompressionParams(scales_ptr, needTranspose, ov::element::f32, engine);
-    attr.set_scales_dims(DNNL_ARG_WEIGHTS, DnnlExtensionUtils::convertToDnnlDims(scalesMem->getStaticDims()));
+    auto scalesMem = prepackDecompressionParams(scales_ptr, needTranspose, dstPrecision, engine);
+    attr.set_scales_dims(DNNL_ARG_WEIGHTS,
+        DnnlExtensionUtils::convertToDnnlDims(scalesMem->getStaticDims()), DnnlExtensionUtils::ElementTypeToDataType(dstPrecision));
     cpuArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS] = std::move(scalesMem);
     dnnlArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS] =
         cpuArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS]->getPrimitive();

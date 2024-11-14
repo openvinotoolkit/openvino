@@ -19,8 +19,9 @@ to build up a multiple inference task pipeline:
 
    workflow
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
+
 
 -  `Import <#import>`__
 -  `Prepare the Model and Test
@@ -41,22 +42,24 @@ Table of contents:
 
 -  `Try it with your meter photos! <#try-it-with-your-meter-photos>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 .. code:: ipython3
 
-    import platform
-    
     # Install openvino package
-    %pip install -q "openvino>=2023.1.0" opencv-python tqdm
-    
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q "openvino>=2023.1.0" opencv-python tqdm "matplotlib>=3.4"
 
 
 .. parsed-literal::
 
-    Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -84,12 +87,12 @@ Import
     )
     
     open("notebook_utils.py", "w").write(r.text)
-    from notebook_utils import download_file, segmentation_map_to_image
+    from notebook_utils import download_file, segmentation_map_to_image, device_widget
 
 Prepare the Model and Test Image
 --------------------------------
 
- Download PPYOLOv2 and
+Download PPYOLOv2 and
 DeepLabV3P pre-trained models from PaddlePaddle community.
 
 .. code:: ipython3
@@ -165,7 +168,7 @@ DeepLabV3P pre-trained models from PaddlePaddle community.
 Configuration
 -------------
 
- Add parameter configuration for
+Add parameter configuration for
 reading calculation.
 
 .. code:: ipython3
@@ -190,7 +193,7 @@ reading calculation.
 Load the Models
 ---------------
 
- Define a common class for model
+Define a common class for model
 loading and inference
 
 .. code:: ipython3
@@ -235,7 +238,7 @@ loading and inference
 Data Process
 ------------
 
- Including the preprocessing and
+Including the preprocessing and
 postprocessing tasks of each model.
 
 .. code:: ipython3
@@ -581,14 +584,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
     
     device
 
@@ -641,7 +637,7 @@ bounds of input batch size.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f9941fc2040>
+    <matplotlib.image.AxesImage at 0x7fb489ccdfd0>
 
 
 
@@ -652,7 +648,7 @@ bounds of input batch size.
 Run meter detection model
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
- Detect the location of the
+Detect the location of the
 meter and prepare the ROI images for segmentation.
 
 .. code:: ipython3
@@ -697,7 +693,7 @@ meter and prepare the ROI images for segmentation.
 Run meter segmentation model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
- Get the results of segmentation
+Get the results of segmentation
 task on detected ROI.
 
 .. code:: ipython3
@@ -738,7 +734,7 @@ task on detected ROI.
 Postprocess the models result and calculate the final readings
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
- Use OpenCV function to find the
+Use OpenCV function to find the
 location of the pointer in a scale map.
 
 .. code:: ipython3

@@ -8,6 +8,22 @@
 
 namespace kernel_selector {
 static constexpr size_t subgroup_size = 16;
+
+// Compute maximum possible LWS that does not exceed device capabilities and optimizes number of global memory reads
+static std::pair<size_t, size_t> get_item_num_and_lws(const rms_params params, size_t data_size) {
+    size_t lws = 1;
+    size_t itemsNum = data_size;
+    const auto& input = params.inputs[0];
+    auto local_mem_per_wi = 2 * BytesPerElement(input.GetDType());
+    auto max_lws = std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi);
+
+    while ((itemsNum > 8 || lws < itemsNum) && (2 * lws <= max_lws)) {
+        lws *= 2;
+        itemsNum /= 2;
+    }
+    return {itemsNum, lws};
+}
+
 ParamsKey RMSKernelBfyxOpt::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
@@ -58,9 +74,13 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
         }
 
         const std::string lws_0 = "get_local_size(0)";
-        // It can be expected that the maximum possible itemsNum will not exceed 32
-        // Therefore, in dynamic shape, stack_size including additional buffer is set to 33
-        constexpr size_t stack_size = 33;
+        // data_size string starts digit when it has static dim.
+        bool is_static_data_size = std::isdigit(data_size[0]);
+        size_t stack_size = 33;
+        if (is_static_data_size) {
+            auto item_num_and_lws = get_item_num_and_lws(params, stoi(data_size));
+            stack_size = cldnn::ceil_div(std::stoi(data_size), item_num_and_lws.second);
+        }
         jit.AddConstants({
             MakeJitConstant("DATA_SIZE", data_size),
             MakeJitConstant("LWS", lws_0),
@@ -69,11 +89,9 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
         });
     } else {
         jit.AddConstants({
-            MakeJitConstant("ITEMS_NUM", dispatchData.itemsNum),
             MakeJitConstant("DATA_SIZE", dispatchData.dataSize),
             MakeJitConstant("LWS", dispatchData.lws[0]),
             MakeJitConstant("SLM_SIZE", dispatchData.lws[0]),
-            MakeJitConstant("LEFTOVERS", dispatchData.leftovers),
             MakeJitConstant("STACK_SIZE", dispatchData.itemsNum + 1)
         });
     }
@@ -118,12 +136,9 @@ RMSKernelBase::DispatchData RMSKernelBfyxOpt::SetDefault(const rms_params& param
         dispatchData.lws[1] = 1;
         dispatchData.lws[2] = 1;
 
-        dispatchData.itemsNum = dispatchData.dataSize;
-        // Compute maximum possible LWS that does not exceed device capabilities and optimizes number of global memory reads
-        while ((dispatchData.itemsNum > 32 || dispatchData.lws[0] < dispatchData.itemsNum) && (2 * dispatchData.lws[0] <= max_lws)) {
-            dispatchData.lws[0] *= 2;
-            dispatchData.itemsNum /= 2;
-        }
+        auto item_num_and_lws = get_item_num_and_lws(params, dispatchData.dataSize);
+        dispatchData.itemsNum = item_num_and_lws.first;
+        dispatchData.lws[0] = item_num_and_lws.second;
         dispatchData.gws[0] = dispatchData.lws[0];
         dispatchData.leftovers = dispatchData.dataSize % dispatchData.lws[0];
 

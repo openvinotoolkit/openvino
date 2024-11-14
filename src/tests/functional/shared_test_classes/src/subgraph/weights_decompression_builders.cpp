@@ -136,6 +136,7 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(
                                                                                         0.001f,
                                                                                         0.01f,
                                                                                         1);
+
     std::shared_ptr<ov::Node> scale_const = std::make_shared<ov::op::v0::Constant>(scale_const_tensor);
 
     if (scale_prc != decompression_precision) {

@@ -33,7 +33,7 @@ TEST(TransformationTests, FusedNamesCleanup) {
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::ConstantFolding>();
         manager.run_passes(model);
-        ASSERT_NO_THROW(check_rt_info(model));
+        OV_ASSERT_NO_THROW(check_rt_info(model));
 
         manager.register_pass<ov::pass::FusedNamesCleanup>();
         manager.run_passes(model);

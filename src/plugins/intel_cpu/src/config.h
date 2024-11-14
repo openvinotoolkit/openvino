@@ -50,11 +50,17 @@ struct Config {
     std::string dumpToDot = {};
     std::string device_id = {};
     float fcSparseWeiDecompressionRate = 1.0f;
-    uint64_t fcDynamicQuantizationGroupSize = 0;
-    ov::element::Type kvCachePrecision = ov::element::f16;
+    uint64_t fcDynamicQuantizationGroupSize = 32;
+    bool fcDynamicQuantizationGroupSizeSetExplicitly = false;
+    bool kvCachePrecisionSetExplicitly = false;
+#if defined(OV_CPU_WITH_ACL)
+    bool aclFastMath = false;
+#endif
 #if defined(OPENVINO_ARCH_X86_64)
+    ov::element::Type kvCachePrecision = ov::element::u8;
     size_t rtCacheCapacity = 5000ul;
 #else
+    ov::element::Type kvCachePrecision = ov::element::f16;
     // TODO: Executor cache may leads to incorrect behavior on oneDNN ACL primitives
     size_t rtCacheCapacity = 0ul;
 #endif
@@ -65,6 +71,7 @@ struct Config {
     int threadsPerStream = 0;
     ov::threading::IStreamsExecutor::ThreadBindingType threadBindingType = ov::threading::IStreamsExecutor::ThreadBindingType::NONE;
     ov::hint::PerformanceMode hintPerfMode = ov::hint::PerformanceMode::LATENCY;
+    std::vector<std::vector<int>> streamsRankTable;
     bool changedHintPerfMode = false;
     ov::log::Level logLevel = ov::log::Level::NO;
     uint32_t hintNumRequests = 0;
@@ -72,6 +79,9 @@ struct Config {
     bool changedCpuPinning = false;
     ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
     std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {};
+    int streamsRankLevel = 1;
+    int numSubStreams = 0;
+    bool enableNodeSplit = false;
     bool enableHyperThreading = true;
     bool changedHyperThreading = false;
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
@@ -100,6 +110,8 @@ struct Config {
 
     int modelPreferThreads = -1;
     ModelType modelType = ModelType::Unknown;
+    std::function<std::string(const std::string&)> cacheEncrypt;
+    std::function<std::string(const std::string&)> cacheDecrypt;
 
 #ifdef CPU_DEBUG_CAPS
     DebugCapsConfig debugCaps;

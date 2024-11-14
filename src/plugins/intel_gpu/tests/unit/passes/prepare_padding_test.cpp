@@ -39,7 +39,7 @@ TEST(prepare_padding, groupconv_with_output) {
     program_wrapper::apply_opt_pass<prepare_padding>(*prog, true);
     const auto& node = prog->get_node("reorder_input_conv");
     auto params = node.get_kernel_impl_params();
-    ASSERT_EQ(params->get_output_layout().data_padding.upper_size().spatial[2], 0);
+    ASSERT_EQ(params->get_output_layout().data_padding._upper_size[2 + 0], 2);
 }
 
 TEST(prepare_padding, mvn_conv) {
@@ -61,7 +61,6 @@ TEST(prepare_padding, mvn_conv) {
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
-    auto prog = program::build_program(engine, topo, config, false, true);
     network network(engine, topo, config);
     network.set_input_data("input", input);
     EXPECT_NO_THROW(network.execute());

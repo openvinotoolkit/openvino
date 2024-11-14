@@ -29,7 +29,7 @@ void Assign::validate_and_infer_types() {
         for (const auto& input : inputs()) {
             start_nodes.push_back(input.get_source_output().get_node_shared_ptr());
         }
-        auto nodes = topological_sort(start_nodes);
+        auto nodes = topological_sort(std::move(start_nodes));
         for (const auto& node : nodes) {
             if (auto read_value = ov::as_type_ptr<v3::ReadValue>(node)) {
                 if (read_value->get_variable_id() == m_variable_id)
@@ -109,15 +109,15 @@ bool Assign::evaluate(TensorVector& outputs,
 
     auto& variable_context = const_cast<util::VariableContext&>(found_context->second.as<util::VariableContext>());
 
-    const auto& variable_values = variable_context.get_variable_values();
+    auto var_value = variable_context.get_variable_value(m_variable);
 
     // automatically allocate memory if not provided by user
-    if (variable_values.find(m_variable) == variable_values.end()) {
+    if (!var_value) {
         auto tensor = Tensor(m_variable->get_info().data_type, m_variable->get_info().data_shape.to_shape());
-        variable_context.set_variable_value(m_variable, std::make_shared<util::VariableValue>(tensor));
+        var_value = std::make_shared<util::VariableValue>(tensor);
+        variable_context.set_variable_value(m_variable, var_value);
     }
 
-    const auto var_value = variable_values.find(m_variable)->second;
     var_value->set_reset(false);
     auto memory_buffer = var_value->get_state();
     memory_buffer.set_shape(inputs[0].get_shape());
@@ -134,7 +134,7 @@ bool Assign::has_evaluate() const {
     return true;
 }
 
-bool Assign::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
+bool Assign::can_constant_fold(const OutputVector& input_values) const {
     return false;
 }
 }  // namespace v6

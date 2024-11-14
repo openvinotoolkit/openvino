@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_arithmetic_Sign_1}
-
 Sign
 ====
 
 
 .. meta::
-  :description: Learn about Sign-1 - an element-wise, arithmetic operation, which 
+  :description: Learn about Sign-1 - an element-wise, arithmetic operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Sign-1*
@@ -16,7 +14,7 @@ Sign
 
 **Detailed description**: *Sign* performs element-wise sign operation on a given input tensor, based on the following mathematical formula:
 
-.. math:: 
+.. math::
 
    a_{i} = sign(a_{i})
 

@@ -97,7 +97,7 @@ TEST_F(IRFrontendTestsTensorIterator, tensor_iterator_merged_input) {
 
     std::shared_ptr<ov::Model> model;
 
-    ASSERT_NO_THROW(model = core.read_model(testModel, ov::Tensor()));
+    OV_ASSERT_NO_THROW(model = core.read_model(testModel, ov::Tensor()));
     ASSERT_TRUE(!!model);
 
     std::shared_ptr<ov::Model> modelRef;
@@ -215,7 +215,7 @@ TEST_F(IRFrontendTestsTensorIterator, tensor_iterator_slised_input) {
 
     std::shared_ptr<ov::Model> model;
 
-    ASSERT_NO_THROW(model = core.read_model(testModel, ov::Tensor()));
+    OV_ASSERT_NO_THROW(model = core.read_model(testModel, ov::Tensor()));
     ASSERT_TRUE(!!model);
 
     std::shared_ptr<ov::Model> modelRef;
@@ -423,7 +423,7 @@ TEST_F(IRFrontendTestsTensorIterator, loop1) {
     createTemporalModelFile(xmlModel, buffer);
     std::shared_ptr<ov::Model> model;
 
-    ASSERT_NO_THROW(model = core.read_model(xmlFileName, binFileName));
+    OV_ASSERT_NO_THROW(model = core.read_model(xmlFileName, binFileName));
     ASSERT_TRUE(!!model);
 }
 
@@ -627,7 +627,7 @@ TEST_F(IRFrontendTestsTensorIterator, loop2) {
     createTemporalModelFile(xmlModel, buffer);
     std::shared_ptr<ov::Model> model;
 
-    ASSERT_NO_THROW(model = core.read_model(xmlFileName, binFileName));
+    OV_ASSERT_NO_THROW(model = core.read_model(xmlFileName, binFileName));
     ASSERT_TRUE(!!model);
 }
 
@@ -831,7 +831,7 @@ TEST_F(IRFrontendTestsTensorIterator, loop_external_port1_is_not_connected) {
     createTemporalModelFile(xmlModel, buffer);
     std::shared_ptr<ov::Model> model;
 
-    ASSERT_NO_THROW(model = core.read_model(xmlFileName, binFileName));
+    OV_ASSERT_NO_THROW(model = core.read_model(xmlFileName, binFileName));
     ASSERT_TRUE(!!model);
 }
 
@@ -1150,7 +1150,7 @@ TEST_F(IRFrontendTestsTensorIterator, tensor_iterator_resnet_opset4) {
     createTemporalModelFile(xmlModel, buffer);
     std::shared_ptr<ov::Model> model;
 
-    ASSERT_NO_THROW(model = core.read_model(xmlFileName, binFileName));
+    OV_ASSERT_NO_THROW(model = core.read_model(xmlFileName, binFileName));
     ASSERT_TRUE(!!model);
 }
 
@@ -1441,7 +1441,7 @@ TEST_F(IRFrontendTestsTensorIterator, tensor_iterator_negative_stride_opset4) {
     createTemporalModelFile(xmlModel, buffer);
     std::shared_ptr<ov::Model> model;
 
-    ASSERT_NO_THROW(model = core.read_model(xmlFileName, binFileName));
+    OV_ASSERT_NO_THROW(model = core.read_model(xmlFileName, binFileName));
     ASSERT_TRUE(!!model);
 }
 
@@ -1691,6 +1691,6 @@ TEST_F(IRFrontendTestsTensorIterator, test1) {
     createTemporalModelFile(xmlModel, buffer);
     std::shared_ptr<ov::Model> model;
 
-    ASSERT_NO_THROW(model = core.read_model(xmlFileName, binFileName));
+    OV_ASSERT_NO_THROW(model = core.read_model(xmlFileName, binFileName));
     ASSERT_TRUE(!!model);
 }

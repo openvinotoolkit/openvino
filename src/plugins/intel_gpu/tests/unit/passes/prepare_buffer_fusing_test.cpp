@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/primitives/implementation_desc.hpp"
+#include "intel_gpu/runtime/internal_properties.hpp"
 #include "test_utils.h"
 #include "random_generator.hpp"
 
@@ -20,6 +22,7 @@
 #include "shape_of_inst.h"
 #include "gather_inst.h"
 #include "strided_slice_inst.h"
+#include "mvn_inst.h"
 #include "intel_gpu/graph/network.hpp"
 #include "pass_manager.h"
 #include "to_string_utils.h"
@@ -58,7 +61,7 @@ TEST(prepare_buffer_fusing, optimize_reshape) {
 
     auto input_memory = engine.allocate_memory(layout{ ov::PartialShape{1, 2, 2, 4}, data_types::f16, format::bfyx });
     auto pattern_memory = engine.allocate_memory(layout{ ov::PartialShape{4}, data_types::i64, format::bfyx });
-    set_values<float>(input_memory, {0.1, 1.1, 2.2, 3.0, 4.0, -5.0, 0.1, 0.7, 4.8, 19.2, -10.1, 8.1, 10.2, 1.3, 1.44, 1.5});
+    set_values<ov::float16>(input_memory, {0.1, 1.1, 2.2, 3.0, 4.0, -5.0, 0.1, 0.7, 4.8, 19.2, -10.1, 8.1, 10.2, 1.3, 1.44, 1.5});
     set_values<int64_t>(pattern_memory, {1, 4, 1, -1});
 
     net.set_input_data("input", input_memory);
@@ -84,7 +87,7 @@ TEST(prepare_buffer_fusing, static_node_after_optimized_out_dyn_reshape) {
     topology.add(data("weights", weights_memory));
     topology.add(permute("permute1", input_info("input"), {0, 2, 1}));
     topology.add(reshape("reshape", input_info("permute1"), false, {2, 4}, ov::PartialShape{2, 4}));
-    topology.add(fully_connected("fc", input_info("reshape"), "weights", "", {}, 2));
+    topology.add(fully_connected("fc", input_info("reshape"), "weights", "", 2));
     topology.add(reorder("reorder", input_info("fc"), format::bfyx, data_types::f32));
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -95,7 +98,7 @@ TEST(prepare_buffer_fusing, static_node_after_optimized_out_dyn_reshape) {
     prog->get_node("reorder").get_output_layout(true);
     program_wrapper::apply_opt_pass<prepare_buffer_fusing>(*prog);
     program_wrapper::apply_opt_pass<compile_graph>(*prog);
-    ASSERT_NO_THROW(prog->get_node("reshape"));
+    OV_ASSERT_NO_THROW(prog->get_node("reshape"));
     ASSERT_TRUE(prog->get_node("reshape").can_be_optimized());
     program_wrapper::apply_opt_pass<build_implementations>(*prog);
 
@@ -108,7 +111,7 @@ TEST(prepare_buffer_fusing, static_node_after_optimized_out_dyn_reshape) {
 
     net.set_input_data("input", input_memory);
     std::map<cldnn::primitive_id, cldnn::network_output> output;
-    ASSERT_NO_THROW(output = net.execute());
+    OV_ASSERT_NO_THROW(output = net.execute());
     auto out_l = net.get_output_layout("reorder");
     auto out_mem = output.at("reorder").get_memory();
 
@@ -407,6 +410,11 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic_onednn_batch2) {
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ov::intel_gpu::ImplForcingMap forcing_map = {
+        {"reorder1", ov::intel_gpu::ImplementationDesc{format::any, "", impl_types::onednn}},
+        {"reorder2", ov::intel_gpu::ImplementationDesc{format::any, "", impl_types::onednn}}
+    };
+    config.set_property(ov::intel_gpu::force_implementations(forcing_map));
     auto prog = program::build_program(engine, topology, config, false, false);
     ASSERT_NE(prog, nullptr);
     auto& concat_node_p = prog->get_node("concat");
@@ -625,6 +633,473 @@ TEST(prepare_buffer_fusing, skip_in_place_concat_inside_shape_of_subgraph) {
     ASSERT_FALSE(in_place);
 }
 
+TEST(prepare_buffer_fusing, in_place_crop_static) {
+    auto& engine = get_test_engine();
+
+    auto input_mem = engine.allocate_memory({ {1, 2, 4}, data_types::f32, format::bfyx });
+    auto weights_mem = engine.allocate_memory({ {8, 4}, data_types::u8, format::bfyx });
+    auto bias_mem = engine.allocate_memory({ {1, 1, 8}, data_types::f32, format::bfyx });
+    auto scale_mem = engine.allocate_memory({ {8, 1}, data_types::f32, format::bfyx });
+    auto zp_mem = engine.allocate_memory({ {8, 1}, data_types::f32, format::bfyx });
+
+    set_values(input_mem, { -0.5f,  2.0f,  0.5f,  1.0f,
+                             0.5f, -2.0f, -0.5f, -1.0f });
+    set_values<uint8_t>(weights_mem, { 1,  2,  3,  4,
+                                       5,  6,  7,  8,
+                                       9, 10, 11, 12,
+                                      13, 14, 15,  0,
+                                      15, 14, 13, 12,
+                                      11, 10,  9,  8,
+                                       7,  6,  5,  4,
+                                       3,  2,  1,  0});
+    set_values(bias_mem, { 1.0f, -2.0f, 3.0f, -4.0f, 5.0f, -6.0f, 7.0f, 2.0f });
+    set_values(scale_mem, { 2.0f, 4.0f, -2.0f, -4.0f, 0.5f, -0.5f, 2.0f, 2.0f });
+    set_values(zp_mem, { 1.0f, 2.0f, 2.0f, 1.0f, 4.0f, 1.0f, 6.0f, 2.0f });
+
+    std::vector<float> out1 = { 13.f, 58.f, -51.f, -108.f, -11.f, -62.f, 57.f, 100.f };
+    std::vector<float> out2 = { 18.5f, -18.f, 1.f, -4.f, -8.5f, 6.f, 13.f, 8.f };
+    std::vector<float> out3 = { 13.f, 58.f, -51.f, -108.f,     18.5f, -18.f, 1.f, -4.f,
+                                -11.f, -62.f, 57.f, 100.f,    -8.5f, 6.f, 13.f, 8.f };
+
+    topology topology(
+        input_layout("input", input_mem->get_layout()),
+        data("weights", weights_mem),
+        data("bias", bias_mem),
+        data("scale", scale_mem),
+        data("zp", zp_mem),
+        fully_connected("fc", input_info("input"), "weights", "bias", "scale", "zp", data_types::f32, 3, 2),
+        crop("crop1", input_info("fc"), tensor(1, 2, 1, 4), tensor(0, 0, 0, 0)),
+        reorder("output1", input_info("crop1"), format::bfyx, data_types::f32),
+        crop("crop2", input_info("fc"), tensor(1, 2, 1, 4), tensor(0, 0, 0, 4)),
+        reorder("output2", input_info("crop2"), format::bfyx, data_types::f32),
+        reorder("output3", input_info("fc"), format::bfyx, data_types::f32)
+    );
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+
+    auto crop_prim = network.get_primitive("crop1");
+    ASSERT_EQ(crop_prim->can_be_optimized(), true);
+    crop_prim = network.get_primitive("crop2");
+    ASSERT_EQ(crop_prim->can_be_optimized(), true);
+
+    auto output = outputs.at("output1").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    auto output_2 = outputs.at("output2").get_memory();
+    cldnn::mem_lock<float> output_ptr_2(output_2, get_test_stream());
+
+    auto output_3 = outputs.at("output3").get_memory();
+    cldnn::mem_lock<float> output_ptr_3(output_3, get_test_stream());
+
+    for (size_t i = 0; i < out3.size(); i++)
+        ASSERT_EQ(output_ptr_3[i], out3[i]);
+
+    for (size_t i = 0; i < out1.size(); i++)
+        ASSERT_EQ(output_ptr[i], out1[i]);
+
+    for (size_t i = 0; i < out2.size(); i++)
+        ASSERT_EQ(output_ptr_2[i], out2[i]);
+}
+
+TEST(prepare_buffer_fusing, in_place_crop_dynamic) {
+    auto& engine = get_test_engine();
+
+    auto in_layout = layout{ ov::PartialShape{-1, -1, 4}, data_types::f32, format::bfyx};
+    auto input_mem = engine.allocate_memory({ {1, 2, 4}, data_types::f32, format::bfyx });
+    auto weights_mem = engine.allocate_memory({ {8, 4}, data_types::u8, format::bfyx });
+    auto bias_mem = engine.allocate_memory({ {1, 1, 8}, data_types::f32, format::bfyx });
+    auto scale_mem = engine.allocate_memory({ {8, 1}, data_types::f32, format::bfyx });
+    auto zp_mem = engine.allocate_memory({ {8, 1}, data_types::f32, format::bfyx });
+    auto axis_mem = engine.allocate_memory({ {}, data_types::i64, format::bfyx });
+    auto splits_length_mem = engine.allocate_memory({ {2}, data_types::i64, format::bfyx });
+
+    int64_t axis = 2;
+    set_values(input_mem, { -0.5f,  2.0f,  0.5f,  1.0f,
+                             0.5f, -2.0f, -0.5f, -1.0f });
+    set_values<int64_t>(axis_mem, {axis});
+    set_values<int64_t>(splits_length_mem, { 2, 6 });
+    set_values<uint8_t>(weights_mem, { 1,  2,  3,  4,
+                                       5,  6,  7,  8,
+                                       9, 10, 11, 12,
+                                      13, 14, 15,  0,
+                                      15, 14, 13, 12,
+                                      11, 10,  9,  8,
+                                       7,  6,  5,  4,
+                                       3,  2,  1,  0});
+    set_values(bias_mem, { 1.0f, -2.0f, 3.0f, -4.0f, 5.0f, -6.0f, 7.0f, 2.0f });
+    set_values(scale_mem, { 2.0f, 4.0f, -2.0f, -4.0f, 0.5f, -0.5f, 2.0f, 2.0f });
+    set_values(zp_mem, { 1.0f, 2.0f, 2.0f, 1.0f, 4.0f, 1.0f, 6.0f, 2.0f });
+
+    std::vector<float> out1 = { 13.f, 58.f, -11.f, -62.f };
+    std::vector<float> out2 = { -51.f, -108.f, 18.5f, -18.f, 1.f, -4.f, 57.f, 100.f, -8.5f, 6.f, 13.f, 8.f };
+    std::vector<float> out3 = { 13.f, 58.f, -51.f, -108.f, 18.5f, -18.f, 1.f, -4.f, -11.f, -62.f, 57.f, 100.f, -8.5f, 6.f, 13.f, 8.f };
+
+    cldnn::crop_ngraph_op_mode op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
+    topology topology(
+        input_layout("input", in_layout),
+        data("axis", axis_mem),
+        data("splits_length", splits_length_mem),
+        data("weights", weights_mem),
+        data("bias", bias_mem),
+        data("scale", scale_mem),
+        data("zp", zp_mem),
+        fully_connected("fc", input_info("input"), "weights", "bias", "scale", "zp", data_types::f32, 3, 2),
+        crop("crop1", { input_info("fc"), input_info("axis"), input_info("splits_length") }, cldnn::tensor(1), cldnn::tensor(0), op_mode, 0, axis),
+        reorder("output1", input_info("crop1"), format::bfyx, data_types::f32),
+        crop("crop2", { input_info("fc"), input_info("axis"), input_info("splits_length") }, cldnn::tensor(1), cldnn::tensor(0), op_mode, 1, axis),
+        reshape("reshape", input_info("crop2"), true, std::vector<int64_t>{0, 0, 3, 2}, ov::PartialShape{-1, -1, 3, 2}, cldnn::reshape::reshape_mode::base),
+        reorder("output2", input_info("reshape"), format::bfyx, data_types::f32, std::vector<float>(), reorder_mean_mode::subtract, padding(), true),
+        reorder("output3", input_info("fc"), format::bfyx, data_types::f32)
+    );
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("output1").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < out1.size(); i++)
+        ASSERT_EQ(output_ptr[i], out1[i]);
+
+    auto output_2 = outputs.at("output2").get_memory();
+    cldnn::mem_lock<float> output_ptr_2(output_2, get_test_stream());
+
+    for (size_t i = 0; i < out2.size(); i++)
+        ASSERT_EQ(output_ptr_2[i], out2[i]);
+
+    auto output_3 = outputs.at("output3").get_memory();
+    cldnn::mem_lock<float> output_ptr_3(output_3, get_test_stream());
+
+    for (size_t i = 0; i < out3.size(); i++)
+        ASSERT_EQ(output_ptr_3[i], out3[i]);
+}
+
+TEST(prepare_buffer_fusing, in_place_crop_dynamic_reshape_unsqueeze) {
+    auto& engine = get_test_engine();
+
+    auto in_layout = layout{ ov::PartialShape{-1, -1, 4}, data_types::f32, format::bfyx};
+    auto input_mem = engine.allocate_memory({ {1, 2, 4}, data_types::f32, format::bfyx });
+    auto weights_mem = engine.allocate_memory({ {8, 4}, data_types::u8, format::bfyx });
+    auto bias_mem = engine.allocate_memory({ {1, 1, 8}, data_types::f32, format::bfyx });
+    auto scale_mem = engine.allocate_memory({ {8, 1}, data_types::f32, format::bfyx });
+    auto zp_mem = engine.allocate_memory({ {8, 1}, data_types::f32, format::bfyx });
+    auto axis_mem = engine.allocate_memory({ {}, data_types::i64, format::bfyx });
+    auto splits_length_mem = engine.allocate_memory({ {2}, data_types::i64, format::bfyx });
+
+    int64_t axis = 2;
+    set_values(input_mem, { -0.5f,  2.0f,  0.5f,  1.0f,
+                             0.5f, -2.0f, -0.5f, -1.0f });
+    set_values<int64_t>(axis_mem, {axis});
+    set_values<int64_t>(splits_length_mem, { 2, 6 });
+    set_values<uint8_t>(weights_mem, { 1,  2,  3,  4,
+                                       5,  6,  7,  8,
+                                       9, 10, 11, 12,
+                                      13, 14, 15,  0,
+                                      15, 14, 13, 12,
+                                      11, 10,  9,  8,
+                                       7,  6,  5,  4,
+                                       3,  2,  1,  0});
+    set_values(bias_mem, { 1.0f, -2.0f, 3.0f, -4.0f, 5.0f, -6.0f, 7.0f, 2.0f });
+    set_values(scale_mem, { 2.0f, 4.0f, -2.0f, -4.0f, 0.5f, -0.5f, 2.0f, 2.0f });
+    set_values(zp_mem, { 1.0f, 2.0f, 2.0f, 1.0f, 4.0f, 1.0f, 6.0f, 2.0f });
+
+    std::vector<float> out1 = { 13.f, 58.f, -11.f, -62.f };
+    std::vector<float> out2 = { -51.f, -108.f, 18.5f, -18.f, 1.f, -4.f, 57.f, 100.f, -8.5f, 6.f, 13.f, 8.f };
+    std::vector<float> out3 = { 13.f, 58.f, -51.f, -108.f, 18.5f, -18.f, 1.f, -4.f, -11.f, -62.f, 57.f, 100.f, -8.5f, 6.f, 13.f, 8.f };
+
+    cldnn::crop_ngraph_op_mode op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
+    topology topology(
+        input_layout("input", in_layout),
+        data("axis", axis_mem),
+        data("splits_length", splits_length_mem),
+        data("weights", weights_mem),
+        data("bias", bias_mem),
+        data("scale", scale_mem),
+        data("zp", zp_mem),
+        fully_connected("fc", input_info("input"), "weights", "bias", "scale", "zp", data_types::f32, 3, 2),
+        crop("crop1", { input_info("fc"), input_info("axis"), input_info("splits_length") }, cldnn::tensor(1), cldnn::tensor(0), op_mode, 0, axis),
+        reorder("output1", input_info("crop1"), format::bfyx, data_types::f32),
+        crop("crop2", { input_info("fc"), input_info("axis"), input_info("splits_length") }, cldnn::tensor(1), cldnn::tensor(0), op_mode, 1, axis),
+        reshape("reshape", input_info("crop2"), false, std::vector<int64_t>{1}, ov::PartialShape{-1, 1, -1, 6}, cldnn::reshape::reshape_mode::unsqueeze),
+        reorder("output2", input_info("reshape"), format::bfyx, data_types::f32, std::vector<float>(), reorder_mean_mode::subtract, padding(), true),
+        reorder("output3", input_info("fc"), format::bfyx, data_types::f32)
+    );
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("output1").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < out1.size(); i++)
+        ASSERT_EQ(output_ptr[i], out1[i]);
+
+    auto output_2 = outputs.at("output2").get_memory();
+    cldnn::mem_lock<float> output_ptr_2(output_2, get_test_stream());
+
+    for (size_t i = 0; i < out2.size(); i++)
+        ASSERT_EQ(output_ptr_2[i], out2[i]);
+
+    auto output_3 = outputs.at("output3").get_memory();
+    cldnn::mem_lock<float> output_ptr_3(output_3, get_test_stream());
+
+    for (size_t i = 0; i < out3.size(); i++)
+        ASSERT_EQ(output_ptr_3[i], out3[i]);
+}
+
+TEST(prepare_buffer_fusing, in_place_crop_dynamic_reshape_squeeze_crop_axis) {
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    auto in_layout = layout{ ov::PartialShape{2, -1, 4}, data_types::f32, format::bfyx};
+    auto input_mem = engine.allocate_memory({ {2, 2, 4}, data_types::f32, format::bfyx });
+    auto weights_mem = engine.allocate_memory({ {8, 4}, data_types::f32, format::bfyx });
+    auto bias_mem = engine.allocate_memory({ {1, 1, 8}, data_types::f32, format::bfyx });
+    auto axis_mem = engine.allocate_memory({ {}, data_types::i64, format::bfyx });
+    auto splits_length_mem = engine.allocate_memory({ {2}, data_types::i64, format::bfyx });
+    auto eltwise_scale = engine.allocate_memory({ {1, 1}, data_types::f32, format::bfyx });
+
+    int64_t axis = 0;
+    auto input_data = rg.generate_random_1d<float>(input_mem->count(), 0, 1);
+    auto weights_data = rg.generate_random_1d<float>(weights_mem->count(), 0, 1);
+    auto bias_data = rg.generate_random_1d<float>(bias_mem->count(), 0, 1);
+
+    set_values(input_mem, input_data);
+    set_values(weights_mem, weights_data);
+    set_values(bias_mem, bias_data);
+    set_values(eltwise_scale, { 1.f });
+    set_values<int64_t>(axis_mem, {axis});
+    set_values<int64_t>(splits_length_mem, { 1, 1 });
+
+    cldnn::crop_ngraph_op_mode op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
+    topology topology(
+        input_layout("input", in_layout),
+        data("axis", axis_mem),
+        data("splits_length", splits_length_mem),
+        data("eltwise_data", eltwise_scale),
+        data("weights", weights_mem),
+        data("bias", bias_mem),
+        fully_connected("fc", input_info("input"), "weights", "bias", data_types::f32, 3, 2),
+        crop("crop1", { input_info("fc"), input_info("axis"), input_info("splits_length") }, cldnn::tensor(1), cldnn::tensor(0), op_mode, 0, axis),
+        reorder("first_half", input_info("crop1"), format::bfyx, data_types::f32),
+        crop("crop2", { input_info("fc"), input_info("axis"), input_info("splits_length") }, cldnn::tensor(1), cldnn::tensor(0), op_mode, 1, axis),
+        reshape("reshape", input_info("crop2"), false, std::vector<int64_t>{0}, ov::PartialShape{-1, 8}, cldnn::reshape::reshape_mode::squeeze),
+        eltwise("multiply", { input_info("reshape"), input_info("eltwise_data") }, eltwise_mode::prod),
+        reorder("second_half", input_info("multiply"), format::bfyx, data_types::f32),
+        reorder("full_output", input_info("fc"), format::bfyx, data_types::f32)
+    );
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input_mem);
+
+    ASSERT_FALSE(network.get_primitive("crop2")->can_be_optimized());
+
+    auto outputs = network.execute();
+
+    auto full_output_mem = outputs.at("full_output").get_memory();
+    cldnn::mem_lock<float> full_output(full_output_mem, get_test_stream());
+
+    auto first_half_mem = outputs.at("first_half").get_memory();
+    cldnn::mem_lock<float> first_half(first_half_mem, get_test_stream());
+
+    auto second_half_mem = outputs.at("second_half").get_memory();
+    cldnn::mem_lock<float> second_half(second_half_mem, get_test_stream());
+
+    for (size_t i = 0; i < full_output.size() / 2; i++)
+        ASSERT_EQ(first_half[i], full_output[i]) << i;
+
+    for (size_t i = 0; i < full_output.size() / 2; i++)
+        ASSERT_EQ(second_half[i], full_output[full_output.size() / 2 + i]) << i;
+}
+
+TEST(prepare_buffer_fusing, in_place_crop_dynamic_split_lengths) {
+    auto& engine = get_test_engine();
+
+    auto in_layout = layout{ ov::PartialShape{-1, -1, -1}, data_types::f32, format::bfyx};
+    auto in2_layout = layout{ ov::PartialShape{-1, -1}, data_types::f32, format::bfyx};
+    auto input_mem = engine.allocate_memory({ {1, 2, 4}, data_types::f32, format::bfyx });
+    auto weights_mem = engine.allocate_memory({ {8, 4}, data_types::u8, format::bfyx });
+    auto bias_mem = engine.allocate_memory({ {1, 1, 8}, data_types::f32, format::bfyx });
+    auto scale_mem = engine.allocate_memory({ {8, 1}, data_types::f32, format::bfyx });
+    auto zp_mem = engine.allocate_memory({ {8, 1}, data_types::f32, format::bfyx });
+    auto axis_mem = engine.allocate_memory({ {}, data_types::i64, format::bfyx });
+    auto shapeof_mem = engine.allocate_memory({ {2, 6}, data_types::f32, format::bfyx });
+
+    int64_t axis = 2;
+    set_values(input_mem, { -0.5f,  2.0f,  0.5f,  1.0f,
+                             0.5f, -2.0f, -0.5f, -1.0f });
+    set_values<int64_t>(axis_mem, {axis});
+    set_values(shapeof_mem, { 1.0f,  2.0f,  3.0f,  4.0f,
+                              5.0f,  6.0f,  7.0f,  8.0f,
+                              9.0f, 10.0f, 11.0f, 12.0f});
+    set_values<uint8_t>(weights_mem, { 1,  2,  3,  4,
+                                       5,  6,  7,  8,
+                                       9, 10, 11, 12,
+                                      13, 14, 15,  0,
+                                      15, 14, 13, 12,
+                                      11, 10,  9,  8,
+                                       7,  6,  5,  4,
+                                       3,  2,  1,  0});
+    set_values(bias_mem, { 1.0f, -2.0f, 3.0f, -4.0f, 5.0f, -6.0f, 7.0f, 2.0f });
+    set_values(scale_mem, { 2.0f, 4.0f, -2.0f, -4.0f, 0.5f, -0.5f, 2.0f, 2.0f });
+    set_values(zp_mem, { 1.0f, 2.0f, 2.0f, 1.0f, 4.0f, 1.0f, 6.0f, 2.0f });
+
+    std::vector<float> out1 = { 13.f, 58.f, -11.f, -62.f };
+    std::vector<float> out2 = { -51.f, -108.f, 18.5f, -18.f, 1.f, -4.f, 57.f, 100.f, -8.5f, 6.f, 13.f, 8.f };
+    std::vector<float> out3 = { 13.f, 58.f, -51.f, -108.f, 18.5f, -18.f, 1.f, -4.f, -11.f, -62.f, 57.f, 100.f, -8.5f, 6.f, 13.f, 8.f };
+
+    cldnn::crop_ngraph_op_mode op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
+    topology topology(
+        input_layout("input", in_layout),
+        input_layout("input_shapeof", in2_layout),
+        data("axis", axis_mem),
+        data("weights", weights_mem),
+        data("bias", bias_mem),
+        data("scale", scale_mem),
+        data("zp", zp_mem),
+        fully_connected("fc", input_info("input"), "weights", "bias", "scale", "zp", data_types::f32, 3, 2),
+        shape_of("shapeof", input_info("input_shapeof"), cldnn::data_types::i64),
+        crop("crop1", { input_info("fc"), input_info("axis"), input_info("shapeof") }, cldnn::tensor(1), cldnn::tensor(0), op_mode, 0, axis),
+        reorder("output1", input_info("crop1"), format::bfyx, data_types::f32),
+        crop("crop2", { input_info("fc"), input_info("axis"), input_info("shapeof") }, cldnn::tensor(1), cldnn::tensor(0), op_mode, 1, axis),
+        reshape("reshape", input_info("crop2"), true, std::vector<int64_t>{0, 0, 3, 2}, ov::PartialShape{-1, -1, 3, 2}, cldnn::reshape::reshape_mode::base),
+        reorder("output2", input_info("reshape"), format::bfyx, data_types::f32, std::vector<float>(), reorder_mean_mode::subtract, padding(), true),
+        reorder("output3", input_info("fc"), format::bfyx, data_types::f32)
+    );
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input_mem);
+    network.set_input_data("input_shapeof", shapeof_mem);
+
+    std::map<cldnn::primitive_id, cldnn::network_output> outputs;
+    EXPECT_NO_THROW(outputs = network.execute());
+
+    auto output = outputs.at("output1").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < out1.size(); i++)
+        ASSERT_EQ(output_ptr[i], out1[i]);
+
+    auto output_2 = outputs.at("output2").get_memory();
+    cldnn::mem_lock<float> output_ptr_2(output_2, get_test_stream());
+
+    for (size_t i = 0; i < out2.size(); i++)
+        ASSERT_EQ(output_ptr_2[i], out2[i]);
+
+    auto output_3 = outputs.at("output3").get_memory();
+    cldnn::mem_lock<float> output_ptr_3(output_3, get_test_stream());
+
+    for (size_t i = 0; i < out3.size(); i++)
+        ASSERT_EQ(output_ptr_3[i], out3[i]);
+}
+
+TEST(prepare_buffer_fusing, in_place_crop_dynamic_mvn) {
+    auto& engine = get_test_engine();
+
+    auto in_layout = layout{ ov::PartialShape{-1, -1, 4}, data_types::f32, format::bfyx};
+    auto input_mem = engine.allocate_memory({ {1, 2, 4}, data_types::f32, format::bfyx });
+    auto weights_mem = engine.allocate_memory({ {8, 4}, data_types::u8, format::bfyx });
+    auto bias_mem = engine.allocate_memory({ {1, 1, 8}, data_types::f32, format::bfyx });
+    auto scale_mem = engine.allocate_memory({ {8, 1}, data_types::f32, format::bfyx });
+    auto zp_mem = engine.allocate_memory({ {8, 1}, data_types::f32, format::bfyx });
+    auto axis_mem = engine.allocate_memory({ {}, data_types::i64, format::bfyx });
+    auto splits_length_mem = engine.allocate_memory({ {2}, data_types::i64, format::bfyx });
+
+    int64_t axis = 2;
+    set_values(input_mem, { -0.5f,  2.0f,  0.5f,  1.0f,
+                             0.5f, -2.0f, -0.5f, -1.0f });
+    set_values<int64_t>(axis_mem, {axis});
+    set_values<int64_t>(splits_length_mem, { 2, 6 });
+    set_values<uint8_t>(weights_mem, { 1,  2,  3,  4,
+                                       5,  6,  7,  8,
+                                       9, 10, 11, 12,
+                                      13, 14, 15,  0,
+                                      15, 14, 13, 12,
+                                      11, 10,  9,  8,
+                                       7,  6,  5,  4,
+                                       3,  2,  1,  0});
+    set_values(bias_mem, { 1.0f, -2.0f, 3.0f, -4.0f, 5.0f, -6.0f, 7.0f, 2.0f });
+    set_values(scale_mem, { 2.0f, 4.0f, -2.0f, -4.0f, 0.5f, -0.5f, 2.0f, 2.0f });
+    set_values(zp_mem, { 1.0f, 2.0f, 2.0f, 1.0f, 4.0f, 1.0f, 6.0f, 2.0f });
+
+    std::vector<float> out1 = { 13.f, 58.f, -11.f, -62.f };
+    std::vector<float> out2 = { -24.0833f, -81.0833f, 45.4167f, 8.91667f, 27.9167f, 22.9167f, 27.75f, 70.75f, -37.75f, -23.25f, -16.25f, -21.25f };
+    std::vector<float> out3 = { 13.f, 58.f, -51.f, -108.f, 18.5f, -18.f, 1.f, -4.f, -11.f, -62.f, 57.f, 100.f, -8.5f, 6.f, 13.f, 8.f };
+
+    cldnn::crop_ngraph_op_mode op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
+    topology topology(
+        input_layout("input", in_layout),
+        data("axis", axis_mem),
+        data("splits_length", splits_length_mem),
+        data("weights", weights_mem),
+        data("bias", bias_mem),
+        data("scale", scale_mem),
+        data("zp", zp_mem),
+        fully_connected("fc", input_info("input"), "weights", "bias", "scale", "zp", data_types::f32, 3, 2),
+        crop("crop1", { input_info("fc"), input_info("axis"), input_info("splits_length") }, cldnn::tensor(1), cldnn::tensor(0), op_mode, 0, axis),
+        reorder("output1", input_info("crop1"), format::bfyx, data_types::f32),
+        crop("crop2", { input_info("fc"), input_info("axis"), input_info("splits_length") }, cldnn::tensor(1), cldnn::tensor(0), op_mode, 1, axis),
+        reshape("reshape", input_info("crop2"), true, std::vector<int64_t>{0, 0, 3, 2}, ov::PartialShape{-1, -1, 3, 2}, cldnn::reshape::reshape_mode::base),
+        mvn("mvn", input_info("reshape"), false, 1e-10f, false, {2, 3}),
+        reorder("output2", input_info("mvn"), format::bfyx, data_types::f32, std::vector<float>(), reorder_mean_mode::subtract, padding(), true),
+        reorder("output3", input_info("fc"), format::bfyx, data_types::f32)
+    );
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("output1").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < out1.size(); i++)
+        ASSERT_EQ(output_ptr[i], out1[i]);
+
+    auto output_2 = outputs.at("output2").get_memory();
+    cldnn::mem_lock<float> output_ptr_2(output_2, get_test_stream());
+
+    for (size_t i = 0; i < out2.size(); i++) {
+        ASSERT_NEAR(output_ptr_2[i], out2[i], 0.0001);
+    }
+
+    auto output_3 = outputs.at("output3").get_memory();
+    cldnn::mem_lock<float> output_ptr_3(output_3, get_test_stream());
+
+    for (size_t i = 0; i < out3.size(); i++)
+        ASSERT_EQ(output_ptr_3[i], out3[i]);
+}
+
 // Testing for implicit crop along batch axis and outer padding optimzing.
 // Outer padding opt includes opt out of reshape and reorder which has padded input only in batch axis
 // This optimzing also includes offset(outer axis padded input) handling of oneDNN primitive.
@@ -759,8 +1234,10 @@ TEST(prepare_buffer_fusing, test_implicit_crop_and_outerpadding_conv) {
         }
     }
 
-    auto crop_prim = network.get_primitive("crop_input");
-    ASSERT_EQ(crop_prim->can_be_optimized(), true);
+    if (!engine.get_device_info().supports_immad) {
+        auto crop_prim = network.get_primitive("crop_input");
+        ASSERT_EQ(crop_prim->can_be_optimized(), true);
+    }
 }
 
 // For deconv, Check padded input and weight propagated by implicit crop are handled properly
@@ -805,8 +1282,10 @@ TEST(prepare_buffer_fusing, test_implicit_crop_and_outerpadding_deconv) {
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
         ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
 
-    auto crop_prim = network.get_primitive("crop_input");
-    ASSERT_EQ(crop_prim->can_be_optimized(), true);
+    if (!engine.get_device_info().supports_immad) {
+        auto crop_prim = network.get_primitive("crop_input");
+        ASSERT_EQ(crop_prim->can_be_optimized(), true);
+    }
 }
 
 TEST(prepare_buffer_fusing, test_checking_padding_supported) {
@@ -819,13 +1298,20 @@ TEST(prepare_buffer_fusing, test_checking_padding_supported) {
     auto padding2 = padding({0,0,0,0}, {0,0,0,0});
     auto padding3 = padding({0,0,0,0}, {0,0,0,0});
 
+    auto resample1 = resample("interp1", input_info("input1"), in_layout1.get_tensor(), 1, ov::op::v4::Interpolate::InterpolateMode::NEAREST);
+    resample1.output_paddings = {padding1};
+    auto resample2 = resample("interp2", input_info("input2"), in_layout2.get_tensor(), 1, ov::op::v4::Interpolate::InterpolateMode::NEAREST);
+    resample2.output_paddings = {padding2};
+    auto resample3 = resample("interp3", input_info("input3"), in_layout3.get_tensor(), 1, ov::op::v4::Interpolate::InterpolateMode::NEAREST);
+    resample3.output_paddings = {padding3};
+
     topology topology(
         input_layout("input1", in_layout1),
         input_layout("input2", in_layout2),
         input_layout("input3", in_layout3),
-        resample("interp1", input_info("input1"), in_layout1.get_tensor(), 1, ov::op::v4::Interpolate::InterpolateMode::NEAREST, padding1),
-        resample("interp2", input_info("input2"), in_layout2.get_tensor(), 1, ov::op::v4::Interpolate::InterpolateMode::NEAREST, padding2),
-        resample("interp3", input_info("input3"), in_layout3.get_tensor(), 1, ov::op::v4::Interpolate::InterpolateMode::NEAREST, padding3),
+        resample1,
+        resample2,
+        resample3,
         concatenation("concat", {input_info("interp1"), input_info("interp2"), input_info("interp3")}, 1),
         reorder("reorder", input_info("concat"), format::fs_b_yx_fsv32, data_types::f16));
 
@@ -872,6 +1358,8 @@ TEST(prepare_buffer_fusing, skip_in_place_concat_padding_in_non_concat_axis_of_d
     set_values<ov::float16>(input3_mem, in3);
     set_values<ov::float16>(input4_mem, in4);
 
+    auto concat_prim = concatenation("concat", {input_info("strided_slice1"), input_info("strided_slice2"), input_info("strided_slice3"), input_info("strided_slice4")}, 1);
+    concat_prim.output_paddings = {concat_padding};
     topology topology(
         input_layout("input1", in_layout),
         input_layout("input2", in_layout),
@@ -888,7 +1376,7 @@ TEST(prepare_buffer_fusing, skip_in_place_concat_padding_in_non_concat_axis_of_d
                                input_info("end"), input_info("strides"), {1, 1, 1, 0}, {1, 1, 1, 0}, {}, {}, {}, {}),
         strided_slice("strided_slice4", input_info("input4"), input_info("begin"),
                                input_info("end"), input_info("strides"), {1, 1, 1, 0}, {1, 1, 1, 0}, {}, {}, {}, {}),
-        concatenation("concat", {input_info("strided_slice1"), input_info("strided_slice2"), input_info("strided_slice3"), input_info("strided_slice4")}, 1, concat_padding),
+        concat_prim,
         reorder("reorder", input_info("concat"), format::fs_b_yx_fsv32, data_types::f16));
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -976,3 +1464,33 @@ TEST(prepare_buffer_fusing, in_place_onednn_concat_static) {
     }
 }
 #endif  // ENABLE_ONEDNN_FOR_GPU
+
+TEST(prepare_buffer_fusing, inner_axis_data_offset_with_gemm_user) {
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    auto& engine = get_test_engine();
+
+    auto in_layout = layout{ ov::PartialShape{1, 6, 16, 16}, data_types::f16, format::bfyx };
+    auto crop_layout = layout{ ov::PartialShape{1, 6, 8, 16}, data_types::f16, format::bfyx };
+
+    auto input_memory = engine.allocate_memory(in_layout);
+    auto input_data = rg.generate_random_1d<float>(input_memory->count(), -1, 1);
+    
+    auto offsets1 = tensor{0, 0, 0, 0};
+    auto offsets2 = tensor{0, 0, 8, 0};
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(crop("crop1", input_info("input"), crop_layout.get_tensor(), offsets1));
+    topology.add(permute("permute", input_info("crop1"), {0, 1, 3, 2}));
+    topology.add(crop("crop2", input_info("input"), crop_layout.get_tensor(), offsets2));
+    topology.add(gemm("gemm", {input_info("permute"), input_info("crop2")}, data_types::f16, false, false));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topology, config, false, false);
+    ASSERT_NE(prog, nullptr);
+
+    auto& crop_node = prog->get_node("crop2").as<crop>();
+    ASSERT_FALSE(crop_node.can_be_optimized());
+}

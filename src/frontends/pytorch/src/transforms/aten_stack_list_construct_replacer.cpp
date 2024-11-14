@@ -23,19 +23,19 @@ using namespace ov::op;
 using namespace ov::pass::pattern;
 
 AtenStackListConstructReplacer::AtenStackListConstructReplacer() {
-    auto list_construct = wrap_type<ov::op::util::FrameworkNode>();
-    auto axis = wrap_type<v0::Constant>();
+    const auto& list_construct = wrap_type<ov::op::util::FrameworkNode>();
+    const auto& axis = wrap_type<v0::Constant>();
 
     // We search for a pattern: ListConstruct -> aten::stack <- Constant
-    auto stack = wrap_type<ov::op::util::FrameworkNode>({list_construct, axis});
+    const auto& stack = wrap_type<ov::op::util::FrameworkNode>({list_construct, axis});
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [list_construct, axis](Matcher& m) {
         auto stack = cast_fw_node(m.get_match_root(), "aten::stack");
         if (!stack) {
             return false;
         }
         const auto& pattern_map = m.get_pattern_value_map();
-        auto input_node = pattern_map.at(list_construct).get_node_shared_ptr();
+        const auto& input_node = pattern_map.at(list_construct).get_node_shared_ptr();
         auto axis_node = pattern_map.at(axis).get_node_shared_ptr();
         auto axis_const = std::dynamic_pointer_cast<v0::Constant>(axis_node);
         auto axis = axis_const->cast_vector<int64_t>();
@@ -47,7 +47,7 @@ AtenStackListConstructReplacer::AtenStackListConstructReplacer() {
         if (auto list_construct_node = cast_fw_node(input_node, "prim::ListConstruct")) {
             const auto& list_inputs = list_construct_node->input_values();
             std::shared_ptr<Node> node;
-            if (auto compression = u4_compression_stack(list_inputs, axis[0])) {
+            if (const auto& compression = u4_compression_stack(list_inputs, axis[0])) {
                 node = compression;
             } else {
                 OutputVector node_vector;

@@ -4,13 +4,15 @@
 
 #include "pass_manager.h"
 #include "program_helpers.h"
-#include "implementation_map.hpp"
+#include "impls/registry/registry.hpp"
 
 #include "convolution_inst.h"
 #include "deconvolution_inst.h"
 #include "fully_connected_inst.h"
 #include "intel_gpu/runtime/format.hpp"
-
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include "graph/impls/onednn/utils.hpp"
+#endif // ENABLE_ONEDNN_FOR_GPU
 namespace cldnn {
 
 post_optimize_weights::post_optimize_weights(reorder_factory& rf_ref)
@@ -53,12 +55,10 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
     auto set_implementation = [&p, &impl](program_node& weights_reorder_node) {
         if (!weights_reorder_node.is_constant()) {
             auto reorder_kernel_params = impl->get_weights_reorder_kernel_params();
-            auto impl_type = (reorder_kernel_params->get_output_layout(0).format == format::custom) ? impl_types::onednn : impl_types::ocl;
-            auto factory = WeightsReordersFactory::get(impl_type, shape_types::static_shape);
-            reorder_kernel_params->prog = &p;
-            auto reorder_impl = factory(*reorder_kernel_params);
+            weights_reorder_node.set_preferred_impl_type(impl_types::any);
+            auto reorder_impl = weights_reorder_node.type()->create_impl(weights_reorder_node);
 
-            weights_reorder_node.set_selected_impl(reorder_impl->clone());
+            weights_reorder_node.set_selected_impl(std::move(reorder_impl));
             if (auto impl = weights_reorder_node.get_selected_impl()) {
                 auto params = weights_reorder_node.get_kernel_impl_params();
                 p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
@@ -90,6 +90,15 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
                 updated_input_layout.format = from_weights_layout(to_weights_layout(input_fmt, false));
 
                 weights_reorder_params->set_input_layout(updated_input_layout);
+#ifdef ENABLE_ONEDNN_FOR_GPU
+                // Need to update WeightsReorderParamsOneDNN of fc onednn imple when input layout data_type/format is different
+                auto onednn_weights_params = std::dynamic_pointer_cast<onednn::WeightsReorderParamsOneDNN>(weights_reorder_params);
+                if (onednn_weights_params &&
+                   (updated_input_layout.format != onednn::find_data_format(onednn_weights_params->_in_desc) ||
+                    onednn::convert_data_type(updated_input_layout.data_type) != onednn_weights_params->_in_desc.get_data_type())) {
+                    onednn_weights_params->_in_desc = onednn::layout_to_memory_desc(updated_input_layout);
+                }
+#endif // ENABLE_ONEDNN_FOR_GPU
                 auto weights_reorder = _rf.get_weights_reorder(prev_node.get_primitive()->input[0].pid,
                                                                weights_reorder_params);
                 auto& weights_reorder_node = p.get_or_create(weights_reorder.first);

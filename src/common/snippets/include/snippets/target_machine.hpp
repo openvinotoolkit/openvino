@@ -10,7 +10,6 @@
 
 #include "emitter.hpp"
 #include "snippets/lowered/expression.hpp"
-#include "kernel_executor_table.hpp"
 
 namespace ov {
 namespace snippets {
@@ -94,7 +93,6 @@ public:
 
 protected:
     std::map<const ov::DiscreteTypeInfo, jitters_value> jitters;
-    std::shared_ptr<KernelExecutorTable> kernel_executor_table;
     std::shared_ptr<RuntimeConfigurator> configurator;
 };
 

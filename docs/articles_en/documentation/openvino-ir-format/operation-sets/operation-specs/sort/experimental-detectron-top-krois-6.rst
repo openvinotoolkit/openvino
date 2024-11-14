@@ -1,12 +1,10 @@
-.. {#openvino_docs_ops_sort_ExperimentalDetectronTopKROIs_6}
-
 ExperimentalDetectronTopKROIs
 =============================
 
 
 .. meta::
-  :description: Learn about ExperimentalDetectronTopKROIs-6 - a sorting and 
-                maximization operation, which can be performed on two required 
+  :description: Learn about ExperimentalDetectronTopKROIs-6 - a sorting and
+                maximization operation, which can be performed on two required
                 input tensors.
 
 **Versioned name**: *ExperimentalDetectronTopKROIs-6*
@@ -48,7 +46,7 @@ output tensor elements.
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="ExperimentalDetectronTopKROIs" version="opset6">
        <data max_rois="1000"/>
        <input>

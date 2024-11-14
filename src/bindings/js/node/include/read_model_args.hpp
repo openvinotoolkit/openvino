@@ -2,6 +2,8 @@
 
 #include <napi.h>
 
+#include "node/include/helper.hpp"
+#include "node/include/type_validation.hpp"
 #include "openvino/runtime/core.hpp"
 
 /**
@@ -15,41 +17,29 @@ struct ReadModelArgs {
 
     ReadModelArgs() {}
     ReadModelArgs(const Napi::CallbackInfo& info) {
-        if (!is_valid_read_model_input(info))
-            throw std::runtime_error("Invalid arguments of read model function");
+        std::vector<std::string> allowed_signatures;
 
-        const size_t argsLength = info.Length();
-        std::shared_ptr<ov::Model> model;
+        if (ov::js::validate<Napi::String>(info, allowed_signatures)) {
+            model_path = info[0].ToString();
+        } else if (ov::js::validate<Napi::String, Napi::String>(info, allowed_signatures)) {
+            model_path = info[0].ToString();
+            bin_path = info[1].ToString();
+        } else if (ov::js::validate<Napi::Buffer<uint8_t>>(info, allowed_signatures)) {
+            model_str = buffer_to_string(info[0]);
+            weight_tensor = ov::Tensor(ov::element::Type_t::u8, {0});
+        } else if (ov::js::validate<Napi::Buffer<uint8_t>, Napi::Buffer<uint8_t>>(info, allowed_signatures)) {
+            model_str = buffer_to_string(info[0]);
+            Napi::Buffer<uint8_t> weights = info[1].As<Napi::Buffer<uint8_t>>();
+            const uint8_t* bin = reinterpret_cast<const uint8_t*>(weights.Data());
 
-        if (info[0].IsBuffer()) {
-            Napi::Buffer<uint8_t> model_data = info[0].As<Napi::Buffer<uint8_t>>();
-            model_str = std::string(reinterpret_cast<char*>(model_data.Data()), model_data.Length());
-
-            if (argsLength == 2) {
-                Napi::Buffer<uint8_t> weights = info[1].As<Napi::Buffer<uint8_t>>();
-                const uint8_t* bin = reinterpret_cast<const uint8_t*>(weights.Data());
-
-                size_t bin_size = weights.Length();
-                weight_tensor = ov::Tensor(ov::element::Type_t::u8, {bin_size});
-                std::memcpy(weight_tensor.data(), bin, bin_size);
-            }
-            else {
-                weight_tensor = ov::Tensor(ov::element::Type_t::u8, {0});
-            }
+            size_t bin_size = weights.Length();
+            weight_tensor = ov::Tensor(ov::element::Type_t::u8, {bin_size});
+            std::memcpy(weight_tensor.data(), bin, bin_size);
+        } else if (ov::js::validate<Napi::String, TensorWrap>(info, allowed_signatures)) {
+            model_str = info[0].ToString();
+            weight_tensor = cast_to_tensor(info, 1);
         } else {
-            model_path = std::string(info[0].ToString());
-
-            if (argsLength == 2) bin_path = info[1].ToString();
+            OPENVINO_THROW("'readModel'", ov::js::get_parameters_error_msg(info, allowed_signatures));
         }
-    }
-
-    bool is_valid_read_model_input(const Napi::CallbackInfo& info) {
-        const size_t argsLength = info.Length();
-        const size_t is_buffers_input = info[0].IsBuffer()
-            && (argsLength == 1 || info[1].IsBuffer());
-
-        if (is_buffers_input) return true;
-
-        return info[0].IsString() && (argsLength == 1 || info[1].IsString());
     }
 };

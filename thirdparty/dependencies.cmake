@@ -28,8 +28,7 @@ endif()
 # temporarily remove CMAKE_COMPILE_WARNING_AS_ERROR for thirdparty
 if(CMAKE_COMPILE_WARNING_AS_ERROR AND WIN32)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND CMAKE_VERSION VERSION_LESS 3.24)
-        string(REPLACE "/WX" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-        string(REPLACE "/WX" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+        ov_add_compiler_flags(/WX-)
     endif()
     set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
 endif()
@@ -63,6 +62,16 @@ if(X86_64 OR X86 OR UNIVERSAL2)
     else()
         add_subdirectory(thirdparty/xbyak EXCLUDE_FROM_ALL)
     endif()
+endif()
+
+#
+# LevelZero
+#
+
+if(ENABLE_INTEL_NPU)
+    add_subdirectory(thirdparty/level_zero EXCLUDE_FROM_ALL)
+
+    add_library(LevelZero::LevelZero ALIAS ze_loader)
 endif()
 
 #
@@ -275,7 +284,7 @@ endif()
 # Gflags
 #
 
-if(ENABLE_SAMPLES OR ENABLE_TESTS)
+if(ENABLE_SAMPLES OR ENABLE_TESTS OR ENABLE_INTEL_NPU_INTERNAL)
     add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
     ov_developer_package_export_targets(TARGET gflags)
 endif()
@@ -326,7 +335,10 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         # try to find newer version first (major is changed)
         # see https://protobuf.dev/support/version-support/ and
         # https://github.com/protocolbuffers/protobuf/commit/d61f75ff6db36b4f9c0765f131f8edc2f86310fa
-        find_package(Protobuf 4.22.0 QUIET CONFIG)
+        find_package(Protobuf 5.26.0 QUIET CONFIG)
+        if(NOT Protobuf_FOUND)
+            find_package(Protobuf 4.22.0 QUIET CONFIG)
+        endif()
         if(Protobuf_FOUND)
             # protobuf was found via CONFIG mode, let's save it for later usage in OpenVINOConfig.cmake static build
             set(protobuf_config CONFIG)
@@ -348,6 +360,15 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         endif()
     else()
         add_subdirectory(thirdparty/protobuf EXCLUDE_FROM_ALL)
+        # protobuf fails to build with -fsanitize=thread by clang
+        if(ENABLE_THREAD_SANITIZER AND OV_COMPILER_IS_CLANG)
+            foreach(proto_target protoc libprotobuf libprotobuf-lite)
+                if(TARGET ${proto_target})
+                    target_compile_options(${proto_target} PUBLIC -fno-sanitize=thread)
+                    target_link_options(${proto_target} PUBLIC -fno-sanitize=thread)
+                endif()
+            endforeach()
+        endif()
     endif()
 
     # forward additional variables used in the other places
@@ -359,7 +380,7 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         if(ENABLE_SYSTEM_PROTOBUF)
             set(link_type INTERFACE)
         endif()
-        if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
+        if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
             get_target_property(original_name ${target_name} ALIASED_TARGET)
             if(TARGET ${original_name})
                 # during build protobuf's cmake creates aliased targets
@@ -453,11 +474,13 @@ if(ENABLE_SNAPPY_COMPRESSION)
                 ov_add_compiler_flags(/wd4245)
                 # 'var' : conversion from 'size_t' to 'type', possible loss of data
                 ov_add_compiler_flags(/wd4267)
-            elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
+            elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
                 # we need to pass -Wextra first, then -Wno-sign-compare
                 # otherwise, snappy's CMakeLists.txt will do it for us
                 ov_add_compiler_flags(-Wextra)
                 ov_add_compiler_flags(-Wno-sign-compare)
+            elseif(OV_COMPILER_IS_INTEL_LLVM AND WIN32)
+                ov_add_compiler_flags(/WX-)
             endif()
 
             add_subdirectory(thirdparty/snappy EXCLUDE_FROM_ALL)
@@ -480,10 +503,17 @@ endif()
 #
 
 if(ENABLE_OV_ONNX_FRONTEND)
-    find_package(ONNX 1.15.0 QUIET COMPONENTS onnx onnx_proto NO_MODULE)
+    find_package(ONNX 1.16.2 QUIET COMPONENTS onnx onnx_proto NO_MODULE)
 
     if(ONNX_FOUND)
         # conan and vcpkg create imported targets 'onnx' and 'onnx_proto'
+        # newer versions of ONNX in vcpkg has ONNX:: prefix, let's create aliases
+        if(TARGET ONNX::onnx)
+            add_library(onnx ALIAS ONNX::onnx)
+        endif()
+        if(TARGET ONNX::onnx_proto)
+            add_library(onnx_proto ALIAS ONNX::onnx_proto)
+        endif()
     else()
         add_subdirectory(thirdparty/onnx)
     endif()
@@ -540,23 +570,14 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags
         PATTERN src/gflags_completions.sh EXCLUDE
         PATTERN WORKSPACE EXCLUDE)
 
-file(GLOB zlib_sources ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib/zlib/*.c
-                        ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib/zlib/*.h)
-install(FILES ${zlib_sources}
-        DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty/zlib/zlib
-        COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-        ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL})
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib/CMakeLists.txt
-        DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty/zlib
-        COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-        ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL})
-
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/json/nlohmann_json
         DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
         COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
         ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL}
+        PATTERN BUILD.bazel EXCLUDE
         PATTERN ChangeLog.md EXCLUDE
         PATTERN CITATION.cff EXCLUDE
+        PATTERN .cirrus.yml EXCLUDE
         PATTERN .clang-format EXCLUDE
         PATTERN .clang-tidy EXCLUDE
         PATTERN docs EXCLUDE
@@ -566,16 +587,13 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/json/nlohmann_json
         PATTERN .lgtm.yml EXCLUDE
         PATTERN Makefile EXCLUDE
         PATTERN meson.build EXCLUDE
+        PATTERN Package.swift EXCLUDE
         PATTERN README.md EXCLUDE
         PATTERN .reuse EXCLUDE
         PATTERN tests EXCLUDE
         PATTERN tools EXCLUDE
+        PATTERN WORKSPACE.bazel EXCLUDE
         PATTERN wsjcpp.yml EXCLUDE)
-
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cnpy
-        DESTINATION ${OV_CPACK_SAMPLESDIR}/cpp/thirdparty
-        COMPONENT ${OV_CPACK_COMP_CPP_SAMPLES}
-        ${OV_CPACK_COMP_CPP_SAMPLES_EXCLUDE_ALL})
 
 # restore state
 

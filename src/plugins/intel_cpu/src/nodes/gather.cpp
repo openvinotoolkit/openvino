@@ -4,7 +4,7 @@
 
 #include "gather.h"
 
-#include <partitioned_mem_mgr.h>
+#include <partitioned_mem_blk.h>
 
 #include <cstdint>
 #include <openvino/op/constant.hpp>
@@ -253,6 +253,7 @@ void Gather::createPrimitive() {
     if (isInPlace()) {
         return;
     }
+    m_threads_num = parallel_get_max_threads();
 #if defined(OPENVINO_ARCH_X86_64)
     uint64_t idxElPerVec = 1;
     if (!isDynamicNode()) {
@@ -294,11 +295,10 @@ void Gather::createPrimitive() {
 
             if (!isDynamicNode()) {
                 const uint64_t dataElPerVec = jitKernel->getDataElPerVec();
-                const uint64_t nthr = parallel_get_max_threads();
-                const uint64_t wpt = ((totalWork / dataElPerVec) / nthr + 1) * dataElPerVec;
-                execParamsPerThread.resize(nthr);
+                const uint64_t wpt = ((totalWork / dataElPerVec) / m_threads_num + 1) * dataElPerVec;
+                execParamsPerThread.resize(m_threads_num);
 
-                parallel_nt(nthr, [&](const int ithr, const int nthr) {
+                parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
                     const uint64_t dstStart = std::min(wpt * ithr, totalWork);
                     const uint64_t dstEnd = std::min(wpt * (ithr + 1), totalWork);
 
@@ -338,11 +338,11 @@ bool Gather::needPrepareParams() const {
 
 void Gather::prepareParams() {
     auto dataMemPtr = getSrcMemoryAtPort(GATHER_DATA);
-    if (!dataMemPtr || !dataMemPtr->isAllocated())
-        THROW_ERROR(" has not allocated input data memory.");
+    if (!dataMemPtr || !dataMemPtr->isDefined())
+        THROW_ERROR(" has undefined input data memory.");
     auto idxMemPtr = getSrcMemoryAtPort(GATHER_INDICES);
-    if (!idxMemPtr || !idxMemPtr->isAllocated())
-        THROW_ERROR(" has not allocated input indices memory.");
+    if (!idxMemPtr || !idxMemPtr->isDefined())
+        THROW_ERROR(" has undefined input indices memory.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_ERROR(" has unidentified preferable primitive descriptor.");
 
@@ -469,7 +469,7 @@ void Gather::execute(dnnl::stream strm) {
             (*jitKernel)(&arg);
         };
 
-        parallel_nt(0, threadBody);
+        parallel_nt(m_threads_num, threadBody);
 
         return;
     }
@@ -543,7 +543,7 @@ void Gather::executeDynamicImpl(dnnl::stream strm) {
             (*jitKernel)(&arg);
         };
 
-        parallel_nt(0, threadBody);
+        parallel_nt(m_threads_num, threadBody);
 
         return;
     }
@@ -945,7 +945,7 @@ void Gather::resolveInPlaceEdges(Edge::LOOK look) {
                     "Gather node: ",
                     getName(),
                     " can not use inPlace memory with splitting on dynamic dimention");
-    auto baseMemMngr = getParentEdgeAt(inplaceInpIndx)->getMemory().getMemoryMngr();
+    auto baseMemBlock = getParentEdgeAt(inplaceInpIndx)->getMemory().getMemoryBlock();
     const auto index = constIndices.front();
     const ptrdiff_t offset = index < 0 ? baseDim + index : index;
     const auto& childEdges = getChildEdgesAtPort(outputPort);
@@ -956,8 +956,8 @@ void Gather::resolveInPlaceEdges(Edge::LOOK look) {
                         " with type ",
                         getTypeStr());
 
-        auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr, baseDim, offset);
-        auto newMem = std::make_shared<Memory>(getEngine(), config.outConfs[outputPort].getMemDesc(), memMngr);
+        auto memBlock = std::make_shared<PartitionedMemoryBlock>(baseMemBlock, baseDim, offset);
+        auto newMem = std::make_shared<Memory>(getEngine(), config.outConfs[outputPort].getMemDesc(), memBlock);
 
         childEdge->reuse(newMem);
     }

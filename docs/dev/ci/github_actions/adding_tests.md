@@ -61,7 +61,7 @@ more about workflows and job organization.
 If new tests do not align with any existing job across all workflows, it is possible to
 create a dedicated job for them.
 
-An example dedicated job for a single set of tests from [`linux.yml`](./../../../../.github/workflows/linux.yml):
+An example dedicated job for a single set of tests from [`ubuntu_22.yml`](./../../../../.github/workflows/ubuntu_22.yml):
 ```yaml
 NVIDIA_Plugin:
   name: NVIDIA plugin
@@ -122,7 +122,7 @@ Refer to the [official GitHub Actions documentation](https://docs.github.com/en/
 
 You can refer to the [structural overview of the existing workflows](./overview.md#structure-of-the-workflows) as a template for a new workflow.
 
-The [`fedora.yml`](./../../../../.github/workflows/fedora.yml) workflow example includes:
+The [`fedora_29.yml`](./../../../../.github/workflows/fedora_29.yml) workflow example includes:
 * The following jobs:
   * `Smart_CI` - the [Smart CI system](./smart_ci.md).
   * `Build` - installing prerequisites, building OpenVINO with the specified CMake configuration, packaging and uploading artifacts.

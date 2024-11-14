@@ -25,7 +25,7 @@ void apply_dims_from_sizes(const util::FFTBase* op,
     if (const auto output_bounds = get_input_bounds<TRShape, int64_t>(op, 2, ta)) {
         const auto minus_one_bound = std::make_pair(dim::inf_bound, dim::inf_bound);
         const auto num_of_axes = axes.size();
-        const auto symbols =
+        const auto& symbols =
             op->get_input_size() > 2 ? op->get_input_source_output(2).get_tensor().get_value_symbol() : TensorSymbol();
         const bool propagate_symbols = num_of_axes <= symbols.size();
         for (size_t i = 0; i < num_of_axes; ++i) {

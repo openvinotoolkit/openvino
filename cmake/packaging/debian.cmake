@@ -58,7 +58,9 @@ macro(ov_cpack_settings)
            # don't install Intel OpenMP
            NOT item STREQUAL "omp" AND
            # the same for pugixml
-           NOT item STREQUAL "pugixml")
+           NOT item STREQUAL "pugixml" AND
+           # It was decided not to distribute JAX as C++ component
+           NOT item STREQUAL "jax")
             list(APPEND CPACK_COMPONENTS_ALL ${item})
         endif()
     endforeach()
@@ -94,6 +96,9 @@ macro(ov_cpack_settings)
         2024.0.0
         2024.1.0
         2024.2.0
+        2024.3.0
+        2024.4.0
+        2024.5.0
         )
 
     ov_check_conflicts_versions(conflicting_versions)
@@ -232,6 +237,20 @@ macro(ov_cpack_settings)
             "package-must-activate-ldconfig-trigger")
         list(APPEND frontends ir)
         set(ir_copyright "generic")
+    endif()
+
+    # It was decided not to distribute JAX as C++ component
+    if(ENABLE_OV_JAX_FRONTEND AND OFF)
+        set(CPACK_COMPONENT_JAX_DESCRIPTION "OpenVINO JAX Frontend")
+        set(CPACK_COMPONENT_JAX_DEPENDS "${OV_CPACK_COMP_CORE}")
+        set(CPACK_DEBIAN_JAX_PACKAGE_NAME "libopenvino-jax-frontend-${cpack_name_ver}")
+        # since we JAX FE is linkable target, we need to call ldconfig (i.e. `def_triggers`)
+        set(CPACK_DEBIAN_JAX_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
+        ov_debian_add_lintian_suppression(jax
+            # we have different package name strategy; it suggests libopenvino-jax-frontend202230
+            "package-name-doesnt-match-sonames")
+        list(APPEND frontends jax)
+        set(jax_copyright "generic")
     endif()
 
     if(ENABLE_OV_ONNX_FRONTEND)

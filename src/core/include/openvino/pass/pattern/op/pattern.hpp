@@ -30,7 +30,7 @@ PatternValueMap as_pattern_value_map(const PatternMap& pattern_map);
 template <typename T>
 std::function<bool(std::shared_ptr<Node>)> has_class() {
     auto pred = [](std::shared_ptr<Node> node) -> bool {
-        return ov::is_type<T>(node);
+        return ov::is_type<T>(std::move(node));
     };
 
     return pred;
@@ -38,7 +38,7 @@ std::function<bool(std::shared_ptr<Node>)> has_class() {
 template <typename T>
 std::function<bool(std::shared_ptr<Node>)> class_other_than() {
     auto pred = [](std::shared_ptr<Node> node) -> bool {
-        return !ov::is_type<T>(node);
+        return !ov::is_type<T>(std::move(node));
     };
 
     return pred;
@@ -85,13 +85,7 @@ class OPENVINO_API Pattern : public Node {
 public:
     /// \brief \p a base class for \sa Skip and \sa Label
     ///
-    Pattern(const OutputVector& patterns, ValuePredicate pred) : Node(patterns), m_predicate(pred) {
-        if (!m_predicate) {
-            m_predicate = [](const Output<Node>&) {
-                return true;
-            };
-        }
-    }
+    Pattern(const OutputVector& patterns, ValuePredicate pred);
 
     Pattern(const OutputVector& patterns) : Pattern(patterns, nullptr) {}
 
@@ -100,6 +94,9 @@ public:
     }
 
     ValuePredicate get_predicate() const;
+
+    std::ostream& write_description(std::ostream& out, uint32_t depth) const override;
+    virtual std::ostream& write_type_description(std::ostream& out) const;
 
 protected:
     ValuePredicate m_predicate;

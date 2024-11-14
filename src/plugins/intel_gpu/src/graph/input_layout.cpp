@@ -4,7 +4,6 @@
 #include "input_layout_inst.h"
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 #include <memory>
@@ -38,7 +37,11 @@ input_layout_inst::typed_primitive_inst(network& network, input_layout_node cons
 event::ptr input_layout_inst::set_data(memory::ptr mem) {
     auto ol = get_node_output_layout();
 
-    check_memory_to_set(*mem, ol);
+    bool empty_mem = mem->size() == 0 && (ol.is_dynamic() || ol.count() == 0);
+    if (!empty_mem) {
+        check_memory_to_set(*mem, ol);
+    }
+
     event::ptr ev = nullptr;
     auto& engine = get_network().get_engine();
     auto& stream = get_network().get_stream();

@@ -19,7 +19,7 @@ pass::ConvertDetectionOutput1ToDetectionOutput8::ConvertDetectionOutput1ToDetect
     auto detection_output_v1_pattern = pattern::wrap_type<ov::op::v0::DetectionOutput>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto detection_output_v1_node = std::dynamic_pointer_cast<ov::op::v0::DetectionOutput>(m.get_match_root());
+        auto detection_output_v1_node = ov::as_type_ptr<ov::op::v0::DetectionOutput>(m.get_match_root());
         if (!detection_output_v1_node)
             return false;
 

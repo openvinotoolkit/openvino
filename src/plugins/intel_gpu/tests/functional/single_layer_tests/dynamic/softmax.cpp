@@ -56,7 +56,7 @@ protected:
         for (auto&& shape : inputDynamicShapes)
             params.push_back(std::make_shared<ov::op::v0::Parameter>(model_type, shape));
 
-        const auto softMax = std::make_shared<ov::op::v1::Softmax>(params.at(0), axis);
+        const auto softMax = std::make_shared<ov::op::v8::Softmax>(params.at(0), axis);
         auto makeFunction = [](ov::ParameterVector &params, const std::shared_ptr<ov::Node> &lastNode) {
             ov::ResultVector results;
 
@@ -74,7 +74,7 @@ TEST_P(SoftMaxLayerGPUTest, Inference) {
 }
 
 const std::vector<ov::element::Type> netPrecisions = {
-       ov::element::f32, ov::element::f16
+    ov::element::f32, ov::element::f16
 };
 
 const std::vector<int64_t> axis2D = {0, 1};
@@ -88,6 +88,15 @@ const std::vector<ov::test::InputShape> inputShapes2D = {
         {{2, 100}, {5, 400}},
         {{10, 10}, {10, 306}, {10, 10}, {10, 5}}
     }
+};
+
+const std::vector<int64_t> axis3D = {-1};
+
+const std::vector<ov::test::InputShape> inputShapes3D = {
+    {
+        {-1, -1, -1},
+        {{16, 64, 64}, {4, 6, 27200}}
+    },
 };
 
 const std::vector<int64_t> axis4D = {1, 2, 3};
@@ -125,6 +134,13 @@ INSTANTIATE_TEST_SUITE_P(softMaxGPUDynamicTest2D,
                          ::testing::Combine(testing::ValuesIn(netPrecisions),
                                             testing::ValuesIn(inputShapes2D),
                                             testing::ValuesIn(axis2D)),
+                         SoftMaxLayerGPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(softMaxGPUDynamicTest3D,
+        SoftMaxLayerGPUTest,
+                         ::testing::Combine(testing::ValuesIn(netPrecisions),
+                                            testing::ValuesIn(inputShapes3D),
+                                            testing::ValuesIn(axis3D)),
                          SoftMaxLayerGPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(softMaxGPUDynamicTest4D,

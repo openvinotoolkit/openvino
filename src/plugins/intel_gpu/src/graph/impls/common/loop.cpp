@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "loop_inst.h"
-#include "implementation_map.hpp"
+#include "impls/registry/implementation_map.hpp"
 #include "register.hpp"
 #include "mutable_data_inst.h"
 #include "input_layout_inst.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include <vector>
 #include <algorithm>
 
@@ -311,7 +310,7 @@ attach_loop_common::attach_loop_common() {
     implementation_map<loop>::add(impl_types::common,
                                     shape_types::dynamic_shape,
                                     loop_impl::create,
-                                    {},
+                                    std::vector<data_types>{},
                                     {});
     implementation_map<loop>::add(impl_types::common, loop_impl::create, {});
 }

@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for ops added to openvino opset13."""
-from functools import partial
+from functools import partial, singledispatch
 from typing import Literal, Optional, Union
 import logging
 
@@ -11,11 +11,11 @@ import numpy as np
 
 log = logging.getLogger(__name__)
 
-from openvino.runtime import Node, Shape, Type, Output
+from openvino.runtime import Node, Shape, Type, Output, Tensor
 from openvino.runtime.op import Constant, Result
 from openvino.runtime.opset1 import convert_like
 from openvino.runtime.opset_utils import _get_node_factory
-from openvino.runtime.utils.decorators import binary_op, nameable_op, unary_op
+from openvino.runtime.utils.decorators import binary_op, nameable_op, unary_op, overloading
 from openvino.runtime.utils.types import (
     NumericData,
     NodeInput,
@@ -180,8 +180,7 @@ def multinomial(
     inputs = as_nodes(probs, num_samples, name=name)
 
     if global_seed < 0:
-        raise RuntimeError(
-            f"global_seed should be positive or 0. Got: {global_seed}")
+        raise RuntimeError(f"global_seed should be positive or 0. Got: {global_seed}")
 
     if op_seed < 0:
         raise RuntimeError(f"op_seed should be positive or 0. Got: {op_seed}")
@@ -223,8 +222,7 @@ def nms_rotated(
     :param clockwise: Flag that specifies direction of the box rotation.
     :return: The new node which performs NMSRotated
     """
-    inputs = as_nodes(boxes, scores, max_output_boxes_per_class,
-                      iou_threshold, score_threshold, name=name)
+    inputs = as_nodes(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, name=name)
 
     attributes = {
         "sort_result_descending": sort_result_descending,
@@ -273,6 +271,7 @@ def scaled_dot_product_attention(
     return _get_node_factory_opset13().create("ScaledDotProductAttention", inputs, attributes)
 
 
+@overloading(Union[NumericData, np.number, bool, np.bool_, list], Union[NumericType, Type], Optional[str], bool)  # type: ignore
 @nameable_op
 def constant(
     value: Union[NumericData, np.number, bool, np.bool_, list],
@@ -301,6 +300,7 @@ def constant(
                           - dtype force conversion of data.
     :return: The Constant node initialized with provided data.
     """
+
     def display_shared_memory_warning(warning_message: str) -> None:
         if shared_memory:
             log.warning(f"{warning_message}. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.")
@@ -313,10 +313,10 @@ def constant(
     # Handle type casting, when dtype is not None:
     if dtype:
         # Expect packed data, use different constructor to handle it correctly:
-        if dtype in [Type.u1, Type.i4, Type.u4, Type.nf4]:
+        if dtype in [Type.u1, Type.i4, Type.u4, Type.nf4, Type.f4e2m1]:
             display_shared_memory_warning(f"Constant initialized with packed type of {dtype}")
             return Constant(dtype, Shape(_value.shape), _value.flatten().tolist())
-        elif dtype in [Type.bf16]:
+        elif dtype in [Type.bf16, Type.f8e8m0, Type.f8e4m3, Type.f8e5m2]:
             display_shared_memory_warning(f"Constant initialized with OpenVINO custom {dtype}")
             return Constant(dtype, Shape(_value.shape), _value.flatten().tolist())
         # General use-case for all other types:
@@ -337,6 +337,16 @@ def constant(
                     _value, _shared_memory = _value.astype(_dtype), False
     # Create Constant itself:
     return Constant(_value, shared_memory=_shared_memory)
+
+
+@overloading(Tensor, bool, Optional[str])  # type: ignore
+@nameable_op
+def constant(  # noqa: F811
+    tensor: Tensor,
+    shared_memory: bool = False,
+    name: Optional[str] = None,
+) -> Constant:
+    return Constant(tensor, shared_memory=shared_memory)
 
 
 @unary_op

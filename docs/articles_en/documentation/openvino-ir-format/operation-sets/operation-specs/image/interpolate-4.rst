@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_image_Interpolate_4}
-
 Interpolate
 ===========
 
@@ -22,7 +20,12 @@ Interpolate
   * **Range of values**: one of ``nearest``, ``linear``, ``linear_onnx``, ``cubic``
   * **Type**: string
   * **Required**: *yes*
-  **Note**: Only 2D, 3D, 4D, 5D tensors with ``axes = {0, 1}``, ``axes = {0, 1, 2}``, ``axes = {2, 3}``,  ``axes = {2, 3, 4}`` respectively are supported for ``"mode" == "linear_onnx"``.
+
+    .. note::
+
+       Only 2D, 3D, 4D, 5D tensors with ``axes = {0, 1}``, ``axes = {0, 1, 2}``,
+       ``axes = {2, 3}``,  ``axes = {2, 3, 4}`` respectively are supported for
+       ``"mode" == "linear_onnx"``.
 
 * *shape_calculation_mode*
 

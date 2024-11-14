@@ -15,11 +15,9 @@ hello-segmentation
 hello-world
 hugging-face-hub
 image-classification-quantization
-image-inpainting
 knowledge-graphs-conve
 magika-content-type-recognition
 meter-reader
-model-tools
 music-generation
 object-detection
 openvino-api
@@ -31,7 +29,6 @@ person-tracking
 pose-estimation
 pytorch-onnx-to-openvino
 291-rmbg-background-removal
-speech-to-text
 style-transfer
 tensorflow-classification-to-openvino
 tensorflow-hub
@@ -40,5 +37,4 @@ tensorflow-object-detection-to-openvino
 tflite-selfie-segmentation
 vehicle-detection-and-recognition
 vision-background-removal
-vision-image-colorization
 vision-monodepth

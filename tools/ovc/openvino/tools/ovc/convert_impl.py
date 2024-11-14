@@ -12,7 +12,6 @@ from collections import OrderedDict
 from pathlib import Path
 from typing import Iterable, Callable
 
-
 try:
     import openvino_telemetry as tm
     from openvino_telemetry.backend import backend_ga4
@@ -34,8 +33,14 @@ from openvino.tools.ovc.utils import check_values_equal
 from openvino.tools.ovc.logger import init_logger
 from openvino.tools.ovc.telemetry_utils import send_params_info, send_conversion_result, \
     init_mo_telemetry
-from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, extract_input_info_from_example
+from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, \
+    extract_input_info_from_example, get_pytorch_decoder_for_model_on_disk
 from openvino.tools.ovc.moc_frontend.paddle_frontend_utils import paddle_frontend_converter
+
+try:
+    from openvino.tools.ovc.moc_frontend.jax_frontend_utils import get_jax_decoder
+except:
+    get_jax_decoder = None
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager, OpConversionFailure, TelemetryExtension
@@ -229,6 +234,11 @@ def check_model_object(argv):
             model, paddle.fluid.executor.Executor):
             return "paddle"
 
+    if 'jax' in sys.modules:
+        import jax
+        if isinstance(model, (jax.core.Jaxpr, jax.core.ClosedJaxpr)):
+            return "jax"
+
     raise Error('Unknown model type: {}'.format(type(model)))
 
 
@@ -319,6 +329,7 @@ def normalize_inputs(argv: argparse.Namespace):
     """
     # Parse input to list of InputCutInfo
     inputs = input_to_input_cut_info(argv.input)
+    argv.input = inputs
 
     # Make list of input names
     input_names_list = []
@@ -329,8 +340,6 @@ def normalize_inputs(argv: argparse.Namespace):
         assert len(input_names_list) == len(inputs), "\"input\" parameter has unnamed inputs and named inputs. " \
                                                      "Please either set names for all inputs, " \
                                                      "or do not set names for all inputs."
-    argv.inputs_list = input_names_list
-    argv.input = ','.join(input_names_list)
 
     if len(input_names_list) > 0:
         # Named inputs case
@@ -462,8 +471,14 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
                                                                      outputs)
                 pdmodel = paddle_runtime_converter.convert_paddle_to_pdmodel()
                 args['input_model'] = pdmodel
+            if model_framework == "jax":
+                if get_jax_decoder is not None:
+                    get_jax_decoder(args['input_model'], args)
+                else:
+                    raise Error("JAX Frontend is not available.")
 
         argv = pack_params_to_args_namespace(args, cli_parser, python_api_used)
+
         argv.framework = model_framework
         argv.is_python_object = inp_model_is_object
 
@@ -477,7 +492,21 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
 
         argv.framework = model_framework
 
+        orig_input_model = argv.input_model
+        pytorch_model_on_disk = False
+        if argv.framework is None and get_pytorch_decoder_for_model_on_disk(argv, args):
+            # try to load a model from disk as TorchScript or ExportedProgram
+            # TorchScriptPythonDecoder or TorchFXPythonDecoder object will be assigned to argv.input_model
+            # saved TorchScript and ExportedModel model can be passed to both ovc tool and Python convert_model
+            pytorch_model_on_disk = True
+
         ov_model = driver(argv, {"conversion_parameters": non_default_params})
+
+        if pytorch_model_on_disk:
+            # release memory allocated for temporal object
+            del argv.input_model
+            # restore original model name in arguments for tool reporting
+            argv.input_model = orig_input_model
 
         if inp_model_is_object and model_framework == "paddle":
             if paddle_runtime_converter:

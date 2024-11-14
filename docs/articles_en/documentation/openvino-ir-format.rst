@@ -1,5 +1,3 @@
-.. {#openvino_ir}
-
 OpenVINO IR format
 ==================
 

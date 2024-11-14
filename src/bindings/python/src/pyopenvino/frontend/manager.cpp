@@ -9,6 +9,7 @@
 #include <pybind11/stl_bind.h>
 
 #include "openvino/frontend/exception.hpp"
+#include "openvino/util/file_util.hpp"
 #include "pyopenvino/frontend/manager.hpp"
 #include "pyopenvino/utils/utils.hpp"
 
@@ -51,10 +52,10 @@ void regclass_frontend_FrontEndManager(py::module m) {
         py::arg("library_path"),
         R"(
                 Register frontend with name and factory loaded from provided library.
-            
+
                 :param name: Name of front end.
                 :type name: str
-                
+
                 :param library_path: Path (absolute or relative) or name of a frontend library. If name is
                 provided, depending on platform, it will be wrapped with shared library suffix and prefix
                 to identify library full name.
@@ -78,9 +79,16 @@ void regclass_frontend_FrontEndManager(py::module m) {
     fem.def(
         "load_by_model",
         [](const std::shared_ptr<ov::frontend::FrontEndManager>& fem, const py::object& model) {
-            if (py::isinstance(model, py::module_::import("pathlib").attr("Path"))) {
+            if (py::isinstance(model, py::module_::import("pathlib").attr("Path")) || py::isinstance<py::str>(model)) {
                 std::string model_path = Common::utils::convert_path_to_string(model);
-                return fem->load_by_model(model_path);
+
+            // Fix unicode path
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+                return fem->load_by_model(ov::util::string_to_wstring(model_path.c_str()));
+#else
+                std::string model_path_str = model_path;
+                return fem->load_by_model(model_path_str);
+#endif
             }
             return fem->load_by_model({Common::utils::py_object_to_any(model)});
         },

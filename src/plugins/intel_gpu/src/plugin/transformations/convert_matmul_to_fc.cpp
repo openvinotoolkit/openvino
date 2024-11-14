@@ -41,10 +41,26 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
             return false;
         }
 
-        // fc_input_a and fc_input_b - are the final inputs that will be set to FullyConnected.
-        // So in case of adding new operations that takes matmul inputs we need keep update fc_input_a and fc_input_b.
         auto fc_input_a = pattern_map.at(activations_m);
         auto fc_input_b = pattern_map.at(weights_m);
+
+        // If 'fc_input_b' is shared with another matmul, transposing 'fc_input_b' is restricted.
+        // If it is connected to the 'input_a' of another matmul, do not transpose
+        // If it is connected to the 'input_b' of another matmul and the transpose option differs between the two matmuls, do not transpose.
+        auto input_b = fc_input_b.get_node_shared_ptr();
+        for (auto& user : input_b->get_users()) {
+            if (user != matmul && ov::is_type<ov::op::v0::MatMul>(user) && ov::is_type<ov::op::v0::Convert>(input_b)) {
+                auto other_matmul = std::dynamic_pointer_cast<ov::op::v0::MatMul>(user);
+                // Transpose for input_b generates invalid input for other sibling matmul
+                if (input_b == other_matmul->get_input_node_shared_ptr(0) || fc_input_b == fc_input_a ||
+                    (input_b == other_matmul->get_input_node_shared_ptr(1) && matmul->get_transpose_b() != other_matmul->get_transpose_b())) {
+                    return false;
+                }
+            }
+        }
+
+        // fc_input_a and fc_input_b - are the final inputs that will be set to FullyConnected.
+        // So in case of adding new operations that takes matmul inputs we need keep update fc_input_a and fc_input_b.
         bool is_convert = false;
         if (auto convert_node = std::dynamic_pointer_cast<ov::op::v0::Convert>(fc_input_b.get_node_shared_ptr())) {
             is_convert = true;

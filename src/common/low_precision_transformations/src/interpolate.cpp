@@ -64,7 +64,7 @@ bool InterpolateTransformation::transform(TransformationContext &context, ov::pa
     interpolate = NetworkHelper::separateInStandaloneBranch(interpolate, defaultPrecisions);
     const auto newOperation = moveDequantizationAfter(context, interpolate, NetworkHelper::getDequantization(interpolate, defaultPrecisions));
 
-    OPENVINO_DEBUG << "LPT: done: " << newOperation;
+    OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;
 }
 

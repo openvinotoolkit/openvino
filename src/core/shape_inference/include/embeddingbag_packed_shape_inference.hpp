@@ -34,7 +34,7 @@ std::vector<TRShape> shape_infer(const ov::op::util::EmbeddingBagPackedBase* op,
                               TRShape::merge_into(indices_shape, input_shapes[PER_SAMPLE_WEIGHTS]),
                               "INDICES and PER_SAMPLE_WEIGHTS shape must be same.");
     }
-    return {embedding::out_shape_infer(op, input_shapes[EMB_TABLE], TShape(indices_shape))};
+    return {embedding::out_shape_infer(op, input_shapes[EMB_TABLE], TShape(std::move(indices_shape)))};
 }
 }  // namespace util
 }  // namespace op

@@ -5,7 +5,8 @@
 #include "snippets/lowered/pass/validate.hpp"
 
 #include "snippets/lowered/loop_manager.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/snippets_isa.hpp"
+#include "snippets/utils/utils.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov {
@@ -63,11 +64,21 @@ void validate_result(const ExpressionPtr& expr, const LinearIR& linear_ir) {
 void validate_buffer(const ExpressionPtr& expr, const LinearIR& linear_ir) {
     OPENVINO_ASSERT(ov::is_type<op::Buffer>(expr->get_node()),
                     "Buffer validation expects Buffer op");
-    const auto& in = expr->get_input_port_connector(0);
-    const auto& source = in->get_source();
-    const auto ma = std::dynamic_pointer_cast<snippets::modifier::MemoryAccess>(source.get_expr()->get_node());
-    OPENVINO_ASSERT(ma && ma->is_memory_access_input_port(source.get_index()),
+    OPENVINO_ASSERT(ov::is_type<BufferExpression>(expr),
+                    "Buffer validation expects Buffer expression");
+    for (const auto& input : expr->get_input_port_connectors()) {
+        const auto& source = input->get_source();
+        const auto ma = std::dynamic_pointer_cast<snippets::modifier::MemoryAccess>(source.get_expr()->get_node());
+        OPENVINO_ASSERT(ma && ma->is_memory_access_output_port(source.get_index()),
                     "Buffer expects MemoryAccess parent");
+        const auto buffer_siblings = input->get_consumers();
+        for (const auto& buffer_sibling : buffer_siblings) {
+            const auto& buffer_sibling_expr = buffer_sibling.get_expr();
+            OPENVINO_ASSERT(buffer_sibling_expr == expr || ov::is_type<op::LoopEnd>(buffer_sibling_expr->get_node()),
+                            "Buffer can have only LoopEnd siblings!");
+        }
+    }
+
     const auto& shape_infer_seq = utils::get_first_child_shape_infer_expr_seq(expr);
     const auto& expr_val = shape_infer_seq.empty() ? expr : shape_infer_seq.back();
     const auto& out = expr_val->get_output_port_connector(0);
@@ -76,9 +87,9 @@ void validate_buffer(const ExpressionPtr& expr, const LinearIR& linear_ir) {
         const auto& node = consumer_input.get_expr()->get_node();
         if (const auto ma = std::dynamic_pointer_cast<snippets::modifier::MemoryAccess>(node)) {
             OPENVINO_ASSERT(ma->is_memory_access_input_port(consumer_input.get_index()),
-                            "Buffer expects MemoryAccess on output");
+                            "Buffer expects MemoryAccess and LoopEnd on output");
         } else {
-            OPENVINO_ASSERT(ov::is_type<op::LoopEnd>(node), "Parameter must be connected to MemoryAccess op or LoopEnd");
+            OPENVINO_ASSERT(ov::is_type<op::LoopEnd>(node), "Buffer expects MemoryAccess and LoopEnd on output");
         }
     }
 }
@@ -129,6 +140,7 @@ Validate::Validate() {
 bool Validate::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::Validate")
 
+    double prev_exec_order = -1 * std::numeric_limits<double>::max();
     for (auto expr_it = begin; expr_it != end; ++expr_it) {
         const auto expr = *expr_it;
         const auto node = expr->get_node();
@@ -140,6 +152,9 @@ bool Validate::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lo
         // Loop expr doesn't have shapes and layouts
         if (!ov::is_type<op::LoopBase>(node))
             validate_ports(expr);
+
+        OPENVINO_ASSERT(expr->get_exec_num() > prev_exec_order, "Invalid execution order of expression");
+        prev_exec_order = expr->get_exec_num();
     }
 
     return false;

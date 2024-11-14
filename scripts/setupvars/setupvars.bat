@@ -36,7 +36,7 @@ if exist "%INTEL_OPENVINO_DIR%\extras\opencv\setupvars.bat" (
 set "OpenVINO_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
 if exist "%OpenVINO_DIR%\OpenVINOGenAIConfig.cmake" (
    :: If GenAI is installed, export it as well.
-   set OpenVINOGenAI_DIR=%OpenVINO_DIR%
+   set "OpenVINOGenAI_DIR=%OpenVINO_DIR%"
 )
 set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Release;%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Debug;%OPENVINO_LIB_PATHS%"
 
@@ -67,8 +67,8 @@ set "PATH=%OPENVINO_LIB_PATHS%;%PATH%"
 
 :: Check if Python is installed
 set PYTHON_VERSION_MAJOR=3
-set MIN_REQUIRED_PYTHON_VERSION_MINOR=8
-set MAX_SUPPORTED_PYTHON_VERSION_MINOR=12
+set MIN_REQUIRED_PYTHON_VERSION_MINOR=9
+set MAX_SUPPORTED_PYTHON_VERSION_MINOR=13
 
 python --version 2>NUL
 if errorlevel 1 (call :python_not_installed) else (call :check_python_version)

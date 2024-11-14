@@ -1,0 +1,373 @@
+# Copyright (C) 2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#This file provides a comprehensive list of all dependencies of OpenVINO 2024.4
+#The file is part of the automation pipeline for posting OpenVINO IR models on the HuggingFace Hub, including OneBOM dependency checks.
+
+
+absl-py
+accuracy-checker
+addict
+alabaster
+appnope
+argparse
+astor
+astpretty
+astroid
+astunparse
+atomicwrites
+attrs
+babel
+backcall
+backports-functools-lru-cache
+bandit
+beautifulsoup4
+black
+Boost
+Bootstrap
+BrainMaGe
+cached-property
+cachetools
+certifi
+chardet
+charset-normalizer
+chosen-js
+clang
+click
+CNPY
+colorama
+ComputeLibrary
+coverage
+cycler
+cython
+dataclasses
+decorator
+Deformable-ConvNets
+defusedxml
+Detectron2
+distlib
+distro
+docopt
+docutils
+Doxygen
+Vovkos doxyrest
+enum34
+eradicate
+execnet
+fastjsonschema
+Ffmpeg
+filelock
+flake8
+flake8_builtins
+flake8_coding
+flake8_commas
+flake8_pep3101
+flake8_quotes
+flake8-annotations-complexity
+flake8-broken-line
+flake8-bugbear
+flake8-class-attributes-order
+flake8-comprehensions
+flake8-debugger
+flake8-docstrings
+flake8-eradicate
+flake8-executable
+flake8-expression-complexity
+flake8-plugin-utils
+flake8-print
+flake8-pytest-style
+flake8-rst-docstrings
+flake8-string-format
+flake8-variables-names
+flatbuffers
+fonttools
+freetype
+funcsigs
+functools32
+future
+futures
+gast
+generator
+gflags
+gitdb
+gitpython
+google-auth
+google-auth-oauthlib
+google cpplint
+google fonts
+google-java-format
+google-pasta
+Google gtest-parallel
+googletest
+graphviz
+grpcio
+Gstreamer
+h5py
+hamcrest-core
+Hyperopt
+idna
+idna
+imagesize
+importlib-metadata
+importlib-resources
+import-order
+iniconfig
+INTEL/CAFFE
+Intel Integrated Performance Primitives - Intel IPP
+intel/IntelSEAPI
+intel/libva
+ipython
+isort
+itt API
+jedi
+jinja2
+json
+json-c
+jsonschema
+pboettch json-schema-validator
+linjackson78 jstyleson
+John Hauser Berkeley SoftFloat
+jquery - jquery/jquery
+Junit
+keras-nightly
+keras-preprocessing
+kiwisolver
+lazy-object-proxy
+libjpeg-turbo
+Libpng
+Llohse libnpy
+llvm
+lxml
+mando
+facebookresearch/maskrcnn-benchmark
+markdown
+markupsafe
+mathjax mathjax
+matplotlib
+mccabe
+mistune
+mongo-python-driver
+more-itertools
+mypy
+mypy-extensions
+networkx
+nibabel
+Nithinn ncc
+numpy
+oauthlib
+OneDNN
+OneTBB
+onnx
+onnxruntime
+Open Model Zoo
+omz-tools
+OpenCL
+OpenCL headers
+OpenCL ICD Loader
+OpenCL-hpp headers
+OpenCV
+opencv-python
+OpenJDK
+OpenVINO OSS
+openvino-telemetry
+opt-einsum
+packaging
+paddlepaddle
+PapaParse
+pandas
+parso
+pathlib2
+pathspec
+pbr
+pep8-naming
+pexpect
+pickleshare
+pillow
+platformdirs
+pluggy
+pluggy
+progress
+prompt-toolkit
+protobuf
+ptyprocess
+pugixml
+py
+pyasn1
+pyasn1-modules
+pycodestyle
+py-cpuinfo
+py-leveldb
+Pybind11
+pydata-sphinx-theme
+pydocstyle
+pyenchant
+pyflakes
+pygments
+pylint
+pymongo
+pyparsing
+pyrsistent
+pytest
+pytest-dependency
+pytest-forked
+pytest-html
+pytest-metadata
+pytest-metadata
+pytest-timeout
+pytest-xdist
+Pytorch
+Python
+python-attrs
+python-dateutil
+python-fastjsonschema
+python pandas
+Python-pillow
+pytz
+pyyaml
+radon
+Rapidjson
+requests
+requests-oauthlib
+restructuredtext-lint
+retrying
+Roboto Fonts
+rsa
+ruGPT3Medium
+safestringlib
+scikit-build
+scipy
+setuptools
+six
+smmap
+snowballstemmer
+soupsieve
+sphinx
+sphinxcontrib-applehelp
+sphinxcontrib-devhelp
+sphinxcontrib-htmlhelp
+sphinxcontrib-jsmath
+sphinxcontrib-qthelp
+sphinxcontrib-serializinghtml
+sphinx-copybutton
+sphinx-inline-tabs
+sphinx-panels
+sphinx-sitemap
+stevedore
+tensorboard
+tensorboard-data-server
+tensorboard-plugin-wit
+tensorflow
+tensorflow
+tensorflow-estimator
+termcolor
+test-generator
+threading_building_blocks
+foutaise/texttable/
+toml
+tomli
+Torch7
+tox
+traitlets
+Transformers
+typed-ast
+types-pkg_resources
+typing
+typing-extensions
+urllib3
+Viewer
+virtualenv
+Torchvision
+wcwidth
+werkzeug
+wheel
+wrapt
+xbyak
+zipp
+Zlib
+backports
+contextlib2
+dill
+keras
+singledispatch
+Fluid
+libusb (for MYRIAD)
+libGNA (for GNA)
+Benchmark
+GitPython
+huggingface/transformers
+Hamcrest JavaHamcrest
+Openvinotoolkit model-server
+Openvinotoolkit nncf
+pytorch/vision
+Sphinx documentation builder
+FlatBuffers
+POCO C++ Libraries
+Google Mock
+Google Snappy
+Microsoft onnxruntime
+ML commons/inference
+take-action
+bitsandbytes
+diffusers
+einops
+optimum-intel
+tiktoken
+timm
+tokenizers
+torch
+optimum
+psutil
+vscode-extension-samples
+fast_tokenizer
+re2
+icu4c
+sentencepiece
+auto-gptq
+transformers-stream-generator
+eigen3
+gtk3-devel
+gstreamer1-devel
+gstreamer1-plugins-base-devel
+ffmpeg-devel
+libmfx-devel
+cmake
+git
+python38-devel
+python38-pip
+gcc-c++
+gcc
+python3-dev
+python3-pip
+ninja-build
+libgtk-3-dev
+libpng-dev
+libjpeg-dev
+libwebp-dev
+libtiff5-dev
+libopenexr-dev
+libopenblas-dev
+libx11-dev
+libavutil-dev
+libavcodec-dev
+libavformat-dev
+libswscale-dev
+libavresample-dev
+libtbb2
+libssl-dev
+libva-dev
+libmfx-dev
+libgstreamer1.0-dev
+libgstreamer-plugins-base1.0-dev
+epel-release-latest-8.noarch.rpm
+rpmfusion-free-release-8.noarch.rpm
+pytest-repeat 0.9.3
+pip
+make
+httpx
+ultralytics
+llama.cpp
+lixsmm
+
+
+
+
+

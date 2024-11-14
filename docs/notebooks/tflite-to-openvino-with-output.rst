@@ -14,8 +14,9 @@ IR, load the model in `OpenVINO
 Runtime <https://docs.openvino.ai/2024/openvino-workflow/running-inference.html>`__
 and do inference with a sample image.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
+
 
 -  `Preparation <#preparation>`__
 
@@ -33,6 +34,16 @@ Table of contents:
 
 -  `Estimate Model Performance <#estimate-model-performance>`__
 
+Installation Instructions
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is a self-contained example that relies solely on its own code.
+
+We recommend running the notebook in a virtual environment. You only
+need a Jupyter server to start. For details, please refer to
+`Installation
+Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
+
 Preparation
 -----------
 
@@ -46,7 +57,7 @@ Install requirements
 .. code:: ipython3
 
     %pip install -q "openvino>=2023.1.0"
-    %pip install -q opencv-python requests tqdm
+    %pip install -q opencv-python requests tqdm kagglehub Pillow
     
     # Fetch `notebook_utils` module
     import requests
@@ -60,9 +71,7 @@ Install requirements
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -70,7 +79,7 @@ Install requirements
 
 .. parsed-literal::
 
-    21503
+    24692
 
 
 
@@ -86,7 +95,7 @@ Imports
     from PIL import Image
     import openvino as ov
     
-    from notebook_utils import download_file, load_image
+    from notebook_utils import download_file, load_image, device_widget
 
 Download TFLite model
 ---------------------
@@ -95,27 +104,17 @@ Download TFLite model
 
 .. code:: ipython3
 
-    model_dir = Path("model")
-    tflite_model_path = model_dir / "efficientnet_lite0_fp32_2.tflite"
+    import kagglehub
+    
+    model_dir = kagglehub.model_download("tensorflow/efficientnet/tfLite/lite0-fp32")
+    tflite_model_path = Path(model_dir) / "2.tflite"
     
     ov_model_path = tflite_model_path.with_suffix(".xml")
-    model_url = "https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tfLite/variations/lite0-fp32/versions/2?lite-format=tflite"
-    
-    download_file(model_url, tflite_model_path.name, model_dir)
-
 
 
 .. parsed-literal::
 
-    model/efficientnet_lite0_fp32_2.tflite:   0%|          | 0.00/17.7M [00:00<?, ?B/s]
-
-
-
-
-.. parsed-literal::
-
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/notebooks/tflite-to-openvino/model/efficientnet_lite0_fp32_2.tflite')
-
+    Warning: Looks like you're using an outdated `kagglehub` version, please consider updating (latest version: 0.3.3)
 
 
 Convert a Model to OpenVINO IR Format
@@ -145,7 +144,7 @@ For TensorFlow Lite models support, refer to this
 
 .. parsed-literal::
 
-    Model model/efficientnet_lite0_fp32_2.tflite successfully converted and saved to model/efficientnet_lite0_fp32_2.xml
+    Model /opt/home/k8sworker/.cache/kagglehub/models/tensorflow/efficientnet/tfLite/lite0-fp32/2/2.tflite successfully converted and saved to /opt/home/k8sworker/.cache/kagglehub/models/tensorflow/efficientnet/tfLite/lite0-fp32/2/2.xml
 
 
 Load model using OpenVINO TensorFlow Lite Frontend
@@ -156,7 +155,7 @@ Load model using OpenVINO TensorFlow Lite Frontend
 TensorFlow Lite models are supported via ``FrontEnd`` API. You may skip
 conversion to IR and read models directly by OpenVINO runtime API. For
 more examples supported formats reading via Frontend API, please look
-this `tutorial <../openvino-api>`__.
+this `tutorial <openvino-api-with-output.html>`__.
 
 .. code:: ipython3
 
@@ -190,14 +189,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
     
     device
 
@@ -246,7 +238,7 @@ select device from dropdown list for running inference using OpenVINO
 Estimate Model Performance
 --------------------------
 
- `Benchmark
+`Benchmark
 Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
 is used to measure the inference performance of the model on CPU and
 GPU.
@@ -271,18 +263,18 @@ GPU.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
+    [ INFO ] Build ................................. 2024.5.0-16993-9c432a3641a
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
+    [ INFO ] Build ................................. 2024.5.0-16993-9c432a3641a
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 9.29 ms
+    [ INFO ] Read model took 10.03 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : f32 / [...] / [1,224,224,3]
@@ -296,7 +288,7 @@ GPU.
     [ INFO ] Model outputs:
     [ INFO ]     Softmax (node: 61) : f32 / [...] / [1,1000]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 160.99 ms
+    [ INFO ] Compile model took 165.61 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: TensorFlow_Lite_Frontend_IR
@@ -308,7 +300,7 @@ GPU.
     [ INFO ]     AFFINITY: Affinity.CORE
     [ INFO ]     CPU_DENORMALS_OPTIMIZATION: False
     [ INFO ]     CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
-    [ INFO ]     DYNAMIC_QUANTIZATION_GROUP_SIZE: 0
+    [ INFO ]     DYNAMIC_QUANTIZATION_GROUP_SIZE: 32
     [ INFO ]     ENABLE_CPU_PINNING: True
     [ INFO ]     ENABLE_HYPER_THREADING: True
     [ INFO ]     EXECUTION_DEVICES: ['CPU']
@@ -333,15 +325,15 @@ GPU.
     [ INFO ] Fill input 'images' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 7.44 ms
+    [ INFO ] First inference took 6.93 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            17394 iterations
-    [ INFO ] Duration:         15003.40 ms
+    [ INFO ] Count:            14982 iterations
+    [ INFO ] Duration:         15006.90 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        5.04 ms
-    [ INFO ]    Average:       5.04 ms
-    [ INFO ]    Min:           2.70 ms
-    [ INFO ]    Max:           15.97 ms
-    [ INFO ] Throughput:   1159.34 FPS
+    [ INFO ]    Median:        5.47 ms
+    [ INFO ]    Average:       5.91 ms
+    [ INFO ]    Min:           3.02 ms
+    [ INFO ]    Max:           34.80 ms
+    [ INFO ] Throughput:   998.34 FPS
 

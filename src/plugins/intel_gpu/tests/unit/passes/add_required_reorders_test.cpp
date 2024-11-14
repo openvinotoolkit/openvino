@@ -122,7 +122,7 @@ TEST(add_required_reorders, prevent_users_invalidation) {
     const auto& conv_node = prog->get_node("conv");
 
     // Force OneDNN impl type to insert padded_layout -> non_padded_layout reorder
-    prog->get_node("conv").set_preferred_impl_type(impl_types::onednn);
+    prog->get_node("conv").set_forced_impl_type(impl_types::onednn);
 
     program_wrapper::apply_opt_pass<add_required_reorders>(*prog);
 
@@ -150,7 +150,7 @@ TEST(add_required_reorders, skip_adding_reorder_batch_axis_padding) {
     topology.add(crop("crop2", input_info("reorder_input"), tensor{1, 6, 2, 2, 2}, tensor(2, 0, 0, 0, 0)));
     topology.add(reorder("crop2_reorder", input_info("crop2"), reorder_layout));
     topology.add(reshape("reshape2", input_info("crop2_reorder"), tensor(6, 2, 2, 2)));
-    topology.add(concatenation("concat", { input_info("reshape1"), input_info("reshape2") }, 1, data_types::f32, padding{{0, 0, 0, 0}, 0}));
+    topology.add(concatenation("concat", { input_info("reshape1"), input_info("reshape2") }, 1, data_types::f32));
     topology.add(reorder("reorder_output", input_info("concat"), format::bfyx, data_types::i8));
 
     ExecutionConfig config = get_test_default_config(engine);

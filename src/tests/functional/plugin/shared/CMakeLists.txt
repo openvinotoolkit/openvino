@@ -41,6 +41,9 @@ endif()
 
 if (TARGET openvino::snippets)
     list(APPEND LINK_LIBRARIES_PRIVATE ov_snippets_models)
+    if (ENABLE_SNIPPETS_LIBXSMM_TPP)
+        add_definitions(-DSNIPPETS_LIBXSMM_TPP)
+    endif()
 else()
     list(APPEND EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/snippets)
 endif()
@@ -73,12 +76,6 @@ ov_add_target(
 ov_build_target_faster(${TARGET_NAME}
     PCH PRIVATE "src/precomp.hpp"
 )
-
-if (ENABLE_INTEL_CPU)
-    set_source_files_properties(
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/behavior/ov_executable_network/get_metric.cpp"
-        PROPERTIES COMPILE_DEFINITIONS ENABLE_INTEL_CPU=1)
-endif()
 
 # install & export
 

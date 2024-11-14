@@ -24,7 +24,7 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop
     const auto output_count = loop_end->get_output_num();
 
     std::set<size_t> resetting_data_indexes;
-    std::set<size_t> buffers_ids;
+    std::set<size_t> buffers_groups;
     // We count expressions only on inputs of Loop because we can only read from the same data but not write to the same data.
     //       Parameter
     //        |    |
@@ -32,10 +32,10 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop
     std::set<ExpressionPtr> read_data_exprs;
     for (size_t i = 0; i < input_count; ++i) {
         const auto& parent_output = loop_connectors[i]->get_source().get_expr();
-        if (const auto buffer = ov::as_type_ptr<op::Buffer>(parent_output->get_node())) {
+        if (const auto buffer_expr = ov::as_type_ptr<BufferExpression>(parent_output)) {
             // If Buffer is missed in set, Just save - it's first meeting
-            if (buffers_ids.count(buffer->get_id()) == 0) {
-                buffers_ids.insert(buffer->get_id());
+            if (buffers_groups.count(buffer_expr->get_reg_group()) == 0) {
+                buffers_groups.insert(buffer_expr->get_reg_group());
             } else {
                 // The Buffer with the same ID is in set - need to add this Buffer idx to set of Buffers for resetting
                 resetting_data_indexes.insert(i);
@@ -56,17 +56,17 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop
         size_t buffer_count = 0;
         size_t loop_count = 0;
         for (const auto& consumer_input : consumer_inputs) {
-            const auto& child_node = consumer_input.get_expr()->get_node();
-            if (const auto buffer = ov::as_type_ptr<op::Buffer>(child_node)) {
+            const auto& consumer = consumer_input.get_expr();
+            if (const auto buffer_expr = ov::as_type_ptr<BufferExpression>(consumer)) {
                 buffer_count++;
                 // If Buffer is missed in set, Just save - it's first meeting
-                if (buffers_ids.count(buffer->get_id()) == 0) {
-                    buffers_ids.insert(buffer->get_id());
+                if (buffers_groups.count(buffer_expr->get_reg_group()) == 0) {
+                    buffers_groups.insert(buffer_expr->get_reg_group());
                 } else {
                     // The Buffer with the same ID is in set - need to add this Buffer idx to set of Buffers for resetting
                     resetting_data_indexes.insert(input_count + i);
                 }
-            } else if (ov::is_type<op::LoopEnd>(child_node)) {
+            } else if (ov::is_type<op::LoopEnd>(consumer->get_node())) {
                 loop_count++;
             }
         }

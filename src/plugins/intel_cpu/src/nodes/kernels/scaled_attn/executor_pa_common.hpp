@@ -33,7 +33,8 @@ struct PagedAttentionExecutor {
     static const size_t ID_SLIDING_WINDOW = 10;             // []
     static const size_t ID_ALIBI_SLOPES = 11;               // [H|0], float
     static const size_t ID_MAX_CONTEXT_LEN = 12;            // []
-    virtual void execute(const std::vector<ov::intel_cpu::MemoryPtr>& inputs, const ov::intel_cpu::MemoryPtr output) = 0;
+    virtual void execute(const std::vector<ov::intel_cpu::MemoryPtr>& inputs, const std::vector<ov::intel_cpu::MemoryPtr> outputs) = 0;
+    virtual ~PagedAttentionExecutor() = default;
 };
 
 #ifdef OPENVINO_ARCH_X86_64
@@ -68,9 +69,10 @@ public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(JitMatMulVecAMX)
     int m_head_size;
     int m_block_size;
+    ov::element::Type m_amx_prec;
     TileConfiger m_tile_configer;
     TileConfig m_tile_cfg;
-    JitMatMulVecAMX(int head_size, int block_size);
+    JitMatMulVecAMX(int head_size, int block_size, ov::element::Type amx_prec);
 
     void tile_config() {
         m_tile_configer(&m_tile_cfg);

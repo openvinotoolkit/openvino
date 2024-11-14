@@ -9,12 +9,13 @@
 #include "cpu_memory.h"
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
+#include "common_test_utils/test_assertions.hpp"
 
 // This test is used to test whether mlas gemm lib compiles successfully
 TEST(MLASGemmTests, getPackedSize) {
     int N = 51864;
     int K = 384;
-    ASSERT_NO_THROW(ov::intel_cpu::mlas_sgemm_pack_get_size(N, K));
+    OV_ASSERT_NO_THROW(ov::intel_cpu::mlas_sgemm_pack_get_size(N, K));
 }
 // Test mlas thread partition with even/odd threads
 TEST(MLASGemmTests, simpleGemm) {
@@ -29,11 +30,11 @@ TEST(MLASGemmTests, simpleGemm) {
     float* bData = reinterpret_cast<float*>(alignedB.get_ptr());
     std::vector<float> cData(M * N, 0.0f);
 
-    ASSERT_NO_THROW(
+    OV_ASSERT_NO_THROW(
         ov::intel_cpu::
             mlas_sgemm_compute("N", "T", M, N, K, 1.0f, aData.data(), K, bData, N, 0.0f, cData.data(), N, nullptr, nthr));
 
-    ASSERT_NO_THROW(
+    OV_ASSERT_NO_THROW(
         ov::intel_cpu::
             mlas_sgemm_compute("N", "T", M, N, K, 1.0f, aData.data(), K, bData, N, 0.0f, cData.data(), N, nullptr, nthr - 1));
 }

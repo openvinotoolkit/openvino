@@ -68,7 +68,7 @@ public:
     }
 
     GraphPtr emit() {
-        graph->InitGraph(false);
+        OPENVINO_THROW("Not implemented yet!");
         return graph;
     }
 

@@ -1,9 +1,5 @@
-.. {#openvino_docs_performance_benchmarks_faq}
-
 Performance Information F.A.Q.
 ==============================
-
-
 
 
 .. meta::
@@ -19,7 +15,13 @@ Performance Information F.A.Q.
 
 .. dropdown:: Where can I find the models used in the performance benchmarks?
 
-   All models used are included in the GitHub repository of :doc:`Open Model Zoo <../../documentation/legacy-features/model-zoo>`.
+   All models used are included in the GitHub repository of
+   :doc:`Open Model Zoo <../../documentation/legacy-features/model-zoo>`.
+
+   .. important::
+
+      Due to the deprecation of Open Model Zoo, models in the OpenVINO IR format are now
+      published on `Hugging Face <https://huggingface.co/OpenVINO>`__.
 
 .. dropdown:: Will there be any new models added to the list used for benchmarking?
 
@@ -56,15 +58,23 @@ Performance Information F.A.Q.
         - Hugginface
         - Causal Decoder-only
         - 2048
-      * - `Llama-2-7b-chat <https://ai.meta.com/llama/>`__
+      * - `Llama-2-7b-chat <https://www.llama.com/>`__
         - Meta AI
         - Auto regressive language
         - 4096
+      * - `Llama-3-8b <https://www.llama.com/>`__
+        - Meta AI
+        - Auto regressive language
+        - 8192
       * - `Mistral-7b <https://huggingface.co/mistralai/Mistral-7B-v0.1>`__
         - Mistral AI
         - Auto regressive language
         - 4096
-      * - `Stable-Diffusion-V2-1 <https://huggingface.co/stabilityai/stable-diffusion-2-1>`__
+      * - `Phi3-4k-mini <https://huggingface.co/microsoft/Phi-3-mini-4k-instruct>`__
+        - Huggingface
+        - Auto regressive language
+        - 4096
+      * - `Stable-Diffusion-V1-5 <https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5>`__
         - Hugginface
         - Latent Diffusion Model
         - 77
@@ -104,13 +114,13 @@ Performance Information F.A.Q.
         - U-Net
         - semantic segmentation
         - 368x480
-      * - `yolo-v3-tiny <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/yolo-v3-tiny-tf>`__
-        - YOLO v3 Tiny
+      * - `yolo-v5m <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/yolo-v3-tiny-tf>`__
+        - YOLO V5 Medium
         - object detection
-        - 416x416
-      * - `yolov8n <https://https://github.com/ultralytics/ultralytics>`__
+        - 640x640
+      * - `yolov8n <https://github.com/ultralytics/ultralytics>`__
         - Yolov8nano
-        -  object detection
+        - object detection
         - 608x608
 
 
@@ -118,9 +128,8 @@ Performance Information F.A.Q.
 
    Intel partners with vendors all over the world. For a list of Hardware Manufacturers, see the
    `Intel® AI: In Production Partners & Solutions Catalog <https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/partners-solutions-catalog.html>`__.
-   For more details, see the :doc:`Supported Devices <../compatibility-and-support/supported-devices>`.
-   documentation. Before purchasing any hardware, you can test and run
-   models remotely, using `Intel® DevCloud for the Edge <http://devcloud.intel.com/edge/>`__.
+   For more details, see the :doc:`Supported Devices <../compatibility-and-support/supported-devices>` article.
+
 
 .. dropdown:: How can I optimize my models for better performance or accuracy?
 
@@ -130,8 +139,7 @@ Performance Information F.A.Q.
 
 .. dropdown:: Why are INT8 optimized models used for benchmarking on CPUs with no VNNI support?
 
-   The benefit of low-precision optimization using the OpenVINO™
-   toolkit model optimizer extends beyond processors supporting VNNI
+   The benefit of low-precision optimization extends beyond processors supporting VNNI
    through Intel® DL Boost. The reduced bit width of INT8 compared to FP32
    allows Intel® CPU to process the data faster. Therefore, it offers
    better throughput on any converted model, regardless of the
@@ -171,6 +179,6 @@ Performance Information F.A.Q.
 
 .. container:: benchmark-banner
 
-   Results may vary. For more information, see
-   :doc:`Platforms, Configurations, Methodology <../performance-benchmarks>`.
-   See :doc:`Legal Information <../additional-resources/legal-information>`.
+   Results may vary. For more information, see:
+   :doc:`Platforms, Configurations, Methodology <../performance-benchmarks>`,
+   :doc:`Legal Information <../additional-resources/terms-of-use>`.

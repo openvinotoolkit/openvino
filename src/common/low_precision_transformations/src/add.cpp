@@ -108,9 +108,6 @@ bool AddTransformation::transform(TransformationContext& context, ov::pass::patt
         return false;
     }
 
-    NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(op, defaultPrecisions, 0));
-    NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(op, defaultPrecisions, 1));
-
     std::shared_ptr<Node> addNode = NetworkHelper::separateInStandaloneBranch(op, defaultPrecisions);
     std::shared_ptr<ov::opset1::Add> add = ov::as_type_ptr<ov::opset1::Add>(addNode);
 
@@ -238,7 +235,7 @@ bool AddTransformation::transform(TransformationContext& context, ov::pass::patt
         NetworkHelper::foldDequantization(node, fullPathIndex, defaultPrecisions);
     }
 
-    OPENVINO_DEBUG << "LPT: done: " << newAddOrSubtract;
+    OPENVINO_DEBUG("LPT: done: ", newAddOrSubtract);
     return true;
 }
 

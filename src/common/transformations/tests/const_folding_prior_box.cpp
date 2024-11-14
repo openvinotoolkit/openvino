@@ -42,7 +42,7 @@ TEST(TransformationTests, ConstFoldingPriorBox) {
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<pass::ConstantFolding>();
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -63,8 +63,8 @@ TEST(TransformationTests, ConstFoldingPriorBox) {
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 
-    auto fused = std::dynamic_pointer_cast<opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
-    auto ref = std::dynamic_pointer_cast<opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
+    auto fused = ov::as_type_ptr<opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
+    auto ref = ov::as_type_ptr<opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
 
     EXPECT_TRUE(fused != nullptr);
     EXPECT_TRUE(ref != nullptr);
@@ -89,7 +89,7 @@ TEST(TransformationTests, ConstFoldingPriorBoxClustered) {
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<pass::ConstantFolding>();
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -116,8 +116,8 @@ TEST(TransformationTests, ConstFoldingPriorBoxClustered) {
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 
-    auto fused = std::dynamic_pointer_cast<opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
-    auto ref = std::dynamic_pointer_cast<opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
+    auto fused = ov::as_type_ptr<opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
+    auto ref = ov::as_type_ptr<opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
 
     EXPECT_TRUE(fused != nullptr);
     EXPECT_TRUE(ref != nullptr);
@@ -163,7 +163,7 @@ TEST(TransformationTests, ConstFoldingPriorBoxSubgraph) {
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<pass::ConstantFolding>();
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -182,8 +182,8 @@ TEST(TransformationTests, ConstFoldingPriorBoxSubgraph) {
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 
-    auto fused = std::dynamic_pointer_cast<opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
-    auto ref = std::dynamic_pointer_cast<opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
+    auto fused = ov::as_type_ptr<opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
+    auto ref = ov::as_type_ptr<opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
 
     EXPECT_TRUE(fused != nullptr);
     EXPECT_TRUE(ref != nullptr);
@@ -225,7 +225,7 @@ TEST(TransformationTests, ConstFoldingPriorBoxClusteredSubgraph) {
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<pass::ConstantFolding>();
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -252,8 +252,8 @@ TEST(TransformationTests, ConstFoldingPriorBoxClusteredSubgraph) {
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 
-    auto fused = std::dynamic_pointer_cast<opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
-    auto ref = std::dynamic_pointer_cast<opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
+    auto fused = ov::as_type_ptr<opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
+    auto ref = ov::as_type_ptr<opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
 
     EXPECT_TRUE(fused != nullptr);
     EXPECT_TRUE(ref != nullptr);
@@ -281,7 +281,7 @@ TEST(TransformationTests, ConstFoldingPriorBox8) {
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<pass::ConstantFolding>();
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -307,8 +307,8 @@ TEST(TransformationTests, ConstFoldingPriorBox8) {
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 
-    auto fused = std::dynamic_pointer_cast<opset8::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
-    auto ref = std::dynamic_pointer_cast<opset8::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
+    auto fused = ov::as_type_ptr<opset8::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
+    auto ref = ov::as_type_ptr<opset8::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
 
     EXPECT_TRUE(fused != nullptr);
     EXPECT_TRUE(ref != nullptr);
@@ -354,7 +354,7 @@ TEST(TransformationTests, ConstFoldingPriorBox8Subgraph) {
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<pass::ConstantFolding>();
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -380,8 +380,8 @@ TEST(TransformationTests, ConstFoldingPriorBox8Subgraph) {
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 
-    auto fused = std::dynamic_pointer_cast<opset8::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
-    auto ref = std::dynamic_pointer_cast<opset8::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
+    auto fused = ov::as_type_ptr<opset8::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
+    auto ref = ov::as_type_ptr<opset8::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
 
     EXPECT_TRUE(fused != nullptr);
     EXPECT_TRUE(ref != nullptr);

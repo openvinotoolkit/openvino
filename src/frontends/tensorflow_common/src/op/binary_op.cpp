@@ -6,7 +6,9 @@
 #include "helper_ops/complex_type_mark.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_left_shift.hpp"
 #include "openvino/op/bitwise_or.hpp"
+#include "openvino/op/bitwise_right_shift.hpp"
 #include "openvino/op/bitwise_xor.hpp"
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/concat.hpp"
@@ -169,10 +171,39 @@ OutputVector translate_addv2_op(const NodeContext& node) {
     return {result};
 }
 
+OutputVector translate_sub_op(const NodeContext& node) {
+    default_op_checks(node, 2, {"Sub"}, true);
+    auto lhs = node.get_input(0);
+    auto rhs = node.get_input(1);
+
+    auto complex_type_mark_lhs = as_type_ptr<ComplexTypeMark>(lhs.get_node_shared_ptr());
+    auto complex_type_mark_rhs = as_type_ptr<ComplexTypeMark>(rhs.get_node_shared_ptr());
+    auto complex_type_inputs = (complex_type_mark_lhs && complex_type_mark_rhs);
+
+    if (complex_type_inputs) {
+        lhs = complex_type_mark_lhs->input_value(0);
+        rhs = complex_type_mark_rhs->input_value(0);
+    }
+
+    // performing an actual operation
+    auto result = make_shared<v1::Subtract>(lhs, rhs);
+
+    if (complex_type_inputs) {
+        auto complex_result = make_shared<ComplexTypeMark>(result, complex_type_mark_lhs->get_complex_part_type());
+        set_node_name(node.get_name(), result);
+
+        return {complex_result};
+    }
+    set_node_name(node.get_name(), result);
+    return {result};
+}
+
 template OutputVector translate_binary_op<v1::Add>(const NodeContext& node);
 template OutputVector translate_binary_op<v13::BitwiseAnd>(const NodeContext& node);
 template OutputVector translate_binary_op<v13::BitwiseOr>(const NodeContext& node);
 template OutputVector translate_binary_op<v13::BitwiseXor>(const NodeContext& node);
+template OutputVector translate_binary_op<v15::BitwiseRightShift>(const NodeContext& node);
+template OutputVector translate_binary_op<v15::BitwiseLeftShift>(const NodeContext& node);
 template OutputVector translate_binary_op<v1::Equal>(const NodeContext& node);
 template OutputVector translate_binary_op<v1::FloorMod>(const NodeContext& node);
 template OutputVector translate_binary_op<v1::Greater>(const NodeContext& node);

@@ -1,5 +1,3 @@
-.. {#Supported_Model_Formats_MO_DG}
-
 [LEGACY] Supported Model Formats
 =====================================
 
@@ -76,7 +74,7 @@ Here are code examples of how to use these methods with different model formats:
 
               For more details on conversion, refer to the
               :doc:`guide <[legacy]-supported-model-formats/[legacy]-convert-pytorch>`
-              and an example `tutorial <https://docs.openvino.ai/nightly/notebooks/pytorch-onnx-to-openvino-with-output.html>`__
+              and an example `tutorial <https://docs.openvino.ai/2024/notebooks/pytorch-onnx-to-openvino-with-output.html>`__
               on this topic.
 
    .. tab-item:: TensorFlow
@@ -122,7 +120,7 @@ Here are code examples of how to use these methods with different model formats:
 
               For more details on conversion, refer to the
               :doc:`guide <[legacy]-supported-model-formats/[legacy]-convert-tensorflow>`
-              and an example `tutorial <https://docs.openvino.ai/nightly/notebooks/tensorflow-to-openvino-with-output.html>`__
+              and an example `tutorial <https://docs.openvino.ai/2024/notebooks/tensorflow-classification-to-openvino-with-output.html>`__
               on this topic.
 
             * The ``read_model()`` and ``compile_model()`` methods:
@@ -227,7 +225,7 @@ Here are code examples of how to use these methods with different model formats:
 
               For more details on conversion, refer to the
               :doc:`guide <[legacy]-supported-model-formats/[legacy]-convert-tensorflow>`
-              and an example `tutorial <https://docs.openvino.ai/nightly/notebooks/tflite-to-openvino-with-output.html>`__
+              and an example `tutorial <https://docs.openvino.ai/2024/notebooks/tflite-to-openvino-with-output.html>`__
               on this topic.
 
 
@@ -355,7 +353,7 @@ Here are code examples of how to use these methods with different model formats:
 
               For more details on conversion, refer to the
               :doc:`guide <[legacy]-supported-model-formats/[legacy]-convert-onnx>`
-              and an example `tutorial <https://docs.openvino.ai/nightly/notebooks/pytorch-onnx-to-openvino-with-output.html>`__
+              and an example `tutorial <https://docs.openvino.ai/2024/notebooks/pytorch-onnx-to-openvino-with-output.html>`__
               on this topic.
 
 
@@ -486,7 +484,7 @@ Here are code examples of how to use these methods with different model formats:
 
               For more details on conversion, refer to the
               :doc:`guide <[legacy]-supported-model-formats/[legacy]-convert-paddle>`
-              and an example `tutorial <https://docs.openvino.ai/nightly/notebooks/paddle-to-openvino-classification-with-output.html>`__
+              and an example `tutorial <https://docs.openvino.ai/2024/notebooks/paddle-to-openvino-classification-with-output.html>`__
               on this topic.
 
             * The ``read_model()`` method:
@@ -594,7 +592,7 @@ to OpenVINO IR or ONNX before running inference should be considered the default
    OpenVINO versions of 2023 are mostly compatible with the old instructions,
    through a deprecated MO tool, installed with the deprecated OpenVINO Developer Tools package.
 
-   `OpenVINO 2023.0 <https://docs.openvino.ai/archive/2023.0/Supported_Model_Formats.html>`__ is the last
+   `OpenVINO 2023.0 <https://docs.openvino.ai/archives/index.html>`__ is the last
    release officially supporting the MO conversion process for the legacy formats.
 
 
