@@ -170,6 +170,12 @@ public:
     SliceLastMatmulMultiply();
 };
 
+// Convolution to MatMul
+class ConvToMatmul : public ov::pass::MatcherPass {
+public:
+    ConvToMatmul(Context::Ref ctx);
+};
+
 }  // namespace opt
 }  // namespace patterns
 }  // namespace npuw

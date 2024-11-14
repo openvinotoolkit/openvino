@@ -121,11 +121,10 @@ public:
         auto outputs = network->execute();
 
         auto output_mem = outputs.begin()->second.get_memory();
-        cldnn::mem_lock<uint8_t> output_ptr (output_mem, get_test_stream());
+        cldnn::mem_lock<ov::float16> output_ptr (output_mem, get_test_stream());
 
         auto ref_output_mem = get_ref_results();
-        cldnn::mem_lock<uint8_t> output_ptr_ref (ref_output_mem, get_test_stream());
-
+        cldnn::mem_lock<ov::float16> output_ptr_ref (ref_output_mem, get_test_stream());
         size_t count = 0;
         float max_diff = 0.f;
         float avg = 0.f;
@@ -135,7 +134,7 @@ public:
                 max_diff = abs_diff;
             avg += abs_diff;
             count++;
-            OPENVINO_ASSERT(abs_diff < 1);
+            ASSERT_LE(abs_diff, 1);
         }
         GPU_DEBUG_LOG << "---> count: " << count << ", max_diff:" << max_diff << ", avg_diff: " << (avg/count) << std::endl;
     }

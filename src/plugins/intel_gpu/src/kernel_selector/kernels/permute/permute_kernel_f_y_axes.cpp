@@ -214,6 +214,8 @@ bool PermuteKernel_f_y_axes::Validate(const Params& p) const {
     const auto& params = dynamic_cast<const permute_params&>(p);
     const auto& in = params.inputs[0];
     const auto in_layout = in.GetLayout();
+    const auto& out = params.outputs[0];
+    const auto& out_layout = out.GetLayout();
 
     const auto feature_div = GetDivisor(in.Feature().v);
     const auto y_div = GetDivisor(in.Y().v);
@@ -224,6 +226,10 @@ bool PermuteKernel_f_y_axes::Validate(const Params& p) const {
         return false;
     }
     if (!is_swapping_f_with_y(params.order)) {
+        return false;
+    }
+
+    if (in_layout != out_layout) {
         return false;
     }
 
