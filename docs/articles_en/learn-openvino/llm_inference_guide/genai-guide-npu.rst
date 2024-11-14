@@ -58,7 +58,7 @@ You select one of the methods by setting the ``--group-size`` parameter to eithe
             If you want to improve accuracy, make sure you:
 
             1. Update NNCF: ``pip install nncf==2.13``
-            2. Use ``--scale_estimation`` and accuracy aware quantization ``--awq --dataset=wikitext2``:
+            2. Use ``--scale_estimation --dataset=<dataset_name>`` and accuracy aware quantization ``--awq``:
 
                .. code-block:: console
                   :name: channel-wise-data-aware-quant
