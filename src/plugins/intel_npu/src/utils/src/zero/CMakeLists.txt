@@ -45,7 +45,7 @@ if(TARGET ze_loader)
     ov_install_static_lib(level-zero-ext ${NPU_PLUGIN_COMPONENT})
 
     # Support tests to run with ze_loader
-    install(TARGETS ze_loader
-        RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL
-        LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+    # install(TARGETS ze_loader
+    #     RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL
+    #     LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
 endif()
