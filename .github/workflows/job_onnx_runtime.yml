@@ -96,7 +96,7 @@ jobs:
             --config RelWithDebInfo \
             --use_openvino CPU \
             --build_shared_lib \
-            --parallel \
+            --parallel $(nproc) \
             --skip_tests \
             --compile_no_warning_as_error \
             --allow_running_as_root \

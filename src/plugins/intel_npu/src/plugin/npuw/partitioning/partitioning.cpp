@@ -1287,6 +1287,8 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
             HANDLE_CASE(boolean, bool);
             HANDLE_CASE(i4, int8_t);
             HANDLE_CASE(u4, uint8_t);
+            HANDLE_CASE(i16, int16_t);
+            HANDLE_CASE(u16, uint16_t);
             HANDLE_CASE(i32, int);
             HANDLE_CASE(i64, int64_t);
             HANDLE_CASE(f16, uint16_t);
@@ -1795,6 +1797,8 @@ void Partitioner::optimize(const std::string& func_name) {
         // rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulGQi>(std::ref(ctx));
         rewr.add_matcher<ov::npuw::patterns::opt::CompressDictMatMulf32>(std::ref(ctx));
         rewr.add_matcher<ov::npuw::patterns::opt::DQParMMGQ>(std::ref(ctx));
+        // Convert specific convolutions to matmuls
+        rewr.add_matcher<ov::npuw::patterns::opt::ConvToMatmul>(std::ref(ctx));
         rewr.run_on_model(f._model);
 
         // Move Gather to host, if required
