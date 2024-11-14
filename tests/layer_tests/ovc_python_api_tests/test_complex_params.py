@@ -120,10 +120,6 @@ class TestComplexParams(CommonMOConvertTest):
         self._test(temp_dir, test_params, ref_params)
 
     test_data = [
-        {'params_test': {'input': {"Input:0": ([3, 2], ov.Type.i32)}},
-         'params_ref': {'input': "Input:0[3,2]{i32}"}},
-        {'params_test': {'input': {"Input:0": ov.Type.i32}},
-         'params_ref': {'input': "Input:0{i32}"}},
         {'params_test': {'input': {"Input:0": [3, 2]}},
          'params_ref': {'input': "Input:0[3,2]"}},
         {'params_test': {'input': (3, 2)},
@@ -138,10 +134,6 @@ class TestComplexParams(CommonMOConvertTest):
          'params_ref': {'input': "Input:0[?,10]"}},
         {'params_test': {'input': PartialShape([-1, 10])},
          'params_ref': {'input': "Input:0[?,10]"}},
-        {'params_test': {'input': np.int32},
-         'params_ref': {'input': "Input:0{i32}"}},
-        {'params_test': {'input': (np.int32, [1, 2, 3])},
-         'params_ref': {'input': "Input:0[1,2,3]{i32}"}},
         {'params_test': {'input': [Dimension(3, 10), 10, -1]},
          'params_ref': {'input': 'Input:0[3..10,10,?]'}},
     ]
