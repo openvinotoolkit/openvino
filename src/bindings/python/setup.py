@@ -592,11 +592,27 @@ class CopyExt(build_ext):
 
 
 class CustomInstall(install):
-    """Enable build_clib during the installation."""
-
+    """Custom install command."""
+    # def run(self):
+    #     super().run(self)
+        
     def run(self):
+        """Enable build_clib during the installation."""
         self.run_command("build")
-        install.run(self)
+        super().run()
+        
+    def initialize_options(self):
+        """Set default values for all the options that this command supports."""
+        super().initialize_options()
+
+    def finalize_options(self):
+        """Set final values for all the options that this command supports."""
+        super().finalize_options()
+           
+        install_scripts = os.getenv("SETUPTOOLS_INSTALL_SCRIPTS")
+        if install_scripts:
+            self.install_scripts = install_scripts
+        
 
 class CustomBdistWheel(bdist_wheel):
     """Custom bdist_wheel command."""
