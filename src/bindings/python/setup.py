@@ -286,7 +286,7 @@ class CustomBuild(build):
         """Runs cmake (configure, build and install) if artfiacts are not already built / installed."""
         plat_specifier = ".{0}-{1}.{2}".format(self.plat_name, *sys.version_info[:2])
         self.build_temp = os.path.join(self.build_base, "temp" + plat_specifier)
-        self.announce(f"Create build directory: {self.build_temp}", level=3)
+        self.announce(f"Create build directory: {self.build_temp}", level=log.INFO)
         # build some components which have not been built yet
         for comp, comp_data in install_cfg.items():
             cpack_comp_name = comp_data.get("name")
@@ -305,7 +305,7 @@ class CustomBuild(build):
 
                 if not os.path.exists(binary_dir):
                     binary_dir = os.path.join(self.build_temp, binary_dir)
-                    self.announce(f"Configuring {comp} cmake project", level=3)
+                    self.announce(f"Configuring {comp} cmake project", level=log.INFO)
                     self.spawn(["cmake",
                                 f"-DOpenVINODeveloperPackage_DIR={OPENVINO_BINARY_DIR}",
                                 f"-DPython3_EXECUTABLE={sys.executable}",
@@ -317,12 +317,12 @@ class CustomBuild(build):
                                 "-S", source_dir,
                                 "-B", binary_dir])
 
-                    self.announce(f"Building {comp} project", level=3)
+                    self.announce(f"Building {comp} project", level=log.INFO)
                     self.spawn(["cmake", "--build", binary_dir,
                                          "--config", CONFIG,
                                          "--parallel", str(self.jobs)])
 
-                self.announce(f"Installing {comp}", level=3)
+                self.announce(f"Installing {comp}", level=log.INFO)
                 self.spawn(["cmake", "--install", binary_dir,
                                      "--prefix", prefix,
                                      "--config", CONFIG,
@@ -425,11 +425,11 @@ class PrepareLibs(build_clib):
                     link_file_name_new = os.path.basename(symlink)
                     if len(link_file_name_new) > len(link_file_name_old):
                         # replace libX.so/libX.dylib with libX.so.Y/libX.Y.dylib
-                        self.announce(f"Unlink symlink {file_dict[real_name]}, use {symlink} instead", level=3)
+                        self.announce(f"Unlink symlink {file_dict[real_name]}, use {symlink} instead", level=log.INFO)
                         os.unlink(file_dict[real_name])
                         file_dict[real_name] = symlink
                     else:
-                        self.announce(f"Unlink symlink {symlink}, use {file_dict[real_name]} instead", level=3)
+                        self.announce(f"Unlink symlink {symlink}, use {file_dict[real_name]} instead", level=log.INFO)
                         os.unlink(symlink)
                 else:
                     file_dict[real_name] = symlink
@@ -440,7 +440,7 @@ class PrepareLibs(build_clib):
         for real_name, symlink in file_dict.items():
             os.unlink(symlink)
             os.rename(real_name, symlink)
-            self.announce(f"Resolved symlink {symlink} as {real_name}", level=3)
+            self.announce(f"Resolved symlink {symlink} as {real_name}", level=log.INFO)
 
     def copy_package_libs(self, src_dirs):
         """Collect package data files (clibs and other plugin support files) from preinstalled dirs and put all runtime libraries to the subpackage."""
@@ -469,7 +469,7 @@ class PrepareLibs(build_clib):
                     self.announce(f"Copy {file_path} to {dst_file}", level=log.INFO)
 
         if Path(package_clibs_dir).exists():
-            self.announce(f"Adding {WHEEL_LIBS_PACKAGE} package", level=3)
+            self.announce(f"Adding {WHEEL_LIBS_PACKAGE} package", level=log.INFO)
             packages.append(WHEEL_LIBS_PACKAGE)
             package_data.update({WHEEL_LIBS_PACKAGE: ["*"]})
 
@@ -520,16 +520,16 @@ class PrepareLibs(build_clib):
                 if file_path.is_file() and not is_blacklisted(file_name, blacklist_patterns):
                     dst_file = os.path.join(package_clibs_dir, file_name)
                     move(file_path, dst_file)
-                    self.announce(f"Move {file_path} to {dst_file}", level=3)
+                    self.announce(f"Move {file_path} to {dst_file}", level=log.INFO)
 
             # collect all cmake files in one directory
             for file_path in Path(src).rglob("*.cmake"):
                 file_name = os.path.basename(file_path)
                 if file_path.is_file() and not is_blacklisted(file_name, blacklist_patterns):
                     dst_file = os.path.join(package_cmake_dir, file_name)
-                    self.announce(f"Move {file_path} to {dst_file}", level=3)
+                    self.announce(f"Move {file_path} to {dst_file}", level=log.INFO)
                     move(file_path, dst_file)
-                    self.announce("Patch cmake configurations", level=3)
+                    self.announce("Patch cmake configurations", level=log.INFO)
                     replace_strings_in_file(dst_file,
                                             openvino_replacements if file_name.startswith("OpenVINO") else tbb_replacements)
 
@@ -635,7 +635,7 @@ class CustomClean(Command):
     def clean_install_prefix(self, install_cfg):
         for comp, comp_data in install_cfg.items():
             install_prefix = comp_data.get("prefix")
-            self.announce(f"Cleaning {comp}: {install_prefix}", level=3)
+            self.announce(f"Cleaning {comp}: {install_prefix}", level=log.INFO)
             if os.path.exists(install_prefix):
                 rmtree(install_prefix)
 
