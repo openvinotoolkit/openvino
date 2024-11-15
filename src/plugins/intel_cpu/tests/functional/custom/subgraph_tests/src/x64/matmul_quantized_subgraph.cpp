@@ -154,11 +154,15 @@ protected:
 
 TEST_P(MatmulBrgemmInt8Test, CompareWithRefs) {
     // matmulBrgemmInt8 only cover avx2_vnni
-    if (ov::with_cpu_x86_avx512_core_amx_fp16() && !isFCPrimCheck) {
-        GTEST_SKIP();
+    if (ov::with_cpu_x86_avx512_core_amx_fp16()) {
+        if (!isFCPrimCheck) {
+            GTEST_SKIP();
+        }
+    } else {
+        if (ov::with_cpu_x86_avx512_core() || !ov::with_cpu_x86_avx2_vnni() || isFCPrimCheck) {
+            GTEST_SKIP();
+        }
     }
-    if ((ov::with_cpu_x86_avx512_core() || !ov::with_cpu_x86_avx2_vnni()) && !ov::with_cpu_x86_avx512_core_amx_fp16())
-        GTEST_SKIP();
 
     run();
     if (!!compiledModel) {
