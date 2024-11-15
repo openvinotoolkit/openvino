@@ -73,7 +73,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     std::shared_ptr<v0::Parameter> input_ids_node;
     for (const auto& name : {"input_ids", "inputs_embeds"}) {
-        if (input_ids_node = get_parameter(model, name)) {
+        if ((input_ids_node = get_parameter(model, name))) {
             break;
         }
     }
