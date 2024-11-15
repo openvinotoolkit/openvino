@@ -2278,6 +2278,10 @@ void Reduce::execute(dnnl::stream strm) {
     if ((shape_size(src_shape) == 0 || srcMemPtr->getSize() == 0)) {
         if (dstMemPtr->getSize() > 0) {
             init_dst_data(dst_data, dstMemPtr->getSize());
+            const bool skip_post_process = getAlgorithm() == Algorithm::ReduceMean || attr.get()->post_ops_.len() == 0;
+            if (!skip_post_process) {
+                reduce_kernel_post_process(dst_data);
+            }
         }
         return;
     }
