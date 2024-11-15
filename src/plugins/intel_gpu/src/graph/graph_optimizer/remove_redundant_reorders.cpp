@@ -295,6 +295,9 @@ void remove_redundant_reorders::run(program& p) {
         auto o_layout = r_node.get_output_layout();
         const auto& i_layout = r_node.get_input_layout(0);
 
+        if (r_node.get_dependency(0).is_type<crop>())
+            continue;
+
         // Optimize reorder b_fs_yx_fsv16 -> bfyx when spatials are equal to 1. In this case we can reinterpret buffer,
         // but pads need to be handled correctly.
         if (i_layout.format == format::b_fs_yx_fsv16 && o_layout.format == format::bfyx && !r_node.is_output() &&

@@ -843,8 +843,6 @@ void prepare_buffer_fusing::run(program& p) {
                                                                                             crop_params->input_offsets[0],
                                                                                             node.get_primitive()->axis,
                                                                                             false);
-                if (static_cast<bool>(crop_layout.data_padding) && node.get_users().front()->is_type<reorder>())
-                    return;
                 if (user_info.first) {
                     node.get_users().front()->set_output_layout(user_info.second);
                 }
