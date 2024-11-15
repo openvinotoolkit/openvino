@@ -3305,12 +3305,16 @@ void GraphOptimizer::DropRedundantMemoryOutput(Graph &graph) {
 
         if (!memInputNode->getParentEdges().empty()) {
             auto parentEdgeNum = memInputNode->getParentEdges().size();
+            std::vector<ov::intel_cpu::EdgePtr> parentEdges;
             for (size_t i = 0; i < parentEdgeNum; i++) {
                 auto parentEdge = memInputNode->getParentEdgeAt(i);
                 auto parent = parentEdge->getParent();
                 const auto inputNum = parentEdge->getInputNum();
-                graph.RemoveEdge(parentEdge);
+                parentEdges.push_back(parentEdge);
                 graph.CreateEdge(parent, memInputSingle, inputNum, parentEdge->getOutputNum());
+            }
+            for (auto parentEdge : parentEdges) {
+                graph.RemoveEdge(parentEdge);
             }
         }
 
