@@ -81,6 +81,8 @@ void swap_nodes(const PatternValueMap& pt_map,
         for (const auto& in : target_inputs) {
             in.replace_source_output(first_node->output(0));
         }
+        first_node->validate_and_infer_types();
+        second_node->validate_and_infer_types();
     }
 }
 
@@ -220,7 +222,5 @@ bool pass::MarkDequantizationAndDecompression::run_on_model(const std::shared_pt
     manager.register_pass<MarkDequantization>(m_precisions, m_fold_subtract_const, m_fold_multiply_const);
     manager.register_pass<ConstantFolding>();
     manager.register_pass<KeepConstsPrecision>(m_precisions, m_fold_subtract_const, m_fold_multiply_const);
-    manager.run_passes(m);
-
-    return false;
+    return manager.run_passes(m);
 }
