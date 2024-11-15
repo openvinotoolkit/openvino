@@ -11,7 +11,9 @@ torchvision==0.20.1; platform_system != "Darwin" or platform_machine != "x86_64"
 torchvision==0.17.2; platform_system == "Darwin" and platform_machine == "x86_64"
 torchaudio==2.5.1; platform_system != "Darwin" or platform_machine != "x86_64"
 torchaudio==2.2.2; platform_system == "Darwin" and platform_machine == "x86_64"
-transformers==4.46.2
+# transformers 4.45.1 is available
+# but optimum still requires <4.45.0
+transformers==4.44.2
 pytest==7.0.1
 pytest-html==4.1.1
 pytest-xdist[psutil]==3.6.1

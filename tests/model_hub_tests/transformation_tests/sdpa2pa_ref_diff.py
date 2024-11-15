@@ -658,11 +658,11 @@ ref_diff_map_cache_eviction = {
 		"PagedAttentionExtension" : 2,
 		"Assign" : -4,
 	},
-	"katuni4ka/tiny-random-nanollava" : {
-		"ReadValue" : -4,
-		"Parameter" : 8,
-		"ScaledDotProductAttention" : -2,
-		"PagedAttentionExtension" : 2,
-		"Assign" : -4,
-	},
+	# "katuni4ka/tiny-random-nanollava" : {
+	# 	"ReadValue" : -4,
+	# 	"Parameter" : 8,
+	# 	"ScaledDotProductAttention" : -2,
+	# 	"PagedAttentionExtension" : 2,
+	# 	"Assign" : -4,
+	# },
 }
