@@ -154,9 +154,6 @@ program::program(engine& engine_ref,
       is_internal(is_internal),
       _is_body_program(is_body_program),
       _compilation_context(compilation_context) {
-    if (_engine.get_device_info().supports_immad) {
-        _config.set_property(ov::intel_gpu::use_onednn(true));
-    }
     init_primitives();
     GPU_DEBUG_INFO << "Program config\n" << _config.to_string();
     init_program();
