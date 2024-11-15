@@ -210,9 +210,6 @@ program::program(engine& engine, const ExecutionConfig& config)
       _config(config),
       processing_order() {
     init_primitives();
-    if (_engine.get_device_info().supports_immad) {
-        _config.set_property(ov::intel_gpu::use_onednn(true));
-    }
     _config.apply_user_properties(_engine.get_device_info());
     new_shape_infer = _config.get_property(ov::intel_gpu::allow_new_shape_infer);
     _layout_optimizer = cldnn::make_unique<layout_optimizer>();
@@ -1797,7 +1794,7 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
     auto onednn_impls_size = get_layout_optimizer().get_all_onednn_impls_optimization_attribute().size();
     ob << onednn_impls_size;
     for (const auto& onednn_impl : get_layout_optimizer().get_all_onednn_impls_optimization_attribute()) {
-        ob << make_data(onednn_impl.first, sizeof(onednn_impl.first));
+        ob << prim_map_storage::instance().get_type_string(onednn_impl.first);
         ob << onednn_impl.second;
     }
 
@@ -1934,11 +1931,12 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
     size_t num_of_onednn_impls;
     ib >> num_of_onednn_impls;
     for (size_t num = 0; num < num_of_onednn_impls; num++) {
-        primitive_type_id ptype{};
+        primitive_id p_id{};
         bool enabled;
-        ib >> make_data(ptype, sizeof(ptype));
+        ib >> p_id;
         ib >> enabled;
-        get_layout_optimizer().set_value_onednn(ptype, enabled);
+        auto ptype_id = prim_map_storage::instance().get_type_id(p_id);
+        get_layout_optimizer().set_value_onednn(ptype_id, enabled);
     }
 
     _loaded_from_cache = true;

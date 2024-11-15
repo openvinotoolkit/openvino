@@ -22,12 +22,15 @@ namespace cldnn {
 post_optimize_weights::post_optimize_weights(reorder_factory& rf_ref)
     : base_pass("post_optimize_weights"), _rf(rf_ref) {}
 
-template<typename T> post_optimize_weights::weights_bias_offset post_optimize_weights::get_weights_bias_offset(const T& node) {
-    const int W_idx = 3;
-    if (node.type() == lstm_seq::type_id()) {
-        return weights_bias_offset(W_idx, 3);
-    }
+template <typename T>
+post_optimize_weights::weights_bias_offset post_optimize_weights::get_weights_bias_offset(const T& node) {
     return weights_bias_offset(node.get_primitive()->input.size(), program_helpers::wrap_if_single(node.get_primitive()->weights).size());
+}
+
+template <>
+post_optimize_weights::weights_bias_offset post_optimize_weights::get_weights_bias_offset(const lstm_seq_node& node) {
+    const int W_idx = 3;
+    return weights_bias_offset(W_idx, 3);
 }
 
 // function which prepares given primitive for weights optimization

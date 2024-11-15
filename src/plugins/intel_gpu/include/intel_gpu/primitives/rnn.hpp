@@ -96,6 +96,10 @@ struct RNNParams : public primitive_base<PType> {
     /// @brief direction of LSTMSequence - only FORWARD or REVERSE, currently BIDIRECTIONAL not supported
     ov::op::RecurrentSequenceDirection direction;
 
+    int num_directions() const {
+        return direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
+    }
+
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, x.pid);

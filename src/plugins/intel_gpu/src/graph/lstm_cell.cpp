@@ -10,22 +10,27 @@ namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(lstm_cell)
 
 layout lstm_cell_inst::calc_output_layout(lstm_cell_node const& node, kernel_impl_params const& impl_param) {
-    return lstm_cell_inst::calc_output_layouts<ov::PartialShape>(node, impl_param)[0];
+    auto input_layout = impl_param.get_input_layout(0);
+    auto input_pshape = input_layout.get_partial_shape();
+    auto input_layout_hidden = impl_param.get_input_layout(1);
+    auto input_pshape_hidden = input_layout_hidden.get_partial_shape();
+    auto lstm_batch_size = input_pshape[0];
+    auto lstm_hidden_size = input_pshape_hidden[1];
+
+    return cldnn::layout{ov::PartialShape{lstm_batch_size, lstm_hidden_size}, input_layout.data_type, input_layout.format};
 }
 
 template<typename ShapeType>
 std::vector<layout> lstm_cell_inst::calc_output_layouts(lstm_cell_node const& node, kernel_impl_params const& impl_param) {
-    auto desc = impl_param.typed_desc<lstm_cell>();
-
-    auto input_layout_x = impl_param.get_input_layout(0);
-    auto input_pshape_x = input_layout_x.get_partial_shape();
+    auto input_layout = impl_param.get_input_layout(0);
+    auto input_pshape = input_layout.get_partial_shape();
     auto input_layout_hidden = impl_param.get_input_layout(1);
     auto input_pshape_hidden = input_layout_hidden.get_partial_shape();
-    auto lstm_batch_size = input_pshape_x[0];
+    auto lstm_batch_size = input_pshape[0];
     auto lstm_hidden_size = input_pshape_hidden[1];
 
-    auto out_layout = cldnn::layout{ShapeType{lstm_batch_size, lstm_hidden_size}, input_layout_x.data_type, input_layout_x.format};
-    return {out_layout, out_layout };
+    auto out_layout = cldnn::layout{ShapeType{lstm_batch_size, lstm_hidden_size}, input_layout.data_type, input_layout.format};
+    return {out_layout, out_layout};
 }
 
 template std::vector<layout> lstm_cell_inst::calc_output_layouts<ov::PartialShape>(lstm_cell_node const& node, const kernel_impl_params& impl_param);
