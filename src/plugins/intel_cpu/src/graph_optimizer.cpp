@@ -3261,15 +3261,16 @@ void GraphOptimizer::DropRedundantMemoryOutput(Graph &graph) {
 
         ov::optional<std::vector<Shape>> inputShapes;
         ov::optional<std::vector<ov::element::Type>> inputPrcs;
-        std::vector<Shape> inputShapeVec;
-        std::vector<ov::element::Type> inputPrcVec;
-        for (size_t i = 0; i < node->getParentEdges().size(); i++) {
-            inputShapeVec.push_back(node->getInputShapeAtPort(i));
-            inputPrcVec.push_back(node->getOriginalInputPrecisionAtPort(i));
-        }
-        if (inputShapeVec.size() > 0) {
-            inputShapes = ov::optional<std::vector<Shape>>(inputShapeVec);
-            inputPrcs = ov::optional<std::vector<ov::element::Type>>(inputPrcVec);
+        if (!node->getParentEdges().empty()) {
+            inputShapes = ov::optional<std::vector<Shape>>(std::vector<Shape>{});
+            inputPrcs = ov::optional<std::vector<ov::element::Type>>(std::vector<ov::element::Type>{});
+
+            auto& input_shape_vec = *inputShapes;
+            auto& input_prc_vec = *inputPrcs;
+            for (size_t i = 0; i < node->getParentEdges().size(); i++) {
+                input_shape_vec.push_back(node->getInputShapeAtPort(i));
+                input_prc_vec.push_back(node->getOriginalInputPrecisionAtPort(i));
+            }
         }
 
         //search for the MemoryOutputNode
@@ -3286,6 +3287,7 @@ void GraphOptimizer::DropRedundantMemoryOutput(Graph &graph) {
         graph.RemoveEdge(memoryOutputNode->getParentEdgeAt(0));
         // there are no output edges from MemoryOutput nodes
 
+        CPU_GRAPH_OPTIMIZER_SCOPE(DropRedundantMemoryOutput_SubGraph);
         auto memInpNd = std::dynamic_pointer_cast<node::MemoryInput>(node);
         auto subGraph = memInpNd ? memInpNd->getSubGraph() : nullptr;
 
@@ -3303,16 +3305,12 @@ void GraphOptimizer::DropRedundantMemoryOutput(Graph &graph) {
 
         if (!memInputNode->getParentEdges().empty()) {
             auto parentEdgeNum = memInputNode->getParentEdges().size();
-            std::vector<ov::intel_cpu::EdgePtr> parentEdges;
             for (size_t i = 0; i < parentEdgeNum; i++) {
                 auto parentEdge = memInputNode->getParentEdgeAt(i);
                 auto parent = parentEdge->getParent();
                 const auto inputNum = parentEdge->getInputNum();
-                parentEdges.push_back(parentEdge);
-                graph.CreateEdge(parent, memInputSingle, inputNum, parentEdge->getOutputNum());
-            }
-            for (auto parentEdge : parentEdges) {
                 graph.RemoveEdge(parentEdge);
+                graph.CreateEdge(parent, memInputSingle, inputNum, parentEdge->getOutputNum());   
             }
         }
 
