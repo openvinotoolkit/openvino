@@ -380,7 +380,7 @@ TEST_F(TransformationTestsF, TSGeneralTestMultipleTypes) {
         auto ng_order0 = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
         auto transpose0 = std::make_shared<Transpose>(node0, ng_order0);
 
-        auto reshape_const = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{1, 40, 55, 96});
+        auto reshape_const = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{2, 20, 55, 96});
         auto reshape = std::make_shared<Reshape>(transpose0, reshape_const, false);
 
         auto ng_order1 = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
@@ -399,7 +399,7 @@ TEST_F(TransformationTestsF, TSGeneralTestMultipleTypes) {
         auto ng_order0 = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
         auto transpose0 = std::make_shared<Transpose>(node0, ng_order0);
 
-        auto reshape_const = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{1, 40, 55, 96});
+        auto reshape_const = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{2, 20, 55, 96});
         auto reshape = std::make_shared<Reshape>(transpose0, reshape_const, false);
 
         auto node1 = MakeAllNodesSubgraph(reshape, 3, 3);
