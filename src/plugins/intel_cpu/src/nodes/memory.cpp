@@ -780,16 +780,20 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
 
             subGraph.ResetInferCount();
             subGraph.Infer();
-            // depending on the memory sharing solution, we can return here if the memory is substituted from the
-            // external graph or override the src pointer with the memory pointer pointing to the subgraph output
-            // memory
-            auto& outputs = subGraph.GetOutputNodesMap();
-            OPENVINO_ASSERT(outputs.size() == 1);
-            auto itr = outputs.begin();
-            src = itr->second->getSrcMemoryAtPort(0);
 
-            // Update state MemoryDesc
-            assignedMem->redefineDesc(getBaseMemDescAtOutputPort(0)->cloneWithNewDims(src->getStaticDims()));
+            auto& childEdges = getChildEdges();
+            for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
+                const auto mem = getDstMemoryAtPort(i);
+                for (size_t j = getOriginalOutputsNumber(); j < childEdges.size(); j++) {
+                    auto& childEdge = childEdges[j];
+                    auto childEdgePtr = childEdge.lock();
+                    assert(childEdgePtr);
+
+                    if (childEdgePtr->getInputNum() == static_cast<int>(i)) {
+                        childEdgePtr->getMemoryPtr()->redefineDesc(mem->getDescPtr());
+                    }
+                }
+            }
         } else {
             src = getSrcMemoryAtPort(0);
         }
@@ -843,10 +847,19 @@ void MemoryInput::runStatic(dnnl::stream strm) {
             subGraph.ResetInferCount();
             subGraph.Infer();
 
-            auto& outputs = subGraph.GetOutputNodesMap();
-            OPENVINO_ASSERT(outputs.size() == 1);
-            auto itr = outputs.begin();
-            src = itr->second->getSrcMemoryAtPort(0);
+            auto& childEdges = getChildEdges();
+            for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
+                const auto mem = getDstMemoryAtPort(i);
+                for (size_t j = getOriginalOutputsNumber(); j < childEdges.size(); j++) {
+                    auto& childEdge = childEdges[j];
+                    auto childEdgePtr = childEdge.lock();
+                    assert(childEdgePtr);
+
+                    if (childEdgePtr->getInputNum() == static_cast<int>(i)) {
+                        childEdgePtr->getMemoryPtr()->redefineDesc(mem->getDescPtr());
+                    }
+                }
+            }
         } else {
             src = getSrcMemoryAtPort(0);
         }
