@@ -11,6 +11,7 @@
 #include "ov_ops/type_relaxed.hpp"
 #include "low_precision/network_helper.hpp"
 #include "ov_lpt_models/common/builders.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ov {
@@ -50,15 +51,6 @@ std::shared_ptr<ov::Model> MatMulFunction::getOriginal(
 }
 
 namespace {
-template <typename T>
-std::vector<T> generate_values(const ov::Shape& shape, float delimiter = 1.f) {
-    std::vector<T> values(ov::shape_size(shape));
-    for (size_t i = 0; i < values.size(); ++i) {
-        values[i] = static_cast<T>(static_cast<T>(i) / delimiter);
-    }
-    return values;
-}
-
 std::vector<float> generate_dequantization_values(
         const ov::Shape& shape,
         const size_t levels,
@@ -98,11 +90,7 @@ std::shared_ptr<ov::Model> MatMulFunction::getOriginal(
     // fq
     std::shared_ptr<Node> parentOnWeights;
     if (fq) {
-        auto weightsConst = std::make_shared<ov::op::v0::Constant>(
-                precision,
-                inputShape2.to_shape(),
-                generate_values<float>(inputShape2.to_shape(), 10.f));
-
+        auto weightsConst = ov::test::utils::make_constant(precision, inputShape2.to_shape());
         parentOnWeights = perChannelWeightsDequantization ?
                           ov::test::utils::make_fake_quantize(
                                   weightsConst, precision, 256ul,
@@ -121,18 +109,10 @@ std::shared_ptr<ov::Model> MatMulFunction::getOriginal(
         } else {
             shape[shape.size() - 2ull] = 1;
         }
-
-        auto weightsConst = std::make_shared<ov::op::v0::Constant>(
-                signedOnWeights ? element::i8 : element::u8,
-                inputShape2.to_shape(),
-                generate_values<int8_t>(inputShape2.to_shape()));
-
+        auto weightsConst = ov::test::utils::make_constant(signedOnWeights ? element::i8 : element::u8, inputShape2.to_shape(), {});
         const auto convert = std::make_shared<opset1::Convert>(weightsConst, precision);
 
-        const auto multiplyConst = std::make_shared<ov::op::v0::Constant>(
-                precision,
-                shape,
-                generate_values<float>(shape));
+        const auto multiplyConst = ov::test::utils::make_constant(precision, shape);
         parentOnWeights = std::make_shared<opset1::Multiply>(convert, multiplyConst);
     }
 
