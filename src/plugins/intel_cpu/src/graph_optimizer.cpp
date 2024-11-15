@@ -3310,7 +3310,7 @@ void GraphOptimizer::DropRedundantMemoryOutput(Graph &graph) {
                 auto parent = parentEdge->getParent();
                 const auto inputNum = parentEdge->getInputNum();
                 graph.RemoveEdge(parentEdge);
-                graph.CreateEdge(parent, memInputSingle, inputNum, parentEdge->getOutputNum());   
+                graph.CreateEdge(parent, memInputSingle, inputNum, parentEdge->getOutputNum());
             }
         }
 
