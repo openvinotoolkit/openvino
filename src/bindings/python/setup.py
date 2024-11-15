@@ -20,6 +20,7 @@ from setuptools.command.build_ext import build_ext
 from setuptools.command.build_clib import build_clib
 from setuptools.command.install import install
 from setuptools.command.build import build
+from setuptools.command.bdist_wheel import bdist_wheel
 from setuptools.errors import SetupError
 
 WHEEL_PACKAGE_DIR = "openvino"
@@ -599,6 +600,27 @@ class CustomInstall(install):
         self.run_command("build")
         install.run(self)
 
+class CustomBdistWheel(bdist_wheel):
+    """Custom bdist_wheel command."""
+    def initialize_options(self):
+        """Set default values for all the options that this command supports."""
+        super().initialize_options()
+
+    def finalize_options(self):
+        """Set final values for all the options that this command supports."""
+        super().finalize_options()
+        
+        platform_tag = os.getenv("PLATFORM_TAG")
+        if platform_tag:
+            self.plat_name = platform_tag
+            
+        build_number = os.getenv("WHEEL_BUILD")
+        if build_number:
+            self.build_number = build_number
+    
+    def run(self):
+        # self.run_command("bdist_wheel")
+        super().run()
 
 class CustomClean(Command):
     """Clean up staging directories."""
@@ -802,6 +824,7 @@ setup(
     entry_points=entry_points,
     cmdclass={
         "build": CustomBuild,
+        "bdist_wheel": CustomBdistWheel,
         "install": CustomInstall,
         "build_clib": PrepareLibs,
         "build_ext": CopyExt,
