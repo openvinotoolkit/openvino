@@ -5,7 +5,9 @@
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -28,8 +30,8 @@ class TRANSFORMATIONS_API MarkDequantization : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("MarkDequantization", "0");
     explicit MarkDequantization(const element::TypeVector& precisions,
-                                bool fold_subtract_const = false,
-                                bool fold_multiply_const = true);
+                                bool fold_subtract_const,
+                                bool fold_multiply_const);
 };
 
 /**
@@ -39,7 +41,9 @@ public:
 class TRANSFORMATIONS_API KeepConstsPrecision : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("KeepConstsPrecision", "0");
-    explicit KeepConstsPrecision(const element::TypeVector& precisions);
+    explicit KeepConstsPrecision(const element::TypeVector& precisions,
+                                 bool fold_subtract_const,
+                                 bool fold_multiply_const);
 };
 
 namespace {
@@ -63,6 +67,23 @@ void set_rt_info(const PatternValueMap& pt_map,
         }
     }
 };
+
+void swap_nodes(const PatternValueMap& pt_map,
+                const std::shared_ptr<Node>& first,
+                const std::shared_ptr<Node>& second) {
+    if (pt_map.count(first) && pt_map.count(second)) {
+        auto first_node = pt_map.at(first).get_node_shared_ptr();
+        auto second_node = pt_map.at(second).get_node_shared_ptr();
+
+        auto target_inputs = second_node->output(0).get_target_inputs();
+        second_node->input(0).replace_source_output(first_node->input_value(0));
+        first_node->input(0).replace_source_output(second_node->output(0));
+        for (const auto& in : target_inputs) {
+            in.replace_source_output(first_node->output(0));
+        }
+    }
+}
+
 }  // namespace
 
 MarkDequantization::MarkDequantization(const element::TypeVector& precisions,
@@ -84,16 +105,19 @@ MarkDequantization::MarkDequantization(const element::TypeVector& precisions,
     // zero points:
     auto zp_pattern = any_input();
     auto zp_convert_pattern = optional<v0::Convert>(zp_pattern);
-    auto subtract_pattern = optional<v1::Subtract>({convert_pattern, zp_convert_pattern});
+    auto zp_reshape_pattern = optional<v1::Reshape, v0::Unsqueeze>({zp_convert_pattern, any_input()});
+    auto subtract_pattern = optional<v1::Subtract>({convert_pattern, zp_reshape_pattern});
 
     // scale:
     auto scale_pattern = any_input();
     auto scale_convert_pattern = optional<v0::Convert>(scale_pattern);
-    auto multiply_pattern = wrap_type<v1::Multiply>({subtract_pattern, scale_convert_pattern});
+    auto scale_reshape_pattern = optional<v1::Reshape, v0::Unsqueeze>({scale_convert_pattern, any_input()});
+    auto multiply_pattern = wrap_type<v1::Multiply>({subtract_pattern, scale_reshape_pattern});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) -> bool {
         const auto& pt_map = m.get_pattern_value_map();
         auto convert = pt_map.at(convert_pattern);
+        auto input = pt_map.at(input_pattern);
         const auto multiply = m.get_match_root();
 
         if (transformation_callback(multiply)) {
@@ -107,7 +131,9 @@ MarkDequantization::MarkDequantization(const element::TypeVector& precisions,
         // Depending on the transformation arguments they have to be marked/unmarked with disable_cf rt_info.
         NodeVector converts_to_mark = {convert_pattern};
         NodeVector converts_to_unmark = {};
-        if (fold_subtract_const) {
+
+        if (fold_subtract_const ||
+            (pt_map.count(subtract_pattern) && pt_map.at(zp_pattern).get_element_type() != input.get_element_type())) {
             converts_to_unmark.push_back(zp_convert_pattern);
         } else {
             converts_to_mark.push_back(zp_convert_pattern);
@@ -121,14 +147,20 @@ MarkDequantization::MarkDequantization(const element::TypeVector& precisions,
 
         set_rt_info(pt_map, disable_constant_folding, converts_to_mark, precisions);
         set_rt_info(pt_map, enable_constant_folding, converts_to_unmark, precisions);
+
+        // Move Reshape/Unsqueeze ops up to fold them in ConstantFolding.
+        swap_nodes(pt_map, zp_convert_pattern, zp_reshape_pattern);
+        swap_nodes(pt_map, scale_convert_pattern, scale_reshape_pattern);
         return false;
     };
 
-    auto m = std::make_shared<Matcher>(multiply_pattern, "MarkDQ");
+    auto m = std::make_shared<Matcher>(multiply_pattern, "MarkDequantization");
     this->register_matcher(m, callback);
 }
 
-KeepConstsPrecision::KeepConstsPrecision(const element::TypeVector& precisions) {
+KeepConstsPrecision::KeepConstsPrecision(const element::TypeVector& precisions,
+                                         bool fold_subtract_const,
+                                         bool fold_multiply_const) {
     // Dequantization subgraph may have two forms: with and without Subtract
     //
     //    Input                                 Input
@@ -160,12 +192,18 @@ KeepConstsPrecision::KeepConstsPrecision(const element::TypeVector& precisions) 
             return false;
         }
 
-        NodeVector keep_const_precisions = {};
-        for (const auto& pattern_node : {input_pattern, zp_pattern, scale_pattern}) {
-            if (pt_map.count(pattern_node)) {
-                auto node = pt_map.at(pattern_node).get_node_shared_ptr();
+        std::map<std::shared_ptr<Node>, bool> keep_const_precisions = {{input_pattern, false},
+                                                                       {zp_pattern, fold_subtract_const},
+                                                                       {scale_pattern, fold_multiply_const}};
+        for (const auto& pattern_node : keep_const_precisions) {
+            if (pt_map.count(pattern_node.first)) {
+                auto node = pt_map.at(pattern_node.first).get_node_shared_ptr();
                 if (ov::as_type_ptr<v0::Constant>(node)) {
-                    ov::enable_keep_const_precision(node);
+                    if (pattern_node.second) {
+                        ov::disable_keep_const_precision(node);
+                    } else {
+                        ov::enable_keep_const_precision(node);
+                    }
                 }
             }
         }
@@ -178,10 +216,10 @@ KeepConstsPrecision::KeepConstsPrecision(const element::TypeVector& precisions) 
 
 bool pass::MarkDequantizationAndDecompression::run_on_model(const std::shared_ptr<ov::Model>& m) {
     ov::pass::Manager manager("MarkDequantizationAndDecompressionManager");
-    manager.register_pass<MarkDequantization>(m_precisions, m_fold_subtract_const, m_fold_multiply_const);
     manager.register_pass<DisableDecompressionConvertConstantFolding>();
+    manager.register_pass<MarkDequantization>(m_precisions, m_fold_subtract_const, m_fold_multiply_const);
     manager.register_pass<ConstantFolding>();
-    manager.register_pass<KeepConstsPrecision>(m_precisions);
+    manager.register_pass<KeepConstsPrecision>(m_precisions, m_fold_subtract_const, m_fold_multiply_const);
     manager.run_passes(m);
 
     return false;
