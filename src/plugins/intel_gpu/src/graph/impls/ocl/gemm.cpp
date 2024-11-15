@@ -33,10 +33,7 @@ struct gemm_impl : multi_stage_primitive<gemm> {
 
     std::unique_ptr<primitive_impl> clone() const override {
         auto prim_impl = make_unique<gemm_impl>(*this);
-        for (auto& _kernel_data : prim_impl->_kernels_data) {
-            kernel_params_t* params_ptr = dynamic_cast<kernel_params_t*>(_kernel_data.params.get());
-            _kernel_data.params = make_unique<kernel_params_t>(*params_ptr);
-        }
+        clone_kernel_data_params<kernel_params_t>(*prim_impl);
         return prim_impl;
     }
 

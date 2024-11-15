@@ -65,8 +65,7 @@ struct gather_impl : typed_primitive_impl_ocl<gather> {
 
     std::unique_ptr<primitive_impl> clone() const override {
         auto prim_impl = make_unique<gather_impl>(*this);
-        kernel_params_t* params_ptr = dynamic_cast<kernel_params_t*>(prim_impl->_kernel_data.params.get());
-        prim_impl->_kernel_data.params = make_unique<kernel_params_t>(*params_ptr);
+        clone_kernel_data_params<kernel_params_t>(*prim_impl);
         return prim_impl;
     }
 
