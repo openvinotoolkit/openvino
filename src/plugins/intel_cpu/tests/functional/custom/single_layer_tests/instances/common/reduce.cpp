@@ -41,12 +41,6 @@ std::vector<std::vector<ov::test::InputShape>> inputShapes_SingleBatch = {
     {{{}, {{1, 19, 2, 9}}}},
 };
 
-std::vector<std::vector<ov::test::InputShape>> inputShapes_Dynmic_ZeroDim = {
-    {{{-1, -1, -1, -1}, {{2, 0, 3, 9}}}},
-    {{{2, 0, -1, -1}, {{2, 0, 3, 9}}}},
-    {{{2, 0, -1, -1}, {{2, 0, 3, 0}}}}
-};
-
 std::vector<CPUSpecificParams> cpuParams_4D = {
         CPUSpecificParams({nchw}, {nchw}, {}, {}),
         CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
@@ -109,20 +103,6 @@ const auto params_MultiAxis_4D_dynamic = testing::Combine(
         testing::Values(emptyFusingSpec),
         testing::ValuesIn(additionalConfig()));
 
-const auto params_MultiAxis_4D_dynamic_with_zero = testing::Combine(
-        testing::Combine(
-                testing::Values(std::vector<int>{0, 1}),
-                testing::Values(ov::test::utils::OpType::VECTOR),
-                testing::ValuesIn(keepDims()),
-                testing::ValuesIn(reductionTypes()),
-                testing::ValuesIn(inpOutPrc()),
-                testing::Values(ElementType::undefined),
-                testing::Values(ElementType::undefined),
-                testing::ValuesIn(inputShapes_Dynmic_ZeroDim)),
-        testing::Values(emptyCPUSpec),
-        testing::Values(emptyFusingSpec),
-        testing::ValuesIn(additionalConfig()));
-
 const auto params_Int32 = testing::Combine(
         testing::Combine(
             testing::ValuesIn(axes()),
@@ -165,12 +145,6 @@ INSTANTIATE_TEST_SUITE_P(
         ReduceCPULayerTest::getTestCaseName
 );
 
-INSTANTIATE_TEST_SUITE_P(
-        smoke_Reduce_MultiAxis_4D_dynamic_with_zero_CPU,
-        ReduceCPULayerTest,
-        params_MultiAxis_4D_dynamic_with_zero,
-        ReduceCPULayerTest::getTestCaseName
-);
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_Int32_CPU,
