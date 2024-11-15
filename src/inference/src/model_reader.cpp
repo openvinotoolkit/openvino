@@ -78,7 +78,9 @@ void update_v10_model(std::shared_ptr<ov::Model>& model, bool frontendMode = fal
             for (const auto& result : model->get_results()) {
                 auto prev_layer = result->input_value(0).get_node_shared_ptr();
                 const std::string res_name = prev_layer->get_friendly_name() +
-                                             std::string(prev_layer->get_output_size() != 1 ? "." + std::to_string(result->input_value(0).get_index()) : "");
+                                             std::string(prev_layer->get_output_size() != 1
+                                                             ? "." + std::to_string(result->input_value(0).get_index())
+                                                             : "");
                 OPENVINO_ASSERT(leaf_names.find(res_name) == leaf_names.end() ||
                                     result->output(0).get_names().find(res_name) != result->output(0).get_names().end(),
                                 "Model operation names have collisions with tensor names.",
