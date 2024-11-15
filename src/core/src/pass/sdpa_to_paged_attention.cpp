@@ -80,7 +80,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     if (!input_ids_node) {
         OPENVINO_THROW("The model doesn't contain input_ids or input_embeds input. Aborting.");
-        return false;
+        OPENVINO_ASSERT(input_ids_node, "The model doesn't contain input_ids or input_embeds input. Aborting.");
     }
 
     input_ids_node->set_partial_shape(PartialShape{-1});
