@@ -60,6 +60,11 @@ if(ENABLE_COVERAGE)
     include(cmake/coverage.cmake)
 endif()
 
+if(APPLE AND CMAKE_OSX_DEPLOYMENT_TARGET AND
+    CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.15)
+    message(FATAL_ERROR "OpenVINO requires MACOSX_DEPLOYMENT_TARGET at least 10.15, specified ${CMAKE_OSX_DEPLOYMENT_TARGET}")
+endif()
+
 # resolving dependencies for the project
 message (STATUS "CMAKE_VERSION ......................... " ${CMAKE_VERSION})
 message (STATUS "CMAKE_CROSSCOMPILING .................. " ${CMAKE_CROSSCOMPILING})

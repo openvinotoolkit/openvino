@@ -33,14 +33,6 @@ void set_tensor_type(Tensor& tensor, const element::Type& element_type, const Pa
 OPENVINO_API
 void copy_tensor_names(Tensor& dst, const Tensor& src);
 
-OPENVINO_DEPRECATED("get_ov_tensor_legacy_name() is deprecated. Please don't use this function.")
-OPENVINO_API
-std::string get_ov_tensor_legacy_name(const Tensor& tensor);
-
-OPENVINO_DEPRECATED("set_ov_tensor_legacy_name() is deprecated. Please don't use this function.")
-OPENVINO_API
-void set_ov_tensor_legacy_name(Tensor& tensor, const std::string& tensor_name);
-
 /** @brief Tensor descriptor interface. */
 class OPENVINO_API ITensorDescriptor {
 public:
@@ -57,13 +49,6 @@ public:
 
     virtual RTMap& rt_map() = 0;
     virtual const RTMap& rt_map() const = 0;
-
-    // Legacy name compatibility API
-    OPENVINO_DEPRECATED("The legacy_name() is deprecated. Please don't use it")
-    virtual std::string& legacy_name() = 0;
-    OPENVINO_DEPRECATED("The legacy_name() is deprecated. Please don't use it")
-    virtual const std::string& legacy_name() const = 0;
-
     virtual size_t pointer_hash() const noexcept = 0;
 
 protected:

@@ -237,12 +237,15 @@ std::shared_ptr<Node> u4_compression_stack(const OutputVector& list_elems, int64
             return nullptr;
     }
 
-    auto bitwise_shift = cast_fw_node(list_elems[1].get_node_shared_ptr(), "aten::bitwise_right_shift");
+    auto bitwise_shift = cast_fw_node(list_elems[1].get_node_shared_ptr(),
+                                      {"aten::bitwise_right_shift", "aten.bitwise_right_shift.Tensor_Scalar"});
     if (!bitwise_shift)
         return nullptr;
 
     auto weights_u8 = std::dynamic_pointer_cast<v0::Constant>(bitwise_and->get_input_node_shared_ptr(0));
-    if (weights_u8 != std::dynamic_pointer_cast<v0::Constant>(bitwise_shift->get_input_node_shared_ptr(0)))
+    auto weights_u8_bitwise_shift =
+        std::dynamic_pointer_cast<v0::Constant>(bitwise_shift->get_input_node_shared_ptr(0));
+    if (weights_u8->get_data_ptr() != weights_u8_bitwise_shift->get_data_ptr())
         return nullptr;
 
     if (weights_u8->get_output_element_type(0) != element::u8)

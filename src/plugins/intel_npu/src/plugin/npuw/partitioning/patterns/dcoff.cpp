@@ -4,6 +4,7 @@
 
 #include "dcoff.hpp"
 
+#include "../../lazy_tensor.hpp"
 #include "../../logging.hpp"
 #include "../../util.hpp"
 #include "../partitioning.hpp"  // Subgraph
@@ -93,6 +94,7 @@ ClosureRemap build_remap(const Function& fbody, const DCOFFParams& params_to) {
         } else if (ban_list.find(param) == ban_list.end()) {
             // If it's not in the ban list, it's an OK parameter and should be kept
             LOG_DEBUG("This is an OK parameter, will be kept");
+            m.weights_to_unpack.insert(i - fbody._param_offset);
             m.closure_remap.push_back(i - fbody._param_offset);
         }
 
@@ -115,35 +117,70 @@ ClosureRemap build_remap(const Function& fbody, const DCOFFParams& params_to) {
 
 void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
     std::vector<ov::Tensor> new_closure;
+    std::vector<ov::npuw::weights::LazyTensor> new_lazy_closure;
     std::vector<ov::Tensor> new_scales;
     std::vector<ov::Tensor> new_zerops;
 
-    // For a new_closure vector by rearranging the old one.  Also
+    // For a new_lazy_closure vector by rearranging the old one.  Also
     // reserve a new_scales vector to have the same size, filled with
     // empty tensors by default.
     for (auto&& i : m.closure_remap) {
-        new_closure.push_back(fcall._closure[i]);
+        new_lazy_closure.push_back(fcall._lazy_closure[i]);
+        if (fcall._closure[i]) {
+            new_closure.push_back(fcall._closure[i]);
+        } else {
+            new_closure.push_back(m.weights_to_unpack.count(i) ? fcall._lazy_closure[i].eval() : fcall._closure[i]);
+        }
 
         auto scale_iter = m.scale_remap.find(i);
-        new_scales.push_back(scale_iter != m.scale_remap.end() ? fcall._closure[scale_iter->second] : ov::Tensor());
-        // Check for asymmetric zero points and add them to new_zerops
         auto zerop_iter = m.zerop_remap.find(i);
-        const auto& zerop = zerop_iter != m.zerop_remap.end() ? fcall._closure[zerop_iter->second] : m.zero_points[i];
-        new_zerops.push_back(zerop);
+
+        new_scales.push_back(scale_iter != m.scale_remap.end() ? fcall._lazy_closure[scale_iter->second].eval()
+                                                               : ov::Tensor());
+        // Check for asymmetric zero points and add them to new_zerops
+        new_zerops.push_back(zerop_iter != m.zerop_remap.end() ? fcall._lazy_closure[zerop_iter->second].eval()
+                                                               : m.zero_points[i]);
     }
-    fcall._closure = std::move(new_closure);
     fcall._scales = std::move(new_scales);
     fcall._zerops = std::move(new_zerops);
+    fcall._closure = std::move(new_closure);
+    fcall._lazy_closure = std::move(new_lazy_closure);
 }
 
-void finalize_remap(Function& fbody, const ClosureRemap& m) {
+void finalize_remap(Function& fbody, Subgraph& fsg, const ClosureRemap& m) {
     LOG_DEBUG("Removing retired parameters...");
     LOG_BLOCK();
+
+    // Unfortunate truth - this function has to be aware of the
+    // Host Gather existence to properly update indices after
+    // Remap.
+    using PPtr = std::shared_ptr<ov::op::v0::Parameter>;
+    struct GatherParams {
+        PPtr pidx;  // Parameter @ function body - input_ids
+        PPtr psrc;  // Parameter @ function body - vocab tensor
+        PPtr pdst;  // Parameter @ function body - gathered ids
+    };
+    GatherParams gather_params;
+    const auto& params = fbody._model->get_parameters();
+    if (fsg._host_gather.dst_idx != -1) {
+        gather_params = GatherParams{params[fsg._host_gather.idx_idx],
+                                     params[fsg._host_gather.src_idx],
+                                     params[fsg._host_gather.dst_idx]};
+    }
+
     for (auto&& p : m.params_to_remove) {
         LOG_DEBUG("Removing parameter " << p);
         LOG_BLOCK();
         fbody._model->remove_parameter(p);
     }
+
+    // Update indices for gather
+    if (fsg._host_gather.dst_idx != -1) {
+        fsg._host_gather.idx_idx = fbody._model->get_parameter_index(gather_params.pidx);
+        fsg._host_gather.src_idx = fbody._model->get_parameter_index(gather_params.psrc);
+        fsg._host_gather.dst_idx = fbody._model->get_parameter_index(gather_params.pdst);
+    }
+
     fbody._model->validate_nodes_and_infer_types();
     LOG_DEBUG("DONE");
 }

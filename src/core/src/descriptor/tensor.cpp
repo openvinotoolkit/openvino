@@ -115,14 +115,6 @@ public:
         return std::hash<decltype(this)>()(this);
     }
 
-    std::string& legacy_name() override {
-        return m_legacy_name;
-    };
-
-    const std::string& legacy_name() const override {
-        return m_legacy_name;
-    };
-
 private:
     element::Type m_element_type;
     ShapeInfo m_shape_info;
@@ -257,21 +249,7 @@ void Tensor::clone_from(const Tensor& other) {
     m_upper_value = other.get_upper_value();
     m_value_symbol = other.get_value_symbol();
     get_rt_info() = other.get_rt_info();
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    m_impl->legacy_name() = other.m_impl->legacy_name();
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-std::string get_ov_tensor_legacy_name(const Tensor& tensor) {
-    return TensorExtension::get_descriptor(tensor).legacy_name();
-}
-
-void set_ov_tensor_legacy_name(Tensor& tensor, const std::string& tensor_name) {
-    TensorExtension::get_descriptor_ptr(tensor)->legacy_name() = tensor_name;
-}
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 void set_tensor_type(Tensor& tensor, const element::Type& element_type, const PartialShape& pshape) {
     TensorExtension::get_descriptor_ptr(tensor)->set_type_shape(element_type, pshape);
@@ -283,18 +261,10 @@ void set_element_type(Tensor& tensor, const element::Type& element_type) {
 
 void copy_tensor_names(Tensor& dst, const Tensor& src) {
     dst.set_names(TensorExtension::get_descriptor(src).get_all_names());
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    ov::descriptor::set_ov_tensor_legacy_name(dst, ov::descriptor::get_ov_tensor_legacy_name(src));
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 std::ostream& operator<<(std::ostream& out, const Tensor& tensor) {
-    auto names = util::join(tensor.get_names());
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (names.empty())
-        names = get_ov_tensor_legacy_name(tensor);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    out << "Tensor(" << names << ")";
+    out << "Tensor(" << util::join(tensor.get_names()) << ")";
     return out;
 }
 }  // namespace descriptor

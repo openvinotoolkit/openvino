@@ -138,6 +138,7 @@ TEST_F(TypePropResultV0Test, preserve_specific_name_on_input_replace) {
     const auto result = make_op(a);
     result->output(0).set_names({"out"});
 
+    EXPECT_THAT(result->input(0).get_tensor().get_names(), UnorderedElementsAre("out", "input a"));
     EXPECT_THAT(result->output(0).get_names(), UnorderedElementsAre("out"));
 
     const auto b = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());

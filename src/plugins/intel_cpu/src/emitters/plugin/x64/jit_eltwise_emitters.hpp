@@ -525,6 +525,29 @@ private:
     void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 };
 
+class jit_exp_emitter : public jit_emitter {
+public:
+    jit_exp_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
+                    ov::element::Type exec_prc = ov::element::f32);
+
+    jit_exp_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& n,
+                    ov::element::Type exec_prc = ov::element::f32);
+
+    size_t get_inputs_num() const override;
+    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
+
+private:
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const override;
+
+    template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
+
+    bool need_vmm_mask() const { return host_isa_ != dnnl::impl::cpu::x64::avx512_core; }
+
+    void register_table_entries() override;
+    size_t aux_vecs_count() const override;
+};
+
 class jit_erf_emitter : public jit_emitter {
 public:
     jit_erf_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
@@ -532,6 +555,8 @@ public:
 
     jit_erf_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& n,
                     ov::element::Type exec_prc = ov::element::f32);
+
+    void emit_data() const override;
 
     size_t get_inputs_num() const override;
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
@@ -546,6 +571,8 @@ private:
 
     void register_table_entries() override;
     size_t aux_vecs_count() const override;
+
+    std::unique_ptr<jit_exp_emitter> m_exp_emitter {nullptr};
 };
 
 class jit_soft_sign_emitter : public jit_emitter {

@@ -83,7 +83,6 @@ bool ACLCommonExecutor::update(const MemoryArgs &memory) {
     updateTensorsShapes(aclMemoryShapes);
 
     // Initialize arm_compute::TensorInfo objects
-    ACLInfos aclMemoryInfos;
     for (int i = 0; i < ACLArgs::COUNT_OF_ARGS; i++) {
         aclMemoryInfos[i] = initTensorInfo(aclMemoryShapes[i], aclDataType[i], aclDataLayout[i]);
     }

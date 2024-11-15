@@ -143,6 +143,7 @@ public:
     int disable_primitive_fusing;                               // Disable primitive fusing
     int disable_fake_alignment;                                 // Disable fake alignment
     std::vector<std::string> dynamic_quantize_layers_without_onednn;  // Specify Fully-connected layers which enable Dynamic quantization
+    int use_kv_cache_compression;                               // Enable KV-cache compression
     int dynamic_quantize_group_size;                            // Enable Dynamic quantization for fully connected primitive by specified group size
     int disable_horizontal_fc_fusion;                           // Disable fc horizontal fusion
     std::set<int64_t> dump_iteration;                           // Dump n-th execution of network.
@@ -175,6 +176,7 @@ public:
     } dump_prof_data_iter_params;
 
     static std::ostream* verbose_stream;
+    static const int DYNAMIC_QUANTIZE_GROUP_SIZE_NOT_SET = -2;
 };
 
 }  // namespace cldnn

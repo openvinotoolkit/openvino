@@ -9,14 +9,14 @@
 #include <string>
 
 #include "backends.hpp"
-#include "intel_npu/al/config/config.hpp"
+#include "intel_npu/config/config.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 
 namespace intel_npu {
 
 class RemoteContextImpl : public ov::IRemoteContext {
 public:
-    RemoteContextImpl(std::shared_ptr<const NPUBackends> backends, const Config& config);
+    RemoteContextImpl(const std::shared_ptr<const NPUBackends>& backends, const Config& config);
 
     /**
      * @brief Returns name of a device on which underlying object is allocated.

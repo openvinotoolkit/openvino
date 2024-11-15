@@ -14,12 +14,50 @@ namespace v0 {
 ///
 /// \ingroup ov_ops_cpp_api
 ///
-/// The Result operator output is special output which share tensor with node connected to this node.
+/// The Result output tensor is special, it shares tensor with Result's input but requires to have dedicated properties
+/// like:
+/// - tensor names.
 ///
-/// The Result's output names are visible as model outputs names.
-/// When set/add Result's output tensor names they will treat as this result specific names which will be appended to
-/// connect input tensor or transferred to new tensor connect Result to new input.
-/// When Result has not specific names the names from connected input will be used.
+/// Setting/adding Result's output names modify this specific tensor names.
+/// Result's specific tensor names are added to input descriptor and transferred to new descriptor if Result's input
+/// has been replaced.
+///
+/// Examples 1: No specific names on Result's output
+///
+///  set output names:
+///        [N1]
+///         ↓
+/// |----------------|        [names: N1]         |-----------------|
+/// |      Node      |--------------------------->|     Result      |   -> Model output names: N1
+/// |----------------|                            |-----------------|
+///
+///
+/// Examples 2: Result's has got specific names
+///
+///  set output names:                             set output names:
+///        [N1]                                         [R1, R2]
+///         ↓                                              ↓
+/// |----------------|    [names: N1, R1, R2]     |-----------------|
+/// |      Node      |--------------------------->|     Result      |   -> Model output names: R1, R2
+/// |----------------|                            |-----------------|
+///
+///
+/// Examples 3: Result from example 2 connected to new node
+///
+///  set output names:                             set output names:
+///        [N2]                                         [R1, R2]
+///         ↓                                              ↓
+/// |----------------|    [names: N2, R1, R2]     |-----------------|
+/// |      Node      |--------------------------->|     Result      |   -> Model output names: R1, R2
+/// |----------------|                            |-----------------|
+///
+///  set output names:
+///        [N1]
+///         ↓
+/// |----------------|    [names: N1]
+/// |      Node      |----------------->
+/// |----------------|
+///
 class OPENVINO_API Result : public Op {
 public:
     OPENVINO_OP("Result", "opset1");
@@ -37,7 +75,7 @@ public:
 
     bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override;
     bool has_evaluate() const override;
-    bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
+    bool can_constant_fold(const OutputVector& inputs_values) const override;
 
     /// \brief Returns current layout, or empty Layout if it is not set
     Layout get_layout() const;

@@ -417,12 +417,16 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
     this->register_matcher(m, callback);
 }
 
-ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id) {
+ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool support_2d_rope) {
     MATCHER_SCOPE(RoPEFusionChatGLM);
 
-    auto qkv_linear = makePattern("[?,?,?]");  //  [seq_length, batch_size, 4608]
+    //  [seq_length, batch_size, input_size(will be cropped to match hidden state size)]
+    //  [batch_size, seq_length, input_size] support_2d_rope
+    auto qkv_linear = makePattern("[?,?,?]");
     auto seq_length = makePattern("i32[1]");
-    auto cos_sin_cache = makePattern("[?,?,?,?]");  // [max_pos_embeddings, batch_size, 32, 2]
+    // [max_pos_embeddings, batch_size, half_rotary_dims, 2]
+    // [batch_size, max_pos_embeddings, half_rotary_dims, 2] support_2d_rope
+    auto cos_sin_cache = makePattern("[?,?,?,?]");
 
     auto ndims = ov::gen_pattern::Symbol("ndims");
     auto head_cnt = ov::gen_pattern::Symbol("head_cnt");
@@ -436,37 +440,76 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id) {
     auto qkv_proj = makePattern<opset1::VariadicSplit>({qkv_linear, -1, {total_size_q, total_size_k, total_size_v}});
     qkv_proj->set_output_size(3);
 
-    // get key [L, B, Hkv, S]
     auto cur_key = makePattern<opset1::Reshape>({qkv_proj->output(split_output_id), {0, 0, head_cnt, head_size}},
                                                 {{"special_zero", true}});
 
-    auto slice_Slice_437 = GenSlice(cur_key, 0, ndims, 1, 3);
-    auto var_split_1 = makePattern<opset1::VariadicSplit>({cur_key, 3, {ndims, ov::gen_pattern::Symbol("end")}});
+    std::shared_ptr<ov::Node> input_key = nullptr;
+    // Extended the RoPE to a two-dimensional form to accommodate the 2D positional encoding in GLM.
+    // Calculate positional embedding independent of batch and each head
+    if (support_2d_rope) {
+        // Get transposed key [batch, head_cnt, seq_length, head_size]
+        input_key = makePattern<opset1::Transpose>({cur_key, {0, 2, 1, 3}});
+    } else {
+        // Get key [seq_length, batch, head_cnt, head_size]
+        input_key = std::move(cur_key);
+    }
+
+    auto slice_Slice_437 = GenSlice(input_key, 0, ndims, 1, 3);
+    auto var_split_1 = makePattern<opset1::VariadicSplit>({input_key, 3, {ndims, ov::gen_pattern::Symbol("end")}});
     var_split_1->set_output_size(2);
 
     // rotate half
-    auto ListConstruct_452_Concat =
-        makePattern<opset1::Concat>({seq_length, {-1}, {head_cnt}, {ndims / 2}, {2}}, {{"axis", 0}});
-    auto const_target_shape_1 = makeConst({seq_len, batch, head_cnt, ndims / 2, 2});
-
-    auto ListConstruct_379_Concat =
-        makePattern<opset1::Concat>({seq_length, {-1}, {1}, {ndims / 2}, {2}}, {{"axis", 0}});
-    auto const_target_shape_2 = makeConst({seq_len, batch, 1, ndims / 2, 2});
-
-    auto reshape_Reshape_453 = makePattern<opset1::Reshape>(
-        {slice_Slice_437 | var_split_1->output(0), ListConstruct_452_Concat | const_target_shape_1});
+    std::shared_ptr<ov::Node> reshape_Reshape_453 = nullptr;
+    if (support_2d_rope) {
+        auto const_target_shape_1 = makeConst({0, head_cnt, 0, ndims / 2, 2});
+        reshape_Reshape_453 =
+            makePattern<opset1::Reshape>({slice_Slice_437 | var_split_1->output(0), const_target_shape_1},
+                                         {{"special_zero", true}});
+    } else {
+        auto ListConstruct_452_Concat =
+            makePattern<opset1::Concat>({seq_length, {-1}, {head_cnt}, {ndims / 2}, {2}}, {{"axis", 0}});
+        auto const_target_shape_1 = makeConst({seq_len, batch, head_cnt, ndims / 2, 2});
+        reshape_Reshape_453 = makePattern<opset1::Reshape>(
+            {slice_Slice_437 | var_split_1->output(0), ListConstruct_452_Concat | const_target_shape_1});
+    }
 
     auto x_even = makePattern<opset8::Gather>({reshape_Reshape_453, 0, -1}, {{"batch_dims", 0}});
     auto x_odd = makePattern<opset8::Gather>({reshape_Reshape_453, 1, -1}, {{"batch_dims", 0}});
-    auto slice_Slice_449 = makePattern<ov::opset8::Slice>({cos_sin_cache, {0}, seq_length, {1}, {0}});
-    auto slice_StridedSlice_449 = GenStridedSlice(cos_sin_cache, {0}, seq_length, {1}, 0);
+
     auto var_split_2 = makePattern<opset1::VariadicSplit>({cos_sin_cache, 0, {0, ov::gen_pattern::Symbol("end")}});
     var_split_2->set_output_size(2);
 
-    auto view_Reshape_460 =
-        makePattern<opset1::Reshape>({slice_StridedSlice_449 | slice_Slice_449 | var_split_2->output(0),
-                                      ListConstruct_379_Concat | const_target_shape_2},
-                                     {{"special_zero", false}});
+    std::shared_ptr<ov::Node> view_Reshape_460 = nullptr;
+    if (support_2d_rope) {
+        auto ListConstruct_379_Concat =
+            makePattern<opset1::Concat>({{-1}, {1}, seq_length, {ndims / 2}, {2}}, {{"axis", 0}});
+        auto const_target_shape_2 = makeConst({batch, 1, seq_len, ndims / 2, 2});
+
+        // Slice cos_sin_cache to support 2-dimentional RoPE
+        auto ScatterUpdate = makePattern<opset3::ScatterUpdate>({{0, 0}, {1}, seq_length, {0}}, {});
+        auto slice_Slice_449_1d = makePattern<ov::opset8::Slice>({cos_sin_cache, {0}, seq_length, {1}, {1}});
+        auto slice_Slice_449_2d = makePattern<ov::opset8::Slice>({cos_sin_cache, {0, 0}, ScatterUpdate, {1, 1}, {0}});
+        auto slice_StridedSlice_449 = GenStridedSlice(cos_sin_cache, {0, 0}, ScatterUpdate, {1, 1}, 1);
+
+        // [batch, 1, seq_length, half_rotary_dims, 2]
+        view_Reshape_460 = makePattern<opset1::Reshape>(
+            {slice_StridedSlice_449 | slice_Slice_449_1d | slice_Slice_449_2d | var_split_2->output(0),
+             ListConstruct_379_Concat | const_target_shape_2},
+            {{"special_zero", false}});
+    } else {
+        auto ListConstruct_379_Concat =
+            makePattern<opset1::Concat>({seq_length, {-1}, {1}, {ndims / 2}, {2}}, {{"axis", 0}});
+        auto const_target_shape_2 = makeConst({seq_len, batch, 1, ndims / 2, 2});
+
+        auto slice_Slice_449 = makePattern<ov::opset8::Slice>({cos_sin_cache, {0}, seq_length, {1}, {0}});
+        auto slice_StridedSlice_449 = GenStridedSlice(cos_sin_cache, {0}, seq_length, {1}, 0);
+
+        // [seq_length, 1, batch, half_rotary_dims, 2]
+        view_Reshape_460 =
+            makePattern<opset1::Reshape>({slice_StridedSlice_449 | slice_Slice_449 | var_split_2->output(0),
+                                          ListConstruct_379_Concat | const_target_shape_2},
+                                         {{"special_zero", false}});
+    }
 
     auto cos_tab = makePattern<opset8::Gather>({view_Reshape_460, 0, -1}, {{"batch_dims", 0}});
     auto x_even_cos = makePattern<opset1::Multiply>({x_even, cos_tab}, {{"auto_broadcast", "numpy"}});
@@ -487,11 +530,21 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id) {
     auto ShapeOf_135133 = makePattern<opset1::ShapeOf>({stack_481});
     auto flatten_Slice_497 = GenSlice(ShapeOf_135133, 0, 3, 1, 0);
     auto flatten_Concat_500 = makePattern<opset1::Concat>({flatten_Slice_497, {-1}}, {{"axis", 0}});
-    auto const_target_shape_3 = makeConst({seq_len, batch, head_cnt, ndims});
-    // [length, batch, head_cnt, half_rotary_dims, 2]
-    auto flatten_Reshape_501 =
-        makePattern<opset1::Reshape>({stack_481, flatten_Concat_500 | const_target_shape_3}, {{"special_zero", true}});
-    auto slice_Slice_443 = GenSlice(cur_key, ndims, INT_MAX, 1, 3);
+
+    std::shared_ptr<ov::Node> const_target_shape_3 = nullptr;
+    std::shared_ptr<ov::Node> flatten_Reshape_501 = nullptr;
+    if (support_2d_rope) {
+        // [batch, head_cnt, length, half_rotary_dims, 2]
+        const_target_shape_3 = makeConst({batch, head_cnt, seq_len, ndims});
+        flatten_Reshape_501 = makePattern<opset1::Reshape>({stack_481, flatten_Concat_500 | const_target_shape_3},
+                                                           {{"special_zero", true}});
+    } else {
+        // [length, batch, head_cnt, half_rotary_dims, 2]
+        const_target_shape_3 = makeConst({seq_len, batch, head_cnt, ndims});
+        flatten_Reshape_501 = makePattern<opset1::Reshape>({stack_481, flatten_Concat_500 | const_target_shape_3},
+                                                           {{"special_zero", true}});
+    }
+    auto slice_Slice_443 = GenSlice(input_key, ndims, INT_MAX, 1, 3);
 
     auto cat_Concat_505 =
         makePattern<opset1::Concat>({flatten_Reshape_501, slice_Slice_443 | var_split_1->output(1)}, {{"axis", -1}});
@@ -510,6 +563,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id) {
         OutputVector new_args;
         config.rotary_ndims = static_cast<size_t>(validator["ndims"]);
         config.is_chatglm = true;
+        config.support_2d_rope = support_2d_rope;
         config.head_cnt = static_cast<size_t>(validator["head_cnt"]);
         config.head_size = static_cast<size_t>(validator["head_size"]);
 

@@ -660,6 +660,7 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
     OV_CASE(Algorithm::EltwiseMish, ov::intel_cpu::aarch64::jit_mish_emitter),
     OV_CASE(Algorithm::EltwiseGeluErf, ov::intel_cpu::aarch64::jit_gelu_erf_emitter),
     OV_CASE(Algorithm::EltwiseGeluTanh, ov::intel_cpu::aarch64::jit_gelu_tanh_emitter),
+    OV_CASE(Algorithm::EltwiseGreater, ov::intel_cpu::aarch64::jit_greater_emitter),
     OV_CASE(Algorithm::EltwiseGreaterEqual, ov::intel_cpu::aarch64::jit_greater_equal_emitter),
     OV_CASE(Algorithm::EltwiseMulAdd, ov::intel_cpu::aarch64::jit_mul_add_emitter),
     OV_CASE(Algorithm::EltwiseMod, ov::intel_cpu::aarch64::jit_mod_emitter),
@@ -669,6 +670,8 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
     OV_CASE(Algorithm::EltwiseRelu, ov::intel_cpu::aarch64::jit_relu_emitter),
     OV_CASE(Algorithm::EltwiseSelect, ov::intel_cpu::aarch64::jit_select_emitter),
     OV_CASE(Algorithm::EltwiseSigmoid, ov::intel_cpu::aarch64::jit_sigmoid_emitter),
+    OV_CASE(Algorithm::EltwiseSoftSign, ov::intel_cpu::aarch64::jit_soft_sign_emitter),
+    OV_CASE(Algorithm::EltwiseSqrt, ov::intel_cpu::aarch64::jit_sqrt_emitter),
     OV_CASE(Algorithm::EltwiseSubtract, ov::intel_cpu::aarch64::jit_subtract_emitter),
     OV_CASE(Algorithm::EltwiseSwish, ov::intel_cpu::aarch64::jit_swish_emitter),
     OV_CASE(Algorithm::EltwiseTanh, ov::intel_cpu::aarch64::jit_tanh_emitter));
@@ -827,6 +830,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
         OV_CASE(Algorithm::EltwiseFloor, jit_floor_emitter),
         OV_CASE(Algorithm::EltwiseGeluErf, jit_gelu_erf_emitter),
         OV_CASE(Algorithm::EltwiseGeluTanh, jit_gelu_tanh_emitter),
+        OV_CASE(Algorithm::EltwiseGreater, jit_greater_emitter),
         OV_CASE(Algorithm::EltwiseGreaterEqual, jit_greater_equal_emitter),
         OV_CASE(Algorithm::EltwiseHswish, jit_hswish_emitter),
         OV_CASE(Algorithm::EltwiseIsFinite, jit_is_finite_emitter),
@@ -845,6 +849,8 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
         OV_CASE(Algorithm::EltwisePowerStatic, jit_power_static_emitter),
         OV_CASE(Algorithm::EltwiseSelect, jit_select_emitter),
         OV_CASE(Algorithm::EltwiseSigmoid, jit_sigmoid_emitter),
+        OV_CASE(Algorithm::EltwiseSoftSign, jit_soft_sign_emitter),
+        OV_CASE(Algorithm::EltwiseSqrt, jit_sqrt_emitter),
         OV_CASE(Algorithm::EltwiseSubtract, jit_subtract_emitter),
         OV_CASE(Algorithm::EltwiseSwish, jit_swish_emitter),
         OV_CASE(Algorithm::EltwiseTanh, jit_tanh_emitter));

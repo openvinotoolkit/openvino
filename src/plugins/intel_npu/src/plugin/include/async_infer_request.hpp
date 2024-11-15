@@ -4,8 +4,8 @@
 
 #pragma once
 
+#include "intel_npu/common/sync_infer_request.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
-#include "sync_infer_request.hpp"
 
 namespace intel_npu {
 

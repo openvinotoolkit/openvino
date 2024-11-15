@@ -77,16 +77,6 @@ public:
         return m_shared_tensor->pointer_hash();
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    std::string& legacy_name() override {
-        return m_shared_tensor->legacy_name();
-    }
-
-    const std::string& legacy_name() const override {
-        return m_shared_tensor->legacy_name();
-    }
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
     // --- SharedTensor specific interface
     void set_tensor(std::shared_ptr<ITensorDescriptor> tensor) {
         if (tensor != m_shared_tensor) {

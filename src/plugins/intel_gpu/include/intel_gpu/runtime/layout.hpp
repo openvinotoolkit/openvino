@@ -183,7 +183,7 @@ struct padding {
     }
 
     friend bool operator<(const padding& lhs, const padding& rhs) {
-        OPENVINO_ASSERT(!lhs.is_dynamic() && !rhs.is_dynamic(), "[GPU] padding compare is called for dynamic shape");
+        // Compare only actual padding size not _dynamic_dims_mask
         if (lhs._lower_size < rhs._lower_size) return true;
         else if (lhs._lower_size > rhs._lower_size) return false;
         if (lhs._upper_size < rhs._upper_size) return true;
@@ -452,6 +452,21 @@ private:
 
 inline ::std::ostream& operator<<(::std::ostream& os, const layout& p) {
     return os << p.to_string();
+}
+
+inline ::std::ostream& operator<<(::std::ostream& os, const std::vector<layout>& layouts) {
+    std::stringstream ss;
+
+    ss << "[";
+    for (size_t i = 0; i < layouts.size(); i++) {
+        ss << layouts[i].to_short_string();
+
+        if (i + 1 != layouts.size())
+            ss << ", ";
+    }
+    ss << "]";
+
+    return os << ss.str();
 }
 
 using optional_data_type = optional_value<data_types>;

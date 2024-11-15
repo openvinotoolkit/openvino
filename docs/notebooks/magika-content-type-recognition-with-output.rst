@@ -41,7 +41,6 @@ post <https://opensource.googleblog.com/2024/02/magika-ai-powered-fast-and-effic
 
 In this tutorial we consider how to bring OpenVINO power into Magika.
 
-
 **Table of contents:**
 
 -  `Prerequisites <#prerequisites>`__

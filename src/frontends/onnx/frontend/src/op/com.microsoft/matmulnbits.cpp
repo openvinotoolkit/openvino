@@ -16,6 +16,7 @@
 #include "openvino/op/slice.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "utils/common.hpp"
 #include "utils/reshape.hpp"
 
 using namespace ov::op;
@@ -26,10 +27,10 @@ namespace onnx {
 namespace com_microsoft {
 namespace opset_1 {
 ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
+    common::default_op_checks(node, 3);
     // Original documentation:
     // https://github.com/microsoft/onnxruntime/blob/main/docs/ContribOperators.md#com.microsoft.MatMulNBits
     const auto inputs = node.get_ov_inputs();
-    FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= 3, "Minimum 3 inputs are required. Got: ", inputs.size());
     const auto& a = inputs[0];  // required
     ov::Output<ov::Node> b;
     const auto& b_quantized = inputs[1];                                                 // required

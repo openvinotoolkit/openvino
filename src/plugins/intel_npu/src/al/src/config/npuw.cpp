@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_npu/al/config/npuw.hpp"
+#include "intel_npu/config/npuw.hpp"
 
 using namespace intel_npu;
 using namespace ov::intel_npu;
@@ -28,8 +28,10 @@ void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
     desc.add<NPUW_CWAI>();
     desc.add<NPUW_DQ>();
     desc.add<NPUW_PMM>();
+    desc.add<NPUW_SLICE_OUT>();
     desc.add<NPUW_SPATIAL>();
     desc.add<NPUW_SPATIAL_NWAY>();
+    desc.add<NPUW_SPATIAL_DYN>();
     desc.add<NPUW_HOST_GATHER>();
     desc.add<NPUW_DCOFF_TYPE>();
     desc.add<NPUW_DCOFF_SCALE>();
@@ -37,6 +39,7 @@ void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
     desc.add<NPUW_PARALLEL_COMPILE>();
     desc.add<NPUW_FUNCALL_ASYNC>();
     desc.add<NPUW_WEIGHTS_BANK>();
+    desc.add<NPUW_WEIGHTS_BANK_ALLOC>();
     desc.add<NPUW_CACHE_DIR>();
     desc.add<NPUW_ACC_CHECK>();
     desc.add<NPUW_ACC_THRESH>();
