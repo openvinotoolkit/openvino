@@ -432,8 +432,7 @@ void primitive_inst::update_shape() {
             continue;
         }
 
-        if (!get_node().is_type<shape_of>() &&
-            !(dep->get_node().is_in_shape_of_subgraph() && dep->get_node().get_selected_impl()->is_cpu())) {
+        if (!get_node().is_type<shape_of>() && !dep->get_node().get_selected_impl()->is_cpu()) {
             has_runtime_deps = true;
 
             // Events may be not created for in-order queue, so take them for OOO queue only
