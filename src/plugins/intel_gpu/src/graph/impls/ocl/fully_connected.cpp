@@ -45,7 +45,10 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
     }
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<fully_connected_impl>(*this);
+        auto prim_impl = make_unique<fully_connected_impl>(*this);
+        kernel_params_t* params_ptr = dynamic_cast<kernel_params_t*>(prim_impl->_kernel_data.params.get());
+        prim_impl->_kernel_data.params = make_unique<kernel_params_t>(*params_ptr);
+        return prim_impl;
     }
 
     void load(BinaryInputBuffer& ib) override {
