@@ -608,7 +608,11 @@ class CustomInstall(install):
     def finalize_options(self):
         """Set final values for all the options that this command supports."""
         super().finalize_options()
-           
+
+        install_lib = os.getenv("SETUPTOOLS_INSTALL_LIB")
+        if install_lib:
+            self.install_lib = install_lib
+            
         install_scripts = os.getenv("SETUPTOOLS_INSTALL_SCRIPTS")
         if install_scripts:
             self.install_scripts = install_scripts
