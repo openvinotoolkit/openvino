@@ -39,11 +39,11 @@ from openvino._pyopenvino import ConstOutput
 from openvino._pyopenvino import layout_helpers
 from openvino._pyopenvino import OVAny
 from openvino._pyopenvino import RTMap
-from openvino.ie_api import Core
-from openvino.ie_api import CompiledModel
-from openvino.ie_api import InferRequest
-from openvino.ie_api import Model
-from openvino.ie_api import AsyncInferQueue
+from openvino.runtime.ie_api import Core
+from openvino.runtime.ie_api import CompiledModel
+from openvino.runtime.ie_api import InferRequest
+from openvino.runtime.ie_api import Model
+from openvino.runtime.ie_api import AsyncInferQueue
 from openvino._pyopenvino import Version
 from openvino._pyopenvino import Tensor
 from openvino._pyopenvino import Extension
@@ -73,8 +73,8 @@ from openvino.runtime import opset13
 from openvino.runtime import properties
 
 # Helper functions for openvino module
-from openvino.ie_api import tensor_from_file
-from openvino.ie_api import compile_model
+from openvino.runtime.ie_api import tensor_from_file
+from openvino.runtime.ie_api import compile_model
 
 from openvino.utils import deprecated
 
