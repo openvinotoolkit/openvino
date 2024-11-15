@@ -458,16 +458,10 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
         config.inConfs.resize(inputShapes.size());
         for (size_t i = 0; i < inputShapes.size(); i++) {
             const auto originalInputPrecision = getOriginalInputPrecisionAtPort(i);
-            auto precision = ((originalInputPrecision == ov::element::f32) &&
-                                     context->getConfig().inferencePrecision == ov::element::bf16 &&
+            const auto precision = ((originalInputPrecision == ov::element::f32) &&
+                                    one_of(context->getConfig().inferencePrecision, ov::element::bf16, ov::element::f16) &&
                                      subgraph_attrs->snippet->has_domain_sensitive_ops()) ?
-                static_cast<ov::element::Type>(ov::element::bf16) :
-                originalInputPrecision;
-            precision = ((originalInputPrecision == ov::element::f32) &&
-                                     context->getConfig().inferencePrecision == ov::element::f16 &&
-                                     subgraph_attrs->snippet->has_domain_sensitive_ops()) ?
-                static_cast<ov::element::Type>(ov::element::f16) :
-                precision;
+                                     context->getConfig().inferencePrecision : originalInputPrecision;
             if (supportedPrecisions.count(precision) == 0)
                 OPENVINO_THROW("Subgraph node with name `", getName(), "` doesn't support ", precision, " precision.");
 
@@ -656,8 +650,7 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
     SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON(Place::PipelineStart, ConvertToSwishCPU);
     SNIPPETS_REGISTER_PASS_RELATIVE_COMMON(Place::After, ov::snippets::pass::Canonicalization,
                                            ov::snippets::pass::AnalyzeBroadcastableInputs, broadcastable_inputs);
-    if ((context->getConfig().inferencePrecision == ov::element::bf16 || context->getConfig().inferencePrecision == ov::element::f16)
-         && subgraph_attrs->snippet->has_domain_sensitive_ops()) {
+    if (one_of(context->getConfig().inferencePrecision, ov::element::bf16, ov::element::f16) && subgraph_attrs->snippet->has_domain_sensitive_ops()) {
         // enforce BF16 precisions to supported operations
         // MatMul has to be decomposed to Brgemm operations before enforcement
         // Note, MatMul decomposition will be run later again for case if BF16 enforcement is not happened
