@@ -53,7 +53,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     auto sliding_window = v0::Constant::create(element::i32, Shape{}, {0});  // sliding_window
 
-    auto has_parameter = [=](const std::shared_ptr<ov::Model>& model,
+    auto get_parameter = [=](const std::shared_ptr<ov::Model>& model,
                              const std::string& name) -> std::shared_ptr<v0::Parameter> {
         for (const auto& param : model->inputs()) {
             const auto& names = param.get_names();
@@ -71,10 +71,16 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         return nullptr;
     };
 
-    auto input_ids_name = has_parameter(model, "input_ids") ? "input_ids" : "inputs_embeds";
+    std::shared_ptr<v0::Parameter> input_ids_node;
+    for (const auto& name : {"input_ids", "inputs_embeds"}) {
+        input_ids_node = get_parameter(model, name);
+    }
 
-    std::shared_ptr<v0::Parameter> input_ids_node =
-        std::dynamic_pointer_cast<v0::Parameter>(model->input(input_ids_name).get_node_shared_ptr());
+    if (!input_ids_node) {
+        OPENVINO_THROW("The model doesn't contain input_ids or input_embeds input. Aborting.");
+        return false;
+    }
+
     input_ids_node->set_partial_shape(PartialShape{-1});
     auto unsqueezed_input_ids =
         std::make_shared<v0::Unsqueeze>(input_ids_node, v0::Constant::create(element::i32, Shape{}, {1}));
@@ -93,7 +99,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     ResultVector score_results;
 
     std::shared_ptr<v0::Parameter> position_ids;
-    if (!has_parameter(model, "position_ids")) {
+    if (!get_parameter(model, "position_ids")) {
         position_ids = setName(std::make_shared<v0::Parameter>(element::i64, PartialShape{-1}), "position_ids");
         model->add_parameters({position_ids});
     } else {
@@ -145,7 +151,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     }
 
     for (auto& param_name : {"beam_idx", "attention_mask"}) {
-        if (auto param = has_parameter(model, param_name)) {
+        if (auto param = get_parameter(model, param_name)) {
             model->remove_parameter(param);
 
             if (param->output(0).get_target_inputs().size() == 0) {

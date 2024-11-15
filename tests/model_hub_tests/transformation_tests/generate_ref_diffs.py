@@ -58,7 +58,7 @@ def get_models_list_type(file_name: str, cls: Union[Type[OVModelForCausalLM], Ty
             model_name, model_link, mark, reason = line_items
             models.append((model_name, model_link, mark, reason))
         elif len(line_items) > 4:
-            model_name, model_link, mark, reason = line_items[:4]
+            model_name, model_link, mark, reason, *other = line_items
             if not mark:
                 mark = None
             if not reason:
