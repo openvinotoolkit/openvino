@@ -580,7 +580,7 @@ Building OpenVINO™ Security Add-on depends on OpenVINO™ Model Server docker 
 
 1. Download the `OpenVINO™ Model Server software <https://github.com/openvinotoolkit/model_server>`__
 
-2. Build the `OpenVINO™ Model Server Docker images <https://github.com/openvinotoolkit/model_server/blob/main/docs/docker_container.md>`__
+2. Build the `OpenVINO™ Model Server Docker images <https://github.com/openvinotoolkit/model_server/blob/main/docs/developer_guide.md#step-1-compile-source-code>`__
 
    .. code-block:: sh
 

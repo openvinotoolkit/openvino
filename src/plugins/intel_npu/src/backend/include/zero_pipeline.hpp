@@ -25,7 +25,7 @@ public:
              const std::shared_ptr<IGraph>& graph,
              zeroProfiling::ProfilingPool& profiling_pool,
              zeroProfiling::ProfilingQuery& profiling_query,
-             std::shared_ptr<zeroProfiling::NpuInferProfiling> npu_profiling,
+             const std::shared_ptr<zeroProfiling::NpuInferProfiling>& npu_profiling,
              const std::vector<std::vector<std::optional<TensorData>>>& inputTensorsData,
              const std::vector<std::optional<TensorData>>& outputTensorsData,
              size_t numberOfCommandLists,

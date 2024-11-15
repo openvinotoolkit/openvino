@@ -14,6 +14,9 @@
 #include "non_zero_inst.h"
 #include "non_max_suppression_inst.h"
 #include "unique_inst.hpp"
+#include "scatter_elements_update_inst.h"
+#include "scatter_update_inst.h"
+#include "scatter_nd_update_inst.h"
 #include "program_helpers.h"
 
 using namespace cldnn;
@@ -195,6 +198,57 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 if (node.have_user_with_type<concatenation>() && node.get_users().front()->can_be_optimized())
                     return;
 
+                node.can_be_optimized(true);
+                // Set runtime skippable only when the node is set as can_be_optimized finally.
+                node.set_runtime_skippable(true);
+                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
+            }
+        });
+
+        program_helpers::do_for_types<scatter_elements_update>(*node, [](scatter_elements_update_node & node){
+            auto impl_params = node.get_kernel_impl_params();
+
+            if ((node.is_output() && node.get_dependency(0).is_input())
+                || node.has_fused_primitives()
+                || (impl_params->get_input_layout(0).format != impl_params->get_output_layout().format)
+                || (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type))
+                return;
+
+            if (node.is_dynamic()) {
+                node.can_be_optimized(true);
+                // Set runtime skippable only when the node is set as can_be_optimized finally.
+                node.set_runtime_skippable(true);
+                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
+            }
+        });
+
+        program_helpers::do_for_types<scatter_update>(*node, [](scatter_update_node & node){
+            auto impl_params = node.get_kernel_impl_params();
+
+            if ((node.is_output() && node.get_dependency(0).is_input())
+                || node.has_fused_primitives()
+                || (impl_params->get_input_layout(0).format != impl_params->get_output_layout().format)
+                || (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type))
+                return;
+
+            if (node.is_dynamic()) {
+                node.can_be_optimized(true);
+                // Set runtime skippable only when the node is set as can_be_optimized finally.
+                node.set_runtime_skippable(true);
+                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
+            }
+        });
+
+        program_helpers::do_for_types<scatter_nd_update>(*node, [](scatter_nd_update_node & node){
+            auto impl_params = node.get_kernel_impl_params();
+
+            if ((node.is_output() && node.get_dependency(0).is_input())
+                || node.has_fused_primitives()
+                || (impl_params->get_input_layout(0).format != impl_params->get_output_layout().format)
+                || (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type))
+                return;
+
+            if (node.is_dynamic()) {
                 node.can_be_optimized(true);
                 // Set runtime skippable only when the node is set as can_be_optimized finally.
                 node.set_runtime_skippable(true);
