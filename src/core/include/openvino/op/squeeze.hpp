@@ -9,22 +9,22 @@
 namespace ov {
 namespace op {
 namespace v0 {
-/// @brief Squeeze operation.
+/// \brief Squeeze operation.
 ///
-/// @ingroup ov_ops_cpp_api
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Squeeze : public util::SqueezeBase {
 public:
     OPENVINO_OP("Squeeze", "opset1");
 
     Squeeze();
-    /// @brief Constructs a squeeze v0 operation.
+    /// \brief Constructs a squeeze v0 operation.
     ///
-    /// @param data Input tensor with data
+    /// \param data Input tensor with data
     Squeeze(const Output<Node>& data);
-    /// @brief Constructs a squeeze v0 operation.
+    /// \brief Constructs a squeeze v0 operation.
     ///
-    /// @param data Input tensor with data
-    /// @param axis The axis along which to squeeze the input tensor.
+    /// \param data Input tensor with data
+    /// \param axis The axis along which to squeeze the input tensor.
     Squeeze(const Output<Node>& data, const Output<Node>& axes);
 
     void validate_and_infer_types() override;
@@ -38,24 +38,24 @@ private:
 }  // namespace v0
 
 namespace v15 {
-/// @brief Squeeze operation.
+/// \brief Squeeze operation.
 ///
-/// @ingroup ov_ops_cpp_api
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Squeeze : public util::SqueezeBase {
 public:
     OPENVINO_OP("Squeeze", "opset15");
 
     Squeeze();
-    /// @brief Constructs a squeeze v15 operation.
+    /// \brief Constructs a squeeze v15 operation.
     ///
-    /// @param data Input tensor with data
-    /// @param allow_axis_skip Shape inference result dynamic rank if selected axis has 1 in range of its dynamic
+    /// \param data Input tensor with data
+    /// \param allow_axis_skip Shape inference result dynamic rank if selected axis has 1 in range of its dynamic
     Squeeze(const Output<Node>& data, const bool allow_axis_skip = false);
-    /// @brief Constructs a squeeze v15 operation.
+    /// \brief Constructs a squeeze v15 operation.
     ///
-    /// @param data Input tensor with data
-    /// @param axis The axis along which to squeeze the input tensor.
-    /// @param allow_axis_skip Shape inference result dynamic rank if selected axis has 1 in range of its dynamic
+    /// \param data Input tensor with data
+    /// \param axis The axis along which to squeeze the input tensor.
+    /// \param allow_axis_skip Shape inference result dynamic rank if selected axis has 1 in range of its dynamic
     Squeeze(const Output<Node>& data, const Output<Node>& axes, const bool allow_axis_skip = false);
 
     void validate_and_infer_types() override;
