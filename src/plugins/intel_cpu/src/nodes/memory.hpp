@@ -195,7 +195,7 @@ public:
                 const GraphContext::CPtr context,
                 const ov::optional<std::vector<Shape>>& input_shape,
                 const ov::optional<std::vector<ov::element::Type>>& input_prc,
-                std::shared_ptr<ov::Model> func,
+                std::shared_ptr<ov::Model> func = nullptr,
                 mode mode = mode::read_value_assign);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
