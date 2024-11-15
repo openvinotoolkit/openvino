@@ -29,9 +29,6 @@ void reduce_max(const T* in, T* out, const Shape& in_shape, const AxisSet& reduc
 
     const auto out_shape = util::reduce(in_shape, reduction_axes);
     std::fill(out, std::next(out, shape_size(out_shape)), min_value);
-    if (shape_size(in_shape) == 0) {
-        return;
-    }
 
     const auto in_strides = row_major_strides(in_shape);
     const auto out_strides = row_major_strides(out_shape);
