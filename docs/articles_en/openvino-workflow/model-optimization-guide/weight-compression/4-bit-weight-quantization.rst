@@ -60,11 +60,13 @@ trade-offs after optimization:
   compressed to the precision defined by ``mode``, while the rest will be compressed to
   ``backup_mode`` precision. The default value for ratio is 1.
 
-  `Higher Ratio (more layers set to mode precision)`: Reduces the model size and increase inference speed but
-  might lead to higher accuracy degradation.
+  | **Higher Ratio (more layers set to mode precision)**:
+  | Reduces the model size and increase inference speed but
+    might lead to higher accuracy degradation.
 
-  `Lower Ratio (more layers set to backup_mode precision)`: Maintains better accuracy but results in a larger model size
-  and potentially slower inference.
+  | **Lower Ratio (more layers set to backup_mode precision)**:
+  | Maintains better accuracy but results in a larger model size
+    and potentially slower inference.
 
   In the example below, 90% of the model's layers are quantized to INT4 asymmetrically with
   a group size of 64:
