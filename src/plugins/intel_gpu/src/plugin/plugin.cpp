@@ -597,7 +597,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::device::id.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::dynamic_quantization_group_size.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::activations_scale_factor.name(), PropertyMutability::RW},
-        ov::PropertyName{ov::weights_path.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::weights_path.name(), PropertyMutability::RW},
     };
 
     return supported_properties;
