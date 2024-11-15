@@ -18,6 +18,8 @@ namespace {
 
 std::vector<std::vector<ov::test::InputShape>> inputShapes_5D = {
     {{{}, {{2, 19, 2, 2, 9}}}},
+    {{{}, {{0, 19, 2, 2, 9}}}},
+    {{{}, {{1, 0, 0, 2, 9}}}},
 };
 
 const std::vector<std::vector<int>> axes5D = {
