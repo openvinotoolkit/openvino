@@ -457,7 +457,6 @@ class PrepareLibs(build_clib):
 
         for src_dir in src_dirs:
             # copy so / dylib files to WHEEL_LIBS_INSTALL_DIR (clibs) inside python package
-            self.announce(f"copy_package_libs: src_dir: {src_dir}", level=log.INFO)
             for file_path in Path(src_dir).rglob("*"):
                 file_name = os.path.basename(file_path)
                 if file_path.is_symlink():
@@ -472,7 +471,6 @@ class PrepareLibs(build_clib):
             self.announce(f"Adding {WHEEL_LIBS_PACKAGE} package", level=log.INFO)
             packages.append(WHEEL_LIBS_PACKAGE)
             package_data.update({WHEEL_LIBS_PACKAGE: ["*"]})
-
 
     def copy_package_data(self, src_dirs):
         """Collect package data files from preinstalled dirs and put to the subpackage."""
@@ -750,7 +748,6 @@ def get_install_dirs_list(install_cfg):
     install_dirs = []
     for comp_info in install_cfg.values():
         full_install_dir = os.path.join(comp_info.get("prefix"), comp_info.get("install_dir"))
-        print(f"get_install_dirs_list: prefix: {comp_info.get('prefix')}, install_dir: {comp_info.get('install_dir')}")
         if full_install_dir not in install_dirs:
             install_dirs.append(full_install_dir)
     return install_dirs
@@ -791,8 +788,6 @@ def concat_files(input_files, output_file):
 
 OPENVINO_VERSION = WHEEL_VERSION = os.getenv("WHEEL_VERSION", "0.0.0")
 PACKAGE_DIR = get_package_dir(PY_INSTALL_CFG)
-print(f"PACKAGE_DIR: {PACKAGE_DIR}")
-print(f"OPENVINO_SOURCE_DIR: {OPENVINO_SOURCE_DIR}")
 # need to create package dir, because since https://github.com/pypa/wheel/commit/e43f2fcb296c2ac63e8bac2549ab596ab79accd0
 # egg_info command works in this folder, because it's being created automatically
 os.makedirs(PACKAGE_DIR, exist_ok=True)
