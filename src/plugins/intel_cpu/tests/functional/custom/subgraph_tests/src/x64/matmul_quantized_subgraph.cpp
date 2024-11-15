@@ -93,15 +93,22 @@ protected:
             std::shared_ptr<ov::Node> biasWeightsNode;
             if (!isFCPrimCheck)
                 std::swap(weightShape[0], weightShape[1]);
+            else
+                std::swap(weightShape[1], weightShape[2]);
             auto weightsNode = ov::test::utils::make_constant(ngPrec, weightShape);
-            auto fq2 = ov::test::utils::make_fake_quantize(weightsNode, ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+            auto fq2 =
+                ov::test::utils::make_fake_quantize(weightsNode, ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
             auto fc = std::make_shared<ov::op::v0::MatMul>(fq1, fq2, false, false);
             fc->get_rt_info() = getCPUInfo();
             fc->set_friendly_name(nameMatmul);
-            if (!isFCPrimCheck)
+            if (!isFCPrimCheck) {
                 biasWeightsNode = ov::test::utils::make_constant(ngPrec, ov::Shape{});
-            else
-                biasWeightsNode = ov::test::utils::make_constant(ngPrec, ov::Shape{1, 1, inShapes.back()});
+            } else {
+                auto fcShape = fc->get_output_shape(0);
+                ov::Shape biasShape(fcShape.size(), 1);
+                biasShape.back() = fcShape.back();
+                biasWeightsNode = ov::test::utils::make_constant(ngPrec, biasShape);
+            }
             matMul = std::make_shared<ov::op::v1::Add>(fc, biasWeightsNode);
         } else {
             auto fq2 = ov::test::utils::make_fake_quantize(inputParams[0], ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
@@ -194,7 +201,7 @@ const std::vector<CPUSpecificParams>fullyconnectedSpecificFilterParams = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_fullyconnected_prim_impl_type_check,
                          MatmulBrgemmInt8Test,
-                         ::testing::Combine(::testing::Values(ov::Shape{1, 32, 32}),
+                         ::testing::Combine(::testing::Values(ov::Shape{1, 32, 36}),
                                             ::testing::Values(true),
                                             ::testing::Values(true),
                                             ::testing::Values(ElementType::u8),
