@@ -77,9 +77,6 @@ void reduce_sum(const T* in, T* out, const Shape& in_shape, const AxisSet& reduc
     const auto out_size = shape_size(out_shape);
     std::vector<T> cs(out_size, T{0});
     std::fill(out, std::next(out, out_size), T{0});
-    if (shape_size(in_shape) == 0) {
-        return;
-    }
 
     const auto in_strides = row_major_strides(in_shape);
     const auto out_strides = row_major_strides(out_shape);
