@@ -1,349 +1,134 @@
-<!DOCTYPE html>
+{%- extends "layout.html" %}
+{% set title = _('Search') %}
 
+{%- block content %}
+    {% block docs_navbar %}
+    {{ super() }}
+    {% include 'baner.html' %}
+    {% endblock %}
 
-<html lang="en" data-theme="light">
-
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Search &#8212; OpenVINO™ documentation</title>
-
-
-
-
-  <script type="module" src="https://static.cloud.coveo.com/atomic/v2/atomic.esm.js"></script>
-  <script data-cfasync="false">
-    // document.documentElement.dataset.mode = localStorage.getItem("mode") || "light";
-    document.documentElement.dataset.mode = localStorage.getItem("mode") || "light";
-    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
-  </script>
-
-  <!-- Loaded before other Sphinx assets -->
-  <link href="_static/styles/theme.css?digest=5b4479735964841361fd" rel="stylesheet" />
-  <link href="_static/styles/bootstrap.css?digest=5b4479735964841361fd" rel="stylesheet" />
-  <link href="_static/styles/pydata-sphinx-theme.css?digest=5b4479735964841361fd" rel="stylesheet" />
-
-
-  <link href="_static/vendor/fontawesome/6.1.2/css/all.min.css?digest=5b4479735964841361fd" rel="stylesheet" />
-  <link rel="preload" as="font" type="font/woff2" crossorigin
-    href="_static/vendor/fontawesome/6.1.2/webfonts/fa-solid-900.woff2" />
-  <link rel="preload" as="font" type="font/woff2" crossorigin
-    href="_static/vendor/fontawesome/6.1.2/webfonts/fa-brands-400.woff2" />
-  <link rel="preload" as="font" type="font/woff2" crossorigin
-    href="_static/vendor/fontawesome/6.1.2/webfonts/fa-regular-400.woff2" />
-
-  <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=362ab14a" />
-  <link rel="stylesheet" type="text/css" href="_static/tabs.css?v=4c969af8" />
-  <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
-  <link rel="stylesheet" type="text/css"
-    href="_static/design-style.1e8bd061cd6da7fc9cf755528e8ffc24.min.css?v=0a3b3ea7" />
-  <link rel="stylesheet" type="text/css" href="_static/css/custom.css?v=28049109" />
-  <link rel="stylesheet" type="text/css" href="_static/css/openvino_sphinx_theme.css?v=f6dae89c" />
-  <link rel="stylesheet" type="text/css" href="_static/css/button.css?v=20b90415" />
-  <link rel="stylesheet" type="text/css" href="_static/css/input.css?v=20c0557d" />
-  <link rel="stylesheet" type="text/css" href="_static/css/textfield.css?v=4b73f43a" />
-  <link rel="stylesheet" type="text/css" href="_static/css/tabs.css?v=1c3cdf61" />
-  <link rel="stylesheet" type="text/css" href="_static/css/coveo_custom.css?v=dee0b0f0" />
-  <link rel="stylesheet" type="text/css"
-    href="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/css/splide.min.css" />
-
-  <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=5b4479735964841361fd" />
-  <link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=5b4479735964841361fd" />
-  <script src="_static/vendor/fontawesome/6.1.2/js/all.min.js?digest=5b4479735964841361fd"></script>
-
-  <link href="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/css/splide.min.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/js/splide.min.js"></script>
-  <script type="module" src="https://static.cloud.coveo.com/atomic/v3/atomic.esm.js"></script>
-  <link rel="stylesheet" href="https://static.cloud.coveo.com/atomic/v3/themes/coveo.css">
-  <link rel="stylesheet" href="_static/css/viewer.min.css" type="text/css" />
-  <link rel="stylesheet" href="_static/css/custom.css" type="text/css" />
-  <link rel="stylesheet" href="_static/css/banner.css" type="text/css" />
-  <link href="https://cdn.datatables.net/v/dt/jq-3.7.0/dt-2.0.8/b-3.0.2/b-colvis-3.0.2/b-print-3.0.2/datatables.min.css"
-    rel="stylesheet">
-  <link rel="stylesheet" href="_static/css/coveo_custom.css" type="text/css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.1/papaparse.min.js"></script>
-  <script src="_static/js/viewer.min.js"></script>
-  <script src="/assets/versions_raw.js"></script>
-
-  <script src="_static/documentation_options.js?v=7f41d439"></script>
-  <script src="_static/doctools.js?v=9a2dae69"></script>
-  <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
-  <script src="_static/tabs.js?v=3ee01567"></script>
-  <script src="_static/clipboard.min.js?v=a7894cd8"></script>
-  <script src="_static/copybutton.js?v=f281be69"></script>
-  <script src="_static/design-tabs.js?v=36754332"></script>
-  <script>DOCUMENTATION_OPTIONS.pagename = 'search';</script>
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-  <script src="_static/js/openvino_sphinx_theme.js?v=39d13722"></script>
-  <script src="_static/js/splide.min.js?v=c97f5303"></script>
-  <script src="_static/js/sortable_tables.js?v=a883ff38"></script>
-  <script src="_static/js/graphs.js?v=673b21d5"></script>
-  <script src="_static/js/gsearch.js?v=ab74e274"></script>
-  <script src="_static/js/hide_banner.js?v=bf18a656"></script>
-  <script src="_static/js/newsletter.js?v=a64cca00"></script>
-  <script src="_static/js/open_sidebar.js?v=77b961d0"></script>
-  <script src="_static/js/papaparse.min.js?v=b1a84117"></script>
-  <script src="_static/js/viewer.min.js?v=fd957d15"></script>
-  <script src="_static/js/custom.js?v=cc19b88b"></script>
-  <script src="_static/js/modern.js?v=7f96170a"></script>
-  <link rel="icon" href="_static/favicon.ico" />
-  <link rel="index" title="Index" href="genindex.html" />
-  <link rel="search" title="Search" href="#" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="docsearch:language" content="en" />
-</head>
-
-
-<body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%"
-  data-default-mode="light">
-
-
-
-  <a class="skip-link" href="#main-content">Skip to main content</a>
-
-
-
-  <nav class="bd-header navbar navbar-expand-lg bd-navbar">
-    <div class="bd-header__inner bd-page-width">
-      <label class="sidebar-toggle primary-toggle" for="__primary">
-        <span class="fa-solid fa-bars"></span>
-      </label>
-
-
-      <div class="col-lg-3 navbar-header-items__start">
-
-        <div class="navbar-item">
-
-
-
-          <a class="navbar-brand logo" href="index.html">
-
-
-
-
-
-
-
-
-            <img src="_static/logo.svg" class="logo__image only-light" alt="OpenVINO™  documentation - Home" />
-            <script>document.write(`<img src="_static/logo.svg" class="logo__image only-dark" alt="OpenVINO™  documentation - Home"/>`);</script>
-
-
-          </a>
-        </div>
-
-      </div>
-
-      <div class="col-lg-9 navbar-header-items">
-
-        <div class="me-auto navbar-header-items__center">
-
-          <div class="navbar-item">
-            <nav class="navbar-nav">
-              <p class="sidebar-header-items__title" role="heading" aria-level="1" aria-label="Site Navigation">
-                Site Navigation
-              </p>
-              <ul class="bd-navbar-elements navbar-nav">
-                <div id="navbar-center" class="mr-auto">
-                  <div class="navbar-center-item">
-                    <ul id="navbar-main-elements" class="navbar-nav">
-                      <li class="toctree-l1 nav-item">
-                        <a class="reference external nav-link" href="https://docs.openvino.ai/install">
-                          Installation
-                        </a>
-                      </li>
-
-                      <li class="toctree-l1 nav-item">
-                        <a class="reference external nav-link"
-                          href="https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/overview.html">
-                          Product Page
-                        </a>
-                      </li>
-
-                      <li class="toctree-l1 nav-item">
-                        <a class="reference external nav-link" href="https://blog.openvino.ai/">
-                          Blog
-                        </a>
-                      </li>
-
-                      <li class="toctree-l1 nav-item">
-                        <a class="reference external nav-link"
-                          href="https://community.intel.com/t5/Intel-Distribution-of-OpenVINO/bd-p/distribution-openvino-toolkit">
-                          Forum
-                        </a>
-                      </li>
-
-                      <li class="toctree-l1 nav-item">
-                        <a class="reference external nav-link"
-                          href="https://www.intel.com/content/www/us/en/support/products/96066/software/development-software/openvino-toolkit.html">
-                          Support
-                        </a>
-                      </li>
-
-                      <li class="toctree-l1 nav-item">
-                        <a class="reference external nav-link"
-                          href="https://docs.openvino.ai/2024/about-openvino/performance-benchmarks.html">
-                          Performance
-                        </a>
-                      </li>
-
-                    </ul>
-                  </div>
-
+    {% block body %}
+          <atomic-search-interface id="search"
+            fields-to-include='["ovversion", "ovdoctype", "filetype", "date", "source", "author", "sourcetype", "language", "description"]'>
+            <atomic-search-layout>
+            
+              <atomic-layout-section section="search">
+                <atomic-search-box>
+                  <atomic-search-box-query-suggestions></atomic-search-box-query-suggestions>
+                </atomic-search-box>
+              </atomic-layout-section>
+            
+              <!-- ADDITIONAL FILTERS SECTION-->
+              <atomic-layout-section section="facets">
+                <div class="view-selector-container">
+                  <button id="view-selector-grid" class="view-selector">
+                    <i class="fas fa-th"></i> Grid
+                  </button>
+                  <button id="view-selector-list" class="view-selector">
+                    <i class="fas fa-list"></i> List
+                  </button>
                 </div>
-              </ul>
-            </nav>
-          </div>
+                <atomic-facet-manager>
+                  <atomic-facet field="ovversion" label="Version" sort-criteria="alphanumericDescending"></atomic-facet>
+                  <!-- <atomic-facet field="ovdoctype" label="Document type"></atomic-facet> -->
+                  <!-- <atomic-facet field="language" label="Language"></atomic-facet> -->
+                </atomic-facet-manager>
+              </atomic-layout-section>
+            
+              <atomic-layout-section section="main">
+              
+                <atomic-layout-section section="status">
+                  <!-- RESULTS SUMMARY SECTION -->
+                  <atomic-breadbox></atomic-breadbox>
+                  <atomic-query-summary></atomic-query-summary>
+                  <atomic-refine-toggle></atomic-refine-toggle>
+                
+                  <!-- SORT SECTION -->
+                  <atomic-sort-dropdown>
+                    <atomic-sort-expression label="relevance" expression="relevancy"></atomic-sort-expression>
+                    <atomic-sort-expression label="most-recent" expression="date descending"></atomic-sort-expression>
+                  </atomic-sort-dropdown>
+                
+                  <atomic-did-you-mean></atomic-did-you-mean>
+                  <atomic-notifications></atomic-notifications>
+                
+                </atomic-layout-section>
+              
+                <atomic-layout-section section="results">
+                
+                  <atomic-result-list id="atomic-result-list" display="grid">
+                  
+                    <atomic-result-template>
+                      <template>
+                        <!-- RESULT TOP BADGES SECTION -->
+                        <atomic-result-section-badges>
+                          <atomic-result-badge>
+                            <atomic-result-multi-value-text field="ovversion"></atomic-result-multi-value-text>
+                          </atomic-result-badge>
+                        
+                          <atomic-result-badge
+                            icon="https://raw.githubusercontent.com/Rush/Font-Awesome-SVG-PNG/master/black/svg/language.svg">
+                            <atomic-result-multi-value-text field="language"></atomic-result-multi-value-text>
+                          </atomic-result-badge>
+                        
+                          <atomic-field-condition must-match-is-recommendation="true">
+                            <atomic-result-badge label="Recommended"></atomic-result-badge>
+                          </atomic-field-condition>
+                        
+                          <atomic-field-condition must-match-is-top-result="true">
+                            <atomic-result-badge label="Top Result"></atomic-result-badge>
+                          </atomic-field-condition>
+                        </atomic-result-section-badges>
+                      
+                        <!-- RESULT ICON SECTION -->
+                        <atomic-result-section-visual>
+                          <atomic-icon class="icon" icon="assets://gform.svg"></atomic-result-icon>
+                          <!-- EXAMPLE OF CHANGING ICON -->
+                          <!-- <atomic-field-condition must-match-ovversion="2021.4">
+                            <atomic-icon class="icon" icon="assets://gsheet.svg"></atomic-icon>
+                          </atomic-field-condition>
+                          <atomic-field-condition must-match-ovversion="2022.2">
+                            <atomic-icon class="icon" icon="assets://html.svg"></atomic-icon>
+                          </atomic-field-condition>
+                          <atomic-field-condition must-not-match-ovversion="2022.2, 2021.4">
+                            <atomic-icon class="icon" icon="assets://gform.svg"></atomic-icon>
+                          </atomic-field-condition> -->
+                        </atomic-result-section-visual>
+                      
+                        <atomic-result-section-title>
+                          <atomic-result-link target="_blank"></atomic-result-link>
+                        </atomic-result-section-title>
+                      
+                        <atomic-result-section-excerpt>
+                          <atomic-result-text field="excerpt"></atomic-result-text>
+                        </atomic-result-section-excerpt>
+                      
+                        <atomic-result-section-bottom-metadata>
+                          <atomic-field-condition class="field" if-defined="description">
+                            <atomic-result-text field="description"></atomic-result-text>
+                          </atomic-field-condition>
+                        </atomic-result-section-bottom-metadata>
+                      </template>
+                    </atomic-result-template>
+                  
+                  </atomic-result-list>
+                
+                  <atomic-query-error></atomic-query-error>
+                  <atomic-no-results></atomic-no-results>
+                
+                </atomic-layout-section>
+              
+                <atomic-layout-section section="pagination">
+                  <atomic-load-more-results></atomic-load-more-results>
+                </atomic-layout-section>
+              
+              </atomic-layout-section>
+            </atomic-search-layout>
+          </atomic-search-interface>
+    {% endblock %}
 
-        </div>
+  {%- block scripts_end %}
+  {{ _webpack.body_post() }}
+  {%- endblock %}
 
-
-        <div class="navbar-header-items__end">
-
-
-          <div class="navbar-item">
-            <ul class="navbar-icon-links navbar-nav" aria-label="Icon Links">
-              <li class="nav-item">
-
-
-
-
-
-
-
-
-                <a href="https://github.com/openvinotoolkit/openvino" title="GitHub" class="nav-link" rel="noopener"
-                  target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><span><i
-                      class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i></span>
-                  <span class="sr-only">GitHub</span></a>
-              </li>
-            </ul>
-          </div>
-
-          <div class="navbar-item">
-            <div class="dropdown sst-dropdown sst-dropdown-navbar">
-              <button class="btn sst-btn dropdown-toggle" type="button" id="version-selector" data-toggle="dropdown"
-                aria-haspopup="true" aria-expanded="false"></button>
-              <div class="dropdown-menu" aria-labelledby="version-selector">
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-      </div>
-
-
-
-
-      <label class="sidebar-toggle secondary-toggle" for="__secondary" tabindex="0">
-        <span class="fa-solid fa-outdent"></span>
-      </label>
-    </div>
-  </nav>
-  <div id="info-banner" class="transition-banner"></div>
-  <script src="_static/js/hide_banner.js" id="hidebanner" data-url="_static/html/banner_data.json"></script>
-  <script
-    src="https://cdn.datatables.net/v/dt/jq-3.7.0/dt-2.0.8/b-3.0.2/b-colvis-3.0.2/b-print-3.0.2/datatables.min.js"></script>
-  <script src="_static/js/openVinoDataTables.js"></script>
-  <div id="info-banner" class="transition-banner"></div>
-  <script src="_static/js/hide_banner.js" id="hidebanner" data-url="_static/html/banner_data.json"></script>
-  <atomic-search-interface id="search" localization-compatibility-version="v4"
-    fields-to-include='["ovversion", "ovdoctype", "ovversioncategory", "filetype", "date", "source", "author", "sourcetype", "language", "description"]'>
-    <atomic-search-layout>
-      <atomic-layout-section section="search">
-        <atomic-search-box>
-          <atomic-search-box-query-suggestions></atomic-search-box-query-suggestions>
-        </atomic-search-box>
-      </atomic-layout-section>
-      <atomic-layout-section section="facets">
-        <div class="view-selector-container">
-          <button id="view-selector-grid" class="view-selector">
-            <i class="fas fa-th"></i> Grid
-          </button>
-          <button id="view-selector-list" class="view-selector">
-            <i class="fas fa-list"></i> List
-          </button>
-        </div>
-        <atomic-facet-manager>
-          <!-- <atomic-facet facet-id="ovversion" field="ovversion" label="Version">
-          </atomic-facet> -->
-        </atomic-facet-manager>
-          <!-- <atomic-category-facet 
-        field="ovversioncategory" label="Categories"
-        delimiting-character="/">
-      </atomic-category-facet> -->
-          <atomic-category-facet facet-id="ovversioncategory" field="ovversioncategory" label="Categories"
-            delimiting-character="/">
-          </atomic-category-facet>
-          <!-- <atomic-facet facet-id="ovdoctype" field="ovdoctype" label="Category" with-search="true"></atomic-facet> -->
-      </atomic-layout-section>
-      <atomic-layout-section section="main">
-        <atomic-layout-section section="status">
-          <atomic-breadbox></atomic-breadbox>
-          <atomic-query-summary></atomic-query-summary>
-          <atomic-refine-toggle></atomic-refine-toggle>
-          <atomic-sort-dropdown>
-            <atomic-sort-expression label="relevance" expression="relevancy"></atomic-sort-expression>
-            <atomic-sort-expression label="most-recent" expression="date descending"></atomic-sort-expression>
-          </atomic-sort-dropdown>
-          <atomic-did-you-mean></atomic-did-you-mean>
-          <atomic-notifications></atomic-notifications>
-        </atomic-layout-section>
-        <atomic-layout-section section="results">
-          <atomic-result-list id="atomic-result-list" display="grid">
-            <atomic-result-template>
-              <template>
-                <atomic-result-section-badges>
-                  <atomic-result-badge>
-                    <atomic-result-multi-value-text field="ovversion"></atomic-result-multi-value-text>
-                  </atomic-result-badge>
-                  <atomic-result-badge
-                    icon="https://raw.githubusercontent.com/Rush/Font-Awesome-SVG-PNG/master/black/svg/language.svg">
-                    <atomic-result-multi-value-text field="language"></atomic-result-multi-value-text>
-                  </atomic-result-badge>
-                  <atomic-field-condition must-match-is-recommendation="true">
-                    <atomic-result-badge label="Recommended"></atomic-result-badge>
-                  </atomic-field-condition>
-                  <atomic-field-condition must-match-is-top-result="true">
-                    <atomic-result-badge label="Top Result"></atomic-result-badge>
-                  </atomic-field-condition>
-                </atomic-result-section-badges>
-                <atomic-result-section-visual>
-                  <atomic-icon class="icon" icon="assets://gform.svg"></atomic-result-icon>
-                </atomic-result-section-visual>
-                <atomic-result-section-title>
-                  <atomic-result-link target="_blank"></atomic-result-link>
-                </atomic-result-section-title>
-                <atomic-result-section-excerpt>
-                  <atomic-result-text field="excerpt"></atomic-result-text>
-                </atomic-result-section-excerpt>
-                <atomic-result-section-bottom-metadata>
-                  <atomic-field-condition class="field" if-defined="description">
-                    <atomic-result-text field="description"></atomic-result-text>
-                  </atomic-field-condition>
-                </atomic-result-section-bottom-metadata>
-              </template>
-            </atomic-result-template>
-          </atomic-result-list>
-          <atomic-query-error></atomic-query-error>
-          <atomic-no-results></atomic-no-results>
-        </atomic-layout-section>
-        <atomic-layout-section section="pagination">
-          <atomic-load-more-results></atomic-load-more-results>
-        </atomic-layout-section>
-      </atomic-layout-section>
-    </atomic-search-layout>
-  </atomic-search-interface>
-
-
-  <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script src="_static/scripts/bootstrap.js?digest=5b4479735964841361fd"></script>
-  <script src="_static/scripts/pydata-sphinx-theme.js?digest=5b4479735964841361fd"></script>
-  <footer class="footer mt-5 mt-md-0">
-  </footer>
-</body>
-
-</html>
+{%- endblock %}
