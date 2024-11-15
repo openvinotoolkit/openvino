@@ -5,26 +5,9 @@
 """Generic utilities. Factor related functions out to separate files."""
 
 from openvino._pyopenvino.util import numpy_to_c, replace_node, replace_output_update_name
-import os
+from openvino.build_utils import get_cmake_path
 from functools import wraps
 from typing import Callable, Any
-from pathlib import Path
-
-
-def get_cmake_path() -> str:
-    """Searches for the directory containing CMake files within the package install directory.
-
-    :return: The path to the directory containing CMake files, if found. Otherwise, returns empty string.
-    :rtype: str
-    """
-    package_path = Path(__file__).parent
-    cmake_file = "OpenVINOConfig.cmake"
-
-    for dirpath, _, filenames in os.walk(package_path):
-        if cmake_file in filenames:
-            return dirpath
-
-    return ""
 
 
 def deprecated(name: Any = None, version: str = "", message: str = "", stacklevel: int = 2) -> Callable[..., Any]:
