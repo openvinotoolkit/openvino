@@ -653,24 +653,46 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
     selectedPd->setConfig(config);
 
     if (haveSubgraph()) {
-        auto* prim_desc = getSelectedPrimitiveDescriptor();
-        OPENVINO_ASSERT(prim_desc);
-        auto& conf = prim_desc->getConfig();
+        // Adopt parent configuration, avoid to insert reorder before the MemoryInput.
+        std::vector<PortConfig> inConfs;
         std::vector<Input::InputConfig> graphInputConfig;
 
-        for (auto&& portConfig : conf.inConfs) {
-            auto desc = portConfig.getMemDesc();
-            graphInputConfig.emplace_back(node::Input::InputConfig{desc, false});
+        auto mainInputDesc = getParentOutputMemDesc(getParentEdgeAt(0));
+        auto mainInputPrc = mainInputDesc->getPrecision();  // we have to align precision across all the inputs
+
+        inConfs.emplace_back(mainInputDesc);
+        graphInputConfig.emplace_back(node::Input::InputConfig{mainInputDesc, true});
+
+        for (size_t i = 1; i < getParentEdges().size(); i++) {
+            auto desc = getParentOutputMemDesc(getParentEdgeAt(i))->cloneWithNewPrecision(mainInputPrc);
+            inConfs.emplace_back(desc);
+            graphInputConfig.emplace_back(node::Input::InputConfig{desc, true});
         }
 
         std::vector<Input::OutputConfig> graphOutputConfig;
-        for (auto&& portConfig : conf.outConfs) {
+        for (auto&& portConfig : config.outConfs) {
             auto desc = portConfig.getMemDesc();
             graphOutputConfig.emplace_back(node::Input::OutputConfig{desc, false});
         }
 
         // configure the inner graph to get the information about output memory descriptors
         subGraph.Init(body, context, graphInputConfig, graphOutputConfig);
+
+        // for the output descriptors, use the configuration of the graph's output nodes
+        auto outputDescriptors = subGraph.getOutputMemoryDescriptors();
+
+        const auto& desc = outputDescriptors.front();
+
+        std::vector<PortConfig> outConfs;
+
+        outConfs.emplace_back(desc, BlockedMemoryDesc::FULL_MASK, 0);  // use the memory from the first input inPlace
+
+        const NodeConfig config(inConfs, outConfs);
+
+        supportedPrimitiveDescriptors.clear();
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::undef);
+
+        selectPrimitiveDescriptorByIndex(0);
     }
 }
 
@@ -705,17 +727,6 @@ void MemoryInput::createPrimitive() {
         }
 
         subGraph.Activate(inputMemory, outputMemory);
-    }
-}
-
-void MemoryInput::prepareParams() {
-    if (haveSubgraph()) {
-        for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
-            // since the external and internal descriptors are compatible, we may pass the descriptor
-            subgraphMemoryPtrs[i]->redefineDesc(getSrcMemoryAtPort(i)->getDescPtr());
-        }
-    } else {
-        MemoryInputBase::prepareParams();
     }
 }
 
@@ -761,6 +772,12 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
     MemoryPtr src = assignedMem;  // declare src memory
     if (processInitGraph) {
         if (haveSubgraph()) {
+            // put PrepareParams into runDynamic, because init graph is not called each time.
+            for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
+                // since the external and internal descriptors are compatible, we may pass the descriptor
+                subgraphMemoryPtrs[i]->redefineDesc(getSrcMemoryAtPort(i)->getDescPtr());
+            }
+
             subGraph.ResetInferCount();
             subGraph.Infer();
             // depending on the memory sharing solution, we can return here if the memory is substituted from the
@@ -889,12 +906,6 @@ MemStatePtr MemoryInput::makeState() const {
 }
 
 bool MemoryInput::needShapeInfer() const {
-    if (haveSubgraph()) {
-        return true;
-    }
-    return MemoryInputBase::needShapeInfer();
-}
-bool MemoryInput::needPrepareParams() const {
     if (haveSubgraph()) {
         return true;
     }

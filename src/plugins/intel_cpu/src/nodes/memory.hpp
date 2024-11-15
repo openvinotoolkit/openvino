@@ -186,7 +186,6 @@ private:
 
 class MemoryInput : public MemoryInputBase {
 public:
-    using MemoryInputBase::MemoryInputBase;
     MemoryInput(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr ctx);
     MemoryInput(const std::string id,
                 const std::string& name,
@@ -210,8 +209,6 @@ public:
     MemStatePtr makeState() const override;
 
     std::shared_ptr<ov::Model> getSubGraph();
-    bool needPrepareParams() const override;
-    void prepareParams() override;
     bool needShapeInfer() const override;
 
 protected:
