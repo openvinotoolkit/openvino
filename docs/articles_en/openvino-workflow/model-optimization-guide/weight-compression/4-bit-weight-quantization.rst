@@ -1,7 +1,6 @@
 4-bit Weight Quantization
 =========================
 
-
 The 4-bit weight quantization method results in significant reduction in model size and
 memory usage, making LLMs more accessible to less performant devices.
 It also usually offers lower inference latency, however, depending on specific models,
@@ -133,96 +132,6 @@ trade-offs after optimization:
   the original floating-point precision of the model weights (``INT8_ASYM`` is default value).
 
 |
-
-The example below shows data-free 4-bit weight quantization of OpenVINO IR.
-Before trying the example, make sure Optimum Intel is installed in your
-environment by running the following command:
-
-.. code-block:: python
-
-   pip install optimum[openvino]
-
-If the model comes from `Hugging Face <https://huggingface.co/models>`__ and is supported
-by Optimum, it may be easier to use the **Optimum Intel API**, which employs NNCF weight
-compression capabilities to optimize various large Transformer models.
-
-The NNCF ``nncf.compress_weights()`` API, with most of its options, is exposed in the
-``.from_pretrained()`` method of Optimum Intel classes. Optimum also has several datasets
-for data-aware quantization available out-of-the-box.
-
-.. tab-set::
-
-   .. tab-item:: Compression with NNCF
-      :sync: nncf
-
-      Load a pre-trained Hugging Face model, using the Optimum Intel API,
-      compress it to INT4 using NNCF, and then execute inference with a text phrase:
-
-      .. code-block:: python
-
-         from nncf import compress_weights, CompressWeightsMode
-         from optimum.intel.openvino import OVModelForCausalLM
-         from transformers import AutoTokenizer, pipeline
-
-         # Load a model and compress it with NNCF.
-         model_id = "microsoft/Phi-3.5-mini-instruct"
-         model = OVModelForCausalLM.from_pretrained(model_id, export=True, load_in_8bit=False, compile=False)
-         model.model = compress_weights(model.model, mode=CompressWeightsMode.INT4_SYM)
-
-         # Inference
-         model.compile()
-         tokenizer = AutoTokenizer.from_pretrained(model_id)
-         pipe = pipeline("text-generation", model=model, tokenizer=tokenizer)
-         phrase = "The weather is"
-         results = pipe(phrase)
-         print(results)
-
-   .. tab-item:: Compression with Optimum-Intel
-      :sync: optimum
-
-      Load a pre-trained Hugging Face model, compress it to INT4, using the
-      Optimum Intel API, and then execute inference with a text phrase:
-
-      .. code-block:: python
-
-         from optimum.intel.openvino import OVModelForCausalLM, OVWeightQuantizationConfig
-         from transformers import AutoTokenizer, pipeline
-
-         # Load and compress a model from Hugging Face.
-         model_id = "microsoft/Phi-3.5-mini-instruct"
-         model = OVModelForCausalLM.from_pretrained(
-             model_id,
-             export=True,
-             quantization_config=OVWeightQuantizationConfig(
-                 bits=4,
-                 quant_method="awq",
-                 scale_estimation=True,
-                 dataset="wikitext2",
-                 group_size=64,
-                 ratio=1.0
-             )
-         )
-
-         # Inference
-         tokenizer = AutoTokenizer.from_pretrained(model_id)
-         pipe = pipeline("text-generation", model=model, tokenizer=tokenizer)
-         phrase = "The weather is"
-         results = pipe(phrase)
-         print(results)
-
-
-      You can also use the optimum-cli command line tool to the same effect:
-
-      .. code-block:: console
-
-         optimum-cli export openvino --model microsoft/Phi-3.5-mini-instruct --weight-format int4 --awq --scale-estimation --dataset wikitext2 --group-size 64 --ratio 1.0 ov_phi-3.5-mini-instruct
-
-      For more details, refer to the article on how to
-      :doc:`infer LLMs using Optimum Intel <../../../learn-openvino/llm_inference_guide/llm-inference-hf>`.
-
-
-The model can be also :ref:`saved into a compressed format <save_pretrained>`,
-resulting in a smaller binary file.
 
 4-bit Weight Quantization with GPTQ
 ###################################

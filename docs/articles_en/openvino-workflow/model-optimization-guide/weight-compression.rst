@@ -47,43 +47,65 @@ method primarily designed to optimize LLMs.
 Compression Methods (8-bit vs. 4-bit)
 #####################################
 
-**8-bit weight quantization** offers a good balance between reducing the size and lowering the
-accuracy of a model. It usually results in significant improvements for transformer-based models
-and guarantees good model performance for a vast majority of supported CPU and GPU platforms.
-By default, weights are compressed asymmetrically to "INT8_ASYM" mode.
-
-Here is an example of code using NNCF to perform asymmetrical 8-bit weight quantization of
-a model in the OpenVINO IR format:
-
-.. tab-set::
-
-   .. tab-item:: OpenVINO
-      :sync: openvino
-
-      .. doxygensnippet:: docs/optimization_guide/nncf/code/weight_compression_openvino.py
-         :language: python
-         :fragment: [compression_8bit]
-
-
-Now, the model is ready for compilation and inference. See the example below,
-which shows data-free 8-bit weight quantization of OpenVINO IR.
-
-Before you run the code sample, make sure Optimum Intel
-is installed in your environment by running the following command:
-
-.. code-block:: python
-
-   pip install optimum[openvino]
-
-If the model comes from `Hugging Face <https://huggingface.co/models>`__ and is supported
-by Optimum, it may be easier to use the **Optimum Intel API**, which employs NNCF weight
+For models that come from `Hugging Face <https://huggingface.co/models>`__ and are supported
+by Optimum, it is recommended to use the **Optimum Intel API**, which employs NNCF weight
 compression capabilities to optimize various large Transformer models.
 
 The NNCF ``nncf.compress_weights()`` API, with most of its options, is exposed in the
 ``.from_pretrained()`` method of Optimum Intel classes. Optimum also has several datasets
 for data-aware quantization available out-of-the-box.
 
+You can use the examples below to perform data-free 8-bit or 4-bit weight quantization.
+Before you start, make sure Optimum Intel is installed in your environment
+by running the following command:
+
+.. code-block:: python
+
+   pip install optimum[openvino]
+
+**8-bit weight quantization** offers a good balance between reducing the size and lowering the
+accuracy of a model. It usually results in significant improvements for transformer-based models
+and guarantees good model performance for a vast majority of supported CPU and GPU platforms.
+By default, weights are compressed asymmetrically to "INT8_ASYM" mode.
+
 .. tab-set::
+
+   .. tab-item:: Compression with Optimum-Intel
+      :sync: optimum
+
+      Load a pre-trained Hugging Face model, compress it to INT8_ASYM, using the
+      Optimum Intel API, and then execute inference with a text phrase:
+
+      Simply use the optimum-cli command line tool:
+
+      .. code-block:: console
+
+         optimum-cli export openvino --model microsoft/Phi-3.5-mini-instruct --weight-format int8 ov_phi-3.5-mini-instruct
+
+      You can also use the code sample to the same effect:
+
+      .. code-block:: python
+
+         from optimum.intel.openvino import OVModelForCausalLM, OVWeightQuantizationConfig
+         from transformers import AutoTokenizer, pipeline
+
+         # Load and compress a model from Hugging Face.
+         model_id = "microsoft/Phi-3.5-mini-instruct"
+         model = OVModelForCausalLM.from_pretrained(
+             model_id,
+             export=True,
+             quantization_config=OVWeightQuantizationConfig(bits=8)
+         )
+
+         # Inference
+         tokenizer = AutoTokenizer.from_pretrained(model_id)
+         pipe = pipeline("text-generation", model=model, tokenizer=tokenizer)
+         phrase = "The weather is"
+         results = pipe(phrase)
+         print(results)
+
+      For more details, refer to the article on how to
+      :doc:`infer LLMs using Optimum Intel <../../learn-openvino/llm_inference_guide/llm-inference-hf>`.
 
    .. tab-item:: Compression with NNCF
       :sync: nncf
@@ -110,11 +132,40 @@ for data-aware quantization available out-of-the-box.
         results = pipe(phrase)
         print(results)
 
+
+Here is an example of code using NNCF to perform asymmetrical 8-bit weight quantization of
+a model in the OpenVINO IR format:
+
+.. tab-set::
+
+   .. tab-item:: OpenVINO
+      :sync: openvino
+
+      .. doxygensnippet:: docs/optimization_guide/nncf/code/weight_compression_openvino.py
+         :language: python
+         :fragment: [compression_8bit]
+
+
+**4-bit weight quantization** is actually a mixed-precision compression,
+primarily INT4 and a backup asymmetric INT8 precisions. It produces a smaller model,
+offering lower inference latency but potentially noticeable accuracy degradation,
+depending on the model.
+
+.. tab-set::
+
    .. tab-item:: Compression with Optimum-Intel
       :sync: optimum
 
-      Load a pre-trained Hugging Face model, compress it to INT8_ASYM, using the
+      Load a pre-trained Hugging Face model, compress it to INT4, using the
       Optimum Intel API, and then execute inference with a text phrase:
+
+      Simply use the optimum-cli command line tool:
+
+      .. code-block:: console
+
+         optimum-cli export openvino --model microsoft/Phi-3.5-mini-instruct --weight-format int4 --awq --scale-estimation --dataset wikitext2 --group-size 64 --ratio 1.0 ov_phi-3.5-mini-instruct
+
+      You can also use the code sample to the same effect:
 
       .. code-block:: python
 
@@ -126,7 +177,14 @@ for data-aware quantization available out-of-the-box.
          model = OVModelForCausalLM.from_pretrained(
              model_id,
              export=True,
-             quantization_config=OVWeightQuantizationConfig(bits=8)
+             quantization_config=OVWeightQuantizationConfig(
+                 bits=4,
+                 quant_method="awq",
+                 scale_estimation=True,
+                 dataset="wikitext2",
+                 group_size=64,
+                 ratio=1.0
+             )
          )
 
          # Inference
@@ -136,22 +194,34 @@ for data-aware quantization available out-of-the-box.
          results = pipe(phrase)
          print(results)
 
+   .. tab-item:: Compression with NNCF
+      :sync: nncf
 
-      You can also use the optimum-cli command line tool to the same effect:
+      Load a pre-trained Hugging Face model, using the Optimum Intel API,
+      compress it to INT4 using NNCF, and then execute inference with a text phrase:
 
-      .. code-block:: console
+      .. code-block:: python
 
-         optimum-cli export openvino --model microsoft/Phi-3.5-mini-instruct --weight-format int8 ov_phi-3.5-mini-instruct
+         from nncf import compress_weights, CompressWeightsMode
+         from optimum.intel.openvino import OVModelForCausalLM
+         from transformers import AutoTokenizer, pipeline
+
+         # Load a model and compress it with NNCF.
+         model_id = "microsoft/Phi-3.5-mini-instruct"
+         model = OVModelForCausalLM.from_pretrained(model_id, export=True, load_in_8bit=False, compile=False)
+         model.model = compress_weights(model.model, mode=CompressWeightsMode.INT4_SYM)
+
+         # Inference
+         model.compile()
+         tokenizer = AutoTokenizer.from_pretrained(model_id)
+         pipe = pipeline("text-generation", model=model, tokenizer=tokenizer)
+         phrase = "The weather is"
+         results = pipe(phrase)
+         print(results)
+
 
       For more details, refer to the article on how to
-      :doc:`infer LLMs using Optimum Intel <../../learn-openvino/llm_inference_guide/llm-inference-hf>`.
-
-The model can also be :ref:`saved into a compressed format <save_pretrained>`,
-resulting in a smaller binary file.
-
-
-**4-bit weight quantization** is actually a mixed-precision compression, primarily INT4 and
-a backup asymmetric INT8 precisions. It produces a smaller model, offering lower inference latency but potentially noticeable accuracy degradation, depending on the model.
+      :doc:`infer LLMs using Optimum Intel <../../../learn-openvino/llm_inference_guide/llm-inference-hf>`.
 
 The code snippet below shows how to do 4-bit quantization of the model weights represented
 in OpenVINO IR using NNCF:
@@ -165,7 +235,13 @@ in OpenVINO IR using NNCF:
          :language: python
          :fragment: [compression_4bit]
 
-Refer to the article about :doc:`4-bit weight quantization <./weight-compression/4-bit-weight-quantization>` for more details.
+Refer to the article about
+:doc:`4-bit weight quantization <./weight-compression/4-bit-weight-quantization>`
+for more details.
+
+Once the model has been optimized, it is ready for compilation and inference. The model can
+also be :ref:`saved into a compressed format <save_pretrained>`, resulting in a
+smaller binary file.
 
 The table below summarizes the benefits and trade-offs for each compression type in terms of
 memory reduction, speed gain, and accuracy loss.
