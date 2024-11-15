@@ -953,9 +953,21 @@ void Transformations::MainSnippets(void) {
     bool split_m_dimension = !ignoreCallback;
     // [122706] Some 3D MHA Patterns have perf regressions when Transpose op is tokenized
     std::set<size_t> mha_supported_transpose_ranks = { 4 };
+
+    // Note: this is a temporary WA, avoiding matmul B input tokenization in the cases when CPU .
+    // It will be removed when plugin specific SubgraphPass will be implemented.
+    auto mha_tokenize_mm_b_input_callback = [this](const std::shared_ptr<const ov::Node>& node) {
+        const auto& input_type_0 = node->get_input_element_type(0);
+        const auto& input_type_1 = node->get_input_element_type(1);
+
+        const bool u8i8_repacking_wo_compensations = input_type_0 == ov::element::u8 && input_type_1 == ov::element::i8;
+        const bool bf16_repacking = input_type_0 == ov::element::f32 && input_type_1 == ov::element::f32 &&
+                                    config.inferencePrecision == ov::element::bf16;
+        return u8i8_repacking_wo_compensations || bf16_repacking;
+    };
     snippets::pass::SnippetsTokenization::Config tokenization_config(concurrency, data_ptr_gpr_count, split_m_dimension,
                                                                      mha_token_enable_transpose_on_output, is_dynamic_mha_token_enabled,
-                                                                     mha_supported_transpose_ranks);
+                                                                     mha_supported_transpose_ranks, mha_tokenize_mm_b_input_callback);
 
     ov::pass::Manager snippetsManager("CPU:Snippets");
     snippetsManager.set_per_pass_validation(false);
