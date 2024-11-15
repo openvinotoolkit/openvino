@@ -29,5 +29,6 @@ protected:
     JitConstants GetJitConstants(const search_sorted_params& params) const;
     static DispatchData SetDefault(const search_sorted_params& params);
     KernelsData GetCommonKernelsData(const Params& params) const;
+    void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

@@ -22,9 +22,28 @@ struct search_sorted_impl : typed_primitive_impl_ocl<search_sorted> {
         return make_unique<search_sorted_impl>(*this);
     }
 
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        if (is_dynamic()) {
+            auto& kernel_selector = kernel_selector_t::Instance();
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
+        }
+    }
+
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        // If model loaded from cache, params are not initialized, so we create a new object and reuse it in the future
+        if (_kernel_data.params == nullptr) {
+            _kernel_data.params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true));
+        }
+
+        update_shapes(*_kernel_data.params, impl_param);
+        (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
+    }
+
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<search_sorted>();
-        auto params = get_default_params<kernel_selector::search_sorted_params>(impl_param);
+        auto params = get_default_params<kernel_selector::search_sorted_params>(impl_param, shape_agnostic);
 
         // Manually add all inputs except first one, since get_default_params does not handle it.
         for (size_t i = 1; i < impl_param.input_layouts.size(); ++i) {
@@ -62,6 +81,7 @@ attach_search_sorted_impl::attach_search_sorted_impl() {
 #define ADD_TYPE(type) std::make_tuple(data_types::type, format::bfyx), std::make_tuple(data_types::type, format::bfzyx)
 
     implementation_map<search_sorted>::add(impl_types::ocl,
+                                           shape_types::any,
                                            typed_primitive_impl_ocl<search_sorted>::create<search_sorted_impl>,
                                            {
                                                ADD_TYPE(i8),
