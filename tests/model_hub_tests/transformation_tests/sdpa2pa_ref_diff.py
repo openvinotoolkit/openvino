@@ -326,13 +326,14 @@ ref_diff_map = {
 		"ScaledDotProductAttention" : -2,
 		"PagedAttentionExtension" : 2,
 	},
-	"katuni4ka/tiny-random-nanollava" : {
-		"Assign" : -4,
-		"Parameter" : 7,
-		"ReadValue" : -4,
-		"ScaledDotProductAttention" : -2,
-		"PagedAttentionExtension" : 2,
-	},
+
+	# "katuni4ka/tiny-random-nanollava" : {
+	# 	"Assign" : -4,
+	# 	"Parameter" : 7,
+	# 	"ReadValue" : -4,
+	# 	"ScaledDotProductAttention" : -2,
+	# 	"PagedAttentionExtension" : 2,
+	# },
 }
 
 ref_diff_map_cache_eviction = {
