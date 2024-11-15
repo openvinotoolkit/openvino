@@ -280,11 +280,7 @@ class CustomBuild(build):
 
         if self.cmake_args is None:
             self.cmake_args = os.getenv("CMAKE_ARGS", "")
-            
-        platform_tag = os.getenv("PLATFORM_TAG")
-        if platform_tag:
-            self.plat_name = platform_tag
-    
+
     def cmake_build_and_install(self, install_cfg):
         """Runs cmake (configure, build and install) if artfiacts are not already built / installed."""
         plat_specifier = ".{0}-{1}.{2}".format(self.plat_name, *sys.version_info[:2])

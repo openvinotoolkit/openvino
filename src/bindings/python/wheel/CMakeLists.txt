@@ -1,4 +1,4 @@
-﻿# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -93,7 +93,7 @@ elseif(LINUX)
 endif()
 list(APPEND setup_py_env PLATFORM_TAG=${PLATFORM_TAG})
 
-set(openvino_wheel_name "openvino-${WHEEL_VERSION}-${PYTHON_TAG}-${ABI_TAG}-${PLATFORM_TAG}.whl")
+set(openvino_wheel_name "openvino-${WHEEL_VERSION}-${WHEEL_BUILD}-${PYTHON_TAG}-${ABI_TAG}-${PLATFORM_TAG}.whl")
 set(openvino_wheels_output_dir "${CMAKE_BINARY_DIR}/wheels")
 set(openvino_wheel_path "${openvino_wheels_output_dir}/${openvino_wheel_name}")
 
