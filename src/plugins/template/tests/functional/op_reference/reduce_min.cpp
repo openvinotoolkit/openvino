@@ -89,9 +89,19 @@ std::vector<ReductionParams> generateReductionParams(const bool keep_dims) {
         ReductionType::Min,
         keep_dims,
         std::vector<int64_t>{1, 2},
-        reference_tests::Tensor({2, 0, 4}, element::Type(IN_ET), std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8}),
+        reference_tests::Tensor({2, 0, 4}, element::Type(IN_ET), std::vector<T>{}),
         reference_tests::Tensor(out_shape_from_empty, element::Type(IN_ET), std::vector<T>{max_value, max_value})));
 
+    out_shape_from_empty = Shape{2, 0, 1};
+    if (keep_dims == false) {
+        out_shape_from_empty = Shape{2, 0};
+    }
+    params.push_back(
+        ReductionParams(ReductionType::Min,
+                        keep_dims,
+                        std::vector<int64_t>{2},
+                        reference_tests::Tensor({2, 0, 4}, element::Type(IN_ET), std::vector<T>{}),
+                        reference_tests::Tensor(out_shape_from_empty, element::Type(IN_ET), std::vector<T>{})));
     return params;
 }
 
