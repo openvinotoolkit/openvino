@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+﻿# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -101,27 +101,12 @@ set(openvino_wheel_path "${openvino_wheels_output_dir}/${openvino_wheel_name}")
 # create target for openvino.wheel
 #
 
-execute_process(COMMAND ${Python3_EXECUTABLE} -m pip --version
-                OUTPUT_VARIABLE pip_version OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-string(REGEX MATCH "pip[ ]+([\\.0-9]*)" pip_version "${pip_version}")
-set(pip_version ${CMAKE_MATCH_1})
-
-if(pip_version VERSION_GREATER_EQUAL 22.0)
-    set(wheel_build_command
-        ${Python3_EXECUTABLE} -m pip wheel
-            --no-deps
-            --wheel-dir ${openvino_wheels_output_dir}
-            --verbose
-            "${CMAKE_CURRENT_SOURCE_DIR}/..")
-else()
-    # for --config-setting explanation see https://github.com/pypa/setuptools/issues/2491
-    set(wheel_build_command
-        ${Python3_EXECUTABLE} -m build "${CMAKE_CURRENT_SOURCE_DIR}/.."
-        --outdir ${openvino_wheels_output_dir}
-        --config-setting=--quiet
-        --wheel)
-endif()
+set(wheel_build_command
+    ${Python3_EXECUTABLE} -m pip wheel
+        --no-deps
+        --wheel-dir ${openvino_wheels_output_dir}
+        --verbose
+        "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
 add_custom_command(OUTPUT ${openvino_wheel_path}
     COMMAND ${setup_py_env} ${wheel_build_command}
