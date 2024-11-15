@@ -69,12 +69,6 @@ from openvino.runtime import opset11
 from openvino.runtime import opset12
 from openvino.runtime import opset13
 
-
-# Aliases
-from openvino import ie_api as ie_api
-from openvino import exceptions as exceptions
-import openvino.utils as utils
-
 # Import properties API
 from openvino.runtime import properties
 
