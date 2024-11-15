@@ -141,6 +141,14 @@ protected:
         return {kernels_cache.get_cached_kernel_ids(_kernels)};
     }
 
+    template<typename kernel_params_t>
+    static void clone_kernel_data_params(multi_stage_primitive& prim_impl) {
+        for (auto& _kernel_data : prim_impl._kernels_data) {
+            kernel_params_t* params_ptr = dynamic_cast<kernel_params_t*>(_kernel_data.params.get());
+            _kernel_data.params = make_unique<kernel_params_t>(*params_ptr);
+        }
+    }
+
     std::vector<kernel::ptr> get_kernels() const override {
         return _kernels;
     }

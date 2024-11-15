@@ -170,6 +170,12 @@ protected:
         return {kernels_cache.get_cached_kernel_ids(_kernels)};
     }
 
+    template<typename kernel_params_t>
+    static void clone_kernel_data_params(typed_primitive_impl_ocl& prim_impl) {
+        kernel_params_t* params_ptr = dynamic_cast<kernel_params_t*>(prim_impl._kernel_data.params.get());
+        prim_impl._kernel_data.params = make_unique<kernel_params_t>(*params_ptr);
+    }
+
     std::vector<kernel::ptr> get_kernels() const override {
         return _kernels;
     }
