@@ -1,8 +1,6 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import platform
-
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -44,19 +42,15 @@ class TestCropAndResize(CommonTFLayerTest):
     test_data_basic = [
         dict(image_shape=[5, 45, 30, 3], num_boxes=10, crop_size_value=[8, 5], method="bilinear",
              extrapolation_value=0.0),
-        pytest.param(dict(image_shape=[1, 80, 40, 3], num_boxes=10, crop_size_value=[20, 15], method="bilinear",
-                          extrapolation_value=1.0),
-                     marks=pytest.mark.xfail(reason="102603")),
-        pytest.param(dict(image_shape=[20, 10, 50, 2], num_boxes=5, crop_size_value=[4, 50], method="nearest",
-                          extrapolation_value=0.0),
-                     marks=pytest.mark.xfail(reason="102603")),
+        dict(image_shape=[1, 80, 40, 3], num_boxes=10, crop_size_value=[20, 15], method="bilinear",
+             extrapolation_value=1.0),
+        dict(image_shape=[20, 10, 50, 2], num_boxes=5, crop_size_value=[4, 50], method="nearest",
+             extrapolation_value=0.0),
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    @pytest.mark.xfail(platform.machine() in ["aarch64", "arm64", "ARM64"],
-                       reason='Ticket - 122716')
     def test_crop_and_resize_basic(self, params, ie_device, precision, ir_version, temp_dir,
                                    use_legacy_frontend):
         self._test(*self.create_crop_and_resize_net(**params),
