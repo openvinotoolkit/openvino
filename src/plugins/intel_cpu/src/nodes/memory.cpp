@@ -676,10 +676,10 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
         }
 
         // configure the inner graph to get the information about output memory descriptors
-        subGraph.Init(body, context, graphInputConfig, graphOutputConfig);
+        subGraph->Init(body, context, graphInputConfig, graphOutputConfig);
 
         // for the output descriptors, use the configuration of the graph's output nodes
-        auto outputDescriptors = subGraph.getOutputMemoryDescriptors();
+        auto outputDescriptors = subGraph->getOutputMemoryDescriptors();
 
         const auto& desc = outputDescriptors.front();
 
@@ -700,11 +700,11 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
 void MemoryInput::createPrimitive() {
     MemoryInputBase::createPrimitive();
     if (haveSubgraph()) {
-        OPENVINO_ASSERT(getOriginalInputsNumber() == subGraph.GetInputNodesMap().size(),
+        OPENVINO_ASSERT(getOriginalInputsNumber() == subGraph->GetInputNodesMap().size(),
                         "Number of node inputs must be equal the number of inner graph's inputs: ",
                         getOriginalInputsNumber(),
                         " != ",
-                        subGraph.GetInputNodesMap().size());
+                        subGraph->GetInputNodesMap().size());
 
         std::vector<MemoryPtr> inputMemory;
         for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
@@ -715,18 +715,18 @@ void MemoryInput::createPrimitive() {
             inputMemory.emplace_back(std::move(mem));
         }
 
-        OPENVINO_ASSERT(getOriginalOutputsNumber() == subGraph.GetOutputNodesMap().size(),
+        OPENVINO_ASSERT(getOriginalOutputsNumber() == subGraph->GetOutputNodesMap().size(),
                         "Number of node outputs must be equal the number of inner graph's outputs: ",
                         getOriginalOutputsNumber(),
                         " != ",
-                        subGraph.GetOutputNodesMap().size());
+                        subGraph->GetOutputNodesMap().size());
 
         std::vector<MemoryPtr> outputMemory;
         for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
             outputMemory.emplace_back(getDstMemoryAtPort(i));
         }
 
-        subGraph.Activate(inputMemory, outputMemory);
+        subGraph->Activate(inputMemory, outputMemory);
     }
 }
 
@@ -778,8 +778,8 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
                 subgraphMemoryPtrs[i]->redefineDesc(getSrcMemoryAtPort(i)->getDescPtr());
             }
 
-            subGraph.ResetInferCount();
-            subGraph.Infer();
+            subGraph->ResetInferCount();
+            subGraph->Infer();
 
             auto& childEdges = getChildEdges();
             for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
@@ -844,8 +844,8 @@ void MemoryInput::runStatic(dnnl::stream strm) {
     MemoryPtr src = assignedMem; // declare src memory
     if (processInitGraph) {
         if (haveSubgraph()) {
-            subGraph.ResetInferCount();
-            subGraph.Infer();
+            subGraph->ResetInferCount();
+            subGraph->Infer();
 
             auto& childEdges = getChildEdges();
             for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
