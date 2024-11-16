@@ -113,6 +113,9 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
                 }
                 dfs(son);
             }
+            if (!found_output) {
+                visited.insert(node);
+            }
         };
 
         std::function<void(std::shared_ptr<ov::Node>)> reverse_dfs = [&](std::shared_ptr<ov::Node> node) {
