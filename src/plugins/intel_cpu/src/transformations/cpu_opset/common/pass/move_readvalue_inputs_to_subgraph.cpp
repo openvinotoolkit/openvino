@@ -86,8 +86,7 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
             return false;
         }
 
-        bool found_output = false;  // Flag: find Output node or out of max depth.
-        std::string root_name = readvalue->get_friendly_name();
+        bool found_output = false;  // Flag: find Output node
 
         NodeVector subgraph_nodes;
         std::unordered_set<std::string> subgraph_node_names;
@@ -109,7 +108,7 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
 
             for (const auto& child : node->get_output_target_inputs(0)) {
                 auto son = child.get_node()->shared_from_this();
-                if (son->get_friendly_name() == root_name) {
+                if (son == readvalue) {
                     continue;
                 }
                 dfs(son);
