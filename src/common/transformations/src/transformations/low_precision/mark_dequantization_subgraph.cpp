@@ -200,7 +200,8 @@ KeepConstsPrecision::KeepConstsPrecision(const element::TypeVector& precisions,
         for (const auto& pattern_node : keep_const_precisions) {
             if (pt_map.count(pattern_node.first)) {
                 auto node = pt_map.at(pattern_node.first).get_node_shared_ptr();
-                if (ov::as_type_ptr<v0::Constant>(node)) {
+                if (ov::as_type_ptr<v0::Constant>(node) &&
+                    check_precision(node->get_output_element_type(0), precisions)) {
                     if (pattern_node.second) {
                         ov::disable_keep_const_precision(node);
                     } else {
