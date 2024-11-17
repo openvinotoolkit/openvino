@@ -13,11 +13,13 @@
 #define READ_VEC(offset, ptr) CAT(vload, VEC_SIZE)(offset, ptr)
 
 #ifdef SEQUENCE
-#define GET_IN0_IDX(b, f, y) INPUT1_GET_INDEX(b, f, y, 0)
+#define GET_IN0_IDX(b, f, y) INPUT0_GET_INDEX(b, f, y, 0)
+#define GET_IN1_IDX(b, f, y) INPUT1_GET_INDEX(b, f, y, 0)
 #define GET_IN3_IDX(b, f) INPUT3_GET_INDEX(0, b, f, 0)
 #define GET_IN4_IDX(b, f) INPUT4_GET_INDEX(0, b, f, 0)
-#else 
-#define GET_IN0_IDX(b, f, y) INPUT1_GET_INDEX(b, y, 0, 0)
+#else
+#define GET_IN0_IDX(b, f, y) INPUT0_GET_INDEX(b, y, 0, 0) 
+#define GET_IN1_IDX(b, f, y) INPUT1_GET_INDEX(b, y, 0, 0)
 #define GET_IN3_IDX(b, f) INPUT3_GET_INDEX(b, f, 0, 0)
 #define GET_IN4_IDX(b, f) INPUT4_GET_INDEX(b, f, 0, 0)
 #endif
@@ -72,14 +74,13 @@ KERNEL(lstm_cell_and_seq_bfyx)(
                 const uint weight_idx = hidden_idx+weight_offsets[k];
                 uint hblock_num = HIDDEN_SIZE/VEC_SIZE;
                 unroll_for(uint j=0;j<hblock_num;++j) {
+                    INPUT4_TYPE_VEC r_block = READ_VEC(0, &R[GET_IN4_IDX(weight_idx, j*VEC_SIZE)]);
                     if(i==0){
-                        INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[GET_IN0_IDX(b, 0, j*VEC_SIZE)]);
-                        INPUT4_TYPE_VEC r_block = READ_VEC(0, &R[GET_IN4_IDX(weight_idx, j*VEC_SIZE)]);
+                        INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[GET_IN1_IDX(b, 0, j*VEC_SIZE)]);
                         hidden_result += dot(initial_block, r_block);
                     }else{
                         #ifdef SEQUENCE
                             OUTPUT_TYPE_VEC h_block = READ_VEC(0, &hidden_history[OUTPUT_GET_INDEX(b, 0, prev_idx, j*VEC_SIZE)]);
-                            INPUT4_TYPE_VEC r_block = READ_VEC(0, &R[INPUT4_GET_INDEX(0, weight_idx, j*VEC_SIZE, 0)]);
                             hidden_result += dot(h_block, r_block);
                         #endif
                     }
@@ -89,7 +90,7 @@ KERNEL(lstm_cell_and_seq_bfyx)(
                         hidden_result += initial_hidden_state[GET_IN1_IDX(b, 0, j)]*R[GET_IN4_IDX(weight_idx, j)];
                     }else{
                         #ifdef SEQUENCE
-                            hidden_result += hidden_history[OUTPUT_GET_INDEX(b, 0, prev_idx, j)]*R[INPUT4_GET_INDEX(0, weight_idx, j, 0)];
+                            hidden_result += hidden_history[OUTPUT_GET_INDEX(b, 0, prev_idx, j)]*R[GET_IN4_IDX(weight_idx, j)];
                         #endif
                     }
                 }
@@ -98,28 +99,19 @@ KERNEL(lstm_cell_and_seq_bfyx)(
 
                 unroll_for(uint j=0;j<block_num;++j) {
                     #if DIRECTION == 1 //reverse
-                        INPUT0_TYPE_VEC x_block = READ_VEC(0, &x[INPUT0_GET_INDEX(b, real_seq_length-1-i, j*VEC_SIZE, 0)]);
-                        INPUT3_TYPE_VEC w_block = READ_VEC(0, &W[INPUT3_GET_INDEX(0, weight_idx, j*VEC_SIZE, 0)]);
+                        INPUT0_TYPE_VEC x_block = READ_VEC(0, &x[GET_IN0_IDX(b, real_seq_length-1-i, j*VEC_SIZE)]);
                     #else
-                        #ifdef SEQUENCE
-                            INPUT0_TYPE_VEC x_block = READ_VEC(0, &x[INPUT0_GET_INDEX(b, i, j*VEC_SIZE, 0)]);
-                        #else
-                            INPUT0_TYPE_VEC x_block = READ_VEC(0, &x[INPUT0_GET_INDEX(b, j*VEC_SIZE, 0, 0)]);
-                        #endif
-                        INPUT3_TYPE_VEC w_block = READ_VEC(0, &W[GET_IN3_IDX(weight_idx, j*VEC_SIZE)]);
+                        INPUT0_TYPE_VEC x_block = READ_VEC(0, &x[GET_IN0_IDX(b, i, j*VEC_SIZE)]);
                     #endif //DIRECTION == 1 //reverse
+                    INPUT3_TYPE_VEC w_block = READ_VEC(0, &W[GET_IN3_IDX(weight_idx, j*VEC_SIZE)]);
                     input_result += dot(x_block, w_block);
                 }
 
                 unroll_for(uint j=block_num*VEC_SIZE;j<INPUT_SIZE;++j) {
                     #if DIRECTION == 1 //reverse
-                        input_result += x[INPUT0_GET_INDEX(b, real_seq_length-1-i, j, 0)]*W[INPUT3_GET_INDEX(0, weight_idx, j, 0)];
+                        input_result += x[GET_IN0_IDX(b, real_seq_length-1-i, j)]*W[GET_IN3_IDX(weight_idx, j)];
                     #else
-                        #ifdef SEQUENCE
-                            input_result += x[INPUT0_GET_INDEX(b, i, j, 0)]*W[INPUT3_GET_INDEX(0, weight_idx, j, 0)];
-                        #else
-                            input_result += x[INPUT0_GET_INDEX(b, j, 0, 0)]*W[INPUT3_GET_INDEX(weight_idx, j, 0, 0)];
-                        #endif
+                        input_result += x[GET_IN0_IDX(b, i, j)]*W[GET_IN3_IDX(weight_idx, j)];
                     #endif //DIRECTION == 1 //reverse
                 }
                 #ifdef SEQUENCE
