@@ -73,15 +73,15 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
 
 ov::AnyMap get_baseline_common_config() {
     ov::AnyMap config = {
-        { "NPU_COMPILATION_MODE_PARAMS", "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm" },
+        //{ "NPU_COMPILATION_MODE_PARAMS", "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm" },
         { "NPUW_DEVICES", "NPU,CPU" },
-        { "NPU_USE_NPUW",  "YES" },
-        { "NPUW_FOLD", "YES" },
-        { "NPUW_DCOFF_TYPE", "f16" },
-        { "NPUW_DCOFF_SCALE", "YES"},
-        { "NPUW_WEIGHTS_BANK", "shared" },
-        { "NPUW_SLICE_OUT", "YES" },
-        { "NPUW_FUNCALL_ASYNC", "YES" }
+        { "NPU_USE_NPUW",  "YES" }
+        //{ "NPUW_FOLD", "YES" },
+        //{ "NPUW_DCOFF_TYPE", "f16" },
+        //{ "NPUW_DCOFF_SCALE", "YES"},
+        //{ "NPUW_WEIGHTS_BANK", "shared" },
+        //{ "NPUW_SLICE_OUT", "YES" },
+        //{ "NPUW_FUNCALL_ASYNC", "YES" }
     };
     return config;
 }
@@ -91,18 +91,19 @@ ov::AnyMap get_baseline_common_config() {
 ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
                                              const ov::AnyMap& properties)
-    : ov::npuw::ICompiledModel(model, plugin), orig_model(model) {
+    : ov::npuw::ICompiledModel(model, plugin) {
     std::cout << "[LOG_DEBUG] LLMCompiledModel::LLMCompiledModel" << std::endl;
 
     // (2) Expose KV-cache input and output layers from kvcache model
     auto kvcache_model = model->clone();
     ov::pass::StatefulToStateless().run_on_model(kvcache_model);
 
-    kvcache_model = redirect_new_kv_to_output(kvcache_model);
-    kvcache_model = cvt_kvcache_to_fp16(kvcache_model);
-
     auto prefill_model = kvcache_model->clone();
     prefill_model->set_friendly_name(kvcache_model->get_friendly_name() + "_prefill");
+    prefill_model = cvt_kvcache_to_fp16(prefill_model);
+
+    kvcache_model = redirect_new_kv_to_output(kvcache_model);
+    kvcache_model = cvt_kvcache_to_fp16(kvcache_model);
 
     KVAxesPosition axes{0u, 2u};
     reshape_to_static(prefill_model, 1024, 1024, axes);
@@ -114,7 +115,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto prefill_config = get_baseline_common_config();
 
     kvcache_compiled = std::make_shared<ov::npuw::CompiledModel>(kvcache_model, plugin, generate_config);
-    prefill_compiled = std::make_shared<ov::npuw::CompiledModel>(prefill_model, plugin, generate_config);
+    prefill_compiled = std::make_shared<ov::npuw::CompiledModel>(prefill_model, plugin, prefill_config);
+
+    std::cout << "prefill out: " << prefill_model->output("logits").get_shape() << std::endl;
 
     std::cout << "[LOG_DEBUG] LLMCompiledModel - done " << std::endl;
 }

@@ -29,7 +29,6 @@ public:
     std::shared_ptr<ov::npuw::CompiledModel> prefill_compiled;
 
 private:
-    std::shared_ptr<ov::Model> orig_model;
     std::shared_ptr<ov::ISyncInferRequest> create_llm_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 };

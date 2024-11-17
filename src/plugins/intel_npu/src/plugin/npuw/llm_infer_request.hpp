@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "openvino/runtime/isync_infer_request.hpp"
+#include "openvino/core/descriptor/output.hpp"
 
 namespace ov {
 namespace npuw {
@@ -18,13 +19,7 @@ public:
 
     void infer() override;
 
-    // I/O APIs - supply default implementations
-    ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override {}
-    void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {}
-
-    std::vector<ov::SoPtr<ov::ITensor>> get_tensors(const ov::Output<const ov::Node>& port) const override {}
-    void set_tensors(const ov::Output<const ov::Node>& port,
-                     const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override {}
+    ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
 
     void check_tensors() const override{};
 
@@ -32,8 +27,33 @@ public:
     virtual std::vector<ov::SoPtr<ov::IVariableState>> query_state() const {}
 
 private:
+    void prepare_for_new_conversation();
+
+    void infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
+                       ov::SoPtr<ov::ITensor> attention_mask,
+                       ov::SoPtr<ov::ITensor> position_ids);
+
+    void infer_generate(ov::SoPtr<ov::ITensor> input_ids,
+                        ov::SoPtr<ov::ITensor> attention_mask,
+                        ov::SoPtr<ov::ITensor> position_ids);
+
+    struct KVCacheDesc {
+        uint32_t max_prompt_size;
+        uint32_t total_size;
+        uint32_t num_stored_tokens;
+        uint32_t dim;
+    };
+
     std::shared_ptr<ov::IAsyncInferRequest> m_kvcache_request;
     std::shared_ptr<ov::IAsyncInferRequest> m_prefill_request;
+    KVCacheDesc m_kvcache_desc;
+    ov::SoPtr<ov::ITensor> m_logits;
+    bool m_need_copy_kvcache = false;
+
+    std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_in_ports;
+    std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_out_ports;
+    std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_in_ports;
+    std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_out_ports;
 };
 
 }  // namespace npuw
