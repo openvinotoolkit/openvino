@@ -180,12 +180,10 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
                                                            ov::op::v8::Gather::get_type_info_static(),
                                                            ov::op::v1::Convolution::get_type_info_static(),
                                                            ov::opset1::Convolution::get_type_info_static(),
-                                                           ov::op::v1::GroupConvolution::get_type_info_static(),
                                                            ov::opset1::GroupConvolution::get_type_info_static() };
 
     std::vector<ov::DiscreteTypeInfo> convolutions = { ov::op::v1::Convolution::get_type_info_static(),
                                                        ov::opset1::Convolution::get_type_info_static(),
-                                                       ov::op::v1::GroupConvolution::get_type_info_static(),
                                                        ov::opset1::GroupConvolution::get_type_info_static() };
 
     auto all_has_types = [](const std::set<ov::Input<ov::Node>>& consumers, const std::vector<ov::DiscreteTypeInfo>& types) {
@@ -375,9 +373,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // it expects to have the same data type for weights and zero points (apply it only for u8 data type, since other compression
         // types are not supported by oneDNN)
         manager.register_pass<ov::pass::MarkDequantizationSubgraph>(supported_woq_types, !device_info.supports_immad);
-        GPU_DEBUG_TRACE << "is_model_quantized: " << is_model_quantized << std::endl;
         pass_config->set_callback<ov::pass::MarkDequantizationSubgraph>([&](const std::shared_ptr<const ov::Node> node) {
-            GPU_DEBUG_TRACE_DETAIL << node->get_friendly_name() << ": " << !is_decompression_multiply(node, device_info.supports_immad) << std::endl;
             return !is_decompression_multiply(node, device_info.supports_immad);
         });
 
