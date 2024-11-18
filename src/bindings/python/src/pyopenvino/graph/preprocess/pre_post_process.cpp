@@ -191,7 +191,7 @@ static void regclass_graph_PreProcessSteps(py::module m) {
             :param pads_end: Number of elements matches the number of indices in data attribute. Specifies the number of padding elements at the ending of each axis.
             :type pads_end: 1D tensor of type T_INT.
             :param value: All new elements are populated with this value or with 0 if input not provided. Shouldn’t be set for other pad_mode values.
-            :type value: scalar tensor of type T. 
+            :type value: scalar tensor of type T.
             :param mode: pad_mode specifies the method used to generate new element values.
             :type mode: string
             :return: Reference to itself, allows chaining of calls in client's code in a builder-like manner.
@@ -219,7 +219,7 @@ static void regclass_graph_PreProcessSteps(py::module m) {
             :param pads_end: Number of elements matches the number of indices in data attribute. Specifies the number of padding elements at the ending of each axis.
             :type pads_end: 1D tensor of type T_INT.
             :param value: All new elements are populated with this value or with 0 if input not provided. Shouldn’t be set for other pad_mode values.
-            :type value: scalar tensor of type T. 
+            :type value: scalar tensor of type T.
             :param mode: pad_mode specifies the method used to generate new element values.
             :type mode: string
             :return: Reference to itself, allows chaining of calls in client's code in a builder-like manner.
@@ -427,19 +427,6 @@ static void regclass_graph_OutputTensorInfo(py::module m) {
 
             :param layout: layout to be set
             :type layout: Union[str, openvino.runtime.Layout]
-        )");
-
-    info.def(
-        "_set_names_compatibility_mode",
-        [](ov::preprocess::OutputTensorInfo& self, const bool compatibility_mode) {
-            return &self.set_names_compatibility_mode(compatibility_mode);
-        },
-        py::arg("compatibility_mode"),
-        R"(
-            Set keep names compatibility mode
-
-            :param compatibility_mode: Mode to be set: True enable compatiblity, False disable
-            :type compatibility_mode: bool
         )");
 }
 

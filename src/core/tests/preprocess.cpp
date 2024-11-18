@@ -23,7 +23,7 @@ static std::shared_ptr<Model> create_simple_function(element::Type type, const P
     op->get_output_tensor(0).set_names({"tensor_Relu"});
     auto res = std::make_shared<op::v0::Result>(op);
     res->set_friendly_name("Result1");
-    res->output(0).set_names({"tensor_output1"});
+    res->get_output_tensor(0).set_names({"tensor_output1"});
     return std::make_shared<Model>(ResultVector{res}, ParameterVector{data1});
 }
 
@@ -33,7 +33,7 @@ static std::shared_ptr<Model> create_trivial(element::Type type, const PartialSh
     data1->get_output_tensor(0).set_names({"tensor_input1"});
     auto res = std::make_shared<op::v0::Result>(data1);
     res->set_friendly_name("Result1");
-    res->output(0).set_names({"tensor_output1"});
+    res->get_output_tensor(0).set_names({"tensor_output1"});
     return std::make_shared<Model>(ResultVector{res}, ParameterVector{data1});
 }
 
@@ -50,12 +50,18 @@ static std::shared_ptr<Model> create_n_inputs(element::Type type, const PartialS
         op1->set_friendly_name("Relu" + index_str);
         auto res1 = std::make_shared<op::v0::Result>(op1);
         res1->set_friendly_name("Result" + index_str);
-        res1->output(0).set_names({"tensor_output" + index_str});
+        res1->get_output_tensor(0).set_names({"tensor_output" + index_str});
         params.push_back(data1);
         res.push_back(res1);
     }
     return std::make_shared<Model>(res, params);
 }
+
+namespace {
+void set_model_as_v10(ov::Model& model) {
+    model.get_rt_info()["version"] = static_cast<int64_t>(10);
+}
+}  // namespace
 
 TEST(pre_post_process, simple_mean_scale) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
@@ -1805,9 +1811,9 @@ TEST(pre_post_process, postprocess_keep_friendly_names_compatibility) {
     auto result_fr_name = f->get_results()[0]->get_friendly_name();
     auto node_before_result_old = f->get_results()[0]->get_input_source_output(0).get_node_shared_ptr();
     auto node_name = node_before_result_old->get_friendly_name();
+    set_model_as_v10(*f);
     auto p = PrePostProcessor(f);
     p.output().postprocess().convert_element_type(element::u8);
-    p.output().tensor().set_names_compatibility_mode(true);
 
     f = p.build();
     EXPECT_EQ(f->get_results()[0]->get_friendly_name(), result_fr_name);
@@ -1839,9 +1845,10 @@ TEST(pre_post_process, postprocess_keep_friendly_names_compatibility_implicit) {
     auto result_fr_name = f->get_results()[0]->get_friendly_name();
     auto node_before_result_old = f->get_results()[0]->get_input_source_output(0).get_node_shared_ptr();
     auto node_name = node_before_result_old->get_friendly_name();
+    set_model_as_v10(*f);
     auto p = PrePostProcessor(f);
     p.output().model().set_layout("NCHW");
-    p.output().tensor().set_layout("NHWC").set_names_compatibility_mode(true);
+    p.output().tensor().set_layout("NHWC");
     f = p.build();
     EXPECT_EQ(f->get_results()[0]->get_friendly_name(), result_fr_name);
     auto node_before_result_new = f->get_results()[0]->get_input_source_output(0).get_node_shared_ptr();

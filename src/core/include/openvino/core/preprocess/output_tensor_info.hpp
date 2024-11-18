@@ -47,16 +47,6 @@ public:
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
     OutputTensorInfo& set_layout(const ov::Layout& layout);
-
-    /// \brief Enable/disable to keep names in compatibility mode (default set).
-    ///
-    /// In compatibility mode the friendly name or tensor names can be moved to node added by PrePostProcessor.
-    /// When compatiblity mode is disabled names will be not moved.
-    ///
-    /// \param compatibility_mode True if compatibility mode, otherwise disabled.
-    ///
-    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
-    OutputTensorInfo& set_names_compatibility_mode(const bool compatibility_mode);
 };
 
 }  // namespace preprocess

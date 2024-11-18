@@ -68,7 +68,7 @@ public:
         for (size_t i = 0; i < m_function->outputs().size(); ++i) {
             auto info = OutputInfo();
             info.m_impl->m_output_node = m_function->output(i);
-            info.tensor().set_names_compatibility_mode(names_mode);
+            info.m_impl->get_tensor_data()->set_names_compatibility_mode(names_mode);
             m_outputs.push_back(std::move(info));
         }
     }
@@ -370,11 +370,6 @@ OutputTensorInfo& OutputTensorInfo::set_element_type(const element::Type& type) 
 
 OutputTensorInfo& OutputTensorInfo::set_layout(const Layout& layout) {
     m_impl->set_layout(layout);
-    return *this;
-}
-
-OutputTensorInfo& OutputTensorInfo::set_names_compatibility_mode(const bool compatibility_mode) {
-    m_impl->set_names_compatibility_mode(compatibility_mode);
     return *this;
 }
 
