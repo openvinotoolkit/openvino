@@ -16,9 +16,12 @@ from utils.common_mode import Mode
 class NopMode(Mode):
     # helpful with mode-ignorant traversal (brute force)
     def __init__(self, cfg):
+        self.msg = "default"
         super().__init__(cfg)
 
     def checkCfg(self, cfg):
+        if "msg" in cfg["runConfig"]:
+            self.msg = cfg["runConfig"]["msg"]
         super().checkCfg(cfg)
 
     def getPseudoMetric(self, commit, cfg):
@@ -31,6 +34,10 @@ class NopMode(Mode):
         checkOut = fetchAppOutput(cfg, commit)
         commitLogger.info(checkOut)
         return
+
+    def printResult(self):
+        print(self.msg)
+        self.outLogger.info(self.msg)
 
 
 class CheckOutputMode(Mode):
@@ -474,6 +481,7 @@ class CompareBlobsMode(Mode):
     def createCash(self):
         # we use separate files instead of json cache,
         # so, we just set up path to cache folder
+        # todo: handle usercache for multimodel case
         self.cachePath = getActualPath("cachePath", self.cfg)
         pass
 

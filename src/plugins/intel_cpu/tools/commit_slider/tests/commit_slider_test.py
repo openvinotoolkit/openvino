@@ -7,14 +7,14 @@ from tests import skip_commit_slider_devtest
 
 sys.path.append('./')
 from test_util import getExpectedCommit,\
-    getBordersByTestData, getActualCommit
+    getBordersByTestData, getActualCommit, getCSOutput
 from utils.break_validator import validateBMOutput, BmValidationError
 from test_data import FirstBadVersionData, FirstValidVersionData,\
     BmStableData, BmValidatorSteppedBreakData, BmValidatorSteppedBreakData2,\
     BenchmarkAppDataUnstable, BenchmarkAppDataStable, BenchmarkAppNoDegradationData,\
     BenchmarkAppUnstableDevData, BenchmarkAppWrongPathData, BenchmarkAppPathFoundData,\
-    BenchmarkFirstFixedAppData, AcModeData, BenchmarkMetricData
-
+    BenchmarkFirstFixedAppData, AcModeData, BenchmarkMetricData, CustomizedLogData, \
+    MultiConfigData, ConfigMultiplicatorData, ConfigMultiplicatorWithKeyData
 
 class CommitSliderTest(TestCase):
     @skip_commit_slider_devtest
@@ -31,6 +31,40 @@ class CommitSliderTest(TestCase):
             FirstBadVersionData())
         actualCommit, _ = getActualCommit(updatedData)
         self.assertEqual(breakCommit, actualCommit)
+
+    @skip_commit_slider_devtest
+    def testCustomizedLog(self):
+        breakCommit, updatedData = getExpectedCommit(
+            CustomizedLogData())
+        actualCommit, _ = getActualCommit(updatedData)
+        self.assertEqual(breakCommit, actualCommit)
+
+    @skip_commit_slider_devtest
+    def testMultiConfig(self):
+        _, updatedData = getExpectedCommit(
+            MultiConfigData())
+
+        self.assertEqual(
+            getCSOutput(updatedData),
+            "\n\n".join(['cfg #{n}'.format(n=n) for n in range(3)]) + "\n")
+
+    @skip_commit_slider_devtest
+    def testConfigMultiplicatorByKey(self):
+        from utils.helpers import multiplyCfgByKey
+        from utils.helpers import deepCopyJSON
+        testData = ConfigMultiplicatorData()
+        self.assertEqual(
+            multiplyCfgByKey(testData.testCfg),
+            deepCopyJSON(testData.multipliedCfg))
+
+    @skip_commit_slider_devtest
+    def testRunCSMultiplicatedCfgByKey(self):
+        _, updatedData = getExpectedCommit(
+            ConfigMultiplicatorWithKeyData())
+
+        self.assertEqual(
+            getCSOutput(updatedData),
+            "\n\n".join(['cfg #{n}'.format(n=n) for n in range(3)]) + "\n")
 
     @skip_commit_slider_devtest
     def testBmUnstable(self):
@@ -323,7 +357,7 @@ class CommitSliderTest(TestCase):
                 }
             }
         }
-        cfg = deepMapUpdate(cfg, ["path", "to", "placeholder"], "updated")
+        deepMapUpdate(cfg, ["path", "to", "placeholder"], "updated")
         self.assertEqual(
             cfg["path"]["to"]["placeholder"],
             "updated"
