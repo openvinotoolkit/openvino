@@ -13,7 +13,7 @@ Performance Benchmarks
    Efficient LLMs for AI PC <performance-benchmarks/generative-ai-performance>
    Performance Information F.A.Q. <performance-benchmarks/performance-benchmarks-faq>
    OpenVINO Accuracy <performance-benchmarks/model-accuracy-int8-fp32>
-   Getting Performance Numbers <performance-benchmarks/getting-performance-numbers>
+   Getting Performance Numbers <performance-benchmarks/getting-performance-numbers> 
 
 
 This page presents benchmark results for the
@@ -59,12 +59,12 @@ implemented in your solutions. Click the buttons below to see the chosen benchma
    .. grid-item::
 
       .. button-link:: #
-         :class: ovms-toolkit-benchmark-llm
+         :class: ovms-toolkit-benchmark-llm-result
          :color: primary
          :outline:
          :expand:
 
-         :material-regular:`bar_chart;1.4em` OVMS for GenAI (coming soon)
+         :material-regular:`bar_chart;1.4em` OVMS for GenAI
 
 
 

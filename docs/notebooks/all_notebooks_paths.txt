@@ -8,6 +8,7 @@ notebooks/auto-device/auto-device.ipynb
 notebooks/bark-text-to-audio/bark-text-to-audio.ipynb
 notebooks/big-transfer-quantization/tensorflow-bit-image-classification-nncf-quantization.ipynb
 notebooks/blip-visual-language-processing/blip-visual-language-processing.ipynb
+notebooks/catvton/catvton.ipynb
 notebooks/clip-language-saliency-map/clip-language-saliency-map.ipynb
 notebooks/clip-zero-shot-image-classification/clip-zero-shot-classification.ipynb
 notebooks/controlnet-stable-diffusion/controlnet-stable-diffusion.ipynb
@@ -145,6 +146,7 @@ notebooks/tensorflow-hub/tensorflow-hub.ipynb
 notebooks/tensorflow-object-detection-to-openvino/tensorflow-instance-segmentation-to-openvino.ipynb
 notebooks/tensorflow-object-detection-to-openvino/tensorflow-object-detection-to-openvino.ipynb
 notebooks/tensorflow-quantization-aware-training/tensorflow-quantization-aware-training.ipynb
+notebooks/text-to-image-genai/text-to-image-genai.ipynb
 notebooks/tflite-selfie-segmentation/tflite-selfie-segmentation.ipynb
 notebooks/tflite-to-openvino/tflite-to-openvino.ipynb
 notebooks/tiny-sd-image-generation/tiny-sd-image-generation.ipynb

@@ -197,16 +197,16 @@ By default, ``compile_model`` API will select **AUTO** as
 
 .. parsed-literal::
 
-    [22:37:15.4888]I[plugin.cpp:421][AUTO] device:CPU, config:LOG_LEVEL=LOG_INFO
-    [22:37:15.4888]I[plugin.cpp:421][AUTO] device:CPU, config:PERFORMANCE_HINT=LATENCY
-    [22:37:15.4888]I[plugin.cpp:421][AUTO] device:CPU, config:PERFORMANCE_HINT_NUM_REQUESTS=0
-    [22:37:15.4888]I[plugin.cpp:421][AUTO] device:CPU, config:PERF_COUNT=NO
-    [22:37:15.4888]I[plugin.cpp:426][AUTO] device:CPU, priority:0
-    [22:37:15.4888]I[schedule.cpp:17][AUTO] scheduler starting
-    [22:37:15.4888]I[auto_schedule.cpp:181][AUTO] select device:CPU
-    [22:37:15.5995]I[auto_schedule.cpp:346][AUTO] Device: [CPU]: Compile model took 110.638049 ms
-    [22:37:15.5996]I[auto_schedule.cpp:112][AUTO] device:CPU compiling model finished
-    [22:37:15.5997]I[plugin.cpp:454][AUTO] underlying hardware does not support hardware context
+    [22:41:57.1267]I[plugin.cpp:421][AUTO] device:CPU, config:LOG_LEVEL=LOG_INFO
+    [22:41:57.1268]I[plugin.cpp:421][AUTO] device:CPU, config:PERFORMANCE_HINT=LATENCY
+    [22:41:57.1268]I[plugin.cpp:421][AUTO] device:CPU, config:PERFORMANCE_HINT_NUM_REQUESTS=0
+    [22:41:57.1268]I[plugin.cpp:421][AUTO] device:CPU, config:PERF_COUNT=NO
+    [22:41:57.1268]I[plugin.cpp:426][AUTO] device:CPU, priority:0
+    [22:41:57.1268]I[schedule.cpp:17][AUTO] scheduler starting
+    [22:41:57.1269]I[auto_schedule.cpp:181][AUTO] select device:CPU
+    [22:41:57.2582]I[auto_schedule.cpp:346][AUTO] Device: [CPU]: Compile model took 131.300219 ms
+    [22:41:57.2583]I[auto_schedule.cpp:112][AUTO] device:CPU compiling model finished
+    [22:41:57.2584]I[plugin.cpp:454][AUTO] underlying hardware does not support hardware context
     Successfully compiled model without a device_name.
 
 
@@ -219,8 +219,8 @@ By default, ``compile_model`` API will select **AUTO** as
 
 .. parsed-literal::
 
-    Deleted compiled_model[22:37:15.6060]I[schedule.cpp:308][AUTO] scheduler ending
-    
+    Deleted compiled_model
+    [22:41:57.2639]I[schedule.cpp:308][AUTO] scheduler ending
 
 
 Explicitly pass AUTO as device_name to Core::compile_model API
@@ -378,7 +378,7 @@ executed on CPU until GPU is ready.
 
 .. parsed-literal::
 
-    Time to load model using AUTO device and get first inference: 0.15 seconds.
+    Time to load model using AUTO device and get first inference: 0.12 seconds.
 
 
 .. code:: ipython3
@@ -553,12 +553,12 @@ Loop for inference and update the FPS/Latency every
 
     Compiling Model for AUTO device with THROUGHPUT hint
     Start inference,  6 groups of FPS/latency will be measured over  10s intervals
-    throughput:  184.25fps, latency:  31.12ms, time interval: 10.02s
-    throughput:  184.19fps, latency:  31.80ms, time interval: 10.00s
-    throughput:  183.00fps, latency:  32.00ms, time interval: 10.01s
-    throughput:  183.37fps, latency:  31.91ms, time interval: 10.01s
-    throughput:  178.30fps, latency:  32.90ms, time interval: 10.01s
-    throughput:  182.80fps, latency:  32.08ms, time interval: 10.01s
+    throughput:  179.70fps, latency:  32.12ms, time interval: 10.00s
+    throughput:  183.61fps, latency:  31.86ms, time interval: 10.01s
+    throughput:  183.96fps, latency:  31.88ms, time interval: 10.01s
+    throughput:  183.98fps, latency:  31.91ms, time interval: 10.00s
+    throughput:  183.26fps, latency:  31.98ms, time interval: 10.01s
+    throughput:  183.40fps, latency:  32.01ms, time interval: 10.00s
     Done
 
 
@@ -604,12 +604,12 @@ Loop for inference and update the FPS/Latency for each
 
     Compiling Model for AUTO Device with LATENCY hint
     Start inference,  6 groups fps/latency will be out with  10s interval
-    throughput:  139.34fps, latency:  6.64ms, time interval: 10.00s
-    throughput:  141.45fps, latency:  6.63ms, time interval: 10.00s
-    throughput:  141.42fps, latency:  6.63ms, time interval: 10.01s
-    throughput:  141.70fps, latency:  6.62ms, time interval: 10.01s
-    throughput:  130.57fps, latency:  7.22ms, time interval: 10.00s
-    throughput:  141.61fps, latency:  6.62ms, time interval: 10.01s
+    throughput:  130.56fps, latency:  7.18ms, time interval: 10.00s
+    throughput:  142.51fps, latency:  6.61ms, time interval: 10.01s
+    throughput:  142.47fps, latency:  6.62ms, time interval: 10.00s
+    throughput:  142.46fps, latency:  6.61ms, time interval: 10.00s
+    throughput:  142.63fps, latency:  6.61ms, time interval: 10.00s
+    throughput:  142.73fps, latency:  6.60ms, time interval: 10.00s
     Done
 
 

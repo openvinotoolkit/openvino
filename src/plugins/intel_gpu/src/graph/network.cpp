@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/plugin/variable_state.hpp"
 #include "intel_gpu/primitives/read_value.hpp"
 
@@ -307,26 +308,8 @@ void network::set_arguments() {
 
 void network::reset_execution(bool wait) {
     if (wait) {
-        auto queue_type = get_config().get_property(ov::intel_gpu::queue_type);
-        if (queue_type == QueueTypes::in_order) {
-            get_stream().finish();
-        } else if (queue_type == QueueTypes::out_of_order && _events.size() > 0) {
-            std::vector<event::ptr> events;
-            for (auto& pair : _events) {
-                auto& ev = pair.second;
-                if (ev->is_set())
-                    continue;
-
-                events.push_back(ev);
-            }
-
-            get_stream().wait_for_events(events);
-        }
+        get_stream().finish();
     }
-
-    // Move events to temporarily map to deallocate them at the end of network::execute() call for better overlapping with
-    // kernels execution, since it may take significant time for high amount of events
-    _old_events = std::move(_events);
 }
 
 event::ptr network::set_input_data(const primitive_id& id, memory::ptr data) {
@@ -581,7 +564,8 @@ void network::allocate_primitives() {
 
     // Update the output memory address of optimized-out layer if it is not valid.
     for (auto const& node : po) {
-        if (node->can_be_optimized() && !node->is_dynamic()) {
+        if (node->can_be_optimized() && !node->is_dynamic() &&
+            (node->get_dependencies().empty() || !node->get_dependency(0).is_type<read_value>())) {
             auto opt_inst = _primitives.at(node->id());
             // build deps when prim_inst does not update dependencies yet.
             if (!node->get_dependencies().empty() && opt_inst->dependencies().empty()) {
@@ -729,11 +713,23 @@ std::map<primitive_id, network_output> network::execute(const std::vector<event:
         event::ptr ev = nullptr;
         const auto& id = inst->id();
         if (get_stream().get_queue_type() == QueueTypes::out_of_order || _enable_profiling)
-            ev = _events.at(id);
+            ev = inst->get_impl_params()->out_event;
 
         result.emplace(id, network_output(ev, inst->output_memory_ptr(0), get_stream_ptr(), inst->get_output_layout(0)));
     }
     return result;
+}
+
+const event::ptr& network::get_primitive_event(const primitive_id& id) const {
+    return get_primitive(id)->get_impl_params()->out_event;
+}
+
+bool network::has_event(const primitive_id& id) const {
+    auto it = _primitives.find(id);
+    if (it == _primitives.end())
+        return false;
+
+    return it->second->get_impl_params()->out_event != nullptr;
 }
 
 void network::execute_impl(const std::vector<event::ptr>& events) {
@@ -742,7 +738,6 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     // This extra flush command is needed for dynamic models in both cases of out_of_order / in_order operating mode
     // since it reduces `bubbles` number in pipeline and GPU's idle time by timely flushing new kernels to device.
     // The freqency of flushing (16) is selected empirically, see details in tickets 116365, 116287, 139931.
-    const bool is_out_of_order_queue = get_stream().get_queue_type() == QueueTypes::out_of_order;
     const bool needs_flushing = _is_dynamic;
     const size_t flush_frequency = needs_flushing ? 16 : 0;
     size_t executed_prims = 0;
@@ -750,50 +745,18 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     for (auto& inst : _exec_order) {
         NODE_DEBUG(*inst);
 
-        execute_primitive(inst, events);
+        inst->reset_events();
+
+        if (inst->is_input()) {
+            inst->add_dep_events(events);
+        }
+
+        inst->prepare_primitive();
+        inst->execute();
+
         executed_prims++;
         if (needs_flushing && executed_prims % flush_frequency == 0)
             get_stream().flush();
-    }
-
-    // Store events only in case of OOO queue or enabled Profiling
-    auto store_events = is_out_of_order_queue || _enable_profiling;
-    if (store_events) {
-        if (_program != nullptr) {
-            for (auto& inst : _program->get_processing_order()) {
-                // Special handling for mutable data. The event should be the same as the user or dependency with highest
-                // processing_num as the mutable_data can be updated when is both user or dependency.
-                if (inst->is_type<mutable_data>()) {
-                    decltype(_program->get_processing_order().get_processing_number(inst)) proc_num = 0;
-                    for (auto& user : inst->get_users()) {
-                        auto user_proc_num = _program->get_processing_order().get_processing_number(user);
-                        if (user_proc_num > proc_num) {
-                            _events[inst->id()] = _events[user->id()];
-                            proc_num = user_proc_num;
-                        }
-                    }
-
-                    if (!inst->get_dependencies().empty()) {
-                        for (auto& dep : inst->get_dependencies()) {
-                            auto dep_proc_num = _program->get_processing_order().get_processing_number(dep.first);
-                            if (dep_proc_num > proc_num) {
-                                _events[inst->id()] = _events[dep.first->id()];
-                                proc_num = dep_proc_num;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        for (auto& dout : _data_outputs) {  // data primitives are not executed so if they are marked as output we need to add
-                                            // them valid events manually
-            _events[dout->id()] = get_stream().create_user_event(true);
-        }
-    }
-
-    for (auto& prim : _primitives) {
-        prim.second->reset_output_change();
     }
 
     // Using output of previous network as input to another one may cause hazard (in OOOQ mode) if user would not
@@ -801,8 +764,10 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     // In scenarios with a big number of very small networks it can provide performance drop.
     get_stream().flush();
 
-    // Deallocate events from the previos iteration
-    _old_events.clear();
+    // Reset all flags for the next execution
+    for (auto& inst : _exec_order) {
+        inst->reset_flags();
+    }
 }
 
 std::vector<primitive_id> network::get_input_ids() const {
@@ -902,20 +867,6 @@ std::vector<std::pair<primitive_inst*, int>> network::get_primitives(const std::
         return std::make_pair(get_primitive(node.first->id()).get(), node.second);
     });
     return result;
-}
-
-void network::execute_primitive(const std::shared_ptr<primitive_inst>& primitive,
-                                const std::vector<event::ptr>& events) {
-    event::ptr ev = primitive->execute(events);
-
-    // Collect events under any of the following conditions:
-    // 1) OOO queue execution
-    // 2) Profiling mode is enabled
-    // 3) Primitive has CPU user or primitive is output
-    if (get_stream().get_queue_type() == QueueTypes::out_of_order || _enable_profiling || primitive->needs_completion_event()) {
-        auto id = primitive->id();
-        _events.insert({id, ev});
-    }
 }
 
 void network::allocate_primitive_instance(program_node const& node) {

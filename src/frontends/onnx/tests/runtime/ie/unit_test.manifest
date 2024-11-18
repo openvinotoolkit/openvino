@@ -121,9 +121,6 @@ onnx_model_lp_norm_default_dynamic
 onnx_instance_normalization_dynamic
 
 # Legacy tests with unsupported features from opset4 LSTM/GRU/RNN
-# Peepholes input unsupported
-onnx_model_lstm_fwd_with_clip_peepholes
-onnx_model_lstm_bdir_short_input_seq_peepholes
 # Activation function hardsigmoid is not supported
 onnx_model_gru_fwd_activations_relu_hardsigmoid
 onnx_model_lstm_fwd_hardsigmoid_activation
