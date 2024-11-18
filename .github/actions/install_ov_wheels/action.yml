@@ -1,5 +1,5 @@
 name: 'Find and install OpenVINO Python wheels'
-description: 'Finds the OpenVINO Python wheels (core, dev and tokenizers) suitable for the "python3" executable and installs them'
+description: 'Finds the OpenVINO Python wheels suitable for the "python3" executable and installs them'
 inputs:
   wheels-dir-path:
     description: 'Path to the directory in which wheels are located'
@@ -17,7 +17,6 @@ runs:
         $pyVersion = python3 -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')"
         
         foreach ($wheel in $("${{ inputs.wheels-to-install }}" -split ' ')) {
-            
             # Search for the python-specific wheel version and install it if exists
             $wheelPath = Get-ChildItem -Path ${{ inputs.wheels-dir-path }} -Filter "$wheel-*cp$pyVersion*.whl" | Select-Object -First 1
             if ($wheelPath) {
@@ -25,11 +24,7 @@ runs:
             } else {
                 # If the python-specific version does not exist, install by name only
                 $wheelPathByName = Get-ChildItem -Path ${{ inputs.wheels-dir-path }} -Filter "$wheel-*.whl" | Select-Object -First 1
-                if ($wheelPathByName) {
-                    python3 -m pip install $wheelPathByName.FullName
-                } else {
-                    Write-Host "Wheel for $wheel not found."
-                }
+                python3 -m pip install $wheelPathByName.FullName
             }
         }
 
