@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/parallel.hpp"
-
 #include "base_sync_infer_request.hpp"
 
 #include "compiled_model.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "logging.hpp"
+#include "openvino/core/parallel.hpp"
 #include "util.hpp"
 
 ov::npuw::IBaseInferRequest::IBaseInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)
@@ -233,7 +232,6 @@ void ov::npuw::IBaseInferRequest::infer() {
     }
     m_now_idx.reset();
 }
-
 
 std::size_t ov::npuw::IBaseInferRequest::total_subrequests() const {
     return m_subrequests.size();

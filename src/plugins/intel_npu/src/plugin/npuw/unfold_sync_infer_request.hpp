@@ -29,7 +29,9 @@ public:
     void subscribe_subrequest(std::size_t, Completed cb) override {}
     void complete_subrequest(std::size_t) override {}
     void cancel_subrequest(std::size_t) override {}
-    bool supports_async_pipeline() const override { return false; }
+    bool supports_async_pipeline() const override {
+        return false;
+    }
     void update_subrequest_links(std::size_t) override {}
 
 private:

@@ -712,14 +712,14 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::CompiledModel::create_sync_infe
             const auto real_idx = comp_model_desc.replaced_by.value();
             if (m_compiled_submodels[real_idx].spatial) {
                 LOG_WARN("Subgraph[" << idx << "] is a call to spatial function, unfold can't be done");
-                return false; // Spatial graph
+                return false;  // Spatial graph
             }
             if (unpack_required(idx)) {
                 LOG_WARN("Subgraph[" << idx << "] requires unpack, unfold can't be done");
-                return false; // Unpack required
+                return false;  // Unpack required
             }
         }
-        return true; // no spatial & subgraphs requiring unpack found
+        return true;  // no spatial & subgraphs requiring unpack found
     };
 
     std::shared_ptr<ov::ISyncInferRequest> result;

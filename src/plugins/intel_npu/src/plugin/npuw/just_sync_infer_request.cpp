@@ -577,7 +577,6 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
     LOG_DEBUG("Done");
 }
 
-
 void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     auto real_idx = comp_model_desc.replaced_by.value_or(idx);

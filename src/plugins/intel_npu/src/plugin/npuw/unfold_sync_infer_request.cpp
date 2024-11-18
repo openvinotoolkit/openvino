@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/parallel.hpp"
-
 #include "unfold_sync_infer_request.hpp"
+
 #include "compiled_model.hpp"
 #include "logging.hpp"
+#include "openvino/core/parallel.hpp"
 
 ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)
     : ov::npuw::IBaseInferRequest(compiled_model) {
@@ -92,8 +92,8 @@ void ov::npuw::UnfoldInferRequest::infer() {
         bind_global_params(idx, m_subrequests[idx]);
         bind_global_results(idx, m_subrequests[idx]);
     };
-    auto wait_and_clear = [](RqPtrs &rqs) {
-        for (auto &&r : rqs) {
+    auto wait_and_clear = [](RqPtrs& rqs) {
+        for (auto&& r : rqs) {
             r->wait();
         }
         rqs.clear();
@@ -136,5 +136,5 @@ void ov::npuw::UnfoldInferRequest::infer() {
             prepare(idx + 1);
             subr->wait();
         }
-    } // (async)
+    }  // (async)
 }
