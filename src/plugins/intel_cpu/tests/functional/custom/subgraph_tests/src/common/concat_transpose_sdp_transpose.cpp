@@ -367,6 +367,7 @@ public:
         function = model;
         prepare();
         std::vector<ov::Tensor> outputs;
+
         // case 1: initialization + pastkv reaches limitation, remove some state
         int idx = 0;
         for (auto&& shapes : targetStaticShapes) {
