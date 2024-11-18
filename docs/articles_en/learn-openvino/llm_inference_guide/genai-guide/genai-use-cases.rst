@@ -249,10 +249,10 @@ and use audio files in WAV format at a sampling rate of 16 kHz as input.
 
 
          def infer(model_dir: str, wav_file_path: str):
-             device = "CPU"  # GPU, NPU can be used as well
+             device = "CPU"  # GPU or NPU can be used as well.
              pipe = openvino_genai.WhisperPipeline(model_dir, device)
 
-             # Pipeline expects normalized audio with Sample Rate of 16kHz
+             # The pipeline expects normalized audio with a sampling rate of 16kHz.
              raw_speech = read_wav(wav_file_path)
              result = pipe.generate(
                  raw_speech,
@@ -286,7 +286,7 @@ and use audio files in WAV format at a sampling rate of 16 kHz as input.
 
              std::filesystem::path models_path = argv[1];
              std::string wav_file_path = argv[2];
-             std::string device = "CPU";  // GPU, NPU can be used as well
+             std::string device = "CPU";  // GPU or NPU can be used as well.
 
              ov::genai::WhisperPipeline pipeline(models_path, device);
 
@@ -296,7 +296,7 @@ and use audio files in WAV format at a sampling rate of 16 kHz as input.
              config.task = "transcribe";
              config.return_timestamps = true;
 
-             // Pipeline expects normalized audio with Sample Rate of 16kHz
+             // The pipeline expects normalized audio with a sampling rate of 16kHz.
              ov::genai::RawSpeechInput raw_speech = utils::audio::read_wav(wav_file_path);
              auto result = pipeline.generate(raw_speech, config);
 
