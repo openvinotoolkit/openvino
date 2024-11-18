@@ -443,9 +443,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     }
 
     implement_properties();
-
-    m_finalized = true;
-    reset_io();
+    report_io();
 }
 
 void ov::npuw::CompiledModel::finalize_weights_bank() {
@@ -571,19 +569,7 @@ void ov::npuw::CompiledModel::fill_empty_tensor_names(const std::shared_ptr<ov::
     }
 }
 
-void ov::npuw::CompiledModel::reset_io() {
-    // Restore inputs/outputs from compiled submodels
-    // FIXME: this method is also called from IBaseInferReqeust::create_infer_request
-    // which is called in the CompiledModel(). So this method executes even before it
-    // is called for the right thing from the ctor directly.
-    if (!m_finalized)
-        return;  // avoid getting called before it is really the time
-
-    // Don't be like HETERO here - don't override the inputs/outputs(),
-    // as the ICompiledModel already creates one for us.
-    // Instead, remember the mapping from the original CompiledModel::input/output ports
-    // to the Subgraph's input/output ports.
-
+void ov::npuw::CompiledModel::report_io() const {
     LOG_VERB("*** Partition graph ***");
     int idx_in = 0, idx_out = 0;  // FIXME: use indexed()
     for (const auto& to_submodel : m_inputs_to_submodels_inputs) {
@@ -715,8 +701,29 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::CompiledModel::create_sync_infe
     auto* non_const_this = const_cast<ov::npuw::CompiledModel*>(this);  // because of const in API
     auto non_const_this_sptr = std::static_pointer_cast<ov::npuw::CompiledModel>(non_const_this->shared_from_this());
 
+    auto no_spatial_unpack = [&]() {
+        const auto num_submodels = m_compiled_submodels.size();
+        for (std::size_t idx = 0u; idx < num_submodels; idx++) {
+            const auto& comp_model_desc = m_compiled_submodels[idx];
+            if (!comp_model_desc.replaced_by.has_value()) {
+                // not a funcall, do nothing
+                continue;
+            }
+            const auto real_idx = comp_model_desc.replaced_by.value();
+            if (m_compiled_submodels[real_idx].spatial) {
+                LOG_WARN("Subgraph[" << idx << "] is a call to spatial function, unfold can't be done");
+                return false; // Spatial graph
+            }
+            if (unpack_required(idx)) {
+                LOG_WARN("Subgraph[" << idx << "] requires unpack, unfold can't be done");
+                return false; // Unpack required
+            }
+        }
+        return true; // no spatial & subgraphs requiring unpack found
+    };
+
     std::shared_ptr<ov::ISyncInferRequest> result;
-    if (m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>()) {
+    if (m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>() && no_spatial_unpack()) {
         result.reset(new ov::npuw::UnfoldInferRequest(non_const_this_sptr));
     } else {
         result.reset(new ov::npuw::JustInferRequest(non_const_this_sptr));
@@ -779,6 +786,46 @@ std::string ov::npuw::CompiledModel::submodel_device(const std::size_t idx) cons
 
     NPUW_ASSERT(comp_subm_desc.device_it != m_dev_list.end());
     return *comp_subm_desc.device_it;
+}
+
+bool ov::npuw::CompiledModel::unpack_required(const std::size_t idx) const {
+    auto& comp_model_desc = m_compiled_submodels.at(idx);
+    for (std::size_t cidx = 0u; cidx < comp_model_desc.closure.size(); cidx++) {
+        if (unpack_required(idx, cidx)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool ov::npuw::CompiledModel::unpack_required(const std::size_t idx, const std::size_t cidx) const {
+    if (is_gather_closure(idx, cidx)) {
+        return false;
+    }
+
+    auto& comp_model_desc = m_compiled_submodels.at(idx);
+    const auto real_idx = comp_model_desc.replaced_by.value();
+    auto& func_desc = m_compiled_submodels.at(real_idx);
+
+    auto& closure = comp_model_desc.closure.at(cidx);
+    const auto closure_param_id = comp_model_desc.param_base + cidx;
+
+    auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
+    return (closure.get_element_type() != iport.get_element_type());
+}
+
+bool ov::npuw::CompiledModel::is_gather_closure(const std::size_t idx, const std::size_t cidx) const {
+    auto& comp_model_desc = m_compiled_submodels.at(idx);
+    const auto real_idx = comp_model_desc.replaced_by.value();
+    auto& func_desc = m_compiled_submodels.at(real_idx);
+
+    const auto closure_param_id = comp_model_desc.param_base + cidx;
+
+    if (func_desc.host_gather.dst_idx != -1 &&
+        static_cast<uint64_t>(func_desc.host_gather.dst_idx) == closure_param_id) {
+        return true;
+    }
+    return false;
 }
 
 void ov::npuw::CompiledModel::log_device_dist() const {

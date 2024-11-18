@@ -107,6 +107,7 @@ void ov::npuw::UnfoldInferRequest::infer() {
         for (std::size_t idx = 0; idx < m_num_submodels; idx++) {
             auto& subr = m_subrequests[idx];
             if (!subr) {
+                prepare(idx + 1);
                 continue;
             }
             auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];

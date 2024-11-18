@@ -60,12 +60,8 @@ ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_re
             LOG_INFO("- Trying next device...");
             comp_model_desc.device_it++;
             can_try_again = m_npuw_model->compile_for_success(id);
-            if (can_try_again) {
-                if (recompiled)
-                    *recompiled = true;
-                // Probably shouldn't be called all the time, but only if
-                // I/O submodel is affected
-                m_npuw_model->reset_io();
+            if (can_try_again && recompiled) {
+                *recompiled = true;
             }
         }
     }  // while(!new_ireq && can_try_again)
@@ -339,11 +335,9 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
 
     for (std::size_t cidx = 0u; cidx < comp_model_desc.closure.size(); cidx++) {
         auto& closure = comp_model_desc.closure[cidx];
-
         const auto closure_param_id = comp_model_desc.param_base + cidx;
 
-        if (func_desc.host_gather.dst_idx != -1 &&
-            static_cast<uint64_t>(func_desc.host_gather.dst_idx) == closure_param_id) {
+        if (m_npuw_model->is_gather_closure(idx, cidx)) {
             // No need to set/copy the host_gather's closure tensor int
             // the subrequest - it is just a dummy. host_gather writes
             // to the right buffer directly.
@@ -351,7 +345,7 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
         }
 
         auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
-        if (closure.get_element_type() != iport.get_element_type()) {
+        if (m_npuw_model->unpack_required(idx, cidx)) {
             // Remember where the unpack is required
             closure_unpack_required.push_back(cidx);
         } else {
