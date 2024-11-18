@@ -45,9 +45,9 @@ protected:
             for (auto& e : native_events) {
                 events.push_back(std::make_shared<ocl::ocl_event>(cl::Event(e, true)));
             }
-            return events.empty() ? stream.create_user_event(true) : stream.group_events(events);
+            return stream.aggregate_events(events);
         } else {
-            return stream.create_user_event(true);
+            return nullptr;
         }
     }
 

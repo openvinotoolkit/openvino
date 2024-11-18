@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "input_layout_inst.h"
+#include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/memory.hpp"
 #include "json_object.h"
@@ -50,7 +51,6 @@ event::ptr input_layout_inst::set_data(memory::ptr mem) {
     if (mem->is_allocated_by(engine) || mem->get_layout().count() == 0) {
         OPENVINO_ASSERT(!_outputs.empty(), "[GPU] Can't set data for empty input memory");
         _outputs[0] = mem;
-        ev = stream.create_user_event(true);
     } else {
         if (_outputs.empty() || !_outputs[0]) {
             _outputs.resize(1);
@@ -64,7 +64,6 @@ event::ptr input_layout_inst::set_data(memory::ptr mem) {
         ev = _outputs[0]->copy_from(stream, src.data(), false);
     }
     _has_valid_input = true;
-    _output_changed = true;
     return ev;
 }
 
@@ -72,7 +71,7 @@ void input_layout_inst::update_shape() {
     OPENVINO_ASSERT(!_outputs.empty() && _outputs[0] != nullptr, "[GPU] input memory is not set");
     auto mem_layout = _outputs[0]->get_layout();
     if (_impl_params->get_output_layout() != mem_layout) {
-        set_shape_change();
+        set_flag(ExecutionFlags::SHAPE_CHANGED);
     }
     _impl_params->output_layouts[0] = mem_layout;
 }

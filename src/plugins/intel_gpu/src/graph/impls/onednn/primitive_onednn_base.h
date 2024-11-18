@@ -534,7 +534,7 @@ protected:
 
         if (_enable_profiling) {
             if (instance.can_be_optimized()) {
-                event = stream.create_user_event(true);
+                event = nullptr;
             } else {
                 dnnl::reset_profiling(stream.get_onednn_stream());
             }

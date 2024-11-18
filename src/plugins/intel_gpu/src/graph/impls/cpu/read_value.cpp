@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "impls/cpu/cpu_impl_helpers.hpp"
 #include "read_value_inst.h"
 #include "impls/registry/implementation_map.hpp"
 #include "register.hpp"
@@ -46,12 +47,9 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, read_value_inst& instance) override {
-        for (auto e : events) {
-            e->wait();
-        }
-
         auto& variable = instance.get_network().get_variable(variable_id);
         auto &stream = instance.get_network().get_stream();
+        stream.wait_for_events(events);
 
         OPENVINO_ASSERT(variable.get_layout() == instance.get_output_layout(),
                 "[GPU] Layout mismatch: variable layout: ", variable.get_layout().to_short_string(),
@@ -83,7 +81,7 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
             return stream.aggregate_events(res_events, res_events.size() > 1);
         }
 
-        return instance.get_network().get_stream().create_user_event(true);
+        return make_output_event(stream, instance.is_output());
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}

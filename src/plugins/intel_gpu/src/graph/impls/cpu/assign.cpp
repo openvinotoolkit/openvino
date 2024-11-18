@@ -52,9 +52,7 @@ struct assign_impl : public typed_primitive_impl<assign> {
 
         auto& stream = instance.get_network().get_stream();
 
-        for (auto e : events) {
-            e->wait();
-        }
+        stream.wait_for_events(events);
 
         const auto ev_set_memory = variable.get_memory()->copy_from(stream, instance.input_memory());
         variable.set();
