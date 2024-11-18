@@ -2231,7 +2231,7 @@ void GraphOptimizer::ShareReorders(Graph& graph) {
 void GraphOptimizer::DropDoubleReorders(Graph &graph) {
     std::set<NodePtr> processed;
 
-    auto nodes = graph.GetNodes();
+    auto& nodes = graph.GetNodes();
     for (size_t i = 0; i < nodes.size(); i++) {
         auto node = nodes[i];
         if (processed.find(node) == processed.end() && node->getType() == Type::Reorder
