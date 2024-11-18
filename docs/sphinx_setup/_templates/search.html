@@ -9,7 +9,7 @@
 
 {% block body %}
 <atomic-search-interface id="search" localization-compatibility-version="v4"
-fields-to-include='["ovversion", "ovdoctype", "ovversioncategory", "filetype", "date", "source", "author", "sourcetype", "language", "description"]'>
+fields-to-include='["ovversion", "ovcategory", "ovdoctype", "ovversioncategory", "filetype", "date", "source", "author", "sourcetype", "language", "description"]'>
   <atomic-search-layout>
     <atomic-layout-section section="search">
       <atomic-search-box>
@@ -25,15 +25,14 @@ fields-to-include='["ovversion", "ovdoctype", "ovversioncategory", "filetype", "
           <i class="fas fa-list"></i> List
         </button>
       </div>
-      <atomic-facet 
-        facet-id="ovversion" field="ovversion" label="Version">
+      <atomic-facet facet-id="ovversion" field="ovversion" label="Version" number-of-values="2" sort-criteria="occurrences">
       </atomic-facet>
-      <!-- <atomic-category-facet 
-        field="ovversioncategory" label="Categories"
-        sort-criteria="occurrences"
+      <!-- <atomic-category-facet field="ovcategory" label="Categories" facet-id="ovcategory" 
+        depends-on-ovversion
         delimiting-character="/">
       </atomic-category-facet> -->
-      <atomic-facet facet-id="ovdoctype" field="ovdoctype" label="Category" with-search="true"></atomic-facet>
+      <atomic-facet facet-id="ovdoctype" field="ovdoctype" label="Category" with-search="true" number-of-values="5" sort-criteria="occurrences">
+      </atomic-facet>
     </atomic-layout-section>
     <atomic-layout-section section="main">
       <atomic-layout-section section="status">
