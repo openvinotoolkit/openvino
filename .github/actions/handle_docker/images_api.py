@@ -47,7 +47,7 @@ class Image:
 
     def build(self, dry: bool = False, push: bool = True, docker_builder: str = None, import_cache: bool = True,
               export_cache: bool = True):
-        # cache_cmd = ""
+        cache_cmd = ""
         # if import_cache:
         #     cache_cmd += f"--cache-from type=registry,ref={self.ref()}-cache "
         #     if self.base_tag:
