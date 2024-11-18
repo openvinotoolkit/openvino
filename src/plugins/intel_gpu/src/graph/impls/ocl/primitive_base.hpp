@@ -171,10 +171,12 @@ protected:
         return {kernels_cache.get_cached_kernel_ids(_kernels)};
     }
 
-    template<typename kernel_params_t>
-    static void clone_kernel_data_params(typed_primitive_impl_ocl& prim_impl) {
-        kernel_params_t* params_ptr = dynamic_cast<kernel_params_t*>(prim_impl._kernel_data.params.get());
-        prim_impl._kernel_data.params = make_unique<kernel_params_t>(*params_ptr);
+    template<typename ImplType, typename KernelParamsType>
+    static std::unique_ptr<primitive_impl> make_deep_copy(const ImplType& impl_ocl) {
+        auto prim_impl = make_unique<ImplType>(impl_ocl);
+        KernelParamsType* params_ptr = dynamic_cast<KernelParamsType*>((*prim_impl)._kernel_data.params.get());
+        (*prim_impl)._kernel_data.params = make_unique<KernelParamsType>(*params_ptr);
+        return prim_impl;
     }
 
     std::vector<kernel::ptr> get_kernels() const override {
