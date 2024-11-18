@@ -984,6 +984,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     return true;
                 }
 
+                // AZP does not support 8bit weight
+                char *azp = getenv("AZP");
+                if (azp != nullptr && (root->get_input_element_type(1) == ov::element::i8 || root->get_input_element_type(1) == ov::element::u8))
+                    return true;
+
                 bool has_wzp = root->get_input_size() > 4;
                 if ((root->get_input_element_type(1) == ov::element::i8 || root->get_input_element_type(1) == ov::element::u8)
                     && has_wzp
