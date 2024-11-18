@@ -18,7 +18,7 @@ except ImportError:
 # # It is not compared with init files from openvino-dev package.
 # #
 
-# Openvino pybind bindings 
+# Openvino pybind bindings
 from openvino._pyopenvino import AxisSet
 from openvino._pyopenvino import AxisVector
 from openvino._pyopenvino import ConstOutput
