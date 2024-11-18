@@ -249,23 +249,21 @@ and use audio files in WAV format at a sampling rate of 16 kHz as input.
 
 
          def infer(model_dir: str, wav_file_path: str):
+             device = "CPU"  # GPU or NPU can be used as well.
+             pipe = openvino_genai.WhisperPipeline(model_dir, device)
+
+             # The pipeline expects normalized audio with a sampling rate of 16kHz.
              raw_speech = read_wav(wav_file_path)
-             pipe = openvino_genai.WhisperPipeline(model_dir)
-
-             def streamer(word: str) -> bool:
-                 print(word, end="")
-                 return False
-
              result = pipe.generate(
                  raw_speech,
                  max_new_tokens=100,
                  language="<|en|>",
                  task="transcribe",
                  return_timestamps=True,
-                 streamer=streamer,
              )
 
-             print()
+             print(result)
+
              for chunk in result.chunks:
                  print(f"timestamps: [{chunk.start_ts}, {chunk.end_ts}] text: {chunk.text}")
 
@@ -288,11 +286,9 @@ and use audio files in WAV format at a sampling rate of 16 kHz as input.
 
              std::filesystem::path models_path = argv[1];
              std::string wav_file_path = argv[2];
-             std::string device = "CPU"; // GPU can be used as well
+             std::string device = "CPU";  // GPU or NPU can be used as well.
 
              ov::genai::WhisperPipeline pipeline(models_path, device);
-
-             ov::genai::RawSpeechInput raw_speech = utils::audio::read_wav(wav_file_path);
 
              ov::genai::WhisperGenerationConfig config(models_path / "generation_config.json");
              config.max_new_tokens = 100;
@@ -300,14 +296,11 @@ and use audio files in WAV format at a sampling rate of 16 kHz as input.
              config.task = "transcribe";
              config.return_timestamps = true;
 
-             auto streamer = [](std::string word) {
-                 std::cout << word;
-                 return false;
-             };
+             // The pipeline expects normalized audio with a sampling rate of 16kHz.
+             ov::genai::RawSpeechInput raw_speech = utils::audio::read_wav(wav_file_path);
+             auto result = pipeline.generate(raw_speech, config);
 
-             auto result = pipeline.generate(raw_speech, config, streamer);
-
-             std::cout << "\n";
+             std::cout << result << "\n";
 
              for (auto& chunk : *result.chunks) {
                  std::cout << "timestamps: [" << chunk.start_ts << ", " << chunk.end_ts << "] text: " << chunk.text << "\n";
