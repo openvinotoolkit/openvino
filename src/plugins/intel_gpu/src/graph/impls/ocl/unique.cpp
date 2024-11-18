@@ -20,6 +20,7 @@ struct unique_count_impl : typed_primitive_impl_ocl<unique_count> {
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<unique_count_impl>(*this);
+        return make_deep_copy<unique_count_impl, kernel_params_t>(*this);
     }
 
     void load(BinaryInputBuffer& ib) override {
