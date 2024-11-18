@@ -23,6 +23,7 @@ const testModels = {
 
 module.exports = {
   compareModels,
+  sleep,
   getModelPath,
   downloadTestModel,
   isModelAvailable,
