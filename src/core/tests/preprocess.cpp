@@ -1560,11 +1560,12 @@ TEST(pre_post_process, postprocess_convert_element_type_explicit) {
 }
 
 TEST(pre_post_process, trivial_model_convert_element_type_explicit) {
-    auto f = create_trivial(element::f32, Shape{1, 3, 2, 2});
-    auto name = f->output().get_node_shared_ptr()->get_friendly_name();
-    auto name_last_op = f->get_results().front()->get_input_source_output(0).get_node_shared_ptr()->get_friendly_name();
-    auto old_names = std::unordered_set<std::string>{"tensor_output1"};
-    auto n = f->output().get_tensor().get_names();
+    const auto f = create_trivial(element::f32, Shape{1, 3, 2, 2});
+    const auto name = f->output().get_node_shared_ptr()->get_friendly_name();
+    const auto name_last_op =
+        f->get_results().front()->get_input_source_output(0).get_node_shared_ptr()->get_friendly_name();
+    const auto old_names = std::unordered_set<std::string>{"tensor_output1"};
+    const auto n = f->output().get_tensor().get_names();
     auto p = PrePostProcessor(f);
 
     p.output().postprocess().convert_element_type(element::u8);
@@ -1572,12 +1573,12 @@ TEST(pre_post_process, trivial_model_convert_element_type_explicit) {
     EXPECT_EQ(f->get_results().size(), 1);
     EXPECT_EQ(f->get_results()[0]->get_element_type(), element::u8);
     EXPECT_THAT(f->output().get_tensor().get_names(), old_names);
-    auto ops = f->get_ordered_ops();
-    auto res_count = std::count_if(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& n) {
+    const auto ops = f->get_ordered_ops();
+    const auto res_count = std::count_if(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& n) {
         return std::dynamic_pointer_cast<ov::op::v0::Result>(n) != nullptr;
     });
     EXPECT_EQ(res_count, 1);
-    auto names_count = std::count_if(ops.begin(), ops.end(), [](std::shared_ptr<ov::Node> n) {
+    const auto names_count = std::count_if(ops.begin(), ops.end(), [](std::shared_ptr<ov::Node> n) {
         return n->output(0).get_tensor().get_names().count("tensor_output1") > 0;
     });
     EXPECT_EQ(names_count, 2);  // result + node connected to it has same name referencing to it
@@ -1808,16 +1809,15 @@ TEST(pre_post_process, postprocess_convert_layout_invalid_dims_dyn_shape) {
 
 TEST(pre_post_process, postprocess_keep_friendly_names_compatibility) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 10, 10});
-    auto result_fr_name = f->get_results()[0]->get_friendly_name();
-    auto node_before_result_old = f->get_results()[0]->get_input_source_output(0).get_node_shared_ptr();
-    auto node_name = node_before_result_old->get_friendly_name();
+    const auto result_fr_name = f->get_results()[0]->get_friendly_name();
+    const auto node_before_result_old = f->get_results()[0]->get_input_source_output(0).get_node_shared_ptr();
+    const auto node_name = node_before_result_old->get_friendly_name();
     set_model_as_v10(*f);
     auto p = PrePostProcessor(f);
     p.output().postprocess().convert_element_type(element::u8);
-
     f = p.build();
     EXPECT_EQ(f->get_results()[0]->get_friendly_name(), result_fr_name);
-    auto node_before_result_new = f->get_results()[0]->get_input_source_output(0).get_node_shared_ptr();
+    const auto node_before_result_new = f->get_results()[0]->get_input_source_output(0).get_node_shared_ptr();
     // Compatibility check: verify that old name is assigned to new 'output' node
     EXPECT_EQ(node_before_result_new->get_friendly_name(), node_name);
     // Compatibility check: Verify that old name is not set for old 'output' node anymore
@@ -1860,15 +1860,15 @@ TEST(pre_post_process, postprocess_keep_friendly_names_compatibility_implicit) {
 
 TEST(pre_post_process, postprocess_keep_friendly_names_implicit) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 10, 10});
-    auto result_fr_name = f->get_results()[0]->get_friendly_name();
-    auto node_before_result_old = f->get_results()[0]->get_input_source_output(0).get_node_shared_ptr();
-    auto node_name = node_before_result_old->get_friendly_name();
+    const auto result_fr_name = f->get_results()[0]->get_friendly_name();
+    const auto node_before_result_old = f->get_results()[0]->get_input_source_output(0).get_node_shared_ptr();
+    const auto node_name = node_before_result_old->get_friendly_name();
     auto p = PrePostProcessor(f);
     p.output().model().set_layout("NCHW");
     p.output().postprocess().convert_layout("NHWC");
     f = p.build();
     EXPECT_EQ(f->get_results()[0]->get_friendly_name(), result_fr_name);
-    auto node_before_result_new = f->get_results()[0]->get_input_source_output(0).get_node_shared_ptr();
+    const auto node_before_result_new = f->get_results()[0]->get_input_source_output(0).get_node_shared_ptr();
     EXPECT_EQ(node_before_result_new->get_friendly_name(), node_name + ".0");
     EXPECT_EQ(node_before_result_old->get_friendly_name(), node_name);
 }
