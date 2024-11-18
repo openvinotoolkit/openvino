@@ -36,7 +36,7 @@ struct network_output {
         // TODO: in_order queue doesn't create proper output event in some cases which leads to syncronization issues with user app
         // So call finish for associated stream to enusre that the output data is ready.
         if (do_sync) {
-            if (_stream->get_queue_type() == QueueTypes::in_order) {
+            if (_stream->get_queue_type() == QueueTypes::in_order || !_event) {
                 _stream->finish();
             } else {
                 _event->wait();
@@ -167,12 +167,10 @@ public:
     std::shared_ptr<const primitive_inst> get_primitive(const primitive_id& id) const;
     std::string get_primitive_info(const primitive_id& id) const;
     std::string get_implementation_info(const primitive_id& id) const;
-    const event::ptr& get_primitive_event(const primitive_id& id) const { return _events.at(id); }
-    bool has_event(const primitive_id& id) const { return _events.count(id); }
+    const event::ptr& get_primitive_event(const primitive_id& id) const;
+    bool has_event(const primitive_id& id) const;
     std::vector<primitive_inst*> get_primitives(const std::vector<primitive_id>& ids);
     std::vector<std::pair<primitive_inst*, int>> get_primitives(const std::vector<std::pair<program_node*, int>>& nodes);
-    void execute_primitive(const std::shared_ptr<primitive_inst>& primitive,
-                           const std::vector<event::ptr>& events);
     void allocate_primitives();
     void configure_primitives_second_output();
     void build_insts_deps();
@@ -231,9 +229,6 @@ private:
     program::primitives_info _prims_info;
     size_t _weights_cache_capacity = 1;
 
-    std::unordered_map<primitive_id, event::ptr> _events;
-    // This map is used to temporarily hold events that will be deallocated later
-    std::unordered_map<primitive_id, event::ptr> _old_events;
     output_chains_map _output_chains;
 
     std::shared_ptr<ShapePredictor> _shape_predictor;

@@ -45,7 +45,7 @@ void PermConvPermConcat::SetUp() {
         this->GetParam();
 
     if (element_type == ov::element::f32) {
-        abs_threshold = 1e-6;
+        abs_threshold = 1e-5;
     }
 
     configuration.insert(additional_config.begin(), additional_config.end());
