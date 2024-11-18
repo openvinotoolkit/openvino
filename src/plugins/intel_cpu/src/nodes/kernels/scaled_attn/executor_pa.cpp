@@ -71,7 +71,7 @@ void cvt_copy(TA* dst, TB* src, size_t n) {
     }
 }
 
-template<typename T>
+template<typename T, ov::element::Type_t SRC_PREC, typename std::enable_if<SRC_PREC != ov::element::u8 || SRC_PREC != ov::element::u4, bool>::type = true>
 static void attn_acc_value_block(float* out, float* weight, T* v, size_t S, size_t block_size, size_t group_size = 0) {
 #if defined(HAVE_AVX512F)
     size_t j = 0;
@@ -199,7 +199,7 @@ static void attn_acc_value_block(float* out, float* weight, T* v, size_t S, size
         v += S;
     }
 }
-
+template<typename T, ov::element::Type_t SRC_PREC, typename std::enable_if<SRC_PREC == ov::element::u8, bool>::type = true>
 static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S, size_t block_size, size_t group_size = 0) {
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
@@ -325,6 +325,38 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
             }
             dst_offset += _group_size;
             src_offset += _group_size + params_offset;
+        }
+        v += src_stride;
+    }
+}
+
+template<typename T, ov::element::Type_t SRC_PREC, typename std::enable_if<SRC_PREC == ov::element::u4, bool>::type = true>
+static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S, size_t block_size, size_t group_size = 0) {
+    size_t src_offset = 0;
+    size_t dst_offset = 0;
+    const size_t _group_size = group_size ? group_size : S;
+    const size_t params_offset = sizeof(float) * 2;
+    auto sub_byte_multiplyer = 8 / 4;
+    const size_t src_stride = S / _group_size * (_group_size / sub_byte_multiplyer + params_offset);
+    auto extract_half_byte = [](uint8_t val, bool high_half) -> uint8_t {
+        uint8_t shift = high_half ? 0 : 4;
+
+        return (uint8_t) ((val >> shift) & 0x000F);
+    };
+    for (size_t j = 0; j < block_size; j++) {
+        dst_offset = 0;
+        src_offset = 0;
+        while (dst_offset < S) {
+            auto v0 = reinterpret_cast<float*>(v + src_offset);
+            for (size_t i = 0; i < _group_size; i += 2) {
+                uint8_t data = v[i/2 + src_offset + params_offset];
+                float tmp0 = extract_half_byte(data, (bool)(i % 2));
+                float tmp1 = extract_half_byte(data, (bool)((i + 1) % 2));
+                out[dst_offset + i] += weight[j] * (tmp0 - v0[1]) * v0[0];
+                out[dst_offset + i + 1] += weight[j] * (tmp1 - v0[1]) * v0[0];
+            }
+            dst_offset += _group_size;
+            src_offset += _group_size / sub_byte_multiplyer + params_offset;
         }
         v += src_stride;
     }
@@ -745,26 +777,60 @@ void transpose_16NxK(TDST* dst, void* src, TDST* tmp, size_t N, size_t K, size_t
 }
 
 // dequant f16/u8 to float
-template<typename T>
-static inline void dequant(T* dst, T* src, size_t N, size_t K) {
+template<typename T, ov::element::Type_t SRC_PREC, typename std::enable_if<SRC_PREC != ov::element::u8, bool>::type = true>
+static inline void dequant(T* dst, void* src, size_t N, size_t K, size_t group_size = 0) {
     // never called
     OPENVINO_THROW("dequant: should not be called.");
 }
-
-static inline void dequant(float* dst, ov::float16* src, size_t N, size_t K) {
+template<typename T, ov::element::Type_t SRC_PREC, typename std::enable_if<SRC_PREC == ov::element::f16, bool>::type = true>
+static inline void dequant(float* dst, ov::float16* src, size_t N, size_t K, size_t group_size = 0) {
     cvt_copy(dst, src, K * N);
 }
 
-template<typename TDST>
-void dequant(TDST* dst, uint8_t* src, size_t N, size_t K) {
+template<typename TDST, ov::element::Type_t SRC_PREC, typename std::enable_if<SRC_PREC == ov::element::u8, bool>::type = true>
+void dequant(TDST* dst, uint8_t* src, size_t N, size_t K, size_t group_size = 0) {
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
     // The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
     auto s = src;
+    const size_t params_offset = sizeof(float) * 2;
+    const size_t _group_size = group_size ? group_size : K;
+    const size_t src_stride = K / _group_size * (_group_size + params_offset);
+
     for (size_t n = 0; n < N; n ++) {
-        auto f = reinterpret_cast<float*>(s);
-        attn_dequant_u8_kernel(s + 2 * sizeof(float), dst, K, f[0], f[1]);
-        s += K + 2 * sizeof(float);
+        size_t group_offset = 0;
+        size_t dst_offset = 0;
+        while (dst_offset < K) {
+            auto f = reinterpret_cast<float*>(s + group_offset);
+            attn_dequant_u8_kernel(s + group_offset + params_offset, dst + dst_offset, _group_size, f[0], f[1]);
+            group_offset += _group_size + params_offset;
+            dst_offset += _group_size;
+        }
+        s += src_stride;
+        dst += K;
+    }
+}
+
+template<typename TDST, ov::element::Type_t SRC_PREC, typename std::enable_if<SRC_PREC == ov::element::u4, bool>::type = true>
+void dequant(TDST* dst, uint8_t* src, size_t N, size_t K, size_t group_size = 0) {
+    // The layout for per token per head:
+    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
+    // The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
+    auto s = src;
+    const size_t params_offset = sizeof(float) * 2;
+    const size_t _group_size = group_size ? group_size : K;
+    const size_t src_stride = K / _group_size * (_group_size + params_offset);
+
+    for (size_t n = 0; n < N; n ++) {
+        size_t group_offset = 0;
+        size_t dst_offset = 0;
+        while (dst_offset < K) {
+            auto f = reinterpret_cast<float*>(s + group_offset);
+            attn_dequant_u8_kernel(s + group_offset + params_offset, dst + dst_offset, _group_size, f[0], f[1]);
+            group_offset += _group_size + params_offset;
+            dst_offset += _group_size;
+        }
+        s += src_stride;
         dst += K;
     }
 }
@@ -862,6 +928,31 @@ static void pack_32NxK(TDST* dst, void* src, TDST* tmp, size_t N, size_t K, size
             auto f = reinterpret_cast<float*>(s + src_offset);
             attn_dequant_u8_kernel(s + src_offset + sizeof(float) * 2, t + dst_offset, _group_size, f[0], f[1]);
             src_offset += _group_size + sizeof(float) * 2;
+            dst_offset += _group_size;
+        }
+        s += src_offset;
+        t += src_stride;
+    }
+    pack_32NxK<TDST, precision_of<TDST>::value>(dst, tmp, reinterpret_cast<TDST*>(0), N, K, dst_stride, src_stride);
+}
+
+template<typename TDST, ov::element::Type_t SRC_PREC, typename std::enable_if<precision_of<TDST>::value != ov::element::f32 && SRC_PREC == ov::element::u4, bool>::type = true>
+static void pack_32NxK(TDST* dst, void* src, TDST* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride, size_t group_size = 0) {
+    // The layout for per token per head:
+    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
+    // The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
+    auto s = reinterpret_cast<uint8_t*>(src);
+    auto t = tmp;
+    // if group_size not set, the whole row is used as a group
+    const size_t sub_byte_mulitplier = 2;
+    size_t _group_size = group_size ? group_size : K;
+    for (size_t n = 0; n < N; n ++) {
+        size_t src_offset = 0;
+        size_t dst_offset = 0;
+        while (dst_offset < K) {
+            auto f = reinterpret_cast<float*>(s + src_offset);
+            attn_dequant_u4_kernel(s + (src_offset + sizeof(float) * 2), t + dst_offset, _group_size, f[0], f[1]);
+            src_offset += _group_size / sub_byte_mulitplier + sizeof(float) * 2;
             dst_offset += _group_size;
         }
         s += src_offset;
@@ -1240,12 +1331,27 @@ struct MHAHelper {
             auto* v = present_value.ptr<VALUE_CACHE_TYPE>(block_number, hk);
             for (size_t pq = 0; pq < q_len; pq++) {
                 for (size_t h = hq_beg; h < hq_end; h++) {
-                    attn_acc_value_block(_output.ptr<float>(ithr, pq, h),
-                                         _weight.ptr<float>(ithr, h, pq) + pv,
-                                         v,
-                                         _SV,
-                                         std::min(_block_size, cur_kv_len - pv),
-                                         _value_group_size);
+                    if (present_value.get_precision() == ov::element::u4) {
+                        auto sub_byte_multiplyer = 8 / present_value.get_precision().bitwidth();
+                        size_t v_stride = (block_number * present_value.m_strides[0] + hk * present_value.m_strides[1]) / sub_byte_multiplyer;
+                        auto* v_ptr = present_value.m_ptr.get() + v_stride;
+                        attn_acc_value_block<VALUE_CACHE_TYPE, ov::element::u4>(
+                            _output.ptr<float>(ithr, pq, h),
+                            _weight.ptr<float>(ithr, h, pq) + pv,
+                            v_ptr,
+                            _SV,
+                            std::min(_block_size, cur_kv_len - pv),
+                            _value_group_size);
+                    } else {
+                        attn_acc_value_block<VALUE_CACHE_TYPE, precision_of<VALUE_CACHE_TYPE>::value>(
+                            _output.ptr<float>(ithr, pq, h),
+                            _weight.ptr<float>(ithr, h, pq) + pv,
+                            v,
+                            _SV,
+                            std::min(_block_size, cur_kv_len - pv),
+                            _value_group_size);
+                    }
+
                 }
             }
         }
@@ -1399,12 +1505,26 @@ struct MHAHelper {
                 auto* v = present_value.ptr<VALUE_CACHE_TYPE>(block_number, hk);
                 for (size_t pq = 0; pq < q_len; pq++) {
                     for (size_t h = hq_beg; h < hq_end; h++) {
-                        attn_acc_value_block(_output_bhl.ptr<float>(ithr, b, pq, h),
-                                             _weight_bhl.ptr<float>(b, h, pq) + pv,
-                                             v,
-                                             _SV,
-                                             std::min(_block_size, context_len - pv),
-                                             _value_group_size);
+                        if (present_value.get_precision() == ov::element::u4) {
+                            auto sub_byte_multiplyer = 8 / present_value.get_precision().bitwidth();
+                            size_t v_stride = (block_number * present_value.m_strides[0] + hk * present_value.m_strides[1]) / sub_byte_multiplyer;
+                            auto* v_ptr = present_value.m_ptr.get() + v_stride;
+                            attn_acc_value_block<VALUE_CACHE_TYPE, ov::element::u4>(
+                                _output_bhl.ptr<float>(ithr, b, pq, h),
+                                _weight_bhl.ptr<float>(b, h, pq) + pv,
+                                v_ptr,
+                                _SV,
+                                std::min(_block_size, context_len - pv),
+                                _value_group_size);
+                        } else {
+                            attn_acc_value_block<VALUE_CACHE_TYPE, precision_of<VALUE_CACHE_TYPE>::value>(
+                                _output_bhl.ptr<float>(ithr, b, pq, h),
+                                _weight_bhl.ptr<float>(b, h, pq) + pv,
+                                v,
+                                _SV,
+                                std::min(_block_size, context_len - pv),
+                                _value_group_size);
+                        }
                     }
                 }
             }
@@ -1570,18 +1690,50 @@ struct MHA {
             _helper._S, _helper._block_size, _helper._S, _helper._key_group_size);
 
             if (q_is_xf16) {
-                pack_32NxK<DATA_TYPE, precision_of<VALUE_CACHE_TYPE>::value>(_helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
-                            v_ptr,
-                            _helper._output.template ptr<DATA_TYPE>(ithr),
-                            _helper._block_size,
-                            _helper._SV,
-                            rnd_up(_helper._SV, _helper._block_size),
-                            _helper._SV,
-                            _helper._value_group_size);
+                if (v_cache.get_precision() == ov::element::u4) {
+                    auto sub_byte_multiplyer = 8 / v_cache.get_precision().bitwidth();
+                    size_t v_stride = (block_number * v_cache.m_strides[0] + hk * v_cache.m_strides[1]) / sub_byte_multiplyer;
+                    auto* v_ptr = v_cache.m_ptr.get() + v_stride;
+                    pack_32NxK<DATA_TYPE, ov::element::u4>(_helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
+                                v_ptr,
+                                _helper._output.template ptr<DATA_TYPE>(ithr),
+                                _helper._block_size,
+                                _helper._SV,
+                                rnd_up(_helper._SV, _helper._block_size),
+                                _helper._SV,
+                                _helper._value_group_size);
+                } else {
+                    pack_32NxK<DATA_TYPE, precision_of<VALUE_CACHE_TYPE>::value>(_helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
+                                v_ptr,
+                                _helper._output.template ptr<DATA_TYPE>(ithr),
+                                _helper._block_size,
+                                _helper._SV,
+                                rnd_up(_helper._SV, _helper._block_size),
+                                _helper._SV,
+                                _helper._value_group_size);
+                }
             } else {
                 // need to decompress
                 if (!q_cache_is_same) {
-                    dequant(_helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk), v_ptr, _helper._block_size, _helper._SV);
+                    if (v_cache.get_precision() == ov::element::u4) {
+                        printf("PaAttn|dequant value u4\n");
+                        auto sub_byte_multiplyer = 8 / v_cache.get_precision().bitwidth();
+                        size_t v_stride = (block_number * v_cache.m_strides[0] + hk * v_cache.m_strides[1]) / sub_byte_multiplyer;
+                        auto* v_ptr = v_cache.m_ptr.get() + v_stride;
+                        dequant<DATA_TYPE, ov::element::u4>(
+                            _helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
+                            v_ptr,
+                            _helper._block_size,
+                            _helper._SV,
+                            _helper._value_group_size);
+                    } else {
+                        dequant<DATA_TYPE, precision_of<VALUE_CACHE_TYPE>::value>(
+                            _helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
+                            v_ptr,
+                            _helper._block_size,
+                            _helper._SV,
+                            _helper._value_group_size);
+                    }
                 }
             }
         });
@@ -1738,10 +1890,14 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         // The layout for per token per head for u8 kv cache:
         // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
         // The actual size needs to deduct scale and zeropoint.
-        size_t key_group_num = _key_group_size ? k_cache.size(3) / (_key_group_size + sizeof(float) * 2) : _key_group_size;
-        size_t value_group_num = _value_group_size ? v_cache.size(3) / (_value_group_size + 8) : _value_group_size; 
-        auto S = k_cache.size(3) - (k_cache.m_dt == ov::element::Type_t::u8 ? sizeof(float) * 2 * key_group_num : 0);
-        auto SV = v_cache.size(3) - (k_cache.m_dt == ov::element::Type_t::u8 ? sizeof(float) * 2 * value_group_num : 0);
+        const size_t key_sub_byte_multiplyer = 8 / k_cache.get_precision().bitwidth();
+        const size_t value_sub_byte_multiplyer = 8 / v_cache.get_precision().bitwidth();
+        const size_t key_params_size = sizeof(float) * 2 * key_sub_byte_multiplyer;
+        const size_t value_params_size = sizeof(float) * 2 * value_sub_byte_multiplyer;
+        size_t key_group_num = _key_group_size ? k_cache.size(3) / (_key_group_size + key_params_size) : _key_group_size;
+        size_t value_group_num = _value_group_size ? v_cache.size(3) / (_value_group_size + value_params_size) : _value_group_size;
+        auto S = k_cache.size(3) - (k_cache.get_precision().is_real() ? 0 : key_params_size * key_group_num);
+        auto SV = v_cache.size(3) - (v_cache.get_precision().is_real() ? 0 : value_params_size * value_group_num);
         auto block_size = k_cache.size(2);
         auto H = q.size(1) / S;
         auto h_each_group_len = 1;
@@ -1756,9 +1912,12 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         q = q.reshape({B_token, H, 1, S});
         k = k.reshape({B_token, Hk, 1, S});
         v = v.reshape({B_token, Hk, 1, SV});
+        printf("k_cache prec %s shape [%ld %ld %ld %ld]\n", k_cache.get_precision().to_string().c_str(), k_cache.size(0), k_cache.size(1), k_cache.size(2), k_cache.size(3));
+        printf("v_cache prec %s shape [%ld %ld %ld %ld]\n", v_cache.get_precision().to_string().c_str(), v_cache.size(0), v_cache.size(1), v_cache.size(2), v_cache.size(3));
+
         if (k_cache.m_dt == ov::element::Type_t::u8) {
-            k_cache.assert_dims({0, Hk, block_size, S + sizeof(float) * 2 * key_group_num}, true);
-            v_cache.assert_dims({k_cache.m_dims[0], Hk, block_size, SV + sizeof(float) * 2 * value_group_num});
+            k_cache.assert_dims({0, Hk, block_size, S + key_params_size * key_group_num}, true);
+            v_cache.assert_dims({k_cache.m_dims[0], Hk, block_size, SV + value_params_size * value_group_num});
         } else {
             k_cache.assert_dims({0, Hk, block_size, S}, true);
             v_cache.assert_dims({k_cache.m_dims[0], Hk, block_size, SV});
