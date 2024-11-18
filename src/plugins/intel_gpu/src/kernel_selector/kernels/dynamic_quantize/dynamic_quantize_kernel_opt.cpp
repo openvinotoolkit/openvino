@@ -176,6 +176,13 @@ bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {
                 return false;
     }
 
+    // FIXME: please implement asymmetric quantization
+    std::cout << "dq_params.use_asymmetric_quantization " << dq_params.use_asymmetric_quantization<< std::endl;
+    std::cout << "dq_params.use_asymmetric_quantization " << dq_params.use_asymmetric_quantization<< std::endl;
+    std::cout << "dq_params.use_asymmetric_quantization " << dq_params.use_asymmetric_quantization<< std::endl;
+    if (dq_params.use_asymmetric_quantization)
+        return false;
+
     return true;
 }
 }  // namespace kernel_selector

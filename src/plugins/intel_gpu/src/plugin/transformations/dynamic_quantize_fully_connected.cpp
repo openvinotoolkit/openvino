@@ -63,9 +63,20 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         config.quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Symmetric;
         config.scale_dt = element::f16;
         config.group_sizes = shape_group_size;
+        char *azp = getenv("AZP");
+        if (azp != nullptr) {
+            config.quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
+            config.zp_dt = element::u8; // FIXME: can it be u4?
+            static bool first = true;
+            if (first)
+                std::cout << "AZP turned on!!" << std::endl;
+            first = false;
+        }
 
         auto dyn_quan = std::make_shared<ov::op::internal::DynamicQuantize>(m_data, config);
         auto optional_w_zp = m_fc->get_input_size() > 4 ? m_fc->get_input_node_shared_ptr(4) : std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto optional_a_zp = config.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Symmetric ? std::make_shared<ov::intel_gpu::op::Placeholder>() : dyn_quan->output(2);
+        std::cout << "activation zp " << optional_a_zp << std::endl;
 
         auto output_type = m_fc->get_output_type();
         if (output_type == ov::element::undefined)
@@ -77,6 +88,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
                                                                      m_fc->get_input_node_shared_ptr(3),
                                                                      optional_w_zp,
                                                                      dyn_quan->output(1),
+                                                                     optional_a_zp,
                                                                      output_type);
 
         ov::replace_node(m_fc, new_fc);
