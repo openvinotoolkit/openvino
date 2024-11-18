@@ -297,7 +297,7 @@ protected:
                 const auto& model_input = model_inputs[i];
                 ov::test::utils::InputGenerateData in_data;
                 in_data.start_from = -1;
-                in_data.range = 2;
+                in_data.range = 3;
                 in_data.resolution = 10000;
                 ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), target_input_static_shapes[i], in_data);
                 inputs.insert({model_input.get_node_shared_ptr(), tensor});

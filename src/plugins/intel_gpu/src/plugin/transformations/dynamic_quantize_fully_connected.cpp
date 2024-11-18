@@ -66,6 +66,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         char *azp = getenv("AZP");
         if (azp != nullptr) {
             config.quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
+            config.quantization_dt = element::u8;
             config.zp_dt = element::u8; // FIXME: can it be u4?
             static bool first = true;
             if (first)

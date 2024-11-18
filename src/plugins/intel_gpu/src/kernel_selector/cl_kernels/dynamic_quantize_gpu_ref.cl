@@ -91,8 +91,9 @@ KERNEL(dynamic_quantize_gpu_ref)(
     }
 
 #if ASYMMETRIC_QUANTIZATION
+    // need to support output data precision of i8 and u8
     OUTPUT1_TYPE scale = (OUTPUT1_TYPE)((CHAR_MAX - CHAR_MIN) / (max_val - min_val));
-    OUTPUT1_TYPE zp = (OUTPUT1_TYPE)(-min_val * scale) - CHAR_MAX;
+    OUTPUT1_TYPE zp = (OUTPUT1_TYPE)(-min_val * scale);
 #else
     max_val = work_group_reduce_max(max_val);
     OUTPUT1_TYPE scale = 127.0h / max_val;
@@ -109,7 +110,8 @@ KERNEL(dynamic_quantize_gpu_ref)(
 #if ASYMMETRIC_QUANTIZATION
         val *= scale;
         val += zp;
-        output[out_offset] = convert_char_rte(val);
+        // printf("1 val %f\n", val);
+        output[out_offset] = convert_uchar_rte(val);
 #else
         val *= scale;
         output[out_offset] = convert_char_rte(val);
@@ -123,10 +125,12 @@ KERNEL(dynamic_quantize_gpu_ref)(
 #if ASYMMETRIC_QUANTIZATION
             val *= scale;
             val += zp;
+            // printf("2 val %f\n", val);
+            vstore8(convert_uchar8_rte(val), 0, output + out_offset + x * 8);
 #else
             val *= scale;
-#endif
             vstore8(convert_char8_rte(val), 0, output + out_offset + x * 8);
+#endif
         }
         x *= 8;
         for (; x < INPUT0_SIZE_X; x++) {
@@ -134,7 +138,8 @@ KERNEL(dynamic_quantize_gpu_ref)(
 #if ASYMMETRIC_QUANTIZATION
             val *= scale;
             val += zp;
-            output[out_offset + x] = convert_char_rte(val);
+            // printf("3 val %f zp %f\n", val, zp);
+            output[out_offset + x] = convert_uchar_rte(val);
 #else
             val *= scale;
             output[out_offset + x] = convert_char_rte(val);
