@@ -582,7 +582,7 @@ Iteration <number>:
    mkdir -p protopipe_build && cd protopipe_build
    cmake <openvino-dir>/src/plugins/intel_npu/tools/protopipe \
          -DOpenCV_DIR=<path-to-opencv-build>                  \
-         -Dyaml_cpp_DIR=<yaml-cpp-build-dir>                  \
+         -Dyaml-cpp_DIR=<yaml-cpp-build-dir>                  \
          -Dgflags_DIR=<gflags-build-dir>                      \
 
    cmake --build . --config Release --target protopipe --parallel
