@@ -305,6 +305,35 @@ ref_diff_map = {
 		"ReadValue" : -12,
 		"Assign" : -12,
 	},
+	"katuni4ka/tiny-random-llava-next" : {
+		"PagedAttentionExtension" : 2,
+		"Parameter" : 7,
+		"ReadValue" : -4,
+		"ScaledDotProductAttention" : -2,
+		"Assign" : -4,
+	},
+	"katuni4ka/tiny-random-minicpmv-2_6" : {
+		"PagedAttentionExtension" : 2,
+		"Parameter" : 7,
+		"ReadValue" : -4,
+		"ScaledDotProductAttention" : -2,
+		"Assign" : -4,
+	},
+	"katuni4ka/tiny-random-llava" : {
+		"Assign" : -4,
+		"Parameter" : 7,
+		"ReadValue" : -4,
+		"ScaledDotProductAttention" : -2,
+		"PagedAttentionExtension" : 2,
+	},
+
+	# "katuni4ka/tiny-random-nanollava" : {
+	# 	"Assign" : -4,
+	# 	"Parameter" : 7,
+	# 	"ReadValue" : -4,
+	# 	"ScaledDotProductAttention" : -2,
+	# 	"PagedAttentionExtension" : 2,
+	# },
 }
 
 ref_diff_map_cache_eviction = {
@@ -532,13 +561,13 @@ ref_diff_map_cache_eviction = {
 		"Parameter" : 14,
 		"Assign" : -8,
 	},
-    "katuni4ka/tiny-random-minicpm" : {
-        "ScaledDotProductAttention" : -4,
-        "Parameter" : 14,
-        "PagedAttentionExtension" : 4,
-        "ReadValue" : -8,
-        "Assign" : -8,
-    },
+	"katuni4ka/tiny-random-minicpm" : {
+		"ScaledDotProductAttention" : -4,
+		"Parameter" : 14,
+		"PagedAttentionExtension" : 4,
+		"ReadValue" : -8,
+		"Assign" : -8,
+	},
 	"katuni4ka/tiny-random-falcon-40b" : {
 		"ScaledDotProductAttention" : -2,
 		"ReadValue" : -4,
@@ -609,4 +638,33 @@ ref_diff_map_cache_eviction = {
 		"Parameter" : 20,
 		"Assign" : -12,
 	},
+	"katuni4ka/tiny-random-llava-next" : {
+		"Parameter" : 8,
+		"Assign" : -4,
+		"ReadValue" : -4,
+		"PagedAttentionExtension" : 2,
+		"ScaledDotProductAttention" : -2,
+	},
+	"katuni4ka/tiny-random-minicpmv-2_6" : {
+		"Parameter" : 8,
+		"Assign" : -4,
+		"ReadValue" : -4,
+		"PagedAttentionExtension" : 2,
+		"ScaledDotProductAttention" : -2,
+	},
+	"katuni4ka/tiny-random-llava" : {
+		"ReadValue" : -4,
+		"Parameter" : 8,
+		"ScaledDotProductAttention" : -2,
+		"PagedAttentionExtension" : 2,
+		"Assign" : -4,
+	},
+
+	# "katuni4ka/tiny-random-nanollava" : {
+	# 	"ReadValue" : -4,
+	# 	"Parameter" : 8,
+	# 	"ScaledDotProductAttention" : -2,
+	# 	"PagedAttentionExtension" : 2,
+	# 	"Assign" : -4,
+	# },
 }
