@@ -3,8 +3,9 @@
 
 import json
 
-from openvino.runtime import PartialShape, Model, Type  # pylint: disable=no-name-in-module,import-error
-from openvino.runtime.utils.types import get_dtype  # pylint: disable=no-name-in-module,import-error
+from openvino._pyopenvino import PartialShape, Type
+from openvino.ie_api import Model  # pylint: disable=no-name-in-module,import-error
+from openvino.utils.types import get_dtype  # pylint: disable=no-name-in-module,import-error
 
 
 def json_model_analysis_dump(framework_model: Model):

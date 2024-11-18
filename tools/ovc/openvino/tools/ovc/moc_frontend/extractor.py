@@ -377,7 +377,7 @@ def convert_params_lists_to_dicts(input_model,
     input_user_data_types_dict - dictionary where key is input name, value is type from user;
     freeze_placeholder - dictionary where key is input name, value is input value from user;
     """
-    from openvino.runtime import PartialShape  # pylint: disable=no-name-in-module,import-error
+    from openvino._pyopenvino import PartialShape  # pylint: disable=no-name-in-module,import-error
     model_inputs = input_model.get_inputs()
     input_user_data_types_dict = {}
     input_user_shapes_dict = {}
@@ -396,7 +396,7 @@ def convert_params_lists_to_dicts(input_model,
 
     # input_user_data_types is list only if unnamed inputs were used
     if isinstance(input_user_data_types, list):
-        from openvino.runtime import Type  # pylint: disable=no-name-in-module,import-error
+        from openvino._pyopenvino import Type  # pylint: disable=no-name-in-module,import-error
 
         if input_user_shapes_dict is None:
             input_user_shapes_dict = {}

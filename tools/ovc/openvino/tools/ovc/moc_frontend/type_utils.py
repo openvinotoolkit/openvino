@@ -6,7 +6,7 @@ import sys
 import numpy as np
 
 import openvino as ov
-from openvino.runtime import Type
+from openvino._pyopenvino import Type
 
 
 def is_type(val):
