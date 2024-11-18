@@ -309,6 +309,9 @@ jobs:
           # For validation of Python API
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/bindings/python/requirements_test.txt
 
+          #  ONNX tests requirements
+          python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_onnx
+
           # For getting rid of SSL issues during model downloading for unit tests
           python3 -m pip install certifi
 
