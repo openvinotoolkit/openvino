@@ -342,6 +342,10 @@ void add_required_reorders::run(program& p) {
 
                 std::vector<program_node*> users(node->get_users().begin(), node->get_users().end());
                 for (auto user : users) {
+                    // Skip eltwise nodes as they can handle i16, u16 and u32 data types
+                    if (user->is_type<eltwise>())
+                        continue;
+
                     auto it = std::find_if(user->get_dependencies().begin(), user->get_dependencies().end(),
                         [&](const std::pair<program_node*, int32_t>& dep) {
                             return node == dep.first;
