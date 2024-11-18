@@ -74,13 +74,13 @@ const std::vector<FullyConnectedParams> activations = {
         true,  // activation
         false, // per-channel
         true,  // FQ
-        "fullyConnected,fullyConnected/DequantizationMultiply,relu"
+        "fullyConnected,relu_original"
     },
     {
         false,  // activation
         false,  // per-channel
         true,   // FQ
-        "fullyConnected_original,fullyConnected"
+        "fullyConnected_original"
     },
     {
         true,  // activation
