@@ -337,9 +337,7 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
                 } else {
                     convert_f_name += '.' + std::to_string(result_input.get_index());
                 }
-
-                auto& convert_output_tensor = convert->get_output_tensor(0);
-                convert_output_tensor.set_names(result_input.get_names());
+                convert->set_friendly_name(convert_f_name);
 
                 result->input(0).replace_source_output(convert->output(0));
                 result->revalidate_and_infer_types();
