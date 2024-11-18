@@ -32,7 +32,7 @@ protected:
 
 public:
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<ctc_greedy_decoder_impl>(*this);
+        return make_deep_copy<ctc_greedy_decoder_impl, kernel_params_t>(*this);
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {

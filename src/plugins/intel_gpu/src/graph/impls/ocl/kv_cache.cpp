@@ -68,7 +68,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::kv_cache_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<kv_cache_impl>(*this);
+        return make_deep_copy<kv_cache_impl, kernel_params_t>(*this);
     }
 
     const size_t concat_stage = 0;

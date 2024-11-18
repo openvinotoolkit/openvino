@@ -20,7 +20,7 @@ struct lstm_elt_impl : typed_primitive_impl_ocl<lstm_elt> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::lstm_elt_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<lstm_elt_impl>(*this);
+        return make_deep_copy<lstm_elt_impl, kernel_params_t>(*this);
     }
 
 protected:

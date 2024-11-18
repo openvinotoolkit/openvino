@@ -44,7 +44,7 @@ struct roi_align_impl : typed_primitive_impl_ocl<roi_align> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::roi_align_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<roi_align_impl>(*this);
+        return make_deep_copy<roi_align_impl, kernel_params_t>(*this);
     }
 
 protected:

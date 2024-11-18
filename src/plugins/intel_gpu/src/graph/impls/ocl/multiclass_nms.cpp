@@ -40,7 +40,7 @@ struct multiclass_nms_impl : public typed_primitive_impl_ocl<multiclass_nms> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::multiclass_nms_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<multiclass_nms_impl>(*this);
+        return make_deep_copy<multiclass_nms_impl, kernel_params_t>(*this);
     }
 
 protected:

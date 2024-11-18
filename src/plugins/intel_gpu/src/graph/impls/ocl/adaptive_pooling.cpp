@@ -19,7 +19,7 @@ struct adaptive_pooling_impl : public typed_primitive_impl_ocl<adaptive_pooling>
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::adaptive_pooling_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<adaptive_pooling_impl>(*this);
+        return make_deep_copy<adaptive_pooling_impl, kernel_params_t>(*this);
     }
 
 protected:

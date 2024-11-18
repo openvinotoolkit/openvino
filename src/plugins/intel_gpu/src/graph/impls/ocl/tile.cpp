@@ -20,7 +20,7 @@ struct tile_impl : typed_primitive_impl_ocl<tile> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::tile_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<tile_impl>(*this);
+        return make_deep_copy<tile_impl, kernel_params_t>(*this);
     }
 
     void load(BinaryInputBuffer& ib) override {

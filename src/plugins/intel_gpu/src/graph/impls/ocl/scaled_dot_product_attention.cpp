@@ -29,7 +29,7 @@ struct scaled_dot_product_attention_impl : multi_stage_primitive<scaled_dot_prod
     const uint32_t indirect_sdpa = 1;
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<scaled_dot_product_attention_impl>(*this);
+        return make_deep_copy<scaled_dot_product_attention_impl, kernel_params_t>(*this);
     }
 
     scaled_dot_product_attention_impl() = default;

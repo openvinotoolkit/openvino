@@ -20,7 +20,7 @@ struct scatter_nd_update_impl : typed_primitive_impl_ocl<scatter_nd_update> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::scatter_nd_update_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<scatter_nd_update_impl>(*this);
+        return make_deep_copy<scatter_nd_update_impl, kernel_params_t>(*this);
     }
 
     void load(BinaryInputBuffer& ib) override {
