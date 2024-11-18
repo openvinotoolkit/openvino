@@ -53,7 +53,9 @@ function compareModels(model1, model2) {
     throw new Error(differences.join('\n'));
   }
 }
-
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 function getModelPath(isFP16 = false) {
   const modelName = `test_model_fp${isFP16 ? 16 : 32}`;
 
