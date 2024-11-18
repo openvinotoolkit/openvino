@@ -17,6 +17,7 @@ void topology::add_primitive(std::shared_ptr<primitive> desc) {
         // adding the same primitive more than once is not an error
         return;
     }
+
     _primitives.insert({id, desc});
 }
 
