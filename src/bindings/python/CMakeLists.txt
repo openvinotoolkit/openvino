@@ -329,7 +329,8 @@ if(ENABLE_PYTHON_PACKAGING)
                 SKIP_RPATH=ON
                 SETUPTOOLS_INSTALL_LIB=${ov_install_lib}
                 SETUPTOOLS_INSTALL_SCRIPTS=${ov_python_package_prefix}/bin
-                "${Python3_EXECUTABLE}" -m pip --python "/usr/bin/python3" install --ignore-requires-python --no-deps --no-compile --prefix "${ov_python_package_prefix}" "${CMAKE_CURRENT_SOURCE_DIR}" 
+                SETUPTOOLS_BUILD_EXECUTABLE="/usr/bin/python3"
+                "${Python3_EXECUTABLE}" -m pip install --ignore-requires-python --no-deps --no-compile --prefix "${ov_python_package_prefix}" "${CMAKE_CURRENT_SOURCE_DIR}" 
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
         DEPENDS ${ov_setup_py_deps}
         COMMENT "Create python package with ${openvino_meta_info_subdir} folder")
