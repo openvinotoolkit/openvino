@@ -4,8 +4,17 @@
 
 const { addon: ov } = require('../..');
 const assert = require('assert');
-const { describe, it, before, beforeEach } = require('node:test');
-const { testModels, getModelPath, isModelAvailable } = require('./utils.js');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { after, describe, it, before, beforeEach } = require('node:test');
+const {
+  testModels,
+  compareModels,
+  getModelPath,
+  isModelAvailable,
+  sleep,
+} = require('./utils.js');
 const epsilon = 0.5;
 
 describe('ov basic tests.', () => {
@@ -14,8 +23,10 @@ describe('ov basic tests.', () => {
   let model = null;
   let compiledModel = null;
   let modelLike = null;
+  let outDir = null;
 
   before(async () => {
+    outDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'ov_js_out_'));
     await isModelAvailable(testModels.testModelFP32);
     testXml = getModelPath().xml;
   });
@@ -27,10 +38,67 @@ describe('ov basic tests.', () => {
     modelLike = [model, compiledModel];
   });
 
+  after(async () => {
+    // Wait to ensure the model file is released
+    await sleep(1);
+    await fs.promises.rm(outDir, { recursive: true });
+  });
+
   it('Core.getAvailableDevices()', () => {
     const devices = core.getAvailableDevices();
 
     assert.ok(devices.includes('CPU'));
+  });
+
+  describe('ov.saveModelSync()', () => {
+    it('saveModelSync(model, path, compressToFp16=true)', () => {
+      const xmlPath = path.join(outDir, `${model.getName()}_fp16.xml`);
+      assert.doesNotThrow(() => ov.saveModelSync(model, xmlPath, true));
+
+      const savedModel = core.readModelSync(xmlPath);
+      assert.doesNotThrow(() => compareModels(model, savedModel));
+    });
+
+    it('saveModelSync(model, path, compressToFp16)', () => {
+      const xmlPath = path.join(outDir, `${model.getName()}_fp32.xml`);
+      assert.doesNotThrow(() => ov.saveModelSync(model, xmlPath));
+
+      const savedModel = core.readModelSync(xmlPath);
+      assert.doesNotThrow(() => compareModels(model, savedModel));
+    });
+    it('saveModelSync(model, path, compressToFp16=false)', () => {
+      const xmlPath = path.join(outDir, `${model.getName()}_fp32.xml`);
+      assert.doesNotThrow(() => ov.saveModelSync(model, xmlPath, false));
+
+      const savedModel = core.readModelSync(xmlPath);
+      assert.doesNotThrow(() => compareModels(model, savedModel));
+    });
+
+    it('saveModelSync(model) throws', () => {
+      const expectedMsg = (
+        '\'saveModelSync\' method called with incorrect parameters.\n' +
+        'Provided signature: (object) \n' +
+        'Allowed signatures:\n' +
+        '- (Model, string)\n' +
+        '- (Model, string, boolean)\n'
+      ).replace(/[()]/g, '\\$&');
+
+      assert.throws(
+        () => ov.saveModelSync(model),
+        new RegExp(expectedMsg));
+    });
+
+    it('saveModelSync(model, path) throws with incorrect path', () => {
+      const expectedMsg = (
+        'Path for xml file doesn\'t ' +
+        'contains file name with \'xml\' extension'
+      ).replace(/[()]/g, '\\$&');
+
+      const noXmlPath = `${outDir}${model.getName()}_fp32`;
+      assert.throws(
+        () => ov.saveModelSync(model, noXmlPath),
+        new RegExp(expectedMsg));
+    });
   });
 
   describe('Core.getVersions()', () => {
