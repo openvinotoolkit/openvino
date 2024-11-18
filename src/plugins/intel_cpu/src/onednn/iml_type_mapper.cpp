@@ -52,7 +52,6 @@ impl_desc_type parse_impl_name(std::string impl_desc_name) {
     SEARCH_WORD(acl);
     SEARCH_WORD(shl);
     SEARCH_WORD(asimd);
-
     if ((res & impl_desc_type::avx2) != impl_desc_type::avx2 &&
         (res & impl_desc_type::avx512) != impl_desc_type::avx512)
         SEARCH_WORD(avx);

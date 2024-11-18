@@ -83,11 +83,13 @@ public:
 
         while (itpd) {
             const impl_desc_type descImplType = parse_impl_name(itpd.impl_info_str());
+
             if (comparator(descImplType)) {
                 func(itpd);
                 if (first_match)
                     break;
             }
+
             if (!itpd.next_impl())
                 break;
         }
