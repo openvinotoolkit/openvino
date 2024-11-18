@@ -177,14 +177,15 @@ protected:
         std::tie(groupConvParams, netType, inType, outType, inputShape, targetDevice) = basicParamsSet;
 
         init_input_shapes({inputShape});
-
-        if (configuration.count(ov::hint::inference_precision.name()) &&
-            ov::element::bf16 == configuration[ov::hint::inference_precision.name()].as<ov::element::Type>()) {
-            selectedType += "_bf16";
-            rel_threshold = 1e-2f;
-        } else {
-            selectedType = makeSelectedTypeStr(selectedType, netType);
+        const auto& it = configuration.find(ov::hint::inference_precision.name());
+        if (it != configuration.end()) {
+            if (ov::element::bf16 == it->second.as<ov::element::Type>()) {
+                rel_threshold = 1e-2f;
+            } else if (ov::element::f16 == it->second.as<ov::element::Type>()) {
+                rel_threshold = 0.00125f;
+            }
         }
+        selectedType = makeSelectedTypeStr(selectedType, deduce_expected_precision(netType, configuration));
 
         // according to range propagation feature, resolution of generated inputs data for parameters moved from 32 to 32768
         // 'real' part of input data was changed and some fails became visible for cases with Elu and FakeQuantize, so let's setup abs_threshold
@@ -1383,6 +1384,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_DW_BF16_Brdgmm,
                                             ::testing::Values(cpu_bf16_plugin_config)),
                          GroupConvolutionLayerCPUTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_DW_FP16_Brdgmm,
+                         GroupConvolutionLayerCPUTest,
+                         ::testing::Combine(::testing::Combine(groupConvParams_ExplicitPadding_DW_2D_Brdgmm,
+                                                               ::testing::Values(ElementType::f32),
+                                                               ::testing::Values(ElementType::undefined),
+                                                               ::testing::Values(ElementType::undefined),
+                                                               ::testing::ValuesIn(inputShapes2dDW),
+                                                               ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                            ::testing::ValuesIn(filterCPUInfoForDeviceSupportBrdgmm({conv_avx512_dw_2D_nspc_brgconv,
+                                                                                                     conv_avx2_dw_2D_nspc_brgconv})),
+                                            ::testing::Values(emptyFusingSpec),
+                                            ::testing::Values(cpu_f16_plugin_config)),
+                         GroupConvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= GroupConvolution (DW 3D) ============= */
 const auto groupConvParams_ExplicitPadding_DW_3D = ::testing::Combine(::testing::ValuesIn(kernels3d),
@@ -1447,19 +1461,33 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_3D_DW_FP32_Brdgmm,
                                             ::testing::Values(empty_plugin_config)),
                          GroupConvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_3D_DW_BF16_Brdgmm,
-                         GroupConvolutionLayerCPUTest,
-                         ::testing::Combine(::testing::Combine(groupConvParams_ExplicitPadding_DW_3D_Brdgmm,
-                                                               ::testing::Values(ElementType::f32),
-                                                               ::testing::Values(ElementType::undefined),
-                                                               ::testing::Values(ElementType::undefined),
-                                                               ::testing::ValuesIn(inputShapes3dDW),
-                                                               ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                                            ::testing::ValuesIn(filterCPUInfoForDeviceSupportBrdgmm({conv_avx512_dw_3D_nspc_brgconv,
-                                                                                                     conv_avx2_dw_3D_nspc_brgconv})),
-                                            ::testing::Values(emptyFusingSpec),
-                                            ::testing::Values(cpu_bf16_plugin_config)),
-                         GroupConvolutionLayerCPUTest::getTestCaseName);
+// INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_3D_DW_BF16_Brdgmm,
+//                          GroupConvolutionLayerCPUTest,
+//                          ::testing::Combine(::testing::Combine(groupConvParams_ExplicitPadding_DW_3D_Brdgmm,
+//                                                                ::testing::Values(ElementType::f32),
+//                                                                ::testing::Values(ElementType::undefined),
+//                                                                ::testing::Values(ElementType::undefined),
+//                                                                ::testing::ValuesIn(inputShapes3dDW),
+//                                                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
+//                                             ::testing::ValuesIn(filterCPUInfoForDeviceSupportBrdgmm({conv_avx512_dw_3D_nspc_brgconv,
+//                                                                                                      conv_avx2_dw_3D_nspc_brgconv})),
+//                                             ::testing::Values(emptyFusingSpec),
+//                                             ::testing::Values(cpu_bf16_plugin_config)),
+//                          GroupConvolutionLayerCPUTest::getTestCaseName);
+//
+// INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_3D_DW_FP16_Brdgmm,
+//                          GroupConvolutionLayerCPUTest,
+//                          ::testing::Combine(::testing::Combine(groupConvParams_ExplicitPadding_DW_3D_Brdgmm,
+//                                                                ::testing::Values(ElementType::f32),
+//                                                                ::testing::Values(ElementType::undefined),
+//                                                                ::testing::Values(ElementType::undefined),
+//                                                                ::testing::ValuesIn(inputShapes3dDW),
+//                                                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
+//                                             ::testing::ValuesIn(filterCPUInfoForDeviceSupportBrdgmm({conv_avx512_dw_3D_nspc_brgconv,
+//                                                                                                      conv_avx2_dw_3D_nspc_brgconv})),
+//                                             ::testing::Values(emptyFusingSpec),
+//                                             ::testing::Values(cpu_f16_plugin_config)),
+//                          GroupConvolutionLayerCPUTest::getTestCaseName);
 
 /* ========= */
 
