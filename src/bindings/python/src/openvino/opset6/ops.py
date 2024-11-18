@@ -9,7 +9,7 @@ from typing import Optional, Union
 
 from functools import partial, singledispatch
 
-from openvino._pyopenvino import Node, Type, PartialShape, Output, Shape
+from openvino import Node, Type, PartialShape, Output, Shape
 from openvino.op import assign, Constant, Parameter
 from openvino.op import read_value as _read_value
 from openvino.op.util import VariableInfo, Variable

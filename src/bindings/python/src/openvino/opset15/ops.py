@@ -7,7 +7,7 @@ from functools import partial
 from typing import List, Literal, Optional
 
 import numpy as np
-from openvino._pyopenvino import Node, Type
+from openvino import Node, Type
 from openvino.opset1 import convert_like
 from openvino.opset14 import constant
 from openvino.opset_utils import _get_node_factory

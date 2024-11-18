@@ -11,7 +11,7 @@ import numpy as np
 
 log = logging.getLogger(__name__)
 
-from openvino._pyopenvino import Node, Shape, Type, Output, Tensor
+from openvino import Node, Shape, Type, Output, Tensor
 from openvino.op import Constant, Result
 from openvino.opset1 import convert_like
 from openvino.opset_utils import _get_node_factory

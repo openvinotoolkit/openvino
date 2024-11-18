@@ -7,7 +7,7 @@ from functools import partial
 
 from typing import Union, Optional, List
 
-from openvino._pyopenvino import Node, Type
+from openvino import Node, Type
 from openvino.opset_utils import _get_node_factory
 from openvino.utils.types import TensorShape
 from openvino.utils.decorators import nameable_op

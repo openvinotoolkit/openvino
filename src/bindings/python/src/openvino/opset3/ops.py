@@ -8,7 +8,7 @@ from typing import Callable, Iterable, List, Optional, Set, Union
 import numpy as np
 from functools import partial
 
-from openvino._pyopenvino import Node, Shape
+from openvino import Node, Shape
 from openvino.op import Constant, Parameter
 from openvino.opset_utils import _get_node_factory
 from openvino.utils.decorators import binary_op, nameable_op, unary_op

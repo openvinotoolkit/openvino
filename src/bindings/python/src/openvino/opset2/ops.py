@@ -9,7 +9,7 @@ import numpy as np
 from functools import partial
 import warnings
 
-from openvino._pyopenvino import Node, Shape
+from openvino import Node, Shape
 from openvino.op import Constant, Parameter
 from openvino.opset_utils import _get_node_factory
 from openvino.utils.decorators import binary_op, nameable_op, unary_op

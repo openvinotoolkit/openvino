@@ -10,7 +10,7 @@ from typing import List, Union, Optional
 import numpy as np
 
 from openvino.exceptions import OVTypeError
-from openvino._pyopenvino import Node, Shape, Output, Type
+from openvino import Node, Shape, Output, Type
 from openvino.op import Constant
 
 log = logging.getLogger(__name__)

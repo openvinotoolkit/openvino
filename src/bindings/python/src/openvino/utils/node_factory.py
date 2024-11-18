@@ -10,7 +10,7 @@ from pathlib import Path
 
 from openvino._pyopenvino import NodeFactory as _NodeFactory
 
-from openvino._pyopenvino import Node, Output, Extension
+from openvino import Node, Output, Extension
 
 from openvino.exceptions import UserInputError
 

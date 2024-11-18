@@ -9,7 +9,7 @@ from typing import List, Optional, Tuple
 import numpy as np
 from openvino.exceptions import UserInputError
 from openvino.op import Constant, Parameter, if_op
-from openvino._pyopenvino import Node
+from openvino import Node
 from openvino.opset_utils import _get_node_factory
 from openvino.utils.decorators import nameable_op
 from openvino.utils.input_validation import (

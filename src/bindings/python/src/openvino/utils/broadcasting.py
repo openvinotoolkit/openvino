@@ -5,7 +5,7 @@
 import logging
 from typing import List, Optional
 
-from openvino._pyopenvino import AxisSet, Node
+from openvino import AxisSet
 from openvino.utils.types import (
     NodeInput,
     TensorShape,

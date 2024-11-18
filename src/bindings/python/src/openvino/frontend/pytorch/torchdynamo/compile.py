@@ -15,7 +15,7 @@ from torch.fx import GraphModule
 from openvino.frontend import FrontEndManager
 from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 from openvino.ie_api import Core
-from openvino._pyopenvino import Type, PartialShape, serialize
+from openvino import Type, PartialShape, serialize
 from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device, _get_config, _is_cache_dir_in_config
 
 from typing import Callable, Optional
