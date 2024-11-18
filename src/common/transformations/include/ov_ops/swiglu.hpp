@@ -72,7 +72,7 @@ private:
     int64_t m_split_lengths = 0;
     GluType m_glu_type = GluType::Swish;
     size_t m_split_to_glu_idx = 0;
-    ov::element::Type m_output_type;
+    ov::element::Type m_output_type{};
 };
 
 std::vector<ov::PartialShape> shape_infer(const SwiGLU* op, std::vector<ov::PartialShape> input_shapes);
