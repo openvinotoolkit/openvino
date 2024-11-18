@@ -32,9 +32,7 @@ struct gemm_impl : multi_stage_primitive<gemm> {
     const uint32_t indirect_gemm = 1;
 
     std::unique_ptr<primitive_impl> clone() const override {
-        auto prim_impl = make_unique<gemm_impl>(*this);
-        clone_kernel_data_params<kernel_params_t>(*prim_impl);
-        return prim_impl;
+        return make_deep_copy<gemm_impl, kernel_params_t>(*this);
     }
 
     gemm_impl() = default;
