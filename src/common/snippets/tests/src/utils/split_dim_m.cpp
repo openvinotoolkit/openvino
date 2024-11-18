@@ -48,16 +48,15 @@ TEST_P(SplitDimensionMTest, SplitDimensionM) {
 namespace SplitDimensionMInstantiation {
 const std::vector<SplitDimensionMParams> split_dimension_cases = {
     // Negative test cases: split is not needed
-    {InputData{40 /*cur_batch*/, 32 /*cur_m*/, 40 /*concurrency*/}, ReferenceData{false /*is_split*/}},
-    {InputData{65, 32, 40}, ReferenceData{false}},
+    {InputData{32 /*cur_batch*/, 32 /*cur_m*/, 32 /*concurrency*/}, ReferenceData{false /*is_split*/}},
+    {InputData{50, 32, 32}, ReferenceData{false}},
 
     // Positive test cases
-    {InputData{20 /*cur_batch*/, 32 /*cur_m*/, 40 /*concurrency*/}, ReferenceData{true /*is_split*/, 2 /*batch_m*/, 16 /*kernel_m*/}},
-    {InputData{30, 60, 40}, ReferenceData{true, 2, 30}},
-    {InputData{10, 100, 40}, ReferenceData{true, 4, 25}},
-    {InputData{15, 45, 40}, ReferenceData{true, 5, 9}},
-    {InputData{25, 50, 40}, ReferenceData{true, 2, 25}},
-    {InputData{5, 16384, 40}, ReferenceData{true, 8, 2048}},
+    {InputData{20 /*cur_batch*/, 32 /*cur_m*/, 32 /*concurrency*/}, ReferenceData{true /*is_split*/, 8 /*batch_m*/, 4 /*kernel_m*/}},
+    {InputData{16, 60, 32}, ReferenceData{true, 2, 30}},
+    {InputData{10, 100, 32}, ReferenceData{true, 25, 4}},
+    {InputData{25, 50, 32}, ReferenceData{true, 10, 5}},
+    {InputData{5, 16384, 32}, ReferenceData{true, 32, 512}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_SplitDimensionM,
