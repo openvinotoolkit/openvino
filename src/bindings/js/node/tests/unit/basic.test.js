@@ -13,6 +13,7 @@ const {
   compareModels,
   getModelPath,
   isModelAvailable,
+  sleep,
 } = require('./utils.js');
 const epsilon = 0.5;
 
