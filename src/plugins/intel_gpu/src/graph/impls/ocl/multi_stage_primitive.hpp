@@ -146,7 +146,9 @@ protected:
         auto prim_impl = make_unique<ImplType>(impl_ocl);
         for (auto& _kernel_data : (*prim_impl)._kernels_data) {
             KernelParamsType* params_ptr = dynamic_cast<KernelParamsType*>(_kernel_data.params.get());
-            _kernel_data.params = make_unique<KernelParamsType>(*params_ptr);
+            if (params_ptr != nullptr) {
+                _kernel_data.params = make_unique<KernelParamsType>(*params_ptr);
+            }
         }
         return prim_impl;
     }
