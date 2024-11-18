@@ -38,8 +38,10 @@ describe('ov basic tests.', () => {
     modelLike = [model, compiledModel];
   });
 
-  after(() => {
-    fs.rmSync(outDir, { recursive: true });
+  after(async () => {
+    // Wait to ensure the model file is released
+    await sleep(1);
+    await fs.promises.rm(outDir, { recursive: true });
   });
 
   it('Core.getAvailableDevices()', () => {
