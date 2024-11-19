@@ -31,8 +31,8 @@ using Rank3Matrix = std::vector<std::vector<std::vector<T>>>;
 
 // Expected layout: [block_size, embedding_size]
 template <class T>
-std::shared_ptr<T[]> get_block_memory(size_t block_size, size_t embedding_size, const Rank2Matrix<T>& init_values) {
-    auto mem = std::shared_ptr<T[]>(new T[block_size * embedding_size]);
+std::vector<T> get_block_memory(size_t block_size, size_t embedding_size, const Rank2Matrix<T>& init_values) {
+    auto mem = std::vector<T>(block_size * embedding_size);
     if (!init_values.empty()) {
         assert(init_values.size() == block_size);
         assert(init_values[0].size() == embedding_size);
@@ -47,11 +47,11 @@ std::shared_ptr<T[]> get_block_memory(size_t block_size, size_t embedding_size, 
 
 // Expected layout: [num_heads, block_size, embedding_size]
 template <class T>
-std::shared_ptr<T[]> get_block_memory(size_t num_heads,
-                                      size_t block_size,
-                                      size_t embedding_size,
-                                      const Rank3Matrix<T>& init_values) {
-    auto mem = std::shared_ptr<T[]>(new T[num_heads * block_size * embedding_size]);
+std::vector<T> get_block_memory(size_t num_heads,
+                                size_t block_size,
+                                size_t embedding_size,
+                                const Rank3Matrix<T>& init_values) {
+    auto mem = std::vector<T>(num_heads * block_size * embedding_size);
     if (!init_values.empty()) {
         assert(init_values.size() == num_heads);
         assert(init_values[0].size() == block_size);
@@ -68,7 +68,7 @@ std::shared_ptr<T[]> get_block_memory(size_t num_heads,
 }
 
 template <class T>
-Rank3Matrix<T> get_matrix_from_mem(std::shared_ptr<T[]> mem_ptr,
+Rank3Matrix<T> get_matrix_from_mem(std::vector<T> mem_vec,
                                    size_t num_heads,
                                    size_t block_size,
                                    size_t embedding_size) {
@@ -82,7 +82,7 @@ Rank3Matrix<T> get_matrix_from_mem(std::shared_ptr<T[]> mem_ptr,
     for (size_t i = 0; i < num_heads; i++) {
         for (size_t j = 0; j < block_size; j++) {
             for (size_t k = 0; k < embedding_size; k++) {
-                retval[i][j][k] = mem_ptr[block_size * embedding_size * i + embedding_size * j + k];
+                retval[i][j][k] = mem_vec[block_size * embedding_size * i + embedding_size * j + k];
             }
         }
     }
@@ -152,7 +152,7 @@ public:
                 {2.0f, 2.0f, 2.0f, 2.0f},
             },
         };
-        cache_mem_ptr = get_block_memory(num_heads, block_size, embedding_size, values_before_rotation);
+        cache_mem = get_block_memory(num_heads, block_size, embedding_size, values_before_rotation);
 
         Rank2Matrix<float> rotation_values = {
             {0.5f, 0.70710678f, 0.86602540f, -0.70710678f},
@@ -161,13 +161,13 @@ public:
             {0.0f, 0.6f, -1.0f, -0.8f},
         };
 
-        rotation_coefficients_mem_ptr = get_block_memory(block_size, embedding_size, rotation_values);
+        rotation_coefficients_mem = get_block_memory(block_size, embedding_size, rotation_values);
     }
     size_t num_heads = 2;
     size_t block_size = 4;
     size_t embedding_size = 4;
-    std::shared_ptr<TypeParam[]> cache_mem_ptr;
-    std::shared_ptr<float[]> rotation_coefficients_mem_ptr;
+    std::vector<TypeParam> cache_mem;
+    std::vector<float> rotation_coefficients_mem;
     Rank3Matrix<TypeParam> ref_values_after_rotation = {
         {
             {-0.36602540f, 1.41421356f, 1.36602540f, 0.00000000f},
@@ -191,28 +191,29 @@ public:
         engine.seed(0);
         std::uniform_real_distribution<float> rng(-2.0, 2.0);
 
-        auto raw_mem_ptr_sw = cache_block_mem_sw.get();
-        auto raw_rotation_coefficients_mem_ptr = rotation_coeffts_block_mem.get();
-
         auto generate_fn = [&]() {
             return TypeParam(rng(engine));
         };
 
-        std::generate(raw_mem_ptr_sw, raw_mem_ptr_sw + num_heads * block_size * embedding_size, generate_fn);
+        std::generate(cache_block_mem_sw.begin(), cache_block_mem_sw.end(), generate_fn);
         // coeffts are now not strictly sine-cosine pairs, but it does not matter for the kernels
-        std::generate(raw_rotation_coefficients_mem_ptr,
-                      &raw_rotation_coefficients_mem_ptr[block_size * embedding_size],
+        std::generate(rotation_coeffts_block_mem.begin(),
+                      rotation_coeffts_block_mem.end(),
                       generate_fn);
 
-        auto cache_block_mem_hw = get_block_memory(num_heads, block_size, embedding_size, Rank3Matrix<TypeParam>{});
-        auto raw_mem_ptr_hw = cache_block_mem_hw.get();
-        std::copy(raw_mem_ptr_sw, raw_mem_ptr_sw + num_heads * block_size * embedding_size, raw_mem_ptr_hw);
+
+
+        auto cache_block_mem_hw = cache_block_mem_sw;
+
+        auto raw_mem_ptr_sw = cache_block_mem_sw.data();
+        auto raw_rotation_coefficients_mem_ptr = rotation_coeffts_block_mem.data();
+        auto raw_mem_ptr_hw = cache_block_mem_hw.data();
 
         ov::intel_cpu::PerfCount counter;
         {
             ov::intel_cpu::PerfHelper helper(counter);
             rotate_kv_cache_block_hw(raw_mem_ptr_hw,
-                                     rotation_coeffts_block_mem.get(),
+                                     raw_rotation_coefficients_mem_ptr,
                                      num_heads,
                                      block_size,
                                      embedding_size);
@@ -221,7 +222,7 @@ public:
         {
             ov::intel_cpu::PerfHelper helper(counter);
             rotate_kv_cache_block_sw(raw_mem_ptr_sw,
-                                     rotation_coeffts_block_mem.get(),
+                                     raw_rotation_coefficients_mem_ptr,
                                      num_heads,
                                      block_size,
                                      embedding_size);
@@ -238,8 +239,8 @@ using OV_FP_TYPES = ::testing::Types<float, ov::float16, ov::bfloat16>;
 TYPED_TEST_SUITE_P(CacheRotationKernelInputTypeParameterizedTest);
 
 TYPED_TEST_P(CacheRotationKernelInputTypeParameterizedTest, SWBlockRotationGivesReferenceResults) {
-    auto raw_cache_mem_ptr = this->cache_mem_ptr.get();
-    auto raw_rotation_coefficients_mem_ptr = this->rotation_coefficients_mem_ptr.get();
+    auto raw_cache_mem_ptr = this->cache_mem.data();
+    auto raw_rotation_coefficients_mem_ptr = this->rotation_coefficients_mem.data();
 
     rotate_kv_cache_block_sw(raw_cache_mem_ptr,
                              raw_rotation_coefficients_mem_ptr,
@@ -248,7 +249,7 @@ TYPED_TEST_P(CacheRotationKernelInputTypeParameterizedTest, SWBlockRotationGives
                              this->embedding_size);
 
     auto test_values_after_rotation =
-        get_matrix_from_mem(this->cache_mem_ptr, this->num_heads, this->block_size, this->embedding_size);
+        get_matrix_from_mem(this->cache_mem, this->num_heads, this->block_size, this->embedding_size);
     compare_with_tolerance(test_values_after_rotation, this->ref_values_after_rotation, get_tolerance<TypeParam>());
 }
 
@@ -473,8 +474,8 @@ INSTANTIATE_TEST_SUITE_P(AVX512,
                          TEST_STRUCT_TO_NAME_FN);
 
 TYPED_TEST_P(CacheRotationKernelInputTypeParameterizedTest, HWBlockRotationGivesReferenceResults) {
-    auto raw_cache_mem_ptr = this->cache_mem_ptr.get();
-    auto raw_rotation_coefficients_mem_ptr = this->rotation_coefficients_mem_ptr.get();
+    auto raw_cache_mem_ptr = this->cache_mem.data();
+    auto raw_rotation_coefficients_mem_ptr = this->rotation_coefficients_mem.data();
 
     rotate_kv_cache_block_hw(raw_cache_mem_ptr,
                              raw_rotation_coefficients_mem_ptr,
@@ -483,7 +484,7 @@ TYPED_TEST_P(CacheRotationKernelInputTypeParameterizedTest, HWBlockRotationGives
                              this->embedding_size);
 
     auto test_values_after_rotation =
-        get_matrix_from_mem(this->cache_mem_ptr, this->num_heads, this->block_size, this->embedding_size);
+        get_matrix_from_mem(this->cache_mem, this->num_heads, this->block_size, this->embedding_size);
     compare_with_tolerance(test_values_after_rotation, this->ref_values_after_rotation, get_tolerance<TypeParam>());
 }
 

@@ -42,12 +42,20 @@ ov_add_test_target(
             gmock
             openvino_runtime_s
             unit_test_utils
+            ov_snippets_models
             snippets_test_utils
         ADD_CPPLINT
         LABELS
             OV UNIT CPU
 )
 
+
+if (ENABLE_SNIPPETS_LIBXSMM_TPP)
+    add_definitions(-DSNIPPETS_LIBXSMM_TPP -DLIBXSMM_DEFAULT_CONFIG)
+    target_compile_definitions(xsmm PRIVATE __BLAS=0)
+    target_link_libraries(${TARGET_NAME} PRIVATE xsmm)
+    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:xsmm,INCLUDE_DIRECTORIES>)
+endif()
 
 if (X86_64)
     ov_avx2_optimization_flags(avx2_flags)
