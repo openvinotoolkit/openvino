@@ -11,10 +11,11 @@
 
 namespace ov {
 namespace pass {
-
 /**
  * @ingroup ov_transformation_common_api
- * @brief TBA
+ * @brief MarkDequantizationAndDecompression is a set of transformation which mark
+ * Dequantization and Decompression patterns with the keep_const_precision, disable_const_folding and
+ * dequantization attributes. Also it calls ConstantFolding.
  */
 class TRANSFORMATIONS_API MarkDequantizationAndDecompression : public ModelPass {
 public:

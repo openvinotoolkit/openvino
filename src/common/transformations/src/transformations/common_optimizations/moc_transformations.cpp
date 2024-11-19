@@ -130,15 +130,12 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     using namespace ov::pass;
     REGISTER_PASS(manager, InitNodeInfo)
     REGISTER_PASS(manager, EliminateConvert)
-    if (m_low_precision_enabled) {
-        manager.register_pass<ov::pass::MarkDequantizationAndDecompression>(
-            element::TypeVector{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4});
-    }
     if (!m_use_shapes) {
         manager.register_pass<ov::pass::DisableShapeOfConstantFolding>();
     }
+
     // RemoveConcatZeroDimInput and RemoveMultiSubGraphOpDanglingParamsResults
-    // should be performed before first ConstantFolding call.
+    // should be performed before first !ConstantFolding! call.
     // The passes can deteach graph branches where zero dimesion is calculated.
     // Zero dimensions in shape causes creation empty tensors, which are incorrect during CF.
     // In particular, if zero dim tensor is consumed in body of MultiSubGraphOp
@@ -147,6 +144,13 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, RemoveConcatZeroDimInput)
     REGISTER_PASS(manager, EliminateLoopInputsOutputs);
     REGISTER_PASS(manager, Validate)
+
+    if (m_low_precision_enabled) {
+        // includes ConstantFolding call
+        manager.register_pass<ov::pass::MarkDequantizationAndDecompression>(
+            element::TypeVector{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4});
+    }
+
     // todo: ticket 96960
     // the order EliminateDuplicateTIInputs and RemoveMultiSubGraphOpDanglingParamsResults is important
     // it looks like we need to combine these transformations into one.
