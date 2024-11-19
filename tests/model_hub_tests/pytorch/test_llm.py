@@ -15,10 +15,10 @@ from openvino.frontend.pytorch.patch_model import unpatch_model as unpatch
 from torch_utils import TestTorchConvertModel
 
 
-def is_gptq_model(config):
+def is_quantized_model(config):
     config_dict = config.to_dict() if not isinstance(config, dict) else config
     quantization_config = config_dict.get("quantization_config", None)
-    return quantization_config and quantization_config["quant_method"] == "gptq"
+    return quantization_config and quantization_config["quant_method"] in ["gptq", "awq"]
 
 
 def patch_gptq():
@@ -31,23 +31,26 @@ def patch_gptq():
     torch.cuda.is_bf16_supported = lambda: False
     torch.cuda.get_device_capability = lambda n: (9, 1)
 
-    from optimum.gptq import GPTQQuantizer
+    try:
+        from optimum.gptq import GPTQQuantizer
 
-    orig_post_init_model = GPTQQuantizer.post_init_model
+        orig_post_init_model = GPTQQuantizer.post_init_model
 
-    def post_init_model(self, model):
-        from auto_gptq import exllama_set_max_input_length
+        def post_init_model(self, model):
+            from auto_gptq import exllama_set_max_input_length
 
-        class StoreAttr(object):
-            pass
+            class StoreAttr(object):
+                pass
 
-        model.quantize_config = StoreAttr()
-        model.quantize_config.desc_act = self.desc_act
-        if self.desc_act and not self.disable_exllama and self.max_input_length is not None:
-            model = exllama_set_max_input_length(model, self.max_input_length)
-        return model
+            model.quantize_config = StoreAttr()
+            model.quantize_config.desc_act = self.desc_act
+            if self.desc_act and not self.disable_exllama and self.max_input_length is not None:
+                model = exllama_set_max_input_length(model, self.max_input_length)
+            return model
 
-    GPTQQuantizer.post_init_model = post_init_model
+        GPTQQuantizer.post_init_model = post_init_model
+    except ImportError:
+        pass
     return (orig_cuda_is_available, orig_cuda_is_bf16_supported, orig_cuda_get_device_capability), orig_post_init_model
 
 
@@ -99,11 +102,12 @@ class TestLLMModel(TestTorchConvertModel):
         except Exception:
             config = {}
         model_kwargs = {"torchscript": True, "trust_remote_code": True}
-        is_gptq = is_gptq_model(config)
+        is_quant = is_quantized_model(config)
         is_gpt2 = name == "openai-community/gpt2"
 
-        if is_gptq:
+        if is_quant:
             self.cuda_available, self.gptq_postinit = patch_gptq()
+            model_kwargs["torch_dtype"] = "auto"
             model_kwargs["torch_dtype"] = torch.float32
             self.ov_config = {"DYNAMIC_QUANTIZATION_GROUP_SIZE": "0"}
         elif is_gpt2:
@@ -113,7 +117,7 @@ class TestLLMModel(TestTorchConvertModel):
 
         t = AutoTokenizer.from_pretrained(name, trust_remote_code=True)
         self.model = AutoModelForCausalLM.from_pretrained(name, **model_kwargs)
-        if is_gptq:
+        if is_quant:
             model = self.model
         else:
             assert self.model.config.torch_dtype in [
@@ -191,7 +195,8 @@ class TestLLMModel(TestTorchConvertModel):
     @pytest.mark.parametrize("type,name", [
         ("opt_gptq", "katuni4ka/opt-125m-gptq"),
         ("llama", "TinyLlama/TinyLlama-1.1B-Chat-v1.0"),
-        ("gpt2", "openai-community/gpt2")
+        ("gpt2", "openai-community/gpt2"),
+        ("llama_awq", "casperhansen/tinyllama-1b-awq")
     ])
     @pytest.mark.precommit
     @pytest.mark.nightly
@@ -210,6 +215,7 @@ class TestLLMModel(TestTorchConvertModel):
         ("bloom_gptq", "sbolouki/bloom-1b7-gptq"),
         ("cohere_gptq", "shuyuej/aya-23-8B-GPTQ"),
         ("mbart_gptq", "Shivam098/opt-translation"),
+        ("llama_awq", "TheBloke/open-llama-3b-v2-wizard-evol-instuct-v2-196k-AWQ")
     ])
     @pytest.mark.nightly
     def test_convert_model_nightly(self, name, type, ie_device):
@@ -236,6 +242,7 @@ class TestLLMModel(TestTorchConvertModel):
                      marks=pytest.mark.xfail(reason="GPTQ QUANT_TYPE=cuda is not supported")),
         pytest.param("llama3_gptq", "TechxGenus/Meta-Llama-3-8B-GPTQ",
                      marks=pytest.mark.xfail(reason="GPTQ QUANT_TYPE=cuda is not supported")),
+        ("qwen2_awq", "Qwen/Qwen2.5-Coder-32B-Instruct-AWQ"),
     ])
     def test_convert_model_very_large(self, name, type, ie_device):
         self.run(model_name=name, model_link=type, ie_device=ie_device)
