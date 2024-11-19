@@ -145,7 +145,6 @@ INSTANTIATE_TEST_SUITE_P(
         ReduceCPULayerTest::getTestCaseName
 );
 
-
 INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_Int32_CPU,
         ReduceCPULayerTest,

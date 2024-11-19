@@ -18,8 +18,11 @@ namespace {
 
 std::vector<std::vector<ov::test::InputShape>> inputShapes_5D = {
     {{{}, {{2, 19, 2, 2, 9}}}},
-    {{{}, {{0, 19, 2, 2, 9}}}},
-    {{{}, {{1, 0, 0, 2, 9}}}},
+};
+
+std::vector<std::vector<ov::test::InputShape>> inputShapes_5D_ZeroDim = {
+    {{{}, {{2, 19, 0, 2, 9}}}},
+    {{{}, {{2, 19, 0, 2, 0}}}},
 };
 
 const std::vector<std::vector<int>> axes5D = {
@@ -45,6 +48,34 @@ const auto params_MultiAxis_5D = testing::Combine(
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
         testing::Values(emptyFusingSpec),
         testing::ValuesIn(additionalConfig()));
+
+const auto params_MultiAxis_5D_ZeroDim = testing::Combine(
+        testing::Combine(
+                testing::ValuesIn(axes5D),
+                testing::Values(ov::test::utils::OpType::VECTOR),
+                testing::Values(true),
+                testing::ValuesIn(reductionTypesArithmetic()),
+                testing::ValuesIn(inpOutPrc()),
+                testing::Values(ElementType::undefined),
+                testing::Values(ElementType::undefined),
+                testing::ValuesIn(inputShapes_5D_ZeroDim)),
+        testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
+        testing::Values(emptyFusingSpec),
+        testing::ValuesIn(additionalConfig()));
+
+const auto params_MultiAxis_5D_ZeroDim_Compare = testing::Combine(
+        testing::Combine(
+                testing::ValuesIn(axes5D),
+                testing::Values(ov::test::utils::OpType::VECTOR),
+                testing::Values(true),
+                testing::ValuesIn(reductionTypesCompare()),
+                testing::ValuesIn(inpOutPrc()),
+                testing::Values(ElementType::undefined),
+                testing::Values(ElementType::undefined),
+                testing::ValuesIn(inputShapes_5D_ZeroDim)),
+        testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
+        testing::Values(emptyFusingSpec),
+        testing::ValuesIn(additionalConfigFP32()));
 
 const std::vector<std::vector<int>> axes5D_ref = {
         {0}
@@ -78,6 +109,20 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_MultiAxis_5D_CPU,
         ReduceCPULayerTest,
         params_MultiAxis_5D,
+        ReduceCPULayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Reduce_MultiAxis_5D_ZeroDim_CPU,
+        ReduceCPULayerTest,
+        params_MultiAxis_5D_ZeroDim,
+        ReduceCPULayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Reduce_MultiAxis_5D_ZeroDim_Compare_CPU,
+        ReduceCPULayerTest,
+        params_MultiAxis_5D_ZeroDim_Compare,
         ReduceCPULayerTest::getTestCaseName
 );
 
