@@ -2893,7 +2893,10 @@ public:
                 ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE),
                 ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)};
 
-        fn_ptr = ov::test::utils::make_conv_pool_relu();
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape{1, 2, 10, 10});
+        auto constant = ov::op::v0::Constant::create(element_type, ov::Shape{1, 2, 10, 10}, {1});
+        auto add = std::make_shared<ov::op::v1::Add>(input1, constant);
+        fn_ptr = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{input1});
     }
     static std::string getTestCaseName(const testing::TestParamInfo<RemoteTensorDataTypesOptionsParams>& obj) {
         ov::element::Type_t elem_type;
@@ -2909,9 +2912,7 @@ TEST_P(OVRemoteTensorDataType_Test, smoke_RemoteTensorDataType) {
 #if defined(ANDROID)
     GTEST_SKIP();
 #endif
-    // set tensor element type
     auto ppp = ov::preprocess::PrePostProcessor(fn_ptr);
-    ppp.input(0).tensor().set_element_type(element_type);
     ppp.output(0).tensor().set_element_type(element_type);
     auto ov_model = ppp.build();
 
@@ -2931,6 +2932,7 @@ TEST_P(OVRemoteTensorDataType_Test, smoke_RemoteTensorDataType) {
     auto remote_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
     auto input_tensor = ov::test::utils::create_and_fill_tensor(input_element_type, input_shape);
     auto output_tensor = ov::test::utils::create_and_fill_tensor(output_element_type, output_shape);
+
     auto input_cl_tensor = remote_context.create_tensor(input_element_type, input_shape);
     auto output_cl_tensor =  remote_context.create_tensor(output_element_type, output_shape);
 

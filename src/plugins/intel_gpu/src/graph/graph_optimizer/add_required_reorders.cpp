@@ -326,42 +326,4 @@ void add_required_reorders::run(program& p) {
                         " (format: ", original_layout.format.to_string(),
                         ", data_type: ", ov::element::Type(original_layout.data_type), ") ");
     }
-
-    for (auto node : p.get_processing_order()) {
-        if (node->is_type<input_layout>()) {
-            if (node->get_output_layout().data_type == data_types::i16 ||
-                node->get_output_layout().data_type == data_types::u16 ||
-                node->get_output_layout().data_type == data_types::u32) {
-                auto supported_data_type = cldnn::element_type_to_data_type(node->get_output_layout().data_type);
-                layout reorder_layout = node->get_output_layout();
-                reorder_layout.data_type = supported_data_type;
-
-                auto new_reorder = std::make_shared<reorder>(node->id() + "_convert_type", node->id(), reorder_layout);
-                auto& new_reorder_node = p.get_or_create(new_reorder);
-                new_reorder_node.set_output_layout(reorder_layout, false);
-
-                std::vector<program_node*> users(node->get_users().begin(), node->get_users().end());
-                for (auto user : users) {
-                    // Skip eltwise nodes as they can handle i16, u16 and u32 data types
-                    if (user->is_type<eltwise>())
-                        continue;
-
-                    auto it = std::find_if(user->get_dependencies().begin(), user->get_dependencies().end(),
-                        [&](const std::pair<program_node*, int32_t>& dep) {
-                            return node == dep.first;
-                        });
-
-                    OPENVINO_ASSERT(it != user->get_dependencies().end(),
-                        "[GPU] Inconcistency in topology description: user of a node is not present among its dependecies.");
-
-                    auto idx = it - user->get_dependencies().begin();
-                    OPENVINO_ASSERT(idx >= 0 && (size_t)idx < user->get_dependencies().size(),
-                        "[GPU] Internal Error: container index out of range exception.");
-
-                    p.add_intermediate(new_reorder_node, *user, idx);
-                    new_reorder_node.recalc_output_layouts(false);
-                }
-            }
-        }
-    }
 }
