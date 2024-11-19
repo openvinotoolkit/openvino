@@ -1501,6 +1501,7 @@ ConvToMatmul::ConvToMatmul(Context::Ref ctx) {
         auto matched_node_transpose_in = node_to_output.at(transpose_in).get_node_shared_ptr();
         auto matched_node_transpose_out = node_to_output.at(transpose_out).get_node_shared_ptr();
         auto matched_node_multiply = node_to_output.at(multiply).get_node_shared_ptr();
+        const auto& cvt2_or_multiply = uat::_(node_to_output).at_or_at(convert2, multiply);
 
         const auto& shape = matched_node_param->get_shape();
         const auto& shape2 = matched_node_param2->get_shape();
@@ -1536,10 +1537,10 @@ ConvToMatmul::ConvToMatmul(Context::Ref ctx) {
             auto new_reshape2 = std::make_shared<ov::op::v1::Reshape>(matched_node_param2, new_const2, false);
 
             // Connect to Reshape
-            if (ov::op::util::is_parameter(matched_node_param2)) {
+            if (cvt2_or_multiply == matched_node_multiply) {  // param -> multiply
                 matched_node_multiply->input(1).replace_source_output(new_reshape2);
                 matched_node_multiply->validate_and_infer_types();
-            } else {  // constant -> convert -> multiply
+            } else {  // constant -> (convert) -> multiply
                 node_to_output.at(convert2).get_node_shared_ptr()->input(0).replace_source_output(new_reshape2);
                 node_to_output.at(convert2).get_node_shared_ptr()->validate_and_infer_types();
                 matched_node_multiply->validate_and_infer_types();
