@@ -49,7 +49,6 @@ ov_add_test_target(
 if (X86_64)
     ov_avx2_optimization_flags(avx2_flags)
     ov_avx512_optimization_flags(avx512_flags)
-    message("VSHAMPOR: added optimization flags")
 
     target_compile_options(${TARGET_NAME} PRIVATE "${avx2_flags};${avx512_flags}")
     target_compile_definitions(${TARGET_NAME} PRIVATE HAVE_AVX2 HAVE_AVX512F)
