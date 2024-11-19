@@ -50,12 +50,6 @@ jobs:
           python3 -m pip install -r ${{ github.workspace }}/src/frontends/onnx/tests/requirements.txt
           # For running TensorFlow frontend unit tests
           python3 -m pip install -r ${{ github.workspace }}/src/frontends/tensorflow/tests/requirements.txt
-          # For MO unit tests
-          python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_caffe.txt
-          python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_kaldi.txt
-          python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_onnx.txt
-          python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_tf2.txt
-          python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_dev.txt
 
       - name: Build OpenVINO with CMake
         uses: ashutoshvarma/action-cmake-build@ade188313bc7eaa6f14349569a64d8bc716342ff # master
@@ -83,9 +77,6 @@ jobs:
 
       - name: Install wheel packages
         run: cmake -DCOMPONENT=python_wheels -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/install_pkg -P '${{ github.workspace }}/build/cmake_install.cmake'
-
-      - name: Install python wheels
-        run: python3 -m pip install openvino-dev --find-links=${{ github.workspace }}/install_pkg/tools
 
       - name: List binaries
         run: ls -la ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}

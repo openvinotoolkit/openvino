@@ -86,13 +86,10 @@ jobs:
         run: |
           # Install the core OV wheel
           python3 -m pip install ./openvino-*.whl
-
-          extras_to_install="onnx"
-
-          # Find and install OV dev wheel
-          ov_dev_wheel_name=$(find . -name 'openvino_dev*.whl')
-          python3 -m pip install $ov_dev_wheel_name[$extras_to_install]
         working-directory: ${{ env.INSTALL_WHEELS_DIR }}
+
+      - name: Install ONNX Models tests requirements
+        run: python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_onnx
 
       - name: Install Python tests dependencies
         run: |
