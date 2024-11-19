@@ -7,10 +7,11 @@ from openvino.frontend.pytorch.patch_model import patch_model, unpatch_model
 
 
 def detect_quantized_model(model: torch.nn.Module) -> str:
-    """
-    Detects the quantization method used in a given PyTorch model.
+    """Detects the quantization method used in a given PyTorch model.
+
     Args:
         model (torch.nn.Module): The PyTorch model to check for quantization.
+
     Returns:
         str: The quantization method if available, otherwise None.
     """
@@ -23,10 +24,11 @@ def detect_quantized_model(model: torch.nn.Module) -> str:
 
 
 def patch_quantized(model: torch.nn.Module) -> None:
-    """
-    Patches a model based on its quantization type ("awq" or "gptq").
+    """Patches a model based on its quantization type ("awq" or "gptq").
+
     Args:
         model (torch.nn.Module): The model to patch.
+
     Raises:
         RuntimeError: If the quantization type is unknown.
     """
@@ -56,8 +58,8 @@ def patch_quantized(model: torch.nn.Module) -> None:
 
 
 def unpatch_quantized(model: torch.nn.Module) -> None:
-    """
-    Reverts the patching applied to a quantized PyTorch model.
+    """Reverts the patching applied to a quantized PyTorch model.
+
     Args:
         model (torch.nn.Module): The model to unpatch.
     """
