@@ -426,8 +426,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         ov::pass::KeepConstAndDecompression);
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
-    CPU_REGISTER_PASS_COMMON(manager, ov::intel_cpu::StatefulSDPAFusion);
-    CPU_REGISTER_PASS_X64(manager, ov::intel_cpu::SDPAFuseTransposeReshape);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::WrapInterpolateIntoTransposes);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeSinking);
@@ -653,6 +651,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::MatMulConstTransposesExtraction);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertScatterNDUpdate15ToScatterNDUpdate3);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertSliceScatter);
+    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ScaledDotProductAttentionDecomposition);
     CPU_DISABLE_PASS_X64(manager, ov::pass::HSigmoidDecomposition);
 
     CPU_DISABLE_PASS_X64(manager, ov::pass::ReduceL1Decomposition);
@@ -688,9 +687,18 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EnableDecompressionConvertConstantFolding);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompression);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
+    CPU_REGISTER_PASS_COMMON(manager, ov::intel_cpu::StatefulSDPAFusion);
+    CPU_REGISTER_PASS_X64(manager, ov::intel_cpu::SDPAFuseTransposeReshape);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::LoraSubgraphFusion);
 
     manager.run_passes(model);
+
+    // Run SDPA decomposition pass separately to let the Snippets handle the default SDPA ops, which don't
+    // fuse special patterns
+    ov::pass::Manager sdpa_manager("CPU:SDPA");
+    CPU_REGISTER_PASS_COMMON(sdpa_manager, ov::pass::ScaledDotProductAttentionDecomposition);
+
+    sdpa_manager.run_passes(model);
 }
 
 void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecisions) {
