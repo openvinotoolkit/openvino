@@ -28,21 +28,22 @@ OpenVINO Release Notes
 What's new
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-* More Gen AI coverage and framework integrations to minimize code changes.
+* More GenAI coverage and framework integrations to minimize code changes.
 
   * New models supported: Llama 3.2 (1B & 3B), Gemma 2 (2B & 9B), and YOLO11.
-  * LLM support on NPU: Llama 3 8B, Llama 2 7B, Mistral-v0.2-7B, Qwen2-7B-Instruct and Phi-3 Mini.
+  * LLM support on NPU: Llama 3 8B, Llama 2 7B, Mistral-v0.2-7B, Qwen2-7B-Instruct and Phi-3
+   Mini-Instruct.
   * Noteworthy notebooks added: Sam2, Llama3.2, Llama3.2 - Vision, Wav2Lip, Whisper, and Llava.
-    Preview: Support for Flax, a high-performance Python neural network library based on JAX.
+  * Preview: support for Flax, a high-performance Python neural network library based on JAX.
     Its modular design allows for easy customization and accelerated inference on GPUs.
 
 * Broader Large Language Model (LLM) support and more model compression techniques.
 
-  * Optimizations for built-in GPUs on Intel® Core Ultra Processors (Series 1) and Intel® Arc™
+  * Optimizations for built-in GPUs on Intel® Core™ Ultra Processors (Series 1) and Intel® Arc™
     Graphics include KV Cache compression for memory reduction along with improved usability,
     and model load time optimizations to improve first token latency for LLMs.
   * Dynamic quantization was enabled to improve first token latency for LLMs on built-in
-    Intel® GPUs without impacting accuracy on Intel Core Ultra Processors (Series 1). Second
+    Intel® GPUs without impacting accuracy on Intel® Core™ Ultra Processors (Series 1). Second
     token latency will also improve for large batch inference.
   * A new method to generate synthetic text data is implemented in the Neural Network
     Compression Framework (NNCF). This will allow LLMs to be compressed more accurately using
@@ -52,9 +53,9 @@ What's new
 * More portability and performance to run AI at the edge, in the cloud, or locally.
 
   * Support for
-    `Intel® Xeon 6 Processors with P-cores <https://ark.intel.com/content/www/us/en/ark/products/codename/128428/products-formerly-granite-rapids.html>`__
+    `Intel® Xeon® 6 Processors with P-cores <https://ark.intel.com/content/www/us/en/ark/products/codename/128428/products-formerly-granite-rapids.html>`__
     (formerly codenamed Granite Rapids) and
-    `Intel® Core Ultra 200V series processors <https://ark.intel.com/content/www/us/en/ark/products/codename/225837/products-formerly-arrow-lake.html>`__
+    `Intel® Core™ Ultra 200V series processors <https://ark.intel.com/content/www/us/en/ark/products/codename/225837/products-formerly-arrow-lake.html>`__
     (formerly codenamed Arrow Lake-S).
   * Preview: GenAI API enables multimodal AI deployment with support for multimodal pipelines
     for improved contextual awareness, transcription pipelines for easy audio-to-text
@@ -95,9 +96,9 @@ Common
 CPU Device Plugin
 -----------------------------------------------------------------------------------------------
 
-* Gold support of the Intel Xeon 6 platform with P-cores (formerly code name Granite Rapids)
+* Gold support of the Intel® Xeon® 6 platform with P-cores (formerly code name Granite Rapids)
   has been reached.
-* Support of Intel® Core Ultra 200V series processors (formerly codenamed Arrow Lake-S) has
+* Support of Intel® Core™ Ultra 200V series processors (formerly codenamed Arrow Lake-S) has
   been implemented.
 * LLM performance has been further improved with Rotary Position Embedding optimization; Query,
   Key, and Value; and multi-layer perceptron fusion optimization.
@@ -117,7 +118,7 @@ GPU Device Plugin
 * A new feature of GPU weightless blob caching enables caching model structure only and reusing
   the weights from the original model file. Use the new OPTIMIZE_SIZE property to activate.
 * Dynamic quantization with INT4 and INT8 precisions has been implemented and enabled by
-  default on Intel Core Ultra platforms, improving LLM first token latency.
+  default on Intel® Core™ Ultra platforms, improving LLM first token latency.
 
 
 NPU Device Plugin
@@ -138,13 +139,10 @@ NPU Device Plugin
 * LLM-related improvements have been implemented in terms of both memory usage and performance.
 * AvgPool and MaxPool operator support has been extended, adding support for more PyTorch models.
 
-* NOTE: for systems based on Intel® Core Ultra Processors Series 2, more than 16GB of RAM may
+* NOTE: for systems based on Intel® Core™ Ultra Processors Series 2, more than 16GB of RAM may
   be required to use larger models, such as Llama-2-7B, Mistral-0.2-7B, and Qwen-2-7B
-  (exceeding 4b parameters).
+  (exceeding 4B parameters) with prompt sizes over 1024 tokens.
 
-
-  prompts longer then 1024 characters will not work with a model of 7B or more parameters,
-  such as .
 
 OpenVINO Python API
 -----------------------------------------------------------------------------------------------
@@ -328,17 +326,17 @@ Known Issues
 | Description:
 |   Description: When using new version of Transformer version to convert some of LLMs
     (GPT-J/GPT-NeoX or falcon-7b), the inference accuracy may be impacted on 4th or 5th
-    generation of Xeon CPU platforms, due to model structure update triggering inference
+    generation of Intel® Xeon® processors, due to model structure update triggering inference
     precision difference in part of the model. The workaround is to use transformer version of
     4.44.2 or lower.
 
 | **Component: GPU Plugin**
 | ID: 154583
 | Description:
-|   LLM accuracy can be low especially on non-systolic platform like Intel Core Ultra. When
+|   LLM accuracy can be low especially on non-systolic platforms like Intel® Core™ Ultra. When
     facing the low accuracy issue, user needs to manually set a config ACTIVATION_SCALING_FACOTR
-    with a value 8.0 in compile_model() function. From the next release, scaling factor value
-    will be automatically applied through updated IR.
+    with a value of 8.0 in the compile_model() function. From the next release, scaling factor
+    value will be automatically applied through updated IR.
 
 | **Component: GenAI**
 | ID: 156437, 148933
@@ -402,7 +400,7 @@ Previous 2024 releases
 
    * More portability and performance to run AI at the edge, in the cloud, or locally.
 
-     * Support for Intel® Core Ultra Processors Series 2 (formerly codenamed Lunar Lake) on Windows.
+     * Support for Intel® Core™ Ultra Processors Series 2 (formerly codenamed Lunar Lake) on Windows.
      * OpenVINO™ Model Server now comes with production-quality support for OpenAI-compatible API
        which enables significantly higher throughput for parallel inferencing on Intel® Xeon®
        processors when serving LLMs to many concurrent users.
@@ -450,10 +448,10 @@ Previous 2024 releases
      * 1st token performance with Llama series of models, with additional CPU operator optimization
        (such as MLP, SDPA) on BF16 precision.
      * Default oneTBB version on Linux is now 2021.13.0, improving overall performance on latest
-       Intel XEON platforms.
+       Intel® Xeon® platforms.
      * MXFP4 weight compression models (compressing weights to 4-bit with the e2m1 data type
-       without a zero point and with 8-bit e8m0 scales) have been optimized for Xeon platforms
-       thanks to fullyconnected compressed weight LLM support.
+       without a zero point and with 8-bit e8m0 scales) have been optimized for Intel® Xeon®
+       platforms thanks to fullyconnected compressed weight LLM support.
 
    * The following has been fixed:
 
@@ -622,7 +620,7 @@ Previous 2024 releases
    | ID: CVS-150542, CVS-145996
    | Description:
    |   The upgrade of default oneTBB on Linux platforms to 2021.13.0 improves overall
-       performance on latest Intel XEON platform but causes regression in some cases. Limit the
+       performance on latest Intel® Xeon® platform but causes regression in some cases. Limit the
        threads usage of postprocessing done by Torch can mitigate the regression (For example:
        torch.set_num_threads(n), n can be 1, beam search number, prompt batch size or other
        numbers).
@@ -949,7 +947,7 @@ Previous 2024 releases
      * Preview: addition of the :doc:`Generate API <../learn-openvino/llm_inference_guide/genai-guide>`,
        a simplified API for text generation using large language models with only a few lines of
        code. The API is available through the newly launched OpenVINO GenAI package.
-     * Support for Intel Atom® Processor X Series. For more details, see :doc:`System Requirements <./release-notes-openvino/system-requirements>`.
+     * Support for Intel® Atom® Processor X Series. For more details, see :doc:`System Requirements <./release-notes-openvino/system-requirements>`.
      * Preview: Support for Intel® Xeon® 6 processor.
 
    **OpenVINO™ Runtime**
@@ -973,8 +971,8 @@ Previous 2024 releases
    *CPU Device Plugin*
 
    * Performance when using latency mode in FP32 precision has been improved on Intel client
-     platforms, including Core Ultra (formerly codenamed Meteor Lake) and 13th Gen Core processors
-     (formerly codenamed Raptor Lake).
+     platforms, including Intel® Core™ Ultra (formerly codenamed Meteor Lake) and 13th Gen Core
+     processors (formerly codenamed Raptor Lake).
    * 2nd token latency and memory footprint for FP16 LLMs have been improved significantly on AVX2
      and AVX512 based CPU platforms, particularly for small batch sizes.
    * PagedAttention has been optimized on AVX2, AVX512 and AMX platforms together with INT8 KV cache
@@ -988,9 +986,9 @@ Previous 2024 releases
 
    * Both first token and average token latency of LLMs is improved on all GPU platforms, most
      significantly on discrete GPUs. Memory usage of LLMs has been reduced as well.
-   * Stable Diffusion FP16 performance improved on Core Ultra platforms, with significant pipeline
-     improvement for models with dynamic-shaped input. Memory usage of the pipeline has been reduced,
-     as well.
+   * Stable Diffusion FP16 performance improved on Intel® Core™ Ultra platforms, with significant
+     pipeline improvement for models with dynamic-shaped input. Memory usage of the pipeline
+     has been reduced, as well.
    * Optimized permute_f_y kernel performance has been improved.
 
    *NPU Device Plugin*
@@ -1045,7 +1043,7 @@ Previous 2024 releases
 
    * OpenVINO Model server can be now used for text generation use cases using OpenAI compatible API.
    * Added support for continuous batching and PagedAttention algorithms for text generation with
-     fast and efficient in high concurrency load especially on Intel Xeon processors.
+     fast and efficient in high concurrency load especially on Intel® Xeon® processors.
      `Learn more about it <https://github.com/openvinotoolkit/model_server/tree/releases/2024/2/demos/continuous_batching>`__.
 
    **Neural Network Compression Framework**
@@ -1088,8 +1086,9 @@ Previous 2024 releases
    | Description:
    |   In 2024.2, oneTBB 2021.2.x is used for Intel Distribution of OpenVINO Ubuntu and Red Hat
        archives, instead of system TBB/oneTBB. This improves performance on the new generation of
-       Xeon platforms but may increase latency of some models on the previous generation. You can
-       build OpenVINO with **-DSYSTEM_TBB=ON** to get better latency performance for these models.
+       Intel® Xeon® platforms but may increase latency of some models on the previous generation.
+       You can build OpenVINO with **-DSYSTEM_TBB=ON** to get better latency performance for
+       these models.
 
    | **Component: python API**
    | ID: CVS-141744
@@ -1598,10 +1597,11 @@ Previous 2024 releases
    | **Component: CPU runtime**
    | *ID:* N/A
    | *Description:*
-   |   Performance results (first token latency) may vary from those offered by the previous OpenVINO version, for
-       “latency” hint inference of LLMs with long prompts on Xeon platforms with 2 or more
-       sockets. The reason is that all CPU cores of just the single socket running the application
-       are employed, lowering the memory overhead for LLMs when numa control is not used.
+   |   Performance results (first token latency) may vary from those offered by the previous
+       OpenVINO version, for “latency” hint inference of LLMs with long prompts on Intel® Xeon®
+       platforms with 2 or more sockets. The reason is that all CPU cores of just the single
+       socket running the application are employed, lowering the memory overhead for LLMs when
+       numa control is not used.
    | *Workaround:*
    |   The behavior is expected but stream and thread configuration may be used to include cores
        from all sockets.
