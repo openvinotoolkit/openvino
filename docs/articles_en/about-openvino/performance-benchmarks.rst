@@ -64,7 +64,7 @@ implemented in your solutions. Click the buttons below to see the chosen benchma
          :outline:
          :expand:
 
-         :material-regular:`bar_chart;1.4em` OVMS for GenAI
+         :material-regular:`bar_chart;1.4em` OVMS for GenAI (coming soon)
 
 
 
@@ -132,21 +132,21 @@ For a listing of all platforms and configurations used for testing, refer to the
 
    .. grid-item::
 
-      .. button-link:: ../_static/benchmarks_files/OV-2024.4-platform_list.pdf
+      .. button-link:: ../_static/benchmarks_files/OV-2024.5-platform_list.pdf
          :color: primary
          :outline:
          :expand:
 
          :material-regular:`download;1.5em` Click for Hardware Platforms [PDF]
 
-      .. button-link:: ../_static/benchmarks_files/OV-2024.4-system-info-detailed.xlsx
+      .. button-link:: ../_static/benchmarks_files/OV-2024.5-system-info-detailed.xlsx
          :color: primary
          :outline:
          :expand:
 
          :material-regular:`download;1.5em` Click for Configuration Details [XLSX]
 
-      .. button-link:: ../_static/benchmarks_files/OV-2024.4-Performance-Data.xlsx
+      .. button-link:: ../_static/benchmarks_files/OV-2024.5-Performance-Data.xlsx
          :color: primary
          :outline:
          :expand:
