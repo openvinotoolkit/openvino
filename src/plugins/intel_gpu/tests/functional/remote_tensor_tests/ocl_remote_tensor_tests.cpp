@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#ifdef OV_GPU_WITH_OCL_RT
+
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -2873,3 +2875,5 @@ TEST(RemoteTensor, smoke_CanSetRoiRemoteTensor) {
 
     compare_tensors(output_tensor_copy_0, output_tensor_copy_1);
 }
+
+#endif  // OV_GPU_WITH_OCL_RT

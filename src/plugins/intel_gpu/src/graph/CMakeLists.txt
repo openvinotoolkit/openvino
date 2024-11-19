@@ -60,6 +60,7 @@ if(COMMAND add_cpplint_target)
 endif()
 
 ov_set_threading_interface_for(${TARGET_NAME})
+ov_gpu_set_runtime_interface_for(${TARGET_NAME})
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 

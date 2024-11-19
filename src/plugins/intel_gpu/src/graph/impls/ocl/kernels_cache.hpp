@@ -113,7 +113,7 @@ public:
                            uint32_t prog_id,
                            std::shared_ptr<ov::threading::ITaskExecutor> task_executor = nullptr,
                            const std::map<std::string, std::string>& batch_headers = {});
-    kernel::ptr get_kernel_from_cached_kernels(std::string id) const;
+    kernel::ptr get_kernel_from_cached_kernels(std::string id, const engine& e) const;
     std::vector<kernel::ptr> get_kernels(const kernel_impl_params& params) const;
 
     void set_kernels_reuse(bool reuse_kernels) { _reuse_kernels = reuse_kernels; }

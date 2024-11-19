@@ -76,6 +76,8 @@ struct device_info {
     bool supports_imad;                         ///< Does engine support int8 mad.
     bool supports_immad;                        ///< Does engine support int8 multi mad.
 
+    bool supports_mutable_command_list;         ///< Does the target runtime/device support mutable command list feature
+
     bool supports_usm;                          ///< Does engine support unified shared memory.
     bool has_separate_cache;                    ///< Does the target hardware has separate cache for usm_device and usm_host
 
@@ -96,6 +98,9 @@ struct device_info {
     uint32_t num_eus_per_sub_slice;             ///< Number of execution units per subslice
     uint32_t num_threads_per_eu;                ///< Number of hardware threads per execution unit
     uint32_t num_ccs;                           ///< Number of compute command streamers
+
+    uint64_t timer_resolution;                  ///< Resolution of device timer used for profiling in cycles/sec
+    uint32_t kernel_timestamp_valid_bits;       ///< Number of valid bits in the kernel timestamp values
 
     ov::device::UUID uuid;                      ///< UUID of the gpu device
     ov::device::LUID luid;                      ///< LUID of the gpu device

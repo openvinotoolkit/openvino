@@ -8,6 +8,7 @@
 # define NOMINMAX
 #endif
 
+#include "intel_gpu/runtime/engine_configuration.hpp"
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 
@@ -19,10 +20,29 @@
 #include <string>
 #include <map>
 #include <memory>
-#include <atomic>
 
 namespace ov {
 namespace intel_gpu {
+
+inline std::pair<cldnn::engine_types, cldnn::runtime_types> get_device_query_params() {
+    #ifdef OV_GPU_WITH_ZE_RT
+        auto runtime_type = cldnn::runtime_types::ze;
+        #ifdef OV_GPU_WITH_SYCL
+            auto engine_type = cldnn::engine_types::sycl;
+        #else
+            auto engine_type = cldnn::engine_types::ze;
+        #endif
+    #else
+        auto runtime_type = cldnn::runtime_types::ocl;
+        #ifdef OV_GPU_WITH_SYCL
+            auto engine_type = cldnn::engine_types::sycl;
+        #else
+            auto engine_type = cldnn::engine_types::ocl;
+        #endif
+    #endif
+
+    return {engine_type, runtime_type};
+}
 
 class RemoteContextImpl : public ov::IRemoteContext {
 public:
@@ -59,7 +79,11 @@ private:
     ov::intel_gpu::gpu_handle_param m_va_display = nullptr;
     ov::intel_gpu::gpu_handle_param m_external_queue = nullptr;
 
+#ifdef OV_GPU_WITH_ZE_RT
+    ContextType m_type = ContextType::ZE;
+#else
     ContextType m_type = ContextType::OCL;
+#endif
     std::string m_device_name = "";
     static const size_t cache_capacity = 100;
     cldnn::LruCache<size_t, cldnn::memory::ptr> m_memory_cache = cldnn::LruCache<size_t, cldnn::memory::ptr>(cache_capacity);

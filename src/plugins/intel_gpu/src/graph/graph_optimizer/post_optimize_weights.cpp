@@ -9,6 +9,7 @@
 #include "convolution_inst.h"
 #include "deconvolution_inst.h"
 #include "fully_connected_inst.h"
+#include "reorder_inst.h"
 #include "intel_gpu/runtime/format.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "graph/impls/onednn/utils.hpp"

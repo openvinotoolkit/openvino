@@ -10,6 +10,7 @@
 #include "data_inst.h"
 #include "eltwise_inst.h"
 #include "mutable_data_inst.h"
+#include "reorder_inst.h"
 #include <vector>
 #include <memory>
 
