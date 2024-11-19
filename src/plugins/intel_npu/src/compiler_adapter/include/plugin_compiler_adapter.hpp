@@ -11,7 +11,7 @@
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/runtime/so_ptr.hpp"
-#include "ze_graph_ext_wrappers_interface.hpp"
+#include "ze_graph_ext_wrappers.hpp"
 
 namespace intel_npu {
 
@@ -28,7 +28,7 @@ public:
 private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
 
-    std::shared_ptr<ZeGraphExtWrappersInterface> _zeGraphExt;
+    std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
     ov::SoPtr<ICompiler> _compiler;
 
     Logger _logger;
