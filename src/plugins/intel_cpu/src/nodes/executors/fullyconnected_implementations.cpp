@@ -70,6 +70,7 @@ static const TypeMapping dnnlFCTypeMapping {
     // quantization configuration
     // int8 inner_product does not support f16 output and bias
     {{_u8 | _i8, _i8, _u8 | _i8 | _i32 | _bf16 | _f32 | _undefined, _u8 | _i8 | _i32 | _bf16 | _f32}, pt(bypass(), bypass(), bypass(),  bypass())},
+    {{_u8 | _i8, _i8, _f16, _u8 | _i8 | _i32 | _bf16 | _f32}, pt(bypass(), bypass(), just<f32>(), bypass())},
     {{_u8 | _i8, _i8, _any, _any}, pt(bypass(), bypass(), just<f32>(), just<f32>())},
     // compresses int weights (@todo more strict requrements for output precision?)
     {{_bf16, _u8 | _i8 | _nf4 | _u4 | _i4 | _f4e2m1, _any, _any},       pt(bypass(), bypass(), use<0>(), use<0>()),
