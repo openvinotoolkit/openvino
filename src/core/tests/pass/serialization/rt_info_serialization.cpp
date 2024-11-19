@@ -4,6 +4,9 @@
 
 #include <gtest/gtest.h>
 
+#include <iostream>
+#include <sstream>
+
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_common.hpp"
@@ -300,14 +303,8 @@ TEST(OvSerializationTests, SerializeRawMeta) {
     }
 }
 
-#include <iostream>
-#include <sstream>
-
-using namespace ov;
-using ov::op::v0::Abs;
-using ov::op::v0::Parameter;
-using ov::op::v0::Result;
-using ov::op::v1::Add;
+namespace ov {
+namespace test {
 
 TEST(RTInfoSerialization, custom_info) {
     std::string ref_ir_xml = R"V0G0N(<?xml version="1.0"?>
@@ -388,10 +385,10 @@ TEST(RTInfoSerialization, custom_info) {
 </net>
 )V0G0N";
 
-    const auto data = std::make_shared<Parameter>(element::Type_t::f32, Shape{10, 10});
+    const auto data = std::make_shared<op::v0::Parameter>(element::Type_t::f32, Shape{10, 10});
     const auto one = std::make_shared<op::v0::Constant>(element::f32, Shape{1}, std::vector<float>{1.f});
-    const auto add = std::make_shared<Add>(data, one);
-    const auto result = std::make_shared<Result>(add);
+    const auto add = std::make_shared<op::v1::Add>(data, one);
+    const auto result = std::make_shared<op::v0::Result>(add);
 
     const auto add_info = [](const std::shared_ptr<Node>& node, const std::string& value) {
         const_cast<std::string&>(node->get_name()) = "node_" + value;
@@ -461,9 +458,9 @@ TEST(RTInfoSerialization, AnyMap_info) {
 </net>
 )V0G0N";
 
-    const auto data = std::make_shared<Parameter>(element::Type_t::f64, Shape{111});
-    const auto abs = std::make_shared<Abs>(data);
-    const auto result = std::make_shared<Result>(abs);
+    const auto data = std::make_shared<op::v0::Parameter>(element::Type_t::f64, Shape{111});
+    const auto abs = std::make_shared<op::v0::Abs>(data);
+    const auto result = std::make_shared<op::v0::Result>(abs);
 
     const_cast<std::string&>(data->get_name()) = "data";
     const_cast<std::string&>(abs->get_name()) = "abs";
@@ -480,3 +477,5 @@ TEST(RTInfoSerialization, AnyMap_info) {
     EXPECT_NO_THROW((ov::pass::Serialize{model_ss, weights_ss}.run_on_model(model)));
     EXPECT_EQ(ref_ir_xml.compare(model_ss.str()), 0);
 }
+}  // namespace test
+}  // namespace ov

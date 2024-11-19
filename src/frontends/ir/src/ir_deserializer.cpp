@@ -826,7 +826,7 @@ void set_custom_rt_info(const pugi::xml_node& rt_attrs, ov::AnyMap& rt_info) {
                     rt_info.emplace(custom_name, custom_value);
                 } else {
                     rt_info.emplace(custom_name, ov::AnyMap{});
-                    auto& nested = rt_info.at(custom_name).as<ov::AnyMap>();
+                    auto& nested = rt_info[custom_name].as<ov::AnyMap>();
                     set_custom_rt_info(item, nested);
                 }
             }
