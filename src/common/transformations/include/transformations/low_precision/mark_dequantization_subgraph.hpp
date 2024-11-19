@@ -13,26 +13,67 @@ namespace ov {
 namespace pass {
 /**
  * @ingroup ov_transformation_common_api
- * @brief MarkDequantizationAndDecompression is a set of transformation which mark
- * Dequantization and Decompression patterns with the keep_const_precision, disable_const_folding and
- * dequantization attributes. Also it calls ConstantFolding.
+ *
+ * @brief MarkDequantization matches Dequantization subgraphs and marks Subtract and Multiply nodes
+ * with the dequantization attribute. Also if Convert nodes are part of the subgraph they might be marked
+ * with the disable_const_folding attribute.
+ *
+ * If Convert -> Reshape/Unsqueeze are part of the Dequantization subraph, Convert and Reshape/Unsqueeze
+ * nodes will be swapped to eliminate Reshape/Unsqueeze in the next ConstantFolding.
+ *
+ * Dequantization subgraph may have two forms: with and without Subtract.
+ * ZeroPoints and Scale might be present as subgraphs and include Convert ops.
+ *
+ *     Input       ZeroPoints
+ *       │             │
+ *       ▼             ▼
+ *     Convert   (opt) Reshape/Unsqueeze
+ *           │      │
+ *           ▼      ▼    Scale                        Input     Scale
+ *           Subtract     │                            │         │
+ *                │       ▼                            ▼         ▼
+ *                │     (opt) Reshape/Unsqueeze       Convert  (opt) Reshape/Unsqueeze
+ *                │      │                               │      │
+ *                ▼      ▼                               ▼      ▼
+ *                Multiply                               Multiply
+ *
  */
-class TRANSFORMATIONS_API MarkDequantizationAndDecompression : public ModelPass {
+class TRANSFORMATIONS_API MarkDequantization : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MarkDequantizationAndDecompression", "0");
-    explicit MarkDequantizationAndDecompression(element::TypeVector precisions,
-                                                const bool fold_subtract_const = false,
-                                                const bool fold_multiply_const = true)
-        : m_fold_subtract_const(fold_subtract_const),
-          m_fold_multiply_const(fold_multiply_const),
-          m_precisions(std::move(precisions)) {}
+    OPENVINO_RTTI("MarkDequantization", "0");
+    explicit MarkDequantization(const element::TypeVector& precisions,
+                                bool fold_subtract_const = false,
+                                bool fold_multiply_const = true);
+};
 
-    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
-
-private:
-    bool m_fold_subtract_const = false;
-    bool m_fold_multiply_const = true;
-    element::TypeVector m_precisions;
+/**
+ * @ingroup ov_transformation_common_api
+ *
+ * @brief KeepConstsPrecision matches Dequantization subgraphs and if Input/ZeroPoints/Scale are Constants
+ * they might be marked with keep_const_precision attribute.
+ *
+ * Dequantization subgraph may have two forms: with and without Subtract.
+ *
+ *        Input
+ *          │
+ *          ▼
+ *       Convert  ZeroPoints
+ *           │      │
+ *           ▼      ▼                        Input
+ *           Subtract                          │
+ *                │                            ▼
+ *                │     Scale               Convert   Scale
+ *                │      │                     │      │
+ *                ▼      ▼                     ▼      ▼
+ *                Multiply                     Multiply
+ *
+ */
+class TRANSFORMATIONS_API KeepConstsPrecision : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("KeepConstsPrecision", "0");
+    explicit KeepConstsPrecision(const element::TypeVector& precisions,
+                                 bool fold_subtract_const = false,
+                                 bool fold_multiply_const = true);
 };
 
 }  // namespace pass

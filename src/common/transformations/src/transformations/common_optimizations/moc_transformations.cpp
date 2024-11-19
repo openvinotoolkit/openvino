@@ -134,6 +134,11 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
         manager.register_pass<ov::pass::DisableShapeOfConstantFolding>();
     }
 
+    if (m_low_precision_enabled) {
+        manager.register_pass<ov::pass::MarkDequantization>(
+            element::TypeVector{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4});
+    }
+
     // RemoveConcatZeroDimInput and RemoveMultiSubGraphOpDanglingParamsResults
     // should be performed before first !ConstantFolding! call.
     // The passes can deteach graph branches where zero dimesion is calculated.
@@ -144,12 +149,6 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, RemoveConcatZeroDimInput)
     REGISTER_PASS(manager, EliminateLoopInputsOutputs);
     REGISTER_PASS(manager, Validate)
-
-    if (m_low_precision_enabled) {
-        // includes ConstantFolding call
-        manager.register_pass<ov::pass::MarkDequantizationAndDecompression>(
-            element::TypeVector{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4});
-    }
 
     // todo: ticket 96960
     // the order EliminateDuplicateTIInputs and RemoveMultiSubGraphOpDanglingParamsResults is important

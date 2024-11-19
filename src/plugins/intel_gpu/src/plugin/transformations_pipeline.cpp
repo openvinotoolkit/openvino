@@ -292,7 +292,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
         enableInt8 = config.get_property(ov::intel_gpu::enable_lp_transformations) && is_model_quantized;
         if (enableInt8) {
-            manager.register_pass<ov::pass::MarkDequantizationAndDecompression>(
+            manager.register_pass<ov::pass::MarkDequantization>(
                 std::vector<ov::element::Type>{ ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4 });
         }
 
@@ -372,8 +372,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:
         // it expects to have the same data type for weights and zero points (apply it only for u8 data type, since other compression
         // types are not supported by oneDNN)
-        manager.register_pass<ov::pass::MarkDequantizationAndDecompression>(supported_woq_types, !device_info.supports_immad);
-        pass_config->set_callback<ov::pass::MarkDequantizationAndDecompression>([&](const std::shared_ptr<const ov::Node> node) {
+        manager.register_pass<ov::pass::KeepConstsPrecision>(supported_woq_types, !device_info.supports_immad);
+        pass_config->set_callback<ov::pass::KeepConstsPrecision>([&](const std::shared_ptr<const ov::Node> node) {
             return !is_decompression_multiply(node, device_info.supports_immad);
         });
 
@@ -911,8 +911,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>();
 
         // ZP should not be folded for FC. But still, ZP should be folded for Gather.
-        // Therefore, run MarkDequantizationAndDecompression again to fold ZP constant.
-        manager.register_pass<ov::pass::MarkDequantizationAndDecompression>(supported_woq_types, true);
+        // Therefore, run MarkDequantization again to fold ZP constant.
+        manager.register_pass<ov::pass::MarkDequantization>(supported_woq_types, true);
         if (device_info.supports_immad) {
             if (disable_horizontal_fc_fusion)
                 manager.register_pass<ov::pass::ConstantFolding>();

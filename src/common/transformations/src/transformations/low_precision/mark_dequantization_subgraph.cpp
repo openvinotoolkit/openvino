@@ -22,71 +22,6 @@ using namespace ov;
 using namespace ov::op;
 using namespace ov::pass::pattern;
 
-/**
- * @ingroup ov_transformation_common_api
- *
- * @brief MarkDequantization matches Dequantization subgraphs and marks Subtract and Multiply nodes
- * with the dequantization attribute. Also if Convert nodes are part of the subgraph they might be marked
- * with the disable_const_folding attribute.
- *
- * If Convert -> Reshape/Unsqueeze are part of the Dequantization subraph, Convert and Reshape/Unsqueeze
- * nodes will be swapped to eliminate Reshape/Unsqueeze in the next ConstantFolding.
- *
- * Dequantization subgraph may have two forms: with and without Subtract.
- * ZeroPoints and Scale might be present as subgraphs and include Convert ops.
- *
- *     Input       ZeroPoints
- *       │             │
- *       ▼             ▼
- *     Convert   (opt) Reshape/Unsqueeze
- *           │      │
- *           ▼      ▼    Scale                        Input     Scale
- *           Subtract     │                            │         │
- *                │       ▼                            ▼         ▼
- *                │     (opt) Reshape/Unsqueeze       Convert  (opt) Reshape/Unsqueeze
- *                │      │                               │      │
- *                ▼      ▼                               ▼      ▼
- *                Multiply                               Multiply
- *
- */
-class TRANSFORMATIONS_API MarkDequantization : public ov::pass::MatcherPass {
-public:
-    OPENVINO_RTTI("MarkDequantization", "0");
-    explicit MarkDequantization(const element::TypeVector& precisions,
-                                bool fold_subtract_const,
-                                bool fold_multiply_const);
-};
-
-/**
- * @ingroup ov_transformation_common_api
- *
- * @brief KeepConstsPrecision matches Dequantization subgraphs and if Input/ZeroPoints/Scale are Constants
- * they might be marked with keep_const_precision attribute.
- *
- * Dequantization subgraph may have two forms: with and without Subtract.
- *
- *        Input
- *          │
- *          ▼
- *       Convert  ZeroPoints
- *           │      │
- *           ▼      ▼                        Input
- *           Subtract                          │
- *                │                            ▼
- *                │     Scale               Convert   Scale
- *                │      │                     │      │
- *                ▼      ▼                     ▼      ▼
- *                Multiply                     Multiply
- *
- */
-class TRANSFORMATIONS_API KeepConstsPrecision : public ov::pass::MatcherPass {
-public:
-    OPENVINO_RTTI("KeepConstsPrecision", "0");
-    explicit KeepConstsPrecision(const element::TypeVector& precisions,
-                                 bool fold_subtract_const,
-                                 bool fold_multiply_const);
-};
-
 namespace {
 
 bool check_precision(const ov::element::Type_t type_to_check, const ov::element::TypeVector& precisions) {
@@ -129,9 +64,9 @@ void swap_nodes(const PatternValueMap& pt_map,
 
 }  // namespace
 
-MarkDequantization::MarkDequantization(const element::TypeVector& precisions,
-                                       const bool fold_subtract_const,
-                                       const bool fold_multiply_const) {
+ov::pass::MarkDequantization::MarkDequantization(const element::TypeVector& precisions,
+                                                 const bool fold_subtract_const,
+                                                 const bool fold_multiply_const) {
     // data input:
     auto input_pattern = any_input();
     auto convert_pattern = wrap_type<v0::Convert>({input_pattern}, consumers_count(1));
@@ -191,9 +126,9 @@ MarkDequantization::MarkDequantization(const element::TypeVector& precisions,
     this->register_matcher(m, callback);
 }
 
-KeepConstsPrecision::KeepConstsPrecision(const element::TypeVector& precisions,
-                                         bool fold_subtract_const,
-                                         bool fold_multiply_const) {
+ov::pass::KeepConstsPrecision::KeepConstsPrecision(const element::TypeVector& precisions,
+                                                   bool fold_subtract_const,
+                                                   bool fold_multiply_const) {
     // data input:
     auto input_pattern = any_input();
     auto convert_pattern = wrap_type<v0::Convert>({input_pattern}, consumers_count(1));
@@ -238,18 +173,4 @@ KeepConstsPrecision::KeepConstsPrecision(const element::TypeVector& precisions,
 
     auto m = std::make_shared<Matcher>(multiply_pattern, "KeepConstsPrecision");
     this->register_matcher(m, callback);
-}
-
-bool pass::MarkDequantizationAndDecompression::run_on_model(const std::shared_ptr<ov::Model>& m) {
-    const auto& pass_config = get_pass_config();
-    auto callback = pass_config->get_callback<MarkDequantizationAndDecompression>();
-    pass_config->set_callback<MarkDequantization>(callback);
-    pass_config->set_callback<KeepConstsPrecision>(callback);
-
-    ov::pass::Manager manager(pass_config, "MarkDequantizationAndDecompressionManager");
-    manager.register_pass<DisableDecompressionConvertConstantFolding>();
-    manager.register_pass<MarkDequantization>(m_precisions, m_fold_subtract_const, m_fold_multiply_const);
-    manager.register_pass<ConstantFolding>();
-    manager.register_pass<KeepConstsPrecision>(m_precisions, m_fold_subtract_const, m_fold_multiply_const);
-    return manager.run_passes(m);
 }

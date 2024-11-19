@@ -128,6 +128,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     manager.set_per_pass_validation(false);
 
     using namespace ov::pass;
+    REGISTER_PASS(manager, DisableDecompressionConvertConstantFolding)
     // MOCTransformations contain StridedSliceOptimization transformation,
     // so we must call SliceToStridedSlice before MOCTransformations call
     REGISTER_PASS(manager, SliceToStridedSlice, true)
