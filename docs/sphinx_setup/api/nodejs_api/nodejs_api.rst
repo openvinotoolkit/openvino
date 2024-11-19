@@ -41,6 +41,8 @@ For more details, refer to the
 API Development
 #####################
 
+Get started with OpenVINO Node.js API development :doc:`here <./addon>`.
+
 OpenVINO 2024.4 has introduced the following methods:
 
 - :ref:`Model.clone() <clone>`

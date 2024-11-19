@@ -5,8 +5,8 @@ Interface Tensor
 
    interface Tensor {
        data: SupportedTypedArray;
-       getData(): SupportedTypedArray;
        getElementType(): element;
+       getData(): SupportedTypedArray;
        getShape(): number[];
        getSize(): number;
 
@@ -17,7 +17,7 @@ inference. There are different ways to create a tensor. You can find them
 in :doc:`TensorConstructor <TensorConstructor>` section.
 
 * **Defined in:**
-  `addon.ts:378 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L378>`__
+  `addon.ts:390 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L390>`__
 
 
 Properties
@@ -44,7 +44,7 @@ Properties
    or type of array does not match the tensor.
 
    -  **Defined in:**
-      `addon.ts:391 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L391>`__
+      `addon.ts:403 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L403>`__
 
 
 Methods
@@ -67,7 +67,7 @@ Methods
      element type, e.g. ``Float32Array`` corresponds to float32.
 
    * **Defined in:**
-     `addon.ts:401 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L401>`__
+     `addon.ts:413 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L413>`__
 
 .. rubric:: getElementType
 
@@ -82,7 +82,7 @@ Methods
    * **Returns:** :doc:`element <../enums/element>`
 
    * **Defined in:**
-     `addon.ts:395 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L395>`__
+     `addon.ts:407 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L407>`__
 
 
 .. rubric:: getShape
@@ -98,7 +98,7 @@ Methods
    * **Returns:** number[]
 
    * **Defined in:**
-     `addon.ts:405 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L405>`__
+     `addon.ts:417 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L417>`__
 
 
 .. rubric:: getSize
@@ -114,5 +114,5 @@ Methods
    * **Returns:** number[]
 
    * **Defined in:**
-     `addon.ts:409 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L409>`__
+     `addon.ts:421 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L421>`__
 
