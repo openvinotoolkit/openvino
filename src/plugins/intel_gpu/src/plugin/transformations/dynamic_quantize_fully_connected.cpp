@@ -77,7 +77,6 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         auto dyn_quan = std::make_shared<ov::op::internal::DynamicQuantize>(m_data, config);
         auto optional_w_zp = m_fc->get_input_size() > 4 ? m_fc->get_input_node_shared_ptr(4) : std::make_shared<ov::intel_gpu::op::Placeholder>();
         auto optional_a_zp = config.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Symmetric ? std::make_shared<ov::intel_gpu::op::Placeholder>() : dyn_quan->output(2);
-        std::cout << "activation zp " << optional_a_zp << std::endl;
 
         auto output_type = m_fc->get_output_type();
         if (output_type == ov::element::undefined)
