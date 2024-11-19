@@ -947,10 +947,12 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
         }
         const auto size = dn.attribute("size");
         const auto offset = dn.attribute("offset");
-        if (size && offset) {
+        const auto element_type = dn.attribute("element_type");
+        if (size && offset && element_type) {
             rtInfo[ov::WeightlessCacheAttribute::get_type_info_static()] =
                 ov::WeightlessCacheAttribute(static_cast<size_t>(pugixml::get_uint64_attr(dn, "size")),
-                                             static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset")));
+                                             static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset")),
+                                             ov::element::Type(pugixml::get_str_attr(dn, "element_type")));
         }
     }
 

@@ -74,11 +74,14 @@ void propagate_constants::run(program& p) {
     // replace all constant nodes which are relevant for inference (either used by non-const user or marked as output)
     // with recomputed cldnn::data
     for (auto& cout : to_replace) {
-        auto& id_to_replace = cout.first;
-        auto mem_impl = cout.second;
+        auto& id_to_replace = std::get<0>(cout);
+        auto mem_impl = std::get<1>(cout);
+        auto cache_info = std::get<2>(cout);
+        auto in_layout = std::get<3>(cout);
 
-        auto const_data =
-            std::make_shared<data>("_cldnn_const_prop_" + id_to_replace, mem_impl /* <<< REMOVE ME WHEN POSSIBLE */);
+        auto const_data = std::make_shared<data>("_cldnn_const_prop_" + id_to_replace,
+                                                 mem_impl, /* <<< REMOVE ME WHEN POSSIBLE */
+                                                 cache_info);
         auto& new_node = p.get_or_create(const_data);
         auto& curr_node = p.get_node(id_to_replace);
 
@@ -90,6 +93,26 @@ void propagate_constants::run(program& p) {
                 if (dep_user == &curr_node)
                     p.remove_connection(*dep.first, curr_node);
             }
+        }
+
+        auto is_reorder_with_only_dtype_change = [&](program_node& dst) {
+            if (!in_layout) {
+                return false;
+            }
+            auto& dst_layout = dst.get_output_layout();
+            if (in_layout->data_type == dst_layout.data_type) {
+                return false;
+            }
+
+            return true;
+            auto aux_layout = dst_layout;
+            aux_layout.data_type = in_layout->data_type;
+            return aux_layout == *in_layout.get();
+        };
+        if (is_reorder_with_only_dtype_change(new_node)) {
+            new_node.as<data>().get_primitive()->cache_info->set_new_dtype(new_node.get_output_layout().data_type);
+        } else {
+            new_node.as<data>().get_primitive()->cache_info->invalidate();
         }
 
         curr_node.dependencies.clear();
@@ -113,9 +136,10 @@ bool propagate_constants::has_non_const_user(program_node& node) const {
     return false;
 }
 
-std::list<std::pair<primitive_id, memory::ptr>> propagate_constants::calculate(engine& engine,
-                                                                               const ExecutionConfig& config,
-                                                                               std::shared_ptr<ov::threading::IStreamsExecutor> task_executor) {
+std::list<std::tuple<primitive_id, memory::ptr, std::shared_ptr<weightless_cache_manager>, std::shared_ptr<layout>>>
+propagate_constants::calculate(engine& engine,
+                               const ExecutionConfig& config,
+                               std::shared_ptr<ov::threading::IStreamsExecutor> task_executor) {
     if (!has_non_trivial_constants)
         return {};
 
@@ -123,15 +147,40 @@ std::list<std::pair<primitive_id, memory::ptr>> propagate_constants::calculate(e
     cf_config.set_property(ov::intel_gpu::optimize_data(false));
     cf_config.set_property(ov::intel_gpu::custom_outputs(const_outputs));
     network::ptr net = network::build_network(engine, nodes, cf_config, task_executor, true);
-    for (auto& cin : const_inputs)
+    std::map<primitive_id, std::shared_ptr<weightless_cache_manager>> weightless_cache_map;
+    std::map<primitive_id, std::shared_ptr<layout>> weightless_cache_input_layout_map;
+    for (auto& cin : const_inputs) {
         net->set_input_data(cin->id(), cin->get_attached_memory_ptr());
+
+        auto users = cin->get_users();
+        if (users.size() == 1 && users.front()->is_type<reorder>()) {
+            auto rprim = users.front()->as<reorder>().get_primitive();
+            auto id = rprim->id;
+            auto cache_ptr = cin->as<data>().get_primitive()->cache_info;
+            weightless_cache_map.emplace(id, cache_ptr);
+            weightless_cache_input_layout_map.emplace(id, std::make_shared<layout>(cin->get_output_layout()));
+        }
+    }
 
     net->execute({});
     net->reset_execution(true);  // wait for computations to complete
     auto outputs = net->get_outputs();
 
-    std::list<std::pair<primitive_id, memory::ptr>> ret;
-    for (auto& out : outputs) ret.push_back({out->id(), out->output_memory_ptr()});
+    std::list<std::tuple<primitive_id, memory::ptr, std::shared_ptr<weightless_cache_manager>, std::shared_ptr<layout>>>
+        ret;
+    for (auto& out : outputs) {
+        std::shared_ptr<weightless_cache_manager> cache_ptr = nullptr;
+        std::shared_ptr<layout> in_layout = nullptr;
+        auto it = weightless_cache_map.find(out->id());
+        if (it != weightless_cache_map.end()) {
+            cache_ptr = it->second;
+        }
+        auto layout_it = weightless_cache_input_layout_map.find(out->id());
+        if (layout_it != weightless_cache_input_layout_map.end()) {
+            in_layout = layout_it->second;
+        }
+        ret.push_back({out->id(), out->output_memory_ptr(), cache_ptr, in_layout});
+    }
 
     return ret;
 }

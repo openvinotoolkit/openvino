@@ -31,6 +31,7 @@ public:
     virtual ~RuntimeAttribute() = default;
     virtual bool is_copyable() const;
     virtual bool is_copyable(const std::shared_ptr<Node>& to) const;
+    virtual bool is_copyable(const std::shared_ptr<Node>& from, const std::shared_ptr<Node>& to) const;
     virtual Any init(const std::shared_ptr<Node>& node) const;
     virtual Any merge(const ov::NodeVector& nodes) const;
     virtual Any merge(const ov::OutputVector& outputs) const;

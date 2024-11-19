@@ -32,7 +32,7 @@ std::unordered_map<std::string, std::vector<ov::Any>> get_copyable_attrs(const o
         for (const auto& item : node->get_rt_info()) {
             bool copy = item.first != "opset";
             if (item.second.is<ov::RuntimeAttribute>()) {
-                copy = copy && item.second.as<ov::RuntimeAttribute>().is_copyable(to);
+                copy = copy && item.second.as<ov::RuntimeAttribute>().is_copyable(node, to);
             }
             if (copy) {
                 attrs[item.first].push_back(item.second);

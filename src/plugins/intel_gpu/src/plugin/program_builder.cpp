@@ -8,9 +8,11 @@
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/op/lstm_cell.hpp"
 #include "openvino/op/loop.hpp"
+#include "transformations/rt_info/original_precision_attribute.hpp"
 
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
@@ -308,11 +310,14 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
     if (this->m_config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE) {
         if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
             auto rt_info = op.get_rt_info();
+
             auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
             if (weightless_cache_attr != rt_info.end()) {
-                data_prim->bin_offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
-                data_prim->original_size =
-                    weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().original_size;
+                auto& attr = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>();
+                data_prim->cache_info->set_constant_info(attr.bin_offset,
+                                                         attr.original_size,
+                                                         attr.original_dtype,
+                                                         op.get_element_type());
             }
         }
     }
