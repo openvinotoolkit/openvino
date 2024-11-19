@@ -553,6 +553,13 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_stream,
                                                          const ov::AnyMap& config) const {
+    return import_model(model_stream, nullptr, config);
+}
+
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_stream,
+                                                         std::shared_ptr<ov::AlignedBuffer> model_buffer,
+                                                         const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
 
     CacheDecrypt decrypt{ codec_xor };
@@ -565,6 +572,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
 
     ModelDeserializer deserializer(
         model_stream,
+        model_buffer,
         [this](const std::shared_ptr<ov::AlignedBuffer>& model, const std::shared_ptr<ov::AlignedBuffer>& weights) {
             return get_core()->read_model(model, weights);
         },

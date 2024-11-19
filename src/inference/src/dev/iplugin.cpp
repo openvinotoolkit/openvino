@@ -57,6 +57,19 @@ const std::string& ov::IPlugin::get_device_name() const {
     return m_plugin_name;
 }
 
+std::shared_ptr<ov::ICompiledModel> ov::IPlugin::import_model(std::istream& model,
+                                                              std::shared_ptr<ov::AlignedBuffer> model_buffer,
+                                                              const ov::AnyMap& properties) const{
+    OPENVINO_THROW_NOT_IMPLEMENTED("This method is not implemented");
+}
+
+std::shared_ptr<ov::ICompiledModel> ov::IPlugin::import_model(std::istream& model,
+                                                              std::shared_ptr<ov::AlignedBuffer> model_buffer,
+                                                              const ov::SoPtr<ov::IRemoteContext>& context,
+                                                              const ov::AnyMap& properties) const{
+    OPENVINO_THROW_NOT_IMPLEMENTED("This method is not implemented");
+}
+
 void ov::IPlugin::set_core(const std::weak_ptr<ov::ICore>& core) {
     OPENVINO_ASSERT(!core.expired());
     m_core = core;
