@@ -94,6 +94,7 @@
 #include "transformations/op_conversions/convert_topk3.hpp"
 #include "transformations/op_conversions/convert_topk11_downgrade.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
+#include "transformations/op_conversions/convert_convertlike.hpp"
 #include "transformations/opset_conversions/convert_opset2_to_opset1.hpp"
 #include "transformations/opset_conversions/convert_opset3_to_opset2.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
@@ -688,7 +689,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompression);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
     CPU_REGISTER_PASS_COMMON(manager, ov::intel_cpu::StatefulSDPAFusion);
-    CPU_REGISTER_PASS_X64(manager, ov::intel_cpu::SDPAFuseTransposeReshape);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::LoraSubgraphFusion);
 
     manager.run_passes(model);
@@ -697,6 +697,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // fuse special patterns
     ov::pass::Manager sdpa_manager("CPU:SDPA");
     CPU_REGISTER_PASS_COMMON(sdpa_manager, ov::pass::ScaledDotProductAttentionDecomposition);
+    CPU_REGISTER_PASS_COMMON(sdpa_manager, ov::pass::ConvertConvertLike);
+    CPU_REGISTER_PASS_X64(sdpa_manager, ov::intel_cpu::SDPAFuseTransposeReshape);
 
     sdpa_manager.run_passes(model);
 }
