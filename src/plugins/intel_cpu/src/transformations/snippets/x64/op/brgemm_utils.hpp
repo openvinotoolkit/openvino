@@ -57,11 +57,11 @@ T compute_LDB(T n_block, const ov::element::Type& precision) {
            std::max(n_block, static_cast<T>(compute_inner_n_block(precision)));
 }
 /**
- * @brief Retrieves the expression pointer for the brgemm_copy_b emitter corresponding to the given BrgemmCPU expression.
+ * @brief Retrieves the expression pointer for the brgemm_copy_b expression corresponding to the given BrgemmCPU expression.
  * @param brgemm_expr The expression pointer for the BrgemmCPU operation.
  * @return The expression pointer for the BrgemmCopyB operation.
  */
-const snippets::lowered::ExpressionPtr get_copy_b_expr(const snippets::lowered::ExpressionPtr& brgemm_expr);
+snippets::lowered::ExpressionPtr get_copy_b_expr(const snippets::lowered::ExpressionPtr& brgemm_expr);
 }   // namespace repacking
 }   // namespace brgemm_utils
 }   // namespace intel_cpu

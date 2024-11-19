@@ -87,7 +87,7 @@ size_t compute_inner_n_block(const ov::element::Type& precision) {
     }
 }
 
-const ov::snippets::lowered::ExpressionPtr get_copy_b_expr(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) {
+ov::snippets::lowered::ExpressionPtr get_copy_b_expr(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) {
     OPENVINO_ASSERT(ov::is_type<BrgemmCPU>(brgemm_expr->get_node()), "get_copy_b_expr must be called only for BrgemmCPU node");
     const auto b_input_expr = brgemm_expr->get_input_port_connector(1)->get_source().get_expr();
     if (ov::is_type<BrgemmCopyB>(b_input_expr->get_node())) {

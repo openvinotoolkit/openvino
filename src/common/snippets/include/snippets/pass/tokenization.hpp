@@ -69,7 +69,7 @@ public:
                bool dyn_mha_token, std::set<size_t> mha_transpose_ranks, ov::pass::param_callback mha_tokenize_mm_b_input_callback = nullptr)
             : m_concurrency(concurrency), m_data_ptr_gpr_count(data_ptr_gpr_count), m_split_m_dimension(split_m_dimension),
               m_mha_token_enable_transpose_on_output(enable_transpose_on_output), m_is_dynamic_mha_token_enabled(dyn_mha_token),
-              m_mha_supported_transpose_ranks(std::move(mha_transpose_ranks)), m_mha_tokenize_mm_b_input_callback(mha_tokenize_mm_b_input_callback) {
+              m_mha_supported_transpose_ranks(std::move(mha_transpose_ranks)), m_mha_tokenize_mm_b_input_callback(std::move(mha_tokenize_mm_b_input_callback)) {
             OPENVINO_ASSERT(concurrency > 0, "Concurrency should be greater than 0");
             OPENVINO_ASSERT(data_ptr_gpr_count > 0, "data_ptr_gpr_count should be greater than 0");
         }

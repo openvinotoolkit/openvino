@@ -118,7 +118,7 @@ public:
     static UnifiedLoopInfoRtParams get_loop_runtime_params(const lowered::UnifiedLoopInfoPtr& unified_loop_info);
     using LoopInfoRuntimeParamsMap = std::unordered_map<lowered::UnifiedLoopInfoPtr, UnifiedLoopInfoRtParams>;
     /**
-     * @brief Update Loop informations in LinearIR: Unified and ExpandedLoopInfo
+     * @brief Update Loop information in LinearIR: Unified and ExpandedLoopInfo
      * @param linear_ir LinearIR
      */
     static void update_loop_info(const lowered::LinearIRCPtr& linear_ir);
