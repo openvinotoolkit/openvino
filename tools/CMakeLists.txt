@@ -5,10 +5,6 @@
 # Python tools
 #
 
-# MO
-
-add_subdirectory(mo)
-
 if(ENABLE_PYTHON)
     # Benchmark Tool
     add_subdirectory(benchmark_tool)
