@@ -297,9 +297,9 @@ std::vector<CPUSpecificParams> filterCPUInfoForDeviceSupportBrdgmm(std::vector<C
     auto supportConfigure = CPUTestUtils::filterCPUInfoForDevice(CPUParams);
     if (supportConfigure.size() > 1) {
         auto compare = [](const CPUSpecificParams & a, const CPUSpecificParams & b) -> bool {
-            const int selectedTypeIndex = 3;
             const std::vector<std::string> typeVecotr = {"avx2", "avx512"};
-            auto getScore = [&typeVecotr, &selectedTypeIndex](const CPUSpecificParams & param)->int {
+            auto getScore = [&typeVecotr](const CPUSpecificParams & param)->int {
+                const int selectedTypeIndex = 3;
                 int score = 0;
                 auto selectedTypeStr = std::get<selectedTypeIndex>(param);
                 for (size_t i = 0; i <= typeVecotr.size(); i++) {
