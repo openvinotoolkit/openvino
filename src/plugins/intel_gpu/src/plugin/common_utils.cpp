@@ -236,6 +236,7 @@ void convert_and_copy(const ov::ITensor* src, ov::ITensor* dst, const cldnn::str
         tmp_tensor = ov::Tensor(dst_et, src->get_shape());
         ::convert_and_copy(src_ptr, src_et, tmp_tensor.data(), dst_et, size, cldnn::layout({}, ov::element::undefined, cldnn::format::bfyx, cldnn::padding()));
         remote->copy_from(get_tensor_impl(tmp_tensor)._ptr);
+        return;
     } else {
         dst_ptr = dst->data();
     }
