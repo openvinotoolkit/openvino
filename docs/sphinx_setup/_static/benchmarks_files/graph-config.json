@@ -7,6 +7,9 @@
         "BF16": "bf16",
         "FP32_OV": "fp32_ov",
         "FP32_OVMS": "fp32_ovms",
+        "TOKEN_INT4": "token_int4",
+        "TOKEN_INT8": "token_int8",
+        "TOKEN_FP16": "token_fp16",
         "INT8_OV": "int8_ov",
         "INT8_OVMS": "int8_ovms",
         "THROUGHPUT": "Throughput",
@@ -72,6 +75,21 @@
             "data": null,
             "color": "#00536a",
             "label": "INT8 OVMS"
+        },
+        "token_int4": {
+            "data": null,
+            "color": "#00536a",
+            "label": "T INT4"
+        },
+        "token_int8": {
+            "data": null,
+            "color": "#00636a",
+            "label": "T INT8"
+        },
+        "token_fp16": {
+            "data": null,
+            "color": "#00736a",
+            "label": "T INT16"
         },
         "Vllm": {
             "Latency": {
