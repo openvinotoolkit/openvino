@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "emitters/snippets/external_repacking_adjuster.hpp"
+#include "external_repacking_adjuster.hpp"
 
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 #include "memory_desc/cpu_blocked_memory_desc.h"
+#include "snippets/itt.hpp"
 #include "snippets/utils/utils.hpp"
-
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
@@ -24,35 +24,40 @@ BrgemmExternalRepackingAdjuster::BrgemmExternalRepackingAdjuster(const ov::snipp
         const bool brgemm_with_extracted_repacking =
             std::any_of(consumers.begin(), consumers.end(), [](const ov::snippets::lowered::ExpressionPort& port) {
                 auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(port.get_expr()->get_node());
-                return port.get_index() == 1 && brgemm && brgemm_utils::with_repacking(brgemm->get_type());
+                return brgemm && brgemm_utils::with_repacking(brgemm->get_type()) && port.get_index() == 1;
             });
         if (brgemm_with_extracted_repacking) {
             m_param_idces_with_external_repacking.insert(i);
+            // Ticket 157339: Support non-planar layout
+            OPENVINO_ASSERT(ov::snippets::utils::is_planar_layout(configurator->get_io_descs()[i]->get_layout()),
+                            "Non-planar layout is not supported for external repacking");
         }
     }
 }
 
 bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& linear_ir) {
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::BrgemmExternalRepackingAdjuster")
     if (m_param_idces_with_external_repacking.empty())
         return false;
 
     const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(m_configurator->get_config());
     auto& optimal_descs = cpu_config->m_in_requested_descs;
     for (const auto& i : m_param_idces_with_external_repacking) {
-        const auto& shape = m_configurator->get_config()->shapes[i];
+        const auto& shape = cpu_config->io_shapes[i];
         const auto& K = *++shape.rbegin();
         const auto& N = *shape.rbegin();
 
         const auto& precision = linear_ir.get_parameters()[i]->get_node()->get_output_element_type(0);
         const auto vnni_factor = brgemm_utils::compute_vnni_factor(precision);
+        const size_t brgemm_kernel_rank = 2;
         // Firstly, batch dims are set
-        VectorDims requested_blocked_shape(shape.begin(), shape.end() - cpu_config->tile_rank);
+        VectorDims requested_blocked_shape(shape.begin(), shape.end() - brgemm_kernel_rank);
         // Then, the blocked dims are formed
         requested_blocked_shape.insert(
             requested_blocked_shape.end(),
             {snippets::utils::div_up(K, vnni_factor), std::max(N, brgemm_utils::repacking::compute_inner_n_block(precision)), vnni_factor});
 
-        VectorDims requested_order(shape.size() - cpu_config->tile_rank);
+        VectorDims requested_order(shape.size() - brgemm_kernel_rank);
         std::iota(requested_order.begin(), requested_order.end(), 0);
         const auto last_idx = shape.size() - 1;
         requested_order.insert(requested_order.end(), {last_idx - 1, last_idx, last_idx - 1});
@@ -62,8 +67,6 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
         ov::snippets::VectorDims shape_for_offset(cpu_config->tensor_rank - shape.size(), 1);
         shape_for_offset.insert(shape_for_offset.end(), requested_blocked_shape.begin(), requested_blocked_shape.end());
         m_configurator->compute_offsets(shape_for_offset, i, 0);
-        // Ticket 157339: Support non-planar layout
-        OPENVINO_ASSERT(ov::snippets::utils::is_planar_layout(m_configurator->get_config()->layouts[i]));
     }
     return true;
 }

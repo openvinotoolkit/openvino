@@ -8,7 +8,6 @@
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/pass/pass.hpp"
-#include "snippets/runtime_optimizer.hpp"
 
 namespace ov {
 namespace snippets {
@@ -45,15 +44,15 @@ public:
     size_t tensor_rank = 0;
     size_t tile_rank = 0;
 
-    std::vector<ov::snippets::VectorDims> shapes = {};
-    std::vector<ov::snippets::VectorDims> layouts = {};
+    std::vector<ov::snippets::VectorDims> io_shapes = {};
+    std::vector<ov::snippets::VectorDims> io_layouts = {};
     std::vector<ov::snippets::VectorDims> io_data_offsets = {};
     ov::snippets::VectorDims master_shape = {};
 
     size_t buffer_scratchpad_size = 0;
     std::vector<size_t> buffer_cluster_offsets {};
     KernelExecutorTablePtr kernel_executor_table = std::make_shared<ov::snippets::KernelExecutorTable>();
-    std::vector<ov::snippets::VectorDims> m_latest_shapes = {};
+    std::vector<ov::snippets::VectorDims> latest_shapes = {};
 };
 
 /**
@@ -204,8 +203,8 @@ protected:
     // - Final optimizers must be called after all other RuntimeConfigurator's update methods
     // When all updates will be rewritten on PassPipeline, PositionedPasses can be used to precisely define the place of
     // the additional optimizers
-    lowered::pass::PassPipeline m_intermediate_runtime_optimizers;
-    lowered::pass::PassPipeline m_final_runtime_optimizers;
+    lowered::pass::PassPipeline m_intermediate_optimizers;
+    lowered::pass::PassPipeline m_final_optimizers;
 };
 
 } // namespace snippets

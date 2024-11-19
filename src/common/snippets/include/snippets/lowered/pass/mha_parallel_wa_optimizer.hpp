@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "runtime_optimizer.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
+#include "snippets/lowered/pass/runtime_optimizer.hpp"
 
 namespace ov {
 namespace snippets {
@@ -37,13 +37,13 @@ private:
         const lowered::LinearIRCPtr& linear_ir,
         const std::unordered_set<size_t>& unsqueezed_params);
 
-    std::vector<lowered::ExpandedLoopInfoPtr> loops_to_split{};
-    std::unordered_set<size_t> unsqueezed_params{};
-    std::vector<std::vector<size_t>> optimized_layouts{};
-    std::vector<size_t> m_dim_idces{};
-    size_t concurrency = 0;
+    std::vector<lowered::ExpandedLoopInfoPtr> m_loops_to_split{};
+    std::unordered_set<size_t> m_unsqueezed_params{};
+    std::vector<std::vector<size_t>> m_optimized_layouts{};
+    std::vector<size_t> m_dim_M_idces{};
+    size_t m_concurrency = 0;
 
-    static const size_t m_dim_idx;
+    static const size_t m_dim_M_idx;
 };
 
 } // namespace pass

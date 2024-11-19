@@ -126,8 +126,7 @@ public:
                      const std::vector<ptrdiff_t>& start_offset_in,
                      const std::vector<ptrdiff_t>& start_offset_out,
                      const std::shared_ptr<CPURuntimeConfig>& snippet_config,
-                     const BufferScratchpadAllocator& allocator,
-                     const dnnl::engine& engine);
+                     const BufferScratchpadAllocator& allocator);
     virtual ~SubgraphExecutor() = default;
 
     void execute(dnnl::stream strm, std::vector<MemoryPtr>& inMemPtrs, std::vector<MemoryPtr>& outMemPtrs);
@@ -154,6 +153,7 @@ protected:
     // Buffer scratchpad
     MemoryPtr m_buffer_scratchpad = nullptr;
     size_t m_buffer_scratchpad_size = 0;
+    size_t m_internal_buffer_size = 0;
 
     const size_t rank6D = 6;
 

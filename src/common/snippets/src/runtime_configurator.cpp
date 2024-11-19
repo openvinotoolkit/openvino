@@ -7,7 +7,7 @@
 #include "snippets/lowered/pass/compute_buffer_allocation_size.hpp"
 #include "snippets/lowered/pass/init_loops.hpp"
 #include "snippets/lowered/pass/insert_specific_iterations.hpp"
-#include "snippets/mha_parallel_wa_optimizer.hpp"
+#include "snippets/lowered/pass/mha_parallel_wa_optimizer.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/utils/loop_utils.hpp"
 #include "snippets/utils/utils.hpp"
@@ -60,21 +60,21 @@ void RuntimeConfigurator::initialization(const lowered::LinearIRCPtr& linear_ir)
     init_buffer_info(linear_ir);
 
     OPENVINO_ASSERT(m_io_num > 0, "LinearIR must have parameters and results");
-    m_config->m_latest_shapes.resize(m_io_num);
+    m_config->latest_shapes.resize(m_io_num);
     m_config->io_data_offsets.resize(m_io_num);
     m_config->tile_rank = linear_ir->get_config().m_loop_depth;
 
     if (linear_ir->is_dynamic())
-        m_intermediate_runtime_optimizers.register_pass<ov::snippets::lowered::pass::MHAParallelWAOptimizer>(linear_ir, this);
+        m_intermediate_optimizers.register_pass<ov::snippets::lowered::pass::MHAParallelWAOptimizer>(linear_ir, this);
 }
 
 void RuntimeConfigurator::update(const lowered::LinearIRCPtr& linear_ir) {
     m_config->master_shape = linear_ir->get_master_shape();
-    m_config->shapes = extract_shapes();
-    m_config->layouts = extract_layouts();
+    m_config->io_shapes = extract_shapes();
+    m_config->io_layouts = extract_layouts();
     update_loop_info(linear_ir);
 
-    m_intermediate_runtime_optimizers.run(*linear_ir);
+    m_intermediate_optimizers.run(*linear_ir);
 
     update_data_offsets();
 
@@ -82,8 +82,8 @@ void RuntimeConfigurator::update(const lowered::LinearIRCPtr& linear_ir) {
     // because `ComputeAllocationSize` depends on subtensors which are updated in the table
     get_kernel_executor_table()->update_state(linear_ir);
     update_buffer_scratchpad_size(linear_ir);
-    m_final_runtime_optimizers.run(*linear_ir);
-    m_config->m_latest_shapes = std::move(m_config->shapes);
+    m_final_optimizers.run(*linear_ir);
+    m_config->latest_shapes = std::move(m_config->io_shapes);
 }
 
 void RuntimeConfigurator::update_tensor_rank(const ov::snippets::VectorDims& master_shape) {
@@ -261,8 +261,8 @@ void RuntimeConfigurator::update_buffer_scratchpad_size(const lowered::LinearIRC
 }
 
 void RuntimeConfigurator::update_data_offsets() const {
-    const auto& shapes = m_config->shapes;
-    const auto& layouts = m_config->layouts;
+    const auto& shapes = m_config->io_shapes;
+    const auto& layouts = m_config->io_layouts;
     OPENVINO_ASSERT(shapes.size() == m_io_num, "Number of custom shapes must be 0 or be equal to m_io_num");
     OPENVINO_ASSERT(layouts.size() == m_io_num, "Number of custom layouts must be 0 or be equal to m_io_num");
     for (size_t i = 0; i < m_io_num; ++i) {
@@ -276,7 +276,7 @@ void RuntimeConfigurator::update_data_offsets() const {
         //    offsets: s1*s3, s3,       0,  1
         const auto& shape = shapes[i];
         OPENVINO_ASSERT(m_config->tensor_rank >= shape.size(), "Incorrect tensor rank!");
-        if (shape == m_config->m_latest_shapes[i])
+        if (shape == m_config->latest_shapes[i])
             continue;
         if (utils::is_dynamic_vdims(shape))
             return;

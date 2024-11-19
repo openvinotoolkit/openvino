@@ -4,14 +4,13 @@
 
 #pragma once
 
-#include "cpu_runtime_configurator.hpp"
+#include "emitters/snippets/cpu_runtime_configurator.hpp"
+#include "snippets/lowered/pass/runtime_optimizer.hpp"
 #include "snippets/runtime_configurator.hpp"
-#include "snippets/runtime_optimizer.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-class CPURuntimeConfigurator;
 /**
  * @class BrgemmExternalRepackingAdjuster
  * @brief A runtime optimizer that creates the memory descs for BRGEMM inputs which require external repacking.

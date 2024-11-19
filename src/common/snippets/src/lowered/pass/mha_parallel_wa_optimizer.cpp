@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/mha_parallel_wa_optimizer.hpp"
+#include "snippets/lowered/pass/mha_parallel_wa_optimizer.hpp"
 
-#include "snippets/pass/split_dimension_m.hpp"
-#include "snippets/utils/utils.hpp"
-#include "snippets/utils/loop_utils.hpp"
-#include "snippets/lowered/loop_manager.hpp"
+#include "snippets/itt.hpp"
 #include "snippets/lowered/loop_info.hpp"
+#include "snippets/lowered/loop_manager.hpp"
+#include "snippets/pass/split_dimension_m.hpp"
+#include "snippets/utils/loop_utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov {
 namespace snippets {
@@ -16,7 +17,7 @@ namespace lowered {
 namespace pass {
 using namespace ov::snippets::pass;
 
-const size_t MHAParallelWAOptimizer::m_dim_idx = 1;
+const size_t MHAParallelWAOptimizer::m_dim_M_idx = 1;
 
 MHAParallelWAOptimizer::MHAParallelWAOptimizer(const lowered::LinearIRCPtr& linear_ir, RuntimeConfigurator* configurator)
     : lowered::pass::RuntimeOptimizer(configurator) {
@@ -27,30 +28,31 @@ MHAParallelWAOptimizer::MHAParallelWAOptimizer(const lowered::LinearIRCPtr& line
     if (brgemms.empty())
         return;
 
-    concurrency = linear_ir->get_config().m_min_parallel_work_amount;
-    unsqueezed_params = find_unsqueezed_params(linear_ir, brgemms);
-    OPENVINO_ASSERT(!unsqueezed_params.empty(), "unsqueezed_params mustn't be empty after initialization");
-    loops_to_split = find_loops_to_split(linear_ir, unsqueezed_params);
+    m_concurrency = linear_ir->get_config().m_min_parallel_work_amount;
+    m_unsqueezed_params = find_unsqueezed_params(linear_ir, brgemms);
+    OPENVINO_ASSERT(!m_unsqueezed_params.empty(), "unsqueezed_params mustn't be empty after initialization");
+    m_loops_to_split = find_loops_to_split(linear_ir, m_unsqueezed_params);
 
-    m_dim_idces.resize(configurator->get_io_num());
-    optimized_layouts.resize(configurator->get_io_num());
+    m_dim_M_idces.resize(configurator->get_io_num());
+    m_optimized_layouts.resize(configurator->get_io_num());
     for (size_t i = 0; i < configurator->get_io_num(); ++i) {
         const auto& layout = configurator->get_io_descs()[i]->get_layout();
-        const auto dim_idx = i < configurator->get_in_num() ? utils::get_input_dim_idx(layout, m_dim_idx)
-                                                            : utils::get_output_dim_idx(layout, m_dim_idx);
-        m_dim_idces[i] = dim_idx;
+        const auto dim_idx = i < configurator->get_in_num() ? utils::get_input_dim_idx(layout, m_dim_M_idx)
+                                                            : utils::get_output_dim_idx(layout, m_dim_M_idx);
+        m_dim_M_idces[i] = dim_idx;
         const auto m_idx = i < configurator->get_in_num() ? dim_idx : layout.size() - 2;
-        optimized_layouts[i] = SplitDimensionM::get_updated_order(layout, m_idx);
+        m_optimized_layouts[i] = SplitDimensionM::get_updated_order(layout, m_idx);
     }
 }
 
 bool MHAParallelWAOptimizer::run(const lowered::LinearIR& linear_ir) {
-    if (loops_to_split.empty())
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::MHAParallelWAOptimizer")
+    if (m_loops_to_split.empty())
         return false;
 
     const auto& config = m_configurator->get_config();
     size_t new_batch_dim, new_kernel_dim;
-    if (!SplitDimensionM::split(config->master_shape, concurrency, new_batch_dim, new_kernel_dim))
+    if (!SplitDimensionM::split(config->master_shape, m_concurrency, new_batch_dim, new_kernel_dim))
         return false;
     auto& master_shape = config->master_shape;
     *++master_shape.rbegin() = new_kernel_dim;
@@ -73,16 +75,16 @@ bool MHAParallelWAOptimizer::run(const lowered::LinearIR& linear_ir) {
         }
     };
     lowered::LoopInfoSet updated_loops;
-    for (const auto& loop : loops_to_split) {
+    for (const auto& loop : m_loops_to_split) {
         loop->apply(updater, updated_loops);
     }
 
     for (size_t i = 0; i < m_configurator->get_io_num(); ++i) {
-        config->shapes[i] = unsqueezed_params.count(i)
-                        ? SplitDimensionM::unsqueeze_m_dim(config->shapes[i], m_dim_idces[i])
-                        : SplitDimensionM::reshape_m_dim(config->shapes[i], m_dim_idces[i], new_batch_dim, new_kernel_dim);
+        config->io_shapes[i] = m_unsqueezed_params.count(i)
+                        ? SplitDimensionM::unsqueeze_m_dim(config->io_shapes[i], m_dim_M_idces[i])
+                        : SplitDimensionM::reshape_m_dim(config->io_shapes[i], m_dim_M_idces[i], new_batch_dim, new_kernel_dim);
     }
-    config->layouts = optimized_layouts;
+    config->io_layouts = m_optimized_layouts;
     return true;
 }
 
@@ -106,7 +108,7 @@ std::unordered_set<lowered::ExpressionPtr> MHAParallelWAOptimizer::find_applicab
             return false;
         bool loop_by_m = true;
         outermost_loop->iterate_through_ports([&loop_by_m](const lowered::LoopPort& port) {
-            if (port.is_incremented && port.dim_idx != m_dim_idx)
+            if (port.is_incremented && port.dim_idx != m_dim_M_idx)
                 loop_by_m = false;
         });
         return loop_by_m;
@@ -148,7 +150,7 @@ std::vector<lowered::ExpandedLoopInfoPtr> MHAParallelWAOptimizer::find_loops_to_
             prev_loop_idces = loop_idces;
             for (const auto& loop_id : loop_idces) {
                 const auto expanded_loop_info = loop_manager->get_loop_info<lowered::ExpandedLoopInfo>(loop_id);
-                if (expanded_loop_info->get_dim_idx() == m_dim_idx) {
+                if (expanded_loop_info->get_dim_idx() == m_dim_M_idx) {
                     loop_idces_to_split.insert(loop_id);
                 }
             }
