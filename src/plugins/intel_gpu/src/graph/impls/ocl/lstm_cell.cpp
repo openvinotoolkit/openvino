@@ -5,7 +5,7 @@
 #include "primitive_base.hpp"
 
 #include "lstm_cell_inst.h"
-#include "lstm/lstm_cell_kernel_selector.h"
+#include "lstm/lstm_cell_and_seq_kernel_selector.h"
 #include "lstm/lstm_kernel_base.h"
 #include "openvino/op/lstm_cell.hpp"
 #include "lstm_cell.hpp"
@@ -16,7 +16,7 @@ namespace ocl {
 struct lstm_cell_impl : typed_primitive_impl_ocl<lstm_cell> {
     using parent = typed_primitive_impl_ocl<lstm_cell>;
     using parent::parent;
-    using kernel_selector_t = kernel_selector::lstm_cell_kernel_selector;
+    using kernel_selector_t = kernel_selector::lstm_cell_and_seq_kernel_selector;
     using kernel_params_t = kernel_selector::lstm_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::lstm_cell_impl)

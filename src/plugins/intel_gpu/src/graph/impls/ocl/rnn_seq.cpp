@@ -6,7 +6,7 @@
 
 #include "lstm_seq_inst.h"
 #include "rnn_seq.hpp"
-#include "lstm/lstm_seq_kernel_selector.h"
+#include "lstm/lstm_cell_and_seq_kernel_selector.h"
 #include "lstm/lstm_kernel_base.h"
 #include "openvino/op/lstm_sequence.hpp"
 #include "impls/registry/implementation_manager.hpp"
@@ -17,7 +17,7 @@ namespace ocl {
 struct rnn_seq_impl : typed_primitive_impl_ocl<lstm_seq> {
     using parent = typed_primitive_impl_ocl<lstm_seq>;
     using parent::parent;
-    using kernel_selector_t = kernel_selector::lstm_seq_kernel_selector;
+    using kernel_selector_t = kernel_selector::lstm_cell_and_seq_kernel_selector;
     using kernel_params_t = kernel_selector::lstm_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::rnn_seq_impl)
@@ -47,6 +47,7 @@ public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<lstm_seq>();
         auto params = get_default_params<kernel_selector::lstm_params>(impl_param);
+        params.sequential = true;
         for (size_t i = 1; i < impl_param.input_layouts.size(); ++i) {
             params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
         }

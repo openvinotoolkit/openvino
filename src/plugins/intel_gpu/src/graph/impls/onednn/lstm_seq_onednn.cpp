@@ -112,7 +112,7 @@ protected:
         auto weights_shape = impl_params.get_input_layout(layout_nr).get_shape();
         auto target_weights_layout = impl_params.get_input_layout(layout_nr);
         target_weights_layout.format = cldnn::format::bfzyx;
-        auto layout = target_weights_layout.clone_with_other_shape(ov::Shape{weights_shape[0], weights_shape[1], 1, weights_shape[2], weights_shape[3]});
+        auto layout = target_weights_layout.clone_with_other_shape(ov::Shape{weights_shape[0], weights_shape[1], weights_shape[2], 1, 1});
         return layout;
     }
 
@@ -168,11 +168,18 @@ protected:
                         "[GPU] The format kind of the output memory descriptor of onednn lstm_seq cannot be 'any'.");
 
         auto eng = engine.get_onednn_engine();
+        dnnl::rnn_direction lstm_desc_dir;
+        if (direction == ov::op::RecurrentSequenceDirection::FORWARD) {
+            lstm_desc_dir = dnnl::rnn_direction::unidirectional_left2right;
+        } else if (direction == ov::op::RecurrentSequenceDirection::REVERSE) {
+            lstm_desc_dir = dnnl::rnn_direction::unidirectional_right2left;
+        } else {
+            lstm_desc_dir = dnnl::rnn_direction::bidirectional_concat;
+        }
         return std::make_shared<dnnl::lstm_forward::primitive_desc>(
             eng,
             dnnl::prop_kind::forward_inference,
-            direction == ov::op::RecurrentSequenceDirection::FORWARD ? dnnl::rnn_direction::unidirectional_left2right : \
-            dnnl::rnn_direction::unidirectional_right2left,
+            lstm_desc_dir,
             input_md,
             initial_hidden,
             initial_cell,

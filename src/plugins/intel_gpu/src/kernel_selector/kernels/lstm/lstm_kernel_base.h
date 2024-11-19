@@ -24,6 +24,7 @@ struct lstm_params : public base_params {
     lstm_params() : base_params(KernelType::LSTM_SEQ_CELL) {}
     order_type gate_order = offset_iofz;
     float clip = 0;
+    bool sequential = false;
     bool input_forget = false;
     ov::op::RecurrentSequenceDirection direction = ov::op::RecurrentSequenceDirection::FORWARD;
 
@@ -59,8 +60,8 @@ public:
     struct DispatchData : public CommonDispatchData {};
 
 protected:
-    virtual JitConstants GetJitConstants(const lstm_params& params, bool) const;
-    KernelsData GetCommonKernelsData(const Params& params, bool) const;
+    virtual JitConstants GetJitConstants(const lstm_params& params) const;
+    KernelsData GetCommonKernelsData(const Params& params) const;
 
     bool Validate(const Params& p) const override {
         if (p.GetType() != KernelType::LSTM_SEQ_CELL) {

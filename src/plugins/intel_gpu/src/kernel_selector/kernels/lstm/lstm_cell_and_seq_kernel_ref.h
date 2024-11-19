@@ -7,10 +7,10 @@
 #include "lstm_kernel_base.h"
 
 namespace kernel_selector {
-class LSTMSeqKernelRef : public LSTMKernelBase {
+class LSTMCellAndSeqKernelRef : public LSTMKernelBase {
 public:
-    LSTMSeqKernelRef() : LSTMKernelBase("lstm_cell_and_seq_ref") {}
-    virtual ~LSTMSeqKernelRef() {}
+    LSTMCellAndSeqKernelRef() : LSTMKernelBase("lstm_cell_and_seq_ref") {}
+    virtual ~LSTMCellAndSeqKernelRef() {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

@@ -10,24 +10,24 @@ namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(lstm_cell)
 
 layout lstm_cell_inst::calc_output_layout(lstm_cell_node const& node, kernel_impl_params const& impl_param) {
-    auto input_layout = impl_param.get_input_layout(0);
-    auto input_pshape = input_layout.get_partial_shape();
-    auto input_layout_hidden = impl_param.get_input_layout(1);
-    auto input_pshape_hidden = input_layout_hidden.get_partial_shape();
-    auto lstm_batch_size = input_pshape[0];
-    auto lstm_hidden_size = input_pshape_hidden[1];
+    const auto& input_layout = impl_param.get_input_layout(0);
+    const auto& input_pshape = input_layout.get_partial_shape();
+    const auto& input_layout_hidden = impl_param.get_input_layout(1);
+    const auto& input_pshape_hidden = input_layout_hidden.get_partial_shape();
+    const auto& lstm_batch_size = input_pshape[0];
+    const auto& lstm_hidden_size = input_pshape_hidden[1];
 
     return cldnn::layout{ov::PartialShape{lstm_batch_size, lstm_hidden_size}, input_layout.data_type, input_layout.format};
 }
 
 template<typename ShapeType>
 std::vector<layout> lstm_cell_inst::calc_output_layouts(lstm_cell_node const& node, kernel_impl_params const& impl_param) {
-    auto input_layout = impl_param.get_input_layout(0);
-    auto input_pshape = input_layout.get_partial_shape();
-    auto input_layout_hidden = impl_param.get_input_layout(1);
-    auto input_pshape_hidden = input_layout_hidden.get_partial_shape();
-    auto lstm_batch_size = input_pshape[0];
-    auto lstm_hidden_size = input_pshape_hidden[1];
+    const auto& input_layout = impl_param.get_input_layout(0);
+    const auto& input_pshape = input_layout.get_partial_shape();
+    const auto& input_layout_hidden = impl_param.get_input_layout(1);
+    const auto& input_pshape_hidden = input_layout_hidden.get_partial_shape();
+    const auto& lstm_batch_size = input_pshape[0];
+    const auto& lstm_hidden_size = input_pshape_hidden[1];
 
     auto out_layout = cldnn::layout{ShapeType{lstm_batch_size, lstm_hidden_size}, input_layout.data_type, input_layout.format};
     return {out_layout, out_layout};
@@ -36,7 +36,7 @@ std::vector<layout> lstm_cell_inst::calc_output_layouts(lstm_cell_node const& no
 template std::vector<layout> lstm_cell_inst::calc_output_layouts<ov::PartialShape>(lstm_cell_node const& node, const kernel_impl_params& impl_param);
 
 std::string lstm_cell_inst::to_string(lstm_cell_node const& node) {
-    auto desc = node.get_primitive();
+    const auto& desc = node.get_primitive();
     auto node_info = node.desc_to_json();
 
     std::stringstream primitive_description;

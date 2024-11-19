@@ -30,14 +30,17 @@ KERNEL(lstm_cell_and_seq_ref)(
     #else
         const uint real_seq_length = 1;
     #endif
-
+    #if DIRECTION == 2
+    for(uint dir=0;dir<DIRECTION+1;dir++) {
+    #else
+    uint dir = DIRECTION;
+    #endif
     unroll_for(uint i=0;i<real_seq_length;++i){
         #ifdef SEQUENCE
-            #if DIRECTION == 1 //reverse
-                const uint prev_idx = real_seq_length - i;
-            #else
-                const uint prev_idx = i-1;
-            #endif
+            uint prev_idx = i-1;
+            if(dir == 1) {
+               prev_idx = real_seq_length - i;
+            }
             if(i>0){
                 barrier(CLK_LOCAL_MEM_FENCE);
             }
@@ -49,7 +52,6 @@ KERNEL(lstm_cell_and_seq_ref)(
             }
             ACCUMULATOR_TYPE gate_output[GATE_NUM];
             unroll_for(uint k=0;k<GATE_NUM;++k){
-                
                 ACCUMULATOR_TYPE hidden_result = 0;
                 ACCUMULATOR_TYPE input_result = 0;
                 const uint weight_idx = hidden_idx+weight_offsets[k];
@@ -68,15 +70,15 @@ KERNEL(lstm_cell_and_seq_ref)(
                 }
                 
                 unroll_for(uint j=0;j<INPUT_SIZE;++j) {
-                    #if DIRECTION == 1 //reverse
+                    if (dir == 1) { //reverse
                         input_result += x[INPUT0_GET_INDEX_SAFE(b, real_seq_length-1-i, j, 0)]*W[INPUT3_GET_INDEX_SAFE(0, weight_idx, j, 0)];
-                    #else
+                    } else {
                         #ifdef SEQUENCE
                             input_result += x[INPUT0_GET_INDEX_SAFE(b, i, j, 0)]*W[INPUT3_GET_INDEX_SAFE(0, weight_idx, j, 0)];
                         #else
                             input_result += x[INPUT0_GET_INDEX_SAFE(b, j, 0, 0)]*W[INPUT3_GET_INDEX_SAFE(weight_idx, j, 0, 0)];
                         #endif
-                    #endif //DIRECTION == 1 //reverse
+                    }
                 }
                 #ifdef SEQUENCE
                     gate_output[k] = hidden_result + input_result + TO_ACCUMULATOR_TYPE(B[INPUT5_GET_INDEX_SAFE(0, weight_idx, 0, 0)]);
@@ -114,20 +116,34 @@ KERNEL(lstm_cell_and_seq_ref)(
                 const uint cur_history_idx = i;
             #endif
             #ifdef SEQUENCE
-                hidden_state[OUTPUT1_GET_INDEX_SAFE(b, 0, hidden_idx, 0)] = gate_output[3]*ACTIVATION_H(temp_cell_state, ACTIVATION_PARAMS_H);
+                #if DIRECTION == 2
+                    hidden_state[OUTPUT1_GET_INDEX_SAFE(b, dir, hidden_idx, 0)] = gate_output[3]*ACTIVATION_H(temp_cell_state, ACTIVATION_PARAMS_H);
+                #else
+                    hidden_state[OUTPUT1_GET_INDEX_SAFE(b, 0, hidden_idx, 0)] = gate_output[3]*ACTIVATION_H(temp_cell_state, ACTIVATION_PARAMS_H);
+                #endif
             #else
                 hidden_state[OUTPUT_GET_INDEX_SAFE(b, hidden_idx, 0, 0)] = gate_output[3]*ACTIVATION_H(temp_cell_state, ACTIVATION_PARAMS_H);
             #endif
             #ifdef SEQUENCE
-                hidden_history[OUTPUT_GET_INDEX_SAFE(b, 0, cur_history_idx, hidden_idx)] = hidden_state[OUTPUT1_GET_INDEX_SAFE(b, 0, hidden_idx, 0)];
+                #if DIRECTION == 2
+                    hidden_history[OUTPUT_GET_INDEX_SAFE(b, dir, cur_history_idx, hidden_idx)] = hidden_state[OUTPUT1_GET_INDEX_SAFE(b, dir, hidden_idx, 0)];
+                #else // DIRECTION == 2
+                    hidden_history[OUTPUT_GET_INDEX_SAFE(b, 0, cur_history_idx, hidden_idx)] = hidden_state[OUTPUT1_GET_INDEX_SAFE(b, 0, hidden_idx, 0)];
             #endif
             if(i==real_seq_length-1){
                 #ifdef SEQUENCE
-                    cell_state[OUTPUT2_GET_INDEX_SAFE(b, 0, hidden_idx, 0)] = temp_cell_state;
+                    #if DIRECTION == 2
+                        cell_state[OUTPUT2_GET_INDEX_SAFE(b, dir, hidden_idx, 0)] = temp_cell_state;
+                    #else
+                        cell_state[OUTPUT2_GET_INDEX_SAFE(b, 0, hidden_idx, 0)] = temp_cell_state;
+                    #endif
                 #else
                     cell_state[OUTPUT1_GET_INDEX_SAFE(b, hidden_idx, 0, 0)] = temp_cell_state;
                 #endif
             }
         }
     }   
+    #if DIRECTION == 2
+    }
+    #endif   
 }

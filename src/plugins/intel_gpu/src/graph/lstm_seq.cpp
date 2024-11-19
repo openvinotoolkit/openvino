@@ -10,14 +10,14 @@ namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(lstm_seq)
 
 layout lstm_seq_inst::calc_output_layout(lstm_seq_node const& node, kernel_impl_params const& impl_param) {
-    auto desc = impl_param.typed_desc<lstm_seq>();
-    auto input_layout = impl_param.get_input_layout(0);
-    auto input_pshape = input_layout.get_partial_shape();
-    auto input_layout_hidden = impl_param.get_input_layout(1);
-    auto input_pshape_hidden = input_layout_hidden.get_partial_shape();
-    auto lstm_batch_size = input_pshape[0];
-    auto lstm_seq_length = input_pshape[1];
-    auto lstm_hidden_size = input_pshape_hidden[2];
+    const auto& desc = impl_param.typed_desc<lstm_seq>();
+    const auto& input_layout = impl_param.get_input_layout(0);
+    const auto& input_pshape = input_layout.get_partial_shape();
+    const auto& input_layout_hidden = impl_param.get_input_layout(1);
+    const auto& input_pshape_hidden = input_layout_hidden.get_partial_shape();
+    const auto& lstm_batch_size = input_pshape[0];
+    const auto& lstm_seq_length = input_pshape[1];
+    const auto& lstm_hidden_size = input_pshape_hidden[2];
 
     auto first_out_fmt = cldnn::format::bfyx;
     if (node.get_preferred_impl_type() == impl_types::onednn && node.get_preferred_output_fmt() != format::any) {
@@ -29,22 +29,20 @@ layout lstm_seq_inst::calc_output_layout(lstm_seq_node const& node, kernel_impl_
 
 template<typename ShapeType>
 std::vector<layout> lstm_seq_inst::calc_output_layouts(lstm_seq_node const& node, kernel_impl_params const& impl_param) {
-    auto desc = impl_param.typed_desc<lstm_seq>();
-    auto input_layout = impl_param.get_input_layout(0);
-    auto input_pshape = input_layout.get_partial_shape();
-    auto input_layout_hidden = impl_param.get_input_layout(1);
-    auto input_pshape_hidden = input_layout_hidden.get_partial_shape();
-    auto lstm_batch_size = input_pshape[0];
-    auto lstm_seq_length = input_pshape[1];
-    auto lstm_hidden_size = input_pshape_hidden[2];
+    const auto& desc = impl_param.typed_desc<lstm_seq>();
+    const auto& input_layout = impl_param.get_input_layout(0);
+    const auto& input_pshape = input_layout.get_partial_shape();
+    const auto& input_layout_hidden = impl_param.get_input_layout(1);
+    const auto& input_pshape_hidden = input_layout_hidden.get_partial_shape();
+    const auto& lstm_batch_size = input_pshape[0];
+    const auto& lstm_seq_length = input_pshape[1];
+    const auto& lstm_hidden_size = input_pshape_hidden[2];
 
     auto first_out_fmt = cldnn::format::bfyx;
     auto second_out_fmt = input_layout.format;
     auto third_out_fmt = input_layout.format;
     if (node.get_preferred_impl_type() == impl_types::onednn && node.get_preferred_output_fmt() != format::any) {
         first_out_fmt = node.get_preferred_output_fmt();
-        second_out_fmt = node.get_preferred_output_fmt(1);
-        third_out_fmt = node.get_preferred_output_fmt(2);
     }
     auto num_directions = desc->num_directions();
 
@@ -56,7 +54,7 @@ std::vector<layout> lstm_seq_inst::calc_output_layouts(lstm_seq_node const& node
 template std::vector<layout> lstm_seq_inst::calc_output_layouts<ov::PartialShape>(lstm_seq_node const& node, const kernel_impl_params& impl_param);
 
 std::string lstm_seq_inst::to_string(lstm_seq_node const& node) {
-    auto desc = node.get_primitive();
+    const auto& desc = node.get_primitive();
     auto node_info = node.desc_to_json();
 
     std::stringstream primitive_description;

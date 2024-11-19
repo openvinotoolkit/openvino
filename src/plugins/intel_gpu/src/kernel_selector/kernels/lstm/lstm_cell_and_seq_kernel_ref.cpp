@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "lstm_seq_kernel_bfyx.h"
+#include "lstm_cell_and_seq_kernel_ref.h"
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
-ParamsKey LSTMSeqKernel_bfyx::GetSupportedKey() const {
+ParamsKey LSTMCellAndSeqKernelRef::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::F16);
@@ -15,7 +15,7 @@ ParamsKey LSTMSeqKernel_bfyx::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableDifferentTypes();
-    k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableAllInputLayout();
     k.EnableAllOutputLayout();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
@@ -23,11 +23,11 @@ ParamsKey LSTMSeqKernel_bfyx::GetSupportedKey() const {
     return k;
 }
 
-KernelsData LSTMSeqKernel_bfyx::GetKernelsData(const Params& params) const {
-    return GetCommonKernelsData(params, true);
+KernelsData LSTMCellAndSeqKernelRef::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority LSTMSeqKernel_bfyx::GetKernelsPriority(const Params& /*params*/) const {
-    return FORCE_PRIORITY_3;
+KernelsPriority LSTMCellAndSeqKernelRef::GetKernelsPriority(const Params& /*params*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector
