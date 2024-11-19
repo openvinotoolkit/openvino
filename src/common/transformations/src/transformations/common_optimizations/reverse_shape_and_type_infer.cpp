@@ -25,22 +25,20 @@
 
 namespace {
 
-void set_source_output_shape(const ov::Node& node, const ov::PartialShape& new_shape, const size_t port) {
-    const auto source_output = node.get_input_source_output(port);
-    source_output.get_node()->set_output_type(source_output.get_index(), node.get_input_element_type(port), new_shape);
-}
-
-void set_source_output_type(const ov::Node& node,
-                            const ov::element::Type& et,
-                            const ov::PartialShape& new_shape,
-                            const size_t port) {
+void set_source_output_type_shape(const ov::Node& node,
+                                  const ov::element::Type& et,
+                                  const ov::PartialShape& new_shape,
+                                  const size_t port) {
     const auto source_output = node.get_input_source_output(port);
     source_output.get_node()->set_output_type(source_output.get_index(), et, new_shape);
 }
 
+void set_source_output_shape(const ov::Node& node, const ov::PartialShape& new_shape, const size_t port) {
+    set_source_output_type_shape(node, node.get_input_element_type(port), new_shape, port);
+}
+
 void set_source_output_type(const ov::Node& node, const ov::element::Type& et, const size_t port) {
-    const auto source_output = node.get_input_source_output(port);
-    source_output.get_node()->set_output_type(source_output.get_index(), et, node.get_input_partial_shape(port));
+    set_source_output_type_shape(node, et, node.get_input_partial_shape(port), port);
 }
 }  // namespace
 
@@ -180,7 +178,6 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                 if (in0_rank.is_dynamic() && in1_rank.is_static()) {
                     if (eltwise->get_autob() == ov::op::AutoBroadcastType::NONE) {
                         set_source_output_shape(*op, output_shape, 0);
-
                     } else if (in1_rank.get_length() < output_shape.rank().get_length()) {
                         set_source_output_shape(*op, PartialShape::dynamic(output_shape.rank()), 0);
                     }
@@ -268,19 +265,19 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                 const auto& out_indx = out_desc->m_output_index;
                 const auto& body_indx = out_desc->m_body_value_index;
 
-                set_source_output_type(*then_body_results[body_indx],
-                                       if_op->get_output_element_type(out_indx),
-                                       if_op->get_output_partial_shape(out_indx),
-                                       0);
+                set_source_output_type_shape(*then_body_results[body_indx],
+                                             if_op->get_output_element_type(out_indx),
+                                             if_op->get_output_partial_shape(out_indx),
+                                             0);
             }
 
             for (auto& out_desc : else_out_desc) {
                 const auto& out_indx = out_desc->m_output_index;
                 const auto& body_indx = out_desc->m_body_value_index;
-                set_source_output_type(*else_body_results[body_indx],
-                                       if_op->get_output_element_type(out_indx),
-                                       if_op->get_output_partial_shape(out_indx),
-                                       0);
+                set_source_output_type_shape(*else_body_results[body_indx],
+                                             if_op->get_output_element_type(out_indx),
+                                             if_op->get_output_partial_shape(out_indx),
+                                             0);
             }
             is_changed |= run_on_model(then_body);
             is_changed |= run_on_model(else_body);
@@ -293,10 +290,10 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                 const auto& body_indx = in_desc->m_body_parameter_index;
                 if (if_op->get_input_tensor(in_indx).get_partial_shape().rank().is_dynamic() ||
                     if_op->get_input_tensor(in_indx).get_element_type().is_dynamic()) {
-                    set_source_output_type(*if_op,
-                                           then_body_params.at(body_indx)->get_element_type(),
-                                           then_body_params.at(body_indx)->get_partial_shape(),
-                                           in_indx);
+                    set_source_output_type_shape(*if_op,
+                                                 then_body_params.at(body_indx)->get_element_type(),
+                                                 then_body_params.at(body_indx)->get_partial_shape(),
+                                                 in_indx);
                     is_changed = true;
                 }
             }
@@ -305,10 +302,10 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                 const auto& body_indx = in_desc->m_body_parameter_index;
                 if (if_op->get_input_tensor(in_indx).get_partial_shape().rank().is_dynamic() ||
                     if_op->get_input_tensor(in_indx).get_element_type().is_dynamic()) {
-                    set_source_output_type(*if_op,
-                                           then_body_params.at(body_indx)->get_element_type(),
-                                           then_body_params.at(body_indx)->get_partial_shape(),
-                                           in_indx);
+                    set_source_output_type_shape(*if_op,
+                                                 then_body_params.at(body_indx)->get_element_type(),
+                                                 then_body_params.at(body_indx)->get_partial_shape(),
+                                                 in_indx);
                     is_changed = true;
                 }
             }
