@@ -43,7 +43,7 @@ KERNEL (permute_f_y_axes)(
         result = FUSED_OPS_RESULT_VEC;
 #else
         IN_VEC_TYPE res = READ_VEC(0, &input[INPUT0_GET_INDEX(b_idx, f_idx, y_idx, x_idx)]);
-        OUT_VEC_TYPE result = ACTIVATION(res, ACTIVATION_PARAMS);
+        OUT_VEC_TYPE result = TO_OUT_VEC_TYPE(ACTIVATION(res, ACTIVATION_PARAMS));
 #endif
         const int output_idx = OUTPUT_GET_INDEX(b_idx, f_out_idx, y_out_idx, x_idx);
         WRITE_VEC(result, 0, &output[output_idx]);

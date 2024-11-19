@@ -15,8 +15,11 @@
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
+#include "low_precision/add.hpp"
 #include "low_precision/convolution.hpp"
 #include "low_precision/convolution_backprop_data.hpp"
+#include "low_precision/fold_convert.hpp"
+#include "low_precision/fuse_convert.hpp"
 #include "low_precision/group_convolution.hpp"
 #include "low_precision/low_precision.hpp"
 #include "low_precision/mat_mul.hpp"
@@ -25,7 +28,9 @@
 #include "low_precision/pull_reshape_through_dequantization.hpp"
 #include "low_precision/pull_transpose_through_dequantization.hpp"
 #include "low_precision/recurrent_cell.hpp"
+#include "low_precision/rt_info/bias_attribute.hpp"
 #include "low_precision/strided_slice.hpp"
+#include "low_precision/transpose.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -46,6 +51,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/rnn_cell.hpp"
 #include "openvino/op/rnn_sequence.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
@@ -169,7 +175,17 @@ static bool disable_reduce_decomposition(const std::shared_ptr<const ov::Node> n
     return false;
 }
 
-static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node) {
+static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node, bool supports_immad) {
+    std::vector<ov::DiscreteTypeInfo> target_consumers = { ov::opset1::MatMul::get_type_info_static(),
+                                                           ov::op::v8::Gather::get_type_info_static(),
+                                                           ov::op::v1::Convolution::get_type_info_static(),
+                                                           ov::opset1::Convolution::get_type_info_static(),
+                                                           ov::opset1::GroupConvolution::get_type_info_static() };
+
+    std::vector<ov::DiscreteTypeInfo> convolutions = { ov::op::v1::Convolution::get_type_info_static(),
+                                                       ov::opset1::Convolution::get_type_info_static(),
+                                                       ov::opset1::GroupConvolution::get_type_info_static() };
+
     auto all_has_types = [](const std::set<ov::Input<ov::Node>>& consumers, const std::vector<ov::DiscreteTypeInfo>& types) {
         return std::all_of(consumers.begin(), consumers.end(), [&types](const ov::Input<ov::Node>& input) {
             return cldnn::one_of(input.get_node()->get_type_info(), types);
@@ -177,27 +193,47 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
     };
 
     const auto consumers = node->get_output_target_inputs(0);
-    if (all_has_types(consumers, { ov::op::v0::MatMul::get_type_info_static(), ov::op::v8::Gather::get_type_info_static() }))
-        return true;
 
-    auto are_multiply_from_decompression = [&all_has_types](const ov::Input<ov::Node> consumer) {
+    for (const auto& consumer : consumers) {
+        const auto& type_info = consumer.get_node()->get_type_info();
+        if (cldnn::one_of(type_info, target_consumers)) {
+            if (cldnn::one_of(type_info, convolutions) && consumer.get_node()->input_value(0).get_partial_shape().is_dynamic()) {
+                return false;
+            }
+            return true;
+        }
+    }
+
+    auto are_multiply_from_decompression = [&](const ov::Input<ov::Node> consumer) {
         if (!cldnn::one_of(consumer.get_node()->get_type_info(), { ov::op::v1::Multiply::get_type_info_static() }))
             return false;
         const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
-        if (all_has_types(child_consumers, { ov::opset1::MatMul::get_type_info_static(), ov::op::v8::Gather::get_type_info_static() }))
-            return true;
+
+        for (const auto& child_consumer : child_consumers) {
+            const auto& type_info = child_consumer.get_node()->get_type_info();
+            if (cldnn::one_of(type_info, target_consumers)) {
+                if (cldnn::one_of(type_info, convolutions) && child_consumer.get_node()->input_value(0).get_partial_shape().is_dynamic()) {
+                    return false;
+                }
+                return true;
+            }
+        }
         return false;
     };
 
-    auto are_converts_from_decompression = [&all_has_types, &are_multiply_from_decompression](const std::set<ov::Input<ov::Node>>& consumers) {
+    auto are_converts_from_decompression = [&](const std::set<ov::Input<ov::Node>>& consumers) {
         if (!all_has_types(consumers, { ov::opset1::Convert::get_type_info_static() }))
             return false;
         for (const auto& consumer : consumers) {
             const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
             for (const auto& child_consumer : child_consumers) {
                 const auto& type_info = child_consumer.get_node()->get_type_info();
-                if (cldnn::one_of(type_info, { ov::opset1::MatMul::get_type_info_static(), ov::op::v8::Gather::get_type_info_static() }))
-                    continue;
+                if (cldnn::one_of(type_info, target_consumers)) {
+                    if (cldnn::one_of(type_info, convolutions) && child_consumer.get_node()->input_value(0).get_partial_shape().is_dynamic()) {
+                        return false;
+                    }
+                    return true;
+                }
                 if (are_multiply_from_decompression(child_consumer)) {
                     continue;
                 }
@@ -210,9 +246,16 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
     if (all_has_types(consumers, { ov::opset1::Reshape::get_type_info_static() })) {
         for (const auto& consumer : consumers) {
             const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
-            if (all_has_types(child_consumers, { ov::opset1::MatMul::get_type_info_static(), ov::op::v8::Gather::get_type_info_static() }) ||
-                are_converts_from_decompression(child_consumers)) {
-                return true;
+            for (const auto& child_consumer : child_consumers) {
+                const auto& type_info = child_consumer.get_node()->get_type_info();
+                if (cldnn::one_of(type_info, target_consumers)) {
+                    if (cldnn::one_of(type_info, convolutions) && child_consumer.get_node()->input_value(0).get_partial_shape().is_dynamic()) {
+                        return false;
+                    }
+                    return true;
+                } else if (are_converts_from_decompression(child_consumers)) {
+                    return true;
+                }
             }
         }
     }
@@ -330,13 +373,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // it expects to have the same data type for weights and zero points (apply it only for u8 data type, since other compression
         // types are not supported by oneDNN)
         manager.register_pass<ov::pass::MarkDequantizationSubgraph>(supported_woq_types, !device_info.supports_immad);
-
-        // Need to check if transformations work correctly for mixed models with both compression and quantization at the same time.
-        if (!is_model_quantized) {
-            pass_config->set_callback<ov::pass::MarkDequantizationSubgraph>([&](const std::shared_ptr<const ov::Node> node) {
-                return !is_decompression_multiply(node);
-            });
-        }
+        pass_config->set_callback<ov::pass::MarkDequantizationSubgraph>([&](const std::shared_ptr<const ov::Node> node) {
+            return !is_decompression_multiply(node, device_info.supports_immad);
+        });
 
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
@@ -705,12 +744,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         auto lptPassConfig = lptManager.get_pass_config();
         // quantized LSTMSequence / GPUSequence are not supported yet. Avoid extra transformation
         lptPassConfig->disable<ov::pass::low_precision::RecurrentCellTransformation>();
-        lptPassConfig->set_callback<ov::pass::low_precision::MarkupPrecisions>([](const_node_ptr& node) -> bool {
-            if (const auto mulitply = std::dynamic_pointer_cast<const ov::op::v1::Multiply>(node)) {
-                return !MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(mulitply);
-            }
-            return false;
-        });
         lptPassConfig->set_callback<ConvolutionBackpropDataTransformation>([func, defaultPrecisions](const_node_ptr& node) -> bool {
             auto fillStaticChannel = [func](const ov::PartialShape& shape, size_t& channel) -> bool {
                 const auto rank = shape.rank();
@@ -745,6 +778,40 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             return LayerTransformation::isAsymmetricQuantization(node, defaultPrecisions)
                 || WeightableLayerTransformation::isAsymmetricOnWeights(node, defaultPrecisions);
+        });
+
+        lptPassConfig->set_callback<TransposeTransformation>([&](const_node_ptr& node) -> bool {
+            for (auto& user : node->get_users()) {
+                if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(user))
+                    return true;
+            }
+
+            return false;
+        });
+
+        lptPassConfig->set_callback<MarkupPrecisions>([](const_node_ptr& node) -> bool {
+            return ov::is_type<ov::opset1::Multiply>(node) && !MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(node);
+        });
+
+        lptPassConfig->set_callback<FoldConvertTransformation>([&](const_node_ptr& node) -> bool {
+            const auto& consumers = node->get_output_target_inputs(0);
+            if (consumers.size() == 1) {
+                const auto consumer = consumers.begin()->get_node()->shared_from_this();
+                return ov::is_type<ov::opset1::Multiply>(consumer) && is_decompression_multiply(consumer, device_info.supports_immad);
+            }
+            return false;
+        });
+        lptPassConfig->set_callback<FuseConvertTransformation>([&](const_node_ptr& node) -> bool {
+            if (ov::is_type<ov::opset1::Multiply>(node)) {
+                return ov::is_type<ov::opset1::Multiply>(node) && is_decompression_multiply(node, device_info.supports_immad);
+            } else if (ov::is_type<ov::opset1::Subtract>(node)) {
+                const auto& consumers = node->get_output_target_inputs(0);
+                if (consumers.size() == 1) {
+                    const auto consumer = consumers.begin()->get_node()->shared_from_this();
+                    return ov::is_type<ov::opset1::Multiply>(consumer) && is_decompression_multiply(consumer, device_info.supports_immad);
+                }
+            }
+            return false;
         });
 
         lptPassConfig->set_callback<MultiplyToGroupConvolutionTransformation>([&](const_node_ptr& node) -> bool {

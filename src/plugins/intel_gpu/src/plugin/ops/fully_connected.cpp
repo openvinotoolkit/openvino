@@ -68,6 +68,34 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
     }
 
     p.add_primitive(*op, fc);
+
+    if (op->get_input_partial_shape(0).size() > 3 && !p.use_new_shape_infer()) {
+        auto lastLayerName = primitive_name;
+        auto outReshapeName = primitive_name + "_cldnn_out_reshape";
+
+        // add reorder
+        auto outDims = op->get_output_shape(0);
+        auto outTensor = tensor_from_dims(outDims);
+
+        if (outDims.size() > 4) {
+            cldnn::format outputFormat = cldnn::format::bfyx;
+            switch (outDims.size()) {
+                case 5: outputFormat = cldnn::format::bfzyx; break;
+                case 6: outputFormat = cldnn::format::bfwzyx; break;
+                default: break;
+            }
+
+            cldnn::primitive_id reorderId = "reorder:" + outReshapeName + "_reorder";
+            cldnn::layout outputLayout(cldnn::element_type_to_data_type(op->get_output_element_type(0)), outputFormat, outTensor);
+            auto reorder_prim = cldnn::reorder(reorderId, cldnn::input_info(primitive_name), outputLayout);
+            p.add_primitive(*op, reorder_prim);
+            lastLayerName = reorderId;
+        }
+
+        // add reshape
+        auto outReshapePrim = cldnn::reshape(outReshapeName, cldnn::input_info(lastLayerName), outTensor);
+        p.add_primitive(*op, outReshapePrim);
+    }
 }
 
 static void CreateFullyConnectedOp(ProgramBuilder& p, const std::shared_ptr<op::FullyConnected>& op) {
