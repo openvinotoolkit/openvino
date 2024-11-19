@@ -204,7 +204,7 @@ std::shared_ptr<ov::Model> MHASplitMFunction::initReference() const {
 
         if (ov::shape_size(shape) > 1) {
             ov::Shape reshape_shape = shape;
-            reshape_shape.insert(reshape_shape.cbegin() + rank - 3, 1);
+            reshape_shape.insert(reshape_shape.cbegin() + (rank - 3), 1);
             const auto mulReshape = make_reshape(mulConst, reshape_shape);
             const auto mulParam = std::make_shared<ov::opset1::Parameter>(precisions[1], mulReshape->get_shape());
             matmul_parent1 = std::make_shared<ov::op::v1::Multiply>(transpose1, mulParam);
