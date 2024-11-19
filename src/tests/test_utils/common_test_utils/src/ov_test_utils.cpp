@@ -75,7 +75,6 @@ void TransformationTestsF::TearDown() {
     manager.register_pass<ov::pass::CheckUniqueNames>(m_unh, m_soft_names_comparison, m_result_friendly_names_check);
     manager.run_passes(model);
 
-    // why do we need this check for fused names?
     if (!m_disable_rt_info_check) {
         OV_ASSERT_NO_THROW(check_rt_info(model));
     }

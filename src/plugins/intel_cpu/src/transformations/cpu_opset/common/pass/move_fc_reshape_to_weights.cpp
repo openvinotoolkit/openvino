@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// #include "transformations/cpu_opset/common/op/fully_connected.hpp"
 #include "ov_ops/fully_connected.hpp"
 #include "move_fc_reshape_to_weights.hpp"
 #include <transformations/utils/utils.hpp>

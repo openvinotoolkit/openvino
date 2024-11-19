@@ -4,8 +4,8 @@
 
 #include "ov_ops/fully_connected_compressed.hpp"
 
-#include "matmul_shape_inference.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "ov_ops/fully_connected.hpp"
 
 namespace ov {
 namespace op {
@@ -31,16 +31,6 @@ FullyConnectedCompressed::FullyConnectedCompressed(const ov::Output<Node>& X,
     validate_and_infer_types();
 }
 
-// FullyConnectedCompressed::FullyConnectedCompressed(const ov::Output<Node>& X,
-//                                                    const ov::Output<Node>& W,
-//                                                    const ov::Output<Node>& bias,
-//                                                    const ov::Output<Node>& weight_scales,
-//                                                    const ov::element::Type output_type)
-//     : FullyConnected(X, W, bias, output_type) {
-//     set_argument(3, weight_scales);
-//     validate_and_infer_types();
-// }
-
 std::shared_ptr<ov::Node> FullyConnectedCompressed::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
 
@@ -61,23 +51,9 @@ void FullyConnectedCompressed::validate_and_infer_types() {
                           input_size >= 4,
                           "Number of inputs is incorrect. Current value is: ",
                           input_size,
-                          ", expected at least 3.");
+                          ", expected at least 4.");
 
-    ov::op::v0::MatMul op;
-    op.set_transpose_a(false);
-    op.set_transpose_b(true);
-
-    auto out_shapes =
-        ov::op::v0::shape_infer(&op,
-                                std::vector<ov::PartialShape>{get_input_partial_shape(0), get_input_partial_shape(1)});
-
-    auto output_type = m_output_type == ov::element::undefined ? get_input_element_type(0) : m_output_type;
-    set_output_type(0, output_type, out_shapes[0]);
-}
-
-bool FullyConnectedCompressed::visit_attributes(ov::AttributeVisitor& visitor) {
-    visitor.on_attribute("output_type", m_output_type);
-    return true;
+    FullyConnected::validate_and_infer_types();
 }
 
 }  // namespace internal

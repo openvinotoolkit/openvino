@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
@@ -20,16 +21,11 @@
 ov::pass::ConvertFCToFCQuantizedLegacy::ConvertFCToFCQuantizedLegacy() {
     using namespace ov::pass::pattern;
 
-    auto quantized_weights = [](const ov::Output<ov::Node>& output) {
-        return output.get_element_type() == ov::element::i8;
-    };
+    std::vector<element::Type> activation_types{ov::element::u8, ov::element::i8};
+    std::vector<element::Type> weights_types{ov::element::i8};
 
-    auto quantized_activations = [](const ov::Output<ov::Node>& output) {
-        return output.get_element_type() == ov::element::u8 || output.get_element_type() == ov::element::i8;
-    };
-
-    auto activations_m = pattern::any_input(quantized_activations);
-    auto weights_m = wrap_type<ov::op::v0::Constant>(quantized_weights);
+    auto activations_m = pattern::any_input(ov::pass::pattern::type_matches_any(activation_types));
+    auto weights_m = wrap_type<ov::op::v0::Constant>(ov::pass::pattern::type_matches_any(weights_types));
     auto bias_m = pattern::any_input();
 
     auto fully_connected_m = wrap_type<ov::op::internal::FullyConnected>({activations_m, weights_m, bias_m});

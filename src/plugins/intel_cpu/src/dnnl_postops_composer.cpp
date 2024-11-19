@@ -47,6 +47,7 @@ static std::vector<float> getDeQuantizedScales(const MemoryArgs& memory) {
                     ", scale data size: ",
                     scaleSize);
 
+    // @todo do we really need to broadcast dq scales and then resize them back?
     if (scaleSize > DQScales.size())
         DQScales.resize(scaleSize, DQScales[0]);
     if (1 == scaleSize) {

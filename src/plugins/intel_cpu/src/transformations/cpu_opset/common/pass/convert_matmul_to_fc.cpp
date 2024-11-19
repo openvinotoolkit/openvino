@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// #include "transformations/cpu_opset/common/op/fully_connected.hpp"
 #include "ov_ops/fully_connected.hpp"
 #include "convert_matmul_to_fc.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/transpose.hpp"
-#include "openvino/op/reshape.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/placeholder.hpp"

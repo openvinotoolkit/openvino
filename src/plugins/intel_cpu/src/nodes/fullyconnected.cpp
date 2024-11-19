@@ -55,8 +55,8 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ov::Node>&
         }
 
         if (fc->get_input_size() == 3 &&
-            (std::dynamic_pointer_cast<const ov::op::v0::Constant>(fc->get_input_node_shared_ptr(BIAS)) == nullptr &&
-             std::dynamic_pointer_cast<const ov::op::internal::Placeholder>(fc->get_input_node_shared_ptr(BIAS)) == nullptr)) {
+            (!ov::is_type<const ov::op::v0::Constant>(fc->get_input_node_shared_ptr(BIAS)) &&
+             !ov::is_type<const ov::op::internal::Placeholder>(fc->get_input_node_shared_ptr(BIAS)))) {
             errorMessage = "Only Constant or Placeholder operation on 'bias' input is supported";
             return false;
         }

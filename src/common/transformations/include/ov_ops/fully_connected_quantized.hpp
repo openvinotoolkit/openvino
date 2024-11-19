@@ -12,9 +12,9 @@ namespace ov {
 namespace op {
 namespace internal {
 
-class TRANSFORMATIONS_API FullyConnectedQuantized : public ov::op::internal::FullyConnected {
+class TRANSFORMATIONS_API FullyConnectedQuantized : public FullyConnected {
 public:
-    OPENVINO_OP("FullyConnectedQuantized", "gpu_opset");
+    OPENVINO_OP("FullyConnectedQuantized", "ie_internal_opset", FullyConnected);
 
     FullyConnectedQuantized() = default;
 
@@ -52,8 +52,6 @@ public:
                             const ov::Output<Node>& bias,
                             const ov::Output<Node>& weight_scales,
                             const ov::element::Type output_type = ov::element::undefined);
-
-    bool visit_attributes(ov::AttributeVisitor& visitor) override;
 
     void validate_and_infer_types() override;
 

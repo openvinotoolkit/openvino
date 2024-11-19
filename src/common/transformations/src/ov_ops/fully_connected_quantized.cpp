@@ -4,8 +4,8 @@
 
 #include "ov_ops/fully_connected_quantized.hpp"
 
-#include "matmul_shape_inference.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "ov_ops/fully_connected.hpp"
 
 namespace ov {
 namespace op {
@@ -95,21 +95,7 @@ void FullyConnectedQuantized::validate_and_infer_types() {
                           input_size,
                           ", expected at least 3.");
 
-    ov::op::v0::MatMul op;
-    op.set_transpose_a(false);
-    op.set_transpose_b(true);
-
-    auto out_shapes =
-        ov::op::v0::shape_infer(&op,
-                                std::vector<ov::PartialShape>{get_input_partial_shape(0), get_input_partial_shape(1)});
-
-    auto output_type = m_output_type == ov::element::undefined ? get_input_element_type(0) : m_output_type;
-    set_output_type(0, output_type, out_shapes[0]);
-}
-
-bool FullyConnectedQuantized::visit_attributes(ov::AttributeVisitor& visitor) {
-    visitor.on_attribute("output_type", m_output_type);
-    return true;
+    FullyConnected::validate_and_infer_types();
 }
 
 }  // namespace internal

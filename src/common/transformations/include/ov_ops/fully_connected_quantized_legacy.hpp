@@ -12,9 +12,9 @@ namespace ov {
 namespace op {
 namespace internal {
 
-class TRANSFORMATIONS_API FullyConnectedQuantizedLegacy : public ov::op::internal::FullyConnected {
+class TRANSFORMATIONS_API FullyConnectedQuantizedLegacy : public FullyConnected {
 public:
-    OPENVINO_OP("FullyConnectedQuantizedLegacy", "gpu_opset");
+    OPENVINO_OP("FullyConnectedQuantizedLegacy", "ie_internal_opset", FullyConnected);
 
     FullyConnectedQuantizedLegacy() = default;
 
@@ -41,10 +41,6 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 
     std::shared_ptr<Node> fuse_bias(const ov::Output<Node>& bias) const override final;
-
-    ov::element::Type get_output_type() const {
-        return m_output_type;
-    }
 };
 
 }  // namespace internal

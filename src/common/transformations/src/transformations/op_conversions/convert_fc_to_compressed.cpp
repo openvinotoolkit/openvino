@@ -20,7 +20,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/fully_connected.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"
-#include "ov_ops/fully_connected_quantized.hpp"
 #include "ov_ops/placeholder.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -30,21 +29,13 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnected
     bool convert_u4zp_to_u8) {
     using namespace ov::pass::pattern;
 
-    auto compressed_constant = [supported_compression_types](const ov::Output<ov::Node>& output) {
-        return std::any_of(supported_compression_types.begin(),
-                           supported_compression_types.end(),
-                           [&output](const ov::element::Type type) {
-                               return output.get_element_type() == type;
-                           });
-    };
-
     auto reshape_3d_to_2d = [](const ov::Output<ov::Node>& output) {
         auto in_ps = output.get_node()->get_input_partial_shape(0);
         auto out_ps = output.get_node()->get_output_partial_shape(0);
         return in_ps.rank().is_static() && out_ps.rank().is_static() && in_ps.size() == 3 && out_ps.size() == 2;
     };
 
-    auto weights_m = wrap_type<ov::op::v0::Constant>(compressed_constant);
+    auto weights_m = wrap_type<ov::op::v0::Constant>(ov::pass::pattern::type_matches_any(supported_compression_types));
     auto convert_m = wrap_type<ov::op::v0::Convert>({weights_m});
 
     auto sub_const_m = wrap_type<ov::op::v0::Constant>();
@@ -117,14 +108,14 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnected
             return std::make_shared<ov::op::v0::Constant>(*constant, new_shape);
         };
 
-        auto convert_u4const_to_u8 = [convert_u4zp_to_u8](std::shared_ptr<ov::Node> node) {
+        auto convert_u4const_to_u8 = [convert_u4zp_to_u8](std::shared_ptr<ov::Node> node) -> std::shared_ptr<ov::Node> {
             auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
             if (constant->get_element_type() != ov::element::u4 || !convert_u4zp_to_u8)
                 return std::dynamic_pointer_cast<ov::Node>(constant);
-            return std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(node, ov::element::u8));
+            return std::make_shared<ov::op::v0::Convert>(node, ov::element::u8);
         };
 
-        const ov::Output<Node>& fc_input_a = fc->input(0).get_source_output();
+        const ov::Output<Node>& fc_input_a = fc->input_value(0);
         const auto& scale = reshape_const_to_2d(pattern_map.at(mul_const_m).get_node_shared_ptr());
         std::shared_ptr<ov::Node> optional_zero_point = nullptr;
 

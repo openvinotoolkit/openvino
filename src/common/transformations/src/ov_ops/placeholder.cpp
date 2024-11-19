@@ -12,10 +12,6 @@ Placeholder::Placeholder() : ov::op::Op() {
     validate_and_infer_types();
 }
 
-bool Placeholder::visit_attributes(ov::AttributeVisitor& visitor) {
-    return true;
-}
-
 void Placeholder::validate_and_infer_types() {
     set_output_type(0, ov::element::undefined, ov::PartialShape{});
 }
