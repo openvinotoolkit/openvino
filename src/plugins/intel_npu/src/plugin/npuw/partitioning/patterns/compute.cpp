@@ -348,6 +348,7 @@ RMSNorm::RMSNorm(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, co
 
     // Note: Use [=] to make sure the above objects stay alive in the callback
     auto callback = [=](ov::pass::pattern::Matcher& m) {
+        std::cout << "RMSNorm MATCHED!" << std::endl;
         auto& node_to_output = m.get_pattern_value_map();
 
         auto matched_hadd = node_to_output.at(hadd).get_node_shared_ptr();
@@ -371,6 +372,40 @@ RMSNorm::RMSNorm(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, co
         return false;  // root hasn't changed
     };
     register_matcher(std::make_shared<opp::Matcher>(multiply2, "TagRMSNorm"), std::move(callback));
+}
+
+// TODO: visualize
+RMSNorm2::RMSNorm2(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
+    auto hadd = opp::wrap_type<ov::op::v1::Add>({opp::any_input(), opp::any_input()});
+    auto power = opp::wrap_type<ov::op::v1::Power>({hadd, opp::any_input()});
+    auto reduce = opp::wrap_type<ov::op::v1::ReduceSum>({power, opp::any_input()});
+    auto sqrt = opp::wrap_type<ov::op::v0::Sqrt>({reduce});
+    auto div = opp::wrap_type<ov::op::v1::Divide>({hadd, sqrt});
+    auto multiply = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), div});
+
+    auto node_to_gptr = snapshot->getNodeToGroupMap();
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto matched_hadd = node_to_output.at(hadd).get_node_shared_ptr();
+        auto matched_power = node_to_output.at(power).get_node_shared_ptr();
+        auto matched_reduce = node_to_output.at(reduce).get_node_shared_ptr();
+        auto matched_sqrt = node_to_output.at(sqrt).get_node_shared_ptr();
+        auto matched_div = node_to_output.at(div).get_node_shared_ptr();
+        auto matched_multiply = node_to_output.at(multiply).get_node_shared_ptr();
+
+        node_to_gptr->at(matched_hadd)->isolate(isol_tag);
+        node_to_gptr->at(matched_power)->isolate(isol_tag);
+        node_to_gptr->at(matched_reduce)->isolate(isol_tag);
+        node_to_gptr->at(matched_sqrt)->isolate(isol_tag);
+        node_to_gptr->at(matched_div)->isolate(isol_tag);
+        node_to_gptr->at(matched_multiply)->isolate(isol_tag);
+
+        return false;  // root hasn't changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(multiply, "TagRMSNorm2"), std::move(callback));
 }
 
 }  // namespace compute

@@ -469,6 +469,9 @@ void Snapshot::earlyRegroup() {
             if (isolate.pattern == "RMSNorm") {
                 rewr.add_matcher<ov::npuw::patterns::compute::RMSNorm>(shared_from_this(), isolate.tag);
                 handle_patterns = true;
+            } else if (isolate.pattern == "RMSNorm2") {
+                rewr.add_matcher<ov::npuw::patterns::compute::RMSNorm2>(shared_from_this(), isolate.tag);
+                handle_patterns = true;
             } else if (isolate.pattern == "DQMatMulCWu4") {
                 rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulCWu4>(shared_from_this(), isolate.tag);
                 handle_patterns = true;

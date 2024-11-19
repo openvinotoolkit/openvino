@@ -27,7 +27,7 @@ static const std::map<std::string, std::string> ISOL_PRESETS = {{"COMPUTE",
                                                                  "P:DQMatMulGQi4/compute,P:DQMatMulCWi4/compute,"
                                                                  "P:DQMatMulConv/compute,"
                                                                  "P:VocabMatMul/compute,"
-                                                                 "P:RMSNorm/compute"}};
+                                                                 "P:RMSNorm/compute,P:RMSNorm2/compute"}};
 }
 
 // For missing declaration warning

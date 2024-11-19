@@ -56,6 +56,11 @@ public:
     RMSNorm(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
 };
 
+class RMSNorm2 : public ov::pass::MatcherPass {
+public:
+    RMSNorm2(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
+};
+
 }  // namespace compute
 }  // namespace patterns
 }  // namespace npuw
