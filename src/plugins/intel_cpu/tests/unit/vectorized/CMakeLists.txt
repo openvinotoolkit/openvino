@@ -15,6 +15,9 @@ endif()
 if(NOT X86_64)
     list(APPEND EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST
       ${CMAKE_CURRENT_SOURCE_DIR}/paged_attn_cache_rotation.cpp)
+else()
+    list(APPEND EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST
+      ${CMAKE_CURRENT_SOURCE_DIR}/stub.cpp)
 endif()
 
 

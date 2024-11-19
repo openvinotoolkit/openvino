@@ -201,7 +201,7 @@ public:
         std::generate(raw_mem_ptr_sw, raw_mem_ptr_sw + num_heads * block_size * embedding_size, generate_fn);
         // coeffts are now not strictly sine-cosine pairs, but it does not matter for the kernels
         std::generate(raw_rotation_coefficients_mem_ptr,
-                      raw_rotation_coefficients_mem_ptr + block_size * embedding_size,
+                      &raw_rotation_coefficients_mem_ptr[block_size * embedding_size],
                       generate_fn);
 
         auto cache_block_mem_hw = get_block_memory(num_heads, block_size, embedding_size, Rank3Matrix<TypeParam>{});
