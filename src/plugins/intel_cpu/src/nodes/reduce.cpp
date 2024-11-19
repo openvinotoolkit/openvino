@@ -2020,6 +2020,7 @@ void Reduce::initSupportedPrimitiveDescriptors() {
         config.outConfs[0].setMemDesc(creatorsMap.at(outFormat)->createSharedDesc(outPrecision, getOutputShapeAtPort(0)));
 
         if (useAclExecutor) {
+#if defined (OV_CPU_WITH_ACL)
             std::vector<MemoryDescPtr> srcMemoryDescs;
             for (size_t i = 0; i < config.inConfs.size(); i++) {
                 srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
@@ -2029,11 +2030,27 @@ void Reduce::initSupportedPrimitiveDescriptors() {
                 dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
             }
 
-            auto factory = std::make_shared<ReduceExecutorFactory>(reduceAttrs, srcMemoryDescs, dstMemoryDescs,
+            auto attrs = reduceAttrs;
+            bool apply_ref = customImplPriorities.size() > 0 && customImplPriorities[0] == ref;
+            bool single_axis_only = one_of(algorithm, Algorithm::ReduceSum, Algorithm::ReduceMax,
+                                                      Algorithm::ReduceMin, Algorithm::ReduceProd);
+            // For the case of empty input, transformations ConvertReduceProd(Min, Max, Sum) are disabled to avoid empty output.
+            // So these 4 reduce modes with empty input reducing more than one axis are not supported by acl executor. Then
+            // factory->isEmpty() returns true, supportedPrimitiveDescriptors is emtpy. Though we don't actually need these acl
+            // kernels in execution, here we pass a fake axis {1} to pass assertion of "!supportedPrimitiveDescriptors.empty()"
+            // in Node::filterSupportedPrimitiveDescriptors().
+            if (!apply_ref && !isDynamicNode() && single_axis_only) {
+                const auto& src_shape = getInputShapeAtPort(REDUCE_DATA).getStaticDims();
+                if (shape_size(src_shape) == 0) {
+                    attrs.axes = {1};
+                }
+            }
+            auto factory = std::make_shared<ReduceExecutorFactory>(attrs, srcMemoryDescs, dstMemoryDescs,
                                                                    std::make_shared<ExecutorContext>(context, getImplPriority()));
             if (!factory->isEmpty()) {
                 supportedPrimitiveDescriptors.push_back({config, impl_type, factory});
             }
+#endif
         } else {
             supportedPrimitiveDescriptors.push_back({config, impl_type});
         }
@@ -2093,6 +2110,12 @@ bool Reduce::isExecutable() const {
 }
 
 void Reduce::prepareParams() {
+    auto srcMemPtr = getSrcMemoryAtPort(REDUCE_DATA);
+    auto dstMemPtr = getDstMemoryAtPort(0);
+    const auto& src_shape = srcMemPtr->getStaticDims();
+    dst_size = dstMemPtr->getSize();
+    empty_input = shape_size(src_shape) == 0 || srcMemPtr->getSize() == 0;
+#if defined (OV_CPU_WITH_ACL)
     if (canUseAclExecutor) {
         std::vector<MemoryDescPtr> srcMemoryDescs;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
@@ -2102,11 +2125,15 @@ void Reduce::prepareParams() {
         dstMemoryDescs.push_back(getDstMemoryAtPort(0)->getDescPtr());
 
         auto selectedPD = getSelectedPrimitiveDescriptor();
-        aclExecPtr = selectedPD->getExecutorFactoryAs<ReduceExecutorFactory>()->makeExecutor(reduceAttrs, srcMemoryDescs, dstMemoryDescs, {});
-        selectedPD->setImplementationType(aclExecPtr->getImplType());
-
+        if (!empty_input) {
+            aclExecPtr = selectedPD->getExecutorFactoryAs<ReduceExecutorFactory>()->makeExecutor(reduceAttrs, srcMemoryDescs, dstMemoryDescs, {});
+            selectedPD->setImplementationType(aclExecPtr->getImplType());
+        } else {
+            selectedPD->setImplementationType(acl);
+        }
         return;
     }
+#endif
 
     src_dims = getParentEdgeAt(REDUCE_DATA)->getMemory().getDesc().getShape().getDims();
     std::vector<int> reduce_axes;
@@ -2116,9 +2143,7 @@ void Reduce::prepareParams() {
         reduce_axes = raw_axes;
     }
 
-    auto dstMemPtr = getDstMemoryAtPort(0);
     const VectorDims &dst_dims = dstMemPtr->getDesc().getShape().getDims();
-    dst_size = dstMemPtr->getSize();
     calc_process_dst_dims(reduce_axes, dst_dims);
     if (jit_mode) {
         set_reduce_dim_flags();
@@ -2274,15 +2299,17 @@ void Reduce::execute(dnnl::stream strm) {
     const uint8_t *src_data = srcMemPtr->getDataAs<const uint8_t>();
     uint8_t *dst_data = dstMemPtr->getDataAs<uint8_t>();
 
-    const auto& src_shape = srcMemPtr->getStaticDims();
-    if ((shape_size(src_shape) == 0 || srcMemPtr->getSize() == 0)) {
-        if (dstMemPtr->getSize() > 0) {
-            init_dst_data(dst_data, dstMemPtr->getSize());
-            const bool skip_post_process = getAlgorithm() == Algorithm::ReduceMean || attr.get()->post_ops_.len() == 0;
-            if (!skip_post_process) {
-                reduce_kernel_post_process(dst_data);
-            }
+    if (empty_input && dst_size > 0) {
+#if defined(OPENVINO_ARCH_X86_64)
+        output_info_reassign(&dst_data);
+        init_dst_data(dst_data, dst_size);
+        output_info_restore(&dst_data);
+        if (attr.get()->post_ops_.len() != 0) {
+            reduce_kernel_post_process(dst_data);
         }
+#else
+        init_dst_data(dst_data, dst_size);
+#endif
         return;
     }
 
@@ -2291,6 +2318,7 @@ void Reduce::execute(dnnl::stream strm) {
             dst_data = reinterpret_cast<uint8_t *>(prc_mem.get_data_handle());
         }
         reduce_type(src_data, dst_data);
+#if defined (OV_CPU_WITH_ACL)
     } else if (aclExecPtr) {
         std::vector<MemoryCPtr> srcMemory;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
@@ -2300,6 +2328,7 @@ void Reduce::execute(dnnl::stream strm) {
         dstMemory.push_back(getDstMemoryAtPort(0));
 
         aclExecPtr->exec(srcMemory, dstMemory, postOpsDataPtrs.data());
+#endif
     } else {
         if (layout == ReduceLayoutType::reduce_ncsp) {
             auto in_ptr = reinterpret_cast<const float *>(src_data);
@@ -2737,7 +2766,7 @@ inline void Reduce::reduce_kernel_process(const uint8_t *in_p, uint8_t *out_p, s
 
 inline void Reduce::reduce_kernel_post_process(uint8_t *out_ptr) {
     const uint8_t *in_ptr = fuse_low_precision ? static_cast<uint8_t *>(&intermediate_buf[0]) : nullptr;
-    const size_t integerDivisor = IB * IC * ID * IH * IW / (OB * OC * OD * OH * OW);
+    const size_t integerDivisor = empty_input ? 1 : IB * IC * ID * IH * IW / (OB * OC * OD * OH * OW);
     const float divisor = static_cast<float>(integerDivisor);
     if (layout == ReduceLayoutType::reduce_ncsp) {
         parallel_for2d(OB, OC, [&](size_t ob, size_t oc) {
