@@ -481,6 +481,9 @@ void Snapshot::earlyRegroup() {
             } else if (isolate.pattern == "DQMatMulGQi4") {
                 rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulGQi4>(shared_from_this(), isolate.tag);
                 handle_patterns = true;
+            } else if (isolate.pattern == "DQMatMulConv") {
+                rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulConv>(shared_from_this(), isolate.tag);
+                handle_patterns = true;
             } else if (isolate.pattern == "VocabMatMul") {
                 rewr.add_matcher<ov::npuw::patterns::compute::VocabMatMul>(shared_from_this(), isolate.tag);
                 handle_patterns = true;

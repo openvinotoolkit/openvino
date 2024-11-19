@@ -226,6 +226,52 @@ DQMatMulCWi4::DQMatMulCWi4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
     register_matcher(std::make_shared<opp::Matcher>(qmm, "TagDQMatMulCWi4"), std::move(callback));
 }
 
+// Pattern:
+//     -> Transpose ------------------------------>
+//     Param/Const --> Convert(f32) --> Multiply -> Convolution -> Transpose ->
+//     Param/Const -> (Convert(f32)) ->
+
+DQMatMulConv::DQMatMulConv(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
+    auto param = opp::any_input();
+    auto convert = opp::wrap_type<ov::op::v0::Convert>({param->output(0)});
+    auto param2 = opp::any_input();
+    auto convert2 = opp::optional<ov::op::v0::Convert>({param2->output(0)});
+    auto multiply = opp::wrap_type<ov::op::v1::Multiply>({convert, convert2});
+    auto tr_input = opp::any_input();
+    auto transpose_in = opp::wrap_type<ov::op::v1::Transpose>({tr_input, opp::any_input()});
+    auto conv = opp::wrap_type<ov::op::v1::Convolution>({transpose_in, multiply});
+    auto transpose_out = opp::wrap_type<ov::op::v1::Transpose>({conv, opp::any_input()});
+
+    auto node_to_gptr = snapshot->getNodeToGroupMap();
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto matched_node_param = node_to_output.at(param).get_node_shared_ptr();
+        auto matched_node_param2 = node_to_output.at(param2).get_node_shared_ptr();
+
+        auto matched_node_transpose_in = node_to_output.at(transpose_in).get_node_shared_ptr();
+        auto matched_node_transpose_out = node_to_output.at(transpose_out).get_node_shared_ptr();
+        auto matched_node_multiply = node_to_output.at(multiply).get_node_shared_ptr();
+        auto matched_node_conv = node_to_output.at(conv).get_node_shared_ptr();
+
+        if ((matched_node_param->get_element_type() == ov::element::i4 ||
+             matched_node_param->get_element_type() == ov::element::i8) &&
+            (matched_node_param2->get_element_type() == ov::element::f32 ||
+             matched_node_param2->get_element_type() == ov::element::f16)) {
+            // Partitioning ignores Param/Const -> Convert nodes
+            node_to_gptr->at(matched_node_transpose_in)->isolate(isol_tag);
+            node_to_gptr->at(matched_node_transpose_out)->isolate(isol_tag);
+            node_to_gptr->at(matched_node_multiply)->isolate(isol_tag);
+            node_to_gptr->at(matched_node_conv)->isolate(isol_tag);
+        }
+
+        return false;  // root hasn't changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(transpose_out, "TagDQMatMulConv"), std::move(callback));
+}
+
 // This is a case for Raw (f16/f32) MatMul connected directly to the Result.
 //
 // The following combinations are covered:
