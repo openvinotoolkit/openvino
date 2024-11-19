@@ -5,7 +5,7 @@
 """Generic utilities. Factor related functions out to separate files."""
 
 from openvino._pyopenvino.util import numpy_to_c, replace_node, replace_output_update_name
-from openvino.build_utils import get_cmake_path
+from openvino.package_utils import get_cmake_path
 from functools import wraps
 from typing import Callable, Any
 
