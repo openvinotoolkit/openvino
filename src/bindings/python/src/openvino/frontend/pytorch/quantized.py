@@ -16,10 +16,10 @@ def detect_quantized_model(model: torch.nn.Module) -> str:
     Returns:
         str: The quantization method if available, otherwise None.
     """
-    if (model and getattr(model, "config", None) 
+    if (model and getattr(model, "config", None)
             and getattr(model.config, "quantization_config", None)):
         return model.config.quantization_config.quant_method
-    elif getattr(model, "model", None):
+    if getattr(model, "model", None):
         return detect_quantized_model(model.model)
     return None
 
