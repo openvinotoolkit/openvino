@@ -34,10 +34,11 @@ runs:
       run: |
         py_version=$(python3 -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')")
         for wheel in "${{ inputs.wheels-to-install }}"; do
+          echo "Installing the ${wheel} wheel"
           
           # Search for the python-specific wheel version and install it if exists
           wheel_path=$(find ${{ inputs.wheels-dir-path }} -name "$wheel-*cp$py_version*.whl")
-          if [ -z "${wheel_path}" ]; then
+          if [ -n "${wheel_path}" ]; then
             python3 -m pip install $wheel_path
           else
             # If the python-specific version does not exist, install by name only
