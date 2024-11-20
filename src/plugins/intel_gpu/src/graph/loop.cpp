@@ -375,7 +375,7 @@ loop_inst::concatenated_memory_mapping::ptr loop_inst::create_concat_memory_map(
     if (extern_mem_ptr != nullptr) {
         layout sliced_layout = intern_prim->get_output_layout(internal_id.idx);
         auto inter_mem_ptr = intern_prim->output_memory_ptr(internal_id.idx);
-        if (inter_mem_ptr == nullptr || shape_changed()) {
+        if (inter_mem_ptr == nullptr || get_flag(ExecutionFlags::SHAPE_CHANGED)) {
             // if inner body intern_prim has no output memory because it has dynamic shape,
             // calculate inner body intern_prim layout using concat_mem's layout.
             auto updated_sliced_layout = sliced_layout.get_partial_shape();
@@ -720,7 +720,7 @@ void loop_inst::postprocess_output_memory(bool is_dynamic, int64_t current_itera
                     }
                 }
             } else {
-                if (!output_allocated || shape_changed()) {
+                if (!output_allocated || get_flag(ExecutionFlags::SHAPE_CHANGED)) {
                     auto concat_layout = _impl_params->get_output_layout(external_id.idx);
                     auto concat_mem = ov::intel_gpu::allocate_memory_evenif_zero_bytes(_network.get_engine(), concat_layout, false);
                     external_outputs[external_id.idx] = concat_mem;
