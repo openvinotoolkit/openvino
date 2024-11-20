@@ -36,7 +36,7 @@ public:
     void update_loop_args(const ov::snippets::lowered::LinearIRCPtr& linear_ir) const;
 protected:
     void update(const ov::snippets::lowered::LinearIRCPtr& linear_ir) override;
-    void update_tensor_rank(const ov::snippets::VectorDims& master_shape) override;
+    void update_tensor_rank(const ov::snippets::VectorDims& master_shape) const override;
     void init_tensor_rank(const ov::snippets::lowered::LinearIRCPtr& linear_ir) const override;
     void initialization(const ov::snippets::lowered::LinearIRCPtr& linear_ir) override;
 

@@ -19,9 +19,10 @@ namespace intel_cpu {
 class BrgemmCopyBLoopPortsAdjuster : public ov::snippets::lowered::pass::RuntimeOptimizer {
 public:
     BrgemmCopyBLoopPortsAdjuster() = default;
-    BrgemmCopyBLoopPortsAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir, CPURuntimeConfigurator* configurator);
+    BrgemmCopyBLoopPortsAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir, const CPURuntimeConfigurator* configurator);
 
     bool run(const snippets::lowered::LinearIR& linear_ir) override;
+    bool applicable() const override { return !m_affected_uni2exp_map.empty(); }
 
 private:
     std::unordered_map<snippets::lowered::UnifiedLoopInfoPtr,

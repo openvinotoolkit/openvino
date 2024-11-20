@@ -12,7 +12,7 @@ namespace ov {
 namespace intel_cpu {
 
 BrgemmCopyBLoopPortsAdjuster::BrgemmCopyBLoopPortsAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
-                                                           CPURuntimeConfigurator* configurator)
+                                                           const CPURuntimeConfigurator* configurator)
     : ov::snippets::lowered::pass::RuntimeOptimizer(configurator) {
     const auto& pass = std::make_shared<intel_cpu::pass::AdjustBrgemmCopyBLoopPorts>();
     pass->run(*linear_ir);
@@ -29,9 +29,6 @@ BrgemmCopyBLoopPortsAdjuster::BrgemmCopyBLoopPortsAdjuster(const ov::snippets::l
 
 bool BrgemmCopyBLoopPortsAdjuster::run(const snippets::lowered::LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::BrgemmCopyBLoopPortsAdjuster")
-    if (m_affected_uni2exp_map.empty())
-        return false;
-
     for (const auto& p : m_affected_uni2exp_map) {
         const auto& uni_loop = p.first;
         const auto& exp_loops = p.second;

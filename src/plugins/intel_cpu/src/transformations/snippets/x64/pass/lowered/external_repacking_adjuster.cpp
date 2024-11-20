@@ -15,7 +15,7 @@ namespace ov {
 namespace intel_cpu {
 
 BrgemmExternalRepackingAdjuster::BrgemmExternalRepackingAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
-                                                                 CPURuntimeConfigurator* configurator)
+                                                                 const CPURuntimeConfigurator* configurator)
     : snippets::lowered::pass::RuntimeOptimizer(configurator) {
     const auto& params = linear_ir->get_parameters();
     for (size_t i = 0; i < params.size(); ++i) {
@@ -37,9 +37,6 @@ BrgemmExternalRepackingAdjuster::BrgemmExternalRepackingAdjuster(const ov::snipp
 
 bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::BrgemmExternalRepackingAdjuster")
-    if (m_param_idces_with_external_repacking.empty())
-        return false;
-
     const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(m_configurator->get_config());
     auto& optimal_descs = cpu_config->m_in_requested_descs;
     for (const auto& i : m_param_idces_with_external_repacking) {

@@ -24,9 +24,10 @@ namespace pass {
 class MHAParallelWAOptimizer : public lowered::pass::RuntimeOptimizer {
 public:
     MHAParallelWAOptimizer() = default;
-    MHAParallelWAOptimizer(const lowered::LinearIRCPtr& linear_ir, RuntimeConfigurator* configurator);
+    MHAParallelWAOptimizer(const lowered::LinearIRCPtr& linear_ir, const RuntimeConfigurator* configurator);
 
     bool run(const lowered::LinearIR& linear_ir) override;
+    bool applicable() const override { return !m_loops_to_split.empty(); }
 
 private:
     static std::unordered_set<lowered::ExpressionPtr> find_applicable_brgemms(const lowered::LinearIRCPtr& linear_ir);

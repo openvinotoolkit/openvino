@@ -17,6 +17,7 @@ namespace snippets {
 
 using namespace ov::snippets::pass;
 using namespace ov::snippets::lowered;
+using namespace ov::snippets::lowered::pass;
 
 #ifdef SNIPPETS_DEBUG_CAPS
 std::string RuntimeConfig::to_string() const {
@@ -65,7 +66,7 @@ void RuntimeConfigurator::initialization(const lowered::LinearIRCPtr& linear_ir)
     m_config->tile_rank = linear_ir->get_config().m_loop_depth;
 
     if (linear_ir->is_dynamic())
-        m_intermediate_optimizers.register_pass<ov::snippets::lowered::pass::MHAParallelWAOptimizer>(linear_ir, this);
+        RuntimeOptimizer::register_if_applicable<MHAParallelWAOptimizer>(m_intermediate_optimizers, linear_ir, this);
 }
 
 void RuntimeConfigurator::update(const lowered::LinearIRCPtr& linear_ir) {
@@ -86,7 +87,7 @@ void RuntimeConfigurator::update(const lowered::LinearIRCPtr& linear_ir) {
     m_config->latest_shapes = std::move(m_config->io_shapes);
 }
 
-void RuntimeConfigurator::update_tensor_rank(const ov::snippets::VectorDims& master_shape) {
+void RuntimeConfigurator::update_tensor_rank(const ov::snippets::VectorDims& master_shape) const {
     m_config->tensor_rank = master_shape.size();
 }
 

@@ -129,7 +129,7 @@ public:
                      const BufferScratchpadAllocator& allocator);
     virtual ~SubgraphExecutor() = default;
 
-    void execute(dnnl::stream strm, std::vector<MemoryPtr>& inMemPtrs, std::vector<MemoryPtr>& outMemPtrs);
+    void execute(dnnl::stream strm, const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs);
 
 protected:
     virtual void exec_impl(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) = 0;
@@ -169,7 +169,7 @@ protected:
 #endif
 
 private:
-    void reorder_execute(dnnl::stream strm, std::vector<MemoryPtr> inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs);
+    std::vector<MemoryPtr> exec_in_reorders(dnnl::stream strm, const std::vector<MemoryPtr>& inMemPtrs);
 
     std::unordered_map<size_t, CpuBlockedMemoryDescPtr> m_in_requested_descs = {};
 };

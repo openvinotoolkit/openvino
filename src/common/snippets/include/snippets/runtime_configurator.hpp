@@ -133,7 +133,7 @@ public:
      * @brief Update tensor rank based on master shape
      * @param master_shape Master shape
      */
-    virtual void update_tensor_rank(const ov::snippets::VectorDims& master_shape);
+    virtual void update_tensor_rank(const ov::snippets::VectorDims& master_shape) const;
 
 protected:
     /**

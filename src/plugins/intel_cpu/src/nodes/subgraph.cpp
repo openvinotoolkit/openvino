@@ -35,7 +35,7 @@
 #include "transformations/snippets/x64/pass/lowered/insert_brgemm_copy_b_buffers.hpp"
 #include "transformations/snippets/x64/pass/remove_converts.hpp"
 #include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
-#include "transformations/snippets/x64/pass/move_brgemm_repacking_out.hpp"
+#include "transformations/snippets/x64/pass/eliminate_brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/pass/enforce_precision.hpp"
 #include "transformations/snippets/x64/shape_inference.hpp"
 #include "transformations/snippets/x64/pass/lowered/adjust_brgemm_copy_b_loop_ports.hpp"
@@ -650,7 +650,7 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before, ov::snippets::pass::PropagatePrecision,
                                            ov::intel_cpu::pass::BrgemmToBrgemmCPU);
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After, ov::intel_cpu::pass::BrgemmToBrgemmCPU,
-                                           ov::intel_cpu::pass::MoveBrgemmRepackingOut);
+                                           ov::intel_cpu::pass::EliminateBrgemmCopyB);
     SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd, ov::intel_cpu::pass::RemoveConverts);
     SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON(Place::PipelineEnd, ov::intel_cpu::pass::MulAddToFMA);
 
@@ -992,14 +992,17 @@ void Subgraph::SubgraphExecutor::parallel_forNd(const std::function<void(jit_sni
     });
 }
 
-void Subgraph::SubgraphExecutor::execute(dnnl::stream strm, std::vector<MemoryPtr>& inMemPtrs, std::vector<MemoryPtr>& outMemPtrs) {
-    if (m_in_requested_descs.empty())
+void Subgraph::SubgraphExecutor::execute(dnnl::stream strm, const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
+    if (!m_in_requested_descs.empty()) {
+        auto reorderedInMemPtrs = exec_in_reorders(strm, inMemPtrs);
+        exec_impl(reorderedInMemPtrs, outMemPtrs);
+    } else {
         exec_impl(inMemPtrs, outMemPtrs);
-    else
-        reorder_execute(strm, inMemPtrs, outMemPtrs);
+    }
 }
 
-void Subgraph::SubgraphExecutor::reorder_execute(dnnl::stream strm, std::vector<MemoryPtr> inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
+std::vector<MemoryPtr> Subgraph::SubgraphExecutor::exec_in_reorders(dnnl::stream strm, const std::vector<MemoryPtr>& inMemPtrs) {
+    auto reordered_in_ptrs = inMemPtrs;
     size_t offset = m_internal_buffer_size;
     for (const auto& requested_descs_elem : m_in_requested_descs) {
         const auto in_idx = requested_descs_elem.first;
@@ -1007,11 +1010,11 @@ void Subgraph::SubgraphExecutor::reorder_execute(dnnl::stream strm, std::vector<
 
         const void* data_ptr = m_buffer_scratchpad->getDataAs<uint8_t>() + offset;
         const auto scratch_mem = std::make_shared<Memory>(strm.get_engine(), requested_desc, data_ptr, false);
-        scratch_mem->load(*inMemPtrs[in_idx]);
-        inMemPtrs[in_idx] = scratch_mem;
+        scratch_mem->load(*reordered_in_ptrs[in_idx]);
+        reordered_in_ptrs[in_idx] = scratch_mem;
         offset += requested_desc->getCurrentMemSize();
     }
-    exec_impl(inMemPtrs, outMemPtrs);
+    return reordered_in_ptrs;
 }
 
 }   // namespace node

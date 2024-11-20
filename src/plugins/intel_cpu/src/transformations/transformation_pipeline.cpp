@@ -954,8 +954,9 @@ void Transformations::MainSnippets(void) {
     // [122706] Some 3D MHA Patterns have perf regressions when Transpose op is tokenized
     std::set<size_t> mha_supported_transpose_ranks = { 4 };
 
-    // Note: this is a temporary WA, avoiding matmul B input tokenization in the cases when CPU .
-    // It will be removed when plugin specific SubgraphPass will be implemented.
+    // If preliminary repacking is needed, it is executed outside the snippets kernel for performance reasons,
+    // so tokenization of ops sequences on matmul's B input is disabled
+    // Ticket 157743: This logic should be placed in CPU specific SubgraphPass.
     auto mha_tokenize_mm_b_input_callback = [this](const std::shared_ptr<const ov::Node>& node) {
         const auto& input_type_0 = node->get_input_element_type(0);
         const auto& input_type_1 = node->get_input_element_type(1);

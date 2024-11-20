@@ -95,7 +95,7 @@ ov::snippets::lowered::ExpressionPtr get_copy_b_expr(const ov::snippets::lowered
     } else if (ov::is_type<snippets::lowered::BufferExpression>(b_input_expr)) {
         OPENVINO_ASSERT(b_input_expr->get_input_count() >= 1, "BufferExpression on brgemm's B input must have at least one input");
         const auto input_buffer_expr = b_input_expr->get_input_port_connector(0)->get_source().get_expr();
-        if (ov::is_type<BrgemmCopyB>(b_input_expr->get_node())) {
+        if (ov::is_type<BrgemmCopyB>(input_buffer_expr->get_node())) {
             return input_buffer_expr;
         }
     }

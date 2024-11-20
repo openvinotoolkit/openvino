@@ -19,7 +19,7 @@ using namespace ov::snippets::pass;
 
 const size_t MHAParallelWAOptimizer::m_dim_M_idx = 1;
 
-MHAParallelWAOptimizer::MHAParallelWAOptimizer(const lowered::LinearIRCPtr& linear_ir, RuntimeConfigurator* configurator)
+MHAParallelWAOptimizer::MHAParallelWAOptimizer(const lowered::LinearIRCPtr& linear_ir, const RuntimeConfigurator* configurator)
     : lowered::pass::RuntimeOptimizer(configurator) {
     if (linear_ir->get_config().m_enable_domain_optimization || !linear_ir->is_dynamic())
         return;
@@ -47,9 +47,6 @@ MHAParallelWAOptimizer::MHAParallelWAOptimizer(const lowered::LinearIRCPtr& line
 
 bool MHAParallelWAOptimizer::run(const lowered::LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::MHAParallelWAOptimizer")
-    if (m_loops_to_split.empty())
-        return false;
-
     const auto& config = m_configurator->get_config();
     size_t new_batch_dim, new_kernel_dim;
     if (!SplitDimensionM::split(config->master_shape, m_concurrency, new_batch_dim, new_kernel_dim))

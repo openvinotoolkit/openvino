@@ -13,6 +13,7 @@
 #endif
 namespace ov {
 namespace intel_cpu {
+using namespace ov::snippets::lowered::pass;
 
 const size_t CPURuntimeConfigurator::rank6D = 6;
 
@@ -44,8 +45,8 @@ void CPURuntimeConfigurator::initialization(const ov::snippets::lowered::LinearI
     RuntimeConfigurator::initialization(linear_ir);
 #ifndef OPENVINO_ARCH_ARM64
     if (linear_ir->is_dynamic())
-        m_intermediate_optimizers.register_pass<BrgemmCopyBLoopPortsAdjuster>(linear_ir, this);
-    m_final_optimizers.register_pass<BrgemmExternalRepackingAdjuster>(linear_ir, this);
+        RuntimeOptimizer::register_if_applicable<BrgemmCopyBLoopPortsAdjuster>(m_intermediate_optimizers, linear_ir, this);
+    RuntimeOptimizer::register_if_applicable<BrgemmExternalRepackingAdjuster>(m_final_optimizers, linear_ir, this);
 #endif
 }
 
@@ -72,7 +73,7 @@ void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRCPtr& l
     m_config->latest_shapes = std::move(m_config->io_shapes);
 }
 
-void CPURuntimeConfigurator::update_tensor_rank(const ov::snippets::VectorDims& master_shape) {
+void CPURuntimeConfigurator::update_tensor_rank(const ov::snippets::VectorDims& master_shape) const {
     m_config->tensor_rank = std::max(master_shape.size(), rank6D);
 }
 
