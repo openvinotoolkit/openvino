@@ -315,22 +315,26 @@ Output broadcast_groups(const Output& cache, const int num_kv_heads, const int n
     return reshape;
 }
 
-Output concat_cache_generic(const Output& past, const Output& current) {
-    return make_shared<Concat>(ov::OutputVector{past, current}, 2);     // 2 is the dimension index that corresponds to sequence len
+// The next methods are variants of cache management. Each return a pair of outputs: {kv_to_be_passed_to_sdpa, kv_to_be_returned_from_decomp}
+
+OutputVector concat_cache_generic(const Output& past, const Output& current) {
+    const Output concated = make_shared<Concat>(ov::OutputVector{past, current}, 2);     // 2 is the dimension index that corresponds to sequence len
+    return {concated, concated};
 }
 
-Output update_cache_generic(const Output& past, const Output& current, const Output& past_len) {
+OutputVector update_cache_generic(const Output& past, const Output& current, const Output& past_len) {
     Output update_len = get_dimensions(current, {2});
     Output update_end = make_shared<Add>(past_len, update_len);
     Output update_indices = make_shared<Range>(squeeze_1d(past_len), squeeze_1d(update_end), Constant::create(element::i32, Shape{}, {1}), element::i32);
-    return make_shared<ScatterUpdate>(past, update_indices, current, Constant::create(element::i32, Shape{1}, {2}));    // 2 is the dimension index that corresponds to sequence len
+    Output updated = make_shared<ScatterUpdate>(past, update_indices, current, Constant::create(element::i32, Shape{1}, {2}));    // 2 is the dimension index that corresponds to sequence len
+    return {updated, updated};
 }
 
-Output update_cache_npuw(const Output& past, const Output& current, const Output& past_len) {
-    return concat_cache_generic(past, current);
+OutputVector update_cache_npuw(const Output& past, const Output& current, const Output& past_len) {
+    return {concat_cache_generic(past, current)[0], current};
 }
 
-Output update_cache_seu(const Output& past, const Output& current, const Output& past_len) {
+OutputVector update_cache_seu(const Output& past, const Output& current, const Output& past_len) {
     Output update_len = get_dimensions(current, {2});
     const auto one = Constant::create(element::i32, Shape{}, {1});
     Output update_end = make_shared<Add>(past_len, update_len);
@@ -338,7 +342,8 @@ Output update_cache_seu(const Output& past, const Output& current, const Output&
     auto shape_of = make_shared<ShapeOf>(current, element::i32);
     auto unsqueezed_indices = make_shared<Unsqueeze>(update_indices, Constant::create(element::i32, Shape{3}, {0,1,3}));
     auto broadcast_indices = make_shared<Broadcast>(unsqueezed_indices, shape_of);
-    return make_shared<ScatterElementsUpdate>(past, broadcast_indices, current, Constant::create(element::i32, Shape{1}, {2}));
+    Output seu = make_shared<ScatterElementsUpdate>(past, broadcast_indices, current, Constant::create(element::i32, Shape{1}, {2}));
+    return {seu, seu};
 }
 
 Output attn_mask_npuw(
@@ -377,8 +382,8 @@ ov::OutputVector group_query_attention_decomposition(
     int num_heads,
     bool rotary_interleaved,
     int kv_num_heads,
-    std::function<Output(const Output& past, const Output& current)> concat_cache,
-    std::function<Output(const Output& past, const Output& current, const Output& past_len)> update_cache,
+    std::function<OutputVector(const Output& past, const Output& current)> concat_cache,
+    std::function<OutputVector(const Output& past, const Output& current, const Output& past_len)> update_cache,
     attn_mask_callback attn_mask = attn_mask_callback()  // attn_mask generator for SDPA, if not provided, the attn_mask input is not used and causal flag is set
 ) {
     const auto& input = inputs[0];
@@ -420,17 +425,22 @@ ov::OutputVector group_query_attention_decomposition(
     Q = rope(Q, cos, sin, rotary_interleaved, head_size, past_seq_len, total_sequence_len);
     K = rope(K, cos, sin, rotary_interleaved, head_size, past_seq_len, total_sequence_len);
 
+    OutputVector K_tuple, V_tuple;
+
     if(past_K.get_partial_shape()[2].is_dynamic()) {
-        K = concat_cache(past_K, K);
+        K_tuple = concat_cache(past_K, K);
     } else {
-        K = update_cache(past_K, K, past_seq_len);
+        K_tuple = update_cache(past_K, K, past_seq_len);
     }
 
     if(past_V.get_partial_shape()[2].is_dynamic()) {
-        V = concat_cache(past_V, V);
+        V_tuple = concat_cache(past_V, V);
     } else {
-        V = update_cache(past_V, V, past_seq_len);
+        V_tuple = update_cache(past_V, V, past_seq_len);
     }
+
+    K = K_tuple[0];
+    V = V_tuple[0];
 
     K = broadcast_groups(K, kv_num_heads, num_heads);
     V = broadcast_groups(V, kv_num_heads, num_heads);
@@ -453,7 +463,7 @@ ov::OutputVector group_query_attention_decomposition(
 
     auto output = make_shared<v13::ScaledDotProductAttention>(sdpa_inputs, !attn_mask);
 
-    return {output, K, V};
+    return {output, K_tuple[1], V_tuple[1]};
 }
 
 
