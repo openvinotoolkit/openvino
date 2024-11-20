@@ -138,6 +138,9 @@ std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runIni
 
     std::chrono::steady_clock::time_point begin;
     std::chrono::steady_clock::time_point end;
+    std::chrono::steady_clock::time_point begin_memcpy;
+    std::chrono::steady_clock::time_point end_memcpy;
+    long long memcpy_duration = 0;
 
     // Match the inputs of the "init" model with the Constant nodes of the original model
     begin = std::chrono::steady_clock::now();
@@ -166,7 +169,12 @@ std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runIni
         OPENVINO_ASSERT(constantIdToTensorData.at(id).size == hostTensor->get_byte_size(),
                         "Byte size mismatch for ",
                         descriptor.nameFromCompiler);
+
+        begin_memcpy = std::chrono::steady_clock::now();
         std::memcpy(hostTensor->data(), constantIdToTensorData.at(id).mem, hostTensor->get_byte_size());
+        end_memcpy = std::chrono::steady_clock::now();
+        memcpy_duration =
+            memcpy_duration + std::chrono::duration_cast<std::chrono::milliseconds>(end_memcpy - begin_memcpy).count();
 
         inputTensorsData.push_back({TensorData{hostTensor->data(), hostTensor->get_byte_size()}});
         inputHostTensors.push_back(hostTensor._ptr);
@@ -174,6 +182,7 @@ std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runIni
     end = std::chrono::steady_clock::now();
     std::cout << "Setting init inputs " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
               << "[ms]" << std::endl;
+    std::cout << "Memcpy duration " << memcpy_duration << "[ms]" << std::endl;
 
     begin = std::chrono::steady_clock::now();
     for (const IODescriptor& descriptor : initGraph->get_metadata().outputs) {
