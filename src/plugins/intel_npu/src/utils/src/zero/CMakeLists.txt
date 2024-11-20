@@ -34,17 +34,3 @@ ov_developer_package_export_targets(TARGET openvino::npu_zero_utils
 
 ov_developer_package_export_targets(TARGET level-zero-ext)
 ov_install_static_lib(level-zero-ext ${NPU_PLUGIN_COMPONENT})
-
-if(TARGET ze_loader)
-    ov_developer_package_export_targets(TARGET ze_loader)
-    ov_install_static_lib(ze_loader ${NPU_PLUGIN_COMPONENT})
-
-    # TODO: remove once https://github.com/oneapi-src/level-zero/pull/243 is merged
-    ov_developer_package_export_targets(TARGET utils)
-    ov_install_static_lib(utils ${NPU_PLUGIN_COMPONENT})
-
-    # Support tests to run with ze_loader
-    install(TARGETS ze_loader
-            RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL
-            LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
-endif()
