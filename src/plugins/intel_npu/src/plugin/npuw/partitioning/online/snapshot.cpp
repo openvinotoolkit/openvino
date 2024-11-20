@@ -465,34 +465,20 @@ void Snapshot::earlyRegroup() {
             break;
         }
         case PatternType::PATTERN: {
-            // FIXME: refactor as more patterns are supported
-            if (isolate.pattern == "RMSNorm") {
-                rewr.add_matcher<ov::npuw::patterns::compute::RMSNorm>(shared_from_this(), isolate.tag);
-                handle_patterns = true;
-            } else if (isolate.pattern == "RMSNorm2") {
-                rewr.add_matcher<ov::npuw::patterns::compute::RMSNorm2>(shared_from_this(), isolate.tag);
-                handle_patterns = true;
-            } else if (isolate.pattern == "DQMatMulCWu4") {
-                rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulCWu4>(shared_from_this(), isolate.tag);
-                handle_patterns = true;
-            } else if (isolate.pattern == "DQMatMulGQu4") {
-                rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulGQu4>(shared_from_this(), isolate.tag);
-                handle_patterns = true;
-            } else if (isolate.pattern == "DQMatMulCWi4") {
-                rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulCWi4>(shared_from_this(), isolate.tag);
-                handle_patterns = true;
-            } else if (isolate.pattern == "DQMatMulGQi4") {
-                rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulGQi4>(shared_from_this(), isolate.tag);
-                handle_patterns = true;
-            } else if (isolate.pattern == "DQMatMulConv") {
-                rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulConv>(shared_from_this(), isolate.tag);
-                handle_patterns = true;
-            } else if (isolate.pattern == "VocabMatMul") {
-                rewr.add_matcher<ov::npuw::patterns::compute::VocabMatMul>(shared_from_this(), isolate.tag);
-                handle_patterns = true;
-            } else {
-                LOG_WARN("OPENVINO_NPUW_ISOLATE: unsupported pattern " << isolate.pattern << " is skipped!");
-            }
+#define HNDL(p)                                                                            \
+    if (isolate.pattern == #p) {                                                           \
+        rewr.add_matcher<ov::npuw::patterns::compute::p>(shared_from_this(), isolate.tag); \
+        handle_patterns = true;                                                            \
+    }
+            HNDL(RMSNorm);
+            HNDL(RMSNorm2);
+            HNDL(DQMatMulCWu4);
+            HNDL(DQMatMulGQu4);
+            HNDL(DQMatMulCWi4);
+            HNDL(DQMatMulGQi4);
+            HNDL(DQMatMulConv);
+            HNDL(VocabMatMul);
+#undef HNDL
         }
         }
     }
@@ -730,11 +716,16 @@ std::shared_ptr<Repeated> Snapshot::tryMergeTriangles(const std::vector<Group::G
     }
 
     if (prods.size() < m_ctx.keep_blocks) {
-        // In some cases (specifically mixed precision) we could have merged
-        // a small number of huge groups which consumed other legit repeated blocks
-        // due to having a different repeated tag due to unique weights precision combination
-        // from the rest of the model.
-        // This check was added to prevent that and shouldn't affect other models.
+        // In some cases (specifically mixed precision) during MergeUniques() pass we could be left with
+        // E.g. 10 repeated blocks with tag AAA and 2 repeated blocks with tag BBB
+        // TryMergeTriangles() pass checks that producer and consumer have a different tag to be merged further.
+        // Let's say in our example 10 AAA blocks are finalized and cannot be merged further due to above check.
+        // However we will proceed to merge 3 BBB blocks with 3 AAA blocks since the tags are different.
+        // This will create a new tag CCC for the merged blocks and the merge will continue until those 3 blocks
+        // consume a large amount of legit AAA blocks.
+        // Later in CleanUpUniques() pass those repeated blocks will be stripped off repeated tag due to the same check
+        // in this "if". To prevent such cases where we would end up with small number of huge blocks this check was
+        // introduced.
         return {};
     }
 
@@ -955,11 +946,16 @@ std::shared_ptr<Repeated> Snapshot::tryMergeRepeating(const std::vector<Group::G
     }
 
     if (prods.size() < m_ctx.keep_blocks) {
-        // In some cases (specifically mixed precision) we could have merged
-        // a small number of huge groups which consumed other legit repeated blocks
-        // due to having a different repeated tag due to unique weights precision combination
-        // from the rest of the model.
-        // This check was added to prevent that and shouldn't affect other models.
+        // In some cases (specifically mixed precision) during MergeUniques() pass we could be left with
+        // E.g. 10 repeated blocks with tag AAA and 2 repeated blocks with tag BBB
+        // TryMergeRepeating() pass checks that producer and consumer have a different tag to be merged further.
+        // Let's say in our example 10 AAA blocks are finalized and cannot be merged further due to above check.
+        // However we will proceed to merge 3 BBB blocks with 3 AAA blocks since the tags are different.
+        // This will create a new tag CCC for the merged blocks and the merge will continue until those 3 blocks
+        // consume a large amount of legit AAA blocks.
+        // Later in CleanUpUniques() pass those repeated blocks will be stripped off repeated tag due to the same check
+        // in this "if". To prevent such cases where we would end up with small number of huge blocks this check was
+        // introduced.
         return {};
     }
 

@@ -237,8 +237,7 @@ DQMatMulConv::DQMatMulConv(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
     auto param2 = opp::any_input();
     auto convert2 = opp::optional<ov::op::v0::Convert>({param2->output(0)});
     auto multiply = opp::wrap_type<ov::op::v1::Multiply>({convert, convert2});
-    auto tr_input = opp::any_input();
-    auto transpose_in = opp::wrap_type<ov::op::v1::Transpose>({tr_input, opp::any_input()});
+    auto transpose_in = opp::wrap_type<ov::op::v1::Transpose>({opp::any_input(), opp::any_input()});
     auto conv = opp::wrap_type<ov::op::v1::Convolution>({transpose_in, multiply});
     auto transpose_out = opp::wrap_type<ov::op::v1::Transpose>({conv, opp::any_input()});
 
@@ -248,18 +247,18 @@ DQMatMulConv::DQMatMulConv(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
 
-        auto matched_node_param = node_to_output.at(param).get_node_shared_ptr();
-        auto matched_node_param2 = node_to_output.at(param2).get_node_shared_ptr();
+        auto matched_node_param = node_to_output.at(param);
+        auto matched_node_param2 = node_to_output.at(param2);
 
         auto matched_node_transpose_in = node_to_output.at(transpose_in).get_node_shared_ptr();
         auto matched_node_transpose_out = node_to_output.at(transpose_out).get_node_shared_ptr();
         auto matched_node_multiply = node_to_output.at(multiply).get_node_shared_ptr();
         auto matched_node_conv = node_to_output.at(conv).get_node_shared_ptr();
 
-        if ((matched_node_param->get_element_type() == ov::element::i4 ||
-             matched_node_param->get_element_type() == ov::element::i8) &&
-            (matched_node_param2->get_element_type() == ov::element::f32 ||
-             matched_node_param2->get_element_type() == ov::element::f16)) {
+        if ((matched_node_param.get_element_type() == ov::element::i4 ||
+             matched_node_param.get_element_type() == ov::element::i8) &&
+            (matched_node_param2.get_element_type() == ov::element::f32 ||
+             matched_node_param2.get_element_type() == ov::element::f16)) {
             // Partitioning ignores Param/Const -> Convert nodes
             node_to_gptr->at(matched_node_transpose_in)->isolate(isol_tag);
             node_to_gptr->at(matched_node_transpose_out)->isolate(isol_tag);
@@ -348,7 +347,6 @@ RMSNorm::RMSNorm(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, co
 
     // Note: Use [=] to make sure the above objects stay alive in the callback
     auto callback = [=](ov::pass::pattern::Matcher& m) {
-        std::cout << "RMSNorm MATCHED!" << std::endl;
         auto& node_to_output = m.get_pattern_value_map();
 
         auto matched_hadd = node_to_output.at(hadd).get_node_shared_ptr();
