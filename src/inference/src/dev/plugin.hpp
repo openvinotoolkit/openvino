@@ -74,7 +74,7 @@ public:
     T get_property(const ov::Property<T, M>& property, const AnyMap& arguments) const {
         return get_property(property.name(), arguments).template as<T>();
     }
-    bool supports_model_caching() const;
+    bool supports_model_caching(const AnyMap& arguments = {}) const;
 };
 
 }  // namespace ov

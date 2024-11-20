@@ -187,7 +187,6 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
     bool enable_device_priority = (prioritiesIter != properties.end()) &&
                                 check_priority_config(prioritiesIter->second.as<std::string>());
 
-    auto device_list = get_core()->get_available_devices();
     for (auto && d : devices_with_requests) {
         auto opening_bracket = d.find_first_of('(');
         auto closing_bracket = d.find_first_of(')', opening_bracket);
@@ -206,8 +205,15 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
         std::string deviceid = parsed.get_device_id();
         std::vector<std::string> same_type_devices;
         // if AUTO:GPU case, replace GPU with GPU.0 and GPU.1
+        auto device_id_list = get_core()
+                                  ->get_property(parsed.get_device_name(), ov::available_devices.name(), {})
+                                  .as<std::vector<std::string>>();
+        std::vector<std::string> device_list_with_id;
+        for (auto&& device_id : device_id_list) {
+            device_list_with_id.push_back(parsed.get_device_name() + "." + device_id);
+        }
         if (deviceid.empty()) {
-            for (auto&& device : device_list) {
+            for (auto&& device : device_list_with_id) {
                 if (device.find(device_name) != std::string::npos) {
                     same_type_devices.push_back(std::move(device));
                 }
@@ -280,11 +286,19 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
     } else if (name == ov::device::full_name) {
         return decltype(ov::device::full_name)::value_type {get_device_name()};
     } else if (name == ov::device::capabilities.name()) {
-        auto device_list = get_core()->get_available_devices();
+        std::vector<std::string> device_list = arguments.count(ov::device::priorities.name())
+                                                   ? m_plugin_config.parse_priorities_devices(
+                                                         arguments.at(ov::device::priorities.name()).as<std::string>())
+                                                   : get_core()->get_available_devices();
         std::vector<std::string> capabilities;
-        for (auto const & device : device_list) {
-            auto devCapabilities = get_core()->get_property(device, ov::device::capabilities);
-            capabilities.insert(capabilities.end(), devCapabilities.begin(), devCapabilities.end());
+        for (auto const& device : device_list) {
+            auto real_device = device[0] == '-' ? device.substr(1) : device;
+            try {
+                auto devCapabilities = get_core()->get_property(real_device, ov::device::capabilities);
+                capabilities.insert(capabilities.end(), devCapabilities.begin(), devCapabilities.end());
+            } catch (const ov::Exception&) {
+                LOG_DEBUG_TAG("Failed to get capabilities for device: ", device.c_str());
+            }
         }
         std::sort(capabilities.begin(), capabilities.end());
         capabilities.resize(std::distance(capabilities.begin(), std::unique(capabilities.begin(), capabilities.end())));
@@ -644,7 +658,6 @@ void Plugin::register_priority(const unsigned int& priority,
 std::string Plugin::get_device_list(const ov::AnyMap& properties) const {
     std::string all_devices;
     std::string device_architecture;
-    auto device_list = get_core()->get_available_devices();
     auto device_list_config = properties.find(ov::device::priorities.name());
     auto get_gpu_architecture = [&](const std::string& name) -> std::string {
         try {
@@ -655,15 +668,7 @@ std::string Plugin::get_device_list(const ov::AnyMap& properties) const {
         }
         return "";
     };
-    for (auto&& device : device_list) {
-        // filter out the supported devices
-        if (device.find("GPU") != std::string::npos) {
-            device_architecture = get_gpu_architecture(device);
-        }
-        if (!m_plugin_config.is_supported_device(device, device_architecture))
-            continue;
-        all_devices += device + ",";
-    }
+    
     std::vector<std::string> devices_merged;
     if (device_list_config != properties.end() && !device_list_config->second.empty()) {
         auto priorities = device_list_config->second;
@@ -750,8 +755,21 @@ std::string Plugin::get_device_list(const ov::AnyMap& properties) const {
             all_devices += device + ",";
         });
     }
+
     if (all_devices.empty()) {
-        OPENVINO_THROW("Please, check environment due to no supported devices can be used");
+        auto device_list = get_core()->get_available_devices();
+        for (auto&& device : device_list) {
+            // filter out the supported devices
+            if (device.find("GPU") != std::string::npos) {
+                device_architecture = get_gpu_architecture(device);
+            }
+            if (!m_plugin_config.is_supported_device(device, device_architecture))
+                continue;
+            all_devices += device + ",";
+        }
+        if (all_devices.empty()) {
+            OPENVINO_THROW("Please, check environment due to no supported devices can be used");
+        }
     }
     // remove the last ',' if exist
     if (all_devices.back() == ',')
