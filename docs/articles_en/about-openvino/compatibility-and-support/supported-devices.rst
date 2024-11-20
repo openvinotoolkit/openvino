@@ -76,14 +76,14 @@ Feature Support and API Coverage
 | HETERO                  | 61.22 %   | 99.24 %          | 86.05 %           |
 +-------------------------+-----------+------------------+-------------------+
 |                         || Percentage of API supported by the device,      |
-|                         || as of OpenVINO 2024.4, 25 Oct, 2024.            |
+|                         || as of OpenVINO 2024.5, 20 Nov. 2024.            |
 +-------------------------+-----------+------------------+-------------------+
 
 For setting up a relevant configuration, refer to the
 :doc:`Integrate with Customer Application <../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
 topic (step 3 "Configure input and output").
 
-.. dropdown:: Device support across OpenVINO 2024.4 distributions
+.. dropdown:: Device support across OpenVINO 2024.5 distributions
 
    ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
    Device           Archives    PyPI    APT/YUM/ZYPPER    Conda     Homebrew     vcpkg      Conan       npm

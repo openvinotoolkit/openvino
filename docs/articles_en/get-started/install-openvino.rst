@@ -1,4 +1,4 @@
-Install OpenVINO™ 2024.4
+Install OpenVINO™ 2024.5
 ==========================
 
 
