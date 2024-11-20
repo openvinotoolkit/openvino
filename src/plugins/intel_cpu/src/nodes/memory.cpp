@@ -674,7 +674,7 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
         std::vector<Input::OutputConfig> graphOutputConfig;
         for (auto&& portConfig : config.outConfs) {
             auto desc = portConfig.getMemDesc();
-            graphOutputConfig.emplace_back(node::Input::OutputConfig{desc, false});
+            graphOutputConfig.emplace_back(node::Input::OutputConfig{desc, true});
         }
 
         // configure the inner graph to get the information about output memory descriptors
