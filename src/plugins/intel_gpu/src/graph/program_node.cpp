@@ -1538,16 +1538,7 @@ void program_node::create_onednn_primitive_attributes(
             auto in = get_input_layout(dep_idx);
             auto in_origin = in;
             auto set_binary_op = [&](dnnl::algorithm alg, onednn_post_op_type op_type) {
-                if (is_type<fully_connected>()) {
-                    auto prim = this->as<fully_connected>().get_primitive();
-                    if (prim->input_size == 3) {
-                        cldnn::onednn::combine_bf_with_first_spatial_dim(in);
-                    }
-                    auto mem_desc = onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::ab);
-                    post_ops.append_binary(alg, mem_desc);
-                    update_onednn_post_op_list(op_type, dep_idx, dnnl::memory::format_tag::ab, false,
-                            mem_desc.get_dims(), mem_desc.get_data_type());
-                } else if (is_type<gemm>()) {
+                if (is_type<fully_connected>() || is_type<gemm>()) {
                     size_t rank = cldnn::format::dimension(in.format);
                     auto in_pshape = in.get_partial_shape();
                     auto out_pshape = get_output_layout().get_partial_shape();
