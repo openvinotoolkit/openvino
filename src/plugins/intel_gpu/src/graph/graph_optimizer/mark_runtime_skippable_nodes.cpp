@@ -56,8 +56,11 @@ void mark_runtime_skippable_nodes::run(program& p) {
             continue;
         }
 
+        // Check whether consecutive runtime skippable nodes is lower than max count.
+        // Too long consecutive runtime skippable nodes causes huge time consumption in add_memory_dependency() of basic_memory_dependencies pass.
+        // max count 8 is experimentally selected in specific model.
         if (prev_itr != p.get_processing_order().begin()) {
-            const size_t max_consecutive_runtime_skippable_nodes = 10;
+            const size_t max_consecutive_runtime_skippable_nodes = 8;
             auto& prev_node = *prev_itr;
             if (check_consecutive_runtime_skippable(prev_node, max_consecutive_runtime_skippable_nodes)) {
                 GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node->id()
@@ -66,6 +69,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 continue;
             }
         }
+
         program_helpers::do_for_types<gather>(*node, [](gather_node& node) {
             // Check pattern
             auto impl_params = node.get_kernel_impl_params();
