@@ -134,7 +134,7 @@ def process_link(link):
     if '/' in link:
         return link.split('/')[0].replace("-", " ")
     return link.split('.html')[0].replace("-", " ")
-    
+
 def extract_hierarchy(link):
     path = link.split("://")[-1]
     segments = path.split('/')[1:]
