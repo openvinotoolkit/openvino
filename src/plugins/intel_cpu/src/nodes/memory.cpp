@@ -588,10 +588,12 @@ MemoryInput::MemoryInput(const std::string id,
                                        mode) {
     body = func;
 
-    if (haveSubgraph() && isDynamic) {
+    if (haveSubgraph()) {
         subGraph = make_unique<ov::intel_cpu::Graph>();
-        // Update to MemInpSingleShapeInfer
-        shapeInference = PassThroughShapeInferFactory(body).makeShapeInfer();
+        if (isDynamic) {
+            // Update to MemInpSingleShapeInfer
+            shapeInference = PassThroughShapeInferFactory(body).makeShapeInfer();
+        }
     }
 }
 
