@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -15,10 +16,10 @@ def detect_quantized_model(model: torch.nn.Module) -> str:
     Returns:
         str: The quantization method if available, otherwise None.
     """
-    if (model and getattr(model, 'config', None) and
-            getattr(model.config, 'quantization_config', None)):
+    if (model and getattr(model, "config", None) 
+            and getattr(model.config, "quantization_config", None)):
         return model.config.quantization_config.quant_method
-    elif getattr(model, 'model', None):
+    elif getattr(model, "model", None):
         return detect_quantized_model(model.model)
     return None
 
@@ -51,7 +52,7 @@ def patch_quantized(model: torch.nn.Module) -> None:
         patch_model(model, extensions,
                     "_openvino_quantized_patch_orig_forward")
     elif quant_type == "gptq":
-        setattr(model, "_openvino_gptq_patched", True)
+        model._openvino_gptq_patched = True
         gptq.patch_model(model)
     else:
         raise RuntimeError("Unknown quantization type.")
