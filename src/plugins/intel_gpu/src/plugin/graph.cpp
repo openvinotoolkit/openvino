@@ -578,9 +578,11 @@ void Graph::update_profiling_info() {
         auto event = execIter->second;
         executedPrimitives.erase(execIter);
 
-        cldnn::instrumentation::profiling_info cldnnInfo{profiledID, event->get_profiling_info()};
+        if (event) {
+            cldnn::instrumentation::profiling_info cldnnInfo{profiledID, event->get_profiling_info()};
+            collectTimings(cldnnInfo, perfCount);
+        }
 
-        collectTimings(cldnnInfo, perfCount);
         perfCount.num++;
     }
 

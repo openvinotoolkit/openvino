@@ -19,7 +19,7 @@ represents a sequence of GRU cells. The sequence can be connected differently de
 ``direction`` attribute that specifies the direction of traversing of input data along sequence
 dimension or specifies whether it should be a bidirectional sequence. The most of the attributes
 are in sync with the specification of ONNX GRU operator defined
-`GRUCell <https://github.com/onnx/onnx/blob/master/docs/Operators.md#gru>`__
+`GRUCell <https://github.com/onnx/onnx/blob/main/docs/Operators.md#gru>`__
 
 
 **Attributes**
@@ -69,7 +69,7 @@ are in sync with the specification of ONNX GRU operator defined
 * *linear_before_reset*
 
   * **Description**: *linear_before_reset* flag denotes if the layer behaves according to the modification
-    of *GRUCell* described in the formula in the `ONNX documentation <https://github.com/onnx/onnx/blob/master/docs/Operators.md#GRU>`__.
+    of *GRUCell* described in the formula in the `ONNX documentation <https://github.com/onnx/onnx/blob/main/docs/Operators.md#GRU>`__.
   * **Range of values**: True or False
   * **Type**: ``boolean``
   * **Default value**: False
