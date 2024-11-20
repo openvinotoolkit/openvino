@@ -389,8 +389,7 @@ ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(const std::vector<uint8_t>&
     return graphHandle;
 }
 
-template <ze_graph_ext_version_t TableExtension>
-ze_graph_handle_t ZeGraphExtWrappers<TableExtension>::getGraphHandle(const std::shared_ptr<ov::AlignedBuffer>& mmapNetwork) const {
+ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(const std::shared_ptr<ov::AlignedBuffer>& mmapNetwork) const {
     ze_graph_handle_t graphHandle;
 
     if (mmapNetwork->size() == 0) {

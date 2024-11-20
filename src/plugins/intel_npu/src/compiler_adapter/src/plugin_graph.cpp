@@ -7,6 +7,7 @@
 #include "intel_npu/config/common.hpp"
 #include "intel_npu/config/runtime.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 
 namespace intel_npu {
 
@@ -17,7 +18,7 @@ PluginGraph::PluginGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
                          NetworkMetadata metadata,
                          std::vector<uint8_t> blob,
                          const Config& config)
-    : IGraph(graphHandle, std::move(metadata), config, std::optional<std::vector<uint8_t>>(std::move(blob))),
+    : IGraph(graphHandle, std::move(metadata), config, std::optional<std::unique_ptr<BlobContainer>>(std::move(blob))),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
       _compiler(compiler),
@@ -30,8 +31,8 @@ PluginGraph::PluginGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
     initialize(config);
 }
 
-size_t PluginGraph::export_blob(std::ostream& stream) const {
-    stream.write(reinterpret_cast<const char*>(_blob.data()), _blob.size());
+size_t PluginGraph::export_blob(std::ostream& stream) {
+    stream.write(reinterpret_cast<const char*>(_blob->get_ptr()), _blob->size());
 
     if (!stream) {
         _logger.error("Write blob to stream failed. Blob is broken!");
@@ -40,21 +41,27 @@ size_t PluginGraph::export_blob(std::ostream& stream) const {
 
     if (_logger.level() >= ov::log::Level::INFO) {
         std::uint32_t result = 1171117u;
-        for (const uint8_t* it = _blob.data(); it != _blob.data() + _blob.size(); ++it) {
+        for (const uint8_t* it = reinterpret_cast<const uint8_t*>(_blob->get_ptr()); it != reinterpret_cast<const uint8_t*>(_blob->get_ptr()) + _blob->size(); ++it) {
             result = ((result << 7) + result) + static_cast<uint32_t>(*it);
         }
 
         std::stringstream str;
-        str << "Blob size: " << _blob.size() << ", hash: " << std::hex << result;
+        str << "Blob size: " << _blob->size() << ", hash: " << std::hex << result;
         _logger.info(str.str().c_str());
     }
     _logger.info("Write blob to stream successfully.");
-    return _blob.size();
+    return _blob->size();
 }
 
 std::vector<ov::ProfilingInfo> PluginGraph::process_profiling_output(const std::vector<uint8_t>& profData,
                                                                      const Config& config) const {
-    return _compiler->process_profiling_output(profData, _blob, config);
+
+    // Need to fix increased memory usage below, ov::SharedBuffer won't permit us to get underlying shared buffer as it is private
+    // Only if we work with std::vector<uint8_t> blobs, but then IGraph needs to have 2 declarations for the same blob
+    // Maybe if we templatize blob in IGraph to be either std::vector<uint8_t> or std::shared_ptr<ov::AlignedBuffer>?
+    std::vector<uint8_t> blob(_blob->size());
+    blob.assign(reinterpret_cast<uint8_t*>(_blob->get_ptr()), reinterpret_cast<uint8_t*>(_blob->get_ptr()) + _blob->size());
+    return _compiler->process_profiling_output(profData, blob, config);
 }
 
 void PluginGraph::set_argument_value(uint32_t argi, const void* argv) const {

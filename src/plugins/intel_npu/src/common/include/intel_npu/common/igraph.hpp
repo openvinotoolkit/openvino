@@ -12,6 +12,7 @@
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 
 namespace intel_npu {
@@ -21,7 +22,7 @@ public:
     IGraph(ze_graph_handle_t handle,
            NetworkMetadata metadata,
            const Config& config,
-           std::optional<std::vector<uint8_t>> blob);
+           std::optional<std::unique_ptr<BlobContainer>> blob);
 
     virtual size_t export_blob(std::ostream& stream) const = 0;
 
@@ -89,7 +90,7 @@ protected:
     // first inference starts running
     std::mutex _mutex;
 
-    std::vector<uint8_t> _blob;
+    std::shared_ptr<ov::AlignedBuffer> _blob;
 
     uint32_t _unique_id = 0;
     uint32_t _last_submitted_id;

@@ -23,7 +23,9 @@ public:
 
     std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 
-    std::shared_ptr<IGraph> parse(std::vector<uint8_t> network, const Config& config) const override;
+    std::shared_ptr<IGraph> parse(std::vector<uint8_t> network, const Config& config) const override {
+        OPENVINO_THROW("CID should not parse from std::vector anymore!");
+    }
 
     std::shared_ptr<IGraph> parse(const std::shared_ptr<ov::AlignedBuffer>& mmapNetwork, const Config& config) const override;
 

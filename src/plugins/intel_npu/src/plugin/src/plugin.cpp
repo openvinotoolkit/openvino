@@ -836,8 +836,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         if (compiler->getCompilerType() == ov::intel_npu::CompilerType::DRIVER) {
             if (auto mmap_buffer = dynamic_cast<ov::OwningSharedStreamBuffer*>(stream.rdbuf())) {
                 graph = compiler->parse(mmap_buffer->get_buffer(), localConfig);
-                goto GRAPH_PARSED;
+            } else {
+                auto graphSize = getFileSize(stream);
+                std::vector<uint8_t> blob(graphSize);
+                graph = compiler->parse(std::make_shared<ov::SharedBuffer<std::shared_ptr<std::vector<uint8_t>>>>(reinterpret_cast<char*>(blob.data()), blob.size(), std::make_shared<std::vector<uint8_t>>(std::move(blob))), localConfig);
             }
+            goto GRAPH_PARSED;
         }
 
         {

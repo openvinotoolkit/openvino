@@ -15,6 +15,8 @@
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
 
+#include "openvino/runtime/aligned_buffer.hpp"
+
 namespace intel_npu {
 
 using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
@@ -37,9 +39,9 @@ public:
 
     ze_graph_handle_t getGraphHandle(const std::vector<uint8_t>& network) const;
 
-    ze_graph_handle_t getGraphHandle(const std::shared_ptr<ov::AlignedBuffer>& mmapNetwork) const override;
+    ze_graph_handle_t getGraphHandle(const std::shared_ptr<ov::AlignedBuffer>& mmapNetwork) const;
 
-    NetworkMetadata getNetworkMeta(ze_graph_handle_t graphHandle) const override;
+    NetworkMetadata getNetworkMeta(ze_graph_handle_t graphHandle) const;
 
     _ze_result_t destroyGraph(ze_graph_handle_t graphHandle);
 
