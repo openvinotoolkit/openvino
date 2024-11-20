@@ -668,7 +668,6 @@ std::string Plugin::get_device_list(const ov::AnyMap& properties) const {
         }
         return "";
     };
-    
     std::vector<std::string> devices_merged;
     if (device_list_config != properties.end() && !device_list_config->second.empty()) {
         auto priorities = device_list_config->second;
@@ -711,6 +710,7 @@ std::string Plugin::get_device_list(const ov::AnyMap& properties) const {
             return device.find(".") == std::string::npos ? device + ".0" : device;
         };
         if (devices_to_be_merged.empty()) {
+            auto device_list = get_core()->get_available_devices();
             for (auto&& device : device_list) {
                 if (device.find("GPU") != std::string::npos) {
                     device_architecture = get_gpu_architecture(device);
@@ -721,8 +721,19 @@ std::string Plugin::get_device_list(const ov::AnyMap& properties) const {
             }
         } else {
             for (auto&& device : devices_to_be_merged) {
+                ov::DeviceIDParser parsed{device};
+                std::vector<std::string> device_list;
+                try {
+                    auto device_id_list = get_core()
+                                              ->get_property(parsed.get_device_name(), ov::available_devices.name(), {})
+                                              .as<std::vector<std::string>>();
+                    for (auto&& device_id : device_id_list) {
+                        device_list.push_back(parsed.get_device_name() + "." + device_id);
+                    }
+                } catch (const ov::Exception&) {
+                    LOG_DEBUG_TAG("no available devices found for %s", device.c_str());
+                }
                 if (!is_any_dev(device, device_list)) {
-                    ov::DeviceIDParser parsed{device};
                     auto iter = std::find(devices_merged.begin(), devices_merged.end(), parsed.get_device_name());
                     if (iter != devices_merged.end() && parsed.get_device_name() != device && parsed.get_device_id() == "0")
                         // The device is the device with default device ID (eg. GPU.0) and
