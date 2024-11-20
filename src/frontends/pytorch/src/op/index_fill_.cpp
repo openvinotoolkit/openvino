@@ -34,12 +34,11 @@ OutputVector translate_index_fill_(const NodeContext& context) {
 
     auto const_1_vec = v0::Constant::create(element::i32, Shape{1}, {1});
 
-    auto tensor_rank = std::get<1>(get_shape_rank(context, input, true));
+    auto tensor_rank = std::get<1>(get_shape_rank(context, input, false));
     auto tensor_rank_correct_type = context.mark_node(std::make_shared<v1::ConvertLike>(tensor_rank, dim));
-    auto positive_dim = normalize_axis(context, dim, tensor_rank_correct_type);
+    auto dim_vec = normalize_axis(context, dim, tensor_rank_correct_type);
 
     // scalar to vec
-    auto dim_vec = context.mark_node(std::make_shared<v1::Reshape>(positive_dim, const_1_vec, false));
     auto value_vec = context.mark_node(std::make_shared<v1::Reshape>(value, const_1_vec, false));
 
     auto input_shape = std::get<0>(get_shape_rank(context, input, false));
