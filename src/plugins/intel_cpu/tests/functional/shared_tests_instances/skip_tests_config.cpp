@@ -159,8 +159,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
         // Plugin version was changed to ov::Version
         R"(.*VersionTest.pluginCurrentVersionIsCorrect.*)",
-        // Issue: 113703, 114763
-        R"(.*smoke_If/SimpleIfTest.*Cond=0.*)",
         // Issue: 114765
         R"(.*smoke_PSROIPoolingAverageLayoutTest/PSROIPoolingLayerCPUTest.*bf16.*)",
         R"(.*smoke_PSROIPoolingBilinearLayoutTest/PSROIPoolingLayerCPUTest.*bf16.*)",
