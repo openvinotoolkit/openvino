@@ -17,6 +17,7 @@
 #include <set>
 
 #include <fstream>
+#include <unordered_set>
 
 #define GPU_DEBUG_LOG_PASS    GPU_DEBUG_LOG << "[" << get_name() << "] "
 
@@ -368,6 +369,34 @@ private:
 class mark_runtime_skippable_nodes : public base_pass {
 public:
     mark_runtime_skippable_nodes() : base_pass("mark_runtime_skippable_nodes") {}
+
+    bool check_consecutive_runtime_skippable(program_node* node, size_t count) {
+        std::unordered_set<program_node*> visited;
+        return check_consecutive_runtime_skippable(node, count, visited);
+    }
+
+    bool check_consecutive_runtime_skippable(program_node* node, size_t count, std::unordered_set<program_node*>& visited) {
+        if (count == 0)
+            return true;
+
+        if (visited.find(node) != visited.end())
+            return false;
+
+        visited.insert(node);
+
+        if (node->is_runtime_skippable()) {
+            count--;
+        } else {
+            return false;
+        }
+
+        for (const auto& dep : node->get_dependencies()) {
+            if (check_consecutive_runtime_skippable(dep.first, count, visited)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
 private:
     void run(program& p) override;

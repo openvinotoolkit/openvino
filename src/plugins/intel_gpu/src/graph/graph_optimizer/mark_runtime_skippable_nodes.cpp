@@ -23,8 +23,12 @@ using namespace cldnn;
 
 void mark_runtime_skippable_nodes::run(program& p) {
     auto itr = p.get_processing_order().begin();
+    cldnn::program::nodes_ordering::const_iterator prev_itr = p.get_processing_order().begin();
 
     while (itr != p.get_processing_order().end()) {
+        // cldnn::program::nodes_ordering::const_iterator prev_itr;
+        if (itr != p.get_processing_order().begin())
+            prev_itr = std::prev(itr);
         auto& node = *itr++;
         // Set gathers that might be skipped at runtime as can_be_optimized.
         // If not set, memory dependency will not work for the nodes that are skipped at runtime
@@ -52,6 +56,16 @@ void mark_runtime_skippable_nodes::run(program& p) {
             continue;
         }
 
+        if (prev_itr != p.get_processing_order().begin()) {
+            const size_t max_consecutive_runtime_skippable_nodes = 10;
+            auto& prev_node = *prev_itr;
+            if (check_consecutive_runtime_skippable(prev_node, max_consecutive_runtime_skippable_nodes)) {
+                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node->id()
+                                    << " doesn't have runtime skippable due to max_consecutive_runtime_skippable_nodes("
+                                    << max_consecutive_runtime_skippable_nodes << ")." << std::endl;
+                continue;
+            }
+        }
         program_helpers::do_for_types<gather>(*node, [](gather_node& node) {
             // Check pattern
             auto impl_params = node.get_kernel_impl_params();
