@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <optional>
+
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "openvino/frontend/exception.hpp"
@@ -43,6 +45,8 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/gather.hpp"
 
 #include "utils/split.hpp"
 using namespace ov::op;
@@ -71,6 +75,8 @@ using v4::Range;
 using v3::ScatterElementsUpdate;
 using v3::ScatterUpdate;
 using v15::Squeeze;
+using v1::Less;
+using v8::Gather;
 using Output = ov::Output<ov::Node>;
 using std::make_shared;
 
@@ -89,6 +95,10 @@ Output get_dimensions(const Output& node, const std::vector<int>& dims) {
     return get_elements(std::make_shared<v3::ShapeOf>(node, element::i32), dims);
 }
 
+Output squeeze_1d(const Output& x) {
+    return make_shared<Squeeze>(x, Constant::create(element::i32, Shape{0}, {1}));
+}
+
 Output rope(
     const Output& x,
     const Output& cos_cache,
@@ -100,12 +110,19 @@ Output rope(
 ) {
     OPENVINO_ASSERT(!interleaved, "rotary_interleaved is not supported");  // TODO: Support interleaved mode
 
-    Output zero = Constant::create(element::i32, Shape{1}, {0});
-    Output step = Constant::create(element::i32, Shape{1}, {1});
+    Output zero = Constant::create(element::i32, Shape{}, {0});
+    Output one = Constant::create(element::i32, Shape{}, {1});
 
     // cut for the current sequence length
-    Output cos = make_shared<Slice>(cos_cache, pos_id_begin, pos_id_end, step, zero);
-    Output sin = make_shared<Slice>(sin_cache, pos_id_begin, pos_id_end, step, zero);
+    // TODO: Avoid using Slices because they lead to dynamic dimensions
+    // Output cos = make_shared<Slice>(cos_cache, pos_id_begin, pos_id_end, step, zero);
+    // Output sin = make_shared<Slice>(sin_cache, pos_id_begin, pos_id_end, step, zero);
+
+    Output seq_len = get_dimensions(x, {2});
+    Output position_ids = make_shared<Range>(zero, squeeze_1d(seq_len), one, element::i32);
+    position_ids = make_shared<Add>(pos_id_begin, position_ids);
+    Output cos = make_shared<Gather>(cos_cache, position_ids, zero);
+    Output sin = make_shared<Gather>(sin_cache, position_ids, zero);
 
     OutputVector x_split = make_shared<Split>(x, Constant::create(element::i32, Shape{}, {-1}), 2)->outputs();
 
@@ -156,15 +173,15 @@ Output concat_cache_generic(const Output& past, const Output& current) {
     return make_shared<Concat>(ov::OutputVector{past, current}, 2);     // 2 is the dimension index that corresponds to sequence len
 }
 
-Output squeeze_1d(const Output& x) {
-    return make_shared<Squeeze>(x, Constant::create(element::i32, Shape{0}, {1}));
-}
-
 Output update_cache_generic(const Output& past, const Output& current, const Output& past_len) {
     Output update_len = get_dimensions(current, {2});
     Output update_end = make_shared<Add>(past_len, update_len);
     Output update_indices = make_shared<Range>(squeeze_1d(past_len), squeeze_1d(update_end), Constant::create(element::i32, Shape{}, {1}), element::i32);
     return make_shared<ScatterUpdate>(past, update_indices, current, Constant::create(element::i32, Shape{1}, {2}));    // 2 is the dimension index that corresponds to sequence len
+}
+
+Output update_cache_npuw(const Output& past, const Output& current, const Output& past_len) {
+    return concat_cache_generic(past, current);
 }
 
 Output update_cache_seu(const Output& past, const Output& current, const Output& past_len) {
@@ -178,13 +195,43 @@ Output update_cache_seu(const Output& past, const Output& current, const Output&
     return make_shared<ScatterElementsUpdate>(past, broadcast_indices, current, Constant::create(element::i32, Shape{1}, {2}));
 }
 
+Output attn_mask_npuw(
+    const Output& past_seq_len,
+    const Output& current_seq_len,
+    const Output& total_seq_len,
+    const Output& kv_tensors_seq_len
+) {
+    // make casual 2D attention mask based on pattern [1, 1, ..., 1, 0, 0, ..., 0, 1, 1, ..., 1], where
+    //    - the first block of 1s has lenght equal to `past_seq_len`, usually dynamic
+    //    - the last block of 1s has length equal to `current_seq_len` (usually = 1 in case of generate iteration), usually static
+    //    - the total length of the pattern is `kv_tensor_seq_len`, usually static
+
+    const Output zero = Constant::create(ov::element::i32, ov::Shape{}, {0});
+    const Output one = Constant::create(ov::element::i32, ov::Shape{}, {1});
+
+    const Output past_range = make_shared<Range>(zero, squeeze_1d(total_seq_len), one, element::i32);
+    Output past_mask = make_shared<Less>(past_range, past_seq_len);  // [1, 1, ...., 1, 0, 0, ..., 0]
+    past_mask = make_shared<Broadcast>(past_mask, make_shared<Concat>(OutputVector{current_seq_len, total_seq_len}, 0));  // replicated current_seq_len times
+
+    const Output curr_range = make_shared<Range>(zero, squeeze_1d(current_seq_len), one, element::i32);
+    const Output curr_mask = make_shared<Less>(curr_range, make_shared<Unsqueeze>(curr_range, Constant::create(element::i32, Shape{}, {1})));
+
+    return make_shared<Concat>(ov::OutputVector{past_mask, curr_mask}, 1);
+}
+
 ov::OutputVector group_query_attention_decomposition(
     const ov::OutputVector& inputs,
     int num_heads,
     bool rotary_interleaved,
     int kv_num_heads,
     std::function<Output(const Output& past, const Output& current)> concat_cache,
-    std::function<Output(const Output& past, const Output& current, const Output& past_len)> update_cache
+    std::function<Output(const Output& past, const Output& current, const Output& past_len)> update_cache,
+    std::optional<std::function<Output(
+        const Output& past_seq_len,     // occupied part of KV cache, 1D tensor with one or multiple elements depending on the current level of support of unaligned sequences in the batch
+        const Output& current_seq_len,  // number of currently processed tokens, usually 1 in the normal generate iteration (not prefill)
+        const Output& total_seq_len,
+        const Output& kv_tensors_seq_len   // the total sequence length of KV tensors that come to SDPA to generate a mask of the correct shape even if KV is partially filled
+    )>> attn_mask = std::nullopt  // attn_mask generator for SDPA, if not provided, the attn_mask input is not used and causal flag is set
 ) {
     const auto& input = inputs[0];
 
@@ -209,7 +256,7 @@ ov::OutputVector group_query_attention_decomposition(
     const auto& past_K = inputs[3];
     const auto& past_V = inputs[4];
     const auto& seqlens_k = inputs[5];
-    const auto& total_sequence_length = inputs[6];
+    //const auto& total_sequence_length = inputs[6];  // use it for checking dimensions only, it should be deduced from other parameters and shapes
     const auto& cos = inputs[7];
     const auto& sin = inputs[8];
 
@@ -219,10 +266,13 @@ ov::OutputVector group_query_attention_decomposition(
 
     // FIXME: Unaligned elements in KV cache are not supported.
     // We just get the first of the seq lens as a common value for all past sequences ignoring others, under assumption that they are all the same
-    const auto& past_seq_len = detail::get_elements(std::make_shared<v1::Reshape>(seqlens_k, v0::Constant::create(element::i32, Shape{1}, {-1}), false), {0});
+    const auto& past_seq_len = get_elements(std::make_shared<v1::Reshape>(seqlens_k, v0::Constant::create(element::i32, Shape{1}, {-1}), false), {0});
+    const auto& curr_seq_len = get_dimensions(Q, {2});
+    const auto& past_tensor_size = get_dimensions(past_V, {2});
+    const Output& total_sequence_len = std::make_shared<Add>(past_seq_len, curr_seq_len);
 
-    Q = rope(Q, cos, sin, rotary_interleaved, head_size, past_seq_len, total_sequence_length);
-    K = rope(K, cos, sin, rotary_interleaved, head_size, past_seq_len, total_sequence_length);
+    Q = rope(Q, cos, sin, rotary_interleaved, head_size, past_seq_len, total_sequence_len);
+    K = rope(K, cos, sin, rotary_interleaved, head_size, past_seq_len, total_sequence_len);
 
     if(past_K.get_partial_shape()[2].is_dynamic()) {
         K = concat_cache(past_K, K);
@@ -249,7 +299,13 @@ ov::OutputVector group_query_attention_decomposition(
     // It requires more complex tensor manipulations that are introduce overhead into pure tensor-value data flow and should be implemented if we really have demand for that.
     // Also inplace KV-cache modification logic is not supported efficiently in any plugins (CPU, GPU and NPU).
 
-    auto output = make_shared<v13::ScaledDotProductAttention>(Q, K, V, true);
+    OutputVector sdpa_inputs{Q, K, V};
+
+    if(attn_mask) {
+        sdpa_inputs.push_back((*attn_mask)(past_seq_len, curr_seq_len, past_tensor_size, get_dimensions(V, {2})));
+    }
+
+    auto output = make_shared<v13::ScaledDotProductAttention>(sdpa_inputs, !attn_mask);
 
     return {output, K, V};
 }
@@ -266,7 +322,8 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         static_cast<bool>(node.get_attribute_value<int64_t>("rotary_interleaved", 0)),
         static_cast<int>(node.get_attribute_value<int64_t>("kv_num_heads")),
         detail::concat_cache_generic,
-        detail::update_cache_generic
+        detail::update_cache_npuw,
+        detail::attn_mask_npuw
     );
 }
 
