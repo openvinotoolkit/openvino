@@ -669,7 +669,7 @@ std::string Plugin::get_device_list(const ov::AnyMap& properties) const {
         return "";
     };
     std::vector<std::string> devices_merged;
-    if (device_list_config != properties.end() && !device_list_config->second.empty()) {
+    if (device_list_config != properties.end() && !(device_list_config->second.as<std::string>().empty())) {
         auto priorities = device_list_config->second;
         // parsing the string and splitting the comma-separated tokens
         std::vector<std::string> devices_to_be_merged = m_plugin_config.parse_priorities_devices(priorities.as<std::string>());
