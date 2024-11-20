@@ -149,6 +149,10 @@ If you have not already installed OpenVINO developer tools, install it with ``pi
          :language: python
          :fragment:  [inference]
 
+TorchFX models can be compiled and run with OpenVINO optimizations by `torch.compile(..., backend="openvino") <https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html>`__ functionality:
+
+.. tab-set::
+
    .. tab-item:: TorchFX
       :sync: torch_fx
 
