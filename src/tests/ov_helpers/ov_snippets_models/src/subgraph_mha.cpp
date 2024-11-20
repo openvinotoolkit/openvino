@@ -82,7 +82,8 @@ std::shared_ptr<ov::Model> MHAFunction::initOriginal() const {
     auto softmax_out = add->output(0);
     if (with_reshape) {
         const auto interm_shape = add->get_output_shape(0);
-        const auto batch = std::accumulate(interm_shape.cbegin(), interm_shape.cbegin() + rank - 1, 1, std::multiplies<size_t>());
+        const auto batch =
+            std::accumulate(interm_shape.cbegin(), interm_shape.cbegin() + (rank - 1), 1, std::multiplies<size_t>());
         const auto reshape0ConstData = std::vector<int64_t>{ batch, -1 };
         const auto reshape1ConstData = interm_shape;
         const auto reshape0Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{reshape0ConstData.size()}, reshape0ConstData);
@@ -288,7 +289,8 @@ std::shared_ptr<ov::Model> MHAMatMul0TransposeFunction::initOriginal() const {
     auto softmax_out = add->output(0);
     if (with_reshape) {
         const auto interm_shape = add->get_output_shape(0);
-        const auto batch = std::accumulate(interm_shape.cbegin(), interm_shape.cbegin() + rank - 1, 1, std::multiplies<size_t>());
+        const auto batch =
+            std::accumulate(interm_shape.cbegin(), interm_shape.cbegin() + (rank - 1), 1, std::multiplies<size_t>());
         const auto reshape0ConstData = std::vector<int64_t>{ batch, -1 };
         const auto reshape1ConstData = interm_shape;
         const auto reshape0Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{reshape0ConstData.size()}, reshape0ConstData);
