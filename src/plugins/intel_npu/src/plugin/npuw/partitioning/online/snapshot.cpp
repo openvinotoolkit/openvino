@@ -729,6 +729,15 @@ std::shared_ptr<Repeated> Snapshot::tryMergeTriangles(const std::vector<Group::G
         return {};
     }
 
+    if (prods.size() < m_ctx.keep_blocks) {
+        // In some cases (specifically mixed precision) we could have merged
+        // a small number of huge groups which consumed other legit repeated blocks
+        // due to having a different repeated tag due to unique weights precision combination
+        // from the rest of the model.
+        // This check was added to prevent that and shouldn't affect other models.
+        return {};
+    }
+
     // In this special case we only assume
     // our vector of N repeating consumer groups
     // 1. has the same size
@@ -943,6 +952,15 @@ std::shared_ptr<Repeated> Snapshot::tryMergeRepeating(const std::vector<Group::G
         if (std::find(prods.begin(), prods.end(), cons) != prods.end()) {
             OPENVINO_THROW("Online partitioning tried to merge repeated groups which overlap!");
         }
+    }
+
+    if (prods.size() < m_ctx.keep_blocks) {
+        // In some cases (specifically mixed precision) we could have merged
+        // a small number of huge groups which consumed other legit repeated blocks
+        // due to having a different repeated tag due to unique weights precision combination
+        // from the rest of the model.
+        // This check was added to prevent that and shouldn't affect other models.
+        return {};
     }
 
     std::shared_ptr<Repeated> new_rep = std::make_shared<Repeated>();
