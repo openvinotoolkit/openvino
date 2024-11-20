@@ -21,6 +21,7 @@ public:
     bool activation;
     bool perChannelWeights;
     bool fq;
+    bool bias;
     std::string originalLayersNames;
 };
 

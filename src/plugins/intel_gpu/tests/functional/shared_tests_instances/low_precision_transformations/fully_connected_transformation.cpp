@@ -45,18 +45,21 @@ const std::vector<FullyConnectedParams> activations = {
         true,  // activation
         false, // per-channel
         true,  // FQ
+        false, // bias
         ""
     },
     {
         false, // activation
         false, // per-channel
         true,  // FQ
+        false, // bias
         ""
     },
     {
         true,  // activation
         true,  // per-channel
         false, // FQ
+        false, // bias
         ""
     },
 };

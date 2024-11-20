@@ -36,6 +36,7 @@ std::string FullyConnectedTransformation::getTestCaseName(const testing::TestPar
         "Activation=" << activation.activation << "_" <<
         "perChannelWeights=" << activation.perChannelWeights << "_" <<
         "FQ=" << activation.fq << "_" <<
+        "withBias=" << activation.bias << "_" <<
         activation.originalLayersNames << "_" <<
         expectedPrimitiveType;
 
@@ -60,6 +61,7 @@ void FullyConnectedTransformation::SetUp() {
         shapes.transposeA,
         shapes.transposeB,
         weightsType == ov::element::i8,
+        activation.bias,
         activation.perChannelWeights,
         activation.activation,
         activation.fq);

@@ -29,6 +29,7 @@ public:
         const bool transpose1,
         const bool transpose2,
         const bool signedWeights,
+        const bool bias,
         const bool perChannelWeightsDequantization,
         const bool relu,
         const bool fq);

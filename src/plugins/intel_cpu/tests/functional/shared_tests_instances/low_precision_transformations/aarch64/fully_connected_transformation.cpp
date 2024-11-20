@@ -74,19 +74,29 @@ const std::vector<FullyConnectedParams> activations = {
         true,  // activation
         false, // per-channel
         true,  // FQ
+        false, // bias
         "fullyConnected,relu_original"
     },
     {
         false,  // activation
         false,  // per-channel
         true,   // FQ
-        "fullyConnected_original"
+        false,  // bias
+        "fullyConnected_original,fullyConnected"
     },
     {
         true,  // activation
         true,  // per-channel
         false, // FQ
+        false, // bias
         "fullyConnected,relu_original" // dequantization is not supported for per-channel quantization
+    },
+    {
+        true,  // activation
+        false, // per-channel
+        true,  // FQ
+        true,  // bias
+        "fullyConnected,fullyConnected/DequantizationMultiply,add,relu"
     },
 };
 

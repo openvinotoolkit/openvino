@@ -71,6 +71,7 @@ std::shared_ptr<ov::Model> MatMulFunction::getOriginal(
         const bool transpose1,
         const bool transpose2,
         const bool signedOnWeights,
+        const bool bias,
         const bool perChannelWeightsDequantization,
         const bool relu,
         const bool fq) {
@@ -124,6 +125,12 @@ std::shared_ptr<ov::Model> MatMulFunction::getOriginal(
         transpose1,
         transpose2);
     parent->set_friendly_name("fullyConnected");
+
+    if (bias) {
+        auto bias = ov::test::utils::make_constant(precision, parent->get_output_shape(0));
+        parent = std::make_shared<ov::opset1::Add>(parent, bias);
+        parent->set_friendly_name("add");
+    }
 
     if (relu) {
         parent = std::make_shared<ov::opset1::Relu>(parent);
