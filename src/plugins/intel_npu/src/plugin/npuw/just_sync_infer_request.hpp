@@ -93,6 +93,7 @@ protected:
 
     void bind_global_parameters(std::size_t idx);
     void bind_global_results(std::size_t idx);
+    using IBaseInferRequest::bind_global_results;
 
     void function_prologue(std::size_t idx);
 
