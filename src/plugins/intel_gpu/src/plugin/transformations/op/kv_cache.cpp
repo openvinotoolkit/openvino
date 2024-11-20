@@ -120,11 +120,10 @@ std::vector<ov::PartialShape> shape_infer(const KVCache* op, const std::vector<o
         out_shapes[0][concat_axis] += input_shapes[1][concat_axis];
     }
 
-    // Sometime input0 shape has zeros (or even dynamic dim) in several dimensions, for 
+    // Sometime input0 shape has zeros (or even dynamic dim) in several dimensions, for
     // example concat [-1, 0, 0, 0] + [-1, 4, -1, 128] along axis 2, we could (and should) infer
-    // dim value of axis 1 and 4 in this case. 
-    size_t max_rank = out_shapes[0].size();
-    for (size_t i = 0; i < max_rank; ++i) {
+    // dim value of axis 1 and 4 in this case.
+    for (int64_t i = 0; i < static_cast<int64_t>(out_shapes[0].size()); ++i) {
         if (i == gather_axis || i == concat_axis) continue;
         if (input_shapes[1][i].is_static()) {
             auto broadcasted_dim = input_shapes[1][i].get_length();
