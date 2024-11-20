@@ -49,15 +49,16 @@ OutputVector translate_index_fill_(const NodeContext& context) {
     auto index_len = context.mark_node(std::make_shared<v8::Slice>(index_shape, const_0, const_1, const_1));
 
     // [A, B, ..., T, ..., K] --> [A, B, ..., len(index), ..., K]
-    auto target_shape = std::make_shared<v12::ScatterElementsUpdate>(input_shape, 
-                                                                          dim_vec,
-                                                                          index_len,
-                                                                          v0::Constant::create(element::i32, Shape{}, {0}));
+    auto target_shape = std::make_shared<v12::ScatterElementsUpdate>(input_shape,
+                                                                     dim_vec,
+                                                                     index_len,
+                                                                     v0::Constant::create(element::i32, Shape{}, {0}));
 
     // broadcast && index fill
     auto broadcasted_value = context.mark_node(std::make_shared<v1::Broadcast>(value_vec, target_shape, dim_vec));
     auto broadcasted_index = context.mark_node(std::make_shared<v1::Broadcast>(index, target_shape, dim_vec));
-    auto result = context.mark_node(std::make_shared<v12::ScatterElementsUpdate>(input, broadcasted_index, broadcasted_value, dim));
+    auto result = context.mark_node(
+        std::make_shared<v12::ScatterElementsUpdate>(input, broadcasted_index, broadcasted_value, dim));
 
     return {result};
 };
