@@ -154,6 +154,6 @@ KERNEL(dynamic_quantize_gpu_ref)(
 #if ASYMMETRIC_QUANTIZATION && GROUP_SCALES_WITH_ZP
     output_scale[scale_idx + 1] = zp;
 #elif ASYMMETRIC_QUANTIZATION
-    output_zp[scale_idx] = zp;
+    output_zp[scale_idx] = convert_uchar_rte(zp);
 #endif
 }

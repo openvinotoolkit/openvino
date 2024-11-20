@@ -43,10 +43,11 @@ static size_t get_match_vector_size(const dynamic_quantize_params& params) {
 ParamsKey DynamicQuantizeKernelOpt::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableDifferentTypes();
-    k.EnableAllInputLayout();
-    k.EnableAllOutputLayout();
+    k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
@@ -69,6 +70,7 @@ JitConstants DynamicQuantizeKernelOpt::GetJitConstants(const dynamic_quantize_pa
     jit.AddConstant(MakeJitConstant("ALIGNED_BLOCK_NUM", aligned_block_num));
     jit.AddConstant(MakeJitConstant("BLOCK_NUM", block_num));
     jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", params.group_sizes.back()));
+    jit.AddConstant(MakeJitConstant("ASYMMETRIC_QUANTIZATION", params.use_asymmetric_quantization));
     jit.Merge(GetTensorFriendlyWorkGroupsJit(params.outputs[0]));
 
     return jit;
@@ -176,10 +178,11 @@ bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {
                 return false;
     }
 
-    // FIXME: please implement asymmetric quantization
-    if (dq_params.use_asymmetric_quantization)
+    // it supports only separated output
+    if (dq_params.use_asymmetric_quantization && dq_params.combine_scales_and_zp)
         return false;
 
+    // FIXME: output data type should be u8
     return true;
 }
 }  // namespace kernel_selector
