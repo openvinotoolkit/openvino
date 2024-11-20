@@ -120,15 +120,29 @@ def process_coveo_meta(meta, url, link):
 
     for namespace, values in meta:
         namespace_element = ET.SubElement(url, namespace)
+        loc_element = url.find("loc")
 
         for tag_name, tag_value in values.items():
             if tag_name == 'ovdoctype':
-                processed_link = process_link(link)
-                ET.SubElement(namespace_element, tag_name).text = processed_link
-            else:
+                ET.SubElement(namespace_element, tag_name).text = process_link(link)
+            elif tag_name == 'ovcategory' and loc_element is not None:
+                ET.SubElement(namespace_element, tag_name).text = extract_hierarchy(loc_element.text)
+            elif tag_name == 'ovversion':
                 ET.SubElement(namespace_element, tag_name).text = tag_value
 
 def process_link(link):
     if '/' in link:
         return link.split('/')[0].replace("-", " ")
     return link.split('.html')[0].replace("-", " ")
+
+def extract_hierarchy(link):
+    path = link.split("://")[-1]
+    segments = path.split('/')[1:]
+    if segments and segments[-1].endswith('.html'):
+        segments = segments[:-1]
+    
+    hierarchy = []
+    for i in range(1, len(segments) + 1):
+        hierarchy.append('|'.join(segments[:i]))
+    
+    return ';'.join(hierarchy)
