@@ -55,6 +55,7 @@ from openvino.runtime import layout_helpers
 from openvino._pyopenvino import RemoteContext
 from openvino._pyopenvino import RemoteTensor
 from openvino._pyopenvino import Op
+from openvino._pyopenvino import OpExtension
 
 # libva related:
 from openvino._pyopenvino import VAContext
