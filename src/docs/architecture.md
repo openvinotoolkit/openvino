@@ -32,19 +32,26 @@ flowchart TB
         subgraph bindings [Bindings]
             c_api[C]
             python_api[Python]
+            js_api[Javascript]
         end
     end
     
     subgraph plugins [OV Plugins]
         auto(["AUTO"])
+        auto_batch(["AUTO_BATCH"])
         cpu(["Intel_CPU"])
         gpu(["Intel_GPU"])
+        npu(["Intel_NPU"])
+        hetero(["Hetero"])
+        template(["Template"])
     end
+    
     subgraph frontends [OV Frontends]
         direction TB
         ir_fe["IR Frontend"]
         onnx_fe["ONNX Frontend"]
         paddle_fe["Paddle Frontend"]
+        tensorflow_fe["Tensorflow Frontend"]
     end
     openvino(openvino library)
     
