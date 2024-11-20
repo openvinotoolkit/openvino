@@ -14,14 +14,26 @@
 
 #ifdef SEQUENCE
 #define GET_IN0_IDX(b, f, y) INPUT0_GET_INDEX(b, f, y, 0)
-#define GET_IN1_IDX(b, f, y) INPUT1_GET_INDEX(b, f, y, 0)
-#define GET_IN3_IDX(b, f) INPUT3_GET_INDEX(0, b, f, 0)
-#define GET_IN4_IDX(b, f) INPUT4_GET_INDEX(0, b, f, 0)
+    #if DIRECTION == 2
+        #define GET_IN1_IDX(b, f, y) INPUT1_GET_INDEX(b, f, y, 0)
+        #define GET_IN2_IDX(b, f, y) INPUT2_GET_INDEX(b, f, y, 0)
+        #define GET_IN3_IDX(b, f, y) INPUT3_GET_INDEX(b, f, y, 0)
+        #define GET_IN4_IDX(b, f, y) INPUT4_GET_INDEX(b, f, y, 0)
+        #define GET_IN5_IDX(b, f)    INPUT5_GET_INDEX(b, f, 0, 0)
+    #else
+        #define GET_IN1_IDX(b, f, y) INPUT1_GET_INDEX(b, 0, y, 0)
+        #define GET_IN2_IDX(b, f, y) INPUT2_GET_INDEX(b, 0, y, 0)
+        #define GET_IN3_IDX(b, f, y) INPUT3_GET_INDEX(0, f, y, 0)
+        #define GET_IN4_IDX(b, f, y) INPUT4_GET_INDEX(0, f, y, 0)
+        #define GET_IN5_IDX(b, f)    INPUT5_GET_INDEX(0, f, 0, 0)
+    #endif
 #else
-#define GET_IN0_IDX(b, f, y) INPUT0_GET_INDEX(b, y, 0, 0) 
+#define GET_IN0_IDX(b, f, y) INPUT0_GET_INDEX(b, y, 0, 0)
 #define GET_IN1_IDX(b, f, y) INPUT1_GET_INDEX(b, y, 0, 0)
-#define GET_IN3_IDX(b, f) INPUT3_GET_INDEX(b, f, 0, 0)
-#define GET_IN4_IDX(b, f) INPUT4_GET_INDEX(b, f, 0, 0)
+#define GET_IN2_IDX(b, f, y) INPUT2_GET_INDEX(b, y, 0, 0)
+#define GET_IN3_IDX(b, f, y) INPUT3_GET_INDEX(f, y, 0, 0)
+#define GET_IN4_IDX(b, f, y) INPUT4_GET_INDEX(f, y, 0, 0)
+#define GET_IN5_IDX(b, f)    INPUT5_GET_INDEX(f, 0, 0, 0)
 #endif
 
 KERNEL(lstm_cell_and_seq_bfyx)(
@@ -51,7 +63,7 @@ KERNEL(lstm_cell_and_seq_bfyx)(
         const uint real_seq_length = 1;
     #endif
     #if DIRECTION == 2
-    for(uint dir=0;dir<DIRECTION+1;dir++) {
+    for(uint dir=0;dir<DIRECTION;dir++) {
     #else
     uint dir = DIRECTION;
     #endif
@@ -77,23 +89,35 @@ KERNEL(lstm_cell_and_seq_bfyx)(
                 const uint weight_idx = hidden_idx+weight_offsets[k];
                 uint hblock_num = HIDDEN_SIZE/VEC_SIZE;
                 unroll_for(uint j=0;j<hblock_num;++j) {
-                    INPUT4_TYPE_VEC r_block = READ_VEC(0, &R[GET_IN4_IDX(weight_idx, j*VEC_SIZE)]);
+                    INPUT4_TYPE_VEC r_block = READ_VEC(0, &R[GET_IN4_IDX(dir, weight_idx, j*VEC_SIZE)]);
                     if(i==0){
-                        INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[GET_IN1_IDX(b, 0, j*VEC_SIZE)]);
+                        INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[GET_IN1_IDX(b, dir, j*VEC_SIZE)]);
                         hidden_result += dot(initial_block, r_block);
                     }else{
                         #ifdef SEQUENCE
-                            OUTPUT_TYPE_VEC h_block = READ_VEC(0, &hidden_history[OUTPUT_GET_INDEX(b, 0, prev_idx, j*VEC_SIZE)]);
+                            #if DIRECTION == 2
+                                OUTPUT_TYPE_VEC h_block = READ_VEC(0, &hidden_history[OUTPUT_GET_INDEX(b, dir, prev_idx, j*VEC_SIZE)]);
+                            #else
+                                OUTPUT_TYPE_VEC h_block = READ_VEC(0, &hidden_history[OUTPUT_GET_INDEX(b, 0, prev_idx, j*VEC_SIZE)]);
+                            #endif
                             hidden_result += dot(h_block, r_block);
                         #endif
                     }
                 }
                 unroll_for(uint j=hblock_num*VEC_SIZE;j<HIDDEN_SIZE;++j) {
                     if(i==0){
-                        hidden_result += initial_hidden_state[GET_IN1_IDX(b, 0, j)]*R[GET_IN4_IDX(weight_idx, j)];
+                        #if DIRECTION == 2
+                            hidden_result += initial_hidden_state[GET_IN1_IDX(b, dir, j)]*R[GET_IN4_IDX(dir, weight_idx, j)];
+                        #else
+                            hidden_result += initial_hidden_state[GET_IN1_IDX(b, 0, j)]*R[GET_IN4_IDX(dir, weight_idx, j)];
+                        #endif
                     }else{
                         #ifdef SEQUENCE
-                            hidden_result += hidden_history[OUTPUT_GET_INDEX(b, 0, prev_idx, j)]*R[GET_IN4_IDX(weight_idx, j)];
+                            #if DIRECTION == 2
+                                hidden_result += hidden_history[OUTPUT_GET_INDEX(b, dir, prev_idx, j)]*R[GET_IN4_IDX(dir, weight_idx, j)];
+                            #else
+                                hidden_result += hidden_history[OUTPUT_GET_INDEX(b, 0, prev_idx, j)]*R[GET_IN4_IDX(dir, weight_idx, j)];
+                            #endif
                         #endif
                     }
                 }
@@ -107,22 +131,18 @@ KERNEL(lstm_cell_and_seq_bfyx)(
                     } else {
                         x_block = READ_VEC(0, &x[GET_IN0_IDX(b, i, j*VEC_SIZE)]);
                     }
-                    INPUT3_TYPE_VEC w_block = READ_VEC(0, &W[GET_IN3_IDX(weight_idx, j*VEC_SIZE)]);
+                    INPUT3_TYPE_VEC w_block = READ_VEC(0, &W[GET_IN3_IDX(dir, weight_idx, j*VEC_SIZE)]);
                     input_result += dot(x_block, w_block);
                 }
 
                 unroll_for(uint j=block_num*VEC_SIZE;j<INPUT_SIZE;++j) { //leftovers
                         if (dir == 1) {
-                            input_result += x[GET_IN0_IDX(b, real_seq_length-1-i, j)]*W[GET_IN3_IDX(weight_idx, j)];
+                            input_result += x[GET_IN0_IDX(b, real_seq_length-1-i, j)]*W[GET_IN3_IDX(dir, weight_idx, j)];
                         } else {
-                            input_result += x[GET_IN0_IDX(b, i, j)]*W[GET_IN3_IDX(weight_idx, j)];
+                            input_result += x[GET_IN0_IDX(b, i, j)]*W[GET_IN3_IDX(dir, weight_idx, j)];
                         }
                 }
-                #ifdef SEQUENCE
-                    gate_output[k] = hidden_result + input_result + TO_ACCUMULATOR_TYPE(B[INPUT5_GET_INDEX(0, weight_idx, 0, 0)]);
-                #else
-                    gate_output[k] = hidden_result + input_result + TO_ACCUMULATOR_TYPE(B[INPUT5_GET_INDEX(weight_idx, 0, 0, 0)]);
-                #endif
+                gate_output[k] = hidden_result + input_result + TO_ACCUMULATOR_TYPE(B[GET_IN5_IDX(dir, weight_idx)]);
                 switch(k){
                     case 0:
                     case 1:
@@ -138,11 +158,7 @@ KERNEL(lstm_cell_and_seq_bfyx)(
             }
             ACCUMULATOR_TYPE temp_cell_state;
             if (i==0){
-                #ifdef SEQUENCE
-                    temp_cell_state = gate_output[0]*initial_cell_state[INPUT2_GET_INDEX(b, 0, hidden_idx, 0)] + gate_output[1]*gate_output[2];
-                #else
-                    temp_cell_state = gate_output[0]*initial_cell_state[INPUT2_GET_INDEX(b, hidden_idx, 0, 0)] + gate_output[1]*gate_output[2];
-                #endif
+                temp_cell_state = gate_output[0]*initial_cell_state[GET_IN2_IDX(b, dir, hidden_idx)] + gate_output[1]*gate_output[2];
             }else{
                 temp_cell_state *= gate_output[0];
                 temp_cell_state += gate_output[1]*gate_output[2];

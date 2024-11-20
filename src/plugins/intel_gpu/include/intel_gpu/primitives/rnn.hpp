@@ -67,7 +67,6 @@ struct RNNParams : public primitive_base<PType> {
         offset_order(offset_order),
         direction(direction) {
         std::vector<std::string> pids{initial_hidden_state.pid, initial_cell_state.pid, W.pid, R.pid, B.pid, seq_lenghts.pid, out1_prim_id, out2_prim_id};
-        assert(direction == ov::op::RecurrentSequenceDirection::FORWARD || direction == ov::op::RecurrentSequenceDirection::REVERSE);
         for (auto pid : pids) {
             if (!pid.empty()) {
                 primitive_base<PType>::input.push_back(pid);

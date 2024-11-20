@@ -356,11 +356,9 @@ bool ProgramBuilder::requires_new_shape_infer(const std::shared_ptr<ov::Node>& o
             return true;
     }
 
-    /*
     if (ov::is_type<ov::op::v5::LSTMSequence>(op)) {
         return true;
     }
-    */
     // When input node has dynamic shape with 4 dimension, this function return false
     // because op.is_dynamic() which only checks input shapes return false.
     // So, in the case of input data, we need to check output shape.
