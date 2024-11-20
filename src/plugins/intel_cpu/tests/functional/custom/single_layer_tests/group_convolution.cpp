@@ -1376,7 +1376,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_DW_BF16_Brdgmm,
                                                                ::testing::Values(ElementType::undefined),
                                                                ::testing::ValuesIn(inputShapes2dDW),
                                                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                                            ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_dw_2D_nspc_brgconv})),
+                                            ::testing::ValuesIn(filterCPUInfoForDeviceSupportBF16({conv_avx512_dw_2D_nspc_brgconv})),
                                             ::testing::Values(emptyFusingSpec),
                                             ::testing::Values(cpu_bf16_plugin_config)),
                          GroupConvolutionLayerCPUTest::getTestCaseName);
