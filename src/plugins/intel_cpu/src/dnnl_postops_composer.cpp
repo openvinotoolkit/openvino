@@ -73,7 +73,6 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const PostOps& postOps,
                                          const size_t indexOfOutputChannelDim,
                                          const bool isInt8,
                                          const int weiScaleMaskPerChannel,
-                                         const bool weightsWithBatch,
                                          const MemoryArgs& memory,
                                          const dnnl::memory::data_type outDataType)
     : engine(engine),
@@ -82,7 +81,7 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const PostOps& postOps,
       idxOC(indexOfOutputChannelDim),
       isINT8(isInt8),
       weightScaleMaskPerChannel(weiScaleMaskPerChannel),
-      weightsWithBatch(weightsWithBatch),
+      weightsWithBatch(memory.at(ARG_WEI)->getDescPtr()->getShape().getRank()),
       outDataType(outDataType) {
     OPENVINO_ASSERT(idxOC >= 0 && static_cast<size_t>(idxOC) < outputDims.size());
     OC = outputDims[idxOC];

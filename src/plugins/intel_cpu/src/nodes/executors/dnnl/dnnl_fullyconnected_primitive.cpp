@@ -110,11 +110,6 @@ std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memor
     return primitive;
 }
 
-template <typename T>
-static std::vector<T> normalizeDimsTo2D(const std::vector<T>& dims) {
-    return {std::accumulate(dims.begin(), dims.end() - 1, (T)1, std::multiplies<T>()), dims[dims.size() - 1]};
-}
-
 DnnlMemoryDescPtr DnnlFCPrimitive::makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc,
                                                                   const DnnlMemoryDescPtr dstDesc,
                                                                   bool weightsNonTransposed) {
@@ -123,10 +118,9 @@ DnnlMemoryDescPtr DnnlFCPrimitive::makeTransposedWeightDescriptor(const DnnlMemo
 
     const auto& weiDesc = srcDesc->getDnnlDesc();
     auto wDims = weiDesc.get_dims();
-    dnnl::memory::dim batchDim = std::accumulate(wDims.begin(), wDims.end() - 1, 1, std::multiplies<dnnl::memory::dim>());
-    dnnl::memory::dims dims2D{batchDim, wDims.back()};
+    dnnl::memory::dims wDims2D = reshapeDownToRank<2>(wDims);
 
-    const auto transposedWeiDesc = dnnl::memory::desc{dims2D, weiDesc.get_data_type(), dnnl::memory::format_tag::ba};
+    const auto transposedWeiDesc = dnnl::memory::desc{wDims2D, weiDesc.get_data_type(), dnnl::memory::format_tag::ba};
 
     return DnnlExtensionUtils::makeDescriptor(transposedWeiDesc);
 }
@@ -220,7 +214,7 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
     const auto& dstDesc = memory.at(ARG_DST)->getDescPtr();
 
     const auto& originalDims = dstDesc->getShape().getMinDims();
-    const auto& dims = normalizeDimsTo2D(originalDims);
+    const auto& dims = reshapeDownToRank<2>(originalDims);
 
     auto isINT8 =
         one_of(srcDesc->getPrecision(), ov::element::u8, ov::element::i8) && weiDesc->getPrecision() == ov::element::i8;
@@ -232,7 +226,6 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
                                 dims.size() - 1,
                                 isINT8,
                                 1 << 0,
-                                weiDesc->getShape().getRank() == 3,
                                 memory,
                                 outputDataType);
 
@@ -272,7 +265,7 @@ static dnnl::memory::desc normalizeDescriptor(const dnnl::memory::desc& desc) {
     const auto& dims = desc.get_dims();
 
     if (dims.size() > 2)
-        return desc.reshape(normalizeDimsTo2D(dims));
+        return desc.reshape(reshapeDownToRank<2>(dims));
 
     return desc;
 }

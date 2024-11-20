@@ -27,6 +27,7 @@
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/matmul_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
+#include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 
 namespace ov {
@@ -104,11 +105,10 @@ DnnlMemoryDescPtr DnnlMatMulPrimitive::makeTransposedWeightDescriptor(const Dnnl
     const auto& weiDesc = srcDesc->getDnnlDesc();
     auto wDims = weiDesc.get_dims();
     auto wDataType = weiDesc.get_data_type();
-    dnnl::memory::dim batchDim = std::accumulate(wDims.begin(), wDims.end() - 1, 1, std::multiplies<dnnl::memory::dim>());
-    dnnl::memory::dims dims2D{wDims.back(), batchDim};
+    dnnl::memory::dims wDims2D = reshapeDownToRank<2>(wDims);
 
     const auto format = weightsNonTransposed ? dnnl::memory::format_tag::ab : dnnl::memory::format_tag::ba;
-    const auto transposedWeiDesc = dnnl::memory::desc{dims2D, wDataType, format};
+    const auto transposedWeiDesc = dnnl::memory::desc{wDims2D, wDataType, format};
 
     return DnnlExtensionUtils::makeDescriptor(transposedWeiDesc);
 }
@@ -135,7 +135,6 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const MatMulAttrs& attrs,
                                 dims.size() - 1,
                                 isINT8,
                                 1 << 0,
-                                weiDesc->getShape().getRank() == 3,
                                 memory,
                                 outputDataType);
 

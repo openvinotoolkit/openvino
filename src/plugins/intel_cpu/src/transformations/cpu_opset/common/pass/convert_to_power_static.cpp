@@ -13,7 +13,6 @@
 #include "transformations/rt_info/dequantization_node.hpp"
 #include "transformations/cpu_opset/common/op/power_static.hpp"
 #include "ov_ops/fully_connected.hpp"
-// #include "transformations/cpu_opset/common/op/fully_connected.hpp"
 #include "utils/general_utils.h"
 
 #include "itt.hpp"

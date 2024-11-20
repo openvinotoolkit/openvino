@@ -27,7 +27,6 @@ public:
                         const size_t indexOfOutputChannelDim,
                         const bool isINT8,
                         const int weiScaleMaskPerChannel,
-                        const bool weightsWithBatch,
                         const MemoryArgs& memory,
                         const dnnl::memory::data_type outDataType);
     DnnlPrimitiveAttrs compose();

@@ -293,16 +293,16 @@ void Input::cloneBlobIfRequired() {
         return ptr;
     };
 
-    auto isBlobAligned = [&, this] () {
-        bool blobAlignedOnSSE = true;
+    auto isBlobAligned = [] (const std::shared_ptr<ov::op::v0::Constant>& constant) {
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         // Majority of arithmetic and data processing instructions in legacy SSE isa requires
         // the memory address in the operands must be aligned on 16-byte boundary. To ensure
         // safely reusing ngraph const blob memory, need to check address alignment.
-        const void *ptr = m_constOp->get_data_ptr();
-        blobAlignedOnSSE = mayiuse(cpu_isa_t::avx2) || ((reinterpret_cast<uintptr_t>(ptr) & 15) == 0);
+        const void *ptr = constant->get_data_ptr();
+        return mayiuse(cpu_isa_t::avx2) || ((reinterpret_cast<uintptr_t>(ptr) & 15) == 0);
+#else
+        return true;
 #endif
-        return blobAlignedOnSSE;
     };
 
     // The presence of subnormals is better to determined at IR read time.
@@ -362,7 +362,7 @@ void Input::cloneBlobIfRequired() {
         prec != element::string &&
         // IRs already have all subnormals flushed to zero, but in
         // read_model scenario with directly loaded original model still can have subnormals
-        isBlobAligned() && (!needFlushDenormalsToZero || !hasSubnormals()) &&
+        isBlobAligned(m_constOp) && (!needFlushDenormalsToZero || !hasSubnormals()) &&
         // Blob should be cloned in cache only if original weights are stored on other numa node.
         // This is possible only in multistream case on multisocket machine.
         // TODO: don't clone blob for multisocket + multistream case if current stream is run on the numa node where original weights are stored.
