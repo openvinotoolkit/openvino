@@ -89,6 +89,11 @@ Output get_dimensions(const Output& node, const std::vector<int>& dims) {
     return get_elements(std::make_shared<v3::ShapeOf>(node, element::i32), dims);
 }
 
+std::shared_ptr<ov::Node> attention_softmax(Output& Q,
+                                            Output& K,
+                                            Output& V,
+                                            Output& head_size);
+
 Output rope(
     const Output& x,
     const Output& cos_cache,
@@ -237,6 +242,11 @@ ov::OutputVector group_query_attention_decomposition(
     K = broadcast_groups(K, kv_num_heads, num_heads);
     V = broadcast_groups(V, kv_num_heads, num_heads);
 
+    Output zero = Constant::create(element::i32, Shape{1}, {0});
+    Output one = Constant::create(element::i32, Shape{1}, {1});
+    Output two = Constant::create(element::i32, Shape{1}, {2});
+    Output K_compute = make_shared<Slice>(K, zero, total_sequence_length, one, two);
+    Output V_compute = make_shared<Slice>(V, zero, total_sequence_length, one, two);
     // FIXME: Unaligned batch of sequences is not supported. All past key-value are assumed to have the same length.
     // That means all input sequence lengths should be the same and match input.shape[2]
     // We do not check that here because it depends on runtime values.
@@ -248,12 +258,15 @@ ov::OutputVector group_query_attention_decomposition(
     // Also inplace KV-cache modification logic is not supported efficiently in any plugins (CPU, GPU and NPU).
 
     // TODO: check SDPA fail if past_len>0
-    Output output = make_shared<v13::ScaledDotProductAttention>(Q, K, V, true);
-    // permute & reorder to BSH format
-    const auto perm = v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
-    output = make_shared<v1::Transpose>(output, perm);
-    auto new_shape = v0::Constant::create(ov::element::i32, ov::Shape{3}, {0, 0, -1});
-    output = make_shared<v1::Reshape>(output, new_shape, true);
+    // Output output = make_shared<v13::ScaledDotProductAttention>(Q, K_compute, V_compute, true);
+    // // permute & reorder to BSH format
+    // const auto perm = v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
+    // output = make_shared<v1::Transpose>(output, perm);
+    // auto new_shape = v0::Constant::create(ov::element::i32, ov::Shape{3}, {0, 0, -1});
+    // output = make_shared<v1::Reshape>(output, new_shape, true);
+
+    // use naive attention decomposition now
+    Output output = attention_softmax(Q, K_compute, V_compute, head_size);
 
     return {output, K, V};
 }
@@ -280,6 +293,30 @@ namespace detail {
 namespace {
 
 
+std::shared_ptr<ov::Node> attention_softmax(Output& Q, 
+                                            Output& K,
+                                            Output& V,
+                                            Output& head_size) {
+    auto zero = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    std::shared_ptr<ov::Node> softmax_input = std::make_shared<v0::MatMul>(Q, K, false, true);
+    const auto sqrt = std::make_shared<v0::Sqrt>(head_size);
+    // (Q x K' + mask) / sqrt(head_size)
+    softmax_input = std::make_shared<v1::Divide>(softmax_input, sqrt);
+    const auto softmax = std::make_shared<v8::Softmax>(softmax_input, 3);
+
+    // softmax((Q x K' + mask) / sqrt(head_size)) x V
+    std::shared_ptr<ov::Node> output = std::make_shared<v0::MatMul>(softmax, V);
+    // transpose the result from (batch_size, num_heads, sequence_length, head_size)
+    // to (batch_size, sequence_length, num_heads, head_size)
+    const auto perm = v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
+    output = std::make_shared<v1::Transpose>(output, perm);
+    auto new_shape = v0::Constant::create(ov::element::i32, ov::Shape{3}, {0, 0, -1});
+    // reshape the result from (batch_size, sequence_length, num_heads, head_size) to (batch_size, sequence_length,
+    // num_heads * head_size)
+    output = std::make_shared<v1::Reshape>(output, new_shape, true);
+
+    return output;
+}
 
 std::shared_ptr<ov::Node> get_hidden_size(const std::shared_ptr<v3::ShapeOf>& node_shape) {
     // node has shape (batch_size, sequence_length, 3 * hidden_size)
