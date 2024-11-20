@@ -203,11 +203,11 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                          std::nullopt);
 }
 
-std::shared_ptr<IGraph> DriverCompilerAdapter::parse(const std::shared_ptr<ov::AlignedBuffer>& mmapNetwork, const Config& config) const {
+std::shared_ptr<IGraph> DriverCompilerAdapter::parse(const std::shared_ptr<ov::AlignedBuffer>& networkSO, const Config& config) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
 
     _logger.debug("parse start");
-    ze_graph_handle_t graphHandle = _zeGraphExt->getGraphHandle(mmapNetwork);
+    ze_graph_handle_t graphHandle = _zeGraphExt->getGraphHandle(networkSO);
     _logger.debug("parse end");
 
     OV_ITT_TASK_NEXT(PARSE_BLOB, "getNetworkMeta");
@@ -218,7 +218,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(const std::shared_ptr<ov::A
                                          graphHandle,
                                          std::move(networkMeta),
                                          config,
-                                         std::optional<std::shared_ptr<ov::AlignedBuffer>>(mmapNetwork));
+                                         std::optional<std::shared_ptr<ov::AlignedBuffer>>(networkSO));
 }
 
 ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,

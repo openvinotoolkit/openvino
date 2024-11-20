@@ -10,6 +10,7 @@
 #include "intel_npu/icompiler.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 
@@ -21,11 +22,7 @@ public:
 
     std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 
-    std::shared_ptr<IGraph> parse(std::vector<uint8_t> network, const Config& config) const override;
-
-    std::shared_ptr<IGraph> parse(const std::shared_ptr<ov::AlignedBuffer>& mmapNetwork, const Config& config) const override {
-        OPENVINO_THROW("CIP needs a blob vector!");
-    }
+    std::shared_ptr<IGraph> parse(const std::shared_ptr<ov::AlignedBuffer>& networkSO, const Config& config) const override;
 
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 

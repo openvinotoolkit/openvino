@@ -833,30 +833,18 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         auto compiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), localConfig);
 
         std::shared_ptr<IGraph> graph;
-        if (compiler->getCompilerType() == ov::intel_npu::CompilerType::DRIVER) {
-            if (auto mmap_buffer = dynamic_cast<ov::OwningSharedStreamBuffer*>(stream.rdbuf())) {
-                graph = compiler->parse(mmap_buffer->get_buffer(), localConfig);
-            } else {
-                auto graphSize = getFileSize(stream);
-                std::vector<uint8_t> blob(graphSize);
-                graph = compiler->parse(std::make_shared<ov::SharedBuffer<std::shared_ptr<std::vector<uint8_t>>>>(reinterpret_cast<char*>(blob.data()), blob.size(), std::make_shared<std::vector<uint8_t>>(std::move(blob))), localConfig);
-            }
-            goto GRAPH_PARSED;
-        }
-
-        {
+        if (auto mmap_buffer = dynamic_cast<ov::OwningSharedStreamBuffer*>(stream.rdbuf())) {
+            graph = compiler->parse(mmap_buffer->get_buffer(), localConfig);
+        } else {
             auto graphSize = getFileSize(stream);
-
             std::vector<uint8_t> blob(graphSize);
             stream.read(reinterpret_cast<char*>(blob.data()), graphSize);
             if (!stream) {
                 OPENVINO_THROW("Failed to read data from stream!");
             }
             _logger.debug("Successfully read %zu bytes into blob.", graphSize);
-
-            graph = compiler->parse(std::move(blob), localConfig);
+            graph = compiler->parse(std::make_shared<ov::SharedBuffer<std::shared_ptr<std::vector<uint8_t>>>>(reinterpret_cast<char*>(blob.data()), blob.size(), std::make_shared<std::vector<uint8_t>>(std::move(blob))), localConfig);
         }
-GRAPH_PARSED:
         graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
 
         const std::shared_ptr<ov::Model> modelDummy =
