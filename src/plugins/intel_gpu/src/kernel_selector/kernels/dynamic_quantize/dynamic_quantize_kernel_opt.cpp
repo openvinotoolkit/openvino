@@ -179,11 +179,16 @@ bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {
     }
 
     // it supports only separated output
-    if (dq_params.use_asymmetric_quantization && dq_params.combine_scales_and_zp)
-        return false;
+    if (dq_params.use_asymmetric_quantization) {
+        if (dq_params.combine_scales_and_zp)
+            return false;
+        if (dq_params.outputs[0].GetDType() != Datatype::UINT8)
+            return false;
+    }
 
-    // FIXME: output data type should be u8
     return true;
 }
+
+
 }  // namespace kernel_selector
 
