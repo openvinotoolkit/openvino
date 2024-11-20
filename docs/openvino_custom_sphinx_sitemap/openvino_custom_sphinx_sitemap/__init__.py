@@ -130,19 +130,19 @@ def process_coveo_meta(meta, url, link):
             elif tag_name == 'ovversion':
                 ET.SubElement(namespace_element, tag_name).text = tag_value
 
-def process_link(link):
-    if '/' in link:
-        return link.split('/')[0].replace("-", " ")
-    return link.split('.html')[0].replace("-", " ")
-
 def extract_hierarchy(link):
     path = link.split("://")[-1]
     segments = path.split('/')[1:]
     if segments and segments[-1].endswith('.html'):
         segments = segments[:-1]
     
+    if segments and '.' in segments[0]:
+        year, *rest = segments[0].split('.')
+        if year.isdigit() and len(year) == 4:
+            segments[0] = year
+
     hierarchy = []
     for i in range(1, len(segments) + 1):
         hierarchy.append('|'.join(segments[:i]))
-    
+
     return ';'.join(hierarchy)
