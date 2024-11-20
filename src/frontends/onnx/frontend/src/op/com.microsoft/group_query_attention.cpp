@@ -29,12 +29,12 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         ov_op_inputs.push_back(ov::op::util::is_null(input) ? GroupQueryAttentionExtension::null() : input);
     }
 
-    return group_query_attention_decomposition(std::make_shared<GroupQueryAttentionExtension>(
+    return std::make_shared<GroupQueryAttentionExtension>(
         ov_op_inputs,
         static_cast<int>(node.get_attribute_value<int64_t>("num_heads")),
         static_cast<int>(node.get_attribute_value<int64_t>("kv_num_heads")),
         static_cast<bool>(node.get_attribute_value<int64_t>("rotary_interleaved", 0))
-    ));
+    )->outputs();
 }
 
 ONNX_OP("GroupQueryAttention", OPSET_SINCE(1), com_microsoft::opset_1::group_query_attention, MICROSOFT_DOMAIN);
