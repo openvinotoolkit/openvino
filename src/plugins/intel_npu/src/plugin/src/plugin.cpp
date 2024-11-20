@@ -619,11 +619,11 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.getString<BATCH_MODE>();
           }}},
-        {ov::intel_npu::separate_weights.name(),
+        {ov::intel_npu::separate_weights_version.name(),
          {false,
           ov::PropertyMutability::RW,
           [](const Config& config) {
-              return config.getString<SEPARATE_WEIGHTS>();
+              return config.getString<SEPARATE_WEIGHTS_VERSION>();
           }}},
         {ov::intel_npu::benchmark_init.name(),
          {false,
@@ -766,7 +766,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     try {
         _logger.debug("performing compile");
 
-        if (!localConfig.get<SEPARATE_WEIGHTS>()) {
+        if (localConfig.get<SEPARATE_WEIGHTS_VERSION>() == 0) {
             graph = compiler->compile(model, localConfig);
         } else {
             initModel = model->clone();
@@ -855,7 +855,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     try {
         auto compiler = getCompiler(localConfig);
 
-        if (!localConfig.get<SEPARATE_WEIGHTS>()) {
+        if (localConfig.get<SEPARATE_WEIGHTS_VERSION>() == 0) {
             auto graphSize = getFileSize(stream);
 
             std::vector<uint8_t> blob(graphSize);

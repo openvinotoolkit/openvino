@@ -127,17 +127,34 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
                                          std::move(networkDesc.compiledNetwork),
                                          config);
 }
+
 std::vector<std::shared_ptr<IGraph>> PluginCompilerAdapter::compileWS(const std::shared_ptr<ov::Model>& model,
                                                                       const Config& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compileWS");
 
-    _logger.debug("compile start");
-    const std::vector<std::shared_ptr<NetworkDescription>> initMainNetworkDescriptions =
-        _compiler->compileWS(model, config);
-    _logger.debug("compile end");
+    std::shared_ptr<NetworkDescription> initNetworkDescription;
+    std::shared_ptr<NetworkDescription> mainNetworkDescription;
 
-    auto initNetworkDescription = initMainNetworkDescriptions[0];
-    auto mainNetworkDescription = initMainNetworkDescriptions[1];
+    _logger.debug("compile start");
+
+    switch (config.get<SEPARATE_WEIGHTS_VERSION>()) {
+    case 1: {
+        const std::vector<std::shared_ptr<NetworkDescription>> initMainNetworkDescriptions =
+            _compiler->compileWS_v1(model, config);
+
+        initNetworkDescription = initMainNetworkDescriptions[0];
+        mainNetworkDescription = initMainNetworkDescriptions[1];
+    } break;
+    case 2: {
+        initNetworkDescription = _compiler->compileWS_v2(model, config);
+        mainNetworkDescription = _compiler->compileWS_v2(model, config);
+    } break;
+    default:
+        OPENVINO_THROW("Invalid \"SEPARATE_WEIGHTS_VERSION\" value found within the \"compileWS\" call");
+        break;
+    }
+
+    _logger.debug("compile end");
 
     ze_graph_handle_t initGraphHandle = nullptr;
     ze_graph_handle_t mainGraphHandle = nullptr;

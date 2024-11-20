@@ -643,10 +643,10 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
                    << VALUE_DELIMITER;
     content = std::regex_replace(content, std::regex(umdcachestring.str()), "");
 
-    // SEPARATE_WEIGHTS does not involve the compiler (yet)
+    // SEPARATE_WEIGHTS_VERSION does not involve the compiler (yet)
     std::ostringstream separateWeightsStream;
-    separateWeightsStream << ov::intel_npu::separate_weights.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
-                          << VALUE_DELIMITER;
+    separateWeightsStream << ov::intel_npu::separate_weights_version.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER
+                          << "\\S+" << VALUE_DELIMITER;
     content = std::regex_replace(content, std::regex(separateWeightsStream.str()), "");
 
     std::ostringstream benchmarkInitStream;

@@ -48,7 +48,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     initialize_properties();
     configure_stream_executors();
 
-    if (_config.get<SEPARATE_WEIGHTS>() && _initGraph != nullptr) {
+    if (_config.get<SEPARATE_WEIGHTS_VERSION>() != 0 && _initGraph != nullptr) {
         if (_config.get<CREATE_EXECUTOR>() && !_config.get<DEFER_WEIGHTS_LOAD>()) {
             begin = std::chrono::steady_clock::now();
             _weightsInputs = _device->runInit(_initGraph, _initModel, get_context(), _config);
@@ -77,7 +77,7 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
         _device->createInferRequest(shared_from_this(), _config);
     syncInferRequest->initialize_states();
 
-    if (_config.get<SEPARATE_WEIGHTS>() && _initGraph != nullptr) {
+    if (_config.get<SEPARATE_WEIGHTS_VERSION>() != 0 && _initGraph != nullptr) {
         if (!_config.get<CREATE_EXECUTOR>() || _config.get<DEFER_WEIGHTS_LOAD>()) {
             begin = std::chrono::steady_clock::now();
             _initGraph->initialize(_config);
@@ -101,9 +101,10 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
         end = std::chrono::steady_clock::now();
         std::cout << "set_weights_inputs() call "
                   << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
-    } else if (_config.get<SEPARATE_WEIGHTS>() && _initGraph == nullptr) {
-        _logger.warning("SEPARATE_WEIGHTS config option was set but no compiled model for the init schedule was found. "
-                        "run_init() will not run.");
+    } else if (_config.get<SEPARATE_WEIGHTS_VERSION>() != 0 && _initGraph == nullptr) {
+        _logger.warning(
+            "SEPARATE_WEIGHTS_VERSION config option was set but no compiled model for the init schedule was found. "
+            "run_init() will not run.");
     }
 
     return std::make_shared<AsyncInferRequest>(syncInferRequest,
@@ -121,7 +122,7 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
 
-    if (_config.get<SEPARATE_WEIGHTS>()) {
+    if (_config.get<SEPARATE_WEIGHTS_VERSION>() != 0) {
         _graph->custom_export(stream, _initGraph, _initModel);
         return;
     }
