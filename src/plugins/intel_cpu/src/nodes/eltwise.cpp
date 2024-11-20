@@ -2104,6 +2104,7 @@ size_t Eltwise::getOpInputsNum() const {
         case Algorithm::EltwiseRelu:
         case Algorithm::EltwiseGeluErf:
         case Algorithm::EltwiseGeluTanh:
+        case Algorithm::EltwiseCeiling:
         case Algorithm::EltwiseFloor:
         case Algorithm::EltwiseElu:
         case Algorithm::EltwiseTanh:
