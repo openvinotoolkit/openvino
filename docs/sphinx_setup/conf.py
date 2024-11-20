@@ -18,7 +18,7 @@ copyright = '2024, Intel®'
 author = 'Intel®'
 
 language = 'en'
-version_name = 'nightly'
+version_name = '2024.5'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -48,7 +48,7 @@ if "openvino" not in autodoc_mock_imports:
     except ImportError:
         autodoc_mock_imports.append("openvino_genai")
 
-        
+
 breathe_projects = {
     "openvino": "../xml/"
 }
@@ -84,7 +84,8 @@ ov_sitemap_urlset = [
 ov_sitemap_meta = [
     ('coveo:metadata', {
         'ovversion': version_name,
-        'ovdoctype': 'null'
+        'ovdoctype': 'null',
+        'ovcategory': 'null'
     })
 ]
 
