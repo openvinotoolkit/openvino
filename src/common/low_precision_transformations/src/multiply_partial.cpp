@@ -133,24 +133,24 @@ bool MultiplyPartialTransformation::transform(TransformationContext& context, ov
 
 
         // before: Y = (SC1 * (X1 - SH1)) * (SC2 * X2)
-        // after : Y = (SC1' * (X1 - SH1)) * (X2) , where :
+        // after : Y = ((X1 - SH1) * X2) * SC1' ,  where :
         //         SC1' = SC1 * SC2
         auto newMultiplyValuesFullPath = fold<ov::opset1::Multiply>(multiplyValuesEmptyPath, multiplyValuesFullPath);
         OutputVector inputs{ {}, {} };
-        inputs[emptyPathIndex] = dequantizationEmptyPath.data;
+        inputs[emptyPathIndex] = newMultiplyValuesFullPath;
 
         ov::Output<ov::Node> parent0 = dequantizationFullPath.subtract == nullptr ?
             (dequantizationFullPath.convert == nullptr ? dequantizationFullPath.data : dequantizationFullPath.convert) :
             dequantizationFullPath.subtract;
 
         inputs[fullPathIndex] =
-            parent0.get_node()->get_output_element_type(0) == newMultiplyValuesFullPath->get_output_element_type(0) ?
-                std::make_shared<ov::opset1::Multiply>(parent0, newMultiplyValuesFullPath) :
+            parent0.get_node()->get_output_element_type(0) == dequantizationEmptyPath.data.get_node()->get_output_element_type(0) ?
+                std::make_shared<ov::opset1::Multiply>(parent0, dequantizationEmptyPath.data) :
                 std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
                       std::vector<element::Type>{element::f32, element::f32},
                       std::vector<element::Type>{element::f32},
                       ov::op::TemporaryReplaceOutputType(parent0, element::f32).get(),
-                      ov::op::TemporaryReplaceOutputType(newMultiplyValuesFullPath, element::f32).get());
+                      ov::op::TemporaryReplaceOutputType(dequantizationEmptyPath.data, element::f32).get());
 
         newMultiply = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
                 std::vector<element::Type>{element::f32, element::f32},

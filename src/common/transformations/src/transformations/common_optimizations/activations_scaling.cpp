@@ -7,10 +7,12 @@
 #include <memory>
 
 #include "itt.hpp"
+#include "low_precision/network_helper.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/group_normalization.hpp"
@@ -40,12 +42,7 @@ const auto is_scalar_node = [](const ov::Output<ov::Node>& output) -> bool {
 };
 
 const auto is_non_const_node = [](const ov::Output<ov::Node>& output) -> bool {
-    auto node = std::dynamic_pointer_cast<ov::op::v0::Constant>(output.get_node_shared_ptr());
-    if (node) {
-        return false;
-    } else {
-        return true;
-    }
+    return !ov::is_type<ov::op::v0::Constant>(output.get_node());
 };
 }  // namespace
 
@@ -57,7 +54,7 @@ using ov::pass::pattern::op::Or;
 // Conv/MatMul
 //    ==>
 // Multiply(scale_down by scale_factor) --> Conv/MatMul --> Multiply(scale_up by scale_factor)
-ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float scale_factor) {
+ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float scale_factor, ov::element::Type scaled_prec) {
     MATCHER_SCOPE(ScaleDownSingleLayer);
 
     auto are_not_mutiple_matmuls_connected = [](const Output<Node>& output) {
@@ -78,7 +75,7 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
     auto activation_m = any_input();
     auto weights_m = any_input();
     auto convolution_m = wrap_type<ov::op::v1::Convolution>({activation_m, weights_m});
-    auto matmul_m = wrap_type<ov::op::v0::MatMul>({activation_m, weights_m}, are_not_mutiple_matmuls_connected);
+    auto matmul_m = wrap_type<ov::op::v0::MatMul>({activation_m, weights_m});//, are_not_mutiple_matmuls_connected);
     auto scaled_op_m = std::make_shared<Or>(OutputVector{convolution_m, matmul_m});
 
     ov::Shape scale_const_shape = {1};
@@ -114,39 +111,43 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
             (scaled_op->input(0).get_element_type() == ov::element::f32) ? scale_down_const_f32 : scale_down_const_f16);
         scale_down->set_friendly_name(scaled_op->get_friendly_name() + "_scale_down");
         ov::copy_runtime_info(scaled_op, scale_down);
-        scaled_op->input(0).replace_source_output(scale_down->output(0));
+
+        auto convert_prec0 = std::make_shared<ov::op::v0::Convert>(scale_down->output(0), scaled_prec);
+        scaled_op->input(0).replace_source_output(convert_prec0->output(0));
+        auto convert_prec1 = std::make_shared<ov::op::v0::Convert>(scaled_op->input(1).get_source_output(), scaled_prec);
+        scaled_op->input(1).replace_source_output(convert_prec1->output(0));
+
+        auto output_prec = scaled_op->output(0).get_element_type();
+        std::set<ov::Input<ov::Node>> target_inputs;
+        std::shared_ptr<ov::Node> runtime_scaled_op;
 
         auto child = scaled_op->get_output_target_inputs(0).begin()->get_node();
         if (scaled_op->get_output_target_inputs(0).size() == 1 && ov::is_type<ov::op::v1::Add>(child)) {
             auto add = child->shared_from_this();
-            auto target_inputs = add->get_output_target_inputs(0);
+            target_inputs = add->get_output_target_inputs(0);
             auto scale_down_bias = std::make_shared<ov::op::v1::Multiply>(
                 add->input(1).get_source_output(),
                 (add->input(1).get_element_type() == ov::element::f32) ? scale_down_const_f32 : scale_down_const_f16);
             scale_down_bias->set_friendly_name(add->get_friendly_name() + "_scale_down");
             ov::copy_runtime_info(add, scale_down_bias);
-            add->input(1).replace_source_output(scale_down_bias->output(0));
-
-            auto scale_up = register_new_node<ov::op::v1::Multiply>(
-                add->output(0),
-                (add->output(0).get_element_type() == ov::element::f32) ? scale_up_const_f32 : scale_up_const_f16);
-            scale_up->set_friendly_name(scaled_op->get_friendly_name() + "_scale_up");
-            ov::copy_runtime_info(scaled_op, scale_up);
-            for (auto& in : target_inputs) {
-                in.replace_source_output(scale_up);
-            }
+            auto convert_bias_prec = std::make_shared<ov::op::v0::Convert>(scale_down_bias->output(0), scaled_prec);
+            add->input(1).replace_source_output(convert_bias_prec->output(0));
+            runtime_scaled_op = std::make_shared<ov::op::v0::Convert>(add->output(0), output_prec);
         } else {
-            auto target_inputs = scaled_op->get_output_target_inputs(0);
-            auto scale_up = register_new_node<ov::op::v1::Multiply>(
-                scaled_op->output(0),
-                (scaled_op->output(0).get_element_type() == ov::element::f32) ? scale_up_const_f32
-                                                                              : scale_up_const_f16);
-            scale_up->set_friendly_name(scaled_op->get_friendly_name() + "_scale_up");
-            ov::copy_runtime_info(scaled_op, scale_up);
-            for (auto& in : target_inputs) {
-                in.replace_source_output(scale_up);
-            }
+            target_inputs = scaled_op->get_output_target_inputs(0);
+            runtime_scaled_op = std::make_shared<ov::op::v0::Convert>(scaled_op->output(0), output_prec);
         }
+
+        auto scale_up = register_new_node<ov::op::v1::Multiply>(
+            runtime_scaled_op->output(0),
+            (runtime_scaled_op->output(0).get_element_type() == ov::element::f32) ? scale_up_const_f32 : scale_up_const_f16);
+        scale_up->set_friendly_name(scaled_op->get_friendly_name() + "_scale_up");
+        ov::copy_runtime_info(scaled_op, scale_up);
+        for (auto& in : target_inputs) {
+            in.replace_source_output(scale_up);
+        }
+
+        scaled_op->revalidate_and_infer_types();
 
         return true;
     };
@@ -355,7 +356,7 @@ ov::pass::activations_scaling::MulGroupNormTransformation::MulGroupNormTransform
         OPENVINO_ASSERT(pattern_map.count(norm_m));
 
         auto mul = std::dynamic_pointer_cast<ov::op::v1::Multiply>(pattern_map.at(mul_m).get_node_shared_ptr());
-        auto norm = std::dynamic_pointer_cast<ov::op::Op>(pattern_map.at(norm_m).get_node_shared_ptr());
+        auto norm = std::dynamic_pointer_cast<ov::op::v12::GroupNormalization>(pattern_map.at(norm_m).get_node_shared_ptr());
 
         if (transformation_callback(norm)) {
             return false;
@@ -364,7 +365,17 @@ ov::pass::activations_scaling::MulGroupNormTransformation::MulGroupNormTransform
         if (mul && norm) {
             size_t activation_index =
                 ov::is_type<ov::op::v0::Constant>(mul->get_input_source_output(1).get_node()) ? 0 : 1;
-            norm->input(0).replace_source_output(mul->get_input_source_output(activation_index));
+            // norm->input(0).replace_source_output(mul->get_input_source_output(activation_index));
+            auto activation = mul->get_input_source_output(activation_index);
+            if (ov::is_type<ov::op::v0::Convert>(activation.get_node()))
+                activation = activation.get_node()->get_input_source_output(0);
+            auto newGroupNorm = std::make_shared<ov::op::TypeRelaxed<ov::op::v12::GroupNormalization>>(
+                ov::op::v12::GroupNormalization(activation,
+                norm->get_input_source_output(1), norm->get_input_source_output(2),
+                norm->get_num_groups(), norm->get_epsilon()),
+                norm->get_output_element_type(0));
+            ov::copy_runtime_info(norm, newGroupNorm);
+            ov::replace_node(norm, newGroupNorm);
             return true;
         }
         return false;
@@ -399,7 +410,7 @@ ov::pass::activations_scaling::MulMVNTransformation::MulMVNTransformation() {
         OPENVINO_ASSERT(pattern_map.count(norm_m));
 
         auto mul = std::dynamic_pointer_cast<ov::op::v1::Multiply>(pattern_map.at(mul_m).get_node_shared_ptr());
-        auto norm = std::dynamic_pointer_cast<ov::op::Op>(pattern_map.at(norm_m).get_node_shared_ptr());
+        auto norm = std::dynamic_pointer_cast<ov::op::v6::MVN>(pattern_map.at(norm_m).get_node_shared_ptr());
 
         if (transformation_callback(norm)) {
             return false;
@@ -408,7 +419,16 @@ ov::pass::activations_scaling::MulMVNTransformation::MulMVNTransformation() {
         if (mul && norm) {
             size_t activation_index =
                 ov::is_type<ov::op::v0::Constant>(mul->get_input_source_output(1).get_node()) ? 0 : 1;
-            norm->input(0).replace_source_output(mul->get_input_source_output(activation_index));
+            // norm->input(0).replace_source_output(mul->get_input_source_output(activation_index));
+            auto activation = mul->get_input_source_output(activation_index);
+            if (ov::is_type<ov::op::v0::Convert>(activation.get_node()))
+                activation = activation.get_node()->get_input_source_output(0);
+            auto newMVN = std::make_shared<ov::op::TypeRelaxed<ov::op::v6::MVN>>(
+                ov::op::v6::MVN(activation, norm->get_input_source_output(1),
+                norm->get_normalize_variance(), norm->get_eps(), norm->get_eps_mode()),
+                norm->get_output_element_type(0));
+            ov::copy_runtime_info(norm, newMVN);
+            ov::replace_node(norm, newMVN);
             return true;
         }
         return false;
@@ -536,7 +556,7 @@ ov::pass::activations_scaling::ReshapeTransformation::ReshapeTransformation() {
     this->register_matcher(m, callback);
 }
 
-// MulMulAddTransformation makes the target pattern to be easy to be merged with other nodes.
+// MulMulMulTransformation makes the target pattern to be easy to be merged with other nodes.
 //
 // input_a   const_a   input_b  const_b          input_a     input_b
 //      \      /          \      /                   \        /
@@ -700,7 +720,7 @@ bool ov::pass::ActivationsScaling::run_on_model(const std::shared_ptr<ov::Model>
     ov::pass::Manager manager(get_pass_config(), "ActivationsScaling");
     manager.set_per_pass_validation(false);
 
-    manager.register_pass<ScaleDownSingleLayer>(m_scale_factor);
+    manager.register_pass<ScaleDownSingleLayer>(m_scale_factor, m_scaled_prec);
     manager.register_pass<ScaleDownMultipleLayers>(m_scale_factor);
     manager.register_pass<MultiplyMultiplyFusion>();
     manager.register_pass<MulGroupNormTransformation>();

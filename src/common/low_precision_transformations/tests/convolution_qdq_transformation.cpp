@@ -506,7 +506,7 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
                 { {0.03f}, element::f32, {}, false }
             },
             { std::vector<float>{ 2.f }, ov::element::i8},
-            {},
+                {},
             ov::element::f32,
             {}
         },

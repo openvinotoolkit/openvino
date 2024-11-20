@@ -215,7 +215,7 @@ bool AddTransformation::transform(TransformationContext& context, ov::pass::patt
             newMultiplyFullPathValues);
 
         newAddOrSubtract = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Add>>(
-            std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ element::f32 },
+            std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ add->get_output_element_type(0) },
             ov::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
             ov::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());
         newMultiply = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(

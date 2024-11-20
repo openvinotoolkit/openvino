@@ -37,17 +37,19 @@ class TRANSFORMATIONS_API ConcatTransformation;
 class ov::pass::ActivationsScaling : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("ActivationsScaling", "0");
-    explicit ActivationsScaling(float scale_factor) : m_scale_factor(scale_factor) {}
+    explicit ActivationsScaling(float scale_factor, ov::element::Type scaled_prec)
+    : m_scale_factor(scale_factor), m_scaled_prec(scaled_prec) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 private:
     float m_scale_factor = 0.f;
+    ov::element::Type m_scaled_prec = element::f16;
 };
 
 class ov::pass::activations_scaling::ScaleDownSingleLayer : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ScaleDownSingleLayer", "0");
-    ScaleDownSingleLayer(float scale_factor);
+    ScaleDownSingleLayer(float scale_factor, ov::element::Type scaled_prec);
 };
 
 class ov::pass::activations_scaling::ScaleDownMultipleLayers : public ov::pass::MatcherPass {

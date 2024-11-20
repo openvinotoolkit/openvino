@@ -24,6 +24,7 @@
 #include "low_precision/low_precision.hpp"
 #include "low_precision/mat_mul.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
+#include "low_precision/mvn.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/pull_reshape_through_dequantization.hpp"
 #include "low_precision/pull_transpose_through_dequantization.hpp"
@@ -893,11 +894,41 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.run_passes(func);
     }
 
+    float activations_scale_factor = config.get_property(ov::hint::activations_scale_factor);
+    if (activations_scale_factor > 0.f) {
+        OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply::activations_scaling");
+        using namespace ov::pass::low_precision;
+
+        auto supportedPrecisions = std::vector<PrecisionsRestriction>({});
+        auto perTensorQuantization = std::vector<QuantizationGranularityRestriction>({});
+
+        ov::element::Type scaled_precision = element::f16;
+        std::cout << "scale_factor: " << activations_scale_factor << std::endl;
+
+        ov::pass::Manager manager("GPU:ActivationsScaling");
+        manager.set_per_pass_validation(false);
+
+        auto pass_config = manager.get_pass_config();
+        pass_config->disable<ov::pass::AddMultiplyFusion>();
+        pass_config->disable<RecurrentCellTransformation>();
+        pass_config->disable<MultiplyToGroupConvolutionTransformation>();
+        pass_config->disable<ConvolutionTransformation>();
+        pass_config->disable<ConvolutionBackpropDataTransformation>();
+        pass_config->disable<GroupConvolutionTransformation>();
+        pass_config->disable<MatMulTransformation>();
+        pass_config->disable<MVNTransformation>();
+
+        auto params = LayerTransformation::Params(false, scaled_precision, {scaled_precision}, true);
+        manager.register_pass<ov::pass::activations_scaling::ScaleDownSingleLayer>(activations_scale_factor, scaled_precision);
+        auto lpt_pass = manager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization, params);
+        lpt_pass->add_main<ov::pass::activations_scaling::MulGroupNormTransformation>();
+        lpt_pass->add_main<ov::pass::activations_scaling::MulMVNTransformation>();
+        manager.run_passes(func);
+    }
+
     {
         ov::pass::Manager manager("GPU:PostLPT");
         manager.set_per_pass_validation(false);
-
-        manager.register_pass<ov::pass::ActivationsScaling>(config.get_property(ov::hint::activations_scale_factor));
 
         // Other ops support eltwise fusions
         const std::vector<DiscreteTypeInfo> allowed_data_movement_ops = {
