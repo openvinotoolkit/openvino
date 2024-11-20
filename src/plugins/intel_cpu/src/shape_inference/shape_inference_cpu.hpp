@@ -8,7 +8,6 @@
 
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/node.hpp"
-#include "ov_optional.hpp"
 #include "shape_inference_status.hpp"
 
 namespace ov {

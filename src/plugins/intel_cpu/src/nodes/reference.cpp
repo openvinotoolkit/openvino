@@ -114,47 +114,49 @@ void Reference::executeDynamicImpl(dnnl::stream strm) {
     }
 }
 
-    bool Reference::created() const {
-        return getType() == Type::Reference;
-    }
+bool Reference::created() const {
+    return getType() == Type::Reference;
+}
 
-    bool Reference::needShapeInfer() const {
-        return false;
-    }
+bool Reference::needShapeInfer() const {
+    return false;
+}
 
-    ov::TensorVector Reference::prepareInputs() const {
-        ov::TensorVector inputs;
-        for (size_t i = 0lu; i < inputShapes.size(); i++) {
-        void *srcDataPtr = getSrcDataAtPort(i);
-        ov::Shape shape = ovCoreNode->get_input_partial_shape(i).rank().get_length() == 0 ?
-                ov::Shape{} : getParentEdgeAt(i)->getMemory().getStaticDims();
-
-        if (std::any_of(shape.begin(), shape.end(), [](const size_t dim) { return dim == 0lu; } )) {
-                inputs.push_back(ov::Tensor(ovCoreNode->get_input_element_type(i), shape));
-            } else {
-                CPU_NODE_ASSERT(srcDataPtr, "has empty input data on port ", i);
-                inputs.push_back(ov::Tensor(ovCoreNode->get_input_element_type(i), shape, srcDataPtr));
-            }
-        }
-        return inputs;
-    }
-
-    ov::TensorVector Reference::prepareOutputs() const {
-        ov::TensorVector outputs;
-        for (size_t i = 0lu; i < outputShapes.size(); i++) {
-        void *dstDataPtr = getDstDataAtPort(i);
-        ov::Shape shape = ovCoreNode->get_output_partial_shape(i).rank().get_length() == 0 ?
-                ov::Shape{} : getChildEdgeAt(i)->getMemory().getStaticDims();
+ov::TensorVector Reference::prepareInputs() const {
+    ov::TensorVector inputs;
+    for (size_t i = 0lu; i < inputShapes.size(); i++) {
+        void* srcDataPtr = getSrcDataAtPort(i);
+        ov::Shape shape = ovCoreNode->get_input_partial_shape(i).rank().get_length() == 0
+                              ? ov::Shape{}
+                              : getParentEdgeAt(i)->getMemory().getStaticDims();
 
         if (std::any_of(shape.begin(), shape.end(), [](const size_t dim) { return dim == 0lu; } )) {
-                outputs.push_back(ov::Tensor(ovCoreNode->get_output_element_type(i), shape));
-            } else {
-                CPU_NODE_ASSERT(dstDataPtr, "has empty output data on port ", i);
-                outputs.push_back(ov::Tensor(ovCoreNode->get_output_element_type(i), shape, dstDataPtr));
-            }
+            inputs.push_back(ov::Tensor(ovCoreNode->get_input_element_type(i), shape));
+        } else {
+            CPU_NODE_ASSERT(srcDataPtr, "has empty input data on port ", i);
+            inputs.push_back(ov::Tensor(ovCoreNode->get_input_element_type(i), shape, srcDataPtr));
         }
-        return outputs;
     }
+    return inputs;
+}
+
+ov::TensorVector Reference::prepareOutputs() const {
+    ov::TensorVector outputs;
+    for (size_t i = 0lu; i < outputShapes.size(); i++) {
+        void* dstDataPtr = getDstDataAtPort(i);
+        ov::Shape shape = ovCoreNode->get_output_partial_shape(i).rank().get_length() == 0
+                              ? ov::Shape{}
+                              : getChildEdgeAt(i)->getMemory().getStaticDims();
+
+        if (std::any_of(shape.begin(), shape.end(), [](const size_t dim) { return dim == 0lu; } )) {
+            outputs.push_back(ov::Tensor(ovCoreNode->get_output_element_type(i), shape));
+        } else {
+            CPU_NODE_ASSERT(dstDataPtr, "has empty output data on port ", i);
+            outputs.push_back(ov::Tensor(ovCoreNode->get_output_element_type(i), shape, dstDataPtr));
+        }
+    }
+    return outputs;
+}
 
 }   // namespace node
 }   // namespace intel_cpu
