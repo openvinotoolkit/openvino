@@ -739,7 +739,7 @@ $(document).ready(function () {
         var labelsContainer = $('<div>');
         labelsContainer.addClass('chart-labels-container');
         chartWrap.append(labelsContainer);
-
+        console.log(labelsContainer)
         var chartGraphsContainer = $('<div>');
         chartGraphsContainer.addClass('chart-graphs-container');
         chartWrap.append(chartGraphsContainer);
@@ -817,6 +817,8 @@ $(document).ready(function () {
         return graphConfigs
     }
     function processMetric(labels, datasets, chartTitle, container, widthClass, id) {
+        // ratio for consistent chart label height
+        console.log(labels.length)
         var heightRatio = (30 + (labels.length * 55));
         var chart = $('<div>');
         const containerId = `legend-container-${id}`;
@@ -857,7 +859,7 @@ $(document).ready(function () {
     }
 
     function processMetricByEngines(labels, datasets, container, widthClass, id) {
-         var heightRatio = (80 + (labels.length * 55));
+        var heightRatio = (80 + (labels.length * 55));
         var chart = $('<div>');
         const containerId = `legend-container-${id}`;
         const legend = $(`<div id="${containerId}">`);
@@ -953,7 +955,7 @@ $(document).ready(function () {
     }
 
     function getLabelsTopPadding(displayMode) {
-        return (displayMode == 'rowCompact') ? 105.91 : 83.912;
+        return (displayMode == 'rowCompact') ? 105.91 : 35;
     }
 
     function setChartsDisplayDirection(displayMode) {
