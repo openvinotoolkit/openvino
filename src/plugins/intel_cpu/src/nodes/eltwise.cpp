@@ -862,7 +862,7 @@ private:
             default:
                 OPENVINO_THROW("unknown dst_prc");
         }
-    }m
+    }
 
     inline void store_vector(const Xbyak::Address &op, Vmm vmm_dst, ov::element::Type src_prc, ov::element::Type dst_prc) {
         Xmm xmm_dst = Xmm(vmm_dst.getIdx());
