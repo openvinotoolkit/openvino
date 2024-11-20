@@ -82,6 +82,18 @@ inline bool all_host_tensors(const std::vector<ov::SoPtr<ov::ITensor>>& tensors)
     });
 }
 
+cldnn::data_types data_type_for_remote_tensor(ov::element::Type t) {
+    switch (t) {
+    case ov::element::Type_t::f64:
+        return cldnn::data_types::f32;
+    case ov::element::Type_t::u64:
+        return cldnn::data_types::i32;
+    case ov::element::Type_t::boolean:
+        return cldnn::data_types::u8;
+    default: return t;
+    }
+}
+
 }  // namespace
 
 namespace ov {
@@ -446,6 +458,21 @@ void SyncInferRequest::wait() {
                     iremote_tensor_ptr->copy_from(plugin_tensor.ptr);
                 }
             }
+        } else if (!is_dynamic && is_remote_tensor_impl && output_memory) {
+            auto& stream = m_graph->get_network()->get_stream();
+            auto user_mem = remote_tensor_impl_ptr->get_original_memory();
+            if (user_mem->get_allocation_type() == cldnn::allocation_type::cl_mem
+                && output_memory->get_allocation_type() != cldnn::allocation_type::cl_mem) {
+                auto plugin_tensor = m_plugin_outputs.at(port_idx);
+                if (is_convert_required(plugin_tensor.ptr->get_element_type(), iremote_tensor_ptr->get_element_type())) {
+                    auto& stream = m_graph->get_network()->get_stream();
+                    convert_and_copy(plugin_tensor.ptr.get(), iremote_tensor_ptr.get(), stream);
+                } else {
+                    iremote_tensor_ptr->copy_from(plugin_tensor.ptr);
+                }
+            } else {
+                copy_events.push_back(output_memory->copy_to(stream, *user_mem, false));
+            }
         } else if (is_remote_tensor_impl && is_dynamic) {
             auto& stream = m_graph->get_network()->get_stream();
             auto user_mem = remote_tensor_impl_ptr->get_original_memory();
@@ -522,7 +549,7 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::create_device_tensor(const ov::Pa
 
     return std::make_shared<RemoteTensorImpl>(m_context,
                                               get_tensor_shape(port_shape),
-                                              cldnn::element_type_to_data_type(element_type),
+                                              ::data_type_for_remote_tensor(element_type),
                                               tensor_type);
 }
 
@@ -553,7 +580,7 @@ TensorWrapper SyncInferRequest::create_or_share_device_tensor(const TensorWrappe
     } else if (usm_host_raw_ptr && can_share) {
         return { std::make_shared<RemoteTensorImpl>(m_context,
                                                     user_tensor->get_shape(),
-                                                    cldnn::element_type_to_data_type(element_type),
+                                                    ::data_type_for_remote_tensor(element_type),
                                                     TensorType::BT_USM_SHARED,
                                                     user_tensor->data()), TensorOwner::USER };
     }
@@ -785,16 +812,16 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     if (is_remote_tensor_impl) {
         if (convert_needed) {
             m_plugin_inputs[input_idx] = { create_device_tensor(pshape,
-                                                                cldnn::element_type_to_data_type(element_type),
+                                                                ::data_type_for_remote_tensor(element_type),
                                                                 false), TensorOwner::PLUGIN };
         } else {
             m_plugin_inputs[input_idx] = user_tensor_wrapper;
         }
     } else if (is_usm_host_tensor && !convert_needed && can_use_usm_host(engine)) {
-        if (element_type != cldnn::element_type_to_data_type(element_type)) {
+        if (element_type != ::data_type_for_remote_tensor(element_type)) {
             m_plugin_inputs[input_idx] = { std::make_shared<RemoteTensorImpl>(m_context,
                                                                               user_tensor->get_shape(),
-                                                                              cldnn::element_type_to_data_type(element_type),
+                                                                              ::data_type_for_remote_tensor(element_type),
                                                                               TensorType::BT_USM_SHARED,
                                                                               user_tensor->data()), TensorOwner::USER };
         } else {
@@ -953,8 +980,12 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
                                     is_generic_remote ||
                                     (m_plugin_outputs[output_idx].owner == TensorOwner::USER && !is_remote_tensor_impl);
         if (update_device_tensor) {
-            m_plugin_outputs[output_idx] =
-                create_or_share_device_tensor(user_tensor_wrapper, internal_name, pshape, device_tensor_et, need_lockable_mem || convert_needed);
+            if (!is_remote_tensor_impl) {
+                m_plugin_outputs[output_idx] =
+                    create_or_share_device_tensor(user_tensor_wrapper, internal_name, pshape, device_tensor_et, need_lockable_mem || convert_needed);
+            } else {
+                m_plugin_outputs[output_idx] = { create_device_tensor(pshape, device_tensor_et, need_lockable_mem || convert_needed), TensorOwner::PLUGIN };
+            }
         }
     }
 
