@@ -83,6 +83,15 @@ public:
     std::string specialTags() const;
     void addWeightsPrecision(const std::vector<ov::element::Type>& prec);
     const std::vector<ov::element::Type>& getConstsPrecision() const;
+    void wipe() {
+        m_input_layers.clear();
+        m_content.clear();
+        m_output_layers.clear();
+        m_graph.reset();
+        m_snapshot.reset();
+        m_reptrack.clear();
+        std::cout << "Group wiped!" << std::endl;
+    }
 
 private:
     void includeExtraLayers(detail::OVNodeSet& input_layers,

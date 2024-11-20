@@ -6,6 +6,8 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <chrono>
+#include <thread>
 
 #include "accuracy/comparator.hpp"
 #include "intel_npu/npu_private_properties.hpp"
@@ -454,6 +456,12 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 void ov::npuw::CompiledModel::finalize_weights_bank() {
     LOG_INFO("Finalizing weights bank...");
     LOG_BLOCK();
+
+    using namespace std::chrono_literals;
+    //std::this_thread::sleep_for(10000ms);
+    int jj = 0;
+    std::cin >> jj;
+
     // Register lazy tensors
     for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
         auto& comp_model_desc = m_compiled_submodels[idx];
@@ -510,7 +518,12 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
 void ov::npuw::CompiledModel::drop_remote_weights() {
     LOG_INFO("Dropping remotely allocated weights...");
 
-    m_weights_bank.reset();
+    using namespace std::chrono_literals;
+    //std::this_thread::sleep_for(10000ms);
+        int jj = 0;
+    std::cin >> jj;
+
+    //m_weights_bank.reset();
 
     std::cout << "m_compiled_submodels.size() " << m_compiled_submodels.size() << std::endl;
 
@@ -562,6 +575,11 @@ void ov::npuw::CompiledModel::drop_remote_weights() {
             }
         }
     }
+
+    using namespace std::chrono_literals;
+    //std::this_thread::sleep_for(10000ms);
+        int jjj = 0;
+    std::cin >> jjj;
 
     LOG_INFO("Done.");
 }

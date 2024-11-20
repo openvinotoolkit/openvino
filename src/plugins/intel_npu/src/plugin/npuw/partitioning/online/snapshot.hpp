@@ -64,6 +64,7 @@ public:
     void repeat(detail::Pass&& pass);
     void setCtx(const PassContext& ctx);
     size_t graphSize() const;
+    void wipe();
 
 private:
     detail::GPtrSet getRepGroups(const std::shared_ptr<Group>& group) const;
@@ -86,6 +87,7 @@ private:
                                                 const std::vector<std::shared_ptr<Group>>& conss);
     std::unordered_map<std::shared_ptr<Repeated>, detail::GPtrSet> repeating() const;
     void completeRepeating(const std::shared_ptr<Repeated>& reptag, const detail::GPtrSet& gset);
+    // check destructor
 
     std::shared_ptr<ov::Model> m_model;
     std::shared_ptr<own::ade::Graph> m_graph;

@@ -1139,6 +1139,14 @@ const OVPortsMap& Snapshot::getPortsMap() const {
     return m_ports_map;
 }
 
+void Snapshot::wipe() {
+        m_model.reset();
+        for (const auto& nh : m_graph->sorted()) {
+            m_graph->meta(nh).get<Group::GPtr>()->wipe();
+        }
+        std::cout << "GRAPH WIPED!" << std::endl;
+    }
+
 const std::map<std::string, std::vector<std::set<std::string>>>& Snapshot::getMatches() const {
     return m_layer_matches;
 }

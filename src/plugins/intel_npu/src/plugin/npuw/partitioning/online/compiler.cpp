@@ -482,6 +482,10 @@ public:
             LOG_INFO("Dumped online partitioning to " << dump_plan_path << ".");
         }
 
+        std::cout << "WIPING SNAPSHOT" << std::endl;
+        m_snapshot->wipe();
+        m_model.reset();
+
         LOG_INFO("DONE.");
 
         return ens;
