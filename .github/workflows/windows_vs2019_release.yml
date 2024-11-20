@@ -448,9 +448,6 @@ jobs:
       - name: Install Python API tests dependencies
         run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/bindings/python/requirements_test.txt
 
-      - name: Set SSL_CERT_FILE for model downloading for unit tests
-        run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
-
       - name: Python API Tests
         shell: cmd
         run: |
