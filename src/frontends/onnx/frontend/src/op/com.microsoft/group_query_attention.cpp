@@ -31,6 +31,7 @@
 #include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -67,6 +68,7 @@ using v3::Broadcast;
 using v1::Reshape;
 using v0::Unsqueeze;
 using v4::Range;
+using v3::ScatterElementsUpdate;
 using v3::ScatterUpdate;
 using v15::Squeeze;
 using Output = ov::Output<ov::Node>;
@@ -150,7 +152,7 @@ Output broadcast_groups(const Output& cache, const int num_kv_heads, const int n
     return reshape;
 }
 
-Output concat_cache(const Output& past, const Output& current) {
+Output concat_cache_generic(const Output& past, const Output& current) {
     return make_shared<Concat>(ov::OutputVector{past, current}, 2);     // 2 is the dimension index that corresponds to sequence len
 }
 
@@ -158,25 +160,41 @@ Output squeeze_1d(const Output& x) {
     return make_shared<Squeeze>(x, Constant::create(element::i32, Shape{0}, {1}));
 }
 
-Output update_cache(const Output& past, const Output& current, const Output& past_len) {
+Output update_cache_generic(const Output& past, const Output& current, const Output& past_len) {
     Output update_len = get_dimensions(current, {2});
     Output update_end = make_shared<Add>(past_len, update_len);
     Output update_indices = make_shared<Range>(squeeze_1d(past_len), squeeze_1d(update_end), Constant::create(element::i32, Shape{}, {1}), element::i32);
     return make_shared<ScatterUpdate>(past, update_indices, current, Constant::create(element::i32, Shape{1}, {2}));    // 2 is the dimension index that corresponds to sequence len
 }
 
+Output update_cache_seu(const Output& past, const Output& current, const Output& past_len) {
+    Output update_len = get_dimensions(current, {2});
+    const auto one = Constant::create(element::i32, Shape{}, {1});
+    Output update_end = make_shared<Add>(past_len, update_len);
+    Output update_indices = make_shared<Range>(squeeze_1d(past_len), squeeze_1d(update_end), one, element::i32);
+    auto shape_of = make_shared<ShapeOf>(current, element::i32);
+    auto unsqueezed_indices = make_shared<Unsqueeze>(update_indices, Constant::create(element::i32, Shape{3}, {0,1,3}));
+    auto broadcast_indices = make_shared<Broadcast>(unsqueezed_indices, shape_of);
+    return make_shared<ScatterElementsUpdate>(past, broadcast_indices, current, Constant::create(element::i32, Shape{1}, {2}));
+}
+
 ov::OutputVector group_query_attention_decomposition(
     const ov::OutputVector& inputs,
     int num_heads,
     bool rotary_interleaved,
-    int kv_num_heads
+    int kv_num_heads,
+    std::function<Output(const Output& past, const Output& current)> concat_cache,
+    std::function<Output(const Output& past, const Output& current, const Output& past_len)> update_cache
 ) {
     const auto& input = inputs[0];
 
     Output Q, K, V, head_size;
 
     if(ov::op::util::is_null(inputs[1]) || ov::op::util::is_null(inputs[2])) {
-        const auto split_result = detail::split_to_QKV(input, num_heads, {});
+        int64_t qkv_hidden_size =  input.get_partial_shape()[2].get_length();
+        int64_t per_head_size = qkv_hidden_size / (num_heads + kv_num_heads*2);
+        const std::vector<int64_t> qkv_sizes = {num_heads*per_head_size, kv_num_heads*per_head_size, kv_num_heads*per_head_size};
+        const auto split_result = detail::split_to_QKV(input, num_heads, qkv_sizes);
         Q = split_result[0];
         K = split_result[1];
         V = split_result[2];
@@ -246,7 +264,9 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         node.get_ov_inputs(),
         static_cast<int>(node.get_attribute_value<int64_t>("num_heads")),
         static_cast<bool>(node.get_attribute_value<int64_t>("rotary_interleaved", 0)),
-        static_cast<int>(node.get_attribute_value<int64_t>("kv_num_heads"))
+        static_cast<int>(node.get_attribute_value<int64_t>("kv_num_heads")),
+        detail::concat_cache_generic,
+        detail::update_cache_generic
     );
 }
 
