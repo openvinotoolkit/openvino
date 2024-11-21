@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/swiglu_fusion.hpp"
+#include "transformations/common_optimizations/glu_fusion.hpp"
 
 #include <gtest/gtest.h>
 
@@ -41,11 +41,11 @@ TEST_F(TransformationTestsF, GLUFusionTest1) {
         int64_t split_lenghts = 3;
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{2, 1, 6});
         auto swiglu = std::make_shared<ov::op::internal::GLU>(input,
-                                                                 axis,
-                                                                 split_lenghts,
-                                                                 ov::op::internal::GLU::GluType::Swish,
-                                                                 0,
-                                                                 ov::element::f16);
+                                                              axis,
+                                                              split_lenghts,
+                                                              ov::op::internal::GLU::GluType::Swish,
+                                                              0,
+                                                              ov::element::f16);
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{swiglu}, ov::ParameterVector{input});
     }
@@ -82,11 +82,11 @@ TEST_F(TransformationTestsF, GLUFusionTest3) {
         int64_t split_lenghts = 3;
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, 6});
         auto swiglu = std::make_shared<ov::op::internal::GLU>(input,
-                                                                 axis,
-                                                                 split_lenghts,
-                                                                 ov::op::internal::GLU::GluType::Swish,
-                                                                 0,
-                                                                 ov::element::f16);
+                                                              axis,
+                                                              split_lenghts,
+                                                              ov::op::internal::GLU::GluType::Swish,
+                                                              0,
+                                                              ov::element::f16);
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{swiglu}, ov::ParameterVector{input});
     }
@@ -109,11 +109,11 @@ TEST_F(TransformationTestsF, GLUFusionTest3ReverseOrder) {
         int64_t split_lenghts = 3;
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, 6});
         auto swiglu = std::make_shared<ov::op::internal::GLU>(input,
-                                                                 axis,
-                                                                 split_lenghts,
-                                                                 ov::op::internal::GLU::GluType::Swish,
-                                                                 0,
-                                                                 ov::element::f16);
+                                                              axis,
+                                                              split_lenghts,
+                                                              ov::op::internal::GLU::GluType::Swish,
+                                                              0,
+                                                              ov::element::f16);
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{swiglu}, ov::ParameterVector{input});
     }
@@ -150,11 +150,11 @@ TEST_F(TransformationTestsF, GeGLUFusionTest1) {
         int64_t split_lenghts = 3;
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{2, 1, 6});
         auto swiglu = std::make_shared<ov::op::internal::GLU>(input,
-                                                                 axis,
-                                                                 split_lenghts,
-                                                                 ov::op::internal::GLU::GluType::Gelu,
-                                                                 1,
-                                                                 ov::element::f16);
+                                                              axis,
+                                                              split_lenghts,
+                                                              ov::op::internal::GLU::GluType::Gelu,
+                                                              1,
+                                                              ov::element::f16);
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{swiglu}, ov::ParameterVector{input});
     }
