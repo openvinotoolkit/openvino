@@ -8,7 +8,7 @@ import sys
 import numpy as np
 
 # pylint: disable=no-name-in-module,import-error
-from openvino._pyopenvino import Tensor, PartialShape
+from openvino import Tensor, PartialShape
 from openvino.tools.ovc.cli_parser import single_input_to_input_cut_info, _InputCutInfo
 from openvino.tools.ovc.error import Error
 

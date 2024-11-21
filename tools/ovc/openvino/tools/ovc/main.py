@@ -17,7 +17,7 @@ from openvino.tools.ovc.utils import import_openvino_tokenizers
 import_openvino_tokenizers()
 
 # pylint: disable=no-name-in-module,import-error
-from openvino._pyopenvino import save_model
+from openvino import save_model
 
 
 def main():
