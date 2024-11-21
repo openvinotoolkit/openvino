@@ -59,8 +59,7 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
     auto query = node->input_value(0);
     auto key = node->input_value(1);
     auto value = node->input_value(2);
-    auto q_shape = register_new_node<v3::ShapeOf>(query, element::i32);
-    auto k_shape = register_new_node<v3::ShapeOf>(key, element::i32);
+
     auto minus_one = register_new_node(v0::Constant::create(element::i32, Shape{}, {-1}));
     auto minus_two = register_new_node(v0::Constant::create(element::i32, Shape{}, {-2}));
     auto zero_i = register_new_node(v0::Constant::create(element::i32, Shape{}, {0}));
@@ -68,9 +67,21 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
     auto one_f = register_new_node<v1::ConvertLike>(one_i, query);
     auto zero_f = register_new_node<v1::ConvertLike>(zero_i, query);
 
+    auto last_dim = [&](const ov::Output<ov::Node>& output) -> ov::Output<ov::Node> {
+        auto& inp_shape = output.get_partial_shape();
+        if (inp_shape.rank().is_static()) {
+            auto& last_dim = *(inp_shape.rbegin());
+            if (last_dim.is_static()) {
+                return register_new_node(v0::Constant::create(element::i32, Shape{}, {last_dim.get_length()}));
+            }
+        }
+        auto shape = register_new_node<v3::ShapeOf>(output, element::i32);
+        return register_new_node<v8::Gather>(shape, minus_one, zero_i);
+    };
+
     Output<Node> scale;
     if (node->get_input_size() < 5) {
-        scale = register_new_node<v8::Gather>(q_shape, minus_one, zero_i)->output(0);
+        scale = last_dim(query);
         scale = register_new_node<v1::ConvertLike>(scale, query);
         auto sqrt_scale = register_new_node<v0::Sqrt>(scale);
         scale = register_new_node<v1::Divide>(one_f, sqrt_scale);
@@ -79,6 +90,7 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
     }
 
     auto q_scaled = register_new_node<v1::Multiply>(query, scale);
+    auto k_shape = register_new_node<v3::ShapeOf>(key, element::i32);
     auto k_rank = register_new_node<v3::ShapeOf>(k_shape, element::i32)->output(0);
     auto k_last_dim = register_new_node<v1::Add>(k_rank, minus_one);
     auto k_next_dim = register_new_node<v1::Add>(k_rank, minus_two)->output(0);
@@ -112,8 +124,8 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
                 atten_mask = mask;
             }
         } else {
-            auto target_s_len = register_new_node<v8::Gather>(q_shape, minus_two, zero_i);
-            auto source_s_len = register_new_node<v8::Gather>(k_shape, minus_two, zero_i);
+            auto target_s_len = last_dim(query);
+            auto source_s_len = last_dim(key);
             auto ssl = register_new_node<v0::Unsqueeze>(source_s_len, zero_i);
             auto tsl = register_new_node<v0::Unsqueeze>(target_s_len, zero_i);
             auto mask_shape = register_new_node<v0::Concat>(OutputVector{tsl, ssl}, 0);
