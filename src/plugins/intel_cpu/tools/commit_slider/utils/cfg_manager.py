@@ -95,6 +95,8 @@ class CfgManager():
         tmpJSON = self.readJsonTmpl("bm_perf_for_CI.json")
         devParam = "perfAppropriateDeviation"
         isFirstFixed = "isFirstFixed"
+        if "cachePath" in tmpl:
+            pass
         if "appCmd" in tmpl:
             tmpJSON["appCmd"] = tmpl["appCmd"]
         else:
