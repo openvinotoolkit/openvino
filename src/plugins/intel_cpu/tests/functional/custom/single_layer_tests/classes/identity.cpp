@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_layer_tests/classes/identity.hpp"
+#include "identity.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 
 using namespace CPUTestUtils;
@@ -43,18 +43,18 @@ void IdentityLayerTestCPU::SetUp() {
 
     std::tie(inFmts, outFmts, priority, selectedType) = cpu_params;
 
-    updateSelectedType("ref_any", m_output_precision, configuration);
+    updateSelectedType("ref_any", output_precision, configuration);
 
     std::vector<InputShape> in_shapes;
 
     if (!const_input) {
-        in_shapes.push_back({{}, {{m_output_shape}}});
+        in_shapes.push_back({{}, {{output_shape}}});
     } else {
-        in_shapes.push_back({{m_output_shape}, {{m_output_shape}}});
+        in_shapes.push_back({{output_shape}, {{output_shape}}});
     }
     init_input_shapes(in_shapes);
 
-    const auto data = std::make_shared<ov::op::v0::Parameter>(m_output_precision, m_output_shape);
+    const auto data = std::make_shared<ov::op::v0::Parameter>(output_precision, output_shape);
     data->set_friendly_name("data");
 
     const auto op = std::make_shared<ov::op::v16::Identity>(data);
@@ -65,7 +65,9 @@ void IdentityLayerTestCPU::SetUp() {
 
 void IdentityLayerTestCPU::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
-    auto tensor = ov::test::utils::create_and_fill_tensor(function->inputs()[0].get_element_type(), targetInputStaticShapes[0], InputGenerateData());
+    const auto& func_inputs = function->inputs();
+    const auto& func_input = func_inputs[0];
+    auto tensor = ov::test::utils::create_and_fill_tensor(func_input.get_element_type(), targetInputStaticShapes[0], utils::InputGenerateData());
     inputs.insert({func_input.get_node_shared_ptr(), tensor});
 }
 

@@ -17,7 +17,7 @@ static const std::vector<ov::Shape> shapes = {
 
 static const std::vector<ElementType> prc = {
         ElementType::f32,
-        ElementType::f16.
+        ElementType::f16,
         ElementType::bf16,
         ElementType::i32,
         ElementType::u16,
