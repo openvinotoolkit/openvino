@@ -134,6 +134,17 @@ static std::string toPriority(const std::string& priority) {
 static ScenarioGraph buildGraph(const std::vector<OpDesc>& op_descs,
                                 const std::vector<std::vector<std::string>>& connections);
 
+static void validateNodeChildren(const YAML::Node& node, std::set<std::string> supportedKeys)
+{
+    for (const auto& nodeAttr : node) {
+        const auto key = nodeAttr.first.as<std::string>();
+        if (supportedKeys.find(key) == supportedKeys.end()) {
+            const auto mark = node[key].Mark();
+            THROW_ERROR("Unsupported node: '" << key << "' at line " << mark.line << " column: " << mark.column);
+        }
+    }
+}
+
 namespace YAML {
 
 template <typename T>
@@ -178,6 +189,7 @@ struct convert<LayerVariantAttr<T>> {
 template <>
 struct convert<UniformGenerator::Ptr> {
     static bool decode(const Node& node, UniformGenerator::Ptr& generator) {
+        validateNodeChildren(node, {"low", "high"});
         if (!node["low"]) {
             THROW_ERROR("Uniform distribution must have \"low\" attribute");
         }
@@ -192,6 +204,7 @@ struct convert<UniformGenerator::Ptr> {
 template <>
 struct convert<IRandomGenerator::Ptr> {
     static bool decode(const Node& node, IRandomGenerator::Ptr& generator) {
+        validateNodeChildren(node, {"dist", "uniform", "low", "high"});
         if (!node["dist"]) {
             THROW_ERROR("\"random\" must have \"dist\" attribute!");
         }
@@ -208,6 +221,7 @@ struct convert<IRandomGenerator::Ptr> {
 template <>
 struct convert<Norm::Ptr> {
     static bool decode(const Node& node, Norm::Ptr& metric) {
+        validateNodeChildren(node, {"tolerance"});
         // NB: If bigger than tolerance - fail.
         if (!node["tolerance"]) {
             THROW_ERROR("Metric \"norm\" must have \"tolerance\" attribute!");
@@ -222,6 +236,7 @@ template <>
 struct convert<Cosine::Ptr> {
     static bool decode(const Node& node, Cosine::Ptr& metric) {
         // NB: If lower than threshold - fail.
+        validateNodeChildren(node, {"threshold"});
         if (!node["threshold"]) {
             THROW_ERROR("Metric \"cosine\" must have \"threshold\" attribute!");
         }
@@ -234,6 +249,7 @@ struct convert<Cosine::Ptr> {
 template <>
 struct convert<NRMSE::Ptr> {
     static bool decode(const Node& node, NRMSE::Ptr& metric) {
+        validateNodeChildren(node, {"tolerance"});
         // NB: If bigger than tolerance - fail.
         if (!node["tolerance"]) {
             THROW_ERROR("Metric \"nrmse\" must have \"tolerance\" attribute!");
@@ -247,6 +263,7 @@ struct convert<NRMSE::Ptr> {
 template <>
 struct convert<IAccuracyMetric::Ptr> {
     static bool decode(const Node& node, IAccuracyMetric::Ptr& metric) {
+        validateNodeChildren(node, {"name", "tolerance"});
         const auto type = node["name"].as<std::string>();
         if (type == "norm") {
             metric = node.as<Norm::Ptr>();
@@ -264,6 +281,7 @@ struct convert<IAccuracyMetric::Ptr> {
 template <>
 struct convert<GlobalOptions> {
     static bool decode(const Node& node, GlobalOptions& opts) {
+        validateNodeChildren(node, {"model_dir", "blob_dir", "device_name", "log_level", "compiler_type", "save_validation_outputs"});
         if (node["model_dir"]) {
             if (!node["model_dir"]["local"]) {
                 THROW_ERROR("\"model_dir\" must contain \"local\" key!");
@@ -302,6 +320,7 @@ struct convert<GlobalOptions> {
 template <>
 struct convert<OpenVINOParams> {
     static bool decode(const Node& node, OpenVINOParams& params) {
+        validateNodeChildren(node, {"name", "path", "device", "ip", "op", "il", "ol", "iml", "oml", "reshape", "config", "priority", "nireq"});
         // FIXME: Worth to separate these two
         const auto name = node["name"] ? node["name"].as<std::string>() : node["path"].as<std::string>();
         fs::path path{name};
@@ -368,6 +387,7 @@ struct convert<OpenVINOParams> {
 template <>
 struct convert<ONNXRTParams::OpenVINO> {
     static bool decode(const Node& node, ONNXRTParams::OpenVINO& ov_ep) {
+        validateNodeChildren(node, {"params", "device_type"});
         if (node["params"]) {
             ov_ep.params_map = node["params"].as<std::map<std::string, std::string>>();
         }
@@ -387,6 +407,7 @@ struct convert<ONNXRTParams::OpenVINO> {
 template <>
 struct convert<ONNXRTParams::EP> {
     static bool decode(const Node& node, ONNXRTParams::EP& ep) {
+        validateNodeChildren(node, {"name", "params", "device_type"});
         const auto ep_name = node["name"].as<std::string>();
         if (ep_name == "OV") {
             ep = node.as<ONNXRTParams::OpenVINO>();
@@ -400,6 +421,7 @@ struct convert<ONNXRTParams::EP> {
 template <>
 struct convert<ONNXRTParams> {
     static bool decode(const Node& node, ONNXRTParams& params) {
+        validateNodeChildren(node, {"name", "path", "session_options", "ep", "opt_level"});
         // FIXME: Worth to separate these two
         params.model_path = node["name"] ? node["name"].as<std::string>() : node["path"].as<std::string>();
         if (node["session_options"]) {
@@ -418,6 +440,7 @@ struct convert<ONNXRTParams> {
 template <>
 struct convert<Network> {
     static bool decode(const Node& node, Network& network) {
+        validateNodeChildren(node, {"name", "framework", "random", "metric", "input_data", "output_data", "device", "ip", "op", "il", "ol", "iml", "oml", "reshape", "config", "priority", "nireq", "params", "device_type"});
         // NB: Take path stem as network tag
         // Note that at this point, it's fine if names aren't unique
         const auto name = node["name"].as<std::string>();
@@ -453,6 +476,7 @@ struct convert<Network> {
 template <>
 struct convert<CPUOp> {
     static bool decode(const Node& node, CPUOp& op) {
+        validateNodeChildren(node, {"time_in_us"});
         // TODO: Assert there are no more options provided
         op.time_in_us = node["time_in_us"] ? node["time_in_us"].as<uint64_t>() : 0u;
         return true;
@@ -462,6 +486,7 @@ struct convert<CPUOp> {
 template <>
 struct convert<InferOp> {
     static bool decode(const Node& node, InferOp& op) {
+        validateNodeChildren(node, {"name", "framework", "random", "metric", "input_data", "output_data", "device", "ip", "op", "il", "ol", "iml", "oml", "reshape", "config", "priority", "nireq", "params", "device_type"});
         const auto framework = node["framework"] ? node["framework"].as<std::string>() : "openvino";
         if (framework == "openvino") {
             // NB: Parse OpenVINO model parameters such as path, device, precision, etc
@@ -492,6 +517,7 @@ struct convert<InferOp> {
 template <>
 struct convert<OpDesc> {
     static bool decode(const Node& node, OpDesc& opdesc) {
+        validateNodeChildren(node, {"tag", "type", "repeat_count", "connections", "op_desc", "name", "framework", "random", "metric", "input_data", "output_data", "device", "ip", "op", "il", "ol", "iml", "oml", "reshape", "config", "priority", "nireq", "params", "device_type", "time_in_us"});
         opdesc.tag = node["tag"].as<std::string>();
         auto type = node["type"] ? node["type"].as<std::string>() : "Infer";
         auto repeat_count = node["repeat_count"] ? node["repeat_count"].as<uint64_t>() : 1u;
