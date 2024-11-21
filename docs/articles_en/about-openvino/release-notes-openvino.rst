@@ -89,6 +89,8 @@ Common
   a two-step process to wrap memory into ``ov::Tensor``.
 * Files are now read via the async ReadFile API, reducing the bottleneck for LLM model load
   times on GPU.
+* Asynchronous file reading with mmap library has been implemented, reducing loading times for
+  model files, especially for LLMs.
 * CPU implementation of SliceScatter operator is now available, used for models such as Gemma,
   supporting increased LLM performance.
 
