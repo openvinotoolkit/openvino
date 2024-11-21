@@ -508,8 +508,6 @@ bool ov::pass::OptimizeSymbolsUsedAsValues::run_on_model(const std::shared_ptr<o
     STS_map symbol_shape_source;
     STS_map symbol_value_source;
     std::map<OutputValue, ov::Output<ov::Node>> multi_symbol_source;
-    for (const auto& parameter : m->get_parameters())
-        save_shape_sources(parameter, symbol_shape_source);
     for (const auto& op : topological_order(m)) {
         // Result has output port which has shared (during validate_and_infer_type) tensor with input port.
         // Transformations may replace input of Result. After replacement and before Result::validate_and_infer_type --
