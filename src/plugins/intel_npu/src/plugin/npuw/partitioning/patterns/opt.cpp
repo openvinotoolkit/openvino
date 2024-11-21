@@ -116,22 +116,25 @@ namespace opp = ov::pass::pattern;
 namespace uat = ov::npuw::util::at;
 
 // FROM:
-//     ???(Act) ----------------------------------->
-//     Param(W) -> to(f16) -> Multiply -> to(f32) -> MatMul
-//     Param(S) ------------>
+//     ???(Act) ------------------------------------------------------------>
+//     Param(W) -------> (Reshape) -> to(f16/f32) -> Multiply -> (to(f32)) -> MatMul
+//     Param/Const(S) -> (Reshape) -> (to(f32)) --->
 //
 // TO:
-//     ???(Act) -> to(f16) ->
-//     Param(W) -> to(f16) -> MatMul -> Multiply -> to(f32)
-//     Param(S) -> Reshape ----------->
+//     ???(Act) --------------------> to(f16/f32) ->
+//     Param(W) -------> (Reshape) -> to(f16/f32) -> MatMul -> Multiply -> (to(f32))
+//     Param/Const(S) -> (Reshape) -> (to(f32)) -> Reshape -->
 //
 
 DQMatMulCWi::DQMatMulCWi() {
     auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
-    auto qcoeff = opp::wrap_type<ov::op::v0::Parameter>();
-    auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
-    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
-    auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qmuls});
+    auto qcoeff = opp::any_input();
+    auto reshapew = opp::optional<ov::op::v1::Reshape>({qweight, opp::any_input()});
+    auto reshapec = opp::optional<ov::op::v1::Reshape>({qcoeff, opp::any_input()});
+    auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({reshapew});
+    auto qcvtc = opp::optional<ov::op::v0::Convert>({reshapec->output(0)});
+    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcvtc});
+    auto qcvtm = opp::optional<ov::op::v0::Convert>({qmuls->output(0)});
     auto qmmi = opp::any_input();
     auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qcvtm});
 
@@ -144,22 +147,24 @@ DQMatMulCWi::DQMatMulCWi() {
         auto matched_node_matmul = node_to_output.at(qmm).get_node_shared_ptr();
 
         auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
-        auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qcoeff);
         auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
 
-        auto qcoeff_shape = matched_qcoeff->output(0).get_shape();
+        auto qcoeff_shape = matched_node_qcoeff->output(0).get_shape();
 
         if ((ov::element::i4 == matched_qweight->get_element_type() ||
              ov::element::i8 == matched_qweight->get_element_type()) &&
+            (ov::op::util::is_parameter(matched_node_qcoeff) || ov::op::util::is_constant(matched_node_qcoeff)) &&
             qcoeff_shape[1] == 1 && !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
             auto matched_node_cvtw = node_to_output.at(qcvtw).get_node_shared_ptr();
-            auto matched_node_cvtm = node_to_output.at(qcvtm).get_node_shared_ptr();
             auto matched_node_muls = node_to_output.at(qmuls).get_node_shared_ptr();
             auto matched_node_mmi = node_to_output.at(qmmi).get_node_shared_ptr();
+            auto matched_node_qcoeff_out = uat::_(node_to_output).at_or_at_or_at(qcvtc, reshapec, qcoeff);
+            auto matched_node_muls_out = uat::_(node_to_output).at_or_at(qcvtm, qmuls);
 
             // Reconnect MatMul to read from Convert(W) directly.
-            // Note: ACT is f32 so has to be converted too.
-            auto new_cvt_act = std::make_shared<ov::op::v0::Convert>(matched_node_mmi, ov::element::f16);
+            // Note: ACT has to be converted too.
+            auto cvt_prec = matched_node_cvtw->output(0).get_element_type();
+            auto new_cvt_act = std::make_shared<ov::op::v0::Convert>(matched_node_mmi, cvt_prec);
             matched_matmul->input(0).replace_source_output(new_cvt_act);
             matched_matmul->input(1).replace_source_output(matched_node_cvtw);
 
@@ -169,7 +174,7 @@ DQMatMulCWi::DQMatMulCWi() {
             // Introduce a Reshape to alter Scale factor's shape
             auto new_dims = std::vector<std::size_t>{qcoeff_shape[1], qcoeff_shape[0]};
             auto new_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{2}, new_dims);
-            auto new_reshape = std::make_shared<ov::op::v1::Reshape>(matched_node_qcoeff, new_const, false);
+            auto new_reshape = std::make_shared<ov::op::v1::Reshape>(matched_node_qcoeff_out, new_const, false);
 
             // Reconnect Multiply's both inputs. Drop all outputs
             matched_node_muls->input(0).replace_source_output(matched_matmul);
@@ -178,16 +183,18 @@ DQMatMulCWi::DQMatMulCWi() {
                 matched_node_muls->output(0).remove_target_input(r);
             }
 
-            // Reconnect Convert(M) to convert the Multiply's result
-            matched_node_cvtm->input(0).replace_source_output(matched_node_muls);
+            // Reconnect Convert(M) to convert the Multiply's result (optional)
+            if (matched_node_muls_out != matched_node_muls) {
+                matched_node_muls_out.get_node()->input(0).replace_source_output(matched_node_muls);
+            }
 
             // Reconnect MatMul's old readers to Convert(Multiply)
             for (auto&& r : mm_readers) {
-                r.replace_source_output(matched_node_cvtm);
+                r.replace_source_output(matched_node_muls_out);
             }
+            return true;  // root has changed
         }
-
-        return true;  // root has changed
+        return false;  // root hasn't changed
     };
     register_matcher(std::make_shared<opp::Matcher>(qmm, "OptDQMatMulCWi"), std::move(callback));
 }
@@ -1459,6 +1466,98 @@ SliceLastMatmulMultiply::SliceLastMatmulMultiply() {
         return false;  // root hasn't changed
     };
     register_matcher(std::make_shared<opp::Matcher>(res, "SliceLastMatmulMultiply"), std::move(callback));
+}
+
+// FROM:
+//     -> Transpose ------------------------------>
+//     Param --------> Convert(f32) --> Multiply -> Convolution -> Transpose ->
+//     Param/Const -> (Convert(f32)) ->
+//
+// TO:
+//     ------------------------------------------------------>
+//     Param -------> Reshape --> Convert(f32) --> Multiply -> MatMul ->
+//     Param/Const -> Reshape -> (Convert(f32)) ->
+//
+
+ConvToMatmul::ConvToMatmul(Context::Ref ctx) {
+    auto param = opp::wrap_type<ov::op::v0::Parameter>();
+    auto convert = opp::wrap_type<ov::op::v0::Convert>({param->output(0)});
+    auto param2 = opp::any_input();
+    auto convert2 = opp::optional<ov::op::v0::Convert>({param2->output(0)});
+    auto multiply = opp::wrap_type<ov::op::v1::Multiply>({convert, convert2});
+    auto tr_input = opp::any_input();
+    auto transpose_in = opp::wrap_type<ov::op::v1::Transpose>({tr_input, opp::any_input()});
+    auto conv = opp::wrap_type<ov::op::v1::Convolution>({transpose_in, multiply});
+    auto transpose_out = opp::wrap_type<ov::op::v1::Transpose>({conv, opp::any_input()});
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto matched_node_param = node_to_output.at(param).get_node_shared_ptr();
+        auto matched_node_param2 = node_to_output.at(param2).get_node_shared_ptr();
+        auto matched_node_convert = node_to_output.at(convert).get_node_shared_ptr();
+        auto matched_node_tr_input = node_to_output.at(tr_input);
+        auto matched_node_transpose_in = node_to_output.at(transpose_in).get_node_shared_ptr();
+        auto matched_node_transpose_out = node_to_output.at(transpose_out).get_node_shared_ptr();
+        auto matched_node_multiply = node_to_output.at(multiply).get_node_shared_ptr();
+        const auto& cvt2_or_multiply = uat::_(node_to_output).at_or_at(convert2, multiply);
+
+        const auto& shape = matched_node_param->get_shape();
+        const auto& shape2 = matched_node_param2->get_shape();
+        const auto& tr_in_shape = matched_node_transpose_in->input(0).get_shape();
+        const auto& tr_out_shape = matched_node_transpose_out->output(0).get_shape();
+
+        auto check_shape = [](const ov::Shape& shape) {
+            // last 2 dims are 1
+            return shape.size() == 4 && shape[2] == 1 && shape[3] == 1;
+        };
+
+        auto check_transpose_shape = [](const ov::Shape& shape) {
+            // first 2 dims are 1
+            return shape.size() == 4 && shape[0] == 1 && shape[1] == 1;
+        };
+
+        if ((matched_node_param->get_element_type() == ov::element::i4 ||
+             matched_node_param->get_element_type() == ov::element::i8) &&
+            (matched_node_param2->get_element_type() == ov::element::f32 ||
+             matched_node_param2->get_element_type() == ov::element::f16) &&
+            (ov::op::util::is_parameter(matched_node_param2) || ov::op::util::is_constant(matched_node_param2)) &&
+            check_shape(shape) && check_shape(shape2) && check_transpose_shape(tr_in_shape) &&
+            check_transpose_shape(tr_out_shape)) {
+            // Add Reshape before Params/Const
+            auto new_dims = std::vector<std::size_t>{shape[0], shape[1]};
+            auto new_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{2}, new_dims);
+            auto new_reshape = std::make_shared<ov::op::v1::Reshape>(matched_node_param, new_const, false);
+            matched_node_convert->input(0).replace_source_output(new_reshape);
+            matched_node_convert->validate_and_infer_types();
+
+            auto new_dims2 = std::vector<std::size_t>{shape2[0], shape2[1]};
+            auto new_const2 = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{2}, new_dims2);
+            auto new_reshape2 = std::make_shared<ov::op::v1::Reshape>(matched_node_param2, new_const2, false);
+
+            // Connect to Reshape
+            if (cvt2_or_multiply == matched_node_multiply) {  // param -> multiply
+                matched_node_multiply->input(1).replace_source_output(new_reshape2);
+                matched_node_multiply->validate_and_infer_types();
+            } else {  // constant -> (convert) -> multiply
+                node_to_output.at(convert2).get_node_shared_ptr()->input(0).replace_source_output(new_reshape2);
+                node_to_output.at(convert2).get_node_shared_ptr()->validate_and_infer_types();
+                matched_node_multiply->validate_and_infer_types();
+            }
+
+            // Get rid of Transposes
+            auto matmul =
+                std::make_shared<ov::op::v0::MatMul>(matched_node_tr_input, matched_node_multiply, false, true);
+
+            for (auto&& r : matched_node_transpose_out->output(0).get_target_inputs()) {
+                r.replace_source_output(matmul);
+            }
+            return true;  // root has changed
+        }
+        return false;  // root hasn't changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(transpose_out, "ConvToMatmul"), std::move(callback));
 }
 
 }  // namespace opt
