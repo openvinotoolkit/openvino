@@ -52,11 +52,14 @@ TEST_P(GetDeviceListTest, GetDeviceListTestWithExcludeList) {
     int expectedTimes = 0;
     std::tie(availableDevs, priorityAndMetaDev) = this->GetParam();
     std::tie(priorityDevices, metaDevices, expectedTimes) = priorityAndMetaDev;
-    if (availableDevs == availableDevsWithId) {
-        std::vector<std::string> deviceIDs = {"0", "1"};
-        ON_CALL(*core, get_property(StrEq("GPU"), StrEq(ov::available_devices.name()), _))
-            .WillByDefault(RETURN_MOCK_VALUE(deviceIDs));
+    std::vector<std::string> deviceIDs = {"0", "1"};
+    if (availableDevs != availableDevsWithId) {
+        deviceIDs.clear();
+        if (priorityDevices.find("GPU.0") != std::string::npos)
+            deviceIDs.push_back("0");
     }
+    ON_CALL(*core, get_property(StrEq("GPU"), StrEq(ov::available_devices.name()), _))
+        .WillByDefault(RETURN_MOCK_VALUE(deviceIDs));
     ON_CALL(*core, get_available_devices()).WillByDefault(Return(availableDevs));
 
     EXPECT_CALL(*core, get_available_devices()).Times(expectedTimes);
@@ -79,11 +82,14 @@ TEST_P(GetDeviceListTestWithNotInteldGPU, GetDeviceListTestWithExcludeList) {
     int expectedTimes = 0;
     std::tie(availableDevs, priorityAndMetaDev) = this->GetParam();
     std::tie(priorityDevices, metaDevices, expectedTimes) = priorityAndMetaDev;
-    if (availableDevs == availableDevsWithId) {
-        std::vector<std::string> deviceIDs = {"0", "1"};
-        ON_CALL(*core, get_property(StrEq("GPU"), StrEq(ov::available_devices.name()), _))
-            .WillByDefault(RETURN_MOCK_VALUE(deviceIDs));
+    std::vector<std::string> deviceIDs = {"0", "1"};
+    if (availableDevs != availableDevsWithId) {
+        deviceIDs.clear();
+        if (priorityDevices.find("GPU.0") != std::string::npos)
+            deviceIDs.push_back("0");
     }
+    ON_CALL(*core, get_property(StrEq("GPU"), StrEq(ov::available_devices.name()), _))
+        .WillByDefault(RETURN_MOCK_VALUE(deviceIDs));
     ON_CALL(*core, get_available_devices()).WillByDefault(Return(availableDevs));
     std::string dgpuArchitecture = "GPU: vendor=0x10DE arch=0";
     ON_CALL(*core, get_property(StrEq("GPU.1"), StrEq(ov::device::architecture.name()), _))
@@ -127,7 +133,7 @@ const std::vector<Params> testConfigs = {Params{" ", " ", 0},
                                          Params{"", "CPU,GPU", 1},
                                          Params{"GPU", "GPU", 0},
                                          Params{"GPU.0", "GPU.0", 0},
-                                         Params{"GPU,GPU.0", "GPU", 0},
+                                         Params{"GPU,GPU.0", "GPU.0", 0},
                                          Params{"CPU", "CPU", 0},
                                          Params{" ,CPU", " ,CPU", 0},
                                          Params{" ,GPU", " ,GPU", 0},
@@ -135,11 +141,10 @@ const std::vector<Params> testConfigs = {Params{" ", " ", 0},
                                          Params{"CPU,GPU", "CPU,GPU", 0},
                                          Params{"CPU,-GPU", "CPU", 0},
                                          Params{"CPU,-GPU,GPU.0", "CPU,GPU.0", 0},
-                                         Params{"CPU,-GPU,GPU.1", "CPU,GPU.1", 0},
                                          Params{"CPU,GPU,-GPU.0", "CPU", 0},
                                          Params{"CPU,GPU,-GPU.1", "CPU,GPU", 0},
-                                         Params{"CPU,GPU.0,GPU", "CPU,GPU", 0},
-                                         Params{"CPU,GPU,GPU.0", "CPU,GPU", 0},
+                                         Params{"CPU,GPU.0,GPU", "CPU,GPU.0", 0},
+                                         Params{"CPU,GPU,GPU.0", "CPU,GPU.0", 0},
                                          Params{"CPU,GPU,GPU.1", "CPU,GPU,GPU.1", 0},
                                          Params{"CPU,GPU.1,GPU", "CPU,GPU.1,GPU", 0},
                                          Params{"CPU,NPU", "CPU,NPU", 0},

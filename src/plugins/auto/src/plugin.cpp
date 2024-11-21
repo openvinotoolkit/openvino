@@ -213,7 +213,12 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
                                           ->get_property(parsed.get_device_name(), ov::available_devices.name(), {})
                                           .as<std::vector<std::string>>();
                 for (auto&& device_id : device_id_list) {
+                    if (device_id.empty())
+                        continue;
                     device_list_with_id.push_back(parsed.get_device_name() + "." + device_id);
+                }
+                if (device_id_list.empty()) {
+                    device_id_list.push_back(parsed.get_device_name());
                 }
             } catch (const ov::Exception&) {
                 device_list_with_id.push_back(parsed.get_device_name());
@@ -735,7 +740,12 @@ std::string Plugin::get_device_list(const ov::AnyMap& properties) const {
                                               ->get_property(parsed.get_device_name(), ov::available_devices.name(), {})
                                               .as<std::vector<std::string>>();
                     for (auto&& device_id : device_id_list) {
+                        if (device_id.empty())
+                            continue;
                         device_list.push_back(parsed.get_device_name() + "." + device_id);
+                    }
+                    if (device_id_list.empty()) {
+                        device_id_list.push_back(parsed.get_device_name());
                     }
                 } catch (const ov::Exception&) {
                     device_list.push_back(parsed.get_device_name());
