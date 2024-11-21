@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/pass/matcher_pass.hpp"
+#include "ov_ops/fully_connected.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -17,9 +18,12 @@ class TRANSFORMATIONS_API ConvertFullyConnectedToFullyConnectedCompressed;
 
 class ov::pass::ConvertFullyConnectedToFullyConnectedCompressed : public ov::pass::MatcherPass {
 public:
+    using SupportsPredicate =
+        std::function<bool(const std::shared_ptr<ov::op::internal::FullyConnected>&, size_t, size_t, size_t)>;
+
     OPENVINO_RTTI("ConvertFullyConnectedToFullyConnectedCompressed", "0");
-    ConvertFullyConnectedToFullyConnectedCompressed(
-        const std::vector<ov::element::Type>& supported_compression_types,
-        std::function<bool(size_t, size_t, size_t)> supports_config = nullptr,
-        bool convert_u4zp_to_u8 = false);
+    ConvertFullyConnectedToFullyConnectedCompressed(const std::vector<ov::element::Type>& supported_activation_types,
+                                                    const std::vector<ov::element::Type>& supported_weights_types,
+                                                    SupportsPredicate supports_config = nullptr,
+                                                    bool convert_u4zp_to_u8 = false);
 };

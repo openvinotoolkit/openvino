@@ -24,8 +24,9 @@
 #include "transformations/utils/utils.hpp"
 
 ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyConnectedCompressed(
-    const std::vector<ov::element::Type>& supported_compression_types,
-    std::function<bool(size_t, size_t, size_t)> supports_config,
+    const std::vector<ov::element::Type>& supported_activation_types,
+    const std::vector<ov::element::Type>& supported_weights_types,
+    SupportsPredicate supports_config,
     bool convert_u4zp_to_u8) {
     using namespace ov::pass::pattern;
 
@@ -35,7 +36,8 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnected
         return in_ps.rank().is_static() && out_ps.rank().is_static() && in_ps.size() == 3 && out_ps.size() == 2;
     };
 
-    auto weights_m = wrap_type<ov::op::v0::Constant>(ov::pass::pattern::type_matches_any(supported_compression_types));
+    auto activation_m = any_input(ov::pass::pattern::type_matches_any(supported_activation_types));
+    auto weights_m = wrap_type<ov::op::v0::Constant>(ov::pass::pattern::type_matches_any(supported_weights_types));
     auto convert_m = wrap_type<ov::op::v0::Convert>({weights_m});
 
     auto sub_const_m = wrap_type<ov::op::v0::Constant>();
@@ -59,10 +61,9 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnected
     auto transpose_const_m = wrap_type<ov::op::v0::Constant>();
     auto transpose_m = wrap_type<ov::op::v1::Transpose>({transpose_input, transpose_const_m});
 
-    auto data_m = any_input();
     auto bias_m = any_input();
     auto weights_input_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{reshape_m, transpose_m, mul_m});
-    auto fully_connected_m = wrap_type<ov::op::internal::FullyConnected>({data_m, weights_input_m, bias_m});
+    auto fully_connected_m = wrap_type<ov::op::internal::FullyConnected>({activation_m, weights_input_m, bias_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -89,7 +90,7 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnected
 
         const size_t G = grouped ? (has_transpose ? *(scale_shape.rbegin() + 2) : *(scale_shape.rbegin() + 1)) : 1;
 
-        if (supports_config && !supports_config(IC, OC, G))
+        if (supports_config && !supports_config(fc, IC, OC, G))
             return false;
 
         auto reshape_const_to_2d = [has_transpose, grouped](std::shared_ptr<ov::Node> node) {
