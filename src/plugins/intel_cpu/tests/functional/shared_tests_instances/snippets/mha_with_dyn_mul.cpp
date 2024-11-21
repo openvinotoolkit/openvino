@@ -56,7 +56,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(precision_f32(5)),
                        ::testing::Values(ov::element::bf16),
                        ::testing::Values(MHA::default_thread_count),
-                       ::testing::Values(10),  // MHA + 1 Transpose on output + 6 Converts around + 2 Transposes on Matmul's B inputs
+                       ::testing::Values(8),  // MHA + 1 Transpose on output + 6 Converts around
                        ::testing::Values(7),  // MHA + 6 Converts around
                        ::testing::Values(ov::test::utils::DEVICE_CPU),
                        ::testing::Values(CPUTestUtils::empty_plugin_config)),
