@@ -27,6 +27,7 @@ void intel_npu::registerRunTimeOptions(OptionsDesc& desc) {
     desc.add<WORKLOAD_TYPE>();
     desc.add<TURBO>();
     desc.add<BYPASS_UMD_CACHING>();
+    desc.add<STORE_LOGGER_LOG>();
 }
 
 // Heuristically obtained number. Varies depending on the values of PLATFORM and PERFORMANCE_HINT

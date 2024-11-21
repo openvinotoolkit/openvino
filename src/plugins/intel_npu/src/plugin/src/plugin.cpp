@@ -574,6 +574,12 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.getString<BACKEND_COMPILATION_PARAMS>();
           }}},
+        {ov::intel_npu::store_logger_log.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.getString<STORE_LOGGER_LOG>();
+          }}},
         {ov::intel_npu::batch_mode.name(), {false, ov::PropertyMutability::RW, [](const Config& config) {
                                                 return config.getString<BATCH_MODE>();
                                             }}}};
