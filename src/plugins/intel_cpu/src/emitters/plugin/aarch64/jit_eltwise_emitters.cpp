@@ -519,16 +519,15 @@ std::set<std::vector<element::Type>> jit_floor_emitter::get_supported_precisions
 /// CEILING ///
 //Initialization of the emitter, taking node as input
 jit_ceiling_emitter::jit_ceiling_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
-                                     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                                     const std::shared_ptr<ov::Node>& node)
+                                         dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                         const std::shared_ptr<ov::Node>& node)
         : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
 }
 
 //Initialization of emitter, without taking node as input
 jit_ceiling_emitter::jit_ceiling_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
-                                     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                                     const ov::element::Type exec_prc) 
-        : jit_emitter(host, host_isa, exec_prc) {
+                                         dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                         const ov::element::Type exec_prc) : jit_emitter(host, host_isa, exec_prc) {
 }
 
 //This will tell the JIT compiler that how many inputs the ceiling operation requires (here 1)
