@@ -44,7 +44,7 @@ void set_rt_info(const PatternValueMap& pt_map,
     }
 };
 
-void swap_nodes(const PatternValueMap& pt_map,
+bool swap_nodes(const PatternValueMap& pt_map,
                 const std::shared_ptr<Node>& first,
                 const std::shared_ptr<Node>& second) {
     if (pt_map.count(first) && pt_map.count(second)) {
@@ -59,7 +59,9 @@ void swap_nodes(const PatternValueMap& pt_map,
         }
         first_node->validate_and_infer_types();
         second_node->validate_and_infer_types();
+        return true;
     }
+    return false;
 }
 
 }  // namespace
@@ -89,7 +91,7 @@ ov::pass::MarkDequantization::MarkDequantization(const element::TypeVector& prec
         auto input = pt_map.at(input_pattern);
         const auto multiply = m.get_match_root();
 
-        if (transformation_callback(multiply)) {
+        if (!check_precision(input.get_element_type(), precisions) || transformation_callback(multiply)) {
             return false;
         }
 
@@ -117,9 +119,9 @@ ov::pass::MarkDequantization::MarkDequantization(const element::TypeVector& prec
         set_rt_info(pt_map, enable_constant_folding, converts_to_unmark, precisions);
 
         // Move Reshape/Unsqueeze ops up to fold them in ConstantFolding.
-        swap_nodes(pt_map, zp_convert_pattern, zp_reshape_pattern);
-        swap_nodes(pt_map, scale_convert_pattern, scale_reshape_pattern);
-        return false;
+        auto changed = swap_nodes(pt_map, zp_convert_pattern, zp_reshape_pattern);
+        changed = changed || swap_nodes(pt_map, scale_convert_pattern, scale_reshape_pattern);
+        return changed;
     };
 
     auto m = std::make_shared<Matcher>(multiply_pattern, "MarkDequantization");
