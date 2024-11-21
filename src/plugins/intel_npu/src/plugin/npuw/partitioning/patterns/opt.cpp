@@ -126,7 +126,7 @@ namespace uat = ov::npuw::util::at;
 //     Param/Const(S) -> (Reshape) -> (to(f32)) -> Reshape -->
 //
 
-DQMatMulCWi::DQMatMulCWi() {
+DQMatMulCWi::DQMatMulCWi(Context::Ref ctx) {
     auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
     auto qcoeff = opp::any_input();
     auto reshapew = opp::optional<ov::op::v1::Reshape>({qweight, opp::any_input()});
@@ -160,6 +160,10 @@ DQMatMulCWi::DQMatMulCWi() {
             auto matched_node_mmi = node_to_output.at(qmmi).get_node_shared_ptr();
             auto matched_node_qcoeff_out = uat::_(node_to_output).at_or_at_or_at(qcvtc, reshapec, qcoeff);
             auto matched_node_muls_out = uat::_(node_to_output).at_or_at(qcvtm, qmuls);
+
+            if (!ctx.get().mm_dq_full) {
+                return false;  // root hasn't changed
+            }
 
             // Reconnect MatMul to read from Convert(W) directly.
             // Note: ACT has to be converted too.
@@ -260,6 +264,12 @@ DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
             matched_qweight->set_partial_shape(tw_shape);
             matched_qweight->validate_and_infer_types();
             ctx.get().permute(matched_qweight, {0, 2, 1});
+
+            if (!ctx.get().mm_dq_full) {
+                // Only transpose MatMul
+                matched_matmul->set_transpose_b(true);
+                return false;  // root hasn't changed
+            }
 
             // Mark S closure to be lowered fo f16
             ctx.get().to_f16(matched_qcoeff);
@@ -384,6 +394,12 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
             matched_qcoeff->set_partial_shape(ts_shape);
             matched_qcoeff->validate_and_infer_types();
 
+            if (!ctx.get().mm_dq_full) {
+                // Only transpose MatMul
+                matched_matmul->set_transpose_b(false);
+                return false;  // root hasn't changed
+            }
+
             // Reshape the Act to group format
             const auto NSPLIT = qweight_shape[1];
             std::vector<std::size_t> rshp_act_v = {NSPLIT, 1, act_shape[2] / NSPLIT};
@@ -494,6 +510,12 @@ DQMatMulGQiP::DQMatMulGQiP(Context::Ref ctx) {
             matched_qweight->set_partial_shape(tw_shape);
             matched_qweight->validate_and_infer_types();
             ctx.get().permute(matched_qweight, {0, 2, 1});
+
+            if (!ctx.get().mm_dq_full) {
+                // Only transpose MatMul
+                matched_matmul->set_transpose_b(true);
+                return false;  // root hasn't changed
+            }
 
             // Mark S closure to be lowered fo f16
             matched_qcoeff->set_element_type(ov::element::f16);
@@ -618,6 +640,12 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
             ov::Shape ts_shape = {qcoeff_shape[1], qcoeff_shape[2], qcoeff_shape[0]};
             matched_qcoeff->set_partial_shape(ts_shape);
             matched_qcoeff->validate_and_infer_types();
+
+            if (!ctx.get().mm_dq_full) {
+                // Only transpose MatMul
+                matched_matmul->set_transpose_b(false);
+                return false;  // root hasn't changed
+            }
 
             // Select proper activation shape
             std::size_t act_dim = act_shape[0] > act_shape[1] ? 0 : 1;

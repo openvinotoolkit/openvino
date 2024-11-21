@@ -185,6 +185,14 @@ static constexpr ov::Property<bool> dyn_quant{"NPUW_DQ"};
 
 /**
  * @brief
+ * Type: bool.
+ * Apply multiply shuffle and matmul unroll during dynamic quantization transformations.
+ * Default value: true.
+ */
+static constexpr ov::Property<bool> dyn_quant_full{"NPUW_DQ_FULL"};
+
+/**
+ * @brief
  * Type: string.
  * Identify and merge parallel MatMuls over dimension(s) specified.
  * When set to YES, applies transformation for all dimensions.

@@ -1956,9 +1956,10 @@ void Partitioner::optimize(const std::string& func_name) {
     // Run "dynamic quantization"
     ov::npuw::patterns::opt::Context ctx;
     ctx.is_spatial = f._spatial.has_value();
+    ctx.mm_dq_full = cfg.get<::intel_npu::NPUW_DQ_FULL>();
 
     ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulCWi>();
+    rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulCWi>(std::ref(ctx));
     rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQi>(std::ref(ctx));
     rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQ2i>(std::ref(ctx));
     rewr.add_matcher<ov::npuw::patterns::opt::DQMatMulGQiP>(std::ref(ctx));
