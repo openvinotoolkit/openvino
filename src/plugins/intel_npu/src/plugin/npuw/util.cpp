@@ -439,6 +439,13 @@ inline uint8_t tread_4b(const ov::Tensor& t, std::size_t r, std::size_t c, std::
     return hi4(*telem);
 }
 
+inline float tread_f32(const ov::Tensor& t, std::size_t r, std::size_t c, std::size_t COLS) {
+    const float* tdata = static_cast<float*>(t.data());
+    const float* trow = tdata + r * COLS;
+    const float* telem = trow + c;
+    return *telem;
+}
+
 inline void twrite_4b(ov::Tensor& t, uint8_t value, std::size_t r, std::size_t c, std::size_t COLS) {
     uint8_t* tdata = static_cast<uint8_t*>(t.data());
     uint8_t* trow = tdata + r * COLS / 2;
@@ -450,10 +457,17 @@ inline void twrite_4b(ov::Tensor& t, uint8_t value, std::size_t r, std::size_t c
     }
 }
 
+inline void twrite_f32(ov::Tensor& t, float value, std::size_t r, std::size_t c, std::size_t COLS) {
+    float* tdata = static_cast<float*>(t.data());
+    float* trow = tdata + r * COLS;
+    float* telem = trow + c;
+    *telem = value;
+}
+
 ov::Tensor ov::npuw::util::transpose(const ov::Tensor& t) {
     ov::Shape shape = t.get_shape();
     NPUW_ASSERT(shape.size() == 3);  // Yes, so far only transpose 3D tensors
-    NPUW_ASSERT(t.get_element_type() == ov::element::i4);
+    NPUW_ASSERT(t.get_element_type() == ov::element::i4 || t.get_element_type() == ov::element::f32);
 
     ov::Shape tshape = {shape[2], shape[0], shape[1]};
     ov::Tensor tnew(t.get_element_type(), tshape);
@@ -462,8 +476,16 @@ ov::Tensor ov::npuw::util::transpose(const ov::Tensor& t) {
     const auto IN_COLS = shape[2];
     for (std::size_t i = 0; i < IN_ROWS; i++) {
         for (std::size_t j = 0; j < IN_COLS; j++) {
-            uint8_t value = tread_4b(t, i, j, IN_COLS);
-            twrite_4b(tnew, value, j, i, IN_ROWS);
+            switch (t.get_element_type()) {
+            case ov::element::i4:
+                twrite_4b(tnew, tread_4b(t, i, j, IN_COLS), j, i, IN_ROWS);
+                break;
+            case ov::element::f32:
+                twrite_f32(tnew, tread_f32(t, i, j, IN_COLS), j, i, IN_ROWS);
+                break;
+            default:
+                NPUW_ASSERT("Element type is not supported yet");
+            }
         }
     }
     return tnew;
