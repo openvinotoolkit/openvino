@@ -344,10 +344,10 @@ std::vector<std::shared_ptr<ov::Node>> topological_order(const std::shared_ptr<o
 }
 
 void save_shape_sources(const std::shared_ptr<ov::Node>& op, STS_map& symbol_shape_source) {
-    bool is_shape = ov::is_type<ov::op::v0::ShapeOf>(op) || ov::is_type<ov::op::v3::ShapeOf>(op);
-    bool is_parameter = ov::is_type<ov::op::v0::Parameter>(op);
-    if (is_shape || is_parameter) {
-        const auto& output = is_shape ? op->input_value(0) : op->output(0);
+    const auto is_shape_of = ov::is_type<ov::op::util::ShapeOfBase>(op);
+    const auto is_parameter = ov::is_type<ov::op::v0::Parameter>(op);
+    if (is_shape_of || is_parameter) {
+        const auto& output = is_shape_of ? op->input_value(0) : op->output(0);
         if (output.get_partial_shape().rank().is_dynamic())
             return;
         for (const auto& d : output.get_partial_shape()) {
@@ -434,7 +434,7 @@ void optimize_multi_value_usage(ov::Output<ov::Node>& output,
                                 STS_map& symbol_value_source) {
     if (output.get_tensor().get_value_symbol().size() < 2)
         return;  // singular values are handled by optimize_single_value_usage helper
-    auto result = OutputValue::make(output);
+    const auto result = OutputValue::make(output);
     if (!result)
         return;
     if (multi_symbol_source.count(*result)) {
