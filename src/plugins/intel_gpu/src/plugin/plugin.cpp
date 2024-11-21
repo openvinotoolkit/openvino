@@ -331,7 +331,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
 
     cldnn::BinaryInputBuffer ib(model, context_impl->get_engine());
 
-    ov::CacheMode cache_mode;
+    ov::CacheMode cache_mode = ov::CacheMode::OPTIMIZE_SPEED;
     ib >> cldnn::make_data(&cache_mode, sizeof(ov::CacheMode));
 
     if (cache_mode != config.get_property(ov::cache_mode)) {
