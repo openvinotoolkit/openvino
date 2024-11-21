@@ -1,4 +1,4 @@
-// Copyright (C) 2020-20243 Intel Corporation
+// Copyright (C) 2020-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ public:
     BrgemmAMXKernelConfig() = delete;
 
     std::unique_ptr<GenericConfig> get_clone_ptr() const override {
-        return std::unique_ptr<BrgemmAMXKernelConfig>( new BrgemmAMXKernelConfig(*this));
+        return std::unique_ptr<BrgemmAMXKernelConfig>(new BrgemmAMXKernelConfig(*this));
     }
 
     bool is_completed() const override { return BrgemmBaseKernelConfig::is_completed(); }

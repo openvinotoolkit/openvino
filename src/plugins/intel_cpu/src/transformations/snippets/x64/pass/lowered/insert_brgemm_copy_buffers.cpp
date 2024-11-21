@@ -52,8 +52,11 @@ bool InsertBrgemmCopyBuffers::run(LinearIR& linear_ir, LinearIR::constExprIt beg
         OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(M_blk), "M blk cannot be dynamic!");
 
         const auto inner_k_blk = brgemm_utils::repacking::compute_inner_k_block(src_dt);
-        const size_t tile_scratch_size = BrgemmCPU::SCRATCH_BYTE_SIZE;
-        const size_t repacked_in0_size = ov::snippets::utils::is_dynamic_value(K_dim) || K_dim % inner_k_blk ?
+        const auto tile_scratch_size = BrgemmCPU::SCRATCH_BYTE_SIZE;
+        const auto current_scratch_size = scratch_expr->get_byte_size();
+        OPENVINO_ASSERT(current_scratch_size == tile_scratch_size,
+                        "Tile scratchpad for BrgemmAMX should have byte size ", tile_scratch_size);
+        const size_t repacked_in0_size = ov::snippets::utils::is_dynamic_value(K_dim) || K_dim % inner_k_blk > 0 ?
                                          (M_blk * inner_k_blk * src_dt.size()) : 0;
         scratch_expr->set_allocation_size(tile_scratch_size + repacked_in0_size);
     };

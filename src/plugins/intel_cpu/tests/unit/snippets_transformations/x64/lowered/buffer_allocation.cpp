@@ -259,7 +259,7 @@ TEST_P(MHABF16AMXBufferAllocationTest, BufferAllocationCPU) {
     // Scratchpad memory for AMX with CopyA (dynamic case) has allocation size which depends on element count in vector register.
     // So the current `expected_allocation_size` in the test is targeted on real AVX512 platforms with vector registers with 512 bits.
     // If the test infrastructure has AVX2, the allocation size will not be matched.
-    if (m_linear_ir.is_dynamic() && !with_cpu_x86_avx512_core())
+    if (!with_cpu_x86_avx512_core())
         GTEST_SKIP();
     Validate();
 }

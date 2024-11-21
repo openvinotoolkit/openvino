@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2023 Intel Corporation
+// Copyright (C) 2020-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,7 +48,6 @@ std::string BrgemmAMXKernelConfig::StaticParams::to_string() const {
     ss << "vnni_factor = " << vnni_factor << "\n";
     return ss.str();
 }
-#undef PRINT
 #endif
 
 BrgemmAMXKernelExecutor::BrgemmAMXKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, BrgemmAMXKernelConfig config) :
