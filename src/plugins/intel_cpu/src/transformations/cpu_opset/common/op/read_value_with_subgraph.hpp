@@ -17,7 +17,10 @@ public:
     OPENVINO_OP("ReadValueWithSubgraph", "cpu_plugin_opset");
 
     ReadValueWithSubgraph() = default;
-    ReadValueWithSubgraph(const std::shared_ptr<ov::op::util::Variable>& variable);
+    ReadValueWithSubgraph(const std::shared_ptr<ov::op::util::Variable>& variable, std::shared_ptr<ov::Model> body);
+    ReadValueWithSubgraph(const std::shared_ptr<ov::op::util::Variable>& variable,
+                          std::shared_ptr<ov::Model> body,
+                          const OutputVector& args);
 
     std::string get_variable_id() const override;
 

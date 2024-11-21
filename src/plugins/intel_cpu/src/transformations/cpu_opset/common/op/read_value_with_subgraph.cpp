@@ -6,9 +6,17 @@
 #include "itt.hpp"
 #include "transformations/itt.hpp"
 
-ov::intel_cpu::ReadValueWithSubgraph::ReadValueWithSubgraph(
-    const std::shared_ptr<ov::op::util::Variable>& variable) {
+ov::intel_cpu::ReadValueWithSubgraph::ReadValueWithSubgraph(const std::shared_ptr<ov::op::util::Variable>& variable,
+                                                            std::shared_ptr<ov::Model> body) {
     m_variable = variable;
+    set_function(body);
+}
+
+ov::intel_cpu::ReadValueWithSubgraph::ReadValueWithSubgraph(const std::shared_ptr<ov::op::util::Variable>& variable,
+                                                            std::shared_ptr<ov::Model> body,
+                                                            const OutputVector& args)
+    : ReadValueWithSubgraph(variable, body) {
+    set_arguments(args);
 }
 
 std::string ov::intel_cpu::ReadValueWithSubgraph::get_variable_id() const {
@@ -41,16 +49,14 @@ std::shared_ptr<ov::Node> ov::intel_cpu::ReadValueWithSubgraph::clone_with_new_i
     INTERNAL_OP_SCOPE(intel_cpu_ReadValueWithSubgraphNode_clone_with_new_inputs);
 
     check_new_args_count(this, new_args);
-    auto op = std::make_shared<ov::intel_cpu::ReadValueWithSubgraph>();
+    auto op = std::make_shared<ov::intel_cpu::ReadValueWithSubgraph>(this->get_variable(), get_function()->clone(), new_args);
     OPENVINO_ASSERT(op.get(),
                     op != nullptr,
                     "Cannot clone ",
                     description(),
                     " operation with name ",
                     get_friendly_name());
-    op->set_arguments(new_args);
     op->set_output_size(m_output_descriptions[0].size());
-    op->set_function(get_function()->clone());
     for (const auto& m_input_descr : m_input_descriptions[0]) {
         op->m_input_descriptions[0].push_back(m_input_descr->copy());
     }

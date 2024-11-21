@@ -149,8 +149,6 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
             return false;
         }
 
-        auto new_rv = std::make_shared<ov::intel_cpu::ReadValueWithSubgraph>(readvalue->get_variable());
-
         // Subgraph's input
         auto params = ParameterVector{};
         for (auto inp : inputs) {
@@ -168,7 +166,9 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
         auto last_node = readvalue->get_input_node_shared_ptr(0);
         auto output = std::make_shared<ov::op::v0::Result>(last_node);
         auto func = std::make_shared<Model>(ov::ResultVector({output}), params, "state_init_submodel");
-        new_rv->set_function(func);
+
+        auto new_rv = std::make_shared<ov::intel_cpu::ReadValueWithSubgraph>(readvalue->get_variable(), func);
+        // new_rv->set_function(func);
 
         for (size_t i = 0; i < inputs.size(); i++) {
             new_rv->set_input(inputs[i]->output(0), params[i]);
