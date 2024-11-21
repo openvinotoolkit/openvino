@@ -668,6 +668,10 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
     // NOTE(dm): Not sure if it is required for the NPUW plugin, but likely it is
     auto& device_config = m_meta_devices[device];
 
+    if (ov::npuw::util::starts_with(device, "NPU") && m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>()) {
+        device_config["NPU_RUN_INFERENCES_SEQUENTIALLY"] = "YES";
+    }
+
     const auto& cache_dir = m_cfg.get<::intel_npu::NPUW_CACHE_DIR>();
     if (!cache_dir.empty()) {
         LOG_INFO("NPUW will try to utilize CACHE_DIR for " << submodel->get_friendly_name() << " submodel.");
