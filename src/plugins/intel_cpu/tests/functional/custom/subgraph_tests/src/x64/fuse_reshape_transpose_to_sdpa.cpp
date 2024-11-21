@@ -205,17 +205,10 @@ public:
 
 TEST_P(FuseSDPAReshapeTransposeTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    bool reshape_transpose_fused = false;
     auto actualOutputs = run_test(function);
-    CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);
-    CheckNumberOfNodesWithType(compiledModel, "Reshape", 0);
+    CheckNumberOfNodesWithType(compiledModel, "Subgraph", 1);
+    CheckNumberOfNodesWithType(compiledModel, "Reshape", 4);
     CheckNumberOfNodesWithType(compiledModel, "Transpose", 0);
-    for (const auto& n : compiledModel.get_runtime_model()->get_ordered_ops()) {
-        if (n->get_friendly_name() == "mha/fused_reshape_transpose") {
-            reshape_transpose_fused = true;
-        }
-    }
-    ASSERT_TRUE(reshape_transpose_fused);
 
     auto expectedOutputs = run_test(functionRefs);
     for (size_t i = 0; i < actualOutputs.size(); i++) {

@@ -142,7 +142,6 @@
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
 #include "transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp"
-#include "transformations/cpu_opset/x64/pass/sdpa_fuse_transpose_reshape.hpp"
 
 // Snippets
 #include "snippets/pass/tokenization.hpp"
@@ -701,8 +700,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(sdpa_manager, ov::pass::ConstantFolding);
     CPU_REGISTER_PASS_COMMON(sdpa_manager, ov::pass::TransposeSinking);
     CPU_REGISTER_PASS_COMMON(sdpa_manager, ov::pass::TransposeMatMul);
-    CPU_REGISTER_PASS_COMMON(sdpa_manager, ov::pass::VisualizeTree, "decomposed_sdpa_cf_tt.svg");
-    CPU_REGISTER_PASS_X64(sdpa_manager, ov::intel_cpu::SDPAFuseTransposeReshape);
 
     sdpa_manager.run_passes(model);
 }
