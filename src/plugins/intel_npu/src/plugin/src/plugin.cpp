@@ -788,6 +788,10 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) con
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
+    return import_model(stream, nullptr, properties);
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, std::shared_ptr<ov::AlignedBuffer> model_buffer, const ov::AnyMap& properties) const { 
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
     OV_ITT_TASK_CHAIN(PLUGIN_IMPORT_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "merge_configs");
 
@@ -833,8 +837,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         auto compiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), localConfig);
 
         std::shared_ptr<IGraph> graph;
-        if (auto mmap_buffer = dynamic_cast<ov::OwningSharedStreamBuffer*>(stream.rdbuf())) {
-            graph = compiler->parse(mmap_buffer->get_buffer(), localConfig);
+        if (model_buffer != nullptr) {
+            graph = compiler->parse(model_buffer, localConfig);
         } else {
             auto graphSize = getFileSize(stream);
             std::vector<uint8_t> blob(graphSize);
@@ -865,12 +869,20 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& properties) const {
+
+    return import_model(stream, nullptr, context, properties);
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream,
+                                                         std::shared_ptr<ov::AlignedBuffer> model_buffer,
+                                                         const ov::SoPtr<ov::IRemoteContext>& context,
+                                                         const ov::AnyMap& properties) const {
     auto casted = std::dynamic_pointer_cast<RemoteContextImpl>(context._ptr);
     if (casted == nullptr) {
         OPENVINO_THROW("Invalid remote context type. Can't cast to ov::intel_npu::RemoteContext type");
     }
 
-    return import_model(stream, properties);
+    return import_model(stream, model_buffer, properties);
 }
 
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
