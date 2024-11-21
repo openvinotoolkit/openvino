@@ -29,7 +29,9 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                       float d_scale,
                       const ov::intel_cpu::PlainTensor& past_k_scale_zp,
                       const ov::intel_cpu::PlainTensor& past_v_scale_zp,
-                      ov::intel_cpu::PlainTensor& head_sum);
+                      ov::intel_cpu::PlainTensor& head_sum,
+                      size_t key_group_size,
+                      size_t value_group_size);
 
 }  // namespace XARCH
 }  // namespace Cpu

@@ -199,17 +199,20 @@ void VariableStateSingleBuffer::commit_impl() {
     // nothing to do
 }
 
-VariableStateKVcache::VariableStateKVcache(
-    const std::string& name,
-    const MemoryDescPtr& external_desc,
-    const BlockedMemoryDescPtr& dense_internal_desc) :
-    VariableStateBase(name, external_desc), m_dense_internal_desc(dense_internal_desc) {
+VariableStateKVcache::VariableStateKVcache(const std::string& name,
+                                           const MemoryDescPtr& external_desc,
+                                           const BlockedMemoryDescPtr& dense_internal_desc,
+                                           const size_t group_size)
+    : VariableStateBase(name, external_desc),
+      m_dense_internal_desc(dense_internal_desc),
+      m_group_size(group_size) {
     auto&& shape = external_desc->getShape();
 
     OPENVINO_ASSERT(shape.isDynamic(), "VariableStateKVcache is unexpectedly initalized with a static tensor");
 }
 
 ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
+    printf("going to get state \n");
     if (!m_internal_mem || !m_hidden_state || is_reset_state()) {
         auto new_desc = to_static(get_external_desc());
         auto external_mem = std::make_shared<Memory>(get_engine(), new_desc);
@@ -274,6 +277,7 @@ ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
 }
 
 void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
+    printf("going to set state \n");
     //1. reset the memory object
     m_state = state; // simply to extend the lifetime
     auto state_desc = MemoryDescUtils::generateCpuBlockedMemoryDesc(m_state);

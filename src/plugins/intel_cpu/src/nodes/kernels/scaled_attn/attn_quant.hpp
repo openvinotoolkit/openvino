@@ -20,7 +20,9 @@ void attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
                   const ov::intel_cpu::PlainTensor& k_dst,
                   const ov::intel_cpu::PlainTensor& v_dst,
                   const ov::intel_cpu::PlainTensor& k_scale_zp,
-                  const ov::intel_cpu::PlainTensor& v_scale_zp);
+                  const ov::intel_cpu::PlainTensor& v_scale_zp,
+                  const size_t k_group_size,
+                  const size_t v_group_size);
 
 void paged_attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
                         const ov::intel_cpu::PlainTensor& v_src,

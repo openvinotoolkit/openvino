@@ -804,13 +804,18 @@ MemStatePtr MemoryInputSDPA::makeState() const {
     // retrieve the internal precision and axis order from the SDPA node
     OPENVINO_ASSERT(node);
     auto kv_precision = node->getKVCachePrecision();
+    size_t group_size = 0;
+    if (kv_precision == ov::element::u8) {
+        group_size = state_name.find(".key") != std::string::npos ? node->getKeyGroupSize() : node->getValueGroupSize();
+    }
+    printf("State|process %s kv_precision %s group_size %ld\n", state_name.c_str(), kv_precision.to_string().c_str(), group_size);
     VectorDims order = {2, 0, 1, 3};
     if (!node->getKVCacheOrder().empty())
         order = node->getKVCacheOrder();
 
     auto internal_desc = ArbitraryOrderDescCreator(order).createSharedDesc(kv_precision, outputShapes.at(0));
 
-    return std::make_shared<VariableStateKVcache>(state_name, original_desc, internal_desc);
+    return std::make_shared<VariableStateKVcache>(state_name, original_desc, internal_desc, group_size);
 }
 
 void MemoryInputSDPA::runStatic(dnnl::stream strm) {

@@ -822,8 +822,12 @@ struct MHASingleToken {
     PlainTensor m_attn_w;
     PlainTensor m_temp;
     PlainTensor m_head_sum;
+    size_t m_key_group_size;
+    size_t m_value_group_size;
 
-    MHASingleToken() {}
+    explicit MHASingleToken(size_t key_group_size, size_t value_group_size)
+        : m_key_group_size(key_group_size),
+          m_value_group_size(value_group_size) {}
 
     // Q, K, V is ready, do attention
     // query         [B, H, q_len, S]
@@ -853,7 +857,7 @@ struct MHASingleToken {
         // aligned to cache line (64bytes=16*sizeof(float)) to avoid false sharing
         m_attn_w.resize<float>({B, H, q_len, (kv_len + 15) / 16 * 16});
         mha_single_token(query, present_key, present_value, alibi_mask, attention_mask, beams,
-            output_emb, m_attn_w, m_temp, has_out_transpose, auto_causal, d_scale, k_scale_zp, v_scale_zp, m_head_sum);
+            output_emb, m_attn_w, m_temp, has_out_transpose, auto_causal, d_scale, k_scale_zp, v_scale_zp, m_head_sum, m_key_group_size, m_value_group_size);
     }
 };
 
@@ -865,7 +869,10 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
     MHAKernel<KType, T> kernel;
     MHASingleToken kernel_single_token;
 
-    AttentionExecutor(GraphContext::CPtr ctx) : context(ctx), kernel(context) {}
+    explicit AttentionExecutor(GraphContext::CPtr ctx, size_t k_group_size = 0, size_t v_group_size = 0)
+        : context(ctx),
+          kernel(context),
+          kernel_single_token(k_group_size, v_group_size) {}
 
     void prepare_attn_mask(MemoryPtr attn_input) {
         attn_buf.resize<float>(attn_input->getStaticDims());
@@ -1097,28 +1104,38 @@ void ScaledDotProductAttention::createPrimitive() {
             OPENVINO_THROW("has unidentified preferable primitive descriptor");
     }
     auto rtPrecision = getRuntimePrecision();
-
+    const auto keyDims = getInputShapeAtPort(1).getDims();
+    const auto valueDims = getInputShapeAtPort(2).getDims();
+    m_key_group_size =
+        m_key_group_size ? m_key_group_size : *(keyDims.end() - 1);
+    m_value_group_size =
+        m_value_group_size ? m_value_group_size : *(valueDims.end() - 1);
+    if (getenv("GROUP_SIZE")) {
+        m_key_group_size = std::stoi(std::string(getenv("GROUP_SIZE")));
+        m_value_group_size = std::stoi(std::string(getenv("GROUP_SIZE")));
+    }
+    printf("SDPA|key_group_size %ld value_group_size %ld\n", m_key_group_size, m_value_group_size);
     ScaledDotProductAttentionKey key = {rtPrecision};
 
     auto builder = [&](const ScaledDotProductAttentionKey& key) -> std::shared_ptr<Executor> {
         std::shared_ptr<Executor> executor = nullptr;
 #ifdef OPENVINO_ARCH_X86_64
         if (rtPrecision == ov::element::bf16) {
-            executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>(context);
+            executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>(context, m_key_group_size, m_value_group_size);
         } else if (rtPrecision == ov::element::f16) {
             if (with_cpu_x86_avx512_core_fp16()) {
-                executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::float16>>(context);
+                executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::float16>>(context, m_key_group_size, m_value_group_size);
             } else {
-                executor = std::make_shared<AttentionExecutor<KT_REF, ov::float16>>(context);
+                executor = std::make_shared<AttentionExecutor<KT_REF, ov::float16>>(context, m_key_group_size, m_value_group_size);
             }
         } else {
 #ifdef OV_CPU_WITH_MLAS
-            executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>(context);
+            executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>(context, m_key_group_size, m_value_group_size);
 #else
             if (with_cpu_x86_avx512_core()) {
-                executor = std::make_shared<AttentionExecutor<KT_ONEDNN, float>>(context);
+                executor = std::make_shared<AttentionExecutor<KT_ONEDNN, float>>(context, m_key_group_size, m_value_group_size);
             } else {
-                executor = std::make_shared<AttentionExecutor<KT_REF, float>>(context);
+                executor = std::make_shared<AttentionExecutor<KT_REF, float>>(context, m_key_group_size, m_value_group_size);
             }
 #endif
         }
@@ -1329,19 +1346,23 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
             auto& old_scale_zp_k = m_k_state->get_scale_zp();
             auto& old_scale_zp_v = m_v_state->get_scale_zp();
             PlainTensor new_scale_zp_k, new_scale_zp_v;
-            std::vector<size_t> shape = reverse({B, H, (L0 + L1) * 2, 2});
+            std::vector<size_t> shape = reverse({B, H, (L0 + L1) * 2, S / m_key_group_size * 2});
             std::vector<size_t> real_shape = permute_axes(shape, real_order);
             new_scale_zp_k.resize<float>(real_shape);
+            shape = reverse({B, H, (L0 + L1) * 2, SV / m_value_group_size * 2});
+            real_shape = permute_axes(shape, real_order);
+            printf("resetBeamTablePastkv|resize quantize %ld %ld %ld %ld\n", real_shape[0], real_shape[1], real_shape[2], real_shape[3]);
             new_scale_zp_v.resize<float>(real_shape);
             if (L0 > 0) {
                 parallel_for2d(L0, B, [&](size_t m, size_t b) {
                     auto idx = static_cast<size_t>(table[b]);
                     for (size_t h = 0; h < H; h++) {
                         auto b_kv = static_cast<size_t>(old_beam_table_k.at<int32_t>({idx, m}));
-                        new_scale_zp_k.at<float>({m, b, h, 0}) = old_scale_zp_k.at<float>({m, b_kv, h, 0});
-                        new_scale_zp_k.at<float>({m, b, h, 1}) = old_scale_zp_k.at<float>({m, b_kv, h, 1});
-                        new_scale_zp_v.at<float>({m, b, h, 0}) = old_scale_zp_v.at<float>({m, b_kv, h, 0});
-                        new_scale_zp_v.at<float>({m, b, h, 1}) = old_scale_zp_v.at<float>({m, b_kv, h, 1});
+                        // new_scale_zp_k.at<float>({m, b, h, 0}) = old_scale_zp_k.at<float>({m, b_kv, h, 0});
+                        std::memcpy(new_scale_zp_k.ptr<float>(m, b, h, 0),
+                            old_scale_zp_k.ptr<float>(m, b_kv, h, 0), S / m_key_group_size * 2 * sizeof(float));
+                        std::memcpy(new_scale_zp_v.ptr<float>(m, b, h, 0),
+                            old_scale_zp_v.ptr<float>(m, b_kv, h, 0), SV / m_value_group_size * 2 * sizeof(float));
                     }
                 });
             }
@@ -1377,7 +1398,7 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
             // scale_zp's shape is LBHS, internal layout LBHS
             attn_quantkv(cur_k, cur_v,
                 new_pastk.slice(2, L0, L0 + L1), new_pastv.slice(2, L0, L0 + L1),
-                m_k_state->get_scale_zp().slice(0, L0, L0 + L1), m_v_state->get_scale_zp().slice(0, L0, L0 + L1));
+                m_k_state->get_scale_zp().slice(0, L0, L0 + L1), m_v_state->get_scale_zp().slice(0, L0, L0 + L1), m_key_group_size, m_value_group_size);
         } else {
             attn_memcpy(cur_k, cur_v, new_pastk.slice(2, L0, L0 + L1), new_pastv.slice(2, L0, L0 + L1));
         }
@@ -1654,14 +1675,17 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
             auto& old_scale_zp_k = m_k_state->get_scale_zp();
             auto& old_scale_zp_v = m_v_state->get_scale_zp();
             PlainTensor new_scale_zp_k, new_scale_zp_v;
-            std::vector<size_t> shape = reverse({B, H, (L0 + L1) * 2, 2});
+            std::vector<size_t> shape = reverse({B, H, (L0 + L1) * 2, S / m_key_group_size * 2});
             std::vector<size_t> real_shape = permute_axes(shape, real_order);
             new_scale_zp_k.resize<float>(real_shape);
+            shape = reverse({B, H, (L0 + L1) * 2, SV / m_value_group_size * 2});
+            real_shape = permute_axes(shape, real_order);
             new_scale_zp_v.resize<float>(real_shape);
+            printf("updatePastkv|resize quantize %ld %ld %ld %ld\n", real_shape[0], real_shape[1], real_shape[2], real_shape[3]);
             if (L0 > 0 && !is_reset) {
                 parallel_for(L0, [&](size_t m) {
-                    memcpy(new_scale_zp_k.ptr<float>(m), old_scale_zp_k.ptr<float>(m), sizeof(float) * B * H * 2);
-                    memcpy(new_scale_zp_v.ptr<float>(m), old_scale_zp_v.ptr<float>(m), sizeof(float) * B * H * 2);
+                    memcpy(new_scale_zp_k.ptr<float>(m), old_scale_zp_k.ptr<float>(m), sizeof(float) * B * H * S / m_key_group_size * 2);
+                    memcpy(new_scale_zp_v.ptr<float>(m), old_scale_zp_v.ptr<float>(m), sizeof(float) * B * H * SV / m_value_group_size * 2);
                 });
             }
 
@@ -1696,10 +1720,10 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
             auto& old_scale_zp_v = m_v_state->get_scale_zp();
             // only dim0, dim1 need change
             // LBHS
-            old_scale_zp_k.m_strides[0] = H * B * 2;
-            old_scale_zp_k.m_strides[1] = H * 2;
-            old_scale_zp_v.m_strides[0] = H * B * 2;
-            old_scale_zp_v.m_strides[1] = H * 2;
+            old_scale_zp_k.m_strides[0] = H * B * S / m_key_group_size * 2;
+            old_scale_zp_k.m_strides[1] = H * S / m_key_group_size * 2;
+            old_scale_zp_v.m_strides[0] = H * B * SV / m_value_group_size * 2;
+            old_scale_zp_v.m_strides[1] = H * SV / m_value_group_size * 2;
         }
     }
     if (need_redefine) {
@@ -1740,7 +1764,7 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
             init_k = init_k.permute(order);
             init_v = init_v.permute(order);
             if (kvcache_precision == ov::element::u8) {
-                attn_quantkv(init_k, init_v, past_k, past_v, m_k_state->get_scale_zp(), m_v_state->get_scale_zp());
+                attn_quantkv(init_k, init_v, past_k, past_v, m_k_state->get_scale_zp(), m_v_state->get_scale_zp(), m_key_group_size, m_value_group_size);
             } else {
                 attn_memcpy(init_k, init_v, past_k, past_v);
             }
@@ -1752,7 +1776,7 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
         // scale_zp's shape is LBHS, internal layout LBHS
         attn_quantkv(cur_k, cur_v,
             past_k.slice(2, L0, L0 + L1), past_v.slice(2, L0, L0 + L1),
-            m_k_state->get_scale_zp().slice(0, L0, L0 + L1), m_v_state->get_scale_zp().slice(0, L0, L0 + L1));
+            m_k_state->get_scale_zp().slice(0, L0, L0 + L1), m_v_state->get_scale_zp().slice(0, L0, L0 + L1), m_key_group_size, m_value_group_size);
     } else {
         attn_memcpy(cur_k, cur_v, past_k.slice(2, L0, L0 + L1), past_v.slice(2, L0, L0 + L1));
     }
@@ -1772,6 +1796,14 @@ ov::element::Type ScaledDotProductAttention::getKVCachePrecision() {
         kvcache_precision = enableKVCacheFP16 ? ov::element::f16 : rtPrecision;
 
     return kvcache_precision;
+}
+
+size_t ScaledDotProductAttention::getKeyGroupSize() {
+    return m_key_group_size;
+}
+
+size_t ScaledDotProductAttention::getValueGroupSize() {
+    return m_value_group_size;
 }
 
 ov::element::Type ScaledDotProductAttention::getRuntimePrecision() const {

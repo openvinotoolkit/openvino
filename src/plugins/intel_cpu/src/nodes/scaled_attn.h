@@ -49,6 +49,8 @@ public:
     }
 
     ov::element::Type getKVCachePrecision();
+    size_t getKeyGroupSize();
+    size_t getValueGroupSize();
 
 private:
     void gatherConcatPastkv(const MemoryPtr& mem_cur_k, const MemoryPtr& mem_cur_v, const MemoryPtr& mem_beam_idx);
@@ -79,6 +81,8 @@ private:
     // (0, 1, 2, 3) for BHLS
     // (2, 0, 1, 3) for LBHS
     std::vector<size_t> m_kvstate_layout = {2, 0, 1, 3};
+    size_t m_key_group_size = 0;
+    size_t m_value_group_size = 0;
 };
 
 }  // namespace node
