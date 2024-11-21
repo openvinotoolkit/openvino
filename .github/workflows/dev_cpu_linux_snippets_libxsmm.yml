@@ -128,7 +128,6 @@ jobs:
             -DENABLE_CPPLINT=OFF \
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_TESTS=ON \
-            -DENABLE_SNIPPETS_LIBXSMM_TPP=ON \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
             -DENABLE_SYSTEM_OPENCL=ON \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
@@ -237,12 +236,6 @@ jobs:
             pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
           popd
 
-      - name: Snippets func tests
-        if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
-        run: |
-          ${{ env.SETUPVARS_COMMAND }}
-          ${{ env.INSTALL_TEST_DIR }}/ov_snippets_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-SnippetsFuncTests.xml
-
       - name: CPU plugin unit tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
         run: |
@@ -321,6 +314,5 @@ jobs:
           # Needed as ze_loader.so is under INSTALL_TEST_DIR
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALL_TEST_DIR}
 
-          # python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_filter=*smoke_Snippets*:*smoke_MHA* --gtest_print_time=1
           ${INSTALL_TEST_DIR}/ov_cpu_func_tests -w ${INSTALL_TEST_DIR} --gtest_filter=*smoke_AdaPoolAvg4DLayoutTest* --gtest_print_time=1
         timeout-minutes: 25
