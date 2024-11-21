@@ -120,6 +120,9 @@ concatenation_inst::typed_primitive_inst(network& network, concatenation_node co
             if (dim == node.get_primitive()->axis) {
                 concat_count += input_mem_size[dim];
             } else {
+                if (i.first->get_outputs_count() > 1) {
+                    continue;
+                }
                 CLDNN_ERROR_NOT_EQUAL(node.id(),
                                       "Input size dim: " + std::to_string(dim),
                                       input_size[dim],
