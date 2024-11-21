@@ -17,7 +17,6 @@
 #include <set>
 
 #include <fstream>
-#include <unordered_set>
 
 #define GPU_DEBUG_LOG_PASS    GPU_DEBUG_LOG << "[" << get_name() << "] "
 
