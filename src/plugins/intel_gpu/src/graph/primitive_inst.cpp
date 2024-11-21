@@ -618,6 +618,7 @@ void primitive_inst::realloc_if_needed() {
                     _max_output_layout_count[j] = 0;
                 }
             } else {
+                _outputs[0] = variable.get_memory();
                 GPU_DEBUG_TRACE_DETAIL << id() << " : realloc_if_needed: can_be_optimized = false and memories are not being shared" << std::endl;
             }
         } else {
