@@ -648,7 +648,7 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
     OV_CASE(Algorithm::EltwiseEqual, ov::intel_cpu::aarch64::jit_equal_emitter),
     OV_CASE(Algorithm::EltwiseExp, ov::intel_cpu::aarch64::jit_exp_emitter),
     OV_CASE(Algorithm::EltwiseFloor, ov::intel_cpu::aarch64::jit_floor_emitter),
-    OV_CASE(Algorithm::EltwiseCeiling,ov::intel_cpu::aarch64::jit_ceiling_emitter),
+    OV_CASE(Algorithm::EltwiseCeiling, ov::intel_cpu::aarch64::jit_ceiling_emitter),
     OV_CASE(Algorithm::EltwiseHswish, ov::intel_cpu::aarch64::jit_hswish_emitter),
     OV_CASE(Algorithm::EltwiseIsFinite, ov::intel_cpu::aarch64::jit_is_finite_emitter),
     OV_CASE(Algorithm::EltwiseIsInf, ov::intel_cpu::aarch64::jit_is_inf_emitter),
