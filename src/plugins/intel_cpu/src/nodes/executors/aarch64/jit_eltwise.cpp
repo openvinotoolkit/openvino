@@ -87,7 +87,7 @@ bool JitEltwiseExecutor::isSupported(
 
     const std::set<ov::element::Type> supported_precisions =
         // Divide and Floor (issue #138629) operations are supported for fp32 and fp16 only.
-        ((algorithm == Algorithm::EltwiseDivide) || (algorithm == Algorithm::EltwiseFloor) || (algorithm == Algorithm::EltwiseCeiling)) ?
+        ((algorithm == Algorithm::EltwiseDivide) || (algorithm == Algorithm::EltwiseFloor)) ?
             std::set<ov::element::Type> { ov::element::f16, ov::element::f32 } :
             std::set<ov::element::Type> {
                 ov::element::f16,
