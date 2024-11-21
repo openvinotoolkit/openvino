@@ -637,7 +637,7 @@ private:
         OV_CASE(Algorithm::EltwiseMultiply, jit_multiply_emitter),
         OV_CASE(Algorithm::EltwiseDivide, jit_divide_emitter),
         OV_CASE(Algorithm::EltwiseFloor, jit_floor_emitter),
-        OV_CASE(Algorithm::EltwiseCeiling,jit_ceiling_emitter),
+        OV_CASE(Algorithm::EltwiseCeiling, jit_ceiling_emitter),
         OV_CASE(Algorithm::EltwiseFloorMod, jit_floor_mod_emitter),
         OV_CASE(Algorithm::EltwiseMod, jit_mod_emitter),
         OV_CASE(Algorithm::EltwiseMaximum, jit_maximum_emitter),
