@@ -200,6 +200,9 @@ ov_dependent_option (ENABLE_SYSTEM_PROTOBUF "Enables use of system Protobuf" OFF
 # the option is turned off by default, because we don't want to have a dependency on libsnappy.so
 ov_dependent_option (ENABLE_SYSTEM_SNAPPY "Enables use of system version of Snappy" OFF
     "ENABLE_SNAPPY_COMPRESSION" OFF)
+# the option is turned off by default, because we are not sure that system version of ZE loader is fresh enough
+ov_dependent_option (ENABLE_SYSTEM_LEVEL_ZERO "Enables use of system version of Level Zero" OFF
+    "ENABLE_INTEL_NPU" OFF)
 
 ov_dependent_option(ENABLE_JS "Enables JS API building" ${ENABLE_JS_DEFAULT} "NOT ANDROID;NOT EMSCRIPTEN" OFF)
 
