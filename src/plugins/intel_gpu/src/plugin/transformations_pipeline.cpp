@@ -72,7 +72,6 @@
 #include "plugin/transformations/bcast_and_pad_zp_buffers.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
 #include "plugin/transformations/fc_per_layer_scaling.hpp"
-#include "plugin/transformations/swiglu_fusion.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/kv_cache_compression.hpp"
@@ -94,6 +93,7 @@
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
 #include "transformations/common_optimizations/softmax_fusion.hpp"
+#include "transformations/common_optimizations/swiglu_fusion.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
@@ -942,7 +942,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
         manager.register_pass<ov::intel_gpu::UnsqueezeBroadcastReshapeSDPAFusion>();
 
-        manager.register_pass<ov::intel_gpu::SwiGLUFusion>();
+        manager.register_pass<ov::pass::SwiGLUFusion>();
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
 
         auto kv_cache_compression_dt = config.get_property(ov::hint::kv_cache_precision);
