@@ -309,6 +309,10 @@ public:
     bool is_runtime_skippable() const { return runtime_skippable; }
     void set_runtime_skippable(bool skippable) { runtime_skippable = skippable; }
 
+    // get/set
+    uint8_t get_consecutive_runtime_skippable_count() const { return consecutive_runtime_skippable_count; }
+    void set_consecutive_runtime_skippable_count(uint8_t count) { consecutive_runtime_skippable_count = count; }
+
     // check/set if the node's buffer can be shared during the memory pool optimization
     bool can_share_buffer() const { return share_buffer; }
     void can_share_buffer(bool share) { share_buffer = share; }
@@ -504,6 +508,7 @@ protected:
     bool data_flow = false;
     bool in_shape_of_subgraph = false;
     bool runtime_skippable = false;
+    uint8_t consecutive_runtime_skippable_count = 0;
 
     std::set<const program_node*> dependant_shape_of_nodes;
 
