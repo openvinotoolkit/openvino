@@ -54,7 +54,6 @@ void IdentityLayerTestCPU::SetUp() {
     }
     init_input_shapes(in_shapes);
 
-
     const auto data = std::make_shared<ov::op::v0::Parameter>(m_output_precision, m_output_shape);
     data->set_friendly_name("data");
 
