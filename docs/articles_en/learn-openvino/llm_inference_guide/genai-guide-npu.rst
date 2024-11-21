@@ -20,6 +20,10 @@ Install required dependencies:
    pip install nncf==2.12 onnx==1.16.1 optimum-intel==1.19.0
    pip install --pre openvino openvino-tokenizers openvino-genai --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
 
+NOTE  that for systems based on Intel® Core Ultra Processors Series 2 and 16 GB of RAM,
+prompts longer then 1024 characters will not work with a model of 7B or more parameters,
+such as Llama-2-7B, Mistral-0.2-7B, and Qwen-2-7B.
+
 Export an LLM model via Hugging Face Optimum-Intel
 ##################################################
 
