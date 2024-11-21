@@ -992,16 +992,16 @@ void Subgraph::SubgraphExecutor::parallel_forNd(const std::function<void(jit_sni
     });
 }
 
-void Subgraph::SubgraphExecutor::execute(dnnl::stream strm, const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
+void Subgraph::SubgraphExecutor::execute(const dnnl::stream& strm, const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
     if (!m_in_requested_descs.empty()) {
-        auto reorderedInMemPtrs = exec_in_reorders(strm, inMemPtrs);
+        auto reorderedInMemPtrs = reorder_inputs(strm, inMemPtrs);
         exec_impl(reorderedInMemPtrs, outMemPtrs);
     } else {
         exec_impl(inMemPtrs, outMemPtrs);
     }
 }
 
-std::vector<MemoryPtr> Subgraph::SubgraphExecutor::exec_in_reorders(dnnl::stream strm, const std::vector<MemoryPtr>& inMemPtrs) {
+std::vector<MemoryPtr> Subgraph::SubgraphExecutor::reorder_inputs(const dnnl::stream& strm, const std::vector<MemoryPtr>& inMemPtrs) {
     auto reordered_in_ptrs = inMemPtrs;
     size_t offset = m_internal_buffer_size;
     for (const auto& requested_descs_elem : m_in_requested_descs) {

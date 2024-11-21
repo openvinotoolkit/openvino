@@ -14,6 +14,9 @@ namespace intel_cpu {
 BrgemmCopyBLoopPortsAdjuster::BrgemmCopyBLoopPortsAdjuster(const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                                            const CPURuntimeConfigurator* configurator)
     : ov::snippets::lowered::pass::RuntimeOptimizer(configurator) {
+    if (!linear_ir->is_dynamic())
+        return;
+
     const auto& pass = std::make_shared<intel_cpu::pass::AdjustBrgemmCopyBLoopPorts>();
     pass->run(*linear_ir);
     const auto& affected_uni_loops = pass->get_affected_loops();

@@ -52,6 +52,8 @@ const std::shared_ptr<RuntimeConfig>& RuntimeConfigurator::get_updated_config(co
         initialization(linear_ir);
 
     update(linear_ir);
+    // Note: after 'update' is finished, io_shapes can be corrupted, so we move it to latest_shapes to avoid copying
+    m_config->latest_shapes = std::move(m_config->io_shapes);
     return m_config;
 }
 
@@ -65,26 +67,25 @@ void RuntimeConfigurator::initialization(const lowered::LinearIRCPtr& linear_ir)
     m_config->io_data_offsets.resize(m_io_num);
     m_config->tile_rank = linear_ir->get_config().m_loop_depth;
 
-    if (linear_ir->is_dynamic())
-        RuntimeOptimizer::register_if_applicable<MHAParallelWAOptimizer>(m_intermediate_optimizers, linear_ir, this);
+    RuntimeOptimizer::register_if_applicable<MHAParallelWAOptimizer>(m_intermediate_optimizers, linear_ir, this);
 }
 
 void RuntimeConfigurator::update(const lowered::LinearIRCPtr& linear_ir) {
     m_config->master_shape = linear_ir->get_master_shape();
     m_config->io_shapes = extract_shapes();
     m_config->io_layouts = extract_layouts();
-    update_loop_info(linear_ir);
+    if (linear_ir->is_dynamic())
+        update_loop_info(linear_ir);
 
     m_intermediate_optimizers.run(*linear_ir);
-
-    update_data_offsets();
 
     // Update KernelExecutor Table should be before `update_buffer_scratchpad_size`
     // because `ComputeAllocationSize` depends on subtensors which are updated in the table
     get_kernel_executor_table()->update_state(linear_ir);
     update_buffer_scratchpad_size(linear_ir);
+
+    update_data_offsets();
     m_final_optimizers.run(*linear_ir);
-    m_config->latest_shapes = std::move(m_config->io_shapes);
 }
 
 void RuntimeConfigurator::update_tensor_rank(const ov::snippets::VectorDims& master_shape) const {

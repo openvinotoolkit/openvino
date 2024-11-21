@@ -44,33 +44,15 @@ CPURuntimeConfigurator::CPURuntimeConfigurator() : ov::snippets::RuntimeConfigur
 void CPURuntimeConfigurator::initialization(const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
     RuntimeConfigurator::initialization(linear_ir);
 #ifndef OPENVINO_ARCH_ARM64
-    if (linear_ir->is_dynamic())
-        RuntimeOptimizer::register_if_applicable<BrgemmCopyBLoopPortsAdjuster>(m_intermediate_optimizers, linear_ir, this);
+    RuntimeOptimizer::register_if_applicable<BrgemmCopyBLoopPortsAdjuster>(m_intermediate_optimizers, linear_ir, this);
     RuntimeOptimizer::register_if_applicable<BrgemmExternalRepackingAdjuster>(m_final_optimizers, linear_ir, this);
 #endif
 }
 
 void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
-    m_config->master_shape = linear_ir->get_master_shape();
-    m_config->io_shapes = extract_shapes();
-    m_config->io_layouts = extract_layouts();
-    if (linear_ir->is_dynamic()) {
-        update_loop_info(linear_ir);
-    }
-
-    m_intermediate_optimizers.run(*linear_ir);
-
-    // Update KernelExecutor Table should be before `update_buffer_scratchpad_size`
-    // because `ComputeAllocationSize` depends on subtensors which are updated in the table
-    get_kernel_executor_table()->update_state(linear_ir);
-    update_buffer_scratchpad_size(linear_ir);
-
-    if (linear_ir->is_dynamic()) {
+    RuntimeConfigurator::update(linear_ir);
+    if (linear_ir->is_dynamic())
         update_loop_args(linear_ir);
-    }
-    update_data_offsets();
-    m_final_optimizers.run(*linear_ir);
-    m_config->latest_shapes = std::move(m_config->io_shapes);
 }
 
 void CPURuntimeConfigurator::update_tensor_rank(const ov::snippets::VectorDims& master_shape) const {
