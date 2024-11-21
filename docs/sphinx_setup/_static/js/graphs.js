@@ -96,17 +96,18 @@ class Modal {
 class Graph {
     // functions to get unique keys 
     static getNetworkModels(graphDataArr) {
-        return Array.from(new Set(graphDataArr.map(obj => obj.Model)))
-            .sort((a, b) => a.localeCompare(b));
+        return Array.from(new Set(graphDataArr.map(obj => obj.Model)));
+            // .sort((a, b) => a.localeCompare(b));
     }
     static getIeTypes(graphDataArr) {
-        return Array.from(new Set(graphDataArr.map((obj) => obj.PlatformType))).sort((a, b) => a.localeCompare(b));
+        return Array.from(new Set(graphDataArr.map((obj) => obj.PlatformType)));
+        // .sort((a, b) => a.localeCompare(b));
     }
 
     // param: GraphData[]
     static getPlatformNames(graphDataArr) {
-        return graphDataArr.map((data) => data.Platform)
-        .sort((a, b) => a.localeCompare(b));
+        return graphDataArr.map((data) => data.Platform);
+        // .sort((a, b) => a.localeCompare(b));
     }
 
     // param: GraphData[], engine: string, precisions: list
