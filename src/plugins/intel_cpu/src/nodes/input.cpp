@@ -218,7 +218,7 @@ jit_has_subnormals_base::fn_t jit_has_subnormals_function() {
 #endif
 
 Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-        : Node(op, context, PassThroughShapeInferFactory(op)) {
+        : Node(op, context, PassThroughShapeInferFactory()) {
     if (!one_of(op->get_type_info(),
                 op::v0::Parameter::get_type_info_static(),
                 op::v0::Constant::get_type_info_static(),

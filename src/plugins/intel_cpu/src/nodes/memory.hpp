@@ -209,7 +209,6 @@ public:
     MemStatePtr makeState() const override;
 
     std::shared_ptr<ov::Model> getSubGraph();
-    bool needShapeInfer() const override;
 
 protected:
     bool needInitGraphProcessing() const;

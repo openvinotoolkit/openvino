@@ -590,10 +590,6 @@ MemoryInput::MemoryInput(const std::string id,
 
     if (haveSubgraph()) {
         subGraph = make_unique<ov::intel_cpu::Graph>();
-        if (isDynamic) {
-            // Update to MemInpSingleShapeInfer
-            shapeInference = PassThroughShapeInferFactory(body).makeShapeInfer();
-        }
     }
 }
 
@@ -885,13 +881,6 @@ MemStatePtr MemoryInput::makeState() const {
         std::make_shared<Memory>(eng, mem_desc),
         std::make_shared<Memory>(eng, mem_desc),
         original_desc);
-}
-
-bool MemoryInput::needShapeInfer() const {
-    if (haveSubgraph()) {
-        return true;
-    }
-    return MemoryInputBase::needShapeInfer();
 }
 
 std::shared_ptr<ov::Model> MemoryInput::getSubGraph() {
