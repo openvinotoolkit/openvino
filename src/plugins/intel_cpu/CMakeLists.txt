@@ -220,6 +220,7 @@ if(NOT (AARCH64 OR ARM))
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/arm/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/plugin/aarch64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/aarch64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/kleidiai/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/aarch64/*)
 endif()
 
@@ -279,6 +280,17 @@ if(ENABLE_SHL_FOR_CPU)
 endif()
 if(ENABLE_KLEIDIAI_FOR_CPU)
     target_link_libraries(${TARGET_NAME} PRIVATE kleidiai)
+    set(KLEIDIAI_INCLUDE_DIRS
+            kleidiai/
+            kleidiai/kai/
+            kleidiai/kai/ukernels/
+            kleidiai/kai/ukernels/matmul/
+            kleidiai/kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi4cxp/
+            kleidiai/kai/ukernels/matmul/matmul_clamp_f32_qsi8d32p_qsi4c32p/
+            kleidiai/kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi4c32p/
+            kleidiai/kai/ukernels/matmul/pack/
+    )
+    include_directories(SYSTEM INTERFACE ${KLEIDIAI_INCLUDE_DIRS})
     target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:kleidiai,INCLUDE_DIRECTORIES>)
 endif()
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)

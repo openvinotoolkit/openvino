@@ -51,6 +51,8 @@ enum impl_desc_type : int64_t {
     // shl backend
     shl = 1ll<<32,
 
+    kleidiai = 1ll << 33,
+
     // real types
     ref_any             = ref  | any,
 
