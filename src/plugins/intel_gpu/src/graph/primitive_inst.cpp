@@ -620,6 +620,15 @@ event::ptr primitive_inst::realloc_if_needed() {
                     _max_output_layout_count[j] = 0;
                 }
             } else {
+                _outputs[0] = variable.get_memory();
+
+                if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
+                    _outputs[2] = compressed_cache_variable->get_compression_scale_state()->get_memory();
+
+                    if (compressed_cache_variable->has_zp_state()) {
+                        _outputs[3] = compressed_cache_variable->get_compression_zp_state()->get_memory();
+                    }
+                }
                 GPU_DEBUG_TRACE_DETAIL << id() << " : realloc_if_needed: can_be_optimized = false and memories are not being shared" << std::endl;
             }
         } else {
