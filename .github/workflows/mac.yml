@@ -4,14 +4,14 @@ on:
   schedule:
     # at 00:00 on workdays
     - cron: '0 0 * * 1,2,3,4,5'
-  #pull_request:
-  #  paths-ignore:
-  #    - '**/docs/**'
-  #    - 'docs/**'
-  #    - '**/**.md'
-  #    - '**.md'
-  #    - '**/layer_tests_summary/**'
-  #    - '**/conformance/**'
+  pull_request:
+    paths-ignore:
+      - '**/docs/**'
+      - 'docs/**'
+      - '**/**.md'
+      - '**.md'
+      - '**/layer_tests_summary/**'
+      - '**/conformance/**'
   #push:
   #  paths-ignore:
   #    - '**/docs/**'
@@ -179,6 +179,51 @@ jobs:
             tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_tests.tar.gz 
           popd
 
+      # Setup additional Python versions for wheels building
+      - name: Setup Python 3.9
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: "3.9"
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
+
+      - name: Setup Python 3.10
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: "3.10"
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
+
+      - name: Setup Python 3.12
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: "3.12"
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
+
+      - name: Build additional Python wheels
+        run: |
+          for py_version in "3.9" "3.10" "3.12"
+          do
+            export PY_BUILD_DIR=${{ github.workspace }}/py$py_version
+            mkdir -p ${PY_BUILD_DIR}
+            
+            python_exec_path=$(python$py_version -c "import sys; print(sys.executable)")
+            $python_exec_path -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
+            
+            cmake -DPython3_EXECUTABLE=$python_exec_path -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B ${PY_BUILD_DIR}
+            cmake --build ${PY_BUILD_DIR} --parallel
+            cmake --install "$PY_BUILD_DIR" --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_WHEELS_DIR }} --component python_wheels
+          done
+
+      # Setup Python 3.11 as the default one
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
+
       - name: Cmake & Build - OpenVINO Contrib
         run: |
           cmake \
@@ -199,6 +244,7 @@ jobs:
           cmake --build ${{ env.BUILD_DIR }} --parallel $(nproc)
 
           cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR_JS }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
+
       #
       # Upload build artifacts
       #
@@ -210,7 +256,7 @@ jobs:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
           if-no-files-found: 'error'
-          
+
       - name: Upload openvino wheels
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
@@ -269,6 +315,19 @@ jobs:
       runner: 'macos-13'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       os: 'mac_13'
+
+  Python_API_Tests:
+    name: Python API tests
+    needs: [ Build, Smart_CI ]
+    uses: ./.github/workflows/job_python_api_tests.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ '3.9', '3.10', '3.11', '3.12' ]
+    with:
+      runner: 'macos-13'
+      python-version: ${{ matrix.python-version }}
+    if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
 
   Python_Unit_Tests:
     name: Python unit tests
