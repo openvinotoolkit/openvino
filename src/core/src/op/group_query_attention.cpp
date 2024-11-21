@@ -49,6 +49,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/less.hpp"
+#include "openvino/op/less_eq.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/variadic_split.hpp"
 
@@ -140,6 +141,7 @@ using v3::ScatterElementsUpdate;
 using v3::ScatterUpdate;
 using v15::Squeeze;
 using v1::Less;
+using v1::LessEqual;
 using v8::Gather;
 using v1::VariadicSplit;
 using Output = ov::Output<ov::Node>;
@@ -365,7 +367,7 @@ Output attn_mask_npuw(
     past_mask = make_shared<Broadcast>(past_mask, make_shared<Concat>(OutputVector{current_seq_len, total_seq_len}, 0));  // replicated current_seq_len times
 
     const Output curr_range = make_shared<Range>(zero, squeeze_1d(current_seq_len), one, element::i32);
-    const Output curr_mask = make_shared<Less>(curr_range, make_shared<Unsqueeze>(curr_range, Constant::create(element::i32, Shape{}, {1})));
+    const Output curr_mask = make_shared<LessEqual>(curr_range, make_shared<Unsqueeze>(curr_range, Constant::create(element::i32, Shape{}, {1})));
 
     return make_shared<Concat>(ov::OutputVector{past_mask, curr_mask}, 1);
 }
