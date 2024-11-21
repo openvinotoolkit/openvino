@@ -204,15 +204,21 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
         ov::DeviceIDParser parsed{device_name};
         std::string deviceid = parsed.get_device_id();
         std::vector<std::string> same_type_devices;
-        // if AUTO:GPU case, replace GPU with GPU.0 and GPU.1
-        auto device_id_list = get_core()
-                                  ->get_property(parsed.get_device_name(), ov::available_devices.name(), {})
-                                  .as<std::vector<std::string>>();
-        std::vector<std::string> device_list_with_id;
-        for (auto&& device_id : device_id_list) {
-            device_list_with_id.push_back(parsed.get_device_name() + "." + device_id);
-        }
+
         if (deviceid.empty()) {
+            // if AUTO:GPU case, replace GPU with GPU.0 and GPU.1
+            std::vector<std::string> device_list_with_id = {};
+            try {
+                auto device_id_list = get_core()
+                                          ->get_property(parsed.get_device_name(), ov::available_devices.name(), {})
+                                          .as<std::vector<std::string>>();
+                for (auto&& device_id : device_id_list) {
+                    device_list_with_id.push_back(parsed.get_device_name() + "." + device_id);
+                }
+            } catch (const ov::Exception&) {
+                device_list_with_id.push_back(parsed.get_device_name());
+                LOG_DEBUG_TAG("Failed to get available devices for ", parsed.get_device_name().c_str());
+            }
             for (auto&& device : device_list_with_id) {
                 if (device.find(device_name) != std::string::npos) {
                     same_type_devices.push_back(std::move(device));
@@ -712,6 +718,7 @@ std::string Plugin::get_device_list(const ov::AnyMap& properties) const {
         if (devices_to_be_merged.empty()) {
             auto device_list = get_core()->get_available_devices();
             for (auto&& device : device_list) {
+                all_devices += device + ",";
                 if (device.find("GPU") != std::string::npos) {
                     device_architecture = get_gpu_architecture(device);
                 }
@@ -722,7 +729,7 @@ std::string Plugin::get_device_list(const ov::AnyMap& properties) const {
         } else {
             for (auto&& device : devices_to_be_merged) {
                 ov::DeviceIDParser parsed{device};
-                std::vector<std::string> device_list;
+                std::vector<std::string> device_list = {};
                 try {
                     auto device_id_list = get_core()
                                               ->get_property(parsed.get_device_name(), ov::available_devices.name(), {})
@@ -731,6 +738,7 @@ std::string Plugin::get_device_list(const ov::AnyMap& properties) const {
                         device_list.push_back(parsed.get_device_name() + "." + device_id);
                     }
                 } catch (const ov::Exception&) {
+                    device_list.push_back(parsed.get_device_name());
                     LOG_DEBUG_TAG("no available devices found for %s", device.c_str());
                 }
                 if (!is_any_dev(device, device_list)) {
@@ -765,12 +773,9 @@ std::string Plugin::get_device_list(const ov::AnyMap& properties) const {
         std::for_each(devices_merged.begin(), devices_merged.end(), [&all_devices](const std::string& device) {
             all_devices += device + ",";
         });
-    }
-
-    if (all_devices.empty()) {
+    } else {
         auto device_list = get_core()->get_available_devices();
         for (auto&& device : device_list) {
-            // filter out the supported devices
             if (device.find("GPU") != std::string::npos) {
                 device_architecture = get_gpu_architecture(device);
             }
@@ -778,9 +783,10 @@ std::string Plugin::get_device_list(const ov::AnyMap& properties) const {
                 continue;
             all_devices += device + ",";
         }
-        if (all_devices.empty()) {
-            OPENVINO_THROW("Please, check environment due to no supported devices can be used");
-        }
+    }
+
+    if (all_devices.empty()) {
+        OPENVINO_THROW("Please, check environment due to no supported devices can be used");
     }
     // remove the last ',' if exist
     if (all_devices.back() == ',')
