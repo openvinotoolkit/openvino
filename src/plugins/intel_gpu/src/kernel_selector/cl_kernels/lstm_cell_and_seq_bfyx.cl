@@ -63,7 +63,7 @@ KERNEL(lstm_cell_and_seq_bfyx)(
         const uint real_seq_length = 1;
     #endif
     #if DIRECTION == 2
-    for(uint dir=0;dir<DIRECTION;dir++) {
+    unroll_for(uint dir=0;dir<DIRECTION;dir++) {
     #else
     uint dir = DIRECTION;
     #endif
@@ -88,18 +88,28 @@ KERNEL(lstm_cell_and_seq_bfyx)(
                 ACCUMULATOR_TYPE input_result = 0;
                 const uint weight_idx = hidden_idx+weight_offsets[k];
                 uint hblock_num = HIDDEN_SIZE/VEC_SIZE;
+                uint idx_r = GET_IN4_IDX(dir, weight_idx, 0);
+                #ifdef SEQUENCE
+                    #if DIRECTION == 2
+                        uint idx_hidden_history = OUTPUT_GET_INDEX(b, dir, prev_idx, 0);
+                    #else
+                        uint idx_hidden_history = OUTPUT_GET_INDEX(b, 0, prev_idx, 0);
+                    #endif
+                #endif
                 unroll_for(uint j=0;j<hblock_num;++j) {
-                    INPUT4_TYPE_VEC r_block = READ_VEC(0, &R[GET_IN4_IDX(dir, weight_idx, j*VEC_SIZE)]);
+                    INPUT4_TYPE_VEC r_block = READ_VEC(0, &R[idx_r]);
+                    idx_r += VEC_SIZE;
                     if(i==0){
                         INPUT1_TYPE_VEC initial_block = READ_VEC(0, &initial_hidden_state[GET_IN1_IDX(b, dir, j*VEC_SIZE)]);
                         hidden_result += dot(initial_block, r_block);
                     }else{
                         #ifdef SEQUENCE
                             #if DIRECTION == 2
-                                OUTPUT_TYPE_VEC h_block = READ_VEC(0, &hidden_history[OUTPUT_GET_INDEX(b, dir, prev_idx, j*VEC_SIZE)]);
+                                OUTPUT_TYPE_VEC h_block = READ_VEC(0, &hidden_history[idx_hidden_history]);
                             #else
-                                OUTPUT_TYPE_VEC h_block = READ_VEC(0, &hidden_history[OUTPUT_GET_INDEX(b, 0, prev_idx, j*VEC_SIZE)]);
+                                OUTPUT_TYPE_VEC h_block = READ_VEC(0, &hidden_history[idx_hidden_history]);
                             #endif
+                            idx_hidden_history += VEC_SIZE;
                             hidden_result += dot(h_block, r_block);
                         #endif
                     }
@@ -123,15 +133,18 @@ KERNEL(lstm_cell_and_seq_bfyx)(
                 }
 
                 uint block_num = INPUT_SIZE/VEC_SIZE;
-
+                uint idx_x_block;
+                uint idx_w_block = GET_IN3_IDX(dir, weight_idx, 0);
+                if (dir == 1) {
+                    idx_x_block = GET_IN0_IDX(b, real_seq_length-1-i, 0);
+                } else {
+                    idx_x_block = GET_IN0_IDX(b, i, 0);
+                }
                 unroll_for(uint j=0;j<block_num;++j) {
-                    INPUT0_TYPE_VEC x_block;
-                    if (dir == 1) {
-                        x_block = READ_VEC(0, &x[GET_IN0_IDX(b, real_seq_length-1-i, j*VEC_SIZE)]);
-                    } else {
-                        x_block = READ_VEC(0, &x[GET_IN0_IDX(b, i, j*VEC_SIZE)]);
-                    }
-                    INPUT3_TYPE_VEC w_block = READ_VEC(0, &W[GET_IN3_IDX(dir, weight_idx, j*VEC_SIZE)]);
+                    INPUT0_TYPE_VEC x_block = READ_VEC(0, &x[idx_x_block]);
+                    INPUT3_TYPE_VEC w_block = READ_VEC(0, &W[idx_w_block]);
+                    idx_x_block += VEC_SIZE;
+                    idx_w_block += VEC_SIZE;
                     input_result += dot(x_block, w_block);
                 }
 

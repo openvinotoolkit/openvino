@@ -54,7 +54,6 @@ std::vector<layout> lstm_seq_inst::calc_output_layouts(lstm_seq_node const& node
 template std::vector<layout> lstm_seq_inst::calc_output_layouts<ov::PartialShape>(lstm_seq_node const& node, const kernel_impl_params& impl_param);
 
 std::string lstm_seq_inst::to_string(lstm_seq_node const& node) {
-    const auto& desc = node.get_primitive();
     auto node_info = node.desc_to_json();
 
     std::stringstream primitive_description;

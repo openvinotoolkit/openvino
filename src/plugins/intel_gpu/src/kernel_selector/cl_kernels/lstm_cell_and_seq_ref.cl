@@ -55,7 +55,7 @@ KERNEL(lstm_cell_and_seq_ref)(
         const uint real_seq_length = 1;
     #endif
     #if DIRECTION == 2
-    for(uint dir=0;dir<DIRECTION;dir++) {
+    unroll_for(uint dir=0;dir<DIRECTION;dir++) {
     #else
     uint dir = DIRECTION;
     #endif
@@ -94,11 +94,19 @@ KERNEL(lstm_cell_and_seq_ref)(
                 }
                 
                 unroll_for(uint j=0;j<INPUT_SIZE;++j) {
-                    if (dir == 1) { //reverse
-                        input_result += x[GET_IN0_IDX(b, real_seq_length-1-i, j)]*W[GET_IN3_IDX(dir, weight_idx, j)];
-                    } else {
-                        input_result += x[GET_IN0_IDX(b, i, j)]*W[GET_IN3_IDX(dir, weight_idx, j)];
-                    }
+                    #if DIRECTION == 2
+                        if (dir == 1) { //reverse
+                            input_result += x[GET_IN0_IDX(b, real_seq_length-1-i, j)]*W[GET_IN3_IDX(dir, weight_idx, j)];
+                        } else {
+                            input_result += x[GET_IN0_IDX(b, i, j)]*W[GET_IN3_IDX(dir, weight_idx, j)];
+                        }
+                    #else
+                        #if DIRECTION == 1 //reverse
+                            input_result += x[GET_IN0_IDX(b, real_seq_length-1-i, j)]*W[GET_IN3_IDX(dir, weight_idx, j)];
+                        #else
+                            input_result += x[GET_IN0_IDX(b, i, j)]*W[GET_IN3_IDX(dir, weight_idx, j)];
+                        #endif
+                    #endif
                 }
                 gate_output[k] = hidden_result + input_result + TO_ACCUMULATOR_TYPE(B[GET_IN5_IDX(dir, weight_idx)]);
 
