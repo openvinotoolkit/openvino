@@ -5,15 +5,9 @@
 #pragma once
 
 #include <memory>
-#include <mutex>
-#include <tuple>
-#include <unordered_map>
-#include <variant>
 
-#include "logging.hpp"
-#include "openvino/runtime/make_tensor.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "util.hpp"
 
 namespace ov {
 namespace npuw {
@@ -36,11 +30,10 @@ public:
     LazyTensor(const LazyTensor& cw,
                const LazyTensor& cz,
                const LazyTensor& cs,
-               const ov::Shape& shape,
                const ov::element::Type& type);  // construct from unpack
 
     LazyTensor permute(const std::vector<std::size_t>& axes);
-    LazyTensor convert();
+    LazyTensor convert(const ov::element::Type& type);
 
     bool operator==(const LazyTensor& other) const;
     bool operator!=(const LazyTensor& other) const;
