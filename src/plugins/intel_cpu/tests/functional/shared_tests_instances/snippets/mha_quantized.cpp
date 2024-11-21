@@ -48,7 +48,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(ov::element::f32),
                        ::testing::Values(false),  // The graph doesn't contain Multiply
                        ::testing::Values(MHA::default_thread_count),
-                       ::testing::Values(7),  // FQx3 on inputs + MHA + Transpose on output + Transpose on Matmul's B input + Deq Mul
+                       ::testing::Values(6),  // FQx3 on inputs + MHA + Transpose on output + Deq Mul
                        ::testing::Values(5),  // FQx3 on inputs + MHA + Deq Mul
                        ::testing::Values(ov::test::utils::DEVICE_CPU),
                        ::testing::Values(CPUTestUtils::empty_plugin_config)),

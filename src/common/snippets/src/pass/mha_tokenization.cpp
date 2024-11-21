@@ -355,9 +355,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
         // We can allow to call this pass only if ops have scalar shapes to avoid shape mismatching
         const auto is_transposed_b_0 = matmul0->get_transpose_b();
         bool has_matmul0_has_ops_on_input = false;
-
-        const bool support_mm0_b_input_tokenization = !config.mha_tokenize_mm_b_input_callback(matmul0);
-        while (support_mm0_b_input_tokenization && is_supported_intermediate_op(parent)) {
+        while (is_supported_intermediate_op(parent)) {
             // All supported ops have only one output port
             if (parent->get_output_target_inputs(0).size() != 1)
                 break;
@@ -406,16 +404,12 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
             }
         };
 
-        if (support_mm0_b_input_tokenization) {
-            const auto transpose1 = ov::as_type_ptr<ov::opset1::Transpose>(parent);
-            tokenize_transpose(transpose1, is_transposed_b_0, get_decomposed_transpose_order(pattern_rank), ordered_ops.begin());
-        }
+        const auto transpose1 = ov::as_type_ptr<ov::opset1::Transpose>(parent);
         const auto transpose0 = ov::as_type_ptr<ov::opset1::Transpose>(matmul0->get_input_node_shared_ptr(0));
+        const auto transpose2 = ov::as_type_ptr<ov::opset1::Transpose>(matmul1->get_input_node_shared_ptr(1));
+        tokenize_transpose(transpose1, is_transposed_b_0, get_decomposed_transpose_order(pattern_rank), ordered_ops.begin());
         tokenize_transpose(transpose0, matmul0->get_transpose_a(), get_fusion_transpose_order(pattern_rank), ordered_ops.begin());
-        if (!config.mha_tokenize_mm_b_input_callback(matmul1)) {
-            const auto transpose2 = ov::as_type_ptr<ov::opset1::Transpose>(matmul1->get_input_node_shared_ptr(1));
-            tokenize_transpose(transpose2, matmul1->get_transpose_b(), get_fusion_transpose_order(pattern_rank), ordered_ops.end());
-        }
+        tokenize_transpose(transpose2, matmul1->get_transpose_b(), get_fusion_transpose_order(pattern_rank), ordered_ops.end());
         ordered_ops.push_back(matmul1);
 
         bool are_ops_after_matmul1 = false;
