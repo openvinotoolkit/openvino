@@ -527,7 +527,8 @@ jit_ceiling_emitter::jit_ceiling_emitter(dnnl::impl::cpu::aarch64::jit_generator
 //Initialization of emitter, without taking node as input
 jit_ceiling_emitter::jit_ceiling_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                      dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                                     const ov::element::Type exec_prc) : jit_emitter(host, host_isa, exec_prc) {
+                                     const ov::element::Type exec_prc) 
+        : jit_emitter(host, host_isa, exec_prc) {
 }
 
 //This will tell the JIT compiler that how many inputs the ceiling operation requires (here 1)
