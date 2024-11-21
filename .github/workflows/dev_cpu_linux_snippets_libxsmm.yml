@@ -324,18 +324,3 @@ jobs:
           # python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_filter=*smoke_Snippets*:*smoke_MHA* --gtest_print_time=1
           ${INSTALL_TEST_DIR}/ov_cpu_func_tests -w ${INSTALL_TEST_DIR} --gtest_filter=*smoke_AdaPoolAvg4DLayoutTest* --gtest_print_time=1
         timeout-minutes: 25
-
-      - name: Upload Test Results
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
-        if: always()
-        with:
-          name: test-results-functional-cpu
-          path: |
-            ${{ env.INSTALL_TEST_DIR }}/temp/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/failed/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/crashed/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/hanged/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/hash_table.csv
-          if-no-files-found: 'error'
