@@ -53,7 +53,7 @@ KERNEL(quantize_input)(
         half4 buff = input_0[i] / (half4)quan_scale;
         quantized_value[i] = CAT(CAT(convert_, MAKE_VECTOR_TYPE(DQ_TYPE, INPUT_LOAD_SIZE)), _rte)(buff);
         #if COMPRESSED_WEIGHTS_INT8
-            quantized_sum += (buff[0] + buff[1] + buff[2] + buff[3]);
+            quantized_sum += ((half)quantized_value[i][0] + (half)quantized_value[i][1] + (half)quantized_value[i][2] + (half)quantized_value[i][3]);
         #endif
         vstore4(quantized_value[i], 0, &quantized_input[input_offset + i * 4]);
     }
