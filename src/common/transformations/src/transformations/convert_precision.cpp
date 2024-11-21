@@ -12,6 +12,7 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/reference/convert.hpp"
+#include "ov_ops/rms.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/fp16_compression/align_mixed_fp32_fp16_types.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
@@ -59,6 +60,7 @@ bool fuse_type_to_maxpool(const std::shared_ptr<ov::Node>& node, const precision
 bool fuse_type_to_nonzero(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 bool fuse_type_to_bucketize(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 bool fuse_type_to_ctc_greedy_decoder_seq_len(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
+bool fuse_type_to_rms(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 
 bool fuse_type_to_random_uniform_v8(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 
@@ -465,7 +467,8 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
         {ov::op::v0::PriorBox::get_type_info_static(), fuse_type_to_prior_box<ov::op::v0::PriorBox>},
         {ov::op::v8::PriorBox::get_type_info_static(), fuse_type_to_prior_box<ov::op::v8::PriorBox>},
         {ov::op::v0::PriorBoxClustered::get_type_info_static(), fuse_type_to_prior_box<ov::op::v0::PriorBoxClustered>},
-        {ov::op::v15::SearchSorted::get_type_info_static(), fuse_type_to_search_sorted_v15}};
+        {ov::op::v15::SearchSorted::get_type_info_static(), fuse_type_to_search_sorted_v15},
+        {ov::op::internal::RMS::get_type_info_static(), fuse_type_to_rms}};
 
     for (const auto& it : m_additional_type_to_fuse_map) {
         type_to_fuse[it.first] = it.second;
@@ -856,6 +859,20 @@ bool fuse_type_to_nms_rotated(const std::shared_ptr<ov::Node>& node, const preci
     }
 
     return res;
+}
+
+bool fuse_type_to_rms(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
+    auto it = precisions.find(node->get_output_element_type(0));
+    if (it == precisions.end())
+        return false;
+    const auto& to = it->second;
+    if (auto rms = ov::as_type_ptr<ov::op::internal::RMS>(node)) {
+        if (to.is_real()) {
+            rms->set_output_type_attr(to);
+            return true;
+        }
+    }
+    return false;
 }
 
 namespace {
