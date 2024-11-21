@@ -20,7 +20,7 @@ struct ctc_loss_impl : typed_primitive_impl_ocl<ctc_loss> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::ctc_loss_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<ctc_loss_impl>(*this);
+        return make_deep_copy<ctc_loss_impl, kernel_params_t>(*this);
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
