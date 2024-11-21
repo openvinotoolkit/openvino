@@ -1019,12 +1019,9 @@ void Transformations::MainSnippets(void) {
         // Only FP32 dynamic MHA is supported
         if (matmul->is_dynamic())
             return false;
-        // Ticket 157340: repacking extraction is not supported for i8i8 case.
-        // If the repacking is performed inside the kernel, it may lead to performance degradation.
-        if (is_int8 && matmul->get_transpose_b())
-            return false;
-
-        if (matmul->get_transpose_a())
+        // [114487] brgemm kernel in oneDNN requires brgemm_copy_b kernel if MatMul node has transposed_b=True
+        // The current solution with ExtractExplicitMatMulTranspose pass is slower for non-f32 cases than using of brgemm_copy_b kernel
+        if (matmul->get_transpose_a() || matmul->get_transpose_b())
             return false;
         // [150842] The execution of Brgemm INT8/BF16 on AMX platforms depends on the value of "K % VNNIFactor".
         //          For more details, please teake a look at the ticket 150842
