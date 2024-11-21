@@ -789,6 +789,16 @@ void primitive_inst::realloc_if_needed() {
             for (auto& user_inst : get_user_insts()) {
                 reset_user_output_memory(user_inst, dep_memory_ptr(0));
             }
+        } else {
+            if (_can_be_optimized_prev) {
+                if (_outputs[0] && dep_memory_ptr(0)) {
+                    for (auto& user_inst : get_user_insts()) {
+                        reset_user_output_memory(user_inst, _outputs[0]);
+                    }
+                }
+                _outputs[0] = nullptr;
+                _max_output_layout_count[0] = 0;
+            }
         }
     }
 
@@ -1780,6 +1790,7 @@ void primitive_inst::prepare_primitive() {
     }
     GPU_DEBUG_TRACE_DETAIL << "-----------------------------------------------------------------" << std::endl;
 
+    _can_be_optimized_prev = can_be_optimized();
     const auto orig_outputs = _outputs;
     if ((is_dynamic() || _node->is_in_shape_of_subgraph()) && !has_inner_networks()) {
         do_runtime_in_place_concat();
