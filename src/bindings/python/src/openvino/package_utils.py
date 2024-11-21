@@ -5,6 +5,7 @@
 import os
 import sys
 from pathlib import Path
+import importlib.util
 
 
 def _add_openvino_libs_to_search_path() -> None:
@@ -51,3 +52,17 @@ def get_cmake_path() -> str:
             return dirpath
 
     return ""
+
+
+def lazy_import(module_name):
+    spec = importlib.util.find_spec(module_name)
+    if spec is None:
+        raise ImportError(f"Module {module_name} not found")
+
+
+    loader = importlib.util.LazyLoader(spec.loader)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+
+    loader.exec_module(module)
+    return module

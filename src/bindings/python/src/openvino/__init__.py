@@ -68,6 +68,9 @@ from openvino._pyopenvino import VASurfaceTensor
 from openvino._pyopenvino import get_version
 __version__ = get_version()
 
+from openvino.package_utils import lazy_import
+runtime = lazy_import('openvino.runtime')
+
 # Tools
 try:
     # Model Conversion API - ovc should reside in the main namespace
