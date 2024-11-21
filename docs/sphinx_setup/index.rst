@@ -1,5 +1,5 @@
 ============================
-OpenVINO 2024.4
+OpenVINO 2024.5
 ============================
 
 .. meta::
@@ -124,7 +124,7 @@ Places to Begin
 
       Cloud-ready deployments for microservice applications.
 
-      .. button-link:: openvino-workflow/openvino-workflow/model-server/ovms_what_is_openvino_model_server.html
+      .. button-link:: openvino-workflow/model-server/ovms_what_is_openvino_model_server.html
          :color: primary
          :outline:
 

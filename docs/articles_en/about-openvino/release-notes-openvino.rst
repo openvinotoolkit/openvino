@@ -1,3 +1,4 @@
+=============================
 OpenVINO Release Notes
 =============================
 
@@ -15,114 +16,461 @@ OpenVINO Release Notes
 
 
 
-2024.4 - 19 September 2024
+2024.5 - 20 November 2024
 #############################
 
 :doc:`System Requirements <./release-notes-openvino/system-requirements>` | :doc:`Release policy <./release-notes-openvino/release-policy>` | :doc:`Installation Guides <./../get-started/install-openvino>`
 
 
 
+
+
 What's new
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-* More Gen AI coverage and framework integrations to minimize code changes.
+* More GenAI coverage and framework integrations to minimize code changes.
 
-  * Support for GLM-4-9B Chat, MiniCPM-1B, Llama 3 and 3.1, Phi-3-Mini, Phi-3-Medium and
-    YOLOX-s models.
-  * Noteworthy notebooks added: Florence-2, NuExtract-tiny Structure Extraction, Flux.1 Image
-    Generation, PixArt-α: Photorealistic Text-to-Image Synthesis, and Phi-3-Vision Visual
-    Language Assistant.
+  * New models supported: Llama 3.2 (1B & 3B), Gemma 2 (2B & 9B), and YOLO11.
+  * LLM support on NPU: Llama 3 8B, Llama 2 7B, Mistral-v0.2-7B, Qwen2-7B-Instruct and Phi-3
+   Mini-Instruct.
+  * Noteworthy notebooks added: Sam2, Llama3.2, Llama3.2 - Vision, Wav2Lip, Whisper, and Llava.
+  * Preview: support for Flax, a high-performance Python neural network library based on JAX.
+    Its modular design allows for easy customization and accelerated inference on GPUs.
 
 * Broader Large Language Model (LLM) support and more model compression techniques.
 
-  * OpenVINO™ runtime optimized for Intel® Xe Matrix Extensions (Intel® XMX) systolic arrays on
-    built-in GPUs for efficient matrix multiplication resulting in significant LLM performance
-    boost with improved 1st and 2nd token latency, as well as a smaller memory footprint on
-    Intel® Core™ Ultra Processors (Series 2).
-  * Memory sharing enabled for NPUs on Intel® Core™ Ultra Processors (Series 2) for efficient
-    pipeline integration without memory copy overhead.
-  * Addition of the PagedAttention feature for discrete GPUs* enables a significant boost in
-    throughput for parallel inferencing when serving LLMs on Intel® Arc™ Graphics or Intel®
-    Data Center GPU Flex Series.
+  * Optimizations for built-in GPUs on Intel® Core™ Ultra Processors (Series 1) and Intel® Arc™
+    Graphics include KV Cache compression for memory reduction along with improved usability,
+    and model load time optimizations to improve first token latency for LLMs.
+  * Dynamic quantization was enabled to improve first token latency for LLMs on built-in
+    Intel® GPUs without impacting accuracy on Intel® Core™ Ultra Processors (Series 1). Second
+    token latency will also improve for large batch inference.
+  * A new method to generate synthetic text data is implemented in the Neural Network
+    Compression Framework (NNCF). This will allow LLMs to be compressed more accurately using
+    data-aware methods without datasets. Coming soon: This feature will soon be accessible via
+    Optimum Intel on Hugging Face.
 
 * More portability and performance to run AI at the edge, in the cloud, or locally.
 
-  * Support for Intel® Core Ultra Processors Series 2 (formerly codenamed Lunar Lake) on Windows.
-  * OpenVINO™ Model Server now comes with production-quality support for OpenAI-compatible API
-    which enables significantly higher throughput for parallel inferencing on Intel® Xeon®
-    processors when serving LLMs to many concurrent users.
-  * Improved performance and memory consumption with prefix caching, KV cache compression, and
-    other optimizations for serving LLMs using OpenVINO™ Model Server.
-  * Support for Python 3.12.
-  * Support for Red Hat Enterprise Linux (RHEL) version 9.3 - 9.4.
+  * Support for
+    `Intel® Xeon® 6 Processors with P-cores <https://ark.intel.com/content/www/us/en/ark/products/codename/128428/products-formerly-granite-rapids.html>`__
+    (formerly codenamed Granite Rapids) and
+    `Intel® Core™ Ultra 200V series processors <https://ark.intel.com/content/www/us/en/ark/products/codename/225837/products-formerly-arrow-lake.html>`__
+    (formerly codenamed Arrow Lake-S).
+  * Preview: GenAI API enables multimodal AI deployment with support for multimodal pipelines
+    for improved contextual awareness, transcription pipelines for easy audio-to-text
+    conversions, and image generation pipelines for streamlined text-to-visual conversions.
+  * Speculative decoding feature added to the GenAI API for improved performance and efficient
+    text generation using a small draft model that is periodically corrected by the full-size
+    model.
+  * Preview: LoRA adapters are now supported in the GenAI API for developers to quickly and
+    efficiently customize image and text generation models for specialized tasks.
+  * The GenAI API now also supports LLMs on NPU allowing developers to specify NPU as the
+    target device, specifically for WhisperPipeline (for whisper-base, whisper-medium, and
+    whisper-small) and LLMPipeline (for Llama 3 8B, Llama 2 7B, Mistral-v0.2-7B,
+    Qwen2-7B-Instruct and Phi-3 Mini-instruct). Use driver version 32.0.100.3104 or later for
+    best performance.
 
 Now deprecated
+-----------------------------------------------------------------------------------------------
+
+* Python 3.8 is no longer supported:
+
+
+OpenVINO™ Runtime
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-* The following will not be available beyond the 2024.4 OpenVINO version:
-
-  * The macOS x86_64 debug bins
-  * Python 3.8
-  * Discrete Keem Bay support
-
-* Intel® Streaming SIMD Extensions (Intel® SSE) will be supported in source code form, but not
-  enabled in the binary package by default, starting with OpenVINO 2025.0.
-
-|    Check the `deprecation section <#deprecation-and-support>`__ for more information.
-
-
 
 Common
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+-----------------------------------------------------------------------------------------------
 
-* Encryption and decryption of topology in model cache is now supported with callback functions
-  provided by the user (CPU only for now; ov::cache_encryption_callbacks).
-* The Ubuntu20 and Ubuntu22 Docker images now include the tokenizers and GenAI CPP modules,
-  including pre-installed Python modules, in development versions of these images.
-* Python 3.12 is now supported.
+* Numpy 2.x has been adopted for all currently supported components, including NNCF.
+* A new constant constructor has been added, enabling constants to be created from data pointer
+  as shared memory. Additionally, it can take ownership of a shared, or other, object, avoiding
+  a two-step process to wrap memory into ``ov::Tensor``.
+* Files are now read via the async ReadFile API, reducing the bottleneck for LLM model load
+  times on GPU.
+* CPU implementation of SliceScatter operator is now available, used for models such as Gemma,
+  supporting increased LLM performance.
+
 
 CPU Device Plugin
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+-----------------------------------------------------------------------------------------------
 
-* The following is now supported:
-
-  * Tensor parallel feature for multi-socket CPU inference, with performance improvement for
-    LLMs with 6B+ parameters (enabled through model_distribution_policy hint configurations).
-  * RMSNorm operator, optimized with JIT kernel to improve both the 1st and 2nd token
-    performance of LLMs.
-
-* The following has been improved:
-
-  * vLLM support, with PagedAttention exposing attention score as the second output. It can now
-    be used in the cache eviction algorithm to improve LLM serving performance.
-  * 1st token performance with Llama series of models, with additional CPU operator optimization
-    (such as MLP, SDPA) on BF16 precision.
-  * Default oneTBB version on Linux is now 2021.13.0, improving overall performance on latest
-    Intel XEON platforms.
-  * MXFP4 weight compression models (compressing weights to 4-bit with the e2m1 data type
-    without a zero point and with 8-bit e8m0 scales) have been optimized for Xeon platforms
-    thanks to fullyconnected compressed weight LLM support.
-
-* The following has been fixed:
-
-  * Memory leak when ov::num_streams value is 0.
-  * CPU affinity mask is changed after OpenVINO execution when OpenVINO is compiled
-    with -DTHREADING=SEQ.
+* Gold support of the Intel® Xeon® 6 platform with P-cores (formerly code name Granite Rapids)
+  has been reached.
+* Support of Intel® Core™ Ultra 200V series processors (formerly codenamed Arrow Lake-S) has
+  been implemented.
+* LLM performance has been further improved with Rotary Position Embedding optimization; Query,
+  Key, and Value; and multi-layer perceptron fusion optimization.
+* FP16 support has been extended with SDPA and PagedAttention, improving performance of LLM via
+  both native APIs and the vLLM integration.
+* Models with LoRA adapters are now supported.
 
 
 GPU Device Plugin
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+-----------------------------------------------------------------------------------------------
 
-* Dynamic quantization for LLMs is now supported on discrete GPU platforms.
-* Stable Diffusion 3 is now supported with good accuracy on Intel GPU platforms.
-* Both first and second token latency for LLMs have been improved on Intel GPU platforms.
-* The issue of model cache not regenerating with the value changes of
-  ``ov::hint::performance_mode`` or ``ov::hint::dynamic_quantization_group_size`` has been
-  fixed.
+* The KV cache INT8 compression mechanism is now available for all supported GPUs. It enables a
+  significant reduction in memory consumption, increasing performance with a minimal impact to
+  accuracy (it affects systolic devices slightly more than non-systolic ones). The feature is
+  activated by default for non-systolic devices.
+* LoRA adapters are now functionally supported on GPU.
+* A new feature of GPU weightless blob caching enables caching model structure only and reusing
+  the weights from the original model file. Use the new OPTIMIZE_SIZE property to activate.
+* Dynamic quantization with INT4 and INT8 precisions has been implemented and enabled by
+  default on Intel® Core™ Ultra platforms, improving LLM first token latency.
 
 
 NPU Device Plugin
+-----------------------------------------------------------------------------------------------
+
+* Models retrieved from the OpenVINO cache have a smaller memory footprint now. The plugin
+  releases the cached model (blob) after weights are loaded in NPU regions. Model export is not
+  available in this scenario. Memory consumption is reduced during inference execution with one
+  blob size. This optimization requires the latest NPU driver: 32.0.100.3104.
+* A driver bug for ``ov::intel_npu::device_total_mem_size`` has been fixed. The plugin will now
+  report 2GB as the maximum allocatable memory for any driver that does not support graph
+  extension 1.8. Even if older drivers report a larger amount of memory to be available, memory
+  allocation would fail when 2GB are exceeded. Plugin reports the number that driver exposes
+  for any driver that supports graph extension 1.8 (or newer).
+* A new API is used to initialize the model (available in graph extension 1.8).
+* Inference request set_tensors is now supported.
+* ``ov::device::LUID`` is now exposed  on Windows.
+* LLM-related improvements have been implemented in terms of both memory usage and performance.
+* AvgPool and MaxPool operator support has been extended, adding support for more PyTorch models.
+
+* NOTE: for systems based on Intel® Core™ Ultra Processors Series 2, more than 16GB of RAM may
+  be required to use larger models, such as Llama-2-7B, Mistral-0.2-7B, and Qwen-2-7B
+  (exceeding 4B parameters) with prompt sizes over 1024 tokens.
+
+
+OpenVINO Python API
+-----------------------------------------------------------------------------------------------
+
+* Constant now can be created from openvino.Tensor.
+* The “release_memory” method has been added for a compiled model, improving control over
+  memory consumption.
+
+
+
+OpenVINO Node.js API
+-----------------------------------------------------------------------------------------------
+
+* Querying the best device to perform inference of a model with specific operations
+  is now available in JavaScript API.
+* Contribution guidelines have been improved to make it easier for developers to contribute.
+* Testing scope has been extended by inference in end-to-end tests.
+* JavaScript API samples have been improved for readability and ease of running.
+
+
+
+TensorFlow Framework Support
+-----------------------------------------------------------------------------------------------
+
+* TensorFlow 2.18.0, Keras 3.6.0, NumPy 2.0.2 in Python 3.12, and NumPy 1.26.4 in other Python
+  versions have been added to validation.
+* Out-of-the-box conversion with static ranks has been improved by devising a new shape for
+  Switch-Merge condition sub-graphs.
+* Complex type for the following operations is now supported: ExpandDims, Pack, Prod, Rsqrt,
+  ScatterNd, Sub.
+* The following issues have been fixed:
+
+  * the corner case with one element in LinSpace to avoid division by zero,
+  * support FP16 and FP64 input types for LeakyRelu,
+  * support non-i32/i64 output index type for ArgMin/Max operations.
+
+
+
+PyTorch Framework Support
+-----------------------------------------------------------------------------------------------
+
+* PyTorch version 2.5 is now supported.
+* OpenVINO Model Converter (OVC) now supports TorchScript and ExportedProgram saved on a drive.
+* The issue of aten.index.Tensor conversion for indices with “None” values has been fixed,
+  helping to support the HF Stable Diffusion model in ExportedProgram format.
+
+
+
+ONNX Framework Support
+-----------------------------------------------------------------------------------------------
+
+* ONNX version 1.17.0 is now used.
+* Customers' models with DequantizeLinear-21, com.microsoft.MatMulNBits, and
+  com.microsoft.QuickGelu operations are now supported.
+
+JAX/Flax Framework Support
+-----------------------------------------------------------------------------------------------
+
+* JAX 0.4.35 and Flax 0.10.0 has been added to validation.
+* jax._src.core.ClosedJaxpr object conversion is now supported.
+* Vision Transformer from google-research/vision_transformer  is now supported
+  (with support for 37 new operations).
+
+
+OpenVINO Model Server
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+* The OpenAI API text embedding endpoint has been added, enabling OVMS to be used as a building
+  block for AI applications like RAG.
+  `(read more) <https://docs.openvino.ai/2024/openvino-workflow/model-server/ovms_docs_rest_api_embeddings.html>`__
+* The rerank endpoint has been added based on Cohere API, enabling easy similarity detection
+  between a query and a set of documents. It is one of the building blocks for AI applications
+  like RAG and makes integration with frameworks such as langchain easy.
+  `(read more) <https://docs.openvino.ai/2024/openvino-workflow/model-server/ovms_docs_rest_api_rerank.html>`__
+* The following improvements have been done to LLM text generation:
+
+  * The ``echo`` sampling parameter together with ``logprobs`` in the ``completions`` endpoint
+    is now supported.
+  * Performance has been increased on both CPU and GPU.
+  * Throughput in high-concurrency scenarios has been increased with dynamic_split_fuse for GPU.
+  * Testing coverage and stability has been improved.
+  * The procedure for service deployment and model repository preparation has been simplified.
+
+* An experimental version of a Windows binary package - native model server for Windows OS - is
+  available. This release includes a set of limitations and has limited tests coverage. It is
+  intended for testing, while the production-ready release is expected with 2025.0. All feedback
+  is welcome.
+
+
+Neural Network Compression Framework
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+* A new nncf.data.generate_text_data() method has been added for generating a synthetic dataset
+  for LLM compression. This approach helps to compress LLMs more accurately in situations when
+  the dataset is not available or not sufficient.
+  `See our example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino/tiny_llama_synthetic_data/>`__
+  for more information about the usage.
+* Support of data-free and data-aware weight compression methods - nncf.compress_weights() -
+  has been extended with NF4 per-channel quantization, making compressed LLMs more accurate and
+  faster on NPU.
+* Caching of computed statistics in nncf.compress_weights() is now available, significantly
+  reducing compression time when performing compression of the same LLM multiple times, with
+  different compression parameters. To enable it, set the advanced ``statistics_path`` parameter
+  of nncf.compress_weights() to the desired file path location.
+* The ``backup_mode`` optional parameter has been added to nncf.compress_weights(), for
+  specifying the data type for embeddings, convolutions, and last linear layers during 4-bit
+  weight compression. Available options are INT8_ASYM (default), INT8_SYM, and NONE (retains
+  the original floating-point precision of the model weights). In certain situations,
+  non-default value might give better accuracy of compressed LLMs.
+* Preview support is now available for optimizing models in Torch
+  `FX format <https://pytorch.org/docs/stable/fx.html>`__, nncf.quantize(), and
+  nncf.compress_weights() methods. After optimization such models can be directly executed
+  via torch.compile(compressed_model, backend="openvino"). For more details, see
+  `INT8 quantization example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/post_training_quantization/torch_fx/resnet18>`__.
+* Memory consumption of data-aware weight compression methods - nncf.compress_weights() – has
+  been reduced significantly, with some variation depending on the model and method.
+* Support for the following has changed:
+
+  * NumPy 2 added
+  * PyTorch upgraded to 2.5.1
+  * ONNX upgraded to 1.17
+  * Python 3.8 discontinued
+
+
+
+OpenVINO Tokenizers
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+* Several operations have been introduced and optimized.
+* Conversion parameters and environment info have been added to ``rt_info``, improving
+  reproducibility and debugging.
+
+
+
+OpenVINO.GenAI
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+* The following has been added:
+
+  * LoRA adapter for the LLMPipeline.
+  * Text2ImagePipeline with LoRA adapter and text2image samples.
+  * VLMPipeline and visual_language_chat sample for text generation models with text and image
+    inputs.
+  * WhisperPipeline and whisper_speech_recognition sample.
+
+* speculative_decoding_lm has been moved to LLMPipeline based implementation and is now
+  installed as part of the package.
+* On NPU, a set of pipelines has been enabled: WhisperPipeline (for whisper-base,
+  whisper-medium, and whisper-small), LLMPipeline (for Llama 3 8B, Llama 2 7B, Mistral-v0.2-7B,
+  Qwen2-7B-Instruct, and Phi-3 Mini-instruct). Use driver version 32.0.100.3104 or later for
+  best performance.
+
+
+
+
+
+Other Changes and Known Issues
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+Jupyter Notebooks
+-----------------------------
+
+* `Text-to-Image generation using OpenVINO GenAI <https://openvinotoolkit.github.io/openvino_notebooks/?search=Text+to+Image+pipeline+and+OpenVINO+with+Generate+API>`__
+* `Multi LoRA Image Generation <https://openvinotoolkit.github.io/openvino_notebooks/?search=Multi+LoRA+Image+Generation>`__
+* `Virtual Try-on using OpenVINO and CatVTON <https://openvinotoolkit.github.io/openvino_notebooks/?search=Virtual+Try-On+with+CatVTON+and+OpenVINO>`__
+* `Visual Language Assistant using OpenVINO GenAI <https://openvinotoolkit.github.io/openvino_notebooks/?tasks=Visual+Question+Answering&libraries=OpenVINO+GenAI>`__
+* `Speech recognition using OpenVINO GenAI <https://openvinotoolkit.github.io/openvino_notebooks/?tasks=Speech+Recognition&libraries=OpenVINO+GenAI>`__
+* `YoloV11 <https://openvinotoolkit.github.io/openvino_notebooks/?search=yolov11>`__
+* `Llama-3.2-vision <https://openvinotoolkit.github.io/openvino_notebooks/?search=Visual-language+assistant+with+Llama-3.2-11B-Vision+and+OpenVINO>`__
+* `Pixtral <https://openvinotoolkit.github.io/openvino_notebooks/?search=Visual-language+assistant+with+Pixtral+and+OpenVINO>`__
+* `Segment Anything 2 <https://openvinotoolkit.github.io/openvino_notebooks/?search=sam2>`__
+* `Video Lips-sync using Wav2Lip <https://openvinotoolkit.github.io/openvino_notebooks/?search=Wav2Lip%3A+Accurately+Lip-syncing+Videos+and+OpenVINO>`__
+* `Convert JAX to OpenVINO tutorial <https://openvinotoolkit.github.io/openvino_notebooks/?search=Convert+a+JAX+Model+to+OpenVINO%E2%84%A2+IR>`__
+
+
+Known Issues
+-----------------------------
+
+| **Component: CPU Plugin**
+| ID: 155898
+| Description:
+|   Description: When using new version of Transformer version to convert some of LLMs
+    (GPT-J/GPT-NeoX or falcon-7b), the inference accuracy may be impacted on 4th or 5th
+    generation of Intel® Xeon® processors, due to model structure update triggering inference
+    precision difference in part of the model. The workaround is to use transformer version of
+    4.44.2 or lower.
+
+| **Component: GPU Plugin**
+| ID: 154583
+| Description:
+|   LLM accuracy can be low especially on non-systolic platforms like Intel® Core™ Ultra. When
+    facing the low accuracy issue, user needs to manually set a config ACTIVATION_SCALING_FACOTR
+    with a value of 8.0 in the compile_model() function. From the next release, scaling factor
+    value will be automatically applied through updated IR.
+
+| **Component: GenAI**
+| ID: 156437, 148933
+| Description:
+|   When using Python GenAI APIs, if ONNX 17.0 and later is installed, it may encounter the
+    error “DLL load failed while importing onnx_cpp2py_export: A dynamic link library (DLL)
+    initialization routine failed.” It is due to the ONNX dependency issue
+    `onnx/onnx#6267 <https://github.com/onnx/onnx/issues/6267>`__,
+    Install
+    `Microsoft Visual C++ Redistributable <https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170>`__
+    latest supported downloads to fix the issue.
+
+| **Component: GenAI**
+| ID: 156944
+| Description:
+|   There were backward incompatible changes resulting in different text generated by LLMs like
+    Mistralai/Mistral-7B-Instruct-v0.2 and TinyLlama/TinyLlama-1.1B-Chat-v1.0 when using a
+    tokenizer converted by older openvino_tolenizers. A way to resolve the issue is to convert
+    tokenizer and detokenizer models using the latest openvino_tokenizers.
+
+
+
+
+
+
+
+
+Previous 2024 releases
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+.. ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+.. ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+
+.. dropdown:: 2024.4 - 19 September 2024
+   :animate: fade-in-slide-down
+   :color: secondary
+
+   **What's new**
+
+   * More Gen AI coverage and framework integrations to minimize code changes.
+
+     * Support for GLM-4-9B Chat, MiniCPM-1B, Llama 3 and 3.1, Phi-3-Mini, Phi-3-Medium and
+       YOLOX-s models.
+     * Noteworthy notebooks added: Florence-2, NuExtract-tiny Structure Extraction, Flux.1 Image
+       Generation, PixArt-α: Photorealistic Text-to-Image Synthesis, and Phi-3-Vision Visual
+       Language Assistant.
+
+   * Broader Large Language Model (LLM) support and more model compression techniques.
+
+     * OpenVINO™ runtime optimized for Intel® Xe Matrix Extensions (Intel® XMX) systolic arrays on
+       built-in GPUs for efficient matrix multiplication resulting in significant LLM performance
+       boost with improved 1st and 2nd token latency, as well as a smaller memory footprint on
+       Intel® Core™ Ultra Processors (Series 2).
+     * Memory sharing enabled for NPUs on Intel® Core™ Ultra Processors (Series 2) for efficient
+       pipeline integration without memory copy overhead.
+     * Addition of the PagedAttention feature for discrete GPUs* enables a significant boost in
+       throughput for parallel inferencing when serving LLMs on Intel® Arc™ Graphics or Intel®
+       Data Center GPU Flex Series.
+
+   * More portability and performance to run AI at the edge, in the cloud, or locally.
+
+     * Support for Intel® Core™ Ultra Processors Series 2 (formerly codenamed Lunar Lake) on Windows.
+     * OpenVINO™ Model Server now comes with production-quality support for OpenAI-compatible API
+       which enables significantly higher throughput for parallel inferencing on Intel® Xeon®
+       processors when serving LLMs to many concurrent users.
+     * Improved performance and memory consumption with prefix caching, KV cache compression, and
+       other optimizations for serving LLMs using OpenVINO™ Model Server.
+     * Support for Python 3.12.
+     * Support for Red Hat Enterprise Linux (RHEL) version 9.3 - 9.4.
+
+   *Now deprecated*
+
+   * The following will not be available beyond the 2024.4 OpenVINO version:
+
+     * The macOS x86_64 debug bins
+     * Python 3.8
+     * Discrete Keem Bay support
+
+   * Intel® Streaming SIMD Extensions (Intel® SSE) will be supported in source code form, but not
+     enabled in the binary package by default, starting with OpenVINO 2025.0.
+
+   Check the `deprecation section <#deprecation-and-support>`__ for more information.
+
+   **OpenVINO™ Runtime**
+
+   *Common*
+
+   * Encryption and decryption of topology in model cache is now supported with callback functions
+     provided by the user (CPU only for now; ov::cache_encryption_callbacks).
+   * The Ubuntu20 and Ubuntu22 Docker images now include the tokenizers and GenAI CPP modules,
+     including pre-installed Python modules, in development versions of these images.
+   * Python 3.12 is now supported.
+
+   *CPU Device Plugin*
+
+   * The following is now supported:
+
+     * Tensor parallel feature for multi-socket CPU inference, with performance improvement for
+       LLMs with 6B+ parameters (enabled through model_distribution_policy hint configurations).
+     * RMSNorm operator, optimized with JIT kernel to improve both the 1st and 2nd token
+       performance of LLMs.
+
+   * The following has been improved:
+
+     * vLLM support, with PagedAttention exposing attention score as the second output. It can now
+       be used in the cache eviction algorithm to improve LLM serving performance.
+     * 1st token performance with Llama series of models, with additional CPU operator optimization
+       (such as MLP, SDPA) on BF16 precision.
+     * Default oneTBB version on Linux is now 2021.13.0, improving overall performance on latest
+       Intel® Xeon® platforms.
+     * MXFP4 weight compression models (compressing weights to 4-bit with the e2m1 data type
+       without a zero point and with 8-bit e8m0 scales) have been optimized for Intel® Xeon®
+       platforms thanks to fullyconnected compressed weight LLM support.
+
+   * The following has been fixed:
+
+     * Memory leak when ov::num_streams value is 0.
+     * CPU affinity mask is changed after OpenVINO execution when OpenVINO is compiled
+       with -DTHREADING=SEQ.
+
+
+   *GPU Device Plugin*
+
+   * Dynamic quantization for LLMs is now supported on discrete GPU platforms.
+   * Stable Diffusion 3 is now supported with good accuracy on Intel GPU platforms.
+   * Both first and second token latency for LLMs have been improved on Intel GPU platforms.
+   * The issue of model cache not regenerating with the value changes of
+     ``ov::hint::performance_mode`` or ``ov::hint::dynamic_quantization_group_size`` has been
+     fixed.
+
+
+   *NPU Device Plugin*
 
 * `Remote Tensor API <https://docs.openvino.ai/nightly/openvino-workflow/running-inference/inference-devices-and-modes/npu-device/remote-tensor-api-npu-plugin.html>`__
   is now supported.
@@ -140,193 +488,178 @@ NPU Device Plugin
   only during the export method.
 
 
-OpenVINO Python API
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+   *OpenVINO Python API*
 
-* Openvino.Tensor, when created in the shared memory mode, now prevents “garbage collection” of
-  numpy memory.
-* The ``openvino.experimental`` submodule is now available, providing access to experimental
-  functionalities under development.
-* New python-exclusive openvino.Model constructors have been added.
-* Image padding in PreProcessor is now available.
-* OpenVINO Runtime is now compatible with numpy 2.0.
-
-
-OpenVINO Node.js API
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-* The following has been improved
-
-  * Unit tests for increased efficiency and stability
-  * Security updates applied to dependencies
-
-* `Electron <https://www.electronjs.org/>`__
-  compatibility is now confirmed with new end-to-end tests.
-* `New API methods <https://docs.openvino.ai/2024/api/nodejs_api/nodejs_api.html>`__ added.
+   * Openvino.Tensor, when created in the shared memory mode, now prevents “garbage collection” of
+     numpy memory.
+   * The ``openvino.experimental`` submodule is now available, providing access to experimental
+     functionalities under development.
+   * New python-exclusive openvino.Model constructors have been added.
+   * Image padding in PreProcessor is now available.
+   * OpenVINO Runtime is now compatible with numpy 2.0.
 
 
-TensorFlow Framework Support
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+   *OpenVINO Node.js API*
 
-* TensorFlow 2.17.0 is now supported.
-* JAX 0.4.31 is now supported via a path of jax2tf with native_serialization=False
-* `8 NEW* operations <https://github.com/openvinotoolkit/openvino/blob/releases/2024/2/src/frontends/tensorflow/docs/supported_ops.md>`__
-  have been added.
-* Tensor lists with multiple undefined dimensions in element_shape are now supported, enabling
-  support for TF Hub lite0-detection/versions/1 model.
+   * The following has been improved
 
+     * Unit tests for increased efficiency and stability
+     * Security updates applied to dependencies
 
-PyTorch Framework Support
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-* Torch 2.4 is now supported.
-* Inplace ops are now supported automatically if the regular version is supported.
-* Symmetric GPTQ model from Hugging Face will now be automatically converted to the signed type
-  (INT4) and zero-points will be removed.
+   * `Electron <https://www.electronjs.org/>`__
+     compatibility is now confirmed with new end-to-end tests.
+   * `New API methods <https://docs.openvino.ai/2024/api/nodejs_api/nodejs_api.html>`__ added.
 
 
-ONNX Framework Support
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+   *TensorFlow Framework Support*
 
-* ONNX 1.16.0 is now supported
-* models with constants/inputs of uint4/int4 types are now supported.
-* 4 NEW operations have been added.
+   * TensorFlow 2.17.0 is now supported.
+   * JAX 0.4.31 is now supported via a path of jax2tf with native_serialization=False
+   * `8 NEW* operations <https://github.com/openvinotoolkit/openvino/blob/releases/2024/2/src/frontends/tensorflow/docs/supported_ops.md>`__
+     have been added.
+   * Tensor lists with multiple undefined dimensions in element_shape are now supported, enabling
+     support for TF Hub lite0-detection/versions/1 model.
 
 
-OpenVINO Model Server
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+   *PyTorch Framework Support*
 
-* OpenAI API for text generation is now officially supported and recommended for production
-  usage. It comes with the following new features:
+   * Torch 2.4 is now supported.
+   * Inplace ops are now supported automatically if the regular version is supported.
+   * Symmetric GPTQ model from Hugging Face will now be automatically converted to the signed type
+     (INT4) and zero-points will be removed.
 
-  * Prefix caching feature, caching the prompt evaluation to speed up text generation.
-  * Ability to compress the KV Cache to a lower precision, reducing memory consumption without
-    a significant loss of accuracy.
-  * ``stop`` sampling parameters, to define a sequence that stops text generation.
-  * ``logprobs`` sampling parameter, returning the probabilities to returned tokens.
-  * Generic metrics related to execution of the MediaPipe graph that can be used for autoscaling
-    based on the current load and the level of concurrency.
-  * `Demo of text generation horizontal scalability <https://github.com/openvinotoolkit/model_server/tree/main/demos/continuous_batching/scaling>`__
-    using basic docker containers and Kubernetes.
-  * Automatic cancelling of text generation for disconnected clients.
-  * Non-UTF-8 responses from the model can be now automatically changed to Unicode replacement
-    characters, due to their configurable handling.
-  * Intel GPU with paged attention is now supported.
-  * Support for Llama3.1 models.
 
-* The following has been improved:
+   *ONNX Framework Support*
 
-  * Handling of model templates without bos_token is now fixed.
-  * Performance of the multinomial sampling algorithm.
-  * ``finish_reason`` in the response correctly determines reaching max_tokens (length) and
-    completing the sequence (stop).
-  * Security and stability.
+   * ONNX 1.16.0 is now supported
+   * models with constants/inputs of uINT4/INT4 types are now supported.
+   * 4 NEW operations have been added.
+
+
+   **OpenVINO Model Server**
+
+   * OpenAI API for text generation is now officially supported and recommended for production
+     usage. It comes with the following new features:
+
+     * Prefix caching feature, caching the prompt evaluation to speed up text generation.
+     * Ability to compress the KV Cache to a lower precision, reducing memory consumption without
+       a significant loss of accuracy.
+     * ``stop`` sampling parameters, to define a sequence that stops text generation.
+     * ``logprobs`` sampling parameter, returning the probabilities to returned tokens.
+     * Generic metrics related to execution of the MediaPipe graph that can be used for autoscaling
+       based on the current load and the level of concurrency.
+     * `Demo of text generation horizontal scalability <https://github.com/openvinotoolkit/model_server/tree/main/demos/continuous_batching/scaling>`__
+       using basic docker containers and Kubernetes.
+     * Automatic cancelling of text generation for disconnected clients.
+     * Non-UTF-8 responses from the model can be now automatically changed to Unicode replacement
+       characters, due to their configurable handling.
+     * Intel GPU with paged attention is now supported.
+     * Support for Llama3.1 models.
+
+   * The following has been improved:
+
+     * Handling of model templates without bos_token is now fixed.
+     * Performance of the multinomial sampling algorithm.
+     * ``finish_reason`` in the response correctly determines reaching max_tokens (length) and
+       completing the sequence (stop).
+     * Security and stability.
 
 
 
-Neural Network Compression Framework
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+   **Neural Network Compression Framework**
 
-* The LoRA Correction algorithm is now included in the Weight Compression method, improving the
-  accuracy of INT4-compressed models on top of other data-aware algorithms, such as AWQ and
-  Scale Estimation. To enable it, set the lora_correction option to True in
-  nncf.compress_weights().
-* The GPTQ compression algorithm can now be combined with the Scale Estimation algorithm,
-  making it possible to run GPTQ, AWQ, and Scale Estimation together, for the optimum-accuracy
-  INT4-compressed models.
-* INT8 quantization of LSTMSequence and Convolution operations for constant inputs is now
-  enabled, resulting in better performance and reduced model size.
+   * The LoRA Correction algorithm is now included in the Weight Compression method, improving the
+     accuracy of INT4-compressed models on top of other data-aware algorithms, such as AWQ and
+     Scale Estimation. To enable it, set the lora_correction option to True in
+     nncf.compress_weights().
+   * The GPTQ compression algorithm can now be combined with the Scale Estimation algorithm,
+     making it possible to run GPTQ, AWQ, and Scale Estimation together, for the optimum-accuracy
+     INT4-compressed models.
+   * INT8 quantization of LSTMSequence and Convolution operations for constant inputs is now
+     enabled, resulting in better performance and reduced model size.
 
 
-OpenVINO Tokenizers
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+   **OpenVINO Tokenizers**
 
-* Split and BPE tokenization operations have been reimplemented, resulting in improved
-  tokenization accuracy and performance.
-* New building options are now available, offering up to a 12x reduction in binary size.
-* An operation is now available to validate and skip/replace model-generated non-Unicode
-  bytecode sequences during detokenization.
+   * Split and BPE tokenization operations have been reimplemented, resulting in improved
+     tokenization accuracy and performance.
+   * New building options are now available, offering up to a 12x reduction in binary size.
+   * An operation is now available to validate and skip/replace model-generated non-Unicode
+     bytecode sequences during detokenization.
 
-OpenVINO.GenAI
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+   **OpenVINO.GenAI**
 
-* New samples and pipelines are now available:
+   * New samples and pipelines are now available:
 
-  * An example IterableStreamer implementation in
-    `multinomial_causal_lm/python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/multinomial_causal_lm>`__
+     * An example IterableStreamer implementation in
+       `multinomial_causal_lm/python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/multinomial_causal_lm>`__
 
-* GenAI compilation is now available as part of OpenVINO via the –DOPENVINO_EXTRA_MODULES CMake
-  option.
+   * GenAI compilation is now available as part of OpenVINO via the –DOPENVINO_EXTRA_MODULES CMake
+     option.
 
 
 
-Other Changes and Known Issues
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+   **Other Changes and Known Issues**
 
-Jupyter Notebooks
------------------------------
+   *Jupyter Notebooks*
 
-* `Florence-2 <https://openvinotoolkit.github.io/openvino_notebooks/?search=Florence-2%3A+Open+Source+Vision+Foundation+Model>`__
-* `NuExtract: Structure Extraction <https://openvinotoolkit.github.io/openvino_notebooks/?search=Structure+Extraction+with+NuExtract+and+OpenVINO>`__
-* `Flux.1 Image Generation <https://openvinotoolkit.github.io/openvino_notebooks/?search=Image+generation+with+Flux.1+and+OpenVINO>`__
-* `PixArt-α: Photorealistic Text-to-Image Synthesis <https://openvinotoolkit.github.io/openvino_notebooks/?search=PixArt-%CE%B1%3A+Fast+Training+of+Diffusion+Transformer+for+Photorealistic+Text-to-Image+Synthesis+with+OpenVINO>`__
-* `Phi-3-Vision Visual Language Assistant <https://openvinotoolkit.github.io/openvino_notebooks/?search=Visual-language+assistant+with+Phi3-Vision+and+OpenVINO>`__
-* `MiniCPMV2.6 <https://openvinotoolkit.github.io/openvino_notebooks/?search=Visual-language+assistant+with+MiniCPM-V2+and+OpenVINO>`__
-* `InternVL2 <https://openvinotoolkit.github.io/openvino_notebooks/?search=Visual-language+assistant+with+InternVL2+and+OpenVINO>`__
-* The list of supported models in
-  `LLM chatbot <https://openvinotoolkit.github.io/openvino_notebooks/?search=Create+an+LLM-powered+Chatbot+using+OpenVINO+Generate+API>`__
-  now includes Phi3.5, Gemma2 support
+   * `Florence-2 <https://openvinotoolkit.github.io/openvino_notebooks/?search=Florence-2%3A+Open+Source+Vision+Foundation+Model>`__
+   * `NuExtract: Structure Extraction <https://openvinotoolkit.github.io/openvino_notebooks/?search=Structure+Extraction+with+NuExtract+and+OpenVINO>`__
+   * `Flux.1 Image Generation <https://openvinotoolkit.github.io/openvino_notebooks/?search=Image+generation+with+Flux.1+and+OpenVINO>`__
+   * `PixArt-α: Photorealistic Text-to-Image Synthesis <https://openvinotoolkit.github.io/openvino_notebooks/?search=PixArt-%CE%B1%3A+Fast+Training+of+Diffusion+Transformer+for+Photorealistic+Text-to-Image+Synthesis+with+OpenVINO>`__
+   * `Phi-3-Vision Visual Language Assistant <https://openvinotoolkit.github.io/openvino_notebooks/?search=Visual-language+assistant+with+Phi3-Vision+and+OpenVINO>`__
+   * `MiniCPMV2.6 <https://openvinotoolkit.github.io/openvino_notebooks/?search=Visual-language+assistant+with+MiniCPM-V2+and+OpenVINO>`__
+   * `InternVL2 <https://openvinotoolkit.github.io/openvino_notebooks/?search=Visual-language+assistant+with+InternVL2+and+OpenVINO>`__
+   * The list of supported models in
+     `LLM chatbot <https://openvinotoolkit.github.io/openvino_notebooks/?search=Create+an+LLM-powered+Chatbot+using+OpenVINO+Generate+API>`__
+     now includes Phi3.5, Gemma2 support
 
-Known Issues
------------------------------
+   *Known Issues*
 
-| **Component: CPU**
-| ID: CVS-150542, CVS-145996
-| Description:
-|   The upgrade of default oneTBB on Linux platforms to 2021.13.0 improves overall
-    performance on latest Intel XEON platform but causes regression in some cases. Limit the
-    threads usage of postprocessing done by Torch can mitigate the regression (For example:
-    torch.set_num_threads(n), n can be 1, beam search number, prompt batch size or other
-    numbers).
+   | **Component: CPU**
+   | ID: CVS-150542, CVS-145996
+   | Description:
+   |   The upgrade of default oneTBB on Linux platforms to 2021.13.0 improves overall
+       performance on latest Intel® Xeon® platform but causes regression in some cases. Limit the
+       threads usage of postprocessing done by Torch can mitigate the regression (For example:
+       torch.set_num_threads(n), n can be 1, beam search number, prompt batch size or other
+       numbers).
 
-| **Component: OpenVINO.Genai**
-| ID: 149694
-| Description:
-|   Passing openvino.Tensor instance to LLMPipleine triggers incompatible arguments error if
-    OpenVINO and GenAI are installed from PyPI on Windows.
+   | **Component: OpenVINO.Genai**
+   | ID: 149694
+   | Description:
+   |   Passing openvino.Tensor instance to LLMPipleine triggers incompatible arguments error if
+       OpenVINO and GenAI are installed from PyPI on Windows.
 
-| **Component: OpenVINO.Genai**
-| ID: 148308
-| Description:
-|   OpenVINO.GenAI archive doesn't have debug libraries for OpenVINO Tokenizers and
-    OpenVINO.GenAI.
+   | **Component: OpenVINO.Genai**
+   | ID: 148308
+   | Description:
+   |   OpenVINO.GenAI archive doesn't have debug libraries for OpenVINO Tokenizers and
+       OpenVINO.GenAI.
 
-| **Component: ONNX for ARM**
-| ID: n/a
-| Description:
-|   For ARM binaries, the `1.16 ONNX library <https://vcpkg.link/ports/onnx/versions>`__
-    is not yet available. The ONNX library for ARM, version 1.15, does not include the latest
-    functional and security updates. Users should update to the latest version as it becomes
-    available.
-|   Currently, if an unverified AI model is supplied to the ONNX frontend, it could lead to a
-    directory traversal issue. Ensure that the file name and file path that a model contains
-    are verified and correct. To learn more about the vulnerability, see:
-    `CVE-2024-27318 <https://nvd.nist.gov/vuln/detail/CVE-2024-27318>`__ and
-    `CVE-2024-27319 <https://nvd.nist.gov/vuln/detail/CVE-2024-27319>`__.
+   | **Component: ONNX for ARM**
+   | ID: n/a
+   | Description:
+   |   For ARM binaries, the `1.16 ONNX library <https://vcpkg.link/ports/onnx/versions>`__
+       is not yet available. The ONNX library for ARM, version 1.15, does not include the latest
+       functional and security updates. Users should update to the latest version as it becomes
+       available.
+   |   Currently, if an unverified AI model is supplied to the ONNX frontend, it could lead to a
+       directory traversal issue. Ensure that the file name and file path that a model contains
+       are verified and correct. To learn more about the vulnerability, see:
+       `CVE-2024-27318 <https://nvd.nist.gov/vuln/detail/CVE-2024-27318>`__ and
+       `CVE-2024-27319 <https://nvd.nist.gov/vuln/detail/CVE-2024-27319>`__.
 
-| **Component: Kaldi**
-| ID: n/a
-| Description:
-|   There is a known issue with the Kaldi DL framework support on the Python version 3.12 due
-    to the numpy version incompatibilities. As Kaldi support in OpenVINO is currently deprecated
-    and will be discontinued with version 2025.0, the issue will not be addressed.
+   | **Component: Kaldi**
+   | ID: n/a
+   | Description:
+   |   There is a known issue with the Kaldi DL framework support on the Python version 3.12 due
+       to the numpy version incompatibilities. As Kaldi support in OpenVINO is currently deprecated
+       and will be discontinued with version 2025.0, the issue will not be addressed.
 
 
-Previous 2024 releases
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-.. ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-.. ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 .. dropdown:: 2024.3 - 31 July 2024
    :animate: fade-in-slide-down
@@ -614,7 +947,7 @@ Previous 2024 releases
      * Preview: addition of the :doc:`Generate API <../learn-openvino/llm_inference_guide/genai-guide>`,
        a simplified API for text generation using large language models with only a few lines of
        code. The API is available through the newly launched OpenVINO GenAI package.
-     * Support for Intel Atom® Processor X Series. For more details, see :doc:`System Requirements <./release-notes-openvino/system-requirements>`.
+     * Support for Intel® Atom® Processor X Series. For more details, see :doc:`System Requirements <./release-notes-openvino/system-requirements>`.
      * Preview: Support for Intel® Xeon® 6 processor.
 
    **OpenVINO™ Runtime**
@@ -638,8 +971,8 @@ Previous 2024 releases
    *CPU Device Plugin*
 
    * Performance when using latency mode in FP32 precision has been improved on Intel client
-     platforms, including Core Ultra (codename Meteor Lake) and 13th Gen Core processors
-     (codename Raptor Lake).
+     platforms, including Intel® Core™ Ultra (formerly codenamed Meteor Lake) and 13th Gen Core
+     processors (formerly codenamed Raptor Lake).
    * 2nd token latency and memory footprint for FP16 LLMs have been improved significantly on AVX2
      and AVX512 based CPU platforms, particularly for small batch sizes.
    * PagedAttention has been optimized on AVX2, AVX512 and AMX platforms together with INT8 KV cache
@@ -653,9 +986,9 @@ Previous 2024 releases
 
    * Both first token and average token latency of LLMs is improved on all GPU platforms, most
      significantly on discrete GPUs. Memory usage of LLMs has been reduced as well.
-   * Stable Diffusion FP16 performance improved on Core Ultra platforms, with significant pipeline
-     improvement for models with dynamic-shaped input. Memory usage of the pipeline has been reduced,
-     as well.
+   * Stable Diffusion FP16 performance improved on Intel® Core™ Ultra platforms, with significant
+     pipeline improvement for models with dynamic-shaped input. Memory usage of the pipeline
+     has been reduced, as well.
    * Optimized permute_f_y kernel performance has been improved.
 
    *NPU Device Plugin*
@@ -710,7 +1043,7 @@ Previous 2024 releases
 
    * OpenVINO Model server can be now used for text generation use cases using OpenAI compatible API.
    * Added support for continuous batching and PagedAttention algorithms for text generation with
-     fast and efficient in high concurrency load especially on Intel Xeon processors.
+     fast and efficient in high concurrency load especially on Intel® Xeon® processors.
      `Learn more about it <https://github.com/openvinotoolkit/model_server/tree/releases/2024/2/demos/continuous_batching>`__.
 
    **Neural Network Compression Framework**
@@ -753,8 +1086,9 @@ Previous 2024 releases
    | Description:
    |   In 2024.2, oneTBB 2021.2.x is used for Intel Distribution of OpenVINO Ubuntu and Red Hat
        archives, instead of system TBB/oneTBB. This improves performance on the new generation of
-       Xeon platforms but may increase latency of some models on the previous generation. You can
-       build OpenVINO with **-DSYSTEM_TBB=ON** to get better latency performance for these models.
+       Intel® Xeon® platforms but may increase latency of some models on the previous generation.
+       You can build OpenVINO with **-DSYSTEM_TBB=ON** to get better latency performance for
+       these models.
 
    | **Component: python API**
    | ID: CVS-141744
@@ -943,7 +1277,7 @@ Previous 2024 releases
      deployed in an arbitrary path without any code changes.
    * KServe REST API support has been extended to properly handle the string format in JSON body,
      just like the binary format compatible with NVIDIA Triton™.
-   * `A demo showcasing a full RAG algorithm <https://github.com/openvinotoolkit/model_server/tree/main/demos/python_demos/rag_chatbot>`__
+   * `A demo showcasing a full RAG algorithm <https://github.com/openvinotoolkit/model_server/tree/releases/2024/3/demos/python_demos/rag_chatbot>`__
      fully delegated to the model server has been added.
 
    **Neural Network Compression Framework**
@@ -1000,7 +1334,7 @@ Previous 2024 releases
    * `RMBG background removal <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/rmbg-background-removal/rmbg-background-removal.ipynb>`__
    * `AnimateAnyone: pose guided image to video generation <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/animate-anyone/animate-anyone.ipynb>`__
    * `LLaVA-Next visual-language assistant <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llava-next-multimodal-chatbot/llava-next-multimodal-chatbot.ipynb>`__
-   * `TripoSR: single image 3d reconstruction <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/triposr-3d-reconstruction/triposr-3d-reconstruction.ipynb>`__
+   * `TripoSR: single image 3d reconstruction <https://github.com/openvinotoolkit/openvino_notebooks/blob/2024.4/notebooks/triposr-3d-reconstruction/triposr-3d-reconstruction.ipynb>`__
    * `RAG system with OpenVINO and LangChain <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llm-rag-langchain/llm-rag-langchain.ipynb>`__
 
    *Known Issues*
@@ -1069,8 +1403,8 @@ Previous 2024 releases
    * More portability and performance to run AI at the edge, in the cloud, or locally.
 
      * A preview plugin architecture of the integrated Neural Processor Unit (NPU) as part of
-       Intel® Core™ Ultra processor (codename Meteor Lake) is now included in the main OpenVINO™
-       package on PyPI.
+       Intel® Core™ Ultra processor (formerly codenamed Meteor Lake) is now included in the
+       main OpenVINO™ package on PyPI.
      * Improved performance on ARM by enabling the ARM threading library. In addition, we now
        support multi-core ARM processors and enabled FP16 precision by default on MacOS.
      * New and improved LLM serving samples from OpenVINO Model Server for multi-batch inputs and
@@ -1263,10 +1597,11 @@ Previous 2024 releases
    | **Component: CPU runtime**
    | *ID:* N/A
    | *Description:*
-   |   Performance results (first token latency) may vary from those offered by the previous OpenVINO version, for
-       “latency” hint inference of LLMs with long prompts on Xeon platforms with 2 or more
-       sockets. The reason is that all CPU cores of just the single socket running the application
-       are employed, lowering the memory overhead for LLMs when numa control is not used.
+   |   Performance results (first token latency) may vary from those offered by the previous
+       OpenVINO version, for “latency” hint inference of LLMs with long prompts on Intel® Xeon®
+       platforms with 2 or more sockets. The reason is that all CPU cores of just the single
+       socket running the application are employed, lowering the memory overhead for LLMs when
+       numa control is not used.
    | *Workaround:*
    |   The behavior is expected but stream and thread configuration may be used to include cores
        from all sockets.
@@ -1309,28 +1644,32 @@ Discontinued in 2024
   * `Accuracy Checker <https://github.com/openvinotoolkit/open_model_zoo/blob/master/tools/accuracy_checker/README.md>`__.
   * `Post-Training Optimization Tool <https://docs.openvino.ai/2023.3/pot_introduction.html>`__
     (POT). Neural Network Compression Framework (NNCF) should be used instead.
-  * A `Git patch <https://github.com/openvinotoolkit/nncf/tree/develop/third_party_integration/huggingface_transformers>`__
+  * A `Git patch <https://github.com/openvinotoolkit/nncf/tree/release_v281/third_party_integration/huggingface_transformers>`__
     for NNCF integration with `huggingface/transformers <https://github.com/huggingface/transformers>`__.
     The recommended approach is to use `huggingface/optimum-intel <https://github.com/huggingface/optimum-intel>`__
     for applying NNCF optimization on top of models from Hugging Face.
   * Support for Apache MXNet, Caffe, and Kaldi model formats. Conversion to ONNX may be used
     as a solution.
+  * The macOS x86_64 debug bins are no longer provided with the OpenVINO toolkit, starting
+    with OpenVINO 2024.5.
+  * Python 3.8 is no longer supported, starting with OpenVINO 2024.5.
+
+    * As MxNet doesn't support Python version higher than 3.8, according to the
+      `MxNet PyPI project <https://pypi.org/project/mxnet/>`__,
+      it is no longer supported by OpenVINO, either.
+
+  * Discrete Keem Bay support is no longer supported, starting with OpenVINO 2024.5.
+  * Support for discrete devices (formerly codenamed Raptor Lake) is no longer available for
+    NPU.
+
 
 Deprecated and to be removed in the future
 --------------------------------------------
 
-* The macOS x86_64 debug bins will no longer be provided with the OpenVINO toolkit, starting
-  with OpenVINO 2024.5.
-* Python 3.8 is now considered deprecated, and it will not be available beyond the 2024.4
-  OpenVINO version.
-
-  * As MxNet doesn't support Python version higher than 3.8, according to the
-    `MxNet PyPI project <https://pypi.org/project/mxnet/>`__,
-    it will no longer be supported in future versions, either.
-
-* Discrete Keem Bay support is now considered deprecated and will be fully removed with OpenVINO 2024.5
 * Intel® Streaming SIMD Extensions (Intel® SSE) will be supported in source code form, but not
-  enabled in the binary package by default, starting with OpenVINO 2025.0
+  enabled in the binary package by default, starting with OpenVINO 2025.0.
+* Ubuntu 20.04 support will be deprecated in future OpenVINO releases due to the end of
+  standard support.
 * The openvino-nightly PyPI module will soon be discontinued. End-users should proceed with the
   Simple PyPI nightly repo instead. More information in
   `Release Policy <https://docs.openvino.ai/2024/about-openvino/release-notes-openvino/release-policy.html#nightly-releases>`__.
@@ -1360,25 +1699,25 @@ Deprecated and to be removed in the future
        * See alternative: `PaddleOCR with OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/paddle-ocr-webcam>`__,
        * See alternative: `Handwritten Text Recognition Demo <https://github.com/openvinotoolkit/open_model_zoo/blob/master/demos/handwritten_text_recognition_demo/python/README.md>`__
 
-     * `Image In-painting with OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/image-inpainting>`__
+     * `Image In-painting with OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/2024.1/notebooks/image-inpainting>`__
 
        * See alternative: `Image Inpainting Python Demo <https://github.com/openvinotoolkit/open_model_zoo/blob/master/demos/image_inpainting_demo/python/README.md>`__
 
-     * `Interactive Machine Translation with OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/machine-translation>`__
+     * `Interactive Machine Translation with OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/2024.1/notebooks/machine-translation>`__
 
        * See alternative: `Machine Translation Python* Demo <https://github.com/openvinotoolkit/open_model_zoo/blob/master/demos/machine_translation_demo/python/README.md>`__
 
-     * `Open Model Zoo Tools Tutorial <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/model-tools>`__
+     * `Open Model Zoo Tools Tutorial <https://github.com/openvinotoolkit/openvino_notebooks/tree/2024.1/notebooks/model-tools>`__
 
        * No alternatives, demonstrates deprecated tools.
 
-     * `Super Resolution with OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/vision-superresolution>`__
+     * `Super Resolution with OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/2024.1/notebooks/vision-superresolution>`__
 
        * See alternative: `Super Resolution with PaddleGAN and OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/vision-paddlegan-superresolution>`__
        * See alternative:  `Image Processing C++ Demo <https://github.com/openvinotoolkit/open_model_zoo/blob/master/demos/image_processing_demo/cpp/README.md>`__
 
-     * `Image Colorization with OpenVINO Tutorial <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/vision-image-colorization>`__
-     * `Interactive Question Answering with OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/question-answering>`__
+     * `Image Colorization with OpenVINO Tutorial <https://github.com/openvinotoolkit/openvino_notebooks/tree/2024.2/notebooks/vision-image-colorization>`__
+     * `Interactive Question Answering with OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/2024.1/notebooks/question-answering>`__
 
        * See alternative: `BERT Question Answering Embedding Python* Demo <https://github.com/openvinotoolkit/open_model_zoo/blob/master/demos/bert_question_answering_embedding_demo/python/README.md>`__
        * See alternative:  `BERT Question Answering Python* Demo <https://github.com/openvinotoolkit/open_model_zoo/blob/master/demos/bert_question_answering_demo/python/README.md>`__
@@ -1387,37 +1726,37 @@ Deprecated and to be removed in the future
 
        * See alternative: `Security Barrier Camera C++ Demo  <https://github.com/openvinotoolkit/open_model_zoo/blob/master/demos/security_barrier_camera_demo/cpp/README.md>`__
 
-     * `The attention center model with OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/attention-center>`_
-     * `Image Generation with DeciDiffusion <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/decidiffusion-image-generation>`_
-     * `Image generation with DeepFloyd IF and OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/deepfloyd-if>`_
-     * `Depth estimation using VI-depth with OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/depth-estimation-videpth>`_
+     * `The attention center model with OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/2024.1/notebooks/attention-center>`_
+     * `Image Generation with DeciDiffusion <https://github.com/openvinotoolkit/openvino_notebooks/tree/2024.2/notebooks/decidiffusion-image-generation>`_
+     * `Image generation with DeepFloyd IF and OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/2024.1/notebooks/deepfloyd-if>`_
+     * `Depth estimation using VI-depth with OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/2024.1/notebooks/depth-estimation-videpth>`_
      * `Instruction following using Databricks Dolly 2.0 and OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/dolly-2-instruction-following>`_
 
        * See alternative: `LLM Instruction-following pipeline with OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/llm-question-answering>`__
 
-     * `Image generation with FastComposer and OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/fastcomposer-image-generation>`__
+     * `Image generation with FastComposer and OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/2024.1/notebooks/fastcomposer-image-generation>`__
      * `Video Subtitle Generation with OpenAI Whisper  <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/whisper-subtitles-generation>`__
 
        * See alternative: `Automatic speech recognition using Distil-Whisper and OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/distil-whisper-asr/distil-whisper-asr.ipynb>`__
 
-     * `Introduction to Performance Tricks in OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/performance-tricks>`__
-     * `Speaker Diarization with OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/pyannote-speaker-diarization>`__
-     * `Subject-driven image generation and editing using BLIP Diffusion and OpenVINO  <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/blip-diffusion-subject-generation>`__
-     * `Text Prediction with OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/text-prediction>`__
-     * `Training to Deployment with TensorFlow and OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/tensorflow-training-openvino>`__
-     * `Speech to Text with OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/speech-to-text>`__
-     * `Convert and Optimize YOLOv7 with OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/yolov7-optimization>`__
-     * `Quantize Data2Vec Speech Recognition Model using NNCF PTQ API <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/speech-recognition-quantization/speech-recognition-quantization-data2vec.ipynb>`__
+     * `Introduction to Performance Tricks in OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/2024.1/notebooks/performance-tricks>`__
+     * `Speaker Diarization with OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/2024.2/notebooks/pyannote-speaker-diarization>`__
+     * `Subject-driven image generation and editing using BLIP Diffusion and OpenVINO  <https://github.com/openvinotoolkit/openvino_notebooks/tree/2024.1/notebooks/blip-diffusion-subject-generation>`__
+     * `Text Prediction with OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/2024.1/notebooks/text-prediction>`__
+     * `Training to Deployment with TensorFlow and OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/2024.1/notebooks/tensorflow-training-openvino>`__
+     * `Speech to Text with OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/2024.2/notebooks/speech-to-text>`__
+     * `Convert and Optimize YOLOv7 with OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/2024.3/notebooks/yolov7-optimization>`__
+     * `Quantize Data2Vec Speech Recognition Model using NNCF PTQ API <https://github.com/openvinotoolkit/openvino_notebooks/blob/2024.2/notebooks/speech-recognition-quantization/speech-recognition-quantization-data2vec.ipynb>`__
 
        * See alternative: `Quantize Speech Recognition Models with accuracy control using NNCF PTQ API <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/quantizing-model-with-accuracy-control/speech-recognition-quantization-wav2vec2.ipynb>`__
 
-     * `Semantic segmentation with LRASPP MobileNet v3 and OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/torchvision-zoo-to-openvino/lraspp-segmentation.ipynb>`__
-     * `Video Recognition using SlowFast and OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/slowfast-video-recognition>`__
+     * `Semantic segmentation with LRASPP MobileNet v3 and OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/2024.1/notebooks/torchvision-zoo-to-openvino/lraspp-segmentation.ipynb>`__
+     * `Video Recognition using SlowFast and OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/2024.1/notebooks/slowfast-video-recognition>`__
 
        * See alternative: `Live Action Recognition with OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/action-recognition-webcam>`__
 
-     * `Semantic Segmentation with OpenVINO™ using Segmenter <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/segmenter-semantic-segmentation>`__
-     * `Programming Language Classification with OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/code-language-id>`__
+     * `Semantic Segmentation with OpenVINO™ using Segmenter <https://github.com/openvinotoolkit/openvino_notebooks/tree/2024.1/notebooks/segmenter-semantic-segmentation>`__
+     * `Programming Language Classification with OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/2024.1/notebooks/code-language-id>`__
      * `Stable Diffusion Text-to-Image Demo <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/stable-diffusion-v2/stable-diffusion-v2-text-to-image-demo.ipynb>`__
 
        * See alternative: `Stable Diffusion v2.1 using Optimum-Intel OpenVINO and multiple Intel Hardware <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/stable-diffusion-v2/stable-diffusion-v2-optimum-demo.ipynb>`__
@@ -1426,10 +1765,10 @@ Deprecated and to be removed in the future
 
        * See alternative: `Stable Diffusion v2.1 using Optimum-Intel OpenVINO and multiple Intel Hardware <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/stable-diffusion-v2/stable-diffusion-v2-optimum-demo.ipynb>`__
 
-     * `Image generation with Segmind Stable Diffusion 1B (SSD-1B) model and OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/stable-diffusion-xl/ssd-b1.ipynb>`__
-     * `Data Preparation for 2D Medical Imaging <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/ct-segmentation-quantize/data-preparation-ct-scan.ipynb>`__
-     * `Train a Kidney Segmentation Model with MONAI and PyTorch Lightning <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/ct-segmentation-quantize/pytorch-monai-training.ipynb>`__
-     * `Live Inference and Benchmark CT-scan Data with OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/ct-segmentation-quantize/ct-scan-live-inference.ipynb>`__
+     * `Image generation with Segmind Stable Diffusion 1B (SSD-1B) model and OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/2024.1/notebooks/stable-diffusion-xl/ssd-b1.ipynb>`__
+     * `Data Preparation for 2D Medical Imaging <https://github.com/openvinotoolkit/openvino_notebooks/blob/2024.1/notebooks/ct-segmentation-quantize/data-preparation-ct-scan.ipynb>`__
+     * `Train a Kidney Segmentation Model with MONAI and PyTorch Lightning <https://github.com/openvinotoolkit/openvino_notebooks/blob/2024.1/notebooks/ct-segmentation-quantize/pytorch-monai-training.ipynb>`__
+     * `Live Inference and Benchmark CT-scan Data with OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/blob/2024.1/notebooks/ct-segmentation-quantize/ct-scan-live-inference.ipynb>`__
 
        * See alternative: `Quantize a Segmentation Model and Show Live Inference <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/ct-segmentation-quantize/ct-segmentation-quantize-nncf.ipynb>`__
 
@@ -1458,7 +1797,7 @@ are available on request.
 
 Intel technologies' features and benefits depend on system configuration and may require
 enabled hardware, software or service activation. Learn more at
-`www.intel.com <http://www.intel.com/>`__
+`www.intel.com <https://www.intel.com/>`__
 or from the OEM or retailer.
 
 No computer system can be absolutely secure.

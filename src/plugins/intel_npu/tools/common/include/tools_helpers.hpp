@@ -109,6 +109,7 @@ void setModelBatch(std::shared_ptr<ov::Model>& model, uint32_t batch = 1) {
     if (batch == 1) {
         return;
     }
+    std::cout << "Configuring model batch: " << batch << std::endl;
     for (auto&& item : model->get_parameters()) {
         auto shape = item->get_partial_shape();
         auto rank = shape.rank();
@@ -175,7 +176,20 @@ void reshape(ov::OutputVector inputsInfo, InputsInfo& infoMap, std::shared_ptr<o
             device.find("CPU") != std::string::npos || device.find("TEMPLATE") != std::string::npos) {
             boundDynamicShape(model);
         }
+    }
+}
 
-        setModelBatch(model, overrideModelBatchSize);
+void printInputAndOutputsInfoShort(const ov::Model& network) {
+    std::cout << "Network inputs:" << std::endl;
+    for (auto&& param : network.get_parameters()) {
+        auto l = param->get_layout();
+        std::cout << "    " << param->get_friendly_name() << " : " << param->get_element_type() << " / "
+                  << param->get_layout().to_string() << " / " << param->get_partial_shape().to_string() << std::endl;
+    }
+    std::cout << "Network outputs:" << std::endl;
+    for (auto&& result : network.get_results()) {
+        std::cout << "    " << result->get_friendly_name() << " : " << result->get_element_type() << " / "
+                  << result->get_layout().to_string() << " / " << result->get_output_partial_shape(0).to_string()
+                  << std::endl;
     }
 }
