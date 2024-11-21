@@ -30,11 +30,11 @@ Identity::Identity(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         THROW_CPU_NODE_ERR(errorMessage);
-    }\
+    }
 
-    auto op = as_type_ptr<op::v16::Identity>(op);
+    auto identity_op = as_type_ptr<op::v16::Identity>(op);
 
-    if (is_type<op::v0::Constant>(op->get_input_node_ptr(0))) {
+    if (is_type<op::v0::Constant>(identity_op->get_input_node_ptr(0))) {
         m_const_input = true;
         constant = ConstantType::Const; // Node always produces the same output
     } else {
@@ -57,7 +57,7 @@ void Identity::initSupportedPrimitiveDescriptors() {
     auto out_prc = getOriginalOutputPrecisionAtPort(0);
 
     if (shape_prc != out_prc) {
-        THROW_CPU_NODE_ERR("has to have the same dtype for input and output nodes.")
+        THROW_CPU_NODE_ERR("has to have the same dtype for input and output nodes.");
     }
 
     m_out_prc = out_prc;
