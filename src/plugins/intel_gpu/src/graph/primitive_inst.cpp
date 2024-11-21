@@ -791,6 +791,16 @@ event::ptr primitive_inst::realloc_if_needed() {
             for (auto& user_inst : get_user_insts()) {
                 reset_user_output_memory(user_inst, dep_memory_ptr(0));
             }
+        } else {
+            if (_is_prev_optimized) {
+                if (_outputs[0] && dep_memory_ptr(0)) {
+                    for (auto& user_inst : get_user_insts()) {
+                        reset_user_output_memory(user_inst, _outputs[0]);
+                    }
+                }
+                _outputs[0] = nullptr;
+                _max_output_layout_count[0] = 0;
+            }
         }
     }
 
@@ -1748,6 +1758,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         GPU_DEBUG_TRACE_DETAIL << "- inputs[" << i << "] : " <<  _deps[i].first->id() << std::endl;
     }
     GPU_DEBUG_TRACE_DETAIL << "-----------------------------------------------------------------" << std::endl;
+    _is_prev_optimized = can_be_optimized();
     bool need_args_update = false;
     _mem_changed = false;
     const auto orig_outputs = _outputs;
@@ -1782,6 +1793,14 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         if (can_skip_execution) {
             auto ev = get_network().get_stream().aggregate_events(events);
             update_shape_done_by_other = false; // reset
+            if (_impl_params->runtime_skippable()) {
+                for (size_t idx = 0; idx < _impl_params->output_layouts.size(); idx++) {
+                    if (_impl_params->output_layouts[idx].count() == 0) {
+                        _outputs[idx] = nullptr;
+                        _max_output_layout_count[idx] = 0;
+                    }
+                }
+            }
             return ev;
         }
 
