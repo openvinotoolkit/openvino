@@ -79,8 +79,8 @@ RUN echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy main restricte
     echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy main >> riscv64-sources.list && \
     echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy universe >> riscv64-sources.list && \
     echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy-updates main >> riscv64-sources.list && \
-    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy-security main >> riscv64-sources.list
-    # mv riscv64-sources.list /etc/apt/sources.list.d/
+    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy-security main >> riscv64-sources.list \
+    mv riscv64-sources.list /etc/apt/sources.list.d/
 
 ##
 # Install build dependencies
