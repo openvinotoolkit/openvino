@@ -4,7 +4,7 @@
 import json
 
 from openvino._pyopenvino import PartialShape, Type
-from openvino.ie_api import Model  # pylint: disable=no-name-in-module,import-error
+from openvino import Model  # pylint: disable=no-name-in-module,import-error
 from openvino.utils.types import get_dtype  # pylint: disable=no-name-in-module,import-error
 
 

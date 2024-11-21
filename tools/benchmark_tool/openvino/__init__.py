@@ -52,13 +52,13 @@ from openvino._pyopenvino import RemoteTensor
 from openvino._pyopenvino import Op
 
 # Python extended classes and functions
-from openvino.ie_api import Model
-from openvino.ie_api import Core
-from openvino.ie_api import CompiledModel
-from openvino.ie_api import InferRequest
-from openvino.ie_api import AsyncInferQueue
-from openvino.ie_api import tensor_from_file
-from openvino.ie_api import compile_model
+from openvino._ov_api import Model
+from openvino._ov_api import Core
+from openvino._ov_api import CompiledModel
+from openvino._ov_api import InferRequest
+from openvino._ov_api import AsyncInferQueue
+from openvino._ov_api import tensor_from_file
+from openvino._ov_api import compile_model
 
 # libva related:
 from openvino._pyopenvino import VAContext
@@ -68,8 +68,15 @@ from openvino._pyopenvino import VASurfaceTensor
 from openvino._pyopenvino import get_version
 __version__ = get_version()
 
+# Import all public modules
 from openvino.package_utils import lazy_import
 runtime = lazy_import("openvino.runtime")
+from openvino import frontend as frontend
+from openvino import helpers as helpers
+from openvino import experimental as experimental
+from openvino import preprocess as preprocess
+from openvino import utils as utils
+from openvino import properties as properties
 
 # Tools
 try:
