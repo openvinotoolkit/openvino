@@ -376,7 +376,7 @@ static constexpr ov::Property<std::string> backend_compilation_params{"NPU_BACKE
 /**
  * @brief [Only for NPU compiler]
  * Type: boolean, default is false.
- * This option allows to omit store the log during compilation
+ * This option allows to store the log during compilation
  */
 static constexpr ov::Property<bool> store_logger_log{"NPU_STORE_LOGGER_LOG"};
 
