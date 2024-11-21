@@ -6,7 +6,7 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/primitives/swiglu.hpp"
 
-#include "ov_ops/swiglu.hpp"
+#include "ov_ops/glu.hpp"
 
 using GLU = ov::op::internal::GLU;
 

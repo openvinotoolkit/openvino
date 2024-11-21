@@ -7,7 +7,7 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/swiglu.hpp>
-#include "ov_ops/swiglu.hpp"
+#include "ov_ops/glu.hpp"
 #include "swiglu_inst.h"
 
 using namespace cldnn;

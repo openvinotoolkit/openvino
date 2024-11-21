@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ov_ops/swiglu.hpp"
+#include "ov_ops/glu.hpp"
 #include "swiglu_inst.h"
 
 #include "primitive_type_base.h"

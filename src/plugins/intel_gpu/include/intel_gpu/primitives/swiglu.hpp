@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include "ov_ops/swiglu.hpp"
+#include "ov_ops/glu.hpp"
 #include "primitive.hpp"
 
 namespace cldnn {
