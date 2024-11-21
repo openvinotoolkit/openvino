@@ -160,8 +160,12 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnected
         ov::disable_constant_folding(fc_input_zp);
         result_nodes.push_back(fc_input_zp);
 
-        OutputVector inputs{fc_input_a, fc_input_b, fc_input_bias, fc_input_scale, fc_input_zp};
-        auto new_fc = std::make_shared<ov::op::internal::FullyConnectedCompressed>(inputs, fc->get_output_type());
+        auto new_fc = std::make_shared<ov::op::internal::FullyConnectedCompressed>(fc_input_a,
+                                                                                   fc_input_b,
+                                                                                   fc_input_bias,
+                                                                                   fc_input_scale,
+                                                                                   fc_input_zp,
+                                                                                   fc->get_output_type());
 
         result_nodes.push_back(new_fc);
         new_fc->set_friendly_name(fc->get_friendly_name());

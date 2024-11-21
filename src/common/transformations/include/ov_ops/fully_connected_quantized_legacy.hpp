@@ -18,9 +18,6 @@ public:
 
     FullyConnectedQuantizedLegacy() = default;
 
-    FullyConnectedQuantizedLegacy(const OutputVector& arguments,
-                                  const ov::element::Type output_type = ov::element::undefined);
-
     FullyConnectedQuantizedLegacy(const ov::Output<Node>& X,
                                   const ov::Output<Node>& W,
                                   const ov::Output<Node>& bias,
@@ -34,13 +31,9 @@ public:
                                   const ov::Output<Node>& deq_scales,
                                   const ov::element::Type output_type = ov::element::undefined);
 
-    bool visit_attributes(ov::AttributeVisitor& visitor) override;
-
-    void validate_and_infer_types() override;
-
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 
-    std::shared_ptr<Node> fuse_bias(const ov::Output<Node>& bias) const override final;
+    void validate_and_infer_types() override;
 };
 
 }  // namespace internal

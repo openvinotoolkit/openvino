@@ -18,9 +18,6 @@ public:
 
     FullyConnectedCompressed() = default;
 
-    FullyConnectedCompressed(const OutputVector& arguments,
-                             const ov::element::Type output_type = ov::element::undefined);
-
     FullyConnectedCompressed(const ov::Output<Node>& X,
                              const ov::Output<Node>& W,
                              const ov::Output<Node>& bias,
@@ -28,11 +25,15 @@ public:
                              const ov::Output<Node>& weight_zero_points,
                              const ov::element::Type output_type = ov::element::undefined);
 
-    void validate_and_infer_types() override;
+    FullyConnectedCompressed(const ov::Output<Node>& X,
+                             const ov::Output<Node>& W,
+                             const ov::Output<Node>& bias,
+                             const ov::Output<Node>& weight_scales,
+                             const ov::element::Type output_type = ov::element::undefined);
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 
-    std::shared_ptr<Node> fuse_bias(const ov::Output<Node>& bias) const override final;
+    void validate_and_infer_types() override;
 };
 
 }  // namespace internal

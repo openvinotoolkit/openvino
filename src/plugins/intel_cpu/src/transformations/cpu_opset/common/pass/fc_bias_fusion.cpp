@@ -3,22 +3,18 @@
 //
 
 #include "fc_bias_fusion.hpp"
+
 #include <cstdint>
 #include <memory>
 
-#include "openvino/op/reshape.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
-#include "ov_ops/fully_connected.hpp"
-#include "ov_ops/fully_connected_compressed.hpp"
-#include "ov_ops/fully_connected_quantized_legacy.hpp"
-#include "ov_ops/placeholder.hpp"
+#include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-
+#include "ov_ops/fully_connected.hpp"
+#include "ov_ops/placeholder.hpp"
 #include "transformations/utils/utils.hpp"
-
-#include "itt.hpp"
 
 ov::intel_cpu::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
     MATCHER_SCOPE(FullyConnectedBiasFusion);
@@ -27,47 +23,19 @@ ov::intel_cpu::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
     auto weights = ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape());
     auto ph = ov::pass::pattern::wrap_type<ov::op::internal::Placeholder>();
 
-    auto m_fc =
-        ov::pass::pattern::wrap_type<ov::op::internal::FullyConnected>({input, weights, ph}, ov::pass::pattern::consumers_count(1));
-
-    auto m_fc_ql = ov::pass::pattern::wrap_type<ov::op::internal::FullyConnectedQuantizedLegacy>(
-        {
-            input,
-            weights,
-            ph,
-            ov::pass::pattern::any_input(),
-            ov::pass::pattern::any_input(),
-        },
-        ov::pass::pattern::consumers_count(1));
-
-    auto m_fc_c = ov::pass::pattern::wrap_type<ov::op::internal::FullyConnectedCompressed>(
-        {
-            input,
-            weights,
-            ph,
-            ov::pass::pattern::any_input(),
-            ov::pass::pattern::any_input()
-        },
-        ov::pass::pattern::consumers_count(1));
-
-    auto m_fc_or = std::make_shared<pass::pattern::op::Or>(
-        OutputVector{
-            m_fc,
-            m_fc_ql,
-            m_fc_c
-        });
+    auto m_fc = ov::pass::pattern::wrap_type<ov::op::internal::FullyConnected>({input, weights, ph},
+                                                                               ov::pass::pattern::consumers_count(1));
 
     auto m_bias = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::has_static_shape());
-    auto m_add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({m_fc_or, m_bias});
+    auto m_add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({m_fc, m_bias});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher &m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
 
         auto add = pattern_to_output[m_add].get_node_shared_ptr();
         auto bias = pattern_to_output[m_bias].get_node_shared_ptr();
-        auto fc = pattern_to_output.count(m_fc) ? pattern_to_output[m_fc].get_node_shared_ptr()
-            : pattern_to_output.count(m_fc_ql) ? pattern_to_output[m_fc_ql].get_node_shared_ptr()
-            : pattern_to_output[m_fc_c].get_node_shared_ptr();
+
+        auto fc = pattern_to_output[m_fc].get_node_shared_ptr();
 
         if (transformation_callback(fc)) {
             return false;
@@ -81,8 +49,7 @@ ov::intel_cpu::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
             return false;
         }
 
-        if (bias_shape.empty() ||
-            static_cast<int64_t>(bias_shape.back()) != output_shape[rank - 1].get_length() ||
+        if (bias_shape.empty() || static_cast<int64_t>(bias_shape.back()) != output_shape[rank - 1].get_length() ||
             bias_shape.back() != bias_size) {
             return false;
         }
@@ -91,16 +58,15 @@ ov::intel_cpu::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
 
         std::shared_ptr<ov::Node> final_bias = bias;
         if (bias_shape.size() >= 2) {
-            auto reshape_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{ 1 }, { -1 });
+            auto reshape_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
             final_bias = ov::op::util::make_try_fold<ov::op::v1::Reshape>(final_bias, reshape_const, true);
             new_ops.push_back(final_bias);
         }
 
         std::shared_ptr<ov::Node> fc_with_bias;
 
-        // so we don't need to down cast here
         auto fc_node = ov::as_type_ptr<ov::op::internal::FullyConnected>(fc);
-        fc_with_bias = fc_node->fuse_bias(final_bias);
+        fc_with_bias = fc_node->clone_with_new_inputs({fc_node->input_value(0), fc_node->input_value(1), final_bias});
 
         new_ops.push_back(fc_with_bias);
 

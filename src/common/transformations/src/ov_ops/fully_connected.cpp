@@ -7,16 +7,11 @@
 #include <memory>
 
 #include "matmul_shape_inference.hpp"
+#include "ov_ops/placeholder.hpp"
 
 namespace ov {
 namespace op {
 namespace internal {
-
-FullyConnected::FullyConnected(const OutputVector& arguments, const ov::element::Type output_type)
-    : Op(arguments),
-      m_output_type(output_type) {
-    validate_and_infer_types();
-}
 
 FullyConnected::FullyConnected(const ov::Output<Node>& A,
                                const ov::Output<Node>& B,
@@ -27,14 +22,20 @@ FullyConnected::FullyConnected(const ov::Output<Node>& A,
     validate_and_infer_types();
 }
 
+FullyConnected::FullyConnected(const ov::Output<Node>& A,
+                               const ov::Output<Node>& B,
+                               const ov::element::Type output_type)
+    : FullyConnected(A, B, std::make_shared<Placeholder>(), output_type) {}
+
+bool FullyConnected::visit_attributes(ov::AttributeVisitor& visitor) {
+    visitor.on_attribute("output_type", m_output_type);
+    return true;
+}
+
 std::shared_ptr<ov::Node> FullyConnected::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
 
     return std::make_shared<FullyConnected>(new_args.at(0), new_args.at(1), new_args.at(2), m_output_type);
-}
-
-std::shared_ptr<Node> FullyConnected::fuse_bias(const ov::Output<Node>& bias) const {
-    return std::make_shared<FullyConnected>(input_value(0), input_value(1), bias, m_output_type);
 }
 
 void FullyConnected::validate_and_infer_types() {
@@ -55,11 +56,6 @@ void FullyConnected::validate_and_infer_types() {
 
     auto output_type = m_output_type == ov::element::undefined ? get_input_element_type(0) : m_output_type;
     set_output_type(0, output_type, out_shapes[0]);
-}
-
-bool FullyConnected::visit_attributes(ov::AttributeVisitor& visitor) {
-    visitor.on_attribute("output_type", m_output_type);
-    return true;
 }
 
 }  // namespace internal

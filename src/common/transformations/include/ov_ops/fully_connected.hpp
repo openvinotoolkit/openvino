@@ -18,24 +18,24 @@ public:
 
     FullyConnected() = default;
 
-    FullyConnected(const OutputVector& arguments, const ov::element::Type output_type = ov::element::undefined);
-
     FullyConnected(const ov::Output<Node>& A,
                    const ov::Output<Node>& B,
                    const ov::Output<Node>& bias,
                    const ov::element::Type output_type = ov::element::undefined);
 
+    FullyConnected(const ov::Output<Node>& A,
+                   const ov::Output<Node>& B,
+                   const ov::element::Type output_type = ov::element::undefined);
+
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
-
-    void validate_and_infer_types() override;
-
-    std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
-
-    virtual std::shared_ptr<Node> fuse_bias(const ov::Output<Node>& bias) const;
 
     ov::element::Type get_output_type() const {
         return m_output_type;
     }
+
+    std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
+
+    void validate_and_infer_types() override;
 
 protected:
     ov::element::Type m_output_type;

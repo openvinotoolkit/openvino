@@ -40,6 +40,8 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model> &model) {
         CPU_DISABLE_PASS_COMMON(manager, ConvertMatMulToFC);
     }
 
+    CPU_REGISTER_PASS_COMMON(manager, FullyConnectedBiasFusion);
+
     std::vector<ov::element::Type> supported_compression_types {
         ov::element::u8,
         ov::element::i8,
@@ -64,7 +66,7 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model> &model) {
         ov::pass::Serialize("after_fc_quantized.xml", "/dev/null").run_on_model(model);
         CPU_DISABLE_PASS_COMMON(manager, ConvertMatMulToFC);
     }
-    CPU_REGISTER_PASS_COMMON(manager, FullyConnectedBiasFusion);
+
     CPU_REGISTER_PASS_X64(manager, MoveFCReshapeToWeights);
     CPU_REGISTER_PASS_X64(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_COMMON(manager, AlignMatMulInputRanks);

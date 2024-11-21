@@ -18,9 +18,6 @@ public:
 
     FullyConnectedQuantized() = default;
 
-    FullyConnectedQuantized(const OutputVector& arguments,
-                            const ov::element::Type output_type = ov::element::undefined);
-
     FullyConnectedQuantized(const ov::Output<Node>& X,
                             const ov::Output<Node>& W,
                             const ov::Output<Node>& bias,
@@ -32,36 +29,9 @@ public:
                             const ov::Output<Node>& output_zero_points,
                             const ov::element::Type output_type = ov::element::undefined);
 
-    FullyConnectedQuantized(const ov::Output<Node>& X,
-                            const ov::Output<Node>& W,
-                            const ov::Output<Node>& bias,
-                            const ov::Output<Node>& weight_scales,
-                            const ov::Output<Node>& weight_zero_points,
-                            const ov::Output<Node>& input_scales,
-                            const ov::element::Type output_type = ov::element::undefined);
-
-    FullyConnectedQuantized(const ov::Output<Node>& X,
-                            const ov::Output<Node>& W,
-                            const ov::Output<Node>& bias,
-                            const ov::Output<Node>& weight_scales,
-                            const ov::Output<Node>& weight_zero_points,
-                            const ov::element::Type output_type = ov::element::undefined);
-
-    FullyConnectedQuantized(const ov::Output<Node>& X,
-                            const ov::Output<Node>& W,
-                            const ov::Output<Node>& bias,
-                            const ov::Output<Node>& weight_scales,
-                            const ov::element::Type output_type = ov::element::undefined);
-
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
-
-    std::shared_ptr<Node> fuse_bias(const ov::Output<Node>& bias) const override final;
-
-    ov::element::Type get_output_type() const {
-        return m_output_type;
-    }
 };
 
 }  // namespace internal
