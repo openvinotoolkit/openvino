@@ -13,11 +13,11 @@
 #    include <immintrin.h>
 #endif
 
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/parallel.hpp"
+#include "common.hpp"
 #include "attn_quant.hpp"
 #include "attn_quant_kernel.hpp"
-#include "common.hpp"
-#include "openvino/core/parallel.hpp"
-#include "openvino/core/type/bfloat16.hpp"
 
 namespace ov {
 namespace Extensions {
@@ -26,7 +26,7 @@ namespace XARCH {
 
 using namespace ov;
 
-template <typename T>
+template<typename T>
 static void quant_u8(const T* src, uint8_t* dst, size_t n, float& scale, float& zp) {
     size_t i = 0;
     float max = -FLT_MAX;
@@ -176,14 +176,28 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                           const ov::intel_cpu::PlainTensor& k_dst,
                           const ov::intel_cpu::PlainTensor& v_dst,
                           const ov::intel_cpu::PlainTensor& k_scale_zp,
-                          const ov::intel_cpu::PlainTensor& v_scale_zp) {
+                          const ov::intel_cpu::PlainTensor& v_scale_zp,
+                          const size_t key_group_size,
+                          const size_t value_group_size) {
     // For compatibility, all input_kvs are permuted to BHLS
     size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2], S = k_src.m_dims[3], SV = v_src.m_dims[3];
     parallel_for3d(L1, B, H, [&](size_t m, size_t b, size_t h) {
         auto p_k = k_scale_zp.ptr<float>(m, b, h);
         auto p_v = v_scale_zp.ptr<float>(m, b, h);
-        quant_u8(k_src.ptr<T>(b, h, m), k_dst.ptr<T2>(b, h, m), S, p_k[0], p_k[1]);
-        quant_u8(v_src.ptr<T>(b, h, m), v_dst.ptr<T2>(b, h, m), SV, p_v[0], p_v[1]);
+        for (size_t group_id = 0; group_id < S / key_group_size; group_id++) {
+            quant_u8(k_src.ptr<T>(b, h, m, group_id * key_group_size),
+                     k_dst.ptr<T2>(b, h, m, group_id * key_group_size),
+                     key_group_size,
+                     p_k[group_id * 2],
+                     p_k[group_id * 2 + 1]);
+        }
+        for (size_t group_id = 0; group_id < SV / value_group_size; group_id++) {
+            quant_u8(v_src.ptr<T>(b, h, m, group_id * value_group_size),
+                    v_dst.ptr<T2>(b, h, m, group_id * value_group_size),
+                    value_group_size,
+                    p_v[group_id * 2],
+                    p_v[group_id * 2 + 1]);
+        }
     });
 }
 
@@ -197,16 +211,14 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
     size_t block_size = k_dst.m_dims[2];
     parallel_for3d(B, L1, H, [&](size_t b, size_t m, size_t h) {
         auto slot = slot_mapping.ptr<int32_t>(b)[m];
-        if (slot < 0)
-            return;
+        if (slot < 0) return;
         auto block_number = slot / block_size;
         auto block_offset = slot % block_size;
 
         auto p_k = reinterpret_cast<float*>(k_dst.ptr<T2>(block_number, h, block_offset));
         auto p_v = reinterpret_cast<float*>(v_dst.ptr<T2>(block_number, h, block_offset));
         // The layout for per token per head:
-        // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
-        // feature(u8,idx_S)|
+        // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
         quant_u8(k_src.ptr<T>(b, h, m),
                  k_dst.ptr<T2>(block_number, h, block_offset) + sizeof(float) + sizeof(float),
                  S,
@@ -225,19 +237,17 @@ void attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
                   const ov::intel_cpu::PlainTensor& k_dst,
                   const ov::intel_cpu::PlainTensor& v_dst,
                   const ov::intel_cpu::PlainTensor& k_scale_zp,
-                  const ov::intel_cpu::PlainTensor& v_scale_zp) {
+                  const ov::intel_cpu::PlainTensor& v_scale_zp,
+                  const size_t k_group_size,
+                  const size_t v_group_size) {
     if (k_src.get_precision() == ov::element::f32 && k_dst.get_precision() == ov::element::u8) {
-        attn_quant_mt<float, uint8_t>(k_src, v_src, k_dst, v_dst, k_scale_zp, v_scale_zp);
+        attn_quant_mt<float, uint8_t>(k_src, v_src, k_dst, v_dst, k_scale_zp, v_scale_zp, k_group_size, v_group_size);
     } else if (k_src.get_precision() == ov::element::bf16 && k_dst.get_precision() == ov::element::u8) {
-        attn_quant_mt<ov::bfloat16, uint8_t>(k_src, v_src, k_dst, v_dst, k_scale_zp, v_scale_zp);
+        attn_quant_mt<ov::bfloat16, uint8_t>(k_src, v_src, k_dst, v_dst, k_scale_zp, v_scale_zp, k_group_size, v_group_size);
     } else if (k_src.get_precision() == ov::element::f16 && k_dst.get_precision() == ov::element::u8) {
-        attn_quant_mt<ov::float16, uint8_t>(k_src, v_src, k_dst, v_dst, k_scale_zp, v_scale_zp);
+        attn_quant_mt<ov::float16, uint8_t>(k_src, v_src, k_dst, v_dst, k_scale_zp, v_scale_zp, k_group_size, v_group_size);
     } else {
-        OPENVINO_THROW("unsupport src type: ",
-                       k_src.get_precision(),
-                       ", dst type: ",
-                       k_dst.get_precision(),
-                       " in attn_quantkv");
+        OPENVINO_THROW("unsupport src type: ", k_src.get_precision(), ", dst type: ", k_dst.get_precision(), " in attn_quantkv");
     }
 }
 
@@ -253,11 +263,7 @@ void paged_attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
     } else if (k_src.get_precision() == ov::element::f16 && k_dst.get_precision() == ov::element::u8) {
         paged_attn_quant_mt<ov::float16, uint8_t>(k_src, v_src, k_dst, v_dst, slot_mapping);
     } else {
-        OPENVINO_THROW("unsupport src type: ",
-                       k_src.get_precision(),
-                       ", dst type: ",
-                       k_dst.get_precision(),
-                       " in paged_attn_quantkv");
+        OPENVINO_THROW("unsupport src type: ", k_src.get_precision(), ", dst type: ", k_dst.get_precision(), " in paged_attn_quantkv");
     }
 }
 
