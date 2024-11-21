@@ -9,6 +9,18 @@
 #include <functional>
 #include <memory>
 #include <openvino/core/node.hpp>
+#include <openvino/opsets/opset10.hpp>
+#include <openvino/opsets/opset12.hpp>
+#include <openvino/opsets/opset13.hpp>
+#include <openvino/opsets/opset14.hpp>
+#include <openvino/opsets/opset15.hpp>
+#include <openvino/opsets/opset16.hpp>
+#include <openvino/opsets/opset2.hpp>
+#include <openvino/opsets/opset5.hpp>
+#include <openvino/opsets/opset6.hpp>
+#include <openvino/opsets/opset7.hpp>
+#include <openvino/opsets/opset8.hpp>
+#include <openvino/opsets/opset9.hpp>
 #include <optional>
 #include <type_traits>
 #include <unordered_map>
@@ -67,6 +79,7 @@
 #include "gru_cell_shape_inference.hpp"
 #include "gru_sequence_shape_inference.hpp"
 #include "i420_shape_inference.hpp"
+#include "identity_shape_inference.hpp"
 #include "interpolate_shape_inference.hpp"
 #include "inverse_shape_inference.hpp"
 #include "irdft_shape_inference.hpp"
@@ -581,6 +594,7 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     OV_OP_SHAPE_INFER_MASK_REG(op::v16::ISTFT, ShapeInferTA, util::bit::mask(2, 3, 4)),
     OV_OP_SHAPE_INFER_MASK_REG(op::v16::SegmentMax, ShapeInferTA, util::bit::mask(1, 2)),
     OV_OP_SHAPE_INFER_MASK_REG(op::v16::SparseFillEmptyRows, ShapeInferTA, util::bit::mask(1, 2)),
+    OV_OP_SHAPE_INFER_MASK_REG(op::v16::Identity, ShapeInferTA, util::bit::mask()),
     // opset15
     OV_OP_SHAPE_INFER_MASK_REG(op::v15::Squeeze, ShapeInferTA, util::bit::mask(1)),
     OV_OP_SHAPE_INFER_MASK_REG(op::v15::SearchSorted, ShapeInferTA, util::bit::mask()),
