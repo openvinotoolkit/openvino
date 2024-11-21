@@ -279,6 +279,14 @@ static constexpr ov::Property<bool> parallel_compilation{"NPUW_PARALLEL_COMPILE"
  */
 static constexpr ov::Property<bool> funcall_async{"NPUW_FUNCALL_ASYNC"};
 
+/**
+ * @brief
+ * Type: boolean
+ * Create individual infer requests for partitiongs, even repeating.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> unfold_ireqs{"NPUW_UNFOLD_IREQS"};
+
 namespace accuracy {
 /**
  * @brief
