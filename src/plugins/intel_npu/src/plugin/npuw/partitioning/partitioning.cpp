@@ -1775,7 +1775,7 @@ void Partitioner::optimize(const std::string& func_name) {
             auto closure_idx = param_idx - f._param_offset;
             ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
-                funcall._lazy_closure[closure_idx] = funcall._lazy_closure[closure_idx].convert();
+                funcall._lazy_closure[closure_idx] = funcall._lazy_closure[closure_idx].convert(ov::element::f16);
             });
         }
     };
@@ -1864,15 +1864,10 @@ void Partitioner::optimize(const std::string& func_name) {
 
             ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
-                // FIXME: assuming no transformations were applied to the tensor - since we are utilizing the original
-                // ov::Tensor below
                 LazyTensor cw = funcall._lazy_closure[w_idx - f._param_offset];
                 LazyTensor cz = z_idx != -1 ? funcall._lazy_closure[z_idx - f._param_offset] : LazyTensor(ov::Tensor());
                 LazyTensor cs = funcall._lazy_closure[s_idx - f._param_offset];
-
-                // FIXME: currently there is an issue that we don't share such tensor between head and tail
-                funcall._lazy_closure.push_back(
-                    LazyTensor(cw, cz, cs, p.first->get_shape(), p.first->get_element_type()));
+                funcall._lazy_closure.push_back(LazyTensor(cw, cz, cs, p.first->get_element_type()));
                 // Some of the tensors might be in closure - preserve it's 1:1 idx mapping with _lazy_closure
                 funcall._closure.push_back(ov::Tensor());
             });
