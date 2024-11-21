@@ -829,7 +829,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
         OV_CASE(Algorithm::EltwiseEqual, jit_equal_emitter),
         OV_CASE(Algorithm::EltwiseExp, jit_exp_emitter),
         OV_CASE(Algorithm::EltwiseFloor, jit_floor_emitter),
-        OV_CASE(Algorithm::EltwiseCeiling,jit_ceiling_emitter),
+        OV_CASE(Algorithm::EltwiseCeiling, jit_ceiling_emitter),
         OV_CASE(Algorithm::EltwiseGeluErf, jit_gelu_erf_emitter),
         OV_CASE(Algorithm::EltwiseGeluTanh, jit_gelu_tanh_emitter),
         OV_CASE(Algorithm::EltwiseGreater, jit_greater_emitter),
