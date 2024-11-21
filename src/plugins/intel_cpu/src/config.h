@@ -65,6 +65,8 @@ struct Config {
     size_t rtCacheCapacity = 0ul;
 #endif
     ov::threading::IStreamsExecutor::Config streamExecutorConfig;
+    ov::threading::IStreamsExecutor::Config secondStreamExecutorConfig;
+    bool second_executor_config = false;
     int streams = 1;
     bool streamsChanged = false;
     int threads = 0;

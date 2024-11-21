@@ -703,6 +703,16 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                            false,
                                                            cpu_pinning,
                                                            streams_info_table};
+    if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 || config.streams == 1) {
+        config.second_executor_config = true;
+        std::cout << " secondStreamExecutorConfig: threads--- " << proc_type_table[0][ALL_PROC] << "\n";
+        config.secondStreamExecutorConfig = IStreamsExecutor::Config{"CPUSecondStreamsExecutor",
+                                                                     config.streams,
+                                                                     proc_type_table[0][ALL_PROC],
+                                                                     ov::hint::SchedulingCoreType::ANY_CORE,
+                                                                     false,
+                                                                     false};
+    }
 
     return proc_type_table;
 }

@@ -126,12 +126,18 @@ const std::shared_ptr<const ov::IPlugin>& ov::ICompiledModel::get_plugin() const
 const std::shared_ptr<ov::threading::ITaskExecutor> ov::ICompiledModel::get_task_executor() const {
     return m_task_executor;
 }
+const std::shared_ptr<ov::threading::ITaskExecutor> ov::ICompiledModel::get_second_task_executor() const {
+    return m_second_task_executor;
+}
 const std::shared_ptr<ov::threading::ITaskExecutor> ov::ICompiledModel::get_callback_executor() const {
     return m_callback_executor;
 }
 
 void ov::ICompiledModel::set_task_executor(const std::shared_ptr<ov::threading::ITaskExecutor> task_executor) {
     m_task_executor = task_executor;
+}
+void ov::ICompiledModel::set_second_task_executor(const std::shared_ptr<ov::threading::ITaskExecutor> task_executor) {
+    m_second_task_executor = task_executor;
 }
 
 void ov::ICompiledModel::set_callback_executor(const std::shared_ptr<ov::threading::ITaskExecutor> callback_executor) {

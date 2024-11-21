@@ -71,6 +71,10 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                                                             true}
                                                  : m_cfg.streamExecutorConfig;
         m_task_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(executor_confg);
+        if (m_cfg.second_executor_config) {
+            m_second_task_executor =
+                m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(m_cfg.secondStreamExecutorConfig);
+        }
     }
     if (0 != m_cfg.streamExecutorConfig.get_streams()) {
         m_callback_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(
@@ -79,8 +83,12 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         m_callback_executor = m_task_executor;
     }
 
-    if (m_task_executor)
+    if (m_task_executor) {
         set_task_executor(m_task_executor);
+        if (m_cfg.second_executor_config) {
+            set_second_task_executor(m_second_task_executor);
+        }
+    }
     if (m_callback_executor)
         set_callback_executor(m_callback_executor);
 
@@ -193,6 +201,9 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
         std::make_shared<AsyncInferRequest>(std::static_pointer_cast<SyncInferRequest>(internal_request),
                                             get_task_executor(),
                                             get_callback_executor());
+    if (m_cfg.second_executor_config) {
+        async_infer_request->setSecondTaskExecutor(get_second_task_executor());
+    }
     if (m_has_sub_compiled_models) {
         std::vector<std::shared_ptr<IAsyncInferRequest>> requests;
         for (auto model : m_sub_compiled_models) {

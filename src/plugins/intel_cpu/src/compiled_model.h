@@ -58,6 +58,7 @@ private:
     const std::shared_ptr<ov::Model> m_model;
     const std::shared_ptr<const ov::IPlugin> m_plugin;
     std::shared_ptr<ov::threading::ITaskExecutor> m_task_executor = nullptr;      //!< Holds a task executor
+    std::shared_ptr<ov::threading::ITaskExecutor> m_second_task_executor = nullptr;      //!< Holds a task executor
     std::shared_ptr<ov::threading::ITaskExecutor> m_callback_executor = nullptr;  //!< Holds a callback executor
 
     // Generic synchronization primitive on CompiledModel level.

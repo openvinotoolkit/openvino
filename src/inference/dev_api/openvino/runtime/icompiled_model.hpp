@@ -149,6 +149,7 @@ private:
     ov::SoPtr<IRemoteContext> m_context;
 
     std::shared_ptr<ov::threading::ITaskExecutor> m_task_executor = nullptr;      //!< Holds a task executor
+    std::shared_ptr<ov::threading::ITaskExecutor> m_second_task_executor = nullptr;
     std::shared_ptr<ov::threading::ITaskExecutor> m_callback_executor = nullptr;  //!< Holds a callback executor
 
     friend ov::CoreImpl;
@@ -182,8 +183,10 @@ protected:
      */
     const std::shared_ptr<const ov::IPlugin>& get_plugin() const;
     const std::shared_ptr<ov::threading::ITaskExecutor> get_task_executor() const;
+    const std::shared_ptr<ov::threading::ITaskExecutor> get_second_task_executor() const;
     const std::shared_ptr<ov::threading::ITaskExecutor> get_callback_executor() const;
     void set_task_executor(const std::shared_ptr<ov::threading::ITaskExecutor> task_executor);
+    void set_second_task_executor(const std::shared_ptr<ov::threading::ITaskExecutor> task_executor);
     void set_callback_executor(const std::shared_ptr<ov::threading::ITaskExecutor> callback_executor);
 
     static void set_model_shared_object(ov::Model& model, const std::shared_ptr<void>& shared_object);
