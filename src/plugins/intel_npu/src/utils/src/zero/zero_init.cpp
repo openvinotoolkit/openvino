@@ -79,7 +79,6 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
     }
 
     // Check L0 API version
-    ze_api_version_t ze_drv_api_version = {};
     THROW_ON_FAIL_FOR_LEVELZERO("zeDriverGetApiVersion", zeDriverGetApiVersion(driver_handle, &ze_drv_api_version));
 
     if (ZE_MAJOR_VERSION(ZE_API_VERSION_CURRENT) != ZE_MAJOR_VERSION(ze_drv_api_version)) {
