@@ -14,10 +14,10 @@ namespace kernel_selector {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct swiglu_params : public base_params {
     swiglu_params() : base_params(KernelType::SWIGLU), axis(0), split_length(0),
-    glu_type(ov::op::internal::SwiGLU::GluType::Swish), split_to_glu_idx(0) {}
+    glu_type(ov::op::internal::GLU::GluType::Swish), split_to_glu_idx(0) {}
     int32_t axis;
     int32_t split_length;
-    ov::op::internal::SwiGLU::GluType glu_type;
+    ov::op::internal::GLU::GluType glu_type;
     int32_t split_to_glu_idx;
 };
 

@@ -28,7 +28,7 @@ std::vector<layout> swiglu_inst::calc_output_layouts(swiglu_node const& /*node*/
     auto output_type = impl_param.desc->output_data_types[0].value_or(input_layout.data_type);
     auto output_format = input_layout.format;
 
-    ov::op::internal::SwiGLU op;
+    ov::op::internal::GLU op;
     op.set_axis(desc->axis);
     op.set_split_lengths(desc->split_lengths);
 
