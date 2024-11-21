@@ -3,6 +3,7 @@
 //
 
 #include "lstm_seq_inst.h"
+#include "reshape_inst.h"
 #include "intel_gpu/runtime/utils.hpp"
 #include "impls/registry/implementation_manager.hpp"
 #include "transformations/utils/utils.hpp"
@@ -20,7 +21,8 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
 
     bool validate_impl(const program_node& node) const override {
         assert(node.is_type<lstm_seq>());
-        return node.get_input_layout(0).format == cldnn::format::bfyx || node.get_input_layout(0).format == cldnn::format::fbyx;
+        return node.get_input_layout(0).format == cldnn::format::bfyx || node.get_input_layout(0).format == cldnn::format::fbyx \
+            || node.get_input_layout(0).format == cldnn::format::ybfx;
     }
 
     in_out_fmts_t query_formats(const program_node& node) const override {

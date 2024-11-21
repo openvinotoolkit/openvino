@@ -149,11 +149,11 @@ KERNEL(lstm_cell_and_seq_bfyx)(
                 }
 
                 unroll_for(uint j=block_num*VEC_SIZE;j<INPUT_SIZE;++j) { //leftovers
-                        if (dir == 1) {
-                            input_result += x[GET_IN0_IDX(b, real_seq_length-1-i, j)]*W[GET_IN3_IDX(dir, weight_idx, j)];
-                        } else {
-                            input_result += x[GET_IN0_IDX(b, i, j)]*W[GET_IN3_IDX(dir, weight_idx, j)];
-                        }
+                    if (dir == 1) {
+                        input_result += x[GET_IN0_IDX(b, real_seq_length-1-i, j)]*W[GET_IN3_IDX(dir, weight_idx, j)];
+                    } else {
+                        input_result += x[GET_IN0_IDX(b, i, j)]*W[GET_IN3_IDX(dir, weight_idx, j)];
+                    }
                 }
                 gate_output[k] = hidden_result + input_result + TO_ACCUMULATOR_TYPE(B[GET_IN5_IDX(dir, weight_idx)]);
                 switch(k){

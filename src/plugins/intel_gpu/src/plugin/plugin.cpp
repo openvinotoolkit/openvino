@@ -189,9 +189,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config);
-    if (context->get_engine().get_device_info().supports_immad) {
-        config.set_property(ov::intel_gpu::use_onednn(true));
-    }
     config.apply_user_properties(context->get_engine().get_device_info());
 
     set_cache_info(model, config);
@@ -213,9 +210,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config);
-    if (context_impl->get_engine().get_device_info().supports_immad) {
-        config.set_property(ov::intel_gpu::use_onednn(true));
-    }
     config.apply_user_properties(context_impl->get_engine().get_device_info());
 
     set_cache_info(model, config);

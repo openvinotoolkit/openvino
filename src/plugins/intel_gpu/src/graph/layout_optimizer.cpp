@@ -1088,7 +1088,7 @@ format layout_optimizer::get_expected_format(quantize_node const& node) {
         return all_users_gemm;
     };
 
-    auto use_onednn_impls = contains_onednn_impls_optimization_attribute(&node);
+    auto use_onednn_impls = has_all_enabled_onednn_impls_optimization_attribute();
 
     if (use_onednn_impls) {
         expected = format::any;
@@ -1444,8 +1444,6 @@ bool layout_optimizer::has_all_enabled_onednn_impls_optimization_attribute() {
         is_enabled_onednn_for<fully_connected>() && is_enabled_onednn_for<gemm>() && is_enabled_onednn_for<lstm_seq>() && \
         is_enabled_onednn_for<pooling>() && is_enabled_onednn_for<reduce>() && is_enabled_onednn_for<reorder>();
 }
-
-
 
 void layout_optimizer::set_value_onednn(primitive_type_id p_type, bool val) {
     _optimization_attributes.onednn_impls[p_type] = val;

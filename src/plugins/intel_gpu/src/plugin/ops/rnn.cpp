@@ -80,23 +80,6 @@ static void CreateLSTMCellOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v4
                         cldnn::input_info(), "",  layerName + "_md_write.1", clip, false, activations, \
                         activation_params, cldnn::lstm_weights_order::fizo, ov::op::RecurrentSequenceDirection::FORWARD, cldnn::padding(), \
                         static_cast<int>(op->get_output_size())));
-    } else {
-        auto mutable_precision_first = op->get_output_element_type(1);
-        cldnn::layout outLayout = cldnn::layout(
-                cldnn::element_type_to_data_type(mutable_precision_first),
-                cldnn::format::get_default_format(op->get_output_shape(1).size()),
-                tensor_from_dims(op->get_output_shape(1)));
-
-        cldnn::memory::ptr shared_memory = p.get_engine().allocate_memory(outLayout);
-        const cldnn::primitive_id mutable_id_1 = layerName + "_md_write.1";
-        const cldnn::mutable_data mutable_prim_1{mutable_id_1, shared_memory};
-        p.add_primitive(*op, mutable_prim_1);
-
-        p.add_primitive(*op, cldnn::lstm_cell(layerName+".out0", inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5], \
-                        cldnn::input_info(), "",  layerName + "_md_write.1", clip, false, activations, \
-                        activation_params, cldnn::lstm_weights_order::fizo, ov::op::RecurrentSequenceDirection::FORWARD, cldnn::padding(), 1));
-
-        p.add_primitive(*op, cldnn::mutable_data(layerName + ".out1", {cldnn::input_info(layerName + ".out0")}, shared_memory));
     }
 }
 
