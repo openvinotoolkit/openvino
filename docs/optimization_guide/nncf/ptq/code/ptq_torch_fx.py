@@ -39,6 +39,6 @@ with disable_patching():
     res = compiled_model_int8(input_fp32)
 
     # save the model
-    exported_program = torch.export.export(compiled_model_int8, args=(input_fp32,))
+    exported_program = torch.export.export(quantized_model, args=(input_fp32,))
     torch.export.save(exported_program, 'exported_program.pt2')
 #! [inference]
