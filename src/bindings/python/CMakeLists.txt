@@ -320,6 +320,16 @@ if(ENABLE_PYTHON_PACKAGING)
     set(openvino_meta_info_subdir "openvino-${OpenVINO_VERSION}-py${python_xy}.egg-info")
     set(openvino_meta_info_file "${ov_install_lib}/${openvino_meta_info_subdir}/PKG-INFO")
 
+    execute_process(COMMAND ${Python3_EXECUTABLE} -m pip --version
+                OUTPUT_VARIABLE pip_version OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+    string(REGEX MATCH "pip[ ]+([\\.0-9]*)" pip_version "${pip_version}")
+    set(pip_version ${CMAKE_MATCH_1})
+
+    if(pip_version VERSION_LESS 22.3)
+        message(FATAL_ERROR "pip version ${pip_version} is not supported. Please update pip to version 22.3 or higher.")
+    endif()
+        
     add_custom_command(OUTPUT ${openvino_meta_info_file}
         COMMAND ${CMAKE_COMMAND} -E remove_directory
             "${ov_python_package_prefix}"
@@ -329,8 +339,7 @@ if(ENABLE_PYTHON_PACKAGING)
                 SKIP_RPATH=ON
                 SETUPTOOLS_INSTALL_LIB=${ov_install_lib}
                 SETUPTOOLS_INSTALL_SCRIPTS=${ov_python_package_prefix}/bin
-                SETUPTOOLS_BUILD_EXECUTABLE="/usr/bin/python3"
-                "${Python3_EXECUTABLE}" -m pip install --ignore-requires-python --no-deps --no-compile --prefix "${ov_python_package_prefix}" "${CMAKE_CURRENT_SOURCE_DIR}" 
+                "${Python3_EXECUTABLE}" -m pip --python="/usr/bin/python3" install --verbose --ignore-requires-python --no-deps --no-compile --prefix "${ov_python_package_prefix}" "${CMAKE_CURRENT_SOURCE_DIR}" 
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
         DEPENDS ${ov_setup_py_deps}
         COMMENT "Create python package with ${openvino_meta_info_subdir} folder")
