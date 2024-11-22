@@ -30,7 +30,8 @@ public:
     LazyTensor(const LazyTensor& cw,
                const LazyTensor& cz,
                const LazyTensor& cs,
-               const ov::element::Type& type);  // construct from unpack
+               const ov::element::Type& type,
+               const ov::Shape& shape);  // construct from unpack
 
     LazyTensor permute(const std::vector<std::size_t>& axes);
     LazyTensor convert(const ov::element::Type& type);

@@ -31,6 +31,7 @@ struct Concat {
 struct Unpack {
     LazyTensor w, z, s;
     ov::element::Type type;
+    ov::Shape shape;
 };
 struct Permute {
     LazyTensor tensor;
@@ -109,6 +110,9 @@ std::size_t LazyTensorImpl::get_hash() const {
                               seed ^= op.z.get_hash() + 0x9e3779b9;
                               seed ^= op.s.get_hash() + 0x9e3779b9;
                               seed ^= op.type.hash() + 0x9e3779b9;
+                              for (const auto& dim : op.shape) {
+                                  seed ^= std::hash<std::size_t>()(dim) + 0x9e3779b9;
+                              }
                           }},
                m_transform);
 
@@ -141,7 +145,7 @@ LazyTensorImpl::LazyTensorImpl(Transform&& t) {
                               m_transform = op::Concat{op.tensors, op.axis};
                           },
                           [this](const op::Unpack& op) {
-                              m_transform = op::Unpack{op.w, op.z, op.s, op.type};
+                              m_transform = op::Unpack{op.w, op.z, op.s, op.type, op.shape};
                           }},
                t);
 
@@ -163,7 +167,8 @@ bool LazyTensorImpl::operator==(const LazyTensorImpl& other) const {
                               meta_diff = (op.axis != std::get<op::Concat>(other.m_transform).axis);
                           },
                           [&](const op::Unpack& op) {
-                              meta_diff = (op.type != std::get<op::Unpack>(other.m_transform).type);
+                              meta_diff = (op.type != std::get<op::Unpack>(other.m_transform).type ||
+                                           op.shape != std::get<op::Unpack>(other.m_transform).shape);
                           }},
                m_transform);
 
@@ -200,7 +205,7 @@ ov::Tensor LazyTensorImpl::eval() const {
                               for (const auto& lt : op.tensors) {
                                   to_concat.push_back(lt.eval());
                               }
-                              result = ov::npuw::util::concat(to_concat, op.axis);
+                              result = std::move(ov::npuw::util::concat(to_concat, op.axis));
                           },
                           [&](const op::Unpack& op) {
                               const auto& gti = ov::get_tensor_impl;
@@ -208,7 +213,7 @@ ov::Tensor LazyTensorImpl::eval() const {
                               const auto& tz = op.z.eval();
                               const auto& ts = op.s.eval();
                               NPUW_ASSERT(tw);
-                              ov::Tensor dst(op.type, tw.get_shape());
+                              ov::Tensor dst(op.type, op.shape);
                               if (tw && tz && ts) {
                                   ov::npuw::util::unpack(gti(tw), gti(tz), gti(ts), gti(dst));
                               } else if (tw && ts) {
@@ -216,14 +221,14 @@ ov::Tensor LazyTensorImpl::eval() const {
                               } else {
                                   NPUW_ASSERT(false && "Unsupported combination");
                               }
-                              result = dst;
+                              result = std::move(dst);
                           },
                           [&](const op::Permute& op) {
-                              result = ov::npuw::util::permute(op.tensor.eval(), op.axes);
+                              result = std::move(ov::npuw::util::permute(op.tensor.eval(), op.axes));
                           },
                           [&](const op::Convert& op) {
                               NPUW_ASSERT(ov::element::f16 == op.type);
-                              result = ov::npuw::util::to_f16(op.tensor.eval());
+                              result = std::move(ov::npuw::util::to_f16(op.tensor.eval()));
                           }},
                m_transform);
 
@@ -236,8 +241,12 @@ LazyTensor::LazyTensor(const std::shared_ptr<ov::op::v0::Constant>& const_ptr)
     : m_impl(std::make_shared<LazyTensorImpl>(op::Const{const_ptr})) {}
 LazyTensor::LazyTensor(const std::vector<LazyTensor>& to_concat, const std::size_t axis)
     : m_impl(std::make_shared<LazyTensorImpl>(op::Concat{to_concat, axis})) {}
-LazyTensor::LazyTensor(const LazyTensor& cw, const LazyTensor& cz, const LazyTensor& cs, const ov::element::Type& type)
-    : m_impl(std::make_shared<LazyTensorImpl>(op::Unpack{cw, cz, cs, type})) {}
+LazyTensor::LazyTensor(const LazyTensor& cw,
+                       const LazyTensor& cz,
+                       const LazyTensor& cs,
+                       const ov::element::Type& type,
+                       const ov::Shape& shape)
+    : m_impl(std::make_shared<LazyTensorImpl>(op::Unpack{cw, cz, cs, type, shape})) {}
 
 LazyTensor LazyTensor::permute(const std::vector<std::size_t>& axes) {
     auto new_lt = std::make_shared<LazyTensorImpl>();
