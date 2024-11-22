@@ -162,7 +162,6 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg,
         } while (0)
 
 #define CPU_DEBUG_CAP_ENABLE(...) __VA_ARGS__
-#define CPU_DEBUG_CAPS_ALWAYS_TRUE(x) true
 
 #define DEBUG_LOG(...) DEBUG_LOG_EXT(nullptr, std::cout, "[ DEBUG ] ", __VA_ARGS__)
 #define ERROR_LOG(...) DEBUG_LOG_EXT(nullptr, std::cerr, "[ ERROR ] ", __VA_ARGS__)
@@ -267,7 +266,6 @@ bool getEnvBool(const char* name);
 #else // !CPU_DEBUG_CAPS
 
 #define CPU_DEBUG_CAP_ENABLE(...)
-#define CPU_DEBUG_CAPS_ALWAYS_TRUE(x) x
 
 #define DEBUG_LOG(...)
 #define ERROR_LOG(...)
