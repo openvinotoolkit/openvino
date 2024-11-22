@@ -10,6 +10,7 @@
 #include "utils/general_utils.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "shape_inference/shape_inference_pass_through.hpp"
+#include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "common/arbitrary_order_desc_creator.h"
 #include "transformations/cpu_opset/common/op/read_value_with_subgraph.hpp"
 #include "nodes/common/cpu_convert.h"
@@ -590,6 +591,9 @@ MemoryInput::MemoryInput(const std::string id,
 
     if (haveSubgraph()) {
         subGraph = make_unique<ov::intel_cpu::Graph>();
+        if (isDynamic) {
+            shapeInference = InternalDynShapeInferFactory().makeShapeInfer();
+        }
     }
 }
 
@@ -709,6 +713,13 @@ void MemoryInput::createPrimitive() {
 
         subGraph->Activate(inputMemory, outputMemory);
     }
+}
+
+bool MemoryInput::needShapeInfer() const {
+    if (haveSubgraph()) {
+        return true;
+    }
+    return MemoryInputBase::needShapeInfer();
 }
 
 void MemoryInput::runDynamic(dnnl::stream strm) {

@@ -222,6 +222,8 @@ private:
         return body != nullptr;
     }
 
+    bool needShapeInfer() const override;
+
 private:
     std::shared_ptr<ov::Model> body = nullptr;
     std::unique_ptr<ov::intel_cpu::Graph> subGraph = nullptr;
