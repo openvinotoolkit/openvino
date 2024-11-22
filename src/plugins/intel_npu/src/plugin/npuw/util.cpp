@@ -439,6 +439,13 @@ inline uint8_t tread_4b(const ov::Tensor& t, std::size_t r, std::size_t c, std::
     return hi4(*telem);
 }
 
+inline uint16_t tread_f16(const ov::Tensor& t, std::size_t r, std::size_t c, std::size_t COLS) {
+    const uint16_t* tdata = static_cast<uint16_t*>(t.data());
+    const uint16_t* trow = tdata + r * COLS;
+    const uint16_t* telem = trow + c;
+    return *telem;
+}
+
 inline float tread_f32(const ov::Tensor& t, std::size_t r, std::size_t c, std::size_t COLS) {
     const float* tdata = static_cast<float*>(t.data());
     const float* trow = tdata + r * COLS;
@@ -455,6 +462,13 @@ inline void twrite_4b(ov::Tensor& t, uint8_t value, std::size_t r, std::size_t c
     } else {
         *telem = (lo4(value) << 4) | lo4(*telem);
     }
+}
+
+inline void twrite_f16(ov::Tensor& t, uint16_t value, std::size_t r, std::size_t c, std::size_t COLS) {
+    uint16_t* tdata = static_cast<uint16_t*>(t.data());
+    uint16_t* trow = tdata + r * COLS;
+    uint16_t* telem = trow + c;
+    *telem = value;
 }
 
 inline void twrite_f32(ov::Tensor& t, float value, std::size_t r, std::size_t c, std::size_t COLS) {
@@ -559,9 +573,11 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
                                   tshape[2]);
                         break;
                     case ov::element::f16:
-                        std::memcpy(static_cast<uint16_t*>(tnew.data()) + (p * tshape[1] + r) * tshape[2] + c,
-                                    static_cast<uint16_t*>(t.data()) + r * shape[1] * shape[2] + p * shape[2] + c,
-                                    ov::element::f16.size());
+                        twrite_f16(tnew,
+                                   tread_f16(t, r, p * shape[2] + c, shape[1] * shape[2]),
+                                   p * tshape[1] + r,
+                                   c,
+                                   tshape[2]);
                         break;
                     default:
                         NPUW_ASSERT(false && "Element type is not supported yet");
