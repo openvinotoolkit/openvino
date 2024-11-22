@@ -542,7 +542,7 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
         }
         return tnew;
     } else if (axes[0] == 1 && axes[1] == 0 && axes[2] == 2) {
-        NPUW_ASSERT(t.get_element_type() == ov::element::i4);  // 4bit only here too
+        NPUW_ASSERT(t.get_element_type() == ov::element::i4 || t.get_element_type() == ov::element::f16);
         ov::Shape tshape = {shape[1], shape[0], shape[2]};
         ov::Tensor tnew(t.get_element_type(), tshape);
 
@@ -550,8 +550,22 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
         for (std::size_t p = 0; p < tshape[0]; p++) {
             for (std::size_t r = 0; r < tshape[1]; r++) {
                 for (std::size_t c = 0; c < tshape[2]; c++) {
-                    uint8_t value = tread_4b(t, r, p * shape[2] + c, shape[1] * shape[2]);
-                    twrite_4b(tnew, value, p * tshape[1] + r, c, tshape[2]);
+                    switch (t.get_element_type()) {
+                    case ov::element::i4:
+                        twrite_4b(tnew,
+                                  tread_4b(t, r, p * shape[2] + c, shape[1] * shape[2]),
+                                  p * tshape[1] + r,
+                                  c,
+                                  tshape[2]);
+                        break;
+                    case ov::element::f16:
+                        std::memcpy(static_cast<uint16_t*>(tnew.data()) + (p * tshape[1] + r) * tshape[2] + c,
+                                    static_cast<uint16_t*>(t.data()) + r * shape[1] * shape[2] + p * shape[2] + c,
+                                    ov::element::f16.size());
+                        break;
+                    default:
+                        NPUW_ASSERT(false && "Element type is not supported yet");
+                    }
                 }
             }
         }
