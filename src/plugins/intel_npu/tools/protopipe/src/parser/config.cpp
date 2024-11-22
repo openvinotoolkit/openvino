@@ -136,8 +136,14 @@ static ScenarioGraph buildGraph(const std::vector<OpDesc>& op_descs,
 
 static void validateNodeChildren(const YAML::Node& node, std::set<std::string> supportedKeys)
 {
-    for (const auto& nodeAttr : node) {
-        const auto key = nodeAttr.first.as<std::string>();
+    auto isScalar2 = node.IsScalar();
+    auto isSequence2 = node.IsSequence();
+    auto isMap2 = node.IsMap();
+    for (const auto& nodeChild : node) {
+        auto isScalar = nodeChild.first.IsScalar();
+        auto isSequence = nodeChild.first.IsSequence();
+        auto isMap = nodeChild.first.IsMap();
+        const auto key = nodeChild.first.as<std::string>();
         if (supportedKeys.find(key) == supportedKeys.end()) {
             const auto mark = node[key].Mark();
             THROW_ERROR("Unsupported node: '" << key << "' at line " << mark.line << " column: " << mark.column);
@@ -281,7 +287,7 @@ struct convert<IAccuracyMetric::Ptr> {
 template <>
 struct convert<GlobalOptions> {
     static bool decode(const Node& node, GlobalOptions& opts) {
-        validateNodeChildren(node, {"model_dir", "blob_dir", "device_name", "log_level", "compiler_type", "save_validation_outputs"});
+        validateNodeChildren(node, {"multi_inference", "metric", "random", "model_dir", "blob_dir", "device_name", "log_level", "compiler_type", "save_validation_outputs"});
         if (node["model_dir"]) {
             if (!node["model_dir"]["local"]) {
                 THROW_ERROR("\"model_dir\" must contain \"local\" key!");
@@ -320,7 +326,7 @@ struct convert<GlobalOptions> {
 template <>
 struct convert<OpenVINOParams> {
     static bool decode(const Node& node, OpenVINOParams& params) {
-        validateNodeChildren(node, {"name", "path", "device", "ip", "op", "il", "ol", "iml", "oml", "reshape", "config", "priority", "nireq"});
+        validateNodeChildren(node, {"name", "path", "device", "ip", "op", "il", "ol", "iml", "oml", "reshape", "config", "priority", "nireq", "tag", "type", "repeat_count", "connections", "op_desc", "name", "framework", "random", "metric", "input_data", "output_data", "params", "device_type", "time_in_us"});
         // FIXME: Worth to separate these two
         const auto name = node["name"] ? node["name"].as<std::string>() : node["path"].as<std::string>();
         fs::path path{name};
@@ -486,7 +492,7 @@ struct convert<CPUOp> {
 template <>
 struct convert<InferOp> {
     static bool decode(const Node& node, InferOp& op) {
-        validateNodeChildren(node, {"name", "framework", "random", "metric", "input_data", "output_data", "device", "ip", "op", "il", "ol", "iml", "oml", "reshape", "config", "priority", "nireq", "params", "device_type"});
+        validateNodeChildren(node, {"name", "framework", "random", "metric", "input_data", "output_data", "device", "ip", "op", "il", "ol", "iml", "oml", "reshape", "config", "priority", "nireq", "params", "device_type", "tag", "type", "repeat_count", "connections", "op_desc", "name", "time_in_us"});
         const auto framework = node["framework"] ? node["framework"].as<std::string>() : "openvino";
         if (framework == "openvino") {
             // NB: Parse OpenVINO model parameters such as path, device, precision, etc
@@ -787,6 +793,7 @@ static StreamDesc parseAdvancedStream(const YAML::Node& node, const GlobalOption
                                       const std::string& default_name, const ReplaceBy& replace_by) {
     StreamDesc stream;
 
+    validateNodeChildren(node, {"name", "frames_interval_in_ms", "target_fps", "target_latency_in_ms", "exec_time_in_secs", "iteration_count", "op_desc", "connections"});
     // FIXME: Create a function for the duplicate code below
     stream.name = node["name"] ? node["name"].as<std::string>() : default_name;
     stream.frames_interval_in_us = 0u;
@@ -862,6 +869,7 @@ static std::vector<ScenarioDesc> parseScenarios(const YAML::Node& node, const Gl
                                                 const ReplaceBy& replace_by) {
     std::vector<ScenarioDesc> scenarios;
     for (const auto& subnode : node) {
+        validateNodeChildren(subnode, {"name", "input_stream_list"});
         ScenarioDesc scenario;
         scenario.name = subnode["name"] ? subnode["name"].as<std::string>()
                                         : "multi_inference_" + std::to_string(scenarios.size());
@@ -881,6 +889,7 @@ static std::vector<ScenarioDesc> parseScenarios(const YAML::Node& node, const Gl
 }
 
 Config parseConfig(const YAML::Node& node, const ReplaceBy& replace_by) {
+    validateNodeChildren(node, {"multi_inference", "metric", "random", "model_dir", "blob_dir", "device_name", "log_level", "compiler_type", "save_validation_outputs", "disable_high_resolution_waitable_timer"});
     const auto global_opts = node.as<GlobalOptions>();
 
     // FIXME: Perhaps should be done somewhere else...
