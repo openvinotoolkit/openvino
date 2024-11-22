@@ -101,6 +101,8 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_hint, ov::hint::allow_auto_batching, "allow_auto_batching");
     wrap_property_RW(m_hint, ov::hint::dynamic_quantization_group_size, "dynamic_quantization_group_size");
     wrap_property_RW(m_hint, ov::hint::kv_cache_precision, "kv_cache_precision");
+    wrap_property_RW(m_hint, ov::hint::key_cache_group_size, "key_cache_group_size");
+    wrap_property_RW(m_hint, ov::hint::value_cache_group_size, "value_cache_group_size");
     wrap_property_RW(m_hint, ov::hint::activations_scale_factor, "activations_scale_factor");
 
     // Submodule intel_cpu

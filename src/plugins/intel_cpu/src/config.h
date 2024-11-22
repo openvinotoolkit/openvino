@@ -64,6 +64,8 @@ struct Config {
     // TODO: Executor cache may leads to incorrect behavior on oneDNN ACL primitives
     size_t rtCacheCapacity = 0ul;
 #endif
+    size_t keyCacheGroupSize = 0;
+    size_t valueCacheGroupSize = 0;
     ov::threading::IStreamsExecutor::Config streamExecutorConfig;
     int streams = 1;
     bool streamsChanged = false;

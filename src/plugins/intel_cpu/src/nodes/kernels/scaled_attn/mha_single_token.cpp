@@ -895,7 +895,6 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                                     size_t value_group_size) {
     ov::intel_cpu::PlainTensor causal_mask;
     bool select_nfltmax_at_0 = false;
-    printf("mha_single_token_kernel|key_group_size %ld value_group_size %ld\n", key_group_size, value_group_size);
     auto B = query.size(0);
     auto H = query.size(1);
     auto q_len = query.size(2);

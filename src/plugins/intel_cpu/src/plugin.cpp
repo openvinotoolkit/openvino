@@ -389,6 +389,10 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
             engConfig.fcDynamicQuantizationGroupSize);
     } else if (name == ov::hint::kv_cache_precision) {
         return decltype(ov::hint::kv_cache_precision)::value_type(engConfig.kvCachePrecision);
+    } else if (name == ov::hint::key_cache_group_size) {
+        return decltype(ov::hint::key_cache_group_size)::value_type(engConfig.keyCacheGroupSize);
+    } else if (name == ov::hint::value_cache_group_size) {
+        return decltype(ov::hint::key_cache_group_size)::value_type(engConfig.valueCacheGroupSize);
     }
     return get_ro_property(name, options);
 }
@@ -432,6 +436,8 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
             RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
             RW_property(ov::hint::dynamic_quantization_group_size.name()),
             RW_property(ov::hint::kv_cache_precision.name()),
+            RW_property(ov::hint::key_cache_group_size.name()),
+            RW_property(ov::hint::value_cache_group_size.name()),
         };
 
         OPENVINO_SUPPRESS_DEPRECATED_START
