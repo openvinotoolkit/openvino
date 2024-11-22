@@ -23,10 +23,6 @@ using ov::pass::pattern::op::Or;
 UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
     using namespace ov::pass::pattern;
 
-    auto not_reshape = [](const ov::Output<ov::Node>& output) -> bool {
-        return std::dynamic_pointer_cast<ov::op::v1::Reshape>(output.get_node_shared_ptr()) == nullptr;
-    };
-
     auto unsqueeze_predicate = [](const ov::Output<ov::Node>& output) -> bool {
         return rank_equals(5)(output) && consumers_count(1);
     };
@@ -42,7 +38,7 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
         return rank_equals(4)(output) && consumers_count(1);
     };
 
-    auto input_a_m = any_input(not_reshape);
+    auto input_a_m = any_input();
     auto input_attn_mask = any_input();
     auto input_scale = any_input();
     auto input_b_m = wrap_type<ov::intel_gpu::op::KVCache>({any_input(), any_input()});
