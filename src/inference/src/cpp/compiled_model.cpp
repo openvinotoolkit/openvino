@@ -28,7 +28,7 @@ namespace ov {
 CompiledModel::~CompiledModel() {
     _impl = {};
 #if defined(OPENVINO_GNU_LIBC) && !defined(__ANDROID__)
-    // Linux memory margent doesn't return system memory immediate after release.
+    // Linux memory manager doesn't return system memory immediately after release.
     // It depends on memory chunk size and allocation history.
     // Try return memory from a process to system now to reduce memory usage and not wait to the end of the process.
     malloc_trim(0);
