@@ -162,7 +162,7 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
             auto device_id = get_core()->get_property(device_name, ov::device::id);
             return device_id;
         } catch (ov::Exception&) {
-            LOG_DEBUG_TAG("get default device id failed for ", device_name.c_str());
+            LOG_DEBUG_TAG("get default device id failed for %s", device_name.c_str());
             return "";
         }
     };
