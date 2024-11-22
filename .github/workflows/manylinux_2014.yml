@@ -280,7 +280,7 @@ jobs:
           echo "OPENVINO_REPO=$GITHUB_WORKSPACE/openvino" >> "$GITHUB_ENV"
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
-          echo "LAYER_TESTS_INSTALL_DIR=$GITHUB_WORKSPACE/install/tests/layer_tests" >> "$GITHUB_ENV"
+          echo "INSTALL_WHEELS_DIR=$GITHUB_WORKSPACE/install/wheels" >> "$GITHUB_ENV"
 
       - name: Check dirs
         continue-on-error: true
@@ -347,7 +347,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_manylinux2014
-    needs: [Smart_CI, Build]
+    needs: [Smart_CI, Build, Python_API_Tests]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
