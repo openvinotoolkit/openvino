@@ -54,6 +54,9 @@ public:
 
     bool operator==(const LazyTensorImpl& other) const;
     std::size_t get_hash() const;
+    const void* get_data() const;
+    const ov::Shape& get_shape() const;
+    const ov::element::Type& get_type() const;
 
     Transform m_transform;
     std::size_t m_hash = 0;
@@ -98,6 +101,11 @@ std::size_t LazyTensorImpl::get_hash() const {
                               for (const auto& axis : op.axes) {
                                   seed ^= std::hash<std::size_t>()(axis) + 0x9e3779b9;
                               }
+                              seed ^= op.tensor.get_hash() + 0x9e3779b9;
+                          },
+                          [&seed](const op::Convert& op) {
+                              seed ^= op.type.hash() + 0x9e3779b9;
+                              seed ^= op.tensor.get_hash() + 0x9e3779b9;
                           },
                           [&seed](const op::Concat& op) {
                               seed ^= std::hash<std::size_t>()(op.axis) + 0x9e3779b9;
@@ -117,6 +125,18 @@ std::size_t LazyTensorImpl::get_hash() const {
                m_transform);
 
     return seed;
+}
+
+const void* LazyTensorImpl::get_data() const {
+    return m_orig_data;
+}
+
+const ov::Shape& LazyTensorImpl::get_shape() const {
+    return m_orig_shape;
+}
+
+const ov::element::Type& LazyTensorImpl::get_type() const {
+    return m_orig_type;
 }
 
 LazyTensorImpl::LazyTensorImpl(Transform&& t) {
@@ -142,10 +162,22 @@ LazyTensorImpl::LazyTensorImpl(Transform&& t) {
                               m_transform = op::Const{const_ptr};
                           },
                           [this](const op::Concat& op) {
-                              m_transform = op::Concat{op.tensors, op.axis};
+                              m_transform = op;
                           },
                           [this](const op::Unpack& op) {
-                              m_transform = op::Unpack{op.w, op.z, op.s, op.type, op.shape};
+                              m_transform = op;
+                          },
+                          [this](const op::Permute& op) {
+                              m_transform = op;
+                              m_orig_data = op.tensor.get_data();
+                              m_orig_shape = op.tensor.get_shape();
+                              m_orig_type = op.tensor.get_type();
+                          },
+                          [this](const op::Convert& op) {
+                              m_transform = op;
+                              m_orig_data = op.tensor.get_data();
+                              m_orig_shape = op.tensor.get_shape();
+                              m_orig_type = op.tensor.get_type();
                           }},
                t);
 
@@ -161,14 +193,23 @@ bool LazyTensorImpl::operator==(const LazyTensorImpl& other) const {
     bool meta_diff = false;
     std::visit(overloaded{[](const auto& op) { /* do nothing */ },
                           [&](const op::Permute& op) {
-                              meta_diff = (op.axes != std::get<op::Permute>(other.m_transform).axes);
+                              meta_diff = (op.axes != std::get<op::Permute>(other.m_transform).axes ||
+                                           op.tensor != std::get<op::Permute>(other.m_transform).tensor);
+                          },
+                          [&](const op::Convert& op) {
+                              meta_diff = (op.type != std::get<op::Convert>(other.m_transform).type ||
+                                           op.tensor != std::get<op::Convert>(other.m_transform).tensor);
                           },
                           [&](const op::Concat& op) {
-                              meta_diff = (op.axis != std::get<op::Concat>(other.m_transform).axis);
+                              meta_diff = (op.axis != std::get<op::Concat>(other.m_transform).axis ||
+                                           op.tensors != std::get<op::Concat>(other.m_transform).tensors);
                           },
                           [&](const op::Unpack& op) {
                               meta_diff = (op.type != std::get<op::Unpack>(other.m_transform).type ||
-                                           op.shape != std::get<op::Unpack>(other.m_transform).shape);
+                                           op.shape != std::get<op::Unpack>(other.m_transform).shape ||
+                                           op.w != std::get<op::Unpack>(other.m_transform).w ||
+                                           op.z != std::get<op::Unpack>(other.m_transform).z ||
+                                           op.s != std::get<op::Unpack>(other.m_transform).s);
                           }},
                m_transform);
 
@@ -249,31 +290,15 @@ LazyTensor::LazyTensor(const LazyTensor& cw,
     : m_impl(std::make_shared<LazyTensorImpl>(op::Unpack{cw, cz, cs, type, shape})) {}
 
 LazyTensor LazyTensor::permute(const std::vector<std::size_t>& axes) {
-    auto new_lt = std::make_shared<LazyTensorImpl>();
-
-    new_lt->m_orig_data = m_impl->m_orig_data;
-    new_lt->m_orig_shape = m_impl->m_orig_shape;
-    new_lt->m_orig_type = m_impl->m_orig_type;
-
-    new_lt->m_transform = op::Permute{*this, axes};
-    new_lt->m_hash = new_lt->get_hash();
-
-    m_impl = new_lt;
-    return *this;
+    LazyTensor new_lt;
+    new_lt.m_impl = std::make_shared<LazyTensorImpl>(op::Permute{*this, axes});
+    return new_lt;
 }
 
 LazyTensor LazyTensor::convert(const ov::element::Type& type) {
-    auto new_lt = std::make_shared<LazyTensorImpl>();
-
-    new_lt->m_orig_data = m_impl->m_orig_data;
-    new_lt->m_orig_shape = m_impl->m_orig_shape;
-    new_lt->m_orig_type = m_impl->m_orig_type;
-
-    new_lt->m_transform = op::Convert{*this, type};
-    new_lt->m_hash = new_lt->get_hash();
-
-    m_impl = new_lt;
-    return *this;
+    LazyTensor new_lt;
+    new_lt.m_impl = std::make_shared<LazyTensorImpl>(op::Convert{*this, type});
+    return new_lt;
 }
 
 bool LazyTensor::operator==(const LazyTensor& other) const {
@@ -290,6 +315,18 @@ ov::Tensor LazyTensor::eval() const {
 
 std::size_t LazyTensor::get_hash() const {
     return m_impl->get_hash();
+}
+
+const void* LazyTensor::get_data() const {
+    return m_impl->get_data();
+}
+
+const ov::Shape& LazyTensor::get_shape() const {
+    return m_impl->get_shape();
+}
+
+const ov::element::Type& LazyTensor::get_type() const {
+    return m_impl->get_type();
 }
 
 std::size_t LazyTensor::Hash::operator()(const LazyTensor& lt) const {

@@ -42,6 +42,9 @@ public:
     ov::Tensor eval() const;
 
     std::size_t get_hash() const;
+    const void* get_data() const;
+    const ov::Shape& get_shape() const;
+    const ov::element::Type& get_type() const;
 
 private:
     std::shared_ptr<LazyTensorImpl> m_impl = nullptr;
