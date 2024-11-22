@@ -2,12 +2,13 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from typing import Optional
 import torch
 from openvino.frontend.pytorch import ModuleExtension, gptq
 from openvino.frontend.pytorch.patch_model import patch_model, unpatch_model
 
 
-def detect_quantized_model(model: torch.nn.Module):
+def detect_quantized_model(model: torch.nn.Module) -> Optional[str]:
     """Detects the quantization method used in a given PyTorch model.
 
     Args:
@@ -24,7 +25,7 @@ def detect_quantized_model(model: torch.nn.Module):
     return None
 
 
-def patch_quantized(model: torch.nn.Module):
+def patch_quantized(model: torch.nn.Module) -> None:
     """Patches a model based on its quantization type ("awq" or "gptq").
 
     Args:
@@ -46,26 +47,27 @@ def patch_quantized(model: torch.nn.Module):
                     torch.tensor(module.w_bit), module.bias),
                 evaluate=lambda module, *args, **kwargs: torch.full(
                     list(args[0].shape[:-1]) + [module.out_features], 0.5,
-                    dtype=torch.float32))
+                    dtype=torch.float32))  # type: ignore
         except ImportError:
             pass
         patch_model(model, extensions,
-                    "_openvino_quantized_patch_orig_forward")
+                    "_openvino_quantized_patch_orig_forward")  # type: ignore
     elif quant_type == "gptq":
         model._openvino_gptq_patched = True
-        gptq.patch_model(model)
+        gptq.patch_model(model)  # type: ignore
     else:
         raise RuntimeError("Unknown quantization type.")
 
 
-def unpatch_quantized(model: torch.nn.Module):
+def unpatch_quantized(model: torch.nn.Module) -> None:
     """Reverts the patching applied to a quantized PyTorch model.
 
     Args:
         model (torch.nn.Module): The model to unpatch.
     """
     if getattr(model, "_openvino_gptq_patched", False):
-        gptq.unpatch_model(model)
+        gptq.unpatch_model(model)  # type: ignore
         del model._openvino_gptq_patched
     else:
-        unpatch_model(model, "_openvino_quantized_patch_orig_forward")
+        unpatch_model(model,
+                      "_openvino_quantized_patch_orig_forward")  # type: ignore
