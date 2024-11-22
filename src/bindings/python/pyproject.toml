@@ -35,6 +35,10 @@ license-files = [
     "../../../licensing/onednn_third-party-programs.txt",
 ]
 
+[tool.black]
+line-length = 160
+include = '\.pyi?$'
+
 [tool.cibuildwheel]
 before-all = "uname -a"
 build = "cp311*manylinux_x86_64*"
