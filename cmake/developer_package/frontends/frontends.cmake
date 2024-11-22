@@ -193,7 +193,7 @@ macro(ov_add_frontend)
 
     # Create library
     add_library(${TARGET_NAME} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS}
-                               ${PROTO_SRCS} ${PROTO_HDRS} ${flatbuffers_schema_files} ${proto_files} "../../../src/frontends/pytorch/src/op/rrelu.cpp")
+                               ${PROTO_SRCS} ${PROTO_HDRS} ${flatbuffers_schema_files} ${proto_files})
 
     if(OV_FRONTEND_LINKABLE_FRONTEND)
         # create beautiful alias
