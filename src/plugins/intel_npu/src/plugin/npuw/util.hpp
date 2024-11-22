@@ -15,7 +15,7 @@ namespace ov {
 namespace npuw {
 namespace util {
 
-bool is_set(const std::size_t sub_idx, const std::string& opt);
+bool is_set(const std::size_t sub_idx, const std::string& opt, const std::size_t end_idx = SIZE_MAX);
 
 // Every great project has its own string class...
 // NB: Newer C++ standards would allow to use string views or smt
@@ -64,6 +64,10 @@ ov::Tensor transpose(const ov::Tensor& t);
 ov::Tensor permute(const ov::Tensor& t, const std::vector<std::size_t>& axes);
 ov::Tensor concat(const std::vector<ov::Tensor>& tt, std::size_t axis);
 
+// Start is inclusive, end is exclusive
+using range_1d = std::pair<std::size_t, std::size_t>;
+range_1d validMaskRange(const ov::SoPtr<ov::ITensor>& t);
+
 namespace at {
 template <class M_>
 struct Impl {
@@ -87,8 +91,36 @@ struct Impl {
     }
 
     template <typename K>
+    V& at_or_at(const K& k1, const K& k2) {
+        const auto iter = m->find(k1);
+        if (iter == m->end()) {
+            return at(k2);
+        }
+        return iter->second;
+    }
+
+    template <typename K>
+    V& at_or_at_or_at(const K& k1, const K& k2, const K& k3) {
+        const auto iter = m->find(k1);
+        if (iter == m->end()) {
+            return at_or_at(k2, k3);
+        }
+        return iter->second;
+    }
+
+    template <typename K>
     const V& at(const K& k) const {
         return const_cast<Impl*>(this)->at(k);
+    }
+
+    template <typename K>
+    const V& at_or_at(const K& k1, const K& k2) const {
+        return const_cast<Impl*>(this)->at_or_at(k1, k2);
+    }
+
+    template <typename K>
+    const V& at_or_at_or_at(const K& k1, const K& k2, const K& k3) const {
+        return const_cast<Impl*>(this)->at_or_at_or_at(k1, k2, k3);
     }
 };
 

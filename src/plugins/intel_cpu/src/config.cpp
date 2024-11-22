@@ -358,6 +358,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             }
         } else if (key == ov::hint::kv_cache_precision.name()) {
             try {
+                kvCachePrecisionSetExplicitly = true;
                 auto const prec = val.as<ov::element::Type>();
                 if (one_of(prec, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8)) {
                     kvCachePrecision = prec;
@@ -400,10 +401,19 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             inferencePrecision = ov::element::undefined;
         }
     }
+    // enable ACL fast math in PERFORMANCE mode
+#if defined(OV_CPU_WITH_ACL)
+    if (executionMode == ov::hint::ExecutionMode::PERFORMANCE) {
+        aclFastMath = true;
+    }
+#endif
     // disable dynamic quantization and kv quantization for best accuracy
     if (executionMode == ov::hint::ExecutionMode::ACCURACY) {
         if (!fcDynamicQuantizationGroupSizeSetExplicitly) {
             fcDynamicQuantizationGroupSize = 0;
+        }
+        if (!kvCachePrecisionSetExplicitly) {
+            kvCachePrecision = ov::element::f32;
         }
     }
 
@@ -414,6 +424,13 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         streams = 1;
         streamsChanged = true;
     }
+
+#if defined(OV_CPU_WITH_SHL)
+    // TODO: multi-stream execution is unsafe when SHL is used:
+    //       The library uses global static variables as flags and counters.
+    streams = 1;
+    streamsChanged = true;
+#endif
 
     this->modelType = modelType;
 

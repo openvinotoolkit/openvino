@@ -86,13 +86,10 @@ jobs:
         run: |
           # Install the core OV wheel
           python3 -m pip install ./openvino-*.whl
-
-          extras_to_install="onnx"
-
-          # Find and install OV dev wheel
-          ov_dev_wheel_name=$(find . -name 'openvino_dev*.whl')
-          python3 -m pip install $ov_dev_wheel_name[$extras_to_install]
         working-directory: ${{ env.INSTALL_WHEELS_DIR }}
+
+      - name: Install ONNX Models tests requirements
+        run: python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_onnx
 
       - name: Install Python tests dependencies
         run: |
@@ -112,7 +109,7 @@ jobs:
           python3 -m pytest --backend="CPU" --model_zoo_dir="${MODELS_SHARE_PATH}" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n auto --forked -k 'not _cuda' --model_zoo_xfail
 
       - name: Upload logs from pytest
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         if: always()
         with:
           name: onnx_models_tests_logs

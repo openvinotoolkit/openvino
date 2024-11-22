@@ -73,19 +73,21 @@ class PytorchLayerTest:
               **kwargs):
         retries = 0
         max_retries = 3
+        last_e = None
         while retries < max_retries:
             try:
                 return self._test_impl(model, ref_net, kind, ie_device, precision, ir_version, infer_timeout, dynamic_shapes, **kwargs)
             except RuntimeError as e:
                 # This is a potentially sporadic issue
                 print(f"An error occurred: {e}. Retrying...")
+                last_e = e
                 retries += 1
         else:
-            print("Max retries reached. Function execution failed.")
+            raise RuntimeError("Max retries reached. Function execution failed.") from last_e
 
 
     def _test_impl(self, model, ref_net, kind, ie_device, precision, ir_version, infer_timeout=60, dynamic_shapes=True,
-              **kwargs):
+                   **kwargs):
         """
         :param enabled_transforms/disabled_transforms: string with idxs of transforms that should be enabled/disabled.
                                                        Example: "transform_1,transform_2"
@@ -149,6 +151,8 @@ class PytorchLayerTest:
             config = {}
             if ie_device == "GPU" and precision == "FP32":
                 config[hints.inference_precision] = Type.f32
+            if "dynamic_quantization_group_size" in kwargs:
+                config["DYNAMIC_QUANTIZATION_GROUP_SIZE"] = str(kwargs["dynamic_quantization_group_size"])
             compiled = core.compile_model(converted_model, ie_device, config)
             infer_res = compiled(deepcopy(ov_inputs))
 
@@ -287,6 +291,8 @@ class PytorchLayerTest:
             options={"testing": 1,}
             if ("aot_autograd" in kwargs):
                 options.update({"aot_autograd": True,})
+            if "dynamic_quantization_group_size" in kwargs:
+                options["config"] = {"DYNAMIC_QUANTIZATION_GROUP_SIZE": str(kwargs["dynamic_quantization_group_size"])}
             dynamic = False
             if ("dynamic" in kwargs):
                 dynamic = kwargs["dynamic"]

@@ -182,3 +182,6 @@ xfail_issue_139934 = xfail_test(reason = "Int4 isn't supported")
 xfail_issue_139936 = xfail_test(reason = "MaxPool accuracy fails")
 xfail_issue_139937 = xfail_test(reason = "GroupNorm, QLinearMatMul, DequantizeLinear translation failed")
 xfail_issue_139938 = xfail_test(reason = "QLinearMatMul accuracy fails")
+
+# ONNX 1.17
+skip_issue_119896 = pytest.mark.skip(reason="Unsupported element type: FLOAT8")

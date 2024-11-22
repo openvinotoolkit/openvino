@@ -159,7 +159,6 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_bool_init_raw) {
     test_case.run();
 }
 
-#ifdef ONNX_VERSION_116
 OPENVINO_TEST(${BACKEND_NAME}, onnx_int4_const) {
     auto model = convert_model("int4_const.onnx");
 
@@ -195,7 +194,6 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_uint4_input) {
 
     test_case.run();
 }
-#endif
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_add_abc_initializers) {
     auto model = convert_model("add_abc_initializers.onnx");

@@ -14,14 +14,14 @@ Short Time Fourier Transformation for real-valued input (STFT)
 **Short description**: *STFT* operation performs Short-Time Fourier Transform (real-to-complex).
 
 
-**Detailed description**: *STFT* performs Short-Time Fourier Transform of real-valued batched input tensor of shape ``[batch, signal_size]``, and produces complex result represented by separate values for real and imaginary part.
+**Detailed description**: *STFT* performs Short-Time Fourier Transform of real-valued input tensor of shape ``[signal_size]`` or ``[batch, signal_size]``, and produces complex result represented by separate values for real and imaginary part.
 
 
 **Attributes**:
 
-* *transform_frames*
+* *transpose_frames*
 
-  * **Description**: Flag to set output shape layout. If true the ``frames`` dimension is at out_shape[2], otherwise it is at out_shape[1].
+  * **Description**: Flag to set output shape layout. If true the ``frames`` dimension is at out_shape[-2], otherwise it is at out_shape[-3].
   * **Range of values**:
 
     * ``false`` - do not transpose output shape
@@ -31,25 +31,25 @@ Short Time Fourier Transformation for real-valued input (STFT)
 
 **Inputs**
 
-*   **1**: ``signal`` - Tensor of type *T* and 2D shape [batch, signal_size] with signal data for the STFT. **Required.**
-*   **2**: ``window`` - Tensor of type *T* and 1D shape [window_length], specifying the window values for the signal slice multiplication. **Required.**
-*   **3**: ``frame_size`` - Scalar tensor of type *T_INT* describing the size of a single frame of the signal to be provided as input to FFT. **Required.**
-*   **4**: ``frame_step`` - Scalar tensor of type *T_INT* describing The distance (number of samples) between successive frames. **Required.**
+* **1**: ``signal`` - Tensor of type *T* and 1D shape [signal_size] or 2D shape [batch, signal_size] with signal data for the STFT. **Required.**
+* **2**: ``window`` - Tensor of type *T* and 1D shape [window_length], specifying the window values for the signal slice multiplication. **Required.**
+* **3**: ``frame_size`` - Scalar tensor of type *T_INT* describing the size of a single frame of the signal to be provided as input to FFT. **Required.**
+* **4**: ``frame_step`` - Scalar tensor of type *T_INT* describing The distance (number of samples) between successive frames. **Required.**
 
 
 **Outputs**
 
-*   **1**: The result of STFT operation, tensor of the same type as input ``signal`` tensor and shape:
+* **1**: The result of STFT operation, tensor of the same type as input ``signal`` tensor and shape:
 
-    + When ``transform_frames == false`` the output shape is ``[batch, frames, fft_results, 2]``
-    + When ``transform_frames == true`` the output shape is ``[batch, fft_results, frames, 2]``
+  * When ``transpose_frames == false`` the output shape is ``[frames, fft_results, 2]`` for 1D signal input or ``[batch, frames, fft_results, 2]`` for 2D signal input.
+  * When ``transpose_frames == true`` the output shape is ``[fft_results, frames, 2]`` for 1D signal input or ``[batch, fft_results, frames, 2]`` for 2D signal input.
 
-    where:
+  where:
 
-    + ``batch`` is a batch size dimension
-    + ``frames`` is a number calculated as ``(signal_shape[1] - frame_size) / frame_step) + 1``
-    + ``fft_results`` is a number calculated as ``(frame_size / 2) + 1``
-    + ``2`` is the last dimension is for complex value real and imaginary part
+  * ``batch`` is a batch size dimension
+  * ``frames`` is a number calculated as ``(signal_shape[-1] - frame_size) / frame_step) + 1``
+  * ``fft_results`` is a number calculated as ``(frame_size / 2) + 1``
+  * ``2`` is the last dimension is for complex value real and imaginary part
 
 
 **Types**
@@ -59,27 +59,109 @@ Short Time Fourier Transformation for real-valued input (STFT)
 * *T_INT*: ``int64`` or ``int32``.
 
 
-**Example**:
+**Examples**:
+
+*Example 1D signal, transpose_frames=false:*
 
 .. code-block:: xml
    :force:
 
     <layer ... type="STFT" ... >
+        <data transpose_frames="false"/>
         <input>
             <port id="0">
-                <dim>2</dim>
-                <dim>48</dim>
+                <dim>56</dim>
             </port>
             <port id="1">
-                <dim>8</dim>
+                <dim>7</dim>
             </port>
-            <port id="2"></port>
-            <port id="3"></port>
+            <port id="2"></port> <!-- value: 11 -->
+            <port id="3"></port> <!-- value: 3 -->
         <output>
-            <port id="2">
+            <port id="4">
+                <dim>16</dim>
+                <dim>6</dim>
                 <dim>2</dim>
-                <dim>9</dim>
-                <dim>9</dim>
+            </port>
+        </output>
+    </layer>
+
+
+*Example 1D signal, transpose_frames=true:*
+
+.. code-block:: xml
+   :force:
+
+    <layer ... type="STFT" ... >
+        <data transpose_frames="true"/>
+        <input>
+            <port id="0">
+                <dim>56</dim>
+            </port>
+            <port id="1">
+                <dim>7</dim>
+            </port>
+            <port id="2"></port> <!-- value: 11 -->
+            <port id="3"></port> <!-- value: 3 -->
+        <output>
+            <port id="4">
+                <dim>6</dim>
+                <dim>16</dim>
+                <dim>2</dim>
+            </port>
+        </output>
+    </layer>
+
+*Example 2D signal, transpose_frames=false:*
+
+.. code-block:: xml
+   :force:
+
+    <layer ... type="STFT" ... >
+        <data transpose_frames="false"/>
+        <input>
+            <port id="0">
+                <dim>3</dim>
+                <dim>56</dim>
+            </port>
+            <port id="1">
+                <dim>7</dim>
+            </port>
+            <port id="2"></port> <!-- value: 11 -->
+            <port id="3"></port> <!-- value: 3 -->
+        <output>
+            <port id="4">
+                <dim>3</dim>
+                <dim>16</dim>
+                <dim>6</dim>
+                <dim>2</dim>
+            </port>
+        </output>
+    </layer>
+
+
+*Example 2D signal, transpose_frames=true:*
+
+.. code-block:: xml
+   :force:
+
+    <layer ... type="STFT" ... >
+        <data transpose_frames="true"/>
+        <input>
+            <port id="0">
+                <dim>3</dim>
+                <dim>56</dim>
+            </port>
+            <port id="1">
+                <dim>7</dim>
+            </port>
+            <port id="2"></port> <!-- value: 11 -->
+            <port id="3"></port> <!-- value: 3 -->
+        <output>
+            <port id="4">
+                <dim>3</dim>
+                <dim>6</dim>
+                <dim>16</dim>
                 <dim>2</dim>
             </port>
         </output>

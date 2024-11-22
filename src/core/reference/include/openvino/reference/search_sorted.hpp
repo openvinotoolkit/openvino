@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/core/parallel.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/reference/utils/coordinate_index.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
@@ -30,7 +31,13 @@ void search_sorted(const T* sorted,
         };
     }
 
-    for (const Coordinate& values_coord : values_transform) {
+    const size_t size = shape_size(values_shape);
+
+    auto func = [&](size_t i) {
+        auto it = values_transform.begin();
+        it += i;
+        const Coordinate& values_coord = *it;
+
         const auto values_index = coordinate_index(values_coord, values_shape);
         const T value = values[values_index];
 
@@ -48,7 +55,9 @@ void search_sorted(const T* sorted,
         const ptrdiff_t sorted_index = (idx_ptr - sorted) - sorted_index_begin;
 
         out[values_index] = static_cast<TOut>(sorted_index);
-    }
+    };
+
+    ov::parallel_for(size, func);
 }
 
 }  // namespace reference

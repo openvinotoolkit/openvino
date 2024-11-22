@@ -101,6 +101,7 @@ public:
     }
 
     Output<Node> get_param(const std::string& name) const {
+        FRONT_END_GENERAL_CHECK(m_param_name_to_id.count(name), "No param id corresponding name exists: ", name);
         auto id = m_param_name_to_id.at(name);
         FRONT_END_GENERAL_CHECK(m_tensor_map->count(id), "No tensor corresponding param id: ", id, " exist.");
         return m_tensor_map->at(id);

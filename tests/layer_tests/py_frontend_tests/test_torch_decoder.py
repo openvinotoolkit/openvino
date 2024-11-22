@@ -4,6 +4,7 @@
 
 import torch
 import pytest
+from packaging import version
 
 
 class AtenDiv(torch.nn.Module):
@@ -670,6 +671,8 @@ def test_pytorch_decoder_can_convert_scripted_function():
 
 
 @pytest.mark.precommit
+@pytest.mark.skipif(version.parse(torch.__version__) < version.parse("2.4.0"),
+                    reason="Unsupported on torch<2.4.0")
 def test_pytorch_fx_decoder_extracts_signature():
     from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 

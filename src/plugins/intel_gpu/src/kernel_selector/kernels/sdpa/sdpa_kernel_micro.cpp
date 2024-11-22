@@ -30,7 +30,8 @@ size_t subgroup_size(gpu_arch arch) {
         case gpu_arch::xe_hp:
         case gpu_arch::xe_hpg: return 8;
         case gpu_arch::xe_hpc:
-        case gpu_arch::xe2: return 16;
+        case gpu_arch::xe2:
+        case gpu_arch::xe3: return 16;
         default: return 0;
     }
 }
@@ -205,7 +206,8 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
             break;
         }
         case gpu_arch::xe_hpc:
-        case gpu_arch::xe2: {
+        case gpu_arch::xe2:
+        case gpu_arch::xe3: {
             config = choose_config_xehpc(static_cast<int32_t>(head_size), static_cast<int32_t>(n_keys.v), thin_q);
             break;
         }
@@ -342,6 +344,13 @@ bool SDPAKernelMicro::Validate(const Params& p) const {
     if (params.conf.head_size > 256)
         return false;
 
+    if (params.conf.is_kv_compressed)
+        return false;
+
+    // Do not use sdpa_micro kernel with a scalar-value mask
+    if (params.inputs.size() > 3 && !params.inputs[3].is_dynamic() && params.inputs[3].LogicalSize() == 1)
+        return false;
+
     return true;
 }
 
@@ -386,7 +395,7 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
     bool d_full = (head_size == d_max);
     bool v_full = (head_size == tile_v);
     bool k_full = !n_keys.is_dynamic && (n_keys.v % tile_k) == 0;
-    bool q_full = !n_queries.is_dynamic && (n_queries.v % tile_q) != 0;
+    bool q_full = !n_queries.is_dynamic && (n_queries.v % tile_q) == 0;
 
     auto Q_num_heads_dim = get_num_heads(Q, params.input0_order);
     auto K_num_heads_dim = get_num_heads(K, params.input1_order);

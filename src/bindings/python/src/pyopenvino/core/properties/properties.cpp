@@ -43,6 +43,7 @@ void regmodule_properties(py::module m) {
     OPENVINO_SUPPRESS_DEPRECATED_END
     wrap_property_RW(m_properties, ov::force_tbb_terminate, "force_tbb_terminate");
     wrap_property_RW(m_properties, ov::enable_mmap, "enable_mmap");
+    wrap_property_RW(m_properties, ov::weights_path, "weights_path");
 
     wrap_property_RO(m_properties, ov::supported_properties, "supported_properties");
     wrap_property_RO(m_properties, ov::available_devices, "available_devices");
@@ -100,6 +101,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_hint, ov::hint::allow_auto_batching, "allow_auto_batching");
     wrap_property_RW(m_hint, ov::hint::dynamic_quantization_group_size, "dynamic_quantization_group_size");
     wrap_property_RW(m_hint, ov::hint::kv_cache_precision, "kv_cache_precision");
+    wrap_property_RW(m_hint, ov::hint::activations_scale_factor, "activations_scale_factor");
 
     // Submodule intel_cpu
     py::module m_intel_cpu =

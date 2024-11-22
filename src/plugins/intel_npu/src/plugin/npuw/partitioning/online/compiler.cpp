@@ -10,8 +10,8 @@
 #include "../../logging.hpp"
 #include "../../util.hpp"
 #include "group.hpp"
-#include "intel_npu/al/config/config.hpp"
-#include "intel_npu/al/config/npuw.hpp"
+#include "intel_npu/config/config.hpp"
+#include "intel_npu/config/npuw.hpp"
 #include "pugixml.hpp"
 #include "snapshot.hpp"
 
@@ -73,8 +73,6 @@ std::vector<Avoid> getAvoids(::intel_npu::Config& cfg) {
 
     std::string avoids_opt = cfg.getString<::intel_npu::NPUW_ONLINE_AVOID>();
     if (avoids_opt.empty()) {
-        LOG_VERB(::intel_npu::NPUW_ONLINE_AVOID().key()
-                 << " property is not set. NPU device will be prioritized for every subgraph.");
         return {};
     }
 
@@ -267,12 +265,13 @@ void dump_partitioning(const ov::npuw::Ensemble& ens, const std::string& to) {
 // Interface to get online partitioning from the model
 class Compiler {
     enum class Pipeline {
-        NONE,    // Partitioning will consist of a single group with all the Ops
-        INIT,    // Initialize only. The hardest mode, every group has just 1 layer inside
-        JUST,    // "justParitioning" - combination of LHF + Remnants
-        REP,     // Repeated blocks pipeline - combination of repeatedBlocks and Remnants
-        REG,     // Regularized repeated blocks pipeline -same as REP, but with some strong hints first
-        COMPUTE  // Separates non-foldable compute subgraphs from the model based on predefined rules + REP
+        NONE,     // Partitioning will consist of a single group with all the Ops
+        INIT,     // Initialize only. The hardest mode, every group has just 1 layer inside
+        JUST,     // "justParitioning" - combination of LHF + Remnants
+        REP,      // Repeated blocks pipeline - combination of repeatedBlocks and Remnants
+        REG,      // Regularized repeated blocks pipeline - same as REP, but with some strong hints first
+        COMPUTE,  // Separates non-foldable compute subgraphs from the model based on predefined rules + REP
+        SPATIAL   // Similar to COMPUTE but allows folding
     };
 
     template <class C>
@@ -299,6 +298,8 @@ class Compiler {
             return Pipeline::REG;
         } else if (pipeline_opt == "COMPUTE") {
             return Pipeline::COMPUTE;
+        } else if (pipeline_opt == "SPATIAL") {
+            return Pipeline::SPATIAL;
         } else {
             LOG_WARN("Unknown partitioning compiler pipeline " << pipeline_opt << ", switching to REP");
             return Pipeline::REP;
@@ -425,6 +426,16 @@ public:
             // FIXME: initialize via a dedicated function instead of parsing
             ctx.isolates = detail::getIsolates(detail::ISOL_PRESETS.at("COMPUTE"));
             ctx.nofolds = detail::getNoFolds("compute");
+            m_snapshot->setCtx(ctx);
+            rep();
+            break;
+        case Pipeline::SPATIAL:
+            warn_unused<::intel_npu::NPUW_ONLINE_ISOLATE>();
+            m_cfg.update(::intel_npu::Config::ConfigMap{{std::string(::intel_npu::NPUW_SPATIAL::key()), "YES"}});
+
+            // Manually set predefined isolates and nofolds then do rep() pipeline
+            // FIXME: initialize via a dedicated function instead of parsing
+            ctx.isolates = detail::getIsolates(detail::ISOL_PRESETS.at("COMPUTE"));
             m_snapshot->setCtx(ctx);
             rep();
             break;

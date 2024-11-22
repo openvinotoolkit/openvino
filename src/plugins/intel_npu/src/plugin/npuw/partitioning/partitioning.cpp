@@ -8,7 +8,7 @@
 
 #include "../logging.hpp"
 #include "../util.hpp"
-#include "intel_npu/al/config/npuw.hpp"
+#include "intel_npu/config/npuw.hpp"
 #include "online/compiler.hpp"
 #include "online/utils/utils.hpp"  // getMetaDesc
 #include "openvino/core/parallel.hpp"
@@ -111,7 +111,7 @@ ov::npuw::Ensemble load_groups(const std::shared_ptr<ov::Model>& model, const st
 
     std::ifstream ifs(path_to_plan);
     if (!ifs) {
-        LOG_ERROR("Couldn't open " << ::intel_npu::NPUW_PLAN().key() << "pointing to " << path_to_plan << "!");
+        LOG_ERROR("Couldn't open " << ::intel_npu::NPUW_PLAN().key() << " pointing to " << path_to_plan << "!");
         return {};
     }
 
@@ -276,6 +276,7 @@ private:
         if (!ov::is_type<ov::op::v0::Constant>(node_ptr)) {
             OPENVINO_THROW("NPUW: trying to get a unique name of a non-Constant node");
         }
+        // FIXME: cache this
         return node_ptr->get_friendly_name() + " with meta " + ov::npuw::online::util::getMetaDesc(node_ptr) +
                " with output " + (*node_ptr->output(0).get_target_inputs().begin()).get_node()->description();
     }
@@ -1286,6 +1287,8 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
             HANDLE_CASE(boolean, bool);
             HANDLE_CASE(i4, int8_t);
             HANDLE_CASE(u4, uint8_t);
+            HANDLE_CASE(i16, int16_t);
+            HANDLE_CASE(u16, uint16_t);
             HANDLE_CASE(i32, int);
             HANDLE_CASE(i64, int64_t);
             HANDLE_CASE(f16, uint16_t);
@@ -1604,7 +1607,7 @@ void Partitioner::identifySpatialRange(ov::npuw::Function& f) {
     const auto& f_params = f._model->get_parameters();
     NPUW_ASSERT(f_params.size() > 0);
 
-    using S = ov::npuw::Function::Spatial;
+    using S = ov::npuw::function::Spatial;
     S spatial;
     spatial._range = f_result_0_shape[1];
     spatial._out_dim = 1;  // the only case we're looking into now
@@ -1785,13 +1788,15 @@ void Partitioner::optimize(const std::string& func_name) {
 
         // Run Head/Tail passes
         ov::pass::GraphRewrite rewr;
-        rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatherCWu>(std::ref(ctx));
+        rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatheru>(std::ref(ctx));
         rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatherGQi>(std::ref(ctx));
         rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulCWu>(std::ref(ctx));
         // NB: This pass is disabled for reason! It doesn't make things better
         // rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulGQi>(std::ref(ctx));
         rewr.add_matcher<ov::npuw::patterns::opt::CompressDictMatMulf32>(std::ref(ctx));
         rewr.add_matcher<ov::npuw::patterns::opt::DQParMMGQ>(std::ref(ctx));
+        // Convert specific convolutions to matmuls
+        rewr.add_matcher<ov::npuw::patterns::opt::ConvToMatmul>(std::ref(ctx));
         rewr.run_on_model(f._model);
 
         // Move Gather to host, if required
@@ -1884,6 +1889,12 @@ void Partitioner::optimize(const std::string& func_name) {
                 auto new_elem_type = params_to_gather.pnew->get_element_type();
                 const auto& new_shape = params_to_gather.pnew->get_shape();
                 // Note: no allocation needed for this tensor - set to _closure and dummy in _lazy_closure
+                // FIXME: It turns out this tensor will be completely unused.
+                // It will just sit in the memory to do nothing.
+                // Most likely it may stay empty since we need a 1:1 matching between
+                // closure tensors and parameters (minus base).
+                // Based on our logic (when tensors get transferred from lazy tensors via bank
+                // to the closure), this tensor should be non-empty to avoid this process.
                 funcall.get()._closure.push_back(ov::Tensor(new_elem_type, new_shape));
                 funcall.get()._lazy_closure.push_back(LazyTensor(ov::Tensor()));
             }
@@ -2153,7 +2164,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
     // Try to load the partitioning plan...
     const std::string file_path = cfg.get<::intel_npu::NPUW_PLAN>();
     if (file_path.empty()) {
-        LOG_WARN("No " << ::intel_npu::NPUW_PLAN().key() << " property is provided! Using online partitioning.");
+        LOG_INFO("No " << ::intel_npu::NPUW_PLAN().key() << " property is provided! Using online partitioning.");
         ens = ov::npuw::online::buildPartitioning(model, cfg);
     } else {
         ens = load_groups(model, file_path);

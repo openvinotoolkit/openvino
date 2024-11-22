@@ -15,7 +15,7 @@ namespace ov {
 namespace frontend {
 namespace tensorflow_lite {
 
-class QuantizationInfo : public ov::RuntimeAttribute {
+class TENSORFLOW_LITE_API QuantizationInfo : public ov::RuntimeAttribute {
 public:
     OPENVINO_RTTI("QuantizationInfo");
     QuantizationInfo() = default;
