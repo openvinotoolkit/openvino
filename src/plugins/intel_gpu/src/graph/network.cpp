@@ -312,7 +312,7 @@ void network::reset_execution(bool wait) {
     }
 }
 
-event::ptr network::set_input_data(const primitive_id& id, memory::ptr data) {
+event::ptr network::set_input_data(const primitive_id& id, memory::ptr data, bool need_to_check_memory_to_set) {
     GPU_DEBUG_TRACE_DETAIL << "Set input " << id << " " << data->get_layout().to_short_string() << std::endl;
     auto primitive_inst = find_primitive(id);
 
@@ -322,7 +322,7 @@ event::ptr network::set_input_data(const primitive_id& id, memory::ptr data) {
 
     auto input = std::static_pointer_cast<input_layout_inst>(primitive_inst);
 
-    return input->set_data(data);
+    return input->set_data(data, need_to_check_memory_to_set);
 }
 
 void network::add_default_output_chains() {

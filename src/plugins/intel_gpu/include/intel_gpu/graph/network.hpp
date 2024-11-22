@@ -111,7 +111,7 @@ public:
     engine& get_engine() const { return _engine; }
 
     void reset_execution(bool wait = true);
-    event::ptr set_input_data(const primitive_id& id, memory::ptr data);
+    event::ptr set_input_data(const primitive_id& id, memory::ptr data, bool need_to_check_memory_to_set = true);
     std::vector<event::ptr> set_output_memory(const primitive_id& id, memory::ptr mem);
 
     std::vector<std::shared_ptr<primitive_inst>> const& get_outputs() { return _outputs; }
