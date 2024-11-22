@@ -11,16 +11,16 @@ namespace ov {
 namespace op {
 namespace internal {
 
-/// \brief Operator performing Swish Gated Linear Unit Activation
+/// \brief Operator performing Gated Linear Unit Activation
 /// This operation performs gated linear unit activation that combines swish or gelu activation function
-class TRANSFORMATIONS_API SwiGLU : public ov::op::Op {
+class TRANSFORMATIONS_API GLU : public ov::op::Op {
 public:
-    OPENVINO_OP("SwiGLU", "ie_internal_opset");
+    OPENVINO_OP("GLU", "ie_internal_opset");
 
     enum GluType { Swish = 0, Gelu, Gelu_Tanh };
 
-    SwiGLU() = default;
-    /// \brief Constructs an SwiGLU operation.
+    GLU() = default;
+    /// \brief Constructs an GLU operation.
     ///
     /// \param data Input tensor with data
     /// \param axis The index of an axis in "data" along which to perform the split
@@ -28,12 +28,12 @@ public:
     /// \param glu_type GLU type, one of Swish, Gelu and Gelu_Tanh
     /// \param split_to_glu_idx Output index of variadic split, which is connected to GLU
     /// \param output_type Output element type
-    SwiGLU(const Output<Node>& data,
-           int64_t axis,
-           int64_t split_lengths,
-           const GluType glu_type,
-           const size_t split_to_glu_idx,
-           const ov::element::Type output_type = ov::element::undefined);
+    GLU(const Output<Node>& data,
+        int64_t axis,
+        int64_t split_lengths,
+        const GluType glu_type,
+        const size_t split_to_glu_idx,
+        const ov::element::Type output_type = ov::element::undefined);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 
@@ -76,7 +76,7 @@ private:
 };
 
 // TODO 157615: Move to shape_inference
-TRANSFORMATIONS_API std::vector<ov::PartialShape> shape_infer(const SwiGLU* op,
+TRANSFORMATIONS_API std::vector<ov::PartialShape> shape_infer(const GLU* op,
                                                               std::vector<ov::PartialShape> input_shapes);
 
 }  // namespace internal

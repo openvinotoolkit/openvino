@@ -11,10 +11,10 @@
 namespace ov {
 namespace pass {
 
-class TRANSFORMATIONS_API SwiGLUFusion : public ov::pass::MatcherPass {
+class TRANSFORMATIONS_API GLUFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SwiGLUFusion", "0");
-    SwiGLUFusion();
+    OPENVINO_RTTI("GLUFusion", "0");
+    GLUFusion();
 };
 
 }  // namespace pass

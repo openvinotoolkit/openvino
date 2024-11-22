@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include "ov_ops/swiglu.hpp"
+#include "ov_ops/glu.hpp"
 #include "primitive.hpp"
 
 namespace cldnn {
@@ -25,7 +25,7 @@ struct swiglu : public primitive_base<swiglu> {
            const input_info& input,
            const int64_t& axis,
            const int64_t& split_lengths,
-           const ov::op::internal::SwiGLU::GluType glu_type,
+           const ov::op::internal::GLU::GluType glu_type,
            const size_t split_to_glu_idx,
            const tensor output_size)
            : primitive_base(id, {input}),
@@ -37,7 +37,7 @@ struct swiglu : public primitive_base<swiglu> {
 
     int64_t axis = 0;
     int64_t split_lengths = 0;
-    ov::op::internal::SwiGLU::GluType glu_type = ov::op::internal::SwiGLU::GluType::Swish;
+    ov::op::internal::GLU::GluType glu_type = ov::op::internal::GLU::GluType::Swish;
     size_t split_to_glu_idx = 0;
     tensor output_size;
 
