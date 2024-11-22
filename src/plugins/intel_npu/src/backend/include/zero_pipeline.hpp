@@ -45,6 +45,7 @@ public:
 protected:
     std::shared_ptr<IGraph> _graph;
     const Config _config;
+    const uint32_t _id;
     std::shared_ptr<CommandQueue> _command_queue;
     std::vector<std::unique_ptr<CommandList>> _command_lists;
     std::vector<std::unique_ptr<Fence>> _fences;

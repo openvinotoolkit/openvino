@@ -26,8 +26,9 @@ Pipeline::Pipeline(const Config& config,
                    const std::vector<std::optional<TensorData>>& outputTensorsData,
                    size_t numberOfCommandLists,
                    uint32_t group_ordinal)
-    : _config(config),
-      _graph(graph),
+    : _graph(graph),
+      _config(config),
+      _id(_graph->get_id_index()),
       _event_pool{std::make_shared<EventPool>(initStructs->getDevice(),
                                               initStructs->getContext(),
                                               numberOfCommandLists ? static_cast<uint32_t>(numberOfCommandLists) : 1)},
@@ -121,6 +122,18 @@ Pipeline::Pipeline(const Config& config,
 
 void Pipeline::push() {
     _logger.debug("Pipeline - push() started");
+
+    if (_config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        if (_id) {
+            auto previousIndex = _graph->get_previous_id_index();
+
+            if (_id != ++previousIndex) {
+                OPENVINO_THROW("Inferences should be called in the same order they were called the first time!");
+            }
+        }
+
+        _graph->set_previous_id_index(_id);
+    }
 
     for (size_t i = 0; i < _command_lists.size(); ++i) {
         OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");

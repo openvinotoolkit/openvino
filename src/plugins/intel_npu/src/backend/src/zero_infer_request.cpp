@@ -532,6 +532,10 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
 }
 
 void ZeroInferRequest::infer() {
+    if (_config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        OPENVINO_THROW("Only start async is supported when RUN_INFERENCES_SEQUENTIALLY is enabled!");
+    }
+
     infer_async();
     get_result();
 }

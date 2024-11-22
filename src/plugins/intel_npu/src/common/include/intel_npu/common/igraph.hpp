@@ -97,6 +97,18 @@ public:
         return _previous_event_used[indexOfCommandList];
     }
 
+    inline uint32_t get_id_index() {
+        return _id_index++;
+    }
+
+    inline void set_previous_id_index(uint32_t id_index) {
+        _previous_infer_id = id_index;
+    }
+
+    inline const uint32_t get_previous_id_index() const {
+        return _previous_infer_id;
+    }
+
 protected:
     ze_graph_handle_t _handle = nullptr;
     NetworkMetadata _metadata;
@@ -112,6 +124,9 @@ protected:
     std::mutex _mutex;
 
     std::vector<uint8_t> _blob;
+
+    uint32_t _id_index = 0;
+    uint32_t _previous_infer_id;
 };
 
 }  // namespace intel_npu
