@@ -136,7 +136,7 @@ public:
                 found_range = true;
             }
             if (n->get_friendly_name() == "convert_to_i32") {
-                ASSERT_EQ(n->get_input_element_type(0), ElementType::f32);
+                ASSERT_EQ(n->get_input_element_type(0), ElementType::f16);
                 found_convert = true;
             }
         }
