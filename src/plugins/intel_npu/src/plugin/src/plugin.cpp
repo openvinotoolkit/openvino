@@ -841,13 +841,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, s
             graph = compiler->parse(model_buffer, localConfig);
         } else {
             auto graphSize = getFileSize(stream);
-            std::vector<uint8_t> blob(graphSize);
-            stream.read(reinterpret_cast<char*>(blob.data()), graphSize);
+            auto blobSO = std::make_shared<std::vector<uint8_t>>(graphSize);
+            stream.read(reinterpret_cast<char*>(blobSO->data()), graphSize);
             if (!stream) {
                 OPENVINO_THROW("Failed to read data from stream!");
             }
             _logger.debug("Successfully read %zu bytes into blob.", graphSize);
-            graph = compiler->parse(std::make_shared<ov::SharedBuffer<std::shared_ptr<std::vector<uint8_t>>>>(reinterpret_cast<char*>(blob.data()), blob.size(), std::make_shared<std::vector<uint8_t>>(std::move(blob))), localConfig);
+            graph = compiler->parse(std::make_shared<ov::SharedBuffer<std::shared_ptr<std::vector<uint8_t>>>>(reinterpret_cast<char*>(blobSO->data()), graphSize, blobSO), localConfig);
         }
         graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
 

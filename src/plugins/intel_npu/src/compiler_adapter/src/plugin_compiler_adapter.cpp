@@ -80,7 +80,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
 
     _logger.debug("compile start");
     auto networkDesc = _compiler->compile(model, config);
-    auto networkSO = std::make_shared<ov::SharedBuffer<std::shared_ptr<std::vector<uint8_t>>>>(reinterpret_cast<char*>(networkDesc.compiledNetwork.data()), networkDesc.compiledNetwork.size(), std::make_shared<std::vector<uint8_t>>(std::move(networkDesc.compiledNetwork)));
+    auto networkSO = std::make_shared<std::vector<uint8_t>>(std::move(networkDesc.compiledNetwork));
+    auto networkSOPtr = std::make_shared<ov::SharedBuffer<std::shared_ptr<std::vector<uint8_t>>>>(reinterpret_cast<char*>(networkSO->data()), networkSO->size(), networkSO);
     _logger.debug("compile end");
 
     ze_graph_handle_t graphHandle = nullptr;
@@ -88,7 +89,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     if (_zeGraphExt) {
         // Depending on the config, we may get an error when trying to get the graph handle from the compiled network
         try {
-            graphHandle = _zeGraphExt->getGraphHandle(networkSO);
+            graphHandle = _zeGraphExt->getGraphHandle(networkSOPtr);
         } catch (...) {
             _logger.info("Failed to obtain the level zero graph handle. Inference requests for this model are not "
                          "allowed. Only exports are available");
@@ -100,7 +101,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
                                          _zeroInitStruct,
                                          graphHandle,
                                          std::move(networkDesc.metadata),
-                                         networkSO,
+                                         networkSOPtr,
                                          config);
 }
 
