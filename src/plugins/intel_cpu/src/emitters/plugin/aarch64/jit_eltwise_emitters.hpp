@@ -214,6 +214,36 @@ private:
     void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 };
 
+class jit_ceiling_emitter : public jit_emitter {
+public:
+    // Constructor with explicit precision
+    jit_ceiling_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+                        dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                        const ov::element::Type exec_prc = ov::element::f32);
+
+    // Constructor from node
+    jit_ceiling_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+                        dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                        const std::shared_ptr<ov::Node>& node);
+
+    // Get number of inputs
+    size_t get_inputs_count() const override;
+
+    // Get supported precisions
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
+
+private:
+    // Implementation of JIT code emission
+    void emit_impl(const std::vector<size_t> &in_vec_idxs,
+                  const std::vector<size_t> &out_vec_idxs) const override;
+
+    // ISA-specific implementation
+    template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t> &in_vec_idxs,
+                 const std::vector<size_t> &out_vec_idxs) const;
+};
+
 class jit_gelu_erf_emitter : public jit_emitter {
 public:
     jit_gelu_erf_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,

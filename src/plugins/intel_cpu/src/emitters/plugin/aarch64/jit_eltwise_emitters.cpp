@@ -516,6 +516,50 @@ std::set<std::vector<element::Type>> jit_floor_emitter::get_supported_precisions
     return {{element::f32}};
 }
 
+/// CEILING ///
+//Initialization of the emitter, taking node as input
+jit_ceiling_emitter::jit_ceiling_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                         dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                         const std::shared_ptr<ov::Node>& node)
+        : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
+}
+
+//Initialization of emitter, without taking node as input
+jit_ceiling_emitter::jit_ceiling_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                         dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                         const ov::element::Type exec_prc) : jit_emitter(host, host_isa, exec_prc) {
+}
+
+//This will tell the JIT compiler that how many inputs the ceiling operation requires (here 1)
+size_t jit_ceiling_emitter::get_inputs_count() const { return 1; }
+
+//Main implementation method that emits the JIT code
+void jit_ceiling_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
+        emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+// Template method that generates actual instruction sequence for ceiling operation
+// The h->frintp() method rounds up the floating value to the nearest integer.
+template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+void jit_ceiling_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
+
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+    TReg src = TReg(in_vec_idxs[0]);
+    TReg dst = TReg(out_vec_idxs[0]);
+    h->frintp(dst.s, src.s);
+}
+
+// Template method that generates actual instruction sequence for ceiling operation
+// Currently only supports 32-bit floating point (f32)
+std::set<std::vector<element::Type>> jit_ceiling_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32}};
+}
+
 /// GELU_ERF ///
 jit_gelu_erf_emitter::jit_gelu_erf_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,

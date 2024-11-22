@@ -310,7 +310,7 @@ std::vector<std::string> disabledTestPatterns() {
     };
 
     // fp32 floor for bf16 models: conversion issue
-    retVector.emplace_back(R"(.*smoke.*ActivationLayerCPUTest.*CompareWithRefs/Floor_.*netPRC=bf16.*)");
+    retVector.emplace_back(R"(.*smoke.*ActivationLayerCPUTest.*CompareWithRefs/(Floor|Ceiling)_.*netPRC=bf16.*)");
 
 #if defined(OPENVINO_ARCH_X86)
     retVector.emplace_back(R"(.*DetectionOutputLayerTest.*)");
