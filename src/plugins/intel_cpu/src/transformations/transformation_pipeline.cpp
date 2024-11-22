@@ -698,7 +698,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(sdpa_manager, ov::pass::ScaledDotProductAttentionDecomposition);
     CPU_REGISTER_PASS_COMMON(sdpa_manager, ov::pass::ConvertConvertLike);
     CPU_REGISTER_PASS_COMMON(sdpa_manager, ov::pass::ConstantFolding);
-    CPU_REGISTER_PASS_COMMON(sdpa_manager, ov::pass::TransposeSinking);
+    CPU_REGISTER_PASS_COMMON(sdpa_manager, ov::pass::TransposeEltwise);
+    CPU_REGISTER_PASS_COMMON(sdpa_manager, ov::pass::TransposeFuse);
     CPU_REGISTER_PASS_COMMON(sdpa_manager, ov::pass::TransposeMatMul);
 
     sdpa_manager.run_passes(model);
