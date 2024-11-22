@@ -313,7 +313,7 @@ jobs:
           wheels-to-install: 'openvino'
 
       - name: Install Python API tests dependencies
-        run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/bindings/python/requirements_test.txt
+        run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/tests/bindings/python/requirements_test.txt
 
       - name: Python API Tests
         run: |
