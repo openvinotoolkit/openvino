@@ -70,7 +70,7 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
     Output<Node> scale;
     if (node->get_input_size() < 5) {
         auto&& query_shape = query.get_partial_shape();
-        //often the embeddings space size is known, so the dimension may be extracted into a constant
+        // often the embeddings space size is known, so the dimension may be extracted into a constant
         if (query_shape.rank().is_static()) {
             auto&& last_dim = *(query_shape.rbegin());
             if (last_dim.is_static()) {
