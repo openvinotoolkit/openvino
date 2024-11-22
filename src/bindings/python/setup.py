@@ -593,10 +593,7 @@ class CopyExt(build_ext):
 
 
 class CustomInstall(install):
-    """Custom install command."""
-    # def run(self):
-    #     super().run(self)
-        
+    """Custom install command."""      
     def run(self):
         """Enable build_clib during the installation."""
         self.run_command("build")
