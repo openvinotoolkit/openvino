@@ -86,7 +86,7 @@ OutputVector translate_linear_awq(const NodeContext& context) {
 
     FRONT_END_OP_CONVERSION_CHECK(bits == 4, "Only 4 bit AWQ is supported.");
 
-    auto new_qweight = rearrange_constant(qweight, groups);
+    auto new_qweight = rearrange_constant(qweight, static_cast<uint32_t>(groups));
     auto new_qzeros = rearrange_constant(qzeros, 1);
     new_qweight = context.mark_node(std::make_shared<v0::Convert>(new_qweight, scales.get_element_type()));
     new_qzeros = context.mark_node(std::make_shared<v0::Convert>(new_qzeros, scales.get_element_type()));
