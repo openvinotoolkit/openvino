@@ -515,7 +515,50 @@ void jit_floor_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const s
 std::set<std::vector<element::Type>> jit_floor_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
+/// FLOOR_MOD ///
+jit_floor_mod_emitter::jit_floor_mod_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+                                             dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                             const std::shared_ptr<ov::Node>& node)
+    : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
+}
 
+jit_floor_mod_emitter::jit_floor_mod_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+                                             dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                             const ov::element::Type exec_prc): jit_emitter(host, host_isa, exec_prc) {
+}
+
+size_t jit_floor_mod_emitter::get_inputs_count() const { return 2; }
+
+size_t jit_floor_mod_emitter::get_aux_vecs_count() const { return 1; }
+
+void jit_floor_mod_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
+        emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+void jit_floor_mod_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
+
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+
+    TReg dividend = TReg(in_vec_idxs[0]);
+    TReg divisor = TReg(in_vec_idxs[1]);
+    TReg r = TReg(out_vec_idxs[0]);
+    TReg aux = TReg(aux_vec_idxs[0]);
+
+    h->fdiv(aux.s, dividend.s, divisor.s);
+    h->frintm(aux.s, aux.s);
+    h->fmul(aux.s, aux.s, divisor.s);
+    h->fsub(r.s, dividend.s, aux.s);
+}
+
+std::set<std::vector<element::Type>> jit_floor_mod_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32, element::f32}};
+}
 /// CEILING ///
 //Initialization of the emitter, taking node as input
 jit_ceiling_emitter::jit_ceiling_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
