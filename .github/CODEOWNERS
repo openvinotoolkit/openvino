@@ -108,8 +108,6 @@
 /tools/  @openvinotoolkit/openvino-tools-maintainers
 /tools/benchmark_tool/ @openvinotoolkit/openvino-ie-python-api-maintainers
 /tools/legacy/ @openvinotoolkit/openvino-samples-maintainers
-/tools/openvino_dev/ @openvinotoolkit/openvino-tools-maintainers @openvinotoolkit/openvino-ie-python-api-maintainers
-/tools/mo/  @openvinotoolkit/openvino-mo-maintainers
 /tools/ovc/  @openvinotoolkit/openvino-ovc-maintainers
 /thirdparty/open_model_zoo/ @openvinotoolkit/omz-maintainers
 

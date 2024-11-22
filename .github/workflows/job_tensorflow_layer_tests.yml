@@ -24,12 +24,13 @@ on:
 permissions: read-all
 
 env:
-  PIP_CACHE_PATH: /mount/caches/pip/linux
+  PIP_CACHE_PATH_LINUX: /mount/caches/pip/linux
+  PIP_CACHE_PATH_WIN: "C:\\mount\\caches\\pip\\win"
 
 jobs:
   TensorFlow_Layer_Tests:
     name: TensorFlow Layer Tests
-    timeout-minutes: 30
+    timeout-minutes: 45
     runs-on: ${{ inputs.runner }}
     container: ${{ fromJSON(inputs.container) }}
     defaults:
@@ -94,9 +95,9 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ inputs.python-version }}
-          pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH || '' }}
-          should-setup-pip-paths: ${{ runner.os == 'Linux' }}
-          self-hosted-runner: ${{ runner.os == 'Linux' }}
+          pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH_LINUX || env.PIP_CACHE_PATH_WIN }}
+          should-setup-pip-paths: ${{ runner.os != 'macOS' }}
+          self-hosted-runner: ${{ runner.os != 'macOS' }}
 
       - name: Install OpenVINO Python wheels (Linux and macOS)
         if: runner.os != 'Windows'

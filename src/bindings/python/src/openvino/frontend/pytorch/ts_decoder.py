@@ -51,8 +51,10 @@ class TorchScriptPythonDecoder(Decoder):
         self.out_debug_name_overwrites = {}
         if graph_element is None:
             if hasattr(pt_module, "config"):
-                self.config = pt_module.config.to_dict() if not isinstance(
-                    pt_module.config, dict) else pt_module.config
+                if isinstance(pt_module.config, dict):
+                    self.config = pt_module.config
+                elif hasattr(pt_module.config, "to_dict"):
+                    self.config = pt_module.config.to_dict()
             try:
                 pt_module = self._get_scripted_model(
                     pt_module, example_input, skip_freeze)
