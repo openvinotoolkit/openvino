@@ -32,12 +32,19 @@
 
 namespace {
 
-inline bool can_use_usm_host(const cldnn::engine& engine) {
+inline bool can_use_usm_host(const cldnn::engine& engine, const uint64_t total_output_bytes) {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->use_usm_host == 1) { return true; }
+    GPU_DEBUG_IF(debug_config->use_usm_host == 2) { return false; }
+
     auto can_use_usm = engine.use_unified_shared_memory();
+    // When output size is large, it is better not to write to usm_host directly
+    const uint64_t LARGE_OUTPUT_BYTES_THRESHOLD = 4 * 1048576;
 
     const auto& device_info = engine.get_device_info();
     if ((device_info.gfx_ver.major == 12 && device_info.gfx_ver.minor == 60) ||
-        (device_info.gfx_ver.major >= 20 && device_info.dev_type == cldnn::device_type::discrete_gpu)) {
+        (device_info.gfx_ver.major >= 20 && device_info.dev_type == cldnn::device_type::discrete_gpu) ||
+        (device_info.dev_type == cldnn::device_type::discrete_gpu && total_output_bytes > LARGE_OUTPUT_BYTES_THRESHOLD)) {
         // WA: Disable USM host memory for infer request`s tensors for PVC and subsequent dGPUs, as kernel access
         // to system memory is slower than using an explicit memcpy (Host <-> Device) call with the copy engine
         // Driver tickets with additional details: 6155, 10054
@@ -544,7 +551,7 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::create_device_tensor(const ov::Pa
     }
 
     // Create OpenCL buffer for PVC if lockable memory is needed due to performance issue with usm host
-    if (!can_use_usm_host(m_graph->get_engine()) && need_lockable_memory)
+    if (!can_use_usm_host(m_graph->get_engine(), total_output_bytes) && need_lockable_memory)
         tensor_type = TensorType::BT_BUF_INTERNAL;
 
     return std::make_shared<RemoteTensorImpl>(m_context,
@@ -573,7 +580,9 @@ TensorWrapper SyncInferRequest::create_or_share_device_tensor(const TensorWrappe
     auto usm_host_raw_ptr = engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu &&
                             user_tensor_mem_type == cldnn::allocation_type::usm_host;
 
-    bool can_share = !is_convert_required(user_tensor->get_element_type(), element_type) && can_use_usm_host(engine) && !generic_remote_tensor;
+    bool can_share = !is_convert_required(user_tensor->get_element_type(), element_type)
+                     && can_use_usm_host(engine, total_output_bytes)
+                     && !generic_remote_tensor;
 
     if (usm_host_tensor && can_share && m_context == usm_host_tensor->get_impl()->get_context()) {
         return { usm_host_tensor->get_impl(), user_tensor_wrapper.owner };
@@ -662,6 +671,7 @@ void SyncInferRequest::allocate_inputs() {
 void SyncInferRequest::allocate_outputs() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::allocate_outputs");
 
+    total_output_bytes = 0;
     // allocate outputs
     for (const auto& it : m_output_ports_map) {
         size_t output_idx = it.first;
@@ -669,6 +679,7 @@ void SyncInferRequest::allocate_outputs() {
         GPU_DEBUG_LOG << "[init output blob with index: " << output_idx << "]" << std::endl;
 
         allocate_output(port, output_idx);
+        total_output_bytes += ov::ISyncInferRequest::get_tensor(port)->get_byte_size();
     }
 }
 
@@ -817,7 +828,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
         } else {
             m_plugin_inputs[input_idx] = user_tensor_wrapper;
         }
-    } else if (is_usm_host_tensor && !convert_needed && can_use_usm_host(engine)) {
+    } else if (is_usm_host_tensor && !convert_needed) {
         if (element_type != ::data_type_for_remote_tensor(element_type)) {
             m_plugin_inputs[input_idx] = { std::make_shared<RemoteTensorImpl>(m_context,
                                                                               user_tensor->get_shape(),
