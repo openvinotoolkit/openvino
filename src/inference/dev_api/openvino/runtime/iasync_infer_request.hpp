@@ -220,10 +220,6 @@ private:
         std::function<void(std::exception_ptr)> m_callback;
     };
 
-    void set_request_executor(std::shared_ptr<ov::threading::ITaskExecutor> task_executor) {
-        m_request_executor = task_executor;
-    }
-
     void run_first_stage(const Pipeline::iterator itBeginStage,
                          const Pipeline::iterator itEndStage,
                          const std::shared_ptr<ov::threading::ITaskExecutor> callbackExecutor = {});
@@ -279,7 +275,6 @@ private:
     std::shared_ptr<IInferRequest> m_sync_request;
 
     std::shared_ptr<ov::threading::ITaskExecutor> m_request_executor;  //!< Used to run inference CPU tasks.
-    std::shared_ptr<ov::threading::ITaskExecutor> m_default_request_executor;  //!< Used to run inference CPU tasks.
     std::shared_ptr<ov::threading::ITaskExecutor> m_second_request_executor;  //!< Used to run inference CPU tasks.
     std::shared_ptr<ov::threading::ITaskExecutor>
         m_callback_executor;  //!< Used to run post inference callback in asynchronous pipline

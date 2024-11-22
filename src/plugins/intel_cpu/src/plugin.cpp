@@ -141,6 +141,7 @@ Plugin::~Plugin() {
     executor_manager()->clear("CPU");
     executor_manager()->clear("CPUStreamsExecutor");
     executor_manager()->clear("CPUMainStreamExecutor");
+    executor_manager()->clear("CPUSecondStreamsExecutor");
     executor_manager()->clear("CPUCallbackExecutor");
 }
 
