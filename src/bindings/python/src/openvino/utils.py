@@ -8,6 +8,7 @@ from functools import wraps
 from typing import Callable, Any
 from pathlib import Path
 import importlib.util
+from types import ModuleType
 
 
 def _add_openvino_libs_to_search_path() -> None:
@@ -116,11 +117,10 @@ def deprecatedclassproperty(name: Any = None, version: str = "", message: str = 
     return decorator
 
 
-def lazy_import(module_name):
+def lazy_import(module_name: str) -> ModuleType:
     spec = importlib.util.find_spec(module_name)
-    if spec is None:
+    if spec is None or spec.loader is None:
         raise ImportError(f"Module {module_name} not found")
-
 
     loader = importlib.util.LazyLoader(spec.loader)
     module = importlib.util.module_from_spec(spec)

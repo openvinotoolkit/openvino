@@ -19,7 +19,7 @@ except ImportError:
 # #
 # Import all public modules
 from openvino.utils import lazy_import
-runtime = lazy_import('openvino.runtime')
+runtime = lazy_import("openvino.runtime")
 from openvino import frontend as frontend
 from openvino import helpers as helpers
 from openvino import experimental as experimental
