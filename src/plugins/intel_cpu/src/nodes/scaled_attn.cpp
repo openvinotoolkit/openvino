@@ -1106,15 +1106,22 @@ void ScaledDotProductAttention::createPrimitive() {
     auto rtPrecision = getRuntimePrecision();
     const auto keyDims = getInputShapeAtPort(1).getDims();
     const auto valueDims = getInputShapeAtPort(2).getDims();
-    m_key_group_size =
-        m_key_group_size ? m_key_group_size : *(keyDims.end() - 1);
-    m_value_group_size =
-        m_value_group_size ? m_value_group_size : *(valueDims.end() - 1);
-    if (getenv("GROUP_SIZE")) {
-        m_key_group_size = std::stoi(std::string(getenv("GROUP_SIZE")));
-        m_value_group_size = std::stoi(std::string(getenv("GROUP_SIZE")));
+    const auto cpuConfig = context->getConfig();
+    const auto keyS = *(keyDims.end() - 1);
+    const auto valueS = *(valueDims.end() - 1);
+
+    m_key_group_size = cpuConfig.keyCacheGroupSize ? cpuConfig.keyCacheGroupSize : keyS;
+    m_value_group_size = cpuConfig.valueCacheGroupSize ? cpuConfig.valueCacheGroupSize : valueS;
+
+    if (keyS % m_key_group_size != 0) {
+        OPENVINO_THROW("ScaledDotProductAttention AttentionExecutor creation fails key state " + std::to_string(keyS) +
+                       " cannot be divided by group size " + std::to_string(m_key_group_size));
     }
-    printf("SDPA|key_group_size %ld value_group_size %ld\n", m_key_group_size, m_value_group_size);
+
+    if (valueS % m_value_group_size != 0) {
+        OPENVINO_THROW("ScaledDotProductAttention AttentionExecutor creation fails value state " + std::to_string(keyS) +
+                       " cannot be divided by group size " + std::to_string(m_value_group_size));
+    }
     ScaledDotProductAttentionKey key = {rtPrecision};
 
     auto builder = [&](const ScaledDotProductAttentionKey& key) -> std::shared_ptr<Executor> {
@@ -1351,7 +1358,6 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
             new_scale_zp_k.resize<float>(real_shape);
             shape = reverse({B, H, (L0 + L1) * 2, SV / m_value_group_size * 2});
             real_shape = permute_axes(shape, real_order);
-            printf("resetBeamTablePastkv|resize quantize %ld %ld %ld %ld\n", real_shape[0], real_shape[1], real_shape[2], real_shape[3]);
             new_scale_zp_v.resize<float>(real_shape);
             if (L0 > 0) {
                 parallel_for2d(L0, B, [&](size_t m, size_t b) {
@@ -1681,7 +1687,6 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
             shape = reverse({B, H, (L0 + L1) * 2, SV / m_value_group_size * 2});
             real_shape = permute_axes(shape, real_order);
             new_scale_zp_v.resize<float>(real_shape);
-            printf("updatePastkv|resize quantize %ld %ld %ld %ld\n", real_shape[0], real_shape[1], real_shape[2], real_shape[3]);
             if (L0 > 0 && !is_reset) {
                 parallel_for(L0, [&](size_t m) {
                     memcpy(new_scale_zp_k.ptr<float>(m), old_scale_zp_k.ptr<float>(m), sizeof(float) * B * H * S / m_key_group_size * 2);

@@ -212,7 +212,6 @@ VariableStateKVcache::VariableStateKVcache(const std::string& name,
 }
 
 ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
-    printf("going to get state \n");
     if (!m_internal_mem || !m_hidden_state || is_reset_state()) {
         auto new_desc = to_static(get_external_desc());
         auto external_mem = std::make_shared<Memory>(get_engine(), new_desc);
@@ -251,11 +250,13 @@ ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
         parallel_for3d(L0, B, H, [&](size_t ithr, size_t m, size_t b, size_t h) {
             auto b_kv = static_cast<size_t>(beam_table.at<int32_t>({b, m}));
             buffers[ithr].resize<float>({S});
-            attn_dequant_u8(pastkv.ptr<uint8_t>(m, b_kv, h),
-                            buffers[ithr].ptr<float>(),
-                            S,
-                            m_scale_zp.ptr<float>(m, b_kv, h)[0],
-                            m_scale_zp.ptr<float>(m, b_kv, h)[1]);
+            for (size_t group_id = 0; group_id < S / m_group_size; group_id ++) {
+                attn_dequant_u8(pastkv.ptr<uint8_t>(m, b_kv, h, group_id * m_group_size),
+                                buffers[ithr].ptr<float>() + group_id * m_group_size,
+                                m_group_size,
+                                m_scale_zp.ptr<float>(m, b_kv, h, group_id * 2)[0],
+                                m_scale_zp.ptr<float>(m, b_kv, h, group_id * 2)[1]);
+            }
             cpu_convert(buffers[ithr].ptr<float>(),
                         output.ptr_v(m, b, h),
                         element::f32,
@@ -277,7 +278,6 @@ ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
 }
 
 void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
-    printf("going to set state \n");
     //1. reset the memory object
     m_state = state; // simply to extend the lifetime
     auto state_desc = MemoryDescUtils::generateCpuBlockedMemoryDesc(m_state);
@@ -301,19 +301,17 @@ void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
         auto S = internal.size(3);
         auto nthr = parallel_get_max_threads();
         std::vector<PlainTensor> buffers(nthr);
-        m_scale_zp.resize<float>({L0, B, H, 2});
+        m_scale_zp.resize<float>({L0, B, H, 2 * S / m_group_size});
         parallel_for3d(B, H, L0, [&](size_t ithr, size_t b, size_t h, size_t m) {
             buffers[ithr].resize<float>({S});
-            cpu_convert(external.ptr_v(m, b, h),
-                        buffers[ithr].ptr<float>(),
-                        external.m_dt,
-                        element::f32,
-                        S);
-            attn_quant_u8(buffers[ithr].ptr<float>(),
-                          internal.ptr<uint8_t>(m, b, h),
-                          S,
-                          m_scale_zp.at<float>({m, b, h, size_t{0}}),
-                          m_scale_zp.at<float>({m, b, h, size_t{1}}));
+            cpu_convert(external.ptr_v(m, b, h), buffers[ithr].ptr<float>(), external.m_dt, element::f32, S);
+            for (size_t group_id = 0; group_id < S / m_group_size; group_id++) {
+                attn_quant_u8(buffers[ithr].ptr<float>() + group_id * m_group_size,
+                              internal.ptr<uint8_t>(m, b, h, group_id * m_group_size),
+                              m_group_size,
+                              m_scale_zp.at<float>({m, b, h, group_id * 2}),
+                              m_scale_zp.at<float>({m, b, h, group_id * 2 + 1}));
+            }
         });
     } else {
         m_internal_mem->load(external_mem);

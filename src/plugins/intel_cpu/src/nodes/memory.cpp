@@ -812,7 +812,7 @@ MemStatePtr MemoryInputSDPA::makeState() const {
     if (kv_precision == ov::element::u8) {
         group_size = state_name.find(".key") != std::string::npos ? node->getKeyGroupSize() : node->getValueGroupSize();
     }
-    printf("State|process %s kv_precision %s group_size %ld\n", state_name.c_str(), kv_precision.to_string().c_str(), group_size);
+
     VectorDims order = {2, 0, 1, 3};
     if (!node->getKVCacheOrder().empty())
         order = node->getKVCacheOrder();
