@@ -108,7 +108,11 @@ CommandList::~CommandList() {
 }
 void CommandList::updateMutableCommandList(uint32_t arg_index, const void* arg_value) const {
     ze_mutable_graph_argument_exp_desc_t desc = {
-        static_cast<ze_structure_type_t>(ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC_DEPRECATED),
+        (ZE_MAJOR_VERSION(_initStructs->getZeDrvApiVersion()) > 1 ||
+         (ZE_MAJOR_VERSION(_initStructs->getZeDrvApiVersion()) == 1 &&
+          ZE_MINOR_VERSION(_initStructs->getZeDrvApiVersion()) >= 11))
+            ? ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC
+            : static_cast<ze_structure_type_t>(ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC_DEPRECATED),
         nullptr,
         _command_id,
         arg_index,
