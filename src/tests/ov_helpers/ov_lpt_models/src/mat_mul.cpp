@@ -127,7 +127,9 @@ std::shared_ptr<ov::Model> MatMulFunction::getOriginal(
     parent->set_friendly_name("fullyConnected");
 
     if (bias) {
-        auto bias = ov::test::utils::make_constant(precision, parent->get_output_shape(0));
+        ov::Shape bias_shape(parent->get_output_partial_shape(0).size(), 1);
+        bias_shape.back() = parent->get_output_partial_shape(0).rbegin()->get_length();
+        auto bias = ov::test::utils::make_constant(precision, bias_shape);
         parent = std::make_shared<ov::opset1::Add>(parent, bias);
         parent->set_friendly_name("add");
     }
