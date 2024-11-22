@@ -61,6 +61,13 @@ const std::vector<FullyConnectedParams> activations = {
         false, // bias
         "fullyconnected,relu_original,relu"
     },
+    {
+        true,  // activation
+        false, // per-channel
+        true,  // FQ
+        true,  // bias
+        "fullyConnected,fullyConnected/DequantizationMultiply,add,relu"
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, FullyConnectedTransformation,
