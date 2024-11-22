@@ -79,5 +79,5 @@ class TestIndexFill(PytorchLayerTest):
         shape = self.input_tensor.shape
         max_idx = shape[dim]
         n_select = np.random.randint(1, max_idx + 1)
-        index = torch.from_numpy(np.random.choice(np.arange(0, max_idx), n_select, replace=False))
+        index = torch.from_numpy(np.random.choice(np.arange(0, max_idx), n_select, replace=False)).to(torch.long)
         self._test(*self.create_model(dim, index, values), ie_device, precision, ir_version)
