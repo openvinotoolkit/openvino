@@ -48,9 +48,9 @@ void copy_to(ov::SoPtr<ov::ITensor> src,
     const auto* src_p = static_cast<uint8_t*>(src->data());
           auto* dst_p = static_cast<uint8_t*>(dst->data());
 
-    const auto C  = src->get_shape()[2];
+    const auto C  = src->get_shape()[1];
     const auto SC = src->get_strides()[1];
-    const auto SH = src->get_strides()[2];
+    const auto SH = src->get_strides()[dim];
 
     for (int c = 0; c < C; ++c) {
         const auto* sp = src_p + (C * SC) + (src_start * SH);
@@ -137,15 +137,27 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
         for (int i = 0; i < kvcache_compiled->outputs().size() - 1; ++i) {
             const auto& output_name = kvcache_compiled->outputs()[kStartOutputKVCacheLayers + i].get_any_name();
+            std:: cout << "output_name=" << output_name << std::endl;
             auto prefill_out_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
+            std:: cout << "output port=" << m_prefill_out_ports.at(output_name) << std::endl;
 
             const auto& input_name = kvcache_compiled->inputs()[kStartInputKVCacheLayers + i].get_any_name();
-            auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_out_ports.at(input_name));
+            std:: cout << "input_name=" << input_name << std::endl;
+            //
+            auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
+            std:: cout << "input port=" << m_kvcache_in_ports.at(input_name) << std::endl;
+            std:: cout << "tensor" << kvcache_in_tensor->get_size() << std::endl;
+            std::cout << "shape: " << kvcache_in_tensor->get_shape()[0] << "x" <<
+            kvcache_in_tensor->get_shape()[1] << "x" << kvcache_in_tensor->get_shape()[2] <<
+            "x" << kvcache_in_tensor->get_shape()[3] << std::endl;
             fill_tensor<ov::float16>(kvcache_in_tensor, 0);
+            std:: cout << "filled" << std::endl;
 
             copy_to(prefill_out_tensor, kvcache_in_tensor, 2,
                     m_kvcache_desc.max_prompt_size - m_kvcache_desc.num_stored_tokens,
                     0, m_kvcache_desc.num_stored_tokens);
+            std::cout << "copied" << std::endl;
+
         }
         std::cout << "KVCACHE IS COPYIED" << std::endl;
     }
