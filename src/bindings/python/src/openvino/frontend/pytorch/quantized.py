@@ -7,7 +7,7 @@ from openvino.frontend.pytorch import ModuleExtension, gptq
 from openvino.frontend.pytorch.patch_model import patch_model, unpatch_model
 
 
-def detect_quantized_model(model: torch.nn.Module) -> str:
+def detect_quantized_model(model: torch.nn.Module):
     """Detects the quantization method used in a given PyTorch model.
 
     Args:
@@ -24,7 +24,7 @@ def detect_quantized_model(model: torch.nn.Module) -> str:
     return None
 
 
-def patch_quantized(model: torch.nn.Module) -> None:
+def patch_quantized(model: torch.nn.Module):
     """Patches a model based on its quantization type ("awq" or "gptq").
 
     Args:
@@ -58,7 +58,7 @@ def patch_quantized(model: torch.nn.Module) -> None:
         raise RuntimeError("Unknown quantization type.")
 
 
-def unpatch_quantized(model: torch.nn.Module) -> None:
+def unpatch_quantized(model: torch.nn.Module):
     """Reverts the patching applied to a quantized PyTorch model.
 
     Args:
@@ -66,5 +66,6 @@ def unpatch_quantized(model: torch.nn.Module) -> None:
     """
     if getattr(model, "_openvino_gptq_patched", False):
         gptq.unpatch_model(model)
+        del model._openvino_gptq_patched
     else:
         unpatch_model(model, "_openvino_quantized_patch_orig_forward")
