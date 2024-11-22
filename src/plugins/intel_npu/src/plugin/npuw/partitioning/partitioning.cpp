@@ -1867,7 +1867,8 @@ void Partitioner::optimize(const std::string& func_name) {
                 LazyTensor cw = funcall._lazy_closure[w_idx - f._param_offset];
                 LazyTensor cz = z_idx != -1 ? funcall._lazy_closure[z_idx - f._param_offset] : LazyTensor(ov::Tensor());
                 LazyTensor cs = funcall._lazy_closure[s_idx - f._param_offset];
-                funcall._lazy_closure.push_back(LazyTensor(cw, cz, cs, p.first->get_element_type()));
+                funcall._lazy_closure.push_back(
+                    LazyTensor(cw, cz, cs, p.first->get_element_type(), p.first->get_shape()));
                 // Some of the tensors might be in closure - preserve it's 1:1 idx mapping with _lazy_closure
                 funcall._closure.push_back(ov::Tensor());
             });
