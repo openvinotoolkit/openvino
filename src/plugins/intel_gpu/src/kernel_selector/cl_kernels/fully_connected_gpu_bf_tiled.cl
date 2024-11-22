@@ -61,7 +61,7 @@ KERNEL(quantize_input)(
     // Pair of quantizing_scale and quantized activation_sum for each group
     quan_var[offset * 2] = quan_scale;
     #if COMPRESSED_WEIGHTS_INT8
-        quan_var[(offset * 2) + 1] = CAT(convert_, INPUT0_TYPE)(quantized_sum);
+        quan_var[(offset * 2) + 1] = CAT(CAT(convert_, INPUT0_TYPE), _rte)(quantized_sum);
     #endif
 }
 #else  // !FC_KERNEL_DYNAMIC_QUANTIZE
