@@ -549,7 +549,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
     auto cat_Concat_505 =
         makePattern<opset1::Concat>({flatten_Reshape_501, slice_Slice_443 | var_split_1->output(1)}, {{"axis", -1}});
 
-    auto result = cat_Concat_505;
+    auto result = cat_Concat_505 | flatten_Reshape_501;
 
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -577,6 +577,11 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
             config.slice_stop = static_cast<size_t>(config.slice_start + validator["total_size_k"]);
         }
 
+        if (ov::is_type<opset1::Reshape>(root)) {
+            if (config.rotary_ndims != config.head_size)
+                return false;
+        }
+
         new_args.push_back(pattern_map.at(qkv_linear));
         new_args.push_back(pattern_map.at(cos_sin_cache));
         new_args.push_back(pattern_map.at(cos_sin_cache));
@@ -585,9 +590,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
 
         auto new_node = std::make_shared<op::internal::RoPE>(new_args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
-        ov::copy_runtime_info({pattern_map.at(flatten_Reshape_501).get_node_shared_ptr(),
-                               pattern_map.at(cat_Concat_505).get_node_shared_ptr()},
-                              new_node);
+        ov::copy_runtime_info({root->get_input_node_shared_ptr(0), root}, new_node);
         ov::replace_node(old_node, new_node);
         return true;
     };
