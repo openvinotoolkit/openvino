@@ -69,6 +69,7 @@ jobs:
           images: |
             ov_build/ubuntu_22_04_x64_docker
             ov_build/manylinux2014_x86_64
+            ov_test/ubuntu_22_04_x64
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
@@ -216,7 +217,15 @@ jobs:
           name: openvino_wheels
           path: ${{ env.INSTALL_WHEELS_DIR }}/wheels/*.whl
           if-no-files-found: 'error'
-          
+
+      - name: Upload tests
+        if: ${{ always() }}
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+          if-no-files-found: 'error'
+
       - name: Store artifacts to a shared drive
         id: store_artifacts
         if: ${{ always() }}
@@ -228,7 +237,102 @@ jobs:
             ${{ env.INSTALL_WHEELS_DIR }}/wheels
           storage_dir: ${{ env.PRODUCT_TYPE }}
           storage_root: ${{ env.ARTIFACTS_SHARE }}
-          
+
+  Python_API_Tests:
+    name: Python API Tests
+    if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
+    needs: [ Build, Docker, Smart_CI ]
+    timeout-minutes: 35
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ "3.11" ]
+    runs-on: aks-linux-4-cores-16gb
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
+      volumes:
+        - /mount:/mount
+    env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      OPENVINO_REPO: ${{ github.workspace }}/openvino
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+    steps:
+      - name: Download OpenVINO tests
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          pattern: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Download OpenVINO artifacts (wheels)
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          pattern: openvino_wheels
+          path: ${{ env.INSTALL_WHEELS_DIR }}
+
+      - name: Check tests
+        run: ls -laR ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Fetch setup_python and install wheels actions
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+            .github/actions/install_ov_wheels/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ matrix.python-version }}
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'true'
+          self-hosted-runner: 'true'
+
+      - name: Install OpenVINO Python wheels
+        uses: ./openvino/.github/actions/install_ov_wheels
+        with:
+          wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
+          wheels-to-install: 'openvino'
+
+      - name: Install Python API tests dependencies
+        run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/bindings/python/requirements_test.txt
+
+      - name: Python API Tests
+        run: |
+          # for 'template' extension
+          export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
+          python3 -m pytest -sv ${INSTALL_TEST_DIR}/pyopenvino \
+            --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
+            --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py
+
+      - name: Python API Tests -- numpy>=2.0.0
+        run: |
+          python3 -m pip uninstall -y numpy
+          python3 -m pip install "numpy>=2.0.0,<2.2.0"
+          python3 -m pip install -r ${INSTALL_TEST_DIR}/bindings/python/requirements_test.txt
+          # for 'template' extension
+          export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
+          python3 -m pytest -sv ${INSTALL_TEST_DIR}/pyopenvino \
+            --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
+            --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        if: ${{ !cancelled() }}
+        with:
+          name: test-results-python-${{ matrix.python-version }}
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          if-no-files-found: 'error'
+
+
   Overall_Status:
     name: ci/gha_overall_status_manylinux2014
     needs: [Smart_CI, Build]
