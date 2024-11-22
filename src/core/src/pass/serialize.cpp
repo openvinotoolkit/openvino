@@ -134,6 +134,11 @@ public:
 
             auto found = m_hash_to_file_positions.find(hash);
             // iterate over all matches of the key in the multimap
+            // TODO: As it was mentioned above that there was a chance to have a collision easily, should we limit the number of iterations in the following loop?
+            // FIXME: Loop over items that have matching hash keys only, not entire range [found, m_hash_to_file_positions.end()).
+            // FIXME: According to https://en.cppreference.com/w/cpp/container/multimap/find, std::multimap::find returns any item with the matching key, not necessary
+            //        the first one. But the loop below checking items starting with `found` item only even if there may be other items with matching hash before that position.
+            //        So we are not checking all possible matches.
             while (found != m_hash_to_file_positions.end()) {
                 if (memcmp(ptr, found->second.second, size) == 0) {
                     return found->second.first;
