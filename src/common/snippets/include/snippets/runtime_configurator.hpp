@@ -4,9 +4,9 @@
 
 #pragma once
 
+#include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
-#include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/pass/pass.hpp"
 
 namespace ov {
@@ -44,12 +44,15 @@ public:
     size_t tensor_rank = 0;
     size_t tile_rank = 0;
 
+    std::vector<ov::snippets::VectorDims> io_shapes = {};
+    std::vector<ov::snippets::VectorDims> io_layouts = {};
     std::vector<ov::snippets::VectorDims> io_data_offsets = {};
     ov::snippets::VectorDims master_shape = {};
 
     size_t buffer_scratchpad_size = 0;
     std::vector<size_t> buffer_cluster_offsets {};
     KernelExecutorTablePtr kernel_executor_table = std::make_shared<ov::snippets::KernelExecutorTable>();
+    std::vector<ov::snippets::VectorDims> latest_shapes = {};
 };
 
 /**
@@ -83,6 +86,55 @@ public:
      */
     void reset_kernel_executor_table() const;
 
+    // Getters for private members
+    std::shared_ptr<RuntimeConfig> get_config() const { return m_config; }
+    size_t get_io_num() const { return m_io_num; }
+    size_t get_in_num() const { return m_in_num; }
+    const std::vector<snippets::lowered::PortDescriptorPtr>& get_io_descs() const { return m_io_descs; }
+    const std::vector<size_t>& get_io_data_sizes() const { return m_io_data_sizes; }
+    const std::map<size_t, std::set<lowered::BufferExpressionPtr>>& get_dynamic_buffer_clusters() const { return m_dynamic_buffer_clusters; }
+
+    /**
+     * @brief Computes the offsets for each dimension of a tensor shape.
+     *
+     * This function calculates the offsets for each dimension of a tensor shape, which represent the distance between
+     * consecutive elements of the corresponding dimension. If a dimension size is 1, the next dimension starts
+     * immediately, and the stride is 0.
+     * @param shape The shape for offset computation.
+     * @param idx The index to get the corresponding offsets and io_data_sizes.
+     * @param idx_stride Defines the number of dimensions that should be skipped in the offsets vector.
+     */
+    void compute_offsets(const ov::snippets::VectorDims& shape, size_t idx, size_t idx_stride) const;
+    struct UnifiedLoopInfoRtParams {
+        size_t work_amount = 0;
+        std::vector<int64_t> ptr_increments;
+        std::vector<int64_t> finalization_offsets;
+    };
+    /**
+     * @brief Retrieves the runtime parameters for a given UnifiedLoopInfo.
+     * @param unified_loop_info The UnifiedLoopInfo for which the runtime parameters are to be retrieved.
+     * @return A LoopInfoRuntimeParams object containing the runtime parameters.
+     */
+    static UnifiedLoopInfoRtParams get_loop_runtime_params(const lowered::UnifiedLoopInfoPtr& unified_loop_info);
+    using LoopInfoRuntimeParamsMap = std::unordered_map<lowered::UnifiedLoopInfoPtr, UnifiedLoopInfoRtParams>;
+    /**
+     * @brief Update Loop information in LinearIR: Unified and ExpandedLoopInfo
+     * @param linear_ir LinearIR
+     */
+    static void update_loop_info(const lowered::LinearIRCPtr& linear_ir);
+    /**
+     * @brief Updates the ExpandedLoopInfo based on the initialized runtime parameters.
+     * @param expanded_loop_info The ExpandedLoopInfo to be updated.
+     * @param initialized_info_map A map containing the initialized runtime parameters for UnifiedLoopInfo.
+     */
+    static void update_expanded_loop_info(const lowered::ExpandedLoopInfoPtr& expanded_loop_info,
+                                          LoopInfoRuntimeParamsMap& initializated_info_map);
+    /**
+     * @brief Update tensor rank based on master shape
+     * @param master_shape Master shape
+     */
+    virtual void update_tensor_rank(const ov::snippets::VectorDims& master_shape) const;
+
 protected:
     /**
      * @brief Update RuntimeConfig based on LinearIR
@@ -90,11 +142,6 @@ protected:
      * @todo Ticket 148891: Rewrite on PassPipeline
      */
     virtual void update(const lowered::LinearIRCPtr& linear_ir);
-    /**
-     * @brief Update tensor rank based on master shape
-     * @param master_shape Master shape
-     */
-    virtual void update_tensor_rank(const ov::snippets::VectorDims& master_shape);
     /**
      * @brief Allocate and intialize fields in RuntimeConfig and RuntimeConfigurator
      * @param linear_ir LinearIR
@@ -120,21 +167,6 @@ protected:
      * @param linear_ir LinearIR
      */
     virtual void init_tensor_rank(const lowered::LinearIRCPtr& linear_ir) const;
-
-    struct UnifiedLoopInfoRtParams {
-        size_t work_amount = 0;
-        std::vector<int64_t> ptr_increments;
-        std::vector<int64_t> finalization_offsets;
-    };
-    static UnifiedLoopInfoRtParams get_loop_runtime_params(const lowered::UnifiedLoopInfoPtr& unified_loop_info);
-    using LoopInfoRuntimeParamsMap = std::unordered_map<lowered::UnifiedLoopInfoPtr, UnifiedLoopInfoRtParams>;
-    /**
-     * @brief Update Loop informations in LinearIR: Unified and ExpandedLoopInfo
-     * @param linear_ir LinearIR
-     */
-    static void update_loop_info(const lowered::LinearIRCPtr& linear_ir);
-    static void update_expanded_loop_info(const lowered::ExpandedLoopInfoPtr& expanded_loop_info,
-                                          LoopInfoRuntimeParamsMap& initializated_info_map);
     /**
      * @brief Update Buffer scratchpad size and offsets if needed
      *        Note: `update_loop_info` must be called before
@@ -146,8 +178,7 @@ protected:
      * @param shapes shapes used in offsets computation
      * @param layouts layouts used in offsets computation
      */
-    void update_data_offsets(const std::vector<ov::snippets::VectorDims>& shapes,
-                             const std::vector<std::vector<size_t>>& layouts) const;
+    void update_data_offsets() const;
     /**
      * @brief Extract shapes from m_io_descs
      */
@@ -156,43 +187,6 @@ protected:
      * @brief Extract layouts from m_io_descs
      */
     std::vector<std::vector<size_t>> extract_layouts() const;
-
-    class MHAParallelWAOptimizer {
-    public:
-        MHAParallelWAOptimizer() = default;
-        MHAParallelWAOptimizer(const ov::snippets::lowered::LinearIRCPtr& linear_ir, RuntimeConfigurator* configurator);
-        /**
-         * @brief Checks if the current master shape can be optimized, and if yes, updates all the necessary runtime information
-         * @return status if the optimization is applied
-         */
-        bool optimize();
-
-    private:
-        /**
-         * @brief Checks if optimizer is enabled
-         * @todo Ticket 148891: when RuntimeConfigurator::update will be rewritten on PassPipeline, this method should be removed
-         * We will not just register MHAParallelWAOptimizer in case if it is not needed
-         */
-        bool enabled() const;
-
-        static std::unordered_set<snippets::lowered::ExpressionPtr> find_applicable_brgemms(const ov::snippets::lowered::LinearIRCPtr& linear_ir);
-        static std::unordered_set<size_t> find_unsqueezed_params(
-            const ov::snippets::lowered::LinearIRCPtr& linear_ir,
-            const std::unordered_set<snippets::lowered::ExpressionPtr>& brgemms);
-        static std::vector<ov::snippets::lowered::ExpandedLoopInfoPtr> find_loops_to_split(
-            const ov::snippets::lowered::LinearIRCPtr& linear_ir,
-            const std::unordered_set<size_t>& unsqueezed_params);
-
-        RuntimeConfigurator* configurator = nullptr;
-
-        std::vector<ov::snippets::lowered::ExpandedLoopInfoPtr> loops_to_split{};
-        std::unordered_set<size_t> unsqueezed_params{};
-        std::vector<std::vector<size_t>> optimized_layouts{};
-        std::vector<size_t> m_dim_idces{};
-        size_t concurrency = 0;
-
-        static const size_t m_dim_idx;
-    } m_optimizer;
 
     std::shared_ptr<RuntimeConfig> m_config = nullptr;
 
@@ -203,7 +197,14 @@ protected:
     // [cluster_id -> buffer expressions ]
     std::map<size_t, std::set<lowered::BufferExpressionPtr>> m_dynamic_buffer_clusters = {};
 
-    std::vector<ov::snippets::VectorDims> m_latest_shapes = {};
+    // WA: until ticket 148891 is not implemented, 2 pass pipelines for runtime optimizers are necessary since different
+    // optimizers must be called at different pipeline stages.
+    // - Intermediate optimizers must be called right after `update_loop_info`
+    // - Final optimizers must be called after all other RuntimeConfigurator's update methods
+    // When all updates will be rewritten on PassPipeline, PositionedPasses can be used to precisely define the place of
+    // the additional optimizers
+    lowered::pass::PassPipeline m_intermediate_optimizers;
+    lowered::pass::PassPipeline m_final_optimizers;
 };
 
 } // namespace snippets

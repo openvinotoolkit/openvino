@@ -83,11 +83,12 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
     if (stand_alone(type))
         return res;
 
-    const auto copy_b_expr = linear_ir.get_expr_by_node(brgemm->get_brgemm_copy());
-    const ov::snippets::VectorDims full_subtensor(2, get_full_dim_value());
-    copy_b_expr->get_input_port_descriptor(0)->set_subtensor(full_subtensor);
-    copy_b_expr->get_output_port_descriptor(0)->set_subtensor(full_subtensor);
-
+    const auto copy_b_expr = repacking::get_copy_b_expr(brgemm_expr);
+    if (copy_b_expr) {
+        const ov::snippets::VectorDims full_subtensor(2, get_full_dim_value());
+        copy_b_expr->get_input_port_descriptor(0)->set_subtensor(full_subtensor);
+        copy_b_expr->get_output_port_descriptor(0)->set_subtensor(full_subtensor);
+    }
     if (with_amx(type)) {
         move_new_memory_buffer(linear_ir, brgemm_it);
         auto buffer_it = std::prev(brgemm_it);
@@ -98,6 +99,7 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
     if (with_compensations(type)) {
         const ov::snippets::VectorDims compensations_subtensor{1, get_full_dim_value()};
         OPENVINO_ASSERT(brgemm_expr->get_input_count() == 3, "Brgemm must have 3 inputs in case of compensations.");
+        OPENVINO_ASSERT(copy_b_expr, "BrgemmCopyB must be present in case of compensations.");
         const auto& compens_port = brgemm_expr->get_input_port(2);
         compens_port.get_descriptor_ptr()->set_subtensor(compensations_subtensor);
         copy_b_expr->get_output_port_descriptor(1)->set_subtensor(compensations_subtensor);

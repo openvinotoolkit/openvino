@@ -34,12 +34,27 @@ bool SplitDimensionM::is_supported_matmul(const std::shared_ptr<const ov::Node>&
 std::pair<size_t, size_t> SplitDimensionM::get_splited_dimensions(size_t batch_dim, size_t m_dim, size_t optimal_parallelism_work_amount) {
     std::pair<size_t, size_t> splited = { 1, m_dim };
 
+    // Ideal case #1: M can be split on the parts one of which complements the batch dimension to the optimal parallel work amount
+    // In this case, each thread will execute the Snippets kernel once
     const size_t lower_bound = optimal_parallelism_work_amount / batch_dim;
     if (lower_bound * batch_dim == optimal_parallelism_work_amount && m_dim % lower_bound == 0) {
         splited.first = lower_bound;
         splited.second = m_dim / lower_bound;
         OPENVINO_ASSERT(splited.first * splited.second == m_dim, "Incorrect dimension M splitting!");
         return splited;
+    }
+
+    // Ideal case #2: M is divisible by optimal parallel work amount, and the new_m_dim is big enough
+    // In this case, each thread will execute the Snippets kernel 'batch_dim' times
+    if (m_dim % optimal_parallelism_work_amount == 0) {
+        const auto new_m_dim = m_dim / optimal_parallelism_work_amount;
+        const size_t min_kernel_m = 64;
+        if (new_m_dim >= min_kernel_m) {
+            splited.first = optimal_parallelism_work_amount;
+            splited.second = new_m_dim;
+            OPENVINO_ASSERT(splited.first * splited.second == m_dim, "Incorrect dimension M splitting!");
+            return splited;
+        }
     }
 
     const size_t upper_bound = utils::div_up(2 * optimal_parallelism_work_amount, batch_dim);

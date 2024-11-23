@@ -65,38 +65,35 @@ bool pass::AdjustBrgemmCopyBLoopPorts::run(const snippets::lowered::LinearIR& li
 
     bool modified = false;
 
+    auto get_repacking_loop_idces = [](const snippets::lowered::ExpressionPtr& brgemm_expr) {
+        // Repacking may be extracted outside the snippets kernel. In this case, brgemm parent expression is a parameter.
+        if (is_type<ov::op::v0::Parameter>(brgemm_expr->get_input_port_connector(1)->get_source().get_expr()->get_node()))
+            return std::vector<size_t>{};
+        const auto repacking_expr = brgemm_utils::repacking::get_copy_b_expr(brgemm_expr);
+        OPENVINO_ASSERT(repacking_expr, "BrgemmCopyB expression is not found");
+        return repacking_expr->get_loop_ids();
+    };
+
     for (const auto& expr : linear_ir) {
-        const auto& node = expr->get_node();
-        if (!is_type<BrgemmCopyB>(node))
+        const auto brgemm = ov::as_type_ptr<BrgemmCPU>(expr->get_node());
+        if (!brgemm || !brgemm_utils::with_repacking(brgemm->get_type()))
             continue;
-        const auto& repacking_loop_ids = expr->get_loop_ids();
-        const auto& child_ports = expr->get_output_port(0).get_connected_ports();
-        OPENVINO_ASSERT(child_ports.size() == 1 &&
-                        is_type<snippets::lowered::BufferExpression>(child_ports.begin()->get_expr()),
-                        "BrgemmCopyB should have one BufferExpression child");
-        auto grandchild_ports = child_ports.begin()->get_expr()->get_output_port(0).get_connected_ports();
-        for (const auto& target_port : grandchild_ports) {
-            const auto& port_node = target_port.get_expr()->get_node();
-            if (!is_type<intel_cpu::BrgemmCPU>(port_node)) {
-                OPENVINO_ASSERT(is_type<snippets::op::LoopEnd>(port_node),
-                                "Invalid grandchild of BrgemmCopyB");
-                continue;
-            }
-            const auto &brgemm_loop_ids = target_port.get_expr()->get_loop_ids();
-            // Continue if there is no blocking loop
-            if (brgemm_loop_ids.empty() && repacking_loop_ids.empty())
-                continue;
-            OPENVINO_ASSERT(brgemm_loop_ids.size() > repacking_loop_ids.size(), "Invalid BrgemmCopyB loop configuration");
-            const auto &loop_manager = linear_ir.get_loop_manager();
-            for (auto i = repacking_loop_ids.size(); i < brgemm_loop_ids.size(); i++) {
-                const auto &loop = loop_manager->get_loop_info(brgemm_loop_ids[i]);
-                auto uni_loop = ov::as_type_ptr<snippets::lowered::UnifiedLoopInfo>(loop);
-                if (!uni_loop)
-                    uni_loop = ov::as_type_ptr<snippets::lowered::ExpandedLoopInfo>(loop)->get_unified_loop_info();
-                if (!m_affected_loops.count(uni_loop) && update_loop_info(uni_loop)) {
-                    m_affected_loops.insert(uni_loop);
-                    modified = true;
-                }
+        const auto& brgemm_loop_ids = expr->get_loop_ids();
+        const auto& repacking_loop_ids = get_repacking_loop_idces(expr);
+        // Continue if there is no blocking loop
+        if (brgemm_loop_ids.empty() && repacking_loop_ids.empty())
+            continue;
+
+        OPENVINO_ASSERT(brgemm_loop_ids.size() > repacking_loop_ids.size(), "Invalid BrgemmCopyB loop configuration");
+        const auto &loop_manager = linear_ir.get_loop_manager();
+        for (auto i = repacking_loop_ids.size(); i < brgemm_loop_ids.size(); i++) {
+            const auto &loop = loop_manager->get_loop_info(brgemm_loop_ids[i]);
+            auto uni_loop = ov::as_type_ptr<snippets::lowered::UnifiedLoopInfo>(loop);
+            if (!uni_loop)
+                uni_loop = ov::as_type_ptr<snippets::lowered::ExpandedLoopInfo>(loop)->get_unified_loop_info();
+            if (!m_affected_loops.count(uni_loop) && update_loop_info(uni_loop)) {
+                m_affected_loops.insert(uni_loop);
+                modified = true;
             }
         }
     }

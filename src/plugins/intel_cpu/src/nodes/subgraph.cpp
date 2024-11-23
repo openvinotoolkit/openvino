@@ -35,6 +35,7 @@
 #include "transformations/snippets/x64/pass/lowered/insert_brgemm_copy_b_buffers.hpp"
 #include "transformations/snippets/x64/pass/remove_converts.hpp"
 #include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
+#include "transformations/snippets/x64/pass/eliminate_brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/pass/enforce_precision.hpp"
 #include "transformations/snippets/x64/shape_inference.hpp"
 #include "transformations/snippets/x64/pass/lowered/adjust_brgemm_copy_b_loop_ports.hpp"
@@ -79,14 +80,14 @@ public:
                            const BufferScratchpadAllocator& allocator)
     : SubgraphExecutor(snippet_attrs, snippet, start_offset_in, start_offset_out, snippet_config, allocator) {}
 
-    void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override  {
+    void exec_impl(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override  {
         const auto& callable = m_schedule->get_callable<kernel>();
 
         auto initializer = [&](jit_snippets_call_args& call_args, size_t ithr) {
             init_call_args(call_args, inMemPtrs, outMemPtrs, ithr);
         };
-        auto caller = [&](jit_snippets_call_args& call_args, const size_t* indexes) {
-            callable(&call_args, indexes);
+        auto caller = [&](jit_snippets_call_args& call_args, const std::vector<size_t>& indexes) {
+            callable(&call_args, indexes.data());
         };
 
         if (m_parallel_exec_domain.size() == rank6D) {
@@ -127,7 +128,7 @@ public:
         reset_exec_table_state = snippet_config->kernel_executor_table->get_state_reset();
     }
 
-    void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override {
+    void exec_impl(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override {
         const auto& callable = m_schedule->get_callable<dynamic_kernel>();
 
         OPENVINO_ASSERT(data_offsets.size() == inMemPtrs.size() + outMemPtrs.size(), "Incorrect data offset count!");
@@ -144,7 +145,7 @@ public:
         auto initializer = [&](jit_snippets_call_args& call_args, size_t ithr) {
             init_call_args(call_args, ithr);
         };
-        auto caller = [&](jit_snippets_call_args& call_args, const size_t* indexes) {
+        auto caller = [&](jit_snippets_call_args& call_args, const std::vector<size_t>& indexes) {
             update_ptrs(call_args, src_ptrs, dst_ptrs, indexes);
             callable(&call_args);
         };
@@ -181,17 +182,17 @@ protected:
     }
 
     inline void update_ptrs(jit_snippets_call_args& call_args, const std::vector<const uint8_t*>& src_ptrs,
-                            const std::vector<uint8_t*>& dst_ptrs, const size_t* indexes) const {
+                            const std::vector<uint8_t*>& dst_ptrs, const std::vector<size_t>& indexes) const {
         for (size_t i = 0; i < src_ptrs.size(); i++) {
             auto i_ptr = src_ptrs[i];
-            for (size_t j = 0; j < data_offsets[i].size() - 1; j++) {
+            for (size_t j = 0; j < indexes.size(); j++) {
                 i_ptr += data_offsets[i][j] * indexes[j];
             }
             call_args.src_ptrs[i] = i_ptr;
         }
         for (size_t i = 0; i < dst_ptrs.size(); i++) {
             auto i_ptr = dst_ptrs[i];
-            for (size_t j = 0; j < data_offsets[i + src_ptrs.size()].size() - 1; j++) {
+            for (size_t j = 0; j < indexes.size(); j++) {
                 i_ptr += data_offsets[i + src_ptrs.size()][j] * indexes[j];
             }
             call_args.dst_ptrs[i] = i_ptr;
@@ -648,6 +649,8 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
     }
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before, ov::snippets::pass::PropagatePrecision,
                                            ov::intel_cpu::pass::BrgemmToBrgemmCPU);
+    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After, ov::intel_cpu::pass::BrgemmToBrgemmCPU,
+                                           ov::intel_cpu::pass::EliminateBrgemmCopyB);
     SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd, ov::intel_cpu::pass::RemoveConverts);
     SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON(Place::PipelineEnd, ov::intel_cpu::pass::MulAddToFMA);
 
@@ -782,7 +785,12 @@ void Subgraph::prepareParams() {
                 snippet->get_runtime_configurator()->set_kernel_executor_table(code_gen->get()->lowering_result.kernel_executor_table);
             }
             const auto& snippet_config = ov::as_type_ptr<CPURuntimeConfig>(snippet->update_runtime_config());
-            return std::make_shared<SubgraphDynamicSpecializedExecutor>(key.attrs, code_gen, start_offset_in, start_offset_out, snippet_config, allocator);
+            return std::make_shared<SubgraphDynamicSpecializedExecutor>(key.attrs,
+                                                                        code_gen,
+                                                                        start_offset_in,
+                                                                        start_offset_out,
+                                                                        snippet_config,
+                                                                        allocator);
         } else {
             // Static case:
             // 1. Update runtime config to get static scheduling data (io data offsets, parallel domain) which will be compiled in JIT code
@@ -793,7 +801,12 @@ void Subgraph::prepareParams() {
                                                             [&snippet_config](const SubgraphCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
                                                                 return std::make_shared<SubgraphCodeGenerator>(key.attrs, snippet_config);
                                                             });
-            return std::make_shared<SubgraphStaticExecutor>(key.attrs, code_gen_result.first, start_offset_in, start_offset_out, snippet_config, allocator);
+            return std::make_shared<SubgraphStaticExecutor>(key.attrs,
+                                                            code_gen_result.first,
+                                                            start_offset_in,
+                                                            start_offset_out,
+                                                            snippet_config,
+                                                            allocator);
         }
     };
 
@@ -846,7 +859,7 @@ bool Subgraph::created() const {
 
 void Subgraph::execute(dnnl::stream strm) {
     OPENVINO_ASSERT(execPtr, "Can't execute Subgraph node. Primitive didn't created");
-    execPtr->exec(srcMemPtrs, dstMemPtrs);
+    execPtr->execute(strm, srcMemPtrs, dstMemPtrs);
 }
 
 void Subgraph::executeDynamicImpl(dnnl::stream strm) {
@@ -893,7 +906,16 @@ Subgraph::SubgraphExecutor::SubgraphExecutor(const std::shared_ptr<Subgraph::Sub
 
     m_buffer_scratchpad_size = snippet_config->buffer_scratchpad_size;
     OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(m_buffer_scratchpad_size), "Undefined buffer scratchpad size!");
-    m_buffer_scratchpad = allocator(static_cast<size_t>(m_nthreads) * m_buffer_scratchpad_size);
+    m_internal_buffer_size = static_cast<size_t>(m_nthreads) * m_buffer_scratchpad_size;
+    m_in_requested_descs = snippet_config->m_in_requested_descs;
+    const auto external_repacking_buffer_size =
+        std::accumulate(m_in_requested_descs.begin(),
+                        m_in_requested_descs.end(),
+                        size_t(0),
+                        [](size_t sum, const std::pair<size_t, ov::intel_cpu::MemoryDescPtr>& requested_desc_elem) {
+                            return sum + requested_desc_elem.second->getCurrentMemSize();
+                        });
+    m_buffer_scratchpad = allocator(m_internal_buffer_size + external_repacking_buffer_size);
 
 #if defined(__linux__) && defined(OPENVINO_ARCH_X86_64) && defined(SNIPPETS_DEBUG_CAPS)
     const auto target = std::dynamic_pointer_cast<const CPUTargetMachine>(snippet_attrs->snippet->get_generator()->get_target_machine());
@@ -919,7 +941,7 @@ void Subgraph::SubgraphExecutor::segfault_detector() {
 #endif
 
 void Subgraph::SubgraphExecutor::parallel_for6d(const std::function<void(jit_snippets_call_args&, size_t)>& initializer,
-                                                const std::function<void(jit_snippets_call_args&, const size_t*)>& caller) {
+                                                const std::function<void(jit_snippets_call_args&, const std::vector<size_t>&)>& caller) {
     const auto& dom = m_parallel_exec_domain;
 
 #if defined(__linux__) && defined(OPENVINO_ARCH_X86_64) && defined(SNIPPETS_DEBUG_CAPS)
@@ -933,7 +955,7 @@ void Subgraph::SubgraphExecutor::parallel_for6d(const std::function<void(jit_sni
         size_t start = 0, end = 0;
         splitter(m_harness_work_amount, nthr, ithr, start, end);
 
-        size_t indexes[] = {0, 0, 0, 0, 0};
+        std::vector<size_t> indexes{0, 0, 0, 0, 0};
         parallel_it_init(start, indexes[0], dom[0], indexes[1], dom[1], indexes[2], dom[2], indexes[3], dom[3], indexes[4], dom[4]);
         for (size_t iwork = start; iwork < end; ++iwork) {
             caller(call_args, indexes);
@@ -943,7 +965,7 @@ void Subgraph::SubgraphExecutor::parallel_for6d(const std::function<void(jit_sni
 }
 
 void Subgraph::SubgraphExecutor::parallel_forNd(const std::function<void(jit_snippets_call_args&, size_t)>& initializer,
-                                                const std::function<void(jit_snippets_call_args&, const size_t*)>& caller) {
+                                                const std::function<void(jit_snippets_call_args&, const std::vector<size_t>&)>& caller) {
     const auto& dom = m_parallel_exec_domain;
 
 #if defined(__linux__) && defined(OPENVINO_ARCH_X86_64) && defined(SNIPPETS_DEBUG_CAPS)
@@ -965,9 +987,34 @@ void Subgraph::SubgraphExecutor::parallel_forNd(const std::function<void(jit_sni
                 tmp /= dom[j];
             }
 
-            caller(call_args, indexes.data());
+            caller(call_args, indexes);
         }
     });
+}
+
+void Subgraph::SubgraphExecutor::execute(const dnnl::stream& strm, const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
+    if (!m_in_requested_descs.empty()) {
+        auto reorderedInMemPtrs = reorder_inputs(strm, inMemPtrs);
+        exec_impl(reorderedInMemPtrs, outMemPtrs);
+    } else {
+        exec_impl(inMemPtrs, outMemPtrs);
+    }
+}
+
+std::vector<MemoryPtr> Subgraph::SubgraphExecutor::reorder_inputs(const dnnl::stream& strm, const std::vector<MemoryPtr>& inMemPtrs) {
+    auto reordered_in_ptrs = inMemPtrs;
+    size_t offset = m_internal_buffer_size;
+    for (const auto& requested_descs_elem : m_in_requested_descs) {
+        const auto in_idx = requested_descs_elem.first;
+        const auto& requested_desc = requested_descs_elem.second;
+
+        const void* data_ptr = m_buffer_scratchpad->getDataAs<uint8_t>() + offset;
+        const auto scratch_mem = std::make_shared<Memory>(strm.get_engine(), requested_desc, data_ptr, false);
+        scratch_mem->load(*reordered_in_ptrs[in_idx]);
+        reordered_in_ptrs[in_idx] = scratch_mem;
+        offset += requested_desc->getCurrentMemSize();
+    }
+    return reordered_in_ptrs;
 }
 
 }   // namespace node
