@@ -123,8 +123,9 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
     auto ShapeOf_49034 = makePattern<ov::opset1::ShapeOf>({attention_mask});                 //  tensor_array<i32[2]>
     auto Gather_41642 =
         makePattern<ov::opset8::Gather>({ShapeOf_49034, {1}, 0}, {{"batch_dims", 0}});  //  tensor_array<i32[1]>
+    auto alternative_concat = makePattern<ov::opset8::Concat>({{0}, {0}, {0}, Gather_41642}, {{"axis", 0}});
     auto ScatterUpdate_93502 =
-        makePattern<ov::opset3::ScatterUpdate>({{0, 0, 0, 0}, {3}, Gather_41642, {0}});  //  tensor_array<i32[4]>
+        makePattern<ov::opset3::ScatterUpdate>({{0, 0, 0, 0}, {3}, Gather_41642, {0}}) | alternative_concat;  //  tensor_array<i32[4]>
     auto SliceAssign_201_Slice = makePattern<ov::opset8::Slice>({SliceAssign_201_Reshape, {0}, Gather_41642, {1}, {3}});
     auto SliceAssign_201_StridedSlice = GenStridedSlice(SliceAssign_201_Reshape, {0, 0, 0, 0},
                                                         ScatterUpdate_93502, {1, 1, 1, 1}, 3); //  tensor_array<i32[?,1,8192,..8192]>
@@ -179,8 +180,9 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
     auto SliceAssign_201_Reshape_3 =
         makePattern<ov::opset1::Reshape>({SliceAssign_201_ScatterNDUpdate, {-1, 1, max_seq_len, max_seq_len}},
                                          {{"special_zero", true}});  //  tensor_array<f32[?,1,8192,8192]>
+    auto alternative_concat_1 = makePattern<ov::opset8::Concat>({{0}, {0}, {0}, Gather_41642}, {{"axis", 0}});
     auto ScatterUpdate_93554 =
-        makePattern<ov::opset3::ScatterUpdate>({{0, 0, 0, 0}, {3}, kvLen, {0}});  //  tensor_array<i32[4]>
+        makePattern<ov::opset3::ScatterUpdate>({{0, 0, 0, 0}, {3}, kvLen, {0}}) | alternative_concat_1;  //  tensor_array<i32[4]>
     auto slice_StridedSlice_14 = GenStridedSlice(SliceAssign_201_Reshape_3, {0, 0, 0, 0},
                                                  ScatterUpdate_93554, {1, 1, 1, 1}, 3); //  tensor_array<f32[?,1,8192,..8192]>
     auto slice_Slice_14 = makePattern<ov::opset8::Slice>({SliceAssign_201_Reshape_3, {0}, kvLen, {1}, {3}});
