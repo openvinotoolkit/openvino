@@ -16,7 +16,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_random_relu_fx(const NodeContext& context) {
+OutputVector translate_rrelu_fx(const NodeContext& context) {
     num_inputs_check(context, 1, 2);
     auto x = context.get_input(0);
     Output<Node> lower;
@@ -40,7 +40,7 @@ OutputVector translate_random_relu_fx(const NodeContext& context) {
     auto a = context.mark_node(std::make_shared<v1::Divide>(lower_plus_upper, 2));
     auto a_times_x = context.mark_node(std::make_shared<v1::Multiply>(a, x));
     return {context.mark_node(std::make_shared<v0::PRelu>(x, a_times_x))};
-    };
+};
 
 }  // namespace op
 }  // namespace pytorch

@@ -299,6 +299,7 @@ OP_CONVERTER(translate_ones_fx);
 OP_CONVERTER(translate_ones_like_fx);
 OP_CONVERTER(translate_reflection_pad_nd_fx);
 OP_CONVERTER(translate_reshape_fx);
+OP_CONVERTER(translate_rrelu_fx);
 OP_CONVERTER(translate_rsub_fx);
 OP_CONVERTER(translate_scalar_tensor_fx);
 OP_CONVERTER(translate_scaled_dot_product_attention_fx);
