@@ -790,8 +790,10 @@ void primitive_inst::realloc_if_needed() {
                 reset_user_output_memory(user_inst, dep_memory_ptr(0));
             }
         } else {
-            if (_can_be_optimized_prev) {
-                if (_outputs[0] && dep_memory_ptr(0)) {
+            // when this inst was not executed at the previous iteration,
+            // Reset output memory becuase current output memory is invalid.
+            if (_no_execution_prev) {
+                if (_outputs[0]) {
                     for (auto& user_inst : get_user_insts()) {
                         reset_user_output_memory(user_inst, _outputs[0]);
                     }
@@ -1790,7 +1792,10 @@ void primitive_inst::prepare_primitive() {
     }
     GPU_DEBUG_TRACE_DETAIL << "-----------------------------------------------------------------" << std::endl;
 
-    _can_be_optimized_prev = can_be_optimized();
+    // If it is optimized out or skipped for zero dimension at the previous iteration,
+    // Set this flag true to reset output memory in realloc_if_needed.
+    _no_execution_prev = can_be_optimized()
+                        || (_impl_params->output_layouts[0].is_static() && _impl_params->output_layouts[0].count() == 0);
     const auto orig_outputs = _outputs;
     if ((is_dynamic() || _node->is_in_shape_of_subgraph()) && !has_inner_networks()) {
         do_runtime_in_place_concat();
