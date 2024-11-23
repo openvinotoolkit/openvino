@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/swiglu_fusion.hpp"
+#include "transformations/common_optimizations/glu_fusion.hpp"
 
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
@@ -13,13 +13,13 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "ov_ops/swiglu.hpp"
+#include "ov_ops/glu.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace pass {
 
-SwiGLUFusion::SwiGLUFusion() {
+GLUFusion::GLUFusion() {
     using namespace ov::pass::pattern;
     using ov::pass::pattern::op::Or;
 
@@ -28,8 +28,8 @@ SwiGLUFusion::SwiGLUFusion() {
         return out_ps.rank().is_static() && out_ps[out_ps.rank().get_length() - 1].is_static() && out_ps.size() <= 5;
     };
 
-    // Detect SwiGLU decomposition pattern
-    // SwiGLU(Xw, Xv, beta) = (Xw * (1.0 + exp(-beta * Xw))) * Xv
+    // Detect GLU decomposition pattern
+    // GLU(Xw, Xv, beta) = (Xw * (1.0 + exp(-beta * Xw))) * Xv
     auto data_m = any_input(last_dim_static);
 
     // VariadicSplit(X, axis, split_lengths) = Xw, Xv
@@ -60,11 +60,11 @@ SwiGLUFusion::SwiGLUFusion() {
         auto isSwiGLU = pattern_map.count(swish_m);
         auto isGeGLU = pattern_map.count(gelu_m);
         size_t split_to_glu_idx = 0;
-        ov::op::internal::SwiGLU::GluType glu_type = ov::op::internal::SwiGLU::GluType::Swish;
+        ov::op::internal::GLU::GluType glu_type = ov::op::internal::GLU::GluType::Swish;
 
         if (isSwiGLU) {
             auto swish = std::dynamic_pointer_cast<ov::op::v4::Swish>(pattern_map.at(swish_m).get_node_shared_ptr());
-            glu_type = ov::op::internal::SwiGLU::GluType::Swish;
+            glu_type = ov::op::internal::GLU::GluType::Swish;
             split_to_glu_idx = swish->input_value(0).get_index();
 
             size_t split_in_idx = ov::is_type<ov::op::v4::Swish>(mul->get_input_node_shared_ptr(0)) ? 1 : 0;
@@ -73,8 +73,8 @@ SwiGLUFusion::SwiGLUFusion() {
         } else if (isGeGLU) {
             auto gelu = std::dynamic_pointer_cast<ov::op::v7::Gelu>(pattern_map.at(gelu_m).get_node_shared_ptr());
             glu_type = (gelu->get_approximation_mode() == ov::op::GeluApproximationMode::ERF)
-                           ? ov::op::internal::SwiGLU::GluType::Gelu
-                           : ov::op::internal::SwiGLU::GluType::Gelu_Tanh;
+                           ? ov::op::internal::GLU::GluType::Gelu
+                           : ov::op::internal::GLU::GluType::Gelu_Tanh;
             split_to_glu_idx = gelu->input_value(0).get_index();
 
             size_t split_in_idx = ov::is_type<ov::op::v7::Gelu>(mul->get_input_node_shared_ptr(0)) ? 1 : 0;
@@ -107,12 +107,12 @@ SwiGLUFusion::SwiGLUFusion() {
         auto data = pattern_map.at(data_m);
         auto output_type = m.get_match_root()->get_output_element_type(0);
 
-        auto swiglu = std::make_shared<ov::op::internal::SwiGLU>(data,
-                                                                 axis_value,
-                                                                 split_lengths_value,
-                                                                 glu_type,
-                                                                 split_to_glu_idx,
-                                                                 output_type);
+        auto swiglu = std::make_shared<ov::op::internal::GLU>(data,
+                                                              axis_value,
+                                                              split_lengths_value,
+                                                              glu_type,
+                                                              split_to_glu_idx,
+                                                              output_type);
         swiglu->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), swiglu);
         ov::replace_node(m.get_match_root(), swiglu);
@@ -120,7 +120,7 @@ SwiGLUFusion::SwiGLUFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(mul_m, "SwiGLUFusion");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(mul_m, "GLUFusion");
     this->register_matcher(m, callback);
 }
 
