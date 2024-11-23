@@ -51,9 +51,12 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
             const auto parent = transpose->get_input_node_shared_ptr(0);
             const auto child = transpose->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
             auto is_brgemm_case = ov::is_type<opset1::MatMul>(parent) || ov::is_type<opset1::MatMul>(child);
+            auto decomposition_case = true;
             // Check for Transpose parent is MatMul inside Subgraph
             if (const auto subgraph = ov::as_type_ptr<const op::Subgraph>(parent)) {
                 if (GetSnippetsSubgraphType(subgraph) != SnippetsSubgraphType::Completed) {
+                    // Transpose decomposition is supported only for Transpose nodes right after Subgraph's parameters
+                    decomposition_case = false;
                     const auto body = subgraph->body_ptr();
                     const auto subgraph_output = body->get_results()[transpose->input_value(0).get_index()]->get_input_node_shared_ptr(0);
                     is_brgemm_case = is_brgemm_case || ov::is_type<opset1::MatMul>(subgraph_output);
@@ -63,7 +66,7 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
             const auto& order = as_type_ptr<const opset1::Constant>(n->get_input_node_shared_ptr(1));
             if (order) {
                 const auto order_value = order->cast_vector<int>();
-                return (TransposeDecomposition::is_supported_transpose_order(order_value)) ||
+                return (decomposition_case && TransposeDecomposition::is_supported_transpose_order(order_value)) ||
                        (is_brgemm_case && FuseTransposeBrgemm::is_supported_transpose_order(order_value));
             }
         }
