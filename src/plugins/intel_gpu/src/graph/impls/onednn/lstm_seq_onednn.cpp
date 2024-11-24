@@ -30,80 +30,39 @@ protected:
 
     std::unordered_map<int, dnnl::memory> get_arguments(lstm_seq_inst& instance) const override {
         std::unordered_map<int, dnnl::memory> args;
+        std::vector<std::vector<uint>> dnnl_arg{{DNNL_ARG_SRC_LAYER, DNNL_ARG_SRC_ITER, DNNL_ARG_SRC_ITER_C}, {DNNL_ARG_WEIGHTS_LAYER, DNNL_ARG_WEIGHTS_ITER,
+            DNNL_ARG_BIAS}, {DNNL_ARG_DST_LAYER, DNNL_ARG_DST_ITER, DNNL_ARG_DST_ITER_C}};
 
-        {
-            int i = 0;
-            auto& input = instance.input_memory(i);
-            auto offset = onednn::get_offset(instance.get_input_layout(i),
-                                             _pd.dnnl::primitive_desc_base::src_desc(i));
-            auto mem = input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(i), offset);
-            args.insert({DNNL_ARG_SRC_LAYER, mem});
-        }
-
-        {
-            int i = 1;
-            auto& input = instance.input_memory(i);
-            auto offset = onednn::get_offset(instance.get_input_layout(i),
-                                             _pd.dnnl::primitive_desc_base::src_desc(i));
-            auto mem = input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(i), offset);
-            args.insert({DNNL_ARG_SRC_ITER, mem});
-        }
-
-        {
-            int i = 2;
-            auto& input = instance.input_memory(i);
-            auto offset = onednn::get_offset(instance.get_input_layout(i),
-                                             _pd.dnnl::primitive_desc_base::src_desc(i));
-            auto mem = input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(i), offset);
-            args.insert({DNNL_ARG_SRC_ITER_C, mem});
-        }
-
-        {
-            int i = 3;
-            auto& input = instance.input_memory(i);
-            auto offset = onednn::get_offset(instance.get_input_layout(i),
-                                             _pd.dnnl::primitive_desc_base::weights_desc(0));
-            auto mem = input.get_onednn_memory(_pd.dnnl::primitive_desc_base::weights_desc(0), offset);
-            args.insert({DNNL_ARG_WEIGHTS_LAYER, mem});
-        }
-
-        {
-            int i = 4;
-            auto& input = instance.input_memory(i);
-            auto offset = onednn::get_offset(instance.get_input_layout(i),
-                                             _pd.dnnl::primitive_desc_base::weights_desc(1));
-            auto mem = input.get_onednn_memory(_pd.dnnl::primitive_desc_base::weights_desc(1), offset);
-            args.insert({DNNL_ARG_WEIGHTS_ITER, mem});
-        }
-
-        {//bias
-            int i = 5;
-            auto& input = instance.input_memory(i);
-            auto offset = onednn::get_offset(instance.get_input_layout(i),
-                                             _pd.dnnl::primitive_desc_base::weights_desc(2));
-            auto mem = input.get_onednn_memory(_pd.dnnl::primitive_desc_base::weights_desc(2), offset);
-            args.insert({DNNL_ARG_BIAS, mem});
-        }
-
-        {
-            auto& output = instance.output_memory();
-            auto offset = onednn::get_offset(instance.get_output_layout(), _pd.dnnl::primitive_desc_base::dst_desc(0));
-            auto mem = output.get_onednn_memory(_pd.dnnl::primitive_desc_base::dst_desc(0), offset);
-            args.insert({DNNL_ARG_DST_LAYER, mem});
-        }
-
-        {
-            auto& output = instance.output_memory(1);
-            auto offset = onednn::get_offset(instance.get_output_layout(1), _pd.dnnl::primitive_desc_base::dst_desc(1));
-            auto mem = output.get_onednn_memory(_pd.dnnl::primitive_desc_base::dst_desc(1), offset);
-            args.insert({DNNL_ARG_DST_ITER, mem});
-        }
-
-        {
-            auto& output = instance.output_memory(2);
-            auto offset = onednn::get_offset(instance.get_output_layout(2), _pd.dnnl::primitive_desc_base::dst_desc(2));
-            auto mem = output.get_onednn_memory(_pd.dnnl::primitive_desc_base::dst_desc(2), offset);
-            args.insert({DNNL_ARG_DST_ITER_C, mem});
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0 ; j < 3; j++) {
+                dnnl::memory mem;
+                switch (i) {
+                    case 0:
+                        {
+                            auto& input = instance.input_memory(j);
+                            auto offset = onednn::get_offset(instance.get_input_layout(j), _pd.dnnl::primitive_desc_base::src_desc(j));
+                            mem = input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(j), offset);
+                            break;
+                        }
+                    case 1:
+                        {
+                            auto& input = instance.input_memory(3+j);
+                            auto offset = onednn::get_offset(instance.get_input_layout(3+j), _pd.dnnl::primitive_desc_base::weights_desc(j));
+                            mem = input.get_onednn_memory(_pd.dnnl::primitive_desc_base::weights_desc(j), offset);
+                            break;
+                        }
+                    case 2:
+                        {
+                            auto& output = instance.output_memory(j);
+                            auto offset = onednn::get_offset(instance.get_output_layout(j), _pd.dnnl::primitive_desc_base::dst_desc(j));
+                            mem = output.get_onednn_memory(_pd.dnnl::primitive_desc_base::dst_desc(j), offset);
+                            break;
+                        }
+                    default:
+                        break;
+                }
+                args.insert({dnnl_arg[i][j], mem});
+            }
         }
         return args;
     }
