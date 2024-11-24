@@ -21,7 +21,41 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
 
     bool validate_impl(const program_node& node) const override {
         assert(node.is_type<lstm_seq>());
-        return node.get_input_layout(0).format == cldnn::format::bfyx || node.get_input_layout(0).format == cldnn::format::fbyx \
+        const auto& info = node.get_program().get_engine().get_device_info();
+        if (info.arch == gpu_arch::unknown)
+            return false;
+
+        const auto& lstm_seq_node = node.as<lstm_seq>();
+        const auto& lstm_seq_prim = lstm_seq_node.get_primitive();
+        auto in0_dt = node.get_input_layout(0).data_type;
+        auto in1_dt = node.get_input_layout(1).data_type;
+        auto in2_dt = node.get_input_layout(2).data_type;
+        auto in3_dt = node.get_input_layout(3).data_type;
+        auto in4_dt = node.get_input_layout(4).data_type;
+        auto in5_dt = node.get_input_layout(5).data_type;
+        auto out0_dt = node.get_output_layout(0).data_type;
+        auto out1_dt = node.get_output_layout(1).data_type;
+        auto out2_dt = node.get_output_layout(2).data_type;
+        bool cell_state_check = one_of(in2_dt, {data_types::f16, data_types::bf16, data_types::f32}) &&
+            one_of(out2_dt, {data_types::f16, data_types::bf16, data_types::f32});
+        bool f16_case = everyone_is(data_types::f16, in0_dt, in1_dt, in3_dt, in4_dt, out0_dt, out1_dt);
+        bool bf16_case = everyone_is(data_types::bf16, in0_dt, in1_dt, in3_dt, in4_dt, out0_dt, out1_dt);
+        bool f32_case = everyone_is(data_types::f32, in0_dt, in1_dt, in3_dt, in4_dt, in5_dt, out0_dt, out1_dt);
+        bool u8u8u8_case = one_of(out0_dt, {data_types::u8, data_types::f32}) && everyone_is(data_types::i8, in3_dt, in4_dt) &&
+            everyone_is(data_types::u8, in0_dt, in1_dt, out1_dt) && everyone_is(data_types::f32, in2_dt, in5_dt, out2_dt);
+        bool f32u8f32_case = everyone_is(data_types::u8, in0_dt) && everyone_is(data_types::i8, in3_dt, in4_dt) &&
+            one_of(out0_dt, {data_types::u8, data_types::f32}) && everyone_is(data_types::f32, in1_dt, in5_dt, out1_dt);
+        bool s8s8s8_case = everyone_is(data_types::i8, in0_dt, in1_dt, out0_dt, out1_dt) && one_of(out0_dt, {data_types::i8, data_types::f32}) &&
+            everyone_is(data_types::f32, in2_dt, in5_dt, out2_dt);
+        bool f32s8f32_case = everyone_is(data_types::i8, in0_dt, in3_dt, in4_dt) && one_of(out0_dt, {data_types::i8, data_types::f32}) &&
+            everyone_is(data_types::f32, in1_dt, in5_dt, out1_dt);
+
+        if (!cell_state_check)
+            return false;
+        if (!f16_case && !f32_case && !bf16_case && !u8u8u8_case && !f32u8f32_case && !s8s8s8_case && !f32s8f32_case)
+            return false;
+
+        return node.get_input_layout(0).format == cldnn::format::bfyx || node.get_input_layout(0).format == cldnn::format::fbyx
             || node.get_input_layout(0).format == cldnn::format::ybfx;
     }
 
@@ -31,12 +65,13 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
         std::vector<format::type> out_fmts(node.get_outputs_count(), format::any);
 
         size_t out_rank = node.get_output_layout().get_rank();
-        for (size_t idx = 0 ; idx < node.get_dependencies().size() ; idx++) {
+        for (size_t idx = 0; idx < node.get_dependencies().size(); idx++) {
             if (node.get_dependency(idx).is_constant())
                 continue;
 
             auto target_format = format::get_default_format(out_rank);
-
+            if (idx == 0)
+                in_fmts[idx] = format::fbyx;
             in_fmts[idx] = target_format;
         }
         out_fmts[0] = format::ybfx;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,15 +15,6 @@ struct typed_program_node<lstm_cell> : public typed_program_node_base<lstm_cell>
 
 public:
     using parent::parent;
-
-    program_node& input() const { return get_dependency(0); }
-    lstm_weights_order offset_order() const { return get_primitive()->offset_order; }
-    float clip() const {
-        float clip_val = get_primitive()->clip;
-        OPENVINO_ASSERT(clip_val >= 0, "Clip value < 0");
-        return clip_val;
-    }
-    ov::op::RecurrentSequenceDirection direction() const { return get_primitive()->direction; }
 };
 
 using lstm_cell_node = typed_program_node<lstm_cell>;
@@ -41,13 +32,6 @@ public:
 
 public:
     typed_primitive_inst(network& network, lstm_cell_node const& node);
-    lstm_weights_order offset_order() const { return get_typed_desc<lstm_cell>()->offset_order; }
-    float clip() const {
-        float clip_val = get_typed_desc<lstm_cell>()->clip;
-        OPENVINO_ASSERT(clip_val >= 0, "Clip value < 0");
-        return clip_val;
-    }
-    ov::op::RecurrentSequenceDirection direction() const { return get_typed_desc<lstm_cell>()->direction; }
     bool has_cell() const { return !get_typed_desc<lstm_cell>()->initial_cell_state.pid.empty(); }
 };
 

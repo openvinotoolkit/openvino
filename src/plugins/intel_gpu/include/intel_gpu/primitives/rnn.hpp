@@ -38,8 +38,6 @@ struct RNNParams : public primitive_base<PType> {
               const input_info& R,
               const input_info& B,
               const input_info& seq_lenghts,
-              const primitive_id& out1_prim_id = "",
-              const primitive_id& out2_prim_id = "",
               const float clip = 0,
               bool input_forget = false,
               const std::vector<activation_func>& activations = {activation_func::logistic,
@@ -58,15 +56,13 @@ struct RNNParams : public primitive_base<PType> {
         R(R),
         B(B),
         seq_lenghts(seq_lenghts),
-        out1_prim_id(out1_prim_id),
-        out2_prim_id(out2_prim_id),
         clip(clip),
         input_forget(input_forget),
         activations(activations),
         activation_params(activation_params),
         offset_order(offset_order),
         direction(direction) {
-        std::vector<std::string> pids{initial_hidden_state.pid, initial_cell_state.pid, W.pid, R.pid, B.pid, seq_lenghts.pid, out1_prim_id, out2_prim_id};
+        std::vector<std::string> pids{initial_hidden_state.pid, initial_cell_state.pid, W.pid, R.pid, B.pid, seq_lenghts.pid};
         for (auto pid : pids) {
             if (!pid.empty()) {
                 primitive_base<PType>::input.push_back(pid);
@@ -81,8 +77,6 @@ struct RNNParams : public primitive_base<PType> {
     input_info R;
     input_info B;
     input_info seq_lenghts;
-    primitive_id out1_prim_id;
-    primitive_id out2_prim_id;
     /// @brief Cell clip threshold T. It is applied to the input of activations [-T, T]. No clip is applied if it is not specified.
     float clip;
     bool input_forget;
@@ -108,8 +102,6 @@ struct RNNParams : public primitive_base<PType> {
         seed = hash_combine(seed, W.pid);
         seed = hash_combine(seed, R.pid);
         seed = hash_combine(seed, B.pid);
-        seed = hash_combine(seed, out1_prim_id);
-        seed = hash_combine(seed, out2_prim_id);
         seed = hash_combine(seed, clip);
         seed = hash_range(seed, activations.begin(), activations.end());
         for (auto& act_param : activation_params) {
@@ -141,8 +133,6 @@ struct RNNParams : public primitive_base<PType> {
                cmp_fields(W) &&
                cmp_fields(R) &&
                cmp_fields(B) &&
-               cmp_fields(out1_prim_id) &&
-               cmp_fields(out2_prim_id) &&
                cmp_fields(clip) &&
                cmp_fields(activations) &&
                cmp_fields(offset_order) &&
@@ -159,8 +149,6 @@ struct RNNParams : public primitive_base<PType> {
         ob << R;
         ob << B;
         ob << seq_lenghts;
-        ob << out1_prim_id;
-        ob << out2_prim_id;
         ob << clip;
         ob << activations;
         ob << activation_params;
@@ -177,8 +165,6 @@ struct RNNParams : public primitive_base<PType> {
         ib >> R;
         ib >> B;
         ib >> seq_lenghts;
-        ib >> out1_prim_id;
-        ib >> out2_prim_id;
         ib >> clip;
         ib >> activations;
         ib >> activation_params;

@@ -44,7 +44,6 @@
 #include <vector>
 #include <memory>
 #include <utility>
-#include <openvino/op/constant.hpp>
 
 #include "pass_manager.h"
 
@@ -1363,9 +1362,6 @@ format layout_optimizer::get_preferred_format(program_node& node) {
             node.as<dft>().get_primitive()->direction == dft_direction::forward) {
             node.set_preferred_input_fmt(0, format::get_default_format(node.get_input_layouts()[0].get_rank()));
         }
-    } else if (node.is_type<lstm_seq>()) {
-        node.set_preferred_input_fmt(0, format::fbyx);
-        expected = format::fbyx;
     }
 
     if (allow_new_shape_infer && node.get_preferred_input_fmt() != format::any) {
@@ -1440,8 +1436,8 @@ void layout_optimizer::add_all_onednn_impls_optimization_attribute() {
 }
 
 bool layout_optimizer::has_all_enabled_onednn_impls_optimization_attribute() {
-    return is_enabled_onednn_for<concatenation>() && is_enabled_onednn_for<convolution>() && is_enabled_onednn_for<deconvolution>() && \
-        is_enabled_onednn_for<fully_connected>() && is_enabled_onednn_for<gemm>() && is_enabled_onednn_for<lstm_seq>() && \
+    return is_enabled_onednn_for<concatenation>() && is_enabled_onednn_for<convolution>() && is_enabled_onednn_for<deconvolution>() &&
+        is_enabled_onednn_for<fully_connected>() && is_enabled_onednn_for<gemm>() && is_enabled_onednn_for<lstm_seq>() &&
         is_enabled_onednn_for<pooling>() && is_enabled_onednn_for<reduce>() && is_enabled_onednn_for<reorder>();
 }
 

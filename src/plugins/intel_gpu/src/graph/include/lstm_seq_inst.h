@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,18 +15,7 @@ struct typed_program_node<lstm_seq> : public typed_program_node_base<lstm_seq> {
 
 public:
     using parent::parent;
-
-    program_node& input() const { return get_dependency(0); }
-    lstm_weights_order offset_order() const { return get_primitive()->offset_order; }
-    float clip() const {
-        float clip_val = get_primitive()->clip;
-        OPENVINO_ASSERT(clip_val >= 0, "Clip value < 0");
-        return clip_val;
-    }
     ov::op::RecurrentSequenceDirection direction() const { return get_primitive()->direction; }
-    std::vector<activation_func> activations() const {
-        return get_primitive()->activations;
-    }
 };
 
 using lstm_seq_node = typed_program_node<lstm_seq>;
@@ -44,14 +33,6 @@ public:
 
 public:
     typed_primitive_inst(network& network, lstm_seq_node const& node);
-    lstm_weights_order offset_order() const { return get_typed_desc<lstm_seq>()->offset_order; }
-    float clip() const {
-        float clip_val = get_typed_desc<lstm_seq>()->clip;
-        if (clip_val < 0)
-            throw std::range_error("Clip value < 0");
-        return clip_val;
-    }
-    uint32_t direction() const { return get_typed_desc<lstm_seq>()->direction == ov::op::RecurrentSequenceDirection::FORWARD ? 0 : 1; }
     bool has_cell() const { return !get_typed_desc<lstm_seq>()->initial_cell_state.pid.empty(); }
 };
 

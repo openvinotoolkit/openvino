@@ -73,13 +73,11 @@ static void CreateLSTMCellOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v4
     std::vector<cldnn::activation_additional_params> activation_params;
     GetLSTMActivationParams(op, activations, activation_params);
     float clip = op->get_clip();
-    assert(!inputs[5].pid.empty());
-    if (p.use_new_shape_infer()) {
-        p.add_primitive(*op, cldnn::lstm_cell(layerName+".out0", inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5], \
-                        cldnn::input_info(), "",  layerName + "_md_write.1", clip, false, activations, \
-                        activation_params, cldnn::lstm_weights_order::fizo, ov::op::RecurrentSequenceDirection::FORWARD, cldnn::padding(), \
-                        static_cast<int>(op->get_output_size())));
-    }
+    OPENVINO_ASSERT(!inputs[5].pid.empty());
+    OPENVINO_ASSERT(p.use_new_shape_infer());
+    p.add_primitive(*op, cldnn::lstm_cell(layerName+".out0", inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5], cldnn::input_info(),
+        clip, false, activations, activation_params, cldnn::lstm_weights_order::fizo, ov::op::RecurrentSequenceDirection::FORWARD, cldnn::padding(),
+        static_cast<int>(op->get_output_size())));
 }
 
 static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v5::LSTMSequence>& op) {
@@ -90,20 +88,15 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     std::vector<cldnn::activation_additional_params> activation_params;
     GetLSTMActivationParams(op, activations, activation_params);
     const float clip = op->get_clip();
-    if (op->get_input_shape(2).size() != 3 || op->get_input_shape(3).size() != 1 \
-            || op->get_input_shape(4).size() != 3 || op->get_input_shape(5).size() != 3 || op->get_input_shape(6).size() != 2) {
-        OPENVINO_THROW("Wrong input shapes for LSTMSequence op ", op->get_friendly_name());
-    }
+    OPENVINO_ASSERT(op->get_input_shape(2).size() == 3 && op->get_input_shape(3).size() == 1 && op->get_input_shape(4).size() == 3 &&
+        op->get_input_shape(5).size() == 3 && op->get_input_shape(6).size() == 2, "Wrong input shapes for LSTMSequence op ", op->get_friendly_name());
     auto direction = op->get_direction();
 
-    if (p.use_new_shape_infer()) {
-        cldnn::lstm_seq prim(layerName, inputs[0], inputs[1], \
-            inputs[2], inputs[4], inputs[5], inputs[6], inputs[3], "", "", \
-            clip, false, activations, activation_params, cldnn::lstm_weights_order::fizo, direction, cldnn::padding(), \
-            static_cast<int>(op->get_output_size()));
-        prim.output_data_types = get_output_data_types(op);
-        p.add_primitive(*op, prim);
-    }
+    OPENVINO_ASSERT(p.use_new_shape_infer());
+    cldnn::lstm_seq prim(layerName, inputs[0], inputs[1], inputs[2], inputs[4], inputs[5], inputs[6], inputs[3], clip, false, activations,
+        activation_params, cldnn::lstm_weights_order::fizo, direction, cldnn::padding(), static_cast<int>(op->get_output_size()));
+    prim.output_data_types = get_output_data_types(op);
+    p.add_primitive(*op, prim);
 }
 
 REGISTER_FACTORY_IMPL(v4, LSTMCell);
