@@ -30,7 +30,7 @@ protected:
 
     std::unordered_map<int, dnnl::memory> get_arguments(lstm_seq_inst& instance) const override {
         std::unordered_map<int, dnnl::memory> args;
-        std::vector<std::vector<uint>> dnnl_arg{{DNNL_ARG_SRC_LAYER, DNNL_ARG_SRC_ITER, DNNL_ARG_SRC_ITER_C}, {DNNL_ARG_WEIGHTS_LAYER, DNNL_ARG_WEIGHTS_ITER,
+        std::vector<std::vector<unsigned int>> dnnl_arg{{DNNL_ARG_SRC_LAYER, DNNL_ARG_SRC_ITER, DNNL_ARG_SRC_ITER_C}, {DNNL_ARG_WEIGHTS_LAYER, DNNL_ARG_WEIGHTS_ITER,
             DNNL_ARG_BIAS}, {DNNL_ARG_DST_LAYER, DNNL_ARG_DST_ITER, DNNL_ARG_DST_ITER_C}};
 
         for (int i = 0; i < 3; i++) {
