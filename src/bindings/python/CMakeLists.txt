@@ -327,7 +327,7 @@ if(ENABLE_PYTHON_PACKAGING)
     set(pip_version ${CMAKE_MATCH_1})
 
     if(pip_version VERSION_LESS 23.0)
-        message(FATAL_ERROR "pip version ${pip_version} is not supported. Please update pip to version 22.3 or higher.")
+        message(FATAL_ERROR "pip version ${pip_version} is not supported. Please update pip to version 23.0 or higher.")
     endif()
         
     add_custom_command(OUTPUT ${openvino_meta_info_file}
