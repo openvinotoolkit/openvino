@@ -5,6 +5,7 @@
 #pragma once
 
 #include "cpu_shape.h"
+#include "internal_properties.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/node_config.h"
 #include "weights_cache.hpp"
@@ -47,6 +48,21 @@ public:
         return status;
     }
 
+    static std::string statusToString(Status status) {
+#define CASE(_status)     \
+    case Status::_status: \
+        return #_status;
+    switch (status) {
+        CASE(Uninitialized);
+        CASE(NeedAllocation);
+        CASE(NotAllocated);
+        CASE(Allocated);
+        CASE(Validated);
+    }
+#undef CASE
+    return "Unexpected";
+    }
+
     void changeStatus(Status state);
     bool inPlace(LOOK look = LOOK_BOTH) const;
 
@@ -81,7 +97,7 @@ public:
         return getDesc().hasDefinedMaxSize();
     }
 
-    std::string name() const;
+    std::string hash() const;
 
 private:
     std::weak_ptr<Node> parent;
@@ -109,6 +125,8 @@ private:
 
     friend class Graph;
 };
+
+std::ostream& operator<<(std::ostream &os, const Edge& edge);
 
 }   // namespace intel_cpu
 }   // namespace ov

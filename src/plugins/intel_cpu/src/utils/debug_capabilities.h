@@ -102,7 +102,6 @@ std::ostream & operator<<(std::ostream & os, const ov::intel_cpu::Graph& graph);
 std::ostream & operator<<(std::ostream & os, const Shape& shape);
 std::ostream & operator<<(std::ostream & os, const MemoryDesc& desc);
 std::ostream & operator<<(std::ostream & os, const IMemory& mem);
-std::ostream & operator<<(std::ostream & os, const Edge& edge);
 std::ostream & operator<<(std::ostream & os, const PrintableModel& model);
 std::ostream & operator<<(std::ostream & os, const PrintableDelta& us);
 std::ostream & operator<<(std::ostream & os, const Edge::ReorderStatus reorderStatus);
