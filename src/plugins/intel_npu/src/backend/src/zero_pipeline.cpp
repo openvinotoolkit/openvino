@@ -24,14 +24,15 @@ Pipeline::Pipeline(const Config& config,
                    const std::shared_ptr<zeroProfiling::NpuInferProfiling>& npu_profiling,
                    const std::vector<std::vector<std::optional<TensorData>>>& inputTensorsData,
                    const std::vector<std::optional<TensorData>>& outputTensorsData,
-                   size_t numberOfCommandLists,
                    uint32_t group_ordinal)
     : _graph(graph),
       _config(config),
       _id(_graph->get_id_index()),
-      _event_pool{std::make_shared<EventPool>(initStructs->getDevice(),
-                                              initStructs->getContext(),
-                                              numberOfCommandLists ? static_cast<uint32_t>(numberOfCommandLists) : 1)},
+      _number_of_command_lists(_graph->get_batch_size().has_value() ? *_graph->get_batch_size() : 1),
+      _event_pool{
+          std::make_shared<EventPool>(initStructs->getDevice(),
+                                      initStructs->getContext(),
+                                      _number_of_command_lists ? static_cast<uint32_t>(_number_of_command_lists) : 1)},
       _npu_profiling(npu_profiling),
       _logger("Pipeline", _config.get<LOG_LEVEL>()) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::Pipeline::Pipeline");
@@ -41,14 +42,11 @@ Pipeline::Pipeline(const Config& config,
         profiling_query.create(profiling_pool._handle);
     }
 
-    _command_lists.reserve(numberOfCommandLists);
-    _events.reserve(numberOfCommandLists);
-    _fences.reserve(numberOfCommandLists);
-    if (_config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-        graph->register_event_vector_size(numberOfCommandLists);
-    }
+    _command_lists.reserve(_number_of_command_lists);
+    _events.reserve(_number_of_command_lists);
+    _fences.reserve(_number_of_command_lists);
     _logger.debug("Pipeline - emplace_back _event_pool and _command_queue");
-    for (size_t i = 0; i < numberOfCommandLists; i++) {
+    for (size_t i = 0; i < _number_of_command_lists; i++) {
         _command_lists.emplace_back(
             std::make_unique<CommandList>(initStructs,
                                           group_ordinal,
@@ -57,7 +55,7 @@ Pipeline::Pipeline(const Config& config,
         _fences.emplace_back(std::make_unique<Fence>(*_graph->get_command_queue()));
     }
 
-    for (size_t i = 0; i < numberOfCommandLists; i++) {
+    for (size_t i = 0; i < _number_of_command_lists; i++) {
         size_t ioIndex = 0;
         for (const auto& desc : graph->get_input_descriptors()) {
             if (inputTensorsData.at(ioIndex).size() > 1) {
@@ -69,7 +67,7 @@ Pipeline::Pipeline(const Config& config,
 
             graph->set_argument_value(desc.idx,
                                       static_cast<unsigned char*>(inputTensorsData.at(ioIndex).at(0)->mem) +
-                                          (i * inputTensorsData.at(ioIndex).at(0)->size) / numberOfCommandLists);
+                                          (i * inputTensorsData.at(ioIndex).at(0)->size) / _number_of_command_lists);
 
             ++ioIndex;
         }
@@ -78,7 +76,7 @@ Pipeline::Pipeline(const Config& config,
         for (const auto& desc : graph->get_output_descriptors()) {
             graph->set_argument_value(desc.idx,
                                       static_cast<unsigned char*>(outputTensorsData.at(ioIndex)->mem) +
-                                          (i * outputTensorsData.at(ioIndex)->size) / numberOfCommandLists);
+                                          (i * outputTensorsData.at(ioIndex)->size) / _number_of_command_lists);
             ++ioIndex;
         }
 
@@ -186,12 +184,12 @@ void Pipeline::updateCommandList(const TensorData& tensorsData, uint32_t index) 
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandList");
     _logger.debug("Pipeline - updateCommandList");
 
-    const size_t numberOfCommandLists = _command_lists.size();
+    const size_t _number_of_command_lists = _command_lists.size();
 
-    for (size_t i = 0; i < numberOfCommandLists; i++) {
+    for (size_t i = 0; i < _number_of_command_lists; i++) {
         _command_lists.at(i)->updateMutableCommandList(
             index,
-            static_cast<unsigned char*>(tensorsData.mem) + (i * tensorsData.size) / numberOfCommandLists);
+            static_cast<unsigned char*>(tensorsData.mem) + (i * tensorsData.size) / _number_of_command_lists);
         _command_lists.at(i)->close();
     }
 };
@@ -200,9 +198,9 @@ void Pipeline::updateCommandList(const TensorData& tensorsData, uint32_t index, 
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandList");
     _logger.debug("Pipeline - updateCommandList");
 
-    const size_t numberOfCommandLists = _command_lists.size();
+    const size_t _number_of_command_lists = _command_lists.size();
 
-    OPENVINO_ASSERT(commandListIndex < numberOfCommandLists,
+    OPENVINO_ASSERT(commandListIndex < _number_of_command_lists,
                     "Command list index is higgher than the number of Command lists ",
                     commandListIndex);
 

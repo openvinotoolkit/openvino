@@ -28,7 +28,6 @@ public:
              const std::shared_ptr<zeroProfiling::NpuInferProfiling>& npu_profiling,
              const std::vector<std::vector<std::optional<TensorData>>>& inputTensorsData,
              const std::vector<std::optional<TensorData>>& outputTensorsData,
-             size_t numberOfCommandLists,
              uint32_t group_ordinal);
 
     Pipeline(const Pipeline&) = delete;
@@ -46,6 +45,17 @@ protected:
     std::shared_ptr<IGraph> _graph;
     const Config _config;
     const uint32_t _id;
+
+    /**
+     * @brief Indicates how many command lists will be used inside the pipeline.
+     * @details Leveraging multiple command lists implies distributing the input/output buffers accross the batch axis
+     * between these lists.
+     *
+     * If batching is handled on compiler's side then a single command list shall be used, we don't do any
+     * specific operation inside the plugin in this case.
+     */
+    size_t _number_of_command_lists;
+
     std::shared_ptr<CommandQueue> _command_queue;
     std::vector<std::unique_ptr<CommandList>> _command_lists;
     std::vector<std::unique_ptr<Fence>> _fences;
