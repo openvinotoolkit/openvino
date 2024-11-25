@@ -82,7 +82,8 @@ std::shared_ptr<ov::Model> MHAFunction::initOriginal() const {
     auto softmax_out = add->output(0);
     if (with_reshape) {
         const auto interm_shape = add->get_output_shape(0);
-        const auto batch = std::accumulate(interm_shape.cbegin(), interm_shape.cbegin() + rank - 1, 1, std::multiplies<size_t>());
+        const auto batch =
+            std::accumulate(interm_shape.cbegin(), interm_shape.cbegin() + (rank - 1), 1, std::multiplies<size_t>());
         const auto reshape0ConstData = std::vector<int64_t>{ batch, -1 };
         const auto reshape1ConstData = interm_shape;
         const auto reshape0Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{reshape0ConstData.size()}, reshape0ConstData);
@@ -204,7 +205,7 @@ std::shared_ptr<ov::Model> MHASplitMFunction::initReference() const {
 
         if (ov::shape_size(shape) > 1) {
             ov::Shape reshape_shape = shape;
-            reshape_shape.insert(reshape_shape.cbegin() + rank - 3, 1);
+            reshape_shape.insert(reshape_shape.cbegin() + (rank - 3), 1);
             const auto mulReshape = make_reshape(mulConst, reshape_shape);
             const auto mulParam = std::make_shared<ov::opset1::Parameter>(precisions[1], mulReshape->get_shape());
             matmul_parent1 = std::make_shared<ov::op::v1::Multiply>(transpose1, mulParam);
@@ -288,7 +289,8 @@ std::shared_ptr<ov::Model> MHAMatMul0TransposeFunction::initOriginal() const {
     auto softmax_out = add->output(0);
     if (with_reshape) {
         const auto interm_shape = add->get_output_shape(0);
-        const auto batch = std::accumulate(interm_shape.cbegin(), interm_shape.cbegin() + rank - 1, 1, std::multiplies<size_t>());
+        const auto batch =
+            std::accumulate(interm_shape.cbegin(), interm_shape.cbegin() + (rank - 1), 1, std::multiplies<size_t>());
         const auto reshape0ConstData = std::vector<int64_t>{ batch, -1 };
         const auto reshape1ConstData = interm_shape;
         const auto reshape0Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{reshape0ConstData.size()}, reshape0ConstData);

@@ -37,8 +37,7 @@ public:
     event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
         auto& stream = instance.get_network().get_stream();
 
-        return events.empty() ? stream.create_user_event(true)
-                              : stream.enqueue_marker(events);
+        return stream.aggregate_events(events);
     }
 
     static std::unique_ptr<primitive_impl> create_data(const data_node& data, const kernel_impl_params&) {
