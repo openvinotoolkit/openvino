@@ -120,7 +120,7 @@ concatenation_inst::typed_primitive_inst(network& network, concatenation_node co
             if (dim == node.get_primitive()->axis) {
                 concat_count += input_mem_size[dim];
             } else {
-                if (i.first->get_outputs_count() > 1 && i.first->get_user_index(node) > 0) {
+                if (i.first->get_outputs_count() > 1 && i.second > 0) {
                     continue;
                 }
                 CLDNN_ERROR_NOT_EQUAL(node.id(),
