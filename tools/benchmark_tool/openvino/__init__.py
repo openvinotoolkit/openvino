@@ -50,6 +50,8 @@ from openvino.runtime import serialize
 from openvino.runtime import shutdown
 from openvino.runtime import tensor_from_file
 from openvino.runtime import save_model
+from openvino.runtime import save_tensor_data
+from openvino.runtime import read_tensor_data
 from openvino.runtime import layout_helpers
 
 from openvino._pyopenvino import RemoteContext

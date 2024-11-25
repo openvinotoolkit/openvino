@@ -7,6 +7,7 @@
 #include <openvino/core/model.hpp>
 #include <openvino/core/node.hpp>
 #include <openvino/core/version.hpp>
+#include <openvino/runtime/tensor_util.hpp>
 #include <string>
 
 #include "openvino/runtime/core.hpp"
@@ -267,6 +268,31 @@ PYBIND11_MODULE(_pyopenvino, m) {
 
     regclass_Core(m);
     regclass_Tensor(m);
+
+    m.def(
+        "save_tensor_data",
+        [](const ov::Tensor& tensor,
+           const py::object& file_path) {
+            ov::save_tensor_data(tensor,
+                          Common::utils::convert_path_to_string(file_path));
+        },
+        py::arg("tensor"),
+        py::arg("file_path"));
+
+    m.def(
+        "read_tensor_data",
+        [](const py::object& file_path,
+           const ov::element::Type& element_type,
+           const ov::PartialShape& shape,
+           std::size_t offset,
+           bool mmap) {
+            return ov::read_tensor_data(Common::utils::convert_path_to_string(file_path), element_type, shape, offset, mmap);
+        },
+        py::arg("file_path"),
+        py::arg("element_type") = ov::element::u8,
+        py::arg("shape") = ov::PartialShape({ov::Dimension()}),
+        py::arg("offset") = size_t(0),
+        py::arg("mmap") = true);
 
     regclass_CompiledModel(m);
     regclass_InferRequest(m);
