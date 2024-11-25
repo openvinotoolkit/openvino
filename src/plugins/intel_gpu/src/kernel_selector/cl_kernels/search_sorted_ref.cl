@@ -10,10 +10,10 @@
 #define CMP <
 #endif
 
-OUTPUT_TYPE binary_search_thread(const INPUT0_TYPE search_val,
-                                 const __global INPUT0_TYPE* restrict sorted, 
-                                 OUTPUT_TYPE sorted_begin_idx, 
-                                 OUTPUT_TYPE sorted_end_idx) {
+OUTPUT_TYPE FUNC(binary_search_thread)(const INPUT0_TYPE search_val,
+                                       const __global INPUT0_TYPE* restrict sorted, 
+                                       OUTPUT_TYPE sorted_begin_idx, 
+                                       OUTPUT_TYPE sorted_end_idx) {
     while(sorted_begin_idx != sorted_end_idx) {
         const OUTPUT_TYPE half_offset = (sorted_end_idx-sorted_begin_idx)/2;
         const OUTPUT_TYPE half_idx = sorted_begin_idx+half_offset;
@@ -48,10 +48,10 @@ KERNEL(search_sorted_ref)(
     const int sorted_offset = min(this_thread_idx/INPUT1_SIZE_X, SORTED_STRIDE-1);
 
     OUTPUT_TYPE sorted_begin_idx = sorted_offset * INPUT0_SIZE_X;
-    const OUTPUT_TYPE idx = binary_search_thread(search_val, 
-                                                 sorted + sorted_begin_idx, 
-                                                 0, 
-                                                 INPUT0_SIZE_X);
+    const OUTPUT_TYPE idx = FUNC_CALL(binary_search_thread)(search_val, 
+                                                            sorted + sorted_begin_idx, 
+                                                            0, 
+                                                            INPUT0_SIZE_X);
     
     output[this_thread_idx] = idx;
 }
