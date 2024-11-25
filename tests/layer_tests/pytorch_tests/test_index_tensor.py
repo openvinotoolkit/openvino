@@ -37,7 +37,7 @@ class TestIndexTensor(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit_torch_export
-    @pytest.mark.parametrize('safe', [True, False], ids=['safe', 'unsafe'])
+    @pytest.mark.parametrize('safe', [True, False])
     @pytest.mark.parametrize(('input_shape', 'indices_list'), [
         ([3, 7], [[0], [5, 3, 0]]),
         ([3, 7, 6], [[0], None, None]),
