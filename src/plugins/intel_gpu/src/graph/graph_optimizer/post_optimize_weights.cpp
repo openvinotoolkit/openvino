@@ -11,7 +11,6 @@
 #include "fully_connected_inst.h"
 #include "lstm_seq_inst.h"
 #include "intel_gpu/runtime/format.hpp"
-#include "intel_gpu/primitives/mutable_data.hpp"
 #include "permute_inst.h"
 #include "crop_inst.h"
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -180,9 +179,11 @@ void post_optimize_weights::add_lstm_weights_reorder(primitive_id input_id, std:
 
     auto& crop0_node = get_crop_node(0);
     auto& crop1_node = get_crop_node(1);
-    auto& crop2_node = get_crop_node(2);
-    auto& crop3_node = get_crop_node(3);
-    std::vector<input_info> con_input{input_info(crop_id_b + "1"), input_info(crop_id_b + "0"), input_info(crop_id_b + "2"), input_info(crop_id_b + "3")};
+    auto crop2_id = primitive_id(crop_id_b + std::to_string(2));
+    auto crop2_prim = std::make_shared<cldnn::crop>(crop2_id, reorder_id,  cldnn::tensor{dir_num, static_cast<int>(2*hiddenSize), 1, size_third},
+        cldnn::tensor{0, static_cast<int>(2*hiddenSize), 0, 0});
+    auto& crop2_node = p.get_or_create(crop2_prim);
+    std::vector<input_info> con_input{input_info(crop_id_b + "1"), input_info(crop_id_b + "0"), input_info(crop_id_b + "2")};
     cldnn::primitive_id concat_id{input_id + "cont"};
     auto con = std::make_shared<cldnn::concatenation>(concat_id, con_input, 1);
     auto& con_node = p.get_or_create(con);
@@ -190,10 +191,8 @@ void post_optimize_weights::add_lstm_weights_reorder(primitive_id input_id, std:
     p.add_intermediate(crop1_node, con_node, prev, true);
     p.add_connection(prev, crop0_node, 0);
     p.add_connection(prev, crop2_node, 0);
-    p.add_connection(prev, crop3_node, 0);
     p.add_connection(crop0_node, con_node, 0);
     p.add_connection(crop2_node, con_node, 0);
-    p.add_connection(crop3_node, con_node, 0);
     std::string permute_id = input_id + "_perx";
     std::vector<uint16_t> ord{0, 2, 1};
     auto permute = std::make_shared<cldnn::permute>(permute_id, input_info{concat_id}, ord);
@@ -208,7 +207,6 @@ void post_optimize_weights::add_lstm_weights_reorder(primitive_id input_id, std:
     set_implementation_and_output(crop1_node);
     set_implementation_and_output(crop0_node);
     set_implementation_and_output(crop2_node);
-    set_implementation_and_output(crop3_node);
     set_implementation_and_output(con_node);
     set_implementation_and_output(permute_node);
 }
@@ -227,9 +225,11 @@ void post_optimize_weights::add_lstm_bias_reorder(primitive_id input_id, std::sh
     };
     auto& crop0_node = get_crop_node(0);
     auto& crop1_node = get_crop_node(1);
-    auto& crop2_node = get_crop_node(2);
-    auto& crop3_node = get_crop_node(3);
-    std::vector<input_info> con_input{input_info(crop1_node.id()), input_info(crop0_node.id()), input_info(crop2_node.id()), input_info(crop3_node.id())};
+    auto crop2_id = primitive_id(crop_id_b + std::to_string(2));
+    auto crop2_prim = std::make_shared<cldnn::crop>(crop2_id, input_id,  cldnn::tensor{dir_num, static_cast<int>(2*hiddenSize), 1, 1},
+        cldnn::tensor{0, static_cast<int>(2*hiddenSize), 0, 0});
+    auto& crop2_node = p.get_or_create(crop2_prim);
+    std::vector<input_info> con_input{input_info(crop1_node.id()), input_info(crop0_node.id()), input_info(crop2_node.id())};
     cldnn::primitive_id concat_id{input_id + "concat"};
     auto con = std::make_shared<cldnn::concatenation>(concat_id, con_input, 1);
     auto& con_node = p.get_or_create(con);
@@ -237,10 +237,8 @@ void post_optimize_weights::add_lstm_bias_reorder(primitive_id input_id, std::sh
     p.add_intermediate(crop1_node, con_node, prev, true);
     p.add_connection(prev, crop0_node, 0);
     p.add_connection(prev, crop2_node, 0);
-    p.add_connection(prev, crop3_node, 0);
     p.add_connection(crop0_node, con_node, 0);
     p.add_connection(crop2_node, con_node, 0);
-    p.add_connection(crop3_node, con_node, 0);
     auto set_implementation_and_output = [this, &p](program_node& node) {
         node.get_output_layout(false);
         select_implementation(p, node);
@@ -250,7 +248,6 @@ void post_optimize_weights::add_lstm_bias_reorder(primitive_id input_id, std::sh
     set_implementation_and_output(crop0_node);
     set_implementation_and_output(crop1_node);
     set_implementation_and_output(crop2_node);
-    set_implementation_and_output(crop3_node);
     set_implementation_and_output(con_node);
 }
 

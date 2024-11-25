@@ -29,16 +29,12 @@ struct rnn_seq_impl : typed_primitive_impl_ocl<lstm_seq> {
 protected:
     kernel_arguments_data get_arguments(const typed_primitive_inst<lstm_seq>& instance) const override {
         kernel_arguments_data args;
-        size_t op_input_size = 6 + (instance.has_cell() ? 1 : 0);
-        for (size_t i = 0; i < op_input_size; i++) {
+        for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
             args.inputs.push_back(instance.input_memory_ptr(i));
         }
 
         for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
             args.outputs.push_back(instance.output_memory_ptr(i));
-        }
-        for (size_t i = op_input_size; i < instance.inputs_memory_count(); i++) {
-            args.outputs.push_back(instance.dep_memory_ptr(i));
         }
         return args;
     }
@@ -70,11 +66,6 @@ public:
         params.SetOffsetOrder(static_cast<int32_t>(primitive->offset_order));
         params.clip = primitive->clip;
         params.direction = primitive->direction;
-        //Legacy multi-output
-        params.outputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
-        if (!primitive->initial_cell_state.pid.empty()) {
-            params.outputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
-        }
         return params;
     }
 

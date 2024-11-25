@@ -25,8 +25,6 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
         if (info.arch == gpu_arch::unknown)
             return false;
 
-        const auto& lstm_seq_node = node.as<lstm_seq>();
-        const auto& lstm_seq_prim = lstm_seq_node.get_primitive();
         auto in0_dt = node.get_input_layout(0).data_type;
         auto in1_dt = node.get_input_layout(1).data_type;
         auto in2_dt = node.get_input_layout(2).data_type;
