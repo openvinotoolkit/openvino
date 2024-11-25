@@ -138,7 +138,7 @@ function(ov_developer_package_export_targets)
             endforeach()
         endif()
     else()
-        message(FATAL_ERROR "Internal error: ${target_name} does not represent a cmake target")
+        message(FATAL_ERROR "Internal error: '${EXPORT_TARGET}' does not represent a cmake target")
     endif()
 
     list(REMOVE_DUPLICATES _OPENVINO_DEVELOPER_PACKAGE_TARGETS)
