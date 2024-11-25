@@ -869,7 +869,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
     MHAKernel<KType, T> kernel;
     MHASingleToken kernel_single_token;
 
-    explicit AttentionExecutor(GraphContext::CPtr ctx, size_t k_group_size = 0, size_t v_group_size = 0)
+    explicit AttentionExecutor(GraphContext::CPtr ctx, size_t k_group_size, size_t v_group_size)
         : context(ctx),
           kernel(context),
           kernel_single_token(k_group_size, v_group_size) {}
@@ -1148,12 +1148,12 @@ void ScaledDotProductAttention::createPrimitive() {
         }
 #elif defined(OV_CPU_WITH_ACL)
         if (rtPrecision == ov::element::f16) {
-            executor = std::make_shared<AttentionExecutor<KT_ACL, ov::float16>>(context);
+            executor = std::make_shared<AttentionExecutor<KT_ACL, ov::float16>>(context, m_key_group_size, m_value_group_size);
         } else {
-            executor = std::make_shared<AttentionExecutor<KT_ACL, float>>(context);
+            executor = std::make_shared<AttentionExecutor<KT_ACL, float>>(context, m_key_group_size, m_value_group_size);
         }
 #else
-        executor = std::make_shared<AttentionExecutor<KT_REF, float>>(context);
+        executor = std::make_shared<AttentionExecutor<KT_REF, float>>(context, m_key_group_size, m_value_group_size);
 #endif
         return executor;
     };
