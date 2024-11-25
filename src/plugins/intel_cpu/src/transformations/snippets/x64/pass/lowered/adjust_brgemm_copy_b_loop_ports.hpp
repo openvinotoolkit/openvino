@@ -18,14 +18,11 @@ namespace pass {
  *        Finds loop ports connected to BrgemmCopyB and sets appropriate pointer increments.
   * @ingroup snippets
  */
-class AdjustBrgemmCopyBLoopPorts: public snippets::lowered::pass::Pass {
+class AdjustBrgemmCopyBLoopPorts: public snippets::lowered::pass::ConstPass {
 public:
     AdjustBrgemmCopyBLoopPorts() = default;
-    OPENVINO_RTTI("AdjustBrgemmCopyBLoopPorts", "Pass");
-    bool run(const snippets::lowered::LinearIR& linear_ir);
-    bool run(snippets::lowered::LinearIR& linear_ir) override {
-        return run(const_cast<const snippets::lowered::LinearIR&>(linear_ir));
-    }
+    OPENVINO_RTTI("AdjustBrgemmCopyBLoopPorts", "ConstPass");
+    bool run(const snippets::lowered::LinearIR& linear_ir) override;
     static bool update_loop_info(const snippets::lowered::UnifiedLoopInfoPtr& uni_loop_info);
     const std::unordered_set<snippets::lowered::UnifiedLoopInfoPtr>& get_affected_loops() { return m_affected_loops; }
 private:
