@@ -490,6 +490,10 @@ ov::Tensor create_shared(py::array& array) {
     OPENVINO_THROW("SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! Passed numpy array must be C contiguous.");
 }
 
+ov::Tensor tensor_from_pointer(int64_t data_ptr, const ov::Shape& shape, const ov::element::Type& type) {
+    return ov::Tensor(type, shape, (void*)(data_ptr), {});
+}
+
 ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const ov::element::Type& type) {
     if (type_helpers::get_ov_type(array) == ov::element::string) {
         OPENVINO_THROW("SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! String types can be only copied.");
