@@ -29,7 +29,7 @@ on:
         description: 'Timeout in minutes for the job'
         type: number
         required: false
-        default: 35
+        default: 45
 
 permissions: read-all
 
