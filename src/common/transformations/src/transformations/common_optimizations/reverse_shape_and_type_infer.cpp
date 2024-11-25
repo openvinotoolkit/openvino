@@ -11,6 +11,7 @@
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/deformable_convolution.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/if.hpp"
 #include "openvino/op/parameter.hpp"
@@ -322,6 +323,21 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                 is_changed = true;
             }
             is_changed |= inherit_output_type(op, {0});
+        } else if (ov::as_type_ptr<ov::op::v0::Convert>(op)) {
+            is_changed |= inherit_output_shape(op, {0});
+            is_changed |= inherit_output_rank(op, {0});
+        } else if (auto gather_op = ov::as_type_ptr<ov::op::v8::Gather>(op)) {
+            is_changed |= inherit_output_type(op, {0});
+
+            const auto& output_shape = op->get_output_partial_shape(0);
+            const auto& data_shape = op->get_input_partial_shape(0);
+            const auto batch = gather_op->get_batch_dims();
+
+            if (op->get_input_size() > 1 && batch >= 0 && op->get_input_partial_shape(1).rank().is_dynamic()) {
+                op->get_input_tensor(1).m_partial_shape =
+                    ov::PartialShape::dynamic(output_shape.rank() - data_shape.rank() + batch + 1);
+                is_changed = true;
+            }
         }
     }
     return is_changed;

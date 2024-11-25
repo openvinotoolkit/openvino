@@ -183,6 +183,11 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
     const auto& arg_rank = arg_shape.rank();
     ov::optional<std::set<int64_t>> unique_axes{};
 
+    const auto& deduced = op->get_rt_info().find(op->output_rt_info_name);
+    if (deduced != op->get_rt_info().end()) {
+        return {deduced->second.as<PartialShape>()};
+    }
+
     if (const auto& output_shapes =
             ov::op::util::validate_input_and_try_get_output_shape(op, unique_axes, input_shapes, ta)) {
         return *output_shapes;
