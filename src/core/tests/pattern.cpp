@@ -541,7 +541,7 @@ TEST(pattern, or_pattern_points_the_selected_branch) {
     EXPECT_TRUE(matcher.match(or_pattern, model_sigmoid));
 
     auto pattern_val_mp = matcher.get_pattern_value_map();
-    EXPECT_NO_THROW(pattern_val_mp.at(or_pattern));
+    EXPECT_EQ(pattern_val_mp.count(or_pattern), 1);
 
     // we expect that Or pattern points to the first node of the selected branch
     EXPECT_NE(ov::as_type<v0::Sigmoid>(pattern_val_mp.at(or_pattern).get_node()), nullptr);
@@ -568,7 +568,7 @@ TEST(pattern, multiple_optionals_in_row) {
 
     auto pattern_val_mp = matcher.get_pattern_value_map();
 
-    EXPECT_NO_THROW(pattern_val_mp.at(in));
+    EXPECT_EQ(pattern_val_mp.count(in), 1);
     EXPECT_NE(ov::as_type<v0::Parameter>(pattern_val_mp.at(in).get_node()), nullptr);
 
     // as Convert and Relu ops are not present in the graph, so we expect the optional nodes
@@ -576,7 +576,7 @@ TEST(pattern, multiple_optionals_in_row) {
     EXPECT_EQ(pattern_val_mp.count(pattern_convert), 0);
     EXPECT_EQ(pattern_val_mp.count(pattern_relu), 0);
 
-    EXPECT_NO_THROW(pattern_val_mp.at(pattern_sigmoid));
+    EXPECT_EQ(pattern_val_mp.count(pattern_sigmoid), 1);
     EXPECT_NE(ov::as_type<v0::Sigmoid>(pattern_val_mp.at(pattern_sigmoid).get_node()), nullptr);
 }
 
