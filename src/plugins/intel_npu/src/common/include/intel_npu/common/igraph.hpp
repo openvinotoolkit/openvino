@@ -85,8 +85,11 @@ public:
         return _mutex;
     }
 
-    inline void set_event_vector_size(size_t numberOfCommandList) {
-        _previous_event_used.resize(numberOfCommandList);
+    inline void register_event_vector_size(size_t numberOfCommandList) {
+        if (_previous_event_used.empty()) {
+            std::cout << "Test once" << std::endl;
+            _previous_event_used.resize(numberOfCommandList);
+        }
     }
 
     inline void set_event_to_wait_for(const std::shared_ptr<Event>& event, size_t indexOfCommandList) {

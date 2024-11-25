@@ -44,7 +44,9 @@ Pipeline::Pipeline(const Config& config,
     _command_lists.reserve(numberOfCommandLists);
     _events.reserve(numberOfCommandLists);
     _fences.reserve(numberOfCommandLists);
-    graph->set_event_vector_size(numberOfCommandLists);
+    if (_config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        graph->register_event_vector_size(numberOfCommandLists);
+    }
     _logger.debug("Pipeline - emplace_back _event_pool and _command_queue");
     for (size_t i = 0; i < numberOfCommandLists; i++) {
         _command_lists.emplace_back(
