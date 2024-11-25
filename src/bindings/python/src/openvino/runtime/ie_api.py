@@ -45,6 +45,9 @@ class Model:
     def clone(self) -> "Model":
         return Model(self.__model.clone())
 
+    def __copy__(self) -> "Model":
+        raise TypeError("Cannot copy 'openvino.runtime.Model'. Please, use deepcopy instead.")
+
     def __deepcopy__(self, memo: Dict) -> "Model":
         """Returns a deepcopy of Model.
 
