@@ -133,7 +133,6 @@ std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runIni
     std::unordered_map<size_t, TensorData> constantIdToTensorData;
     std::vector<std::vector<std::optional<TensorData>>> inputTensorsData;
     std::vector<std::optional<TensorData>> outputTensorsData;
-    std::vector<std::shared_ptr<ov::ITensor>> inputHostTensors;
     std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> outputHostTensors;
 
     std::chrono::steady_clock::time_point begin;
@@ -160,24 +159,35 @@ std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runIni
               << "[ms]" << std::endl;
 
     begin = std::chrono::steady_clock::now();
-    for (const IODescriptor& descriptor : initGraph->get_metadata().inputs) {
-        size_t id = std::stoi(descriptor.nameFromCompiler);
-        OPENVINO_ASSERT(constantIdToTensorData.count(id), "Mismatch between weights IDs and parsed inputs");
-        const ov::SoPtr<ov::ITensor> hostTensor =
-            createHostTensor(context._ptr, descriptor.precision, descriptor.shapeFromCompiler.to_shape(), config);
+    size_t initInputsByteSize = 0;
 
-        OPENVINO_ASSERT(constantIdToTensorData.at(id).size == hostTensor->get_byte_size(),
+    for (const IODescriptor& descriptor : initGraph->get_metadata().inputs) {
+        initInputsByteSize +=
+            ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
+    }
+
+    const ov::SoPtr<ov::ITensor> initInputsTensor =
+        createHostTensor(context._ptr, ov::element::Type_t::u8, ov::Shape({initInputsByteSize}), config);
+    // static_cast<const unsigned char*>(
+    size_t offset = 0;
+    for (const IODescriptor& descriptor : initGraph->get_metadata().inputs) {
+        const size_t id = std::stoi(descriptor.nameFromCompiler);
+        auto currentInputBufferLocation = static_cast<unsigned char*>(initInputsTensor->data()) + offset;
+        const size_t currentInputSize =
+            ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
+        OPENVINO_ASSERT(constantIdToTensorData.count(id), "Mismatch between weights IDs and parsed inputs");
+        OPENVINO_ASSERT(constantIdToTensorData.at(id).size == currentInputSize,
                         "Byte size mismatch for ",
                         descriptor.nameFromCompiler);
 
         begin_memcpy = std::chrono::steady_clock::now();
-        std::memcpy(hostTensor->data(), constantIdToTensorData.at(id).mem, hostTensor->get_byte_size());
+        std::memcpy(currentInputBufferLocation, constantIdToTensorData.at(id).mem, currentInputSize);
         end_memcpy = std::chrono::steady_clock::now();
         memcpy_duration =
             memcpy_duration + std::chrono::duration_cast<std::chrono::milliseconds>(end_memcpy - begin_memcpy).count();
 
-        inputTensorsData.push_back({TensorData{hostTensor->data(), hostTensor->get_byte_size()}});
-        inputHostTensors.push_back(hostTensor._ptr);
+        inputTensorsData.push_back({TensorData{currentInputBufferLocation, currentInputSize}});
+        offset += currentInputSize;
     }
     end = std::chrono::steady_clock::now();
     std::cout << "Setting init inputs " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
