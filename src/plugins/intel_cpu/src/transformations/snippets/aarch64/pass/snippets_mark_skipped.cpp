@@ -323,6 +323,10 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, con
 
     return false;
 }
+
+inline bool canBeMatMulExecutedInInt8(const ov::element::Type& firstType, const ov::element::Type& secondType) {
+    return one_of(firstType, ov::element::i8, ov::element::u8) && secondType == ov::element::i8;
+}
 } // namespace
 
 bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
@@ -344,9 +348,10 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
             SetNodeFusingType(node, NodeFusingType::FusedWithMisc);
         } else if (isSuitableMatMulParent(node)) {
             const bool is_fc = isFullyConnected(node);
+            const bool is_i8 = canBeMatMulExecutedInInt8(node->get_input_element_type(0), node->get_input_element_type(1));
             const auto out_rank = node->get_output_partial_shape(0).rank();
             if (is_fc) {
-                SetNodeFusingType(node, NodeFusingType::FusedWithFC);
+                SetNodeFusingType(node, is_i8 ? NodeFusingType::FusedWithFCI8 : NodeFusingType::FusedWithFC);
                 channelAxis = out_rank.is_static() ? (out_rank.get_length() == 3 ? 2 : 1) : DEFAULT_AXIS;
             } else {
                 SetNodeFusingType(node, NodeFusingType::FusedWithMatMul);
