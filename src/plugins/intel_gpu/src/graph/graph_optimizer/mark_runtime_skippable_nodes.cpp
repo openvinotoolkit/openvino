@@ -19,9 +19,12 @@
 #include "scatter_nd_update_inst.h"
 #include "program_helpers.h"
 
+#include <unordered_map>
+
 using namespace cldnn;
 
 void mark_runtime_skippable_nodes::run(program& p) {
+    std::unordered_map<primitive_id, uint8_t> runtime_skippable_depth;
     auto itr = p.get_processing_order().begin();
 
     while (itr != p.get_processing_order().end()) {
@@ -55,18 +58,19 @@ void mark_runtime_skippable_nodes::run(program& p) {
         // Check whether consecutive runtime skippable nodes is lower than max count.
         // Too long consecutive runtime skippable nodes causes huge time consumption in add_memory_dependency() of basic_memory_dependencies pass.
         // max count 7 is experimentally selected in specific model.
-        const uint8_t max_consecutive_runtime_skippable_nodes = 7;
-        uint8_t dep_consecutive_runtime_skippable_count = 0;
+        const uint8_t max_runtime_skippable_depth = 7;
+        uint8_t dep_runtime_skippable_depth = 0;
         for (const auto& dep : node->get_dependencies()) {
-            if (dep.first->is_runtime_skippable()) {
-                dep_consecutive_runtime_skippable_count = (dep.first->get_consecutive_runtime_skippable_count() > dep_consecutive_runtime_skippable_count) ?
-                                                        dep.first->get_consecutive_runtime_skippable_count() : dep_consecutive_runtime_skippable_count;
+            if (dep.first->is_runtime_skippable() &&
+               (runtime_skippable_depth.find(dep.first->get_org_primitive_id()) != runtime_skippable_depth.end())) {
+                dep_runtime_skippable_depth = (runtime_skippable_depth[dep.first->get_org_primitive_id()] > dep_runtime_skippable_depth) ?
+                                              runtime_skippable_depth[dep.first->get_org_primitive_id()] : dep_runtime_skippable_depth;
             }
         }
-        if (!node->is_runtime_skippable() && (dep_consecutive_runtime_skippable_count >= max_consecutive_runtime_skippable_nodes)) {
+        if (!node->is_runtime_skippable() && (dep_runtime_skippable_depth >= max_runtime_skippable_depth)) {
             GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node->id()
-                                   << " doesn't have runtime skippable due to max_consecutive_runtime_skippable_nodes("
-                                   << max_consecutive_runtime_skippable_nodes << ")." << std::endl;
+                                   << " doesn't have runtime skippable due to max_runtime_skippable_depth("
+                                   << static_cast<int>(max_runtime_skippable_depth) << ")." << std::endl;
             continue;
         }
 
@@ -275,7 +279,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
         });
 
         if (node->is_runtime_skippable()) {
-            node->set_consecutive_runtime_skippable_count(dep_consecutive_runtime_skippable_count + 1);
+            runtime_skippable_depth[node->get_org_primitive_id()] = dep_runtime_skippable_depth + 1;
         }
     }
 }
