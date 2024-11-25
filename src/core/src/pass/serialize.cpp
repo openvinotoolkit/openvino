@@ -132,14 +132,14 @@ public:
             // Therefore we always have to compare values when finding a match in the hash multimap.
             const HashValue hash = ov::runtime::compute_hash(ptr_to_write, new_size);
 
-            auto found = m_hash_to_file_positions.find(hash);
+            auto found = m_hash_to_file_positions.equal_range(hash);
             // iterate over all matches of the key in the multimap
-            while (found != m_hash_to_file_positions.end()) {
-                if (memcmp(ptr, found->second.second, size) == 0) {
-                    return found->second.first;
+            for (auto it = found.first; it != found.second; ++it) {
+                if (memcmp(ptr, it->second.second, size) == 0) {
+                    return it->second.first;
                 }
-                found++;
             }
+            
             // Since fp16_compressed data will be disposed at exit point and since we cannot reread it from the ostream,
             // we store pointer to the original uncompressed blob.
             m_hash_to_file_positions.insert({hash, {offset, static_cast<void const*>(ptr)}});
