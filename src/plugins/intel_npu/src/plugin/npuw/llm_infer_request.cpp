@@ -7,6 +7,8 @@
 #include "llm_compiled_model.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 
+#include <regex>
+
 template <typename T>
 void fill_tensor(ov::SoPtr<ov::ITensor> tensor, T fill_val, size_t offset = 0u) {
     T* tensor_data = tensor->data<T>();
@@ -14,10 +16,26 @@ void fill_tensor(ov::SoPtr<ov::ITensor> tensor, T fill_val, size_t offset = 0u) 
 }
 
 template <typename T>
+void fill_tensor(ov::Tensor tensor, T fill_val, size_t offset = 0u) {
+    T* tensor_data = tensor.data<T>();
+    std::fill(tensor_data + offset, tensor_data + tensor.get_size(), fill_val);
+}
+
+template <typename T>
 void print_tensor(ov::SoPtr<ov::ITensor> t) {
     auto* ptr = t->data<T>();
     std::cout << "[ ";
     for (int i = 0; i < t->get_size(); ++i) {
+        std::cout << ptr[i] << " ";
+    }
+    std::cout << " ]" << std::endl;
+}
+
+template <typename T>
+void print_tensor(ov::Tensor t) {
+    auto* ptr = t.data<T>();
+    std::cout << "[ ";
+    for (int i = 0; i < t.get_size(); ++i) {
         std::cout << ptr[i] << " ";
     }
     std::cout << " ]" << std::endl;
@@ -31,7 +49,10 @@ void copy_rows(const uint8_t* src,
     const uint8_t* src_row_p = src;
     uint8_t* dst_row_p = dst;
     for (int row = 0; row < num_rows; ++row) {
+        std::cout << "row " << row << " is being copied" << std::endl;
+        std::cout << "row_byte_size " << row_byte_size << std::endl;
         std::copy_n(src_row_p, row_byte_size, dst_row_p);
+        std::cout << "row " << row << " is copied" << std::endl;
         src_row_p += stride;
         dst_row_p += stride;
     }
@@ -53,10 +74,20 @@ void copy_to(ov::SoPtr<ov::ITensor> src,
     const auto SH = src->get_strides()[dim];
 
     for (int c = 0; c < C; ++c) {
+        std::cout << "c: " << c << "begin" << std::endl;
         const auto* sp = src_p + (C * SC) + (src_start * SH);
               auto* dp = dst_p + (C * SC) + (dst_start * SH);
         copy_rows(sp, count, SH, SH, dp);
+        std::cout << "c: " << c << "end" << std::endl;
     }
+}
+
+ov::Tensor make_tensor_slice(ov::Tensor tensor, size_t dim, size_t start_pos, size_t end_pos) {
+    ov::Shape start_shape(std::vector<size_t>(tensor.get_shape().size(), 0u));
+    start_shape[dim] = start_pos;
+    ov::Shape end_shape = tensor.get_shape();
+    end_shape[dim] = end_pos;
+    return ov::Tensor(tensor, start_shape, end_shape);
 }
 
 ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model)
@@ -65,7 +96,7 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     m_kvcache_request = compiled_model->kvcache_compiled->create_infer_request();
     m_prefill_request = compiled_model->prefill_compiled->create_infer_request();
     // FIXME: Shouldn't be hardcoded
-    m_kvcache_desc = KVCacheDesc{1024u, 1024u+128u, 2u, 0u};
+    m_kvcache_desc = KVCacheDesc{1024u, 1024u+128u, 0u, 2u};
 
     for (auto input_port : m_prefill_request->get_compiled_model()->inputs()) {
         m_prefill_in_ports.emplace(input_port.get_any_name(), input_port);
@@ -83,15 +114,13 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
 }
 
 void ov::npuw::LLMInferRequest::prepare_for_new_conversation() {
-    std::cout << "PREPARE FOR NEW CONVERSION" << std::endl;
+    std::cout << "PREPARE FOR NEW CONVERSATION" << std::endl;
     // FIXME: for input_ids it must be padding from tokenizer that not available from here
     auto prefill_compiled = m_prefill_request->get_compiled_model();
-    std::cout << "get input ids" << std::endl;
     fill_tensor<int64_t>(m_prefill_request->get_tensor(prefill_compiled->inputs()[0]), 0u);
-    std::cout << "get mask " << std::endl;
     fill_tensor<int64_t>(m_prefill_request->get_tensor(prefill_compiled->inputs()[1]), 0u);
-    std::cout << "get position_ids " << std::endl;
     fill_tensor<int64_t>(m_prefill_request->get_tensor(prefill_compiled->inputs()[2]), 0u);
+    fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask")), 0u);
     m_kvcache_desc.num_stored_tokens = 0u;
 }
 
@@ -129,51 +158,76 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
 void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                                                ov::SoPtr<ov::ITensor> attention_mask,
                                                ov::SoPtr<ov::ITensor> position_ids) {
-    std::cout << "[LOG_DEBUG] LLMInferRequest::infer_generate()" << std::endl;
+    //std::cout << "[LOG_DEBUG] LLMInferRequest::infer_generate()" << std::endl;
     if (m_need_copy_kvcache) {
-        std::cout << "need to copy kvcache" << std::endl;
+        //std::cout << "need to copy kvcache" << std::endl;
         const auto kStartOutputKVCacheLayers = 1u;
         const auto kStartInputKVCacheLayers = 3u;
         const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
         for (int i = 0; i < kvcache_compiled->outputs().size() - 1; ++i) {
             const auto& output_name = kvcache_compiled->outputs()[kStartOutputKVCacheLayers + i].get_any_name();
-            std:: cout << "output_name=" << output_name << std::endl;
-            auto prefill_out_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
-            std:: cout << "output port=" << m_prefill_out_ports.at(output_name) << std::endl;
+            auto prefill_out_tensor = ov::make_tensor(m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name)));
 
             const auto& input_name = kvcache_compiled->inputs()[kStartInputKVCacheLayers + i].get_any_name();
-            std:: cout << "input_name=" << input_name << std::endl;
-            //
-            auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
-            std:: cout << "input port=" << m_kvcache_in_ports.at(input_name) << std::endl;
-            std:: cout << "tensor" << kvcache_in_tensor->get_size() << std::endl;
-            std::cout << "shape: " << kvcache_in_tensor->get_shape()[0] << "x" <<
-            kvcache_in_tensor->get_shape()[1] << "x" << kvcache_in_tensor->get_shape()[2] <<
-            "x" << kvcache_in_tensor->get_shape()[3] << std::endl;
+            auto kvcache_in_tensor = ov::make_tensor(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name)));
             fill_tensor<ov::float16>(kvcache_in_tensor, 0);
-            std:: cout << "filled" << std::endl;
 
-            copy_to(prefill_out_tensor, kvcache_in_tensor, 2,
-                    m_kvcache_desc.max_prompt_size - m_kvcache_desc.num_stored_tokens,
-                    0, m_kvcache_desc.num_stored_tokens);
-            std::cout << "copied" << std::endl;
+            // copy_to doesn't work for 31 subgraph (last - 1)
+            auto prefill_out_slice = make_tensor_slice(
+                prefill_out_tensor, m_kvcache_desc.dim,
+                m_kvcache_desc.max_prompt_size - m_kvcache_desc.num_stored_tokens, m_kvcache_desc.max_prompt_size
+            );
 
+            auto kvcache_in_slice = make_tensor_slice(
+                kvcache_in_tensor, m_kvcache_desc.dim, 0u, m_kvcache_desc.num_stored_tokens
+            );
+            prefill_out_slice.copy_to(kvcache_in_slice);
+            // copy_to(prefill_out_tensor, kvcache_in_tensor, 2,
+            //         m_kvcache_desc.max_prompt_size - m_kvcache_desc.num_stored_tokens,
+            //         0, m_kvcache_desc.num_stored_tokens);
+            //std::cout << "copied" << std::endl;
         }
-        std::cout << "KVCACHE IS COPYIED" << std::endl;
+        auto* attention_mask_data = m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask"))->data<int64_t>();
+        attention_mask_data[m_kvcache_desc.total_size - 1] = 1u;
+        m_need_copy_kvcache = false;
     }
 
     auto kv_input_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at("input_ids"));
     std::copy_n(input_ids->data<int64_t>(), input_ids->get_size(), kv_input_ids->data<int64_t>());
+    //print_tensor<int64_t>(input_ids);
 
     auto kv_attn_mask = m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask"));
     std::copy_n(attention_mask->data<int64_t>(), attention_mask->get_size(), kv_attn_mask->data<int64_t>());
+    //print_tensor<int64_t>(attention_mask);
 
     auto kv_pos_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at("position_ids"));
     std::copy_n(position_ids->data<int64_t>(), position_ids->get_size(), kv_pos_ids->data<int64_t>());
+    //print_tensor<int64_t>(position_ids);
 
     m_kvcache_request->infer();
-
     m_logits = m_kvcache_request->get_tensor(m_kvcache_out_ports.at("logits"));
+    m_kvcache_desc.num_stored_tokens += 1;
+
+    // NB: KV-cache is full, further generation is impossible
+    if (m_kvcache_desc.num_stored_tokens == m_kvcache_desc.total_size) {
+        std::cout << "KV-Cache is full" << std::endl;
+        return;
+    }
+
+    // NB: Write KV-cache for the new token to the correct input position for the next iteration
+    const auto kStartOutputKVCacheLayers = 1u;
+    const auto kStartInputKVCacheLayers = 3u;
+    const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
+    for (int i = 0; i < kvcache_compiled->outputs().size() - 1; ++i) {
+        const auto& output_name = kvcache_compiled->outputs()[kStartOutputKVCacheLayers + i].get_any_name();
+        const auto& input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
+        auto kvcache_in_tensor = ov::make_tensor(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name)));
+        auto kvcache_in_slice = make_tensor_slice(
+            kvcache_in_tensor, m_kvcache_desc.dim, m_kvcache_desc.num_stored_tokens - 1, m_kvcache_desc.num_stored_tokens
+        );
+        auto kvcache_out_tensor = ov::make_tensor(m_kvcache_request->get_tensor(m_kvcache_out_ports.at(output_name)));
+        kvcache_out_tensor.copy_to(kvcache_in_slice);
+    }
 }
 
 void ov::npuw::LLMInferRequest::infer() {

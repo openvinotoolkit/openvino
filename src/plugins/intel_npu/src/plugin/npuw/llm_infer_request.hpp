@@ -23,8 +23,8 @@ public:
 
     void check_tensors() const override{};
 
-    virtual std::vector<ov::ProfilingInfo> get_profiling_info() const {}
-    virtual std::vector<ov::SoPtr<ov::IVariableState>> query_state() const {}
+    virtual std::vector<ov::ProfilingInfo> get_profiling_info() const { return {}; }
+    virtual std::vector<ov::SoPtr<ov::IVariableState>> query_state() const { return {}; }
 
 private:
     void prepare_for_new_conversation();
