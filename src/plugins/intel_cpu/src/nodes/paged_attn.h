@@ -6,7 +6,7 @@
 
 #include "memory_state.h"
 #include "node.h"
-#include "transformations/cpu_opset/common/op/sdpa.hpp"
+#include "transformations/cpu_opset/common/op/paged_attention_split.hpp"
 #include "utils/plain_tensor.hpp"
 #include "kernels/scaled_attn/executor_pa.hpp"
 
@@ -39,6 +39,8 @@ public:
 
 private:
     ov::element::Type getRuntimePrecision() const override;
+
+    Extensions::Cpu::PagedAttentionFuseConfig m_fuse_config;
 
     std::shared_ptr<ov::Extensions::Cpu::PagedAttentionExecutor> m_executor;
     template <typename T> struct AttentionExecutor;

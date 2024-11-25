@@ -1183,7 +1183,7 @@ struct PerfEventGroup : public IPerfEventDumper {
 
 using ProfileScope = PerfEventGroup::ProfileScope;
 
-#if 1
+#if 0
 // pwe-thread event group with default events pre-selected
 template <typename ... Args>
 ProfileScope Profile(const std::string& title, int id = 0, Args&&... args) {

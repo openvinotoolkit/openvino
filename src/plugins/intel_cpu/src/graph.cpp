@@ -1378,7 +1378,7 @@ void Graph::InferDynamic(SyncInferRequest* request, int numaId, UpdateStrategy&&
         }
         for (; inferCounter < stopIndx; ++inferCounter) {
             auto& node = m_executableGraphNodes[inferCounter];
-            auto perf1 = LinuxPerf::Profile(node->getTypeStr() + "_" + node->getName());
+            auto perf1 = LinuxPerf::Profile(node->getTypeStr());
 
             ExecuteNodeWithCatch(node, request, numaId);
         }

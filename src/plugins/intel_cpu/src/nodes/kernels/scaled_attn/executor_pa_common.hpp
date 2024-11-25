@@ -17,6 +17,16 @@ namespace Extensions {
 namespace Cpu {
 
 // this file will contain features that do not require multiple instantiation
+struct PagedAttentionFuseConfig {
+    bool fuse_reshape_split = false;                      // q, k input shape will be [L(1), B, H, S]/[B, L(1), H, S],
+                                                          //  v input shape will be [L(1), B, H * S]/[B, L(1), H * S]
+    bool is_seq_len_first = false;                        // valid if fuse_reshape_split, true means [L(1), B, H, S] (chatglm)
+    size_t slice_start;                                   // v start pos in hidden_size
+    size_t slice_stop;                                    // v stop pos in hidden_size
+    size_t v_head_size;
+    size_t out_hidden_size;
+    ov::element::Type output_type[2];
+};
 
 struct PagedAttentionExecutor {
     // PagedAttention input index

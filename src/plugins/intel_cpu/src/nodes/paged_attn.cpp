@@ -15,6 +15,7 @@
 #include "openvino/util/common_util.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 
+#include "transformations/cpu_opset/common/op/paged_attention_split.hpp"
 #include "utils/plain_tensor.hpp"
 #include "kernels/scaled_attn/executor_pa.hpp"
 #include "kernels/scaled_attn/attn_memcpy.hpp"
@@ -61,6 +62,9 @@ PagedAttention::PagedAttention(const std::shared_ptr<ov::Node>& op, const GraphC
     }
     // output score may have no child
     m_hasScore = !op->get_output_target_inputs(1).empty();
+    if (const auto node = std::dynamic_pointer_cast<const PagedAttentionWithSplit>(op)) {
+        m_fuse_config = node->get_config();
+    }
 }
 
 void PagedAttention::initSupportedPrimitiveDescriptors() {
@@ -129,7 +133,7 @@ void PagedAttention::createPrimitive() {
     auto builder = [&](const PagedAttentionKey& key) -> std::shared_ptr<PagedAttentionExecutor> {
 #ifdef OPENVINO_ARCH_X86_64
         auto kvCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
-        return make_pa_executor(rtPrecision, kvCachePrecision);
+        return make_pa_executor(rtPrecision, kvCachePrecision, m_fuse_config);
 #else
         return nullptr;
 #endif
@@ -153,31 +157,49 @@ void PagedAttention::execute(dnnl::stream strm) {
     }
 
     auto outDims = inputs[0]->getStaticDims();
-    const auto& keyDims = inputs[1]->getStaticDims();
-    const auto& valueDims = inputs[2]->getStaticDims();
-    // value head_size may be not same with key
-    if (keyDims[1] != valueDims[1]) {
-        // The outDims[1] should be `num_heads * v_head_size`, it can be got from:
-        // because:
-        //   q: query_ps[1] = num_heads * head_size
-        //   k: key_ps[1] = num_kv_heads * head_size
-        //   v: value_ps[1] = num_kv_heads * v_head_size
-        // therefore:
-        //   q * v / k = (num_heads * head_size) * (num_kv_heads * v_head_size) /
-        //               (num_kv_heads * head_size) = num_heads * v_head_size
-        outDims[1] = outDims[1] * valueDims[1] / keyDims[1];
-    }
-    if (m_hasScore) {
-        size_t len = 0;
-        const auto& pastLensDims = inputs[5]->getStaticDims();
-        auto pastLens = inputs[5]->getDataAs<const int32_t>();
-        for (size_t i = 0; i < pastLensDims[0]; i++)
-            len += pastLens[i];
-        len += outDims[0];
-        VectorDims scoreDims{len};
-        redefineOutputMemory({outDims, scoreDims});
+    if (m_fuse_config.fuse_reshape_split) {
+        // q shape: [seq_len(1), batch, head_num, head_size]
+        // expected output: [seq_len(1), batch, hidden_size]
+        auto reshapedOutDims = VectorDims{1, outDims[1], m_fuse_config.out_hidden_size};
+        if (m_hasScore) {
+            size_t len = 0;
+            const auto& pastLensDims = inputs[5]->getStaticDims();
+            auto pastLens = inputs[5]->getDataAs<const int32_t>();
+            for (size_t i = 0; i < pastLensDims[0]; i++)
+                len += pastLens[i];
+            len += outDims[1];
+            VectorDims scoreDims{len};
+            redefineOutputMemory({reshapedOutDims, scoreDims});
+        } else {
+            redefineOutputMemory(0, reshapedOutDims);
+        }
     } else {
-        redefineOutputMemory(0, outDims);
+        const auto& keyDims = inputs[1]->getStaticDims();
+        const auto& valueDims = inputs[2]->getStaticDims();
+        // value head_size may be not same with key
+        if (keyDims[1] != valueDims[1]) {
+            // The outDims[1] should be `num_heads * v_head_size`, it can be got from:
+            // because:
+            //   q: query_ps[1] = num_heads * head_size
+            //   k: key_ps[1] = num_kv_heads * head_size
+            //   v: value_ps[1] = num_kv_heads * v_head_size
+            // therefore:
+            //   q * v / k = (num_heads * head_size) * (num_kv_heads * v_head_size) /
+            //               (num_kv_heads * head_size) = num_heads * v_head_size
+            outDims[1] = outDims[1] * valueDims[1] / keyDims[1];
+        }
+        if (m_hasScore) {
+            size_t len = 0;
+            const auto& pastLensDims = inputs[5]->getStaticDims();
+            auto pastLens = inputs[5]->getDataAs<const int32_t>();
+            for (size_t i = 0; i < pastLensDims[0]; i++)
+                len += pastLens[i];
+            len += outDims[0];
+            VectorDims scoreDims{len};
+            redefineOutputMemory({outDims, scoreDims});
+        } else {
+            redefineOutputMemory(0, outDims);
+        }
     }
 
     outputs[0] = getDstMemoryAtPort(0);
@@ -190,7 +212,8 @@ void PagedAttention::execute(dnnl::stream strm) {
 bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         int orgInput = static_cast<int>(op->get_input_size());
-        if (op->get_type_name() == std::string("PagedAttentionExtension") && orgInput == PagedAttentionExecutor::ID_SLIDING_WINDOW + 1) {
+        if ((op->get_type_name() == std::string("PagedAttentionExtension") && orgInput == PagedAttentionExecutor::ID_SLIDING_WINDOW + 1) ||
+            std::dynamic_pointer_cast<const PagedAttentionWithSplit>(op)) {
             return true;
         }
     } catch (...) {

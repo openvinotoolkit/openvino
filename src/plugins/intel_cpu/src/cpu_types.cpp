@@ -257,7 +257,8 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"QKVProjection", Type::QKVProjection},
         {"RMS", Type::RMS},
         {"SearchSorted", Type::SearchSorted},
-        {"LoraSubgraph", Type::LoRA}
+        {"LoraSubgraph", Type::LoRA},
+        {"PagedAttentionWithSplit", Type::PagedAttention}
     };
     return type_to_name_tbl;
 }

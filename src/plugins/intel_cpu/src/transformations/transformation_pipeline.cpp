@@ -141,6 +141,7 @@
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
 #include "transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp"
+#include "transformations/cpu_opset/common/pass/paged_attention_split_fusion.hpp"
 #include "transformations/cpu_opset/x64/pass/sdpa_fuse_transpose_reshape.hpp"
 
 // Snippets
@@ -892,6 +893,7 @@ void Transformations::PostLpt() {
             return node::RMSNorm::isSupportedOperation(node, errorMsg);
         },
         ov::intel_cpu::DecomposeRMSNorm);
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::intel_cpu::PagedAttentionFusion);
 
     // markup Rope Input when BF16/F16 inference.
     if (one_of(config.inferencePrecision, ov::element::bf16, ov::element::f16)) {

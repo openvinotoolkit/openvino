@@ -19,6 +19,7 @@
 #include "transformations/cpu_opset/common/op/fully_connected.hpp"
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
 #include "transformations/cpu_opset/common/op/ngram.hpp"
+#include "transformations/cpu_opset/common/op/paged_attention_split.hpp"
 #include "transformations/cpu_opset/common/op/power_static.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
@@ -95,7 +96,8 @@ private:
     OP_EXTENSION_X64(ov::intel_cpu::StoreConvertSaturation)                 \
     OP_EXTENSION_X64(ov::intel_cpu::StoreConvertTruncation)                 \
     OP_EXTENSION_X64(ov::intel_cpu::BrgemmCPU)                              \
-    OP_EXTENSION_X64(ov::intel_cpu::BrgemmCopyB)
+    OP_EXTENSION_X64(ov::intel_cpu::BrgemmCopyB)                            \
+    OP_EXTENSION_X64(ov::intel_cpu::PagedAttentionWithSplit)
 
 #define TYPE_RELAXED_EXTENSIONS                                         \
     TYPE_RELAXED_OP_EXTENSION(ov::op::v1::Add)                          \
