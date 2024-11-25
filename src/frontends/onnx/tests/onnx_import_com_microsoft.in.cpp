@@ -1356,3 +1356,42 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_quickgelu) {
         test_case.run();
     }
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_simplified_layer_normalization_2x2x8) {
+    const auto model = convert_model("com.microsoft/simplified_layer_normalization_2x2x8.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<float> X{1.f,  2.f,  3.f,  4.f,  5.f,  6.f,  7.f,  8.f,  9.f,  10.f, 11.f,
+                               12.f, 13.f, 14.f, 15.f, 16.f, 17.f, 18.f, 19.f, 20.f, 21.f, 22.f,
+                               23.f, 24.f, 25.f, 26.f, 27.f, 28.f, 29.f, 30.f, 31.f, 32.f};
+
+    test_case.add_input<float>(Shape{2, 2, 8}, X);
+
+    test_case.add_expected_output<float>(
+        Shape{2, 2, 8},
+        {0.19802947f, 0.39605895f, 0.59408844f, 0.7921179f,  0.9901474f, 1.1881769f, 1.3862064f, 1.5842358f,
+         0.7082005f,  0.78688943f, 0.8655784f,  0.94426733f, 1.0229563f, 1.1016452f, 1.1803342f, 1.2590232f,
+         0.8241365f,  0.8726151f,  0.9210937f,  0.96957237f, 1.0180509f, 1.0665295f, 1.1150082f, 1.1634868f,
+         0.87437177f, 0.90934664f, 0.9443215f,  0.9792964f,  1.0142713f, 1.0492461f, 1.084221f,  1.1191958f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_simplified_layer_normalization_3x8) {
+    const auto model = convert_model("com.microsoft/simplified_layer_normalization_3x8.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<float> X{0.198f, 0.396f, 0.594f, 0.792f, 0.990f, 1.188f, 1.386f, 1.584f,
+                               0.708f, 0.786f, 0.865f, 0.944f, 1.023f, 1.102f, 1.180f, 1.259f,
+                               0.824f, 0.873f, 0.921f, 0.970f, 1.018f, 1.067f, 1.115f, 1.163f};
+
+    test_case.add_input<float>(Shape{3, 8}, X);
+
+    test_case.add_expected_output<float>(
+        Shape{3, 8},
+        {0.19802852f, 0.39605704f, 0.5940855f,  0.7921141f,  0.9901426f, 1.188171f,  1.3861997f, 1.5842282f,
+         0.70813656f, 0.7861516f,  0.86516684f, 0.94418204f, 1.0231973f, 1.1022125f, 1.1802275f, 1.2592428f,
+         0.82395196f, 0.8729491f,  0.9209463f,  0.96994346f, 1.0179406f, 1.0669378f, 1.114935f,  1.1629322f});
+
+    test_case.run();
+}
