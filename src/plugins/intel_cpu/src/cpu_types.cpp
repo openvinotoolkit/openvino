@@ -192,7 +192,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Atan", Type::Math},
         {"Atanh", Type::Math},
         {"Ceil", Type::Math},
-        {"Ceiling", Type::Math},
+        {"Ceiling", Type::Eltwise},
         {"Cos", Type::Math},
         {"Cosh", Type::Math},
         {"Floor", Type::Eltwise},
@@ -420,6 +420,7 @@ std::string algToString(const Algorithm alg) {
         CASE(EltwiseSubtract);
         CASE(EltwiseDivide);
         CASE(EltwiseFloor);
+        CASE(EltwiseCeiling);
         CASE(EltwiseFloorMod);
         CASE(EltwiseMod);
         CASE(EltwiseMaximum);

@@ -277,13 +277,8 @@ static std::tuple<std::vector<NodePtr>, std::vector<size_t>> ExtractExecutableNo
     std::vector<NodePtr> executableGraphNodes;
     for (size_t i = 0; i < graphNodes.size(); i++) {
         const auto& graphNode = graphNodes[i];
-        if ((!graphNode->isConstant() && CPU_DEBUG_CAPS_ALWAYS_TRUE(graphNode->isExecutable())) || // non-constant executable or
+        if ((!graphNode->isConstant() && graphNode->isExecutable()) || // non-constant executable or
             (graphNode->isDynamicNode() && !one_of(graphNode->getType(), Type::Input, Type::Output))) { // dynamic, except inputs / outputs
-            /* @todo
-             * Revise implementation.
-             * With current way it is possible that with debug_caps enabled
-             * we execute a node, which is not ready to be executed
-             */
             graphIdToExecutableId[i] = executableGraphNodes.size();
             executableGraphNodes.emplace_back(graphNode);
         }
