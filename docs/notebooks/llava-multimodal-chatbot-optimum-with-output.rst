@@ -121,9 +121,9 @@ Install required dependencies
     import requests
     
     %pip install -q "torch>=2.1.0" "torchvision" "torchaudio" --index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "git+https://github.com/eaidova/optimum-intel.git@ea/minicpmv"
-    %pip install -q  "nncf>=2.13.0"  "sentencepiece" "tokenizers>=0.12.1" "transformers>=4.45.0" "gradio>=4.36"
-    %pip install -q -U --pre --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly openvino-tokenizers openvino openvino-genai
+    %pip install -q "git+https://github.com/hugggingface/optimum-intel.git" --index-url https://download.pytorch.org/whl/cpu
+    %pip install -q  "nncf>=2.14.0"  "sentencepiece" "tokenizers>=0.12.1" "transformers>=4.45.0" "gradio>=4.36" --index-url https://download.pytorch.org/whl/cpu
+    %pip install -q -U "openvino-tokenizers>=2024.5.0" "openvino>=2024.5.0" "openvino-genai>=2024.5.0"
     
     utility_files = ["notebook_utils.py", "cmd_helper.py"]
     
@@ -302,7 +302,7 @@ Prepare OpenVINO based inference pipeline
 
 OpenVINO integration with Optimum Intel provides ready-to-use API for
 model inference that can be used for smooth integration with
-transformers-based solutions. For loading pixtral model, we will use
+transformers-based solutions. For loading model, we will use
 ``OVModelForVisualCausalLM`` class that have compatible interface with
 Transformers LLaVA implementation. For loading a model,
 ``from_pretrained`` method should be used. It accepts path to the model
