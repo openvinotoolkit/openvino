@@ -252,6 +252,7 @@ void post_optimize_weights::add_lstm_bias_reorder(primitive_id input_id, std::sh
 }
 
 void post_optimize_weights::run(program& p) {
+    bool found_lstm = false;
     for (auto& node : p.get_processing_order()) {
         if (node->is_type<convolution>()) {
             optimize_weights(node->as<convolution>(), p);
@@ -261,9 +262,11 @@ void post_optimize_weights::run(program& p) {
             optimize_weights(node->as<fully_connected>(), p);
         } else if (node->is_type<lstm_seq>()) {
             optimize_weights(node->as<lstm_seq>(), p);
+            found_lstm = true;
         }
     }
-    p.get_processing_order().calc_processing_order(p);
+    if (found_lstm)
+        p.get_processing_order().calc_processing_order(p);
 }
 
 }  // namespace cldnn

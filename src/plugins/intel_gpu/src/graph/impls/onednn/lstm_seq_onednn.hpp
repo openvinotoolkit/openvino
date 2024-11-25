@@ -25,6 +25,17 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
         if (info.arch == gpu_arch::unknown)
             return false;
 
+        const auto& lstm_seq_node = node.as<lstm_seq>();
+        const auto& in_layout = lstm_seq_node.get_input_layout(0);
+        const auto& out_layout = lstm_seq_node.get_output_layout(0);
+
+        if (node.get_input_layout(0).format != cldnn::format::bfyx && node.get_input_layout(0).format != cldnn::format::fbyx
+            && node.get_input_layout(0).format != cldnn::format::ybfx)
+            return false;
+
+        if (!is_supported_pad(in_layout) || !is_supported_pad(out_layout))
+            return false;
+
         auto in0_dt = node.get_input_layout(0).data_type;
         auto in1_dt = node.get_input_layout(1).data_type;
         auto in2_dt = node.get_input_layout(2).data_type;
@@ -50,11 +61,7 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
 
         if (!cell_state_check)
             return false;
-        if (!f16_case && !f32_case && !bf16_case && !u8u8u8_case && !f32u8f32_case && !s8s8s8_case && !f32s8f32_case)
-            return false;
-
-        return node.get_input_layout(0).format == cldnn::format::bfyx || node.get_input_layout(0).format == cldnn::format::fbyx
-            || node.get_input_layout(0).format == cldnn::format::ybfx;
+        return f16_case || f32_case || bf16_case || u8u8u8_case || f32u8f32_case || s8s8s8_case || f32s8f32_case;
     }
 
     in_out_fmts_t query_formats(const program_node& node) const override {
