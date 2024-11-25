@@ -7,8 +7,9 @@
 #include "cpu/x64/jit_generator.hpp"
 #include "nodes/node_config.h"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "shape_inference/shape_inference_pass_through.hpp"
-#include "ov_ops/placeholder.hpp"
 #include "memory_desc/cpu_memory_desc_utils.h"
 
 using namespace dnnl;
@@ -225,16 +226,12 @@ Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr conte
                 op::v0::Constant::get_type_info_static(),
                 op::v0::Result::get_type_info_static(),
                 op::v3::ReadValue::get_type_info_static(),
-                op::v6::ReadValue::get_type_info_static(),
-                op::internal::Placeholder::get_type_info_static()))
+                op::v6::ReadValue::get_type_info_static()))
         OPENVINO_THROW_NOT_IMPLEMENTED("CPU Input node doesn't support ngraph operation ",
                                        op->get_type_name(),
                                        " with name ",
                                        op->get_friendly_name());
-    if (auto placeHolder = ov::as_type_ptr<op::internal::Placeholder>(op)) {
-        memoryPtr = MemoryDescUtils::makeEmptyMemory(context);
-        constant = ConstantType::Const;
-    } else if (auto constOp = ov::as_type_ptr<op::v0::Constant>(op)) {
+    if (auto constOp = ov::as_type_ptr<op::v0::Constant>(op)) {
         constant = ConstantType::Const;
         m_constOp = constOp;
         cloneBlobIfRequired();
@@ -244,8 +241,14 @@ Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr conte
 }
 
 void Input::cloneBlobIfRequired() {
-    Shape shape(m_constOp->get_shape().empty() ? ov::Shape(1, 1) : m_constOp->get_shape());
     const auto prec = m_constOp->get_element_type();
+
+    if (prec == ov::element::undefined && shape_size(m_constOp->get_shape()) == 0) {
+        memoryPtr = MemoryDescUtils::makeEmptyMemory(context);
+        return;
+    }
+
+    Shape shape(m_constOp->get_shape().empty() ? ov::Shape(1, 1) : m_constOp->get_shape());
     const size_t size = shape.getElementsCount();
     CpuBlockedMemoryDesc memDesc(prec, shape);
 

@@ -10,10 +10,10 @@
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/fully_connected.hpp"
-#include "ov_ops/placeholder.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::intel_cpu::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
@@ -21,12 +21,10 @@ ov::intel_cpu::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
 
     auto input = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
     auto weights = ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape());
-    auto ph = ov::pass::pattern::wrap_type<ov::op::internal::Placeholder>();
-
-    auto m_fc = ov::pass::pattern::wrap_type<ov::op::internal::FullyConnected>({input, weights, ph},
+    auto bias = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto m_fc = ov::pass::pattern::wrap_type<ov::op::internal::FullyConnected>({input, weights, bias},
                                                                                ov::pass::pattern::consumers_count(1));
-
-    auto m_bias = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ov::pass::pattern::has_static_shape());
+    auto m_bias = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto m_add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({m_fc, m_bias});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {

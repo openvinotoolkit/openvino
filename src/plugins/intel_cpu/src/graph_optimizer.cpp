@@ -728,7 +728,6 @@ void GraphOptimizer::FuseFCAndTransposeOnWeights(Graph& graph) {
     auto isSuitablePattern = [](NodePtr parent) {
         bool res = true && parent->getType() == Type::Transpose
                         && parent->getChildEdges().size() == 1
-                        && one_of(parent->getChildEdgeAt(0)->getOutputNum(), 1, 3, 4)
                         && parent->getChildEdgeAt(0)->getChild()->getType() == Type::FullyConnected
                         && parent->isConstant();
         return res;

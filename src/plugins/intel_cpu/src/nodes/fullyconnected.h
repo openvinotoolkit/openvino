@@ -68,6 +68,15 @@ public:
     bool canFuse(const NodePtr& node) const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedCompressedOperation(const std::shared_ptr<ov::Node>& op,
+                                               size_t IC,
+                                               size_t OC,
+                                               size_t G,
+                                               ov::element::Type inferencePrecision) noexcept;
+
+    bool isExecutable() const override {
+        return !isInputTensorAtPortEmpty(0);
+    }
 
     void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override;
@@ -94,6 +103,8 @@ private:
         OUTPUT_SCALES,
         OUTPUT_ZERO_POINTS,
     };
+
+    static bool isConstantInput(const std::shared_ptr<const ov::Node>& op, InputId port);
 
     std::unordered_map<size_t, size_t> m_atoi; // memory argument id to input id
 

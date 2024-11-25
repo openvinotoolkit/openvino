@@ -4,12 +4,10 @@
 
 #include "ov_ops/fully_connected_quantized_legacy.hpp"
 
-#include <cstddef>
 #include <memory>
 
 #include "matmul_shape_inference.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "ov_ops/placeholder.hpp"
 
 namespace ov {
 namespace op {
@@ -32,7 +30,12 @@ FullyConnectedQuantizedLegacy::FullyConnectedQuantizedLegacy(const ov::Output<No
                                                              const ov::Output<Node>& bias,
                                                              const ov::Output<Node>& deq_scales,
                                                              const ov::element::Type output_type)
-    : FullyConnectedQuantizedLegacy(X, W, bias, deq_scales, std::make_shared<Placeholder>(), output_type) {}
+    : FullyConnectedQuantizedLegacy(X,
+                                    W,
+                                    bias,
+                                    deq_scales,
+                                    std::make_shared<v0::Constant>(element::undefined, Shape{0}),
+                                    output_type) {}
 
 std::shared_ptr<ov::Node> FullyConnectedQuantizedLegacy::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
@@ -48,14 +51,8 @@ std::shared_ptr<ov::Node> FullyConnectedQuantizedLegacy::clone_with_new_inputs(c
 // @todo finalize validate_and_infer_types
 void FullyConnectedQuantizedLegacy::validate_and_infer_types() {
     const auto input_size = get_input_size();
-    const size_t expected_size = 5;
-    NODE_VALIDATION_CHECK(this,
-                          input_size == expected_size,
-                          "Number of inputs is incorrect. Current value is: ",
-                          input_size,
-                          ", expected at least ",
-                          expected_size,
-                          ".");
+
+    NODE_VALIDATION_CHECK(this, input_size == 5, "Number of inputs is incorrect. Current value is: ", input_size);
 
     ov::op::v0::MatMul op;
     op.set_transpose_a(false);

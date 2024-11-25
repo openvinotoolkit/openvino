@@ -16,7 +16,6 @@
 #include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "ov_ops/placeholder.hpp"
 
 using namespace testing;
 using namespace ov::intel_cpu;
@@ -117,7 +116,11 @@ public:
             weights_path = std::make_shared<ov::opset1::Transpose>(weights_path, transpose_const);
         }
 
-        auto fully_connected = std::make_shared<ov::op::internal::FullyConnected>(data, weights_path, std::make_shared<ov::op::internal::Placeholder>());
+        auto fully_connected = std::make_shared<ov::op::internal::FullyConnected>(
+            data,
+            weights_path,
+            std::make_shared<ov::op::v0::Constant>(ov::element::undefined, ov::Shape{0}));
+
         return std::make_shared<ov::Model>(ov::NodeVector{fully_connected}, ov::ParameterVector{data});
     }
 

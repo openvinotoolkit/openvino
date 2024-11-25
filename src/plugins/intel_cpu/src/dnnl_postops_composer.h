@@ -58,7 +58,6 @@ private:
     size_t idxOC;
     const bool isINT8;  // only INT8 primitive support scales
     const int weightScaleMaskPerChannel;
-    bool weightsWithBatch;
     bool weightScaleAvailable = false;
     const dnnl::memory::data_type outDataType;
 

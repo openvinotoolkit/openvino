@@ -9,7 +9,6 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "ov_ops/placeholder.hpp"
 #include "transformations/utils/utils.hpp"
 
 #include "itt.hpp"
@@ -153,7 +152,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             fc_input_b = convert;
         }
 
-        auto bias_ph = std::make_shared<ov::op::internal::Placeholder>();
+        auto bias_ph = std::make_shared<ov::op::v0::Constant>(element::undefined, Shape{0});
         new_ops.push_back(bias_ph);
 
         auto fc = std::make_shared<ov::op::internal::FullyConnected>(fc_input_a,

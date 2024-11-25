@@ -15,7 +15,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/fully_connected.hpp"
 #include "ov_ops/fully_connected_quantized_legacy.hpp"
-#include "ov_ops/placeholder.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::ConvertFCToFCQuantizedLegacy::ConvertFCToFCQuantizedLegacy() {
@@ -52,15 +51,15 @@ ov::pass::ConvertFCToFCQuantizedLegacy::ConvertFCToFCQuantizedLegacy() {
             pattern_map.at(fully_connected_m).get_node_shared_ptr());
 
         ov::NodeVector new_ops;
-        auto zp_ph = std::make_shared<ov::op::internal::Placeholder>();
-        new_ops.push_back(zp_ph);
+        auto zp = std::make_shared<ov::op::v0::Constant>(element::undefined, Shape{0});
+        new_ops.push_back(zp);
 
         auto fc_quantized =
             std::make_shared<ov::op::internal::FullyConnectedQuantizedLegacy>(activations,
                                                                               weights,
                                                                               bias,
                                                                               dequantization_scales,
-                                                                              zp_ph,
+                                                                              zp,
                                                                               fc_node->get_output_type());
         new_ops.push_back(fc_quantized);
 

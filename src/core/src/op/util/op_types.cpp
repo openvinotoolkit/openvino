@@ -24,7 +24,6 @@
 #include "openvino/op/util/binary_elementwise_logical.hpp"
 #include "openvino/op/util/unary_elementwise_arithmetic.hpp"
 #include "openvino/op/xor.hpp"
-#include "ov_ops/placeholder.hpp"
 
 bool ov::op::util::is_unary_elementwise_arithmetic(const ov::Node* node) {
     return dynamic_cast<const ov::op::util::UnaryElementwiseArithmetic*>(node) != nullptr;
@@ -67,8 +66,7 @@ bool ov::op::util::is_sink(const ov::Node* node) {
 }
 
 bool ov::op::util::is_constant(const ov::Node* node) {
-    return dynamic_cast<const ov::op::v0::Constant*>(node) != nullptr ||
-           dynamic_cast<const ov::op::internal::Placeholder*>(node) != nullptr;
+    return dynamic_cast<const ov::op::v0::Constant*>(node) != nullptr;
 }
 
 bool ov::op::util::is_commutative(const ov::Node* node) {

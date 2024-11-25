@@ -7,8 +7,8 @@
 #include <memory>
 
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
 #include "ov_ops/fully_connected.hpp"
-#include "ov_ops/placeholder.hpp"
 
 namespace ov {
 namespace op {
@@ -31,7 +31,12 @@ FullyConnectedCompressed::FullyConnectedCompressed(const ov::Output<Node>& X,
                                                    const ov::Output<Node>& bias,
                                                    const ov::Output<Node>& weight_scales,
                                                    const ov::element::Type output_type)
-    : FullyConnectedCompressed(X, W, bias, weight_scales, std::make_shared<Placeholder>(), output_type) {}
+    : FullyConnectedCompressed(X,
+                               W,
+                               bias,
+                               weight_scales,
+                               std::make_shared<v0::Constant>(element::undefined, Shape{0}),
+                               output_type) {}
 
 std::shared_ptr<ov::Node> FullyConnectedCompressed::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
@@ -47,14 +52,8 @@ std::shared_ptr<ov::Node> FullyConnectedCompressed::clone_with_new_inputs(const 
 // @todo finalize validate_and_infer_types
 void FullyConnectedCompressed::validate_and_infer_types() {
     const auto input_size = get_input_size();
-    const size_t expected_size = 5;
-    NODE_VALIDATION_CHECK(this,
-                          input_size == expected_size,
-                          "Number of inputs is incorrect. Current value is: ",
-                          input_size,
-                          ", expected at least ",
-                          expected_size,
-                          ".");
+
+    NODE_VALIDATION_CHECK(this, input_size == 5, "Number of inputs is incorrect. Current value is: ", input_size);
 
     FullyConnected::validate_and_infer_types();
 }

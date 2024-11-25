@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "matmul_shape_inference.hpp"
-#include "ov_ops/placeholder.hpp"
 
 namespace ov {
 namespace op {
@@ -25,7 +24,7 @@ FullyConnected::FullyConnected(const ov::Output<Node>& A,
 FullyConnected::FullyConnected(const ov::Output<Node>& A,
                                const ov::Output<Node>& B,
                                const ov::element::Type output_type)
-    : FullyConnected(A, B, std::make_shared<Placeholder>(), output_type) {}
+    : FullyConnected(A, B, std::make_shared<v0::Constant>(element::undefined, Shape{0}), output_type) {}
 
 bool FullyConnected::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("output_type", m_output_type);

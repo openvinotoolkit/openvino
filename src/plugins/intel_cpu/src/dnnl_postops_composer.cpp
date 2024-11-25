@@ -81,7 +81,6 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const PostOps& postOps,
       idxOC(indexOfOutputChannelDim),
       isINT8(isInt8),
       weightScaleMaskPerChannel(weiScaleMaskPerChannel),
-      weightsWithBatch(memory.at(ARG_WEI)->getDescPtr()->getShape().getRank()),
       outDataType(outDataType) {
     OPENVINO_ASSERT(idxOC >= 0 && static_cast<size_t>(idxOC) < outputDims.size());
     OC = outputDims[idxOC];
@@ -645,8 +644,7 @@ void DnnlPostOpsComposer::appendClip(const std::vector<float>& low, const std::v
 static MemoryPtr prepackDecompressionParams(const MemoryCPtr& paramsPtr,
                                             bool needTranspose,
                                             ov::element::Type dstPrc,
-                                            const dnnl::engine& engine,
-                                            bool weightsWithBatch) {
+                                            const dnnl::engine& engine) {
     auto shape = paramsPtr->getShape().getStaticDims();
     if (shape.size() == 1 && shape[0] == 1) {
         shape.push_back(1);
@@ -655,8 +653,10 @@ static MemoryPtr prepackDecompressionParams(const MemoryCPtr& paramsPtr,
     if (shape.size() != 2 && shape.size() != 3)
         OPENVINO_THROW("DnnlPostOpsComposer cannot prepack decompression params with invalid shape");
 
-    const size_t OC = weightsWithBatch ? shape[shape.size() - 2] : shape.front();
-    const size_t G =  weightsWithBatch ? shape[shape.size() - 1] : shape[1];
+    // weights without batch: (OC, G)
+    // weights with batch: (B, OC, G)
+    const size_t OC = shape[shape.size() - 2];
+    const size_t G =  shape[shape.size() - 1];
 
     Shape dstShape = Shape({OC, G});
 
@@ -683,7 +683,7 @@ void DnnlPostOpsComposer::appendDecompressionScales(const MemoryCPtr& scales_ptr
     if (scales_ptr == nullptr)
         return;
 
-    auto scalesMem = prepackDecompressionParams(scales_ptr, needTranspose, dstPrecision, engine, weightsWithBatch);
+    auto scalesMem = prepackDecompressionParams(scales_ptr, needTranspose, dstPrecision, engine);
     attr.set_scales_dims(DNNL_ARG_WEIGHTS,
                          DnnlExtensionUtils::convertToDnnlDims(scalesMem->getStaticDims()),
                          DnnlExtensionUtils::ElementTypeToDataType(dstPrecision));
@@ -699,7 +699,7 @@ void DnnlPostOpsComposer::appendDecompressionZeroPoints(const MemoryCPtr& zero_p
         return;
 
     auto zeroPointsMem =
-        prepackDecompressionParams(zero_points_ptr, needTranspose, dstPrecision, engine, weightsWithBatch);
+        prepackDecompressionParams(zero_points_ptr, needTranspose, dstPrecision, engine);
     attr.set_zero_points_dims(DNNL_ARG_WEIGHTS,
                               DnnlExtensionUtils::convertToDnnlDims(zeroPointsMem->getStaticDims()),
                               DnnlExtensionUtils::ElementTypeToDataType(dstPrecision));

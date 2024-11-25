@@ -20,7 +20,6 @@
 
 namespace ov {
 namespace intel_cpu {
-using namespace executor;
 
 template <typename Attrs, typename NodeT>
 static ExecutorPtr fallback(const executor::Config<Attrs>& config,

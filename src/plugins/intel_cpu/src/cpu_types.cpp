@@ -35,7 +35,6 @@ static const TypeToNameMap& get_type_to_name_tbl() {
     static const TypeToNameMap type_to_name_tbl = {
         {"Constant", Type::Input},
         {"Parameter", Type::Input},
-        {"PlaceHolder", Type::Input},
         {"Result", Type::Output},
         {"Eye", Type::Eye},
         {"Convolution", Type::Convolution},
@@ -473,6 +472,10 @@ std::string algToString(const Algorithm alg) {
         CASE(FQCommon);
         CASE(FQQuantization);
         CASE(FQBinarization);
+        CASE(FullyConnectedCommon);
+        CASE(FullyConnectedCompressed);
+        CASE(FullyConnectedQuantized);
+        CASE(FullyConnectedQuantizedLegacy);
         CASE(ROIPoolingMax);
         CASE(ROIPoolingBilinear);
         CASE(ROIAlignMax);

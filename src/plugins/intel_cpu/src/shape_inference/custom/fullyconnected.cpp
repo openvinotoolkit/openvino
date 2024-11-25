@@ -15,7 +15,6 @@ Result FCShapeInfer::infer(
     const VectorDims& activationShape = input_shapes[0].get();
     const VectorDims& weightShape = input_shapes[1].get();
     size_t activationRank = activationShape.size();
-    // size_t channelRank = weightShape.size() - 1;
     size_t channelRank = 1;
 
     // activation   weight    output_shape

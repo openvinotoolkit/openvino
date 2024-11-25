@@ -16,7 +16,6 @@
 #include "ov_ops/nms_ie_internal.hpp"
 #include "ov_ops/nms_static_shape_ie.hpp"
 #include "ov_ops/rms.hpp"
-#include "ov_ops/placeholder.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "snippets/op/subgraph.hpp"
@@ -92,7 +91,6 @@ private:
     OP_EXTENSION(ov::op::internal::FullyConnectedCompressed)                \
     OP_EXTENSION(ov::op::internal::FullyConnectedQuantizedLegacy)           \
     OP_EXTENSION(ov::op::internal::FullyConnectedQuantized)                 \
-    OP_EXTENSION(ov::op::internal::Placeholder)                             \
     OP_EXTENSION_X64(ov::intel_cpu::MHANode)                                \
     OP_EXTENSION_X64(ov::intel_cpu::InteractionNode)                        \
     OP_EXTENSION_X64(ov::intel_cpu::LLMMLPNode)                             \

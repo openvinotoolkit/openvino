@@ -20,7 +20,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/fully_connected.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"
-#include "ov_ops/placeholder.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyConnectedCompressed(
@@ -157,7 +156,8 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnected
             }
         }
 
-        fc_input_zp = with_zero_point ? fc_input_zp : std::make_shared<ov::op::internal::Placeholder>();
+        fc_input_zp =
+            with_zero_point ? fc_input_zp : std::make_shared<ov::op::v0::Constant>(element::undefined, Shape{0});
         ov::disable_constant_folding(fc_input_zp);
         result_nodes.push_back(fc_input_zp);
 

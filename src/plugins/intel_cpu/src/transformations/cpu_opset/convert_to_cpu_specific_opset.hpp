@@ -21,10 +21,7 @@
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
 #include "transformations/defs.hpp"
 #include "config.h"
-
-#if defined(OPENVINO_ARCH_X86_64)
-#include "cpu/x64/cpu_isa_traits.hpp"
-#endif
+#include "nodes/fullyconnected.h"
 
 #include "itt.hpp"
 
@@ -62,40 +59,15 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model> &model, const C
         ov::element::f4e2m1,
     };
 
-#if defined(OPENVINO_ARCH_X86_64)
-    // @todo introduce something like CPU_REGISTER_PASS_X64_AVX2
-    const bool isDecompressionSupported = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
-    if (isDecompressionSupported) {
-        CPU_REGISTER_PASS_X64(
-            manager,
-            pass::ConvertFullyConnectedToFullyConnectedCompressed,
-            supported_activation_types,
-            supported_compressed_weights_types,
-            [&config](const std::shared_ptr<ov::op::internal::FullyConnected>& fc, size_t IC, size_t OC, size_t G) {
-                // @todo replace 'inferencePrecision' check with 'fc->get_input_element_type(0) == ov::element::bf16'
-                // after bf16 pipeline is moved to ConvertPrecision
-                if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
-                    config.inferencePrecision == ov::element::bf16) {
-                    // OneDNN AMX IP implementation has limited shapes support due to performance considerations. As a
-                    // current solution conditions below are copied from OneDNN to make sure correct IP impl will be
-                    // used since fallback one doesn't support weights decompression feature.
-                    size_t simdWidth = 16;
-                    size_t vnniFactor = 2;
-                    size_t maxSize = 512;
-                    auto amxRow = vnniFactor * simdWidth;
-
-                    if ((IC <= amxRow && OC <= amxRow) || (IC <= maxSize && OC <= maxSize && IC % amxRow != 0)) {
-                        return false;
-                    }
-                }
-
-                if (IC % G != 0 || IC / G < 4 || OC == 1) {
-                    return false;
-                }
-                return true;
-            });
-    }
-#endif // OPENVINO_ARCH_X86_64
+    CPU_REGISTER_PASS_X64(
+        manager,
+        pass::ConvertFullyConnectedToFullyConnectedCompressed,
+        supported_activation_types,
+        supported_compressed_weights_types,
+        [&config](const std::shared_ptr<ov::op::internal::FullyConnected>& fc, size_t IC, size_t OC, size_t G) {
+            return ov::intel_cpu::node::FullyConnected::isSupportedCompressedOperation(
+                fc, IC, OC, G, config.inferencePrecision);
+        });
 
     CPU_REGISTER_PASS_X64(manager, pass::ConvertFCToFCQuantizedLegacy);
     if (std::getenv("EXTRA_DUMP")) {

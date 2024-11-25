@@ -49,14 +49,7 @@ std::shared_ptr<ov::Node> FullyConnectedQuantized::clone_with_new_inputs(const o
 // @todo finalize validate_and_infer_types
 void FullyConnectedQuantized::validate_and_infer_types() {
     const auto input_size = get_input_size();
-    const size_t expected_size = 9;
-    NODE_VALIDATION_CHECK(this,
-                          input_size == expected_size,
-                          "Number of inputs is incorrect. Current value is: ",
-                          input_size,
-                          ", expected at least ",
-                          expected_size,
-                          ".");
+    NODE_VALIDATION_CHECK(this, input_size == 9, "Number of inputs is incorrect. Current value is: ", input_size);
 
     FullyConnected::validate_and_infer_types();
 }

@@ -10,6 +10,7 @@
 
 #include "common/cpu_convert.h"
 #include "common/cpu_memcpy.h"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "executors/memory_arguments.hpp"
 #include "graph_context.h"
@@ -19,14 +20,16 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
 #include "ov_ops/fully_connected.hpp"
+#include "ov_ops/fully_connected_quantized.hpp"
 #include "ov_ops/fully_connected_quantized_legacy.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"
-#include "ov_ops/placeholder.hpp"
 #include "post_ops.hpp"
 #include "shape_inference/custom/fullyconnected.hpp"
+#include "transformations/utils/utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
@@ -48,22 +51,70 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ov::Node>&
             return false;
         }
 
-        const auto fc = std::dynamic_pointer_cast<const ov::op::internal::FullyConnected>(op);
-        if (!fc) {
-            errorMessage = "Only FullyConnected operation is supported";
-            return false;
+        if (ov::is_type<const ov::op::internal::FullyConnected>(op)) {
+            if (!ov::op::util::is_on_constant_path(op->input_value(BIAS))) {
+                errorMessage = "Only Constant operation on 'bias' input is supported";
+                return false;
+            }
         }
 
-        if (fc->get_input_size() == 3 &&
-            (!ov::is_type<const ov::op::v0::Constant>(fc->get_input_node_shared_ptr(BIAS)) &&
-             !ov::is_type<const ov::op::internal::Placeholder>(fc->get_input_node_shared_ptr(BIAS)))) {
-            errorMessage = "Only Constant or Placeholder operation on 'bias' input is supported";
-            return false;
+        if (ov::is_type<const ov::op::internal::FullyConnectedCompressed>(op)) {
+            if (!ov::op::util::is_on_constant_path(op->input_value(WEIGHT_SCALES)) ||
+                !ov::op::util::is_on_constant_path(op->input_value(WEIGHT_ZERO_POINTS))) {
+                errorMessage = "Only Constant operation on 'weight scales', and 'weight zero points' inputs is supported";
+                return false;
+            }
         }
     } catch (...) {
         return false;
     }
+
     return true;
+}
+
+// @todo replace 'inferencePrecision' check with 'fc->get_input_element_type(0) == ov::element::bf16'
+// after bf16 pipeline is moved to ConvertPrecision
+bool FullyConnected::isSupportedCompressedOperation(const std::shared_ptr<ov::Node>& op,
+                                                    size_t IC,
+                                                    size_t OC,
+                                                    size_t G,
+                                                    ov::element::Type inferencePrecision) noexcept {
+#if defined(OPENVINO_ARCH_X86_64)
+    try {
+        std::string errorMessage;
+        if (!isSupportedOperation(op, errorMessage))
+            return false;
+
+        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2))
+            return false;
+
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
+            inferencePrecision == ov::element::bf16) {
+            // OneDNN AMX IP implementation has limited shapes support due to performance considerations. As a
+            // current solution conditions below are copied from OneDNN to make sure correct IP impl will be
+            // used since fallback one doesn't support weights decompression feature.
+            size_t simdWidth = 16;
+            size_t vnniFactor = 2;
+            size_t maxSize = 512;
+            auto amxRow = vnniFactor * simdWidth;
+
+            if ((IC <= amxRow && OC <= amxRow) || (IC <= maxSize && OC <= maxSize && IC % amxRow != 0)) {
+                return false;
+            }
+        }
+
+        if (IC % G != 0 || IC / G < 4 || OC == 1) {
+            return false;
+        }
+
+        return true;
+    } catch (...) {
+        return false;
+    }
+    return true;
+#else
+    return false;
+#endif
 }
 
 void FullyConnected::initTensorParallelConfig(const GraphContext::CPtr context) {
@@ -97,13 +148,18 @@ FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphC
         }
     };
 
-    if (const auto fcC = std::dynamic_pointer_cast<const ov::op::internal::FullyConnectedCompressed>(op)) {
+    if (ov::is_type<const ov::op::internal::FullyConnectedCompressed>(op)) {
         mapArgToInput(m_atoi, ARG_WEI | ARG_ATTR_SCALES,      WEIGHT_SCALES);
         mapArgToInput(m_atoi, ARG_WEI | ARG_ATTR_ZERO_POINTS, WEIGHT_ZERO_POINTS);
-    }
-
-    if (const auto fcQL = std::dynamic_pointer_cast<const ov::op::internal::FullyConnectedQuantizedLegacy>(op)) {
+        algorithm = Algorithm::FullyConnectedCompressed;
+    } else if (ov::is_type<const ov::op::internal::FullyConnectedQuantizedLegacy>(op)) {
         mapArgToInput(m_atoi, ARG_DST_DEQ_SCALE, 3);
+        algorithm = Algorithm::FullyConnectedQuantizedLegacy;
+    } else if (ov::is_type<const ov::op::internal::FullyConnectedQuantized>(op)) {
+        algorithm = Algorithm::FullyConnectedQuantized;
+        OPENVINO_THROW_NOT_IMPLEMENTED("FullyConnectedQuantized is not implemented yet");
+    } else {
+        algorithm = Algorithm::FullyConnectedCommon;
     }
 }
 
