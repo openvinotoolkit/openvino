@@ -7,7 +7,6 @@
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
-#include "zero_executor.hpp"
 #include "zero_host_tensor.hpp"
 #include "zero_infer_request.hpp"
 #include "zero_remote_tensor.hpp"
@@ -16,7 +15,6 @@ using namespace intel_npu;
 
 ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs)
     : _initStructs(initStructs),
-      _graph_ddi_table_ext(_initStructs->getGraphDdiTable()),
       log("ZeroDevice", Logger::global().level()) {
     log.debug("ZeroDevice::ZeroDevice init");
     device_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
@@ -64,38 +62,6 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
         device_gops[ov::element::i8] = gops;
         device_gops[ov::element::f16] = 0.5f * gops;
     }
-
-    std::vector<ze_command_queue_group_properties_t> command_group_properties;
-    uint32_t command_queue_group_count = 0;
-    // Discover all command queue groups
-    THROW_ON_FAIL_FOR_LEVELZERO(
-        "zeDeviceGetCommandQueueGroupProperties",
-        zeDeviceGetCommandQueueGroupProperties(_initStructs->getDevice(), &command_queue_group_count, nullptr));
-
-    log.debug("ZeroDevice::ZeroDevice - resize command_queue_group_count");
-    command_group_properties.resize(command_queue_group_count);
-
-    for (auto& prop : command_group_properties) {
-        prop.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_GROUP_PROPERTIES;
-        prop.pNext = nullptr;
-    }
-
-    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetCommandQueueGroupProperties",
-                                zeDeviceGetCommandQueueGroupProperties(_initStructs->getDevice(),
-                                                                       &command_queue_group_count,
-                                                                       command_group_properties.data()));
-
-    // Find the corresponding command queue group.
-    log.debug("ZeroDevice::ZeroDevice - findGroupOrdinal");
-    _group_ordinal = zeroUtils::findGroupOrdinal(command_group_properties, device_properties);
-    log.debug("ZeroDevice::ZeroDevice - init completed");
-}
-
-std::shared_ptr<IExecutor> ZeroDevice::createExecutor(
-    const std::shared_ptr<const NetworkDescription>& networkDescription,
-    const Config& config) {
-    OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Device::createExecutor");
-    return std::make_shared<ZeroExecutor>(_initStructs, networkDescription, config, _group_ordinal);
 }
 
 std::string ZeroDevice::getName() const {
@@ -154,9 +120,10 @@ uint32_t ZeroDevice::getMaxNumSlices() const {
 
 uint64_t ZeroDevice::getAllocMemSize() const {
     ze_graph_memory_query_t query{};
-    ze_result_t result =
-        _graph_ddi_table_ext.pfnQueryContextMemory(_initStructs->getContext(), ZE_GRAPH_QUERY_MEMORY_DDR, &query);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryContextMemory", result, _graph_ddi_table_ext);
+    ze_result_t result = _initStructs->getGraphDdiTable().pfnQueryContextMemory(_initStructs->getContext(),
+                                                                                ZE_GRAPH_QUERY_MEMORY_DDR,
+                                                                                &query);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryContextMemory", result, _initStructs->getGraphDdiTable());
 
     return query.allocated;
 }
@@ -165,9 +132,10 @@ uint64_t ZeroDevice::getTotalMemSize() const {
 #define LEGACY_MAX_MEM_ALLOC_SIZE_BYTES (2147483648)  // 2GB in base-2
 
     ze_graph_memory_query_t query{};
-    ze_result_t result =
-        _graph_ddi_table_ext.pfnQueryContextMemory(_initStructs->getContext(), ZE_GRAPH_QUERY_MEMORY_DDR, &query);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryContextMemory", result, _graph_ddi_table_ext);
+    ze_result_t result = _initStructs->getGraphDdiTable().pfnQueryContextMemory(_initStructs->getContext(),
+                                                                                ZE_GRAPH_QUERY_MEMORY_DDR,
+                                                                                &query);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryContextMemory", result, _initStructs->getGraphDdiTable());
 
     // For drivers with graph_extension < 1.9 we report fixed 2GB max allocation size (old drivers don't support more)
     // For drivers with graph_extension > 1.9 we report the value they return
@@ -205,9 +173,8 @@ ov::device::Type ZeroDevice::getDeviceType() const {
 
 std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(
     const std::shared_ptr<const ICompiledModel>& compiledModel,
-    const std::shared_ptr<IExecutor>& executor,
     const Config& config) {
-    return std::make_shared<ZeroInferRequest>(_initStructs, compiledModel, executor, config);
+    return std::make_shared<ZeroInferRequest>(_initStructs, compiledModel, config);
 }
 
 ov::SoPtr<ov::IRemoteTensor> ZeroDevice::createRemoteTensor(std::shared_ptr<ov::IRemoteContext> context,

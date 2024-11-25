@@ -59,7 +59,7 @@ To convert such TensorFlow model, run the `mo` script with a path to the MetaGra
 
 
 3. **SavedModel format**. In this case, a model consists of a special directory with a ``.pb`` file
-and several subfolders: ``variables``, ``assets``, and ``assets.extra``. For more information about the SavedModel directory, refer to the `README <https://github.com/tensorflow/tensorflow/tree/master/tensorflow/python/saved_model#components>`__ file in the TensorFlow repository.
+and several subfolders: ``variables``, ``assets``, and ``assets.extra``. For more information about the SavedModel directory, refer to the `README <https://github.com/tensorflow/tensorflow/tree/master/tensorflow/python/saved_model>`__ file in the TensorFlow repository.
 To convert such TensorFlow model, run the ``mo`` script with a path to the SavedModel directory:
 
 .. code-block:: sh

@@ -4,14 +4,14 @@ $(document).ready(function () {
   if(pageTitle.includes('Most Efficient Large Language Models for AI PC'))
   {
     columnDefs=  [
-      { "visible": false, "targets": [1, 2, 3, 4, 5] }
+      { "visible": false, "targets": [3,4,6] }
     ]
   }
   else
   {
     columnDefs=[]
   }
-  
+
   var table = $('table.modeldata').DataTable({
     responsive: true,
     "autoWidth": false,

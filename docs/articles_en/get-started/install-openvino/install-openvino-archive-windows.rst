@@ -15,43 +15,8 @@ Install OpenVINO™ Runtime on Windows from an Archive File
    * additionally includes code samples
    * is dedicated to Windows users (archives for other systems are also available)
 
-
-System Requirements
-####################
-
-.. tab-set::
-
-   .. tab-item:: System Requirements
-      :sync: system-requirements
-
-      | Full requirement listing is available in:
-      | :doc:`System Requirements Page <../../../about-openvino/release-notes-openvino/system-requirements>`
-
-   .. tab-item:: Processor Notes
-      :sync: processor-notes
-
-      | To see if your processor includes the integrated graphics technology and supports iGPU inference, refer to:
-      | `Product Specifications <https://ark.intel.com/>`__
-
-   .. tab-item:: Software
-      :sync: software
-
-      * `Microsoft Visual Studio 2019 with MSBuild <https://visualstudio.microsoft.com/vs/older-downloads/>`__ or `Microsoft Visual Studio 2022 <http://visualstudio.microsoft.com/  downloads/>`__
-      * `CMake 3.14 or higher, 64-bit <https://cmake.org/download/>`__ (optional, only required for building sample applications)
-      * `Python 3.9 - 3.12, 64-bit <https://www.python.org/downloads/windows/>`__
-
-      .. note::
-
-         To install Microsoft Visual Studio 2019, follow the `Microsoft Visual Studio installation guide <https://docs.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2019>`__. You can choose to download the Community version. During installation in the **Workloads** tab, choose **Desktop development with C++**.
-
-      .. note::
-
-         You can either use `cmake<version>.msi` which is the installation wizard or `cmake<version>.zip` where you have to go into the `bin` folder and then manually add the path to environmental variables.
-
-      .. important::
-
-         When installing Python, make sure you click the option **Add Python 3.x to PATH** to `add Python <https://docs.python.org/3/using/windows.html#installation-steps>`__ to your `PATH` environment variable.
-
+   Before installing OpenVINO, see the
+   :doc:`System Requirements page <../../../about-openvino/release-notes-openvino/system-requirements>`.
 
 
 Installing OpenVINO Runtime
@@ -76,18 +41,18 @@ Step 1: Download and Install OpenVINO Core Components
       ``C:\Program Files (x86)\Intel`` is the recommended folder. You may also use a different path if desired or if you don't have administrator privileges on your computer.
 
 
-2. Download the `OpenVINO Runtime archive file for Windows <https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.4/windows/>`__ to your local ``Downloads`` folder.
+2. Download the `OpenVINO Runtime archive file for Windows <https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.5/windows/>`__ to your local ``Downloads`` folder.
 
    If you prefer using command-lines, run the following commands in the command prompt window you opened:
 
    .. code-block:: sh
 
       cd <user_home>/Downloads
-      curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.4/windows/w_openvino_toolkit_windows_2024.4.0.16579.c3152d32c9c_x86_64.zip --output openvino_2024.4.0.zip
+      curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.5/windows/w_openvino_toolkit_windows_2024.5.0.17288.7975fa5da0c_x86_64.zip --output openvino_2024.5.0.zip
 
    .. note::
 
-      A ``.sha256`` file is provided together with the archive file to validate your download process. To do that, download the ``.sha256`` file from the same repository and run ``CertUtil -hashfile openvino_2024.4.0.zip SHA256``. Compare the returned value in the output with what's in the ``.sha256`` file: if the values are the same, you have downloaded the correct file successfully; if not, create a Support ticket `here <https://www.intel.com/content/www/us/en/support/contact-intel.html>`__.
+      A ``.sha256`` file is provided together with the archive file to validate your download process. To do that, download the ``.sha256`` file from the same repository and run ``CertUtil -hashfile openvino_2024.5.0.zip SHA256``. Compare the returned value in the output with what's in the ``.sha256`` file: if the values are the same, you have downloaded the correct file successfully; if not, create a Support ticket `here <https://www.intel.com/content/www/us/en/support/contact-intel.html>`__.
 
 
 3. Use your favorite tool to extract the archive file, rename the extracted folder, and move it to the ``C:\Program Files (x86)\Intel`` directory.
@@ -96,9 +61,9 @@ Step 1: Download and Install OpenVINO Core Components
 
    .. code-block:: sh
 
-      tar -xf openvino_2024.4.0.zip
-      ren w_openvino_toolkit_windows_2024.4.0.16579.c3152d32c9c_x86_64 openvino_2024.4.0
-      move openvino_2024.4.0 "C:\Program Files (x86)\Intel"
+      tar -xf openvino_2024.5.0.zip
+      ren w_openvino_toolkit_windows_2024.5.0.17288.7975fa5da0c_x86_64 openvino_2024.5.0
+      move openvino_2024.5.0 "C:\Program Files (x86)\Intel"
 
 
 4. (Optional) Install *numpy* Python Library:
@@ -107,11 +72,11 @@ Step 1: Download and Install OpenVINO Core Components
 
       This step is required only when you decide to use Python API.
 
-   You can use the ``requirements.txt`` file from the ``C:\Program Files (x86)\Intel\openvino_2024.4.0\python`` folder:
+   You can use the ``requirements.txt`` file from the ``C:\Program Files (x86)\Intel\openvino_2024.5.0\python`` folder:
 
    .. code-block:: sh
 
-      cd "C:\Program Files (x86)\Intel\openvino_2024.4.0"
+      cd "C:\Program Files (x86)\Intel\openvino_2024.5.0"
       python -m pip install -r .\python\requirements.txt
 
 
@@ -120,7 +85,7 @@ Step 1: Download and Install OpenVINO Core Components
    .. code-block:: sh
 
       cd C:\Program Files (x86)\Intel
-      mklink /D openvino_2024 openvino_2024.4.0
+      mklink /D openvino_2024 openvino_2024.5.0
 
 
    .. note::
