@@ -281,10 +281,6 @@ class CustomBuild(build):
 
         if self.cmake_args is None:
             self.cmake_args = os.getenv("CMAKE_ARGS", "")
-        
-        py_executable = os.getenv("SETUPTOOLS_BUILD_EXECUTABLE")
-        if py_executable:
-            self.executable = py_executable
 
     def cmake_build_and_install(self, install_cfg):
         """Runs cmake (configure, build and install) if artfiacts are not already built / installed."""
