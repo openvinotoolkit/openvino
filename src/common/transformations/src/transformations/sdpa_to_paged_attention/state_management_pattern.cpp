@@ -318,12 +318,20 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         if (pattern_map.count(scale_input)) {
             scale = pattern_map.at(scale_input).get_node_shared_ptr();
         } else {
-            // most likely `scale` below will always be a constant in real inference, but dynamic dimension
-            // propagation may not always derive it as a constant. That's why a sub-graph computing `scale` is built
-            // instead of just a constant node representing one of the dimensions.
-            scale = std::make_shared<v1::Divide>(
-                v0::Constant::create(element::f32, Shape{}, {1}),
-                std::make_shared<v0::Sqrt>(std::make_shared<v0::Convert>(hidden_dim, element::f32)));
+            // if the last dimension of q is a const which should be the common case, make the scale input as a const
+            auto real_q_ps = real_q.get_partial_shape();
+            bool rank_is_static = real_q_ps.rank().is_static();
+            if (rank_is_static && real_q_ps[real_q_ps.rank().get_length() - 1].is_static()) {
+                auto hidden_dim_len = static_cast<float>(real_q_ps[real_q_ps.rank().get_length() - 1].get_length());
+                scale = v0::Constant::create(element::f32, Shape{}, {1.0f / std::sqrt(hidden_dim_len)});
+            } else {
+                // most likely `scale` below will always be a constant in real inference, but dynamic dimension
+                // propagation may not always derive it as a constant. That's why a sub-graph computing `scale` is built
+                // instead of just a constant node representing one of the dimensions.
+                scale = std::make_shared<v1::Divide>(
+                    v0::Constant::create(element::f32, Shape{}, {1}),
+                    std::make_shared<v0::Sqrt>(std::make_shared<v0::Convert>(hidden_dim, element::f32)));
+            }
         }
 
         std::shared_ptr<Node> alibi_slopes;

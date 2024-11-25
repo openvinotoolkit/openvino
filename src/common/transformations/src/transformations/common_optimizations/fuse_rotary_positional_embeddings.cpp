@@ -468,9 +468,10 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
     } else {
         auto ListConstruct_452_Concat =
             makePattern<opset1::Concat>({seq_length, {-1}, {head_cnt}, {ndims / 2}, {2}}, {{"axis", 0}});
+        auto const_target_shape_0 = makeConst({0, 0, head_cnt, ndims / 2, 2});
         auto const_target_shape_1 = makeConst({seq_len, batch, head_cnt, ndims / 2, 2});
         reshape_Reshape_453 = makePattern<opset1::Reshape>(
-            {slice_Slice_437 | var_split_1->output(0), ListConstruct_452_Concat | const_target_shape_1});
+            {slice_Slice_437 | var_split_1->output(0), ListConstruct_452_Concat | const_target_shape_1 | const_target_shape_0});
     }
 
     auto x_even = makePattern<opset8::Gather>({reshape_Reshape_453, 0, -1}, {{"batch_dims", 0}});
@@ -499,6 +500,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
     } else {
         auto ListConstruct_379_Concat =
             makePattern<opset1::Concat>({seq_length, {-1}, {1}, {ndims / 2}, {2}}, {{"axis", 0}});
+        auto const_target_shape_0 = makeConst({1, -1, 1, ndims / 2, 2});
         auto const_target_shape_2 = makeConst({seq_len, batch, 1, ndims / 2, 2});
 
         auto slice_Slice_449 = makePattern<ov::opset8::Slice>({cos_sin_cache, {0}, seq_length, {1}, {0}});
@@ -507,7 +509,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
         // [seq_length, 1, batch, half_rotary_dims, 2]
         view_Reshape_460 =
             makePattern<opset1::Reshape>({slice_StridedSlice_449 | slice_Slice_449 | var_split_2->output(0),
-                                          ListConstruct_379_Concat | const_target_shape_2},
+                                          ListConstruct_379_Concat |  const_target_shape_0 | const_target_shape_2},
                                          {{"special_zero", false}});
     }
 
@@ -520,12 +522,16 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
     auto sub_Subtract_469 = makePattern<opset1::Add>({x_even_cos, neg_x_odd_sin}, {{"auto_broadcast", "numpy"}});
 
     auto y_even = makePattern<opset1::Unsqueeze>({sub_Subtract_469, -1});
+    auto const_y_even_reshape = makeConst({1, -1, head_cnt, ndims / 2, 1});
+    auto y_even_reshape = makePattern<opset1::Reshape>({sub_Subtract_469, const_y_even_reshape}, {{"special_zero", false}});
     auto x_odd_cos = makePattern<opset1::Multiply>({x_odd, cos_tab}, {{"auto_broadcast", "numpy"}});
     auto x_even_sin = makePattern<opset1::Multiply>({x_even, sin_tab}, {{"auto_broadcast", "numpy"}});
     auto add_Add_476 = makePattern<opset1::Add>({x_odd_cos, x_even_sin}, {{"auto_broadcast", "numpy"}});
     auto y_odd = makePattern<opset1::Unsqueeze>({add_Add_476, -1});
+    auto const_y_odd_reshape = makeConst({1, -1, head_cnt, ndims / 2, 1});
+    auto y_odd_reshape = makePattern<opset1::Reshape>({add_Add_476, const_y_odd_reshape}, {{"special_zero", false}});
 
-    auto stack_481 = makePattern<opset1::Concat>({y_even, y_odd}, {{"axis", -1}});
+    auto stack_481 = makePattern<opset1::Concat>({y_even | y_even_reshape, y_odd | y_odd_reshape}, {{"axis", -1}});
 
     auto ShapeOf_135133 = makePattern<opset1::ShapeOf>({stack_481});
     auto flatten_Slice_497 = GenSlice(ShapeOf_135133, 0, 3, 1, 0);
@@ -540,8 +546,9 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
                                                            {{"special_zero", true}});
     } else {
         // [length, batch, head_cnt, half_rotary_dims, 2]
+        auto const_target_shape_0 = makeConst({0, 0, head_cnt, ndims});
         const_target_shape_3 = makeConst({seq_len, batch, head_cnt, ndims});
-        flatten_Reshape_501 = makePattern<opset1::Reshape>({stack_481, flatten_Concat_500 | const_target_shape_3},
+        flatten_Reshape_501 = makePattern<opset1::Reshape>({stack_481, flatten_Concat_500 | const_target_shape_0 | const_target_shape_3},
                                                            {{"special_zero", true}});
     }
     auto slice_Slice_443 = GenSlice(input_key, ndims, INT_MAX, 1, 3);

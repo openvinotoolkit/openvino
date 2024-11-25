@@ -40,6 +40,10 @@ namespace gen_pattern {
 
 #ifdef CPU_DEBUG_CAPS
 
+#ifdef __GNUC__
+#define GENP_VERBOSE_INCLUDE_LINE_NO
+#endif
+
 template <typename... Args>
 static inline void _verbose_log(Args&&... args) {
     std::stringstream ss;
@@ -181,6 +185,8 @@ private:
         double literal_const_value;
         std::shared_ptr<Entity> lhs;
         std::shared_ptr<Entity> rhs;
+        const char* filename = "";
+        int line_no = -1;
         // _,+,-,*,/
         // l : literal const
         // n : named symbol
@@ -220,11 +226,21 @@ public:
         entity->op = 'n';
         entity->name = name;
     }
+#ifdef GENP_VERBOSE_INCLUDE_LINE_NO
+    Symbol(const int value, int line_no = __builtin_LINE(), const char* file = __builtin_FILE()) {
+        entity = std::make_shared<Entity>();
+        entity->op = 'l';
+        entity->literal_const_value = value;
+        entity->line_no = line_no;
+        entity->filename = file;
+    }
+#else
     Symbol(const int value) {
         entity = std::make_shared<Entity>();
         entity->op = 'l';
         entity->literal_const_value = value;
     }
+#endif
     Symbol(char op, const Symbol& lhs, const Symbol& rhs) {
         entity = std::make_shared<Entity>();
         entity->op = op;
@@ -246,8 +262,16 @@ public:
     void* get_id() const {
         return entity.get();
     }
-    const char* get_name() const {
+    std::string get_name() const {
+#ifdef GENP_VERBOSE_INCLUDE_LINE_NO
+        if (is_independent_var())
+            return entity->name;
+        auto filename = strrchr(entity->filename, '/') ? strrchr(entity->filename, '/') + 1 : entity->filename;
+        std::string name(filename); // use filename:lineno instead
+        return name + ":" + std::to_string(entity->line_no);
+#else
         return entity->name;
+#endif
     }
     bool operator<(const Symbol& rhs) const {
         return get_id() < rhs.get_id();
@@ -734,7 +758,9 @@ public:
     explicit GenericPattern(const DiscreteTypeInfo& type_info,
                             const OutputVector& args,
                             const detail::AttrMap& attrs,
-                            const char* vt)
+                            const char* vt,
+                            const int line_no = -1,
+                            const char* file = "")
         : ov::pass::pattern::op::Pattern(args),
           m_type_info(type_info),
           m_attrs(attrs),
@@ -753,6 +779,12 @@ public:
                 sep = ",";
             }
             ss << ")";
+            if (line_no != -1) {
+                // add the code line no to the log:
+                //   O P752<opset1::Multiply>(P736,P745)@fuse_rotary_positional_embeddings.cpp:551 vs ...
+                auto filename = strrchr(file, '/') ? strrchr(file, '/') + 1 : file;
+                ss << "@" << filename << ":" << line_no;
+            }
             m_signature = ss.str();
             set_friendly_name(std::string("P") + std::to_string(id));
         }
@@ -771,7 +803,7 @@ public:
         // strictly requires pattern & graph value to come from output port with same index,
         // this is absolute necessary when pattern contains split node connections.
         if (pattern_value.get_index() != graph_value.get_index()) {
-            _VERBOSE_LOG(level, "X output index mismatch: ", pattern_value.get_index(), "!=", graph_value.get_index());
+            _VERBOSE_LOG(level, "X output index mismatch:(", m_signature, "): ", pattern_value.get_index(), "!=", graph_value.get_index());
             return false;
         }
 
@@ -807,7 +839,23 @@ public:
         bool ret = matcher->match_arguments(pattern_value.get_node(), graph_value.get_node_shared_ptr());
         if (matcher_verbose_enabled()) {
             level.pop_back();
-            _VERBOSE_LOG(level, ret ? "O" : "X", m_signature, " vs ", graph_value);
+            size_t index_in_parent_inputs = std::numeric_limits<size_t>::max();
+            for (auto&& input : graph_value.get_target_inputs()) {
+                for (auto&& item : pattern_map) {
+                    if (item.second.get_node() == input.get_node()) {
+                        index_in_parent_inputs = input.get_index();
+                        break;
+                    }
+                }
+            }
+            // append input index in parent node, O1 means it's second input for parent node:
+            //   O1 P733<opset1::VariadicSplit>...
+            std::string prefix = (ret ? "O" : "X");
+            if (index_in_parent_inputs == std::numeric_limits<size_t>::max())
+                prefix += "?";
+            else
+                prefix += std::to_string(index_in_parent_inputs);
+            _VERBOSE_LOG(level, prefix, m_signature, " vs ", graph_value);
         }
         return ret;
     }
@@ -1012,7 +1060,13 @@ template <class T>
 std::shared_ptr<Node> makePattern(const std::vector<detail::PatternNode>& inputs,
                                   detail::AttrMap attrmap = {},
                                   const char* vt = nullptr,
+#ifdef GENP_VERBOSE_INCLUDE_LINE_NO
+                                  const char* friendly_name = nullptr,
+                                  int line_no = __builtin_LINE(),
+                                  const char* file = __builtin_FILE()) {
+#else
                                   const char* friendly_name = nullptr) {
+#endif
     OutputVector args;
     for (auto& in : inputs)
         args.push_back(in.get_output());
@@ -1020,8 +1074,11 @@ std::shared_ptr<Node> makePattern(const std::vector<detail::PatternNode>& inputs
     // pattern nodes are better for pattern matching because
     //  - it can be generic/incomplete, so normal OP node is not working properly
     //  - it has predicate to correctly decide which branch to take (in Or pattern)
+#ifdef GENP_VERBOSE_INCLUDE_LINE_NO
+    auto pattern_node = std::make_shared<detail::GenericPattern>(T::get_type_info_static(), args, attrmap, vt, line_no, file);
+#else
     auto pattern_node = std::make_shared<detail::GenericPattern>(T::get_type_info_static(), args, attrmap, vt);
-
+#endif
     if (friendly_name)
         pattern_node->set_friendly_name(friendly_name);
 
@@ -1114,7 +1171,13 @@ inline std::shared_ptr<Node> GenStridedSlice(detail::PatternNode data,
                                              detail::PatternNode start,
                                              detail::PatternNode stop,
                                              detail::PatternNode step,
+#ifdef GENP_VERBOSE_INCLUDE_LINE_NO
+                                             size_t axis,
+                                             int line_no = __builtin_LINE(),
+                                             const char* file = __builtin_FILE()) {
+#else
                                              size_t axis) {
+#endif
     std::vector<int64_t> begin_mask(axis + 1, 1);
     std::vector<int64_t> end_mask(axis + 1, 1);
     std::vector<int64_t> new_axis_mask;
@@ -1129,13 +1192,26 @@ inline std::shared_ptr<Node> GenStridedSlice(detail::PatternNode data,
                                                    {"end_mask", end_mask},
                                                    {"new_axis_mask", new_axis_mask},
                                                    {"shrink_axis_mask", shrink_axis_mask},
-                                                   {"ellipsis_mask", ellipsis_mask}});
+                                                   {"ellipsis_mask", ellipsis_mask}},
+                                                  nullptr,
+#ifdef GENP_VERBOSE_INCLUDE_LINE_NO
+                                                  nullptr,
+                                                  line_no,
+                                                  file);
+#else
+                                                  nullptr);
+#endif
     return opt2;
 }
 
+#ifdef GENP_VERBOSE_INCLUDE_LINE_NO
+inline std::shared_ptr<Node> GenSlice(detail::PatternNode data, Symbol start, Symbol stop, Symbol step, size_t axis, int line_no = __builtin_LINE(),
+                                  const char* file = __builtin_FILE()) {
+    auto opt1 = makePattern<opset8::Slice>({data, {start}, {stop}, {step}, {static_cast<int>(axis)}}, {}, nullptr, nullptr, line_no, file);
+#else
 inline std::shared_ptr<Node> GenSlice(detail::PatternNode data, Symbol start, Symbol stop, Symbol step, size_t axis) {
     auto opt1 = makePattern<opset8::Slice>({data, {start}, {stop}, {step}, {static_cast<int>(axis)}});
-
+#endif
     std::vector<Symbol> vbegin(axis + 1, Symbol(0));
     std::vector<Symbol> vend(axis + 1, Symbol(0));
     std::vector<Symbol> vstride(axis + 1, Symbol(1));
@@ -1162,7 +1238,15 @@ inline std::shared_ptr<Node> GenSlice(detail::PatternNode data, Symbol start, Sy
                                                    {"end_mask", end_mask},
                                                    {"new_axis_mask", new_axis_mask},
                                                    {"shrink_axis_mask", shrink_axis_mask},
-                                                   {"ellipsis_mask", ellipsis_mask}});
+                                                   {"ellipsis_mask", ellipsis_mask}},
+#ifdef GENP_VERBOSE_INCLUDE_LINE_NO
+                                                   nullptr,
+                                                   nullptr,
+                                                   line_no,
+                                                   file);
+#else
+                                                   nullptr);
+#endif
     return opt1 | opt2;
 }
 
@@ -1323,7 +1407,8 @@ public:
                 auto id = sym.get_id();
                 if (symbol_value_map.count(id)) {
                     if (symbol_value_map[id] != value) {
-                        _VERBOSE_LOG(" in-consistency between multiple references of same symbol : ",
+                        _VERBOSE_LOG(" in-consistency between multiple references of same symbol(",
+                                     sym.get_name(), "): ",
                                      symbol_value_map[id],
                                      " != ",
                                      value);
@@ -1339,7 +1424,7 @@ public:
             if (sym.is_literal_const()) {
                 auto literal = sym.eval(symbol_value_map);
                 if (literal != value) {
-                    _VERBOSE_LOG(" mismatch between literal symbol & value : ", literal, " != ", value);
+                    _VERBOSE_LOG(" mismatch between literal symbol & value(", sym.get_name(), "): ", literal, " != ", value);
                     return false;
                 }
                 // no need to put literal into value map to eval them.
@@ -1367,7 +1452,8 @@ public:
                     }
                 }
                 if (!is_match) {
-                    _VERBOSE_LOG(" mismatch between derived & value : ",
+                    _VERBOSE_LOG(" mismatch between derived & value(",
+                                 sym.get_name(), "): ",
                                  std::setprecision(std::numeric_limits<float>::max_digits10),
                                  derived,
                                  " != ",

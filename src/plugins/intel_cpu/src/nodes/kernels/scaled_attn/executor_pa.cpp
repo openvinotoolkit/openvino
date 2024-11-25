@@ -1174,7 +1174,7 @@ struct MHAHelper {
             prefer_static_loop = true;
             // small batch path
             auto kv_len = past_lens.ptr<int32_t>()[0];
-            for (int b = 1; b < B; b++) {
+            for (size_t b = 1; b < B; b++) {
                 if (past_lens.ptr<int32_t>()[b] != kv_len)
                     prefer_static_loop = false;
             }
