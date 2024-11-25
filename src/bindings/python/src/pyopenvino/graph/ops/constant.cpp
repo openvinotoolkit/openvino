@@ -121,6 +121,10 @@ void regclass_graph_op_Constant(py::module m) {
         }
     });
 
+    constant.def("get_tensor_view",  &ov::op::v0::Constant::get_tensor_view);
+
+    constant.def("get_strides",  &ov::op::v0::Constant::get_strides);
+
     // TODO: Remove in future and re-use `get_data`
     // Provide buffer access
     constant.def_buffer([](const ov::op::v0::Constant& self) -> py::buffer_info {
@@ -235,6 +239,10 @@ void regclass_graph_op_Constant(py::module m) {
 
             :rtype: numpy.array
         )");
+    
+    constant.def_property_readonly("tensor_view",  &ov::op::v0::Constant::get_tensor_view);
+
+    constant.def_property_readonly("strides",  &ov::op::v0::Constant::get_strides);
 
     constant.def("__repr__", [](const ov::op::v0::Constant& self) {
         std::stringstream shapes_ss;
