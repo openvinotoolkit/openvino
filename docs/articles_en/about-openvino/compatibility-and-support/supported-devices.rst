@@ -15,23 +15,25 @@ deep learning models:
 | For their usage guides, see :doc:`Devices and Modes <../../openvino-workflow/running-inference/inference-devices-and-modes>`.
 | For a detailed list of devices, see :doc:`System Requirements <../release-notes-openvino/system-requirements>`.
 
+
 Beside running inference with a specific device,
 OpenVINO offers the option of running automated inference with the following inference modes:
 
 | :doc:`Automatic Device Selection <../../openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection>`:
-|     automatically selects the best device available for the given task. It offers many
-      additional options and optimizations, including inference on multiple devices at the
-      same time.
+| automatically selects the best device available for the given task. It offers many
+  additional options and optimizations, including inference on multiple devices at the
+  same time.
+
 | :doc:`Heterogeneous Inference <../../openvino-workflow/running-inference/inference-devices-and-modes/hetero-execution>`:
-|     enables splitting inference among several devices automatically, for example, if one device
-      doesn't support certain operations.
+| enables splitting inference among several devices automatically, for example, if one device
+  doesn't support certain operations.
 
 | :doc:`Automatic Batching <../../openvino-workflow/running-inference/inference-devices-and-modes/automatic-batching>`:
-|     automatically groups inference requests to improve device utilization.
+| automatically groups inference requests to improve device utilization.
 
 | :doc:`(LEGACY) Multi-device Inference <./../../documentation/legacy-features/multi-device>`:
-|     executes inference on multiple devices. Currently, this mode is considered a legacy
-      solution. Using Automatic Device Selection instead is advised.
+| executes inference on multiple devices. Currently, this mode is considered a legacy
+  solution. Using Automatic Device Selection instead is advised.
 
 
 Feature Support and API Coverage
@@ -74,13 +76,25 @@ Feature Support and API Coverage
 | HETERO                  | 61.22 %   | 99.24 %          | 86.05 %           |
 +-------------------------+-----------+------------------+-------------------+
 |                         || Percentage of API supported by the device,      |
-|                         || as of OpenVINO 2023.3, 08 Jan, 2024.            |
+|                         || as of OpenVINO 2024.5, 20 Nov. 2024.            |
 +-------------------------+-----------+------------------+-------------------+
 
 For setting up a relevant configuration, refer to the
 :doc:`Integrate with Customer Application <../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
 topic (step 3 "Configure input and output").
 
+.. dropdown:: Device support across OpenVINO 2024.5 distributions
+
+   ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
+   Device           Archives    PyPI    APT/YUM/ZYPPER    Conda     Homebrew     vcpkg      Conan       npm
+   ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
+   CPU              V           V       V                V         V            V          V          V
+   GPU              V           V       V                V         V            V          V          V
+   NPU              V\*         V\*     V\ *             n/a       n/a          n/a        n/a        V\*
+   ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
+
+   | \* **Of the Linux systems, versions 22.04 and 24.04 include drivers for NPU.**
+   |  **For Windows, CPU inference on ARM64 is not supported.**
 
 
 .. note::
@@ -89,6 +103,7 @@ topic (step 3 "Configure input and output").
    in your solutions, revert to the 2023.3 (LTS) version.
 
    With the OpenVINO™ 2023.0 release, support has been cancelled for:
+
    - Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X
    - Intel® Vision Accelerator Design with Intel® Movidius™
 

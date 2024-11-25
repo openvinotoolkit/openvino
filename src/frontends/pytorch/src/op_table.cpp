@@ -121,6 +121,7 @@ OP_CONVERTER(translate_inverse);
 OP_CONVERTER(translate_is_nonzero);
 OP_CONVERTER(translate_layer_norm);
 OP_CONVERTER(translate_len);
+OP_CONVERTER(translate_lerp);
 OP_CONVERTER(translate_linalg_cross);
 OP_CONVERTER(translate_linalg_norm);
 OP_CONVERTER(translate_linalg_matrix_norm);
@@ -220,6 +221,7 @@ OP_CONVERTER(translate_square);
 OP_CONVERTER(translate_squeeze);
 OP_CONVERTER(translate_std);
 OP_CONVERTER(translate_std_mean);
+OP_CONVERTER(translate_stft);
 OP_CONVERTER(translate_sub);
 OP_CONVERTER(translate_sub_);
 OP_CONVERTER(translate_sum);
@@ -329,12 +331,15 @@ OP_CONVERTER(translate_zeros_like_fx);
 const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
     return {
         {"aten::__and__", op::translate_bitwise_and},
+        {"aten::__iand__", op::inplace_op<op::translate_bitwise_and>},
         {"aten::__derive_index", op::translate_derive_index},
         {"aten::__getitem__", op::translate_getitem},
         {"aten::__not__", op::translate_1to1_match_1_inputs<opset10::LogicalNot>},
         {"aten::__or__", op::translate_bitwise_or},
+        {"aten::__ior__", op::inplace_op<op::translate_bitwise_or>},
         {"aten::__range_length", op::translate_range_length},
         {"aten::__xor__", op::translate_bitwise_xor},
+        {"aten::__ixor__", op::inplace_op<op::translate_bitwise_xor>},
         {"aten::_convolution", op::translate_convolution},
         {"aten::_convolution_mode", op::translate_convolution_mode},
         {"aten::_native_multi_head_attention", op::translate_native_multi_head_attention},
@@ -508,6 +513,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::le", op::translate_1to1_match_2_inputs_align_types<opset10::LessEqual>},
         {"aten::leaky_relu", op::translate_1to1_match_2_inputs<opset10::PRelu>},
         {"aten::len", op::translate_len},
+        {"aten::lerp", op::translate_lerp},
         // lift op is torchscript specific op responsible for tensors coping with guarantee of new memory allocation
         {"aten::lift", op::skip_node},
         {"aten::lift_fresh", op::skip_node},
@@ -649,6 +655,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         // aten::stack - Supported in limited set of patterns
         {"aten::std", op::translate_std},
         {"aten::std_mean", op::translate_std_mean},
+        {"aten::stft", op::translate_stft},
         {"aten::sub", op::translate_sub},
         {"aten::sub_", op::translate_sub_},
         {"aten::sum", op::translate_sum},
@@ -746,6 +753,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten._native_batch_norm_legit.no_stats", op::translate_batch_norm_legit_no_stats_fx},
         {"aten._native_batch_norm_legit_functional.default", op::translate_batch_norm_legit_fx},
         {"aten._native_batch_norm_legit_no_training.default", op::translate_batch_norm_legit_no_training_fx},
+        {"aten._safe_softmax.default", op::translate_softmax_fx},
         {"aten._scaled_dot_product_flash_attention.default", op::translate_scaled_dot_product_attention_fx},
         {"aten._scaled_dot_product_flash_attention_for_cpu.default", op::translate_scaled_dot_product_attention_fx},
         {"aten._softmax.default", op::translate_softmax_fx},

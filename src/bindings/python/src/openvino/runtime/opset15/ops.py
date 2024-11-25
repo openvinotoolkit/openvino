@@ -326,7 +326,7 @@ def stft(
     :return: The new node performing STFT operation.
     """
     inputs = as_nodes(data, window, frame_size, frame_step, name=name)
-    return _get_node_factory_opset15().create("STFT", inputs)
+    return _get_node_factory_opset15().create("STFT", inputs, {"transpose_frames": transpose_frames})
 
 
 @nameable_op
@@ -348,3 +348,42 @@ def search_sorted(
     inputs = as_nodes(sorted_sequence, values, name=name)
     attributes = {"right_mode": right_mode}
     return _get_node_factory_opset15().create("SearchSorted", inputs, attributes)
+
+
+@nameable_op
+def squeeze(
+    data: NodeInput,
+    axes: Optional[NodeInput] = None,
+    allow_axis_skip: bool = False,
+    name: Optional[str] = None,
+) -> Node:
+    """Perform squeeze operation on input tensor.
+
+    :param data: The node with data tensor.
+    :param axes: Optional list of integers, indicating the dimensions to squeeze.
+                  Negative indices are supported. One of: input node or array.
+    :param allow_axis_skip: If true, shape inference results in a dynamic rank, when
+                  selected axis has value 1 in its dynamic range. Used only if axes input
+                  is given. Defaults to false.
+    :param name: Optional new name for output node.
+    :return: The new node performing a squeeze operation on input tensor.
+
+    Remove single-dimensional entries from the shape of a tensor.
+    Takes an optional parameter `axes` with a list of axes to squeeze.
+    If `axes` is not provided, all the single dimensions will be removed from the shape.
+
+    For example:
+
+       Inputs: tensor with shape [1, 2, 1, 3, 1, 1], axes=[2, 4]
+
+       Result: tensor with shape [1, 2, 3, 1]
+    """
+    if axes is None:
+        inputs = as_nodes(data, name=name)
+    else:
+        inputs = as_nodes(data, axes, name=name)
+    return _get_node_factory_opset15().create(
+        "Squeeze",
+        inputs,
+        {"allow_axis_skip": allow_axis_skip}
+    )

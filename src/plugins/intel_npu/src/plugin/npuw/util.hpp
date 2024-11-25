@@ -91,8 +91,36 @@ struct Impl {
     }
 
     template <typename K>
+    V& at_or_at(const K& k1, const K& k2) {
+        const auto iter = m->find(k1);
+        if (iter == m->end()) {
+            return at(k2);
+        }
+        return iter->second;
+    }
+
+    template <typename K>
+    V& at_or_at_or_at(const K& k1, const K& k2, const K& k3) {
+        const auto iter = m->find(k1);
+        if (iter == m->end()) {
+            return at_or_at(k2, k3);
+        }
+        return iter->second;
+    }
+
+    template <typename K>
     const V& at(const K& k) const {
         return const_cast<Impl*>(this)->at(k);
+    }
+
+    template <typename K>
+    const V& at_or_at(const K& k1, const K& k2) const {
+        return const_cast<Impl*>(this)->at_or_at(k1, k2);
+    }
+
+    template <typename K>
+    const V& at_or_at_or_at(const K& k1, const K& k2, const K& k3) const {
+        return const_cast<Impl*>(this)->at_or_at_or_at(k1, k2, k3);
     }
 };
 

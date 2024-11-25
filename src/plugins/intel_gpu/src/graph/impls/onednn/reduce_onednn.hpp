@@ -49,7 +49,7 @@ struct ReduceImplementationManager : public ImplementationManager {
     bool validate_impl(const program_node& node) const override {
         assert(node.is_type<reduce>());
         const auto& info = node.get_program().get_engine().get_device_info();
-        if (!info.supports_immad)
+        if (!info.supports_immad || info.arch == gpu_arch::unknown)
             return false;
 
         const auto& reduce_node = node.as<reduce>();

@@ -238,7 +238,7 @@ public:
                 inputs.insert({param, t});
             } else if (param->get_element_type() == element::f16) {
                 ov::Tensor t{ov::element::f16, shape};
-                strided_iota(static_cast<ov::float16*>(t.data()), t.get_size(), val, 0.1f);
+                strided_iota(static_cast<ov::float16*>(t.data()), t.get_size(), val, 0.0f);
                 inputs.insert({param, t});
             } else {
                 ov::Tensor t{ov::element::bf16, shape};

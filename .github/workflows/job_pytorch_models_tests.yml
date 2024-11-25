@@ -22,7 +22,7 @@ permissions: read-all
 jobs:
   PyTorch_Models_Tests:
     name: PyTorch Models tests
-    timeout-minutes: ${{ inputs.model_scope == 'precommit' && 40 || 400 }}
+    timeout-minutes: ${{ inputs.model_scope == 'precommit' && 45 || 400 }}
     runs-on: ${{ inputs.runner }}
     container: ${{ fromJSON(inputs.container) }}
     defaults:
@@ -105,8 +105,7 @@ jobs:
           python3 -m pip install ./openvino_tokenizers-*
         working-directory: ${{ env.INSTALL_WHEELS_DIR }}
 
-      - name: Install PyTorch tests requirements for precommit
-        if: ${{ inputs.model_scope == 'precommit' }}
+      - name: Install PyTorch tests requirements
         run: |
           python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_pytorch
         env:
@@ -116,7 +115,7 @@ jobs:
         if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope1' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_timm_tv_${{ inputs.model_scope }}_tests.html --self-contained-html -v -n 2 -k "TestTimmConvertModel or TestTorchHubConvertModel or TestEdsrConvertModel"
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_timm_tv_${{ inputs.model_scope }}_tests.html --self-contained-html -v -n 4 -k "TestTimmConvertModel or TestTorchHubConvertModel or TestEdsrConvertModel"
         env:
           TYPE: ${{ inputs.model_scope == 'precommit' && 'precommit' || 'nightly' }}
           TEST_DEVICE: CPU

@@ -8,6 +8,7 @@
 #include "openvino/core/validation_util.hpp"
 
 #include "intel_gpu/primitives/kv_cache.hpp"
+#include "intel_gpu/primitives/read_value.hpp"
 #include "intel_gpu/plugin/usm_host_tensor.hpp"
 #include "intel_gpu/plugin/sync_infer_request.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
@@ -31,12 +32,19 @@
 
 namespace {
 
-inline bool can_use_usm_host(const cldnn::engine& engine) {
+inline bool can_use_usm_host(const cldnn::engine& engine, const uint64_t total_output_bytes) {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->use_usm_host == 1) { return true; }
+    GPU_DEBUG_IF(debug_config->use_usm_host == 2) { return false; }
+
     auto can_use_usm = engine.use_unified_shared_memory();
+    // When output size is large, it is better not to write to usm_host directly
+    const uint64_t LARGE_OUTPUT_BYTES_THRESHOLD = 4 * 1048576;
 
     const auto& device_info = engine.get_device_info();
     if ((device_info.gfx_ver.major == 12 && device_info.gfx_ver.minor == 60) ||
-        (device_info.gfx_ver.major >= 20 && device_info.dev_type == cldnn::device_type::discrete_gpu)) {
+        (device_info.gfx_ver.major >= 20 && device_info.dev_type == cldnn::device_type::discrete_gpu) ||
+        (device_info.dev_type == cldnn::device_type::discrete_gpu && total_output_bytes > LARGE_OUTPUT_BYTES_THRESHOLD)) {
         // WA: Disable USM host memory for infer request`s tensors for PVC and subsequent dGPUs, as kernel access
         // to system memory is slower than using an explicit memcpy (Host <-> Device) call with the copy engine
         // Driver tickets with additional details: 6155, 10054
@@ -79,6 +87,18 @@ inline bool all_host_tensors(const std::vector<ov::SoPtr<ov::ITensor>>& tensors)
     return std::all_of(tensors.begin(), tensors.end(), [](const ov::SoPtr<ov::ITensor>& tensor) {
         return std::dynamic_pointer_cast<ov::intel_gpu::RemoteTensorImpl>(tensor._ptr) == nullptr;
     });
+}
+
+cldnn::data_types data_type_for_remote_tensor(ov::element::Type t) {
+    switch (t) {
+    case ov::element::Type_t::f64:
+        return cldnn::data_types::f32;
+    case ov::element::Type_t::u64:
+        return cldnn::data_types::i32;
+    case ov::element::Type_t::boolean:
+        return cldnn::data_types::u8;
+    default: return t;
+    }
 }
 
 }  // namespace
@@ -445,6 +465,21 @@ void SyncInferRequest::wait() {
                     iremote_tensor_ptr->copy_from(plugin_tensor.ptr);
                 }
             }
+        } else if (!is_dynamic && is_remote_tensor_impl && output_memory) {
+            auto& stream = m_graph->get_network()->get_stream();
+            auto user_mem = remote_tensor_impl_ptr->get_original_memory();
+            if (user_mem->get_allocation_type() == cldnn::allocation_type::cl_mem
+                && output_memory->get_allocation_type() != cldnn::allocation_type::cl_mem) {
+                auto plugin_tensor = m_plugin_outputs.at(port_idx);
+                if (is_convert_required(plugin_tensor.ptr->get_element_type(), iremote_tensor_ptr->get_element_type())) {
+                    auto& stream = m_graph->get_network()->get_stream();
+                    convert_and_copy(plugin_tensor.ptr.get(), iremote_tensor_ptr.get(), stream);
+                } else {
+                    iremote_tensor_ptr->copy_from(plugin_tensor.ptr);
+                }
+            } else {
+                copy_events.push_back(output_memory->copy_to(stream, *user_mem, false));
+            }
         } else if (is_remote_tensor_impl && is_dynamic) {
             auto& stream = m_graph->get_network()->get_stream();
             auto user_mem = remote_tensor_impl_ptr->get_original_memory();
@@ -516,12 +551,12 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::create_device_tensor(const ov::Pa
     }
 
     // Create OpenCL buffer for PVC if lockable memory is needed due to performance issue with usm host
-    if (!can_use_usm_host(m_graph->get_engine()) && need_lockable_memory)
+    if (!can_use_usm_host(m_graph->get_engine(), total_output_bytes) && need_lockable_memory)
         tensor_type = TensorType::BT_BUF_INTERNAL;
 
     return std::make_shared<RemoteTensorImpl>(m_context,
                                               get_tensor_shape(port_shape),
-                                              cldnn::element_type_to_data_type(element_type),
+                                              ::data_type_for_remote_tensor(element_type),
                                               tensor_type);
 }
 
@@ -545,14 +580,16 @@ TensorWrapper SyncInferRequest::create_or_share_device_tensor(const TensorWrappe
     auto usm_host_raw_ptr = engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu &&
                             user_tensor_mem_type == cldnn::allocation_type::usm_host;
 
-    bool can_share = !is_convert_required(user_tensor->get_element_type(), element_type) && can_use_usm_host(engine) && !generic_remote_tensor;
+    bool can_share = !is_convert_required(user_tensor->get_element_type(), element_type)
+                     && can_use_usm_host(engine, total_output_bytes)
+                     && !generic_remote_tensor;
 
     if (usm_host_tensor && can_share && m_context == usm_host_tensor->get_impl()->get_context()) {
         return { usm_host_tensor->get_impl(), user_tensor_wrapper.owner };
     } else if (usm_host_raw_ptr && can_share) {
         return { std::make_shared<RemoteTensorImpl>(m_context,
                                                     user_tensor->get_shape(),
-                                                    cldnn::element_type_to_data_type(element_type),
+                                                    ::data_type_for_remote_tensor(element_type),
                                                     TensorType::BT_USM_SHARED,
                                                     user_tensor->data()), TensorOwner::USER };
     }
@@ -591,6 +628,12 @@ void SyncInferRequest::allocate_input(const ov::Output<const ov::Node>& port, si
     auto element_type = port.get_element_type();
 
     m_user_inputs[input_idx] = { create_host_tensor(shape, element_type), TensorOwner::PLUGIN };
+    if (element_type == ov::element::string) {
+        // In case the element type is string and input data is an empty string,
+        // it produces the segmentation fault unless the each element of tensor.data is initialized.
+        auto data = m_user_inputs.at(input_idx).ptr->data<std::string>();
+        std::uninitialized_fill_n(data, m_user_inputs.at(input_idx).ptr->get_size(), std::string());
+    }
     ov::ISyncInferRequest::set_tensor(port, m_user_inputs.at(input_idx).ptr);
 }
 
@@ -628,6 +671,7 @@ void SyncInferRequest::allocate_inputs() {
 void SyncInferRequest::allocate_outputs() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::allocate_outputs");
 
+    total_output_bytes = 0;
     // allocate outputs
     for (const auto& it : m_output_ports_map) {
         size_t output_idx = it.first;
@@ -635,6 +679,7 @@ void SyncInferRequest::allocate_outputs() {
         GPU_DEBUG_LOG << "[init output blob with index: " << output_idx << "]" << std::endl;
 
         allocate_output(port, output_idx);
+        total_output_bytes += ov::ISyncInferRequest::get_tensor(port)->get_byte_size();
     }
 }
 
@@ -646,19 +691,40 @@ void SyncInferRequest::allocate_states() {
         bool indirect_kv_cache = false;
         int64_t beam_axis = 0;
         int64_t concat_axis = 0;
+        bool compressed = false;
+        bool has_zp_state = false;
         auto kv_cache_shape = vi.second.m_layout.get_partial_shape();
+        std::vector<cldnn::layout> states_layouts;
         for (auto& p : state_prims) {
             if (auto kv_cache_prim = dynamic_cast<const cldnn::kv_cache*>(p)) {
                 indirect_kv_cache = kv_cache_prim->indirect;
                 beam_axis = ov::util::normalize(kv_cache_prim->gather_axis, kv_cache_shape.size());
                 concat_axis = ov::util::normalize(kv_cache_prim->concat_axis, kv_cache_shape.size());
+                compressed = kv_cache_prim->compressed;
+                has_zp_state = kv_cache_prim->get_compression_zp_inputs_num() > 0;
+            } else if (auto read_value = dynamic_cast<const cldnn::read_value*>(p)) {
+                states_layouts = read_value->output_layouts;
             }
         }
 
-        if (indirect_kv_cache) {
-            m_variables.emplace(vi.first, std::make_shared<VariableStateIndirectKVCache>(vi.second, m_context, m_shape_predictor, beam_axis, concat_axis));
+        if (compressed) {
+            m_variables.emplace(vi.first, std::make_shared<VariableStateIndirectKVCacheCompressed>(vi.second,
+                                                                                                   m_context,
+                                                                                                   m_shape_predictor,
+                                                                                                   states_layouts,
+                                                                                                   beam_axis,
+                                                                                                   concat_axis,
+                                                                                                   has_zp_state));
+        } else if (indirect_kv_cache) {
+            m_variables.emplace(vi.first, std::make_shared<VariableStateIndirectKVCache>(vi.second,
+                                                                                         m_context,
+                                                                                         m_shape_predictor,
+                                                                                         beam_axis,
+                                                                                         concat_axis));
         } else {
-            m_variables.emplace(vi.first, std::make_shared<VariableState>(vi.second, m_context, m_shape_predictor));
+            m_variables.emplace(vi.first, std::make_shared<VariableState>(vi.second,
+                                                                          m_context,
+                                                                          m_shape_predictor));
         }
     }
 }
@@ -754,19 +820,19 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     auto device_tensor_et = convert_to_supported_device_type(element_type);
     bool convert_needed = is_convert_required(element_type, device_tensor_et);
 
-    if (is_remote_tensor_impl && !need_lockable_mem) {
+    if (is_remote_tensor_impl) {
         if (convert_needed) {
             m_plugin_inputs[input_idx] = { create_device_tensor(pshape,
-                                                                cldnn::element_type_to_data_type(element_type),
+                                                                ::data_type_for_remote_tensor(element_type),
                                                                 false), TensorOwner::PLUGIN };
         } else {
             m_plugin_inputs[input_idx] = user_tensor_wrapper;
         }
-    } else if (is_usm_host_tensor && !convert_needed && can_use_usm_host(engine)) {
-        if (element_type != cldnn::element_type_to_data_type(element_type)) {
+    } else if (is_usm_host_tensor && !convert_needed) {
+        if (element_type != ::data_type_for_remote_tensor(element_type)) {
             m_plugin_inputs[input_idx] = { std::make_shared<RemoteTensorImpl>(m_context,
                                                                               user_tensor->get_shape(),
-                                                                              cldnn::element_type_to_data_type(element_type),
+                                                                              ::data_type_for_remote_tensor(element_type),
                                                                               TensorType::BT_USM_SHARED,
                                                                               user_tensor->data()), TensorOwner::USER };
         } else {
@@ -925,8 +991,12 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
                                     is_generic_remote ||
                                     (m_plugin_outputs[output_idx].owner == TensorOwner::USER && !is_remote_tensor_impl);
         if (update_device_tensor) {
-            m_plugin_outputs[output_idx] =
-                create_or_share_device_tensor(user_tensor_wrapper, internal_name, pshape, device_tensor_et, need_lockable_mem || convert_needed);
+            if (!is_remote_tensor_impl) {
+                m_plugin_outputs[output_idx] =
+                    create_or_share_device_tensor(user_tensor_wrapper, internal_name, pshape, device_tensor_et, need_lockable_mem || convert_needed);
+            } else {
+                m_plugin_outputs[output_idx] = { create_device_tensor(pshape, device_tensor_et, need_lockable_mem || convert_needed), TensorOwner::PLUGIN };
+            }
         }
     }
 
