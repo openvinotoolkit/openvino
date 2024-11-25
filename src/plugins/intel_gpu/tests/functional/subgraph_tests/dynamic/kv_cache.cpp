@@ -530,4 +530,77 @@ TEST_F(KVCacheTests, smoke_multipleIterations_stateful_with_set_state) {
     this->test_smoke_multipleIterations_stateful(false, true, true, 1, 2, ov::element::f16, 5, 1, true);
 }
 
+class KVCacheIssueTests: public ::testing::Test {
+public:
+    void test_smoke_conflicted_memory_for_two_inf_req() {
+    #if defined(ANDROID)
+        GTEST_SKIP();
+    #endif
+        auto core = ov::test::utils::PluginCache::get().core();
+
+        ov::AnyMap properties = {
+            ov::hint::kv_cache_precision(ov::element::undefined)
+        };
+
+        const size_t n_batch = 1;
+        const size_t n_heads = 32;
+        const size_t n_features = 10;
+        const size_t context_size = 20;
+        ov::element::Type element_type = ov::element::f16;
+
+        const bool stateful = true;
+
+        auto model = tests::make_llm_kv_cache_pattern(n_batch,
+                                                      n_heads,
+                                                      n_features,
+                                                      element_type,
+                                                      2,
+                                                      stateful,
+                                                      false,
+                                                      stateful);
+        auto compiled_model = core->compile_model(model, ov::test::utils::DEVICE_GPU, properties);
+
+        auto input0 = model->get_parameters().at(0);
+        auto input1 = model->get_parameters().at(1);
+
+        auto infer_request1 = compiled_model.create_infer_request();
+        auto infer_request2 = compiled_model.create_infer_request();
+
+        auto tensor1_input1 = ov::test::utils::create_and_fill_tensor_real_distribution(element_type, {n_batch, context_size, n_heads, n_features}, -0.5f, 0.5f, 1);
+        auto tensor1_input2 = ov::test::utils::create_and_fill_tensor_real_distribution(element_type, {n_batch, n_heads, context_size, context_size}, -0.5f, 0.5f, 1);
+        infer_request1.set_tensor(input0, tensor1_input1);
+        infer_request1.set_tensor(input1, tensor1_input2);
+
+        auto tensor2_input1 = ov::test::utils::create_and_fill_tensor_real_distribution(element_type, {n_batch, context_size + 1, n_heads, n_features}, -0.5f, 0.5f, 555);
+        auto tensor2_input2 = ov::test::utils::create_and_fill_tensor_real_distribution(element_type, {n_batch, n_heads, context_size + 1, context_size + 1}, -0.5f, 0.5f, 555);
+        infer_request2.set_tensor(input0, tensor2_input1);
+        infer_request2.set_tensor(input1, tensor2_input2);
+
+        std::stringstream oss1;
+        std::stringstream oss2;
+        for (auto&& state : infer_request1.query_state()) {
+            state.reset();
+        }
+        infer_request1.infer();
+        for (auto&& state : infer_request1.query_state()) {
+            oss1.write((char*)state.get_state().data(), state.get_state().get_byte_size());
+        }
+
+        for (auto&& state : infer_request2.query_state()) {
+            state.reset();
+        }
+        infer_request2.infer();
+        for (auto&& state : infer_request1.query_state()) {
+            oss2.write((char*)state.get_state().data(), state.get_state().get_byte_size());
+        }
+
+        ASSERT_TRUE(oss1.str() == oss2.str());
+    }
+};
+
+TEST_F(KVCacheIssueTests, smoke_issue_cases) {
+    this->test_smoke_conflicted_memory_for_two_inf_req();
+}
+
+
 } // namespace
