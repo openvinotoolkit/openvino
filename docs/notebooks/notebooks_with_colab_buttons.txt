@@ -24,6 +24,7 @@ knowledge-graphs-conve
 language-quantize-bert
 magika-content-type-recognition
 mobileclip-video-search
+modelscope-to-openvino
 music-generation
 named-entity-recognition
 nano-llava-multimodal-chatbot
