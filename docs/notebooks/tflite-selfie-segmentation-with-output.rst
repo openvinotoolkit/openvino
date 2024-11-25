@@ -82,14 +82,8 @@ Install required dependencies
 
 .. code:: ipython3
 
-    import platform
-    
     %pip install -q "openvino>=2023.1.0" "opencv-python" "tqdm"
-    
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q "matplotlib>=3.4"
 
 
 .. parsed-literal::
@@ -101,21 +95,15 @@ Install required dependencies
 .. code:: ipython3
 
     import requests
+    from pathlib import Path
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
     
-    open("notebook_utils.py", "w").write(r.text)
-
-
-
-
-.. parsed-literal::
-
-    24692
-
-
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+    
+        open("notebook_utils.py", "w").write(r.text)
 
 Download pretrained model and test image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -124,27 +112,19 @@ Download pretrained model and test image
 
 .. code:: ipython3
 
-    from pathlib import Path
     from notebook_utils import download_file, device_widget
     
     tflite_model_path = Path("selfie_multiclass_256x256.tflite")
     tflite_model_url = "https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite"
     
-    download_file(tflite_model_url, tflite_model_path)
+    if not tflite_model_path.exists():
+        download_file(tflite_model_url, tflite_model_path)
 
 
 
 .. parsed-literal::
 
     selfie_multiclass_256x256.tflite:   0%|          | 0.00/15.6M [00:00<?, ?B/s]
-
-
-
-
-.. parsed-literal::
-
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/tflite-selfie-segmentation/selfie_multiclass_256x256.tflite')
-
 
 
 Convert Tensorflow Lite model to OpenVINO IR format
@@ -278,7 +258,12 @@ Additionally, the input image is represented as an RGB image in UINT8
     
     # Read input image and convert it to RGB
     test_image_url = "https://user-images.githubusercontent.com/29454499/251036317-551a2399-303e-4a4a-a7d6-d7ce973e05c5.png"
-    img = load_image(test_image_url)
+    image_path = "example-img.png"
+    
+    if not Path(image_path).exists():
+        img = download_file(test_image_url, image_path)
+    
+    img = load_image(image_path)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     
     
@@ -315,6 +300,13 @@ Additionally, the input image is represented as an RGB image in UINT8
     
     # Convert input data from uint8 [0, 255] to float32 [0, 1] range and add batch dimension
     normalized_img = np.expand_dims(padded_img.astype(np.float32) / 255, 0)
+
+
+
+.. parsed-literal::
+
+    example-img.png:   0%|          | 0.00/1.09M [00:00<?, ?B/s]
+
 
 Run model inference
 ~~~~~~~~~~~~~~~~~~~
@@ -460,6 +452,7 @@ The following code runs model inference on a video:
         skip_first_frames: int = 0,
         model: ov.Model = ov_model,
         device: str = "CPU",
+        video_width: int = None,  # if not set the original size is used
     ):
         """
         Function for running background blurring inference on video
@@ -491,9 +484,11 @@ The following code runs model inference on a video:
                 if frame is None:
                     print("Source ended")
                     break
-                # If the frame is larger than full HD, reduce size to improve the performance.
-                scale = 1280 / max(frame.shape)
-                if scale < 1:
+    
+                if video_width:
+                    # If the frame is larger than video_width, reduce size to improve the performance.
+                    # If more, increase size for better demo expirience.
+                    scale = video_width / max(frame.shape)
                     frame = cv2.resize(
                         src=frame,
                         dsize=None,
@@ -501,6 +496,7 @@ The following code runs model inference on a video:
                         fy=scale,
                         interpolation=cv2.INTER_AREA,
                     )
+    
                 # Get the results.
                 input_image, pad_info = resize_and_pad(frame, 256, 256)
                 normalized_img = np.expand_dims(input_image.astype(np.float32) / 255, 0)
@@ -581,12 +577,27 @@ set \ ``use_popup=True``.
 
 .. code:: ipython3
 
+    from notebook_utils import download_file
+    
+    
     WEBCAM_INFERENCE = False
     
     if WEBCAM_INFERENCE:
         VIDEO_SOURCE = 0  # Webcam
     else:
-        VIDEO_SOURCE = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/CEO%20Pat%20Gelsinger%20on%20Leading%20Intel.mp4"
+        VIDEO_SOURCE = "CEO-Pat-Gelsinger-on-Leading-Intel.mp4"
+        if not Path(VIDEO_SOURCE).exists():
+            download_file(
+                "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/CEO%20Pat%20Gelsinger%20on%20Leading%20Intel.mp4",
+                VIDEO_SOURCE,
+            )
+
+
+
+.. parsed-literal::
+
+    CEO-Pat-Gelsinger-on-Leading-Intel.mp4:   0%|          | 0.00/1.55M [00:00<?, ?B/s]
+
 
 Select device for inference:
 
@@ -607,7 +618,11 @@ Run:
 
 .. code:: ipython3
 
-    run_background_blurring(source=VIDEO_SOURCE, device=device.value)
+    run_background_blurring(
+        source=VIDEO_SOURCE,
+        device=device.value,
+        # video_width=1280
+    )
 
 
 

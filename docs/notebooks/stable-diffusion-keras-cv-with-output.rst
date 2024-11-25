@@ -57,18 +57,12 @@ Prerequisites
 
 .. code:: ipython3
 
-    import platform
-    
     %pip install -q "tensorflow-macos>=2.15; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
     %pip install -q "tensorflow>=2.15; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
     %pip install -q "tensorflow>=2.15; sys_platform != 'darwin' and python_version > '3.8'"
     %pip install -q keras-cv tf_keras numpy "openvino>=2024.1.0" "gradio>=4.19" datasets "nncf>=2.10.0"
     
-    
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q "matplotlib>=3.4"
 
 Convert Stable Diffusion Pipeline models to OpenVINO
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

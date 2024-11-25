@@ -68,6 +68,11 @@ Prerequisites
     )
     open("pip_helper.py", "w").write(r.text)
     
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
+    )
+    open("cmd_helper.py", "w").write(r.text)
+    
     from pip_helper import pip_install
     
     pip_install("-q", "openvino>=2024.4.0")
@@ -94,23 +99,18 @@ Prerequisites
 
 .. code:: ipython3
 
-    import os
-    import sys
+    from cmd_helper import clone_repo
     
     
-    wav2lip_path = Path("Wav2Lip")
-    
-    if not wav2lip_path.exists():
-        exit_code = os.system("git clone https://github.com/Rudrabha/Wav2Lip")
-        if exit_code != 0:
-            raise Exception("Failed to clone the repository!")
-    
-    sys.path.insert(0, str(wav2lip_path))
+    clone_repo("https://github.com/Rudrabha/Wav2Lip.git")
+
+
 
 
 .. parsed-literal::
 
-    Cloning into 'Wav2Lip'...
+    PosixPath('Wav2Lip')
+
 
 
 Download example files.
@@ -140,7 +140,7 @@ Download example files.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/wav2lip/data_video_sun_5s.mp4')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/wav2lip/data_video_sun_5s.mp4')
 
 
 
@@ -177,7 +177,7 @@ and will convert both model in OpenVINO format.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/wav2lip/ov_wav2lip_helper.py:43: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/wav2lip/ov_wav2lip_helper.py:43: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
       model_weights = torch.load(path_to_detector)
 
 
@@ -200,7 +200,7 @@ and will convert both model in OpenVINO format.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/wav2lip/ov_wav2lip_helper.py:16: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/wav2lip/ov_wav2lip_helper.py:16: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
       checkpoint = torch.load(checkpoint_path, map_location=lambda storage, loc: storage)
 
 
@@ -239,6 +239,8 @@ python API and converted OpenVINO models.
 
 .. code:: ipython3
 
+    import os
+    
     from ov_inference import ov_inference
     
     
@@ -263,7 +265,7 @@ python API and converted OpenVINO models.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/wav2lip/Wav2Lip/audio.py:100: FutureWarning: Pass sr=16000, n_fft=800 as keyword args. From version 0.10 passing these as positional arguments will result in an error
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/wav2lip/Wav2Lip/audio.py:100: FutureWarning: Pass sr=16000, n_fft=800 as keyword args. From version 0.10 passing these as positional arguments will result in an error
       return librosa.filters.mel(hp.sample_rate, hp.n_fft, n_mels=hp.num_mels,
 
 
@@ -286,14 +288,14 @@ python API and converted OpenVINO models.
 
     
       0%|          | 0/8 [00:00<?, ?it/s][A
-     12%|█▎        | 1/8 [00:02<00:19,  2.75s/it][A
+     12%|█▎        | 1/8 [00:02<00:19,  2.76s/it][A
      25%|██▌       | 2/8 [00:05<00:16,  2.68s/it][A
-     38%|███▊      | 3/8 [00:08<00:13,  2.67s/it][A
-     50%|█████     | 4/8 [00:10<00:10,  2.73s/it][A
-     62%|██████▎   | 5/8 [00:14<00:09,  3.04s/it][A
-     75%|███████▌  | 6/8 [00:18<00:06,  3.23s/it][A
-     88%|████████▊ | 7/8 [00:21<00:03,  3.35s/it][A
-    100%|██████████| 8/8 [00:23<00:00,  2.94s/it]
+     38%|███▊      | 3/8 [00:08<00:13,  2.65s/it][A
+     50%|█████     | 4/8 [00:10<00:10,  2.65s/it][A
+     62%|██████▎   | 5/8 [00:13<00:07,  2.64s/it][A
+     75%|███████▌  | 6/8 [00:15<00:05,  2.64s/it][A
+     88%|████████▊ | 7/8 [00:18<00:02,  2.64s/it][A
+    100%|██████████| 8/8 [00:20<00:00,  2.55s/it]
 
 
 .. parsed-literal::
@@ -303,7 +305,7 @@ python API and converted OpenVINO models.
 
 .. parsed-literal::
 
-    100%|██████████| 1/1 [00:25<00:00, 25.69s/it]
+    100%|██████████| 1/1 [00:22<00:00, 22.57s/it]
     ffmpeg version 4.2.7-0ubuntu0.1 Copyright (c) 2000-2022 the FFmpeg developers
       built with gcc 9 (Ubuntu 9.4.0-1ubuntu1~20.04.1)
       configuration: --prefix=/usr --extra-version=0ubuntu0.1 --toolchain=hardened --libdir=/usr/lib/x86_64-linux-gnu --incdir=/usr/include/x86_64-linux-gnu --arch=amd64 --enable-gpl --disable-stripping --enable-avresample --disable-filter=resample --enable-avisynth --enable-gnutls --enable-ladspa --enable-libaom --enable-libass --enable-libbluray --enable-libbs2b --enable-libcaca --enable-libcdio --enable-libcodec2 --enable-libflite --enable-libfontconfig --enable-libfreetype --enable-libfribidi --enable-libgme --enable-libgsm --enable-libjack --enable-libmp3lame --enable-libmysofa --enable-libopenjpeg --enable-libopenmpt --enable-libopus --enable-libpulse --enable-librsvg --enable-librubberband --enable-libshine --enable-libsnappy --enable-libsoxr --enable-libspeex --enable-libssh --enable-libtheora --enable-libtwolame --enable-libvidstab --enable-libvorbis --enable-libvpx --enable-libwavpack --enable-libwebp --enable-libx265 --enable-libxml2 --enable-libxvid --enable-libzmq --enable-libzvbi --enable-lv2 --enable-omx --enable-openal --enable-opencl --enable-opengl --enable-sdl2 --enable-libdc1394 --enable-libdrm --enable-libiec61883 --enable-nvenc --enable-chromaprint --enable-frei0r --enable-libx264 --enable-shared
@@ -331,11 +333,11 @@ python API and converted OpenVINO models.
       Stream #1:0 -> #0:0 (mpeg4 (native) -> h264 (libx264))
       Stream #0:0 -> #0:1 (pcm_s16le (native) -> aac (native))
     Press [q] to stop, [?] for help
-    [libx264 @ 0x55edc3fbd840] -qscale is ignored, -crf is recommended.
-    [libx264 @ 0x55edc3fbd840] using SAR=1/1
-    [libx264 @ 0x55edc3fbd840] using cpu capabilities: MMX2 SSE2Fast SSSE3 SSE4.2 AVX FMA3 BMI2 AVX2 AVX512
-    [libx264 @ 0x55edc3fbd840] profile High, level 3.1
-    [libx264 @ 0x55edc3fbd840] 264 - core 155 r2917 0a84d98 - H.264/MPEG-4 AVC codec - Copyleft 2003-2018 - http://www.videolan.org/x264.html - options: cabac=1 ref=3 deblock=1:0:0 analyse=0x3:0x113 me=hex subme=7 psy=1 psy_rd=1.00:0.00 mixed_ref=1 me_range=16 chroma_me=1 trellis=1 8x8dct=1 cqm=0 deadzone=21,11 fast_pskip=1 chroma_qp_offset=-2 threads=24 lookahead_threads=4 sliced_threads=0 nr=0 decimate=1 interlaced=0 bluray_compat=0 constrained_intra=0 bframes=3 b_pyramid=2 b_adapt=1 b_bias=0 direct=1 weightb=1 open_gop=0 weightp=2 keyint=250 keyint_min=25 scenecut=40 intra_refresh=0 rc_lookahead=40 rc=crf mbtree=1 crf=23.0 qcomp=0.60 qpmin=0 qpmax=69 qpstep=4 ip_ratio=1.40 aq=1:1.00
+    [libx264 @ 0x556392e25840] -qscale is ignored, -crf is recommended.
+    [libx264 @ 0x556392e25840] using SAR=1/1
+    [libx264 @ 0x556392e25840] using cpu capabilities: MMX2 SSE2Fast SSSE3 SSE4.2 AVX FMA3 BMI2 AVX2 AVX512
+    [libx264 @ 0x556392e25840] profile High, level 3.1
+    [libx264 @ 0x556392e25840] 264 - core 155 r2917 0a84d98 - H.264/MPEG-4 AVC codec - Copyleft 2003-2018 - http://www.videolan.org/x264.html - options: cabac=1 ref=3 deblock=1:0:0 analyse=0x3:0x113 me=hex subme=7 psy=1 psy_rd=1.00:0.00 mixed_ref=1 me_range=16 chroma_me=1 trellis=1 8x8dct=1 cqm=0 deadzone=21,11 fast_pskip=1 chroma_qp_offset=-2 threads=24 lookahead_threads=4 sliced_threads=0 nr=0 decimate=1 interlaced=0 bluray_compat=0 constrained_intra=0 bframes=3 b_pyramid=2 b_adapt=1 b_bias=0 direct=1 weightb=1 open_gop=0 weightp=2 keyint=250 keyint_min=25 scenecut=40 intra_refresh=0 rc_lookahead=40 rc=crf mbtree=1 crf=23.0 qcomp=0.60 qpmin=0 qpmax=69 qpstep=4 ip_ratio=1.40 aq=1:1.00
     Output #0, mp4, to 'results/result_voice.mp4':
       Metadata:
         encoder         : Lavf58.29.100
@@ -347,27 +349,27 @@ python API and converted OpenVINO models.
         Stream #0:1: Audio: aac (LC) (mp4a / 0x6134706D), 44100 Hz, mono, fltp, 69 kb/s
         Metadata:
           encoder         : Lavc58.54.100 aac
-    frame=  123 fps=0.0 q=-1.0 Lsize=     621kB time=00:00:05.06 bitrate=1005.8kbits/s speed=10.8x    
+    frame=  123 fps=0.0 q=-1.0 Lsize=     621kB time=00:00:05.06 bitrate=1005.8kbits/s speed=9.73x    
     video:573kB audio:43kB subtitle:0kB other streams:0kB global headers:0kB muxing overhead: 0.827166%
-    [libx264 @ 0x55edc3fbd840] frame I:1     Avg QP:22.24  size: 31028
-    [libx264 @ 0x55edc3fbd840] frame P:75    Avg QP:22.01  size:  6954
-    [libx264 @ 0x55edc3fbd840] frame B:47    Avg QP:25.58  size:   718
-    [libx264 @ 0x55edc3fbd840] consecutive B-frames: 38.2% 27.6% 14.6% 19.5%
-    [libx264 @ 0x55edc3fbd840] mb I  I16..4: 14.0% 83.9%  2.1%
-    [libx264 @ 0x55edc3fbd840] mb P  I16..4:  1.3%  3.3%  0.1%  P16..4: 37.8%  8.2%  6.4%  0.0%  0.0%    skip:43.0%
-    [libx264 @ 0x55edc3fbd840] mb B  I16..4:  0.2%  0.7%  0.0%  B16..8: 27.9%  0.4%  0.1%  direct: 0.2%  skip:70.6%  L0:43.9% L1:54.2% BI: 1.9%
-    [libx264 @ 0x55edc3fbd840] 8x8 transform intra:73.3% inter:77.1%
-    [libx264 @ 0x55edc3fbd840] coded y,uvDC,uvAC intra: 56.9% 72.4% 8.1% inter: 11.4% 13.0% 0.2%
-    [libx264 @ 0x55edc3fbd840] i16 v,h,dc,p: 20% 23%  9% 48%
-    [libx264 @ 0x55edc3fbd840] i8 v,h,dc,ddl,ddr,vr,hd,vl,hu: 25% 23% 36%  3%  3%  2%  2%  3%  3%
-    [libx264 @ 0x55edc3fbd840] i4 v,h,dc,ddl,ddr,vr,hd,vl,hu: 39% 14% 14%  4%  6%  7%  4%  9%  3%
-    [libx264 @ 0x55edc3fbd840] i8c dc,h,v,p: 42% 25% 29%  4%
-    [libx264 @ 0x55edc3fbd840] Weighted P-Frames: Y:0.0% UV:0.0%
-    [libx264 @ 0x55edc3fbd840] ref P L0: 74.2% 10.4% 11.1%  4.3%
-    [libx264 @ 0x55edc3fbd840] ref B L0: 86.1% 11.2%  2.8%
-    [libx264 @ 0x55edc3fbd840] ref B L1: 98.3%  1.7%
-    [libx264 @ 0x55edc3fbd840] kb/s:953.36
-    [aac @ 0x55edc3fbf140] Qavg: 121.673
+    [libx264 @ 0x556392e25840] frame I:1     Avg QP:22.24  size: 31028
+    [libx264 @ 0x556392e25840] frame P:75    Avg QP:22.01  size:  6954
+    [libx264 @ 0x556392e25840] frame B:47    Avg QP:25.58  size:   718
+    [libx264 @ 0x556392e25840] consecutive B-frames: 38.2% 27.6% 14.6% 19.5%
+    [libx264 @ 0x556392e25840] mb I  I16..4: 14.0% 83.9%  2.1%
+    [libx264 @ 0x556392e25840] mb P  I16..4:  1.3%  3.3%  0.1%  P16..4: 37.8%  8.2%  6.4%  0.0%  0.0%    skip:43.0%
+    [libx264 @ 0x556392e25840] mb B  I16..4:  0.2%  0.7%  0.0%  B16..8: 27.9%  0.4%  0.1%  direct: 0.2%  skip:70.6%  L0:43.9% L1:54.2% BI: 1.9%
+    [libx264 @ 0x556392e25840] 8x8 transform intra:73.3% inter:77.1%
+    [libx264 @ 0x556392e25840] coded y,uvDC,uvAC intra: 56.9% 72.4% 8.1% inter: 11.4% 13.0% 0.2%
+    [libx264 @ 0x556392e25840] i16 v,h,dc,p: 20% 23%  9% 48%
+    [libx264 @ 0x556392e25840] i8 v,h,dc,ddl,ddr,vr,hd,vl,hu: 25% 23% 36%  3%  3%  2%  2%  3%  3%
+    [libx264 @ 0x556392e25840] i4 v,h,dc,ddl,ddr,vr,hd,vl,hu: 39% 14% 14%  4%  6%  7%  4%  9%  3%
+    [libx264 @ 0x556392e25840] i8c dc,h,v,p: 42% 25% 29%  4%
+    [libx264 @ 0x556392e25840] Weighted P-Frames: Y:0.0% UV:0.0%
+    [libx264 @ 0x556392e25840] ref P L0: 74.2% 10.4% 11.1%  4.3%
+    [libx264 @ 0x556392e25840] ref B L0: 86.1% 11.2%  2.8%
+    [libx264 @ 0x556392e25840] ref B L1: 98.3%  1.7%
+    [libx264 @ 0x556392e25840] kb/s:953.36
+    [aac @ 0x556392e27140] Qavg: 121.673
 
 
 

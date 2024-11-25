@@ -82,7 +82,7 @@ Prerequisites
 .. code:: ipython3
 
     %pip install -q accelerate "diffusers>=0.24.0" transformers "torch>=2.1" "gradio>=4.19" qrcode opencv-python "peft>=0.6.2" --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "openvino>=2023.1.0" "nncf>=2.7.0"
+    %pip install -q "openvino>=2023.1.0" "nncf>=2.7.0" "matplotlib>=3.4"
 
 Instantiating Generation Pipeline
 ---------------------------------

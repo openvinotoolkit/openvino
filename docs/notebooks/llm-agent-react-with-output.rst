@@ -108,17 +108,18 @@ does not serve its own LLMs, but rather provides a standard interface
 for interacting with many different LLMs. In this example, we can select
 ``Qwen2.5`` as LLM in agent pipeline.
 
-* **qwen2.5-3b-instruct/qwen2.5-7b-instruct/qwen2.5-14b-instruct** -
-  Qwen2.5 is the latest series of Qwen large language models. Comparing
-  with Qwen2, Qwen2.5 series brings significant improvements in coding,
-  mathematics and general knowledge skills. Additionally, it brings
-  long-context and multiple languages support including Chinese, English,
-  French, Spanish, Portuguese, German, Italian, Russian, Japanese, Korean,
-  Vietnamese, Thai, Arabic, and more. For more details, please refer to
-  `model_card <https://huggingface.co/Qwen/Qwen2.5-7B-Instruct>`__,
-  `blog <https://qwenlm.github.io/blog/qwen2.5/>`__,
-  `GitHub <https://github.com/QwenLM/Qwen2.5>`__, and
-  `Documentation <https://qwen.readthedocs.io/en/latest/>`__.
+
+**qwen2.5-3b-instruct/qwen2.5-7b-instruct/qwen2.5-14b-instruct** -
+Qwen2.5 is the latest series of Qwen large language models. Comparing
+with Qwen2, Qwen2.5 series brings significant improvements in coding,
+mathematics and general knowledge skills. Additionally, it brings
+long-context and multiple languages support including Chinese, English,
+French, Spanish, Portuguese, German, Italian, Russian, Japanese, Korean,
+Vietnamese, Thai, Arabic, and more. For more details, please refer to
+`model_card <https://huggingface.co/Qwen/Qwen2.5-7B-Instruct>`__,
+`blog <https://qwenlm.github.io/blog/qwen2.5/>`__,
+`GitHub <https://github.com/QwenLM/Qwen2.5>`__, and
+`Documentation <https://qwen.readthedocs.io/en/latest/>`__.
 
 .. code:: ipython3
 

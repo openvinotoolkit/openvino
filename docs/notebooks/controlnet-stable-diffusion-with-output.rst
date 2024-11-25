@@ -197,16 +197,31 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "torch>=2.1" "torchvision"
-    %pip install -q "diffusers>=0.14.0" "matplotlib>=3.4" "transformers>=4.30.2" "controlnet-aux>=0.0.6" "gradio>=3.36" --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "openvino>=2023.1.0" "datasets>=2.14.6" "nncf>=2.7.0"
-    
     import requests
+    from pathlib import Path
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    utility_files = ["notebook_utils.py", "pip_helper.py"]
+    
+    for utility in utility_files:
+        if not Path(utility).exists():
+            r = requests.get(f"https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/{utility}")
+            with open(utility, "w") as f:
+                f.write(r.text)
+    
+    
+    from pip_helper import pip_install
+    
+    pip_install("torch>=2.1", "torchvision", "--extra-index-url", "https://download.pytorch.org/whl/cpu")
+    pip_install(
+        "diffusers>=0.14.0",
+        "matplotlib>=3.4",
+        "transformers>=4.30.2",
+        "controlnet-aux>=0.0.6",
+        "gradio>=3.36",
+        "--extra-index-url",
+        "https://download.pytorch.org/whl/cpu",
     )
-    open("notebook_utils.py", "w").write(r.text)
+    pip_install("openvino>=2023.1.0", "datasets>=2.14.6", "nncf>=2.7.0", "opencv-python")
 
 Instantiating Generation Pipeline
 ---------------------------------
@@ -272,14 +287,18 @@ Now, let us check its result on example image:
 
 .. code:: ipython3
 
-    import requests
     from PIL import Image
     import matplotlib.pyplot as plt
     import numpy as np
-    
+    from notebook_utils import download_file
     
     example_url = "https://user-images.githubusercontent.com/29454499/224540208-c172c92a-9714-4a7b-857a-b1e54b4d4791.jpg"
-    img = Image.open(requests.get(example_url, stream=True).raw)
+    
+    image_path = Path("example_image.jpg")
+    if not image_path.exists():
+        download_file(image_path, filename="example_image.jpg")
+    
+    img = Image.open(image_path)
     pose = pose_estimator(img)
     
     
@@ -1439,10 +1458,12 @@ Let’s load ``skip magic`` extension to skip quantization if
     # Fetch `skip_kernel_extension` module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
-    )
-    open("skip_kernel_extension.py", "w").write(r.text)
+    
+    if not Path("skip_kernel_extension.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
+        )
+        open("skip_kernel_extension.py", "w").write(r.text)
     
     int8_pipe = None
     

@@ -192,7 +192,7 @@ And print results
 
     Predicted Class: 281
     Predicted Label: n02123045 tabby, tabby cat
-    Predicted Probability: 0.4661690592765808
+    Predicted Probability: 0.5919997096061707
 
 
 Convert the model to OpenVINO Intermediate representation format

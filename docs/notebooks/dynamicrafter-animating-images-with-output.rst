@@ -151,57 +151,29 @@ Prerequisites
     %pip install -q "openvino>=2024.2.0" "nncf>=2.11.0" "datasets>=2.20.0"
     %pip install -q "gradio>=4.19" omegaconf einops pytorch_lightning kornia "open_clip_torch==2.22.0" transformers av opencv-python "torch==2.2.2" --extra-index-url https://download.pytorch.org/whl/cpu
 
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
-
 .. code:: ipython3
 
-    import sys
     from pathlib import Path
     import requests
     
     
-    dynamicrafter_path = Path("dynamicrafter")
-    
-    if not dynamicrafter_path.exists():
-        dynamicrafter_path.mkdir(parents=True, exist_ok=True)
-        !git clone https://github.com/Doubiiu/DynamiCrafter.git dynamicrafter
-        %cd dynamicrafter
-        !git checkout 26e665cd6c174234238d2ded661e2e56f875d360 -q  # to avoid breaking changes
-        %cd ..
-    
-    sys.path.append(str(dynamicrafter_path))
+    if not Path("cmd_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
+        )
+        open("cmd_helper.py", "w").write(r.text)
     
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
     open("notebook_utils.py", "w").write(r.text)
 
+.. code:: ipython3
 
-.. parsed-literal::
-
-    Cloning into 'dynamicrafter'...
-    remote: Enumerating objects: 335, done.[K
-    remote: Counting objects: 100% (153/153), done.[K
-    remote: Compressing objects: 100% (99/99), done.[K
-    remote: Total 335 (delta 97), reused 54 (delta 54), pack-reused 182 (from 1)[K
-    Receiving objects: 100% (335/335), 72.41 MiB | 20.85 MiB/s, done.
-    Resolving deltas: 100% (123/123), done.
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images/dynamicrafter
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images
-
-
-
-
-.. parsed-literal::
-
-    24692
-
-
+    from cmd_helper import clone_repo
+    
+    
+    clone_repo("https://github.com/Doubiiu/DynamiCrafter.git", "26e665cd6c174234238d2ded661e2e56f875d360")
 
 Load and run the original pipeline
 ----------------------------------
@@ -221,7 +193,7 @@ We will use model for 256x256 resolution as example. Also, models for
     from huggingface_hub import hf_hub_download
     from omegaconf import OmegaConf
     
-    from dynamicrafter.utils.utils import instantiate_from_config
+    from utils.utils import instantiate_from_config
     
     
     def load_model_checkpoint(model, ckpt):
@@ -282,36 +254,9 @@ We will use model for 256x256 resolution as example. Also, models for
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:834: UserWarning: `local_dir_use_symlinks` parameter is deprecated and will be ignored. The process to download files to a local folder has been updated and do not rely on symlinks anymore. You only need to pass a destination folder as`local_dir`.
-    For more details, check out https://huggingface.co/docs/huggingface_hub/main/en/guides/download#download-files-to-local-folder.
-      warnings.warn(
-
-
-
-.. parsed-literal::
-
-    model.ckpt:   0%|          | 0.00/10.4G [00:00<?, ?B/s]
-
-
-.. parsed-literal::
-
     AE working on z of shape (1, 4, 32, 32) = 4096 dimensions.
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/timm/models/layers/__init__.py:48: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
-      warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
-    2024-11-04 23:23:38.980054: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-11-04 23:23:39.013901: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-11-04 23:23:39.616188: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-
-
-.. parsed-literal::
-
     >>> model checkpoint loaded.
-
+    
 
 Convert the model to OpenVINO IR
 --------------------------------
@@ -363,7 +308,7 @@ Convert CLIP text encoder
 
 .. code:: ipython3
 
-    from dynamicrafter.lvdm.modules.encoders.condition import FrozenOpenCLIPEmbedder
+    from lvdm.modules.encoders.condition import FrozenOpenCLIPEmbedder
     
     MODEL_DIR = Path("models")
     
@@ -388,17 +333,6 @@ Convert CLIP text encoder
     del cond_stage_model
     gc.collect();
 
-
-.. parsed-literal::
-
-    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
-
-
-.. parsed-literal::
-
-    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
-
-
 Convert CLIP image encoder
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -421,49 +355,6 @@ resolutions.
     del model.embedder
     gc.collect();
 
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/utils/image.py:226: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if input.numel() == 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/geometry/transform/affwarp.py:573: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if size == input_size:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/geometry/transform/affwarp.py:579: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      antialias = antialias and (max(factors) > 1)
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/geometry/transform/affwarp.py:581: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if antialias:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/geometry/transform/affwarp.py:584: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      sigmas = (max((factors[0] - 1.0) / 2.0, 0.001), max((factors[1] - 1.0) / 2.0, 0.001))
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/geometry/transform/affwarp.py:589: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      ks = int(max(2.0 * 2 * sigmas[0], 3)), int(max(2.0 * 2 * sigmas[1], 3))
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/geometry/transform/affwarp.py:589: TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      ks = int(max(2.0 * 2 * sigmas[0], 3)), int(max(2.0 * 2 * sigmas[1], 3))
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/filters/gaussian.py:55: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
-      sigma = tensor([sigma], device=input.device, dtype=input.dtype)
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/filters/gaussian.py:55: TracerWarning: Converting a tensor to a Python float might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      sigma = tensor([sigma], device=input.device, dtype=input.dtype)
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/core/check.py:78: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if x_shape_to_check[i] != dim:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/filters/kernels.py:92: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
-      mean = tensor([[mean]], device=sigma.device, dtype=sigma.dtype)
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:101: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if len(mean.shape) == 0 or mean.shape[0] == 1:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:103: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if len(std.shape) == 0 or std.shape[0] == 1:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:107: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if mean.shape and mean.shape[0] != 1:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:108: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if mean.shape[0] != data.shape[1] and mean.shape[:2] != data.shape[:2]:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:112: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if std.shape and std.shape[0] != 1:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:113: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if std.shape[0] != data.shape[1] and std.shape[:2] != data.shape[:2]:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:116: TracerWarning: torch.as_tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
-      mean = torch.as_tensor(mean, device=data.device, dtype=data.dtype)
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/kornia/enhance/normalize.py:117: TracerWarning: torch.as_tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
-      std = torch.as_tensor(std, device=data.device, dtype=data.dtype)
-
-
 Convert AE encoder
 ~~~~~~~~~~~~~~~~~~
 
@@ -485,13 +376,6 @@ Convert AE encoder
     
     del model.first_stage_model.encoder
     gc.collect();
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images/dynamicrafter/lvdm/modules/networks/ae_modules.py:67: TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      w_ = w_ * (int(c)**(-0.5))
-
 
 Convert Diffusion U-Net model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -529,21 +413,6 @@ Convert Diffusion U-Net model
     out_channels = model.model.diffusion_model.out_channels
     del model.model.diffusion_model
     gc.collect();
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images/dynamicrafter/lvdm/modules/networks/openaimodel3d.py:556: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if l_context == 77 + t*16: ## !!! HARD CODE here
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images/dynamicrafter/lvdm/modules/networks/openaimodel3d.py:205: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if batch_size:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images/dynamicrafter/lvdm/modules/networks/openaimodel3d.py:232: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if self.use_temporal_conv and batch_size:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images/dynamicrafter/lvdm/modules/networks/openaimodel3d.py:76: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      assert x.shape[1] == self.channels
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/dynamicrafter-animating-images/dynamicrafter/lvdm/modules/networks/openaimodel3d.py:99: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      assert x.shape[1] == self.channels
-
 
 Convert AE decoder
 ~~~~~~~~~~~~~~~~~~
@@ -928,15 +797,15 @@ Run OpenVINO pipeline inference
 .. parsed-literal::
 
     Seed set to 234
-    /tmp/ipykernel_511478/2451984876.py:25: UserWarning: The given NumPy array is not writable, and PyTorch does not support non-writable tensors. This means writing to this tensor will result in undefined behavior. You may want to copy the array to protect its data or make it writable before converting it to a tensor. This type of warning will be suppressed for the rest of this program. (Triggered internally at ../torch/csrc/utils/tensor_numpy.cpp:206.)
+    /tmp/ipykernel_971108/2451984876.py:25: UserWarning: The given NumPy array is not writable, and PyTorch does not support non-writable tensors. This means writing to this tensor will result in undefined behavior. You may want to copy the array to protect its data or make it writable before converting it to a tensor. This type of warning will be suppressed for the rest of this program. (Triggered internally at ../torch/csrc/utils/tensor_numpy.cpp:206.)
       img_tensor = torch.from_numpy(image).permute(2, 0, 1).float().to(model.device)
-
+    
 
 .. parsed-literal::
 
-    start: man fishing in a boat at sunset 2024-11-04 23:26:56
-    Saved in man_fishing_in_a_boat_at_sunset.mp4. Time used: 206.55 seconds
-
+    start: man fishing in a boat at sunset 2024-08-06 13:54:24
+    Saved in man_fishing_in_a_boat_at_sunset.mp4. Time used: 164.28 seconds
+    
 
 .. code:: ipython3
 
@@ -959,7 +828,7 @@ Run OpenVINO pipeline inference
     <video alt="video" controls>
         <source src="results/man_fishing_in_a_boat_at_sunset.mp4" type="video/mp4">
     </video>
-
+    
 
 
 
@@ -1131,19 +1000,6 @@ To collect intermediate model inputs for calibration we should customize
       0%|          | 0/300 [00:00<?, ?it/s]
 
 
-.. parsed-literal::
-
-    Error occurred: 403 Client Error: Forbidden for url: http://1.bp.blogspot.com/-c2pSbigvVm8/T9JqOXKIrsI/AAAAAAAACWs/ASXRA3Mbd0A/s1600/upsidedownnile.jpg
-    Error occurred: 400 Client Error: Bad Request for url: https://media.gettyimages.com/photos/singer-benjamin-booker-appears-onstage-during-the-rachael-ray-sxsw-picture-id655166184?s=612x612
-    Error occurred: 400 Client Error: Bad Request for url: http://i2.wp.com/www.monsoonbreeze123.com/wp-content/uploads/2016/04/edited-5.jpg?resize=781%2C512
-    Error occurred: 403 Client Error: Forbidden for url: http://i.dailymail.co.uk/i/pix/2017/07/26/16/42B41FE900000578-4732576-It_seems_that_Emma_and_her_cat_have_an_extremely_close_bond_one_-a-50_1501083105178.jpg
-    Error occurred: HTTPSConnectionPool(host='thewondrous.com', port=443): Max retries exceeded with url: /wp-content/uploads/2013/04/Egg-on-the-Head-of-Jack-Dog-600x799.jpg (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self signed certificate in certificate chain (_ssl.c:1131)')))
-    Error occurred: HTTPSConnectionPool(host='captainsmanorinn.com', port=443): Max retries exceeded with url: /wp-content/uploads/2014/02/Museum-on-the-greengardenweb-5.jpg (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self signed certificate in certificate chain (_ssl.c:1131)')))
-    Error occurred: 400 Client Error: Bad Request for url: https://media.gettyimages.com/photos/drew-henson-of-the-michigan-wolverines-looks-to-pass-in-a-game-on-picture-id111493145?s=612x612
-    Error occurred: 403 Client Error: Forbidden for url: http://www.bostonherald.com/sites/default/files/styles/featured_big/public/media/ap/2017/11/25/3cca13b05ad041ba8681174958cba941.jpg?itok=t31VhFHJ
-    Error occurred: HTTPSConnectionPool(host='i.pinimg.com', port=443): Max retries exceeded with url: /736x/b6/79/e8/b679e809c4a2995777852c9d77f93e6e--royal-wedding-cakes-royal-weddings.jpg (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self signed certificate in certificate chain (_ssl.c:1131)')))
-
-
 Run Quantization
 ~~~~~~~~~~~~~~~~
 
@@ -1182,13 +1038,82 @@ quantization time.
 
 .. parsed-literal::
 
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, openvino
+    
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+    
+
+
+
+
+
+
+
+    
 
 
 
 .. parsed-literal::
 
     Output()
+
+
+
+
+
+
+    
+
+
+
+
+
+
+
+    
+
+
+.. parsed-literal::
+
+    INFO:nncf:2 ignored nodes were found by name in the NNCFGraph
+    INFO:nncf:269 ignored nodes were found by name in the NNCFGraph
+    INFO:nncf:Not adding activation input quantizer for operation: 69 __module.diffusion_model.input_blocks.0.0/aten::_convolution/Convolution
+    165 __module.diffusion_model.input_blocks.0.0/aten::_convolution/Add
+    
+    INFO:nncf:Not adding activation input quantizer for operation: 4107 __module.diffusion_model.out.2/aten::_convolution/Convolution
+    4411 __module.diffusion_model.out.2/aten::_convolution/Add
+    
+    
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+    
+
+
+
+
+
+
+
+    
 
 
 Run Weights Compression
@@ -1226,7 +1151,7 @@ applied to footprint reduction.
     ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
     │              8 │ 100% (97 / 97)              │ 100% (97 / 97)                         │
     ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
-
+    
 
 
 .. parsed-literal::
@@ -1238,7 +1163,15 @@ applied to footprint reduction.
 
 
 
+    
 
+
+
+
+
+
+
+    
 
 
 .. parsed-literal::
@@ -1249,7 +1182,7 @@ applied to footprint reduction.
     ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
     │              8 │ 100% (39 / 39)              │ 100% (39 / 39)                         │
     ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
-
+    
 
 
 .. parsed-literal::
@@ -1261,7 +1194,15 @@ applied to footprint reduction.
 
 
 
+    
 
+
+
+
+
+
+
+    
 
 
 .. parsed-literal::
@@ -1272,7 +1213,7 @@ applied to footprint reduction.
     ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
     │              8 │ 100% (31 / 31)              │ 100% (31 / 31)                         │
     ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
-
+    
 
 
 .. parsed-literal::
@@ -1284,7 +1225,15 @@ applied to footprint reduction.
 
 
 
+    
 
+
+
+
+
+
+
+    
 
 
 .. parsed-literal::
@@ -1295,7 +1244,7 @@ applied to footprint reduction.
     ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
     │              8 │ 100% (129 / 129)            │ 100% (129 / 129)                       │
     ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
-
+    
 
 
 .. parsed-literal::
@@ -1307,7 +1256,15 @@ applied to footprint reduction.
 
 
 
+    
 
+
+
+
+
+
+
+    
 
 
 Let’s run the optimized pipeline
@@ -1341,7 +1298,7 @@ Let’s run the optimized pipeline
 
     AE working on z of shape (1, 4, 32, 32) = 4096 dimensions.
     >>> model checkpoint loaded.
-
+    
 
 .. code:: ipython3
 
@@ -1360,13 +1317,13 @@ Let’s run the optimized pipeline
 .. parsed-literal::
 
     Seed set to 234
-
+    
 
 .. parsed-literal::
 
-    start: man fishing in a boat at sunset 2024-11-05 00:58:08
-    Saved in man_fishing_in_a_boat_at_sunset.mp4. Time used: 97.78 seconds
-
+    start: man fishing in a boat at sunset 2024-08-06 15:09:26
+    Saved in man_fishing_in_a_boat_at_sunset.mp4. Time used: 81.47 seconds
+    
 
 .. code:: ipython3
 
@@ -1388,7 +1345,7 @@ Let’s run the optimized pipeline
     <video alt="video" controls>
         <source src=results_int8/man_fishing_in_a_boat_at_sunset.mp4 type="video/mp4">
     </video>
-
+    
 
 
 Compare model file sizes
@@ -1416,7 +1373,7 @@ Compare model file sizes
     encoder_first_stage_ir compression rate: 3.986
     embedder_ir compression rate: 3.977
     model_ir compression rate: 3.981
-
+    
 
 Compare inference time of the FP32 and INT8 models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1470,10 +1427,10 @@ models, we use median inference time on calibration subset.
 
 .. parsed-literal::
 
-    FP32 latency: 201.526
-    INT8 latency: 96.036
-    Performance speed up: 2.098
-
+    FP32 latency: 162.304
+    INT8 latency: 79.590
+    Performance speed up: 2.039
+    
 
 Interactive inference
 ---------------------
@@ -1497,15 +1454,6 @@ to launch the interactive demo.
     
     use_quantized_models
 
-
-
-
-.. parsed-literal::
-
-    Checkbox(value=True, description='Use quantized models')
-
-
-
 .. code:: ipython3
 
     from functools import partial
@@ -1524,23 +1472,9 @@ to launch the interactive demo.
     demo = make_demo(fn=get_image_fn)
     
     try:
-        demo.queue().launch(debug=False)
+        demo.queue().launch(debug=True)
     except Exception:
-        demo.queue().launch(debug=False, share=True)
+        demo.queue().launch(debug=True, share=True)
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-    
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-

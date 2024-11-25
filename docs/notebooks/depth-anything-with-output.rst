@@ -66,36 +66,57 @@ Prerequisites
 
 .. code:: ipython3
 
-    from pathlib import Path
+    import requests
+    
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
+    )
+    open("cmd_helper.py", "w").write(r.text)
+
+
+
+
+.. parsed-literal::
+
+    1491
+
+
+
+.. code:: ipython3
+
+    from cmd_helper import clone_repo
+    
+    
+    repo_dir = clone_repo("https://github.com/LiheYoung/Depth-Anything")
+    
+    %cd $repo_dir
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything
+
+
+.. code:: ipython3
+
     import platform
     
-    repo_dir = Path("Depth-Anything")
-    
-    if not repo_dir.exists():
-        !git clone https://github.com/LiheYoung/Depth-Anything
-    %cd Depth-Anything
     
     %pip install -q "openvino>=2023.3.0" "datasets>=2.14.6" "nncf" "tqdm"
     %pip install -q "typing-extensions>=4.9.0" eval-type-backport "gradio>=4.19" "matplotlib>=3.4"
-    %pip install -q -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q torch torchvision "opencv-python" huggingface_hub --extra-index-url https://download.pytorch.org/whl/cpu
     
+    if platform.system() == "Darwin":
+        %pip install -q "numpy<2.0.0"
     if platform.python_version_tuple()[1] in ["8", "9"]:
         %pip install -q "gradio-imageslider<=0.0.17" "typing-extensions>=4.9.0"
 
 
 .. parsed-literal::
 
-    Cloning into 'Depth-Anything'...
-    remote: Enumerating objects: 441, done.[K
-    remote: Counting objects: 100% (161/161), done.[K
-    remote: Compressing objects: 100% (120/120), done.[K
-    remote: Total 441 (delta 115), reused 44 (delta 41), pack-reused 280 (from 1)[K
-    Receiving objects: 100% (441/441), 237.90 MiB | 24.22 MiB/s, done.
-    Resolving deltas: 100% (158/158), done.
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
-    WARNING: typer 0.12.5 does not provide the extra 'all'
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
@@ -110,6 +131,9 @@ attention optimizations first.
 
 .. code:: ipython3
 
+    from pathlib import Path
+    
+    
     attention_file_path = Path("./torchhub/facebookresearch_dinov2_main/dinov2/layers/attention.py")
     orig_attention_path = attention_file_path.parent / ("orig_" + attention_file_path.name)
     
@@ -156,14 +180,15 @@ Prepare input data
 
     from PIL import Image
     
-    import requests
     
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-    
     open("notebook_utils.py", "w").write(r.text)
+    
+    
     from notebook_utils import download_file, device_widget, quantization_widget
+    
     
     download_file(
         "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/3f779fc1-c1b2-4dec-915a-64dae510a2bb",
@@ -181,7 +206,7 @@ Prepare input data
 
 
 
-.. image:: depth-anything-with-output_files/depth-anything-with-output_9_1.png
+.. image:: depth-anything-with-output_files/depth-anything-with-output_11_1.png
 
 
 
@@ -255,7 +280,7 @@ image size and prepare it for visualization.
 
 
 
-.. image:: depth-anything-with-output_files/depth-anything-with-output_16_0.png
+.. image:: depth-anything-with-output_files/depth-anything-with-output_18_0.png
 
 
 Convert Model to OpenVINO IR format
@@ -284,13 +309,13 @@ loading on device using ``core.complie_model``.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/torchhub/facebookresearch_dinov2_main/dinov2/layers/patch_embed.py:73: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/torchhub/facebookresearch_dinov2_main/dinov2/layers/patch_embed.py:73: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert H % patch_H == 0, f"Input image height {H} is not a multiple of patch height {patch_H}"
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/torchhub/facebookresearch_dinov2_main/dinov2/layers/patch_embed.py:74: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/torchhub/facebookresearch_dinov2_main/dinov2/layers/patch_embed.py:74: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert W % patch_W == 0, f"Input image width {W} is not a multiple of patch width: {patch_W}"
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/torchhub/facebookresearch_dinov2_main/vision_transformer.py:183: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/torchhub/facebookresearch_dinov2_main/vision_transformer.py:183: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if npatch == N and w == h:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/depth_anything/dpt.py:133: TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/depth_anything/dpt.py:133: TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       out = F.interpolate(out, (int(patch_h * 14), int(patch_w * 14)), mode="bilinear", align_corners=True)
 
 
@@ -356,7 +381,7 @@ Run inference on image
 
 
 
-.. image:: depth-anything-with-output_files/depth-anything-with-output_25_0.png
+.. image:: depth-anything-with-output_files/depth-anything-with-output_27_0.png
 
 
 Run inference on video
@@ -573,7 +598,7 @@ Run inference on video
 
 .. parsed-literal::
 
-    Processed 60 frames in 13.24 seconds. Total FPS (including video processing): 4.53.Inference FPS: 10.62 
+    Processed 60 frames in 13.63 seconds. Total FPS (including video processing): 4.40.Inference FPS: 10.11 
     Video saved to 'output/Coco Walking in Berkeley_depth_anything.mp4'.
 
 
@@ -600,7 +625,7 @@ Run inference on video
 .. parsed-literal::
 
     Showing video saved at
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/output/Coco Walking in Berkeley_depth_anything.mp4
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/output/Coco Walking in Berkeley_depth_anything.mp4
     If you cannot see the video in your browser, please click on the following link to download the video 
 
 
@@ -733,10 +758,10 @@ quantization code below may take some time.
 
 .. parsed-literal::
 
-    2024-11-04 23:10:13.897258: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-11-04 23:10:13.929954: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-11-22 00:38:00.830321: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-11-22 00:38:00.863651: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-11-04 23:10:14.502746: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-11-22 00:38:01.436355: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -848,7 +873,7 @@ data.
 
 
 
-.. image:: depth-anything-with-output_files/depth-anything-with-output_44_0.png
+.. image:: depth-anything-with-output_files/depth-anything-with-output_46_0.png
 
 
 .. code:: ipython3
@@ -862,10 +887,10 @@ data.
 
 .. parsed-literal::
 
-    Processed 60 frames in 12.75 seconds. Total FPS (including video processing): 4.70.Inference FPS: 12.76 
+    Processed 60 frames in 12.91 seconds. Total FPS (including video processing): 4.65.Inference FPS: 12.73 
     Video saved to 'output/Coco Walking in Berkeley_depth_anything_int8.mp4'.
     Showing video saved at
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/output/Coco Walking in Berkeley_depth_anything.mp4
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/output/Coco Walking in Berkeley_depth_anything.mp4
     If you cannot see the video in your browser, please click on the following link to download the video 
 
 
@@ -945,9 +970,9 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
 
 .. parsed-literal::
 
-    FP16 Throughput: 10.54 FPS
+    FP16 Throughput: 10.68 FPS
     INT8 Throughput: 14.00 FPS
-    Speed-up: 1.33
+    Speed-up: 1.31
 
 
 Interactive demo
@@ -1011,13 +1036,13 @@ launch the interactive demo.
         depth = predict_depth(compiled_model, image)
         depth = cv2.resize(depth[0], (w, h), interpolation=cv2.INTER_LINEAR)
     
-        raw_depth = Image.fromarray(depth.astype("uint16"))
-        tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-        raw_depth.save(tmp.name)
-    
         depth = (depth - depth.min()) / (depth.max() - depth.min()) * 255.0
         depth = depth.astype(np.uint8)
         colored_depth = cv2.applyColorMap(depth, cv2.COLORMAP_INFERNO)[:, :, ::-1]
+    
+        colored_depth_img = Image.fromarray(colored_depth)
+        tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+        colored_depth_img.save(tmp.name)
     
         return [(original_image, colored_depth), tmp.name]
 
@@ -1045,7 +1070,7 @@ launch the interactive demo.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/depth-anything
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/depth-anything
     Running on local URL:  http://127.0.0.1:7860
     
     To create a public link, set `share=True` in `launch()`.

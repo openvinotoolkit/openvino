@@ -201,7 +201,7 @@ notebooks.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
 
 
 
@@ -250,7 +250,7 @@ points to the filename of an ONNX model.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/segmentation.onnx')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/segmentation.onnx')
 
 
 
@@ -310,7 +310,7 @@ without any conversion step. Pass the filename with extension to
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/inference.pdiparams')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/inference.pdiparams')
 
 
 
@@ -354,7 +354,7 @@ TensorFlow models saved in frozen graph format can also be passed to
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.pb')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.pb')
 
 
 
@@ -407,7 +407,7 @@ It is pre-trained model optimized to work with TensorFlow Lite.
 
 .. parsed-literal::
 
-    Warning: Looks like you're using an outdated `kagglehub` version, please consider updating (latest version: 0.3.3)
+    Warning: Looks like you're using an outdated `kagglehub` version, please consider updating (latest version: 0.3.4)
 
 
 .. code:: ipython3
@@ -497,7 +497,7 @@ Information about the inputs and outputs of the model are in
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
 
 
 
@@ -703,7 +703,7 @@ produced data as values.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
 
 
 
@@ -892,7 +892,7 @@ input shape.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/segmentation.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/segmentation.bin')
 
 
 
@@ -1044,7 +1044,7 @@ the cache.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/openvino-api/model/classification.bin')
 
 
 
@@ -1074,7 +1074,7 @@ the cache.
 
 .. parsed-literal::
 
-    Loading the network to the AUTO device took 0.15 seconds.
+    Loading the network to the AUTO device took 0.14 seconds.
 
 
 After running the previous cell, we know the model exists in the cache
@@ -1092,5 +1092,5 @@ measure the time it takes now.
 
 .. parsed-literal::
 
-    Loading the network to the AUTO device took 0.08 seconds.
+    Loading the network to the AUTO device took 0.07 seconds.
 

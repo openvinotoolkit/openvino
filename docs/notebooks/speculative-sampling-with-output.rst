@@ -1,5 +1,5 @@
-Text Generation via Speculative Decoding and OpenVINO™
-======================================================
+Text Generation via Speculative Decoding using FastDraft and OpenVINO™
+======================================================================
 
 As model sizes grow, Generative AI implementations require significant
 inference resources. This not only increases the cost per generation
@@ -42,8 +42,25 @@ requests. More details can be found in the original
 
 |image0|
 
+Possibility to achieve significant speedup with Speculative Decoding is
+highly depends on selection of a high-quality draft model that is both
+efficient and well-aligned with the target. FastDraft is a novel and
+efficient approach for pre-training and aligning a draft model to any
+LLM to be used with speculative decoding, by incorporating efficient
+pre-training followed by fine-tuning over synthetic datasets generated
+by the target model. FastDraft was presented in the
+`paper <https://arxiv.org/abs/2411.11055>`__ at
+`ENLSP@NeurIPS24 <https://neurips2024-enlsp.github.io/accepted_papers.html>`__
+by Intel Labs.
+
+FastDraft pre-trained draft models achieve impressive results in key
+metrics of acceptance rate, block efficiency and up to 3x memory bound
+speed up when evaluated on code completion and up to 2x in
+summarization, text completion and instruction tasks and unlock large
+language models inference on AI-PC and other edge-devices.
+
 In this tutorial we consider how to apply Speculative decoding using
-OpenVINO GenAI.
+FastDraft and OpenVINO GenAI.
 
 
 **Table of contents:**
@@ -82,9 +99,10 @@ model inference.
 
 |image01|
 
-OpenVINO™ GenAI is a library of the most popular Generative AI model
-pipelines, optimized execution methods, and samples that run on top of
-highly performant `OpenVINO
+`OpenVINO™ GenAI <https://github.com/openvinotoolkit/openvino.genai>`__
+is a library of the most popular Generative AI model pipelines,
+optimized execution methods, and samples that run on top of highly
+performant `OpenVINO
 Runtime <https://github.com/openvinotoolkit/openvino>`__.
 
 This library is friendly to PC and laptop execution, and optimized for
@@ -96,7 +114,7 @@ generative models as it already includes all the core functionality
 
 .. code:: ipython3
 
-    %pip install --pre -Uq "openvino>=2024.4.0" openvino-tokenizers openvino-genai huggingface_hub --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+    %pip install -Uq "openvino>=2024.5.0" "openvino-tokenizers>=2024.5.0" "openvino-genai>=2024.5.0" huggingface_hub
 
 Prepare models
 --------------
@@ -104,8 +122,16 @@ Prepare models
 
 
 As example, we will use already converted LLMs from `OpenVINO
-collection <https://huggingface.co/collections/OpenVINO/llm-6687aaa2abca3bbcec71a9bd>`__,
-but in case, if you want run own models, you should convert them using
+collection <https://huggingface.co/collections/OpenVINO/llm-6687aaa2abca3bbcec71a9bd>`__.
+You can find OpenVINO optimized FastDraft models can be found in this
+`collection <https://huggingface.co/collections/OpenVINO/speculative-decoding-draft-models-673f5d944d58b29ba6e94161>`__.
+As example we will use
+`Phi-3-mini-4k-instruct-int4-ov <https://huggingface.co/OpenVINO/Phi-3-mini-4k-instruct-int4-ov>`__
+as target model and
+`Phi-3-mini-FastDraft-50M-int8-ov <https://huggingface.co/OpenVINO/Phi-3-mini-FastDraft-50M-int8-ov>`__
+as draft.
+
+In case, if you want run own models, you should convert them using
 `Hugging Face
 Optimum <https://huggingface.co/docs/optimum/intel/openvino/export>`__
 library accelerated by OpenVINO integration. More details about model
@@ -117,8 +143,8 @@ guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/llm-infe
     from pathlib import Path
     import huggingface_hub as hf_hub
 
-    draft_model_id = "OpenVINO/dolly-v2-3b-int4-ov"
-    target_model_id = "OpenVINO/dolly-v2-7b-int8-ov"
+    draft_model_id = "OpenVINO/Phi-3-mini-FastDraft-50M-int8-ov"
+    target_model_id = "OpenVINO/Phi-3-mini-4k-instruct-int4-ov"
 
     draft_model_path = Path(draft_model_id.split("/")[-1])
     target_model_path = Path(target_model_id.split("/")[-1])
@@ -134,7 +160,8 @@ Select inference device
 
 
 Select the device from dropdown list for running inference using
-OpenVINO.
+OpenVINO. > **Note**: For achieving maximal performance, we recommend to
+use GPU as target device if it is available.
 
 .. code:: ipython3
 
@@ -181,12 +208,12 @@ generation is finished, we will write streamer function.
 
 .. code:: ipython3
 
-    import openvino_genai
+    import openvino_genai as ov_genai
     import time
 
-    pipe = openvino_genai.LLMPipeline(target_model_path, device.value)
+    pipe = ov_genai.LLMPipeline(target_model_path, device.value)
 
-    config = openvino_genai.GenerationConfig()
+    config = ov_genai.GenerationConfig()
     config.max_new_tokens = 100
 
 
@@ -229,7 +256,7 @@ To enable Speculative decoding in ``LLMPipeline,`` we should
 additionally provide the ``draft_model`` structure and
 ``SchedulerConfig`` for resource management.
 
-|image011|
+|image02|
 
 As shown in the figure above, speculative decoding works by splitting
 the generative process into two stages. In the first stage, a fast, but
@@ -249,22 +276,21 @@ generation config. If the assistant model’s confidence in its prediction
 for the current token is lower than this threshold, the assistant model
 stops the current token generation iteration is not yet reached.
 
-.. |image011| image:: https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/dynamic_speculation_lookahead/spec_dec_diagram.png
+.. |image02| image:: https://github.com/user-attachments/assets/69f5c096-abca-4f97-952b-291c52eb3444
 
 .. code:: ipython3
 
-    scheduler_config = openvino_genai.SchedulerConfig()
+    scheduler_config = ov_genai.SchedulerConfig()
     # cache params
     scheduler_config.cache_size = 2
-    scheduler_config.block_size = 16 if "GPU" in device.value else 32
 
-    draft_model = openvino_genai.draft_model(draft_model_path, device.value)
+    draft_model = ov_genai.draft_model(draft_model_path, device.value)
 
-    pipe = openvino_genai.LLMPipeline(target_model_path, device.value, draft_model=draft_model, scheduler_config=scheduler_config)
+    pipe = ov_genai.LLMPipeline(target_model_path, device.value, draft_model=draft_model, scheduler_config=scheduler_config)
 
-    config = openvino_genai.GenerationConfig()
+    config = ov_genai.GenerationConfig()
     config.max_new_tokens = 100
-    config.num_assistant_tokens = 5
+    config.num_assistant_tokens = 3
     start_time = time.perf_counter()
     result = pipe.generate(["Sun is yellow because"], config, streamer=streamer)
     end_time = time.perf_counter()
@@ -296,10 +322,15 @@ lower than this threshold, the assistant model stops the current token
 generation iteration, even if the number of ``num_assistant_tokens`` is
 not yet reached. You can find more details in this `blog
 post <https://huggingface.co/blog/dynamic_speculation_lookahead>`__.
+This approach has advantages for cases, when optimal number of tokens
+for draft model is unknown and draft model has low acceptance rate.
+
+   *Note*: For small and fast draft models like FastDraft, you may not
+   see benefit for dynamic speculative decoding.
 
 .. code:: ipython3
 
-    config = openvino_genai.GenerationConfig()
+    config = ov_genai.GenerationConfig()
     config.max_new_tokens = 100
     config.assistant_confidence_threshold = 0.05
     start_time = time.perf_counter()

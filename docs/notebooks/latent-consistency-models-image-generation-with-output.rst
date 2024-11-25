@@ -41,23 +41,17 @@ repository <https://github.com/luosiallen/latent-consistency-model>`__.
 
 In this tutorial, we consider how to convert and run LCM using OpenVINO.
 An additional part demonstrates how to run quantization with
-`NNCF <https://github.com/openvinotoolkit/nncf/>`__ to speed up
-pipeline.
+`NNCF <https://github.com/openvinotoolkit/nncf/>`__ to speed up pipeline
+and generate images using `OpenVINO
+GenAI <https://github.com/openvinotoolkit/openvino.genai>`__.
 
 
 **Table of contents:**
 
 
 -  `Prerequisites <#prerequisites>`__
--  `Prepare models for OpenVINO format
-   conversion <#prepare-models-for-openvino-format-conversion>`__
 -  `Convert models to OpenVINO
    format <#convert-models-to-openvino-format>`__
-
-   -  `Text Encoder <#text-encoder>`__
-   -  `U-Net <#u-net>`__
-   -  `VAE <#vae>`__
-
 -  `Prepare inference pipeline <#prepare-inference-pipeline>`__
 
    -  `Configure Inference Pipeline <#configure-inference-pipeline>`__
@@ -69,9 +63,10 @@ pipeline.
    -  `Run quantization <#run-quantization>`__
    -  `Compare inference time of the FP16 and INT8
       models <#compare-inference-time-of-the-fp16-and-int8-models>`__
+   -  `Compare UNet file size <#compare-unet-file-size>`__
 
-      -  `Compare UNet file size <#compare-unet-file-size>`__
-
+-  `Run Text to image generation using OpenVINO
+   GenAI <#run-text-to-image-generation-using-openvino-genai>`__
 -  `Interactive demo <#interactive-demo>`__
 
 Installation Instructions
@@ -92,10 +87,27 @@ Prerequisites
 .. code:: ipython3
 
     %pip install -q "torch>=2.1" --index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "openvino>=2024.3.0" transformers "diffusers>=0.30.1" pillow "gradio>=4.19" "nncf>=2.12.0" "datasets>=2.14.6" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "transformers>=4.45" tqdm accelerate "diffusers>=0.30.1" pillow "gradio>=4.19" "nncf>=2.12.0" "datasets>=2.14.6" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
+    %pip install -qU --pre  "openvino>=2024.4.0" "openvino-tokenizers" "openvino-genai" --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
 
-Prepare models for OpenVINO format conversion
----------------------------------------------
+.. code:: ipython3
+
+    from pathlib import Path
+    import requests
+    
+    utility_files = [Path("notebook_utils.py"), Path("skip_kernel_extension.py"), Path("cmd_helper.py")]
+    
+    base_utils_url = "https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/"
+    
+    for utility_file in utility_files:
+        if not utility_file.exists():
+            r = requests.get(base_utils_url + utility_file.name)
+            with utility_file.open("w") as f:
+                f.write(r.text)
+
+Convert models to OpenVINO format
+---------------------------------
 
 
 
@@ -117,316 +129,48 @@ and distilled using LCD. The distillation approach efficiently converts
 a pre-trained guided diffusion model into a latent consistency model by
 solving an augmented PF-ODE.
 
-For starting work with LCM, we should instantiate generation pipeline
-first. ``DiffusionPipeline.from_pretrained`` method download all
-pipeline components for LCM and configure them. This model uses custom
-inference pipeline stored as part of model repository, we also should
-provide which module should be loaded for initialization using
-``custom_pipeline`` argument and revision for it.
+For simplifying model export we will utilize Optimum Intel library. 
+`Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
+the interface between the 
+`Transformers <https://huggingface.co/docs/transformers/index>`__ and
+`Diffusers <https://huggingface.co/docs/diffusers/index>`__ libraries
+and OpenVINO to accelerate end-to-end pipelines on Intel architectures.
+It provides ease-to-use
+`interface <https://huggingface.co/docs/optimum/intel/openvino/export>`__
+for exporting models to `OpenVINO Intermediate Representation
+(IR) <https://docs.openvino.ai/2024/documentation/openvino-ir-format.html>`__
+format.
+
+The command bellow demonstrates basic command for model export with
+``optimum-cli``
+
+.. code:: bash
+
+   optimum-cli export openvino --model <model_id_or_path> --task <task> <out_dir>
+
+where ``--model`` argument is model id from HuggingFace Hub or local
+directory with model (saved using ``.save_pretrained`` method),
+``--task`` is one of `supported
+task <https://huggingface.co/docs/optimum/exporters/task_manager>`__
+that exported model should solve. For image generation it will be
+``text-to-image``. If model initialization requires to use remote code,
+``--trust-remote-code`` flag additionally should be passed. You can also
+apply fp16, 8-bit or 4-bit weight compression on the Linear,
+Convolutional and Embedding layers when exporting your model with the
+CLI by setting ``--weight-format`` to respectively fp16, int8 or int4.
+This type of optimization allows to reduce the memory footprint and
+inference latency. We will quantize our model later using nncf, so in
+this step we will use fp16 as base model export precision.
 
 .. code:: ipython3
 
-    import gc
-    import warnings
-    from pathlib import Path
-    from diffusers import DiffusionPipeline
-    import numpy as np
+    from cmd_helper import optimum_cli
     
+    model_id = "SimianLuo/LCM_Dreamshaper_v7"
+    model_path = Path(model_id.split("/")[-1] + "_ov")
     
-    warnings.filterwarnings("ignore")
-    
-    TEXT_ENCODER_OV_PATH = Path("model/text_encoder.xml")
-    UNET_OV_PATH = Path("model/unet.xml")
-    VAE_DECODER_OV_PATH = Path("model/vae_decoder.xml")
-    
-    
-    def load_orginal_pytorch_pipeline_componets(skip_models=False, skip_safety_checker=False):
-        pipe = DiffusionPipeline.from_pretrained("SimianLuo/LCM_Dreamshaper_v7")
-        scheduler = pipe.scheduler
-        tokenizer = pipe.tokenizer
-        feature_extractor = pipe.feature_extractor if not skip_safety_checker else None
-        safety_checker = pipe.safety_checker if not skip_safety_checker else None
-        text_encoder, unet, vae = None, None, None
-        if not skip_models:
-            text_encoder = pipe.text_encoder
-            text_encoder.eval()
-            unet = pipe.unet
-            unet.eval()
-            vae = pipe.vae
-            vae.eval()
-        del pipe
-        gc.collect()
-        return (
-            scheduler,
-            tokenizer,
-            feature_extractor,
-            safety_checker,
-            text_encoder,
-            unet,
-            vae,
-        )
-
-.. code:: ipython3
-
-    skip_conversion = TEXT_ENCODER_OV_PATH.exists() and UNET_OV_PATH.exists() and VAE_DECODER_OV_PATH.exists()
-    
-    (
-        scheduler,
-        tokenizer,
-        feature_extractor,
-        safety_checker,
-        text_encoder,
-        unet,
-        vae,
-    ) = load_orginal_pytorch_pipeline_componets(skip_conversion)
-
-
-
-.. parsed-literal::
-
-    Fetching 15 files:   0%|          | 0/15 [00:00<?, ?it/s]
-
-
-
-.. parsed-literal::
-
-    diffusion_pytorch_model.safetensors:   0%|          | 0.00/3.44G [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    model.safetensors:   0%|          | 0.00/1.22G [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    model.safetensors:   0%|          | 0.00/492M [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    Loading pipeline components...:   0%|          | 0/7 [00:00<?, ?it/s]
-
-
-Convert models to OpenVINO format
----------------------------------
-
-
-
-Starting from 2023.0 release, OpenVINO supports PyTorch models directly
-via Model Conversion API. ``ov.convert_model`` function accepts instance
-of PyTorch model and example inputs for tracing and returns object of
-``ov.Model`` class, ready to use or save on disk using ``ov.save_model``
-function.
-
-Like original Stable Diffusion pipeline, the LCM pipeline consists of
-three important parts:
-
--  Text Encoder to create condition to generate an image from a text
-   prompt.
--  U-Net for step-by-step denoising latent image representation.
--  Autoencoder (VAE) for decoding latent space to image.
-
-Let us convert each part:
-
-Text Encoder
-~~~~~~~~~~~~
-
-
-
-The text-encoder is responsible for transforming the input prompt, for
-example, “a photo of an astronaut riding a horse” into an embedding
-space that can be understood by the U-Net. It is usually a simple
-transformer-based encoder that maps a sequence of input tokens to a
-sequence of latent text embeddings.
-
-Input of the text encoder is the tensor ``input_ids`` which contains
-indexes of tokens from text processed by tokenizer and padded to maximum
-length accepted by model. Model outputs are two tensors:
-``last_hidden_state`` - hidden state from the last MultiHeadAttention
-layer in the model and ``pooler_out`` - Pooled output for whole model
-hidden states.
-
-.. code:: ipython3
-
-    import torch
-    import openvino as ov
-    
-    
-    def cleanup_torchscript_cache():
-        """
-        Helper for removing cached model representation
-        """
-        torch._C._jit_clear_class_registry()
-        torch.jit._recursive.concrete_type_store = torch.jit._recursive.ConcreteTypeStore()
-        torch.jit._state._clear_class_state()
-    
-    
-    def convert_encoder(text_encoder: torch.nn.Module, ir_path: Path):
-        """
-        Convert Text Encoder mode.
-        Function accepts text encoder model, and prepares example inputs for conversion,
-        Parameters:
-            text_encoder (torch.nn.Module): text_encoder model from Stable Diffusion pipeline
-            ir_path (Path): File for storing model
-        Returns:
-            None
-        """
-        input_ids = torch.ones((1, 77), dtype=torch.long)
-        # switch model to inference mode
-        text_encoder.eval()
-    
-        # disable gradients calculation for reducing memory consumption
-        with torch.no_grad():
-            # Export model to IR format
-            ov_model = ov.convert_model(
-                text_encoder,
-                example_input=input_ids,
-                input=[
-                    (-1, 77),
-                ],
-            )
-        ov.save_model(ov_model, ir_path)
-        del ov_model
-        cleanup_torchscript_cache()
-        gc.collect()
-        print(f"Text Encoder successfully converted to IR and saved to {ir_path}")
-    
-    
-    if not TEXT_ENCODER_OV_PATH.exists():
-        convert_encoder(text_encoder, TEXT_ENCODER_OV_PATH)
-    else:
-        print(f"Text encoder will be loaded from {TEXT_ENCODER_OV_PATH}")
-    
-    del text_encoder
-    gc.collect();
-
-U-Net
-~~~~~
-
-
-
-U-Net model, similar to Stable Diffusion UNet model, has four inputs:
-
--  ``sample`` - latent image sample from previous step. Generation
-   process has not been started yet, so you will use random noise.
--  ``timestep`` - current scheduler step.
--  ``encoder_hidden_state`` - hidden state of text encoder.
--  ``timestep_cond`` - timestep condition for generation. This input is
-   not present in original Stable Diffusion U-Net model and introduced
-   by LCM for improving generation quality using Classifier-Free
-   Guidance. `Classifier-free guidance
-   (CFG) <https://arxiv.org/abs/2207.12598>`__ is crucial for
-   synthesizing high-quality text-aligned images in Stable Diffusion,
-   because it controls how similar the generated image will be to the
-   prompt. In Latent Consistency Models, CFG serves as augmentation
-   parameter for PF-ODE.
-
-Model predicts the ``sample`` state for the next step.
-
-.. code:: ipython3
-
-    def convert_unet(unet: torch.nn.Module, ir_path: Path):
-        """
-        Convert U-net model to IR format.
-        Function accepts unet model, prepares example inputs for conversion,
-        Parameters:
-            unet (StableDiffusionPipeline): unet from Stable Diffusion pipeline
-            ir_path (Path): File for storing model
-        Returns:
-            None
-        """
-        # prepare inputs
-        dummy_inputs = {
-            "sample": torch.randn((1, 4, 64, 64)),
-            "timestep": torch.ones([1]).to(torch.float32),
-            "encoder_hidden_states": torch.randn((1, 77, 768)),
-            "timestep_cond": torch.randn((1, 256)),
-        }
-        unet.eval()
-        with torch.no_grad():
-            ov_model = ov.convert_model(unet, example_input=dummy_inputs)
-        ov.save_model(ov_model, ir_path)
-        del ov_model
-        cleanup_torchscript_cache()
-        gc.collect()
-        print(f"Unet successfully converted to IR and saved to {ir_path}")
-    
-    
-    if not UNET_OV_PATH.exists():
-        convert_unet(unet, UNET_OV_PATH)
-    else:
-        print(f"Unet will be loaded from {UNET_OV_PATH}")
-    del unet
-    gc.collect();
-
-VAE
-~~~
-
-
-
-The VAE model has two parts, an encoder and a decoder. The encoder is
-used to convert the image into a low dimensional latent representation,
-which will serve as the input to the U-Net model. The decoder,
-conversely, transforms the latent representation back into an image.
-
-During latent diffusion training, the encoder is used to get the latent
-representations (latents) of the images for the forward diffusion
-process, which applies more and more noise at each step. During
-inference, the denoised latents generated by the reverse diffusion
-process are converted back into images using the VAE decoder. When you
-run inference for text-to-image, there is no initial image as a starting
-point. You can skip this step and directly generate initial random
-noise.
-
-In our inference pipeline, we will not use VAE encoder part and skip its
-conversion for reducing memory consumption. The process of conversion
-VAE encoder, can be found in Stable Diffusion notebook.
-
-.. code:: ipython3
-
-    def convert_vae_decoder(vae: torch.nn.Module, ir_path: Path):
-        """
-        Convert VAE model for decoding to IR format.
-        Function accepts vae model, creates wrapper class for export only necessary for inference part,
-        prepares example inputs for conversion,
-        Parameters:
-            vae (torch.nn.Module): VAE model frm StableDiffusion pipeline
-            ir_path (Path): File for storing model
-        Returns:
-            None
-        """
-    
-        class VAEDecoderWrapper(torch.nn.Module):
-            def __init__(self, vae):
-                super().__init__()
-                self.vae = vae
-    
-            def forward(self, latents):
-                return self.vae.decode(latents)
-    
-        vae_decoder = VAEDecoderWrapper(vae)
-        latents = torch.zeros((1, 4, 64, 64))
-    
-        vae_decoder.eval()
-        with torch.no_grad():
-            ov_model = ov.convert_model(vae_decoder, example_input=latents)
-        ov.save_model(ov_model, ir_path)
-        del ov_model
-        cleanup_torchscript_cache()
-        print(f"VAE decoder successfully converted to IR and saved to {ir_path}")
-    
-    
-    if not VAE_DECODER_OV_PATH.exists():
-        convert_vae_decoder(vae, VAE_DECODER_OV_PATH)
-    else:
-        print(f"VAE decoder will be loaded from {VAE_DECODER_OV_PATH}")
-    
-    del vae
-    gc.collect();
+    if not model_path.exists():
+        optimum_cli(model_id, model_path, additional_args={"weight-format": "fp16"})
 
 Prepare inference pipeline
 --------------------------
@@ -461,237 +205,27 @@ number of steps required ~2-8) to step-by-step retrieve better latent
 image representations. When complete, the latent image representation is
 decoded by the decoder part of the variational auto encoder.
 
-.. code:: ipython3
-
-    from typing import Union, Optional, Any, List, Dict
-    from transformers import CLIPTokenizer, CLIPImageProcessor
-    from diffusers.pipelines.stable_diffusion.safety_checker import (
-        StableDiffusionSafetyChecker,
-    )
-    from diffusers.pipelines.stable_diffusion import StableDiffusionPipelineOutput
-    from diffusers.image_processor import VaeImageProcessor
-    
-    
-    class OVLatentConsistencyModelPipeline(DiffusionPipeline):
-        def __init__(
-            self,
-            vae_decoder: ov.Model,
-            text_encoder: ov.Model,
-            tokenizer: CLIPTokenizer,
-            unet: ov.Model,
-            scheduler: None,
-            safety_checker: StableDiffusionSafetyChecker,
-            feature_extractor: CLIPImageProcessor,
-            requires_safety_checker: bool = True,
-        ):
-            super().__init__()
-            self.vae_decoder = vae_decoder
-            self.text_encoder = text_encoder
-            self.tokenizer = tokenizer
-            self.register_to_config(unet=unet)
-            self.scheduler = scheduler
-            self.safety_checker = safety_checker
-            self.feature_extractor = feature_extractor
-            self.vae_scale_factor = 2**3
-            self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor)
-    
-        def _encode_prompt(
-            self,
-            prompt,
-            num_images_per_prompt,
-            prompt_embeds: None,
-        ):
-            r"""
-            Encodes the prompt into text encoder hidden states.
-            Args:
-                prompt (`str` or `List[str]`, *optional*):
-                    prompt to be encoded
-                num_images_per_prompt (`int`):
-                    number of images that should be generated per prompt
-                prompt_embeds (`torch.FloatTensor`, *optional*):
-                    Pre-generated text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt weighting. If not
-                    provided, text embeddings will be generated from `prompt` input argument.
-            """
-    
-            if prompt_embeds is None:
-                text_inputs = self.tokenizer(
-                    prompt,
-                    padding="max_length",
-                    max_length=self.tokenizer.model_max_length,
-                    truncation=True,
-                    return_tensors="pt",
-                )
-                text_input_ids = text_inputs.input_ids
-    
-                prompt_embeds = self.text_encoder(text_input_ids, share_inputs=True, share_outputs=True)
-                prompt_embeds = torch.from_numpy(prompt_embeds[0])
-    
-            bs_embed, seq_len, _ = prompt_embeds.shape
-            # duplicate text embeddings for each generation per prompt
-            prompt_embeds = prompt_embeds.repeat(1, num_images_per_prompt, 1)
-            prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
-    
-            # Don't need to get uncond prompt embedding because of LCM Guided Distillation
-            return prompt_embeds
-    
-        def run_safety_checker(self, image, dtype):
-            if self.safety_checker is None:
-                has_nsfw_concept = None
-            else:
-                if torch.is_tensor(image):
-                    feature_extractor_input = self.image_processor.postprocess(image, output_type="pil")
-                else:
-                    feature_extractor_input = self.image_processor.numpy_to_pil(image)
-                safety_checker_input = self.feature_extractor(feature_extractor_input, return_tensors="pt")
-                image, has_nsfw_concept = self.safety_checker(images=image, clip_input=safety_checker_input.pixel_values.to(dtype))
-            return image, has_nsfw_concept
-    
-        def prepare_latents(self, batch_size, num_channels_latents, height, width, dtype, latents=None):
-            shape = (
-                batch_size,
-                num_channels_latents,
-                height // self.vae_scale_factor,
-                width // self.vae_scale_factor,
-            )
-            if latents is None:
-                latents = torch.randn(shape, dtype=dtype)
-            # scale the initial noise by the standard deviation required by the scheduler
-            latents = latents * self.scheduler.init_noise_sigma
-            return latents
-    
-        def get_w_embedding(self, w, embedding_dim=512, dtype=torch.float32):
-            """
-            see https://github.com/google-research/vdm/blob/dc27b98a554f65cdc654b800da5aa1846545d41b/model_vdm.py#L298
-            Args:
-            timesteps: torch.Tensor: generate embedding vectors at these timesteps
-            embedding_dim: int: dimension of the embeddings to generate
-            dtype: data type of the generated embeddings
-            Returns:
-            embedding vectors with shape `(len(timesteps), embedding_dim)`
-            """
-            assert len(w.shape) == 1
-            w = w * 1000.0
-    
-            half_dim = embedding_dim // 2
-            emb = torch.log(torch.tensor(10000.0)) / (half_dim - 1)
-            emb = torch.exp(torch.arange(half_dim, dtype=dtype) * -emb)
-            emb = w.to(dtype)[:, None] * emb[None, :]
-            emb = torch.cat([torch.sin(emb), torch.cos(emb)], dim=1)
-            if embedding_dim % 2 == 1:  # zero pad
-                emb = torch.nn.functional.pad(emb, (0, 1))
-            assert emb.shape == (w.shape[0], embedding_dim)
-            return emb
-    
-        @torch.no_grad()
-        def __call__(
-            self,
-            prompt: Union[str, List[str]] = None,
-            height: Optional[int] = 512,
-            width: Optional[int] = 512,
-            guidance_scale: float = 7.5,
-            num_images_per_prompt: Optional[int] = 1,
-            latents: Optional[torch.FloatTensor] = None,
-            num_inference_steps: int = 4,
-            lcm_origin_steps: int = 50,
-            prompt_embeds: Optional[torch.FloatTensor] = None,
-            output_type: Optional[str] = "pil",
-            return_dict: bool = True,
-            cross_attention_kwargs: Optional[Dict[str, Any]] = None,
-        ):
-            # 1. Define call parameters
-            if prompt is not None and isinstance(prompt, str):
-                batch_size = 1
-            elif prompt is not None and isinstance(prompt, list):
-                batch_size = len(prompt)
-            else:
-                batch_size = prompt_embeds.shape[0]
-    
-            # do_classifier_free_guidance = guidance_scale > 0.0
-            # In LCM Implementation:  cfg_noise = noise_cond + cfg_scale * (noise_cond - noise_uncond) , (cfg_scale > 0.0 using CFG)
-    
-            # 2. Encode input prompt
-            prompt_embeds = self._encode_prompt(
-                prompt,
-                num_images_per_prompt,
-                prompt_embeds=prompt_embeds,
-            )
-    
-            # 3. Prepare timesteps
-            self.scheduler.set_timesteps(num_inference_steps, original_inference_steps=lcm_origin_steps)
-            timesteps = self.scheduler.timesteps
-    
-            # 4. Prepare latent variable
-            num_channels_latents = 4
-            latents = self.prepare_latents(
-                batch_size * num_images_per_prompt,
-                num_channels_latents,
-                height,
-                width,
-                prompt_embeds.dtype,
-                latents,
-            )
-    
-            bs = batch_size * num_images_per_prompt
-    
-            # 5. Get Guidance Scale Embedding
-            w = torch.tensor(guidance_scale).repeat(bs)
-            w_embedding = self.get_w_embedding(w, embedding_dim=256)
-    
-            # 6. LCM MultiStep Sampling Loop:
-            with self.progress_bar(total=num_inference_steps) as progress_bar:
-                for i, t in enumerate(timesteps):
-                    ts = torch.full((bs,), t, dtype=torch.long)
-    
-                    # model prediction (v-prediction, eps, x)
-                    model_pred = self.unet(
-                        [latents, ts, prompt_embeds, w_embedding],
-                        share_inputs=True,
-                        share_outputs=True,
-                    )[0]
-    
-                    # compute the previous noisy sample x_t -> x_t-1
-                    latents, denoised = self.scheduler.step(torch.from_numpy(model_pred), t, latents, return_dict=False)
-                    progress_bar.update()
-    
-            if not output_type == "latent":
-                image = torch.from_numpy(self.vae_decoder(denoised / 0.18215, share_inputs=True, share_outputs=True)[0])
-                image, has_nsfw_concept = self.run_safety_checker(image, prompt_embeds.dtype)
-            else:
-                image = denoised
-                has_nsfw_concept = None
-    
-            if has_nsfw_concept is None:
-                do_denormalize = [True] * image.shape[0]
-            else:
-                do_denormalize = [not has_nsfw for has_nsfw in has_nsfw_concept]
-    
-            image = self.image_processor.postprocess(image, output_type=output_type, do_denormalize=do_denormalize)
-    
-            if not return_dict:
-                return (image, has_nsfw_concept)
-    
-            return StableDiffusionPipelineOutput(images=image, nsfw_content_detected=has_nsfw_concept)
+For starting work with LCM, we should instantiate the generation
+pipeline first. ``DiffusionPipeline.from_pretrained`` method downloads
+all pipeline components (if required) for LCM and configure them.
+Loading LCM for OpenVINO inference using Optimum Intel looks similar, we
+only should replace ``DiffusionPipeline`` with ``OVDiffusionPpeline``.
+This model class accepts model id from HuggingFace Hub or local
+directory for original PyTorch pipeline or already converted. In case,
+if path to original pipeline provided, it will be automatically
+converted to OpenVINO format, but as we already converted model before
+using Optimum CLI, we will use models from the previous step.
 
 Configure Inference Pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 
-First, you should create instances of OpenVINO Model and compile it
-using selected device. Select device from dropdown list for running
-inference using OpenVINO.
+Optionally, we can setup which device will be used for running
+inference. Select desired inference device from dropdown list bellow.
 
 .. code:: ipython3
 
-    core = ov.Core()
-    
-    import requests
-    
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
-    
     from notebook_utils import device_widget
     
     device = device_widget()
@@ -703,18 +237,27 @@ inference using OpenVINO.
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU', 'AUTO'), value='CPU')
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
 
 
 
 .. code:: ipython3
 
-    text_enc = core.compile_model(TEXT_ENCODER_OV_PATH, device.value)
-    unet_model = core.compile_model(UNET_OV_PATH, device.value)
+    from optimum.intel.openvino import OVDiffusionPipeline
     
-    ov_config = {"INFERENCE_PRECISION_HINT": "f32"} if device.value != "CPU" else {}
-    
-    vae_decoder = core.compile_model(VAE_DECODER_OV_PATH, device.value, ov_config)
+    ov_pipe = OVDiffusionPipeline.from_pretrained(model_path, device=device.value)
+
+
+.. parsed-literal::
+
+    2024-11-14 12:52:11.556586: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-11-14 12:52:11.570192: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:477] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+    WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+    E0000 00:00:1731574331.585339 2056327 cuda_dnn.cc:8310] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+    E0000 00:00:1731574331.589784 2056327 cuda_blas.cc:1418] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+    2024-11-14 12:52:11.606540: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+
 
 Model tokenizer and scheduler are also important parts of the pipeline.
 This pipeline is also can use Safety Checker, the filter for detecting
@@ -723,18 +266,6 @@ content. The process of nsfw content detection requires to obtain image
 embeddings using CLIP model, so additionally feature extractor component
 should be added in the pipeline. We reuse tokenizer, feature extractor,
 scheduler and safety checker from original LCM pipeline.
-
-.. code:: ipython3
-
-    ov_pipe = OVLatentConsistencyModelPipeline(
-        tokenizer=tokenizer,
-        text_encoder=text_enc,
-        unet=unet_model,
-        vae_decoder=vae_decoder,
-        scheduler=scheduler,
-        feature_extractor=feature_extractor,
-        safety_checker=safety_checker,
-    )
 
 Text-to-image generation
 ------------------------
@@ -745,18 +276,13 @@ Now, let’s see model in action
 
 .. code:: ipython3
 
+    import torch
+    
     prompt = "a beautiful pink unicorn, 8k"
     num_inference_steps = 4
-    torch.manual_seed(1234567)
     
     images = ov_pipe(
-        prompt=prompt,
-        num_inference_steps=num_inference_steps,
-        guidance_scale=8.0,
-        lcm_origin_steps=50,
-        output_type="pil",
-        height=512,
-        width=512,
+        prompt=prompt, num_inference_steps=num_inference_steps, guidance_scale=8.0, height=512, width=512, generator=torch.Generator().manual_seed(1234567)
     ).images
 
 
@@ -773,11 +299,18 @@ Now, let’s see model in action
 
 
 
-.. image:: latent-consistency-models-image-generation-with-output_files/latent-consistency-models-image-generation-with-output_21_0.png
+.. image:: latent-consistency-models-image-generation-with-output_files/latent-consistency-models-image-generation-with-output_13_0.png
 
 
 
 Nice. As you can see, the picture has quite a high definition 🔥.
+
+.. code:: ipython3
+
+    import gc
+    
+    del ov_pipe
+    gc.collect();
 
 Quantization
 ------------
@@ -814,6 +347,7 @@ improve model inference speed.
     
     skip_for_device = "GPU" in device.value
     to_quantize = quantization_widget(not skip_for_device)
+    int8_model_path = model_path.parent / (model_path.name + "_int8")
     
     to_quantize
 
@@ -826,21 +360,12 @@ improve model inference speed.
 
 
 
-Let’s load ``skip magic`` extension to skip quantization if
-``to_quantize`` is not selected
-
 .. code:: ipython3
 
-    int8_pipe = None
-    
-    # Fetch `skip_kernel_extension` module
-    import requests
-    
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
-    )
-    open("skip_kernel_extension.py", "w").write(r.text)
     %load_ext skip_kernel_extension
+
+Let’s load ``skip magic`` extension to skip quantization if
+``to_quantize`` is not selected
 
 Prepare calibration dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -860,6 +385,8 @@ model inputs for calibration we should customize ``CompiledModel``.
     from tqdm.notebook import tqdm
     from transformers import set_seed
     from typing import Any, Dict, List
+    import openvino as ov
+    import numpy as np
     
     set_seed(1)
     
@@ -874,9 +401,9 @@ model inputs for calibration we should customize ``CompiledModel``.
                 self.data_cache.append(*args)
             return super().__call__(*args, **kwargs)
     
-    def collect_calibration_data(lcm_pipeline: OVLatentConsistencyModelPipeline, subset_size: int) -> List[Dict]:
-        original_unet = lcm_pipeline.unet
-        lcm_pipeline.unet = CompiledModelDecorator(original_unet, prob=0.3)
+    def collect_calibration_data(lcm_pipeline, subset_size: int) -> List[Dict]:
+        original_unet = lcm_pipeline.unet.request
+        lcm_pipeline.unet.request = CompiledModelDecorator(original_unet, prob=0.3)
     
         dataset = datasets.load_dataset("google-research-datasets/conceptual_captions", split="train", trust_remote_code=True).shuffle(seed=42)
         lcm_pipeline.set_progress_bar_config(disable=True)
@@ -888,27 +415,25 @@ model inputs for calibration we should customize ``CompiledModel``.
         diff = 0
         for batch in dataset:
             prompt = batch["caption"]
-            if len(prompt) > tokenizer.model_max_length:
+            if len(prompt) > lcm_pipeline.tokenizer.model_max_length:
                 continue
             _ = lcm_pipeline(
                 prompt,
                 num_inference_steps=num_inference_steps,
                 guidance_scale=8.0,
-                lcm_origin_steps=50,
-                output_type="pil",
                 height=512,
                 width=512,
             )
-            collected_subset_size = len(lcm_pipeline.unet.data_cache)
+            collected_subset_size = len(lcm_pipeline.unet.request.data_cache)
             if collected_subset_size >= subset_size:
                 pbar.update(subset_size - pbar.n)
                 break
             pbar.update(collected_subset_size - diff)
             diff = collected_subset_size
     
-        calibration_dataset = lcm_pipeline.unet.data_cache
+        calibration_dataset = lcm_pipeline.unet.request.data_cache
         lcm_pipeline.set_progress_bar_config(disable=False)
-        lcm_pipeline.unet = original_unet
+        lcm_pipeline.unet.request = original_unet
         lcm_pipeline.safety_checker = safety_checker
         return calibration_dataset
 
@@ -920,10 +445,12 @@ model inputs for calibration we should customize ``CompiledModel``.
     logging.basicConfig(level=logging.WARNING)
     logger = logging.getLogger(__name__)
     
-    UNET_INT8_OV_PATH = Path("model/unet_int8.xml")
-    if not UNET_INT8_OV_PATH.exists():
+    if not int8_model_path.exists():
         subset_size = 200
+        ov_pipe = OVDiffusionPipeline.from_pretrained(model_path, device=device.value)
         unet_calibration_data = collect_calibration_data(ov_pipe, subset_size=subset_size)
+        del ov_pipe
+        gc.collect();
 
 
 
@@ -948,12 +475,11 @@ Create a quantized model from the pre-trained converted OpenVINO model.
     
     import nncf
     from nncf.scopes import IgnoredScope
+    import shutil
+    core = ov.Core()
     
-    if UNET_INT8_OV_PATH.exists():
-        print("Loading quantized model")
-        quantized_unet = core.read_model(UNET_INT8_OV_PATH)
-    else:
-        unet = core.read_model(UNET_OV_PATH)
+    if not int8_model_path.exists():
+        unet = core.read_model(model_path / "unet/openvino_model.xml")
         quantized_unet = nncf.quantize(
             model=unet,
             subset_size=subset_size,
@@ -963,33 +489,19 @@ Create a quantized model from the pre-trained converted OpenVINO model.
                 disable_bias_correction=True
             )
         )
-        ov.save_model(quantized_unet, UNET_INT8_OV_PATH)
-
-
-.. parsed-literal::
-
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, onnx, openvino
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        ov.save_model(quantized_unet, int8_model_path / "unet/openvino_model.xml")
+        del quantized_unet
+        del unet
+        gc.collect()
+        for filename in model_path.rglob("*"):
+            if filename.is_dir():
+                continue
+            relative_file_name = filename.relative_to(model_path)
+            if (int8_model_path / relative_file_name).exists():
+                continue
+            dst_path  = int8_model_path / relative_file_name
+            dst_path.parent.mkdir(exist_ok=True, parents=True)
+            shutil.copy(filename, dst_path)
 
 
 
@@ -1006,19 +518,6 @@ Create a quantized model from the pre-trained converted OpenVINO model.
 
 
 
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    INFO:nncf:122 ignored nodes were found by name in the NNCFGraph
-
-
-
 .. parsed-literal::
 
     Output()
@@ -1030,6 +529,11 @@ Create a quantized model from the pre-trained converted OpenVINO model.
 
 
 
+
+
+.. parsed-literal::
+
+    Output()
 
 
 
@@ -1043,17 +547,7 @@ Create a quantized model from the pre-trained converted OpenVINO model.
 
     %%skip not $to_quantize.value
     
-    unet_optimized = core.compile_model(UNET_INT8_OV_PATH, device.value)
-    
-    int8_pipe = OVLatentConsistencyModelPipeline(
-        tokenizer=tokenizer,
-        text_encoder=text_enc,
-        unet=unet_optimized,
-        vae_decoder=vae_decoder,
-        scheduler=scheduler,
-        feature_extractor=feature_extractor,
-        safety_checker=safety_checker,
-    )
+    int8_pipe = OVDiffusionPipeline.from_pretrained(int8_model_path, device=device.value)
 
 Let us check predictions with the quantized UNet using the same input
 data.
@@ -1066,16 +560,14 @@ data.
     
     prompt = "a beautiful pink unicorn, 8k"
     num_inference_steps = 4
-    torch.manual_seed(1234567)
     
     images = int8_pipe(
         prompt=prompt,
         num_inference_steps=num_inference_steps,
         guidance_scale=8.0,
-        lcm_origin_steps=50,
-        output_type="pil",
         height=512,
         width=512,
+        generator=torch.Generator().manual_seed(1234567)
     ).images
     
     display(images[0])
@@ -1088,7 +580,7 @@ data.
 
 
 
-.. image:: latent-consistency-models-image-generation-with-output_files/latent-consistency-models-image-generation-with-output_34_1.png
+.. image:: latent-consistency-models-image-generation-with-output_files/latent-consistency-models-image-generation-with-output_27_1.png
 
 
 Compare inference time of the FP16 and INT8 models
@@ -1127,8 +619,6 @@ pipelines, we use median inference time on calibration subset.
                 prompt,
                 num_inference_steps=num_inference_steps,
                 guidance_scale=8.0,
-                lcm_origin_steps=50,
-                output_type="pil",
                 height=512,
                 width=512,
             )
@@ -1143,38 +633,154 @@ pipelines, we use median inference time on calibration subset.
 
     %%skip not $to_quantize.value
     
-    fp_latency = calculate_inference_time(ov_pipe, validation_data)
     int8_latency = calculate_inference_time(int8_pipe, validation_data)
+    del int8_pipe
+    gc.collect()
+    ov_pipe = OVDiffusionPipeline.from_pretrained(model_path, device=device.value)
+    fp_latency = calculate_inference_time(ov_pipe, validation_data)
     print(f"Performance speed up: {fp_latency / int8_latency:.3f}")
+    
+    del ov_pipe
+    gc.collect();
 
 
 .. parsed-literal::
 
-    Performance speed up: 1.319
+    Performance speed up: 1.357
 
 
 Compare UNet file size
-^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~
 
 
 
 .. code:: ipython3
 
-    %%skip not $to_quantize.value
+    UNET_OV_PATH = model_path / "unet/openvino_model.xml"
+    UNET_INT8_OV_PATH = int8_model_path / "unet/openvino_model.xml"
     
-    fp16_ir_model_size = UNET_OV_PATH.with_suffix(".bin").stat().st_size / 1024
-    quantized_model_size = UNET_INT8_OV_PATH.with_suffix(".bin").stat().st_size / 1024
+    if UNET_INT8_OV_PATH.exists():
+        fp16_ir_model_size = UNET_OV_PATH.with_suffix(".bin").stat().st_size / 1024
+        quantized_model_size = UNET_INT8_OV_PATH.with_suffix(".bin").stat().st_size / 1024
     
-    print(f"FP16 model size: {fp16_ir_model_size:.2f} KB")
-    print(f"INT8 model size: {quantized_model_size:.2f} KB")
-    print(f"Model compression rate: {fp16_ir_model_size / quantized_model_size:.3f}")
+        print(f"FP16 model size: {fp16_ir_model_size:.2f} KB")
+        print(f"INT8 model size: {quantized_model_size:.2f} KB")
+        print(f"Model compression rate: {fp16_ir_model_size / quantized_model_size:.3f}")
 
 
 .. parsed-literal::
 
-    FP16 model size: 1678912.37 KB
-    INT8 model size: 840792.93 KB
-    Model compression rate: 1.997
+    FP16 model size: 1678912.69 KB
+    INT8 model size: 841591.46 KB
+    Model compression rate: 1.995
+
+
+Run Text to image generation using OpenVINO GenAI
+-------------------------------------------------
+
+
+
+`OpenVINO™ GenAI <https://github.com/openvinotoolkit/openvino.genai>`__
+is a library of the most popular Generative AI model pipelines,
+optimized execution methods, and samples that run on top of highly
+performant `OpenVINO
+Runtime <https://github.com/openvinotoolkit/openvino>`__.
+
+|image0|
+
+This library is friendly to PC and laptop execution, and optimized for
+resource consumption. It requires no external dependencies to run
+generative models as it already includes all the core functionality.
+
+``openvino_genai.Text2ImagePipeline`` class supports inference of
+`Diffusers
+models <https://github.com/openvinotoolkit/openvino.genai/blob/master/src/docs/SUPPORTED_MODELS.md#text-2-image-models>`__.
+For pipeline initialization, we should provide directory with converted
+by Optimum Intel pipeline and specify inference device. Optionally, we
+can provide configuration for LoRA Adapters using ``adapter_config``.
+For starting generation process ``generate`` method should be used.
+Basically, it required to provide input text prompt for image
+generation. You can provide additional arguments like negative prompt,
+number of steps, guidance scale, image width and height to control
+generation process.
+
+.. |image0| image:: https://media.githubusercontent.com/media/openvinotoolkit/openvino.genai/refs/heads/master/src/docs/openvino_genai.svg
+
+.. code:: ipython3
+
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
+
+
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+    
+    int8_can_be_used = int8_model_path.exists() and "GPU" not in device.value
+    use_quantized_model = widgets.Checkbox(value=int8_can_be_used, description="Use INT8 model", disabled=not int8_can_be_used)
+    
+    use_quantized_model
+
+
+
+
+.. parsed-literal::
+
+    Checkbox(value=True, description='Use INT8 model')
+
+
+
+.. code:: ipython3
+
+    import openvino_genai as ov_genai
+    
+    used_model_path = model_path if not use_quantized_model.value else int8_model_path
+    
+    pipe = ov_genai.Text2ImagePipeline(used_model_path, device.value)
+
+.. code:: ipython3
+
+    from PIL import Image
+    import torch
+    import openvino as ov
+    
+    
+    class Generator(ov_genai.Generator):
+        def __init__(self, seed):
+            ov_genai.Generator.__init__(self)
+            self.generator = torch.Generator(device="cpu").manual_seed(seed)
+    
+        def next(self):
+            return torch.randn(1, generator=self.generator, dtype=torch.float32).item()
+    
+        def randn_tensor(self, shape: ov.Shape):
+            torch_tensor = torch.randn(list(shape), generator=self.generator, dtype=torch.float32)
+            return ov.Tensor(torch_tensor.numpy())
+    
+    
+    prompt = "a beautiful pink unicorn, 8k"
+    num_inference_steps = 4
+    
+    random_generator = Generator(1234567)
+    
+    image_tensor = pipe.generate(prompt, width=512, height=512, num_inference_steps=4, num_images_per_prompt=1, generator=random_generator)
+    
+    image = Image.fromarray(image_tensor.data[0])
+    
+    image
+
+
+
+
+.. image:: latent-consistency-models-image-generation-with-output_files/latent-consistency-models-image-generation-with-output_37_0.png
+
 
 
 Interactive demo
@@ -1186,7 +792,7 @@ Interactive demo
 
     import random
     import gradio as gr
-    from functools import partial
+    import numpy as np
     
     MAX_SEED = np.iinfo(np.int32).max
     
@@ -1198,7 +804,6 @@ Interactive demo
     
     
     def generate(
-        pipeline: OVLatentConsistencyModelPipeline,
         prompt: str,
         seed: int = 0,
         width: int = 512,
@@ -1206,28 +811,15 @@ Interactive demo
         guidance_scale: float = 8.0,
         num_inference_steps: int = 4,
         randomize_seed: bool = False,
-        num_images: int = 1,
         progress=gr.Progress(track_tqdm=True),
     ):
         seed = randomize_seed_fn(seed, randomize_seed)
-        torch.manual_seed(seed)
-        result = pipeline(
-            prompt=prompt,
-            width=width,
-            height=height,
-            guidance_scale=guidance_scale,
-            num_inference_steps=num_inference_steps,
-            num_images_per_prompt=num_images,
-            lcm_origin_steps=50,
-            output_type="pil",
-        ).images[0]
+        random_generator = Generator(seed)
+        result = pipe.generate(
+            prompt, width=width, height=height, guidance_scale=guidance_scale, num_inference_steps=num_inference_steps, generator=random_generator
+        )
+        result = Image.fromarray(result.data[0])
         return result, seed
-    
-    
-    generate_original = partial(generate, ov_pipe)
-    generate_optimized = partial(generate, int8_pipe)
-    quantized_model_present = int8_pipe is not None
-    generate = generate_optimized if quantized_model_present else generate_original
 
 .. code:: ipython3
 
@@ -1239,7 +831,7 @@ Interactive demo
     
     from gradio_helper import make_demo_lcm
     
-    demo = make_demo_lcm(fn=generate, quantized=quantized_model_present)
+    demo = make_demo_lcm(fn=generate)
     
     try:
         demo.queue().launch(debug=False)
@@ -1248,8 +840,3 @@ Interactive demo
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
-
-.. code:: ipython3
-
-    # please uncomment and run this cell for stopping gradio interface
-    # demo.close()

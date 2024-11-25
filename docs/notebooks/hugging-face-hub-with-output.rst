@@ -132,10 +132,10 @@ tutorials <https://huggingface.co/learn/nlp-course/chapter2/2?fw=pt#behind-the-p
 
 .. parsed-literal::
 
-    2024-11-05 01:36:48.403025: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-11-05 01:36:48.436519: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-11-22 01:14:42.174000: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-11-22 01:14:42.207829: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-11-05 01:36:49.095185: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-11-22 01:14:42.868346: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
     Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
     - This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
     - This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
@@ -206,7 +206,7 @@ Note how we reuse our real ``encoded_input``, passing it to the
 .. parsed-literal::
 
     [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:5006: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:5006: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
     `loss_type=None` was set in the config but it is unrecognised.Using the default loss: `ForCausalLMLoss`.
 
@@ -436,10 +436,10 @@ Full list of supported arguments available via ``--help``
 
 .. parsed-literal::
 
-    2024-11-05 01:37:12.161579: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-11-22 01:15:03.858078: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
     usage: optimum-cli export openvino [-h] -m MODEL [--task TASK]
                                        [--framework {pt,tf}] [--trust-remote-code]
-                                       [--weight-format {fp32,fp16,int8,int4,mxfp4}]
+                                       [--weight-format {fp32,fp16,int8,int4,mxfp4,nf4}]
                                        [--library {transformers,diffusers,timm,sentence_transformers,open_clip}]
                                        [--cache_dir CACHE_DIR]
                                        [--pad-token-id PAD_TOKEN_ID]
@@ -467,18 +467,18 @@ Full list of supported arguments available via ``--help``
       --task TASK           The task to export the model for. If not specified,
                             the task will be auto-inferred based on the model.
                             Available tasks depend on the model, but are among:
-                            ['mask-generation', 'image-classification', 'fill-
-                            mask', 'audio-xvector', 'audio-frame-classification',
-                            'sentence-similarity', 'multiple-choice', 'automatic-
-                            speech-recognition', 'text-to-image', 'token-
-                            classification', 'image-to-text', 'image-
-                            segmentation', 'question-answering', 'depth-
-                            estimation', 'semantic-segmentation', 'feature-
-                            extraction', 'text-generation', 'zero-shot-object-
-                            detection', 'text-to-audio', 'zero-shot-image-
-                            classification', 'object-detection', 'text2text-
-                            generation', 'audio-classification', 'image-to-image',
-                            'masked-im', 'inpainting', 'text-classification']. For
+                            ['audio-xvector', 'image-text-to-text', 'mask-
+                            generation', 'text-generation', 'masked-im', 'image-
+                            classification', 'token-classification', 'question-
+                            answering', 'automatic-speech-recognition', 'multiple-
+                            choice', 'image-segmentation', 'semantic-
+                            segmentation', 'text2text-generation', 'feature-
+                            extraction', 'image-to-text', 'text-to-audio', 'text-
+                            to-image', 'zero-shot-object-detection', 'inpainting',
+                            'zero-shot-image-classification', 'object-detection',
+                            'text-classification', 'image-to-image', 'sentence-
+                            similarity', 'audio-frame-classification', 'depth-
+                            estimation', 'audio-classification', 'fill-mask']. For
                             decoder models, use `xxx-with-past` to export the
                             model using past key values in the decoder.
       --framework {pt,tf}   The framework to use for the export. If not provided,
@@ -489,7 +489,7 @@ Full list of supported arguments available via ``--help``
                             for repositories you trust and in which you have read
                             the code, as it will execute on your local machine
                             arbitrary code present in the model repository.
-      --weight-format {fp32,fp16,int8,int4,mxfp4}
+      --weight-format {fp32,fp16,int8,int4,mxfp4,nf4}
                             The weight format of the exported model.
       --library {transformers,diffusers,timm,sentence_transformers,open_clip}
                             The library used to load the model before export. If
@@ -585,7 +585,7 @@ compression:
 
 .. parsed-literal::
 
-    2024-11-05 01:37:17.680673: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-11-22 01:15:09.417610: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
     Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
     - This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
     - This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).

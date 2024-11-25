@@ -330,7 +330,7 @@ categories of object. For details, see the
     ov_model_path = base_model_dir / model_name / f"{model_name}.xml"
     
     if not (ov_model_path).exists():
-        hf_hub.snapshot_download("katuni4ka/ssdlite_mobilenet_v2_fp16", local_dir=base_model_dir)
+        hf_hub.snapshot_download("katuni4ka/ssdlite_mobilenet_v2_fp16", local_dir=base_model_dir / model_name)
     
     model = core.read_model(ov_model_path)
 
@@ -541,7 +541,7 @@ with a latency focus:
 
 .. code:: ipython3
 
-    !benchmark_app -m {model_path} -d GPU -hint latency
+    !benchmark_app -m {ov_model_path} -d GPU -hint latency
 
 
 .. parsed-literal::
@@ -622,7 +622,7 @@ CPU vs GPU with Latency Hint
 
 .. code:: ipython3
 
-    !benchmark_app -m {model_path} -d CPU -hint latency
+    !benchmark_app -m {ov_model_path} -d CPU -hint latency
 
 
 .. parsed-literal::
@@ -1071,7 +1071,7 @@ Compile the Model
 .. code:: ipython3
 
     # Read model and compile it on GPU in THROUGHPUT mode
-    model = core.read_model(model=model_path)
+    model = core.read_model(model=ov_model_path)
     device_name = "GPU"
     compiled_model = core.compile_model(model=model, device_name=device_name, config={hints.performance_mode(): hints.PerformanceMode.THROUGHPUT})
     

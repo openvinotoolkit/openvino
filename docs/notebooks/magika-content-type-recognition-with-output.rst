@@ -43,6 +43,7 @@ In this tutorial we consider how to bring OpenVINO power into Magika.
 
 **Table of contents:**
 
+
 -  `Prerequisites <#prerequisites>`__
 -  `Define model loading class <#define-model-loading-class>`__
 -  `Run OpenVINO model inference <#run-openvino-model-inference>`__
@@ -77,8 +78,13 @@ Prerequisites
 .. parsed-literal::
 
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    supervision 0.24.0 requires numpy<1.23.3,>=1.21.2; python_full_version <= "3.10.0", but you have numpy 1.24.4 which is incompatible.
+    supervision 0.25.0 requires numpy<1.23.3,>=1.21.2; python_full_version <= "3.10.0", but you have numpy 1.24.4 which is incompatible.
+    tensorflow 2.12.0 requires keras<2.13,>=2.12.0, but you have keras 2.13.1 which is incompatible.
     tensorflow 2.12.0 requires numpy<1.24,>=1.22, but you have numpy 1.24.4 which is incompatible.
+    tensorflow 2.12.0 requires tensorboard<2.13,>=2.12, but you have tensorboard 2.13.0 which is incompatible.
+    tensorflow 2.12.0 requires tensorflow-estimator<2.13,>=2.12.0, but you have tensorflow-estimator 2.13.0 which is incompatible.
+    tensorflow-cpu 2.13.1 requires numpy<=1.24.3,>=1.22, but you have numpy 1.24.4 which is incompatible.
+    tensorflow-cpu 2.13.1 requires typing-extensions<4.6.0,>=3.6.6, but you have typing-extensions 4.12.2 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
 
 

@@ -53,9 +53,9 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q "torch>=2.1" "torchvision" "Pillow" "tqdm" "datasets>=2.14.6" "gradio>=4.36" "nncf>=2.13.0" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "torch>=2.1" "torchvision" "Pillow" "tqdm" "datasets>=2.14.6" "gradio>=4.36" "nncf>=2.14.0" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "transformers>=4.45" --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -Uq --pre "openvino>2024.4.0" --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+    %pip install -Uq "openvino>=2024.5.0"
 
 .. code:: ipython3
 

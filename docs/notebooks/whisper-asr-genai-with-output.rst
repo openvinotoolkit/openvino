@@ -75,11 +75,16 @@ Prerequisites
 
 .. code:: ipython3
 
+    import platform
+    
+    
     %pip install -q "torch>=2.3" "torchvision>=0.18.1" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "transformers>=4.45" "git+https://github.com/huggingface/optimum-intel.git" --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q --pre -U "openvino" "openvino-tokenizers" "openvino-genai" --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+    %pip install -q -U "openvino>=2024.5.0" "openvino-tokenizers>=2024.5.0" "openvino-genai>=2024.5.0"
     %pip install -q datasets  "gradio>=4.0" "soundfile>=0.12" "librosa" "python-ffmpeg<=1.0.16"
-    %pip install -q "nncf>=2.13.0" "jiwer"
+    %pip install -q "nncf>=2.14.0" "jiwer" "typing_extensions>=4.9"
+    if platform.system() == "Darwin":
+        %pip install -q "numpy<2.0"
 
 .. code:: ipython3
 
@@ -426,9 +431,9 @@ and default ``generation configuration``.
 
 .. code:: ipython3
 
-    import openvino_genai
+    import openvino_genai as ov_genai
     
-    ov_pipe = openvino_genai.WhisperPipeline(str(model_path), device=device.value)
+    ov_pipe = ov_genai.WhisperPipeline(str(model_path), device=device.value)
 
 Let’s run the ``transcribe`` task. We just call ``generate`` for that
 and put array as input.
@@ -660,6 +665,8 @@ Please select below whether you would like to run Whisper quantization.
     )
     open("skip_kernel_extension.py", "w").write(r.text)
     
+    ov_quantized_pipe = None
+    
     %load_ext skip_kernel_extension
 
 Let’s load converted OpenVINO model format using Optimum-Intel to easily
@@ -692,6 +699,8 @@ interface for ``automatic-speech-recognition``.
 
 .. code:: ipython3
 
+    %%skip not $to_quantize.value
+    
     from optimum.intel.openvino import OVModelForSpeechSeq2Seq
     
     ov_model = OVModelForSpeechSeq2Seq.from_pretrained(str(model_path), device=device.value)
@@ -822,7 +831,7 @@ negligible.
             shutil.copy(model_path / "merges.txt", quantized_model_path / "merges.txt")
             shutil.copy(model_path / "added_tokens.json", quantized_model_path / "added_tokens.json")
         
-        quantized_ov_pipe = openvino_genai.WhisperPipeline(str(quantized_model_path), device=device.value)
+        quantized_ov_pipe = ov_genai.WhisperPipeline(str(quantized_model_path), device=device.value)
         return quantized_ov_pipe
     
     

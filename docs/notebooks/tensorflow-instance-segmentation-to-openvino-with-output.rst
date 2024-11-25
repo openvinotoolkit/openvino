@@ -71,14 +71,9 @@ Install required packages:
 
 .. code:: ipython3
 
-    import platform
-    
     %pip install -q "openvino>=2023.1.0" "numpy>=1.21.0" "opencv-python" "tqdm"
     
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q "matplotlib>=3.4"
     
     %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
     %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
@@ -113,7 +108,7 @@ The notebook uses utility functions. The cell below will download the
 
 .. parsed-literal::
 
-    24692
+    24717
 
 
 
@@ -391,7 +386,7 @@ Read the image, resize and convert it to the input shape of the network:
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7fa9b4121af0>
+    <matplotlib.image.AxesImage at 0x7f6968187130>
 
 
 

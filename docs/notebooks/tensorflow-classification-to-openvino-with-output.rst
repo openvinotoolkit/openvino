@@ -49,14 +49,9 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 
 .. code:: ipython3
 
-    import platform
-    
     # Install openvino package
     %pip install -q "openvino>=2023.1.0" "opencv-python"
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q "matplotlib>=3.4"
     %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
     %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
     %pip install -q "tensorflow>=2.5; sys_platform != 'darwin' and python_version > '3.8'"
@@ -138,15 +133,6 @@ and save it to the disk.
 
     WARNING:tensorflow:`input_shape` is undefined or non-square, or `rows` is not 224. Weights for input shape (224, 224) will be loaded as the default.
     WARNING:tensorflow:Compiled the loaded model, but the compiled metrics have yet to be built. `model.compile_metrics` will be empty until you train or evaluate the model.
-
-
-.. parsed-literal::
-
-    WARNING:absl:Found untraced functions such as _jit_compiled_convolution_op, _jit_compiled_convolution_op, _jit_compiled_convolution_op, _jit_compiled_convolution_op, _jit_compiled_convolution_op while saving (showing 5 of 54). These functions will not be directly callable after loading.
-
-
-.. parsed-literal::
-
     INFO:tensorflow:Assets written to: model/v3-small_224_1.0_float/assets
 
 
@@ -338,5 +324,5 @@ performance.
 
 .. parsed-literal::
 
-    IR model in OpenVINO Runtime/CPU: 0.0010 seconds per image, FPS: 959.64
+    IR model in OpenVINO Runtime/CPU: 0.0010 seconds per image, FPS: 999.35
 

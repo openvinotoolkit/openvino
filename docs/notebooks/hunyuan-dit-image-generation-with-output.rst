@@ -81,17 +81,21 @@ Prerequisites
 .. code:: ipython3
 
     from pathlib import Path
-    import sys
+    import requests
 
-    repo_dir = Path("HunyuanDiT")
 
-    if not repo_dir.exists():
-        !git clone https://github.com/tencent/HunyuanDiT
-        %cd HunyuanDiT
-        !git checkout ebfb7936490287616c38519f87084a34a1d75362
-        %cd ..
+    if not Path("cmd_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
+        )
+        open("cmd_helper.py", "w").write(r.text)
 
-    sys.path.append(str(repo_dir))
+.. code:: ipython3
+
+    from cmd_helper import clone_repo
+
+
+    repo_dir = clone_repo("https://github.com/tencent/HunyuanDiT", "ebfb7936490287616c38519f87084a34a1d75362")
 
 Download PyTorch model
 ----------------------
@@ -753,8 +757,6 @@ Please select inference device using dropdown widget:
 
 .. code:: ipython3
 
-    import requests
-
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
@@ -881,7 +883,7 @@ Please select inference device using dropdown widget:
 
 
 
-.. image:: hunyuan-dit-image-generation-with-output_files/hunyuan-dit-image-generation-with-output_30_0.png
+.. image:: hunyuan-dit-image-generation-with-output_files/hunyuan-dit-image-generation-with-output_31_0.png
 
 
 

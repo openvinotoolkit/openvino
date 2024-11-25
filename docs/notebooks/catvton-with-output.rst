@@ -31,7 +31,9 @@ Teaser image from `CatVTON
 GitHub <https://github.com/Zheng-Chong/CatVTON>`__ |teaser|
 
 In this tutorial we consider how to convert and run this model using
-OpenVINO.
+OpenVINO. An additional part demonstrates how to run optimization with
+`NNCF <https://github.com/openvinotoolkit/nncf/>`__ to speed up
+pipeline.
 
 
 **Table of contents:**
@@ -41,6 +43,14 @@ OpenVINO.
 -  `Convert the model to OpenVINO
    IR <#convert-the-model-to-openvino-ir>`__
 -  `Compiling models <#compiling-models>`__
+-  `Optimize model using NNCF Post-Training Quantization
+   API <#optimize-model-using-nncf-post-training-quantization-api>`__
+
+   -  `Run Post-Training
+      Quantization <#run-post-training-quantization>`__
+   -  `Run Weights Compression <#run-weights-compression>`__
+   -  `Compare model file sizes <#compare-model-file-sizes>`__
+
 -  `Interactive demo <#interactive-demo>`__
 
 Installation Instructions
@@ -67,17 +77,9 @@ Prerequisites
     
     if platform.system() == "Darwin":
         %pip install -q "numpy<2.0.0"
-    %pip install -q "openvino>=2024.4"
+    %pip install -q "openvino>=2024.4" "nncf>=2.13.0"
     %pip install -q "torch>=2.1" "diffusers>=0.29.1" torchvision opencv_python --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q fvcore "pillow" "tqdm" "gradio>=4.36" "omegaconf==2.4.0.dev3" av pycocotools cloudpickle scipy accelerate "transformers>=4.27.3"
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
 
 .. code:: ipython3
 
@@ -90,18 +92,9 @@ Prerequisites
     open("notebook_utils.py", "w").write(r.text)
     
     r = requests.get(
-        url="https://raw.githubusercontent.com/aleksandr-mokrov/openvino_notebooks/refs/heads/catvton/utils/cmd_helper.py",
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
     )
     open("cmd_helper.py", "w").write(r.text)
-
-
-
-
-.. parsed-literal::
-
-    741
-
-
 
 .. code:: ipython3
 
@@ -109,15 +102,6 @@ Prerequisites
     
     
     clone_repo("https://github.com/Zheng-Chong/CatVTON.git", "3b795364a4d2f3b5adb365f39cdea376d20bc53c")
-
-
-
-
-.. parsed-literal::
-
-    PosixPath('CatVTON')
-
-
 
 Convert the model to OpenVINO IR
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -153,130 +137,11 @@ version).
 
 .. code:: ipython3
 
-    from pathlib import Path
-    
     from ov_catvton_helper import download_models, convert_pipeline_models, convert_automasker_models
     
-    
-    MODEL_DIR = Path("models")
-    VAE_ENCODER_PATH = MODEL_DIR / "vae_encoder.xml"
-    VAE_DECODER_PATH = MODEL_DIR / "vae_decoder.xml"
-    UNET_PATH = MODEL_DIR / "unet.xml"
-    DENSEPOSE_PROCESSOR_PATH = MODEL_DIR / "densepose_processor.xml"
-    SCHP_PROCESSOR_ATR = MODEL_DIR / "schp_processor_atr.xml"
-    SCHP_PROCESSOR_LIP = MODEL_DIR / "schp_processor_lip.xml"
-    
-    
-    pipeline, mask_processor, automasker = download_models(MODEL_DIR)
-    convert_pipeline_models(pipeline, VAE_ENCODER_PATH, VAE_DECODER_PATH, UNET_PATH)
-    convert_automasker_models(automasker, DENSEPOSE_PROCESSOR_PATH, SCHP_PROCESSOR_ATR, SCHP_PROCESSOR_LIP)
-
-
-.. parsed-literal::
-
-    Note: switching to '3b795364a4d2f3b5adb365f39cdea376d20bc53c'.
-    
-    You are in 'detached HEAD' state. You can look around, make experimental
-    changes and commit them, and you can discard any commits you make in this
-    state without impacting any branches by switching back to a branch.
-    
-    If you want to create a new branch to retain commits you create, you may
-    do so (now or later) by using -c with the switch command. Example:
-    
-      git switch -c <new-branch-name>
-    
-    Or undo this operation with:
-    
-      git switch -
-    
-    Turn off this advice by setting config variable advice.detachedHead to false
-    
-    HEAD is now at 3b79536 Update default base model path
-
-
-
-.. parsed-literal::
-
-    Fetching 10 files:   0%|          | 0/10 [00:00<?, ?it/s]
-
-
-
-.. parsed-literal::
-
-    README.md:   0%|          | 0.00/9.66k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    model.safetensors:   0%|          | 0.00/198M [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    exp-schp-201908301523-atr.pth:   0%|          | 0.00/267M [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    .gitattributes:   0%|          | 0.00/1.52k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    exp-schp-201908261155-lip.pth:   0%|          | 0.00/267M [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    DensePose/Base-DensePose-RCNN-FPN.yaml:   0%|          | 0.00/1.52k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    model_final_162be9.pkl:   0%|          | 0.00/256M [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    (…)nsePose/densepose_rcnn_R_50_FPN_s1x.yaml:   0%|          | 0.00/182 [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    model.safetensors:   0%|          | 0.00/198M [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    model.safetensors:   0%|          | 0.00/198M [00:00<?, ?B/s]
-
-
-.. parsed-literal::
-
-    An error occurred while trying to fetch booksforcharlie/stable-diffusion-inpainting: booksforcharlie/stable-diffusion-inpainting does not appear to have a file named diffusion_pytorch_model.safetensors.
-    Defaulting to unsafe serialization. Pass `allow_pickle=False` to raise an error instead.
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/catvton/CatVTON/model/SCHP/__init__.py:93: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
-      state_dict = torch.load(ckpt_path, map_location='cpu')['state_dict']
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/downsampling.py:136: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      assert hidden_states.shape[1] == self.channels
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/downsampling.py:145: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      assert hidden_states.shape[1] == self.channels
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:147: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      assert hidden_states.shape[1] == self.channels
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:162: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if hidden_states.shape[0] >= 64:
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/unets/unet_2d_condition.py:1111: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if dim % default_overall_up_factor != 0:
-
+    pipeline, mask_processor, automasker = download_models()
+    convert_pipeline_models(pipeline)
+    convert_automasker_models(automasker)
 
 Compiling models
 ----------------
@@ -298,15 +163,6 @@ Select device from dropdown list for running inference using OpenVINO.
     
     device
 
-
-
-
-.. parsed-literal::
-
-    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
-
-
-
 ``get_compiled_pipeline`` and ``get_compiled_automasker`` functions
 defined in ``ov_catvton_helper.py`` provides convenient way for getting
 the pipeline and the ``automasker`` with compiled ov-models that are
@@ -319,11 +175,169 @@ that all of wrapper classes return ``torch.Tensor``\ s instead of
 
 .. code:: ipython3
 
-    from ov_catvton_helper import get_compiled_pipeline, get_compiled_automasker
-    
+    from ov_catvton_helper import (
+        get_compiled_pipeline,
+        get_compiled_automasker,
+        VAE_ENCODER_PATH,
+        VAE_DECODER_PATH,
+        UNET_PATH,
+        DENSEPOSE_PROCESSOR_PATH,
+        SCHP_PROCESSOR_ATR,
+        SCHP_PROCESSOR_LIP,
+    )
     
     pipeline = get_compiled_pipeline(pipeline, core, device, VAE_ENCODER_PATH, VAE_DECODER_PATH, UNET_PATH)
     automasker = get_compiled_automasker(automasker, core, device, DENSEPOSE_PROCESSOR_PATH, SCHP_PROCESSOR_ATR, SCHP_PROCESSOR_LIP)
+
+Optimize model using NNCF Post-Training Quantization API
+--------------------------------------------------------
+
+
+
+`NNCF <https://github.com/openvinotoolkit/nncf/>`__ provides a suite of
+advanced algorithms for Neural Networks inference optimization in
+OpenVINO with minimal accuracy drop. We will use 8-bit quantization in
+post-training mode (without the fine-tuning pipeline) for the UNet
+model, and 4-bit weight compression for the remaining models.
+
+   **NOTE**: Quantization is time and memory consuming operation.
+   Running quantization code below may take some time. You can disable
+   it using widget below:
+
+.. code:: ipython3
+
+    from notebook_utils import quantization_widget
+    
+    to_quantize = quantization_widget()
+    
+    to_quantize
+
+Let’s load ``skip magic`` extension to skip quantization if
+``to_quantize`` is not selected
+
+.. code:: ipython3
+
+    optimized_pipe = None
+    optimized_automasker = None
+    
+    # Fetch skip_kernel_extension module
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
+    )
+    open("skip_kernel_extension.py", "w").write(r.text)
+    
+    %load_ext skip_kernel_extension
+
+Run Post-Training Quantization
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+The optimization process contains the following steps:
+
+1. Create a Dataset for quantization.
+2. Run ``nncf.quantize`` for getting an optimized model.
+3. Serialize an OpenVINO IR model, using the ``openvino.save_model``
+   function.
+
+We use a couple of images from the original repository as calibration
+data.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    from pathlib import Path
+    from catvton_quantization_helper import collect_calibration_data, UNET_INT8_PATH
+    
+    dataset = [
+        (
+            Path("CatVTON/resource/demo/example/person/men/model_5.png"),
+            Path("CatVTON/resource/demo/example/condition/upper/24083449_54173465_2048.jpg"),
+        ),
+        (
+            Path("CatVTON/resource/demo/example/person/women/2-model_4.png"),
+            Path("CatVTON/resource/demo/example/condition/overall/21744571_51588794_1000.jpg"),
+        ),
+    ]
+    
+    if not UNET_INT8_PATH.exists():
+        subset_size = 100
+        calibration_data = collect_calibration_data(pipeline, automasker, mask_processor, dataset, subset_size)
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    import nncf
+    from ov_catvton_helper import UNET_PATH
+    
+    if not UNET_INT8_PATH.exists():
+        unet = core.read_model(UNET_PATH)
+        quantized_model = nncf.quantize(
+            model=unet,
+            calibration_dataset=nncf.Dataset(calibration_data),
+            subset_size=subset_size,
+            model_type=nncf.ModelType.TRANSFORMER,
+        )
+        ov.save_model(quantized_model, UNET_INT8_PATH)
+
+Run Weights Compression
+~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+Quantizing of the remaining components of the pipeline does not
+significantly improve inference performance but can lead to a
+substantial degradation of accuracy. The weight compression will be
+applied to footprint reduction.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    from catvton_quantization_helper import compress_models
+    
+    compress_models(core)
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    from catvton_quantization_helper import (
+        VAE_ENCODER_INT4_PATH,
+        VAE_DECODER_INT4_PATH,
+        DENSEPOSE_PROCESSOR_INT4_PATH,
+        SCHP_PROCESSOR_ATR_INT4,
+        SCHP_PROCESSOR_LIP_INT4,
+    )
+    
+    optimized_pipe, _, optimized_automasker = download_models()
+    optimized_pipe = get_compiled_pipeline(optimized_pipe, core, device, VAE_ENCODER_INT4_PATH, VAE_DECODER_INT4_PATH, UNET_INT8_PATH)
+    optimized_automasker = get_compiled_automasker(optimized_automasker, core, device, DENSEPOSE_PROCESSOR_INT4_PATH, SCHP_PROCESSOR_ATR_INT4, SCHP_PROCESSOR_LIP_INT4)
+
+Compare model file sizes
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    from catvton_quantization_helper import compare_models_size
+    
+    compare_models_size()
+
+
+.. parsed-literal::
+
+    vae_encoder compression rate: 2.011
+    vae_decoder compression rate: 2.007
+    unet compression rate: 1.995
+    densepose_processor compression rate: 2.019
+    schp_processor_atr compression rate: 1.993
+    schp_processor_lip compression rate: 1.993
+    
 
 Interactive inference
 ---------------------
@@ -335,26 +349,22 @@ to launch the interactive demo.
 
 .. code:: ipython3
 
+    from ov_catvton_helper import get_pipeline_selection_option
+    
+    use_quantized_models = get_pipeline_selection_option(optimized_pipe)
+    
+    use_quantized_models
+
+.. code:: ipython3
+
     from gradio_helper import make_demo
     
+    pipe = optimized_pipe if use_quantized_models.value else pipeline
+    masker = optimized_automasker if use_quantized_models.value else automasker
     
     output_dir = "output"
-    demo = make_demo(pipeline, mask_processor, automasker, output_dir)
+    demo = make_demo(pipe, mask_processor, masker, output_dir)
     try:
-        demo.launch(debug=False)
+        demo.launch(debug=True)
     except Exception:
-        demo.launch(debug=False, share=True)
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-    
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-
+        demo.launch(debug=True, share=True)
