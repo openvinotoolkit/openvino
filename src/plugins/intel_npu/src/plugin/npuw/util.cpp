@@ -9,6 +9,7 @@
 #include <openvino/core/parallel.hpp>
 #include <openvino/core/type/bfloat16.hpp>
 #include <openvino/core/type/float16.hpp>
+#include <openvino/core/type/nf4.hpp>
 #include <sstream>
 
 #include "logging.hpp"
@@ -50,6 +51,59 @@ inline uint8_t hi4(uint8_t x) {
 inline uint8_t lo4(uint8_t x) {
     return x & 0xF;
 }
+
+void unpack_nf4f16(const ov::SoPtr<ov::ITensor>& from,
+                   const ov::SoPtr<ov::ITensor>& scale,
+                   const ov::SoPtr<ov::ITensor>& to,
+                   const ov::npuw::util::UnpackOptions& unpack_options) {
+    auto from_shape = from->get_shape();
+    auto scale_shape = scale->get_shape();
+
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(scale->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+    NPUW_ASSERT(from_shape[0] == scale_shape[0]);
+
+    const auto* from_ptr = static_cast<const uint8_t*>(from->data());
+    const auto* scale_ptr = scale->data<ov::float16>();
+    auto* to_ptr = to->data<ov::float16>();
+
+    const auto size = from->get_size();
+    ov::parallel_for(size / 2, [&](size_t idx) {
+        const uint8_t nf4_2xval = from_ptr[idx];
+        const float low_scale = scale_ptr[(idx * 2) / from_shape[1]];
+        const float high_scale = scale_ptr[(idx * 2 + 1) / from_shape[1]];
+        to_ptr[idx * 2] = ov::ConvertNF4::dequantize(lo4(nf4_2xval)) * low_scale;
+        to_ptr[idx * 2 + 1] = ov::ConvertNF4::dequantize(hi4(nf4_2xval)) * high_scale;
+    });
+    if (size % 2 != 0) {
+        const float low_scale = scale_ptr[size - 1 / from_shape[1]];
+        to_ptr[size - 1] = ov::ConvertNF4::dequantize(lo4(from_ptr[size / 2 + 1])) * low_scale;
+    }
+}
+
+void unpack_nf4f16(const ov::SoPtr<ov::ITensor>& from,
+                   const ov::SoPtr<ov::ITensor>& to,
+                   const ov::npuw::util::UnpackOptions& unpack_options) {
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+
+    const auto* from_ptr = static_cast<const uint8_t*>(from->data());
+    auto* to_ptr = to->data<ov::float16>();
+
+    const auto size = from->get_size();
+    ov::parallel_for(size / 2, [&](size_t idx) {
+        const uint8_t nf4_2xval = from_ptr[idx];
+        to_ptr[idx * 2] = ov::ConvertNF4::dequantize(lo4(nf4_2xval));
+        to_ptr[idx * 2 + 1] = ov::ConvertNF4::dequantize(hi4(nf4_2xval));
+    });
+    if (size % 2 != 0) {
+        to_ptr[size - 1] = ov::ConvertNF4::dequantize(lo4(from_ptr[size / 2 + 1]));
+    }
+}
+
 }  // namespace
 
 ov::Tensor ov::npuw::util::tensor_from_const(const std::shared_ptr<ov::Node>& node) {
@@ -80,6 +134,12 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
     // This is in fact a weight decompression procedure
     auto type_from = from->get_element_type();
     auto type_to = to->get_element_type();
+
+    // FIXME: Move under common switch when XARCH::unpack is implemented
+    if (type_from == ov::element::nf4 && type_to == ov::element::f16) {
+        unpack_nf4f16(from, to, unpack_options);
+        return;
+    }
 
     namespace ove = ov::element;
 #define CAST(x)    static_cast<int>((x).operator ove::Type_t())
@@ -128,6 +188,8 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
         }
     } else if (type_from == ov::element::i8) {
         ov::npuw::util::XARCH::unpack_i8f16_scale(from, scale, to, unpack_options);
+    } else if (type_from == ov::element::nf4) {
+        unpack_nf4f16(from, scale, to, unpack_options);
     } else {
         NPUW_ASSERT(false && "Unsupported combination");
     }

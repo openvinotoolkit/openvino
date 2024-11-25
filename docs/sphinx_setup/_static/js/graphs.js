@@ -9,7 +9,6 @@ class Filter {
             .forEach(item => optionMap.set(item.Platform, item));
         return Array.from(optionMap.values());
     }
-
     // param: GraphData[], ieType
     static ByIeTypes(graphDataArr, ieTypes) {
         const optionMap = new Map();
@@ -18,7 +17,6 @@ class Filter {
             .forEach(item => optionMap.set(item.Platform, item));
         return Array.from(optionMap.values());
     }
-
     // param: GraphData[], ieType, networkModels
     static ByTypesAndModels(graphDataArr, ieTypes, models) {
         return Array.from(
@@ -26,9 +24,8 @@ class Filter {
                 .filter(({ PlatformType, Model }) => ieTypes.includes(PlatformType) && models.includes(Model))
                 .reduce((map, item) => map.set(item.Platform, item), new Map())
                 .values()
-        ).sort((a, b) => a.Platform.localeCompare(b.Platform));
+        );
     }
-
     // param: GraphData[], clientPlatforms
     static ByIeKpis(graphDataArr, clientPlatforms) {
         return Array.from(
@@ -40,7 +37,6 @@ class Filter {
             }, new Set())
         );
     }
-
     // param: GraphData[]
     static getParameters(graphDataArr) {
         var parameters = []
@@ -51,7 +47,6 @@ class Filter {
         })
         return parameters;
     }
-
     // param: GraphData[]
     static getIeTypes(graphDataArr) {
         var kpis = []
@@ -62,20 +57,11 @@ class Filter {
         })
         return kpis;
     }
-
     // param: GraphData[], clientPlatforms[]
     static ByClientPlatforms(graphDataArr, platformsArr) {
         return graphDataArr.filter((data) => {
             return platformsArr.includes(data.Platform)
         });
-    }
-
-    // param: GraphData[], coreTypes[]
-    static FilterByCoreTypes(graphDataArr, coreTypes) {
-        if (coreTypes) {
-            return graphDataArr.filter((data) => coreTypes.includes(data.PlatformType));
-        }
-        return graphDataArr;
     }
 }
 
@@ -114,15 +100,13 @@ class Graph {
             .sort((a, b) => a.localeCompare(b));
     }
     static getIeTypes(graphDataArr) {
-        return Array.from(new Set(graphDataArr.map((obj) => obj.PlatformType)));
-    }
-    static getCoreTypes(graphDataArr) {
-        return Array.from(new Set(graphDataArr.map((obj) => obj.ieType)));
+        return Array.from(new Set(graphDataArr.map((obj) => obj.PlatformType))).sort((a, b) => a.localeCompare(b));
     }
 
     // param: GraphData[]
     static getPlatformNames(graphDataArr) {
-        return graphDataArr.map((data) => data.Platform);
+        return graphDataArr.map((data) => data.Platform)
+        .sort((a, b) => a.localeCompare(b));
     }
 
     // param: GraphData[], engine: string, precisions: list
@@ -297,13 +281,13 @@ $(document).ready(function () {
             const models = networkModels.map((networkModel) => createCheckMark(networkModel, 'networkmodel'));
             modal.find('.models-column').append(models);
 
-            const selectAllModelsButton = createCheckMark('', 'networkmodel');
+            const selectAllModelsButton = createCheckMark('', 'networkmodel', false , false);
             modal.find('.models-selectall').append(selectAllModelsButton);
 
-            const selectAllPlatformsButton = createCheckMark('', 'platform');
+            const selectAllPlatformsButton = createCheckMark('', 'platform', false , false);
             modal.find('.platforms-selectall').append(selectAllPlatformsButton);
 
-            const precisions = Modal.getPrecisionsLabels(graph).map((precision) => createCheckMark(precision, 'precision', false));
+            const precisions = Modal.getPrecisionsLabels(graph).map((precision) => createCheckMark(precision, 'precision', false , false));
             modal.find('.precisions-column').append(precisions);
 
             selectAllCheckboxes(precisions);
@@ -318,21 +302,17 @@ $(document).ready(function () {
             modal.find('#modal-display-graphs').hide();
             modal.find('.ietype-column input').first().prop('checked', true);
 
-            const kpiLabels = Filter.getParameters(graph).map((parameter) => createCheckMark(parameter, 'kpi', false));
+            const kpiLabels = Filter.getParameters(graph).map((parameter) => createCheckMark(parameter, 'kpi', false , true));
             modal.find('.kpi-column').append(kpiLabels);
 
             $('body').prepend(modal);
 
-            preselectDefaultSettings(graph, modal, appConfig);
-
-            //is not generic solution :(
             if (appConfig.DefaultSelections.platformTypes?.data?.includes('Select All')) {
                 selectAllCheckboxes(iefilter);
-
             };
+            preselectDefaultSettings(graph, modal, appConfig);
             renderClientPlatforms(graph, modal);
 
-            $('.clear-all-btn').on('click', clearAll);
             $('#build-graphs-btn').on('click', () => {
                 $('#modal-configure-graphs').hide();
                 clickBuildGraphs(graph, appConfig, getSelectedNetworkModels(), getSelectedIeTypes(), getSelectedClientPlatforms(), getSelectedKpis(), Modal.getPrecisions(appConfig, getSelectedPrecisions()), isLLM);
@@ -409,19 +389,9 @@ $(document).ready(function () {
         precisions.prop('disabled', false);
     }
 
-    function clearAll() {
-        $('.modal-content-grid-container input:checkbox').each((index, object) => $(object).prop('checked', false));
-        validatePrecisionSelection();
-        validateSelections();
-    }
-
     function preselectDefaultSettings(graph, modal, appConfig) {
-
-        const defaultSelections = appConfig.DefaultSelections;
-        selectDefaultPlatformType(defaultSelections.platformTypes, graph, modal);
-        applyPlatformFilters(defaultSelections.platformFilters, modal, graph);
-        clearAllSettings(defaultSelections);
-
+        selectDefaultPlatformType(appConfig.DefaultSelections.platformTypes, graph, modal);
+        clearAllSettings(appConfig.DefaultSelections);
         validateSelections();
         validatePrecisionSelection();
     }
@@ -431,17 +401,8 @@ $(document).ready(function () {
         $(`input[data-ietype="${type}"]`).prop('checked', true);
         renderClientPlatforms(graph, modal);
     }
-    function applyPlatformFilters(platformFilters, modal, graph) {
-        if (!platformFilters) return;
-        const filters = modal.find('.selectable-box-container').children('.selectable-box');
-        filters.removeClass('selected');
-        platformFilters.data.forEach(selection => {
-            filters.filter(`[data-${platformFilters.name}="${selection}"]`).addClass('selected');
-        });
-        renderClientPlatforms(graph, modal);
-    }
+
     function clearAllSettings(defaultSelections) {
-        clearAll();
         Object.keys(defaultSelections).forEach(setting => {
             const { name, data } = defaultSelections[setting];
             data.forEach(selection => {
@@ -463,7 +424,7 @@ $(document).ready(function () {
         var platformNames = Graph.getPlatformNames(fPlatforms);
         $('.platforms-column .checkmark-container').remove();
 
-        const clientPlatforms = platformNames.map((platform) => createCheckMark(platform, 'platform', true));
+        const clientPlatforms = platformNames.map((platform) => createCheckMark(platform, 'platform', true, false));
 
         var enabledPlatforms = filterPlatforms(graph, getSelectedIeTypes(), getSelectedNetworkModels());
         enableCheckBoxes(clientPlatforms, enabledPlatforms);
@@ -471,6 +432,7 @@ $(document).ready(function () {
 
         enableParmeters(graph, getSelectedClientPlatforms());
         modal.find('.platforms-column input').on('click', validateSelections);
+        validateSelections();
     }
 
     function enableParmeters(graph, clientPlatforms) {
@@ -486,11 +448,12 @@ $(document).ready(function () {
         })
     }
 
-    function createCheckMark(itemLabel, modelLabel, disabled) {
+    function createCheckMark(itemLabel, modelLabel, disabled, checked = false) {
         const item = $('<label class="checkmark-container">');
         item.text(itemLabel);
         const checkbox = $('<input type="checkbox"/>');
         checkbox.prop('disabled', disabled);
+        checkbox.prop('checked', checked);
         const checkboxSpan = $('<span class="checkmark">');
         item.append(checkbox);
         item.append(checkboxSpan);
@@ -732,7 +695,6 @@ $(document).ready(function () {
         labelsContainer.addClass('chart-labels-container');
         chartWrap.append(labelsContainer);
 
-        // get the kpi title's and create headers for the graphs
         var chartGraphsContainer = $('<div>');
         chartGraphsContainer.addClass('chart-graphs-container');
         chartWrap.append(chartGraphsContainer);
@@ -778,7 +740,6 @@ $(document).ready(function () {
         labelsContainer.addClass('chart-labels-container');
         chartWrap.append(labelsContainer);
 
-        // get the kpi title's and create headers for the graphs
         var chartGraphsContainer = $('<div>');
         chartGraphsContainer.addClass('chart-graphs-container');
         chartWrap.append(chartGraphsContainer);
@@ -798,7 +759,6 @@ $(document).ready(function () {
             columnHeaderContainer.append(columnIcon);
             var columnHeader = $('<div class="chart-header">');
             columnHeader.append($('<div class="title">' + graphConfig.chartTitle + '</div>'));
-            // columnHeader.append($('<div class="subtitle">' + graphConfig.unit + ' ' + appConfig.UnitDescription[graphConfig.unit] + '</div>'));
             columnHeaderContainer.append(columnHeader);
             chartGraphsContainer.append(graphItem);
             var graphClass = $('<div>');
@@ -857,7 +817,6 @@ $(document).ready(function () {
         return graphConfigs
     }
     function processMetric(labels, datasets, chartTitle, container, widthClass, id) {
-        // ratio for consistent chart label height
         var heightRatio = (30 + (labels.length * 55));
         var chart = $('<div>');
         const containerId = `legend-container-${id}`;
@@ -898,8 +857,7 @@ $(document).ready(function () {
     }
 
     function processMetricByEngines(labels, datasets, container, widthClass, id) {
-        // ratio for consistent chart label height
-        var heightRatio = (80 + (labels.length * 55));
+         var heightRatio = (80 + (labels.length * 55));
         var chart = $('<div>');
         const containerId = `legend-container-${id}`;
         const legend = $(`<div id="${containerId}">`);
