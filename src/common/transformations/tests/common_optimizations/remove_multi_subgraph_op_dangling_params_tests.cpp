@@ -175,7 +175,7 @@ TEST_F(TransformationTestsF, RemoveLoopDanglingParametersIfConcatEmptyTensor) {
     }
 }
 
-TEST_F(TransformationTestsF, RemoveIfDanglingParametersFromBodiesAndInputs) {
+TEST_F(TransformationTestsF, RemoveIfDanglingParametersFromBodiesAndInputsConsecutive) {
     auto X = std::make_shared<Parameter>(element::f32, Shape{2, 4, 1});
     auto Y = std::make_shared<Parameter>(element::f32, Shape{3, 4, 1});
     auto cond = std::make_shared<Constant>(element::boolean, Shape{1}, true);
@@ -196,6 +196,8 @@ TEST_F(TransformationTestsF, RemoveIfDanglingParametersFromBodiesAndInputs) {
         if_op->set_else_body(else_body);
         if_op->set_input(X, Xte, Xte);
         if_op->set_input(Y, Yte, Yte);
+        // if_op descriptors are [desc_0, desc_1, desc_2, desc_3]
+        // desc_0, desc_2 are dangling, Parameters Y, Yte should be removed
         auto res = if_op->set_output(then_op_res, else_op_res);
         model = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y});
 
@@ -208,6 +210,46 @@ TEST_F(TransformationTestsF, RemoveIfDanglingParametersFromBodiesAndInputs) {
         if_op->set_then_body(then_body);
         if_op->set_else_body(else_body);
         if_op->set_input(X, Xte, Xte);
+        auto res = if_op->set_output(then_op_res, else_op_res);
+        model_ref = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y});
+    }
+}
+
+TEST_F(TransformationTestsF, RemoveIfDanglingParametersFromBodiesAndInputsNotConsecutive) {
+    auto X = std::make_shared<Parameter>(element::f32, Shape{2, 4, 1});
+    auto Y = std::make_shared<Parameter>(element::f32, Shape{3, 4, 1});
+    auto cond = std::make_shared<Constant>(element::boolean, Shape{1}, false);
+
+    auto Xte = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    auto Yte = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+
+    auto then_op = std::make_shared<Add>(Yte, Yte);
+    auto then_op_res = std::make_shared<Result>(then_op);
+
+    auto else_op = std::make_shared<Maximum>(Yte, Yte);
+    auto else_op_res = std::make_shared<Result>(else_op);
+    {
+        auto then_body = std::make_shared<Model>(OutputVector{then_op_res}, ParameterVector{Xte, Yte});
+        auto else_body = std::make_shared<Model>(OutputVector{else_op_res}, ParameterVector{Xte, Yte});
+        auto if_op = std::make_shared<If>(cond);
+        if_op->set_then_body(then_body);
+        if_op->set_else_body(else_body);
+        if_op->set_input(X, Xte, Yte);
+        if_op->set_input(Y, Xte, Xte);
+        // if_op descriptors are [desc_0, desc_1, desc_2, desc_3]
+        // desc_0, desc_2, desc_3 are dangling, Parameters Y, Xte should be removed
+        auto res = if_op->set_output(then_op_res, else_op_res);
+        model = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y});
+
+        manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
+    }
+    {
+        auto then_body = std::make_shared<Model>(OutputVector{then_op_res}, ParameterVector{Yte});
+        auto else_body = std::make_shared<Model>(OutputVector{else_op_res}, ParameterVector{Yte});
+        auto if_op = std::make_shared<If>(cond);
+        if_op->set_then_body(then_body);
+        if_op->set_else_body(else_body);
+        if_op->set_input(X, Yte, Yte);
         auto res = if_op->set_output(then_op_res, else_op_res);
         model_ref = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y});
     }
