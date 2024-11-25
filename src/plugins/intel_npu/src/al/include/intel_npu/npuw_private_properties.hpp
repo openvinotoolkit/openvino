@@ -378,6 +378,40 @@ static constexpr ov::Property<std::string> inputs_outputs{"NPUW_DUMP_IO"};
 static constexpr ov::Property<std::string> io_iters{"NPUW_DUMP_IO_ITERS"};
 }  // namespace dump
 
+namespace dynamic_llm {
+/**
+ * @brief
+ * Type: bool.
+ * Tell NPUW that you want to pass dynamic stateful LLM model
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> enabled {"NPUW_DYN_LLM"};
+
+/**
+ * @brief
+ * Type: uint32_t.
+ * Tell NPUW in which dimension of your LLM model KVcache is located.
+ * Default value: 2.
+ */
+static constexpr ov::Property<uint32_t> kv_dim {"NPUW_DYN_LLM_KV_DIM"};
+
+    /**
+ * @brief
+ * Type: int64_t.
+ * Tell NPUW your desirable max prompt length.
+ * Default value: 1024.
+ */
+static constexpr ov::Property<int64_t> max_prompt_len {"NPUW_DYN_LLM_MAX_PROMPT_LEN"};
+
+/**
+ * @brief
+ * Type: int64_t.
+ * Tell NPUW your desirable min response length.
+ * Default value: 150.
+ */
+static constexpr ov::Property<int64_t> min_response_len {"NPUW_DYN_LLM_MIN_RESPONSE_LEN"};
+
+} // namespace llm
 }  // namespace npuw
 }  // namespace intel_npu
 }  // namespace ov

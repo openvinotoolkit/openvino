@@ -8,14 +8,15 @@
 
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/core/descriptor/output.hpp"
+#include "llm_compiled_model.hpp"
 
 namespace ov {
 namespace npuw {
 
-class LLMCompiledModel;
 class LLMInferRequest final : public ov::ISyncInferRequest {
 public:
-    explicit LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
+    explicit LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model,
+                             const ov::npuw::LLMCompiledModel::KVCacheDesc& kvcache_desc);
 
     void infer() override;
 
@@ -37,16 +38,9 @@ private:
                         ov::SoPtr<ov::ITensor> attention_mask,
                         ov::SoPtr<ov::ITensor> position_ids);
 
-    struct KVCacheDesc {
-        uint32_t max_prompt_size;
-        uint32_t total_size;
-        uint32_t num_stored_tokens;
-        uint32_t dim;
-    };
-
     std::shared_ptr<ov::IAsyncInferRequest> m_kvcache_request;
     std::shared_ptr<ov::IAsyncInferRequest> m_prefill_request;
-    KVCacheDesc m_kvcache_desc;
+    LLMCompiledModel::KVCacheDesc m_kvcache_desc;
     ov::SoPtr<ov::ITensor> m_logits;
     bool m_need_copy_kvcache = false;
 

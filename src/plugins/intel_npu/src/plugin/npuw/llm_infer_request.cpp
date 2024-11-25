@@ -65,14 +65,14 @@ ov::Tensor make_tensor_slice(ov::Tensor tensor, size_t dim, size_t start_pos, si
     return ov::Tensor(tensor, start_shape, end_shape);
 }
 
-ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model)
-    : ov::ISyncInferRequest(compiled_model) {
+ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model,
+                                           const ov::npuw::LLMCompiledModel::KVCacheDesc& kvcache_desc)
+    : ov::ISyncInferRequest(compiled_model),
+      m_kvcache_desc(kvcache_desc) {
     LOG_DEBUG("ov::npuw::LLMInferRequest::LLMInferRequest()");
     LOG_BLOCK();
     m_kvcache_request = compiled_model->kvcache_compiled->create_infer_request();
     m_prefill_request = compiled_model->prefill_compiled->create_infer_request();
-    // FIXME: Shouldn't be hardcoded
-    m_kvcache_desc = KVCacheDesc{1024u, 1024u+128u, 0u, 2u};
 
     for (auto input_port : m_prefill_request->get_compiled_model()->inputs()) {
         m_prefill_in_ports.emplace(input_port.get_any_name(), input_port);
@@ -97,9 +97,9 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation() {
     LOG_BLOCK();
 
     auto prefill_compiled = m_prefill_request->get_compiled_model();
-    fill_tensor<int64_t>(m_prefill_request->get_tensor(prefill_compiled->inputs()[0]), 0u);
-    fill_tensor<int64_t>(m_prefill_request->get_tensor(prefill_compiled->inputs()[1]), 0u);
-    fill_tensor<int64_t>(m_prefill_request->get_tensor(prefill_compiled->inputs()[2]), 0u);
+    fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at("input_ids")), 0u);
+    fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at("attention_mask")), 0u);
+    fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at("position_ids")), 0u);
     fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask")), 0u);
     m_kvcache_desc.num_stored_tokens = 0u;
     LOG_DEBUG("Done");
@@ -115,18 +115,18 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
 
     auto prefill_compiled = m_prefill_request->get_compiled_model();
 
-    auto padded_input_ids = m_prefill_request->get_tensor(prefill_compiled->inputs()[0]);
+    auto padded_input_ids = m_prefill_request->get_tensor(m_prefill_in_ports.at("input_ids"));
     const size_t offset = padded_input_ids->get_size() - input_ids->get_size();
     std::copy_n(input_ids->data<int64_t>(),
                 input_ids->get_size(),
                 padded_input_ids->data<int64_t>() + offset);
 
-    auto padded_attention_mask = m_prefill_request->get_tensor(prefill_compiled->inputs()[1]);
+    auto padded_attention_mask = m_prefill_request->get_tensor(m_prefill_in_ports.at("attention_mask"));
     std::copy_n(attention_mask->data<int64_t>(),
                 attention_mask->get_size(),
                 padded_attention_mask->data<int64_t>() + offset);
 
-    auto padded_position_ids = m_prefill_request->get_tensor(prefill_compiled->inputs()[2]);
+    auto padded_position_ids = m_prefill_request->get_tensor(m_prefill_in_ports.at("position_ids"));
     std::copy_n(position_ids->data<int64_t>(),
                 position_ids->get_size(),
                 padded_position_ids->data<int64_t>() + offset);
@@ -135,7 +135,8 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
     m_kvcache_desc.num_stored_tokens += static_cast<uint32_t>(input_ids->get_size());
     m_need_copy_kvcache = true;
 
-    m_logits = m_prefill_request->get_tensor(prefill_compiled->outputs()[0]);
+    m_logits = m_prefill_request->get_tensor(m_prefill_out_ports.at("logits"));
+
     LOG_DEBUG("Done");
 }
 
@@ -145,16 +146,21 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     LOG_DEBUG("LLMInferRequest::infer_generate()");
     LOG_BLOCK();
 
+    // NB: KV-cache is full, further generation is impossible
+    if (m_kvcache_desc.num_stored_tokens == m_kvcache_desc.total_size) {
+        LOG_DEBUG("KV-Cache is full");
+        return;
+    }
+
     if (m_need_copy_kvcache) {
         LOG_DEBUG("Copying kv-cache from prefill to generate model.");
         const auto kStartOutputKVCacheLayers = 1u;
-        const auto kStartInputKVCacheLayers = 3u;
         const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
         for (int i = 0; i < kvcache_compiled->outputs().size() - 1; ++i) {
             const auto& output_name = kvcache_compiled->outputs()[kStartOutputKVCacheLayers + i].get_any_name();
             auto prefill_out_tensor = ov::make_tensor(m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name)));
 
-            const auto& input_name = kvcache_compiled->inputs()[kStartInputKVCacheLayers + i].get_any_name();
+            const auto& input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
             auto kvcache_in_tensor = ov::make_tensor(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name)));
             fill_tensor<ov::float16>(kvcache_in_tensor, 0);
 
@@ -174,8 +180,10 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             //         0, m_kvcache_desc.num_stored_tokens);
         }
         LOG_DEBUG("LLMInferRequest::infer_generate(): Prepare attention mask pattern.");
-        auto* attention_mask_data = m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask"))->data<int64_t>();
-        attention_mask_data[m_kvcache_desc.total_size - 1] = 1u;
+        auto* attention_mask_data = m_kvcache_request->get_tensor(
+            m_kvcache_in_ports.at("attention_mask"))->data<int64_t>();
+        attention_mask_data[m_kvcache_desc.total_size - 1] = 1;
+
         m_need_copy_kvcache = false;
     }
 
@@ -192,16 +200,8 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     m_logits = m_kvcache_request->get_tensor(m_kvcache_out_ports.at("logits"));
     m_kvcache_desc.num_stored_tokens += 1;
 
-    // NB: KV-cache is full, further generation is impossible
-    if (m_kvcache_desc.num_stored_tokens == m_kvcache_desc.total_size) {
-        std::cout << "KV-Cache is full" << std::endl;
-        return;
-    }
-
     LOG_DEBUG("Write KV-cache for the new token to the correct input position for next iteration.");
-    // NB: Write KV-cache for the new token to the correct input position for the next iteration
     const auto kStartOutputKVCacheLayers = 1u;
-    const auto kStartInputKVCacheLayers = 3u;
     const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
     for (int i = 0; i < kvcache_compiled->outputs().size() - 1; ++i) {
         const auto& output_name = kvcache_compiled->outputs()[kStartOutputKVCacheLayers + i].get_any_name();

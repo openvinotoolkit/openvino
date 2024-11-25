@@ -66,4 +66,8 @@ DEFINE_OPT(NPUW_DUMP_SUBS, std::string, "", npuw::dump::subgraphs, CompileTime);
 DEFINE_OPT(NPUW_DUMP_SUBS_ON_FAIL, std::string, "", npuw::dump::subgraphs_on_fail, CompileTime);
 DEFINE_OPT(NPUW_DUMP_IO, std::string, "", npuw::dump::inputs_outputs, RunTime);
 DEFINE_OPT(NPUW_DUMP_IO_ITERS, bool, false, npuw::dump::io_iters, RunTime);
+DEFINE_OPT(NPUW_DYN_LLM, bool, false, npuw::dynamic_llm::enabled, CompileTime);
+DEFINE_OPT(NPUW_DYN_LLM_KV_DIM, uint32_t, 2, npuw::dynamic_llm::kv_dim, CompileTime);
+DEFINE_OPT(NPUW_DYN_LLM_MAX_PROMPT_LEN, int64_t, 1024, npuw::dynamic_llm::max_prompt_len, CompileTime);
+DEFINE_OPT(NPUW_DYN_LLM_MIN_RESPONSE_LEN, int64_t, 150, npuw::dynamic_llm::min_response_len, CompileTime);
 }  // namespace intel_npu

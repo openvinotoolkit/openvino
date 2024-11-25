@@ -91,9 +91,20 @@ std::shared_ptr<ov::npuw::ICompiledModel>
 ov::npuw::CompiledModelFactory::create(const std::shared_ptr<ov::Model>& model,
                                        const std::shared_ptr<const ov::IPlugin>& plugin,
                                        const ov::AnyMap& properties) {
-    //return std::make_shared<ov::npuw::CompiledModel>(model, plugin, properties);
-    std::cout << "[LOG_DEBUG] CompiledModelFactory::create " << std::endl;
-    return std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, properties);
+    LOG_DEBUG("CompiledModelFactory::create");
+    LOG_BLOCK();
+    std::shared_ptr<ov::npuw::ICompiledModel> compiled_model;
+    auto use_dynamic_llm_key = ov::intel_npu::npuw::dynamic_llm::enabled.name();
+    if (properties.count(use_dynamic_llm_key) &&
+        properties.at(use_dynamic_llm_key).as<bool>() == true) {
+        LOG_DEBUG("ov::npuw::LLMCompiledModel will be created.");
+        compiled_model = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, properties);
+    } else {
+        LOG_DEBUG("ov::npuw::CompiledModel will be created.");
+        compiled_model = std::make_shared<ov::npuw::CompiledModel>(model, plugin, properties);
+    }
+    LOG_DEBUG("Done");
+    return compiled_model;
 }
 
 ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
@@ -884,7 +895,9 @@ void ov::npuw::CompiledModel::implement_properties() {
     //    the 1st step. It will be returned as response to `ov::supported_properties`
     //    request. So the vector will define public properties.
     // 3. Create mappings for all remaining (private) NPUW-specific properties
-    //    to getters of their values from config.
+    //    to getters of their values from config, related to ov::npuw::CompiledModel.
+    // 4. Fill default values for (private) NPUW-specific, dynamic stateful
+    //    model-specific properties.
 
 #define GET_PLUGIN_PROP(property) return get_plugin()->get_property(property.name(), ov::AnyMap());
 
@@ -1010,8 +1023,13 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::dump::subgraphs, NPUW_DUMP_SUBS),
                           BIND(npuw::dump::subgraphs_on_fail, NPUW_DUMP_SUBS_ON_FAIL),
                           BIND(npuw::dump::inputs_outputs, NPUW_DUMP_IO),
-                          BIND(npuw::dump::io_iters, NPUW_DUMP_IO_ITERS)
+                          BIND(npuw::dump::io_iters, NPUW_DUMP_IO_ITERS),
 #endif
+    // 4.
+                          BIND(npuw::dynamic_llm::enabled, NPUW_DYN_LLM),
+                          BIND(npuw::dynamic_llm::kv_dim, NPUW_DYN_LLM_KV_DIM),
+                          BIND(npuw::dynamic_llm::max_prompt_len, NPUW_DYN_LLM_MAX_PROMPT_LEN),
+                          BIND(npuw::dynamic_llm::min_response_len, NPUW_DYN_LLM_MIN_RESPONSE_LEN)
     });
 #undef BIND
 }
