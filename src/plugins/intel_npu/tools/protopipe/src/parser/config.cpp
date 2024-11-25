@@ -197,6 +197,7 @@ static const std::set<std::string> set_UniformGenerator_parameters = {"low", "hi
 template <>
 struct convert<UniformGenerator::Ptr> {
     static bool decode(const Node& node, UniformGenerator::Ptr& generator) {
+        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
         validateNodeChildren(node, set_UniformGenerator_parameters);
         if (!node["low"]) {
             THROW_ERROR("Uniform distribution must have \"low\" attribute");
@@ -218,6 +219,7 @@ static const std::set<std::string> set_IRandomGenerator_param = []() {
 template <>
 struct convert<IRandomGenerator::Ptr> {
     static bool decode(const Node& node, IRandomGenerator::Ptr& generator) {
+        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
         validateNodeChildren(node, set_IRandomGenerator_param);
         if (!node["dist"]) {
             THROW_ERROR("\"random\" must have \"dist\" attribute!");
@@ -236,6 +238,7 @@ static const std::set<std::string> set_Norm_parameters = {"tolerance"};
 template <>
 struct convert<Norm::Ptr> {
     static bool decode(const Node& node, Norm::Ptr& metric) {
+        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
         validateNodeChildren(node, set_Norm_parameters);
         // NB: If bigger than tolerance - fail.
         if (!node["tolerance"]) {
@@ -252,6 +255,7 @@ template <>
 struct convert<Cosine::Ptr> {
     static bool decode(const Node& node, Cosine::Ptr& metric) {
         // NB: If lower than threshold - fail.
+        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
         validateNodeChildren(node, set_Cosine_parameters);
         if (!node["threshold"]) {
             THROW_ERROR("Metric \"cosine\" must have \"threshold\" attribute!");
@@ -266,6 +270,7 @@ static const std::set<std::string> set_NRMSE_parameters = {"tolerance"};
 template <>
 struct convert<NRMSE::Ptr> {
     static bool decode(const Node& node, NRMSE::Ptr& metric) {
+        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
         validateNodeChildren(node, set_NRMSE_parameters);
         // NB: If bigger than tolerance - fail.
         if (!node["tolerance"]) {
@@ -288,6 +293,7 @@ static const std::set<std::string> set_IAccuracyMetric_parameters = []() {
 template <>
 struct convert<IAccuracyMetric::Ptr> {
     static bool decode(const Node& node, IAccuracyMetric::Ptr& metric) {
+        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
         validateNodeChildren(node, set_IAccuracyMetric_parameters);
         const auto type = node["name"].as<std::string>();
         if (type == "norm") {
@@ -314,7 +320,7 @@ static const std::set<std::string> set_GlobalOptions_parameters = []() {
 template <>
 struct convert<GlobalOptions> {
     static bool decode(const Node& node, GlobalOptions& opts) {
-        //{"multi_inference", "metric", "random", "model_dir", "blob_dir", "device_name", "log_level", "compiler_type", "save_validation_outputs"}
+        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
         validateNodeChildren(node, set_GlobalOptions_parameters);
         if (node["model_dir"]) {
             if (!node["model_dir"]["local"]) {
@@ -362,7 +368,7 @@ static const std::set<std::string> set_OpenVINOParams_parameters = []() {
 template <>
 struct convert<OpenVINOParams> {
     static bool decode(const Node& node, OpenVINOParams& params) {
-        //{"name", "path", "device", "ip", "op", "il", "ol", "iml", "oml", "reshape", "config", "priority", "nireq", "tag", "type", "repeat_count", "connections", "op_desc", "name", "framework", "random", "metric", "input_data", "output_data", "params", "device_type", "time_in_us"}
+        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
         validateNodeChildren(node, set_OpenVINOParams_parameters);
         // FIXME: Worth to separate these two
         const auto name = node["name"] ? node["name"].as<std::string>() : node["path"].as<std::string>();
@@ -431,6 +437,7 @@ static const std::set<std::string> set_ONNXRTParams_OpenVINO_parameters = {"para
 template <>
 struct convert<ONNXRTParams::OpenVINO> {
     static bool decode(const Node& node, ONNXRTParams::OpenVINO& ov_ep) {
+        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
         validateNodeChildren(node, set_ONNXRTParams_OpenVINO_parameters);
         if (node["params"]) {
             ov_ep.params_map = node["params"].as<std::map<std::string, std::string>>();
@@ -458,7 +465,7 @@ static const std::set<std::string> set_ONNXRTParams_EP_parameters = []() {
 template <>
 struct convert<ONNXRTParams::EP> {
     static bool decode(const Node& node, ONNXRTParams::EP& ep) {
-        //{"name", "params", "device_type"}
+        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
         validateNodeChildren(node, set_ONNXRTParams_EP_parameters);
         const auto ep_name = node["name"].as<std::string>();
         if (ep_name == "OV") {
@@ -480,7 +487,7 @@ static const std::set<std::string> set_ONNXRTParams_parameters = []() {
 template <>
 struct convert<ONNXRTParams> {
     static bool decode(const Node& node, ONNXRTParams& params) {
-        //{"name", "path", "session_options", "ep", "opt_level"}
+        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
         validateNodeChildren(node, set_ONNXRTParams_parameters);
         // FIXME: Worth to separate these two
         params.model_path = node["name"] ? node["name"].as<std::string>() : node["path"].as<std::string>();
@@ -497,9 +504,10 @@ struct convert<ONNXRTParams> {
     }
 };
 
+static const std::set<std::string> set_Network_raw_parameters = {"name", "framework", "random", "metric", "input_data", "output_data"};
 static const std::set<std::string> set_Network_parameters = []() {
-    std::set<std::string> res = {"name", "framework", "random", "metric", "input_data", "output_data"};
-//    res.insert(set_ONNXRTParams_OpenVINO_parameters.begin(), set_ONNXRTParams_OpenVINO_parameters.end())
+    std::set<std::string> res = set_Network_raw_parameters;
+    res.insert(set_parseAdvancedStream_raw_parameters.begin(), set_parseAdvancedStream_raw_parameters.end());
 
     return res;
 }();
@@ -507,7 +515,7 @@ static const std::set<std::string> set_Network_parameters = []() {
 template <>
 struct convert<Network> {
     static bool decode(const Node& node, Network& network) {
-        //{"name", "framework", "random", "metric", "input_data", "output_data", "device", "ip", "op", "il", "ol", "iml", "oml", "reshape", "config", "priority", "nireq", "params", "device_type"}
+        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
         validateNodeChildren(node, set_Network_parameters);
         // NB: Take path stem as network tag
         // Note that at this point, it's fine if names aren't unique
@@ -545,6 +553,7 @@ static const std::set<std::string> set_CPUOp_parameters = {"time_in_us"};
 template <>
 struct convert<CPUOp> {
     static bool decode(const Node& node, CPUOp& op) {
+        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
         validateNodeChildren(node, set_CPUOp_parameters);
         // TODO: Assert there are no more options provided
         op.time_in_us = node["time_in_us"] ? node["time_in_us"].as<uint64_t>() : 0u;
@@ -564,7 +573,7 @@ static const std::set<std::string> set_InferOp_parameters = []() {
 template <>
 struct convert<InferOp> {
     static bool decode(const Node& node, InferOp& op) {
-        //{"name", "framework", "random", "metric", "input_data", "output_data", "device", "ip", "op", "il", "ol", "iml", "oml", "reshape", "config", "priority", "nireq", "params", "device_type", "tag", "type", "repeat_count", "connections", "op_desc", "name", "time_in_us"}
+        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
         validateNodeChildren(node, set_InferOp_parameters);
         const auto framework = node["framework"] ? node["framework"].as<std::string>() : "openvino";
         if (framework == "openvino") {
@@ -597,13 +606,14 @@ static const std::set<std::string> set_OpDesc_parameters = []() {
     std::set<std::string> res = set_OpDesc_raw_parameters;
     res.insert(set_parseAdvancedStream_raw_parameters.begin(), set_parseAdvancedStream_raw_parameters.end());
     res.insert(set_OpenVINOParams_raw_parameters.begin(), set_OpenVINOParams_raw_parameters.end());
+    res.insert(set_Network_raw_parameters.begin(), set_Network_raw_parameters.end());
     return res;
 }();
 
 template <>
 struct convert<OpDesc> {
     static bool decode(const Node& node, OpDesc& opdesc) {
-        //{"tag", "type", "repeat_count", "connections", "op_desc", "name", "framework", "random", "metric", "input_data", "output_data", "device", "ip", "op", "il", "ol", "iml", "oml", "reshape", "config", "priority", "nireq", "params", "device_type", "time_in_us"}
+        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
         validateNodeChildren(node, set_OpDesc_parameters);
         opdesc.tag = node["tag"].as<std::string>();
         auto type = node["type"] ? node["type"].as<std::string>() : "Infer";
@@ -880,7 +890,7 @@ static const std::set<std::string> set_parseAdvancedStream_parameters = []() {
 static StreamDesc parseAdvancedStream(const YAML::Node& node, const GlobalOptions& opts,
                                       const std::string& default_name, const ReplaceBy& replace_by) {
     StreamDesc stream;
-    //{"name", "frames_interval_in_ms", "target_fps", "target_latency_in_ms", "exec_time_in_secs", "iteration_count", "op_desc", "connections"}
+    std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
     validateNodeChildren(node, set_parseAdvancedStream_parameters);
     // FIXME: Create a function for the duplicate code below
     stream.name = node["name"] ? node["name"].as<std::string>() : default_name;
@@ -958,6 +968,7 @@ static std::vector<ScenarioDesc> parseScenarios(const YAML::Node& node, const Gl
                                                 const ReplaceBy& replace_by) {
     std::vector<ScenarioDesc> scenarios;
     for (const auto& subnode : node) {
+        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
         validateNodeChildren(subnode, set_parseScenarios_parameters);
         ScenarioDesc scenario;
         scenario.name = subnode["name"] ? subnode["name"].as<std::string>()
@@ -985,7 +996,7 @@ static const std::set<std::string> set_parseConfig_parameters = []() {
 }();
 
 Config parseConfig(const YAML::Node& node, const ReplaceBy& replace_by) {
-    //{"multi_inference", "metric", "random", "model_dir", "blob_dir", "device_name", "log_level", "compiler_type", "save_validation_outputs", "disable_high_resolution_waitable_timer"}
+    std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
     validateNodeChildren(node, set_parseConfig_parameters);
     const auto global_opts = node.as<GlobalOptions>();
 
