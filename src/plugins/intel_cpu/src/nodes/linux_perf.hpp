@@ -609,7 +609,7 @@ struct PerfEventGroup : public IPerfEventDumper {
         }
 
         template <typename ... Values>
-        void set_extra_data(Values... vals) {
+        void set_all_extra_data(Values... vals) {
             static_assert(data_size >= sizeof...(vals));
             int j = 0;
             int unused1[] = { 0, (set_extra_data(j++, vals), 0)... };
@@ -1158,18 +1158,18 @@ struct PerfEventGroup : public IPerfEventDumper {
             {PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS, "HW_INSTRUCTIONS"},
             {PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_MISSES, "HW_CACHE_MISSES"},
             //{PERF_TYPE_HARDWARE, PERF_COUNT_HW_REF_CPU_CYCLES, "HW_REF_CPU_CYCLES"},
-            {PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CONTEXT_SWITCHES, "SW_CONTEXT_SWITCHES"},
-            {PERF_TYPE_SOFTWARE, PERF_COUNT_SW_TASK_CLOCK, "SW_TASK_CLOCK"},
-            {PERF_TYPE_SOFTWARE, PERF_COUNT_SW_PAGE_FAULTS, "SW_PAGE_FAULTS"},
+            // {PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CONTEXT_SWITCHES, "SW_CONTEXT_SWITCHES"},
+            // {PERF_TYPE_SOFTWARE, PERF_COUNT_SW_TASK_CLOCK, "SW_TASK_CLOCK"},
+            // {PERF_TYPE_SOFTWARE, PERF_COUNT_SW_PAGE_FAULTS, "SW_PAGE_FAULTS"},
 
             // XSNP_NONE                : ... were hits in L3 without snoops required                (data is not owned by any other core's local cache)
             // XSNP_FWD   /XSNP_HITM    : ... were HitM responses from shared L3                     (data was exclusivly/dirty owned by another core's local cache)
             // XSNP_NO_FWD/XSNP_HIT     : ... were L3 and cross-core snoop hits in on-pkg core cache (data was shared/clean in another core's local cache)
 
-            {PERF_TYPE_RAW, X86_RAW_EVENT(0xd2, 0x01, 0x00), "XSNP_MISS"},
-            {PERF_TYPE_RAW, X86_RAW_EVENT(0xd2, 0x02, 0x00), "XSNP_NO_FWD"},
-            {PERF_TYPE_RAW, X86_RAW_EVENT(0xd2, 0x04, 0x00), "XSNP_FWD"},
-            {PERF_TYPE_RAW, X86_RAW_EVENT(0xd2, 0x08, 0x00), "XSNP_NONE"},              
+            // {PERF_TYPE_RAW, X86_RAW_EVENT(0xd2, 0x01, 0x00), "XSNP_MISS"},
+            // {PERF_TYPE_RAW, X86_RAW_EVENT(0xd2, 0x02, 0x00), "XSNP_NO_FWD"},
+            // {PERF_TYPE_RAW, X86_RAW_EVENT(0xd2, 0x04, 0x00), "XSNP_FWD"},
+            // {PERF_TYPE_RAW, X86_RAW_EVENT(0xd2, 0x08, 0x00), "XSNP_NONE"},              
         });
         return pevg;
     }
@@ -1190,7 +1190,7 @@ ProfileScope Profile(const std::string& title, int id = 0, Args&&... args) {
     auto& pevg = PerfEventGroup::get();
     auto* pd = pevg._profile(title, id);
     if (pd) {
-        pd->set_extra_data(std::forward<Args>(args)...);
+        pd->set_all_extra_data(std::forward<Args>(args)...);
     }
     return {&pevg, pd};
 }
@@ -1201,7 +1201,7 @@ ProfileScope Profile(float sampling_probability, const std::string& title, int i
     auto& pevg = PerfEventGroup::get();
     auto* pd = pevg._profile(title, id);
     if (pd) {
-        pd->set_extra_data(std::forward<Args>(args)...);
+        pd->set_all_extra_data(std::forward<Args>(args)...);
     }
 
     bool disable_profile = ((std::rand() % 1000)*0.001f >= sampling_probability);

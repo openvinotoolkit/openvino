@@ -1216,6 +1216,7 @@ public:
     using UpdateNodesBase::UpdateNodesBase;
 
     void operator()(size_t stopIndx) {
+        //auto perf1 = LinuxPerf::Profile("UpdateNodes");
         m_completion.store(false);
         auto startCounter = m_prepareCounter.load();
         tbb::detail::d1::wait_context wait_ctx(2);
@@ -1257,6 +1258,7 @@ class UpdateNodes : public UpdateNodesBase {
 public:
     using UpdateNodesBase::UpdateNodesBase;
     void operator()(size_t stopIndx) {
+        //auto perf1 = LinuxPerf::Profile("UpdateNodes");
         m_completion.store(false);
         auto startCounter = m_prepareCounter.load();
         tbb::task& root = *new(tbb::task::allocate_root()) tbb::empty_task;
@@ -1354,6 +1356,7 @@ inline void Graph::ExecuteNode(const NodePtr& node, SyncInferRequest* request, i
 
 inline void Graph::ExecuteNodeWithCatch(const NodePtr& node, SyncInferRequest* request, int numaId) const {
     VERBOSE_PERF_DUMP_ITT_DEBUG_LOG(itt::domains::intel_cpu, node, getConfig());
+    //auto perf1 = LinuxPerf::Profile(node->getTypeStr());
 
     try {
         ExecuteNode(node, request, numaId);
@@ -1367,12 +1370,15 @@ inline void Graph::ExecuteNodeWithCatch(const NodePtr& node, SyncInferRequest* r
 template<typename UpdateStrategy>
 void Graph::InferDynamic(SyncInferRequest* request, int numaId, UpdateStrategy&& update) {
     size_t inferCounter = 0;
-    auto perf = LinuxPerf::Profile(std::string("Graph::InferDynamic_#"), infer_count);
+    //auto perf = LinuxPerf::Profile(std::string("Graph::InferDynamic_#"), infer_count);
     for (auto stopIndx : m_executableSyncNodesInds) {
-        update(stopIndx);
-
+        {
+            auto perf1 = LinuxPerf::Profile("update");
+            update(stopIndx);
+        }
         for (; inferCounter < stopIndx; ++inferCounter) {
             auto& node = m_executableGraphNodes[inferCounter];
+            auto perf1 = LinuxPerf::Profile(node->getTypeStr() + "_" + node->getName());
 
             ExecuteNodeWithCatch(node, request, numaId);
         }

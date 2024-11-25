@@ -39,6 +39,7 @@
 #include <algorithm>
 #include <string>
 #include <vector>
+#include "linux_perf.hpp"
 
 using namespace ov::Extensions::Cpu::XARCH;
 using namespace dnnl::impl;
@@ -359,16 +360,19 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         auto m_blocks = (q_len + m_block_size - 1) / m_block_size;
         bool is_xf16 = precision_of<T>::value == ov::element::bf16 || precision_of<T>::value == ov::element::f16;
         // packed k, v
+        {auto perf1 = LinuxPerf::Profile("trans");
         parallel_for2d(B, Hk, [&](size_t b, size_t h) {
             T* k_ptr = &present_key.at<T>({b, h, 0, 0});
             T* v_ptr = &present_value.at<T>({b, h, 0, 0});
             qk_gemm_ptr->copy_buffer_b(k_ptr, &qk_scratch_b.at<T>({b, h, 0}));
             if (is_xf16)
                 wv_gemm_ptr->copy_buffer_b(v_ptr, &wv_scratch_b.at<T>({b, h, 0}));
-        });
+        });}
 
         // attention
+        auto perf1 = LinuxPerf::Profile("fma");
         auto bhb_loop = [&](size_t ithr, size_t b, size_t h, size_t m_blk) {
+            
             auto m_start = m_blk * m_block_size;
             auto m_end = std::min(m_start + m_block_size, q_len);
             auto m_cnt = m_end - m_start;
@@ -376,12 +380,15 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
             T* q_ptr = &query.at<T>({b, h, m_start, 0});
             float* c_ptr = weight_score.ptr<float>(ithr, h, 0, 0);
             T* k_ptr = &qk_scratch_b.at<T>({b, h / h_each_group_len, 0});
+            {auto perf1 = LinuxPerf::Profile("qk");
             qk_gemm_ptr->executeGemm(m_cnt < m_block_size,
                                      q_ptr,
                                      k_ptr,
                                      c_ptr,
                                      wsp.data() + tid * wsp_size_per_thread,
                                      qk_scratch_a ? &qk_scratch_a.at<T>({tid, 0}) : nullptr);
+            }
+            {auto perf1 = LinuxPerf::Profile("soft");
             float* alibi_ptr = nullptr;
             auto alibi_stride = 0;
             if (alibi_mask) {
@@ -420,7 +427,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                             precision_of<T>::value,
                             precision_of<T>::value,
                             precision_of<T>::value);
-            }
+            }}
+            auto perf1 = LinuxPerf::Profile("kv");
             auto* w_ptr = reinterpret_cast<T*>(weight_score.ptr<float>(ithr, h, 0, 0));
             float* fp32_out_ptr;
             if (is_xf16) {
@@ -901,6 +909,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             return VectorDims{inp_shape[0], inp_shape[1], config.config.order_HS[0], config.config.order_HS[1]};
         };
 
+        {auto perf1 = LinuxPerf::Profile("init1");
         q_input.reset(inputs[0]);
         k_input.reset(inputs[1]);
         v_input.reset(inputs[2]);
@@ -930,7 +939,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             if (input_num > 4) {
                 scale_input = *inputs[4]->getDataAs<float>();
             }
-        }
+        }}
 
         // q: [B, H, L1, S]
         const auto & permute_axes = config.config.permute_axes;
@@ -989,6 +998,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             }
         }
 
+        auto perf1 = LinuxPerf::Profile("init_ker");
         // second token, or first token with pastkv fusing
         bool use_one_token = L1 == 1 || (fuse_concat && L0 > 0);
         if (!use_one_token) {
@@ -1143,6 +1153,7 @@ void ScaledDotProductAttention::createPrimitive() {
 }
 
 void ScaledDotProductAttention::execute(dnnl::stream strm) {
+    auto perf1 = LinuxPerf::Profile("exec");
     auto orginSDPInputNumber = getOriginalInputsNumber() - (m_config.config.fuse_concat ? 3 : 0);
     std::vector<MemoryPtr> inputs(orginSDPInputNumber);
     auto output = getDstMemoryAtPort(0);
@@ -1155,6 +1166,7 @@ void ScaledDotProductAttention::execute(dnnl::stream strm) {
     if (m_config.config.fuse_concat) {
         CPU_NODE_ASSERT(m_k_state && m_v_state, "has null input states");
         // initialization will be also completed in this func
+        auto perf1 = LinuxPerf::Profile("concat");
         gatherConcatPastkv(inputs[1], inputs[2], getSrcMemoryAtPort(orginSDPInputNumber));
 
         presentk_input = m_k_state->internal_state_mem();
@@ -1166,6 +1178,7 @@ void ScaledDotProductAttention::execute(dnnl::stream strm) {
         presentk_input = inputs[1];
         presentv_input = inputs[2];
     }
+    auto perf2 = LinuxPerf::Profile("exec");
     m_executor->execute(strm, m_config, inputs, output, presentk_input, presentv_input, beam_input, k_scale_zp, v_scale_zp);
 }
 
