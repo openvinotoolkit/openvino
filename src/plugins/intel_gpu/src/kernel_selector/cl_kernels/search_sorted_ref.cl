@@ -18,7 +18,6 @@ OUTPUT_TYPE FUNC(binary_search_thread)(const INPUT0_TYPE search_val,
         const OUTPUT_TYPE half_offset = (sorted_end_idx-sorted_begin_idx)/2;
         const OUTPUT_TYPE half_idx = sorted_begin_idx+half_offset;
         const INPUT0_TYPE half_val = sorted[half_idx];
-        const bool comp_result = half_val CMP search_val;
         if ( search_val CMP half_val )
             sorted_end_idx = half_idx;
         else
