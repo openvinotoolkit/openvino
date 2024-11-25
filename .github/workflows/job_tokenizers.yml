@@ -54,13 +54,15 @@ jobs:
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "OPENVINO_TOKENIZERS_REPO=$GITHUB_WORKSPACE/openvino_tokenizers" >> "$GITHUB_ENV"
           echo "EXTENSION_BUILD_DIR=$GITHUB_WORKSPACE/build" >> "$GITHUB_ENV"
+          echo "INSTALL_WHEELS_DIR=$GITHUB_WORKSPACE/install/wheels" >> "$GITHUB_ENV"
 
-      - name: checkout action
+      - name: checkout actions
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           sparse-checkout: |
             .github/actions/setup_python
             .github/actions/cache
+            .github/actions/install_ov_wheels/action.yml
             install_build_dependencies.sh
             
       - name: Install OpenVINO dependencies (mac)
@@ -93,22 +95,11 @@ jobs:
       # Dependencies
       #
 
-      - name: Install OpenVINO Python wheel (Linux and macOS)
-        if: runner.os != 'Windows'
-        run: |
-          # Find and install wheel
-          wheel_name=$(find . -name 'openvino-*.whl')
-          python3 -m pip install $wheel_name
-        working-directory: ${{ env.INSTALL_WHEELS_DIR }}
-          
-
-      - name: Install OpenVINO Python wheel (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          # Find and install wheel
-          $ovCoreWheelPath=Get-ChildItem -Path . -Filter openvino-*.whl | % { $_.FullName }
-          python3 -m pip install "$ovCoreWheelPath"
-        working-directory: ${{ env.INSTALL_WHEELS_DIR }}
+      - name: Install OpenVINO Python wheels
+        uses: ./.github/actions/install_ov_wheels
+        with:
+          wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
+          wheels-to-install: 'openvino'
 
       #
       # Build
