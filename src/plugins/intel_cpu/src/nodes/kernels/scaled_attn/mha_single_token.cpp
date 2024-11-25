@@ -409,10 +409,11 @@ void sum_q_head(T* a, size_t n, size_t group_size, float* out) {
 #endif
 
         for (; i < group_size; i++) {
-            float tmp = a[i];
+            float tmp = a[i + offset];
             group_sum += tmp;
         }
         out[group_id] = group_sum;
+        group_id += 1;
     }
 }
 
@@ -562,7 +563,7 @@ static float dot_product(TA* a, TB* b, size_t n, float* scale, float* zp, float*
 }
 
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-static ov::float16 dot_product_fp16(ov::float16* a, ov::float16* b, size_t n, float* scale, float* zp, float* head_sum, size_t group_size) {
+static ov::float16 dot_product_fp16(ov::float16* a, ov::float16* b, size_t n, float* scale, float* zp, float* head_sum, size_t group_size = 0) {
     size_t i = 0;
     ov::float16 sum = 0.0f;
     auto vsum0 = vdupq_n_f16(0.0f);
@@ -623,6 +624,7 @@ template<typename TA>
 static float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, float* head_sum, size_t group_size) {
     float sum = 0.0f;
     size_t group_id = 0;
+    return 0.0;
 #if defined(HAVE_AVX512F)
     while (group_id < n / group_size) {
         auto vsum0 = _mm512_set1_ps(0.0f);
