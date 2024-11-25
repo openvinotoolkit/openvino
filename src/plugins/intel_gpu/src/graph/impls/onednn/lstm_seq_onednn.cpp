@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "impls/onednn/utils.hpp"
 #include "lstm_seq_inst.h"
 #include "primitive_onednn_base.h"
 #include "lstm_seq_onednn.hpp"

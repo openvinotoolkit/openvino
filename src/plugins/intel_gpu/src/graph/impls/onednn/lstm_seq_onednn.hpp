@@ -7,6 +7,7 @@
 #include "intel_gpu/runtime/utils.hpp"
 #include "impls/registry/implementation_manager.hpp"
 #include "transformations/utils/utils.hpp"
+#include "impls/onednn/utils.hpp"
 
 #include <memory>
 
