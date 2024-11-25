@@ -968,7 +968,6 @@ std::unique_ptr<ICompilerAdapter> Plugin::getCompiler(const Config& config) cons
     _logger.debug("performing createCompiler");
 
     switch (compilerType) {
-    case ov::intel_npu::CompilerType::DRIVER:
     case ov::intel_npu::CompilerType::MLIR: {
         if (_backends->getBackendName() != "LEVEL0") {
             return std::make_unique<PluginCompilerAdapter>(nullptr);
@@ -980,6 +979,18 @@ std::unique_ptr<ICompilerAdapter> Plugin::getCompiler(const Config& config) cons
         }
 
         return std::make_unique<PluginCompilerAdapter>(zeroBackend->getInitStruct());
+    }
+    case ov::intel_npu::CompilerType::DRIVER: {
+        if (_backends->getBackendName() != "LEVEL0") {
+            OPENVINO_THROW("NPU Compiler Adapter must be used with LEVEL0 backend");
+        }
+
+        auto zeroBackend = std::dynamic_pointer_cast<ZeroEngineBackend>(_backends->getIEngineBackend()._ptr);
+        if (!zeroBackend) {
+            OPENVINO_THROW("Failed to cast zeroBackend, zeroBackend is a nullptr");
+        }
+
+        return std::make_unique<DriverCompilerAdapter>(zeroBackend->getInitStruct());
     }
     default:
         OPENVINO_THROW("Invalid NPU_COMPILER_TYPE");
