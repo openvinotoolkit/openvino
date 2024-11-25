@@ -24,7 +24,7 @@
 using namespace cldnn;
 
 void mark_runtime_skippable_nodes::run(program& p) {
-    std::unordered_map<primitive_id, uint8_t> runtime_skippable_depth;
+    std::unordered_map<program_node*, uint8_t> runtime_skippable_depth;
     auto itr = p.get_processing_order().begin();
 
     while (itr != p.get_processing_order().end()) {
@@ -62,9 +62,9 @@ void mark_runtime_skippable_nodes::run(program& p) {
         uint8_t dep_runtime_skippable_depth = 0;
         for (const auto& dep : node->get_dependencies()) {
             if (dep.first->is_runtime_skippable() &&
-               (runtime_skippable_depth.find(dep.first->get_org_primitive_id()) != runtime_skippable_depth.end())) {
-                dep_runtime_skippable_depth = (runtime_skippable_depth[dep.first->get_org_primitive_id()] > dep_runtime_skippable_depth) ?
-                                              runtime_skippable_depth[dep.first->get_org_primitive_id()] : dep_runtime_skippable_depth;
+               (runtime_skippable_depth.find(dep.first) != runtime_skippable_depth.end())) {
+                dep_runtime_skippable_depth = (runtime_skippable_depth[dep.first] > dep_runtime_skippable_depth) ?
+                                              runtime_skippable_depth[dep.first] : dep_runtime_skippable_depth;
             }
         }
         if (!node->is_runtime_skippable() && (dep_runtime_skippable_depth >= max_runtime_skippable_depth)) {
@@ -279,7 +279,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
         });
 
         if (node->is_runtime_skippable()) {
-            runtime_skippable_depth[node->get_org_primitive_id()] = dep_runtime_skippable_depth + 1;
+            runtime_skippable_depth[node] = dep_runtime_skippable_depth + 1;
         }
     }
 }
