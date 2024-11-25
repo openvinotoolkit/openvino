@@ -389,7 +389,9 @@ void primitive_inst::update_shape() {
         if (i >= _deps.size())
             continue;
 
-        if (_deps[i].first->get_node().is_in_shape_of_subgraph()) {
+        if (_deps[i].first->get_node().is_in_shape_of_subgraph() &&
+        (_deps[i].first->get_node().get_selected_impl() ? _deps[i].first->get_node().get_selected_impl()->is_cpu()
+        : _deps[i].first->get_node().get_preferred_impl_type() == impl_types::cpu)) {
             bool can_skip = true;
             const auto& insts = _deps[i].first->dependant_shape_of_insts;
             for (auto& inst : insts) {
@@ -429,7 +431,8 @@ void primitive_inst::update_shape() {
             continue;
         }
 
-        if (!get_node().is_type<shape_of>() && !dep->get_node().is_in_shape_of_subgraph()) {
+        if (!get_node().is_type<shape_of>() &&
+        !(dep->get_node().get_selected_impl() ? dep->get_node().get_selected_impl()->is_cpu() : dep->get_node().get_preferred_impl_type() == impl_types::cpu)) {
             has_runtime_deps = true;
 
             // Events may be not created for in-order queue, so take them for OOO queue only
