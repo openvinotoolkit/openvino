@@ -415,8 +415,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 element.innerHTML = element.innerHTML.replace('search.html', `/${version}/search.html#f-ovversion=${version}`);
             }
     
-            // preProd = "intelcorporationnonproduction2ybdyblf7"
-            // prod = "intelcorporationproductione78n25s6"
             await element.initialize({
                 accessToken: "xx1f2aebd3-4307-4632-aeea-17c13378b237",
                 organizationId: "intelcorporationproductione78n25s6"
