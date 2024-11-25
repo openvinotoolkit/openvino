@@ -460,7 +460,6 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     _OV_OP_SHAPE_INFER_VA_REG(opset7::Gather, ShapeInferTA, op::util::GatherBase, util::bit::mask(2)),
     // opset6
     _OV_OP_SHAPE_INFER_MASK_REG(opset6::CTCGreedyDecoderSeqLen, ShapeInferTA, util::bit::mask()),
-    _OV_OP_SHAPE_INFER_MASK_REG(opset6::CTCGreedyDecoderSeqLen, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset6::ExperimentalDetectronDetectionOutput, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset6::ExperimentalDetectronGenerateProposalsSingleImage, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset6::ExperimentalDetectronPriorGridGenerator, ShapeInferTA, util::bit::mask()),
@@ -564,9 +563,6 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::Unsqueeze, ShapeInferTA, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::VariadicSplit, ShapeInferTA, util::bit::mask(1, 2)),
     _OV_OP_SHAPE_INFER_NON_TEMPLATE_REG(opset1::BatchNormInference, ShapeInferBase),
-    _OV_OP_SHAPE_INFER_NON_TEMPLATE_REG(opset1::BatchNormInference, ShapeInferBase),
-    _OV_OP_SHAPE_INFER_NON_TEMPLATE_REG(opset1::Convert, ShapeInferCopy),
-    _OV_OP_SHAPE_INFER_NON_TEMPLATE_REG(opset1::Convert, ShapeInferCopy),
     _OV_OP_SHAPE_INFER_NON_TEMPLATE_REG(opset1::Convert, ShapeInferCopy),
     _OV_OP_SHAPE_INFER_NON_TEMPLATE_REG(opset1::HardSigmoid, ShapeInferBase),
     _OV_OP_SHAPE_INFER_NON_TEMPLATE_REG(opset1::LogicalNot, ShapeInferCopy),
