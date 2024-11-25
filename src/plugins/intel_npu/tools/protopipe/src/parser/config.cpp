@@ -477,9 +477,12 @@ struct convert<ONNXRTParams::EP> {
     }
 };
 
+static const std::set<std::string> set_InferOp_raw_parameters = {"framework", "random", "metric", "input_data", "output_data"};
+static const std::set<std::string> set_ONNXRTParams_raw_parameters = {"name", "session_options", "ep", "opt_level"};
 static const std::set<std::string> set_ONNXRTParams_parameters = []() {
-    std::set<std::string> res = {"name", "session_options", "ep", "opt_level"};
-//    res.insert(set_ONNXRTParams_OpenVINO_parameters.begin(), set_ONNXRTParams_OpenVINO_parameters.end())
+    std::set<std::string> res = set_ONNXRTParams_raw_parameters;
+    res.insert(set_OpDesc_raw_parameters.begin(), set_OpDesc_raw_parameters.end());
+    res.insert(set_InferOp_raw_parameters.begin(), set_InferOp_raw_parameters.end());
 
     return res;
 }();
@@ -507,7 +510,7 @@ struct convert<ONNXRTParams> {
 static const std::set<std::string> set_Network_raw_parameters = {"name", "framework", "random", "metric", "input_data", "output_data"};
 static const std::set<std::string> set_Network_parameters = []() {
     std::set<std::string> res = set_Network_raw_parameters;
-    res.insert(set_parseAdvancedStream_raw_parameters.begin(), set_parseAdvancedStream_raw_parameters.end());
+    //res.insert(set_parseAdvancedStream_raw_parameters.begin(), set_parseAdvancedStream_raw_parameters.end());
 
     return res;
 }();
@@ -561,7 +564,6 @@ struct convert<CPUOp> {
     }
 };
 static const std::set<std::string> set_parseAdvancedStream_raw_parameters = {"name", "frames_interval_in_ms", "target_fps", "target_latency_in_ms", "exec_time_in_secs", "iteration_count", "op_desc", "connections"};
-static const std::set<std::string> set_InferOp_raw_parameters = {"framework", "random", "metric", "input_data", "output_data"};
 static const std::set<std::string> set_InferOp_parameters = []() {
     std::set<std::string> res = set_InferOp_raw_parameters;
     res.insert(set_OpDesc_raw_parameters.begin(), set_OpDesc_raw_parameters.end());
