@@ -268,15 +268,10 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
 
         const auto pattern_rank = matmul0->get_output_partial_shape(0).size();
 
-        const auto ops_count_before_softmax = ordered_ops.size();
         auto interm_op = matmul0->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
         // Add supported operations which are between MatMul0 and Softmax to ordered_ops
         if (!update_intermediate_supported_ops(interm_op, ordered_ops, hidden_virtual_ports_count, potential_body_params_count))
             return false;
-
-        // If before Softmax there is Eltwise ops, there will be one more Buffer
-        if (ops_count_before_softmax != ordered_ops.size() && interm_op->get_output_partial_shape(0).rbegin()->is_dynamic())
-            uniqie_buffer_reg_group_count++;
 
         std::shared_ptr<ov::opset1::Reshape> reshape0 = nullptr;
         if (!tokenize_reshape_around_softmax(interm_op, reshape0, ordered_ops))
@@ -294,10 +289,6 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
 
         if (axis != rank.get_length() - 1 || interm_op->get_output_target_inputs(0).size() != 1)
             return false;
-
-        // Softmax need one buffer at least
-        if (interm_op->get_output_partial_shape(0).rbegin()->is_dynamic())
-            uniqie_buffer_reg_group_count++;
 
         ordered_ops.push_back(interm_op);
 
@@ -333,7 +324,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
         // The Loop will have one Buffer with the same shape both on input and output.
         // Need to check for precision to get if we need one more register for Buffer
         const auto matmul0_prc = op::Brgemm::get_output_type(matmul0->get_input_element_type(0), matmul0->get_input_element_type(1));
-        if (matmul1->get_input_element_type(0).size() != matmul0_prc.size() || matmul1->get_input_partial_shape(0).is_dynamic()) {
+        if (matmul1->get_input_element_type(0).size() != matmul0_prc.size()) {
             uniqie_buffer_reg_group_count++;
         }
 

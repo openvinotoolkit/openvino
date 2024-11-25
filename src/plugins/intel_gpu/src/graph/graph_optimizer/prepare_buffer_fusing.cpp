@@ -423,10 +423,11 @@ bool crop_in_place_optimization::can_crop_be_optimized_simple_data_format(const 
 }
 
 static bool can_read_value_be_optimize(const read_value_node& node) {
-    if (node.get_users().size() == 1)
+    std::unordered_set<const cldnn::program_node*> unique_users(node.get_users().begin(), node.get_users().end());
+    if (unique_users.size() == 1)
         return true;
 
-    const auto non_shape_of_users_count = std::count_if(node.get_users().begin(), node.get_users().end(), [](const program_node* user) {
+    const auto non_shape_of_users_count = std::count_if(unique_users.begin(), unique_users.end(), [](const program_node* user) {
         return !user->is_type<shape_of>();
     });
     if (non_shape_of_users_count <= 1)
@@ -659,23 +660,34 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
         if (user_info.first && user_info.first->is_type<reshape>()) {
             auto reshape_desc = user_info.first->as<reshape>().get_primitive();
             auto reshape_mode = reshape_desc->mode;
+            auto reshape_axis = crop_axis;
             if (reshape_mode == reshape::reshape_mode::base) {
-                user_info.second.data_padding._dynamic_dims_mask = dyn_pad_sizes;
+                auto reshape_ps = user_info.second.get_partial_shape();
+                auto crop_dim_val = crop_layout.get_partial_shape()[crop_axis].get_length();
+
+                auto mul = 1;
+                reshape_axis = reshape_ps.size() - 1;
+                for (size_t i = reshape_ps.size(); i > 1; i--) {
+                    if (reshape_ps[i - 1].is_dynamic() || mul == crop_dim_val)
+                        break;
+
+                    mul *= reshape_ps[i - 1].get_length();
+                    reshape_axis = i - 1;
+                }
             } else if (reshape_mode == reshape::reshape_mode::unsqueeze || reshape_mode == reshape::reshape_mode::squeeze) {
                 auto reshape_ps = user_info.second.get_partial_shape();
                 auto output_pattern = reshape_desc->output_pattern;
 
-                auto reshape_axis = crop_axis;
                 for (size_t i = 0; i < output_pattern.size(); i++) {
                     if (output_pattern[i] <= static_cast<int64_t>(reshape_axis)) {
                         reshape_axis += reshape_mode == reshape::reshape_mode::unsqueeze ? 1 : -1;
                     }
                 }
-
-                padding::DynamicDimsMask dyn_pad_mask;
-                dyn_pad_mask[reshape_axis] = 1;
-                user_info.second.data_padding._dynamic_dims_mask = dyn_pad_mask;
             }
+
+            auto reshape_dyn_pad_mask = padding::DynamicDimsMask();
+            reshape_dyn_pad_mask[reshape_axis] = 1;
+            user_info.second.data_padding._dynamic_dims_mask = reshape_dyn_pad_mask;
         }
         return;
     }
@@ -703,13 +715,36 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
             auto reshape_desc = user_info.first->as<reshape>().get_primitive();
             auto reshape_mode = reshape_desc->mode;
             if (reshape_mode == reshape::reshape_mode::base) {
-                auto reshape_rank = user_info.second.get_partial_shape().size();
-                auto reshape_last_dim = user_info.second.get_partial_shape().to_shape()[reshape_rank - 1];
-                if (lower_sizes[crop_axis])
-                    lower_sizes[crop_axis] /= reshape_last_dim;
-                if (upper_sizes[crop_axis])
-                    upper_sizes[crop_axis] /= reshape_last_dim;
-                user_info.second.data_padding = padding(lower_sizes, upper_sizes, dyn_pad_sizes);
+                auto reshape_ps = user_info.second.get_partial_shape();
+                auto crop_dim_val = crop_layout.get_partial_shape()[crop_axis].get_length();
+
+                auto divider = 1;
+                auto reshape_axis = reshape_ps.size();
+                for (size_t i = reshape_ps.size(); i > 1; i--) {
+                    const auto& dim_value = reshape_ps[i - 1].get_length();
+                    if (divider * dim_value == crop_dim_val)
+                        break;
+
+                    divider *= dim_value;
+                    reshape_axis = i - 1;
+                }
+                reshape_axis -= 1;
+
+                const auto output_rank = std::max(reshape_ps.size(), static_cast<size_t>(4));
+                std::vector<int32_t> reshape_lower_sizes(output_rank, 0);
+                std::vector<int32_t> reshape_upper_sizes(output_rank, 0);
+                padding::DynamicDimsMask reshape_dyn_pad_mask;
+
+                reshape_lower_sizes[reshape_axis] = lower_sizes[crop_axis];
+                reshape_upper_sizes[reshape_axis] = upper_sizes[crop_axis];
+                reshape_dyn_pad_mask[reshape_axis] = 1;
+
+                if (reshape_lower_sizes[reshape_axis])
+                    reshape_lower_sizes[reshape_axis] /= divider;
+                if (reshape_upper_sizes[reshape_axis])
+                    reshape_upper_sizes[reshape_axis] /= divider;
+
+                user_info.second.data_padding = padding(reshape_lower_sizes, reshape_upper_sizes, reshape_dyn_pad_mask);
             } else {
                 auto reshape_ps = user_info.second.get_partial_shape();
                 auto output_pattern = reshape_desc->output_pattern;
@@ -877,18 +912,39 @@ void prepare_buffer_fusing::run(program& p) {
                 node.set_output_layout(kv_out_layout);
                 node.can_share_buffer(false);
 
-                auto update_dep = [&info_dynamic_pad](program_node* dep) {
-                    auto prev_layout = dep->get_output_layout();
+                auto update_dep = [](program_node* dep, padding::DynamicDimsMask& info_dynamic_pad, size_t idx) {
+                    auto prev_layout = dep->get_output_layout(true, idx);
                     prev_layout.data_padding._dynamic_dims_mask = info_dynamic_pad;
-                    dep->set_output_layout(prev_layout);
+                    dep->set_output_layout(prev_layout, true, idx);
                     dep->can_share_buffer(false);
                 };
 
+                auto update_scale_zp = [&](size_t kv_cache_output_idx, size_t read_value_output_idx) {
+                    auto scales_out_layout = node.get_output_layout(false, kv_cache_output_idx);
+
+                    const size_t scales_zp_concat_axis = 2;
+                    padding::DynamicDimsMask info_dynamic_pad_scales;
+                    info_dynamic_pad_scales[scales_zp_concat_axis] = 1;
+                    scales_out_layout.data_padding._dynamic_dims_mask = info_dynamic_pad_scales;
+                    node.set_output_layout(scales_out_layout, true, kv_cache_output_idx);
+
+                    update_dep(rv_prim, info_dynamic_pad_scales, read_value_output_idx);
+                };
+
                 if (rv_prim) {
-                    update_dep(rv_prim);
+                    update_dep(rv_prim, info_dynamic_pad, 0);
                 }
                 if (gather_prim) {
-                    update_dep(gather_prim);
+                    update_dep(gather_prim, info_dynamic_pad, 0);
+                }
+
+                const auto& desc = node.get_primitive();
+                if (desc->compressed) {
+                    update_scale_zp(2, 1);
+
+                    if (desc->get_compression_zp_inputs_num() > 0) {
+                        update_scale_zp(3, 2);
+                    }
                 }
             }
         });
@@ -922,7 +978,7 @@ void prepare_buffer_fusing::run(program& p) {
             // TODO: Allow optimizations for the case above too. Looks like it can be achieved by more careful
             // topological sort (i.e. if we ensure that all read_value users are completed before assign is run)
             node.can_be_optimized(can_read_value_be_optimize(node));
-            GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing] : " << node.id() << " can be optimized" << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing] : " << node.id() << " can be optimized = " << node.can_be_optimized() << std::endl;
         });
     }
 }

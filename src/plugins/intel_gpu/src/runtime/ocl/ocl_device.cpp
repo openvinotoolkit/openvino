@@ -330,6 +330,14 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
     ngen::Product product = {ngen::ProductFamily::Unknown, 0};
     jit_generator<ngen::HW::Unknown>::detectHWInfo(context.get(), device.get(), hw, product);
     info.arch = convert_ngen_arch(hw);
+    // We change the value of this flag to avoid OneDNN usage for the platforms unknown to OneDNN
+    // This is required to guarantee some level of forward compatibility for the new HW generations
+    // as OneDNN code generators are not generic and typically requires some updates for the new architectures
+    // Ideally, we shouldn't do that as OCL impls sometimes also check this flag, but in order to avoid that
+    // we need to ensure that graph transformations are not relying on this flag as indicator that onednn will be used
+    if (product.family == ngen::ProductFamily::Unknown) {
+        info.supports_immad = false;
+    }
 #else  // ENABLE_ONEDNN_FOR_GPU
     info.arch = gpu_arch::unknown;
 #endif  // ENABLE_ONEDNN_FOR_GPU

@@ -60,6 +60,7 @@ log_level: INFO
 - `ol` - **Optional**. Output layer layout.
 - `iml` - **Optional**. Input model layout.
 - `oml` - **Optional**. Output model layout.
+- `reshape` - **Optional**. Set shape for input layers. For example, "input1: [1,3,224,224], input2: [1,4]" or "[1,3,224,224]" in case of one input layer.
 
 Examples:
 ```
@@ -97,6 +98,7 @@ The dependency graph in Protopipe is specified by:
   - `tag` - **Required**. The unique name of operation.
   - `type` - **Optional**. The operation type: _Infer_, _CPU_, _Compound_ (**Default**: _Infer_)
   - `repeat_count` - **Optional**. Runs operation over specified number of iterations.
+  - `opt_level` - **Optional**. Configures optimization level for ONNX Runtime.
 - `connections` - The list of connections between operations.
 
 Supported operation types

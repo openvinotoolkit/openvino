@@ -4,7 +4,8 @@
 
 1. Install the `openvino_sphinx_theme` using `python`:
 ```
-python setup.py install --user
+cd openvino/docs/openvino_sphinx_theme
+python -m pip install --user .
 ```
 
 2. Update the `html_theme` variable in your `conf.py`:
