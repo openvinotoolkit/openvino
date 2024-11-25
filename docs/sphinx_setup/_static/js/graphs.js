@@ -669,7 +669,7 @@ $(document).ready(function () {
                 }
                 else {
                     var graphConfigs = setGraphConfigs(filteredGraphData, appConfig, kpis, precisions)
-                    createChartWithNewData(labels, graphConfigs, chartContainer, display);
+                    createChartWithNewData(labels, graphConfigs, appConfig, chartContainer, display);
                 }
 
             } else {
@@ -730,7 +730,7 @@ $(document).ready(function () {
         setChartsDisplayDirection(display.mode);
         adjustHeaderIcons(display.mode);
     }
-    function createChartWithNewData(labels, graphConfigs, chartContainer, display) {
+    function createChartWithNewData(labels, graphConfigs, appConfig, chartContainer, display) {
 
         var chartWrap = $('<div>');
         chartWrap.addClass('chart-wrap');
@@ -759,6 +759,8 @@ $(document).ready(function () {
             columnHeaderContainer.append(columnIcon);
             var columnHeader = $('<div class="chart-header">');
             columnHeader.append($('<div class="title">' + graphConfig.chartTitle + '</div>'));
+            columnHeader.append($('<div class="subtitle">' + graphConfig.unit + '</div>'));
+            columnHeader.append($('<div class="subtitle">' + appConfig.UnitDescription[graphConfig.unit] + '</div>'));
             columnHeaderContainer.append(columnHeader);
             chartGraphsContainer.append(graphItem);
             var graphClass = $('<div>');
