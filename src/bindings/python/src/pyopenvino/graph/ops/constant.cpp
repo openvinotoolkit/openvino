@@ -121,9 +121,21 @@ void regclass_graph_op_Constant(py::module m) {
         }
     });
 
-    constant.def("get_tensor_view", &ov::op::v0::Constant::get_tensor_view);
+    constant.def("get_tensor_view",
+                 &ov::op::v0::Constant::get_tensor_view,
+                 R"(
+                    Get view on constant data as tensor.
 
-    constant.def("get_strides", &ov::op::v0::Constant::get_strides);
+                    :rtype: openvino.Tensor
+                )");
+
+    constant.def("get_strides",
+                 &ov::op::v0::Constant::get_strides,
+                 R"(
+                    Constant's strides in bytes.
+
+                    :rtype: openvino.Strides
+                )");
 
     // TODO: Remove in future and re-use `get_data`
     // Provide buffer access
@@ -240,9 +252,21 @@ void regclass_graph_op_Constant(py::module m) {
             :rtype: numpy.array
         )");
 
-    constant.def_property_readonly("tensor_view", &ov::op::v0::Constant::get_tensor_view);
+    constant.def_property_readonly("tensor_view",
+                                   &ov::op::v0::Constant::get_tensor_view,
+                                   R"(
+                                    Get view on constant data as tensor.
 
-    constant.def_property_readonly("strides", &ov::op::v0::Constant::get_strides);
+                                    :rtype: openvino.Tensor
+                                )");
+
+    constant.def_property_readonly("strides",
+                                   &ov::op::v0::Constant::get_strides,
+                                   R"(
+                                    Constant's strides in bytes.
+
+                                    :rtype: openvino.Strides
+                                )");
 
     constant.def("__repr__", [](const ov::op::v0::Constant& self) {
         std::stringstream shapes_ss;

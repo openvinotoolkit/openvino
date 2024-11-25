@@ -771,6 +771,6 @@ def test_const_from_tensor(shared_flag):
     else:
         assert not np.array_equal(ov_const.data, arr)
         assert not np.shares_memory(arr, ov_const.data)
-    
+
     assert ov_const.strides == [72, 36, 12, 4]
     assert ov_const.get_tensor_view().get_strides() == Strides([72, 36, 12, 4])
