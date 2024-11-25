@@ -624,7 +624,6 @@ template<typename TA>
 static float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, float* head_sum, size_t group_size) {
     float sum = 0.0f;
     size_t group_id = 0;
-    return 0.0;
 #if defined(HAVE_AVX512F)
     while (group_id < n / group_size) {
         auto vsum0 = _mm512_set1_ps(0.0f);
@@ -718,7 +717,7 @@ static float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, f
         auto vsum1 = _mm256_set1_ps(0.0f);
         auto vsum2 = _mm256_set1_ps(0.0f);
         auto vsum3 = _mm256_set1_ps(0.0f);
-        for (; i + 4 * vec_len_f32_avx2 <= n; i += vec_len_f32_avx2 * 4) {
+        for (; i + 4 * vec_len_f32_avx2 <= group_size; i += vec_len_f32_avx2 * 4) {
             auto va0 = mm256_uni_loadu_ps(a + offset + i);
             auto va1 = mm256_uni_loadu_ps(a + offset + i + vec_len_f32_avx2);
             auto va2 = mm256_uni_loadu_ps(a + offset + i + vec_len_f32_avx2 * 2);
@@ -744,7 +743,7 @@ static float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, f
             vsum2 = _mm256_fmadd_ps(va2, vb2, vsum2);
             vsum3 = _mm256_fmadd_ps(va3, vb3, vsum3);
         }
-        if (i + 2 * vec_len_f32_avx2 <= n) {
+        if (i + 2 * vec_len_f32_avx2 <= group_size) {
             auto va0 = mm256_uni_loadu_ps(a + offset + i);
             auto va1 = mm256_uni_loadu_ps(a + offset + i + vec_len_f32_avx2);
 
@@ -761,7 +760,7 @@ static float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, f
             vsum1 = _mm256_fmadd_ps(va1, vb1, vsum1);
             i += 2 * vec_len_f32_avx2;
         }
-        if (i + vec_len_f32_avx2 <= n) {
+        if (i + vec_len_f32_avx2 <= group_size) {
             auto va0 = mm256_uni_loadu_ps(a + offset + i);
             auto vb0_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + offset + i));
             auto vb0_256 = _mm256_cvtepu8_epi32(vb0_128);
@@ -774,7 +773,7 @@ static float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, f
         vsum0 = _mm256_add_ps(vsum0, vsum2);
         hsum(vsum0);
         float group_sum = _mm256_cvtss_f32(vsum0);
-        for (; i < n; i++) {
+        for (; i < group_size; i++) {
             group_sum += a[offset + i] * b[offset + i];
         }
         // B = scale * (b - zero)
