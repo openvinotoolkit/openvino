@@ -93,7 +93,7 @@ jobs:
       OPENVINO_REPO: ${{ github.workspace }}/src
       INSTALL_DIR: ${{ github.workspace }}/install/openvino
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
-      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install
       BUILD_DIR: ${{ github.workspace }}/build
       DOCKER_CONFIG: "/mount/.docker"
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
@@ -313,26 +313,26 @@ jobs:
           wheels-to-install: 'openvino'
 
       - name: Install Python API tests dependencies
-        run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/tests/bindings/python/requirements_test.txt
+        run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/bindings/python/requirements_test.txt
 
       - name: Python API Tests
         run: |
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
-          python3 -m pytest -sv ${INSTALL_TEST_DIR}/tests/pyopenvino \
+          python3 -m pytest -sv ${INSTALL_TEST_DIR}/pyopenvino \
             --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
-            --ignore=${INSTALL_TEST_DIR}/tests/pyopenvino/tests/test_utils/test_utils.py
+            --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py
 
       - name: Python API Tests -- numpy>=2.0.0
         run: |
           python3 -m pip uninstall -y numpy
           python3 -m pip install "numpy>=2.0.0,<2.2.0"
-          python3 -m pip install -r ${INSTALL_TEST_DIR}/tests/bindings/python/requirements_test.txt
+          python3 -m pip install -r ${INSTALL_TEST_DIR}/bindings/python/requirements_test.txt
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
-          python3 -m pytest -sv ${INSTALL_TEST_DIR}/tests/pyopenvino \
+          python3 -m pytest -sv ${INSTALL_TEST_DIR}/pyopenvino \
             --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
-            --ignore=${INSTALL_TEST_DIR}/tests/pyopenvino/tests/test_utils/test_utils.py
+            --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py
 
       - name: Upload Test Results
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
