@@ -10,6 +10,7 @@
 
 #include <filesystem>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -192,7 +193,7 @@ struct convert<LayerVariantAttr<T>> {
     }
 };
 
-static const set<std::string> set_UniformGenerator_parameters = {"low", "high"};
+static const std::set<std::string> set_UniformGenerator_parameters = {"low", "high"};
 template <>
 struct convert<UniformGenerator::Ptr> {
     static bool decode(const Node& node, UniformGenerator::Ptr& generator) {
@@ -212,12 +213,12 @@ static const std::set<std::string> set_IRandomGenerator_param = []() {
     std::set<std::string> res = {"dist", "uniform"};
     res.insert(set_UniformGenerator_parameters.cbegin(), set_UniformGenerator_parameters.cend());
     return res;
-}
+}();
 
 template <>
 struct convert<IRandomGenerator::Ptr> {
     static bool decode(const Node& node, IRandomGenerator::Ptr& generator) {
-        validateNodeChildren(node, set_IRandomGenerator_param;
+        validateNodeChildren(node, set_IRandomGenerator_param);
         if (!node["dist"]) {
             THROW_ERROR("\"random\" must have \"dist\" attribute!");
         }
@@ -231,7 +232,7 @@ struct convert<IRandomGenerator::Ptr> {
     }
 };
 
-static const set<std::string> set_Norm_parameters = {"tolerance"};
+static const std::set<std::string> set_Norm_parameters = {"tolerance"};
 template <>
 struct convert<Norm::Ptr> {
     static bool decode(const Node& node, Norm::Ptr& metric) {
@@ -246,7 +247,7 @@ struct convert<Norm::Ptr> {
     }
 };
 
-static const set<std::string> set_Cosine_parameters = {"threshold"};
+static const std::set<std::string> set_Cosine_parameters = {"threshold"};
 template <>
 struct convert<Cosine::Ptr> {
     static bool decode(const Node& node, Cosine::Ptr& metric) {
@@ -261,7 +262,7 @@ struct convert<Cosine::Ptr> {
     }
 };
 
-static const set<std::string> set_NRMSE_parameters = {"tolerance"};
+static const std::set<std::string> set_NRMSE_parameters = {"tolerance"};
 template <>
 struct convert<NRMSE::Ptr> {
     static bool decode(const Node& node, NRMSE::Ptr& metric) {
@@ -276,13 +277,14 @@ struct convert<NRMSE::Ptr> {
     }
 };
 
-static const set<std::string> set_IAccuracyMetric_parameters = []() {
+static const std::set<std::string> set_IAccuracyMetric_parameters = []() {
     std::set<std::string> res = {"name"};
     res.insert(set_Norm_parameters.cbegin(), set_Norm_parameters.cend());
     res.insert(set_Cosine_parameters.cbegin(), set_Cosine_parameters.cend());
     res.insert(set_NRMSE_parameters.cbegin(), set_NRMSE_parameters.cend());
     return res;
-}
+}();
+
 template <>
 struct convert<IAccuracyMetric::Ptr> {
     static bool decode(const Node& node, IAccuracyMetric::Ptr& metric) {
@@ -301,11 +303,14 @@ struct convert<IAccuracyMetric::Ptr> {
     }
 };
 
-static const set<std::string> set_GlobalOptions_parameters = []() {
-    std::set<std::string> res = {"model_dir", "blob_dir", "device_name", "log_level", "compiler_type", "save_validation_outputs"};
-
+static const std::set<std::string> set_parseConfig_raw_parameters = {"multi_inference", "metric", "random", "disable_high_resolution_waitable_timer"};
+static const std::set<std::string> set_GlobalOptions_raw_parameters = {"model_dir", "blob_dir", "device_name", "log_level", "compiler_type", "save_validation_outputs"};
+static const std::set<std::string> set_GlobalOptions_parameters = []() {
+    std::set<std::string> res = set_GlobalOptions_raw_parameters;
+    res.insert(set_parseConfig_raw_parameters.cbegin(), set_parseConfig_raw_parameters.cend());
     return res;
-}
+}();
+
 template <>
 struct convert<GlobalOptions> {
     static bool decode(const Node& node, GlobalOptions& opts) {
@@ -345,12 +350,15 @@ struct convert<GlobalOptions> {
         return true;
     }
 };
-
-static const set<std::string> set_OpenVINOParams_parameters = []() {
-    std::set<std::string> res = {"name", "path", "device", "ip", "op", "il", "ol", "iml", "oml", "reshape", "config", "priority", "nireq"};
+static const std::set<std::string> set_OpDesc_raw_parameters = {"tag", "type", "repeat_count", "connections", "op_desc"};
+static const std::set<std::string> set_OpenVINOParams_raw_parameters = {"name", "path", "device", "ip", "op", "il", "ol", "iml", "oml", "reshape", "config", "priority", "nireq"};
+static const std::set<std::string> set_OpenVINOParams_parameters = []() {
+    std::set<std::string> res = set_OpenVINOParams_raw_parameters;
+    res.insert(set_OpDesc_raw_parameters.begin(), set_OpDesc_raw_parameters.end());
 
     return res;
-}
+}();
+
 template <>
 struct convert<OpenVINOParams> {
     static bool decode(const Node& node, OpenVINOParams& params) {
@@ -419,7 +427,7 @@ struct convert<OpenVINOParams> {
     }
 };
 
-static const set<std::string> set_ONNXRTParams_OpenVINO_parameters = {"params", "device_type"};
+static const std::set<std::string> set_ONNXRTParams_OpenVINO_parameters = {"params", "device_type"};
 template <>
 struct convert<ONNXRTParams::OpenVINO> {
     static bool decode(const Node& node, ONNXRTParams::OpenVINO& ov_ep) {
@@ -440,12 +448,13 @@ struct convert<ONNXRTParams::OpenVINO> {
     }
 };
 
-static const set<std::string> set_ONNXRTParams_EP_parameters = []() {
+static const std::set<std::string> set_ONNXRTParams_EP_parameters = []() {
     std::set<std::string> res = {"params", "device_type"};
-    res.insert(set_ONNXRTParams_OpenVINO_parameters.begin(), set_ONNXRTParams_OpenVINO_parameters.end())
+    res.insert(set_ONNXRTParams_OpenVINO_parameters.begin(), set_ONNXRTParams_OpenVINO_parameters.end());
 
     return res;
-}
+}();
+
 template <>
 struct convert<ONNXRTParams::EP> {
     static bool decode(const Node& node, ONNXRTParams::EP& ep) {
@@ -461,12 +470,13 @@ struct convert<ONNXRTParams::EP> {
     }
 };
 
-static const set<std::string> set_ONNXRTParams_parameters = []() {
+static const std::set<std::string> set_ONNXRTParams_parameters = []() {
     std::set<std::string> res = {"name", "session_options", "ep", "opt_level"};
 //    res.insert(set_ONNXRTParams_OpenVINO_parameters.begin(), set_ONNXRTParams_OpenVINO_parameters.end())
 
     return res;
-}
+}();
+
 template <>
 struct convert<ONNXRTParams> {
     static bool decode(const Node& node, ONNXRTParams& params) {
@@ -487,12 +497,13 @@ struct convert<ONNXRTParams> {
     }
 };
 
-static const set<std::string> set_Network_parameters = []() {
+static const std::set<std::string> set_Network_parameters = []() {
     std::set<std::string> res = {"name", "framework", "random", "metric", "input_data", "output_data"};
 //    res.insert(set_ONNXRTParams_OpenVINO_parameters.begin(), set_ONNXRTParams_OpenVINO_parameters.end())
 
     return res;
-}
+}();
+
 template <>
 struct convert<Network> {
     static bool decode(const Node& node, Network& network) {
@@ -530,7 +541,7 @@ struct convert<Network> {
     }
 };
 
-static const set<std::string> set_CPUOp_parameters = {"time_in_us"};
+static const std::set<std::string> set_CPUOp_parameters = {"time_in_us"};
 template <>
 struct convert<CPUOp> {
     static bool decode(const Node& node, CPUOp& op) {
@@ -540,13 +551,16 @@ struct convert<CPUOp> {
         return true;
     }
 };
-
-static const set<std::string> set_InferOp_parameters = []() {
-    std::set<std::string> res = {"framework", "random", "metric", "input_data", "output_data"};
-//    res.insert(set_ONNXRTParams_OpenVINO_parameters.begin(), set_ONNXRTParams_OpenVINO_parameters.end())
-
+static const std::set<std::string> set_parseAdvancedStream_raw_parameters = {"name", "frames_interval_in_ms", "target_fps", "target_latency_in_ms", "exec_time_in_secs", "iteration_count", "op_desc", "connections"};
+static const std::set<std::string> set_InferOp_raw_parameters = {"framework", "random", "metric", "input_data", "output_data"};
+static const std::set<std::string> set_InferOp_parameters = []() {
+    std::set<std::string> res = set_InferOp_raw_parameters;
+    res.insert(set_OpDesc_raw_parameters.begin(), set_OpDesc_raw_parameters.end());
+    res.insert(set_parseAdvancedStream_raw_parameters.begin(), set_parseAdvancedStream_raw_parameters.end());
+    res.insert(set_OpenVINOParams_raw_parameters.begin(), set_OpenVINOParams_raw_parameters.end());
     return res;
-}
+}();
+
 template <>
 struct convert<InferOp> {
     static bool decode(const Node& node, InferOp& op) {
@@ -579,12 +593,13 @@ struct convert<InferOp> {
     }
 };
 
-static const set<std::string> set_OpDesc_parameters = []() {
-    std::set<std::string> res = {"framework", "random", "metric", "input_data", "output_data"};
-//    res.insert(set_ONNXRTParams_OpenVINO_parameters.begin(), set_ONNXRTParams_OpenVINO_parameters.end())
-
+static const std::set<std::string> set_OpDesc_parameters = []() {
+    std::set<std::string> res = set_OpDesc_raw_parameters;
+    res.insert(set_parseAdvancedStream_raw_parameters.begin(), set_parseAdvancedStream_raw_parameters.end());
+    res.insert(set_OpenVINOParams_raw_parameters.begin(), set_OpenVINOParams_raw_parameters.end());
     return res;
-}
+}();
+
 template <>
 struct convert<OpDesc> {
     static bool decode(const Node& node, OpDesc& opdesc) {
@@ -854,16 +869,18 @@ static ScenarioGraph buildGraph(const std::vector<OpDesc>& op_descs,
     }
     return graph;
 }
-static const set<std::string> set_parseAdvancedStream_parameters = []() {
-    std::set<std::string> res = {"name", "frames_interval_in_ms", "target_fps", "target_latency_in_ms", "exec_time_in_secs", "iteration_count", "op_desc", "connections"};
+
+static const std::set<std::string> set_parseAdvancedStream_parameters = []() {
+    std::set<std::string> res = YAML::set_parseAdvancedStream_raw_parameters;
 //    res.insert(set_ONNXRTParams_OpenVINO_parameters.begin(), set_ONNXRTParams_OpenVINO_parameters.end())
 
     return res;
-}
+}();
+
 static StreamDesc parseAdvancedStream(const YAML::Node& node, const GlobalOptions& opts,
                                       const std::string& default_name, const ReplaceBy& replace_by) {
     StreamDesc stream;
-    {"name", "frames_interval_in_ms", "target_fps", "target_latency_in_ms", "exec_time_in_secs", "iteration_count", "op_desc", "connections"}
+    //{"name", "frames_interval_in_ms", "target_fps", "target_latency_in_ms", "exec_time_in_secs", "iteration_count", "op_desc", "connections"}
     validateNodeChildren(node, set_parseAdvancedStream_parameters);
     // FIXME: Create a function for the duplicate code below
     stream.name = node["name"] ? node["name"].as<std::string>() : default_name;
@@ -936,7 +953,7 @@ static std::vector<StreamDesc> parseStreams(const YAML::Node& node, const Global
     return streams;
 }
 
-static const set<std::string> set_parseScenarios_parameters = {"name", "input_stream_list"};
+static const std::set<std::string> set_parseScenarios_parameters = {"name", "input_stream_list"};
 static std::vector<ScenarioDesc> parseScenarios(const YAML::Node& node, const GlobalOptions& opts,
                                                 const ReplaceBy& replace_by) {
     std::vector<ScenarioDesc> scenarios;
@@ -960,12 +977,13 @@ static std::vector<ScenarioDesc> parseScenarios(const YAML::Node& node, const Gl
     return scenarios;
 }
 
-static const set<std::string> set_parseConfig_parameters = []() {
-    std::set<std::string> res = {"multi_inference", "metric", "random", "disable_high_resolution_waitable_timer"};
-//    res.insert(set_ONNXRTParams_OpenVINO_parameters.begin(), set_ONNXRTParams_OpenVINO_parameters.end())
+static const std::set<std::string> set_parseConfig_parameters = []() {
+    std::set<std::string> res = YAML::set_parseConfig_raw_parameters;
+    res.insert(YAML::set_GlobalOptions_parameters.begin(), YAML::set_GlobalOptions_parameters.end());
 
     return res;
-}
+}();
+
 Config parseConfig(const YAML::Node& node, const ReplaceBy& replace_by) {
     //{"multi_inference", "metric", "random", "model_dir", "blob_dir", "device_name", "log_level", "compiler_type", "save_validation_outputs", "disable_high_resolution_waitable_timer"}
     validateNodeChildren(node, set_parseConfig_parameters);
