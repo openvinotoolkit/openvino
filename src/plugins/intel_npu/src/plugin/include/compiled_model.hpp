@@ -74,6 +74,7 @@ private:
      *
      */
     mutable std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> _weightsInputs;
+    mutable ov::SoPtr<ov::ITensor> _initOutputsTensor;
 
     // properties map: {name -> [supported, mutable, eval function]}
     std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>> _properties;

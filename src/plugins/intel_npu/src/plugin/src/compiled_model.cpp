@@ -51,7 +51,8 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     if (_config.get<SEPARATE_WEIGHTS_VERSION>() != 0 && _initGraph != nullptr) {
         if (_config.get<CREATE_EXECUTOR>() && !_config.get<DEFER_WEIGHTS_LOAD>()) {
             begin = std::chrono::steady_clock::now();
-            _weightsInputs = _device->runInit(_initGraph, _initModel, get_context(), _config);
+            std::tie(_weightsInputs, _initOutputsTensor) =
+                _device->runInit(_initGraph, _initModel, get_context(), _config);
             end = std::chrono::steady_clock::now();
             std::cout << "run_init() call within the \"CompiledModel\" ctor "
                       << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"
@@ -87,7 +88,8 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
                       << std::endl;
 
             begin = std::chrono::steady_clock::now();
-            _weightsInputs = _device->runInit(_initGraph, _initModel, get_context(), _config);
+            std::tie(_weightsInputs, _initOutputsTensor) =
+                _device->runInit(_initGraph, _initModel, get_context(), _config);
             end = std::chrono::steady_clock::now();
             std::cout << "run_init() call during inference request creation "
                       << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"

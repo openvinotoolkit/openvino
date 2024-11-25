@@ -4,69 +4,13 @@
 
 #include "zero_device.hpp"
 
-#include <transformations/common_optimizations/add_fake_quantize_fusion.hpp>
-#include <transformations/common_optimizations/batch_to_space_fusion.hpp>
-#include <transformations/common_optimizations/conv_mul_fusion.hpp>
-#include <transformations/common_optimizations/convert_quantize_dequantize.hpp>
-#include <transformations/common_optimizations/depth_to_space_fusion.hpp>
-#include <transformations/common_optimizations/dropout_with_random_uniform_replacer.hpp>
-#include <transformations/common_optimizations/fq_mul_fusion.hpp>
-#include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
-#include <transformations/common_optimizations/moc_transformations.hpp>
-#include <transformations/common_optimizations/mul_conv_fusion.hpp>
-#include <transformations/common_optimizations/mvn_fusion.hpp>
-#include <transformations/common_optimizations/pad_fusion.hpp>
-#include <transformations/common_optimizations/pull_through_reduce.hpp>
-#include <transformations/common_optimizations/reduce_reshape_fusion.hpp>
-#include <transformations/common_optimizations/relu_fake_quantize_fusion.hpp>
-#include <transformations/common_optimizations/rms_fusion.hpp>
-#include <transformations/common_optimizations/shuffle_channels_fusion.hpp>
-#include <transformations/common_optimizations/space_to_batch_fusion.hpp>
-#include <transformations/common_optimizations/strides_optimization.hpp>
-#include <transformations/common_optimizations/transpose_to_reshape.hpp>
-#include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
-#include <transformations/control_flow/unroll_if.hpp>
-#include <transformations/control_flow/unroll_tensor_iterator.hpp>
-#include <transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/low_precision/mark_dequantization_subgraph.hpp>
-#include <transformations/op_conversions/batch_norm_decomposition.hpp>
-#include <transformations/op_conversions/bidirectional_sequences_decomposition.hpp>
-#include <transformations/op_conversions/convert_avgpool_downgrade.hpp>
-#include <transformations/op_conversions/convert_broadcast_to_tiles.hpp>
-#include <transformations/op_conversions/convert_convertlike.hpp>
-#include <transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp>
-#include <transformations/op_conversions/convert_gather_upgrade.hpp>
-#include <transformations/op_conversions/convert_interpolate11_downgrade.hpp>
-#include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
-#include <transformations/op_conversions/convert_maxpool_downgrade.hpp>
-#include <transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp>
-#include <transformations/op_conversions/convert_pad12_downgrade.hpp>
-#include <transformations/op_conversions/convert_pad_to_group_conv.hpp>
-#include <transformations/op_conversions/convert_previous_nms_to_nms_9.hpp>
-#include <transformations/op_conversions/convert_reduce_to_pooling.hpp>
-#include <transformations/op_conversions/convert_scatter_elements_update12_downgrade.hpp>
-#include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
-#include <transformations/op_conversions/convert_shapeof3.hpp>
-#include <transformations/op_conversions/convert_slice_to_strided_slice.hpp>
-#include <transformations/op_conversions/convert_softmax_upgrade.hpp>
-#include <transformations/op_conversions/convert_topk11_downgrade.hpp>
-#include <transformations/op_conversions/detection_output_downgrade.hpp>
-#include <transformations/op_conversions/einsum_decomposition.hpp>
-#include <transformations/op_conversions/gelu7_downgrade.hpp>
-#include <transformations/op_conversions/log_softmax_decomposition.hpp>
-#include <transformations/op_conversions/normalize_l2_decomposition.hpp>
-#include <transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp>
-#include <transformations/op_conversions/softmax_decomposition.hpp>
-#include <transformations/rt_info/fused_names_attribute.hpp>
-#include <transformations/utils/utils.hpp>
-
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "zero_host_tensor.hpp"
 #include "zero_infer_request.hpp"
 #include "zero_remote_tensor.hpp"
@@ -125,7 +69,7 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
     }
 }
 
-std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runInit(
+std::pair<std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>, ov::SoPtr<ov::ITensor>> ZeroDevice::runInit(
     const std::shared_ptr<IGraph>& initGraph,
     const std::shared_ptr<const ov::Model>& model,
     const ov::SoPtr<ov::IRemoteContext>& context,
@@ -165,10 +109,9 @@ std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runIni
         initInputsByteSize +=
             ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
     }
-
     const ov::SoPtr<ov::ITensor> initInputsTensor =
         createHostTensor(context._ptr, ov::element::Type_t::u8, ov::Shape({initInputsByteSize}), config);
-    // static_cast<const unsigned char*>(
+
     size_t offset = 0;
     for (const IODescriptor& descriptor : initGraph->get_metadata().inputs) {
         const size_t id = std::stoi(descriptor.nameFromCompiler);
@@ -195,12 +138,27 @@ std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runIni
     std::cout << "Memcpy duration " << memcpy_duration << "[ms]" << std::endl;
 
     begin = std::chrono::steady_clock::now();
-    for (const IODescriptor& descriptor : initGraph->get_metadata().outputs) {
-        const ov::SoPtr<ov::ITensor> hostTensor =
-            createHostTensor(context._ptr, descriptor.precision, descriptor.shapeFromCompiler.to_shape(), config);
+    size_t initOutputsByteSize = 0;
 
-        outputTensorsData.push_back(TensorData{hostTensor->data(), hostTensor->get_byte_size()});
+    for (const IODescriptor& descriptor : initGraph->get_metadata().outputs) {
+        initOutputsByteSize +=
+            ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
+    }
+    const ov::SoPtr<ov::ITensor> initOutputsTensor =
+        createHostTensor(context._ptr, ov::element::Type_t::u8, ov::Shape({initOutputsByteSize}), config);
+
+    offset = 0;
+    for (const IODescriptor& descriptor : initGraph->get_metadata().outputs) {
+        const auto currentOutputBufferLocation = static_cast<unsigned char*>(initOutputsTensor->data()) + offset;
+        const size_t currentOutputSize =
+            ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
+
+        const ov::SoPtr<ov::ITensor> hostTensor =
+            ov::make_tensor(descriptor.precision, descriptor.shapeFromCompiler.to_shape(), currentOutputBufferLocation);
+
+        outputTensorsData.push_back(TensorData{currentOutputBufferLocation, currentOutputSize});
         outputHostTensors.emplace(descriptor.nameFromCompiler, hostTensor._ptr);
+        offset += currentOutputSize;
     }
     end = std::chrono::steady_clock::now();
     std::cout << "Creating output tensors "
@@ -234,7 +192,9 @@ std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> ZeroDevice::runIni
     std::cout << "Running the pipeline " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
               << "[ms]" << std::endl;
 
-    return outputHostTensors;
+    return std::pair<std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>, ov::SoPtr<ov::ITensor>>(
+        outputHostTensors,
+        initOutputsTensor);
 }
 
 std::string ZeroDevice::getName() const {

@@ -75,7 +75,7 @@ public:
     /**
      * @brief TODO
      */
-    virtual std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> runInit(
+    virtual std::pair<std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>, ov::SoPtr<ov::ITensor>> runInit(
         const std::shared_ptr<IGraph>& initGraph,
         const std::shared_ptr<const ov::Model>& model,
         const ov::SoPtr<ov::IRemoteContext>& context,

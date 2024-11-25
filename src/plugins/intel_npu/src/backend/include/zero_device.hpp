@@ -23,10 +23,11 @@ public:
     /**
      * @brief TODO
      */
-    std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> runInit(const std::shared_ptr<IGraph>& initGraph,
-                                                                          const std::shared_ptr<const ov::Model>& model,
-                                                                          const ov::SoPtr<ov::IRemoteContext>& context,
-                                                                          const Config& config) override;
+    std::pair<std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>, ov::SoPtr<ov::ITensor>> runInit(
+        const std::shared_ptr<IGraph>& initGraph,
+        const std::shared_ptr<const ov::Model>& model,
+        const ov::SoPtr<ov::IRemoteContext>& context,
+        const Config& config) override;
 
     std::string getName() const override;
     std::string getFullDeviceName() const override;
