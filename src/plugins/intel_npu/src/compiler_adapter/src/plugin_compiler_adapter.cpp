@@ -81,7 +81,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     _logger.debug("compile start");
     auto networkDesc = _compiler->compile(model, config);
     auto networkSO = std::make_shared<std::vector<uint8_t>>(std::move(networkDesc.compiledNetwork));
-    auto networkSOPtr = std::make_shared<ov::SharedBuffer<std::shared_ptr<std::vector<uint8_t>>>>(reinterpret_cast<char*>(networkSO->data()), networkSO->size(), networkSO);
     _logger.debug("compile end");
 
     ze_graph_handle_t graphHandle = nullptr;
@@ -89,13 +88,13 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     if (_zeGraphExt) {
         // Depending on the config, we may get an error when trying to get the graph handle from the compiled network
         try {
-            graphHandle = _zeGraphExt->getGraphHandle(networkSOPtr);
+            graphHandle = _zeGraphExt->getGraphHandle(networkSO->data(), networkSO->size());
         } catch (...) {
             _logger.info("Failed to obtain the level zero graph handle. Inference requests for this model are not "
                          "allowed. Only exports are available");
         }
     }
-
+    auto networkSOPtr = std::make_shared<ov::SharedBuffer<std::shared_ptr<std::vector<uint8_t>>>>(reinterpret_cast<char*>(networkSO->data()), networkSO->size(), networkSO);
     return std::make_shared<PluginGraph>(_zeGraphExt,
                                          _compiler,
                                          _zeroInitStruct,
@@ -112,12 +111,14 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(const std::shared_ptr<ov::A
     std::vector<uint8_t> network(networkSO->size());
     network.assign(reinterpret_cast<uint8_t*>(networkSO->get_ptr()), reinterpret_cast<uint8_t*>(networkSO->get_ptr()) + networkSO->size());
     auto networkMeta = _compiler->parse(network, config);
+    network.clear();
+    network.shrink_to_fit();
     _logger.debug("parse end");
 
     ze_graph_handle_t graphHandle = nullptr;
 
     if (_zeGraphExt) {
-        graphHandle = _zeGraphExt->getGraphHandle(networkSO);
+        graphHandle = _zeGraphExt->getGraphHandle(reinterpret_cast<const uint8_t*>(networkSO->get_ptr()), networkSO->size());
     }
 
     return std::make_shared<PluginGraph>(_zeGraphExt,

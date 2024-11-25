@@ -207,7 +207,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(const std::shared_ptr<ov::A
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
 
     _logger.debug("parse start");
-    ze_graph_handle_t graphHandle = _zeGraphExt->getGraphHandle(networkSO);
+    ze_graph_handle_t graphHandle = _zeGraphExt->getGraphHandle(reinterpret_cast<const uint8_t*>(networkSO->get_ptr()), networkSO->size());
     _logger.debug("parse end");
 
     OV_ITT_TASK_NEXT(PARSE_BLOB, "getNetworkMeta");
