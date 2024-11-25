@@ -39,22 +39,16 @@ typedef cl_va_api_device_set_intel    cl_device_set_intel;
 
 #if !defined(cl_intel_required_subgroup_size)
 #define cl_intel_required_subgroup_size 1
-
-#endif // cl_intel_required_subgroup_size
-
 // cl_intel_required_subgroup_size
-#ifndef CL_DEVICE_SUB_GROUP_SIZES_INTEL
-#define CL_DEVICE_SUB_GROUP_SIZES_INTEL           0x4108
-#endif
 
-#ifndef OV_CL_HPP_NO_REDECLARE_TRAITS
+#define CL_DEVICE_SUB_GROUP_SIZES_INTEL           0x4108
 namespace cl {
 namespace detail {
 CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_SUB_GROUP_SIZES_INTEL, vector<size_type>)
 }  // namespace detail
 }  // namespace cl
-#endif // OV_CL_HPP_NO_REDECLARE_TRAITS
 
+#endif // cl_intel_required_subgroup_size
 
 /***************************************************************
 * cl_intel_command_queue_families
@@ -254,8 +248,6 @@ typedef cl_bitfield         cl_device_feature_capabilities_intel;
 #define CL_DEVICE_FEATURE_FLAG_DP4A_INTEL                   (1 << 0)
 #define CL_DEVICE_FEATURE_FLAG_DPAS_INTEL                   (1 << 1)
 
-#endif // cl_intel_device_attribute_query
-
 /* cl_device_info */
 #ifndef CL_DEVICE_IP_VERSION_INTEL
 #define CL_DEVICE_IP_VERSION_INTEL                          0x4250
@@ -291,7 +283,6 @@ typedef cl_bitfield         cl_device_feature_capabilities_intel;
     F(cl_command_queue_info, CL_QUEUE_FAMILY_INTEL, cl_uint) \
     F(cl_command_queue_info, CL_QUEUE_INDEX_INTEL, cl_uint)
 
-#ifndef OV_CL_HPP_NO_REDECLARE_TRAITS
 namespace cl {
 namespace detail {
 CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_IP_VERSION_INTEL, cl_uint)
@@ -304,7 +295,8 @@ CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_FEATURE_CAPABILITIES_INTE
 CL_HPP_PARAM_NAME_CL_INTEL_COMMAND_QUEUE_FAMILIES_(CL_HPP_DECLARE_PARAM_TRAITS_)
 }  // namespace detail
 }  // namespace cl
-#endif // OV_CL_HPP_NO_REDECLARE_TRAITS
+#endif // cl_intel_device_attribute_query
+
 
 #include <memory>
 
