@@ -563,7 +563,7 @@ static float dot_product(TA* a, TB* b, size_t n, float* scale, float* zp, float*
 }
 
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-static ov::float16 dot_product_fp16(ov::float16* a, ov::float16* b, size_t n, float* scale, float* zp, float* head_sum, size_t group_size = 0) {
+static ov::float16 dot_product_fp16(ov::float16* a, ov::float16* b, size_t n, float* scale, float* zp, float* head_sum) {
     size_t i = 0;
     ov::float16 sum = 0.0f;
     auto vsum0 = vdupq_n_f16(0.0f);
