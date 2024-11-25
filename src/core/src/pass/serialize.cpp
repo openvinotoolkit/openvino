@@ -134,19 +134,14 @@ public:
             // Therefore we always have to compare values when finding a match in the hash multimap.
             const HashValue hash = ov::runtime::compute_hash(ptr_to_write, new_size);
 
-            auto found = m_hash_to_file_positions.find(hash);
+            auto found = m_hash_to_file_positions.equal_range(hash);
             // iterate over all matches of the key in the multimap
-            // TODO: As it was mentioned above that there was a chance to have a collision easily, should we limit the number of iterations in the following loop?
-            // FIXME: Loop over items that have matching hash keys only, not entire range [found, m_hash_to_file_positions.end()).
-            // FIXME: According to https://en.cppreference.com/w/cpp/container/multimap/find, std::multimap::find returns any item with the matching key, not necessary
-            //        the first one. But the loop below checking items starting with `found` item only even if there may be other items with matching hash before that position.
-            //        So we are not checking all possible matches.
-            while (found != m_hash_to_file_positions.end()) {
-                if (memcmp(ptr, found->second.second, size) == 0) {
-                    return found->second.first;
+            for (auto it = found.first; it != found.second; ++it) {
+                if (memcmp(ptr, it->second.second, size) == 0) {
+                    return it->second.first;
                 }
-                found++;
             }
+            
             if(!ptr_is_temporary) {
                 // Since fp16_compressed data will be disposed at exit point and since we cannot reread it from the ostream,
                 // we store pointer to the original uncompressed blob.
