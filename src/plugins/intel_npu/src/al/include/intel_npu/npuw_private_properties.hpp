@@ -385,33 +385,43 @@ namespace dynamic_llm {
  * Tell NPUW that you want to pass dynamic stateful LLM model
  * Default value: false.
  */
-static constexpr ov::Property<bool> enabled {"NPUW_DYN_LLM"};
+static constexpr ov::Property<bool> enabled {"NPUW_LLM"};
+
+/**
+ * @brief
+ * Type: std::map<std::string, std::string>.
+ * Tell NPUW about your LLM model.
+ * Default value: empty map.
+ */
+static constexpr ov::Property<std::map<std::string, std::string>> model_desc {"NPUW_LLM_MODEL_DESC"};
+
+    /**
+ * @brief
+ * Type: uint32_t.
+ * Tell NPUW your desirable max prompt length.
+ * Default value: 1024.
+ */
+static constexpr ov::Property<uint32_t> max_prompt_len {"NPUW_LLM_MAX_PROMPT_LEN"};
 
 /**
  * @brief
  * Type: uint32_t.
- * Tell NPUW in which dimension of your LLM model KVcache is located.
- * Default value: 2.
+ * Tell NPUW your desirable min response length.
+ * Default value: 128.
  */
-static constexpr ov::Property<uint32_t> kv_dim {"NPUW_DYN_LLM_KV_DIM"};
-
-    /**
- * @brief
- * Type: int64_t.
- * Tell NPUW your desirable max prompt length.
- * Default value: 1024.
- */
-static constexpr ov::Property<int64_t> max_prompt_len {"NPUW_DYN_LLM_MAX_PROMPT_LEN"};
+static constexpr ov::Property<uint32_t> min_response_len {"NPUW_LLM_MIN_RESPONSE_LEN"};
 
 /**
  * @brief
- * Type: int64_t.
- * Tell NPUW your desirable min response length.
- * Default value: 150.
+ * Type: std::string.
+ * Tell NPUW the preferrable hint for generation stage, that leads to usage of optimal configuration for it.
+ * Possible values: "FAST_COMPILE", "BEST_PERF".
+ * Default value: "FAST_COMPILE".
  */
-static constexpr ov::Property<int64_t> min_response_len {"NPUW_DYN_LLM_MIN_RESPONSE_LEN"};
+static constexpr ov::Property<std::string> generate_hint {"NPUW_LLM_GENERATE_HINT"};
 
-} // namespace llm
+} // namespace llm_dynamic
+
 }  // namespace npuw
 }  // namespace intel_npu
 }  // namespace ov

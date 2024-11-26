@@ -7,11 +7,9 @@
 #include <memory>
 #include <string>
 
-#include "llm_compiled_model.hpp"
 #include "accuracy/comparator.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "just_sync_infer_request.hpp"
-#include "llm_infer_request.hpp"
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -87,35 +85,16 @@ ov::npuw::DeviceProperties get_properties_per_device(const std::shared_ptr<const
 }  // namespace npuw
 }  // namespace ov
 
-std::shared_ptr<ov::npuw::ICompiledModel>
-ov::npuw::CompiledModelFactory::create(const std::shared_ptr<ov::Model>& model,
-                                       const std::shared_ptr<const ov::IPlugin>& plugin,
-                                       const ov::AnyMap& properties) {
-    LOG_DEBUG("CompiledModelFactory::create");
-    LOG_BLOCK();
-    std::shared_ptr<ov::npuw::ICompiledModel> compiled_model;
-    auto use_dynamic_llm_key = ov::intel_npu::npuw::dynamic_llm::enabled.name();
-    if (properties.count(use_dynamic_llm_key) &&
-        properties.at(use_dynamic_llm_key).as<bool>() == true) {
-        LOG_DEBUG("ov::npuw::LLMCompiledModel will be created.");
-        compiled_model = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, properties);
-    } else {
-        LOG_DEBUG("ov::npuw::CompiledModel will be created.");
-        compiled_model = std::make_shared<ov::npuw::CompiledModel>(model, plugin, properties);
-    }
-    LOG_DEBUG("Done");
-    return compiled_model;
-}
-
 ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                        const std::shared_ptr<const ov::IPlugin>& plugin,
                                        const ov::AnyMap& properties)
-    : ov::npuw::ICompiledModel(model, plugin),
+    : ov::ICompiledModel(model, plugin),
       m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
       m_cfg(m_options_desc),
       m_name(model->get_friendly_name()),
       m_loaded_from_cache(false) {
     ::intel_npu::registerNPUWOptions(*m_options_desc);
+    ::intel_npu::registerNpuwLlmOptions(*m_options_desc);
 
     std::map<std::string, ov::Any> npuw_props;
     split_properties(properties, m_non_npuw_props, npuw_props);
@@ -1026,10 +1005,11 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::dump::io_iters, NPUW_DUMP_IO_ITERS),
 #endif
     // 4.
-                          BIND(npuw::dynamic_llm::enabled, NPUW_DYN_LLM),
-                          BIND(npuw::dynamic_llm::kv_dim, NPUW_DYN_LLM_KV_DIM),
-                          BIND(npuw::dynamic_llm::max_prompt_len, NPUW_DYN_LLM_MAX_PROMPT_LEN),
-                          BIND(npuw::dynamic_llm::min_response_len, NPUW_DYN_LLM_MIN_RESPONSE_LEN)
+                          BIND(npuw::dynamic_llm::enabled, NPUW_LLM),
+                          BIND(npuw::dynamic_llm::model_desc, NPUW_LLM_MODEL_DESC),
+                          BIND(npuw::dynamic_llm::max_prompt_len, NPUW_LLM_MAX_PROMPT_LEN),
+                          BIND(npuw::dynamic_llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN),
+                          BIND(npuw::dynamic_llm::generate_hint, NPUW_LLM_GENERATE_HINT)
     });
 #undef BIND
 }

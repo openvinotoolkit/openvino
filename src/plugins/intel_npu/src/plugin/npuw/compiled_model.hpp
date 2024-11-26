@@ -24,21 +24,7 @@ namespace ov {
 namespace npuw {
 
 class InferRequest;
-
-class ICompiledModel : public ov::ICompiledModel {
-public:
-    ICompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin)
-        : ov::ICompiledModel(model, plugin) {}
-};
-
-class CompiledModelFactory {
-public:
-    static std::shared_ptr<ov::npuw::ICompiledModel> create(const std::shared_ptr<ov::Model>& model,
-                                                            const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                            const ov::AnyMap& properties);
-};
-
-class CompiledModel : public ov::npuw::ICompiledModel {
+class CompiledModel : public ov::ICompiledModel {
     using DevList = std::vector<std::string>;
     using GetPropertiesMap =
         std::map<std::string, std::tuple<ov::PropertyMutability, std::function<ov::Any(const ::intel_npu::Config&)>>>;

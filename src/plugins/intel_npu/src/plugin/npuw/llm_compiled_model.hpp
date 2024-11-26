@@ -11,15 +11,17 @@
 namespace ov {
 namespace npuw {
 
-class LLMCompiledModel : public ov::npuw::ICompiledModel {
+class LLMInferRequest;
+class LLMCompiledModel : public ov::ICompiledModel {
     using GetPropertiesMap =
-        std::map<std::string, std::tuple<ov::PropertyMutability, std::function<ov::Any(const ::intel_npu::Config&)>>>;
+        std::map<std::string, std::tuple<ov::PropertyMutability,
+                 std::function<ov::Any(const ::intel_npu::Config&)>>>;
 public:
     struct KVCacheDesc {
-        uint32_t max_prompt_size;
-        uint32_t total_size;
-        uint32_t num_stored_tokens;
-        uint32_t dim;
+        uint32_t max_prompt_size = 1024u;
+        uint32_t total_size = 1152u;
+        uint32_t num_stored_tokens = 0u;
+        uint32_t dim = 2u;
     };
 
     LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
@@ -33,20 +35,20 @@ public:
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
 
-    // FIXME: Publicly available for LLMInferRequest
-    std::shared_ptr<ov::npuw::CompiledModel> kvcache_compiled;
-    std::shared_ptr<ov::npuw::CompiledModel> prefill_compiled;
-
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
     ::intel_npu::Config m_cfg;
     GetPropertiesMap m_prop_to_opt;
 
 private:
+    friend class LLMInferRequest;
+
     std::shared_ptr<ov::ISyncInferRequest> create_llm_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     void implement_properties();
 
     KVCacheDesc m_kvcache_desc;
+    std::shared_ptr<ov::npuw::CompiledModel> m_kvcache_compiled;
+    std::shared_ptr<ov::npuw::CompiledModel> m_prefill_compiled;
 };
 
 } // namespace npuw

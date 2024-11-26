@@ -16,7 +16,7 @@
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/runtime.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
-#include "npuw/compiled_model.hpp"
+#include "npuw/compiled_model_factory.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"

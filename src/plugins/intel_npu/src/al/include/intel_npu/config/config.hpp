@@ -172,6 +172,43 @@ struct OptionPrinter final {
     }
 };
 
+template <typename T>
+struct OptionPrinter<std::vector<T>> final {
+    static std::string toString(const std::vector<T>& val) {
+        std::stringstream ss;
+        std::size_t counter = 0;
+        std::size_t size = val.size();
+        for (auto el : val) {
+            std::string el_str = OptionPrinter<V>::toString(el);
+            ss << el_str;
+            if (counter < size - 1) {
+                ss << ",";
+            }
+            ++counter;
+        }
+        return ss.str();
+    }
+};
+
+template <typename K, typename V>
+struct OptionPrinter<std::map<K, V>> final {
+    static std::string toString(const std::map<K, V>& val) {
+        std::stringstream ss;
+        std::size_t counter = 0;
+        std::size_t size = val.size();
+        for (auto [key, value] : val) {
+            std::string key_str = OptionPrinter<K>::toString(key);
+            std::string value_str = OptionPrinter<V>::toString(value);
+            ss << key_str << ":" << value_str;
+            if (counter < size - 1) {
+                ss << ",";
+            }
+            ++counter;
+        }
+        return ss.str();
+    }
+};
+
 // NB: boolean config option has values YES for true, NO for false
 template <>
 struct OptionPrinter<bool> final {

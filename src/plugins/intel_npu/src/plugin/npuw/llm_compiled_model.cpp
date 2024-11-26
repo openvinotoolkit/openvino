@@ -9,6 +9,10 @@
 #include "openvino/pass/stateful_to_stateless.hpp"
 
 namespace {
+uint32_t align_to(uint32_t value, uint32_t alignment) {
+    return (value + alignment - 1) & ~(alignment - 1);
+}
+
 std::shared_ptr<ov::Model> redirect_new_kv_to_output(const std::shared_ptr<ov::Model>& model) {
     const auto kStartOutputKVCacheLayers = 1u;
     for (int i = kStartOutputKVCacheLayers; i < model->outputs().size(); ++i) {
@@ -87,27 +91,6 @@ KVAxesPosition get_kv_axes(const std::string& model_type) {
     return axes;
 }
 
-struct ModelDesc {
-    std::string type;
-    std::string name_or_path;
-    int num_key_value_heads;
-};
-
-// ModelDesc get_modeldesc_from_json(const std::filesystem::path& filepath) {
-//     std::ifstream file(filepath);
-//     OPENVINO_ASSERT(file.is_open(), "Could not open file: " + filepath.string());
-//     nlohmann::json config_data = nlohmann::json::parse(file);
-
-//     ModelDesc desc;
-//     desc.type = config_data["model_type"].get<std::string>();
-//     // NB: In case _name_or_path field isn't presented in config.json
-//     if (config_data.contains("_name_or_path")) {
-//         desc.name_or_path = config_data["_name_or_path"].get<std::string>();
-//     }
-//     desc.num_key_value_heads = config_data["num_key_value_heads"].get<int>();
-//     return desc;
-// }
-
 bool is_cw_compressed(const std::shared_ptr<ov::Model>& model) {
     std::vector<std::string> rt_info_path = {"nncf", "weight_compression", "group_size"};
     if (!model->has_rt_info(rt_info_path)) {
@@ -120,10 +103,6 @@ bool is_cw_compressed(const std::shared_ptr<ov::Model>& model) {
         return true;
     }
     return false;
-}
-
-uint32_t align_to(uint32_t value, uint32_t alignment) {
-    return (value + alignment - 1) & ~(alignment - 1);
 }
 
 struct NPUDesc {
@@ -163,26 +142,10 @@ T pop_or_default(ov::AnyMap& config, const std::string& key, const T& default_va
     return default_value;
 }
 
-enum class GenerateHint {
-    FAST_COMPILE,
-    BEST_PERF
-};
-
-GenerateHint str_to_hint(const std::string& str) {
-    if (str == "FAST_COMPILE") {
-        return GenerateHint::FAST_COMPILE;
-    }
-    if (str == "BEST_PERF") {
-        return GenerateHint::BEST_PERF;
-    }
-    OPENVINO_THROW("Unsupported \"GENERATE_HINT\" provided: " +
-                   str + ". Please select either \"FAST_COMPILE\" or \"BEST_PERF\".");
-}
-
 ov::AnyMap get_baseline_common_config() {
     ov::AnyMap config = {
         { "NPU_COMPILATION_MODE_PARAMS", "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm" },
-        { "NPUW_DEVICES", "NPU,CPU" },
+        { "NPUW_DEVICES", "NPU" },
         { "NPU_USE_NPUW",  "YES" },
         { "NPUW_FOLD", "YES" },
         { "NPUW_DCOFF_TYPE", "f16" },
@@ -223,9 +186,9 @@ ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model,
 
 ov::AnyMap get_default_generate_config(const std::shared_ptr<ov::Model>& model,
                                        const std::optional<NPUDesc>& npudesc,
-                                       const GenerateHint hint) {
+                                       const ::intel_npu::npuw::dynamic_llm::GenerateHint hint) {
     auto config = get_default_common_config(model);
-    if (hint == GenerateHint::BEST_PERF) {
+    if (hint == ::intel_npu::npuw::dynamic_llm::GenerateHint::BEST_PERF) {
         config.emplace("NPUW_ONLINE_PIPELINE", "NONE");
     }
     // NB: Unconditionally set for generation model
@@ -253,11 +216,11 @@ void drop_cache_dir(ov::AnyMap& config) {
     }
 }
 
-void split_properties(const ov::AnyMap& properties,
+void split_llm_properties(const ov::AnyMap& properties,
                       ov::AnyMap& dyn_llm_properties,
                       ov::AnyMap& other_properties) {
     for (auto it = properties.begin(); it != properties.end(); ++it) {
-        if (it->first.find("NPUW_DYN_LLM") != it->first.npos) {
+        if (it->first.find("NPUW_LLM") != it->first.npos) {
             dyn_llm_properties.insert(*it);
         } else {
             other_properties.insert(*it);
@@ -277,19 +240,17 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
 ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
                                              const ov::AnyMap& properties)
-    : ov::npuw::ICompiledModel(model, plugin),
+    : ov::ICompiledModel(model, plugin),
      m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
      m_cfg(m_options_desc) {
-    LOG_DEBUG("LLMCompiledModel::LLMCompiledModel");
+    LOG_VERB(__PRETTY_FUNCTION__);
     LOG_BLOCK();
 
-    ::intel_npu::registerNPUWOptions(*m_options_desc);
+    ::intel_npu::registerNpuwLlmOptions(*m_options_desc);
 
     std::map<std::string, ov::Any> npuw_dyn_llm_props;
     std::map<std::string, ov::Any> other_props;
-    split_properties(properties, npuw_dyn_llm_props, other_props);
-
-    m_cfg.parseEnvVars();
+    split_llm_properties(properties, npuw_dyn_llm_props, other_props);
     m_cfg.update(any_copy(npuw_dyn_llm_props));
 
     // (1) Make template model to be kvcache model, used in generation phase
@@ -308,14 +269,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // (6) Convert kvcache model to fp16
     kvcache_model = cvt_kvcache_to_fp16(kvcache_model);
 
-    ov::AnyMap properties_copy = other_props;
-    const uint32_t kMaxPromptLen = align_to(uint32_t(m_cfg.get<::intel_npu::NPUW_DYN_LLM_MAX_PROMPT_LEN>()), 64u);
-    const uint32_t kMinResponseLen = align_to(uint32_t(m_cfg.get<::intel_npu::NPUW_DYN_LLM_MIN_RESPONSE_LEN>()), 64u);
-    const uint32_t kv_dim = m_cfg.get<::intel_npu::NPUW_DYN_LLM_KV_DIM>();
-    // KVAxesPosition axes = get_kv_axes(model_desc.type);
+    const uint32_t kMaxPromptLen = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), 64u);
+    const uint32_t kMinResponseLen = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MIN_RESPONSE_LEN>(), 64u);
+    const ::intel_npu::npuw::dynamic_llm::ModelDesc model_desc = m_cfg.get<::intel_npu::NPUW_LLM_MODEL_DESC>();
+    KVAxesPosition axes = get_kv_axes(model_desc.type);
     m_kvcache_desc = KVCacheDesc
-        { kMaxPromptLen, kMaxPromptLen + kMinResponseLen, 0u, kv_dim};
-    KVAxesPosition axes{0u, kv_dim};
+        { kMaxPromptLen, kMaxPromptLen + kMinResponseLen, 0u, axes.seq_len};
     // (7) Make prefill model with static shapes
     reshape_to_static(prefill_model, m_kvcache_desc.max_prompt_size, m_kvcache_desc.max_prompt_size, axes);
     // (8) Make kvcache model with static shapes
@@ -323,25 +282,22 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     auto npudesc = extract_npu_descriptor(plugin);
 
-    auto prefill_config = pop_or_default(
-        properties_copy, "PREFILL_CONFIG", get_default_prefill_config(model, npudesc)
+    ov::AnyMap properties_copy = other_props;
+    auto prefill_config = get_default_prefill_config(model, npudesc);
     // NB: GENERATE_HINT is only applicable for default generate config!
-    );
-    auto generate_hint = str_to_hint(pop_or_default<std::string>(properties_copy, "GENERATE_HINT", "FAST_COMPILE"));
-    auto generate_config = pop_or_default(
-        properties_copy, "GENERATE_CONFIG", get_default_generate_config(model, npudesc, generate_hint)
-    );
+    const ::intel_npu::npuw::dynamic_llm::GenerateHint generate_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_HINT>();
+    auto generate_config = get_default_generate_config(model, npudesc, generate_hint);
     merge_config_with(prefill_config, properties_copy);
     merge_config_with(generate_config, properties_copy);
     // FIXME: Drop CACHE_DIR option if NPUW is enabled
     drop_cache_dir(prefill_config);
     drop_cache_dir(generate_config);
 
-    kvcache_compiled = std::make_shared<ov::npuw::CompiledModel>(kvcache_model, plugin, generate_config);
-    prefill_compiled = std::make_shared<ov::npuw::CompiledModel>(prefill_model, plugin, prefill_config);
+    m_kvcache_compiled = std::make_shared<ov::npuw::CompiledModel>(kvcache_model, plugin, generate_config);
+    m_prefill_compiled = std::make_shared<ov::npuw::CompiledModel>(prefill_model, plugin, prefill_config);
 
     implement_properties();
-    LOG_DEBUG("Done");
+    LOG_VERB("Done");
 }
 
 void ov::npuw::LLMCompiledModel::export_model(std::ostream& model) const {
@@ -362,7 +318,7 @@ ov::Any ov::npuw::LLMCompiledModel::get_property(const std::string& name) const 
     if (configIterator != m_prop_to_opt.cend()) {
         return std::get<1>(configIterator->second)(m_cfg);
     } else {
-        return prefill_compiled->get_property(name);
+        return m_prefill_compiled->get_property(name);
     }
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
@@ -392,9 +348,10 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
         }                                                                                  \
     }
 
-    m_prop_to_opt.insert({BIND(npuw::dynamic_llm::enabled, NPUW_DYN_LLM),
-                          BIND(npuw::dynamic_llm::kv_dim, NPUW_DYN_LLM_KV_DIM),
-                          BIND(npuw::dynamic_llm::max_prompt_len, NPUW_DYN_LLM_MAX_PROMPT_LEN),
-                          BIND(npuw::dynamic_llm::min_response_len, NPUW_DYN_LLM_MIN_RESPONSE_LEN)});
+    m_prop_to_opt.insert({BIND(npuw::dynamic_llm::enabled, NPUW_LLM),
+                          BIND(npuw::dynamic_llm::model_desc, NPUW_LLM_MODEL_DESC),
+                          BIND(npuw::dynamic_llm::max_prompt_len, NPUW_LLM_MAX_PROMPT_LEN),
+                          BIND(npuw::dynamic_llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN),
+                          BIND(npuw::dynamic_llm::generate_hint, NPUW_LLM_GENERATE_HINT)});
 #undef BIND
 }
