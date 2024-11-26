@@ -1562,7 +1562,6 @@ void program_node::create_onednn_primitive_attributes(
                             new_input_pshape.insert(new_input_pshape.begin(), ones_to_add, 1ul);
                             new_layout.set_partial_shape(new_input_pshape);
                             in = new_layout;
-                            // GPU_DEBUG_COUT << "updated: " << in.to_short_string() << std::endl;
                         }
                     } else {
                         ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(rank)) - in_pshape.size();
