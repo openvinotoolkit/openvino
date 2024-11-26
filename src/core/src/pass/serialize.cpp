@@ -140,7 +140,7 @@ public:
                     return std::get<0>(it->second);
                 }
             }
-            
+
             // Since fp16_compressed data will be disposed at exit point and since we cannot reread it from the ostream,
             // we store pointer to the original uncompressed blob.
             m_hash_to_file_positions.insert({hash, {offset, new_size, static_cast<void const*>(ptr)}});
