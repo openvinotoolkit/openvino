@@ -146,13 +146,15 @@ std::map<std::string, device::ptr> ocl_device_detector::get_available_devices(vo
                                                                               void* user_device,
                                                                               int ctx_device_id,
                                                                               int target_tile_id) const {
-    std::vector<device::ptr> devices_list;
-    if (user_context != nullptr) {
-        devices_list = create_device_list_from_user_context(user_context, ctx_device_id);
-    } else if (user_device != nullptr) {
-        devices_list = create_device_list_from_user_device(user_device);
-    } else {
-        devices_list = create_device_list();
+    static std::vector<device::ptr> devices_list;
+    if (devices_list.empty()) {
+        if (user_context != nullptr) {
+            devices_list = create_device_list_from_user_context(user_context, ctx_device_id);
+        } else if (user_device != nullptr) {
+            devices_list = create_device_list_from_user_device(user_device);
+        } else {
+            devices_list = create_device_list();
+        }
     }
 
     devices_list = sort_devices(devices_list);
