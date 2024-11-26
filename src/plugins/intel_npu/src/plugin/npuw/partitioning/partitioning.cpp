@@ -1861,7 +1861,7 @@ void Partitioner::optimize(const std::string& func_name) {
             ov::parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
                 LazyTensor cw = funcall._lazy_closure[w_idx - f._param_offset];
-                LazyTensor cz = z_idx != -1 ? funcall._lazy_closure[z_idx - f._param_offset] : LazyTensor(ov::Tensor());
+                LazyTensor cz = z_idx != -1 ? funcall._lazy_closure[z_idx - f._param_offset] : LazyTensor();
                 LazyTensor cs = funcall._lazy_closure[s_idx - f._param_offset];
                 funcall._lazy_closure.push_back(
                     LazyTensor(cw, cz, cs, p.first->get_element_type(), p.first->get_shape()));
@@ -1888,7 +1888,7 @@ void Partitioner::optimize(const std::string& func_name) {
                 // Based on our logic (when tensors get transferred from lazy tensors via bank
                 // to the closure), this tensor should be non-empty to avoid this process.
                 funcall.get()._closure.push_back(ov::Tensor(new_elem_type, new_shape));
-                funcall.get()._lazy_closure.push_back(LazyTensor(ov::Tensor()));
+                funcall.get()._lazy_closure.push_back(LazyTensor());
             }
         }
 
