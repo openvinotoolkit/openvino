@@ -719,6 +719,10 @@ std::shared_ptr<Repeated> Snapshot::tryMergeTriangles(const std::vector<Group::G
             "Online partitioning tried to merge repeated triangles with different sizes of producers and consumers!");
     }
 
+    if (prods.size() < m_ctx.keep_blocks) {
+        return {};
+    }
+
     if (prods.size() < 2) {
         return {};
     }
@@ -909,6 +913,10 @@ std::shared_ptr<Repeated> Snapshot::tryMergeRepeating(const std::vector<Group::G
         // FIXME: it's actually possible to merge under certain circumstances
         OPENVINO_THROW(
             "Online partitioning tried to merge repeated groups with different sizes of producers and consumers!");
+    }
+
+    if (prods.size() < m_ctx.keep_blocks) {
+        return {};
     }
 
     if (conss.size() == 1) {

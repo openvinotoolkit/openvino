@@ -57,6 +57,17 @@ struct Subgraph {
     };
     Gather _host_gather;
 
+    struct KVIds {
+        int64_t k_idx, v_idx;
+    };
+    struct GQA {
+        KVIds orig_results_ids;
+        KVIds new_results_ids;
+        KVIds orig_parameters_ids;
+        int64_t past_sequence_length_idx;
+    };
+    std::vector<GQA> _host_gqas;
+
     using Ref = std::reference_wrapper<Subgraph>;
 };
 

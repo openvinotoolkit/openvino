@@ -6,6 +6,7 @@
 
 #include "../../logging.hpp"
 #include "../../util.hpp"
+#include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/op/label.hpp"  // any_input
@@ -1459,6 +1460,82 @@ SliceLastMatmulMultiply::SliceLastMatmulMultiply() {
         return false;  // root hasn't changed
     };
     register_matcher(std::make_shared<opp::Matcher>(res, "SliceLastMatmulMultiply"), std::move(callback));
+}
+
+// FIXME: visualize
+UnrollGQA::UnrollGQA(Context::Ref ctx) {
+    auto past_key = opp::wrap_type<ov::op::v0::Parameter>();
+    auto past_value = opp::wrap_type<ov::op::v0::Parameter>();
+    auto past_seq_len = opp::wrap_type<ov::op::v0::Parameter>();
+    auto gqa = opp::wrap_type<ov::op::GroupQueryAttentionExtension>({opp::any_input(),
+                                                                     opp::any_input(),
+                                                                     opp::any_input(),
+                                                                     past_key,
+                                                                     past_value,
+                                                                     past_seq_len,
+                                                                     opp::any_input(),
+                                                                     opp::any_input(),
+                                                                     opp::any_input()});
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto matched_node_past_key = node_to_output.at(past_key).get_node_shared_ptr();
+        auto matched_node_past_value = node_to_output.at(past_value).get_node_shared_ptr();
+        auto matched_node_past_seq_len = node_to_output.at(past_seq_len).get_node_shared_ptr();
+        auto matched_node_gqa = node_to_output.at(gqa).get_node_shared_ptr();
+
+        auto matched_past_key = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_past_key);
+        auto matched_past_value = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_past_value);
+        auto matched_past_seq_len = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_past_seq_len);
+        auto matched_gqa = std::static_pointer_cast<ov::op::GroupQueryAttentionExtension>(matched_node_gqa);
+
+        const auto& gqa_target_inputs0 = matched_gqa->output(0).get_target_inputs();
+        const auto& gqa_target_inputs1 = matched_gqa->output(1).get_target_inputs();
+        const auto& gqa_target_inputs2 = matched_gqa->output(2).get_target_inputs();
+
+        // Orig results
+        NPUW_ASSERT(gqa_target_inputs1.size() == 1 && gqa_target_inputs2.size() == 1);
+        auto k_orig = (*gqa_target_inputs1.begin()).get_node()->shared_from_this();
+        auto v_orig = (*gqa_target_inputs2.begin()).get_node()->shared_from_this();
+
+        // Run pass to restructure graph. It returns new optimized outputs.
+        // Those outputs will recieve the data instead of old Results.
+        auto new_outputs = ov::op::group_query_attention_decomposition(matched_gqa);
+
+        // Reconnect original results to the original parameters
+        // (results are set during inference, this connection is dummy)
+        for (auto&& r : gqa_target_inputs1) {
+            r.replace_source_output(matched_past_key->output(0));
+        }
+        for (auto&& r : gqa_target_inputs2) {
+            r.replace_source_output(matched_past_value->output(0));
+        }
+
+        // Reconnect outputs
+        auto new_k = std::make_shared<ov::op::v0::Result>(new_outputs[1]);
+        auto new_v = std::make_shared<ov::op::v0::Result>(new_outputs[2]);
+        for (const auto& input : gqa_target_inputs0) {
+            input.replace_source_output(new_outputs[0]);
+        }
+
+        new_outputs[0].get_node()->validate_and_infer_types();
+        new_outputs[1].get_node()->validate_and_infer_types();
+        new_outputs[2].get_node()->validate_and_infer_types();
+
+        // Save host-side details
+        Context::GQA new_gqa;
+        new_gqa.kv_orig_results = {std::dynamic_pointer_cast<ov::op::v0::Result>(k_orig),
+                                   std::dynamic_pointer_cast<ov::op::v0::Result>(v_orig)};
+        new_gqa.kv_new_results = {new_k, new_v};
+        new_gqa.kv_orig_parameters = {matched_past_key, matched_past_value};
+        new_gqa.past_sequence_length = matched_past_seq_len;
+        ctx.get().gqas.push_back(new_gqa);
+
+        return true;  // root has changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(gqa, "UnrollGQA"), std::move(callback));
 }
 
 }  // namespace opt

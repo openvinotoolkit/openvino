@@ -30,6 +30,7 @@ struct Context {
 
     using PPtr = std::shared_ptr<ov::op::v0::Parameter>;
     using NPtr = std::shared_ptr<ov::Node>;
+    using RPtr = std::shared_ptr<ov::op::v0::Result>;
 
     using Axes = std::vector<std::size_t>;
     std::map<PPtr, Axes> closures_to_permute;
@@ -62,6 +63,14 @@ struct Context {
     };
     std::optional<Gather> params_to_gather;
     PPtr host_gather(PPtr w, PPtr ids);
+
+    struct GQA {
+        std::pair<RPtr, RPtr> kv_orig_results;
+        std::pair<RPtr, RPtr> kv_new_results;
+        std::pair<PPtr, PPtr> kv_orig_parameters;
+        PPtr past_sequence_length;
+    };
+    std::vector<GQA> gqas;
 
     using Ref = std::reference_wrapper<Context>;
 };
@@ -168,6 +177,12 @@ public:
 class SliceLastMatmulMultiply : public ov::pass::MatcherPass {
 public:
     SliceLastMatmulMultiply();
+};
+
+// GQA related
+class UnrollGQA : public ov::pass::MatcherPass {
+public:
+    UnrollGQA(Context::Ref ctx);
 };
 
 }  // namespace opt
