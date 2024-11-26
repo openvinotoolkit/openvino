@@ -20,8 +20,6 @@ using namespace intel_npu;
 namespace {
 
 constexpr std::size_t SINGLE_TENSOR = 0;
-constexpr std::size_t BATCH_AXIS = 0;
-constexpr std::size_t DEFAULT_BATCH_SIZE = 1;
 constexpr bool INPUT = true;
 constexpr bool OUTPUT = false;
 
