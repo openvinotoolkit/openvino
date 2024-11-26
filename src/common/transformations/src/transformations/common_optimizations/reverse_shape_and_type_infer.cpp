@@ -261,7 +261,7 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
             const auto& then_out_desc = if_op->get_output_descriptions(ov::op::v8::If::THEN_BODY_INDEX);
             const auto& else_out_desc = if_op->get_output_descriptions(ov::op::v8::If::ELSE_BODY_INDEX);
 
-            for (auto& out_desc : then_out_desc) {
+            for (const auto& out_desc : then_out_desc) {
                 const auto& out_indx = out_desc->m_output_index;
                 const auto& body_indx = out_desc->m_body_value_index;
 
@@ -271,7 +271,7 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                                              0);
             }
 
-            for (auto& out_desc : else_out_desc) {
+            for (const auto& out_desc : else_out_desc) {
                 const auto& out_indx = out_desc->m_output_index;
                 const auto& body_indx = out_desc->m_body_value_index;
                 set_source_output_type_shape(*else_body_results[body_indx],
