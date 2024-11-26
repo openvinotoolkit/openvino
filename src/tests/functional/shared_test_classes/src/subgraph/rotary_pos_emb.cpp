@@ -5,6 +5,7 @@
 #include "shared_test_classes/subgraph/rotary_pos_emb.hpp"
 
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 
 using namespace ov::gen_pattern;
@@ -12,6 +13,85 @@ using namespace ov;
 
 namespace ov {
 namespace test {
+
+std::shared_ptr<ov::Model> RoPETestFlux::build_rope_flux(int batch,
+                                                         int seq_length,
+                                                         int num_head,
+                                                         int ndims) {
+    auto x = std::make_shared<ov::opset1::Parameter>(ov::element::f32, PartialShape{batch, num_head, seq_length, ndims});
+    auto t_cos = std::make_shared<ov::opset1::Parameter>(ov::element::f32, PartialShape{1, 1, seq_length, ndims});
+    auto t_sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32, PartialShape{1, 1, seq_length, ndims});
+
+    auto x1_shape = makeConst(element::i64, ov::Shape({5}), {0, num_head, 0, -1, 2});
+    auto x1 = std::make_shared<ov::op::v1::Reshape>(x, x1_shape, true);
+
+    auto split_axis = makeConst(element::i64, ov::Shape(), {-1});
+    auto split = std::make_shared<ov::op::v1::Split>(x1, split_axis, 2);
+
+    auto minus_one = makeConst(element::f32, ov::Shape({}), {-1.0f});
+    auto x1_1_neg = std::make_shared<ov::op::v1::Multiply>(split->output(1), minus_one);
+
+    auto x2 = std::make_shared<ov::op::v0::Concat>(OutputVector{x1_1_neg->output(0), split->output(0)}, -1);
+
+    auto x3_shape = makeConst(element::i64, ov::Shape({4}), {0, num_head, 0, ndims});
+    auto x3 = std::make_shared<ov::op::v1::Reshape>(x2, x3_shape, true);
+
+    auto y1 = std::make_shared<ov::op::v1::Multiply>(x, t_cos);
+    auto y2 = std::make_shared<ov::op::v1::Multiply>(x3, t_sin);
+    auto y = std::make_shared<ov::op::v1::Add>(y1, y2);
+
+    return std::make_shared<ov::Model>(ov::NodeVector{y}, ov::ParameterVector{x, t_cos, t_sin});
+}
+
+void RoPETestFlux::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    const auto& funcInputs = function->inputs();
+
+    ov::test::utils::InputGenerateData in_data;
+    in_data.start_from = -1;
+    in_data.range = 2;
+    in_data.resolution = 32768;
+
+    auto cos_data = in_data;
+    cos_data.seed = 10;
+
+    auto sin_data = in_data;
+    sin_data.seed = 20;
+
+    ov::Tensor t_input = utils::create_and_fill_tensor(funcInputs[0].get_element_type(), targetInputStaticShapes[0], in_data);
+    ov::Tensor t_cos = utils::create_and_fill_tensor(funcInputs[1].get_element_type(), targetInputStaticShapes[1], cos_data);
+    ov::Tensor t_sin = utils::create_and_fill_tensor(funcInputs[2].get_element_type(), targetInputStaticShapes[2], sin_data);
+
+    inputs.clear();
+    inputs.insert({funcInputs[0].get_node_shared_ptr(), t_input});
+    inputs.insert({funcInputs[1].get_node_shared_ptr(), t_cos});
+    inputs.insert({funcInputs[2].get_node_shared_ptr(), t_sin});
+}
+
+void RoPETestFlux::SetUp() {
+    targetDevice = this->GetParam();
+
+    const int batch = 1;
+    const int seq_length = 7;
+    const size_t max_position_embeddings = 2048;
+    const size_t ndims = 128;
+    const size_t num_head = 24;
+
+    std::vector<InputShape> input_shapes = {
+        {{batch, num_head, seq_length, ndims}, {{batch, num_head, seq_length, ndims}}},
+        {{1, 1, seq_length, ndims}, {{1, 1, seq_length, ndims}}},
+        {{1, 1, seq_length, ndims}, {{1, 1, seq_length, ndims}}}
+    };
+    init_input_shapes(input_shapes);
+    function = build_rope_flux(batch, -1, num_head, ndims);
+}
+
+std::string RoPETestFlux::getTestCaseName(const testing::TestParamInfo<std::string>& obj) {
+    std::string targetDevice = obj.param;
+    std::ostringstream result;
+    result << "targetDevice=" << targetDevice;
+    return result.str();
+}
+
 
 ov::OutputVector RoPETestLlama2StridedSlice::makeCosSinCache(int max_position_embeddings, int rotary_ndims) {
     std::vector<float> lut_sin(max_position_embeddings * rotary_ndims, 0.0f);

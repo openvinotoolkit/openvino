@@ -43,6 +43,7 @@ struct rope : public primitive_base<rope> {
         seed = hash_combine(seed, config.input_trans0213);
         seed = hash_combine(seed, config.is_chatglm);
         seed = hash_combine(seed, config.support_2d_rope);
+        seed = hash_combine(seed, config.output_trans0213);
         seed = hash_combine(seed, config.is_interleaved);
         seed = hash_combine(seed, config.is_qwen);
         seed = hash_combine(seed, config.rotary_ndims);
@@ -64,6 +65,7 @@ struct rope : public primitive_base<rope> {
                config.input_trans0213 == rhs_casted.config.input_trans0213 &&
                config.is_chatglm == rhs_casted.config.is_chatglm &&
                config.support_2d_rope == rhs_casted.config.support_2d_rope &&
+               config.output_trans0213 == rhs_casted.config.output_trans0213 &&
                config.is_interleaved == rhs_casted.config.is_interleaved &&
                config.is_qwen == rhs_casted.config.is_qwen &&
                config.rotary_ndims == rhs_casted.config.rotary_ndims &&
@@ -80,6 +82,7 @@ struct rope : public primitive_base<rope> {
         ob << config.input_trans0213;
         ob << config.is_chatglm;
         ob << config.support_2d_rope;
+        ob << config.output_trans0213;
         ob << config.is_interleaved;
         ob << config.is_qwen;
         ob << config.rotary_ndims;
@@ -96,6 +99,7 @@ struct rope : public primitive_base<rope> {
         ib >> config.input_trans0213;
         ib >> config.is_chatglm;
         ib >> config.support_2d_rope;
+        ib >> config.output_trans0213;
         ib >> config.is_interleaved;
         ib >> config.is_qwen;
         ib >> config.rotary_ndims;

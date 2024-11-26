@@ -160,3 +160,42 @@ KERNEL(rope_ref)(
                                                  sin[sin_idx + HALF_ROTARY_NDIMS + r] * in1;
 }
 #endif
+
+#ifdef RotateInterleaved
+KERNEL(rope_ref)(
+    OPTIONAL_SHAPE_INFO_ARG
+    const __global INPUT0_TYPE* input,
+    const __global INPUT1_TYPE* cos,
+    const __global INPUT2_TYPE* sin,
+    __global OUTPUT_TYPE* output)
+{
+    const uint b = get_global_id(0);
+    const uint h = get_global_id(1);
+    const uint p = (uint)get_global_id(2) / HALF_ROTARY_NDIMS;
+    const uint r = 2 * ((uint)get_global_id(2) % HALF_ROTARY_NDIMS);
+
+    uint input_idx = INPUT0_GET_INDEX(b, h, p, 0);
+
+    uint cos_sin_b = b < INPUT1_BATCH_NUM ? b : 0;
+    uint cos_sin_h = h < INPUT1_FEATURE_NUM ? h : 0;
+    uint cos_sin_p = p < INPUT1_SIZE_Y ? p : 0;
+
+#ifndef SIN_COS_HAVE_DYNAMIC_PADDINGS
+    uint cos_sin_idx = INPUT1_GET_INDEX(cos_sin_b, cos_sin_h, cos_sin_p, 0);
+
+    uint cos_idx = cos_sin_idx;
+    uint sin_idx = cos_sin_idx;
+#else
+    uint cos_idx = INPUT1_GET_INDEX(cos_sin_b, cos_sin_h, cos_sin_p, 0);
+    uint sin_idx = INPUT2_GET_INDEX(cos_sin_b, cos_sin_h, cos_sin_p, 0);
+#endif
+
+    uint output_idx = OUTPUT_GET_INDEX(b, h, p, 0);
+
+    INPUT0_TYPE in1 = input[input_idx + r];
+    INPUT0_TYPE in2 = input[input_idx + r + 1];
+
+    output[output_idx + r] = cos[cos_idx + r] * in1 - sin[sin_idx + r] * in2;
+    output[output_idx + r + 1] = cos[cos_idx + r + 1] * in2 + sin[sin_idx + r + 1] * in1;
+}
+#endif

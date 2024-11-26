@@ -29,6 +29,8 @@ static void CreateRoPEOp(ProgramBuilder& p, const std::shared_ptr<op::internal::
         gather_rank = op->get_input_partial_shape(config.gather_position_arg_id).size();
     }
 
+    OPENVINO_ASSERT(!config.is_interleaved || !config.output_trans0213, "[GPU] Unsupported ROPE parameters");
+
     auto rope = cldnn::rope(layer_type_name_ID(op),
                             inputs,
                             config,
