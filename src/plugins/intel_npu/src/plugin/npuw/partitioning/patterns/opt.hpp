@@ -112,9 +112,9 @@ public:
 
 // Head vocab unpacks
 
-class DQUnpackDictGatherCWu : public ov::pass::MatcherPass {
+class DQUnpackDictGatheru : public ov::pass::MatcherPass {
 public:
-    DQUnpackDictGatherCWu(Context::Ref ctx);
+    DQUnpackDictGatheru(Context::Ref ctx);
 };
 
 class DQUnpackDictGatherGQi : public ov::pass::MatcherPass {
@@ -168,6 +168,12 @@ public:
 class SliceLastMatmulMultiply : public ov::pass::MatcherPass {
 public:
     SliceLastMatmulMultiply();
+};
+
+// Convolution to MatMul
+class ConvToMatmul : public ov::pass::MatcherPass {
+public:
+    ConvToMatmul(Context::Ref ctx);
 };
 
 }  // namespace opt

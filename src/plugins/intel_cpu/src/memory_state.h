@@ -94,6 +94,27 @@ private:
     size_t buffer_num = 0;
 };
 
+class VariableStateSingleBuffer : public VariableStateBase {
+public:
+    VariableStateSingleBuffer(const std::string& name,
+                              const MemoryPtr& external_buffer,
+                              const MemoryDescPtr& external_desc);
+
+    MemoryPtr input_mem() override;
+    MemoryPtr output_mem() override;
+    MemoryDescPtr internal_desc() const override;
+
+private:
+    void reset_impl() override;
+    void commit_impl() override;
+
+    MemoryPtr internal_state_mem() const override;
+
+private:
+    MemoryDescPtr m_internal_desc; //mem desc required by the graph internal tensor
+    MemoryPtr m_internal_mem;
+};
+
 class VariableStateKVcache : public VariableStateBase {
 public:
     VariableStateKVcache(const std::string& name,

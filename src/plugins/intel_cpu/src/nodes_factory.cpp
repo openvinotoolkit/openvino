@@ -108,6 +108,7 @@
 #include "nodes/transpose.h"
 #include "nodes/unique.hpp"
 #include "nodes/causal_mask_preprocess.h"
+#include "nodes/lora.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -221,6 +222,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(Composite, Type::SubModel);
     INTEL_CPU_NODE(ScaledDotProductAttention, Type::ScaledDotProductAttention);
     INTEL_CPU_NODE(SearchSorted, Type::SearchSorted);
+    INTEL_CPU_NODE(LoRA, Type::LoRA);
 #if defined(OPENVINO_ARCH_X86_64)
     INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);
     INTEL_CPU_NODE(GridSample, Type::GridSample);

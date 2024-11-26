@@ -7,20 +7,23 @@
 #include <fstream>
 
 #include "compiled_model.hpp"
-#include "compiler.hpp"
+#include "driver_compiler_adapter.hpp"
 #include "intel_npu/common/device_helpers.hpp"
+#include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/common.hpp"
 #include "intel_npu/config/compiler.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/runtime.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
 #include "npuw/compiled_model.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "plugin_compiler_adapter.hpp"
 #include "remote_context.hpp"
-
+#include "zero_backend.hpp"
 
 using namespace intel_npu;
 
@@ -535,17 +538,17 @@ Plugin::Plugin()
           [&](const Config&) {
               return _metrics->GetBackendName();
           }}},
-        {ov::intel_npu::use_elf_compiler_backend.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.getString<USE_ELF_COMPILER_BACKEND>();
-          }}},
         {ov::intel_npu::create_executor.name(),
          {false,
           ov::PropertyMutability::RW,
           [](const Config& config) {
               return config.get<CREATE_EXECUTOR>();
+          }}},
+        {ov::intel_npu::defer_weights_load.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<DEFER_WEIGHTS_LOAD>();
           }}},
         {ov::intel_npu::dynamic_shape_to_static.name(),
          {false,
@@ -690,17 +693,24 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
+    auto original_model = model->clone();
+    auto compiler = getCompiler(localConfig);
+
     OV_ITT_TASK_NEXT(PLUGIN_COMPILE_MODEL, "compile");
+    std::shared_ptr<intel_npu::IGraph> graph;
+    try {
+        _logger.debug("performing compile");
+        graph = compiler->compile(model, localConfig);
+    } catch (const std::exception& ex) {
+        OPENVINO_THROW(ex.what());
+    } catch (...) {
+        _logger.error("Unexpected exception");
+        OPENVINO_THROW("NPU plugin: got an unexpected exception from compiler");
+    }
 
     std::shared_ptr<ov::ICompiledModel> compiledModel;
     try {
-        bool profiling = localConfig.get<PERF_COUNT>();
-        compiledModel = std::make_shared<CompiledModel>(model,
-                                                        shared_from_this(),
-                                                        device,
-                                                        getCompiler(localConfig),
-                                                        profiling,
-                                                        localConfig);
+        compiledModel = std::make_shared<CompiledModel>(original_model, shared_from_this(), device, graph, localConfig);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -767,19 +777,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         }
         _logger.debug("Successfully read %zu bytes into blob.", graphSize);
 
-        auto meta = compiler->parse(blob, localConfig);
-        meta.name = "net" + std::to_string(_compiledModelLoadCounter++);
+        auto graph = compiler->parse(std::move(blob), localConfig);
+        graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
 
-        const std::shared_ptr<ov::Model> modelDummy = create_dummy_model(meta.inputs, meta.outputs);
+        const std::shared_ptr<ov::Model> modelDummy =
+            create_dummy_model(graph->get_metadata().inputs, graph->get_metadata().outputs);
 
-        auto networkDescription = std::make_shared<const NetworkDescription>(std::move(blob), std::move(meta));
-
-        compiledModel = std::make_shared<CompiledModel>(modelDummy,
-                                                        shared_from_this(),
-                                                        networkDescription,
-                                                        device,
-                                                        compiler,
-                                                        localConfig);
+        compiledModel = std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't import network: ", ex.what());
     } catch (...) {
@@ -824,10 +828,38 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return supportedOpsMap;
 }
 
-ov::SoPtr<ICompiler> Plugin::getCompiler(const Config& config) const {
+std::unique_ptr<ICompilerAdapter> Plugin::getCompiler(const Config& config) const {
     auto compilerType = config.get<COMPILER_TYPE>();
     _logger.debug("performing createCompiler");
-    return createCompiler(_backends, compilerType);
+
+    switch (compilerType) {
+    case ov::intel_npu::CompilerType::MLIR: {
+        if (_backends->getBackendName() != "LEVEL0") {
+            return std::make_unique<PluginCompilerAdapter>(nullptr);
+        }
+
+        auto zeroBackend = std::dynamic_pointer_cast<ZeroEngineBackend>(_backends->getIEngineBackend()._ptr);
+        if (zeroBackend == nullptr) {
+            return std::make_unique<PluginCompilerAdapter>(nullptr);
+        }
+
+        return std::make_unique<PluginCompilerAdapter>(zeroBackend->getInitStruct());
+    }
+    case ov::intel_npu::CompilerType::DRIVER: {
+        if (_backends->getBackendName() != "LEVEL0") {
+            OPENVINO_THROW("NPU Compiler Adapter must be used with LEVEL0 backend");
+        }
+
+        auto zeroBackend = std::dynamic_pointer_cast<ZeroEngineBackend>(_backends->getIEngineBackend()._ptr);
+        if (!zeroBackend) {
+            OPENVINO_THROW("Failed to cast zeroBackend, zeroBackend is a nullptr");
+        }
+
+        return std::make_unique<DriverCompilerAdapter>(zeroBackend->getInitStruct());
+    }
+    default:
+        OPENVINO_THROW("Invalid NPU_COMPILER_TYPE");
+    }
 }
 
 std::atomic<int> Plugin::_compiledModelLoadCounter{1};

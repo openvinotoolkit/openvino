@@ -6,36 +6,28 @@
 
 #include "common_test_utils/test_constants.hpp"
 #include "openvino/runtime/system_conf.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace test {
 namespace snippets {
 
-#define STATIC_SHAPES(...) static_shapes_to_test_representation(std::vector<std::vector<ov::Shape>>{__VA_ARGS__})
-
 namespace {
 static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 = true) {
-    std::vector<std::vector<element::Type>> prc = {
-            {element::f32, element::f32},
-    };
-// Note: low precisions are not supported by TPP yet (ticker: 130010)
+    std::vector<std::vector<element::Type>> prc = precision_f32(2);
+// Note: TPP doesn't support low precisions yet
 #ifndef SNIPPETS_LIBXSMM_TPP
     if (!only_fp32) {
-        // In Snippets MatMul INT8 is supported only on VNNI/AMX platforms
-        if (ov::with_cpu_x86_avx512_core_vnni() || ov::with_cpu_x86_avx512_core_amx_int8()) {
-            prc.emplace_back(std::vector<element::Type>{element::i8, element::i8});
-            prc.emplace_back(std::vector<element::Type>{element::u8, element::i8});
-        }
-        // In Snippets MatMul BF16 is supported only on bf16/AMX platforms
-        if (ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx512_core_amx_bf16()) {
-            prc.emplace_back(std::vector<element::Type>{element::bf16, element::bf16});
-        }
+        auto quant = quantized_precisions_if_supported();
+        std::copy(quant.begin(), quant.end(), std::back_inserter(prc));
+        auto bfloat = precision_bf16_if_supported(2);
+        std::copy(bfloat.begin(), bfloat.end(), std::back_inserter(prc));
     }
 #endif
     return prc;
 }
 namespace transpose_zero_input {
-const auto& transpose_input_shapes = STATIC_SHAPES({{1, 49, 2, 23}, {2, 2, 23, 39}});
+const auto& transpose_input_shapes = SNIPPETS_TESTS_STATIC_SHAPES({{1, 49, 2, 23}, {2, 2, 23, 39}});
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, TransposeMatMul,
                          ::testing::Combine(
                                  ::testing::ValuesIn(transpose_input_shapes),
@@ -84,7 +76,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnected, TransposeMatMul,
 } // namespace transpose_zero_input
 
 namespace transpose_first_input {
-const auto& transpose_input_shapes = STATIC_SHAPES({{2, 1, 49, 13}, {1, 13, 3, 39}});
+const auto& transpose_input_shapes = SNIPPETS_TESTS_STATIC_SHAPES({{2, 1, 49, 13}, {1, 13, 3, 39}});
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, TransposeMatMul,
                          ::testing::Combine(
                                  ::testing::ValuesIn(transpose_input_shapes),
@@ -126,7 +118,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_TransposeMatMulFQ, TransposeMatMulFQ,
 } // namespace transpose_first_input
 
 namespace transpose_output {
-const auto& transpose_input_shapes = STATIC_SHAPES({{2, 1, 49, 13}, {1, 2, 13, 39}});
+const auto& transpose_input_shapes = SNIPPETS_TESTS_STATIC_SHAPES({{2, 1, 49, 13}, {1, 2, 13, 39}});
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, TransposeMatMul,
                          ::testing::Combine(
@@ -195,7 +187,7 @@ static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 
 }
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ExplicitTransposeMatMul, ExplicitTransposeMatMul,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(STATIC_SHAPES({{1, 2, 69, 43}, {2, 49, 2, 43}})),
+                                 ::testing::ValuesIn(SNIPPETS_TESTS_STATIC_SHAPES({{1, 2, 69, 43}, {2, 49, 2, 43}})),
                                  ::testing::Values(1), // Transpose on second input
                                  ::testing::ValuesIn(precisions()),
                                  ::testing::Values(MatMulType::MatMul),
@@ -223,7 +215,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_DynExplicitTransposeMatMul, ExplicitTran
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_TransposeMatMulBias, ExplicitTransposeMatMulBias,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(STATIC_SHAPES({{1, 2, 69, 43}, {2, 49, 2, 43}, {1, 1, 69, 49}})),
+                                 ::testing::ValuesIn(SNIPPETS_TESTS_STATIC_SHAPES({{1, 2, 69, 43}, {2, 49, 2, 43}, {1, 1, 69, 49}})),
                                  ::testing::Values(1), // Transpose on second input
                                  ::testing::ValuesIn(precisions()),
                                  ::testing::Values(MatMulType::MatMul),

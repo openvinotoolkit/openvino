@@ -30,6 +30,7 @@ cldnn::memory::ptr convert_zp_data_to_s32(const memory::ptr zp_memory) {
 
 template cldnn::memory::ptr convert_zp_data_to_s32<int8_t>(const memory::ptr zp_memory);
 template cldnn::memory::ptr convert_zp_data_to_s32<uint8_t>(const memory::ptr zp_memory);
+template cldnn::memory::ptr convert_zp_data_to_s32<int32_t>(const memory::ptr zp_memory);
 
 cldnn::format default_fmt_for_dims(size_t dims, bool is_grouped) {
     switch (dims) {
@@ -489,6 +490,7 @@ bool is_per_tensor(cldnn::data_node& node, int32_t& zp_val) {
 
 template bool is_per_tensor<int8_t>(cldnn::data_node& node, int32_t& zp_val);
 template bool is_per_tensor<uint8_t>(cldnn::data_node& node, int32_t& zp_val);
+template bool is_per_tensor<int32_t>(cldnn::data_node& node, int32_t& zp_val);
 
 
 static std::string get_external_order(const std::vector<size_t>& order, bool is_weights, bool is_grouped) {
