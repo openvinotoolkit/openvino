@@ -565,6 +565,9 @@ MemoryInput::MemoryInput(const std::shared_ptr<ov::Node>& op, const GraphContext
     if (rvWithSubgraph) {
         body = rvWithSubgraph->get_function();
         subGraph = make_unique<ov::intel_cpu::Graph>();
+        if (isDynamic) {
+            shapeInference = InternalDynShapeInferFactory().makeShapeInfer();
+        }
     }
 }
 
