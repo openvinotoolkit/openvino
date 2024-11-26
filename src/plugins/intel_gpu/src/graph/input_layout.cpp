@@ -35,11 +35,11 @@ input_layout_inst::typed_primitive_inst(network& network, input_layout_node cons
     _has_valid_input = false;  // by default input for 'input_layout' is invalid as long as user doesn't call set_data
 }
 
-event::ptr input_layout_inst::set_data(memory::ptr mem) {
+event::ptr input_layout_inst::set_data(memory::ptr mem, bool need_to_check_memory_to_set) {
     auto ol = get_node_output_layout();
 
     bool empty_mem = mem->size() == 0 && (ol.is_dynamic() || ol.count() == 0);
-    if (!empty_mem) {
+    if (!empty_mem && need_to_check_memory_to_set) {
         check_memory_to_set(*mem, ol);
     }
 
