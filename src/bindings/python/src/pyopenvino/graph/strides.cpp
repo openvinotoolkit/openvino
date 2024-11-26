@@ -20,7 +20,7 @@ template <typename T>
 bool compare_strides(const ov::Strides& a, const T& b) {
     return a.size() == b.size() &&
            std::equal(a.begin(), a.end(), b.begin(), [](const size_t& elem_a, const py::handle& elem_b) {
-               return elem_a == elem_b.cast<int64_t>();
+               return elem_a == elem_b.cast<size_t>();
            });
 }
 
