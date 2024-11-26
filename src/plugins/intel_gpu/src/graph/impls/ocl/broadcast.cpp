@@ -41,7 +41,7 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
 
         // bfyx, bfzyx format
         for (size_t i = 0; i < max_axes_num; ++i) {
-            params.input_order.push_back(i);
+            params.input_order.push_back(static_cast<uint16_t>(i));
         }
 
         return params;
