@@ -82,7 +82,9 @@ format::type get_preferred_format(fully_connected_node const& node, const kernel
     // "is_batch_after_spatial" should return true)
     if (data_type_traits::is_floating_point(input_layout.data_type) &&
         input_layout.format == format::bfyx &&
-        input_layout.batch() > 1)
+        input_layout.batch() > 1 &&
+        input_pitches[2] == 1 &&
+        input_pitches[3] == 1)
         return format::yxfb;
 
     return format::bfyx;
