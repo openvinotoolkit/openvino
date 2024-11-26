@@ -73,4 +73,6 @@ endif()
 
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
+ov_add_compiler_flags(-Wno-missing-declarations)
+
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
