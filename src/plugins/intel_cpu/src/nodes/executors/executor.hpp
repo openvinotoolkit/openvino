@@ -123,7 +123,7 @@ public:
         return runtimeCachePtr;
     }
 
-    DnnlScratchPadPtr getScratchPad(int subStreamID = 0) const {
+    DnnlScratchPadPtr getScratchPad(int subStreamID = -1) const {
         if (subStreamID < 0)
             subStreamID = curNumaNodeId;
         if (subStreamID >= numNumaNodes - 1)
