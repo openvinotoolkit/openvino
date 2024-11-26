@@ -87,8 +87,8 @@ Common
 * A new constant constructor has been added, enabling constants to be created from data pointer
   as shared memory. Additionally, it can take ownership of a shared, or other, object, avoiding
   a two-step process to wrap memory into ``ov::Tensor``.
-* Files are now read via the async ReadFile API, reducing the bottleneck for LLM model load
-  times on GPU.
+* Asynchronous file reading with mmap library has been implemented, reducing loading times for
+  model files, especially for LLMs.
 * CPU implementation of SliceScatter operator is now available, used for models such as Gemma,
   supporting increased LLM performance.
 

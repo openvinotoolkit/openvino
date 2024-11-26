@@ -159,7 +159,7 @@ jobs:
             -B ${{ env.BUILD_DIR }}
 
       - name: Cmake build - OpenVINO
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: Show ccache stats
         run: ccache --show-stats
@@ -186,7 +186,7 @@ jobs:
             -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_CONTRIB_REPO }}/modules/custom_operations \
             -S ${{ env.OPENVINO_REPO }} \
             -B ${{ env.BUILD_DIR }}
-          cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
+          cmake --build ${{ env.BUILD_DIR }} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: CMake configure, build and install - OpenVINO JS API
         if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
@@ -196,7 +196,7 @@ jobs:
             -S ${{ env.OPENVINO_REPO }} \
             -B ${{ env.BUILD_DIR }}
 
-          cmake --build ${{ env.BUILD_DIR }} --parallel
+          cmake --build ${{ env.BUILD_DIR }} --parallel $(nproc)
 
           cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR_JS }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
       #
