@@ -46,7 +46,7 @@ public:
 
     DnnlScratchPadPtr getScratchPad(int subStreamID = -1) const {
         if (subStreamID < 0) {
-            subStreamID = get_current_socket_id();
+            subStreamID = std::max(0, streamExecutor ? streamExecutor->get_numa_node_id() : subStreamID);
         }
         if (subStreamID >= numNumaNodes - 1)
             subStreamID = numNumaNodes - 1;
