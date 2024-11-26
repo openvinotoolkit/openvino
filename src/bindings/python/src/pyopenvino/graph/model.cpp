@@ -1328,7 +1328,6 @@ void regclass_graph_Model(py::module m) {
                outputs_str + "\n]>";
     });
 
-
     model.def("get_rt_info",
               (PyRTMap & (ov::Model::*)()) & ov::Model::get_rt_info,
               py::return_value_policy::reference_internal,
