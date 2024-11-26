@@ -117,7 +117,8 @@ torch.compile it goes through the following steps:
 1. Graph acquisition - the model is rewritten as blocks of subgraphs that are either:
 
    - compiled by TorchDynamo and “flattened”,
-   - falling back to the eager-mode, due to unsupported Python constructs (like control-flow code).
+   - falling back to the eager-mode, due to unsupported Python constructs (like control-flow
+     code).
 
 2. Graph lowering - all PyTorch operations are decomposed into
    their constituent kernels specific to the chosen backend.

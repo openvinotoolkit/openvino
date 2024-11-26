@@ -6,14 +6,14 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/primitives/swiglu.hpp"
 
-#include "ov_ops/swiglu.hpp"
+#include "ov_ops/glu.hpp"
 
-using SwiGLU = ov::op::internal::SwiGLU;
+using GLU = ov::op::internal::GLU;
 
 namespace ov {
 namespace intel_gpu {
 
-static void CreateSwiGLUOp(ProgramBuilder& p, const std::shared_ptr<SwiGLU>& op) {
+static void CreateGLUOp(ProgramBuilder& p, const std::shared_ptr<GLU>& op) {
     validate_inputs_count(op, {1});
     auto inputs = p.GetInputInfo(op);
     std::string primitive_name = layer_type_name_ID(op);
@@ -41,7 +41,7 @@ static void CreateSwiGLUOp(ProgramBuilder& p, const std::shared_ptr<SwiGLU>& op)
     }
 }
 
-REGISTER_FACTORY_IMPL(internal, SwiGLU);
+REGISTER_FACTORY_IMPL(internal, GLU);
 
 }  // namespace intel_gpu
 }  // namespace ov
