@@ -84,7 +84,7 @@ Install requirements
 
 .. parsed-literal::
 
-    24692
+    24717
 
 
 
@@ -136,7 +136,7 @@ Download and convert the Model
 
 .. parsed-literal::
 
-    100%|██████████| 6.25M/6.25M [00:00<00:00, 25.9MB/s]
+    100%|██████████| 6.25M/6.25M [00:00<00:00, 26.9MB/s]
 
 
 .. parsed-literal::
@@ -147,10 +147,10 @@ Download and convert the Model
     PyTorch: starting from 'yolov8n.pt' with input shape (1, 3, 640, 640) BCHW and output shape(s) (1, 84, 8400) (6.2 MB)
     
     OpenVINO: starting export with openvino 2024.4.0-16579-c3152d32c9c-releases/2024/4...
-    OpenVINO: export success ✅ 1.3s, saved as 'yolov8n_openvino_model/' (6.4 MB)
+    OpenVINO: export success ✅ 1.4s, saved as 'yolov8n_openvino_model/' (6.4 MB)
     
-    Export complete (1.5s)
-    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/object-detection-webcam
+    Export complete (1.6s)
+    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/object-detection-webcam
     Predict:         yolo predict task=detect model=yolov8n_openvino_model imgsz=640 half 
     Validate:        yolo val task=detect model=yolov8n_openvino_model imgsz=640 data=coco.yaml half 
     Visualize:       https://netron.app
