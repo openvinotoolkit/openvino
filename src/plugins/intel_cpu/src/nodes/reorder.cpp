@@ -17,13 +17,7 @@
 #include <common/primitive_hashing_utils.hpp>
 #include <shape_inference/shape_inference_pass_through.hpp>
 
-#include "convert.h"
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "nodes/common/cpu_convert.h"
-#include "nodes/common/cpu_memcpy.h"
-#include "nodes/common/reorder_prim.h"
-#include "openvino/core/parallel.hpp"
-#include "shape_inference/shape_inference_pass_through.hpp"
 #include "utils/precision_support.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/transpose_list.hpp"
