@@ -64,7 +64,7 @@ struct Context {
 
 class DQMatMulCWi : public ov::pass::MatcherPass {
 public:
-    DQMatMulCWi(Context::Ref ctx);
+    explicit DQMatMulCWi(Context::Ref ctx);
 };
 
 class DQMatMulGQi : public ov::pass::MatcherPass {

@@ -20,6 +20,14 @@ namespace opt {
 
 void Context::permute(PPtr orig_param, const Context::Axes& order) {
     closures_to_permute[orig_param] = order;
+
+    const auto& orig_shape = orig_param->get_shape();
+    ov::Shape tw_shape;
+    for (const auto& axis : order) {
+        tw_shape.push_back(orig_shape[axis]);
+    }
+    orig_param->set_partial_shape(tw_shape);
+    orig_param->validate_and_infer_types();
 }
 
 void Context::to_f16(PPtr orig_param) {
@@ -267,14 +275,7 @@ DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
             !matched_matmul->get_transpose_a() && !matched_matmul->get_transpose_b()) {
             if (!ctx.get().mm_dq_full) {
                 // Transpose weight and coeff
-                ov::Shape tw_shape = {qweight_shape[0], qweight_shape[2], qweight_shape[1]};
-                matched_qweight->set_partial_shape(tw_shape);
-                matched_qweight->validate_and_infer_types();
                 ctx.get().permute(matched_qweight, {0, 2, 1});
-
-                ov::Shape tc_shape = {qcoeff_shape[0], qcoeff_shape[2], qcoeff_shape[1]};
-                matched_qcoeff->set_partial_shape(tc_shape);
-                matched_qcoeff->validate_and_infer_types();
                 ctx.get().permute(matched_qcoeff, {0, 2, 1});
 
                 // Add Transpose and insert it
@@ -302,9 +303,6 @@ DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
             }
 
             // Mark W closure to transpose, and transpose the respective parameter
-            ov::Shape tw_shape = {qweight_shape[0], qweight_shape[2], qweight_shape[1]};
-            matched_qweight->set_partial_shape(tw_shape);
-            matched_qweight->validate_and_infer_types();
             ctx.get().permute(matched_qweight, {0, 2, 1});
 
             // Mark S closure to be lowered fo f16
@@ -420,14 +418,7 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
             matched_matmul->get_transpose_b()) {
             if (!ctx.get().mm_dq_full) {
                 // Transpose weight and coeff
-                ov::Shape tw_shape = {qweight_shape[1], qweight_shape[0], qweight_shape[2]};
-                matched_qweight->set_partial_shape(tw_shape);
-                matched_qweight->validate_and_infer_types();
                 ctx.get().permute(matched_qweight, {1, 0, 2});
-
-                ov::Shape tc_shape = {qcoeff_shape[1], qcoeff_shape[0], qcoeff_shape[2]};
-                matched_qcoeff->set_partial_shape(tc_shape);
-                matched_qcoeff->validate_and_infer_types();
                 ctx.get().permute(matched_qcoeff, {1, 0, 2});
 
                 // Add Transpose and insert it
@@ -449,16 +440,8 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
             // Mark W closure to transpose, and transpose the respective parameter
             ctx.get().permute(matched_qweight, {1, 0, 2});
 
-            ov::Shape tw_shape = {qweight_shape[1], qweight_shape[0], qweight_shape[2]};
-            matched_qweight->set_partial_shape(tw_shape);
-            matched_qweight->validate_and_infer_types();
-
             // Also transpose S, but in a different way (see diagram above)
             ctx.get().permute(matched_qcoeff, {1, 2, 0});
-
-            ov::Shape ts_shape = {qcoeff_shape[1], qcoeff_shape[2], qcoeff_shape[0]};
-            matched_qcoeff->set_partial_shape(ts_shape);
-            matched_qcoeff->validate_and_infer_types();
 
             // Reshape the Act to group format
             const auto NSPLIT = qweight_shape[1];
@@ -569,14 +552,7 @@ DQMatMulGQiP::DQMatMulGQiP(Context::Ref ctx) {
             !matched_matmul->get_transpose_a() && !matched_matmul->get_transpose_b()) {
             if (!ctx.get().mm_dq_full) {
                 // Transpose weight and coeff
-                ov::Shape tw_shape = {qweight_shape[0], qweight_shape[2], qweight_shape[1]};
-                matched_qweight->set_partial_shape(tw_shape);
-                matched_qweight->validate_and_infer_types();
                 ctx.get().permute(matched_qweight, {0, 2, 1});
-
-                ov::Shape tc_shape = {qcoeff_shape[0], qcoeff_shape[2], qcoeff_shape[1]};
-                matched_qcoeff->set_partial_shape(tc_shape);
-                matched_qcoeff->validate_and_infer_types();
                 ctx.get().permute(matched_qcoeff, {0, 2, 1});
 
                 // Add Transpose and insert it
@@ -604,14 +580,9 @@ DQMatMulGQiP::DQMatMulGQiP(Context::Ref ctx) {
             }
 
             // Mark W closure to transpose, and transpose the respective parameter
-            ov::Shape tw_shape = {qweight_shape[0], qweight_shape[2], qweight_shape[1]};
-            matched_qweight->set_partial_shape(tw_shape);
-            matched_qweight->validate_and_infer_types();
             ctx.get().permute(matched_qweight, {0, 2, 1});
 
             // Mark S closure to be lowered fo f16
-            matched_qcoeff->set_element_type(ov::element::f16);
-            matched_qcoeff->validate_and_infer_types();
             ctx.get().to_f16(matched_qcoeff);
 
             // Reshape the Act to group format
@@ -724,14 +695,7 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
             !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
             if (!ctx.get().mm_dq_full) {
                 // Transpose weight and coeff
-                ov::Shape tw_shape = {qweight_shape[1], qweight_shape[0], qweight_shape[2]};
-                matched_qweight->set_partial_shape(tw_shape);
-                matched_qweight->validate_and_infer_types();
                 ctx.get().permute(matched_qweight, {1, 0, 2});
-
-                ov::Shape tc_shape = {qcoeff_shape[1], qcoeff_shape[0], qcoeff_shape[2]};
-                matched_qcoeff->set_partial_shape(tc_shape);
-                matched_qcoeff->validate_and_infer_types();
                 ctx.get().permute(matched_qcoeff, {1, 0, 2});
 
                 // Add Transpose and insert it
@@ -751,17 +715,10 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
             }
 
             // Mark W closure to transpose, and transpose the respective parameter
-            ov::Shape tw_shape = {qweight_shape[1], qweight_shape[0], qweight_shape[2]};
-            matched_qweight->set_partial_shape(tw_shape);
-            matched_qweight->validate_and_infer_types();
             ctx.get().permute(matched_qweight, {1, 0, 2});
 
             // Also transpose S, but in a different way (see diagram above)
             ctx.get().permute(matched_qcoeff, {1, 2, 0});
-
-            ov::Shape ts_shape = {qcoeff_shape[1], qcoeff_shape[2], qcoeff_shape[0]};
-            matched_qcoeff->set_partial_shape(ts_shape);
-            matched_qcoeff->validate_and_infer_types();
 
             // Select proper activation shape
             std::size_t act_dim = act_shape[0] > act_shape[1] ? 0 : 1;

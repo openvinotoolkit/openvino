@@ -439,17 +439,11 @@ inline uint8_t tread_4b(const ov::Tensor& t, std::size_t r, std::size_t c, std::
     return hi4(*telem);
 }
 
-inline uint16_t tread_f16(const ov::Tensor& t, std::size_t r, std::size_t c, std::size_t COLS) {
-    const uint16_t* tdata = static_cast<uint16_t*>(t.data());
-    const uint16_t* trow = tdata + r * COLS;
-    const uint16_t* telem = trow + c;
-    return *telem;
-}
-
-inline float tread_f32(const ov::Tensor& t, std::size_t r, std::size_t c, std::size_t COLS) {
-    const float* tdata = static_cast<float*>(t.data());
-    const float* trow = tdata + r * COLS;
-    const float* telem = trow + c;
+template <typename T>
+inline T tread(const ov::Tensor& t, std::size_t r, std::size_t c, std::size_t COLS) {
+    const T* tdata = static_cast<T*>(t.data());
+    const T* trow = tdata + r * COLS;
+    const T* telem = trow + c;
     return *telem;
 }
 
@@ -464,17 +458,11 @@ inline void twrite_4b(ov::Tensor& t, uint8_t value, std::size_t r, std::size_t c
     }
 }
 
-inline void twrite_f16(ov::Tensor& t, uint16_t value, std::size_t r, std::size_t c, std::size_t COLS) {
-    uint16_t* tdata = static_cast<uint16_t*>(t.data());
-    uint16_t* trow = tdata + r * COLS;
-    uint16_t* telem = trow + c;
-    *telem = value;
-}
-
-inline void twrite_f32(ov::Tensor& t, float value, std::size_t r, std::size_t c, std::size_t COLS) {
-    float* tdata = static_cast<float*>(t.data());
-    float* trow = tdata + r * COLS;
-    float* telem = trow + c;
+template <typename T>
+inline void twrite(ov::Tensor& t, T value, std::size_t r, std::size_t c, std::size_t COLS) {
+    T* tdata = static_cast<T*>(t.data());
+    T* trow = tdata + r * COLS;
+    T* telem = trow + c;
     *telem = value;
 }
 
@@ -495,7 +483,7 @@ ov::Tensor ov::npuw::util::transpose(const ov::Tensor& t) {
                 twrite_4b(tnew, tread_4b(t, i, j, IN_COLS), j, i, IN_ROWS);
                 break;
             case ov::element::f32:
-                twrite_f32(tnew, tread_f32(t, i, j, IN_COLS), j, i, IN_ROWS);
+                twrite<float>(tnew, tread<float>(t, i, j, IN_COLS), j, i, IN_ROWS);
                 break;
             default:
                 NPUW_ASSERT(false && "Element type is not supported yet");
@@ -546,7 +534,11 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
                         twrite_4b(tnew, tread_4b(t, p * shape[1] + r, c, shape[2]), p * shape[2] + c, r, shape[1]);
                         break;
                     case ov::element::f32:
-                        twrite_f32(tnew, tread_f32(t, p * shape[1] + r, c, shape[2]), p * shape[2] + c, r, shape[1]);
+                        twrite<float>(tnew,
+                                      tread<float>(t, p * shape[1] + r, c, shape[2]),
+                                      p * shape[2] + c,
+                                      r,
+                                      shape[1]);
                         break;
                     default:
                         NPUW_ASSERT(false && "Element type is not supported yet");
@@ -573,11 +565,11 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
                                   tshape[2]);
                         break;
                     case ov::element::f16:
-                        twrite_f16(tnew,
-                                   tread_f16(t, r, p * shape[2] + c, shape[1] * shape[2]),
-                                   p * tshape[1] + r,
-                                   c,
-                                   tshape[2]);
+                        twrite<uint16_t>(tnew,
+                                         tread<uint16_t>(t, r, p * shape[2] + c, shape[1] * shape[2]),
+                                         p * tshape[1] + r,
+                                         c,
+                                         tshape[2]);
                         break;
                     default:
                         NPUW_ASSERT(false && "Element type is not supported yet");
