@@ -24,7 +24,7 @@ class TRANSFORMATIONS_API SplitTransformation;
 class TRANSFORMATIONS_API ReshapeTransformation;
 class TRANSFORMATIONS_API MulMulMulTransformation;
 class TRANSFORMATIONS_API MulMVNTransformation;
-class TRANSFORMATIONS_API ConcatTransformation;
+class TRANSFORMATIONS_API MulConcatTransformation;
 
 }  // namespace activations_scaling
 }  // namespace pass
@@ -94,8 +94,8 @@ public:
     MulMVNTransformation();
 };
 
-class ov::pass::activations_scaling::ConcatTransformation : public ov::pass::MatcherPass {
+class ov::pass::activations_scaling::MulConcatTransformation : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConcatTransformation", "0");
-    ConcatTransformation();
+    OPENVINO_RTTI("MulConcatTransformation", "0");
+    MulConcatTransformation();
 };

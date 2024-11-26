@@ -254,7 +254,7 @@ TEST_F(TransformationTestsF, ConcatTransformationTest) {
         auto result = std::make_shared<ov::op::v0::Result>(convert);
 
         model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input0, input1});
-        manager.register_pass<ov::pass::activations_scaling::ConcatTransformation>();
+        manager.register_pass<ov::pass::activations_scaling::MulConcatTransformation>();
     }
     {
         auto input0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{6, 12, 10, 24});

@@ -122,16 +122,32 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
         std::shared_ptr<ov::Node> runtime_scaled_op;
 
         auto child = scaled_op->get_output_target_inputs(0).begin()->get_node();
-        if (scaled_op->get_output_target_inputs(0).size() == 1 && ov::is_type<ov::op::v1::Add>(child)) {
+        bool has_bias = false;
+        size_t bias_index = 1;
+        {
+            if (scaled_op->get_output_target_inputs(0).size() == 1 && ov::is_type<ov::op::v1::Add>(child)) {
+                bias_index = (child->get_input_node_shared_ptr(0) == scaled_op) ? 1 : 0;
+                const auto& bias_pshape = child->get_input_partial_shape(bias_index);
+                if (bias_pshape.is_static()) {
+                    const auto& bias_shape = bias_pshape.get_shape();
+                    const bool per_channel = std::count_if(bias_shape.begin(), bias_shape.end(), [](size_t x) { return x > 1; }) == 1;
+                    if (ov::shape_size(bias_shape) == 1 || per_channel) {
+                        has_bias = true;
+                    }
+                }
+            }
+        }
+
+        if (has_bias) {
             auto add = child->shared_from_this();
             target_inputs = add->get_output_target_inputs(0);
             auto scale_down_bias = std::make_shared<ov::op::v1::Multiply>(
-                add->input(1).get_source_output(),
-                (add->input(1).get_element_type() == ov::element::f32) ? scale_down_const_f32 : scale_down_const_f16);
+                add->input(bias_index).get_source_output(),
+                (add->input(bias_index).get_element_type() == ov::element::f32) ? scale_down_const_f32 : scale_down_const_f16);
             scale_down_bias->set_friendly_name(add->get_friendly_name() + "_scale_down");
             ov::copy_runtime_info(add, scale_down_bias);
             auto convert_bias_prec = std::make_shared<ov::op::v0::Convert>(scale_down_bias->output(0), scaled_prec);
-            add->input(1).replace_source_output(convert_bias_prec->output(0));
+            add->input(bias_index).replace_source_output(convert_bias_prec->output(0));
             runtime_scaled_op = std::make_shared<ov::op::v0::Convert>(add->output(0), output_prec);
         } else {
             target_inputs = scaled_op->get_output_target_inputs(0);
@@ -640,8 +656,8 @@ ov::pass::activations_scaling::MulMulMulTransformation::MulMulMulTransformation(
 //                            |   const_c
 //                            |    /
 //                           Multiply
-ov::pass::activations_scaling::ConcatTransformation::ConcatTransformation() {
-    MATCHER_SCOPE(ConcatTransformation);
+ov::pass::activations_scaling::MulConcatTransformation::MulConcatTransformation() {
+    MATCHER_SCOPE(MulConcatTransformation);
 
     auto concat_m = wrap_type<ov::op::v0::Concat>();
 
@@ -707,7 +723,7 @@ ov::pass::activations_scaling::ConcatTransformation::ConcatTransformation() {
         return false;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(concat_m, "ConcatTransformation");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(concat_m, "MulConcatTransformation");
     this->register_matcher(m, callback);
 }
 
@@ -731,7 +747,7 @@ bool ov::pass::ActivationsScaling::run_on_model(const std::shared_ptr<ov::Model>
     manager.register_pass<ReshapeTransformation>();
     manager.register_pass<MulMulMulTransformation>();
     manager.register_pass<MulMulAddTransformation>();
-    manager.register_pass<ConcatTransformation>();
+    manager.register_pass<MulConcatTransformation>();
     manager.register_pass<MulMVNTransformation>();
     manager.register_pass<MulMulAddTransformation>();
     manager.register_pass<MulMVNTransformation>();
