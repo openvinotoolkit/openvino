@@ -343,6 +343,39 @@ const std::vector<fusingSpecificParams> fusingParamsSetBF16{emptyFusingSpec,
                                                             // sum
                                                             fusingSum};
 
+const std::vector<fusingSpecificParams> fusingParamsSet_Brdgmm{emptyFusingSpec,
+                                                               // eltwise
+                                                               fusingRelu,
+                                                               fusingPRelu1D,
+                                                               // depthwise
+                                                               fusingReluScaleShift,
+                                                               // fake quantize
+                                                               fusingFakeQuantizePerTensorRelu,
+                                                               fusingFakeQuantizePerChannelRelu
+                                                               // sum
+                                                               //fusingSumEluFQ,
+                                                               //fusingSum
+                                                              };
+
+const std::vector<fusingSpecificParams> fusingParamsSetBF16_Brdgmm{emptyFusingSpec,
+                                                                   // eltwise
+                                                                   fusingRelu,
+                                                                   // depthwise
+                                                                   fusingReluScaleShift,
+                                                                   // sum
+                                                                   //fusingSum
+                                                                  };
+
+const std::vector<fusingSpecificParams> fusingParamsSetFP16_Brdgmm{emptyFusingSpec,
+                                                                   // eltwise
+                                                                   fusingRelu
+                                                                   // depthwise
+                                                                   //fusingReluScaleShift,
+                                                                   // sum
+                                                                   //fusingSum
+                                                                  };
+
+
 /* ============= GroupConvolution params (planar layout) ============= */
 const std::vector<size_t> numOutChannels_Gemm = {6};
 const std::vector<size_t> numGroups_Gemm = {2, 3};
@@ -1329,10 +1362,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_DW_FP32,
                                             ::testing::Values(empty_plugin_config)),
                          GroupConvolutionLayerCPUTest::getTestCaseName);
 
-const std::vector<std::vector<size_t>> strides2d_Brdgmm = {{1, 1}};
 const std::vector<std::vector<size_t>> dilations2d_Brdgmm = {{1, 1}};
 const auto groupConvParams_ExplicitPadding_DW_2D_Brdgmm = ::testing::Combine(::testing::ValuesIn(kernels2d),
-                                                                      ::testing::ValuesIn(strides2d_Brdgmm),
+                                                                      ::testing::ValuesIn(strides2d),
                                                                       ::testing::ValuesIn(padBegins2d),
                                                                       ::testing::ValuesIn(padEnds2d),
                                                                       ::testing::ValuesIn(dilations2d_Brdgmm),
@@ -1350,7 +1382,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_DW_FP32_Brdgmm,
                                                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                                             ::testing::ValuesIn(filterCPUInfoForDeviceSupportBrdgmm({conv_avx512_dw_2D_nspc_brgconv,
                                                                                                      conv_avx2_dw_2D_nspc_brgconv})),
-                                            ::testing::Values(emptyFusingSpec),
+                                            ::testing::ValuesIn(fusingParamsSet_Brdgmm),
                                             ::testing::Values(empty_plugin_config)),
                          GroupConvolutionLayerCPUTest::getTestCaseName);
 
@@ -1377,7 +1409,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_DW_BF16_Brdgmm,
                                                                ::testing::ValuesIn(inputShapes2dDW),
                                                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                                             ::testing::ValuesIn(filterCPUInfoForDeviceSupportBF16({conv_avx512_dw_2D_nspc_brgconv})),
-                                            ::testing::Values(emptyFusingSpec),
+                                            ::testing::ValuesIn(fusingParamsSetBF16_Brdgmm),
                                             ::testing::Values(cpu_bf16_plugin_config)),
                          GroupConvolutionLayerCPUTest::getTestCaseName);
 
@@ -1390,7 +1422,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_DW_FP16_Brdgmm,
                                                                ::testing::ValuesIn(inputShapes2dDW),
                                                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                                             ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_dw_2D_nspc_brgconv})),
-                                            ::testing::Values(emptyFusingSpec),
+                                            ::testing::ValuesIn(fusingParamsSetFP16_Brdgmm),
                                             ::testing::Values(cpu_f16_plugin_config)),
                          GroupConvolutionLayerCPUTest::getTestCaseName);
 
@@ -1431,10 +1463,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_3D_DW_FP32,
                                             ::testing::Values(empty_plugin_config)),
                          GroupConvolutionLayerCPUTest::getTestCaseName);
 
-const std::vector<std::vector<size_t>> strides3d_Brdgmm = {{1, 1, 1}};
 const std::vector<std::vector<size_t>> dilations3d_Brdgmm = {{1, 1, 1}};
 const auto groupConvParams_ExplicitPadding_DW_3D_Brdgmm = ::testing::Combine(::testing::ValuesIn(kernels3d),
-                                                                      ::testing::ValuesIn(strides3d_Brdgmm),
+                                                                      ::testing::ValuesIn(strides3d),
                                                                       ::testing::ValuesIn(padBegins3d),
                                                                       ::testing::ValuesIn(padEnds3d),
                                                                       ::testing::ValuesIn(dilations3d_Brdgmm),
@@ -1452,7 +1483,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_3D_DW_FP32_Brdgmm,
                                                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
                                             ::testing::ValuesIn(filterCPUInfoForDeviceSupportBrdgmm({conv_avx512_dw_3D_nspc_brgconv,
                                                                                                      conv_avx2_dw_3D_nspc_brgconv})),
-                                            ::testing::Values(emptyFusingSpec),
+                                            ::testing::ValuesIn(fusingParamsSet_Brdgmm),
                                             ::testing::Values(empty_plugin_config)),
                          GroupConvolutionLayerCPUTest::getTestCaseName);
 
