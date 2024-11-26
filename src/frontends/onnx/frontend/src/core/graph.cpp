@@ -129,8 +129,6 @@ Graph::Graph(const std::string& model_dir,
       m_ops_bridge{detail::init_ops_bridge(m_extensions.conversions)} {
     m_model = common::make_unique<Model>(model_proto, detail::build_model_opset(*model_proto, m_ops_bridge));
 
-    transform::expand_onnx_functions(*model_proto);
-
     std::map<std::string, Tensor> initializers;
 
     // Process all initializers in the graph

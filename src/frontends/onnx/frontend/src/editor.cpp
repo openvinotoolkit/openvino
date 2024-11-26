@@ -5,7 +5,6 @@
 #include "editor.hpp"
 
 #include <onnx/onnx_pb.h>
-#include <onnx/shape_inference/implementation.h>
 
 #include <fstream>
 
@@ -250,40 +249,6 @@ void graph_topological_sort(GraphProto* graph) {
         graph->mutable_node()->Swap(result.mutable_node());
     }
 }
-
-class InferShapesAutoRelease {
-public:
-    InferShapesAutoRelease(std::shared_ptr<ModelProto> model_proto)
-        : m_model_proto{model_proto},
-          m_infer_shapes_was_run{false} {}
-
-    bool infer_shapes() {
-        try {  // unexpected exceptions of external onnx lib
-            shape_inference::InferShapes(*m_model_proto);
-            m_infer_shapes_was_run = true;
-        } catch (...) {
-            release();
-        }
-        return m_infer_shapes_was_run;
-    }
-
-    void release() {
-        try {
-            m_model_proto->mutable_graph()->clear_value_info();
-        } catch (...) {
-        }
-    }
-
-    ~InferShapesAutoRelease() {
-        if (m_infer_shapes_was_run) {
-            release();
-        }
-    }
-
-private:
-    std::shared_ptr<ModelProto> m_model_proto;
-    bool m_infer_shapes_was_run;
-};
 }  // namespace
 
 /// \brief A helper class used to hold the ModelProto object as its field
@@ -411,7 +376,6 @@ PartialShape ONNXModelEditor::get_tensor_shape(const std::string& tensor_name) c
     const ValueInfoProto* value_info = nullptr;
     const TensorProto* tensor = nullptr;
     const auto onnx_graph = m_pimpl->m_model_proto->mutable_graph();
-    InferShapesAutoRelease onnx_shapes(m_pimpl->m_model_proto);
     if (const auto input = find_graph_input(*onnx_graph, tensor_name)) {
         value_info = input;
     } else if (const auto output = find_graph_output(*onnx_graph, tensor_name)) {
@@ -421,7 +385,7 @@ PartialShape ONNXModelEditor::get_tensor_shape(const std::string& tensor_name) c
     } else if (const auto initializer = find_graph_initializer(*onnx_graph, tensor_name)) {
         tensor = initializer;
     } else {
-        auto shape_infer_applied = onnx_shapes.infer_shapes();
+        auto shape_infer_applied = false;
         if (!shape_infer_applied) {
             OPENVINO_WARN("Cannot replace existing shapes during get_tensor_shape");
             return PartialShape::dynamic();
@@ -459,9 +423,6 @@ void ONNXModelEditor::extract_subgraph(const std::vector<InputEdge>& inputs,
     if (!outputs.empty()) {
         m_pimpl->m_model_proto->mutable_graph()->mutable_output()->Clear();
     }
-
-    InferShapesAutoRelease onnx_shapes(m_pimpl->m_model_proto);
-    onnx_shapes.infer_shapes();
 
     SubgraphExtractor editor{*(m_pimpl->m_model_proto->mutable_graph())};
     editor.add_new_inputs(inputs, merge_inputs);
