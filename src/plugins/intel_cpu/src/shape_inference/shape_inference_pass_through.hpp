@@ -5,7 +5,6 @@
 #pragma once
 
 #include "shape_inference_cpu.hpp"
-#include "transformations/cpu_opset/common/op/read_value_with_subgraph.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -31,15 +30,9 @@ public:
 
 class PassThroughShapeInferFactory final : public ShapeInferFactory {
 public:
-    explicit PassThroughShapeInferFactory() {}
-
     ShapeInferPtr makeShapeInfer() const override {
         return std::make_shared<ShapeInferPassThrough>();
     }
-
-private:
-    std::shared_ptr<ov::Node> m_op = nullptr;
-    std::shared_ptr<ov::Model> m_body = nullptr;
 };
 
 } // namespace intel_cpu
