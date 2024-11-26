@@ -392,7 +392,7 @@ void RoPE::initSupportedPrimitiveDescriptors() {
             m_executor = std::make_shared<RoPEExecutorChatGLM<float>>(m_config);
             rtPrecision = ov::element::f32;
         }
-    } else if (m_config.is_interleaved) {
+    } else if (m_config.is_interleaved && m_config.output_trans0213) {
         OPENVINO_ASSERT(m_config.input_trans0213 == false);
         OPENVINO_ASSERT(m_config.slice_start == 0);
         OPENVINO_ASSERT(m_config.slice_stop == 0);
