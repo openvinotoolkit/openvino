@@ -49,7 +49,6 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
         bool cell_state_check = one_of(in2_dt, {data_types::f16, data_types::bf16, data_types::f32}) &&
             one_of(out2_dt, {data_types::f16, data_types::bf16, data_types::f32});
         bool f16_case = everyone_is(data_types::f16, in0_dt, in1_dt, in3_dt, in4_dt, out0_dt, out1_dt);
-        bool bf16_case = everyone_is(data_types::bf16, in0_dt, in1_dt, in3_dt, in4_dt, out0_dt, out1_dt);
         bool f32_case = everyone_is(data_types::f32, in0_dt, in1_dt, in3_dt, in4_dt, in5_dt, out0_dt, out1_dt);
         bool u8u8u8_case = one_of(out0_dt, {data_types::u8, data_types::f32}) && everyone_is(data_types::i8, in3_dt, in4_dt) &&
             everyone_is(data_types::u8, in0_dt, in1_dt, out1_dt) && everyone_is(data_types::f32, in2_dt, in5_dt, out2_dt);
@@ -62,13 +61,13 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
 
         if (!cell_state_check)
             return false;
-        return f16_case || f32_case || bf16_case || u8u8u8_case || f32u8f32_case || s8s8s8_case || f32s8f32_case;
+        return f16_case || f32_case || u8u8u8_case || f32u8f32_case || s8s8s8_case || f32s8f32_case;
     }
 
     in_out_fmts_t query_formats(const program_node& node) const override {
         assert(node.is_type<lstm_seq>());
         std::vector<format::type> in_fmts(node.get_dependencies().size(), format::any);
-        std::vector<format::type> out_fmts(node.get_outputs_count(), format::any);
+        std::vector<format::type> out_fmts(node.get_outputs_count(), format::bfyx);
 
         size_t out_rank = node.get_output_layout().get_rank();
         for (size_t idx = 0; idx < node.get_dependencies().size(); idx++) {

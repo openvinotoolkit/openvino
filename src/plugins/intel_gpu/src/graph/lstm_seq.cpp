@@ -43,11 +43,13 @@ std::vector<layout> lstm_seq_inst::calc_output_layouts(lstm_seq_node const& node
     auto third_out_fmt = input_layout.format;
     if (node.get_preferred_impl_type() == impl_types::onednn && node.get_preferred_output_fmt() != format::any) {
         first_out_fmt = node.get_preferred_output_fmt();
+        second_out_fmt = node.get_preferred_output_fmt(1);
+        third_out_fmt = node.get_preferred_output_fmt(2);
     }
     auto num_directions = desc->num_directions();
 
-    return {cldnn::layout{ShapeType{lstm_batch_size, num_directions, lstm_seq_length, lstm_hidden_size}, input_layout.data_type, first_out_fmt}, \
-            cldnn::layout{ShapeType{lstm_batch_size, num_directions, lstm_hidden_size}, input_layout.data_type, second_out_fmt}, \
+    return {cldnn::layout{ShapeType{lstm_batch_size, num_directions, lstm_seq_length, lstm_hidden_size}, input_layout.data_type, first_out_fmt},
+            cldnn::layout{ShapeType{lstm_batch_size, num_directions, lstm_hidden_size}, input_layout.data_type, second_out_fmt},
             cldnn::layout{ShapeType{lstm_batch_size, num_directions, lstm_hidden_size}, input_layout.data_type, third_out_fmt}};
 }
 

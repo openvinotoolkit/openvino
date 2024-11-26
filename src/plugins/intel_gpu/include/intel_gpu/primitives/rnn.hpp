@@ -46,9 +46,8 @@ struct RNNParams : public primitive_base<PType> {
               const std::vector<activation_additional_params>& activation_params = {},
               const lstm_weights_order& offset_order = lstm_weights_order::iofz,
               const ov::op::RecurrentSequenceDirection direction = ov::op::RecurrentSequenceDirection::FORWARD,
-              const padding& output_padding = padding(),
               const int num_outputs = 1)
-        : primitive_base<PType>(id, {x}, num_outputs, {optional_data_type()}, {output_padding}),
+        : primitive_base<PType>(id, {x}, num_outputs),
         x(x),
         initial_hidden_state(initial_hidden_state),
         initial_cell_state(initial_cell_state),
@@ -95,13 +94,13 @@ struct RNNParams : public primitive_base<PType> {
 
     size_t hash() const override {
         size_t seed = primitive::hash();
-        seed = hash_combine(seed, x.pid);
-        seed = hash_combine(seed, initial_hidden_state.pid);
-        seed = hash_combine(seed, initial_cell_state.pid);
-        seed = hash_combine(seed, seq_lenghts.pid);
-        seed = hash_combine(seed, W.pid);
-        seed = hash_combine(seed, R.pid);
-        seed = hash_combine(seed, B.pid);
+        seed = hash_combine(seed, !x.pid.empty());
+        seed = hash_combine(seed, !initial_hidden_state.pid.empty());
+        seed = hash_combine(seed, !initial_cell_state.pid.empty());
+        seed = hash_combine(seed, !seq_lenghts.pid.empty());
+        seed = hash_combine(seed, !W.pid.empty());
+        seed = hash_combine(seed, !R.pid.empty());
+        seed = hash_combine(seed, !B.pid.empty());
         seed = hash_combine(seed, clip);
         seed = hash_range(seed, activations.begin(), activations.end());
         for (auto& act_param : activation_params) {

@@ -75,8 +75,8 @@ static void CreateLSTMCellOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v4
     float clip = op->get_clip();
     OPENVINO_ASSERT(!inputs[5].pid.empty());
     OPENVINO_ASSERT(p.use_new_shape_infer());
-    p.add_primitive(*op, cldnn::lstm_cell(layerName+".out0", inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5], cldnn::input_info(),
-        clip, false, activations, activation_params, cldnn::lstm_weights_order::fizo, ov::op::RecurrentSequenceDirection::FORWARD, cldnn::padding(),
+    p.add_primitive(*op, cldnn::lstm_cell(layerName, inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5], cldnn::input_info(),
+        clip, false, activations, activation_params, cldnn::lstm_weights_order::fizo, ov::op::RecurrentSequenceDirection::FORWARD,
         static_cast<int>(op->get_output_size())));
 }
 
@@ -94,7 +94,7 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
 
     OPENVINO_ASSERT(p.use_new_shape_infer());
     cldnn::lstm_seq prim(layerName, inputs[0], inputs[1], inputs[2], inputs[4], inputs[5], inputs[6], inputs[3], clip, false, activations,
-        activation_params, cldnn::lstm_weights_order::fizo, direction, cldnn::padding(), static_cast<int>(op->get_output_size()));
+        activation_params, cldnn::lstm_weights_order::fizo, direction, static_cast<int>(op->get_output_size()));
     prim.output_data_types = get_output_data_types(op);
     p.add_primitive(*op, prim);
 }
