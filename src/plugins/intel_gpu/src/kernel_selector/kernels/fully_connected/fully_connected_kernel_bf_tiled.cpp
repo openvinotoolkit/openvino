@@ -757,6 +757,11 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
             const auto& prim_params = static_cast<const fully_connected_params&>(params);
 
             size_t quantize_grp_size = get_dynamic_quantize_group_size(prim_params);
+            if (quantize_grp_size == 0) {
+                std::cerr << "Error: quantize_grp_size is zero." << std::endl;
+                return;
+            }
+
             size_t output_batch = get_output_aligned_bf_size(prim_params, false).first;
 
             // Get index of the added shape-agnostic kernel
@@ -940,6 +945,11 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
     const auto& fc_params = static_cast<const fully_connected_params&>(params);
 
     size_t quantize_grp_size = get_dynamic_quantize_group_size(fc_params);
+
+    if (quantize_grp_size == 0) {
+        std::cerr << "Error: quantize_grp_size is zero." << std::endl;
+        return KernelsData();
+    }
 
     bool bProperInput = fc_params.inputs[0].GetLayout() == dl;
     if (!bProperInput && !fc_params.inputs[0].PitchesDifferFromLogicalDims()) {
