@@ -11,6 +11,7 @@
 #include "intel_gpu/runtime/lru_cache.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 
 #include <list>
 #include <string>
@@ -285,6 +286,7 @@ public:
 
     void save(cldnn::BinaryOutputBuffer& ob) const;
     void load(cldnn::BinaryInputBuffer& ib);
+    void load(cldnn::BinaryInputBuffer& ib, std::shared_ptr<ov::AlignedBuffer> mmap_buffer);
     bool is_loaded_from_cache() const { return _loaded_from_cache; }
 
     bool is_new_shape_infer() const { return new_shape_infer; }

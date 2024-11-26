@@ -29,6 +29,7 @@ public:
                   RemoteContextImpl::Ptr context,
                   const ExecutionConfig& config);
     CompiledModel(cldnn::BinaryInputBuffer& ib,
+                  std::shared_ptr<ov::AlignedBuffer> mmap_buffer,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   RemoteContextImpl::Ptr context,
                   const ExecutionConfig& config,

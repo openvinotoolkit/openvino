@@ -305,10 +305,25 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model, const ov::AnyMap& config) const {
     std::string device_id = get_device_id(config);
     auto context = get_default_context(device_id);
-    return import_model(model, { context, nullptr }, config);
+    return import_model(model, ov::SoPtr<ov::IRemoteContext>{ context, nullptr }, config);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
+                                                         std::shared_ptr<ov::AlignedBuffer> mmap_buffer,
+                                                         const ov::AnyMap& config) const {
+    std::string device_id = get_device_id(config);
+    auto context = get_default_context(device_id);
+    return import_model(model, mmap_buffer, ov::SoPtr<ov::IRemoteContext>{ context, nullptr }, config);
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
+                                                         const ov::SoPtr<ov::IRemoteContext>& context,
+                                                         const ov::AnyMap& orig_config) const {
+    return import_model(model, nullptr, context, orig_config);
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
+                                                         std::shared_ptr<ov::AlignedBuffer> mmap_buffer,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& orig_config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork");
@@ -344,7 +359,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
         return nullptr;
     }
 
-    return std::make_shared<CompiledModel>(ib, shared_from_this(), context_impl, config, loaded_from_cache);
+    return std::make_shared<CompiledModel>(ib, mmap_buffer, shared_from_this(), context_impl, config, loaded_from_cache);
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options) const {

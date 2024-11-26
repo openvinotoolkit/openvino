@@ -60,6 +60,7 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
 }
 
 CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
+                             std::shared_ptr<ov::AlignedBuffer> mmap_buffer,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              RemoteContextImpl::Ptr context,
                              const ExecutionConfig& config,
@@ -147,7 +148,7 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
         }
     }
 
-    auto graph_base = std::make_shared<Graph>(ib, context, m_config, 0);
+    auto graph_base = std::make_shared<Graph>(ib, mmap_buffer, context, m_config, 0);
     for (uint16_t n = 0; n < m_config.get_property(ov::num_streams); n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
         m_graphs.push_back(graph);
