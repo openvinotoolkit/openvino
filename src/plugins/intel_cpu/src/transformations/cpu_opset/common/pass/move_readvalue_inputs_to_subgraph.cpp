@@ -18,56 +18,6 @@
 #include "transformations/utils/utils.hpp"
 #include "transformations/cpu_opset/common/op/submodel.hpp"
 
-// Check if skip pattern:
-//         ReadValue
-//             |
-//       Convert(Optional)
-//             |
-// ScaledDotProductAttentionWithKVCache
-//             |
-//       Convert(Optional)
-//             |
-//          Assign
-static bool skip_pattern_sdpa(const std::shared_ptr<ov::op::v6::ReadValue>& readvalue) {
-    for (const auto& node : readvalue->get_output_target_inputs(0)) {
-        auto sdpa =
-            ov::as_type_ptr<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>(node.get_node()->shared_from_this());
-        if (!sdpa) {
-            // Check whether ReadValue's grandson is SDPA.
-            for (const auto& child : node.get_node()->get_output_target_inputs(0)) {
-                sdpa = ov::as_type_ptr<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>(
-                    child.get_node()->shared_from_this());
-                if (sdpa) {
-                    break;
-                }
-            }
-        }
-
-        if (sdpa) {
-            for (size_t port = 0; port < sdpa->get_output_size(); port++) {
-                for (const auto& child : sdpa->get_output_target_inputs(port)) {
-                    auto assign = ov::as_type_ptr<ov::op::v6::Assign>(child.get_node()->shared_from_this());
-                    if (!assign) {
-                        // Check whether SDPA's grandson is Assign.
-                        for (const auto& grandson : child.get_node()->get_output_target_inputs(0)) {
-                            assign = ov::as_type_ptr<ov::op::v6::Assign>(grandson.get_node()->shared_from_this());
-                            if (assign) {
-                                break;
-                            }
-                        }
-                    }
-                    if (assign) {
-                        if (assign->get_variable_id() == readvalue->get_variable_id()) {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-    }
-    return false;
-}
-
 ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
     MATCHER_SCOPE(MoveReadValueInputsToSubgraph);
     using namespace ov::pass::pattern;
@@ -81,8 +31,8 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
             return false;
         }
 
-        // TODO: Temporarily skip this pattern. If MemoryInputSDPA supports Subgraph in the future, it may be deleted.
-        if (skip_pattern_sdpa(readvalue)) {
+        if (readvalue->get_rt_info().count("DisableWithSubgraph") &&
+            readvalue->get_rt_info()["DisableWithSubgraph"].as<bool>()) {
             return false;
         }
 

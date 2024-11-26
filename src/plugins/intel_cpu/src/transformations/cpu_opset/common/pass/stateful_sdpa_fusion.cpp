@@ -258,6 +258,27 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         else
             assign_v_node->set_arguments({new_node->output(2)});
 
+        // Markup pattern: ReadValue->ScaledDotProductAttentionWithKVCache->Assigin, ReadValue can't repalce to
+        // ReadValueWithSubgraph in this pattern.
+        // TODO: Temporarily skip this pattern. If MemoryInputSDPA supports Subgraph in the future, it may be deleted.
+        for (auto inp : args) {
+            auto rv = as_type_ptr<ov::opset6::ReadValue>(inp.get_node_shared_ptr());
+            if (rv) {
+                for (size_t port = 0; port < new_node->get_output_size(); port++) {
+                    for (const auto& child : new_node->get_output_target_inputs(port)) {
+                        auto assign = ov::as_type_ptr<ov::op::v6::Assign>(child.get_node()->shared_from_this());
+                        if (assign) {
+                            if (assign->get_variable_id() == rv->get_variable_id()) {
+                                // Markup to runtime info
+                                rv->get_rt_info()["DisableWithSubgraph"] = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         return true;
     };
 
