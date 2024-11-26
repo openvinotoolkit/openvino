@@ -788,6 +788,7 @@ protected:
 
     MemoryPtr getScratchPadMem(const MemoryDescPtr& desc) {
         if (!scratchpadMem || !scratchpadMem->getDesc().isCompatible(*desc)) {
+            curNumaNode = curNumaNode < 0 ? get_current_socket_id() : curNumaNode;
             scratchpadMem = context->getScratchPad(curNumaNode)->createScratchPadMem(desc);
         }
         return scratchpadMem;

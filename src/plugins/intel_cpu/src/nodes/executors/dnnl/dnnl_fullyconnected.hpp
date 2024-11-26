@@ -139,6 +139,7 @@ private:
         if (currentPrimitive && currentPrimitive->scratchPadDesc()->isCompatible(*newPrimMemDesc))
             return;
 
+        curNumaNode = curNumaNode < 0 ? get_current_socket_id() : curNumaNode;
         m_scratchPadMemory = m_context->getScratchPad(curNumaNode)->createScratchPadMem(newPrimMemDesc);
         m_primArgs[DNNL_ARG_SCRATCHPAD] = m_scratchPadMemory->getPrimitive();
     }
