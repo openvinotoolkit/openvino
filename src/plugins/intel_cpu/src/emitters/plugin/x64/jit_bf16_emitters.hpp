@@ -15,9 +15,7 @@ public:
                           dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                           ov::element::Type exec_prc = ov::element::bf16)
         : jit_emitter(host, host_isa, exec_prc) {
-        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) &&
-            !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2))
-            prepare_table();
+        prepare_table();
     }
 
     size_t get_inputs_num() const override {
@@ -47,7 +45,16 @@ private:
 
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
             Ymm out = Ymm(out_vec_idxs[0]);
-            h->vcvtneps2bf16(out, in);
+            Zmm bf16_max = Zmm(aux_vec_idxs[0]);
+            Zmm bf16_min = Zmm(aux_vec_idxs[1]);
+            h->uni_vmovups(bf16_max, table_val("bf16_max"));
+            h->uni_vmovups(bf16_min, table_val("bf16_min"));
+
+            Zmm truncated = Zmm(aux_vec_idxs[2]);
+            h->uni_vmaxps(truncated, in, bf16_min);
+            h->uni_vminps(truncated, truncated, bf16_max);
+
+            h->vcvtneps2bf16(out, truncated);
         } else if (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::avx512_core) {
             Zmm aux = Zmm(aux_vec_idxs[0]);
             Zmm aux1 = Zmm(aux_vec_idxs[1]);
@@ -62,6 +69,14 @@ private:
             h->vpsrad(aux, aux, 16);
             h->vpmovdw(out, aux);
         } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::cpu_isa_t::avx2_vnni_2)) {
+            Ymm bf16_max = Ymm(aux_vec_idxs[0]);
+            Ymm bf16_min = Ymm(aux_vec_idxs[1]);
+            h->uni_vmovups(bf16_max, table_val("bf16_max"));
+            h->uni_vmovups(bf16_min, table_val("bf16_min"));
+
+            Ymm truncated = Ymm(aux_vec_idxs[2]);
+            h->uni_vmaxps(truncated, in, bf16_min);
+            h->uni_vminps(truncated, truncated, bf16_max);
             Xmm out = Xmm(out_vec_idxs[0]);
             h->vcvtneps2bf16(out, in, PreferredEncoding::VexEncoding);
         } else {  // round_to_nearest_even emulation
@@ -119,11 +134,14 @@ private:
         push_arg_entry_of("rounding", 0x00010000, true);
         push_arg_entry_of("selector", selector_int32, true);
         push_arg_entry_of("mask_truncation_word", 0x0000ffff, true);
+        push_arg_entry_of("bf16_max", 0x7F7F0000, true);
+        push_arg_entry_of("bf16_min", 0xFF7F0000, true);
     }
 
     size_t aux_vecs_count() const override {
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
-            return 0;
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) ||
+            dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2))
+            return 3;
         return host_isa_ == dnnl::impl::cpu::x64::avx512_core ? 2 : 1;
     }
 };

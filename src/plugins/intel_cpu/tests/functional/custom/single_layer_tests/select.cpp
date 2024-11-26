@@ -13,6 +13,8 @@ namespace test {
 using selectParams = std::tuple<std::vector<InputShape>,    // input shapes
                                 ElementType,                // Then/Else precision
                                 ov::op::AutoBroadcastSpec,  // broadcast
+                                bool,                       // true: trunction data check
+                                ov::AnyMap,                 // Additional config
                                 fusingSpecificParams>;
 
 class SelectLayerCPUTest : public testing::WithParamInterface<selectParams>,
@@ -24,7 +26,9 @@ public:
         ElementType precision;
         ov::op::AutoBroadcastSpec broadcast;
         fusingSpecificParams fusingParams;
-        std::tie(shapes, precision, broadcast, fusingParams) = obj.param;
+        bool isTruncCheck;
+        ov::AnyMap additionalConfig;
+        std::tie(shapes, precision, broadcast, isTruncCheck, additionalConfig, fusingParams) = obj.param;
 
         std::ostringstream result;
         result << "Condition_prc_" << ElementType::boolean << "_Then_Else_prc_" << precision << "_";
@@ -38,13 +42,23 @@ public:
                 result << ov::test::utils::vec2str(item) << "_";
             }
         }
-        result << "Broadcast=" << broadcast.m_type;
+        result << "Broadcast=" << broadcast.m_type << "_";
+        result << "TruncCheck=" << isTruncCheck << "_";
+        if (!additionalConfig.empty()) {
+            result << "_PluginConf";
+            for (auto& item : additionalConfig) {
+                if (item.second == ov::element::bf16)
+                    result << "_" << item.first << "=" << item.second.as<std::string>() << "_";
+            }
+        }
         result << CpuTestWithFusing::getTestCaseName(fusingParams);
 
         return result.str();
     }
 
 protected:
+    bool isTruncCheck;
+    ov::AnyMap additionalConfig;
     void SetUp() override {
         abs_threshold = 0;
         targetDevice = ov::test::utils::DEVICE_CPU;
@@ -52,11 +66,10 @@ protected:
         ElementType precision;
         ov::op::AutoBroadcastSpec broadcast;
         fusingSpecificParams fusingParams;
-        std::tie(shapes, precision, broadcast, fusingParams) = this->GetParam();
+        std::tie(shapes, precision, broadcast, isTruncCheck, additionalConfig, fusingParams) = this->GetParam();
         init_input_shapes(shapes);
         std::tie(inFmts, outFmts, priority, selectedType) = emptyCPUSpec;
         selectedType = makeSelectedTypeStr(getPrimitiveType(), ov::element::i8);
-
         ov::element::TypeVector types{ov::element::boolean, precision, precision};
         ov::ParameterVector parameters;
         for (size_t i = 0; i < types.size(); i++) {
@@ -64,8 +77,24 @@ protected:
             parameters.push_back(param_node);
         }
         auto select = std::make_shared<ov::op::v1::Select>(parameters[0], parameters[1], parameters[2], broadcast);
+        if (isTruncCheck) {
+            auto conv_filter_shape = ov::Shape{1, 1, 3, 3};
+            auto conv_filter = ov::op::v0::Constant::create(precision, conv_filter_shape, {1});
+            auto strides = ov::Strides{1, 1};
+            auto pads_begin = ov::CoordinateDiff{0, 0};
+            auto pads_end = ov::CoordinateDiff{0, 0};
+            auto dilations = ov::Strides{1, 1};
+            auto conv = std::make_shared<ov::op::v1::Convolution>(select,
+                                                                  conv_filter,
+                                                                  strides,
+                                                                  pads_begin,
+                                                                  pads_end,
+                                                                  dilations);
 
-        function = makeNgraphFunction(precision, parameters, select, "Eltwise");
+            function = makeNgraphFunction(precision, parameters, conv, "Eltwise");
+        } else {
+            function = makeNgraphFunction(precision, parameters, select, "Eltwise");
+        }
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
@@ -77,14 +106,26 @@ protected:
         in_data.resolution = 2;
         auto condTensor = ov::test::utils::create_and_fill_tensor(modelInputs[0].get_element_type(), targetInputStaticShapes[0], in_data);
 
-        in_data.start_from = -10;
-        in_data.range = 10;
-        in_data.resolution = 2;
+        if (isTruncCheck) {
+            in_data.start_from = -3.40282e+38;
+            in_data.range = 1;
+            in_data.resolution = 1;
+        } else {
+            in_data.start_from = -10;
+            in_data.range = 10;
+            in_data.resolution = 2;
+        }
         auto thenTensor = ov::test::utils::create_and_fill_tensor(modelInputs[1].get_element_type(), targetInputStaticShapes[1], in_data);
 
-        in_data.start_from = 0;
-        in_data.range = 10;
-        in_data.resolution = 2;
+        if (isTruncCheck) {
+            in_data.start_from = 3.40282e+38;
+            in_data.range = 10;
+            in_data.resolution = 2;
+        } else {
+            in_data.start_from = -10;
+            in_data.range = 10;
+            in_data.resolution = 2;
+        }
         auto elseTensor = ov::test::utils::create_and_fill_tensor(modelInputs[2].get_element_type(), targetInputStaticShapes[2], in_data);
         inputs.insert({modelInputs[0].get_node_shared_ptr(), condTensor});
         inputs.insert({modelInputs[1].get_node_shared_ptr(), thenTensor});
@@ -93,6 +134,9 @@ protected:
 };
 
 TEST_P(SelectLayerCPUTest, CompareWithRefs) {
+    if (isTruncCheck && !ov::with_cpu_x86_avx512_core_amx_bf16()) {
+        GTEST_SKIP();
+    }
     run();
     CheckPluginRelatedResults(compiledModel, std::set<std::string>{"Eltwise", "Subgraph"});
 }
@@ -143,6 +187,8 @@ const std::vector<std::vector<InputShape>> inShapesDynamicNumpy = {
 const auto numpyCases = ::testing::Combine(::testing::ValuesIn(inShapesDynamicNumpy),
                                            ::testing::ValuesIn(precisions),
                                            ::testing::Values(ov::op::AutoBroadcastType::NUMPY),
+                                           ::testing::Values(false),
+                                           ::testing::Values(ov::AnyMap{}),
                                            ::testing::ValuesIn(fusingParamsSet));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefsNumpy_dynamic,
@@ -164,11 +210,37 @@ const std::vector<std::vector<InputShape>> inShapesDynamicNone = {
 const auto noneCases = ::testing::Combine(::testing::ValuesIn(inShapesDynamicNone),
                                           ::testing::ValuesIn(precisions),
                                           ::testing::Values(ov::op::AutoBroadcastType::NONE),
+                                          ::testing::Values(false),
+                                          ::testing::Values(ov::AnyMap{}),
                                           ::testing::ValuesIn(fusingParamsSet));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefsNone_dynamic,
                          SelectLayerCPUTest,
                          noneCases,
+                         SelectLayerCPUTest::getTestCaseName);
+
+const std::vector<std::vector<InputShape>> inShapesTrunc = {
+    {
+        // Condition
+        {{-1, -1, -1, -1}, {{2, 1, 32, 32}}},
+        // Then
+        {{-1}, {{1}}},
+        // Else
+        {{-1, -1, -1, -1}, {{2, 1, 32, 32}}},
+    },
+};
+
+const auto truncCases =
+    ::testing::Combine(::testing::ValuesIn(inShapesTrunc),
+                       ::testing::Values(ElementType::f32),
+                       ::testing::Values(ov::op::AutoBroadcastType::NUMPY),
+                       ::testing::Values(true),
+                       ::testing::Values(ov::AnyMap{ov::hint::inference_precision(ov::element::bf16)}),
+                       ::testing::Values(emptyFusingSpec));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefsTrunc_dynamic,
+                         SelectLayerCPUTest,
+                         truncCases,
                          SelectLayerCPUTest::getTestCaseName);
 
 }  // namespace test
