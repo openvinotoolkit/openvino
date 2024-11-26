@@ -3,6 +3,7 @@
 //
 
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+
 #include "openvino/op/util/op_types.hpp"
 
 bool ov::WeightlessCacheAttribute::is_copyable() const {
