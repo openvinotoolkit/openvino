@@ -28,6 +28,7 @@ const models = [
 
   // question answering
   '/repositories/open_model_zoo/2022.3/models_bin/1/bert-small-uncased-whole-word-masking-squad-0001/FP16/bert-small-uncased-whole-word-masking-squad-0001.xml',
+  '/repositories/open_model_zoo/2022.3/models_bin/1/bert-small-uncased-whole-word-masking-squad-0001/FP16/bert-small-uncased-whole-word-masking-squad-0001.bin',
 ];
 const modelsDir = __dirname + '/../assets/models';
 
