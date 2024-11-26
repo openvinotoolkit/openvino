@@ -2,23 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/op/swiglu.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/primitives/swiglu.hpp"
 
-namespace ov {
-namespace op {
-namespace internal {
-using SwiGLU = ov::intel_gpu::op::SwiGLU;
-}  // namespace internal
-}  // namespace op
-}  // namespace ov
+#include "ov_ops/glu.hpp"
+
+using GLU = ov::op::internal::GLU;
 
 namespace ov {
 namespace intel_gpu {
 
-static void CreateSwiGLUOp(ProgramBuilder& p, const std::shared_ptr<op::SwiGLU>& op) {
+static void CreateGLUOp(ProgramBuilder& p, const std::shared_ptr<GLU>& op) {
     validate_inputs_count(op, {1});
     auto inputs = p.GetInputInfo(op);
     std::string primitive_name = layer_type_name_ID(op);
@@ -46,7 +41,7 @@ static void CreateSwiGLUOp(ProgramBuilder& p, const std::shared_ptr<op::SwiGLU>&
     }
 }
 
-REGISTER_FACTORY_IMPL(internal, SwiGLU);
+REGISTER_FACTORY_IMPL(internal, GLU);
 
 }  // namespace intel_gpu
 }  // namespace ov
