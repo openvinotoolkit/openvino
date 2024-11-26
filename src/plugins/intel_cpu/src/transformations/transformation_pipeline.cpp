@@ -687,22 +687,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EnableDecompressionConvertConstantFolding);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompression);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
-    CPU_REGISTER_PASS_COMMON(manager, ov::intel_cpu::StatefulSDPAFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::LoraSubgraphFusion);
 
     manager.run_passes(model);
-
-    // Run SDPA decomposition pass separately to let the Snippets handle the default SDPA ops, which don't
-    // fuse special patterns
-    ov::pass::Manager sdpa_manager("CPU:SDPA");
-    CPU_REGISTER_PASS_COMMON(sdpa_manager, ov::pass::ScaledDotProductAttentionDecomposition);
-    CPU_REGISTER_PASS_COMMON(sdpa_manager, ov::pass::ConvertConvertLike);
-    CPU_REGISTER_PASS_COMMON(sdpa_manager, ov::pass::ConstantFolding);
-    CPU_REGISTER_PASS_COMMON(sdpa_manager, ov::pass::TransposeEltwise);
-    CPU_REGISTER_PASS_COMMON(sdpa_manager, ov::pass::TransposeFuse);
-    CPU_REGISTER_PASS_COMMON(sdpa_manager, ov::pass::TransposeMatMul);
-
-    sdpa_manager.run_passes(model);
 }
 
 void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecisions) {
@@ -888,6 +875,18 @@ void Transformations::PostLpt() {
 #endif // OPENVINO_ARCH_X86_64
 
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::transpose_sinking::TSShapeOfForward);
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::intel_cpu::StatefulSDPAFusion);
+
+    // If the SDPA patterns haven't been fused into the special CPU optimized SDPA nodes, we have to decompose
+    // these layers and run some auxilary transformation passes to let the snippets handle SDPA ops
+
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ScaledDotProductAttentionDecomposition);
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ConvertConvertLike);
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ConstantFolding);
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::TransposeEltwise);
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::TransposeFuse);
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::TransposeMatMul);
+
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RMSFusion, false);
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::DecomposeRMSNorm);
     CPU_SET_CALLBACK_X64(postLPTPassManager,
