@@ -288,6 +288,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_expand_model_greater_or_equal_inside_if) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_expand_context_dependent_model) {
+    GTEST_SKIP();  // Unavailable due to removed expanding functions
+
     auto model = convert_model("transformations/softmax_crossentropy_consumed.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
@@ -4690,6 +4692,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_softmax_crossentropy_loss_mean) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_negativelog_likelihood_loss) {
+    GTEST_SKIP(); // Unavailable due to removed expanding functions
+
     auto model = convert_model("negativelog_likelihood_loss.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
