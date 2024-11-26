@@ -62,6 +62,9 @@ void CheckWeightlessCacheAccuracy::TearDown() {
     std::remove(xml_path.c_str());
     std::remove(bin_path.c_str());
     std::remove(cache_path.c_str());
+
+    ov::test::utils::removeFilesWithExt(cache_dir, "blob");
+    ov::test::utils::removeFilesWithExt(cache_dir, "cl_cache");
     ov::test::utils::removeDir(cache_dir);
 }
 
