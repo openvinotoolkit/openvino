@@ -12,9 +12,9 @@ namespace ov {
 namespace op {
 namespace internal {
 template <class TShape, class TRShape = result_shape_t<TShape>>
-std::vector<TRShape> glu_shape_infer(const GLU* op,
-                                     const std::vector<TShape>& input_shapes,
-                                     const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
+std::vector<TRShape> shape_infer(const GLU* op,
+                                 const std::vector<TShape>& input_shapes,
+                                 const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
     const auto inputs_count = input_shapes.size();
     NODE_SHAPE_INFER_CHECK(op, input_shapes, inputs_count == 1);
 

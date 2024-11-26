@@ -37,11 +37,9 @@ bool GLU::visit_attributes(ov::AttributeVisitor& visitor) {
 void GLU::validate_and_infer_types() {
     auto output_type = m_output_type == ov::element::undefined ? get_input_element_type(0) : m_output_type;
 
-    set_output_type(0, output_type, shape_infer(this, {get_input_partial_shape(0)})[0]);
-
-    // const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
-    // const auto output_shapes = shape_infer(this, input_shapes);
-    // set_output_type(0, output_type, output_shapes[0]);
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
+    const auto output_shapes = shape_infer(this, input_shapes);
+    set_output_type(0, output_type, output_shapes[0]);
 }
 
 std::shared_ptr<Node> GLU::clone_with_new_inputs(const ov::OutputVector& new_args) const {
@@ -53,11 +51,6 @@ std::shared_ptr<Node> GLU::clone_with_new_inputs(const ov::OutputVector& new_arg
                                  m_split_to_glu_idx,
                                  m_output_type);
 }
-
-std::vector<ov::PartialShape> shape_infer(const GLU* op, std::vector<ov::PartialShape> input_shapes) {
-    return glu_shape_infer(op, input_shapes);
-}
-
 }  // namespace internal
 }  // namespace op
 }  // namespace ov

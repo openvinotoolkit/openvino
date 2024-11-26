@@ -75,9 +75,6 @@ private:
     ov::element::Type m_output_type{};
 };
 
-TRANSFORMATIONS_API std::vector<ov::PartialShape> shape_infer(const GLU* op,
-                                                              std::vector<ov::PartialShape> input_shapes);
-
 }  // namespace internal
 }  // namespace op
 }  // namespace ov
