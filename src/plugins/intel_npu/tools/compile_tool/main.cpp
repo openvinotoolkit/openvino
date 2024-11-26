@@ -300,21 +300,6 @@ void configurePrePostProcessing(std::shared_ptr<ov::Model>& model,
     model = preprocessor.build();
 }
 
-void printInputAndOutputsInfoShort(const ov::Model& network) {
-    std::cout << "Network inputs:" << std::endl;
-    for (auto&& param : network.get_parameters()) {
-        auto l = param->get_layout();
-        std::cout << "    " << param->get_friendly_name() << " : " << param->get_element_type() << " / "
-                  << param->get_layout().to_string() << " / " << param->get_partial_shape().to_string() << std::endl;
-    }
-    std::cout << "Network outputs:" << std::endl;
-    for (auto&& result : network.get_results()) {
-        std::cout << "    " << result->get_friendly_name() << " : " << result->get_element_type() << " / "
-                  << result->get_layout().to_string() << " / " << result->get_output_partial_shape(0).to_string()
-                  << std::endl;
-    }
-}
-
 inline std::string fileNameNoExt(const std::string& filepath) {
     auto pos = filepath.rfind('.');
     if (pos == std::string::npos)
@@ -469,6 +454,9 @@ int main(int argc, char* argv[]) {
                                    FLAGS_iml,
                                    FLAGS_oml,
                                    FLAGS_ioml);
+        if (FLAGS_shape.empty()) {
+            setModelBatch(model, FLAGS_override_model_batch_size);
+        }
         std::cout << "Printing Input and Output Info from model" << std::endl;
         printInputAndOutputsInfoShort(*model);
         auto timeBeforeLoadNetwork = std::chrono::steady_clock::now();

@@ -5,6 +5,7 @@
 
 #include "functional_test_utils/skip_tests_config.hpp"
 
+#include <intel_npu/utils/logger/logger.hpp>
 #include <regex>
 #include <string>
 #include <vector>
@@ -15,8 +16,6 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "intel_npu/npu_private_properties.hpp"
-
-#include <intel_npu/utils/logger/logger.hpp>
 
 class BackendName {
 public:
@@ -62,7 +61,7 @@ public:
 
         // Private device names may be registered via environment variables
         const std::string environmentDevice =
-                ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::intel_npu::Platform::AUTO_DETECT.data());
+            ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::intel_npu::Platform::AUTO_DETECT.data());
         const std::string standardizedEnvironmentDevice = ov::intel_npu::Platform::standardize(environmentDevice);
 
         if (std::all_of(_availableDevices.begin(), _availableDevices.end(), [&](const std::string& deviceName) {
@@ -144,8 +143,8 @@ public:
 private:
     struct Entry {
         Entry(std::string&& comment, std::vector<std::string>&& patterns)
-                : _comment{std::move(comment)}, _patterns{std::move(patterns)} {
-        }
+            : _comment{std::move(comment)},
+              _patterns{std::move(patterns)} {}
 
         std::string _comment;
         std::vector<std::string> _patterns;
@@ -492,10 +491,10 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*smoke_IfTest.*"
         });
 
-        // [Tracking number: E#129645]
-        _skipRegistry.addPatterns(backendName.isZero() && devices.has4000(),
-                "Tests fail with: ZE_RESULT_ERROR_UNINITIALIZED, code 0x78000001", {
-                ".*DftLayerTestCommon.NPU4000.*"
+        _skipRegistry.addPatterns(backendName.isZero() && devices.has3720(),
+                "Tests fail with: ZE_RESULT_ERROR_DEVICE_LOST, code 0x70000001", {
+                // [Tracking number: E#111369]
+                ".*OVInferRequestMultithreadingTests.canRun3SyncRequestsConsistently.*"
         });
 #endif
 

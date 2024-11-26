@@ -12,7 +12,7 @@
 
 namespace intel_npu {
 
-PluginGraph::PluginGraph(const std::shared_ptr<ZeGraphExtWrappersInterface>& zeGraphExt,
+PluginGraph::PluginGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
                          const ov::SoPtr<ICompiler>& compiler,
                          const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                          ze_graph_handle_t graphHandle,
@@ -149,12 +149,10 @@ void PluginGraph::initialize(const Config& config) {
         turbo = config.get<TURBO>();
     }
 
-    _command_queue = std::make_shared<CommandQueue>(_zeroInitStruct->getDevice(),
-                                                    _zeroInitStruct->getContext(),
+    _command_queue = std::make_shared<CommandQueue>(_zeroInitStruct,
                                                     zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                    _zeroInitStruct->getCommandQueueDdiTable(),
-                                                    turbo,
-                                                    groupOrdinal);
+                                                    groupOrdinal,
+                                                    turbo);
 
     if (config.has<WORKLOAD_TYPE>()) {
         set_workload_type(config.get<WORKLOAD_TYPE>());

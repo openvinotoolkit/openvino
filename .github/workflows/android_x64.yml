@@ -73,7 +73,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores-64gb
+    runs-on: aks-linux-16-cores-32gb
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_android }}
       volumes:
@@ -144,7 +144,7 @@ jobs:
         run: ${SCCACHE_PATH} --zero-stats
 
       - name: Cmake - build
-        run: cmake --build ${BUILD_DIR} --parallel
+        run: cmake --build ${BUILD_DIR} --parallel $(nproc)
 
       - name: Show ccache stats
         run: ${SCCACHE_PATH} --show-stats
