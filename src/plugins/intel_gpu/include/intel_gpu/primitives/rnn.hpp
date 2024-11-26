@@ -125,13 +125,13 @@ struct RNNParams : public primitive_base<PType> {
 
         #define cmp_fields(name) name == rhs_casted.name
         return act_params_eq &&
-               cmp_fields(x) &&
-               cmp_fields(initial_hidden_state) &&
-               cmp_fields(initial_cell_state) &&
-               cmp_fields(seq_lenghts) &&
-               cmp_fields(W) &&
-               cmp_fields(R) &&
-               cmp_fields(B) &&
+               cmp_fields(x.pid.empty()) &&
+               cmp_fields(initial_hidden_state.pid.empty()) &&
+               cmp_fields(initial_cell_state.pid.empty()) &&
+               cmp_fields(seq_lenghts.pid.empty()) &&
+               cmp_fields(W.pid.empty()) &&
+               cmp_fields(R.pid.empty()) &&
+               cmp_fields(B.pid.empty()) &&
                cmp_fields(clip) &&
                cmp_fields(activations) &&
                cmp_fields(offset_order) &&
