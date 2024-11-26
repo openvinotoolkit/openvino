@@ -37,11 +37,20 @@ std::string join(const Container& container, const std::string& sep = ", ") {
     return ss.str();
 }
 
-template <typename T>
-std::string vector_to_string(const T& v) {
-    std::ostringstream os;
-    os << "[ " << ov::util::join(v) << " ]";
-    return os.str();
+/**
+ * @brief Stringify the input vector.
+ *
+ *  The vector is converted to the string as "[ element 0, element 1, ..., element N ]".
+ *  Examples:
+ *  - std::vector<int>{1,3,5} -> "[ 1, 3, 5 ]"
+ *  - std::vector<int>{}      -> "[  ]"
+ *
+ * @param v  Vector to be converted
+ * @return String contains
+ */
+template <typename T, typename A>
+std::string vector_to_string(const std::vector<T, A>& v) {
+    return "[ " + ov::util::join(v) + " ]";
 }
 
 std::string to_lower(const std::string& s);
