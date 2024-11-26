@@ -16,6 +16,25 @@
 
 using namespace ov::op::util;
 
+namespace {
+/** @brief Value to mark that input idx has been removed (at least one removed so last idx will be always available) */
+constexpr auto mark_removed = std::numeric_limits<uint64_t>::max();
+
+constexpr bool is_not_removed_idx(const decltype(mark_removed) idx) {
+    return mark_removed != idx;
+}
+
+uint64_t get_updated_idx(uint64_t idx, uint64_t removed_idx) {
+    if (idx == removed_idx) {
+        return mark_removed;
+    } else if (is_not_removed_idx(idx) && idx > removed_idx) {
+        return idx - 1;
+    } else {
+        return idx;
+    }
+};
+}  // namespace
+
 bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_MODEL_SCOPE(RemoveMultiSubGraphOpDanglingParamsResults);
     bool is_changed = false;
@@ -142,9 +161,7 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
             using DescType = op::util::MultiSubGraphOp::MultiSubgraphInputDescriptionVector;
             auto update_body_param_desc = [](DescType& descriptors, uint64_t removed_body_idx) {
                 for (auto& desc : descriptors) {
-                    if (desc->m_body_parameter_index > removed_body_idx) {
-                        desc->m_body_parameter_index--;
-                    }
+                    desc->m_body_parameter_index = get_updated_idx(desc->m_body_parameter_index, removed_body_idx);
                 }
             };
             auto update_op_inputs_desc = [&subgraphs_size](const std::shared_ptr<op::util::MultiSubGraphOp>& op,
@@ -152,9 +169,7 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
                 for (size_t body_idx = 0; body_idx < subgraphs_size; ++body_idx) {
                     auto& descriptors = op->get_input_descriptions(static_cast<int>(body_idx));
                     for (auto& desc : descriptors) {
-                        if (desc->m_input_index > removed_loop_idx) {
-                            desc->m_input_index--;
-                        }
+                        desc->m_input_index = get_updated_idx(desc->m_input_index, removed_loop_idx);
                     }
                 }
             };
@@ -169,22 +184,19 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
             };
             // Remove dangling body params and input and update input descriptors
             auto op_inputs = multi_subgraph_op->input_values();
-            std::set<uint64_t> op_removed_inputs;
             for (size_t body_idx = 0; body_idx < subgraphs_size; ++body_idx) {
                 auto& body_in_descriptors = multi_subgraph_op->get_input_descriptions(static_cast<int>(body_idx));
-                auto& body_func = multi_subgraph_op->get_function(body_idx);
-                const auto& body_params = body_func->get_parameters();
                 op::util::MultiSubGraphOp::MultiSubgraphInputDescriptionVector updated_body_in_descriptors;
-                std::set<uint64_t> body_removed_indices;
 
                 for (size_t desc_idx = 0; desc_idx < body_in_descriptors.size(); ++desc_idx) {
                     auto& current_body_desc = body_in_descriptors[desc_idx];
-
                     const auto current_body_parameter_idx = current_body_desc->m_body_parameter_index;
                     if (!util::contains(to_remove_descriptors_indexes[body_idx], desc_idx)) {
                         updated_body_in_descriptors.emplace_back(current_body_desc);
-                    } else if (!util::contains(body_removed_indices, current_body_parameter_idx)) {
-                        body_removed_indices.insert(current_body_parameter_idx);
+                    } else if (is_not_removed_idx(current_body_parameter_idx)) {
+                        auto& body_func = multi_subgraph_op->get_function(body_idx);
+                        const auto& body_params = body_func->get_parameters();
+
                         body_func->remove_parameter(body_params[current_body_parameter_idx]);
                         // Move all body indexes which are after these indicated by to_remove_descriptors_indexes
                         update_body_param_desc(body_in_descriptors, current_body_parameter_idx);
@@ -194,9 +206,8 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
                     // remove dangling input of MultiSubGraphOp which was not removed earlier
                     // the same input tensor can go to different input ports
                     if (!util::contains(required_inputs_indices, current_input_idx) &&
-                        !util::contains(op_removed_inputs, current_input_idx)) {
+                        is_not_removed_idx(current_input_idx)) {
                         op_inputs.erase(op_inputs.begin() + current_input_idx);
-                        op_removed_inputs.insert(current_input_idx);
                         // Move all input indexes (in all bodies) which are after these indicated by
                         // to_remove_descriptors_indexes and are not used in any body
                         update_op_inputs_desc(multi_subgraph_op, current_input_idx);
