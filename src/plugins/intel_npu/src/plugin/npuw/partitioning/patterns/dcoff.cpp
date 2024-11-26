@@ -95,8 +95,14 @@ ClosureRemap build_remap(const Function& fbody, const DCOFFParams& params_to) {
         } else if (ban_list.find(param) == ban_list.end()) {
             // If it's not in the ban list, it's an OK parameter and should be kept
             LOG_DEBUG("This is an OK parameter, will be kept");
-            m.weights_to_unpack.insert(i - fbody._param_offset);
             m.closure_remap.push_back(i - fbody._param_offset);
+
+            // Check if unpack is indeed required
+            const auto& type = param->get_element_type();
+            if (type == ov::element::i4 || type == ov::element::u4 || type == ov::element::i8 ||
+                type == ov::element::u8) {
+                m.weights_to_unpack.insert(i - fbody._param_offset);
+            }
         }
 
         // Process zero points for parameters
