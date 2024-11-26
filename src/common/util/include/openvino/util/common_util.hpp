@@ -145,12 +145,7 @@ bool contains(const std::vector<T, A>& vec, const V& v) {
  */
 template <typename T, typename A>
 T product(std::vector<T, A> const& vec) {
-    if (vec.empty())
-        return 0;
-    T ret = vec[0];
-    for (size_t i = 1; i < vec.size(); ++i)
-        ret *= vec[i];
-    return ret;
+    return vec.empty() ? T{0} : std::accumulate(vec.begin(), vec.end(), T{1}, std::multiplies<T>());
 }
 
 /**
