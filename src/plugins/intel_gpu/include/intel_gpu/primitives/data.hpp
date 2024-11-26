@@ -243,14 +243,10 @@ struct data : public primitive_base<data> {
 
         auto mem_obj = cache_info->load(ib, mapped_weights, data_size);
         bool is_weightless_caching_enabled = mem_obj != nullptr;
-        const uint8_t* loaded_data;
-        if (is_weightless_caching_enabled) {
-            loaded_data = mem_obj->get_loaded_data();
-        }
 
         if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
             if (is_weightless_caching_enabled) {
-                std::memcpy(reinterpret_cast<uint8_t*>(mem->buffer_ptr()), loaded_data, data_size);
+                std::memcpy(reinterpret_cast<uint8_t*>(mem->buffer_ptr()), mem_obj->get_loaded_data(), data_size);
             } else {
                 ib >> make_data(mem->buffer_ptr(), data_size);
             }
@@ -260,7 +256,7 @@ struct data : public primitive_base<data> {
             if (data_size < DATA_BLOCK_SIZE || output_layout.format.is_image_2d()) {
                 std::vector<uint8_t> _buf(data_size);
                 if (is_weightless_caching_enabled) {
-                    std::memcpy(reinterpret_cast<uint8_t*>(_buf.data()), loaded_data, data_size);
+                    std::memcpy(reinterpret_cast<uint8_t*>(_buf.data()), mem_obj->get_loaded_data(), data_size);
                 } else {
                     ib >> make_data(_buf.data(), data_size);
                 }
@@ -279,7 +275,9 @@ struct data : public primitive_base<data> {
                         (data_size > (dst_offset + DATA_BLOCK_SIZE)) ? DATA_BLOCK_SIZE : (data_size - dst_offset);
                     if (buf_flag) {
                         if (is_weightless_caching_enabled) {
-                            std::memcpy(reinterpret_cast<uint8_t*>(_buf1.data()), loaded_data + dst_offset, copy_size);
+                            std::memcpy(reinterpret_cast<uint8_t*>(_buf1.data()),
+                                        mem_obj->get_loaded_data() + dst_offset,
+                                        copy_size);
                         } else {
                             ib >> make_data(_buf1.data(), copy_size);
                         }
@@ -290,7 +288,9 @@ struct data : public primitive_base<data> {
                         ev1 = mem->copy_from(strm, _buf1.data(), src_offset, dst_offset, copy_size, is_blocking);
                     } else {
                         if (is_weightless_caching_enabled) {
-                            std::memcpy(reinterpret_cast<uint8_t*>(_buf2.data()), loaded_data + dst_offset, copy_size);
+                            std::memcpy(reinterpret_cast<uint8_t*>(_buf2.data()),
+                                        mem_obj->get_loaded_data() + dst_offset,
+                                        copy_size);
                         } else {
                             ib >> make_data(_buf2.data(), copy_size);
                         }
