@@ -32,7 +32,7 @@ What's new
 
   * New models supported: Llama 3.2 (1B & 3B), Gemma 2 (2B & 9B), and YOLO11.
   * LLM support on NPU: Llama 3 8B, Llama 2 7B, Mistral-v0.2-7B, Qwen2-7B-Instruct and Phi-3
-   Mini-Instruct.
+    Mini-Instruct.
   * Noteworthy notebooks added: Sam2, Llama3.2, Llama3.2 - Vision, Wav2Lip, Whisper, and Llava.
   * Preview: support for Flax, a high-performance Python neural network library based on JAX.
     Its modular design allows for easy customization and accelerated inference on GPUs.
@@ -87,8 +87,8 @@ Common
 * A new constant constructor has been added, enabling constants to be created from data pointer
   as shared memory. Additionally, it can take ownership of a shared, or other, object, avoiding
   a two-step process to wrap memory into ``ov::Tensor``.
-* Files are now read via the async ReadFile API, reducing the bottleneck for LLM model load
-  times on GPU.
+* Asynchronous file reading with mmap library has been implemented, reducing loading times for
+  model files, especially for LLMs.
 * CPU implementation of SliceScatter operator is now available, used for models such as Gemma,
   supporting increased LLM performance.
 
