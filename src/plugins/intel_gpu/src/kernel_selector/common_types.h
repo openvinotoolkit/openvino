@@ -42,7 +42,7 @@ enum class KernelType {
     REGION_YOLO,
     REORG_YOLO,
     MVN,
-    LSTM_ELT,
+    LSTM_SEQ_CELL,
     BORDER,
     TILE,
     SELECT,
