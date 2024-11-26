@@ -123,11 +123,11 @@
         "platformTypes": {
             "name": "ietype",
             "data": [
-                "None",
                 "Intel® Core™, CPU-only",
                 "Intel® Core™, iGPU-only",
                 "Intel® Core™, NPU-only",
-                "Intel® Core™, CPU+iGPU"
+                "Intel® Core™, CPU+iGPU",
+                "Server Platforms (Intel® Xeon®)"
             ]
         },
         "platforms": {
