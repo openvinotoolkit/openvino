@@ -6,9 +6,9 @@
 
 #include <memory>
 
-#include "openvino/runtime/isync_infer_request.hpp"
-#include "openvino/core/descriptor/output.hpp"
 #include "llm_compiled_model.hpp"
+#include "openvino/core/descriptor/output.hpp"
+#include "openvino/runtime/isync_infer_request.hpp"
 
 namespace ov {
 namespace npuw {
@@ -24,8 +24,12 @@ public:
 
     void check_tensors() const override{};
 
-    virtual std::vector<ov::ProfilingInfo> get_profiling_info() const { return {}; }
-    virtual std::vector<ov::SoPtr<ov::IVariableState>> query_state() const { return {}; }
+    virtual std::vector<ov::ProfilingInfo> get_profiling_info() const {
+        return {};
+    }
+    virtual std::vector<ov::SoPtr<ov::IVariableState>> query_state() const {
+        return {};
+    }
 
 private:
     void prepare_for_new_conversation();

@@ -378,14 +378,14 @@ static constexpr ov::Property<std::string> inputs_outputs{"NPUW_DUMP_IO"};
 static constexpr ov::Property<std::string> io_iters{"NPUW_DUMP_IO_ITERS"};
 }  // namespace dump
 
-namespace dynamic_llm {
+namespace llm {
 /**
  * @brief
  * Type: bool.
- * Tell NPUW that you want to pass dynamic stateful LLM model
+ * Tell NPUW that you want to pass dynamic stateful LLM model.
  * Default value: false.
  */
-static constexpr ov::Property<bool> enabled {"NPUW_LLM"};
+static constexpr ov::Property<bool> enabled{"NPUW_LLM"};
 
 /**
  * @brief
@@ -393,15 +393,15 @@ static constexpr ov::Property<bool> enabled {"NPUW_LLM"};
  * Tell NPUW about your LLM model.
  * Default value: empty map.
  */
-static constexpr ov::Property<std::map<std::string, std::string>> model_desc {"NPUW_LLM_MODEL_DESC"};
+static constexpr ov::Property<std::map<std::string, std::string>> model_desc{"NPUW_LLM_MODEL_DESC"};
 
-    /**
+/**
  * @brief
  * Type: uint32_t.
  * Tell NPUW your desirable max prompt length.
  * Default value: 1024.
  */
-static constexpr ov::Property<uint32_t> max_prompt_len {"NPUW_LLM_MAX_PROMPT_LEN"};
+static constexpr ov::Property<uint32_t> max_prompt_len{"NPUW_LLM_MAX_PROMPT_LEN"};
 
 /**
  * @brief
@@ -409,7 +409,7 @@ static constexpr ov::Property<uint32_t> max_prompt_len {"NPUW_LLM_MAX_PROMPT_LEN
  * Tell NPUW your desirable min response length.
  * Default value: 128.
  */
-static constexpr ov::Property<uint32_t> min_response_len {"NPUW_LLM_MIN_RESPONSE_LEN"};
+static constexpr ov::Property<uint32_t> min_response_len{"NPUW_LLM_MIN_RESPONSE_LEN"};
 
 /**
  * @brief
@@ -418,9 +418,9 @@ static constexpr ov::Property<uint32_t> min_response_len {"NPUW_LLM_MIN_RESPONSE
  * Possible values: "FAST_COMPILE", "BEST_PERF".
  * Default value: "FAST_COMPILE".
  */
-static constexpr ov::Property<std::string> generate_hint {"NPUW_LLM_GENERATE_HINT"};
+static constexpr ov::Property<std::string> generate_hint{"NPUW_LLM_GENERATE_HINT"};
 
-} // namespace llm_dynamic
+}  // namespace llm
 
 }  // namespace npuw
 }  // namespace intel_npu

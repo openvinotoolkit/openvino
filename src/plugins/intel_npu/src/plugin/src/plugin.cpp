@@ -7,6 +7,7 @@
 #include <fstream>
 
 #include "compiled_model.hpp"
+#include "npuw/compiled_model.hpp"
 #include "driver_compiler_adapter.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/igraph.hpp"
@@ -16,7 +17,6 @@
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/runtime.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
-#include "npuw/compiled_model_factory.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
@@ -631,7 +631,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             if (localProperties.count(ov::cache_dir.name()) || !_globalConfig.get<CACHE_DIR>().empty()) {
                 OPENVINO_THROW("Option 'CACHE_DIR' is not supported with NPU_USE_NPUW!");
             }
-            return ov::npuw::CompiledModelFactory::create(model->clone(), shared_from_this(), localProperties);
+            return ov::npuw::ICompiledModel::create(model->clone(), shared_from_this(), localProperties);
         } else {
             // NPUW is disabled, remove the key from the properties
             localProperties.erase(useNpuwKey);

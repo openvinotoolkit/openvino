@@ -64,5 +64,5 @@ void dump_failure(const std::shared_ptr<ov::Model>& model, const std::string& de
     } while (0)
 
 #ifdef _MSC_VER
-    #define __PRETTY_FUNCTION__ __FUNCSIG__
+#    define __PRETTY_FUNCTION__ __FUNCSIG__
 #endif

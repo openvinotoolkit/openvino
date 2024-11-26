@@ -172,24 +172,6 @@ struct OptionPrinter final {
     }
 };
 
-template <typename T>
-struct OptionPrinter<std::vector<T>> final {
-    static std::string toString(const std::vector<T>& val) {
-        std::stringstream ss;
-        std::size_t counter = 0;
-        std::size_t size = val.size();
-        for (auto el : val) {
-            std::string el_str = OptionPrinter<V>::toString(el);
-            ss << el_str;
-            if (counter < size - 1) {
-                ss << ",";
-            }
-            ++counter;
-        }
-        return ss.str();
-    }
-};
-
 template <typename K, typename V>
 struct OptionPrinter<std::map<K, V>> final {
     static std::string toString(const std::map<K, V>& val) {

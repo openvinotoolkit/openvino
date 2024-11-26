@@ -28,6 +28,7 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
+#include "llm_compiled_model.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -85,10 +86,33 @@ ov::npuw::DeviceProperties get_properties_per_device(const std::shared_ptr<const
 }  // namespace npuw
 }  // namespace ov
 
+std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
+    const std::shared_ptr<ov::Model>& model,
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    const ov::AnyMap& properties) {
+    LOG_VERB(__PRETTY_FUNCTION__);
+    LOG_BLOCK();
+    std::shared_ptr<ov::npuw::ICompiledModel> compiled_model;
+    auto use_llm_key = ov::intel_npu::npuw::llm::enabled.name();
+    if (properties.count(use_llm_key) && properties.at(use_llm_key).as<bool>() == true) {
+        LOG_DEBUG("ov::npuw::LLMCompiledModel will be created.");
+        compiled_model = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, properties);
+    } else {
+        LOG_DEBUG("ov::npuw::CompiledModel will be created.");
+        compiled_model = std::make_shared<ov::npuw::CompiledModel>(model, plugin, properties);
+    }
+    LOG_DEBUG("Done");
+    return compiled_model;
+}
+
+ov::npuw::ICompiledModel::ICompiledModel(const std::shared_ptr<ov::Model>& model,
+                                         const std::shared_ptr<const ov::IPlugin>& plugin)
+    : ov::ICompiledModel(model, plugin) {}
+
 ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                        const std::shared_ptr<const ov::IPlugin>& plugin,
                                        const ov::AnyMap& properties)
-    : ov::ICompiledModel(model, plugin),
+    : ov::npuw::ICompiledModel(model, plugin),
       m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
       m_cfg(m_options_desc),
       m_name(model->get_friendly_name()),
@@ -874,9 +898,7 @@ void ov::npuw::CompiledModel::implement_properties() {
     //    the 1st step. It will be returned as response to `ov::supported_properties`
     //    request. So the vector will define public properties.
     // 3. Create mappings for all remaining (private) NPUW-specific properties
-    //    to getters of their values from config, related to ov::npuw::CompiledModel.
-    // 4. Fill default values for (private) NPUW-specific, dynamic stateful
-    //    model-specific properties.
+    //    to getters of their values from config.
 
 #define GET_PLUGIN_PROP(property) return get_plugin()->get_property(property.name(), ov::AnyMap());
 
@@ -1002,14 +1024,8 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::dump::subgraphs, NPUW_DUMP_SUBS),
                           BIND(npuw::dump::subgraphs_on_fail, NPUW_DUMP_SUBS_ON_FAIL),
                           BIND(npuw::dump::inputs_outputs, NPUW_DUMP_IO),
-                          BIND(npuw::dump::io_iters, NPUW_DUMP_IO_ITERS),
+                          BIND(npuw::dump::io_iters, NPUW_DUMP_IO_ITERS)
 #endif
-    // 4.
-                          BIND(npuw::dynamic_llm::enabled, NPUW_LLM),
-                          BIND(npuw::dynamic_llm::model_desc, NPUW_LLM_MODEL_DESC),
-                          BIND(npuw::dynamic_llm::max_prompt_len, NPUW_LLM_MAX_PROMPT_LEN),
-                          BIND(npuw::dynamic_llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN),
-                          BIND(npuw::dynamic_llm::generate_hint, NPUW_LLM_GENERATE_HINT)
     });
 #undef BIND
 }
