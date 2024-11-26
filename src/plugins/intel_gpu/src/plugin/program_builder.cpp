@@ -7,6 +7,7 @@
 #include "openvino/op/split.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/search_sorted.hpp"
 
@@ -364,6 +365,10 @@ bool ProgramBuilder::requires_new_shape_infer(const std::shared_ptr<ov::Node>& o
         const auto body_function = std::static_pointer_cast<ov::op::v5::Loop>(op)->get_function();
         if (body_function->is_dynamic())
             return true;
+    }
+
+    if (ov::is_type<ov::op::v5::LSTMSequence>(op) || ov::is_type<ov::op::v4::LSTMCell>(op)) {
+        return true;
     }
     // When input node has dynamic shape with 4 dimension, this function return false
     // because op.is_dynamic() which only checks input shapes return false.
