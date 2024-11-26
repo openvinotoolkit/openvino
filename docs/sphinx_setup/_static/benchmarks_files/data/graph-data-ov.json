@@ -11729,7 +11729,7 @@
         "Model": "stable-diffusion-v1-5",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -12324,7 +12324,7 @@
         "Model": "stable-diffusion-v1-5",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -15509,7 +15509,7 @@
         "Model": "stable-diffusion-v1-5",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -16139,7 +16139,7 @@
         "Model": "stable-diffusion-v1-5",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -16769,7 +16769,7 @@
         "Model": "stable-diffusion-v1-5",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -16874,7 +16874,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -16909,7 +16909,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -16944,7 +16944,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -16979,7 +16979,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -17014,7 +17014,7 @@
         "Model": "resnet-50",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -17049,7 +17049,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -17084,7 +17084,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -17119,7 +17119,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -17154,7 +17154,7 @@
         "Model": "gemma-2-9b",
         "featured_SKU": true,
         "whats_new_model": true,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -17189,7 +17189,7 @@
         "Model": "glm-4-9b-chat",
         "featured_SKU": true,
         "whats_new_model": true,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -17224,7 +17224,7 @@
         "Model": "llama-2-7b-chat",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -17259,7 +17259,7 @@
         "Model": "llama-3.2-3b-instruct",
         "featured_SKU": true,
         "whats_new_model": true,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -17294,7 +17294,7 @@
         "Model": "llama-3-8b",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -17329,7 +17329,7 @@
         "Model": "mistral-7b-v0.1",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -17364,7 +17364,7 @@
         "Model": "phi-3-mini-4k-instruct",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -17399,7 +17399,7 @@
         "Model": "qwen2-7b",
         "featured_SKU": true,
         "whats_new_model": true,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -17434,7 +17434,7 @@
         "Model": "stable-diffusion-v1-5",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
