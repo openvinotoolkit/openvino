@@ -15,6 +15,8 @@ class FrontEnd(FrontEndBase):
         super().__init__(fe)
 
     def convert(self, model: Union[Model, InputModel]) -> Model:
+        if isinstance(model, Model):
+            model = model._Model__model  # or change convert(model) to accept ie_api.Model
         converted_model = super().convert(model)
         if isinstance(model, InputModel):
             return Model(converted_model)
