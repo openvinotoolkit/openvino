@@ -52,7 +52,7 @@ set(ONNX_COMMON_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_include_directories(${TARGET_NAME}
     PUBLIC $<BUILD_INTERFACE:${ONNX_COMMON_INCLUDE_DIR}>
            $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>
-           ${CMAKE_CURRENT_BINARY_DIR}
+           $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
     PRIVATE ${ONNX_COMMON_SRC_DIR})
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime openvino::util)

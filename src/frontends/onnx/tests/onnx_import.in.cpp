@@ -4692,7 +4692,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_softmax_crossentropy_loss_mean) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_negativelog_likelihood_loss) {
-    GTEST_SKIP(); // Unavailable due to removed expanding functions
+    GTEST_SKIP();  // Unavailable due to removed expanding functions
 
     auto model = convert_model("negativelog_likelihood_loss.onnx");
 

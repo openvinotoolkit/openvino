@@ -85,6 +85,4 @@ if(BUILD_SHARED_LIBS)
 endif()
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
-                    SOURCE_DIRECTORIES "${${TARGET_NAME}_INCLUDE_DIR}"
-                    DEFINITIONS
-                        $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
+                    SOURCE_DIRECTORIES "${${TARGET_NAME}_INCLUDE_DIR}")
