@@ -201,15 +201,6 @@ and save it to the disk.
 .. parsed-literal::
 
     WARNING:tensorflow:Compiled the loaded model, but the compiled metrics have yet to be built. `model.compile_metrics` will be empty until you train or evaluate the model.
-
-
-.. parsed-literal::
-
-    WARNING:absl:Found untraced functions such as _jit_compiled_convolution_op, _jit_compiled_convolution_op, _jit_compiled_convolution_op, _jit_compiled_convolution_op, _jit_compiled_convolution_op while saving (showing 5 of 94). These functions will not be directly callable after loading.
-
-
-.. parsed-literal::
-
     INFO:tensorflow:Assets written to: model/InceptionResNetV2/assets
 
 
@@ -353,7 +344,7 @@ for mean/scale normalization.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7f98b41b7430>
+    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7fe3ec331c70>
 
 
 
@@ -384,7 +375,7 @@ may be specified is input data
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7f9874527a70>
+    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7fe3ec2aef70>
 
 
 
@@ -422,7 +413,7 @@ then such conversion will be added explicitly.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7f98b41b71f0>
+    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7fe3ec2aef30>
 
 
 
@@ -636,6 +627,6 @@ Compare performance
 
 .. parsed-literal::
 
-    IR model in OpenVINO Runtime/CPU with manual image preprocessing: 0.0153 seconds per image, FPS: 65.39
-    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0166 seconds per image, FPS: 60.23
+    IR model in OpenVINO Runtime/CPU with manual image preprocessing: 0.0153 seconds per image, FPS: 65.56
+    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0143 seconds per image, FPS: 70.14
 
