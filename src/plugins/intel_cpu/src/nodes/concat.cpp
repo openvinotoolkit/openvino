@@ -709,7 +709,7 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
 
         OPENVINO_ASSERT(parentEdge->getStatus() == Edge::Status::NotAllocated,
                         " Unexpected inplace resolve call to an allocated edge: ",
-                        parentEdge->name());
+                        *parentEdge);
 
         auto memDesc = selected_pd->getConfig().inConfs[i].getMemDesc();
         MemoryPtr newMem;
