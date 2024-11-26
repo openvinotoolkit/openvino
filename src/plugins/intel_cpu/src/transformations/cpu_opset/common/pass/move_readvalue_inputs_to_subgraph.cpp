@@ -28,7 +28,7 @@
 //       Convert(Optional)
 //             |
 //          Assign
-inline bool skip_pattern_sdpa(std::shared_ptr<ov::op::v6::ReadValue> readvalue) {
+static bool skip_pattern_sdpa(const std::shared_ptr<ov::op::v6::ReadValue>& readvalue) {
     for (const auto& node : readvalue->get_output_target_inputs(0)) {
         auto sdpa =
             ov::as_type_ptr<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>(node.get_node()->shared_from_this());
