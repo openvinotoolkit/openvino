@@ -599,7 +599,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -634,7 +634,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -669,7 +669,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -704,7 +704,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -739,7 +739,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -774,7 +774,7 @@
         "Model": "yolo11",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -809,7 +809,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -844,7 +844,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -879,7 +879,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -914,7 +914,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -949,7 +949,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -984,7 +984,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -1019,7 +1019,7 @@
         "Model": "yolo11",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -1054,7 +1054,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -1089,7 +1089,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -1124,7 +1124,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -1159,7 +1159,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -1194,7 +1194,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -1229,7 +1229,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -1264,7 +1264,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -1299,7 +1299,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -1334,7 +1334,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -1369,7 +1369,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -1404,7 +1404,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -1439,7 +1439,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -1474,7 +1474,7 @@
         "Model": "yolo11",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -1509,7 +1509,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -1544,7 +1544,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -1579,7 +1579,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -1614,7 +1614,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -1649,7 +1649,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -1684,7 +1684,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -1719,7 +1719,7 @@
         "Model": "yolo11",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -1754,7 +1754,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -1789,7 +1789,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -1824,7 +1824,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -1859,7 +1859,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -1894,7 +1894,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -1929,7 +1929,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -1964,7 +1964,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -1999,7 +1999,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -2034,7 +2034,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -2069,7 +2069,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -2104,7 +2104,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -2139,7 +2139,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -2174,7 +2174,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -2209,7 +2209,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -2244,7 +2244,7 @@
         "Model": "yolo11",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -2279,7 +2279,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -2314,7 +2314,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -2349,7 +2349,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -2384,7 +2384,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -2419,7 +2419,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -2454,7 +2454,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -2489,7 +2489,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -2524,7 +2524,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -2559,7 +2559,7 @@
         "Model": "yolo11",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -2594,7 +2594,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -2629,7 +2629,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -2664,7 +2664,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -2699,7 +2699,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -2734,7 +2734,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -2769,7 +2769,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -2804,7 +2804,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -2839,7 +2839,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -2874,7 +2874,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -2909,7 +2909,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -2944,7 +2944,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -2979,7 +2979,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -3014,7 +3014,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -3049,7 +3049,7 @@
         "Model": "resnet-50",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -3084,7 +3084,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -3119,7 +3119,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -3154,7 +3154,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -3189,7 +3189,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -3224,7 +3224,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -3259,7 +3259,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -3294,7 +3294,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -3329,7 +3329,7 @@
         "Model": "resnet-50",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -3364,7 +3364,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -3399,7 +3399,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -3434,7 +3434,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -3469,7 +3469,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, NPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -3504,7 +3504,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, NPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -3539,7 +3539,7 @@
         "Model": "llama-2-7b-chat",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, NPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -3574,7 +3574,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, NPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -3609,7 +3609,7 @@
         "Model": "phi-3-mini-4k-instruct",
         "featured_SKU": true,
         "whats_new_model": true,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, NPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -3644,7 +3644,7 @@
         "Model": "resnet-50",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, NPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -3679,7 +3679,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, NPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -3714,7 +3714,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, NPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -3749,7 +3749,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -3784,7 +3784,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -3819,7 +3819,7 @@
         "Model": "gemma-2-9b",
         "featured_SKU": true,
         "whats_new_model": true,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -3854,7 +3854,7 @@
         "Model": "glm-4-9b-chat",
         "featured_SKU": true,
         "whats_new_model": "false",
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -3889,7 +3889,7 @@
         "Model": "llama-2-7b-chat",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -3924,7 +3924,7 @@
         "Model": "llama-3-8b",
         "featured_SKU": true,
         "whats_new_model": "false",
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -3959,7 +3959,7 @@
         "Model": "llama-3.2-3b-instruct",
         "featured_SKU": true,
         "whats_new_model": true,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -3994,7 +3994,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -4029,7 +4029,7 @@
         "Model": "mistral-7b-v0.1",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -4064,7 +4064,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -4099,7 +4099,7 @@
         "Model": "phi-3-mini-4k-instruct",
         "featured_SKU": true,
         "whats_new_model": true,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -4134,7 +4134,7 @@
         "Model": "qwen2-7b",
         "featured_SKU": true,
         "whats_new_model": true,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -4169,7 +4169,7 @@
         "Model": "resnet-50",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -4204,7 +4204,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -4239,7 +4239,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -4274,7 +4274,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -4309,7 +4309,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -4344,7 +4344,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -4379,7 +4379,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -4414,7 +4414,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -4449,7 +4449,7 @@
         "Model": "resnet-50",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -4484,7 +4484,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -4519,7 +4519,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -4554,7 +4554,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -4589,7 +4589,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -4624,7 +4624,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -4659,7 +4659,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -4694,7 +4694,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -4729,7 +4729,7 @@
         "Model": "resnet-50",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -4764,7 +4764,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -4799,7 +4799,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -4834,7 +4834,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -4869,7 +4869,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, NPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -4904,7 +4904,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, NPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -4939,7 +4939,7 @@
         "Model": "llama-2-7b-chat",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, NPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -4974,7 +4974,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, NPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -5009,7 +5009,7 @@
         "Model": "phi-3-mini-4k-instruct",
         "featured_SKU": true,
         "whats_new_model": true,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, NPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -5044,7 +5044,7 @@
         "Model": "resnet-50",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, NPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -5079,7 +5079,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, NPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -5114,7 +5114,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, NPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -5149,7 +5149,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -5184,7 +5184,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -5219,7 +5219,7 @@
         "Model": "gemma-2-9b",
         "featured_SKU": true,
         "whats_new_model": true,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -5254,7 +5254,7 @@
         "Model": "glm-4-9b-chat",
         "featured_SKU": true,
         "whats_new_model": "false",
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -5289,7 +5289,7 @@
         "Model": "llama-2-7b-chat",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -5324,7 +5324,7 @@
         "Model": "llama-3-8b",
         "featured_SKU": true,
         "whats_new_model": "false",
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -5359,7 +5359,7 @@
         "Model": "llama-3.2-3b-instruct",
         "featured_SKU": true,
         "whats_new_model": true,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -5394,7 +5394,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -5429,7 +5429,7 @@
         "Model": "mistral-7b-v0.1",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -5464,7 +5464,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -5499,7 +5499,7 @@
         "Model": "phi-3-mini-4k-instruct",
         "featured_SKU": true,
         "whats_new_model": true,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -5534,7 +5534,7 @@
         "Model": "qwen2-7b",
         "featured_SKU": true,
         "whats_new_model": true,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -5569,7 +5569,7 @@
         "Model": "resnet-50",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -5604,7 +5604,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -5639,7 +5639,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -5674,7 +5674,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -5709,7 +5709,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -5744,7 +5744,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -5779,7 +5779,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -5814,7 +5814,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -5849,7 +5849,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -5884,7 +5884,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -5919,7 +5919,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -5954,7 +5954,7 @@
         "Model": "yolo11",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -5989,7 +5989,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -6024,7 +6024,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -6059,7 +6059,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -6094,7 +6094,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -6129,7 +6129,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -6164,7 +6164,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -6199,7 +6199,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -6234,7 +6234,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -6269,7 +6269,7 @@
         "Model": "yolo11",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -6304,7 +6304,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -6339,7 +6339,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -6374,7 +6374,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -6409,7 +6409,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -6444,7 +6444,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -6479,7 +6479,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -6514,7 +6514,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -6549,7 +6549,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -6584,7 +6584,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -6619,7 +6619,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -6654,7 +6654,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -6689,7 +6689,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -6724,7 +6724,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -6759,7 +6759,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -6794,7 +6794,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -6829,7 +6829,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -6864,7 +6864,7 @@
         "Model": "yolo11",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -6899,7 +6899,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -6934,7 +6934,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -6969,7 +6969,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -7004,7 +7004,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -7039,7 +7039,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -7074,7 +7074,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -7109,7 +7109,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -7144,7 +7144,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -7179,7 +7179,7 @@
         "Model": "yolo11",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -7214,7 +7214,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -7249,7 +7249,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -7284,7 +7284,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -7319,7 +7319,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -7354,7 +7354,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -7389,7 +7389,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -7424,7 +7424,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -7459,7 +7459,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -7494,7 +7494,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -7529,7 +7529,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -7564,7 +7564,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -7599,7 +7599,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -7634,7 +7634,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -7669,7 +7669,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -7704,7 +7704,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -7739,7 +7739,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -7774,7 +7774,7 @@
         "Model": "yolo11",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -7809,7 +7809,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -7844,7 +7844,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -7879,7 +7879,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -7914,7 +7914,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -7949,7 +7949,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -7984,7 +7984,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -8019,7 +8019,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -8054,7 +8054,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -8089,7 +8089,7 @@
         "Model": "yolo11",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -8124,7 +8124,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -8159,7 +8159,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -8194,7 +8194,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -8229,7 +8229,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -8264,7 +8264,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -8299,7 +8299,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -8334,7 +8334,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -8369,7 +8369,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -8404,7 +8404,7 @@
         "Model": "yolo11",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -8439,7 +8439,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -8474,7 +8474,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -8509,7 +8509,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -8544,7 +8544,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -8579,7 +8579,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -8614,7 +8614,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -8649,7 +8649,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -8684,7 +8684,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -8719,7 +8719,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -8754,7 +8754,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -8789,7 +8789,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -8824,7 +8824,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -8859,7 +8859,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -8894,7 +8894,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -8929,7 +8929,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -8964,7 +8964,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -8999,7 +8999,7 @@
         "Model": "yolo11",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -9034,7 +9034,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -9069,7 +9069,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -9104,7 +9104,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -9139,7 +9139,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -9174,7 +9174,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -9209,7 +9209,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -9244,7 +9244,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -9279,7 +9279,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -9314,7 +9314,7 @@
         "Model": "yolo11",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -9349,7 +9349,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -9384,7 +9384,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -9419,7 +9419,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -9454,7 +9454,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -9489,7 +9489,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -9524,7 +9524,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -9559,7 +9559,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -9594,7 +9594,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -9629,7 +9629,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -9664,7 +9664,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -9699,7 +9699,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -9734,7 +9734,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -9769,7 +9769,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -9804,7 +9804,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -9839,7 +9839,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -9874,7 +9874,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -9909,7 +9909,7 @@
         "Model": "yolo11",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -9944,7 +9944,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -9979,7 +9979,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -10014,7 +10014,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -10049,7 +10049,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -10084,7 +10084,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -10119,7 +10119,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -10154,7 +10154,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -10189,7 +10189,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -10224,7 +10224,7 @@
         "Model": "yolo11",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -10259,7 +10259,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -10294,7 +10294,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -10329,7 +10329,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -10364,7 +10364,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -10399,7 +10399,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -10434,7 +10434,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -10469,7 +10469,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -10504,7 +10504,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -10539,7 +10539,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -10574,7 +10574,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -10609,7 +10609,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -10644,7 +10644,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -10679,7 +10679,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -10714,7 +10714,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -10749,7 +10749,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -10784,7 +10784,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -10819,7 +10819,7 @@
         "Model": "yolo11",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -10854,7 +10854,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -10889,7 +10889,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -10924,7 +10924,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -10959,7 +10959,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -10994,7 +10994,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -11029,7 +11029,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -11064,7 +11064,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -11099,7 +11099,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -11134,7 +11134,7 @@
         "Model": "yolo11",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -11169,7 +11169,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -11204,7 +11204,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -11239,7 +11239,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -11274,7 +11274,7 @@
         "Model": "gemma-2-9b",
         "featured_SKU": false,
         "whats_new_model": true,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -11309,7 +11309,7 @@
         "Model": "glm-4-9b-chat",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -11344,7 +11344,7 @@
         "Model": "llama-2-7b-chat",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -11379,7 +11379,7 @@
         "Model": "llama-3-8b",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -11414,7 +11414,7 @@
         "Model": "llama-3.2-3b-instruct",
         "featured_SKU": false,
         "whats_new_model": true,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -11449,7 +11449,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -11484,7 +11484,7 @@
         "Model": "mistral-7b-v0.1",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -11519,7 +11519,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -11554,7 +11554,7 @@
         "Model": "phi-3-mini-4k-instruct",
         "featured_SKU": false,
         "whats_new_model": true,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -11589,7 +11589,7 @@
         "Model": "qwen2-7b",
         "featured_SKU": false,
         "whats_new_model": true,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -11624,7 +11624,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -11659,7 +11659,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -11694,7 +11694,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -11764,7 +11764,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -11799,7 +11799,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -11834,7 +11834,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -11869,14 +11869,14 @@
         "Model": "gemma-2-9b",
         "featured_SKU": false,
         "whats_new_model": true,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
                     {
-                        "int4": 8.6,
-                        "int8": 6.25,
-                        "fp16": 3.39,
+                        "int4": 9.43,
+                        "int8": 6.9,
+                        "fp16": 3.59,
                         "fp32": "",
                         "bf16": ""
                     }
@@ -11887,9 +11887,9 @@
             "latency": {
                 "Precisions": [
                     {
-                        "int4": 116.18,
-                        "int8": 159.83,
-                        "fp16": 294.71,
+                        "int4": 106.06,
+                        "int8": 144.96,
+                        "fp16": 278.42,
                         "fp32": "",
                         "bf16": ""
                     }
@@ -11904,14 +11904,14 @@
         "Model": "glm-4-9b-chat",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
                     {
-                        "int4": 9.65,
-                        "int8": 6.67,
-                        "fp16": 3.25,
+                        "int4": 10.66,
+                        "int8": 7.47,
+                        "fp16": 3.84,
                         "fp32": "",
                         "bf16": ""
                     }
@@ -11922,9 +11922,9 @@
             "latency": {
                 "Precisions": [
                     {
-                        "int4": 103.59,
-                        "int8": 149.73,
-                        "fp16": 307.27,
+                        "int4": 93.82,
+                        "int8": 133.88,
+                        "fp16": 260.67,
                         "fp32": "",
                         "bf16": ""
                     }
@@ -11939,14 +11939,14 @@
         "Model": "llama-2-7b-chat",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
                     {
-                        "int4": 12.97,
-                        "int8": 8.56,
-                        "fp16": 4.74,
+                        "int4": 13.44,
+                        "int8": 9.29,
+                        "fp16": 4.94,
                         "fp32": "",
                         "bf16": ""
                     }
@@ -11957,9 +11957,9 @@
             "latency": {
                 "Precisions": [
                     {
-                        "int4": 77.06,
-                        "int8": 116.73,
-                        "fp16": 210.75,
+                        "int4": 74.39,
+                        "int8": 107.62,
+                        "fp16": 202.32,
                         "fp32": "",
                         "bf16": ""
                     }
@@ -11974,14 +11974,14 @@
         "Model": "llama-3-8b",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
                     {
-                        "int4": 10.71,
-                        "int8": 7.6,
-                        "fp16": 4.06,
+                        "int4": 11.91,
+                        "int8": 8.66,
+                        "fp16": 4.81,
                         "fp32": "",
                         "bf16": ""
                     }
@@ -11992,9 +11992,9 @@
             "latency": {
                 "Precisions": [
                     {
-                        "int4": 93.34,
-                        "int8": 131.46,
-                        "fp16": 245.71,
+                        "int4": 83.93,
+                        "int8": 115.49,
+                        "fp16": 223.15,
                         "fp32": "",
                         "bf16": ""
                     }
@@ -12009,14 +12009,14 @@
         "Model": "llama-3.2-3b-instruct",
         "featured_SKU": false,
         "whats_new_model": true,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
                     {
-                        "int4": 25.15,
-                        "int8": 18.95,
-                        "fp16": 10.13,
+                        "int4": 25.41,
+                        "int8": 19.0,
+                        "fp16": 10.18,
                         "fp32": "",
                         "bf16": ""
                     }
@@ -12027,9 +12027,9 @@
             "latency": {
                 "Precisions": [
                     {
-                        "int4": 39.76,
-                        "int8": 52.77,
-                        "fp16": 98.68,
+                        "int4": 39.36,
+                        "int8": 52.64,
+                        "fp16": 98.24,
                         "fp32": "",
                         "bf16": ""
                     }
@@ -12044,7 +12044,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -12079,14 +12079,14 @@
         "Model": "mistral-7b-v0.1",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
                     {
-                        "int4": 13.82,
-                        "int8": 8.64,
-                        "fp16": 4.47,
+                        "int4": 14.41,
+                        "int8": 9.13,
+                        "fp16": 4.72,
                         "fp32": "",
                         "bf16": ""
                     }
@@ -12097,9 +12097,9 @@
             "latency": {
                 "Precisions": [
                     {
-                        "int4": 72.32,
-                        "int8": 115.74,
-                        "fp16": 223.45,
+                        "int4": 69.4,
+                        "int8": 109.54,
+                        "fp16": 211.92,
                         "fp32": "",
                         "bf16": ""
                     }
@@ -12114,7 +12114,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -12149,14 +12149,14 @@
         "Model": "phi-3-mini-4k-instruct",
         "featured_SKU": false,
         "whats_new_model": true,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 14.62,
-                        "fp16": 8.15,
+                        "int8": 15.66,
+                        "fp16": 8.52,
                         "fp32": "",
                         "bf16": ""
                     }
@@ -12168,8 +12168,8 @@
                 "Precisions": [
                     {
                         "int4": "",
-                        "int8": 68.36,
-                        "fp16": 122.65,
+                        "int8": 63.85,
+                        "fp16": 117.37,
                         "fp32": "",
                         "bf16": ""
                     }
@@ -12184,14 +12184,14 @@
         "Model": "qwen2-7b",
         "featured_SKU": false,
         "whats_new_model": true,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
                     {
-                        "int4": 11.9,
-                        "int8": 7.99,
-                        "fp16": 3.99,
+                        "int4": 13.1,
+                        "int8": 9.24,
+                        "fp16": 4.75,
                         "fp32": "",
                         "bf16": ""
                     }
@@ -12202,9 +12202,9 @@
             "latency": {
                 "Precisions": [
                     {
-                        "int4": 83.98,
-                        "int8": 125.12,
-                        "fp16": 250.0,
+                        "int4": "",
+                        "int8": 63.85,
+                        "fp16": 117.37,
                         "fp32": "",
                         "bf16": ""
                     }
@@ -12219,7 +12219,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -12254,7 +12254,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -12289,7 +12289,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -12359,7 +12359,7 @@
         "Model": "yolo11",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -12394,7 +12394,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Client Platforms (Intel® Core™)",
+        "PlatformType": "Intel® Core™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -12427,7 +12427,7 @@
     {
         "Platform": "Intel® Data Center GPU Flex 170 dGPU",
         "Model": "bert-base-cased",
-        "featured_SKU": false,
+        "featured_SKU": "false",
         "whats_new_model": false,
         "PlatformType": "Accelerator Platforms",
         "Parameters": {
@@ -13024,7 +13024,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -13059,7 +13059,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -13094,7 +13094,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -13129,7 +13129,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -13164,7 +13164,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -13199,7 +13199,7 @@
         "Model": "yolo11",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -13234,7 +13234,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU+iGPU",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -13269,7 +13269,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -13304,7 +13304,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -13339,7 +13339,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -13374,7 +13374,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -13409,7 +13409,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -13444,7 +13444,7 @@
         "Model": "yolo11",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -13479,7 +13479,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -13514,7 +13514,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -13549,7 +13549,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -13584,7 +13584,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -13619,7 +13619,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -13654,7 +13654,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -13689,7 +13689,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Mobile Platforms (Intel® Atom™)",
+        "PlatformType": "Intel® Atom™, iGPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -13724,7 +13724,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -13759,7 +13759,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -13794,7 +13794,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -13829,7 +13829,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -13864,7 +13864,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -13899,7 +13899,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -13934,7 +13934,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -13969,7 +13969,7 @@
         "Model": "yolo11",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -14004,7 +14004,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -14039,7 +14039,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -14074,7 +14074,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -14109,7 +14109,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -14144,7 +14144,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -14179,7 +14179,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -14214,7 +14214,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -14249,7 +14249,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -14284,7 +14284,7 @@
         "Model": "yolo11",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -14319,7 +14319,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -14354,7 +14354,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -14389,7 +14389,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -14424,7 +14424,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -14459,7 +14459,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -14494,7 +14494,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -14529,7 +14529,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -14564,7 +14564,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -14599,7 +14599,7 @@
         "Model": "yolo11",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -14634,7 +14634,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -14669,7 +14669,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -14704,7 +14704,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -14739,7 +14739,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -14774,7 +14774,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -14809,7 +14809,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -14844,7 +14844,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -14879,7 +14879,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -14914,7 +14914,7 @@
         "Model": "yolo11",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -14949,7 +14949,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -14984,7 +14984,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -15019,7 +15019,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -15054,7 +15054,7 @@
         "Model": "gemma-2-9b",
         "featured_SKU": false,
         "whats_new_model": true,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -15089,7 +15089,7 @@
         "Model": "glm-4-9b-chat",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -15124,7 +15124,7 @@
         "Model": "llama-2-7b-chat",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -15159,7 +15159,7 @@
         "Model": "llama-3-8b",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -15194,7 +15194,7 @@
         "Model": "llama-3.2-3b-instruct",
         "featured_SKU": false,
         "whats_new_model": true,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -15229,7 +15229,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -15264,7 +15264,7 @@
         "Model": "mistral-7b-v0.1",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -15299,7 +15299,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -15334,7 +15334,7 @@
         "Model": "phi-3-mini-4k-instruct",
         "featured_SKU": false,
         "whats_new_model": true,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -15369,7 +15369,7 @@
         "Model": "qwen2-7b",
         "featured_SKU": false,
         "whats_new_model": true,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -15404,7 +15404,7 @@
         "Model": "resnet-50",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -15439,7 +15439,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -15474,7 +15474,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -15544,7 +15544,7 @@
         "Model": "yolo11",
         "featured_SKU": false,
         "whats_new_model": "false",
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -15579,7 +15579,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": false,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -15614,7 +15614,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -15649,7 +15649,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -15684,7 +15684,7 @@
         "Model": "gemma-2-9b",
         "featured_SKU": true,
         "whats_new_model": true,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -15719,7 +15719,7 @@
         "Model": "glm-4-9b-chat",
         "featured_SKU": true,
         "whats_new_model": "false",
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -15754,7 +15754,7 @@
         "Model": "llama-2-7b-chat",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -15789,7 +15789,7 @@
         "Model": "llama-3-8b",
         "featured_SKU": true,
         "whats_new_model": "false",
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -15824,7 +15824,7 @@
         "Model": "llama-3.2-3b-instruct",
         "featured_SKU": true,
         "whats_new_model": true,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -15859,7 +15859,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -15894,7 +15894,7 @@
         "Model": "mistral-7b-v0.1",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -15929,7 +15929,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -15964,7 +15964,7 @@
         "Model": "phi-3-mini-4k-instruct",
         "featured_SKU": true,
         "whats_new_model": true,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -15999,7 +15999,7 @@
         "Model": "qwen2-7b",
         "featured_SKU": true,
         "whats_new_model": true,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -16034,7 +16034,7 @@
         "Model": "resnet-50",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -16069,7 +16069,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -16104,7 +16104,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -16174,7 +16174,7 @@
         "Model": "yolo11",
         "featured_SKU": true,
         "whats_new_model": "false",
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -16209,7 +16209,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -16244,7 +16244,7 @@
         "Model": "bert-base-cased",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -16279,7 +16279,7 @@
         "Model": "efficientdet-d0",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -16314,7 +16314,7 @@
         "Model": "gemma-2-9b",
         "featured_SKU": true,
         "whats_new_model": true,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -16349,7 +16349,7 @@
         "Model": "glm-4-9b-chat",
         "featured_SKU": true,
         "whats_new_model": "false",
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -16384,7 +16384,7 @@
         "Model": "llama-2-7b-chat",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -16419,7 +16419,7 @@
         "Model": "llama-3-8b",
         "featured_SKU": true,
         "whats_new_model": "false",
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -16454,7 +16454,7 @@
         "Model": "llama-3.2-3b-instruct",
         "featured_SKU": true,
         "whats_new_model": true,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -16489,7 +16489,7 @@
         "Model": "mask_rcnn_resnet50_atrous_coco",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -16524,7 +16524,7 @@
         "Model": "mistral-7b-v0.1",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -16559,7 +16559,7 @@
         "Model": "mobilenet-v2",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -16594,7 +16594,7 @@
         "Model": "phi-3-mini-4k-instruct",
         "featured_SKU": true,
         "whats_new_model": true,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -16629,7 +16629,7 @@
         "Model": "qwen2-7b",
         "featured_SKU": true,
         "whats_new_model": true,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -16664,7 +16664,7 @@
         "Model": "resnet-50",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -16699,7 +16699,7 @@
         "Model": "ssd-resnet34-1200",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -16734,7 +16734,7 @@
         "Model": "ssd_mobilenet_v1_coco",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -16804,7 +16804,7 @@
         "Model": "yolo11",
         "featured_SKU": true,
         "whats_new_model": "false",
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -16839,7 +16839,7 @@
         "Model": "yolo_v8n",
         "featured_SKU": true,
         "whats_new_model": false,
-        "PlatformType": "Server Platforms (Intel® Xeon®)",
+        "PlatformType": "Intel® Xeon®, CPU-only",
         "Parameters": {
             "throughput": {
                 "Precisions": [
@@ -17161,7 +17161,7 @@
                     {
                         "int4": 136.4,
                         "int8": "",
-                        "fp16":  53.6,
+                        "fp16": 53.6,
                         "fp32": "",
                         "bf16": ""
                     }
