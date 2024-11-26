@@ -15,15 +15,24 @@
 namespace ov {
 namespace util {
 
-template <typename T>
-std::string join(const T& v, const std::string& sep = ", ") {
+/**
+ * @brief Join container's elements to string using user string as separator.
+ *
+ * @param container  Element to make joined string.
+ * @param sep        User string used as separator. Default ", ".
+ * @return Joined elements as string.
+ */
+template <typename Container>
+std::string join(const Container& container, const std::string& sep = ", ") {
     std::ostringstream ss;
-    size_t count = 0;
-    for (const auto& x : v) {
-        if (count++ > 0) {
-            ss << sep;
+    auto first = std::begin(container);
+    const auto last = std::end(container);
+    if (first != last) {
+        ss << *first;
+        ++first;
+        for (; first != last; ++first) {
+            ss << sep << *first;
         }
-        ss << x;
     }
     return ss.str();
 }
