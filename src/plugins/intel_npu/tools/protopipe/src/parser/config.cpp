@@ -510,7 +510,6 @@ struct convert<ONNXRTParams> {
 static const std::set<std::string> set_Network_raw_parameters = {"name", "framework", "random", "metric", "input_data", "output_data"};
 static const std::set<std::string> set_Network_parameters = []() {
     std::set<std::string> res = set_Network_raw_parameters;
-    //res.insert(set_parseAdvancedStream_raw_parameters.begin(), set_parseAdvancedStream_raw_parameters.end());
 
     return res;
 }();
@@ -884,7 +883,6 @@ static ScenarioGraph buildGraph(const std::vector<OpDesc>& op_descs,
 
 static const std::set<std::string> set_parseAdvancedStream_parameters = []() {
     std::set<std::string> res = YAML::set_parseAdvancedStream_raw_parameters;
-//    res.insert(set_ONNXRTParams_OpenVINO_parameters.begin(), set_ONNXRTParams_OpenVINO_parameters.end())
 
     return res;
 }();
