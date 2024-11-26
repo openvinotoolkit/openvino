@@ -236,7 +236,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     : ov::npuw::ICompiledModel(model, plugin),
       m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
       m_cfg(m_options_desc) {
-    LOG_VERB(__PRETTY_FUNCTION__);
+    LOG_INFO("Creating LLMCompiledModel");
     LOG_BLOCK();
 
     ::intel_npu::registerNpuwLlmOptions(*m_options_desc);
@@ -246,20 +246,20 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     split_llm_properties(properties, npuw_llm_props, other_props);
     m_cfg.update(any_copy(npuw_llm_props));
 
-    // (1) Make template model to be kvcache model, used in generation phase
+    LOG_INFO("1. Creating kvcache model as clone of passed one.");
     auto kvcache_model = model->clone();
-    // (2) Expose KV-cache input and output layers from kvcache model;
+    LOG_INFO("2. Transform kvcache model from stateful to stateless.");
     ov::pass::StatefulToStateless().run_on_model(kvcache_model);
 
-    // (3) Create prefill model from passed template model
+    LOG_INFO("3. Creating prefill model as clone of transformed kvcache one.");
     auto prefill_model = kvcache_model->clone();
     prefill_model->set_friendly_name(kvcache_model->get_friendly_name() + "_prefill");
-    // (4) Convert prefill model to fp16
+    LOG_INFO("4. Converting KV-cache in prefill model to FP16.");
     prefill_model = cvt_kvcache_to_fp16(prefill_model);
 
-    // (5) Optimize kvcache model to output key/values for new token
+    LOG_INFO("5. Optimize kvcache kvcache model to output key/values for new token.");
     kvcache_model = redirect_new_kv_to_output(kvcache_model);
-    // (6) Convert kvcache model to fp16
+    LOG_INFO("6. Converting KV-cache in kvcache model to FP16.");
     kvcache_model = cvt_kvcache_to_fp16(kvcache_model);
 
     const uint32_t kMaxPromptLen = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), 64u);
@@ -267,9 +267,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const ::intel_npu::npuw::llm::ModelDesc model_desc = m_cfg.get<::intel_npu::NPUW_LLM_MODEL_DESC>();
     KVAxesPosition axes = get_kv_axes(model_desc.type);
     m_kvcache_desc = KVCacheDesc{kMaxPromptLen, kMaxPromptLen + kMinResponseLen, 0u, axes.seq_len};
-    // (7) Make prefill model with static shapes
+    LOG_INFO("7. Make prefill model with static shapes");
     reshape_to_static(prefill_model, m_kvcache_desc.max_prompt_size, m_kvcache_desc.max_prompt_size, axes);
-    // (8) Make kvcache model with static shapes
+    LOG_INFO("8. Make kvcache model with static shapes");
     reshape_to_static(kvcache_model, 1u, m_kvcache_desc.total_size, axes);
 
     auto npudesc = extract_npu_descriptor(plugin);
@@ -278,6 +278,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto prefill_config = get_default_prefill_config(model, npudesc);
     // NB: GENERATE_HINT is only applicable for default generate config!
     const ::intel_npu::npuw::llm::GenerateHint generate_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_HINT>();
+    LOG_INFO("9. Passed GENERATE_HINT: " << ::intel_npu::NPUW_LLM_GENERATE_HINT::toString(generate_hint));
     auto generate_config = get_default_generate_config(model, npudesc, generate_hint);
     merge_config_with(prefill_config, properties_copy);
     merge_config_with(generate_config, properties_copy);
@@ -289,7 +290,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     m_prefill_compiled = std::make_shared<ov::npuw::CompiledModel>(prefill_model, plugin, prefill_config);
 
     implement_properties();
-    LOG_VERB("Done");
+    LOG_INFO("Done");
 }
 
 void ov::npuw::LLMCompiledModel::export_model(std::ostream& model) const {

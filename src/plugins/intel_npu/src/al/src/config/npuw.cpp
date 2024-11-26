@@ -11,7 +11,7 @@ using namespace ov::intel_npu;
 // register
 //
 
-void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
+void intel_npu::registerNpuwOptions(OptionsDesc& desc) {
     desc.add<NPU_USE_NPUW>();
     desc.add<NPUW_DEVICES>();
     desc.add<NPUW_SUBMODEL_DEVICE>();

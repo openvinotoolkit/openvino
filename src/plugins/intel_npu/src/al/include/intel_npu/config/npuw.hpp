@@ -16,7 +16,7 @@ namespace intel_npu {
 // register
 //
 
-void registerNPUWOptions(OptionsDesc& desc);
+void registerNpuwOptions(OptionsDesc& desc);
 void registerNpuwLlmOptions(OptionsDesc& desc);
 
 #define DEFINE_OPT(Name, Type, DefaultValue, PropertyKey, Mode)                     \

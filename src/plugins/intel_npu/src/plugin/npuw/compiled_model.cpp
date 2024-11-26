@@ -90,18 +90,18 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     const std::shared_ptr<ov::Model>& model,
     const std::shared_ptr<const ov::IPlugin>& plugin,
     const ov::AnyMap& properties) {
-    LOG_VERB(__PRETTY_FUNCTION__);
+    LOG_INFO("Choosing which NPUW CompiledModel to create");
     LOG_BLOCK();
     std::shared_ptr<ov::npuw::ICompiledModel> compiled_model;
     auto use_llm_key = ov::intel_npu::npuw::llm::enabled.name();
     if (properties.count(use_llm_key) && properties.at(use_llm_key).as<bool>() == true) {
-        LOG_DEBUG("ov::npuw::LLMCompiledModel will be created.");
+        LOG_INFO("ov::npuw::LLMCompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, properties);
     } else {
-        LOG_DEBUG("ov::npuw::CompiledModel will be created.");
+        LOG_INFO("ov::npuw::CompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::CompiledModel>(model, plugin, properties);
     }
-    LOG_DEBUG("Done");
+    LOG_INFO("Done");
     return compiled_model;
 }
 
@@ -117,7 +117,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_cfg(m_options_desc),
       m_name(model->get_friendly_name()),
       m_loaded_from_cache(false) {
-    ::intel_npu::registerNPUWOptions(*m_options_desc);
+    ::intel_npu::registerNpuwOptions(*m_options_desc);
     ::intel_npu::registerNpuwLlmOptions(*m_options_desc);
 
     std::map<std::string, ov::Any> npuw_props;
