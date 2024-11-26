@@ -40,13 +40,14 @@ struct ClosureRemap {
     std::map<std::size_t, std::size_t> scale_remap;  // orig closure idx -> orig scale idx
     std::map<std::size_t, std::size_t> zerop_remap;  // orig closure idx -> orig asymm zero point idx
     ov::ParameterVector params_to_remove;
+    std::set<std::size_t> weights_to_unpack;
 
     std::vector<ov::Tensor> zero_points;  // zero points for closures, if needed
 };
 
 ClosureRemap build_remap(const Function& fbody, const DCOFFParams& p);
 void apply_remap(Subgraph& fcall, const ClosureRemap& m);
-void finalize_remap(Function& fbody, const ClosureRemap& m);
+void finalize_remap(Function& fbody, Subgraph& fsg, const ClosureRemap& m);
 
 // Various patterns here
 
@@ -58,7 +59,7 @@ protected:
     ov::element::Type m_dcoff_type;
     DCOFFParamRef m_params_to;
 
-    std::shared_ptr<ov::Node> paramA, paramB, toFP32, mulply;
+    std::shared_ptr<ov::Node> paramA, paramB, toFP32, mulply, cvtopt;
     bool matcher_callback(ov::pass::pattern::Matcher& m);
 
 public:

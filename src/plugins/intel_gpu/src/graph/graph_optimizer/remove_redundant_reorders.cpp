@@ -434,7 +434,7 @@ void remove_redundant_reorders::run(program& p) {
                 (input.is_type<one_hot>() || input.is_type<permute>() || input.is_type<mvn>() ||
                  input.is_type<concatenation>() || input.is_type<depth_to_space>() || input.is_type<region_yolo>() ||
                  input.is_type<detection_output>() || input.is_type<gather>() || input.is_type<broadcast>() ||
-                 input.is_type<select>() || input.is_type<eltwise>());
+                 input.is_type<select>() || input.is_type<eltwise>()) && !input.is_constant();
             if (!same_data_type && !allowed_dt_conversion_fuse)
                 continue;
 

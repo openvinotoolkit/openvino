@@ -26,6 +26,7 @@ public:
 
 struct Context {
     std::string pmm_dims;
+    bool is_spatial = false;
 
     using PPtr = std::shared_ptr<ov::op::v0::Parameter>;
     using NPtr = std::shared_ptr<ov::Node>;
@@ -111,9 +112,9 @@ public:
 
 // Head vocab unpacks
 
-class DQUnpackDictGatherCWu : public ov::pass::MatcherPass {
+class DQUnpackDictGatheru : public ov::pass::MatcherPass {
 public:
-    DQUnpackDictGatherCWu(Context::Ref ctx);
+    DQUnpackDictGatheru(Context::Ref ctx);
 };
 
 class DQUnpackDictGatherGQi : public ov::pass::MatcherPass {
@@ -146,6 +147,33 @@ public:
 class CompressDictMatMulf32 : public ov::pass::MatcherPass {
 public:
     CompressDictMatMulf32(Context::Ref ctx);
+};
+
+// Slice last Matmul
+class SliceLastMatmul : public ov::pass::MatcherPass {
+public:
+    SliceLastMatmul();
+};
+
+class SliceLastMatmulAdd : public ov::pass::MatcherPass {
+public:
+    SliceLastMatmulAdd();
+};
+
+class SliceLastMatmulTranspose : public ov::pass::MatcherPass {
+public:
+    SliceLastMatmulTranspose();
+};
+
+class SliceLastMatmulMultiply : public ov::pass::MatcherPass {
+public:
+    SliceLastMatmulMultiply();
+};
+
+// Convolution to MatMul
+class ConvToMatmul : public ov::pass::MatcherPass {
+public:
+    ConvToMatmul(Context::Ref ctx);
 };
 
 }  // namespace opt

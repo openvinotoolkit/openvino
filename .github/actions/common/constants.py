@@ -16,6 +16,7 @@ productTypes = (
     'public_linux_ubuntu_24_04_x86_64_release',
     'public_windows_vs2019_Release',
     'public_windows_vs2019_Debug',
+    'public_manylinux2014_x86_64_release',
 )
 ProductType = Enum('ProductType', {t.upper(): t for t in productTypes})
 

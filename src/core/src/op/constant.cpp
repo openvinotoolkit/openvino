@@ -340,6 +340,15 @@ Constant::Constant(const Constant& other, const Shape& new_shape)
     constructor_validate_and_infer_types();
 }
 
+Constant::Constant(const element::Type& type, const Shape& shape, const void* data, std::shared_ptr<void> so)
+    : Constant(
+          type,
+          shape,
+          // Note: const_cast used to store pointer only
+          std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(reinterpret_cast<char*>(const_cast<void*>(data)),
+                                                                    element::get_memory_size(type, shape_size(shape)),
+                                                                    so)) {}
+
 Constant::~Constant() = default;
 
 struct ValueToString : ov::element::NotSupported<std::string> {
@@ -654,7 +663,7 @@ bool Constant::evaluate_upper(TensorVector& outputs) const {
     return evaluate(outputs, {});
 }
 
-bool Constant::constant_fold(OutputVector&, const OutputVector&) {
+bool Constant::can_constant_fold(const OutputVector& input_values) const {
     return false;
 }
 

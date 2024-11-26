@@ -16,6 +16,7 @@ namespace jax {
 void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs) {
     auto inputs = context.inputs();
     FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= min_inputs, "Got less inputs than expected");
+    FRONT_END_OP_CONVERSION_CHECK(inputs.size() <= max_inputs, "Got more inputs than expected");
 }
 
 void num_inputs_check(const NodeContext& context, size_t min_inputs) {

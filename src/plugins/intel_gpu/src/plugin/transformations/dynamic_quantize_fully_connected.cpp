@@ -17,7 +17,8 @@
 namespace ov {
 namespace intel_gpu {
 
-DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size) {
+DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size)
+    : ov::pass::MatcherPass() {  // Explicitly call the base class constructor
     GPU_DEBUG_GET_INSTANCE(debug_config);
     using namespace ov::pass::pattern;
 
@@ -61,7 +62,14 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         auto rank = m_fc->get_input_partial_shape(0).size();
         std::vector<uint64_t> shape_group_size(rank, 1);
         shape_group_size.back() = group_size;
-        auto dyn_quan = std::make_shared<ov::op::internal::DynamicQuantize>(m_data, shape_group_size, element::f16);
+
+        ov::op::internal::DynamicQuantize::Attributes config;
+        config.quantization_dt = element::i8;
+        config.quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Symmetric;
+        config.scale_dt = element::f16;
+        config.group_sizes = shape_group_size;
+
+        auto dyn_quan = std::make_shared<ov::op::internal::DynamicQuantize>(m_data, config);
         auto optional_w_zp = m_fc->get_input_size() > 4 ? m_fc->get_input_node_shared_ptr(4) : std::make_shared<ov::intel_gpu::op::Placeholder>();
 
         auto output_type = m_fc->get_output_type();

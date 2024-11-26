@@ -383,12 +383,18 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
 
         auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments);
 
+        // The output shape of PagedAttention will be converted to [batch, 1, head_num, head_size_v], the head_size_v
+        // may be different from head_size_q/head_size_k. The head_size_v could be got from the shape of value input
+        auto hidden_dim_v = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(v_target_layout),
+                                                         v0::Constant::create(element::i64, Shape{}, {-1}),
+                                                         v0::Constant::create(element::i64, Shape{}, {0}));
+
         auto pa_shape = std::make_shared<v0::Concat>(
             OutputVector{
                 v0::Constant::create(element::i64, Shape{1}, {0}),
                 v0::Constant::create(element::i64, Shape{1}, {1}),
                 v0::Constant::create(element::i64, Shape{1}, {-1}),
-                std::make_shared<v0::Unsqueeze>(hidden_dim, v0::Constant::create(element::i64, Shape{}, {0})),
+                std::make_shared<v0::Unsqueeze>(hidden_dim_v, v0::Constant::create(element::i64, Shape{}, {0})),
             },
             0);
         auto pa_reshape = std::make_shared<v1::Reshape>(paged_attention->output(0), pa_shape, true);

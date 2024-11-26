@@ -9,6 +9,11 @@ inputs:
     description: 'Branch of OpenVINO to take the revision from if no specific hash was provided. 
                   Taken from github context by default'
     required: false
+  event_name:
+    description: 'Even name from which artifacts were generated. "push" by default; overwrite it with "pull_request" 
+                  if revision/branch is from PR'
+    default: "push"
+    required: false
   ov_artifact_name:
     description: "Name under which to upload provided OpenVINO build artifacts, set automatically by default"
     required: false
@@ -107,7 +112,7 @@ runs:
       with:
         platform: ${{ inputs.platform }}_${{ inputs.arch }}
         storage_root: ${{ inputs.commit_share_path }}
-        event_name: "commit"
+        event_name: ${{ inputs.event_name }}
         trigger_repo_sha: ${{ env.OV_REVISION }}
         branch_name: ${{ inputs.branch_name }}
         to_restore: ${{ inputs.commit_packages_to_provide }}
@@ -137,7 +142,7 @@ runs:
         artifacts_path=${{ steps.openvino_commit_download.outputs.artifacts_path }}
         cd $artifacts_path
         version=$(yq eval '.components.dldt.custom_params.wheel_product_version' manifest.yml)
-        wheel_path=${{ inputs.install_dir && '$artifacts_path/tools' || './tools' }}
+        wheel_path=${{ inputs.install_dir && '$artifacts_path/wheels' || './wheels' }}
         default_find_links_cmd="--find-links=$wheel_path"
         find_links_cmd=$([[ -n "$PIP_FIND_LINKS" ]] && echo "" || echo "$default_find_links_cmd")
         echo "ov_version=$version" >> $GITHUB_OUTPUT
@@ -145,7 +150,7 @@ runs:
 
     - name: Upload commit OpenVINO archives
       if: steps.openvino_commit_download.outcome == 'success' && !inputs.install_dir
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
       with:
         name: ${{ steps.openvino_commit_output.outputs.ov_artifact_name }}
         path: ${{ steps.openvino_commit_output.outputs.ov_package_path }}
@@ -188,7 +193,7 @@ runs:
 
     - name: Upload OpenVINO archives
       if: steps.openvino_s3_download.outcome == 'success' && !inputs.install_dir
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
       with:
         name: ${{ steps.openvino_s3_download.outputs.ov_artifact_name }}
         path: ${{ steps.openvino_s3_download.outputs.ov_package_path }}

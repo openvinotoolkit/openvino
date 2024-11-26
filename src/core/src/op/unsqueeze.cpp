@@ -77,8 +77,12 @@ bool ov::op::v0::Unsqueeze::evaluate_symbol(TensorSymbolVector& output_symbols) 
     return ov::util::default_symbol_evaluator(this, output_symbols);
 }
 
+bool ov::op::v0::Unsqueeze::can_constant_fold(const OutputVector& input_values) const {
+    return get_output_partial_shape(0).is_static() && !is_const_fold_disabled();
+}
+
 bool ov::op::v0::Unsqueeze::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
-    if (get_output_partial_shape(0).is_dynamic() || is_const_fold_disabled()) {
+    if (!can_constant_fold(inputs_values)) {
         return false;
     }
 

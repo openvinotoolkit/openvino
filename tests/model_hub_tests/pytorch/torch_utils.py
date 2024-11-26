@@ -68,28 +68,14 @@ class TestTorchConvertModel(TestConvertModel):
             from packaging import version
 
             model_obj.eval()
+            graph = None
             if isinstance(self.example, dict):
-                from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
-
-                # need to infer before export to initialize everything, otherwise it will be initialized with FakeTensors
                 pt_res = model_obj(**self.example)
-                graph = export(model_obj, tuple(), self.example)
-                if version.parse(torch.__version__) >= version.parse("2.2"):
-                    from torch._decomp import get_decompositions
-                    from openvino.frontend.pytorch.torchdynamo.decompositions import get_export_decomposition_list
-                    decomp = get_decompositions(get_export_decomposition_list())
-                    graph = graph.run_decompositions(decomp_table=decomp)
-
-                gm = graph.module()
-                print(gm.code)
-
-                decoder = TorchFXPythonDecoder(gm)
-                decoder._input_signature = list(self.example.keys())
-                ov_model = convert_model(decoder, verbose=True)
+                graph = export(model_obj, args=tuple(), kwargs=self.example)
             else:
                 pt_res = model_obj(*self.example)
                 graph = export(model_obj, self.example)
-                ov_model = convert_model(graph, verbose=True)
+            ov_model = convert_model(graph, verbose=True)
 
             if isinstance(pt_res, dict):
                 for i, k in enumerate(pt_res.keys()):

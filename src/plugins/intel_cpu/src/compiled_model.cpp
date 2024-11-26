@@ -10,7 +10,6 @@
 #include "memory_state.h"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
-#include "serialize.h"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "transformations/transformation_pipeline.h"
 #include "openvino/runtime/properties.hpp"
@@ -19,6 +18,7 @@
 #include "transformations/utils/utils.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
+#include "utils/serialize.hpp"
 
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include <cstring>
