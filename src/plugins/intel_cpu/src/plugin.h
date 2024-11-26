@@ -32,11 +32,9 @@ public:
         OPENVINO_THROW_NOT_IMPLEMENTED("import_model with RemoteContext is not supported by CPU plugin!");
     };
 
-    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
-                                                     std::shared_ptr<ov::AlignedBuffer> model_buffer,
+    std::shared_ptr<ov::ICompiledModel> import_model(std::shared_ptr<ov::AlignedBuffer> model_buffer,
                                                      const ov::AnyMap& properties) const override;
-    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
-                                                     std::shared_ptr<ov::AlignedBuffer> model_buffer,
+    std::shared_ptr<ov::ICompiledModel> import_model(std::shared_ptr<ov::AlignedBuffer> model_buffer,
                                                      const ov::SoPtr<ov::IRemoteContext>& context,
                                                      const ov::AnyMap& properties) const override {
         OPENVINO_THROW_NOT_IMPLEMENTED(

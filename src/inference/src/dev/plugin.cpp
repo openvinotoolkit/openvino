@@ -79,15 +79,14 @@ ov::SoPtr<ov::ICompiledModel> ov::Plugin::import_model(std::istream& model,
     OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(model, context, config), m_so});
 }
 
-ov::SoPtr<ov::ICompiledModel> ov::Plugin::import_model(std::istream& model, std::shared_ptr<ov::AlignedBuffer> model_buffer, const ov::AnyMap& properties) const {
-    OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(model, model_buffer, properties), m_so});
+ov::SoPtr<ov::ICompiledModel> ov::Plugin::import_model(std::shared_ptr<ov::AlignedBuffer> model_buffer, const ov::AnyMap& properties) const {
+    OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(model_buffer, properties), m_so});
 }
 
-ov::SoPtr<ov::ICompiledModel> ov::Plugin::import_model(std::istream& model,
-                                                       std::shared_ptr<ov::AlignedBuffer> model_buffer,
+ov::SoPtr<ov::ICompiledModel> ov::Plugin::import_model(std::shared_ptr<ov::AlignedBuffer> model_buffer,
                                                        const ov::SoPtr<ov::IRemoteContext>& context,
                                                        const ov::AnyMap& config) const {
-    OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(model, model_buffer, context, config), m_so});
+    OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(model_buffer, context, config), m_so});
 }
 
 ov::SoPtr<ov::IRemoteContext> ov::Plugin::create_context(const AnyMap& params) const {

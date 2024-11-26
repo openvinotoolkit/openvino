@@ -788,10 +788,6 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) con
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
-    return import_model(stream, nullptr, properties);
-}
-
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, std::shared_ptr<ov::AlignedBuffer> model_buffer, const ov::AnyMap& properties) const { 
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
     OV_ITT_TASK_CHAIN(PLUGIN_IMPORT_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "merge_configs");
 
@@ -836,19 +832,59 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, s
         CompilerAdapterFactory compilerAdapterFactory;
         auto compiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), localConfig);
 
-        std::shared_ptr<IGraph> graph;
-        if (model_buffer != nullptr) {
-            graph = compiler->parse(model_buffer, localConfig);
-        } else {
-            auto graphSize = getFileSize(stream);
-            auto blobSO = std::make_shared<std::vector<uint8_t>>(graphSize);
-            stream.read(reinterpret_cast<char*>(blobSO->data()), graphSize);
-            if (!stream) {
-                OPENVINO_THROW("Failed to read data from stream!");
-            }
-            _logger.debug("Successfully read %zu bytes into blob.", graphSize);
-            graph = compiler->parse(std::make_shared<ov::SharedBuffer<std::shared_ptr<std::vector<uint8_t>>>>(reinterpret_cast<char*>(blobSO->data()), graphSize, blobSO), localConfig);
+        auto graphSize = getFileSize(stream);
+        auto blobSO = std::make_shared<std::vector<uint8_t>>(graphSize);
+        stream.read(reinterpret_cast<char*>(blobSO->data()), graphSize);
+        if (!stream) {
+            OPENVINO_THROW("Failed to read data from stream!");
         }
+        _logger.debug("Successfully read %zu bytes into blob.", graphSize);
+
+        auto graph = compiler->parse(std::make_shared<ov::SharedBuffer<std::shared_ptr<std::vector<uint8_t>>>>(reinterpret_cast<char*>(blobSO->data()), graphSize, blobSO), localConfig);
+        graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
+
+        const std::shared_ptr<ov::Model> modelDummy =
+            create_dummy_model(graph->get_metadata().inputs, graph->get_metadata().outputs);
+
+        compiledModel = std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig);
+    } catch (const std::exception& ex) {
+        OPENVINO_THROW("Can't import network: ", ex.what());
+    } catch (...) {
+        OPENVINO_THROW("NPU import_model got unexpected exception from CompiledModel");
+    }
+
+    OV_ITT_TASK_SKIP(PLUGIN_IMPORT_MODEL);
+
+    return compiledModel;
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::shared_ptr<ov::AlignedBuffer> model_buffer, const ov::AnyMap& properties) const { 
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
+    OV_ITT_TASK_CHAIN(PLUGIN_IMPORT_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "merge_configs");
+
+    const std::map<std::string, std::string> propertiesMap = any_copy(properties);
+    auto localConfig = merge_configs(_globalConfig, propertiesMap, OptionMode::RunTime);
+    _logger.setLevel(localConfig.get<LOG_LEVEL>());
+    const auto platform = _backends->getCompilationPlatform(localConfig.get<PLATFORM>(), localConfig.get<DEVICE_ID>());
+    localConfig.update({{ov::intel_npu::platform.name(), platform}});
+    auto device = _backends->getDevice(localConfig.get<DEVICE_ID>());
+
+    set_batch_config(_backends->isBatchingSupported(), localConfig);
+
+    const auto loadedFromCache = localConfig.get<LOADED_FROM_CACHE>();
+    if (!loadedFromCache) {
+        _logger.warning(
+            "The usage of a compiled model can lead to undefined behavior. Please use OpenVINO IR instead!");
+    }
+
+    OV_ITT_TASK_NEXT(PLUGIN_IMPORT_MODEL, "parse");
+
+    std::shared_ptr<ov::ICompiledModel> compiledModel;
+
+    try {
+        auto compiler = getCompiler(localConfig);
+
+        auto graph = compiler->parse(model_buffer, localConfig);
         graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
 
         const std::shared_ptr<ov::Model> modelDummy =
@@ -869,12 +905,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, s
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& properties) const {
+    auto casted = std::dynamic_pointer_cast<RemoteContextImpl>(context._ptr);
+    if (casted == nullptr) {
+        OPENVINO_THROW("Invalid remote context type. Can't cast to ov::intel_npu::RemoteContext type");
+    }
 
-    return import_model(stream, nullptr, context, properties);
+    return import_model(stream, context, properties);
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream,
-                                                         std::shared_ptr<ov::AlignedBuffer> model_buffer,
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::shared_ptr<ov::AlignedBuffer> model_buffer,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& properties) const {
     auto casted = std::dynamic_pointer_cast<RemoteContextImpl>(context._ptr);
@@ -882,7 +921,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream,
         OPENVINO_THROW("Invalid remote context type. Can't cast to ov::intel_npu::RemoteContext type");
     }
 
-    return import_model(stream, model_buffer, properties);
+    return import_model(model_buffer, properties);
 }
 
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
