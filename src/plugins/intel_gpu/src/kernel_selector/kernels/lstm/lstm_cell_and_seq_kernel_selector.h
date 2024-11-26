@@ -7,16 +7,16 @@
 #include "kernel_selector.h"
 
 namespace kernel_selector {
-class lstm_elt_kernel_selector : public kernel_selector_base {
+class lstm_cell_and_seq_kernel_selector : public kernel_selector_base {
 public:
-    static lstm_elt_kernel_selector& Instance() {
-        static lstm_elt_kernel_selector instance_;
+    static lstm_cell_and_seq_kernel_selector& Instance() {
+        static lstm_cell_and_seq_kernel_selector instance_;
         return instance_;
     }
 
-    lstm_elt_kernel_selector();
+    lstm_cell_and_seq_kernel_selector();
 
-    virtual ~lstm_elt_kernel_selector() {}
+    virtual ~lstm_cell_and_seq_kernel_selector() {}
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

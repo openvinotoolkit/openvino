@@ -81,7 +81,8 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::intel_gpu::allow_new_shape_infer, false),
         std::make_tuple(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape, false),
         std::make_tuple(ov::intel_gpu::buffers_preallocation_ratio, 1.1f),
-        std::make_tuple(ov::intel_gpu::max_kernels_per_batch, 8));
+        std::make_tuple(ov::intel_gpu::max_kernels_per_batch, 8),
+        std::make_tuple(ov::intel_gpu::use_onednn, false));
 }
 
 void ExecutionConfig::register_property_impl(const std::pair<std::string, ov::Any>& property, PropertyVisibility visibility, BaseValidator::Ptr validator) {
@@ -241,8 +242,10 @@ void ExecutionConfig::apply_user_properties(const cldnn::device_info& info) {
     if (!is_set_by_user(ov::intel_gpu::enable_lp_transformations)) {
         set_property(ov::intel_gpu::enable_lp_transformations(info.supports_imad || info.supports_immad));
     }
-
     if (info.supports_immad) {
+        set_property(ov::intel_gpu::use_onednn(true));
+    }
+    if (get_property(ov::intel_gpu::use_onednn)) {
         set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
     }
 

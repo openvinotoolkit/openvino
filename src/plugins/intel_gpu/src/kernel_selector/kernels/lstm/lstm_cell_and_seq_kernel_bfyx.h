@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include "lstm_elt_kernel_base.h"
+#include "lstm_kernel_base.h"
 
 namespace kernel_selector {
-class LSTMEltKernelRef : public LSTMEltKernelBase {
+class LSTMCellAndSeqKernel_bfyx : public LSTMKernelBase {
 public:
-    LSTMEltKernelRef() : LSTMEltKernelBase("lstm_elt_gpu_bfyx_ref") {}
-    virtual ~LSTMEltKernelRef() {}
+    LSTMCellAndSeqKernel_bfyx() : LSTMKernelBase("lstm_cell_and_seq_bfyx") {}
+    virtual ~LSTMCellAndSeqKernel_bfyx() {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

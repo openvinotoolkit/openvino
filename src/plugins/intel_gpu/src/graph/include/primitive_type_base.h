@@ -51,7 +51,7 @@ struct primitive_type_base : primitive_type {
             if ((node.get_forced_impl_type() & impl_type) != impl_type)
                 continue;
 
-            if (impl_type == impl_types::onednn && !node.get_program().get_layout_optimizer().get_optimization_attributes().use_onednn_impls)
+            if (impl_type == impl_types::onednn && !node.get_program().get_layout_optimizer().contains_onednn_impls_optimization_attribute(&node))
                 continue;
 
             shape_types supported_shape_type = impl->get_shape_type();
@@ -168,7 +168,7 @@ struct primitive_type_base : primitive_type {
                     return true;
                 continue;
             } else {
-                if (impl_type == impl_types::onednn && !node.get_program().get_layout_optimizer().get_optimization_attributes().use_onednn_impls)
+                if (impl_type == impl_types::onednn && !node.get_program().get_layout_optimizer().contains_onednn_impls_optimization_attribute(&node))
                     continue;
 
                 if (!impl->validate(node))

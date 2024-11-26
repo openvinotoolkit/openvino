@@ -327,8 +327,11 @@ TEST_P(PrimitiveTypeTest, has_impl_for_test) {
     node.recalc_output_layout();
 
 #if OV_GPU_WITH_ONEDNN
-    p.get_layout_optimizer().set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 1);
-#endif
+    p.get_layout_optimizer().add_all_onednn_impls_optimization_attribute();
+    if (param_value == some_primitive::SomeParameter::SUPPORTED_VALUE_ONEDNN_1 || param_value == some_primitive::SomeParameter::SUPPORTED_VALUE_ONEDNN_2) {
+        p.get_layout_optimizer().enable_onednn_for<some_primitive>();
+    }
+#endif 
 
     ASSERT_EQ(some_primitive::type_id()->has_impl_for(node, impl_type, shape_type), expected_has_impl) << (int)param_value;
     if (param_value != some_primitive::SomeParameter::UNSUPPORTED_VALUE_ALL)

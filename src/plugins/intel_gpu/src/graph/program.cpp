@@ -70,6 +70,9 @@
 #include "unique_inst.hpp"
 #include "condition_inst.h"
 #include "to_string_utils.h"
+#include "intel_gpu/graph/serialization/map_serializer.hpp"
+
+#include "intel_gpu/primitives/rnn.hpp"
 
 // TODO: Remove once we have interface for kernels cache
 #include "impls/ocl/kernels_cache.hpp"
@@ -151,15 +154,14 @@ program::program(engine& engine_ref,
       is_internal(is_internal),
       _is_body_program(is_body_program),
       _compilation_context(compilation_context) {
-    _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
     GPU_DEBUG_INFO << "Program config\n" << _config.to_string();
     init_program();
     prepare_nodes(topology);
     program_node::reset_unique_id();
-
     if (no_optimizations) {
         init_graph();
+        _config.apply_user_properties(_engine.get_device_info());
     } else {
         build_program(is_internal);
         if (_is_body_program) {
@@ -494,6 +496,7 @@ void program::set_options() {
 
 void program::build_program(bool is_internal) {
     init_graph();
+    _config.apply_user_properties(_engine.get_device_info());
     { pre_optimize_graph(is_internal); }
     run_graph_compilation();
     { post_optimize_graph(is_internal); }
@@ -523,6 +526,9 @@ void program::init_graph() {
     for (auto& node : processing_order) {
         if (!node->is_type<data>())
             node->get_output_layouts();
+        if (node->is_type<lstm_seq>()) {
+            _config.set_property(ov::intel_gpu::use_onednn(true));
+        }
     }
     // Perform initial shape_of subgraphs markup
     apply_opt_pass<mark_shape_of_subgraphs>();
@@ -1631,11 +1637,17 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
     bool enable_onednn_for_tests = get_config().get_property(ov::intel_gpu::optimize_data) || is_internal_program();
     auto& engine = get_engine();
-    if (engine.get_device_info().supports_immad &&
-        engine.get_device_info().vendor_id == INTEL_VENDOR_ID &&
+    if (engine.get_device_info().vendor_id == INTEL_VENDOR_ID &&
         get_config().get_property(ov::intel_gpu::queue_type) == QueueTypes::in_order &&
-        enable_onednn_for_tests)
-        lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 1);
+        enable_onednn_for_tests) {
+            if (engine.get_device_info().supports_immad) {
+                lo.add_all_onednn_impls_optimization_attribute();
+            } else {
+                if (get_config().get_property(ov::intel_gpu::use_onednn)) {
+                    lo.enable_onednn_for<lstm_seq>();
+                }
+            }
+        }
 #endif
 }
 
@@ -1779,7 +1791,13 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
 
     ob << _is_body_program;
     ob << _can_be_optimized;
-    ob << get_layout_optimizer().get_optimization_attributes().use_onednn_impls;
+    auto onednn_impls_size = get_layout_optimizer().get_all_onednn_impls_optimization_attribute().size();
+    ob << onednn_impls_size;
+    for (const auto& onednn_impl : get_layout_optimizer().get_all_onednn_impls_optimization_attribute()) {
+        ob << prim_map_storage::instance().get_type_string(onednn_impl.first);
+        ob << onednn_impl.second;
+    }
+
     processing_order.save(ob);
 
     {
@@ -1903,9 +1921,18 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
 
     ib >> _is_body_program;
     ib >> _can_be_optimized;
-    int32_t use_onednn_attr = 0;
-    ib >> use_onednn_attr;
-    get_layout_optimizer().set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, use_onednn_attr);
+
+    size_t num_of_onednn_impls;
+    ib >> num_of_onednn_impls;
+    for (size_t num = 0; num < num_of_onednn_impls; num++) {
+        primitive_id p_id{};
+        bool enabled;
+        ib >> p_id;
+        ib >> enabled;
+        auto ptype_id = prim_map_storage::instance().get_type_id(p_id);
+        get_layout_optimizer().set_value_onednn(ptype_id, enabled);
+    }
+
     _loaded_from_cache = true;
 
     processing_order.load(ib, *this);
