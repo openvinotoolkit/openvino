@@ -24,7 +24,6 @@ public:
     };
 
     LazyTensor() = default;
-    LazyTensor(const ov::Tensor& tensor);
     LazyTensor(const std::shared_ptr<ov::op::v0::Constant>& const_ptr);
     LazyTensor(const std::vector<LazyTensor>& to_concat, const std::size_t axis);  // construct from concat
     LazyTensor(const LazyTensor& cw,
@@ -42,9 +41,6 @@ public:
     ov::Tensor eval() const;
 
     std::size_t get_hash() const;
-    const void* get_data() const;
-    const ov::Shape& get_shape() const;
-    const ov::element::Type& get_type() const;
 
 private:
     std::shared_ptr<LazyTensorImpl> m_impl = nullptr;
