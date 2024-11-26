@@ -93,7 +93,7 @@ jobs:
       OPENVINO_REPO: ${{ github.workspace }}/src
       INSTALL_DIR: ${{ github.workspace }}/install/openvino
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
-      INSTALL_TEST_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       BUILD_DIR: ${{ github.workspace }}/build
       DOCKER_CONFIG: "/mount/.docker"
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
@@ -199,6 +199,10 @@ jobs:
       - name: Check tests
         run: ls -laR ${{ env.INSTALL_TEST_DIR }}
 
+      - name: Pack openvino_tests
+        run: tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+        working-directory: ${{ env.INSTALL_TEST_DIR }}
+
       #
       # Upload build artifacts
       #
@@ -218,12 +222,12 @@ jobs:
           path: ${{ env.INSTALL_WHEELS_DIR }}/wheels/*.whl
           if-no-files-found: 'error'
 
-      - name: Upload tests
+      - name: Upload openvino tests package
         if: ${{ always() }}
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: openvino_tests
-          path: ${{ env.INSTALL_TEST_DIR }}
+          path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
 
       - name: Store artifacts to a shared drive
@@ -262,11 +266,12 @@ jobs:
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
     steps:
-      - name: Download OpenVINO tests
+      - name: Download OpenVINO artifacts (tarballs)
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
-          name: openvino_tests
+          pattern: openvino_[tests]*
           path: ${{ env.INSTALL_DIR }}
+          merge-multiple: true
 
       - name: Download OpenVINO artifacts (wheels)
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
@@ -281,6 +286,10 @@ jobs:
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "INSTALL_WHEELS_DIR=$GITHUB_WORKSPACE/install/wheels" >> "$GITHUB_ENV"
+
+      - name: Extract OpenVINO packages
+        run: pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
+        working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Check dirs
         continue-on-error: true
