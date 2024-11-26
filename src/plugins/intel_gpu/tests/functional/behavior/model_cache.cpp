@@ -3,7 +3,6 @@
 //
 
 #include <cstdio>
-#include <experimental/filesystem>
 
 #include "base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
@@ -63,7 +62,7 @@ void CheckWeightlessCacheAccuracy::TearDown() {
     std::remove(xml_path.c_str());
     std::remove(bin_path.c_str());
     std::remove(cache_path.c_str());
-    std::experimental::filesystem::remove_all(cache_dir);
+    ov::test::utils::removeDir(cache_dir);
 }
 
 void CheckWeightlessCacheAccuracy::run() {
