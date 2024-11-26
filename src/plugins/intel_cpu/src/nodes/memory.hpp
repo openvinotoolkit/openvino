@@ -222,7 +222,7 @@ private:
         return body != nullptr;
     }
 
-    bool needShapeInfer() const override;
+    void subGraphShapeInfer();
 
 private:
     std::shared_ptr<ov::Model> body = nullptr;

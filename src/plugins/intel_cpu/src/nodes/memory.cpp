@@ -10,7 +10,6 @@
 #include "utils/general_utils.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "shape_inference/shape_inference_pass_through.hpp"
-#include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "common/arbitrary_order_desc_creator.h"
 #include "transformations/cpu_opset/common/op/read_value_with_subgraph.hpp"
 #include "nodes/common/cpu_convert.h"
@@ -565,9 +564,6 @@ MemoryInput::MemoryInput(const std::shared_ptr<ov::Node>& op, const GraphContext
     if (rvWithSubgraph) {
         body = rvWithSubgraph->get_function();
         subGraph = make_unique<ov::intel_cpu::Graph>();
-        if (isDynamic) {
-            shapeInference = InternalDynShapeInferFactory().makeShapeInfer();
-        }
     }
 }
 
@@ -594,9 +590,6 @@ MemoryInput::MemoryInput(const std::string id,
 
     if (haveSubgraph()) {
         subGraph = make_unique<ov::intel_cpu::Graph>();
-        if (isDynamic) {
-            shapeInference = InternalDynShapeInferFactory().makeShapeInfer();
-        }
     }
 }
 
@@ -718,11 +711,24 @@ void MemoryInput::createPrimitive() {
     }
 }
 
-bool MemoryInput::needShapeInfer() const {
-    if (haveSubgraph()) {
-        return true;
+void MemoryInput::subGraphShapeInfer() {
+    std::vector<std::reference_wrapper<const VectorDims>> input_shapes;
+    input_shapes.reserve(inputShapes.size());
+    for (size_t port = 0; port < inputShapes.size(); ++port)
+        input_shapes.emplace_back(std::ref(getParentEdgeAt(port)->getMemory().getStaticDims()));
+    const ParameterVector& parameters = body->get_parameters();
+    const ResultVector& results = body->get_results();
+    OPENVINO_ASSERT(parameters.size() == input_shapes.size(),
+                    "Got invalid number of input shapes to reshape subgraph body");
+    for (size_t i = 0; i < parameters.size(); ++i) {
+        parameters[i]->set_partial_shape(ov::PartialShape(input_shapes[i].get()));
     }
-    return MemoryInputBase::needShapeInfer();
+    body->validate_nodes_and_infer_types();
+    std::vector<VectorDims> outputDims;
+    for (const auto& res : results) {
+        outputDims.emplace_back(res->get_input_partial_shape(0).get_shape());
+    }
+    redefineOutputMemory(outputDims);
 }
 
 void MemoryInput::runDynamic(dnnl::stream strm) {
@@ -772,6 +778,7 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
                 // since the external and internal descriptors are compatible, we may pass the descriptor
                 subgraphMemoryPtrs[i]->redefineDesc(getSrcMemoryAtPort(i)->getDescPtr());
             }
+            subGraphShapeInfer();
 
             subGraph->ResetInferCount();
             subGraph->Infer();
