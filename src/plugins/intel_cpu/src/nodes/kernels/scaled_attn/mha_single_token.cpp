@@ -914,7 +914,7 @@ static float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, f
 
 template <typename T>
 static void attn_reduce(T* dst, float* temp, size_t M, size_t S, size_t temp_stride) {
-    int i = 0;
+    size_t i = 0;
 #if defined(HAVE_AVX512F)
     for (; i + vec_len_f32_avx512 <= S; i += vec_len_f32_avx512) {
         auto* src = temp + i;
