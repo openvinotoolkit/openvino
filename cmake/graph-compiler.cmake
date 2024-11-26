@@ -25,9 +25,14 @@ if (NOT DEFINED GRAPH_COMPILER_LIBS)
         set(GC_ENABLE_LEGACY OFF)
         set(GC_ENABLE_BINDINGS_PYTHON OFF)
         set(OV_BUILD_SHARED_LIBS_TMP ${BUILD_SHARED_LIBS})
-        set(BUILD_SHARED_LIBS OFF)
+        set(BUILD_SHARED_LIBS ON)
         FetchContent_MakeAvailable(GC)
         set(BUILD_SHARED_LIBS ${OV_BUILD_SHARED_LIBS_TMP})
+        FetchContent_GetProperties(GC BINARY_DIR gc_BINARY_DIR)
+        find_library(GC_CPU_RUNTIME_PATH GcCpuRuntime)
+        install(FILES ${GC_CPU_RUNTIME_PATH} DESTINATION ${OV_CPACK_RUNTIMEDIR})
+        # a hack to not bother with actual file extension
+        install(FILES ${GC_CPU_RUNTIME_PATH}.20.0git DESTINATION ${OV_CPACK_RUNTIMEDIR})
     endif ()
 
     set(GRAPH_COMPILER_LIBS

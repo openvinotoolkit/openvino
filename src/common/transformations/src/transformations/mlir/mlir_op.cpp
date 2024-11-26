@@ -5,6 +5,7 @@
 #include "mlir_op.hpp"
 
 #include <vector>
+#include <iterator>
 #include <algorithm>
 #include <functional>
 #include <memory>
@@ -232,24 +233,22 @@ std::unique_ptr<llvm::Module> lowerToLLVMIR(Operation* module, llvm::LLVMContext
 struct MemRefDescriptor {
     MemRefDescriptor() = default;
 
-    MemRefDescriptor    (ov::Tensor tensor, const ov::Shape& module_input_shape)
+    MemRefDescriptor    (ov::Tensor tensor, const ov::PartialShape& module_input_shape)
         : allocated(tensor.data()),
           aligned(tensor.data()),
-          offset(0),
-          shape(module_input_shape.begin(), module_input_shape.end()) {
-        if (shape.size() != tensor.get_shape().size()) {
-            // validate that the shape difference is due to trailing '1's
-            for (size_t i = 0; i < shape.size(); ++i) {
-                if (shape[i] != tensor.get_shape()[i]) {
-                    OPENVINO_THROW("Mismatch in shape sizes");
-                }
-            }
-            for (size_t i = shape.size(); i < tensor.get_shape().size(); ++i) {
-                if (tensor.get_shape()[i] != 1) {
-                    OPENVINO_THROW("Mismatch in shape sizes");
-                }
+          offset(0) {
+        if (module_input_shape.rank() == shape_size(tensor.get_shape())) {
+            shape.assign(tensor.get_shape().begin(), tensor.get_shape().end());
+        } else {
+            auto it = tensor.get_shape().begin();
+            std::advance(it, module_input_shape.rank().get_length());
+            shape.assign(tensor.get_shape().begin(), it);
+
+            if (std::any_of(it, tensor.get_shape().end(), [](size_t dim) {return dim != 1;})) {
+                OPENVINO_THROW("Mismatch in shape sizes");
             }
         }
+
         strides.resize(shape.size());
         const auto& byte_strides = tensor.get_strides();
         auto element_size = tensor.get_element_type().size();
@@ -511,7 +510,7 @@ bool MLIROp::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs,
 
     std::vector<MemRefDescriptor> memref_args;
     for (size_t i = 0; i < inputs.size(); ++i) {
-        auto& initial_shape = get_input_shape(i);
+        auto& initial_shape = get_input_partial_shape(i);
         memref_args.push_back(MemRefDescriptor(inputs[i], initial_shape));
     }
     for (size_t i = 0; i < outputs.size(); ++i) {
