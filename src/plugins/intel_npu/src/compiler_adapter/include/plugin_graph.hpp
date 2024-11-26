@@ -23,7 +23,7 @@ public:
                 const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                 ze_graph_handle_t graphHandle,
                 NetworkMetadata metadata,
-                const std::shared_ptr<ov::AlignedBuffer>& blobSO,
+                std::shared_ptr<ov::AlignedBuffer> blobSOPtr,
                 const Config& config);
 
     size_t export_blob(std::ostream& stream) const override;

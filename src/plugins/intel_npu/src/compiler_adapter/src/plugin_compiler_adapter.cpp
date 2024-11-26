@@ -104,12 +104,12 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
                                          config);
 }
 
-std::shared_ptr<IGraph> PluginCompilerAdapter::parse(const std::shared_ptr<ov::AlignedBuffer>& networkSO, const Config& config) const {
+std::shared_ptr<IGraph> PluginCompilerAdapter::parse(std::shared_ptr<ov::AlignedBuffer> networkSOPtr, const Config& config) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
 
     _logger.debug("parse start");
-    std::vector<uint8_t> network(networkSO->size());
-    network.assign(reinterpret_cast<uint8_t*>(networkSO->get_ptr()), reinterpret_cast<uint8_t*>(networkSO->get_ptr()) + networkSO->size());
+    std::vector<uint8_t> network(networkSOPtr->size());
+    network.assign(reinterpret_cast<uint8_t*>(networkSOPtr->get_ptr()), reinterpret_cast<uint8_t*>(networkSOPtr->get_ptr()) + networkSOPtr->size());
     auto networkMeta = _compiler->parse(network, config);
     network.clear();
     network.shrink_to_fit();
@@ -118,7 +118,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(const std::shared_ptr<ov::A
     ze_graph_handle_t graphHandle = nullptr;
 
     if (_zeGraphExt) {
-        graphHandle = _zeGraphExt->getGraphHandle(reinterpret_cast<const uint8_t*>(networkSO->get_ptr()), networkSO->size());
+        graphHandle = _zeGraphExt->getGraphHandle(reinterpret_cast<const uint8_t*>(networkSOPtr->get_ptr()), networkSOPtr->size());
     }
 
     return std::make_shared<PluginGraph>(_zeGraphExt,
@@ -126,7 +126,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(const std::shared_ptr<ov::A
                                          _zeroInitStruct,
                                          graphHandle,
                                          std::move(networkMeta),
-                                         networkSO,
+                                         std::move(networkSOPtr),
                                          config);
 }
 

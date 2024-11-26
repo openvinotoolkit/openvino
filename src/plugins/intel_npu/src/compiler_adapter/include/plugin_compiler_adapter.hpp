@@ -22,7 +22,7 @@ public:
 
     std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 
-    std::shared_ptr<IGraph> parse(const std::shared_ptr<ov::AlignedBuffer>& networkSO, const Config& config) const override;
+    std::shared_ptr<IGraph> parse(std::shared_ptr<ov::AlignedBuffer> networkSOPtr, const Config& config) const override;
 
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 

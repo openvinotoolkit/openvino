@@ -840,7 +840,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         }
         _logger.debug("Successfully read %zu bytes into blob.", graphSize);
 
-        auto graph = compiler->parse(std::make_shared<ov::SharedBuffer<std::shared_ptr<std::vector<uint8_t>>>>(reinterpret_cast<char*>(blobSO->data()), graphSize, blobSO), localConfig);
+        auto blobSOPtr = std::make_shared<ov::SharedBuffer<std::shared_ptr<std::vector<uint8_t>>>>(reinterpret_cast<char*>(blobSO->data()), graphSize, blobSO);
+        auto graph = compiler->parse(std::move(blobSOPtr), localConfig);
         graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
 
         const std::shared_ptr<ov::Model> modelDummy =
