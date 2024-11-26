@@ -1542,15 +1542,39 @@ void program_node::create_onednn_primitive_attributes(
                     size_t rank = cldnn::format::dimension(in.format);
                     auto in_pshape = in.get_partial_shape();
                     auto out_pshape = get_output_layout().get_partial_shape();
-                    size_t ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(rank)) - in_pshape.size();
-                    if (ones_to_add > 0) {
-                        layout new_layout = in;
-                        ov::PartialShape new_input_pshape;
-                        std::vector<ov::Dimension> dims(in_pshape.begin(), in_pshape.begin() + in_pshape.size());
-                        new_input_pshape = ov::PartialShape(dims);
-                        new_input_pshape.insert(new_input_pshape.begin(), ones_to_add, 1ul);
-                        new_layout.set_partial_shape(new_input_pshape);
-                        in = new_layout;
+                    size_t ones_to_add = 0;
+
+                    if (is_type<fully_connected>()) {
+                        auto prim = this->as<fully_connected>().get_primitive();
+                        if (prim->input_size == in_pshape.size()) {
+                            ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(rank)) - in_pshape.size();
+                        } else {
+                            ones_to_add = in_pshape.size() - prim->input_size;
+                        }
+                        if (ones_to_add > 0) {
+                            layout new_layout = in;
+                            ov::PartialShape new_input_pshape;
+                            auto last = in_pshape.begin() + in_pshape.size();
+                            if (prim->input_size != in_pshape.size())
+                                last -= ones_to_add;
+                            std::vector<ov::Dimension> dims(in_pshape.begin(), last);
+                            new_input_pshape = ov::PartialShape(dims);
+                            new_input_pshape.insert(new_input_pshape.begin(), ones_to_add, 1ul);
+                            new_layout.set_partial_shape(new_input_pshape);
+                            in = new_layout;
+                            // GPU_DEBUG_COUT << "updated: " << in.to_short_string() << std::endl;
+                        }
+                    } else {
+                        ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(rank)) - in_pshape.size();
+                        if (ones_to_add > 0) {
+                            layout new_layout = in;
+                            ov::PartialShape new_input_pshape;
+                            std::vector<ov::Dimension> dims(in_pshape.begin(), in_pshape.begin() + in_pshape.size());
+                            new_input_pshape = ov::PartialShape(dims);
+                            new_input_pshape.insert(new_input_pshape.begin(), ones_to_add, 1ul);
+                            new_layout.set_partial_shape(new_input_pshape);
+                            in = new_layout;
+                        }
                     }
                     size_t in_batched_size = in.count() / (in.spatial(0) * in.spatial(1));
                     dnnl::memory::dims dims = onednn::convert_gemm_tensor(in.get_tensor(), rank, in_batched_size == 1);

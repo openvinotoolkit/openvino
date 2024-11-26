@@ -2639,7 +2639,7 @@ bool primitive_inst::is_valid_fusion() const {
         // * Gemm fused op shape: (1,f,y,x) -> OneDNN shape: (1*f,y,x)
         // If batch dimension of gemm output is not equal to 1, then OneDNN will not be able to broadcast fused op data
         // correctly and we need to do it manually
-        if (_node->is_type<gemm>() && _node->get_preferred_impl_type() == impl_types::onednn) {
+        if ((_node->is_type<gemm>() || _node->is_type<fully_connected>()) && _node->get_preferred_impl_type() == impl_types::onednn) {
             const auto& gemm_layout = _impl_params->get_output_layout();
             const auto& data_layout = outer_dep.first->_impl_params->get_output_layout();
             auto gemm_dims = onednn::convert_gemm_tensor(gemm_layout.get_tensor(),
