@@ -135,19 +135,15 @@ static std::string toPriority(const std::string& priority) {
 static ScenarioGraph buildGraph(const std::vector<OpDesc>& op_descs,
                                 const std::vector<std::vector<std::string>>& connections);
 
-static void validateNodeChildren(const YAML::Node& node, std::set<std::string> supportedKeys)
-{
-    auto isScalar2 = node.IsScalar();
-    auto isSequence2 = node.IsSequence();
-    auto isMap2 = node.IsMap();
-    for (const auto& nodeChild : node) {
-        auto isScalar = nodeChild.first.IsScalar();
-        auto isSequence = nodeChild.first.IsSequence();
-        auto isMap = nodeChild.first.IsMap();
-        const auto key = nodeChild.first.as<std::string>();
-        if (supportedKeys.find(key) == supportedKeys.end()) {
-            const auto mark = node[key].Mark();
-            THROW_ERROR("Unsupported node: '" << key << "' at line " << mark.line << " column: " << mark.column);
+namespace {
+    void validateNodeChildren(const YAML::Node& node, std::set<std::string> supportedKeys)
+    {
+        for (const auto& nodeChild : node) {
+            const auto key = nodeChild.first.as<std::string>();
+            if (supportedKeys.find(key) == supportedKeys.end()) {
+                const auto mark = node[key].Mark();
+                THROW_ERROR("Unsupported node: '" << key << "' at line " << mark.line << " column: " << mark.column);
+            }
         }
     }
 }
@@ -193,12 +189,14 @@ struct convert<LayerVariantAttr<T>> {
     }
 };
 
-static const std::set<std::string> set_UniformGenerator_parameters = {"low", "high"};
+namespace {
+    const std::set<std::string> uniformGenerator_parameters = {"low", "high"};
+}
 template <>
 struct convert<UniformGenerator::Ptr> {
     static bool decode(const Node& node, UniformGenerator::Ptr& generator) {
         std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        validateNodeChildren(node, set_UniformGenerator_parameters);
+        validateNodeChildren(node, uniformGenerator_parameters);
         if (!node["low"]) {
             THROW_ERROR("Uniform distribution must have \"low\" attribute");
         }
@@ -210,17 +208,19 @@ struct convert<UniformGenerator::Ptr> {
     }
 };
 
-static const std::set<std::string> set_IRandomGenerator_param = []() {
-    std::set<std::string> res = {"dist", "uniform"};
-    res.insert(set_UniformGenerator_parameters.cbegin(), set_UniformGenerator_parameters.cend());
-    return res;
-}();
+namespace {
+    const std::set<std::string> iRandomGenerator_param = []() {
+        std::set<std::string> res = {"dist", "uniform"};
+        res.insert(uniformGenerator_parameters.cbegin(), uniformGenerator_parameters.cend());
+        return res;
+    }();
+}
 
 template <>
 struct convert<IRandomGenerator::Ptr> {
     static bool decode(const Node& node, IRandomGenerator::Ptr& generator) {
         std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        validateNodeChildren(node, set_IRandomGenerator_param);
+        validateNodeChildren(node, iRandomGenerator_param);
         if (!node["dist"]) {
             THROW_ERROR("\"random\" must have \"dist\" attribute!");
         }
@@ -234,12 +234,14 @@ struct convert<IRandomGenerator::Ptr> {
     }
 };
 
-static const std::set<std::string> set_Norm_parameters = {"tolerance"};
+namespace {
+    const std::set<std::string> norm_parameters = {"tolerance"};
+}
 template <>
 struct convert<Norm::Ptr> {
     static bool decode(const Node& node, Norm::Ptr& metric) {
         std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        validateNodeChildren(node, set_Norm_parameters);
+        validateNodeChildren(node, norm_parameters);
         // NB: If bigger than tolerance - fail.
         if (!node["tolerance"]) {
             THROW_ERROR("Metric \"norm\" must have \"tolerance\" attribute!");
@@ -250,13 +252,15 @@ struct convert<Norm::Ptr> {
     }
 };
 
-static const std::set<std::string> set_Cosine_parameters = {"threshold"};
+namespace {
+    const std::set<std::string> cosine_parameters = {"threshold"};
+}
 template <>
 struct convert<Cosine::Ptr> {
     static bool decode(const Node& node, Cosine::Ptr& metric) {
         // NB: If lower than threshold - fail.
         std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        validateNodeChildren(node, set_Cosine_parameters);
+        validateNodeChildren(node, cosine_parameters);
         if (!node["threshold"]) {
             THROW_ERROR("Metric \"cosine\" must have \"threshold\" attribute!");
         }
@@ -266,12 +270,14 @@ struct convert<Cosine::Ptr> {
     }
 };
 
-static const std::set<std::string> set_NRMSE_parameters = {"tolerance"};
+namespace {
+    const std::set<std::string> nrmse_parameters = {"tolerance"};
+}
 template <>
 struct convert<NRMSE::Ptr> {
     static bool decode(const Node& node, NRMSE::Ptr& metric) {
         std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        validateNodeChildren(node, set_NRMSE_parameters);
+        validateNodeChildren(node, nrmse_parameters);
         // NB: If bigger than tolerance - fail.
         if (!node["tolerance"]) {
             THROW_ERROR("Metric \"nrmse\" must have \"tolerance\" attribute!");
@@ -282,19 +288,21 @@ struct convert<NRMSE::Ptr> {
     }
 };
 
-static const std::set<std::string> set_IAccuracyMetric_parameters = []() {
-    std::set<std::string> res = {"name"};
-    res.insert(set_Norm_parameters.cbegin(), set_Norm_parameters.cend());
-    res.insert(set_Cosine_parameters.cbegin(), set_Cosine_parameters.cend());
-    res.insert(set_NRMSE_parameters.cbegin(), set_NRMSE_parameters.cend());
-    return res;
-}();
+namespace {
+    const std::set<std::string> iaccuracyMetric_parameters = []() {
+        std::set<std::string> res = {"name"};
+        res.insert(norm_parameters.cbegin(), norm_parameters.cend());
+        res.insert(cosine_parameters.cbegin(), cosine_parameters.cend());
+        res.insert(nrmse_parameters.cbegin(), nrmse_parameters.cend());
+        return res;
+    }();
+}
 
 template <>
 struct convert<IAccuracyMetric::Ptr> {
     static bool decode(const Node& node, IAccuracyMetric::Ptr& metric) {
         std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        validateNodeChildren(node, set_IAccuracyMetric_parameters);
+        validateNodeChildren(node, iaccuracyMetric_parameters);
         const auto type = node["name"].as<std::string>();
         if (type == "norm") {
             metric = node.as<Norm::Ptr>();
@@ -309,19 +317,21 @@ struct convert<IAccuracyMetric::Ptr> {
     }
 };
 
-static const std::set<std::string> set_parseConfig_raw_parameters = {"multi_inference", "metric", "random", "disable_high_resolution_waitable_timer"};
-static const std::set<std::string> set_GlobalOptions_raw_parameters = {"model_dir", "blob_dir", "device_name", "log_level", "compiler_type", "save_validation_outputs"};
-static const std::set<std::string> set_GlobalOptions_parameters = []() {
-    std::set<std::string> res = set_GlobalOptions_raw_parameters;
-    res.insert(set_parseConfig_raw_parameters.cbegin(), set_parseConfig_raw_parameters.cend());
-    return res;
-}();
+namespace {
+    static const std::set<std::string> parseConfig_raw_parameters = {"multi_inference", "metric", "random", "disable_high_resolution_waitable_timer"};
+    static const std::set<std::string> globalOptions_raw_parameters = {"model_dir", "blob_dir", "device_name", "log_level", "compiler_type", "save_validation_outputs"};
+    static const std::set<std::string> globalOptions_parameters = []() {
+        std::set<std::string> res = globalOptions_raw_parameters;
+        res.insert(parseConfig_raw_parameters.cbegin(), parseConfig_raw_parameters.cend());
+        return res;
+    }();
+}
 
 template <>
 struct convert<GlobalOptions> {
     static bool decode(const Node& node, GlobalOptions& opts) {
         std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        validateNodeChildren(node, set_GlobalOptions_parameters);
+        validateNodeChildren(node, globalOptions_parameters);
         if (node["model_dir"]) {
             if (!node["model_dir"]["local"]) {
                 THROW_ERROR("\"model_dir\" must contain \"local\" key!");
@@ -356,20 +366,23 @@ struct convert<GlobalOptions> {
         return true;
     }
 };
-static const std::set<std::string> set_OpDesc_raw_parameters = {"tag", "type", "repeat_count", "connections", "op_desc"};
-static const std::set<std::string> set_OpenVINOParams_raw_parameters = {"name", "path", "device", "ip", "op", "il", "ol", "iml", "oml", "reshape", "config", "priority", "nireq"};
-static const std::set<std::string> set_OpenVINOParams_parameters = []() {
-    std::set<std::string> res = set_OpenVINOParams_raw_parameters;
-    res.insert(set_OpDesc_raw_parameters.begin(), set_OpDesc_raw_parameters.end());
 
-    return res;
-}();
+namespace {
+    const std::set<std::string> opDesc_raw_parameters = {"tag", "type", "repeat_count", "connections", "op_desc"};
+    const std::set<std::string> openVINOParams_raw_parameters = {"name", "path", "device", "ip", "op", "il", "ol", "iml", "oml", "reshape", "config", "priority", "nireq"};
+    const std::set<std::string> openVINOParams_parameters = []() {
+        std::set<std::string> res = openVINOParams_raw_parameters;
+        res.insert(opDesc_raw_parameters.begin(), opDesc_raw_parameters.end());
+
+        return res;
+    }();
+}
 
 template <>
 struct convert<OpenVINOParams> {
     static bool decode(const Node& node, OpenVINOParams& params) {
         std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        validateNodeChildren(node, set_OpenVINOParams_parameters);
+        validateNodeChildren(node, openVINOParams_parameters);
         // FIXME: Worth to separate these two
         const auto name = node["name"] ? node["name"].as<std::string>() : node["path"].as<std::string>();
         fs::path path{name};
@@ -433,12 +446,14 @@ struct convert<OpenVINOParams> {
     }
 };
 
-static const std::set<std::string> set_ONNXRTParams_OpenVINO_parameters = {"params", "device_type"};
+namespace {
+    const std::set<std::string> onnxRTParams_OpenVINO_parameters = {"params", "device_type"};
+}
 template <>
 struct convert<ONNXRTParams::OpenVINO> {
     static bool decode(const Node& node, ONNXRTParams::OpenVINO& ov_ep) {
         std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        validateNodeChildren(node, set_ONNXRTParams_OpenVINO_parameters);
+        validateNodeChildren(node, onnxRTParams_OpenVINO_parameters);
         if (node["params"]) {
             ov_ep.params_map = node["params"].as<std::map<std::string, std::string>>();
         }
@@ -455,18 +470,20 @@ struct convert<ONNXRTParams::OpenVINO> {
     }
 };
 
-static const std::set<std::string> set_ONNXRTParams_EP_parameters = []() {
-    std::set<std::string> res = {"params", "device_type"};
-    res.insert(set_ONNXRTParams_OpenVINO_parameters.begin(), set_ONNXRTParams_OpenVINO_parameters.end());
+namespace {
+    const std::set<std::string> onnxRTParams_EP_parameters = []() {
+        std::set<std::string> res = {"params", "device_type"};
+        res.insert(onnxRTParams_OpenVINO_parameters.begin(), onnxRTParams_OpenVINO_parameters.end());
 
-    return res;
-}();
+        return res;
+    }();
+}
 
 template <>
 struct convert<ONNXRTParams::EP> {
     static bool decode(const Node& node, ONNXRTParams::EP& ep) {
         std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        validateNodeChildren(node, set_ONNXRTParams_EP_parameters);
+        validateNodeChildren(node, onnxRTParams_EP_parameters);
         const auto ep_name = node["name"].as<std::string>();
         if (ep_name == "OV") {
             ep = node.as<ONNXRTParams::OpenVINO>();
@@ -477,21 +494,23 @@ struct convert<ONNXRTParams::EP> {
     }
 };
 
-static const std::set<std::string> set_InferOp_raw_parameters = {"framework", "random", "metric", "input_data", "output_data"};
-static const std::set<std::string> set_ONNXRTParams_raw_parameters = {"name", "session_options", "ep", "opt_level"};
-static const std::set<std::string> set_ONNXRTParams_parameters = []() {
-    std::set<std::string> res = set_ONNXRTParams_raw_parameters;
-    res.insert(set_OpDesc_raw_parameters.begin(), set_OpDesc_raw_parameters.end());
-    res.insert(set_InferOp_raw_parameters.begin(), set_InferOp_raw_parameters.end());
+namespace {
+    const std::set<std::string> inferOp_raw_parameters = {"framework", "random", "metric", "input_data", "output_data"};
+    const std::set<std::string> onnxRTParams_raw_parameters = {"name", "session_options", "ep", "opt_level"};
+    const std::set<std::string> onnxRTParams_parameters = []() {
+        std::set<std::string> res = onnxRTParams_raw_parameters;
+        res.insert(opDesc_raw_parameters.begin(), opDesc_raw_parameters.end());
+        res.insert(inferOp_raw_parameters.begin(), inferOp_raw_parameters.end());
 
-    return res;
-}();
+        return res;
+    }();
+}
 
 template <>
 struct convert<ONNXRTParams> {
     static bool decode(const Node& node, ONNXRTParams& params) {
         std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        validateNodeChildren(node, set_ONNXRTParams_parameters);
+        validateNodeChildren(node, onnxRTParams_parameters);
         // FIXME: Worth to separate these two
         params.model_path = node["name"] ? node["name"].as<std::string>() : node["path"].as<std::string>();
         if (node["session_options"]) {
@@ -507,18 +526,20 @@ struct convert<ONNXRTParams> {
     }
 };
 
-static const std::set<std::string> set_Network_raw_parameters = {"name", "framework", "random", "metric", "input_data", "output_data"};
-static const std::set<std::string> set_Network_parameters = []() {
-    std::set<std::string> res = set_Network_raw_parameters;
+namespace {
+    static const std::set<std::string> network_raw_parameters = {"name", "framework", "random", "metric", "input_data", "output_data"};
+    static const std::set<std::string> network_parameters = []() {
+        std::set<std::string> res = network_raw_parameters;
 
-    return res;
-}();
+        return res;
+    }();
+}
 
 template <>
 struct convert<Network> {
     static bool decode(const Node& node, Network& network) {
         std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        validateNodeChildren(node, set_Network_parameters);
+        validateNodeChildren(node, network_parameters);
         // NB: Take path stem as network tag
         // Note that at this point, it's fine if names aren't unique
         const auto name = node["name"].as<std::string>();
@@ -551,31 +572,35 @@ struct convert<Network> {
     }
 };
 
-static const std::set<std::string> set_CPUOp_parameters = {"time_in_us"};
+namespace {
+    const std::set<std::string> cpuOp_parameters = {"time_in_us"};
+}
 template <>
 struct convert<CPUOp> {
     static bool decode(const Node& node, CPUOp& op) {
         std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        validateNodeChildren(node, set_CPUOp_parameters);
+        validateNodeChildren(node, cpuOp_parameters);
         // TODO: Assert there are no more options provided
         op.time_in_us = node["time_in_us"] ? node["time_in_us"].as<uint64_t>() : 0u;
         return true;
     }
 };
-static const std::set<std::string> set_parseAdvancedStream_raw_parameters = {"name", "frames_interval_in_ms", "target_fps", "target_latency_in_ms", "exec_time_in_secs", "iteration_count", "op_desc", "connections"};
-static const std::set<std::string> set_InferOp_parameters = []() {
-    std::set<std::string> res = set_InferOp_raw_parameters;
-    res.insert(set_OpDesc_raw_parameters.begin(), set_OpDesc_raw_parameters.end());
-    res.insert(set_parseAdvancedStream_raw_parameters.begin(), set_parseAdvancedStream_raw_parameters.end());
-    res.insert(set_OpenVINOParams_raw_parameters.begin(), set_OpenVINOParams_raw_parameters.end());
-    return res;
-}();
+namespace {
+    static const std::set<std::string> parseAdvancedStream_raw_parameters = {"name", "frames_interval_in_ms", "target_fps", "target_latency_in_ms", "exec_time_in_secs", "iteration_count", "op_desc", "connections"};
+    static const std::set<std::string> inferOp_parameters = []() {
+        std::set<std::string> res = inferOp_raw_parameters;
+        res.insert(opDesc_raw_parameters.begin(), opDesc_raw_parameters.end());
+        res.insert(parseAdvancedStream_raw_parameters.begin(), parseAdvancedStream_raw_parameters.end());
+        res.insert(openVINOParams_raw_parameters.begin(), openVINOParams_raw_parameters.end());
+        return res;
+    }();
+}
 
 template <>
 struct convert<InferOp> {
     static bool decode(const Node& node, InferOp& op) {
         std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        validateNodeChildren(node, set_InferOp_parameters);
+        validateNodeChildren(node, inferOp_parameters);
         const auto framework = node["framework"] ? node["framework"].as<std::string>() : "openvino";
         if (framework == "openvino") {
             // NB: Parse OpenVINO model parameters such as path, device, precision, etc
@@ -603,19 +628,21 @@ struct convert<InferOp> {
     }
 };
 
-static const std::set<std::string> set_OpDesc_parameters = []() {
-    std::set<std::string> res = set_OpDesc_raw_parameters;
-    res.insert(set_parseAdvancedStream_raw_parameters.begin(), set_parseAdvancedStream_raw_parameters.end());
-    res.insert(set_OpenVINOParams_raw_parameters.begin(), set_OpenVINOParams_raw_parameters.end());
-    res.insert(set_Network_raw_parameters.begin(), set_Network_raw_parameters.end());
-    return res;
-}();
+namespace {
+    const std::set<std::string> opDesc_parameters = []() {
+        std::set<std::string> res = opDesc_raw_parameters;
+        res.insert(parseAdvancedStream_raw_parameters.begin(), parseAdvancedStream_raw_parameters.end());
+        res.insert(openVINOParams_raw_parameters.begin(), openVINOParams_raw_parameters.end());
+        res.insert(network_raw_parameters.begin(), network_raw_parameters.end());
+        return res;
+    }();
+}
 
 template <>
 struct convert<OpDesc> {
     static bool decode(const Node& node, OpDesc& opdesc) {
         std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        validateNodeChildren(node, set_OpDesc_parameters);
+        validateNodeChildren(node, opDesc_parameters);
         opdesc.tag = node["tag"].as<std::string>();
         auto type = node["type"] ? node["type"].as<std::string>() : "Infer";
         auto repeat_count = node["repeat_count"] ? node["repeat_count"].as<uint64_t>() : 1u;
@@ -881,17 +908,19 @@ static ScenarioGraph buildGraph(const std::vector<OpDesc>& op_descs,
     return graph;
 }
 
-static const std::set<std::string> set_parseAdvancedStream_parameters = []() {
-    std::set<std::string> res = YAML::set_parseAdvancedStream_raw_parameters;
+namespace {
+    const std::set<std::string> parseAdvancedStream_parameters = []() {
+        std::set<std::string> res = YAML::parseAdvancedStream_raw_parameters;
 
-    return res;
-}();
+        return res;
+    }();
+}
 
 static StreamDesc parseAdvancedStream(const YAML::Node& node, const GlobalOptions& opts,
                                       const std::string& default_name, const ReplaceBy& replace_by) {
     StreamDesc stream;
     std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-    validateNodeChildren(node, set_parseAdvancedStream_parameters);
+    validateNodeChildren(node, parseAdvancedStream_parameters);
     // FIXME: Create a function for the duplicate code below
     stream.name = node["name"] ? node["name"].as<std::string>() : default_name;
     stream.frames_interval_in_us = 0u;
@@ -963,13 +992,15 @@ static std::vector<StreamDesc> parseStreams(const YAML::Node& node, const Global
     return streams;
 }
 
-static const std::set<std::string> set_parseScenarios_parameters = {"name", "input_stream_list"};
+namespace {
+    const std::set<std::string> parseScenarios_parameters = {"name", "input_stream_list"};
+}
 static std::vector<ScenarioDesc> parseScenarios(const YAML::Node& node, const GlobalOptions& opts,
                                                 const ReplaceBy& replace_by) {
     std::vector<ScenarioDesc> scenarios;
     for (const auto& subnode : node) {
         std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        validateNodeChildren(subnode, set_parseScenarios_parameters);
+        validateNodeChildren(subnode, parseScenarios_parameters);
         ScenarioDesc scenario;
         scenario.name = subnode["name"] ? subnode["name"].as<std::string>()
                                         : "multi_inference_" + std::to_string(scenarios.size());
@@ -988,16 +1019,18 @@ static std::vector<ScenarioDesc> parseScenarios(const YAML::Node& node, const Gl
     return scenarios;
 }
 
-static const std::set<std::string> set_parseConfig_parameters = []() {
-    std::set<std::string> res = YAML::set_parseConfig_raw_parameters;
-    res.insert(YAML::set_GlobalOptions_parameters.begin(), YAML::set_GlobalOptions_parameters.end());
+namespace {
+    const std::set<std::string> parseConfig_parameters = []() {
+        std::set<std::string> res = YAML::parseConfig_raw_parameters;
+        res.insert(YAML::globalOptions_parameters.begin(), YAML::globalOptions_parameters.end());
 
-    return res;
-}();
+        return res;
+    }();
+}
 
 Config parseConfig(const YAML::Node& node, const ReplaceBy& replace_by) {
     std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-    validateNodeChildren(node, set_parseConfig_parameters);
+    validateNodeChildren(node, parseConfig_parameters);
     const auto global_opts = node.as<GlobalOptions>();
 
     // FIXME: Perhaps should be done somewhere else...
