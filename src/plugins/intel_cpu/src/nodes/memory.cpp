@@ -656,13 +656,8 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
         // Adopt parent configuration, avoid to insert reorder before the MemoryInput.
         std::vector<Input::InputConfig> graphInputConfig;
 
-        auto mainInputDesc = getParentOutputMemDesc(getParentEdgeAt(0));
-        auto mainInputPrc = mainInputDesc->getPrecision();  // we have to align precision across all the inputs
-
-        graphInputConfig.emplace_back(node::Input::InputConfig{mainInputDesc, true});
-
-        for (size_t i = 1; i < getParentEdges().size(); i++) {
-            auto desc = getParentOutputMemDesc(getParentEdgeAt(i))->cloneWithNewPrecision(mainInputPrc);
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
+            auto desc = getParentOutputMemDesc(getParentEdgeAt(i));
             graphInputConfig.emplace_back(node::Input::InputConfig{desc, true});
         }
 
