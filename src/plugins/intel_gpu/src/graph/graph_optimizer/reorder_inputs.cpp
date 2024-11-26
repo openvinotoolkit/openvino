@@ -1003,6 +1003,10 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
                     if (gemm_dims[0] == data_dims[0])
                         continue;
 
+                    auto data_shape = data_layout.get_shape();
+                    if (data_shape.size() && shape_size(data_shape) == 1ul)
+                        continue;
+
                     static size_t idx = 0;
                     const auto prim_id = "broadcast:" + data.id() + "_broadcasted" + std::to_string(idx++);
                     auto broadcast_prim = std::make_shared<cldnn::broadcast>(prim_id, cldnn::input_info(data.id()), gemm_layout.get_shape(),
