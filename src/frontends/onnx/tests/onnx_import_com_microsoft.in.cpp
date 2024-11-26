@@ -1432,5 +1432,5 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fusedmatmul_2x5x3x6x4_2x6x3x4x
     test_case.add_input<float>(Shape{2, 3, 5}, data_B);
     test_case.add_expected_output<float>(Shape{2, 4, 3}, expected_output);
 
-  test_case.run();
+    test_case.run();
 }
