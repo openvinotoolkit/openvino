@@ -201,13 +201,11 @@ ov::Tensor LazyTensorImpl::eval() const {
     Perhaps it should be done after model compilation and not handled here.
     */
 
-    ov::Tensor result;
-    std::visit(overloaded{[&result](const auto& op) {
-                   result = op.eval();
-                   NPUW_ASSERT(result);
-               }},
-               m_transform);
-
+    ov::Tensor result = std::visit(overloaded{[](const auto& op) {
+                                       return op.eval();
+                                   }},
+                                   m_transform);
+    NPUW_ASSERT(result);
     return result;
 }
 
