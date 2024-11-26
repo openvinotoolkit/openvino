@@ -141,7 +141,6 @@
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
 #include "transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp"
-#include "transformations/cpu_opset/common/pass/move_readvalue_inputs_to_subgraph.hpp"
 #include "transformations/cpu_opset/x64/pass/sdpa_fuse_transpose_reshape.hpp"
 
 // Snippets

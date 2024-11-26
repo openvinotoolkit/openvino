@@ -89,7 +89,6 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
         bool found_output = false;  // Flag: find Output node
 
         NodeVector subgraph_nodes;
-        std::unordered_set<std::string> subgraph_node_names;
         std::unordered_set<std::shared_ptr<ov::Node>> visited;  // Visited flag.
         NodeVector inputs = {};
         OutputVector outputs = {};
@@ -139,7 +138,6 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
 
             // Cache to subgraph_nodes
             subgraph_nodes.emplace_back(node);
-            subgraph_node_names.insert(node->get_friendly_name());
         };
 
         // Reverse DFS ReadValue, find all suitable nodes and move them to subgraph_nodes.
@@ -155,8 +153,8 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
             auto param = std::make_shared<ov::op::v0::Parameter>(inp->get_element_type(), inp->get_output_partial_shape(0));
             params.push_back(param);
             for (const auto& child : inp->get_output_target_inputs(0)) {
-                if (subgraph_node_names.find(child.get_node()->shared_from_this()->get_friendly_name()) !=
-                    subgraph_node_names.end()) {
+                auto it = std::find(subgraph_nodes.begin(), subgraph_nodes.end(), child.get_node()->shared_from_this());
+                if (it != subgraph_nodes.end()) {
                     child.replace_source_output(param);
                 }
             }
@@ -168,7 +166,6 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
         auto func = std::make_shared<Model>(ov::ResultVector({output}), params, "state_init_submodel");
 
         auto new_rv = std::make_shared<ov::intel_cpu::ReadValueWithSubgraph>(readvalue->get_variable(), func);
-        // new_rv->set_function(func);
 
         for (size_t i = 0; i < inputs.size(); i++) {
             new_rv->set_input(inputs[i]->output(0), params[i]);
