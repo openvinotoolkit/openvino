@@ -151,7 +151,7 @@ private:
                 return ov::op::util::is_constant(node);
             }) == 1);
         for (auto& op : model->get_ops()) {
-            if (mem_obj->transformed_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op)) {
+            if ((mem_obj->transformed_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op))) {
                 break;
             }
         }
