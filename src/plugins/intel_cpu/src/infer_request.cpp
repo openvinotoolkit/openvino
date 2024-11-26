@@ -159,7 +159,7 @@ std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {
 
 static inline void change_edge_ptr(const EdgePtr& edge, ov::SoPtr<ov::ITensor>& tensor) {
     auto mem = edge->getMemoryPtr();
-    OPENVINO_ASSERT(mem != nullptr, "Edge with name '", edge->name(), "' doesn't have allocated memory object.");
+    OPENVINO_ASSERT(mem != nullptr, "Edge with name '", *edge, "' doesn't have allocated memory object.");
 
     if (tensor->get_element_type() == element::string) {
         auto memBlock = dynamic_cast<StringMemory *>(mem.get())->getStringMemoryBlockPtr();
