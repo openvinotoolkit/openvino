@@ -522,7 +522,9 @@ TEST_P(BatchingRunTests, CheckTwoRunsInfer) {
     delete[] buffer;
 }
 
-TEST_P(InferRequestRunTests, CheckMultipleRunsSeq0) {
+using RunSeqTests = InferRequestRunTests;
+
+TEST_P(RunSeqTests, CheckMultipleRunsSeq0) {
     auto shape = Shape{1, 64, 64, 256};
     auto shape_size = ov::shape_size(shape);
     auto model = createModel(element::f32, shape, "N...");
@@ -579,7 +581,7 @@ TEST_P(InferRequestRunTests, CheckMultipleRunsSeq0) {
     }
 }
 
-TEST_P(InferRequestRunTests, CheckMultipleRunsSeq1) {
+TEST_P(RunSeqTests, CheckMultipleRunsSeq1) {
     auto shape = Shape{1, 64, 64, 256};
     auto shape_size = ov::shape_size(shape);
     auto model = createModel(element::f32, shape, "N...");
@@ -637,7 +639,7 @@ TEST_P(InferRequestRunTests, CheckMultipleRunsSeq1) {
     }
 }
 
-TEST_P(InferRequestRunTests, CheckMultipleRunsSeq2) {
+TEST_P(RunSeqTests, CheckMultipleRunsSeq2) {
     auto shape = Shape{1, 64, 64, 256};
     auto shape_size = ov::shape_size(shape);
     auto model = createModel(element::f32, shape, "N...");
@@ -690,7 +692,7 @@ TEST_P(InferRequestRunTests, CheckMultipleRunsSeq2) {
     ASSERT_FALSE(true) << "Exception is expected but it didn't throw any exception!";
 }
 
-TEST_P(InferRequestRunTests, CheckMultipleRunsSeq3) {
+TEST_P(RunSeqTests, CheckMultipleRunsSeq3) {
     auto shape = Shape{1, 64, 64, 256};
     auto model = createModel(element::f32, shape, "N...");
 
@@ -705,7 +707,9 @@ TEST_P(InferRequestRunTests, CheckMultipleRunsSeq3) {
                     HasSubstr("Only start async is supported when RUN_INFERENCES_SEQUENTIALLY is enabled!"));
 }
 
-TEST_P(BatchingRunTests, CheckMultipleBatchingRunsSeq) {
+using BatchingRunSeqTests = InferRequestRunTests;
+
+TEST_P(BatchingRunSeqTests, CheckMultipleBatchingRunsSeq) {
     auto shape = Shape{4, 2, 64, 64};
     auto shape_size = ov::shape_size(shape);
     auto model = createModel(element::f32, shape, "N...");
