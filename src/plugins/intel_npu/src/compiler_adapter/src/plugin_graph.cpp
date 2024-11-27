@@ -54,12 +54,8 @@ size_t PluginGraph::export_blob(std::ostream& stream) {
 
 std::vector<ov::ProfilingInfo> PluginGraph::process_profiling_output(const std::vector<uint8_t>& profData,
                                                                      const Config& config) const {
-
-    // Need to fix increased memory usage below, ov::SharedBuffer won't permit us to get underlying shared buffer as it is private
-    // Only if we work with std::vector<uint8_t> blobs, but then IGraph needs to have 2 declarations for the same blob
-    // Maybe if we templatize blob in IGraph to be either std::vector<uint8_t> or std::shared_ptr<ov::AlignedBuffer>?
     std::vector<uint8_t> blob(_blob->size());
-    blob.assign(reinterpret_cast<uint8_t*>(_blob->get_ptr()), reinterpret_cast<uint8_t*>(_blob->get_ptr()) + _blob->size());
+    blob.assign(reinterpret_cast<const uint8_t*>(_blob->get_ptr()), reinterpret_cast<const uint8_t*>(_blob->get_ptr()) + _blob->size());
     return _compiler->process_profiling_output(profData, blob, config);
 }
 

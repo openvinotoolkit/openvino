@@ -44,14 +44,16 @@ public:
 
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& stream, const ov::AnyMap& properties) const override;
 
-    std::shared_ptr<ov::ICompiledModel> import_model(std::shared_ptr<ov::AlignedBuffer> model_buffer,
-                                                    const ov::AnyMap& properties) const override;
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& /* unusedStream */,
+                                                     std::shared_ptr<ov::AlignedBuffer> model_buffer,
+                                                     const ov::AnyMap& properties) const override;
 
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& stream,
                                                      const ov::SoPtr<ov::IRemoteContext>& context,
                                                      const ov::AnyMap& properties) const override;
 
-    std::shared_ptr<ov::ICompiledModel> import_model(std::shared_ptr<ov::AlignedBuffer> model_buffer,
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& stream,
+                                                     std::shared_ptr<ov::AlignedBuffer> model_buffer,
                                                      const ov::SoPtr<ov::IRemoteContext>& context,
                                                      const ov::AnyMap& properties) const override;
 
