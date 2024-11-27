@@ -30,7 +30,7 @@ from openvino.runtime.op.util import VariableInfo, Variable
 from tests.utils.helpers import (
     generate_add_model,
     generate_model_with_memory,
-    create_filename_for_test,
+    create_filenames_for_ir,
 )
 
 
@@ -618,7 +618,7 @@ def test_serialize_rt_info(request, tmp_path):
             assert model.get_rt_info(["optimization", "test"])
 
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
     input_shape = PartialShape([1])
     param = ops.parameter(input_shape, dtype=np.float32, name="data")
     relu1 = ops.relu(param, name="relu1")
@@ -701,7 +701,7 @@ def test_serialize_complex_rt_info(request, tmp_path):
             assert rt_info_val in ["float_empty", "nodes", "type", "directed"]
 
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
     input_shape = PartialShape([1])
     param = ops.parameter(input_shape, dtype=np.float32, name="data")
     relu1 = ops.relu(param, name="relu1")
