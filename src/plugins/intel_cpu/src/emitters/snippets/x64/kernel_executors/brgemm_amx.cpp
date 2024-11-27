@@ -21,7 +21,7 @@ namespace ov {
 namespace intel_cpu {
 
 BrgemmAMXKernelConfig::BrgemmAMXKernelConfig(const element::Type& in0_dtype, const element::Type& in1_dtype, dnnl::impl::cpu::x64::cpu_isa_t primitive_isa)
-    : BrgemmBaseKernelConfig(std::make_shared<StaticParams>(in0_dtype, in1_dtype, primitive_isa)) {
+    : BrgemmBaseKernelConfig(), m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype, primitive_isa)) {
     m_hash = compute_hash();
 }
 
@@ -38,6 +38,10 @@ size_t BrgemmAMXKernelConfig::StaticParams::compute_hash() const {
     size_t seed = StaticBaseParams::compute_hash();
     seed = hash_combine(seed, inner_k_blk);
     return hash_combine(seed, vnni_factor);
+}
+
+bool BrgemmAMXKernelConfig::need_copy_a(dnnl_dim_t K) const {
+    return K % get_vnni_factor() > 0;
 }
 
 #ifdef SNIPPETS_DEBUG_CAPS
@@ -73,13 +77,15 @@ std::shared_ptr<BrgemmAMXCompiledKernel> BrgemmAMXKernelExecutor::compile_kernel
     }
 
     if (K_tail != 0) {
-        K_tail = ov::snippets::utils::rnd_up(K_tail, config.get_vnni_factor());
+        auto LDA = config.get_LDA();
+        if (config.need_copy_a(K_tail)) {
+            const auto copy_A_src_stride = LDA * dnnl_data_type_size(config.get_dt_in0());
+            K_tail = ov::snippets::utils::rnd_up(K_tail, config.get_vnni_factor());
+            LDA = K_tail;
 
-        const auto copy_A_src_stride = config.get_LDA() * dnnl_data_type_size(config.get_dt_in0());
-        const auto LDA = config.get_inner_K_blk();
-
-        create_brgemm_copy_a_kernel(compiled_kernel->brgemm_copy_a_kernel, config.get_isa(), config.get_dt_in0(),
-                                    config.get_K(), config.get_inner_K_blk(), K_tail, copy_A_src_stride, LDA);
+            create_brgemm_copy_a_kernel(compiled_kernel->brgemm_copy_a_kernel, config.get_isa(), config.get_dt_in0(),
+                                        config.get_K(), config.get_inner_K_blk(), K_tail, copy_A_src_stride, LDA);
+        }
 
         create_brgemm_kernel(compiled_kernel->brgemm_kernel_k_tail, config.get_dt_in0(), config.get_dt_in1(), config.get_isa(),
                              config.get_M(), config.get_N(), K_tail, LDA, config.get_LDB(), config.get_LDC(), beta,
@@ -155,9 +161,9 @@ void BrgemmAMXKernelExecutor::execute(const BrgemmAMXKernelExecutor* executor, c
     const auto& config = static_cast<const BrgemmAMXKernelConfig&>(executor->get_config());
     OV_CPU_JIT_EMITTER_ASSERT(kernel, "has nullptr compiler kernel or invalid config");
 
-    const uint8_t* src_ptr = reinterpret_cast<const uint8_t*>(args->A);
-    const uint8_t* wei_ptr = reinterpret_cast<const uint8_t*>(args->B);
-    uint8_t* scratch = reinterpret_cast<uint8_t*>(args->scratch);
+    const auto* src_ptr = args->A;
+    const auto* wei_ptr = args->B;
+    auto* scratch = args->scratch;
 
     const auto K_tail = config.get_K() % config.get_inner_K_blk();
     const auto K_body = config.get_K() - K_tail;
@@ -171,12 +177,15 @@ void BrgemmAMXKernelExecutor::execute(const BrgemmAMXKernelExecutor* executor, c
     }
 
     if (K_tail != 0) {
-        uint8_t* tr_src = scratch + BrgemmCPU::SCRATCH_BYTE_SIZE;
+        if (config.need_copy_a(K_tail)) {
+            auto* tr_src = scratch + BrgemmCPU::SCRATCH_BYTE_SIZE;
 
-        execute_brgemm_copy_a_kernel(kernel->brgemm_copy_a_kernel, src_ptr, tr_src, config.get_M(), K_tail);
+            execute_brgemm_copy_a_kernel(kernel->brgemm_copy_a_kernel, src_ptr, tr_src, config.get_M(), K_tail);
+            src_ptr = tr_src;
+        }
 
         configure_tiles_if_needed(args->amx_tile_config, kernel->palette_tail, config.get_M(), config.get_N(), K_tail);
-        execute_brgemm_kernel(kernel->brgemm_kernel_k_tail, tr_src, wei_ptr, args->C, scratch, false);
+        execute_brgemm_kernel(kernel->brgemm_kernel_k_tail, src_ptr, wei_ptr, args->C, scratch, false);
     }
 }
 

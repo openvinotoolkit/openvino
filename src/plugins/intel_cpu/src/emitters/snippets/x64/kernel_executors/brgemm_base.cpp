@@ -19,14 +19,10 @@ using namespace dnnl::impl::cpu::x64;
 namespace ov {
 namespace intel_cpu {
 
-BrgemmBaseKernelConfig::BrgemmBaseKernelConfig(std::shared_ptr<StaticBaseParams> static_params)
-    : m_static_params(std::move(static_params)) {
-    m_hash = compute_hash();
-}
-
 bool BrgemmBaseKernelConfig::is_completed() const {
     return !utils::one_of(0, m_M, m_N, m_K, m_LDA, m_LDB, m_LDC) || is_empty();
 }
+
 bool BrgemmBaseKernelConfig::is_empty() const {
     return everyone_is(0, m_M, m_N, m_K, m_LDA, m_LDB, m_LDC, m_beta);
 }
@@ -36,7 +32,7 @@ bool BrgemmBaseKernelConfig::operator==(const BrgemmBaseKernelConfig& rhs) const
     return EQ(m_hash) && EQ(m_beta) &&
            EQ(m_M) && EQ(m_N) && EQ(m_K) &&
            EQ(m_LDA) && EQ(m_LDB) && EQ(m_LDC) &&
-           (EQ(m_static_params.get()) || *m_static_params == *(rhs.m_static_params));
+           (EQ(get_static_params().get()) || *get_static_params() == *(rhs.get_static_params()));
 #undef EQ
 }
 
@@ -56,7 +52,7 @@ void BrgemmBaseKernelConfig::update(dnnl_dim_t M, dnnl_dim_t N, dnnl_dim_t K, dn
 }
 
 size_t BrgemmBaseKernelConfig::compute_hash() const {
-    size_t seed = m_static_params->hash();
+    size_t seed = get_static_params()->hash();
 #define HASH(X) seed = hash_combine(seed, X)
     HASH(m_M); HASH(m_N); HASH(m_K);
     HASH(m_LDA); HASH(m_LDB); HASH(m_LDC);
@@ -94,7 +90,7 @@ std::string BrgemmBaseKernelConfig::StaticBaseParams::to_string() const {
 
 std::string BrgemmBaseKernelConfig::to_string() const {
     std::stringstream ss;
-    ss << m_static_params->to_string() << "\n";
+    ss << get_static_params()->to_string() << "\n";
     PRINT(m_M); PRINT(m_N); PRINT(m_K);
     PRINT(m_LDA); PRINT(m_LDB); PRINT(m_LDC);
     PRINT(m_beta);

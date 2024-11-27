@@ -17,7 +17,7 @@
 namespace ov {
 namespace intel_cpu {
 
-struct BrgemmAMXKernelConfig : public snippets::KernelExecutorBase::GenericConfig, public BrgemmBaseKernelConfig {
+struct BrgemmAMXKernelConfig : public BrgemmBaseKernelConfig {
 public:
     BrgemmAMXKernelConfig(const element::Type& in0_dtype, const element::Type& in1_dtype, dnnl::impl::cpu::x64::cpu_isa_t primitive_isa);
     BrgemmAMXKernelConfig() = delete;
@@ -26,17 +26,10 @@ public:
         return std::unique_ptr<BrgemmAMXKernelConfig>(new BrgemmAMXKernelConfig(*this));
     }
 
-    bool is_completed() const override { return BrgemmBaseKernelConfig::is_completed(); }
-    size_t hash() const override { return BrgemmBaseKernelConfig::hash(); }
+    dnnl_dim_t get_inner_K_blk() const { return m_static_params->inner_k_blk; }
+    dnnl_dim_t get_vnni_factor() const { return m_static_params->vnni_factor; }
 
-    void update(dnnl_dim_t M, dnnl_dim_t N, dnnl_dim_t K, dnnl_dim_t LDA, dnnl_dim_t LDB, dnnl_dim_t LDC, float beta);
-
-    dnnl_dim_t get_inner_K_blk() const { return std::static_pointer_cast<StaticParams>(m_static_params)->inner_k_blk; }
-    dnnl_dim_t get_vnni_factor() const { return std::static_pointer_cast<StaticParams>(m_static_params)->vnni_factor; }
-
-#ifdef SNIPPETS_DEBUG_CAPS
-    std::string to_string() const override { return BrgemmBaseKernelConfig::to_string(); }
-#endif
+    bool need_copy_a(dnnl_dim_t K) const;
 
 private:
     struct StaticParams : StaticBaseParams {
@@ -57,6 +50,10 @@ private:
 
         const size_t m_hash {0};
     };
+
+    std::shared_ptr<StaticBaseParams> get_static_params() const override { return m_static_params; }
+
+    std::shared_ptr<StaticParams> m_static_params {nullptr};
 };
 
 struct BrgemmAMXCompiledKernel {
@@ -73,10 +70,10 @@ class BrgemmAMXKernelExecutor : public BrgemmBaseKernelExecutor,
                                 public CPUKernelExecutor<BrgemmAMXKernelConfig, BrgemmAMXCompiledKernel> {
 public:
     struct call_args {
-        const void* A = nullptr;
-        const void* B = nullptr;
+        const uint8_t* A = nullptr;
+        const uint8_t* B = nullptr;
         void* C = nullptr;
-        void* scratch = nullptr;
+        uint8_t* scratch = nullptr;
         amx_tile_config_t* amx_tile_config = nullptr;
     };
     BrgemmAMXKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, BrgemmAMXKernelConfig config);

@@ -9,24 +9,17 @@
 namespace ov {
 namespace intel_cpu {
 
-struct BrgemmKernelConfig : public snippets::KernelExecutorBase::GenericConfig, BrgemmBaseKernelConfig {
+struct BrgemmKernelConfig : public BrgemmBaseKernelConfig {
 public:
     BrgemmKernelConfig(const element::Type& in0_dtype, const element::Type& in1_dtype,
                        bool is_with_comp, dnnl::impl::cpu::x64::cpu_isa_t primitive_isa);
     BrgemmKernelConfig() = delete;
 
-    std::unique_ptr<GenericConfig> get_clone_ptr() const override {
-        return std::unique_ptr<BrgemmKernelConfig>( new BrgemmKernelConfig(*this));
+    std::unique_ptr<snippets::KernelExecutorBase::GenericConfig> get_clone_ptr() const override {
+        return std::unique_ptr<BrgemmKernelConfig>(new BrgemmKernelConfig(*this));
     }
 
-    bool is_completed() const override { return BrgemmBaseKernelConfig::is_completed(); }
-    size_t hash() const override { return BrgemmBaseKernelConfig::hash(); }
-
-    bool is_with_comp() const { return std::static_pointer_cast<StaticParams>(m_static_params)->is_with_comp; }
-
-#ifdef SNIPPETS_DEBUG_CAPS
-    std::string to_string() const override { return BrgemmBaseKernelConfig::to_string(); }
-#endif
+    bool is_with_comp() const { return m_static_params->is_with_comp; }
 
 private:
     struct StaticParams : StaticBaseParams {
@@ -46,6 +39,10 @@ private:
 
         const size_t m_hash {0};
     };
+
+    std::shared_ptr<StaticBaseParams> get_static_params() const override { return m_static_params; }
+
+    std::shared_ptr<StaticParams> m_static_params {nullptr};
 };
 
 struct BrgemmCompiledKernel {

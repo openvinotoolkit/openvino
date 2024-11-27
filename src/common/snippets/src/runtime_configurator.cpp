@@ -230,7 +230,8 @@ void RuntimeConfigurator::update_loop_info(const lowered::LinearIRCPtr& linear_i
 
 void RuntimeConfigurator::update_buffer_scratchpad_size(const lowered::LinearIRCPtr& linear_ir) const {
     const auto& loop_manager = linear_ir->get_loop_manager();
-    m_config->buffer_scratchpad_size = linear_ir->get_static_buffer_scratchpad_size();
+    // Align initial buffer scratchpad size with cache line size
+    m_config->buffer_scratchpad_size = utils::rnd_up(linear_ir->get_static_buffer_scratchpad_size(), lowered::pass::SolveBufferMemory::byte_alignment);
 
     auto is_not_executed = [&loop_manager](const lowered::ExpressionPtr& buffer_expr) {
         const auto& loop_ids = buffer_expr->get_loop_ids();

@@ -22,7 +22,7 @@ namespace intel_cpu {
 
 BrgemmKernelConfig::BrgemmKernelConfig(const element::Type& in0_dtype, const element::Type& in1_dtype,
                                        bool is_with_comp, dnnl::impl::cpu::x64::cpu_isa_t primitive_isa)
-    : BrgemmBaseKernelConfig(std::make_shared<StaticParams>(in0_dtype, in1_dtype, is_with_comp, primitive_isa)) {
+    : BrgemmBaseKernelConfig(), m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype, is_with_comp, primitive_isa)) {
     m_hash = compute_hash();
 }
 

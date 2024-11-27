@@ -20,7 +20,7 @@ namespace pass {
 class InsertBrgemmCopyBuffers: public snippets::lowered::pass::RangedPass {
 public:
     InsertBrgemmCopyBuffers() = default;
-    OPENVINO_RTTI("InsertBrgemmCopyBuffers", "Pass");
+    OPENVINO_RTTI("InsertBrgemmCopyBuffers", "0", snippets::lowered::pass::RangedPass);
     bool run(snippets::lowered::LinearIR& linear_ir, snippets::lowered::LinearIR::constExprIt begin, snippets::lowered::LinearIR::constExprIt end) override;
 };
 
