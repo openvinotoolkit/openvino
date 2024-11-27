@@ -51,6 +51,41 @@ def patch_gptq():
         GPTQQuantizer.post_init_model = post_init_model
     except ImportError:
         pass
+
+    try:
+        # patch GEMM module to work without CUDA GPU
+        from awq.modules.linear.gemm import WQLinearMMFunction
+        from awq.utils.packing_utils import dequantize_gemm
+
+        def new_forward(
+            ctx,
+            x,
+            qweight,
+            qzeros,
+            scales,
+            w_bit=4,
+            group_size=128,
+            bias=None,
+            out_features=0,
+        ):
+            ctx.out_features = out_features
+
+            out_shape = x.shape[:-1] + (out_features,)
+            x = x.to(torch.float16)
+
+            out = dequantize_gemm(qweight, qzeros, scales, w_bit, group_size)
+            out = torch.matmul(x, out)
+
+            out = out + bias if bias is not None else out
+            out = out.reshape(out_shape)
+
+            if len(out.shape) == 2:
+                out = out.unsqueeze(0)
+            return out
+
+        WQLinearMMFunction.forward = new_forward
+    except ImportError:
+        pass
     return (orig_cuda_is_available, orig_cuda_is_bf16_supported, orig_cuda_get_device_capability), orig_post_init_model
 
 
@@ -243,6 +278,7 @@ class TestLLMModel(TestTorchConvertModel):
         pytest.param("llama3_gptq", "TechxGenus/Meta-Llama-3-8B-GPTQ",
                      marks=pytest.mark.xfail(reason="GPTQ QUANT_TYPE=cuda is not supported")),
         ("qwen2_awq", "Qwen/Qwen2.5-Coder-32B-Instruct-AWQ"),
+        ("mixstral_awq", "TheBloke/SauerkrautLM-Mixtral-8x7B-AWQ"),
     ])
     def test_convert_model_very_large(self, name, type, ie_device):
         self.run(model_name=name, model_link=type, ie_device=ie_device)
