@@ -114,6 +114,9 @@ ov::Tensor Bank::eval_and_alloc(const LazyTensor& tensor, Bank::DeviceBank &dban
         return transformed_tensor;
     }
 
+    // Non-CPU case: detach the evaluated LazyTensor from its memory
+    const_cast<LazyTensor&>(tensor).detach();
+
     ov::SoPtr<ov::ITensor> remote_tensor;
     ov::Tensor allocated_tensor;
 
@@ -122,7 +125,7 @@ ov::Tensor Bank::eval_and_alloc(const LazyTensor& tensor, Bank::DeviceBank &dban
         remote_ctx->create_host_tensor(transformed_tensor.get_element_type(), transformed_tensor.get_shape());
     allocated_tensor = ov::make_tensor(remote_tensor);
     dbank.storage[tensor] = allocated_tensor;
-    guard.unlock();
+    guard.unlock(); // Unlock the guard, map update is done - copy can continue in parallel
 
     transformed_tensor.copy_to(allocated_tensor);
     return allocated_tensor;
@@ -136,25 +139,6 @@ bool Bank::is_remote(const LazyTensor& tensor) const {
         return true;
     }
     return false;
-}
-
-void Bank::detach() {
-    std::lock_guard<std::mutex> guard(m_mutex);
-    for (auto&& bank : m_device_banks) {
-        auto& device_bank = bank.second;
-
-        // FIXME: Uncomment it later (after the CPU copy revert)
-        // const auto &device_str = bank.first;
-        // if (device_str == "CPU") {
-        //     // CPU memory is non-detachable
-        //     continue;
-        // }
-
-        std::lock_guard<std::mutex> dev_guard(device_bank.mutex);
-        for (auto &&lt : device_bank.storage) {
-            const_cast<LazyTensor&>(lt.first).detach();
-        }
-    }
 }
 
 std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name,

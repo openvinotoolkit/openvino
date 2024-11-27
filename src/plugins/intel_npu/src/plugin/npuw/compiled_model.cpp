@@ -515,7 +515,6 @@ void ov::npuw::CompiledModel::detach_memory() {
             // proto_comp_model_desc.compiled_model = {}; // Shouldn't be here, CPU only
         }
     }
-    m_weights_bank->detach();
     LOG_INFO("Done");
 }
 
