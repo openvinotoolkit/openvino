@@ -41,8 +41,7 @@ Group::Group(size_t gid,
     : m_nh(std::move(nh)),
       m_id(gid),
       m_graph(g),
-      m_snapshot(snapshot) {
-}
+      m_snapshot(snapshot) {}
 
 // Include Parameters, Outputs, Converts, etc to content's layers for proper linking at the plugin level
 void Group::includeExtraLayers(detail::OVNodeSet& input_layers,

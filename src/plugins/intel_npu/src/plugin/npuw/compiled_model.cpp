@@ -507,7 +507,7 @@ void ov::npuw::CompiledModel::detach_memory() {
         auto& comp_model_desc = m_compiled_submodels[idx];
         auto& proto_comp_model_desc = m_compiled_submodels[comp_model_desc.replaced_by.value_or(idx)];
         if (!proto_comp_model_desc.model || !proto_comp_model_desc.compiled_model) {
-            continue; // optimized-out OR already cleared - skip
+            continue;  // optimized-out OR already cleared - skip
         }
         if (proto_comp_model_desc.device_it + 1 == m_dev_list.end()) {
             LOG_INFO("No fallback expected - clear the OV model for Subgraph[" << idx << "]");

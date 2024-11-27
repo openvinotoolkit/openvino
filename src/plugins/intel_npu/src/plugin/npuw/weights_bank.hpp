@@ -42,7 +42,7 @@ private:
     };
     std::unordered_map<std::string, DeviceBank> m_device_banks;
 
-    ov::Tensor eval_and_alloc(const LazyTensor& tensor, DeviceBank &dbank, const std::string& device);
+    ov::Tensor eval_and_alloc(const LazyTensor& tensor, DeviceBank& dbank, const std::string& device);
 
     std::mutex m_mutex;
     std::shared_ptr<const ov::ICore> m_core = nullptr;

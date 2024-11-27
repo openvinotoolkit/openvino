@@ -22,10 +22,9 @@ struct Const {
     std::shared_ptr<ov::op::v0::Constant> m_node;
     ov::element::Type m_cached_type;
     ov::Shape m_cached_shape;
-    const void *m_cached_ptr = nullptr;
+    const void* m_cached_ptr = nullptr;
 
-    explicit Const(std::shared_ptr<ov::op::v0::Constant> n)
-        : m_node(n) {
+    explicit Const(std::shared_ptr<ov::op::v0::Constant> n) : m_node(n) {
         m_cached_type = m_node->get_element_type();
         m_cached_shape = m_node->get_shape();
         m_cached_ptr = m_node->get_data_ptr();
@@ -39,8 +38,7 @@ struct Const {
         return seed;
     }
     bool operator==(const Const& other) const {
-        return (m_cached_type == other.m_cached_type &&
-                m_cached_shape == other.m_cached_shape &&
+        return (m_cached_type == other.m_cached_type && m_cached_shape == other.m_cached_shape &&
                 m_cached_ptr == other.m_cached_ptr);
     }
     ov::Tensor eval() const {
@@ -73,7 +71,7 @@ struct Concat {
         return ov::npuw::util::concat(to_concat, axis);
     }
     void detach() {
-        for (auto &&lt : tensors) {
+        for (auto&& lt : tensors) {
             lt.detach();
         }
     }
@@ -196,9 +194,11 @@ template <class... Ts>
 overloaded(Ts...) -> overloaded<Ts...>;
 
 LazyTensorImpl::LazyTensorImpl(Transform&& t)
-    : m_transform(std::move(t))
-    , m_hash(std::visit(overloaded{[](const auto& op) { return op.hash(); }}, m_transform)) {
-}
+    : m_transform(std::move(t)),
+      m_hash(std::visit(overloaded{[](const auto& op) {
+                            return op.hash();
+                        }},
+                        m_transform)) {}
 
 bool LazyTensorImpl::operator==(const LazyTensorImpl& other) const {
     return m_hash == other.m_hash && m_transform == other.m_transform;
@@ -214,7 +214,10 @@ ov::Tensor LazyTensorImpl::eval() const {
     some kind of indicator that the only difference is concat and we should look for an existing ov::Tensor.
     Perhaps it should be done after model compilation and not handled here.
     */
-    return std::visit(overloaded{[](const auto& op) { return op.eval(); }}, m_transform);
+    return std::visit(overloaded{[](const auto& op) {
+                          return op.eval();
+                      }},
+                      m_transform);
 }
 
 std::size_t LazyTensorImpl::get_hash() const {
@@ -222,7 +225,10 @@ std::size_t LazyTensorImpl::get_hash() const {
 }
 
 void LazyTensorImpl::detach() {
-    std::visit(overloaded{[](auto& op) { op.detach(); }}, m_transform);
+    std::visit(overloaded{[](auto& op) {
+                   op.detach();
+               }},
+               m_transform);
 }
 
 LazyTensor::LazyTensor(const std::shared_ptr<ov::op::v0::Constant>& const_ptr)

@@ -142,8 +142,8 @@ Impl<M> _(std::shared_ptr<M> pM) {
 }  // namespace at
 
 // Written here to be a drop-in replacement for ov::parallel_for for the debug purposes
-template<typename F>
-void non_parallel_for(std::size_t count, F &&f) {
+template <typename F>
+void non_parallel_for(std::size_t count, F&& f) {
     for (std::size_t idx = 0u; idx < count; idx++) {
         f(idx);
     }

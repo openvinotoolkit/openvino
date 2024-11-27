@@ -94,7 +94,9 @@ void Bank::evaluate_and_allocate() {
     }
 }
 
-ov::Tensor Bank::eval_and_alloc(const LazyTensor& tensor, Bank::DeviceBank &dbank, const std::string& device_for_alloc) {
+ov::Tensor Bank::eval_and_alloc(const LazyTensor& tensor,
+                                Bank::DeviceBank& dbank,
+                                const std::string& device_for_alloc) {
     // Evaluate concurrently (see evaluate_and_allocate), lock the device
     // mutex only to update the device bank (& allocate on-device memory, if needed)
     const auto& transformed_tensor = tensor.eval();
@@ -116,7 +118,7 @@ ov::Tensor Bank::eval_and_alloc(const LazyTensor& tensor, Bank::DeviceBank &dban
         remote_ctx->create_host_tensor(transformed_tensor.get_element_type(), transformed_tensor.get_shape());
     allocated_tensor = ov::make_tensor(remote_tensor);
     dbank.storage[tensor] = allocated_tensor;
-    guard.unlock(); // Unlock the guard, map update is done - copy can continue in parallel
+    guard.unlock();  // Unlock the guard, map update is done - copy can continue in parallel
 
     transformed_tensor.copy_to(allocated_tensor);
     return allocated_tensor;
