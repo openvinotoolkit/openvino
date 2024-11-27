@@ -4,6 +4,7 @@
 
 import openvino
 
+
 # Creates a new file with a given name, populates it with data from a given Constant,
 # returns a new Constant node with content memory-mapped to that file.
 # Doesn't remove the file in the end of the returned Constant's life time.

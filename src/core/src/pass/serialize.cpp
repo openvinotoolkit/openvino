@@ -18,8 +18,8 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/float16.hpp"
-#include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/util/framework_node.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/reference/convert.hpp"
@@ -101,7 +101,8 @@ public:
                        size_t& new_size,
                        bool compress_to_fp16 = false,
                        ov::element::Type src_type = ov::element::dynamic,
-                       bool ptr_is_temporary = false) {  // when true, do not rely on ptr after this function call, data is temporary allocated
+                       bool ptr_is_temporary = false) {  // when true, do not rely on ptr after this function call, data
+                                                         // is temporary allocated
         const FilePosition write_pos = m_binary_output.tellp();
         const auto offset = write_pos - m_blob_offset;
         new_size = size;
@@ -141,10 +142,10 @@ public:
                     return it->second.first;
                 }
             }
-            
-            if(!ptr_is_temporary) {
-                // Since fp16_compressed data will be disposed at exit point and since we cannot reread it from the ostream,
-                // we store pointer to the original uncompressed blob.
+
+            if (!ptr_is_temporary) {
+                // Since fp16_compressed data will be disposed at exit point and since we cannot reread it from the
+                // ostream, we store pointer to the original uncompressed blob.
                 m_hash_to_file_positions.insert({hash, {offset, static_cast<void const*>(ptr)}});
             }
             if (m_write_hash_value) {
@@ -541,12 +542,13 @@ public:
                     a2->get_header(header_ptr, header_size);
                 }
 
-                int64_t offset = m_constant_write_handler.write(reinterpret_cast<const char*>(header_ptr.get()),
-                                                                header_size,
-                                                                inter_size,
-                                                                m_compress_to_fp16,
-                                                                m_output_element_type,
-                                                                true); // header_ptr is allocated in AttributeAdapter that has limited life time
+                int64_t offset = m_constant_write_handler.write(
+                    reinterpret_cast<const char*>(header_ptr.get()),
+                    header_size,
+                    inter_size,
+                    m_compress_to_fp16,
+                    m_output_element_type,
+                    true);  // header_ptr is allocated in AttributeAdapter that has limited life time
                 new_size += inter_size;
 
                 // write raw strings part
@@ -901,15 +903,14 @@ public:
     }
 };
 
-// Substiture a Constant node instead of a node by calling node->constant_fold if 'postponed_constant' rt_info attribute is present in the node
+// Substiture a Constant node instead of a node by calling node->constant_fold if 'postponed_constant' rt_info attribute
+// is present in the node
 class PostponedConstantReplacer {
 private:
-
     ov::Node* m_node;
     std::shared_ptr<ov::Node> m_constant;
 
 public:
-
     ov::Node* get_node() {
         return m_node;
     }
@@ -919,10 +920,12 @@ public:
     }
 
     PostponedConstantReplacer(ov::Node* node) : m_node(node) {
-        if(node->get_rt_info().count("postponed_constant")) {
+        if (node->get_rt_info().count("postponed_constant")) {
             OPENVINO_ASSERT(node->get_output_size() == 1);
             ov::OutputVector outputs(1);
-            OPENVINO_ASSERT(node->constant_fold(outputs, node->input_values()), "Node with set `postponed_constant` attribute cannot be fold to constant when saving model to IR file");
+            OPENVINO_ASSERT(
+                node->constant_fold(outputs, node->input_values()),
+                "Node with set `postponed_constant` attribute cannot be fold to constant when saving model to IR file");
             m_constant = outputs[0].get_node_shared_ptr();
             m_node = m_constant.get();
         }

@@ -6,6 +6,7 @@ import openvino
 
 """Postponed Constant is a way to materialize a big constant only when it is going to be serialized to IR and then immediately dispose."""
 
+
 # `maker` is a function that returns ov.Tensor that represents a target Constant
 def make_postponed_constant(element_type, shape, maker):
     class PostponedConstant(openvino.Op):
@@ -13,7 +14,7 @@ def make_postponed_constant(element_type, shape, maker):
 
         def __init__(self):
             super().__init__(self)
-            self.get_rt_info()['postponed_constant'] = True  # value doesn't matter
+            self.get_rt_info()["postponed_constant"] = True  # value doesn't matter
             self.m_element_type = element_type
             self.m_shape = shape
             self.constructor_validate_and_infer_types()
