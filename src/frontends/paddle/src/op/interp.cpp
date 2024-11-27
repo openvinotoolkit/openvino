@@ -3,6 +3,7 @@
 //
 
 #include "default_opset.hpp"
+#include "openvino/opsets/opset4.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
 namespace ov {
@@ -147,7 +148,7 @@ static NamedOutputs interpolate(const NodeContext& node,
     attrs.pads_begin = {0, 0, 0, 0};
     attrs.pads_end = {0, 0, 0, 0};
 
-    return node.default_single_output_mapping({std::make_shared<Interpolate>(x, target_spatial_shape, scales, attrs)},
+    return node.default_single_output_mapping({std::make_shared<ov::opset4::Interpolate>(x, target_spatial_shape, scales, attrs)},
                                               {"Out"});
 }
 
