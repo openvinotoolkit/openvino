@@ -142,7 +142,15 @@ namespace {
             const auto key = nodeChild.first.as<std::string>();
             if (supportedKeys.find(key) == supportedKeys.end()) {
                 const auto mark = node[key].Mark();
-                THROW_ERROR("Unsupported node: '" << key << "' at line " << mark.line << " column: " << mark.column);
+                std::stringstream ss;
+                ss << "Unsupported node: '" << key << "' at line " << mark.line << " column: " << mark.column <<".";
+                ss << " Following nodes are known at this stage: [";
+                for (const auto& supportedKey : supportedKeys) { 
+                    ss << "\"" << supportedKey << "\"";
+                    if (supportedKey != *supportedKeys.rbegin()) ss << ", ";
+                }
+                ss << "].";
+                THROW_ERROR(ss.str());
             }
         }
     }
