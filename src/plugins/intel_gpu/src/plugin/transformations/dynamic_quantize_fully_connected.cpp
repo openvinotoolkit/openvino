@@ -21,8 +21,9 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
     : ov::pass::MatcherPass() {
     GPU_DEBUG_GET_INSTANCE(debug_config);
     using namespace ov::pass::pattern;
-
     auto is_dynamic = [](const ov::Output<ov::Node>& output) -> bool {
+        // Please remove this function
+        return true;
         bool is_dynamic = output.get_node_shared_ptr()->get_output_partial_shape(0).is_dynamic();
         size_t num_inputs = output.get_node_shared_ptr()->get_input_size();
         for (size_t idx = 0; idx < num_inputs; idx++) {

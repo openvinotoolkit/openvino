@@ -14,7 +14,8 @@ static std::pair<size_t, size_t> get_input_bf_size(const dynamic_quantize_params
     size_t input_f = params.inputs[0].Feature().v;
     size_t input_batch = params.inputs[0].Batch().v;
     // 3D input
-    if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
+    // FIXME: how to check 2d tensor properly?
+    if (params.outputs[0].GetLayout() == DataLayout::bfyx && params.inputs[0].X().v * params.inputs[0].Y().v != 1) {
         input_f = params.inputs[0].Y().v * params.inputs[0].X().v;
         input_batch = params.inputs[0].Batch().v * params.inputs[0].Feature().v;
     }
@@ -30,9 +31,12 @@ static std::pair<size_t, size_t> get_input_bf_size(const dynamic_quantize_params
 
 static size_t get_match_vector_size(const dynamic_quantize_params& params) {
     auto block_sizes = { 8, 4, 2 };
+    auto bf = get_input_bf_size(params);
+    auto f = bf.second;
 
+    // FIXME: please implement test case with 2d, 3d, 4d tensors
     for (auto block_size : block_sizes) {
-        if (((params.inputs[0].X().v * params.inputs[0].Y().v) / simd) % block_size == 0) {
+        if ((f / simd) % block_size == 0) {
             return block_size;
         }
     }
@@ -71,6 +75,7 @@ JitConstants DynamicQuantizeKernelOpt::GetJitConstants(const dynamic_quantize_pa
     jit.AddConstant(MakeJitConstant("BLOCK_NUM", block_num));
     jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", params.group_sizes.back()));
     jit.AddConstant(MakeJitConstant("ASYMMETRIC_QUANTIZATION", params.use_asymmetric_quantization));
+    jit.AddConstant(MakeJitConstant("IS_2D", params.inputs[0].X().v * params.inputs[0].Y().v == 1 ? 1 : 0));
     jit.Merge(GetTensorFriendlyWorkGroupsJit(params.outputs[0]));
 
     return jit;
@@ -156,8 +161,9 @@ bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {
     const auto& dq_params = static_cast<const dynamic_quantize_params&>(params);
 
     // Todo : Add proper exception here
-    if (((dq_params.inputs[0].X().v * dq_params.inputs[0].Y().v) % (simd * 2)) != 0)
-        return false;
+    // FIXME: when input is 2d, both X and Y will be 1.
+    // if (((dq_params.inputs[0].X().v * dq_params.inputs[0].Y().v) % (simd * 2)) != 0)
+    //     return false;
 
     if (dq_params.inputs[0].GetPaddedVal() != 0 || dq_params.outputs[0].GetPaddedVal() != 0)
         return false;

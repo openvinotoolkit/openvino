@@ -29,13 +29,21 @@ KERNEL(dynamic_quantize_gpu_opt)(
     __global OUTPUT_TYPE* output,
     __global OUTPUT1_TYPE* output_scale
     ) {
+
+#if IS_2D
+    const uint b = get_global_id(0);
+    const uint f_grp = get_global_id(1);
+    const uint input_offset = INPUT0_GET_INDEX(b, f_grp * QUANTIZE_GROUP_SIZE, 0, 0);
+    const uint output_offset = OUTPUT_GET_INDEX(b, f_grp * QUANTIZE_GROUP_SIZE, 0, 0);
+#else
     const uint bf = get_global_id(0);
     const uint b = bf / INPUT0_FEATURE_NUM;
     const uint f = bf % INPUT0_FEATURE_NUM;
     const uint y_grp = get_global_id(1);
-
     const uint input_offset = INPUT0_GET_INDEX(b, f, y_grp * QUANTIZE_GROUP_SIZE, 0);
     const uint output_offset = OUTPUT_GET_INDEX(b, f, y_grp * QUANTIZE_GROUP_SIZE, 0);
+
+#endif
     const uint quantize_block = QUANTIZE_GROUP_SIZE / 4;
     half4 input_0[quantize_block];
     char4 quantized_value[quantize_block];
@@ -58,7 +66,11 @@ KERNEL(dynamic_quantize_gpu_opt)(
         vstore4(quantized_value[i], 0, &output[output_offset + i * 4]);
     }
 
+#if IS_2D
+    output_scale[OUTPUT1_GET_INDEX(b, f_grp, 0, 0)] = 1.0h / quan_scale;
+#else
     output_scale[OUTPUT1_GET_INDEX(b, f, y_grp, 0)] = 1.0h / quan_scale;
+#endif
 }
 
 #else // !(QUANTIZE_GROUP_SIZE <= 128)
@@ -79,8 +91,11 @@ KERNEL(dynamic_quantize_gpu_opt)(
     const uint local_id = (uint)get_local_id(1);
 
     const uint block_size = SIMD * VEC_SIZE;
+#if IS_2D
+    const uint b_offset = bf * INPUT0_BATCH_PITCH;
+#else
     const uint b_offset = bf * INPUT0_FEATURE_PITCH;
-
+#endif
     const uint offset = b_offset + VEC_SIZE * sglid;
 
     const uint iteration = ALIGNED_BLOCK_NUM / BLOCK_NUM;
