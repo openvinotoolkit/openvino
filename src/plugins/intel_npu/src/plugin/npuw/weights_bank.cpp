@@ -138,6 +138,25 @@ bool Bank::is_remote(const LazyTensor& tensor) const {
     return false;
 }
 
+void Bank::detach() {
+    std::lock_guard<std::mutex> guard(m_mutex);
+    for (auto&& bank : m_device_banks) {
+        auto& device_bank = bank.second;
+
+        // FIXME: Uncomment it later (after the CPU copy revert)
+        // const auto &device_str = bank.first;
+        // if (device_str == "CPU") {
+        //     // CPU memory is non-detachable
+        //     continue;
+        // }
+
+        std::lock_guard<std::mutex> dev_guard(device_bank.mutex);
+        for (auto &&lt : device_bank.storage) {
+            const_cast<LazyTensor&>(lt.first).detach();
+        }
+    }
+}
+
 std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name,
                                            const std::shared_ptr<const ov::ICore>& core,
                                            const std::string& alloc_device) {

@@ -34,6 +34,9 @@ public:
     void evaluate_and_allocate();
     bool is_remote(const LazyTensor& tensor) const;
 
+    // Drop references to the original buffers, if any
+    void detach();
+
 private:
     // Bank for specified device and their allocated memory
     struct DeviceBank {
