@@ -883,8 +883,6 @@ void Transformations::PostLpt() {
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ScaledDotProductAttentionDecomposition);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ConvertConvertLike);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ConstantFolding);
-    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::TransposeEltwise);
-    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::TransposeFuse);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::MoveEltwiseUpThroughDataMov);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::TransposeMatMul);
 
