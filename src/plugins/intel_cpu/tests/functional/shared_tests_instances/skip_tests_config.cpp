@@ -159,8 +159,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
         // Plugin version was changed to ov::Version
         R"(.*VersionTest.pluginCurrentVersionIsCorrect.*)",
-        // Issue: 113703, 114763
-        R"(.*smoke_If/SimpleIfTest.*Cond=0.*)",
         // Issue: 114765
         R"(.*smoke_PSROIPoolingAverageLayoutTest/PSROIPoolingLayerCPUTest.*bf16.*)",
         R"(.*smoke_PSROIPoolingBilinearLayoutTest/PSROIPoolingLayerCPUTest.*bf16.*)",
@@ -312,7 +310,7 @@ std::vector<std::string> disabledTestPatterns() {
     };
 
     // fp32 floor for bf16 models: conversion issue
-    retVector.emplace_back(R"(.*smoke.*ActivationLayerCPUTest.*CompareWithRefs/Floor_.*netPRC=bf16.*)");
+    retVector.emplace_back(R"(.*smoke.*ActivationLayerCPUTest.*CompareWithRefs/(Floor|Ceiling)_.*netPRC=bf16.*)");
 
 #if defined(OPENVINO_ARCH_X86)
     retVector.emplace_back(R"(.*DetectionOutputLayerTest.*)");

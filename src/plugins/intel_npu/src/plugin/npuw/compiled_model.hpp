@@ -47,6 +47,7 @@ private:
     // FIXME: This class has many friends..
     friend class IBaseInferRequest;
     friend class JustInferRequest;
+    friend class UnfoldInferRequest;
     friend class MemAccessSim;
     friend class FuncMemMgr;
 
@@ -57,28 +58,27 @@ private:
 
     void dump_on_fail(std::size_t id, const std::string& device_to_stry, const char* extra);
 
-    bool m_finalized = false;
-    void reset_io();
+    void report_io() const;
 
     // This is used for removing too long output tensor names to fix some compilation issues
+    // NB: These two methods has nothing to do with this particular class and should be
+    // moved elsewhere
     void remove_long_output_names(const std::shared_ptr<ov::Model>& model);
     void fill_empty_tensor_names(const std::shared_ptr<ov::Model>& model);
 
     std::shared_ptr<const ::intel_npu::Plugin> get_npuw_plugin() const;
-
-    std::shared_ptr<ov::ISyncInferRequest> create_just_sync_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
     std::string submodel_device(const std::size_t idx) const;
+    bool is_gather_closure(const std::size_t idx, const std::size_t cidx) const;
+    bool unpack_required(const std::size_t idx) const;
+    bool unpack_required(const std::size_t idx, const std::size_t cidx) const;
 
     void log_device_dist() const;
-
     void implement_properties();
 
     void finalize_weights_bank();
-
     std::string global_mem_device() const;
-
     std::string funcall_mem_device(const std::size_t idx) const;
 
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;

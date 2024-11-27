@@ -375,7 +375,7 @@ loop_inst::concatenated_memory_mapping::ptr loop_inst::create_concat_memory_map(
     if (extern_mem_ptr != nullptr) {
         layout sliced_layout = intern_prim->get_output_layout(internal_id.idx);
         auto inter_mem_ptr = intern_prim->output_memory_ptr(internal_id.idx);
-        if (inter_mem_ptr == nullptr || shape_changed()) {
+        if (inter_mem_ptr == nullptr || get_flag(ExecutionFlags::SHAPE_CHANGED)) {
             // if inner body intern_prim has no output memory because it has dynamic shape,
             // calculate inner body intern_prim layout using concat_mem's layout.
             auto updated_sliced_layout = sliced_layout.get_partial_shape();
@@ -720,7 +720,7 @@ void loop_inst::postprocess_output_memory(bool is_dynamic, int64_t current_itera
                     }
                 }
             } else {
-                if (!output_allocated || shape_changed()) {
+                if (!output_allocated || get_flag(ExecutionFlags::SHAPE_CHANGED)) {
                     auto concat_layout = _impl_params->get_output_layout(external_id.idx);
                     auto concat_mem = ov::intel_gpu::allocate_memory_evenif_zero_bytes(_network.get_engine(), concat_layout, false);
                     external_outputs[external_id.idx] = concat_mem;
@@ -1002,16 +1002,16 @@ void loop_inst::set_memory_in_body_network(cldnn::network::ptr body_network,
                 const std::shared_ptr<cldnn::primitive_inst>& inst, memory::ptr mem) {
     if (inst->is_input()) {
         // in case where memory buffer has been over-allocated by shape predictor, memory layout might be unexpected shape.
-        // so memory layout needs to be re-interprete according to original layout.
+        // so memory layout needs to be re-interpret according to original layout.
         memory::ptr updated_mem = mem;
         layout impl_layout = inst->get_impl_params()->get_output_layout();
         OPENVINO_ASSERT(impl_layout.bytes_count() <= updated_mem->get_layout().bytes_count(),
                         "impl_params layout size(", impl_layout.to_short_string(),
                         ") should not exceed memory size(", updated_mem->get_layout().to_short_string(), ")");
-        if (impl_layout.bytes_count() < updated_mem->get_layout().bytes_count()) {
-            updated_mem = body_network->get_engine().reinterpret_buffer(*updated_mem, impl_layout);
-        }
-        body_network->set_input_data(inst->id(), updated_mem);
+        // Set need_to_check_memory_to_set to false to set output memory even if the input node has static shape,
+        body_network->set_input_data(inst->id(), updated_mem, false);
+        // Update impl_params.output_layouts[0] to updated_mem's layout
+        inst->update_shape();
     } else if (inst->is_output()) {
         body_network->set_output_memory(inst->id(), mem);
     } else {

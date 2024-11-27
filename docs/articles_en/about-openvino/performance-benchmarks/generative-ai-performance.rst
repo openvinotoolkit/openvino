@@ -5,9 +5,7 @@ This page is regularly updated to help you identify the best-performing LLMs on 
 Intel® Core™ Ultra processor family and AI PCs.
 The current data is as of OpenVINO 2024.4, 24 Oct. 2024
 
-The tables below list the key performance indicators for a selection of Large Language Models,
-running on an Intel® Core™ Ultra 7-165H, Intel® Core™ Ultra 7-265V, and Intel® Core™ Ultra
-7-288V based system, on built-in GPUs.
+The tables below list the key performance indicators for inference on built-in GPUs.
 
 
 
@@ -16,14 +14,32 @@ running on an Intel® Core™ Ultra 7-165H, Intel® Core™ Ultra 7-265V, and In
    <label><link rel="stylesheet" type="text/css" href="../../_static/css/openVinoDataTables.css"></label>
 
 
+.. tab-set::
 
-.. csv-table::
-   :class: modeldata stripe
-   :name: supportedModelsTableOv
-   :header-rows: 1
-   :file:  ../../_static/benchmarks_files/llm_models.csv
+   .. tab-item:: 9-288V
 
-|
+      .. csv-table::
+         :class: modeldata stripe
+         :name: supportedModelsTableOv
+         :header-rows: 1
+         :file:  ../../_static/benchmarks_files/llm_models_9-288V.csv
+
+   .. tab-item:: 7-268V
+
+      .. csv-table::
+         :class: modeldata stripe
+         :name: supportedModelsTableOv
+         :header-rows: 1
+         :file:  ../../_static/benchmarks_files/llm_models_7-258V.csv
+
+   .. tab-item:: 7-155H
+
+      .. csv-table::
+         :class: modeldata stripe
+         :name: supportedModelsTableOv
+         :header-rows: 1
+         :file:  ../../_static/benchmarks_files/llm_models_7-155H.csv
+
 
 .. grid:: 1 1 2 2
    :gutter: 4
