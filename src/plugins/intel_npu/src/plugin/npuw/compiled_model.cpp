@@ -512,7 +512,6 @@ void ov::npuw::CompiledModel::detach_memory() {
         if (proto_comp_model_desc.device_it + 1 == m_dev_list.end()) {
             LOG_INFO("No fallback expected - clear the OV model for Subgraph[" << idx << "]");
             proto_comp_model_desc.model.reset();
-            // proto_comp_model_desc.compiled_model = {}; // Shouldn't be here, CPU only
         }
     }
     LOG_INFO("Done");

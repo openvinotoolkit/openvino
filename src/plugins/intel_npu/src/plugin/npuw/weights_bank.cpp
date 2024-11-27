@@ -8,8 +8,6 @@
 #include "openvino/core/parallel.hpp"
 #include "util.hpp"
 
-#include <iostream>
-
 using ov::npuw::weights::Bank;
 using ov::npuw::weights::LazyTensor;
 
@@ -65,13 +63,6 @@ void Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
     auto& device_bank = m_device_banks[device_for_alloc];
     if (device_bank.storage.find(tensor) == device_bank.storage.end()) {
         device_bank.storage[tensor] = ov::Tensor();
-    }
-}
-
-template<typename F>
-void non_parallel_for(std::size_t count, F &&f) {
-    for (std::size_t idx = 0u; idx < count; idx++) {
-        f(idx);
     }
 }
 
