@@ -257,6 +257,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
         OV_CASE(Algorithm::EltwiseMultiply, jit_multiply_emitter),
         OV_CASE(Algorithm::EltwiseDivide, jit_divide_emitter),
         OV_CASE(Algorithm::EltwiseFloor, jit_floor_emitter),
+        OV_CASE(Algorithm::EltwiseCeiling, jit_ceiling_emitter),
         OV_CASE(Algorithm::EltwiseFloorMod, jit_floor_mod_emitter),
         OV_CASE(Algorithm::EltwiseMod, jit_mod_emitter),
         OV_CASE(Algorithm::EltwiseMaximum, jit_maximum_emitter),
@@ -636,6 +637,7 @@ private:
         OV_CASE(Algorithm::EltwiseMultiply, jit_multiply_emitter),
         OV_CASE(Algorithm::EltwiseDivide, jit_divide_emitter),
         OV_CASE(Algorithm::EltwiseFloor, jit_floor_emitter),
+        OV_CASE(Algorithm::EltwiseCeiling, jit_ceiling_emitter),
         OV_CASE(Algorithm::EltwiseFloorMod, jit_floor_mod_emitter),
         OV_CASE(Algorithm::EltwiseMod, jit_mod_emitter),
         OV_CASE(Algorithm::EltwiseMaximum, jit_maximum_emitter),
@@ -1085,6 +1087,9 @@ const std::map<const ov::DiscreteTypeInfo, Eltwise::Initializer>& Eltwise::getIn
         }},
         {ov::op::v1::Mod::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
             node.algorithm = Algorithm::EltwiseMod;
+        }},
+        {ov::op::v0::Ceiling::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+            node.algorithm = Algorithm::EltwiseCeiling;
         }},
         {ov::op::v0::Floor::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
             node.algorithm = Algorithm::EltwiseFloor;
@@ -1891,6 +1896,7 @@ public:
                     case Algorithm::EltwiseSubtract:          *dst_ptr_f = src_f[0] - src_f[1]; break;
                     case Algorithm::EltwiseMultiply:          *dst_ptr_f = src_f[0] * src_f[1]; break;
                     case Algorithm::EltwiseDivide:            *dst_ptr_f = src_f[0] / src_f[1]; break;
+                    case Algorithm::EltwiseCeiling:           *dst_ptr_f = ceilf(src_f[0]); break;
                     case Algorithm::EltwiseFloor:             *dst_ptr_f = floorf(src_f[0]); break;
                     case Algorithm::EltwiseFloorMod:          *dst_ptr_f = src_f[0] - floorf(src_f[0] / src_f[1]) * src_f[1]; break;
                     case Algorithm::EltwiseMod:               *dst_ptr_f = src_f[0] - truncf(src_f[0] / src_f[1]) * src_f[1]; break;
@@ -2098,6 +2104,7 @@ size_t Eltwise::getOpInputsNum() const {
         case Algorithm::EltwiseRelu:
         case Algorithm::EltwiseGeluErf:
         case Algorithm::EltwiseGeluTanh:
+        case Algorithm::EltwiseCeiling:
         case Algorithm::EltwiseFloor:
         case Algorithm::EltwiseElu:
         case Algorithm::EltwiseTanh:
