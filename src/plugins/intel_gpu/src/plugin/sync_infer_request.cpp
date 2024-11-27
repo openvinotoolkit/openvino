@@ -910,16 +910,6 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     }
 
     cldnn::event::ptr ret_event = nullptr;
-    if (!is_remote_tensor_impl && !is_generic_remote && !convert_needed) {
-        auto src_ptr = static_cast<uint8_t*>(user_tensor->data());
-        if (!same_host_mem(memory, src_ptr)) {
-            // WA: Set need_lockable_mem as a blocking argument
-            // The current input_layout (wait_for_events) does not provide proper synchronization for subsequent CPU implementations
-            // For IOQ, it creates an already set user event, leading to accessing memory that hasn't completed copying
-            // For OOOQ, it enqueues a barrier that is ignored by the memory_lock functions, also causing access to not ready memory
-            ret_event = memory->copy_from(stream, src_ptr, need_lockable_mem);
-        }
-    }
     if (convert_needed) {
         if (is_remote_tensor_impl) {
             convert_and_copy(remote_tensor_impl_ptr->get_memory(), device_tensor->get_memory(), stream);
@@ -930,7 +920,11 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
         if (!is_remote_tensor_impl && !is_generic_remote) {
             auto src_ptr = static_cast<uint8_t*>(user_tensor->data());
             if (!same_host_mem(memory, src_ptr)) {
-                ret_event = memory->copy_from(stream, src_ptr, false);
+                // WA: Set need_lockable_mem as a blocking argument
+                // The current input_layout (wait_for_events) does not provide proper synchronization for subsequent CPU implementations
+                // For IOQ, it creates an already set user event, leading to accessing memory that hasn't completed copying
+                // For OOOQ, it enqueues a barrier that is ignored by the memory_lock functions, also causing access to not ready memory
+                ret_event = memory->copy_from(stream, src_ptr, need_lockable_mem);
             }
         } else if (is_generic_remote) {
             user_tensor->copy_to(device_tensor);
