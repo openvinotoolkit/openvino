@@ -410,8 +410,13 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
         shapeFromCompiler.push_back(arg.dims[id]);
     }
     if (metadata.has_value()) {
+        const auto dynamicDim = std::numeric_limits<uint64_t>::max();
         for (uint32_t id = 0; id < metadata->shape_size; id++) {
-            shapeFromIRModel.push_back(metadata->shape[id]);
+            if (metadata->shape[id] != dynamicDim) {
+                shapeFromIRModel.push_back(metadata->shape[id]);
+            } else {
+                shapeFromIRModel.push_back(-1);
+            }
         }
     }
 
@@ -433,7 +438,7 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
 
     return {std::move(nameFromCompiler),
             precision,
-            std::move(shapeFromCompiler),
+            shapeFromCompiler,
             isStateInput,
             isStateOutput,
             isShapeTensor,
