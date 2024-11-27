@@ -749,7 +749,7 @@ to make it
 `symmetric <https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md#symmetric-quantization>`__
 you can add ``--sym``.
 
-For INT4 quantization you can also specify the following arguments :
+For INT4 quantization you can also specify the following arguments:
 
 - The ``--group-size`` parameter will define the group size to use for
   quantization, -1 it will results in per-column quantization.
@@ -852,12 +852,12 @@ of the available generation parameters more deeply later.
 
 .. code:: ipython3
 
-    from openvino_genai import LLMPipeline
+    import openvino_genai as ov_genai
 
     print(f"Loading model from {model_dir}\n")
 
 
-    pipe = LLMPipeline(str(model_dir), device.value)
+    pipe = ov_genai.LLMPipeline(str(model_dir), device.value)
 
     generation_config = pipe.get_generation_config()
 
