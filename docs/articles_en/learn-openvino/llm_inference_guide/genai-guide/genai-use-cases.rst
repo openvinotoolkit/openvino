@@ -421,8 +421,11 @@ mark a conversation session, as shown in the samples below:
 Using GenAI with Vision Language Models
 #######################################
 
-With a text prompt and image as input, VLMPipeline can generate text using
-models such as LLava or MiniCPM-V. A chat scenario is presented in the samples below:
+OpenVINO GenAI introduces the ``openvino_genai.VLMPipeline`` pipeline for
+inference of multimodal text-generation Vision Language Models (VLMs).
+With a text prompt and an image as input, VLMPipeline can generate text using
+models such as LLava or MiniCPM-V. See the chat scenario presented
+in the samples below:
 
 .. tab-set::
 
