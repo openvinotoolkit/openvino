@@ -1550,8 +1550,8 @@ std::pair<TensorMap, ProfVec> runInfer(ov::InferRequest& inferRequest, ov::Compi
 
     TensorMap out;
     for (const auto& outputInfo : compiledModel.outputs()) {
-        const std::string layer_name = outputInfo.get_any_name();
-        out.insert({layer_name, inferRequest.get_tensor(layer_name)});
+        const std::string layerName = outputInfo.get_any_name();
+        out.insert({layerName, inferRequest.get_tensor(layerName)});
     }
 
     ProfVec profData{};
@@ -1788,11 +1788,17 @@ bool testMeanIoU(const TensorMap& outputs, const TensorMap& references, const La
 }
 
 static ov::Shape parseDataShape(const std::string& dataShapeStr) {
-    std::vector<size_t> dataShape;
-    std::istringstream ss(dataShapeStr);
-    std::string token;
-    while (std::getline(ss, token, ',')) {
-        dataShape.push_back(std::stoul(token));
+    std::vector<uint64_t> dataShape;
+    std::stringstream ss(dataShapeStr);
+
+    char ch;  // To discard non-numeric characters
+    int64_t dim;
+    while (ss >> ch) {
+        if (std::isdigit(ch)) {
+            ss.putback(ch);
+            ss >> dim;
+            dataShape.push_back(dim);
+        }
     }
     return ov::Shape(dataShape);
 }
@@ -1887,11 +1893,11 @@ static int runSingleImageTest() {
             auto model = core.read_model(FLAGS_network);
             nameIOTensors(model);
 
-            auto inputs_info = std::const_pointer_cast<ov::Model>(model)->inputs();
-            InputsInfo info_map;
+            auto inputsInfo = std::const_pointer_cast<ov::Model>(model)->inputs();
+            InputsInfo infoMap;
 
             std::cout << "Performing reshape" << std::endl;
-            reshape(std::move(inputs_info), info_map, model, FLAGS_shape,
+            reshape(std::move(inputsInfo), infoMap, model, FLAGS_shape,
                     FLAGS_override_model_batch_size, FLAGS_device);
 
             ov::preprocess::PrePostProcessor ppp(model);
