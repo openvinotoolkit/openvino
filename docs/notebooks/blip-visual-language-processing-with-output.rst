@@ -278,13 +278,8 @@ text and vision modalities and postprocessing of generation results.
 
 .. code:: ipython3
 
-    import platform
-
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "torch>=2.1.0" torchvision "transformers>=4.26.0" "gradio>=4.19" "openvino>=2023.3.0" "datasets>=2.14.6" "nncf>=2.8.1" "tqdm"
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q "matplotlib>=3.4"
 
 .. code:: ipython3
 

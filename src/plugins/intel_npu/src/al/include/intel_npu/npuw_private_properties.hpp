@@ -185,6 +185,14 @@ static constexpr ov::Property<bool> dyn_quant{"NPUW_DQ"};
 
 /**
  * @brief
+ * Type: bool.
+ * Apply the full DQ transformation pipeline in the plugin.
+ * Default value: true.
+ */
+static constexpr ov::Property<bool> dyn_quant_full{"NPUW_DQ_FULL"};
+
+/**
+ * @brief
  * Type: string.
  * Identify and merge parallel MatMuls over dimension(s) specified.
  * When set to YES, applies transformation for all dimensions.
@@ -278,6 +286,14 @@ static constexpr ov::Property<bool> parallel_compilation{"NPUW_PARALLEL_COMPILE"
  * Default value: false.
  */
 static constexpr ov::Property<bool> funcall_async{"NPUW_FUNCALL_ASYNC"};
+
+/**
+ * @brief
+ * Type: boolean
+ * Create individual infer requests for partitiongs, even repeating.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> unfold_ireqs{"NPUW_UNFOLD_IREQS"};
 
 namespace accuracy {
 /**

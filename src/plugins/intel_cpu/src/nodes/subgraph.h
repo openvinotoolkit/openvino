@@ -129,13 +129,15 @@ public:
                      const BufferScratchpadAllocator& allocator);
     virtual ~SubgraphExecutor() = default;
 
-    virtual void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) = 0;
+    void execute(const dnnl::stream& strm, const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs);
 
 protected:
+    virtual void exec_impl(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) = 0;
+
     void parallel_for6d(const std::function<void(jit_snippets_call_args&, size_t)>& initializer,
-                        const std::function<void(jit_snippets_call_args&, const size_t*)>& caller);
+                        const std::function<void(jit_snippets_call_args&, const std::vector<size_t>&)>& caller);
     void parallel_forNd(const std::function<void(jit_snippets_call_args&, size_t)>& initializer,
-                        const std::function<void(jit_snippets_call_args&, const size_t*)>& caller);
+                        const std::function<void(jit_snippets_call_args&, const std::vector<size_t>&)>& caller);
 
     inline void update_scratchpad_ptr(void*& scratchpad_ptr, size_t ithr) const {
         if (m_buffer_scratchpad_size > 0)
@@ -151,6 +153,7 @@ protected:
     // Buffer scratchpad
     MemoryPtr m_buffer_scratchpad = nullptr;
     size_t m_buffer_scratchpad_size = 0;
+    size_t m_internal_buffer_size = 0;
 
     const size_t rank6D = 6;
 
@@ -164,6 +167,11 @@ protected:
     bool enabled_segfault_detector = false;
     inline void segfault_detector();
 #endif
+
+private:
+    std::vector<MemoryPtr> reorder_inputs(const dnnl::stream& strm, const std::vector<MemoryPtr>& inMemPtrs);
+
+    std::unordered_map<size_t, CpuBlockedMemoryDescPtr> m_in_requested_descs = {};
 };
 
 }   // namespace node
