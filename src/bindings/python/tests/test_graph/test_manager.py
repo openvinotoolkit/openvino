@@ -9,7 +9,7 @@ import pytest
 
 import openvino.runtime.opset10 as ops
 from openvino import Core, Model
-from openvino.runtime.passes import Manager, Serialize, ConstantFolding, Version
+from openvino.passes import Manager, Serialize, ConstantFolding, Version
 
 from tests.test_graph.util import count_ops_of_type
 from tests.utils.helpers import create_filenames_for_ir, compare_models
