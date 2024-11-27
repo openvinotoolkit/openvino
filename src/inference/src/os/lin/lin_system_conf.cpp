@@ -38,13 +38,13 @@ CPU::CPU() {
 
                 std::ifstream cache_file("/sys/devices/system/cpu/cpu" + std::to_string(cpu_index) + "/cache/index" +
                                          std::to_string(cache_index) + "/shared_cpu_list");
-                if (cache_file.is_open() ) {
+                if (cache_file.is_open()) {
                     std::getline(cache_file, cache_info);
                 } else if (cache_index == 0) {
                     cache_index = -1;
                     break;
-                } 
-                one_info[n] = std::move(cache_info);                
+                }
+                one_info[n] = std::move(cache_info);
             }
 
             if (cache_index == -1) {
