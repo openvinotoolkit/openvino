@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_generation_Range_4}
-
 Range
 =====
 

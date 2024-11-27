@@ -1,6 +1,9 @@
 Model Optimization - NNCF
 ===============================================================================================
 
+.. meta::
+   :description: Learn about the optimization methods offered by OpenVINO's NNCF
+
 .. toctree::
    :maxdepth: 1
    :hidden:
@@ -19,7 +22,7 @@ It is a `set of compression algorithms <https://github.com/openvinotoolkit/nncf/
 organized as a Python package, that make your models smaller and faster. Note that NNCF
 is **not part of the OpenVINO package**, so it needs to be installed separately. It supports
 models in **PyTorch**, **TensorFlow** , **ONNX**, and **OpenVINO IR** formats, offering
-the following optimizations:
+the following main optimizations:
 
 .. image:: ../assets/images/WHAT_TO_USE.svg
 
@@ -40,13 +43,38 @@ the following optimizations:
        original framework, for NNCF, it is either PyTorch or TensorFlow.
 
 
-To learn about the full scope of the framework, its installation, and technical details, visit
-both `the NNCF repository <https://github.com/openvinotoolkit/nncf?tab=readme-ov-file>`__ and
-`NNCF API documentation <https://openvinotoolkit.github.io/nncf/autoapi/nncf/>`__.
+
+Recommended workflows
+##########################
+
+* A common approach for most cases is to:
+
+  1. Perform post-training quantization first, as it is the easiest option.
+  2. For even better results, combine post-training quantization with filter pruning.
+  3. If the accuracy drop is unacceptable, use quantization-aware training instead. It will give
+     you the same level of performance boost, with a smaller impact on accuracy.
+
+* **Weight compression** works **only with LLMs**. Do not try to use it with other models.
+* For **visual-multimodal** use cases, the encoder / decoder split approach may be recommended.
+
+
+
+
+
 
 
 
 .. image:: ../assets/images/DEVELOPMENT_FLOW_V3_crunch.svg
+
+
+
+Installation and usage
+###########################
+
+To learn about the full scope of the framework, its installation, and technical details, visit
+both `the NNCF repository <https://github.com/openvinotoolkit/nncf?tab=readme-ov-file>`__ and
+`NNCF API documentation <https://openvinotoolkit.github.io/nncf/autoapi/nncf/>`__.
+
 
 
 .. tab-set::

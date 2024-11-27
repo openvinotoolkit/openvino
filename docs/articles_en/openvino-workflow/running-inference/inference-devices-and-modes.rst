@@ -1,5 +1,3 @@
-.. {#openvino_docs_Runtime_Inference_Modes_Overview}
-
 Inference Devices and Modes
 ============================
 
@@ -85,7 +83,7 @@ Accordingly, the code that loops over all available devices of the "GPU" type on
 Additional Resources
 ####################
 
-* `OpenVINO™ Runtime API Tutorial <./../../notebooks/openvino-api-with-output.html>`__
-* `AUTO Device Tutorial <./../../notebooks/auto-device-with-output.html>`__
-* `GPU Device Tutorial <./../../notebooks/gpu-device-with-output.html>`__
-* `NPU Device Tutorial <./../../notebooks/hello-npu-with-output.html>`__
+* `OpenVINO™ Runtime API Tutorial <../../notebooks/openvino-api-with-output.html>`__
+* `AUTO Device Tutorial <../../notebooks/auto-device-with-output.html>`__
+* `GPU Device Tutorial <../../notebooks/gpu-device-with-output.html>`__
+* `NPU Device Tutorial <../../notebooks/hello-npu-with-output.html>`__

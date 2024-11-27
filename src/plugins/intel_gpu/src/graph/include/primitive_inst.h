@@ -3,6 +3,7 @@
 //
 
 #pragma once
+#include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
 #include "intel_gpu/runtime/event.hpp"
@@ -21,7 +22,7 @@
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "intel_gpu/runtime/itt.hpp"
-#include "runtime/kernels_cache.hpp"
+#include "impls/ocl/kernels_cache.hpp"
 
 // TODO: add generic interface for weights_reorder_params and get rid of this dependency
 #include "impls/ocl/kernel_selector_helper.h"
@@ -39,6 +40,8 @@ class primitive_inst;
 
 template <class PType>
 class typed_primitive_inst;
+
+struct ImplementationManager;
 
 /*
     Base class for all implementations.
@@ -105,9 +108,11 @@ struct primitive_impl {
     void set_dynamic(bool val) { _is_dynamic = val; }
     bool is_dynamic() const { return _is_dynamic; }
 
-    virtual void update(primitive_inst& inst, const kernel_impl_params& impl_params) {
-        OPENVINO_ASSERT(_is_dynamic, "[GPU] update() is called for static shape implementation ", _kernel_name);
-        OPENVINO_ASSERT(false, "[GPU] update() is not implemented for dynamic implemenation ", _kernel_name);
+    virtual void update(primitive_inst& inst, const kernel_impl_params& impl_params) { }
+
+    virtual bool requires_update(primitive_inst& inst, const kernel_impl_params& impl_params) const {
+        OPENVINO_ASSERT(_is_dynamic, "[GPU] requires_update() is called for static shape implementation ", _kernel_name);
+        return false;
     }
 
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params);
@@ -124,10 +129,24 @@ struct primitive_impl {
 
     std::shared_ptr<kernel_impl_params> get_weights_reorder_kernel_params() const;
 
+    const ImplementationManager* m_manager = nullptr;
+
 protected:
     std::shared_ptr<WeightsReorderParams> _weights_reorder_params = nullptr;
     std::string _kernel_name;
     bool _is_dynamic = false;
+};
+
+struct ImplementationsFactory {
+    ImplementationsFactory(const program_node* node);
+
+    const program_node* m_node;
+    std::vector<std::shared_ptr<ImplementationManager>> m_available_impls;
+    program::ImplementationsCache& m_static_impls_cache;
+    std::vector<std::shared_ptr<primitive_impl>> m_dynamic_impls_cache;
+
+    std::shared_ptr<primitive_impl> get_primitive_impl_for_params(primitive_inst& inst, const kernel_impl_params& params, bool use_async_compilation);
+    bool has(impl_types impl_type) const;
 };
 
 /*
@@ -214,7 +233,19 @@ public:
 
     memory::ptr shape_info_memory_ptr() const { return _shape_info_memory; }
 
-    event::ptr execute(const std::vector<event::ptr>& events);
+    void add_dep_events(const std::vector<event::ptr>& events);
+    void add_dep_event(event::ptr ev);
+    void set_out_event(event::ptr&& ev);
+
+    void set_flag(size_t flag, bool value = true);
+    void unset_flag(size_t flag);
+    bool get_flag(size_t flag) const;
+    void reset_flags();
+
+    void reset_events();
+
+    void prepare_primitive();
+    void execute();
     void init_kernels(const kernels_cache& kernels_cache) {
         _impl->init_kernels(kernels_cache, *_impl_params);
     }
@@ -224,13 +255,6 @@ public:
     void validate() const {
         OPENVINO_ASSERT(_impl != nullptr || is_dynamic(), "[GPU] Invalid impl object for ", id(), " primitive");
     }
-    bool output_changed() const { return _output_changed; }
-    void reset_output_change() { _output_changed = false; }
-
-    bool shape_changed() const { return _shape_changed; }
-    bool mem_changed() const { return _mem_changed; }
-    void reset_shape_change() { _shape_changed = false; }
-    void set_shape_change() { _shape_changed = true; }
 
     void build_deps();
 
@@ -243,6 +267,7 @@ public:
     void do_runtime_in_place_concat();
     void do_runtime_in_place_kv_cache();
     void do_runtime_in_place_crop();
+    void do_runtime_skip_scatter_update();
     void configure_shape_of_dependencies();
 
     memory::ptr fused_memory(size_t dep_id) const {
@@ -306,6 +331,8 @@ public:
 
     virtual int32_t get_prealloc_iter_num() { return -1; }
     virtual void update_shape_info_tensor(const kernel_impl_params& params);
+    kernel_impl_params get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param);
+    bool all_dependencies_cpu_impl() const;
 
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
@@ -316,9 +343,10 @@ protected:
 
     bool update_shape_done_by_other = false;
     bool allocation_done_by_other = false;
+    bool _use_shared_kernels = false;
     std::unique_ptr<kernel_impl_params> _impl_params;
-    std::unique_ptr<primitive_impl> _impl;
-    std::unique_ptr<primitive_impl> _dynamic_impl = nullptr;
+    std::shared_ptr<primitive_impl> _impl;
+    std::shared_ptr<ImplementationsFactory> _impls_factory = nullptr;
 
     // this is a set of dependencies in terms of memory, if execution of this primitive requires data from another one,
     // it should be added to this set
@@ -357,9 +385,6 @@ protected:
     // Buffer to store actual shapes of dynamic tensor which is automatically asigned as 1st argument to shape agnostic kernels
     memory::ptr _shape_info_memory = nullptr;
 
-    bool _output_changed;  // todo: implement output reuse if neither of inputs has changed
-    bool _shape_changed = false;
-    bool _mem_changed = false;
     bool _has_valid_input =
         true;  // by default all primitives has valid inputs, exception is input_layout (see input_layout_inst)
     bool _has_mutable_input = false;
@@ -386,6 +411,7 @@ protected:
                                               bool reset_mem = true,
                                               bool runtime_alloc = false);
     memory::ptr allocate_internal_buffer(size_t idx, bool reset = true);
+    void allocate_shape_info_memory();
     static std::vector<primitive_inst*> build_exec_deps(
         std::vector<std::pair<primitive_inst*, int32_t>> const& mem_deps);
     int32_t get_index_in_deps(memory::cptr arg) const;
@@ -395,13 +421,13 @@ protected:
     virtual void on_execute() {}
 
     virtual void update_shape();
-    virtual event::ptr update_weights();
+    virtual void update_weights();
 
     void fill_shape_info_data(const layout& runtime_layout, const layout& node_layout, int32_t* shape_info_ptr, size_t& offset);
     bool use_async_compilation();
     // if primitive_inst doesn't replace impl to new impl(static impl with opt kerenl or dynamic impl), return false
-    bool update_impl(bool use_async_compilation);
-    event::ptr realloc_if_needed();
+    void update_impl(bool use_async_compilation);
+    void realloc_if_needed();
 
     cldnn::network::ptr get_unfused_subgraph();
 
@@ -454,7 +480,6 @@ protected:
         }
         return false;
     }
-    kernel_impl_params get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param);
 
     // This could be implemented via single map std::unordered_map<instrumentation::perf_counter_key, std::tuple<int64_t, size_t>>
     // but the overhead on using perf_counter_key as map key is too big, thus we use hash as map key

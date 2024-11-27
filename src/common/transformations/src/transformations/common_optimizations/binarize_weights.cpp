@@ -74,20 +74,17 @@ pass::BinarizeWeights::BinarizeWeights() {
     auto conv_pattern = pattern::wrap_type<ov::op::v1::Convolution>({activations_fq_pattern, weights_fq_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto conv = std::dynamic_pointer_cast<ov::op::v1::Convolution>(m.get_match_root());
+        auto conv = ov::as_type_ptr<ov::op::v1::Convolution>(m.get_match_root());
         if (!conv)
             return false;
-        auto activations_fq =
-            std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(conv->input_value(0).get_node_shared_ptr());
+        auto activations_fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(conv->input_value(0).get_node_shared_ptr());
         if (!activations_fq || activations_fq->get_levels() != 2)
             return false;
-        auto weights_fq =
-            std::dynamic_pointer_cast<ov::op::v0::FakeQuantize>(conv->input_value(1).get_node_shared_ptr());
+        auto weights_fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(conv->input_value(1).get_node_shared_ptr());
         if (!weights_fq || weights_fq->get_levels() != 2)
             return false;
 
-        auto weights_const =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(weights_fq->input_value(0).get_node_shared_ptr());
+        auto weights_const = ov::as_type_ptr<ov::op::v0::Constant>(weights_fq->input_value(0).get_node_shared_ptr());
         if (!weights_const)
             return false;
 
@@ -103,9 +100,9 @@ pass::BinarizeWeights::BinarizeWeights() {
         };
 
         auto activations_output_low_const =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(activations_fq->input_value(3).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(activations_fq->input_value(3).get_node_shared_ptr());
         auto activations_output_high_const =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(activations_fq->input_value(4).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(activations_fq->input_value(4).get_node_shared_ptr());
         if (!activations_output_low_const || !activations_output_high_const)
             return false;
 
@@ -120,15 +117,15 @@ pass::BinarizeWeights::BinarizeWeights() {
             return false;
 
         auto weights_input_low_const =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(weights_fq->input_value(1).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(weights_fq->input_value(1).get_node_shared_ptr());
         auto weights_input_high_const =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(weights_fq->input_value(2).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(weights_fq->input_value(2).get_node_shared_ptr());
         if (!weights_input_low_const || !weights_input_high_const)
             return false;
         auto weights_output_low_const =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(weights_fq->input_value(3).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(weights_fq->input_value(3).get_node_shared_ptr());
         auto weights_output_high_const =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(weights_fq->input_value(4).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(weights_fq->input_value(4).get_node_shared_ptr());
         if (!weights_output_low_const || !weights_output_high_const)
             return false;
 

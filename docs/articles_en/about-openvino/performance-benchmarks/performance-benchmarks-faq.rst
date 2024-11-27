@@ -2,8 +2,6 @@ Performance Information F.A.Q.
 ==============================
 
 
-
-
 .. meta::
    :description: Check the F.A.Q. for performance benchmarks in Intel® Distribution of OpenVINO™ toolkit.
 
@@ -33,9 +31,12 @@ Performance Information F.A.Q.
 
 .. dropdown:: How can I run the benchmark results on my own?
 
-   All of the performance benchmarks are generated using the
+   All of the performance benchmarks on traditional network models are generated using the
    open-source tool within the Intel® Distribution of OpenVINO™ toolkit
    called :doc:`benchmark_app <../../learn-openvino/openvino-samples/benchmark-tool>`.
+
+   For diffusers (Stable-Diffusion) and foundational models (aka LLMs) please use the OpenVINO GenAI 
+   opensource repo `OpenVINO GenAI tools/llm_bench <https://github.com/openvinotoolkit/openvino.genai/tree/master/tools/llm_bench>`__
 
    For a simple instruction on testing performance, see the :doc:`Getting Performance Numbers Guide <getting-performance-numbers>`.
 
@@ -52,23 +53,39 @@ Performance Information F.A.Q.
         - Public Network
         - Task
         - Input Size
-      * - `chatGLM2-6B <https://huggingface.co/THUDM/chatglm2-6b/tree/main>`__
+      * - `chatGLM4-9B <https://huggingface.co/THUDM/glm-4-9b-chat/tree/main>`__
         - THUDM
         - Transformer
-        - 32K
-      * - `Falcon-7b-instruct <https://huggingface.co/tiiuae/falcon-7b-instruct>`__
+        - 128K
+      * - `Gemma-2-9B <https://huggingface.co/google/gemma-2-9b-it>`__
         - Hugginface
-        - Causal Decoder-only
-        - 2048
-      * - `Llama-2-7b-chat <https://ai.meta.com/llama/>`__
+        - Text-To-Text Decoder-only
+        - 8K
+      * - `Llama-2-7b-chat <https://www.llama.com/>`__
         - Meta AI
         - Auto regressive language
-        - 4096
-      * - `Mistral-7b <https://huggingface.co/mistralai/Mistral-7B-v0.1>`__
+        - 4K
+      * - `Llama-3-8b <https://www.llama.com/>`__
+        - Meta AI
+        - Auto regressive language
+        - 8K
+      * - `Llama-3.2-3B <https://huggingface.co/meta-llama/Llama-3.2-3B-Instruct>`__
+        - Meta AI
+        - Auto regressive language
+        - 128K
+      * - `Mistral-7b-V0.1 <https://huggingface.co/mistralai/Mistral-7B-v0.1>`__
         - Mistral AI
         - Auto regressive language
         - 4096
-      * - `Stable-Diffusion-V2-1 <https://huggingface.co/stabilityai/stable-diffusion-2-1>`__
+      * - `Phi3-4k-mini <https://huggingface.co/microsoft/Phi-3-mini-4k-instruct>`__
+        - Huggingface
+        - Auto regressive language
+        - 4096
+      * - `Qwen-2-7B <https://huggingface.co/Qwen/Qwen2-7B>`__
+        - Huggingface
+        - Auto regressive language
+        - 128K
+      * - `Stable-Diffusion-V1-5 <https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5>`__
         - Hugginface
         - Latent Diffusion Model
         - 77
@@ -76,10 +93,6 @@ Performance Information F.A.Q.
         - BERT
         - question / answer
         - 128
-      * - `bert-large-uncased-whole-word-masking-squad-int8-0001 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/intel/bert-large-uncased-whole-word-masking-squad-int8-0001>`__
-        - BERT-large
-        - question / answer
-        - 384
       * - `efficientdet-d0 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/efficientdet-d0-tf>`__
         - Efficientdet
         - classification
@@ -104,17 +117,9 @@ Performance Information F.A.Q.
         - ssd-resnet34 onnx model
         - object detection
         - 1200x1200
-      * - `unet-camvid-onnx-0001 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/intel/unet-camvid-onnx-0001>`__
-        - U-Net
-        - semantic segmentation
-        - 368x480
-      * - `yolo-v3-tiny <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/yolo-v3-tiny-tf>`__
-        - YOLO v3 Tiny
-        - object detection
-        - 416x416
-      * - `yolov8n <https://https://github.com/ultralytics/ultralytics>`__
+      * - `yolov8n <https://github.com/ultralytics/ultralytics>`__
         - Yolov8nano
-        -  object detection
+        - object detection
         - 608x608
 
 
@@ -122,8 +127,8 @@ Performance Information F.A.Q.
 
    Intel partners with vendors all over the world. For a list of Hardware Manufacturers, see the
    `Intel® AI: In Production Partners & Solutions Catalog <https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/partners-solutions-catalog.html>`__.
-   For more details, see the :doc:`Supported Devices <../compatibility-and-support/supported-devices>`.
-   documentation.
+   For more details, see the :doc:`Supported Devices <../compatibility-and-support/supported-devices>` article.
+
 
 .. dropdown:: How can I optimize my models for better performance or accuracy?
 

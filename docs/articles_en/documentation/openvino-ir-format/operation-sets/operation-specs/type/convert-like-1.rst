@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_type_ConvertLike_1}
-
 ConvertLike
 ===========
 

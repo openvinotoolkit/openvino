@@ -19,6 +19,7 @@ async function cleanUp() {
       .filter(x => x !== '');
     const cacheSize = core.getInput('cache-size', { required: false });
     const cacheMaxSize = core.getInput('max-cache-size', { required: false });
+    const recursive = core.getInput('recursive', { required: false });
 
     // Minimum time peroid in milliseconds when the files was not useds
     const minAccessTime = 7 * 24 * 60 * 60 * 1000; // 1 week
@@ -30,13 +31,18 @@ async function cleanUp() {
     core.debug(`restore-keys: ${keysRestore}`);
     core.debug(`cache-size: ${cacheSize}`);
     core.debug(`max-cache-size: ${cacheMaxSize}`);
+    core.debug(`recursive: ${recursive}`);
 
     let keyPattern = key;
     if (keysRestore && keysRestore.length) {
       keyPattern = keysRestore.join('|');
     }
 
-    const files = await getSortedCacheFiles(cacheRemotePath, keyPattern);
+    const files = await getSortedCacheFiles(
+      cacheRemotePath,
+      keyPattern,
+      recursive
+    );
     const minCacheSizeInBytes = cacheSize * 1024 * 1024 * 1024;
     const maxCacheSizeInBytes = cacheMaxSize * 1024 * 1024 * 1024;
     let totalSize = await calculateTotalSize(cacheRemotePath, files);

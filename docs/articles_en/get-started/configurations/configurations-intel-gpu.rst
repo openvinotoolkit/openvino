@@ -1,5 +1,3 @@
-.. {#openvino_docs_install_guides_configurations_for_intel_gpu}
-
 Configurations for Intel® Processor Graphics (GPU) with OpenVINO™
 ====================================================================
 
@@ -39,7 +37,7 @@ Below are the instructions on how to install the OpenCL packages on supported Li
       and install the apt package `ocl-icd-libopencl1` with the OpenCl ICD loader.
 
       Alternatively, you can add the apt repository by following the
-      `installation guide <https://dgpu-docs.intel.com/driver/installation.html#ubuntu-install-steps>`__.
+      `installation guide <https://dgpu-docs.intel.com/driver/installation.html#ubuntu>`__.
       Then install the `ocl-icd-libopencl1`, `intel-opencl-icd`, `intel-level-zero-gpu` and `level-zero`
       apt packages:
 

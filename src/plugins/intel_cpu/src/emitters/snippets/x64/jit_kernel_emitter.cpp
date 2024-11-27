@@ -23,6 +23,7 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov
     jcp = *reinterpret_cast<const jit_snippets_compile_args*>(kernel->compile_params);
     const auto& parameters = body->get_parameters();
     const auto& results = body->get_results();
+    const auto& buffers = body->get_buffers();
     num_inputs = parameters.size();
     num_outputs = results.size();
     for (const auto& param : parameters)
@@ -31,18 +32,21 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov
         mem_access_exprs.push_back(result);
 
     std::set<size_t> unique_buffers;
-    for (const auto& expr : *body) {
-        if (const auto buffer = ov::as_type_ptr<snippets::op::Buffer>(expr->get_node())) {
-            const auto buffer_reg_group = buffer->get_reg_group();
-            if (unique_buffers.count(buffer_reg_group) == 0) {
-                mem_access_exprs.push_back(expr);
-                unique_buffers.insert(buffer_reg_group);
-            }
-        } else {
-            if (std::find(parameters.cbegin(), parameters.cend(), expr) == parameters.cend() &&
-                std::find(results.cbegin(), results.cend(), expr) == results.cend())
-                general_exprs.emplace_back(expr);
+    for (const auto& buffer_expr : buffers) {
+        const auto buffer_reg_group = buffer_expr->get_reg_group();
+        if (unique_buffers.count(buffer_reg_group) == 0) {
+            mem_access_exprs.push_back(buffer_expr);
+            unique_buffers.insert(buffer_reg_group);
         }
+    }
+
+    using ExprSet = std::unordered_set<snippets::lowered::ExpressionPtr>;
+    const ExprSet params_set(parameters.cbegin(), parameters.cend());
+    const ExprSet results_set(results.cbegin(), results.cend());
+    const ExprSet buffers_set(buffers.cbegin(), buffers.cend());
+    for (const auto& expr : *body) {
+        if (params_set.count(expr) == 0 && results_set.count(expr) == 0 && buffers_set.count(expr) == 0)
+            general_exprs.emplace_back(expr);
     }
     num_unique_buffers = unique_buffers.size();
 }
@@ -176,16 +180,16 @@ void jit_kernel_static_emitter::init_data_pointers(const std::vector<Xbyak::Reg6
             h->mov(data_ptr_regs[i], h->ptr[reg_runtime_params + GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*)]);
         init_ptr_with_offset(data_ptr_regs[i], data_offsets[i], reg_tmp);
     }
-    // a rare case when num_params is maximal, so we have no spare gprs
-    // * Static case: we can use reg_runtime_params as the last reg_tmp for the last iteration (and corrupt it), since
-    //     it won't be used anymore
-    // * Dynamic case: we will need reg_runtime_params to pass runtime args to LoopScheduler, so we have to
-    //     push a reg on the stack, and restore it value afterward
+    // A rare case when num_params is maximal, so we have no spare gprs
+    // Note that we need to push-pop runtime params because some kernels might need them even in the static case
+    // (e.g. brgemm emitter for amx tile configuration access)
     if (last_iter_explicitly) {
+        h->push(reg_runtime_params);
         h->mov(data_ptr_regs[i], h->ptr[reg_runtime_params + GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*)]);
         reg_tmp = reg_runtime_params;
         // can corrupt reg_runtime_params, since we won't use it anymore
         init_ptr_with_offset(data_ptr_regs[i], data_offsets[i], reg_tmp);
+        h->pop(reg_runtime_params);
     }
 }
 

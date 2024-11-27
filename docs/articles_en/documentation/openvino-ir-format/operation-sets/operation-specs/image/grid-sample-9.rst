@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_image_GridSample_9}
-
 GridSample
 ==========
 
 
 .. meta::
-  :description: Learn about GridSample-9 - an image processing operation, which 
+  :description: Learn about GridSample-9 - an image processing operation, which
                 can be performed on two required input tensors.
 
 **Versioned name:** *GridSample-9*
@@ -41,7 +39,7 @@ GridSample
 * *padding_mode*
 
   * **Description**: controls the handling of out-of-bounds coordinates. The denormalized coordinates might fall outside of the input tensor's area(values outside the grid).
-  * **Range of values**: 
+  * **Range of values**:
 
     * ``zeros`` - consider values in the padding to be zeros
     * ``border`` - the operator is supposed to select the nearest in-bounds pixel
@@ -53,14 +51,14 @@ GridSample
 
 **Inputs**
 
-* **1**: ``data`` - Input tensor of type ``T`` with data to be sampled. This input is expected to 
+* **1**: ``data`` - Input tensor of type ``T`` with data to be sampled. This input is expected to
   be a 4-dimensional tensor with NCHW layout. **Required.**
-* **2**: ``grid`` - A 4-dimensional tensor containing normalized sampling coordinates(pairs of floats). 
+* **2**: ``grid`` - A 4-dimensional tensor containing normalized sampling coordinates(pairs of floats).
   The shape of this tensor is ``[N, H_out, W_out, 2]`` and the data type is ``T1``. **Required.**
 
 **Outputs**
 
-* **1**: A 4-dimensional tensor of type ``T`` with ``[N, C, H_out, W_out]`` shape. 
+* **1**: A 4-dimensional tensor of type ``T`` with ``[N, C, H_out, W_out]`` shape.
   It contains the interpolated values calculated by this operator.
 
 **Types**

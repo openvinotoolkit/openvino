@@ -66,8 +66,6 @@ public:
 
 protected:
     void on_execute() override;
-
-    void update_shape_info_tensor(const kernel_impl_params& params) override;
 };
 
 using paged_attention_inst = typed_primitive_inst<paged_attention>;

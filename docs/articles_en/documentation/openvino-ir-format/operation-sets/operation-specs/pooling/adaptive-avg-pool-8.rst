@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_pooling_AdaptiveAvgPool_8}
-
 AdaptiveAvgPool
 ===============
 
 
 .. meta::
-  :description: Learn about AdaptiveAvgPool-8 - a pooling operation, which can 
+  :description: Learn about AdaptiveAvgPool-8 - a pooling operation, which can
                 be performed on two required input tensors.
 
 **Versioned name**: *AdaptiveAvgPool-8*
@@ -18,7 +16,7 @@ AdaptiveAvgPool
 The kernel dimensions are calculated using the following formulae for the ``NCDHW`` input case:
 
 .. math::
-   
+
    \begin{array}{lcl}
    d_{start} &=& \lfloor i \cdot \frac{D_{in}}{D_{out}}\rfloor\\
    d_{end}   &=& \lceil(i+1) \cdot \frac{D_{in}}{D_{out}}\rceil\\
@@ -31,7 +29,7 @@ The kernel dimensions are calculated using the following formulae for the ``NCDH
 The output is calculated with the following formula:
 
 .. math::
-   
+
    Output(i,j,k) = \frac{Input[d_{start}:d_{end}, h_{start}:h_{end}, w_{start}:w_{end}]}{(d_{end}-d_{start}) \cdot (h_{end}-h_{start}) \cdot (w_{end}-w_{start})}
 
 **Inputs**:
@@ -52,7 +50,7 @@ The output is calculated with the following formula:
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="AdaptiveAvgPool" ... >
        <data output_type="i64"/>
        <input>

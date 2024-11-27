@@ -30,14 +30,14 @@ ov::pass::BroadcastConstRangeReplacement::BroadcastConstRangeReplacement() {
         const auto broadcast = m.get_match_root();
         // The transformation was requested only for models with BroadcastType::BIDIRECTIONAL
         // Further analysis is needed for other broadcast modes enablement
-        const auto broadcast_ptr = std::dynamic_pointer_cast<ov::op::v3::Broadcast>(broadcast);
+        const auto broadcast_ptr = ov::as_type_ptr<ov::op::v3::Broadcast>(broadcast);
         if (!broadcast_ptr || broadcast_ptr->get_broadcast_spec().m_type != ov::op::BroadcastType::BIDIRECTIONAL)
             return false;
 
         const auto data_const_out = broadcast->get_input_source_output(0);
         const auto target_shape_out = broadcast->get_input_source_output(1);
 
-        const auto const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(data_const_out.get_node_shared_ptr());
+        const auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(data_const_out.get_node_shared_ptr());
         if (!const_node || !const_node->get_element_type().is_integral_number())
             return false;
 

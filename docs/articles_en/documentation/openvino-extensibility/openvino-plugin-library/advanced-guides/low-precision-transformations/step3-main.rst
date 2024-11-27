@@ -1,5 +1,3 @@
-.. {#step3-main/step3_main}
-
 Step 3. Main Transformations
 ============================
 

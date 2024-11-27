@@ -1,6 +1,6 @@
 alabaster==0.7.14
 atomicwrites==1.4.0
-attrs==22.1.0
+attrs==22.2.0
 Babel==2.11.0
 beautifulsoup4==4.9.3
 breathe==4.35.0
@@ -14,6 +14,7 @@ importlib-metadata==4.8.0
 iniconfig==1.1.1
 ipython==8.10.0
 Jinja2==3.1.4
+jsonschema==4.23.0
 lxml>=4.9.2
 MarkupSafe==2.1.1
 mistune==2.0.3

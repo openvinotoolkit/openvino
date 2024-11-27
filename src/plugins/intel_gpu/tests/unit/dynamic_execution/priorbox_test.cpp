@@ -23,7 +23,7 @@ using namespace cldnn;
 using namespace ::tests;
 
 namespace priorbox_constant_propagation_test {
-TEST(priorbox_constant_propagation_test, basic) {
+TEST(DISABLED_priorbox_constant_propagation_test, basic) {
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 

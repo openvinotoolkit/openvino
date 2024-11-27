@@ -1,5 +1,3 @@
-.. {#openvino_docs_install_guides_install_dev_tools}
-
 Install OpenVINO™ Development Tools
 =====================================
 
@@ -21,7 +19,7 @@ Python developer, it only takes a few simple steps to install the tools with PyP
 are developing in C/C++, OpenVINO Runtime must be installed separately before installing
 OpenVINO Development Tools.
 
-In both cases, Python 3.8 - 3.11 needs to be installed on your machine before starting.
+In both cases, Python 3.9 - 3.12 needs to be installed on your system before starting.
 
 .. note::
 
@@ -259,7 +257,3 @@ Additional Resources
 ####################
 
 - `Intel® Distribution of OpenVINO™ toolkit home page <https://software.intel.com/en-us/openvino-toolkit>`__
-- For IoT Libraries & Code Samples, see `Intel® IoT Developer Kit <https://github.com/intel-iot-devkit>`__ .
-
-
-

@@ -1,0 +1,109 @@
+name: JAX/Flax Models tests
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: 'Machine on which the tests would run'
+        type: string
+        required: true
+      container:
+        description: 'JSON to be converted to the value of the "container" configuration for the job'
+        type: string
+        required: false
+        default: '{"image": null}'
+      model_scope:
+        description: 'Scope of models for testing.'
+        type: string
+        required: true
+
+permissions: read-all
+
+jobs:
+  JAX_Models_Tests:
+    name: JAX/Flax Models tests
+    timeout-minutes: ${{ inputs.model_scope == 'precommit' && 35 || 35 }}
+    runs-on: ${{ inputs.runner }}
+    container: ${{ fromJSON(inputs.container) }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      OPENVINO_REPO: ${{ github.workspace }}/openvino
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
+      MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
+    steps:
+      - name: Download OpenVINO artifacts (tarballs)
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          pattern: openvino_[tests]*
+          path: ${{ env.INSTALL_DIR }}
+          merge-multiple: true
+          
+      - name: Download OpenVINO artifacts (wheels)
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          pattern: openvino_[tokenizers_wheel|wheels]*
+          path: ${{ env.INSTALL_WHEELS_DIR }}
+          merge-multiple: true
+
+      # Needed as ${{ github.workspace }} is not working correctly when using Docker
+      - name: Setup Variables
+        run: |
+          echo "OPENVINO_REPO=$GITHUB_WORKSPACE/openvino" >> "$GITHUB_ENV"
+          echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
+          echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
+          echo "MODEL_HUB_TESTS_INSTALL_DIR=$GITHUB_WORKSPACE/install/tests/model_hub_tests" >> "$GITHUB_ENV"
+          
+      - name: Extract OpenVINO packages and tests
+        run: |
+            pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
+        working-directory: ${{ env.INSTALL_DIR }}
+
+      - name: Fetch setup_python action
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
+
+      - name: Setup Python 3.11
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: '3.11'
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: ${{ contains(inputs.runner, 'aks') }}
+
+      - name: Install OpenVINO Python wheels
+        run: |
+          # To enable pytest parallel features
+          python3 -m pip install pytest-xdist[psutil]
+          python3 -m pip install ./openvino-*
+          python3 -m pip install ./openvino_tokenizers-*
+        working-directory: ${{ env.INSTALL_WHEELS_DIR }}
+
+      - name: Install JAX tests requirements for precommit
+        run: |
+          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/jax/requirements.txt
+
+      - name: JAX/Flax Models Tests from Hugging Face
+        if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly' }}
+        run: |
+          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/jax/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-jax_model_${{ inputs.model_scope }}_tests.html --self-contained-html -v
+        env:
+          TYPE: ${{ inputs.model_scope == 'precommit' && 'precommit' || 'nightly' }}
+          TEST_DEVICE: CPU
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        if: ${{ !cancelled() }}
+        with:
+          name: test-results-jax-models-${{ inputs.model_scope }}
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
+          if-no-files-found: 'error'

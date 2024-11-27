@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for ops added to openvino opset13."""
-from functools import partial
+from functools import partial, singledispatch
 from typing import Literal, Optional, Union
 import logging
 
@@ -11,11 +11,11 @@ import numpy as np
 
 log = logging.getLogger(__name__)
 
-from openvino.runtime import Node, Shape, Type, Output
+from openvino.runtime import Node, Shape, Type, Output, Tensor
 from openvino.runtime.op import Constant, Result
 from openvino.runtime.opset1 import convert_like
 from openvino.runtime.opset_utils import _get_node_factory
-from openvino.runtime.utils.decorators import binary_op, nameable_op, unary_op
+from openvino.runtime.utils.decorators import binary_op, nameable_op, unary_op, overloading
 from openvino.runtime.utils.types import (
     NumericData,
     NodeInput,
@@ -271,6 +271,7 @@ def scaled_dot_product_attention(
     return _get_node_factory_opset13().create("ScaledDotProductAttention", inputs, attributes)
 
 
+@overloading(Union[NumericData, np.number, bool, np.bool_, list], Union[NumericType, Type], Optional[str], bool)  # type: ignore
 @nameable_op
 def constant(
     value: Union[NumericData, np.number, bool, np.bool_, list],
@@ -336,6 +337,16 @@ def constant(
                     _value, _shared_memory = _value.astype(_dtype), False
     # Create Constant itself:
     return Constant(_value, shared_memory=_shared_memory)
+
+
+@overloading(Tensor, bool, Optional[str])  # type: ignore
+@nameable_op
+def constant(  # noqa: F811
+    tensor: Tensor,
+    shared_memory: bool = False,
+    name: Optional[str] = None,
+) -> Constant:
+    return Constant(tensor, shared_memory=shared_memory)
 
 
 @unary_op

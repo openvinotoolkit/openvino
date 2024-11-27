@@ -1,5 +1,3 @@
-.. {#[legacy]-convert-tensorflow_Lite}
-
 [LEGACY] Converting a TensorFlow Lite Model
 =====================================================
 

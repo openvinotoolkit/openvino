@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_movement_BatchToSpace_2}
-
 BatchToSpace
 ============
 

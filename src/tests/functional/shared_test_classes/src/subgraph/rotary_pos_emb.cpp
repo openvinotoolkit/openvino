@@ -5,6 +5,7 @@
 #include "shared_test_classes/subgraph/rotary_pos_emb.hpp"
 
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 
 using namespace ov::gen_pattern;
@@ -12,6 +13,85 @@ using namespace ov;
 
 namespace ov {
 namespace test {
+
+std::shared_ptr<ov::Model> RoPETestFlux::build_rope_flux(int batch,
+                                                         int seq_length,
+                                                         int num_head,
+                                                         int ndims) {
+    auto x = std::make_shared<ov::opset1::Parameter>(ov::element::f32, PartialShape{batch, num_head, seq_length, ndims});
+    auto t_cos = std::make_shared<ov::opset1::Parameter>(ov::element::f32, PartialShape{1, 1, seq_length, ndims});
+    auto t_sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32, PartialShape{1, 1, seq_length, ndims});
+
+    auto x1_shape = makeConst(element::i64, ov::Shape({5}), {0, num_head, 0, -1, 2});
+    auto x1 = std::make_shared<ov::op::v1::Reshape>(x, x1_shape, true);
+
+    auto split_axis = makeConst(element::i64, ov::Shape(), {-1});
+    auto split = std::make_shared<ov::op::v1::Split>(x1, split_axis, 2);
+
+    auto minus_one = makeConst(element::f32, ov::Shape({}), {-1.0f});
+    auto x1_1_neg = std::make_shared<ov::op::v1::Multiply>(split->output(1), minus_one);
+
+    auto x2 = std::make_shared<ov::op::v0::Concat>(OutputVector{x1_1_neg->output(0), split->output(0)}, -1);
+
+    auto x3_shape = makeConst(element::i64, ov::Shape({4}), {0, num_head, 0, ndims});
+    auto x3 = std::make_shared<ov::op::v1::Reshape>(x2, x3_shape, true);
+
+    auto y1 = std::make_shared<ov::op::v1::Multiply>(x, t_cos);
+    auto y2 = std::make_shared<ov::op::v1::Multiply>(x3, t_sin);
+    auto y = std::make_shared<ov::op::v1::Add>(y1, y2);
+
+    return std::make_shared<ov::Model>(ov::NodeVector{y}, ov::ParameterVector{x, t_cos, t_sin});
+}
+
+void RoPETestFlux::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    const auto& funcInputs = function->inputs();
+
+    ov::test::utils::InputGenerateData in_data;
+    in_data.start_from = -1;
+    in_data.range = 2;
+    in_data.resolution = 32768;
+
+    auto cos_data = in_data;
+    cos_data.seed = 10;
+
+    auto sin_data = in_data;
+    sin_data.seed = 20;
+
+    ov::Tensor t_input = utils::create_and_fill_tensor(funcInputs[0].get_element_type(), targetInputStaticShapes[0], in_data);
+    ov::Tensor t_cos = utils::create_and_fill_tensor(funcInputs[1].get_element_type(), targetInputStaticShapes[1], cos_data);
+    ov::Tensor t_sin = utils::create_and_fill_tensor(funcInputs[2].get_element_type(), targetInputStaticShapes[2], sin_data);
+
+    inputs.clear();
+    inputs.insert({funcInputs[0].get_node_shared_ptr(), t_input});
+    inputs.insert({funcInputs[1].get_node_shared_ptr(), t_cos});
+    inputs.insert({funcInputs[2].get_node_shared_ptr(), t_sin});
+}
+
+void RoPETestFlux::SetUp() {
+    targetDevice = this->GetParam();
+
+    const int batch = 1;
+    const int seq_length = 7;
+    const size_t max_position_embeddings = 2048;
+    const size_t ndims = 128;
+    const size_t num_head = 24;
+
+    std::vector<InputShape> input_shapes = {
+        {{batch, num_head, seq_length, ndims}, {{batch, num_head, seq_length, ndims}}},
+        {{1, 1, seq_length, ndims}, {{1, 1, seq_length, ndims}}},
+        {{1, 1, seq_length, ndims}, {{1, 1, seq_length, ndims}}}
+    };
+    init_input_shapes(input_shapes);
+    function = build_rope_flux(batch, -1, num_head, ndims);
+}
+
+std::string RoPETestFlux::getTestCaseName(const testing::TestParamInfo<std::string>& obj) {
+    std::string targetDevice = obj.param;
+    std::ostringstream result;
+    result << "targetDevice=" << targetDevice;
+    return result.str();
+}
+
 
 ov::OutputVector RoPETestLlama2StridedSlice::makeCosSinCache(int max_position_embeddings, int rotary_ndims) {
     std::vector<float> lut_sin(max_position_embeddings * rotary_ndims, 0.0f);
@@ -1025,6 +1105,130 @@ std::shared_ptr<ov::Model> RoPETestGPTJSlice::buildROPE_GPTJ(int num_head,
         model_output.push_back(gather);
     }
     return std::make_shared<ov::Model>(model_output, ov::ParameterVector{input, sincos});
+}
+
+std::shared_ptr<ov::Model> RoPETestChatGLM2DRoPEStridedSlice::buildROPE_ChatGLM(int batch, int head_cnt, int rotary_dims) {
+    auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, PartialShape{batch, -1, 4096 + 256 + 256});
+    auto cos_sin_cache = std::make_shared<ov::opset1::Parameter>(ov::element::f32, PartialShape{32768, 32, 2});
+    auto position_ids = std::make_shared<ov::opset1::Parameter>(ov::element::i32, PartialShape{-1, -1});
+
+    auto __module_transformer_index_67_Gather =
+        makeOP<opset8::Gather>({cos_sin_cache, position_ids, 0}, {{"batch_dims", 0}});
+
+    auto ListUnpack_321 = makeOP<opset1::VariadicSplit>({input, -1, {4096, 256, 256}});
+    auto view_Reshape = makeOP<opset1::Reshape>({ListUnpack_321->output(0), {0, 0, 32, 128}}, {{"special_zero", true}});
+
+    auto permute_Transpose = makeOP<opset1::Transpose>({view_Reshape, {0, 2, 1, 3}}, {});
+
+    auto slice_Slice_357 =
+        makeOP<opset1::StridedSlice>({permute_Transpose, {0, 0, 0, 0}, {0, 0, 0, 64}, {1, 1, 1, 1}},
+                                     {{"begin_mask", {1, 1, 1, 0}},
+                                      {"end_mask", {1, 1, 1, 0}},
+                                      {"new_axis_mask", {}},
+                                      {"shrink_axis_mask", {}},
+                                      {"ellipsis_mask", {}}});
+
+    auto aten_view_Reshape_1 = makeOP<opset1::Reshape>({ListUnpack_321->output(1), {0, 0, 2, 128}}, {{"special_zero", true}});
+    auto aten_transpose_1 = makeOP<opset8::Transpose>({aten_view_Reshape_1, {0, 2, 1, 3}});
+    auto shape_of_105249 = makeOP<opset8::ShapeOf>({aten_transpose_1}, {{"output_type", "i32"}});
+    auto gather_105252 = makeOP<opset8::Gather>({shape_of_105249, {2}, {0}}, {{"batch_dims", 0}});
+    auto scatter_update_63441 = makeOP<opset8::ScatterUpdate>({{0, 0}, {1}, gather_105252, {0}});
+    // connected to cos_sin_cache
+    auto slice_Slice_369 =
+        makeOP<opset1::StridedSlice>({__module_transformer_index_67_Gather, {0, 0}, scatter_update_63441, {1, 1}},
+                                     {{"begin_mask", {1, 0}},
+                                      {"end_mask", {1, 0}},
+                                      {"new_axis_mask", {}},
+                                      {"shrink_axis_mask", {}},
+                                      {"ellipsis_mask", {}}});
+    auto list_construct_concat_1 = makeOP<opset1::Concat>({{-1}, {1}, gather_105252, {32}, {2}}, {{"axis", 0}});
+
+    auto reshape_Reshape_373 =
+        makeOP<opset1::Reshape>({slice_Slice_357, {0, 32, 0, 32, 2}}, {{"special_zero", true}});
+    auto select_Gather_384 = makeOP<opset8::Gather>({reshape_Reshape_373, 0, -1}, {{"batch_dims", 0}});//x_even
+    auto select_Gather_381 = makeOP<opset8::Gather>({reshape_Reshape_373, 1, -1}, {{"batch_dims", 0}});//x_odd
+
+    auto view_Reshape_380 =
+        makeOP<opset1::Reshape>({slice_Slice_369, list_construct_concat_1}, {{"special_zero", false}});
+    auto select_Gather_385 = makeOP<opset8::Gather>({view_Reshape_380, 0, -1}, {{"batch_dims", 0}});//cos_tab
+    auto select_Gather_382 = makeOP<opset8::Gather>({view_Reshape_380, 1, -1}, {{"batch_dims", 0}});//sin_tab
+
+    auto mul_Multiply_386 =
+        makeOP<opset1::Multiply>({select_Gather_381, select_Gather_382}, {{"auto_broadcast", "numpy"}});//x_odd_sin
+    auto mul_Multiply_383 =
+        makeOP<opset1::Multiply>({select_Gather_384, select_Gather_385}, {{"auto_broadcast", "numpy"}});//x_even_cos
+    auto sub_Subtract_389 =
+        makeOP<opset1::Subtract>({mul_Multiply_383, mul_Multiply_386}, {{"auto_broadcast", "numpy"}});
+
+    auto mul_Multiply_391 =
+        makeOP<opset1::Multiply>({select_Gather_381, select_Gather_385}, {{"auto_broadcast", "numpy"}});//x_odd_cos
+    auto mul_Multiply_393 =
+        makeOP<opset1::Multiply>({select_Gather_384, select_Gather_382}, {{"auto_broadcast", "numpy"}});//x_even_sin
+    auto add_Add_396 = makeOP<opset1::Add>({mul_Multiply_391, mul_Multiply_393}, {{"auto_broadcast", "numpy"}});
+
+    auto Unsqueeze_62716 = makeOP<opset1::Unsqueeze>({sub_Subtract_389, -1}, {});
+    auto Unsqueeze_62717 = makeOP<opset1::Unsqueeze>({add_Add_396, -1}, {});
+
+    auto stack_401 = makeOP<opset1::Concat>({Unsqueeze_62716, Unsqueeze_62717}, {{"axis", -1}});
+    auto flatten_Reshape_421 = makeOP<opset1::Reshape>({stack_401, {0, 32, 0, 64}}, {{"special_zero", true}});
+    auto slice_Slice_363 =
+        makeOP<opset1::StridedSlice>({permute_Transpose, {0, 0, 0, 64}, {0, 0, 0, INT_MAX}, {1, 1, 1, 1}},
+                                     {{"begin_mask", {1, 1, 1, 0}},
+                                      {"end_mask", {1, 1, 1, 0}},
+                                      {"new_axis_mask", {}},
+                                      {"shrink_axis_mask", {}},
+                                      {"ellipsis_mask", {}}});
+    auto cat_Concat_425 = makeOP<opset1::Concat>({flatten_Reshape_421, slice_Slice_363}, {{"axis", -1}});
+    return std::make_shared<ov::Model>(ov::NodeVector{cat_Concat_425},
+                                       ov::ParameterVector{input, cos_sin_cache, position_ids});
+}
+
+ov::Tensor RoPETestChatGLM2DRoPEStridedSlice::create_i32_tensor(const ov::Shape& shape, int start, int step) {
+    auto tensor = ov::Tensor(ov::element::i32, shape);
+    auto* ptr = static_cast<int32_t*>(tensor.data());
+    for (size_t i = 0; i < tensor.get_size(); i++) {
+        ptr[i] = start;
+        start += step;
+    }
+    return tensor;
+}
+
+void RoPETestChatGLM2DRoPEStridedSlice::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    const auto& funcInputs = function->inputs();
+
+    auto& input_shape = targetInputStaticShapes[0];
+    auto batch = input_shape[0];
+    auto seq_length = input_shape[1];
+
+    ov::Tensor t_input = utils::create_and_fill_tensor(funcInputs[0].get_element_type(), input_shape, 2, -1.0f, 32768);
+    ov::Tensor t_cos_sin_cache =
+        utils::create_and_fill_tensor(funcInputs[1].get_element_type(), {32768, 32, 2}, 2, -1.0f, 32768);
+    ov::Tensor t_position_ids = create_i32_tensor(ov::Shape({batch, seq_length}), 15);
+
+    inputs.clear();
+    inputs.insert({funcInputs[0].get_node_shared_ptr(), t_input});
+    inputs.insert({funcInputs[1].get_node_shared_ptr(), t_cos_sin_cache});
+    inputs.insert({funcInputs[2].get_node_shared_ptr(), t_position_ids});
+}
+
+void RoPETestChatGLM2DRoPEStridedSlice::SetUp() {
+    targetDevice = this->GetParam();
+
+    const int batch = 2;
+    const int seq_length = 7;
+    const int num_head = 32;
+    const int rotary_dims = 64;
+
+    InputShape inpShape = {{batch, -1, 4096 + 256 + 256}, {{batch, seq_length, 4096 + 256 + 256}}};
+    init_input_shapes({inpShape});
+    function = buildROPE_ChatGLM(-1, num_head, rotary_dims);
+}
+
+std::string RoPETestChatGLM2DRoPEStridedSlice::getTestCaseName(const testing::TestParamInfo<std::string>& obj) {
+    std::string targetDevice = obj.param;
+    std::ostringstream result;
+    result << "targetDevice=" << targetDevice;
+    return result.str();
 }
 
 }  // namespace test

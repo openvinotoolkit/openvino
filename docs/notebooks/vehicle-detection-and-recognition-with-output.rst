@@ -17,6 +17,7 @@ As a result, you can get:
 
    result
 
+
 **Table of contents:**
 
 
@@ -59,14 +60,9 @@ Import the required modules.
 
 .. code:: ipython3
 
-    import platform
-    
     %pip install -q "openvino>=2023.1.0" opencv-python tqdm
     
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q "matplotlib>=3.4"
 
 
 .. parsed-literal::

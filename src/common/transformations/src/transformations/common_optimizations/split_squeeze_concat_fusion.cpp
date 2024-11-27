@@ -28,8 +28,7 @@ ov::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion(bool use_shapes) {
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
-        auto concat =
-            std::dynamic_pointer_cast<ov::op::v0::Concat>(pattern_to_output.at(concat_pattern).get_node_shared_ptr());
+        auto concat = ov::as_type_ptr<ov::op::v0::Concat>(pattern_to_output.at(concat_pattern).get_node_shared_ptr());
         if (!concat)
             return false;
 
@@ -42,16 +41,14 @@ ov::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion(bool use_shapes) {
             auto squeeze_node = concat->get_input_node_shared_ptr(i);
             if (!ov::is_type<ov::op::v0::Squeeze>(squeeze_node) && !ov::is_type<ov::op::v1::Reshape>(squeeze_node))
                 return false;
-            auto split_to_check =
-                std::dynamic_pointer_cast<ov::op::v1::Split>(squeeze_node->get_input_node_shared_ptr(0));
+            auto split_to_check = ov::as_type_ptr<ov::op::v1::Split>(squeeze_node->get_input_node_shared_ptr(0));
             if (!split_to_check)
                 return false;
 
             if (i == 0) {
                 nodes_to_delete.push_back(split_to_check);
                 split = split_to_check;
-                auto split_axis_node =
-                    std::dynamic_pointer_cast<ov::op::v0::Constant>(split->get_input_node_shared_ptr(1));
+                auto split_axis_node = ov::as_type_ptr<ov::op::v0::Constant>(split->get_input_node_shared_ptr(1));
                 if (!split_axis_node)
                     return false;
                 auto axis_vec = split_axis_node->cast_vector<int64_t>();

@@ -56,6 +56,7 @@ struct multi_stage_primitive : public typed_primitive_impl<PType> {
         this->_kernel_name = other._kernel_name;
         this->can_reuse_memory = other.can_reuse_memory;
         this->_is_dynamic = other._is_dynamic;
+        this->m_manager = other.m_manager;
     }
 
     multi_stage_primitive(const std::vector<kernel_selector::kernel_data>& kd)
@@ -138,6 +139,18 @@ protected:
 
     std::vector<std::string> get_cached_kernel_ids(const kernels_cache& kernels_cache) override {
         return {kernels_cache.get_cached_kernel_ids(_kernels)};
+    }
+
+    template<typename ImplType, typename KernelParamsType>
+    static std::unique_ptr<primitive_impl> make_deep_copy(const ImplType& impl_ocl) {
+        auto prim_impl = make_unique<ImplType>(impl_ocl);
+        for (auto& _kernel_data : (*prim_impl)._kernels_data) {
+            KernelParamsType* params_ptr = dynamic_cast<KernelParamsType*>(_kernel_data.params.get());
+            if (params_ptr != nullptr) {
+                _kernel_data.params = make_unique<KernelParamsType>(*params_ptr);
+            }
+        }
+        return prim_impl;
     }
 
     std::vector<kernel::ptr> get_kernels() const override {

@@ -24,6 +24,7 @@
 #include "openvino/op/loop.hpp"
 #include "openvino/op/lstm_cell.hpp"
 #include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
@@ -361,6 +362,38 @@ bool check_condition_true_pattern(const std::shared_ptr<op::v0::Result>& cond_re
     return true;
 }
 
+void create_mul_by_one_pattern(std::shared_ptr<Node>& param,
+                               std::shared_ptr<Node>& broadcast_value,
+                               std::shared_ptr<Node>& mul,
+                               bool with_first_squeeze = false) {
+    param = pattern::wrap_type<op::v0::Parameter>();
+    auto shape_of_input = param;
+    if (with_first_squeeze) {
+        auto first_squeeze_axes = pattern::wrap_type<op::v0::Constant>();
+        shape_of_input = pattern::wrap_type<op::v0::Squeeze>({param, first_squeeze_axes});
+    }
+    auto shape_of = pattern::wrap_type<op::v3::ShapeOf>({shape_of_input});
+    auto concat_value = pattern::wrap_type<op::v0::Constant>();
+    auto concat = pattern::wrap_type<op::v0::Concat>({concat_value, shape_of});
+    broadcast_value = pattern::wrap_type<op::v0::Constant>();
+    auto broadcast = pattern::wrap_type<op::v3::Broadcast>({broadcast_value, concat});
+    auto squeeze_axes = pattern::wrap_type<op::v0::Constant>();
+    auto squeeze = pattern::wrap_type<op::v0::Squeeze>({broadcast, squeeze_axes});
+    mul = pattern::wrap_type<op::v1::Multiply>({shape_of_input, squeeze});
+}
+
+bool check_const_one(const std::shared_ptr<Node>& node) {
+    auto const_node = ov::as_type_ptr<op::v0::Constant>(node);
+    if (!const_node) {
+        return false;
+    }
+    auto const_values = const_node->get_vector<float>();
+    if (const_values.size() != 1 || const_values[0] != 1) {
+        return false;
+    }
+    return true;
+}
+
 bool check_lstm_cell_pattern(
     const std::shared_ptr<op::v5::Loop>& loop,
     const ov::ParameterVector& body_params,
@@ -386,8 +419,19 @@ bool check_lstm_cell_pattern(
     auto R_label = pattern::wrap_type<op::v0::Constant>();
     auto B_label = pattern::wrap_type<op::v0::Constant>();
 
+    // TODO: 152648 - remove this WA
+    // create multiply by one pattern for x input
+    std::shared_ptr<Node> x_param, x_broadcast_value, x_mul;
+    create_mul_by_one_pattern(x_param, x_broadcast_value, x_mul, true);
+    // create multiply by one pattern for hidden state input
+    std::shared_ptr<Node> h_param, h_broadcast_value, h_mul;
+    create_mul_by_one_pattern(h_param, h_broadcast_value, h_mul, false);
+
+    auto xi_common_label = std::make_shared<pattern::op::Or>(OutputVector{xi_reshape_label, x_mul});
+    auto hidden_common_label = std::make_shared<pattern::op::Or>(OutputVector{init_hidden_state_i_label, h_mul});
+
     auto lstm_cell_label = pattern::wrap_type<op::v4::LSTMCell>(
-        {xi_reshape_label, init_hidden_state_i_label, init_cell_state_i_label, W_label, R_label, B_label});
+        {xi_common_label, hidden_common_label, init_cell_state_i_label, W_label, R_label, B_label});
     auto unsqueeze_axis_label = pattern::wrap_type<op::v0::Constant>();
     auto unsqueeze_hidden_state_label = pattern::wrap_type<op::v0::Unsqueeze>({lstm_cell_label, unsqueeze_axis_label});
     auto result_hidden_state_label = pattern::wrap_type<op::v0::Result>({unsqueeze_hidden_state_label});
@@ -420,6 +464,23 @@ bool check_lstm_cell_pattern(
     if (!result_hidden_state) {
         return false;
     }
+
+    // re-assign keys for pattern if multiply-by-one pattern was applied
+    if (lstm_cell_map.count(h_param)) {
+        // check that broadcasted value is equal to one
+        if (!check_const_one(lstm_cell_map.at(h_broadcast_value).get_node_shared_ptr())) {
+            return false;
+        }
+        init_hidden_state_i_label = h_param;
+    }
+    if (lstm_cell_map.count(x_param)) {
+        // check that broadcasted value is equal to one
+        if (!check_const_one(lstm_cell_map.at(x_broadcast_value).get_node_shared_ptr())) {
+            return false;
+        }
+        xi_label = x_param;
+    }
+
     for (const auto& input_desc : input_descriptions) {
         auto param_idx = input_desc->m_body_parameter_index;
         auto input_idx = input_desc->m_input_index;
@@ -471,7 +532,7 @@ ov::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSequen
     auto tensor_iterator = pattern::wrap_type<ov::op::v0::TensorIterator>();
 
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto ti = std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(m.get_match_root());
+        auto ti = ov::as_type_ptr<ov::op::v0::TensorIterator>(m.get_match_root());
         if (!ti || transformation_callback(ti))
             return false;
 
@@ -531,7 +592,7 @@ ov::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequence
     auto tensor_iterator = pattern::wrap_type<ov::op::v0::TensorIterator>();
 
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto ti = std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(m.get_match_root());
+        auto ti = ov::as_type_ptr<ov::op::v0::TensorIterator>(m.get_match_root());
         if (!ti || transformation_callback(ti))
             return false;
 
@@ -565,8 +626,7 @@ ov::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequence
             return false;
 
         const auto& pattern_map = matcher.get_pattern_value_map();
-        const auto& rnn_cell =
-            std::dynamic_pointer_cast<ov::op::v0::RNNCell>(pattern_map.at(cell).get_node_shared_ptr());
+        const auto& rnn_cell = ov::as_type_ptr<ov::op::v0::RNNCell>(pattern_map.at(cell).get_node_shared_ptr());
         if (rnn_cell == nullptr)
             return false;
 
@@ -590,7 +650,7 @@ ov::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequence
     auto tensor_iterator = pattern::wrap_type<ov::op::v0::TensorIterator>();
 
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto ti = std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(m.get_match_root());
+        auto ti = ov::as_type_ptr<ov::op::v0::TensorIterator>(m.get_match_root());
         if (!ti || transformation_callback(ti))
             return false;
 
@@ -625,8 +685,7 @@ ov::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequence
             return false;
 
         const auto& pattern_map = matcher.get_pattern_value_map();
-        const auto& gru_cell =
-            std::dynamic_pointer_cast<ov::op::v3::GRUCell>(pattern_map.at(cell).get_node_shared_ptr());
+        const auto& gru_cell = ov::as_type_ptr<ov::op::v3::GRUCell>(pattern_map.at(cell).get_node_shared_ptr());
         if (gru_cell == nullptr)
             return false;
 

@@ -22,6 +22,7 @@ OpenVINO supports the following model formats:
 * TensorFlow Lite,
 * ONNX,
 * PaddlePaddle,
+* JAX/Flax (experimental feature)
 * OpenVINO IR.
 
 The easiest way to obtain a model is to download it from an online database, such as
@@ -61,7 +62,7 @@ The easiest way to obtain a model is to download it from an online database, suc
    CLI tool. For more details, see the
    :doc:`Model Conversion API Transition Guide <../documentation/legacy-features/transition-legacy-conversion-api>`.
 
-   For PyTorch models, `Python API <#convert-a-model-with-python-convert-model>`__ is the only
+   For PyTorch and JAX/Flax models, `Python API <#convert-a-model-with-python-convert-model>`__ is the only
    conversion option.
 
 Different model representations
@@ -280,7 +281,7 @@ formats to
 which can then be read, compiled, and run by the final inference application.
 
 .. note::
-   PyTorch models cannot be converted with ``ovc``, use ``openvino.convert_model`` instead.
+   PyTorch and JAX/Flax models cannot be converted with ``ovc``, use ``openvino.convert_model`` instead.
 
 Additional Resources
 ####################

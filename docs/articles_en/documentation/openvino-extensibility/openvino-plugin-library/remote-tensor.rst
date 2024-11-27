@@ -1,5 +1,3 @@
-.. {#openvino_docs_ov_plugin_dg_remote_tensor}
-
 Remote Tensor
 =============
 
@@ -12,7 +10,7 @@ ov::RemoteTensor class functionality:
 
 * Provides an interface to work with device-specific memory.
 
-.. note:: 
+.. note::
 
    If plugin provides a public API for own Remote Tensor, the API should be header only and does not depend on the plugin library.
 
@@ -44,7 +42,7 @@ Device-Specific Internal tensor implementation
 The plugin should have the internal implementation of remote tensor which can communicate with public API.
 The example contains the implementation of remote tensor which wraps memory from stl vector.
 
-OpenVINO Plugin API provides the interface ov::IRemoteTensor which should be used as a base class for remote tensors. 
+OpenVINO Plugin API provides the interface ov::IRemoteTensor which should be used as a base class for remote tensors.
 
 The example implementation have two remote tensor classes:
 

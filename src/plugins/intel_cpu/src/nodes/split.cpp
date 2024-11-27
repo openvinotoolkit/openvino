@@ -12,7 +12,7 @@
 #include "utils/general_utils.h"
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "utils/ngraph_utils.hpp"
-#include <partitioned_mem_mgr.h>
+#include <partitioned_mem_blk.h>
 #include "openvino/op/split.hpp"
 #include "openvino/op/variadic_split.hpp"
 
@@ -45,8 +45,8 @@ bool Split::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std:
     return true;
 }
 
-Split::Split(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
-        Node(op, context, NgraphShapeInferFactory(op, PortMask(1, 2))) {
+Split::Split(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);

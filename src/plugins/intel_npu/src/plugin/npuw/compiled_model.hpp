@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2023-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,12 +7,13 @@
 #include <optional>
 
 #include "common.hpp"
-#include "intel_npu/al/config/config.hpp"
-#include "intel_npu/al/config/npuw.hpp"
+#include "intel_npu/config/config.hpp"
+#include "intel_npu/config/npuw.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "partitioning/partitioning.hpp"
+#include "spatial.hpp"
 #include "weights_bank.hpp"
 
 namespace intel_npu {
@@ -46,6 +47,9 @@ private:
     // FIXME: This class has many friends..
     friend class IBaseInferRequest;
     friend class JustInferRequest;
+    friend class UnfoldInferRequest;
+    friend class MemAccessSim;
+    friend class FuncMemMgr;
 
     bool compile_for_success(std::size_t id);
     bool compile_for_device(std::size_t id, const std::string& device_to_try);
@@ -54,25 +58,28 @@ private:
 
     void dump_on_fail(std::size_t id, const std::string& device_to_stry, const char* extra);
 
-    bool m_finalized = false;
-    void reset_io();
+    void report_io() const;
 
     // This is used for removing too long output tensor names to fix some compilation issues
+    // NB: These two methods has nothing to do with this particular class and should be
+    // moved elsewhere
     void remove_long_output_names(const std::shared_ptr<ov::Model>& model);
     void fill_empty_tensor_names(const std::shared_ptr<ov::Model>& model);
 
     std::shared_ptr<const ::intel_npu::Plugin> get_npuw_plugin() const;
-
-    std::shared_ptr<ov::ISyncInferRequest> create_just_sync_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
     std::string submodel_device(const std::size_t idx) const;
+    bool is_gather_closure(const std::size_t idx, const std::size_t cidx) const;
+    bool unpack_required(const std::size_t idx) const;
+    bool unpack_required(const std::size_t idx, const std::size_t cidx) const;
 
     void log_device_dist() const;
-
     void implement_properties();
 
-    void fill_weights_bank(const std::size_t idx);
+    void finalize_weights_bank();
+    std::string global_mem_device() const;
+    std::string funcall_mem_device(const std::size_t idx) const;
 
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
     ::intel_npu::Config m_cfg;
@@ -116,13 +123,22 @@ private:
 
         std::optional<std::size_t> replaced_by;
 
+        Subgraph::Gather host_gather;
+        std::optional<ov::npuw::compiled::Spatial> spatial;
+
         // FIXME: This is a 1:1 copy of the ov::npuw::Subgraph structure
         // w.r.t. function calls
         std::size_t param_base = 0;
+        // NB: closure and lazy_closure are of the same size - to preserve proper indexing.
+        //     closure is responsible for host-side tensors (DCOFF, Gather, etc) while
+        //     lazy_closure is used for weights sharing and allocating device memory.
         std::vector<ov::Tensor> closure;
+        std::vector<weights::LazyTensor> lazy_closure;
         std::vector<ov::Tensor> scales;
         std::vector<ov::Tensor> zerops;
-        std::vector<bool> update_required;
+        std::vector<bool> is_remote;
+
+        bool forced_to_fcall = false;
 
         // FIXME: Take it out of structure
         ov::SoPtr<ov::ICompiledModel> ref_compiled_model;

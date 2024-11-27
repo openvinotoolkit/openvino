@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_activation_SoftSign_9}
-
 SoftSign
 ========
 
 
 .. meta::
-  :description: Learn about SoftSign-9 - an element-wise, activation operation, which 
+  :description: Learn about SoftSign-9 - an element-wise, activation operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *SoftSign-9*
@@ -14,7 +12,7 @@ SoftSign
 
 **Short description**: *SoftSign* performs element-wise activation on a given input tensor.
 
-**Detailed description**: 
+**Detailed description**:
 
 *SoftSign* operation is introduced in this `article <https://arxiv.org/abs/2010.09458>`__.
 

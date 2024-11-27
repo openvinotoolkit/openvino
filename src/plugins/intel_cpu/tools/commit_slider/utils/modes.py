@@ -16,9 +16,12 @@ from utils.common_mode import Mode
 class NopMode(Mode):
     # helpful with mode-ignorant traversal (brute force)
     def __init__(self, cfg):
+        self.msg = "default"
         super().__init__(cfg)
 
     def checkCfg(self, cfg):
+        if "msg" in cfg["runConfig"]:
+            self.msg = cfg["runConfig"]["msg"]
         super().checkCfg(cfg)
 
     def getPseudoMetric(self, commit, cfg):
@@ -31,6 +34,10 @@ class NopMode(Mode):
         checkOut = fetchAppOutput(cfg, commit)
         commitLogger.info(checkOut)
         return
+
+    def printResult(self):
+        print(self.msg)
+        self.outLogger.info(self.msg)
 
 
 class CheckOutputMode(Mode):
@@ -89,7 +96,6 @@ class CheckOutputMode(Mode):
 class BenchmarkAppPerformanceMode(Mode):
     def __init__(self, cfg):
         super().__init__(cfg)
-        self.outPattern = "Throughput:\s*([0-9]*[.][0-9]*)\s*FPS"
         self.perfRel = 0
         self.createCash()
 
@@ -128,6 +134,31 @@ class BenchmarkAppPerformanceMode(Mode):
             raise CfgError("Appropriate deviation is not configured")
         else:
             self.apprDev = cfg["runConfig"]["perfAppropriateDeviation"]
+        if ("metric" in cfg["runConfig"]):
+            self.outPattern = self.specifyMetric(cfg["runConfig"]["metric"])
+        else:
+            self.outPattern = self.specifyMetric()
+
+
+    def specifyMetric(self, metric: str = "throughput"):
+        if metric in [
+            "throughput",
+            "latency:max",
+            "latency:min",
+            "latency:median",
+            "latency:average"]:
+            spec = metric.split(":")
+            idStr = "FPS"
+            if len(spec) == 2:
+                spec = spec[1]
+                idStr = "ms"
+            else:
+                spec = spec[0]
+            spec = spec.title()
+            res = r'{spec}:\s*([0-9]*[.][0-9]*)\s*{idStr}'.format(
+                spec=spec, idStr=idStr)
+            return res
+        raise CfgError("Benchmark metric {} is not supported".format(metric))
 
     def preliminaryCheck(self, list, cfg):
         # model path checking
@@ -450,6 +481,7 @@ class CompareBlobsMode(Mode):
     def createCash(self):
         # we use separate files instead of json cache,
         # so, we just set up path to cache folder
+        # todo: handle usercache for multimodel case
         self.cachePath = getActualPath("cachePath", self.cfg)
         pass
 

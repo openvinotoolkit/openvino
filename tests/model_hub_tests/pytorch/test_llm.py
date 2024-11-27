@@ -100,13 +100,16 @@ class TestLLMModel(TestTorchConvertModel):
             config = {}
         model_kwargs = {"torchscript": True, "trust_remote_code": True}
         is_gptq = is_gptq_model(config)
+        is_gpt2 = name == "openai-community/gpt2"
+
         if is_gptq:
             self.cuda_available, self.gptq_postinit = patch_gptq()
             model_kwargs["torch_dtype"] = torch.float32
             self.ov_config = {"DYNAMIC_QUANTIZATION_GROUP_SIZE": "0"}
+        elif is_gpt2:
+            model_kwargs["torch_dtype"] = torch.float16
         else:
             model_kwargs["torch_dtype"] = "auto"
-            pass
 
         t = AutoTokenizer.from_pretrained(name, trust_remote_code=True)
         self.model = AutoModelForCausalLM.from_pretrained(name, **model_kwargs)
@@ -114,7 +117,7 @@ class TestLLMModel(TestTorchConvertModel):
             model = self.model
         else:
             assert self.model.config.torch_dtype in [
-                torch.float16, torch.bfloat16]
+                torch.float16, torch.bfloat16] or is_gpt2
             model = copy.deepcopy(self.model).float()
 
         example = t("Some input text to verify that model works.",
@@ -125,7 +128,7 @@ class TestLLMModel(TestTorchConvertModel):
             example["past_key_values"] = pkv
             example["attention_mask"] = torch.cat(
                 [example["attention_mask"], am], -1)
-        if atype not in ["opt", "falcon", "mbart_gptq", "mpt"]:
+        if atype not in ["opt", "falcon", "mbart", "mpt"]:
             ids = torch.cumsum(example["attention_mask"] != 0, dim=1) - 1
             example["position_ids"] = ids[:, -
                                           example["input_ids"].shape[1]:]
@@ -188,6 +191,7 @@ class TestLLMModel(TestTorchConvertModel):
     @pytest.mark.parametrize("type,name", [
         ("opt_gptq", "katuni4ka/opt-125m-gptq"),
         ("llama", "TinyLlama/TinyLlama-1.1B-Chat-v1.0"),
+        ("gpt2", "openai-community/gpt2")
     ])
     @pytest.mark.precommit
     @pytest.mark.nightly
@@ -195,13 +199,8 @@ class TestLLMModel(TestTorchConvertModel):
         self.run(model_name=name, model_link=type, ie_device=ie_device)
 
     @pytest.mark.parametrize("type,name", [
-        ("falcon", "tiiuae/falcon-7b-instruct"),
-        ("gemma", "beomi/gemma-ko-7b"),
         ("gpt_neox", "databricks/dolly-v2-3b"),
         ("gpt_neox_japanese", "rinna/japanese-gpt-neox-3.6b"),
-        ("llama", "togethercomputer/LLaMA-2-7B-32K"),
-        ("mistral", "HuggingFaceH4/zephyr-7b-beta"),
-        ("mpt", "mosaicml/mpt-7b"),
         ("opt", "facebook/opt-1.3b"),
         ("phi", "microsoft/phi-2"),
         ("phi3", "microsoft/Phi-3-mini-4k-instruct"),
@@ -222,10 +221,15 @@ class TestLLMModel(TestTorchConvertModel):
         ("baichuan", "baichuan-inc/Baichuan2-7B-Base"),
         pytest.param("chatglm", "THUDM/chatglm3-6b",
                      marks=pytest.mark.xfail(reason="Accuracy validation failed")),
+        ("falcon", "tiiuae/falcon-7b-instruct"),
         ("fuyu", "ybelkada/fuyu-8b-sharded"),
+        ("gemma", "beomi/gemma-ko-7b"),
         ("gemma2", "SteelStorage/Tess-v2.5-Gemma-2-27B-alpha-st"),
         ("gpt_neox", "togethercomputer/RedPajama-INCITE-7B-Instruct"),
         ("gpt_neox", "EleutherAI/gpt-neox-20b"),
+        ("llama", "togethercomputer/LLaMA-2-7B-32K"),
+        ("mistral", "HuggingFaceH4/zephyr-7b-beta"),
+        ("mpt", "mosaicml/mpt-7b"),
         ("starcoder2", "cognitivecomputations/dolphincoder-starcoder2-7b"),
         ("persimmon", "adept/persimmon-8b-base"),
         pytest.param("mistral_gptq", "TheBloke/em_german_leo_mistral-GPTQ",

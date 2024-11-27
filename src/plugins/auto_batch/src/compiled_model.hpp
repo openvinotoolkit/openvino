@@ -30,6 +30,7 @@ public:
         std::condition_variable _cond;
         std::mutex _mutex;
         std::exception_ptr _exception_ptr;
+        bool _is_wakeup;
     };
 
     CompiledModel(const std::shared_ptr<ov::Model>& model,

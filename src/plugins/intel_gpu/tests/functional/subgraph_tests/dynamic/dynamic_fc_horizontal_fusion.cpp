@@ -359,8 +359,7 @@ TEST_P(FullyConnectedHorizontalFusion, Inference) {
     check_results();
 }
 
-// const std::vector<ov::element::Type> activations_precisions = {ov::element::f32, ov::element::f16};
-const std::vector<ov::element::Type> activations_precisions = {ov::element::f16};
+const std::vector<ov::element::Type> activations_precisions = {ov::element::f32, ov::element::f16};
 const std::vector<ov::element::Type> weights_precisions = {ov::element::u8, ov::element::u4, ov::element::i4};
 const std::vector<bool> per_tensor_zp = {true, false};
 const std::vector<bool> transpose_weights = {true, false};
@@ -368,11 +367,13 @@ const std::vector<bool> transpose_weights = {true, false};
 std::vector<ov::Shape> weights1 = {{1, 16, 32}, {1, 16, 4}, {1, 16, 32}};
 std::vector<ov::Shape> weights2 = {{16, 32}, {16, 4}, {16, 32}};
 std::vector<ov::Shape> weights3 = {{28, 24}, {28, 18}, {28, 24}};
+std::vector<ov::Shape> weights4 = {{1, 16, 24}, {1, 16, 24}, {1, 16, 24}};
 
 const std::vector<ShapeParams> input_shapes = {
     {{{-1, -1, -1}, {{1, 4, 16}}}, weights1},
     {{{-1, -1, 16}, {{1, 4, 16}}}, weights2, 4},
     {{{-1, 28}, {{16, 28}}}, weights3, 4},
+    {{{-1, -1, -1}, {{1, 4, 16}}}, weights4},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_FCHorizontalFusion_no_bias,

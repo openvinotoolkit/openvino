@@ -95,6 +95,7 @@ TEST(memory_reuse_realloc_reset_test, basic_conv_with_padding) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"conv", {format::any, "", impl_types::ocl}}}));
 
     network network(engine, topology, config);
     network.set_input_data("input", input_mem_1);
@@ -343,6 +344,7 @@ TEST(memory_reuse_realloc_reset_test, basic_conv_with_padding_reorder) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"conv", {format::any, "", impl_types::ocl}}}));
 
     network network(engine, topology, config);
     network.set_input_data("input", input_mem_2);

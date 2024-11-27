@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_OV_Runtime_User_Guide}
-
 Running Inference with OpenVINO™
 ==================================
 

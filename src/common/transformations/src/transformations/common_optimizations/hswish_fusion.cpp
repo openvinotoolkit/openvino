@@ -38,11 +38,11 @@ ov::pass::HSwishFusionWithReluDiv::HSwishFusionWithReluDiv() {
         auto x_output = pattern_to_output.at(input);
 
         auto add_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
         auto min_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(min_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(min_constant).get_node_shared_ptr());
         auto div_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(div_constant).get_node_shared_ptr());
 
         bool valid_constant_values = op::util::has_constant_value<float>(add_const_value, 3.0) &&
                                      op::util::has_constant_value<float>(min_const_value, 6.0) &&
@@ -93,11 +93,11 @@ ov::pass::HSwishFusionWithReluMul::HSwishFusionWithReluMul() {
         auto x_output = pattern_to_output.at(input);
 
         auto add_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
         auto min_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(min_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(min_constant).get_node_shared_ptr());
         auto mul_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(mul_constant).get_node_shared_ptr());
 
         bool valid_constant_values = op::util::has_constant_value<float>(add_const_value, 3.0f) &&
                                      op::util::has_constant_value<float>(min_const_value, 6.0f) &&
@@ -163,13 +163,12 @@ ov::pass::HSwishFusionWithClamp::HSwishFusionWithClamp() {
         const auto& pattern_to_output = m.get_pattern_value_map();
         const auto x_output = pattern_to_output.at(input);
         const auto add_const_value =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
         if (!op::util::has_constant_value(add_const_value, 3.0)) {
             return false;
         }
 
-        const auto clamp_node =
-            std::dynamic_pointer_cast<ov::op::v0::Clamp>(pattern_to_output.at(clamp).get_node_shared_ptr());
+        const auto clamp_node = ov::as_type_ptr<ov::op::v0::Clamp>(pattern_to_output.at(clamp).get_node_shared_ptr());
         if (!clamp_node || clamp_node->get_min() != 0 || clamp_node->get_max() != 6)
             return false;
 

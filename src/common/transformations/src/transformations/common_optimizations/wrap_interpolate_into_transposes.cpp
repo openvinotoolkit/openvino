@@ -57,7 +57,7 @@ ov::pass::WrapInterpolateIntoTransposes::WrapInterpolateIntoTransposes() {
     MATCHER_SCOPE(WrapInterpolateIntoTransposes);
     auto interpolate_pattern = ov::pass::pattern::wrap_type<ov::op::v4::Interpolate>();
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto interpolate = std::dynamic_pointer_cast<ov::op::v4::Interpolate>(m.get_match_root());
+        auto interpolate = ov::as_type_ptr<ov::op::v4::Interpolate>(m.get_match_root());
         if (!interpolate || interpolate->get_input_partial_shape(0).rank().is_dynamic() ||
             interpolate->inputs().size() != 4)
             return false;
@@ -67,8 +67,7 @@ ov::pass::WrapInterpolateIntoTransposes::WrapInterpolateIntoTransposes() {
         if (input_rank < 3)
             return false;
 
-        auto axes_node =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(interpolate->input_value(3).get_node_shared_ptr());
+        auto axes_node = ov::as_type_ptr<ov::op::v0::Constant>(interpolate->input_value(3).get_node_shared_ptr());
         if (!axes_node)
             return false;
 

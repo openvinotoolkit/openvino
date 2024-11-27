@@ -39,23 +39,21 @@ ov::pass::DilatedConvolutionConverter::DilatedConvolutionConverter() {
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto block_shape =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(block_shape_pattern).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(block_shape_pattern).get_node_shared_ptr());
         if (!block_shape)
             return false;
         auto pads_begin =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(pads_begin_pattern).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(pads_begin_pattern).get_node_shared_ptr());
         if (!pads_begin)
             return false;
-        auto pads_end =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(pads_end_pattern).get_node_shared_ptr());
+        auto pads_end = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(pads_end_pattern).get_node_shared_ptr());
         if (!pads_end)
             return false;
         auto crops_begin =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(crops_begin_pattern).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(crops_begin_pattern).get_node_shared_ptr());
         if (!crops_begin)
             return false;
-        auto crops_end =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(crops_end_pattern).get_node_shared_ptr());
+        auto crops_end = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(crops_end_pattern).get_node_shared_ptr());
         if (!crops_end)
             return false;
 
@@ -66,14 +64,14 @@ ov::pass::DilatedConvolutionConverter::DilatedConvolutionConverter() {
         std::shared_ptr<ov::Node> conv_node;
         if (pattern_map.count(conv_p)) {
             conv_node = pattern_map.at(conv_p).get_node_shared_ptr();
-            auto conv = std::dynamic_pointer_cast<ov::op::v1::Convolution>(conv_node);
+            auto conv = ov::as_type_ptr<ov::op::v1::Convolution>(conv_node);
             if (!conv)
                 return false;
             dilations = conv->get_dilations();
             strides = conv->get_strides();
         } else if (pattern_map.count(gconv_p)) {
             conv_node = pattern_map.at(gconv_p).get_node_shared_ptr();
-            auto conv = std::dynamic_pointer_cast<ov::op::v1::GroupConvolution>(conv_node);
+            auto conv = ov::as_type_ptr<ov::op::v1::GroupConvolution>(conv_node);
             if (!conv)
                 return false;
             dilations = conv->get_dilations();

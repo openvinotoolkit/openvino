@@ -1,5 +1,3 @@
-.. {#datumaro_documentation}
-
 Datumaro
 ========
 

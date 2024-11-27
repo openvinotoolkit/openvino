@@ -1,5 +1,3 @@
-.. {#openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide}
-
 Legacy Conversion API
 =====================
 

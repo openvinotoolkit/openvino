@@ -31,10 +31,9 @@ ov::pass::TotalSequenceLengthPattern::TotalSequenceLengthPattern(
         //  use symbolic infra or look at the constant input
         const auto& pattern_map = m.get_pattern_value_map();
 
-        auto concat = std::dynamic_pointer_cast<v0::Concat>(pattern_map.at(kv_concat).get_node_shared_ptr());
+        auto concat = ov::as_type_ptr<v0::Concat>(pattern_map.at(kv_concat).get_node_shared_ptr());
         auto gather = pattern_map.at(seq).get_node_shared_ptr();
-        auto gather_idx =
-            std::dynamic_pointer_cast<v0::Constant>(pattern_map.at(gather_idx_label).get_node_shared_ptr());
+        auto gather_idx = ov::as_type_ptr<v0::Constant>(pattern_map.at(gather_idx_label).get_node_shared_ptr());
 
         if (!concat || !gather || !gather_idx || !gather_idx) {
             return false;

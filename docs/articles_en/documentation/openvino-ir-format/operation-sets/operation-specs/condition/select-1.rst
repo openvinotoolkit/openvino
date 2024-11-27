@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_condition_Select_1}
-
 Select
 ======
 

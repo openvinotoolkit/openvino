@@ -14,6 +14,7 @@ Additionally, you can also upload a video file.
    work. However, you can still do inference on a video in the final
    step.
 
+
 **Table of contents:**
 
 
@@ -165,12 +166,15 @@ using OpenVINO.
 
 .. code:: ipython3
 
+    import openvino.properties.hint as hints
+    
+    
     # Initialize OpenVINO Runtime
     core = ov.Core()
     # Read the network from a file.
     model = core.read_model(model_path)
     # Let the AUTO device decide where to load the model (you can use CPU, GPU as well).
-    compiled_model = core.compile_model(model=model, device_name=device.value, config={"PERFORMANCE_HINT": "LATENCY"})
+    compiled_model = core.compile_model(model=model, device_name=device.value, config={hints.performance_mode(): hints.PerformanceMode.LATENCY})
     
     # Get the input and output names of nodes.
     input_layer = compiled_model.input(0)
@@ -842,7 +846,7 @@ Run the pose estimation:
 
     USE_WEBCAM = False
     cam_id = 0
-    video_file = "https://github.com/intel-iot-devkit/sample-videos/blob/master/store-aisle-detection.mp4?raw=true"
+    video_file = "https://storage.openvinotoolkit.org/data/test_data/videos/store-aisle-detection.mp4"
     source = cam_id if USE_WEBCAM else video_file
     
     additional_options = {"skip_first_frames": 500} if not USE_WEBCAM else {}

@@ -5,7 +5,7 @@ A very basic introduction to using object detection models with
 OpenVINO™.
 
 The
-`horizontal-text-detection-0001 <https://docs.openvino.ai/2024/omz_models_model_horizontal_text_detection_0001.html>`__
+`horizontal-text-detection-0001 <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/horizontal-text-detection-0001/README.md>`__
 model from `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used. It
 detects horizontal text in images and returns a blob of data in the
@@ -15,6 +15,7 @@ shape of ``[100, 5]``. Each detected text box is stored in the
 corner, ``(x_max, y_max)`` are the coordinates of the bottom right
 bounding box corner and ``conf`` is the confidence for the predicted
 class.
+
 
 **Table of contents:**
 
@@ -40,7 +41,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 .. code:: ipython3
 
     # Install openvino package
-    %pip install -q "openvino>=2023.1.0" opencv-python tqdm
+    %pip install -q "openvino>=2023.1.0" opencv-python tqdm "matplotlib>=3.4"
 
 
 .. parsed-literal::

@@ -19,7 +19,7 @@
 #include "common/cpu_memcpy.h"
 #include "common/blocked_desc_creator.h"
 #include <memory_desc/cpu_memory_desc_utils.h>
-#include <partitioned_mem_mgr.h>
+#include <partitioned_mem_blk.h>
 using namespace dnnl;
 
 namespace ov {
@@ -50,7 +50,7 @@ bool Concat::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
 }
 
 Concat::Concat(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-        : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+    : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -559,8 +559,8 @@ void Concat::execNspcSpecCase() {
 
         nonZeroInShapes++;
     }
-
-    const size_t iter_count = getParentEdgeAt(firstNonZeroEdge)->getMemory().getSize() / channelsDataSize[0];
+    const Shape& shape = getSrcMemoryAtPort(firstNonZeroEdge)->getShape();
+    const size_t iter_count = shape.getElementsCount() / shape.getStaticDims()[channelAxis];
 
     parallel_for(iter_count, [&](int i) {
         const size_t dst_off = i * channels_size;
@@ -709,7 +709,7 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
 
         OPENVINO_ASSERT(parentEdge->getStatus() == Edge::Status::NotAllocated,
                         " Unexpected inplace resolve call to an allocated edge: ",
-                        parentEdge->name());
+                        *parentEdge);
 
         auto memDesc = selected_pd->getConfig().inConfs[i].getMemDesc();
         MemoryPtr newMem;

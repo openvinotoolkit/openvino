@@ -7,8 +7,9 @@
 #include "snippets/lowered/pass/compute_buffer_allocation_size.hpp"
 #include "snippets/lowered/pass/init_loops.hpp"
 #include "snippets/lowered/pass/insert_specific_iterations.hpp"
-#include "snippets/pass/split_dimension_m.hpp"
+#include "snippets/lowered/pass/mha_parallel_wa_optimizer.hpp"
 #include "snippets/snippets_isa.hpp"
+#include "snippets/utils/loop_utils.hpp"
 #include "snippets/utils/utils.hpp"
 
 namespace ov {
@@ -16,6 +17,7 @@ namespace snippets {
 
 using namespace ov::snippets::pass;
 using namespace ov::snippets::lowered;
+using namespace ov::snippets::lowered::pass;
 
 #ifdef SNIPPETS_DEBUG_CAPS
 std::string RuntimeConfig::to_string() const {
@@ -35,8 +37,8 @@ std::string RuntimeConfig::to_string() const {
 }
 #endif
 
-RuntimeConfigurator::RuntimeConfigurator(std::shared_ptr<RuntimeConfig> c) :
-    m_config(std::move(c)) {
+RuntimeConfigurator::RuntimeConfigurator(std::shared_ptr<RuntimeConfig> c)
+    : m_config(std::move(c)) {
     OPENVINO_ASSERT(m_config, "Runtime config is nullptr!");
 }
 
@@ -50,6 +52,8 @@ const std::shared_ptr<RuntimeConfig>& RuntimeConfigurator::get_updated_config(co
         initialization(linear_ir);
 
     update(linear_ir);
+    // Note: after 'update' is finished, io_shapes can be corrupted, so we move it to latest_shapes to avoid copying
+    m_config->latest_shapes = std::move(m_config->io_shapes);
     return m_config;
 }
 
@@ -59,51 +63,32 @@ void RuntimeConfigurator::initialization(const lowered::LinearIRCPtr& linear_ir)
     init_buffer_info(linear_ir);
 
     OPENVINO_ASSERT(m_io_num > 0, "LinearIR must have parameters and results");
-    m_latest_shapes.resize(m_io_num);
+    m_config->latest_shapes.resize(m_io_num);
     m_config->io_data_offsets.resize(m_io_num);
     m_config->tile_rank = linear_ir->get_config().m_loop_depth;
-    m_optimizer.init(linear_ir, m_io_descs, m_in_num);
 
-    // InnerSplittedLoops should be inited after OuterSplittedLoops
-    const auto& loop_map = linear_ir->get_loop_manager()->get_map();
-    m_ordered_loop_ids.clear();
-    m_ordered_loop_ids.reserve(loop_map.size());
-    std::vector<size_t> loops_must_be_last;
-    for (const auto& p : loop_map) {
-        const auto loop_id = p.first;
-        const auto& expanded_loop_info = ov::as_type_ptr<lowered::ExpandedLoopInfo>(p.second);
-        OPENVINO_ASSERT(expanded_loop_info, "UpdateLoopInfo expects ExpandedLoopInfo in LoopManager");
-        const auto& unified_loop_info = expanded_loop_info->get_unified_loop_info();
-        auto& collection = ov::is_type<lowered::InnerSplittedUnifiedLoopInfo>(unified_loop_info) ? loops_must_be_last : m_ordered_loop_ids;
-        collection.push_back(loop_id);
-    }
-    m_ordered_loop_ids.insert(m_ordered_loop_ids.end(), loops_must_be_last.cbegin(), loops_must_be_last.cend());
+    RuntimeOptimizer::register_if_applicable<MHAParallelWAOptimizer>(m_intermediate_optimizers, linear_ir, this);
 }
 
 void RuntimeConfigurator::update(const lowered::LinearIRCPtr& linear_ir) {
     m_config->master_shape = linear_ir->get_master_shape();
+    m_config->io_shapes = extract_shapes();
+    m_config->io_layouts = extract_layouts();
+    if (linear_ir->is_dynamic())
+        update_loop_info(linear_ir);
 
-    LoopInfoRuntimeParamsMap initialized_info;
-    auto shapes = extract_shapes();
-    auto layouts = extract_layouts();
-    if (m_optimizer.enabled()) {
-        m_optimizer.optimize(m_config->master_shape, initialized_info, shapes, layouts, m_in_num);
-        update_tensor_rank(m_config->master_shape);
-    }
+    m_intermediate_optimizers.run(*linear_ir);
 
-    if (linear_ir->is_dynamic()) {
-        update_loop_info(linear_ir, initialized_info);
-        // Update KernelExecutor Table should be before `update_buffer_scratchpad_size`
-        // because `ComputeAllocationSize` depends on subtensors which are updated in the table
-        get_kernel_executor_table()->update_state(linear_ir);
-        update_buffer_scratchpad_size(linear_ir);
-    }
+    // Update KernelExecutor Table should be before `update_buffer_scratchpad_size`
+    // because `ComputeAllocationSize` depends on subtensors which are updated in the table
+    get_kernel_executor_table()->update_state(linear_ir);
+    update_buffer_scratchpad_size(linear_ir);
 
-    update_data_offsets(shapes, layouts);
-    m_latest_shapes = std::move(shapes);
+    update_data_offsets();
+    m_final_optimizers.run(*linear_ir);
 }
 
-void RuntimeConfigurator::update_tensor_rank(const ov::snippets::VectorDims& master_shape) {
+void RuntimeConfigurator::update_tensor_rank(const ov::snippets::VectorDims& master_shape) const {
     m_config->tensor_rank = master_shape.size();
 }
 
@@ -154,17 +139,14 @@ void RuntimeConfigurator::init_data_info(const lowered::LinearIRCPtr& linear_ir)
 }
 
 void RuntimeConfigurator::init_buffer_info(const lowered::LinearIRCPtr& linear_ir) {
-    std::map<size_t, std::set<lowered::ExpressionPtr>> dynamic_buffer_clusters, static_buffer_clusters;
+    std::map<size_t, std::set<lowered::BufferExpressionPtr>> dynamic_buffer_clusters, static_buffer_clusters;
 
     // All needed checks are in Validate pass
     const auto& buffer_expressions = linear_ir->get_buffers();
     for (const auto& buffer_expr : buffer_expressions) {
-        const auto buffer = ov::as_type_ptr<op::Buffer>(buffer_expr->get_node());
-        OPENVINO_ASSERT(buffer, "Expected Buffer ops in Buffer expressions of LinearIR");
-
         // TODO [143395] : MemoryManager should provide exact containers with needed buffers (static or dynamic) without any `is_defined()`
-        auto& clusters = buffer->is_defined() ? static_buffer_clusters : dynamic_buffer_clusters;
-        clusters[buffer->get_cluster_id()].insert(buffer_expr);
+        auto& clusters = buffer_expr->is_defined() ? static_buffer_clusters : dynamic_buffer_clusters;
+        clusters[buffer_expr->get_cluster_id()].insert(buffer_expr);
     }
 
     const auto cluster_count = dynamic_buffer_clusters.size() + static_buffer_clusters.size();
@@ -176,65 +158,62 @@ void RuntimeConfigurator::init_buffer_info(const lowered::LinearIRCPtr& linear_i
         const auto& cluster = p.second;
 
         OPENVINO_ASSERT(cluster.size() > 0, "Incorrect size of buffer cluster");
-        size_t cluster_offset = ov::as_type_ptr<op::Buffer>((*cluster.cbegin())->get_node())->get_offset();
+        size_t cluster_offset = (*cluster.cbegin())->get_offset();
         m_config->buffer_cluster_offsets[cluster_id] = cluster_offset;
     }
 
     m_dynamic_buffer_clusters = std::move(dynamic_buffer_clusters);
 }
 
-void RuntimeConfigurator::update_loop_info(const lowered::LinearIRCPtr& linear_ir,
-                                           LoopInfoRuntimeParamsMap& initializated_info_map) const {
-    auto update_unified_loop_info = [&](const lowered::UnifiedLoopInfoPtr& unified_loop_info) {
-        if (initializated_info_map.count(unified_loop_info) == 0) {
-            lowered::pass::InitLoops::update_runtime_parameters(unified_loop_info);
-            initializated_info_map[unified_loop_info] = compute_runtime_params(unified_loop_info);
-        }
-    };
+void RuntimeConfigurator::update_expanded_loop_info(const lowered::ExpandedLoopInfoPtr& expanded_loop_info,
+                                                    LoopInfoRuntimeParamsMap& initialized_info) {
+    const auto& current_unified_loop_info = expanded_loop_info->get_unified_loop_info();
 
-    auto update_expanded_loop_info = [&](const lowered::ExpandedLoopInfoPtr& expanded_loop_info) {
-        const auto& current_unified_loop_info = expanded_loop_info->get_unified_loop_info();
+    OPENVINO_ASSERT(initialized_info.count(current_unified_loop_info) > 0, "UnifiedLoopInfo must be updated before ExpandedLoopInfo");
+    auto& cur_initialized_info = initialized_info.at(current_unified_loop_info);
+    auto& current_work_amount = cur_initialized_info.work_amount;
+    const auto& ptr_increments = cur_initialized_info.ptr_increments;
+    const auto& finalization_offsets = cur_initialized_info.finalization_offsets;
 
-        OPENVINO_ASSERT(initializated_info_map.count(current_unified_loop_info) > 0, "UnifiedLoopInfo must be updated before ExpandedLoopInfo");
-        auto& initializated_info = initializated_info_map.at(current_unified_loop_info);
-        auto& current_work_amount = initializated_info.work_amount;
-        const auto& ptr_increments = initializated_info.ptr_increments;
-        const auto& finalization_offsets = initializated_info.finalization_offsets;
+    const auto& decomposed_loop_type = expanded_loop_info->get_type();
 
-        const auto& decomposed_loop_type = expanded_loop_info->get_type();
+    // If the specific iteration is not needed, we skip loop evaluation - set zero as work amount is enough
+    if (!lowered::pass::InsertSpecificIterations::is_decomposed_loop_needed(current_unified_loop_info, decomposed_loop_type, current_work_amount)) {
+        expanded_loop_info->set_work_amount(0);
+        if (expanded_loop_info->is_evaluate_once())
+            expanded_loop_info->set_increment(0);
+        return;
+    }
 
-        // If the specific iteration is not needed, we skip loop evaluation - set zero as work amount is enough
-        if (!lowered::pass::InsertSpecificIterations::is_decomposed_loop_needed(current_unified_loop_info, decomposed_loop_type, current_work_amount)) {
-            expanded_loop_info->set_work_amount(0);
-            if (expanded_loop_info->is_evaluate_once())
-                expanded_loop_info->set_increment(0);
-            return;
-        }
+    const auto work_amount =
+        lowered::pass::InsertSpecificIterations::get_decomposed_loop_work_amount(current_unified_loop_info, decomposed_loop_type, current_work_amount);
+    expanded_loop_info->set_work_amount(work_amount);
+    // Update remaining Loop work amount
+    current_work_amount -= work_amount;
 
-        const auto work_amount =
-            lowered::pass::InsertSpecificIterations::get_decomposed_loop_work_amount(current_unified_loop_info, decomposed_loop_type, current_work_amount);
-        expanded_loop_info->set_work_amount(work_amount);
-        // Update remaining Loop work amount
-        current_work_amount -= work_amount;
+    // Update only `finalization offsets`. `Ptr increments` are always zeroed in this case
+    auto updated_finalization_offsets = current_work_amount > 0 ? std::vector<int64_t>(finalization_offsets.size(), 0) : finalization_offsets;
+    if (expanded_loop_info->is_evaluate_once()) {
+        expanded_loop_info->set_increment(work_amount);
+        // work_amount is equal to increment in cases with `evaluate_once`
+        for (size_t i = 0; i < updated_finalization_offsets.size(); ++i)
+            updated_finalization_offsets[i] += ptr_increments[i] * work_amount;
+    } else {
+        expanded_loop_info->update_ptr_increments(ptr_increments);
+    }
+    expanded_loop_info->update_finalization_offsets(updated_finalization_offsets);
+}
 
-        // Update only `finalization offsets`. `Ptr increments` are always zeroed in this case
-        auto updated_finalization_offsets = current_work_amount > 0 ? std::vector<int64_t>(finalization_offsets.size(), 0) : finalization_offsets;
-        if (expanded_loop_info->is_evaluate_once()) {
-            expanded_loop_info->set_increment(work_amount);
-            // work_amount is equal to increment in cases with `evaluate_once`
-            for (size_t i = 0; i < updated_finalization_offsets.size(); ++i)
-                updated_finalization_offsets[i] += ptr_increments[i] * work_amount;
-        } else {
-            expanded_loop_info->update_ptr_increments(ptr_increments);
-        }
-        expanded_loop_info->update_finalization_offsets(updated_finalization_offsets);
-    };
-
-    auto update_loop_info = [&](const lowered::LoopInfoPtr& loop_info) {
+void RuntimeConfigurator::update_loop_info(const lowered::LinearIRCPtr& linear_ir) {
+    LoopInfoRuntimeParamsMap initialized_info;
+    auto updater = [&](const lowered::LoopInfoPtr& loop_info) {
         if (const auto unified_loop_info = ov::as_type_ptr<lowered::UnifiedLoopInfo>(loop_info)) {
-            update_unified_loop_info(unified_loop_info);
+            if (initialized_info.count(unified_loop_info) == 0) {
+                utils::update_runtime_parameters(unified_loop_info);
+                initialized_info[unified_loop_info] = get_loop_runtime_params(unified_loop_info);
+            }
         } else if (const auto expanded_loop_info = ov::as_type_ptr<lowered::ExpandedLoopInfo>(loop_info)) {
-            update_expanded_loop_info(expanded_loop_info);
+            update_expanded_loop_info(expanded_loop_info, initialized_info);
         } else {
             OPENVINO_THROW("Failed to update loop info: unknown type!");
         }
@@ -243,7 +222,7 @@ void RuntimeConfigurator::update_loop_info(const lowered::LinearIRCPtr& linear_i
     lowered::LoopInfoSet updated_loops;
     const auto& loop_map = linear_ir->get_loop_manager()->get_map();
     for (const auto& p : loop_map) {
-        p.second->apply(update_loop_info, updated_loops);
+        p.second->apply(updater, updated_loops);
     }
 }
 
@@ -269,7 +248,8 @@ void RuntimeConfigurator::update_buffer_scratchpad_size(const lowered::LinearIRC
             // No need to calculate allocation size of Buffers which are in Loops with `work_amount = 0` - they won't be executed
             if (is_not_executed(buffer_expr))
                 continue;
-            const auto& allocation_size = lowered::pass::ComputeBufferAllocationSize::get_allocation_size(loop_manager, buffer_expr, m_config->tile_rank);
+            buffer_expr->init_allocation_size(loop_manager, m_config->tile_rank);
+            const auto& allocation_size = buffer_expr->get_allocation_size();
             OPENVINO_ASSERT(!utils::is_dynamic_value(allocation_size), "Buffer scratchpad size must be defined!");
             additional_size = std::max(allocation_size * buffer_expr->get_node()->get_element_type().size(), additional_size);
         }
@@ -282,8 +262,9 @@ void RuntimeConfigurator::update_buffer_scratchpad_size(const lowered::LinearIRC
     OPENVINO_ASSERT(!utils::is_dynamic_value(m_config->buffer_scratchpad_size), "Buffer scratchpad size must be defined!");
 }
 
-void RuntimeConfigurator::update_data_offsets(const std::vector<VectorDims>& shapes,
-                                              const std::vector<std::vector<size_t>>& layouts) const {
+void RuntimeConfigurator::update_data_offsets() const {
+    const auto& shapes = m_config->io_shapes;
+    const auto& layouts = m_config->io_layouts;
     OPENVINO_ASSERT(shapes.size() == m_io_num, "Number of custom shapes must be 0 or be equal to m_io_num");
     OPENVINO_ASSERT(layouts.size() == m_io_num, "Number of custom layouts must be 0 or be equal to m_io_num");
     for (size_t i = 0; i < m_io_num; ++i) {
@@ -296,26 +277,17 @@ void RuntimeConfigurator::update_data_offsets(const std::vector<VectorDims>& sha
         //    shape:      s0, s1, s2 == 1, s3
         //    offsets: s1*s3, s3,       0,  1
         const auto& shape = shapes[i];
-        if (shape == m_latest_shapes[i])
+        OPENVINO_ASSERT(m_config->tensor_rank >= shape.size(), "Incorrect tensor rank!");
+        if (shape == m_config->latest_shapes[i])
             continue;
-
-        const auto& layout = layouts[i];
-        auto& offsets = m_config->io_data_offsets[i];
-
-        offsets.resize(m_config->tensor_rank);
-        std::fill(offsets.begin(), offsets.end(), 0);
         if (utils::is_dynamic_vdims(shape))
             return;
 
-        size_t dim_step = m_io_data_sizes[i];
-        offsets[offsets.size() - 1] = dim_step;
-
-        OPENVINO_ASSERT(m_config->tensor_rank >= shape.size(), "Incorrect tensor rank!");
         const auto idx_stride = m_config->tensor_rank - shape.size();
-        for (int i = static_cast<int>(shape.size()) - 2; i >= 0; i--) {
-            dim_step *= shape[i + 1];
-            offsets[i + idx_stride] = shape[i] != 1 ? dim_step : 0;
-        }
+        compute_offsets(shape, i, idx_stride);
+
+        auto& offsets = m_config->io_data_offsets[i];
+        const auto& layout = layouts[i];
         if (!layout.empty()) {
             std::vector<size_t> reordered_offsets(offsets.size());
             const auto is_input = i < m_in_num;
@@ -343,12 +315,25 @@ std::vector<std::vector<size_t>> RuntimeConfigurator::extract_layouts() const {
     return layouts;
 }
 
+void RuntimeConfigurator::compute_offsets(const ov::snippets::VectorDims& shape, size_t idx, size_t idx_stride) const {
+    auto& offsets = m_config->io_data_offsets[idx];
+    auto dim_step = m_io_data_sizes[idx];
+
+    offsets.resize(m_config->tensor_rank);
+    std::fill(offsets.begin(), offsets.end(), 0);
+    offsets[offsets.size() - 1] = dim_step;
+    for (int i = static_cast<int>(shape.size()) - 2; i >= 0; i--) {
+        dim_step *= shape[i + 1];
+        offsets[i + idx_stride] = shape[i] != 1 ? dim_step : 0;
+    }
+}
+
 void RuntimeConfigurator::set_kernel_executor_table(std::shared_ptr<KernelExecutorTable> table) const {
-    OPENVINO_ASSERT(table, "Failed to update Kernel Executo Table: passed table is missed");
+    OPENVINO_ASSERT(table, "Failed to update Kernel Executor Table: passed table is missed");
     m_config->kernel_executor_table = std::move(table);
 }
 
-RuntimeConfigurator::UnifiedLoopInfoRtParams RuntimeConfigurator::compute_runtime_params(const lowered::UnifiedLoopInfoPtr& loop_info) {
+RuntimeConfigurator::UnifiedLoopInfoRtParams RuntimeConfigurator::get_loop_runtime_params(const lowered::UnifiedLoopInfoPtr& loop_info) {
     RuntimeConfigurator::UnifiedLoopInfoRtParams rt_params;
     rt_params.work_amount = loop_info->get_work_amount();
     const auto count = loop_info->get_input_count() + loop_info->get_output_count();
@@ -364,162 +349,5 @@ RuntimeConfigurator::UnifiedLoopInfoRtParams RuntimeConfigurator::compute_runtim
         });
     return rt_params;
 }
-
-void RuntimeConfigurator::ParallelWAOptimizer::init(const lowered::LinearIRCPtr& linear_ir,
-                                                    const std::vector<PortDescriptorPtr>& io_descs,
-                                                    size_t in_num) {
-    if (linear_ir->get_config().m_enable_domain_optimization || !linear_ir->is_dynamic())
-        return;
-
-    const auto brgemms = find_applicable_brgemms(linear_ir);
-    // Parallel WA optimization is Brgemm related
-    if (brgemms.empty())
-        return;
-
-    concurrency = linear_ir->get_config().m_min_parallel_work_amount;
-    // At the moment this optimization is Brgemm related so there must be `unsqueezed_params`
-    unsqueezed_params = find_unsqueezed_params(linear_ir, brgemms);
-    OPENVINO_ASSERT(!unsqueezed_params.empty(), "unsqueezed_params mustn't be empty after initialization");
-    loops_to_split = find_loops_to_split(linear_ir, unsqueezed_params);
-
-    m_dim_idces.resize(io_descs.size());
-    optimized_layouts.resize(io_descs.size());
-    for (size_t i = 0; i < io_descs.size(); ++i) {
-        const auto& layout = io_descs[i]->get_layout();
-        const auto dim_idx = i < in_num ? utils::get_input_dim_idx(layout, 1)
-                                        : utils::get_output_dim_idx(layout, 1);
-        m_dim_idces[i] = dim_idx;
-        optimized_layouts[i] = SplitDimensionM::get_updated_order(layout, i < in_num ? dim_idx : layout.size() - 2);
-    }
-}
-
-bool RuntimeConfigurator::ParallelWAOptimizer::enabled() {
-    return !loops_to_split.empty();
-}
-
-void RuntimeConfigurator::ParallelWAOptimizer::optimize(VectorDims& master_shape,
-                                                        RuntimeConfigurator::LoopInfoRuntimeParamsMap& map,
-                                                        std::vector<ov::snippets::VectorDims>& shapes,
-                                                        std::vector<std::vector<size_t>>& layouts,
-                                                        size_t in_num) {
-    size_t new_batch_dim, new_kernel_dim;
-    if (!SplitDimensionM::split(master_shape, concurrency, new_batch_dim, new_kernel_dim))
-        return;
-
-    update_master_shape(master_shape, new_batch_dim, new_kernel_dim);
-    update_split_loops_info(map, new_kernel_dim);
-    update_shapes(shapes, new_batch_dim, new_kernel_dim);
-    update_layouts(layouts);
-}
-
-void RuntimeConfigurator::ParallelWAOptimizer::update_master_shape(VectorDims& master_shape, size_t new_batch_dim, size_t new_kernel_dim) {
-    *++master_shape.rbegin() = new_kernel_dim;
-    master_shape.insert(master_shape.cbegin() + master_shape.size() - 2, new_batch_dim);
-}
-
-void RuntimeConfigurator::ParallelWAOptimizer::update_split_loops_info(LoopInfoRuntimeParamsMap& initialized_info, size_t new_kernel_dim) {
-    OPENVINO_ASSERT(initialized_info.empty(), "ParallelWAOptimizer::update_split_loops_info expects empty initialized_info map");
-    for (const auto& loop : loops_to_split) {
-        loop->set_work_amount(new_kernel_dim);
-        lowered::pass::InitLoops::update_data_pointer_shifts(loop);
-        initialized_info[loop] = compute_runtime_params(loop);
-    }
-}
-
-void RuntimeConfigurator::ParallelWAOptimizer::update_shapes(std::vector<VectorDims>& shapes, size_t new_batch_dim, size_t new_kernel_dim) {
-    for (size_t i = 0; i < m_dim_idces.size(); ++i) {
-        shapes[i] = unsqueezed_params.count(i)
-                        ? SplitDimensionM::unsqueeze_m_dim(shapes[i], m_dim_idces[i])
-                        : SplitDimensionM::reshape_m_dim(shapes[i], m_dim_idces[i], new_batch_dim, new_kernel_dim);
-    }
-}
-
-void RuntimeConfigurator::ParallelWAOptimizer::update_layouts(std::vector<std::vector<size_t>>& layouts) {
-    layouts = optimized_layouts;
-}
-
-std::unordered_set<ExpressionPtr> RuntimeConfigurator::ParallelWAOptimizer::find_applicable_brgemms(
-    const lowered::LinearIRCPtr& linear_ir) {
-    auto is_brgemm = [](const ExpressionPtr& expr) {
-        return ov::is_type<op::Brgemm>(expr->get_node());
-    };
-    auto brgemm_it = std::find_if(linear_ir->begin(), linear_ir->end(), is_brgemm);
-    std::unordered_set<ExpressionPtr> brgemms;
-    while (brgemm_it != linear_ir->end()) {
-        brgemms.insert(*brgemm_it);
-        brgemm_it = std::find_if(std::next(brgemm_it), linear_ir->end(), is_brgemm);
-    }
-    const auto& loop_manager = linear_ir->get_loop_manager();
-    // Brgemm is applicable if it has dynamic loop by M
-    // The loop by M is necessary since only in this case we can regulate BrgemmExecutor parameters (via loop's work amount)
-    // Only dynamic loops are applicable since in static case LoopEnd expressions are not updated during code generation and compiled as is
-    // Ticket: 148805
-    auto applicable_brgemm = [&loop_manager](const ExpressionPtr& expr) {
-        const auto& loop_idces = expr->get_loop_ids();
-        if (loop_idces.empty())
-            return false;
-        const auto& outermost_loop = loop_manager->get_loop_info(loop_idces[0]);
-        if (!utils::is_dynamic_value(outermost_loop->get_work_amount()))
-            return false;
-        bool loop_by_m = true;
-        outermost_loop->iterate_through_ports([&loop_by_m](const LoopPort& port) {
-            if (port.is_incremented && port.dim_idx != 1)
-                loop_by_m = false;
-        });
-        return loop_by_m;
-    };
-    // Note: if at least one brgemm is inapplicable, the parallel work amount optimization can't be applied
-    return std::all_of(brgemms.begin(), brgemms.end(), applicable_brgemm) ? brgemms : std::unordered_set<ExpressionPtr>{};
-}
-
-std::unordered_set<size_t> RuntimeConfigurator::ParallelWAOptimizer::find_unsqueezed_params(
-    const lowered::LinearIRCPtr& linear_ir,
-    const std::unordered_set<ExpressionPtr>& brgemms) {
-    const auto& params = linear_ir->get_parameters();
-    std::unordered_set<size_t> unsqueezed_params;
-    auto add_param = [&params, &unsqueezed_params](const ExpressionPtr& expr) {
-        if (ov::is_type<ov::op::v0::Parameter>(expr->get_node())) {
-            auto found_param = std::find(params.begin(), params.end(), expr);
-            OPENVINO_ASSERT(found_param != params.end(), "find_param didn't found parameter for expr");
-            unsqueezed_params.insert(std::distance(params.begin(), found_param));
-        }
-    };
-
-    std::unordered_set<ExpressionPtr> visited;
-    for (const auto& brgemm : brgemms) {
-        const auto& brgemm_b_input = brgemm->get_input_port_connector(1)->get_source().get_expr();
-        utils::visit_path(brgemm_b_input, visited, add_param, true);
-    }
-    return unsqueezed_params;
-}
-
-std::unordered_set<UnifiedLoopInfoPtr> RuntimeConfigurator::ParallelWAOptimizer::find_loops_to_split(
-    const lowered::LinearIRCPtr& linear_ir,
-    const std::unordered_set<size_t>& unsqueezed_params) {
-    const auto loop_manager = linear_ir->get_loop_manager();
-
-    std::unordered_set<UnifiedLoopInfoPtr> loops_to_split;
-    auto add_loops_to_split = [&loop_manager, &loops_to_split](const ExpressionPtr& expr) {
-        const auto& loop_ids = expr->get_loop_ids();
-        if (!loop_ids.empty()) {
-            const auto outermost_loop_idx = loop_ids[0];
-            const auto loop_info_to_add = loop_manager->get_loop_info<ExpandedLoopInfo>(outermost_loop_idx);
-            loops_to_split.insert(loop_info_to_add->get_unified_loop_info());
-        }
-    };
-
-    size_t i = 0;
-    std::unordered_set<ExpressionPtr> visited;
-    // The idea is to traverse LIR down from the M dimension related parameters
-    // and find all the outermost loops: these loops will be split in runtime
-    for (const auto& param : linear_ir->get_parameters()) {
-        // Ops after non related params mustn't be traversed
-        if (unsqueezed_params.count(i++))
-            continue;
-        utils::visit_path(param, visited, add_loops_to_split, false);
-    }
-    return loops_to_split;
-}
-
 } // namespace snippets
 } // namespace ov

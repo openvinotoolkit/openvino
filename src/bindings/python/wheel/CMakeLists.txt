@@ -116,14 +116,14 @@ if(pip_version VERSION_GREATER_EQUAL 22.0)
             --build-option --plat-name=${PLATFORM_TAG}
             "${CMAKE_CURRENT_SOURCE_DIR}")
 else()
+    # for --config-setting explanation see https://github.com/pypa/setuptools/issues/2491
     set(wheel_build_command
-        ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/setup.py"
-            --quiet
-            --no-user-cfg
-            bdist_wheel
-            --dist-dir ${openvino_wheels_output_dir}
-            --build-number=${WHEEL_BUILD}
-            --plat-name=${PLATFORM_TAG})
+        ${Python3_EXECUTABLE} -m build "${CMAKE_CURRENT_SOURCE_DIR}"
+        --outdir ${openvino_wheels_output_dir}
+        --config-setting=--build-option=--build-number=${WHEEL_BUILD}
+        --config-setting=--build-option=--plat-name=${PLATFORM_TAG}
+        --config-setting=--quiet
+        --wheel)
 endif()
 
 add_custom_command(OUTPUT ${openvino_wheel_path}
@@ -153,8 +153,7 @@ add_custom_target(ie_wheel ALL DEPENDS ${openvino_wheel_path} ${fdupes_report})
 add_custom_command(
     TARGET ie_wheel
     POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_SOURCE_DIR}/build_${pyversion}"
-    COMMAND ${CMAKE_COMMAND} -E true # w/a this ensures the command always succeeds
+    COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_SOURCE_DIR}/build_${pyversion}" || ${CMAKE_COMMAND} -E true # w/a this ensures the command always succeeds
     DEPENDS ${openvino_wheel_path}
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     COMMENT "Cleaning up Python wheel build for wheel ${openvino_wheel_name}"

@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_infrastructure_Assign_3}
-
 Assign
 ======
 
 
 .. meta::
-  :description: Learn about Assign-3 - an infrastructure operation, which 
+  :description: Learn about Assign-3 - an infrastructure operation, which
                 can be performed on a single input tensor to set a value to variable_id.
 
 **Versioned name**: *Assign-3*
@@ -41,7 +39,7 @@ declared in ``variable_id`` and returns an error otherwise.
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="Assign" ...>
        <data variable_id="lstm_state_1"/>
        <input>

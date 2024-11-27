@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_activation_SoftPlus_4}
-
 SoftPlus
 ========
 
 
 .. meta::
-  :description: Learn about SoftPlus-4 - an element-wise, activation operation, which 
+  :description: Learn about SoftPlus-4 - an element-wise, activation operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *SoftPlus-4*
@@ -19,7 +17,7 @@ SoftPlus
 *SoftPlus* performs element-wise activation function on a given input tensor, based on the following mathematical formula:
 
 .. math::
-    
+
     \begin{equation*}
         \mathrm{SoftPlus}(x) = \begin{cases}
             x & \text{if } x \geq \mathrm{threshold} \\

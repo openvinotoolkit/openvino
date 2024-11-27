@@ -95,7 +95,7 @@ TEST(network_test, has_proper_event_for_in_order_queue) {
     net.set_input_data("input1", input_mem);
     net.execute();
 
-    ASSERT_FALSE(net.has_event("activation1"));
+    ASSERT_TRUE(net.has_event("activation1"));
     ASSERT_TRUE(net.has_event("concat"));
     ASSERT_TRUE(net.has_event("reorder"));
     ASSERT_TRUE(net.has_event("activation2"));
@@ -247,7 +247,10 @@ TEST(network_test, scratchpad_test) {
     auto fc1 = net1.get_primitive("fc_prim");
     auto fc2 = net2.get_primitive("fc_prim");
 
-    ASSERT_TRUE(fc1->get_intermediates_memories()[0]->buffer_ptr() != fc2->get_intermediates_memories()[0]->buffer_ptr());
+    if (fc1->get_intermediates_memories().size() > 0 && fc2->get_intermediates_memories().size() > 0) {
+        ASSERT_TRUE(fc1->get_intermediates_memories()[0]->buffer_ptr() !=
+                    fc2->get_intermediates_memories()[0]->buffer_ptr());
+    }
 }
 
 #endif

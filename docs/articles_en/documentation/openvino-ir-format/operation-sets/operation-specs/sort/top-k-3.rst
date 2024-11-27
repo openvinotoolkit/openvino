@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_sort_TopK_3}
-
 TopK
 ====
 
 
 .. meta::
-  :description: Learn about TopK-3 - a sorting and maximization operation, 
+  :description: Learn about TopK-3 - a sorting and maximization operation,
                 which can be performed on two required input tensors.
 
 **Versioned name**: *TopK-3*
@@ -87,7 +85,7 @@ If there are several elements with the same value then their output order is not
 
 **Example**
 
-.. code-block:: cpp 
+.. code-block:: cpp
 
   <layer ... type="TopK" ... >
       <data axis="1" mode="max" sort="value" index_element_type="i64"/>

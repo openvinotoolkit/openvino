@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_movement_SliceScatter_15}
-
 SliceScatter
 ===============
 
 
 .. meta::
-  :description: Learn about SliceScatter-15 - a data movement operation, which can be 
+  :description: Learn about SliceScatter-15 - a data movement operation, which can be
                 performed on five required input tensors.
 
 **Versioned name**: *SliceScatter-15*

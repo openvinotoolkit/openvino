@@ -11,6 +11,7 @@ detailed instructions where necessary.
   * [Required workflows](#required-workflows)
   * [Workflow structure](#structure-of-the-workflows)
   * [Workflow and job organisation](#workflows-and-jobs-organisation)
+  * [Security considerations](#security-considerations)
 * [Finding results, artifacts and logs](#finding-results-artifacts-and-logs)
 * [Custom actions overview](#custom-actions)
 * [Machines overview](#machines)
@@ -38,7 +39,7 @@ The three main ones, providing most coverage for different operating systems, ar
 
 Additionally, several supporting workflows build and test OpenVINO for other operating systems and processor architectures:
 * [Android ARM64](../../../../.github/workflows/android_arm64.yml)
-* [Fedora](../../../../.github/workflows/fedora.yml)
+* [Fedora](../../../../.github/workflows/fedora_29.yml)
 * [Linux Conditional Compilation](../../../../.github/workflows/linux_conditional_compilation.yml)
 * [Linux RISC-V](../../../../.github/workflows/linux_riscv.yml)
 * [Windows Conditional Compilation](../../../../.github/workflows/windows_conditional_compilation.yml)
@@ -204,6 +205,10 @@ Overview of the [Linux workflow's](../../../../.github/workflows/ubuntu_22.yml) 
 * A job must define `steps` - a series of commands to execute in the predefined environment.
   * All the steps are executed in the shell specified by the `shell` key under `defaults: run:`
     unless a shell is specified directly in a step.
+
+### Security considerations
+
+Please consult [workflow security guidelines](security.md) before submitting a PR with GitHub Actions workflows changes.
 
 ## Finding Results, Artifacts, and Logs
 

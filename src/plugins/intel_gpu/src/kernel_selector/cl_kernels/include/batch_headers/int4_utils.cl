@@ -59,6 +59,13 @@ inline char4 unpack_to_char(uint4x4_t v) __attribute__((overloadable)) {
     return (char4)(v0.s0, v0.s1, v1.s0, v1.s1);
 }
 
+inline uchar4 unpack_to_uchar(uint4x4_t v) __attribute__((overloadable)) {
+    uchar2 v0 = unpack_to_uchar(v.s0);
+    uchar2 v1 = unpack_to_uchar(v.s1);
+    return (uchar4)(v0.s0, v0.s1, v1.s0, v1.s1);
+}
+
+
 inline char4 unpack_transposed_to_char(int4x4_t v) __attribute__((overloadable)) {
     char2 v0 = unpack_to_char(v.s0);
     char2 v1 = unpack_to_char(v.s1);

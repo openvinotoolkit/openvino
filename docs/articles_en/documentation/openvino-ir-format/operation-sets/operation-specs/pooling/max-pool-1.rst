@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_pooling_MaxPool_1}
-
 MaxPool
 =======
 
 
 .. meta::
-  :description: Learn about MaxPool-1 - a pooling operation, which can 
+  :description: Learn about MaxPool-1 - a pooling operation, which can
                 be performed on a 3D, 4D or 5D input tensor.
 
 **Versioned name**: *MaxPool-1*

@@ -11,6 +11,7 @@ apply `AnimateLCM <https://arxiv.org/abs/2402.00769>`__ LoRA weights and
 run optimization with
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__.
 
+
 **Table of contents:**
 
 
@@ -56,7 +57,7 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q "torch>=2.1" "torchvision<0.19.0" "diffusers>=0.25" "peft==0.6.2" "transformers" "openvino>=2024.1.0" Pillow opencv-python tqdm  "gradio>=4.19" safetensors --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "torch>=2.1" "diffusers>=0.25" "peft>=0.6.2" "transformers" "openvino>=2024.1.0" Pillow opencv-python tqdm  "gradio>=4.19" safetensors --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q datasets "nncf>=2.10.0"
 
 Download PyTorch Model
@@ -784,7 +785,6 @@ frames.
             ks = ks[0] + 1, ks[1]
     
         if (ks[1] % 2) == 0:
-    
             ks = ks[0], ks[1] + 1
     
         input = _gaussian_blur2d(input, ks, sigmas)
@@ -848,7 +848,6 @@ frames.
         x = (torch.arange(window_size, device=sigma.device, dtype=sigma.dtype) - window_size // 2).expand(batch_size, -1)
     
         if window_size % 2 == 0:
-    
             x = x + 0.5
     
         gauss = torch.exp(-x.pow(2.0) / (2 * sigma.pow(2.0)))
@@ -883,16 +882,16 @@ Select Inference Device
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
+    import requests
     
-    core = ov.Core()
-    
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget()
     
     device
 
@@ -901,7 +900,7 @@ Select Inference Device
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=4, options=('CPU', 'GPU.0', 'GPU.1', 'GPU.2', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
 
 
 
@@ -909,6 +908,7 @@ Select Inference Device
 
     from transformers import CLIPImageProcessor
     
+    core = ov.Core()
     
     vae_encoder = core.compile_model(VAE_ENCODER_PATH, device.value)
     image_encoder = core.compile_model(IMAGE_ENCODER_PATH, device.value)
@@ -939,25 +939,6 @@ parameters into pipeline.
         width=512,
         generator=torch.manual_seed(12342),
     ).frames[0]
-
-
-
-.. parsed-literal::
-
-      0%|          | 0/4 [00:00<?, ?it/s]
-
-
-.. parsed-literal::
-
-    denoise currently
-    tensor(128.5637)
-    denoise currently
-    tensor(13.6784)
-    denoise currently
-    tensor(0.4969)
-    denoise currently
-    tensor(0.)
-
 
 .. code:: ipython3
 
@@ -1029,22 +1010,11 @@ improve model inference speed.
 
 .. code:: ipython3
 
-    to_quantize = widgets.Checkbox(
-        value=True,
-        description="Quantization",
-        disabled=False,
-    )
+    from notebook_utils import quantization_widget
+    
+    to_quantize = quantization_widget()
     
     to_quantize
-
-
-
-
-.. parsed-literal::
-
-    Checkbox(value=True, description='Quantization')
-
-
 
 .. code:: ipython3
 
@@ -1204,7 +1174,7 @@ Run Hybrid Model Quantization
         unet_ignored_scope = collect_ops_with_weights(diffusion_model)
         compressed_diffusion_model = nncf.compress_weights(diffusion_model, ignored_scope=nncf.IgnoredScope(types=['Convolution']))
         quantized_diffusion_model = nncf.quantize(
-            model=diffusion_model,
+            model=compressed_diffusion_model,
             calibration_dataset=nncf.Dataset(calibration_data),
             subset_size=subset_size,
             model_type=nncf.ModelType.TRANSFORMER,
@@ -1240,82 +1210,17 @@ applied for footprint reduction.
         compressed_decoder_model = nncf.compress_weights(decoder_model, mode=nncf.CompressWeightsMode.INT4_SYM, group_size=64)
         ov.save_model(compressed_decoder_model, OV_INT8_VAE_DECODER_PATH)
 
-
-.. parsed-literal::
-
-    INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │              8 │ 98% (29 / 32)               │ 0% (0 / 3)                             │
-    ├────────────────┼─────────────────────────────┼────────────────────────────────────────┤
-    │              4 │ 2% (3 / 32)                 │ 100% (3 / 3)                           │
-    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-.. parsed-literal::
-
-    INFO:nncf:Statistics of the bitwidth distribution:
-    ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
-    │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
-    ┝━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┥
-    │              8 │ 99% (65 / 68)               │ 0% (0 / 3)                             │
-    ├────────────────┼─────────────────────────────┼────────────────────────────────────────┤
-    │              4 │ 1% (3 / 68)                 │ 100% (3 / 3)                           │
-    ┕━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┙
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 Let’s compare the video generated by the original and optimized
-pipelines.
+pipelines. Dynamic quantization should be disabled for UNet model
+because it introduces a performance overhead when applied to Diffusion
+models that have been quantized using a ``Hybrid`` approach.
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
     
     ov_int8_vae_encoder = core.compile_model(OV_INT8_VAE_ENCODER_PATH, device.value)
-    ov_int8_unet = core.compile_model(OV_INT8_UNET_PATH, device.value)
+    ov_int8_unet = core.compile_model(OV_INT8_UNET_PATH, device.value, config={"DYNAMIC_QUANTIZATION_GROUP_SIZE":"0"})
     ov_int8_decoder = core.compile_model(OV_INT8_VAE_DECODER_PATH, device.value)
     
     ov_int8_pipeline = OVStableVideoDiffusionPipeline(
@@ -1332,33 +1237,12 @@ pipelines.
         generator=torch.manual_seed(12342),
     ).frames[0]
 
-
-
-.. parsed-literal::
-
-      0%|          | 0/4 [00:00<?, ?it/s]
-
-
-.. parsed-literal::
-
-    /home/ltalamanova/env_ci/lib/python3.8/site-packages/diffusers/configuration_utils.py:139: FutureWarning: Accessing config attribute `unet` directly via 'OVStableVideoDiffusionPipeline' object attribute is deprecated. Please access 'unet' over 'OVStableVideoDiffusionPipeline's config object instead, e.g. 'scheduler.config.unet'.
-      deprecate("direct config name access", "1.0.0", deprecation_message, standard_warn=False)
-
-
-.. parsed-literal::
-
-    denoise currently
-    tensor(128.5637)
-    denoise currently
-    tensor(13.6784)
-    denoise currently
-    tensor(0.4969)
-    denoise currently
-    tensor(0.)
-
-
 .. code:: ipython3
 
+    %%skip not $to_quantize.value
+    
+    from IPython.display import display
+    
     int8_out_path = Path("generated_int8.mp4")
     
     export_to_video(int8_frames, str(int8_out_path), fps=7)
@@ -1370,15 +1254,13 @@ pipelines.
         duration=120,
         loop=0,
     )
-    HTML('<img src="generated_int8.gif">')
-
+    display(HTML('<img src="generated_int8.gif">'))
 
 
 
 .. raw:: html
 
     <img src="generated_int8.gif">
-
 
 
 Compare model file sizes
@@ -1471,6 +1353,8 @@ launch the interactive demo.
 
 .. code:: ipython3
 
+    import ipywidgets as widgets
+    
     quantized_model_present = ov_int8_pipeline is not None
     
     use_quantized_model = widgets.Checkbox(

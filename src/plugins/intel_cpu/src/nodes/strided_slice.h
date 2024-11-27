@@ -50,8 +50,15 @@ public:
         size_t dataSize = 1lu;
         int ellipsisMaskCounter = 0;
         bool isStridedSliceOp = true;
+        bool isSliceScatterOp = false;
         int ellipsisPos1 = -1;
         bool hasConstInputs = false;
+        size_t DATA_ID = 0;
+        size_t BEGIN_ID = 1;
+        size_t END_ID = 2;
+        size_t STRIDE_ID = 3;
+        size_t AXES_ID = 4;
+        size_t UPDATES_ID = 1;
     } attrs;
 
 protected:
@@ -82,6 +89,10 @@ private:
                                    const std::string& errorPrefix);
         void exec(const std::vector<MemoryCPtr>& srcMemory,
                   const std::vector<MemoryCPtr>& dstMemory) override;
+        void execSliceScatter(const std::vector<MemoryCPtr>& srcMemory,
+                              const std::vector<MemoryCPtr>& dstMemory);
+        void execStridedSlice(const std::vector<MemoryCPtr>& srcMemory,
+                              const std::vector<MemoryCPtr>& dstMemory);
 
     private:
         struct StridedSliceParams {
@@ -111,6 +122,7 @@ private:
         size_t workAmount = 0lu;
         size_t lastDstDim = 0lu;
         size_t srcShift = 0lu;
+        size_t m_threads_num = 0lu;
     };
     using executorPtr = std::shared_ptr<StridedSliceExecutor>;
     executorPtr execPtr = nullptr;
@@ -118,13 +130,7 @@ private:
     bool isStrideSpecified = false;
     bool isAxesSpecified = false;
 
-    static constexpr size_t DATA_ID = 0;
-    static constexpr size_t BEGIN_ID = 1;
-    static constexpr size_t END_ID = 2;
-    static constexpr size_t STRIDE_ID = 3;
-    static constexpr size_t AXES_ID = 4;
-
-    bool isConstantInput[AXES_ID + 1] = {false};
+    bool isConstantInput[6] = {false};
     bool shapeHasDataDependency = false;
     bool hasConstAttrInputs = true;
 

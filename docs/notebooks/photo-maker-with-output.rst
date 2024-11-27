@@ -18,6 +18,7 @@ report <https://arxiv.org/pdf/2312.04461.pdf>`__.
 This notebook explores how to speed up PhotoMaker pipeline using
 OpenVINO.
 
+
 **Table of contents:**
 
 
@@ -82,24 +83,41 @@ Clone PhotoMaker repository
 .. code:: ipython3
 
     from pathlib import Path
+    import requests
     
-    if not Path("PhotoMaker").exists():
-        !git clone https://github.com/TencentARC/PhotoMaker.git
-        %cd PhotoMaker
-        !git checkout "1e78aa6514c11a84ef1be27b56c7c72d6c70f8fc"
-        %cd ..
+    
+    if not Path("cmd_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
+        )
+        open("cmd_helper.py", "w").write(r.text)
+
+.. code:: ipython3
+
+    from cmd_helper import clone_repo
+    
+    
+    clone_repo("https://github.com/TencentARC/PhotoMaker.git", "1e78aa6514c11a84ef1be27b56c7c72d6c70f8fc", add_to_sys_path=False)
+
+
 
 
 .. parsed-literal::
 
-    Cloning into 'PhotoMaker'...
-    remote: Enumerating objects: 303, done.[K
-    remote: Counting objects: 100% (210/210), done.[K
-    remote: Compressing objects: 100% (135/135), done.[K
-    remote: Total 303 (delta 152), reused 118 (delta 75), pack-reused 93 (from 1)[K
-    Receiving objects: 100% (303/303), 10.23 MiB | 18.94 MiB/s, done.
-    Resolving deltas: 100% (159/159), done.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/photo-maker/PhotoMaker
+    PosixPath('PhotoMaker')
+
+
+
+Install required packages
+
+.. code:: ipython3
+
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu \
+    transformers "torch>=2.1" "diffusers>=0.26,<0.30" "gradio>=4.19" "openvino>=2024.0.0" "einops" torchvision "peft>=0.6.2" "nncf>=2.9.0" "protobuf==3.20.3" "insightface" "onnxruntime"
+
+
+.. parsed-literal::
+
     Note: switching to '1e78aa6514c11a84ef1be27b56c7c72d6c70f8fc'.
     
     You are in 'detached HEAD' state. You can look around, make experimental
@@ -118,27 +136,20 @@ Clone PhotoMaker repository
     Turn off this advice by setting config variable advice.detachedHead to false
     
     HEAD is now at 1e78aa6 Update README.md
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/photo-maker
-
-
-Install required packages
-
-.. code:: ipython3
-
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu \
-    transformers "torch>=2.1" "diffusers>=0.26,<0.30" "gradio>=4.19" "openvino>=2024.0.0" "einops" torchvision "peft==0.6.2" "nncf>=2.9.0" "protobuf==3.20.3" "insightface" "onnxruntime"
 
 
 .. parsed-literal::
 
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    descript-audiotools 0.7.2 requires protobuf<3.20,>=3.9.2, but you have protobuf 3.20.3 which is incompatible.
-    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.2.2+cpu which is incompatible.
-    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.17.2+cpu which is incompatible.
-    openvino-tokenizers 2024.4.0.0.dev20240827 requires openvino~=2024.4.0.0.dev, but you have openvino 2024.3.0 which is incompatible.
-    paddleclas 2.5.2 requires gast==0.3.3, but you have gast 0.4.0 which is incompatible.
-    paddleclas 2.5.2 requires opencv-python==4.6.0.66, but you have opencv-python 4.10.0.84 which is incompatible.
+    paddleclas 2.6.0 requires gast==0.3.3, but you have gast 0.4.0 which is incompatible.
+    paddleclas 2.6.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.10.0.84 which is incompatible.
+    parler-tts 0.2.1 requires protobuf>=4.0.0, but you have protobuf 3.20.3 which is incompatible.
+    tensorflow 2.12.0 requires keras<2.13,>=2.12.0, but you have keras 2.13.1 which is incompatible.
     tensorflow 2.12.0 requires numpy<1.24,>=1.22, but you have numpy 1.24.4 which is incompatible.
+    tensorflow 2.12.0 requires tensorboard<2.13,>=2.12, but you have tensorboard 2.13.0 which is incompatible.
+    tensorflow 2.12.0 requires tensorflow-estimator<2.13,>=2.12.0, but you have tensorflow-estimator 2.13.0 which is incompatible.
+    tensorflow-cpu 2.13.1 requires numpy<=1.24.3,>=1.22, but you have numpy 1.24.4 which is incompatible.
+    tensorflow-cpu 2.13.1 requires typing-extensions<4.6.0,>=3.6.6, but you have typing-extensions 4.12.2 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -199,10 +210,9 @@ PhotoMaker to generate the original PhotoMaker pipeline.
 
 .. parsed-literal::
 
-    2024-08-28 03:29:45.099954: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-08-28 03:29:45.135214: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-11-22 02:03:50.933677: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-11-22 02:03:50.958255: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-08-28 03:29:45.824321: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. code:: ipython3
@@ -218,11 +228,6 @@ PhotoMaker to generate the original PhotoMaker pipeline.
 .. parsed-literal::
 
     Loading pipeline components...:   0%|          | 0/7 [00:00<?, ?it/s]
-
-
-.. parsed-literal::
-
-    The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
 
 
 .. parsed-literal::
@@ -396,9 +401,12 @@ output(text embeddings) which will be the input for U-Net model.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4664: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:5006: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/photo-maker/PhotoMaker/photomaker/model.py:84: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    `loss_type=None` was set in the config but it is unrecognised.Using the default loss: `ForCausalLMLoss`.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:243: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if not interpolate_pos_encoding and (height != self.image_size or width != self.image_size):
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/photo-maker/PhotoMaker/photomaker/model.py:84: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert class_tokens_mask.sum() == stacked_id_embeds.shape[0], f"{class_tokens_mask.sum()} != {stacked_id_embeds.shape[0]}"
 
 
@@ -473,9 +481,9 @@ sequence of latent text embeddings.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:86: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:88: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if input_shape[-1] > 1 or self.sliding_window is not None:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:162: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:164: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if past_key_values_length > 0:
 
 
@@ -579,15 +587,15 @@ original Stable Diffusion XL model.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/unets/unet_2d_condition.py:1103: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/unets/unet_2d_condition.py:1103: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if dim % default_overall_up_factor != 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/downsampling.py:136: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/downsampling.py:136: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert hidden_states.shape[1] == self.channels
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/downsampling.py:145: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/downsampling.py:145: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert hidden_states.shape[1] == self.channels
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:146: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:146: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert hidden_states.shape[1] == self.channels
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:162: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:162: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if hidden_states.shape[0] >= 64:
 
 
@@ -690,16 +698,14 @@ Select inference device for Stable Diffusion pipeline
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
-    core = ov.Core()
-    
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="CPU",
-        description="Device:",
-        disabled=False,
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
+    
+    device = device_widget()
     
     device
 
@@ -708,7 +714,7 @@ Select inference device for Stable Diffusion pipeline
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU', 'AUTO'), value='CPU')
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
 
 
 
@@ -727,6 +733,10 @@ model objects and inference output must be converted from numpy to
 
 .. code:: ipython3
 
+    import openvino as ov
+    
+    core = ov.Core()
+    
     compiled_id_encoder = core.compile_model(ID_ENCODER_OV_PATH, device.value)
     compiled_unet = core.compile_model(UNET_OV_PATH, device.value)
     compiled_text_encoder = core.compile_model(TEXT_ENCODER_OV_PATH, device.value)
@@ -921,7 +931,7 @@ Running Text-to-Image Generation with OpenVINO
 
 
 
-.. image:: photo-maker-with-output_files/photo-maker-with-output_33_0.png
+.. image:: photo-maker-with-output_files/photo-maker-with-output_34_0.png
 
 
 Interactive Demo
@@ -931,9 +941,6 @@ Interactive Demo
 
 .. code:: ipython3
 
-    import gradio as gr
-    
-    
     def generate_from_text(text_promt, input_image, neg_prompt, seed, num_steps, style_strength_ratio):
         """
         Helper function for generating result image from prompt text
@@ -965,61 +972,21 @@ Interactive Demo
         ).images[0]
     
         return result
+
+.. code:: ipython3
+
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/photo-maker/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
     
+    from gradio_helper import make_demo
     
-    with gr.Blocks() as demo:
-        with gr.Column():
-            with gr.Row():
-                input_image = gr.Image(label="Your image", sources=["upload"], type="pil")
-                output_image = gr.Image(label="Generated Images", type="pil")
-            positive_input = gr.Textbox(label=f"Text prompt, Trigger words is '{trigger_word}'")
-            neg_input = gr.Textbox(label="Negative prompt")
-            with gr.Row():
-                seed_input = gr.Slider(0, 10_000_000, value=42, label="Seed")
-                steps_input = gr.Slider(label="Steps", value=10, minimum=5, maximum=50, step=1)
-                style_strength_ratio_input = gr.Slider(label="Style strength ratio", value=20, minimum=5, maximum=100, step=5)
-                btn = gr.Button()
-            btn.click(
-                generate_from_text,
-                [
-                    positive_input,
-                    input_image,
-                    neg_input,
-                    seed_input,
-                    steps_input,
-                    style_strength_ratio_input,
-                ],
-                output_image,
-            )
-            gr.Examples(
-                [
-                    [prompt, negative_prompt],
-                    [
-                        "A woman img wearing a Christmas hat",
-                        negative_prompt,
-                    ],
-                    [
-                        "A man img in a helmet and vest riding a motorcycle",
-                        negative_prompt,
-                    ],
-                    [
-                        "photo of a middle-aged man img sitting on a plush leather couch, and watching television show",
-                        negative_prompt,
-                    ],
-                    [
-                        "photo of a skilled doctor img in a pristine white lab coat enjoying a delicious meal in a sophisticated dining room",
-                        negative_prompt,
-                    ],
-                    [
-                        "photo of superman img flying through a vibrant sunset sky, with his cape billowing in the wind",
-                        negative_prompt,
-                    ],
-                ],
-                [positive_input, neg_input],
-            )
+    demo = make_demo(fn=generate_from_text)
     
-    
-    demo.queue().launch()
+    try:
+        demo.queue().launch(debug=False)
+    except Exception:
+        demo.queue().launch(debug=False, share=True)
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
@@ -1038,20 +1005,7 @@ Interactive Demo
 
 
 
-
-
-
-
-    
-
-
-
 .. code:: ipython3
 
-    demo.close()
-
-
-.. parsed-literal::
-
-    Closing server running on port: 7860
-
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

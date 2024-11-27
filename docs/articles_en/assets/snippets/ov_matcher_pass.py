@@ -1,13 +1,13 @@
 # ! [matcher_pass:ov_matcher_pass_py]
 '''
 ``MatcherPass`` is used for pattern-based transformations.
-To create transformation you need:
+To create transformation, you need to:
 
-1. Create a pattern
-2. Implement a callback
-3. Register the pattern and Matcher
+1. Create a pattern.
+2. Implement a callback.
+3. Register the pattern and ``Matcher``.
 
-In the next example we define transformation that searches for ``Relu`` layer and inserts after it another
+The next example defines transformation that searches for the ``Relu`` layer and inserts after it another
 ``Relu`` layer.
 '''
 
@@ -35,7 +35,7 @@ class PatternReplacement(MatcherPass):
 
 
 '''
-After running this code you will see the next:
+After running this code, you will see the next:
 
 model ops :
 parameter
@@ -48,9 +48,9 @@ result
 relu
 new_relu
 
-In oder to run this script you need to export PYTHONPATH as the path to binary OpenVINO python models.
+In order to run this script, you need to export PYTHONPATH as the path to binary OpenVINO python models.
 '''
-from openvino.runtime.passes import Manager, GraphRewrite, BackwardGraphRewrite, Serialize
+from openvino.runtime.passes import Manager
 from openvino import Model, PartialShape
 from openvino.runtime import opset13 as ops
 from openvino.runtime.passes import ModelPass, Matcher, MatcherPass, WrapType

@@ -62,17 +62,17 @@ bool check_concat_1(const std::shared_ptr<ov::op::v0::Concat>& concat, const Sha
 
     std::vector<int64_t> input_constants(num_of_input_values, 1);
     for (size_t i = 1; i < num_of_input_values; ++i) {
-        const auto& current_input = std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(inputs[i].get_node_shared_ptr());
+        const auto& current_input = ov::as_type_ptr<ov::op::v0::Unsqueeze>(inputs[i].get_node_shared_ptr());
         if (!current_input)
             return false;
 
         const auto current_input_axis =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(current_input->input_value(1).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(current_input->input_value(1).get_node_shared_ptr());
         if (!current_input_axis || current_input_axis->cast_vector<int64_t>() != std::vector<int64_t>{0})
             return false;
 
         const auto unsqueezed_const =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(current_input->input_value(0).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(current_input->input_value(0).get_node_shared_ptr());
         if (!unsqueezed_const)
             return false;
 
@@ -115,17 +115,17 @@ std::vector<int64_t> get_new_spatial_shape_from_concat_2(const std::shared_ptr<o
     std::vector<int64_t> input_constants(num_of_input_values - 1, 0);
 
     for (size_t i = 1; i < num_of_input_values; ++i) {
-        const auto& current_input = std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(inputs[i].get_node_shared_ptr());
+        const auto& current_input = ov::as_type_ptr<ov::op::v0::Unsqueeze>(inputs[i].get_node_shared_ptr());
         if (!current_input)
             return {};
 
         const auto current_input_axis =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(current_input->input_value(1).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(current_input->input_value(1).get_node_shared_ptr());
         if (!current_input_axis || current_input_axis->cast_vector<int64_t>() != std::vector<int64_t>{0})
             return {};
 
         const auto unsqueezed_const =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(current_input->input_value(0).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(current_input->input_value(0).get_node_shared_ptr());
         if (!unsqueezed_const)
             return {};
 
@@ -285,19 +285,18 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         const auto reshape_2_node =
-            std::dynamic_pointer_cast<ov::op::v1::Reshape>(pattern_to_output.at(reshape_2).get_node_shared_ptr());
-        const auto mul_node =
-            std::dynamic_pointer_cast<ov::op::v1::Multiply>(pattern_to_output.at(mul).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v1::Reshape>(pattern_to_output.at(reshape_2).get_node_shared_ptr());
+        const auto mul_node = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_to_output.at(mul).get_node_shared_ptr());
         if (!reshape_2_node || !mul_node)
             return false;
 
         const auto mul_const_node =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(mul_const).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(mul_const).get_node_shared_ptr());
         if (!mul_const_node)
             return false;
 
         const auto reshape_1_node =
-            std::dynamic_pointer_cast<ov::op::v1::Reshape>(pattern_to_output.at(reshape_1).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v1::Reshape>(pattern_to_output.at(reshape_1).get_node_shared_ptr());
         if (!reshape_1_node)
             return false;
 
@@ -318,7 +317,7 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
         }
 
         const auto concat_1_node =
-            std::dynamic_pointer_cast<ov::op::v0::Concat>(pattern_to_output.at(concat_1).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Concat>(pattern_to_output.at(concat_1).get_node_shared_ptr());
         if (!concat_1_node)
             return false;
 
@@ -327,7 +326,7 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
             return false;
 
         const auto concat_2_node =
-            std::dynamic_pointer_cast<ov::op::v0::Concat>(pattern_to_output.at(concat_2).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Concat>(pattern_to_output.at(concat_2).get_node_shared_ptr());
         if (!concat_2_node)
             return false;
 
@@ -336,14 +335,14 @@ ov::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
             return false;
 
         const auto ss_before_concat_1 =
-            std::dynamic_pointer_cast<ov::op::v1::StridedSlice>(concat_1_node->input_value(0).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v1::StridedSlice>(concat_1_node->input_value(0).get_node_shared_ptr());
         const auto ss_before_concat_2 =
-            std::dynamic_pointer_cast<ov::op::v1::StridedSlice>(concat_2_node->input_value(0).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v1::StridedSlice>(concat_2_node->input_value(0).get_node_shared_ptr());
         if (!ss_before_concat_1 || !ss_before_concat_2 || ss_before_concat_1.get() != ss_before_concat_2.get())
             return false;
 
         const auto shapeof_node =
-            std::dynamic_pointer_cast<ov::op::v3::ShapeOf>(ss_before_concat_1->input_value(0).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v3::ShapeOf>(ss_before_concat_1->input_value(0).get_node_shared_ptr());
         if (!shapeof_node)
             return false;
 

@@ -54,6 +54,7 @@ tokens into audio codec tokens to generate the full waveform. To enable
 the community to use Bark via public code, EnCodec codec from Facebook
 is used to act as an audio representation.
 
+
 **Table of contents:**
 
 
@@ -91,6 +92,15 @@ Prerequisites
     %pip install -q "torch" "torchvision" "torchaudio" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "openvino>=2023.1.0" "gradio>=4.19"
     %pip install -q "git+https://github.com/suno-ai/bark.git" --extra-index-url https://download.pytorch.org/whl/cpu
+
+.. code:: ipython3
+
+    import requests
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    open("notebook_utils.py", "w").write(r.text)
 
 Download and Convert models
 ---------------------------
@@ -906,17 +916,9 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    import openvino as ov
+    from notebook_utils import device_widget
     
-    core = ov.Core()
-    
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
     
     device
 

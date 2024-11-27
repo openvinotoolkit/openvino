@@ -13,7 +13,7 @@ from sys import platform
 from pathlib import Path
 
 import openvino
-from openvino import Model, Core, Shape
+from openvino import Model, Core, Shape, Tensor, Type
 import openvino.runtime.opset13 as ops
 
 
@@ -264,7 +264,61 @@ def generate_big_model_with_tile(input_shape, constant_shape, tile_shape, data_t
     return Model(add, [input_data], "TestModel")
 
 
-def create_filename_for_test(test_name, tmp_path, is_xml_path=False, is_bin_path=False):
+def generate_concat_compiled_model(device, input_shape: List[int] = None, ov_type=Type.f32, numpy_dtype=np.float32):
+    if input_shape is None:
+        input_shape = [5]
+
+    core = Core()
+
+    params = []
+    params += [ops.parameter(input_shape, ov_type)]
+    if ov_type == Type.bf16:
+        params += [ops.parameter(input_shape, ov_type)]
+    else:
+        params += [ops.parameter(input_shape, numpy_dtype)]
+
+    model = Model(ops.concat(params, 0), params)
+    return core.compile_model(model, device)
+
+
+def generate_concat_compiled_model_with_data(device, input_shape: List[int] = None, ov_type=Type.f32, numpy_dtype=np.float32):
+    if input_shape is None:
+        input_shape = [5]
+
+    compiled_model = generate_concat_compiled_model(device, input_shape, ov_type, numpy_dtype)
+    request = compiled_model.create_infer_request()
+    tensor1 = Tensor(ov_type, input_shape)
+    tensor1.data[:] = np.array([6, 7, 8, 9, 0])
+    array1 = np.array([1, 2, 3, 4, 5], dtype=numpy_dtype)
+
+    return request, tensor1, array1
+
+
+def generate_abs_compiled_model_with_data(device, ov_type, numpy_dtype):
+    input_shape = [1, 4]
+    param = ops.parameter(input_shape, ov_type)
+    model = Model(ops.abs(param), [param])
+    core = Core()
+    compiled_model = core.compile_model(model, device)
+
+    request = compiled_model.create_infer_request()
+
+    tensor1 = Tensor(ov_type, input_shape)
+    tensor1.data[:] = np.array([6, -7, -8, 9])
+
+    array1 = np.array([[-1, 2, 5, -3]]).astype(numpy_dtype)
+
+    return compiled_model, request, tensor1, array1
+
+
+def create_filename_for_test(test_name):
+    python_version = str(sys.version_info.major) + "_" + str(sys.version_info.minor)
+    filename = test_name.replace("test_", "").replace("[", "_").replace("]", "_")
+    filename = filename + "_" + python_version
+    return filename
+
+
+def create_filenames_for_ir(test_name, tmp_path, is_xml_path=False, is_bin_path=False):
     """Return a tuple with automatically generated paths for xml and bin files.
 
     :param test_name: Name used in generating.
@@ -272,9 +326,7 @@ def create_filename_for_test(test_name, tmp_path, is_xml_path=False, is_bin_path
     :param is_bin_path: True if bin file should be pathlib.Path object, otherwise return string.
     :return: Tuple with two objects representing xml and bin files.
     """
-    python_version = str(sys.version_info.major) + "_" + str(sys.version_info.minor)
-    filename = test_name.replace("test_", "").replace("[", "_").replace("]", "_")
-    filename = filename + "_" + python_version
+    filename = create_filename_for_test(test_name)
     path_to_xml = tmp_path / Path(filename + ".xml")
     path_to_bin = tmp_path / Path(filename + ".bin")
     _xml = path_to_xml if is_xml_path else str(path_to_xml)

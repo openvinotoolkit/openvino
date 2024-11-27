@@ -330,10 +330,11 @@ function(ov_generate_plugins_hpp)
         ov_target_link_plugins(openvino_runtime_s)
     endif()
 
+    get_target_property(OV_RUNTIME_OBJ_BINARY_DIR openvino_runtime_obj BINARY_DIR)
     if(OV_GENERATOR_MULTI_CONFIG AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.20)
-        set(ov_plugins_hpp "${CMAKE_BINARY_DIR}/src/inference/$<CONFIG>/ov_plugins.hpp")
+        set(ov_plugins_hpp "${OV_RUNTIME_OBJ_BINARY_DIR}/$<CONFIG>/ov_plugins.hpp")
     else()
-        set(ov_plugins_hpp "${CMAKE_BINARY_DIR}/src/inference/ov_plugins.hpp")
+        set(ov_plugins_hpp "${OV_RUNTIME_OBJ_BINARY_DIR}/ov_plugins.hpp")
     endif()
     set(plugins_hpp_in "${OpenVINODeveloperScripts_DIR}/plugins/plugins.hpp.in")
 

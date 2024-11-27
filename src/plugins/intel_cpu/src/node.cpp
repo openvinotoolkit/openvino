@@ -5,7 +5,7 @@
 #include "node.h"
 #include "cpu_types.h"
 #include "edge.h"
-#include "partitioned_mem_mgr.h"
+#include "partitioned_mem_blk.h"
 
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
@@ -281,7 +281,6 @@ void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& pr
                     auto parentDesc = parent_spd->getConfig().outConfs[inNum].getMemDesc();
 
                     const bool isCompatible = curDesc->isCompatible(*parentDesc);
-
                     if (isCompatible) {
                         equalsLocalFormatCount++;
                     }
@@ -300,6 +299,126 @@ void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& pr
             }
         }
 
+        if (selectedPrimitive >= 0) {
+            selectPrimitiveDescriptorByIndex(selectedPrimitive);
+            return;
+        }
+    }
+
+    OPENVINO_ASSERT(!getSupportedPrimitiveDescriptors().empty(),
+                    "Supported primitive descriptors list is empty for node: ",
+                    getName(),
+                    " type: ",
+                    NameFromType(getType()));
+
+    // fallback. If there are no primitives from priority list just select a first
+    selectPrimitiveDescriptorByIndex(0);
+}
+
+bool Node::isOneDimShape(const ov::PartialShape& pshape) {
+    int value_1_num = 0;
+    int sz = static_cast<int>(pshape.size());
+    for (auto s : pshape) {
+        if (s.is_static() && s.get_length() == 1) {
+            value_1_num++;
+        }
+    }
+    return value_1_num >= sz - 1;
+}
+
+bool Node::isReorderRequired(ov::intel_cpu::MemoryDescPtr desc1, ov::intel_cpu::MemoryDescPtr desc2) {
+    bool samePrec = desc1->getPrecision() == desc2->getPrecision();
+    bool isOneDimShape1 = isOneDimShape(desc1->getShape().toPartialShape());
+    bool isOneDimShape2 = isOneDimShape(desc2->getShape().toPartialShape());
+    return !(isOneDimShape1 && isOneDimShape2 && samePrec);
+}
+
+void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs) {
+    // Filter out dynamic shape.
+    if (isDynamic) {
+        return selectPreferPrimitiveDescriptor(priority, ignoreConstInputs);
+    }
+
+    auto estimateReorderOverhead = [&](const ov::intel_cpu::NodeDesc& supportedPrimitiveDesc, size_t i) {
+        int estimate = 0;
+        auto inputNodesNum = supportedPrimitiveDesc.getConfig().inConfs.size();
+        for (size_t j = 0; j < inputNodesNum; j++) {
+            auto parentEdge = getParentEdgeAt(j);
+            auto parentPtr = parentEdge->getParent();
+
+            // We don't take into account constant edges since reorders on them will be executed on load network
+            // stage
+            if (ignoreConstInputs && j > 0 && parentPtr->isConstant()) {
+                continue;
+            }
+
+            auto parent_spd = parentPtr->getSelectedPrimitiveDescriptor();
+            if (parent_spd != nullptr && !parent_spd->getConfig().outConfs.empty()) {
+                int inNum = parentEdge->getInputNum();
+                if (inNum < 0 || inNum >= static_cast<int>(parent_spd->getConfig().outConfs.size())) {
+                    inNum = 0;
+                }
+                auto curDesc = supportedPrimitiveDesc.getConfig().inConfs[j].getMemDesc();
+                auto parentDesc = parent_spd->getConfig().outConfs[inNum].getMemDesc();
+
+                const bool isCompatible = curDesc->isCompatible(*parentDesc);
+                if (!isCompatible) {
+                    if (!isReorderRequired(parentDesc, curDesc)) {
+                        estimate += 1;
+                    } else {
+                        estimate += ov::shape_size<ov::intel_cpu::VectorDims>(curDesc->getShape().getMinDims());
+                    }
+                }
+
+                DEBUG_LOG(getName(), " pd[", i, "].inConfs[", j, "]"
+                          " is ", (isCompatible ? "compatible" : "not compatible"),
+                          " shape is ", (isOneDimShape(curDesc->getShape().toPartialShape()) ? "one dim shape" : "not one dim shape"),
+                          " with parent ", parentPtr->getName(),
+                          " outConfs[", inNum, "], estimate add to ", estimate);
+            }
+        }
+        return estimate;
+    };
+
+    auto selectSPDwithType = [&](const impl_desc_type type) {
+        int selectedPrimitive = -1;
+        int bestEstimate = std::numeric_limits<int>::max();
+        for (size_t i = 0; i < getSupportedPrimitiveDescriptors().size(); i++) {
+            const auto& supportedPrimitiveDesc = getSupportedPrimitiveDescriptors()[i];
+            const impl_desc_type supportedType = supportedPrimitiveDesc.getImplementationType();
+            if (supportedType != type) {
+                continue;
+            }
+
+            const size_t descInConfSize = supportedPrimitiveDesc.getConfig().inConfs.size();
+
+            if (descInConfSize > getParentEdges().size()) {
+                OPENVINO_THROW(getName(),
+                               " Desc ",
+                               i,
+                               " with type: ",
+                               supportedType,
+                               " has more input ports than node: ",
+                               descInConfSize,
+                               " vs ",
+                               getParentEdges().size());
+                continue;
+            }
+
+            auto estimate = estimateReorderOverhead(supportedPrimitiveDesc, i);
+
+            if (estimate < bestEstimate) {
+                bestEstimate = estimate;
+                selectedPrimitive = static_cast<int>(i);
+                DEBUG_LOG(getName(), " Select primitive desc: ", i, " ", supportedPrimitiveDesc);
+            }
+        }
+        return selectedPrimitive;
+    };
+
+    // loop kernel priority
+    for (auto& type : priority) {
+        int selectedPrimitive = selectSPDwithType(type);
         if (selectedPrimitive >= 0) {
             selectPrimitiveDescriptorByIndex(selectedPrimitive);
             return;
@@ -356,7 +475,7 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
             auto parentEdge = getParentEdgeAt(i);
             OPENVINO_ASSERT(parentEdge->getStatus() == Edge::Status::NotAllocated,
                             " Unexpected inplace resolve call to an allocated edge: ",
-                            parentEdge->name());
+                            *parentEdge);
 
             //search for already allocated edge
             const auto& childEdges = getChildEdgesAtPort(inplaceOutIndx);
@@ -385,7 +504,7 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
             for (auto& childEdge : childEdges) {
                 OPENVINO_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated,
                                 " Unexpected inplace resolve call to an allocated edge: ",
-                                childEdge->name());
+                                *childEdge);
                 auto newMem = std::make_shared<Memory>(getEngine(), selected_pd->getConfig().outConfs[i].getMemDesc(), memBlock);
                 childEdge->reuse(newMem);
             }
@@ -415,6 +534,19 @@ MemoryDescPtr Node::getBaseMemDescAtOutputPort(size_t portNum) const {
         return outConfs[portNum].getMemDesc();
     }
     OPENVINO_THROW("Can't get output memory desc, primitive descriptor is not selected");
+}
+
+MemoryDescPtr Node::getParentOutputMemDesc(const EdgePtr& edge) {
+    const auto parentPtr = edge->getParent();
+    const auto parentSpd = parentPtr->getSelectedPrimitiveDescriptor();
+    OPENVINO_ASSERT(parentSpd, "Parent selected primitive descriptor is missed");
+
+    const auto& parentOutConfs = parentSpd->getConfig().outConfs;
+    OPENVINO_ASSERT(!parentOutConfs.empty(), "Parent output configuration is empty");
+
+    const int inNum = edge->getInputNum();
+
+    return parentSpd->getConfig().outConfs[inNum].getMemDesc();
 }
 
 std::string Node::getPrimitiveDescriptorType() const {
@@ -523,7 +655,7 @@ std::vector<EdgePtr> Node::getChildEdgesAtPort(int inputNum) const {
         if (!edge)
             OPENVINO_THROW("Node ", getName(), " contains dead weak ptr");
         if (edge->getInputNum() == inputNum)
-            res.push_back(edge);
+            res.emplace_back(std::move(edge));
     }
     return res;
 }
@@ -661,11 +793,10 @@ void Node::redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) 
 void Node::redefineOutputMemory(const size_t port, const VectorDims& new_output_shape) {
     const auto edges = getChildEdgesAtPort(port);
 
+    static const VectorDims single_element_shape = {1};
+
     // avoid 0D shape incompatible
-    auto new_shape = new_output_shape;
-    if (new_shape.empty()) {
-        new_shape.push_back(1);
-    }
+    const auto& new_shape = new_output_shape.empty() ? single_element_shape : new_output_shape;
 
     const auto& curr_desc = edges[0]->getMemory().getDesc();
     if (curr_desc.getShape().isStatic() && curr_desc.getShape().getStaticDims() == new_shape) {

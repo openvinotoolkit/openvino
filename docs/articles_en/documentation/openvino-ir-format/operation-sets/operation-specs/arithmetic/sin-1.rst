@@ -1,11 +1,9 @@
-.. {#openvino_docs_ops_arithmetic_Sin_1}
-
 Sin
 ===
 
 
 .. meta::
-  :description: Learn about Sin-1 - an element-wise, arithmetic operation, which 
+  :description: Learn about Sin-1 - an element-wise, arithmetic operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *Sin-1*

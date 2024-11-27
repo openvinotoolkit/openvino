@@ -26,11 +26,9 @@ More details about model can be found in `model
 card <https://huggingface.co/briaai/RMBG-1.4>`__.
 
 In this tutorial we consider how to convert and run this model using
-OpenVINO. 
+OpenVINO.
 
 **Table of contents:**
-
-
 
 -  `Prerequisites <#prerequisites>`__
 -  `Load PyTorch model <#load-pytorch-model>`__
@@ -59,7 +57,7 @@ install required dependencies
 
 .. code:: ipython3
 
-    %pip install -q torch torchvision pillow huggingface_hub "openvino>=2024.0.0" matplotlib "gradio>=4.15" "transformers>=4.39.1" tqdm --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q torch torchvision pillow huggingface_hub "openvino>=2024.0.0" "matplotlib>=3.4" "gradio>=4.15" "transformers>=4.39.1" tqdm --extra-index-url https://download.pytorch.org/whl/cpu
 
 
 .. parsed-literal::
@@ -73,11 +71,11 @@ Download model code from HuggingFace hub
 
     from huggingface_hub import hf_hub_download
     from pathlib import Path
-    
+
     repo_id = "briaai/RMBG-1.4"
-    
+
     download_files = ["utilities.py", "example_input.jpg"]
-    
+
     for file_for_downloading in download_files:
         if not Path(file_for_downloading).exists():
             hf_hub_download(repo_id=repo_id, filename=file_for_downloading, local_dir=".")
@@ -108,8 +106,16 @@ it may take some time.
 .. code:: ipython3
 
     from transformers import AutoModelForImageSegmentation
-    
+
     net = AutoModelForImageSegmentation.from_pretrained("briaai/RMBG-1.4", trust_remote_code=True)
+
+
+.. parsed-literal::
+
+    2024-11-22 04:19:11.305790: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-11-22 04:19:11.330949: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+
 
 Run PyTorch model inference
 ---------------------------
@@ -128,12 +134,12 @@ mask can be inserted into original image as alpha-channel.
     from utilities import preprocess_image, postprocess_image
     import numpy as np
     from matplotlib import pyplot as plt
-    
-    
+
+
     def visualize_result(orig_img: Image, mask: Image, result_img: Image):
         """
         Helper for results visualization
-    
+
         parameters:
            orig_img (Image): input image
            mask (Image): background mask
@@ -167,33 +173,33 @@ mask can be inserted into original image as alpha-channel.
         list_axes[1].set_title(titles[1], fontsize=15)
         list_axes[2].imshow(np.array(result_img))
         list_axes[2].set_title(titles[2], fontsize=15)
-    
+
         fig.subplots_adjust(wspace=0.01 if is_horizontal else 0.00, hspace=0.01 if is_horizontal else 0.1)
         fig.tight_layout()
         return fig
-    
-    
+
+
     im_path = "./example_input.jpg"
-    
+
     # prepare input
     model_input_size = [1024, 1024]
     orig_im = np.array(Image.open(im_path))
     orig_im_size = orig_im.shape[0:2]
     image = preprocess_image(orig_im, model_input_size)
-    
+
     # inference
     result = net(image)
-    
+
     # post process
     result_image = postprocess_image(result[0][0], orig_im_size)
-    
+
     # save result
     pil_im = Image.fromarray(result_image)
     no_bg_image = Image.new("RGBA", pil_im.size, (0, 0, 0, 0))
     orig_image = Image.open(im_path)
     no_bg_image.paste(orig_image, mask=pil_im)
     no_bg_image.save("example_image_no_bg.png")
-    
+
     visualize_result(orig_image, pil_im, no_bg_image);
 
 
@@ -218,9 +224,9 @@ function or directly loading on device using ``core.complie_model``.
 .. code:: ipython3
 
     import openvino as ov
-    
+
     ov_model_path = Path("rmbg-1.4.xml")
-    
+
     if not ov_model_path.exists():
         ov_model = ov.convert_model(net, example_input=image, input=[1, 3, *model_input_size])
         ov.save_model(ov_model, ov_model_path)
@@ -228,8 +234,15 @@ function or directly loading on device using ``core.complie_model``.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4664: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
+
+
+.. parsed-literal::
+
+    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:5006: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
+    `loss_type=None` was set in the config but it is unrecognised.Using the default loss: `ForCausalLMLoss`.
 
 
 Run OpenVINO model inference
@@ -244,16 +257,16 @@ please use dropdown list below:
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -272,19 +285,19 @@ original pre- and postprocessing steps, it means that we can reuse them.
 .. code:: ipython3
 
     ov_compiled_model = core.compile_model(ov_model_path, device.value)
-    
+
     result = ov_compiled_model(image)[0]
-    
+
     # post process
     result_image = postprocess_image(torch.from_numpy(result), orig_im_size)
-    
+
     # save result
     pil_im = Image.fromarray(result_image)
     no_bg_image = Image.new("RGBA", pil_im.size, (0, 0, 0, 0))
     orig_image = Image.open(im_path)
     no_bg_image.paste(orig_image, mask=pil_im)
     no_bg_image.save("example_image_no_bg.png")
-    
+
     visualize_result(orig_image, pil_im, no_bg_image);
 
 
@@ -299,65 +312,50 @@ Interactive demo
 
 .. code:: ipython3
 
-    import gradio as gr
-    
-    
-    title = "# RMBG background removal with OpenVINO"
-    
-    
     def get_background_mask(model, image):
         return model(image)[0]
-    
-    
-    with gr.Blocks() as demo:
-        gr.Markdown(title)
-    
-        with gr.Row():
-            input_image = gr.Image(label="Input Image", type="numpy")
-            background_image = gr.Image(label="Background removal Image")
-        submit = gr.Button("Submit")
-    
-        def on_submit(image):
-            original_image = image.copy()
-    
-            h, w = image.shape[:2]
-            image = preprocess_image(original_image, model_input_size)
-    
-            mask = get_background_mask(ov_compiled_model, image)
-            result_image = postprocess_image(torch.from_numpy(mask), (h, w))
-            pil_im = Image.fromarray(result_image)
-            orig_img = Image.fromarray(original_image)
-            no_bg_image = Image.new("RGBA", pil_im.size, (0, 0, 0, 0))
-            no_bg_image.paste(orig_img, mask=pil_im)
-    
-            return no_bg_image
-    
-        submit.click(on_submit, inputs=[input_image], outputs=[background_image])
-        examples = gr.Examples(
-            examples=["./example_input.jpg"],
-            inputs=[input_image],
-            outputs=[background_image],
-            fn=on_submit,
-            cache_examples=False,
-        )
-    
-    
-    if __name__ == "__main__":
-        try:
-            demo.launch(debug=False)
-        except Exception:
-            demo.launch(share=True, debug=False)
-    # if you are launching remotely, specify server_name and server_port
-    # demo.launch(server_name='your server name', server_port='server port in int')
-    # Read more in the docs: https://gradio.app/docs/
+
+
+    def on_submit(image):
+        original_image = image.copy()
+
+        h, w = image.shape[:2]
+        image = preprocess_image(original_image, model_input_size)
+
+        mask = get_background_mask(ov_compiled_model, image)
+        result_image = postprocess_image(torch.from_numpy(mask), (h, w))
+        pil_im = Image.fromarray(result_image)
+        orig_img = Image.fromarray(original_image)
+        no_bg_image = Image.new("RGBA", pil_im.size, (0, 0, 0, 0))
+        no_bg_image.paste(orig_img, mask=pil_im)
+
+        return no_bg_image
+
+.. code:: ipython3
+
+    import requests
+
+    if not Path("gradio_helper.py").exists():
+        r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/rmbg-background-removal/gradio_helper.py")
+        open("gradio_helper.py", "w").write(r.text)
+
+    from gradio_helper import make_demo
+
+    demo = make_demo(fn=on_submit)
+
+    try:
+        demo.launch(debug=False)
+    except Exception:
+        demo.launch(share=True, debug=False)
+    # If you are launching remotely, specify server_name and server_port
+    # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
+    # To learn more please refer to the Gradio docs: https://gradio.app/docs/
 
 
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
-    Thanks for being a Gradio user! If you have questions or feedback, please join our Discord server and chat with us: https://discord.gg/feTf9x3ZSB
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 
@@ -366,3 +364,8 @@ Interactive demo
 
 
 
+
+.. code:: ipython3
+
+    # please uncomment and run this cell for stopping gradio interface
+    # demo.close()

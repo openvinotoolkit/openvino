@@ -60,8 +60,7 @@ pipeline.
 - `Perform Face Identity extraction <#perform-face-identity-extraction>`__
 - `Prepare InstantID pipeline <#prepare-instantid-pipeline>`__
 - `Convert InstantID pipeline components to OpenVINO Intermediate
-  Representation
-  format <#convert-instantid-pipeline-components-to-openvino-intermediate-representation-format>`__
+  Representation format <#convert-instantid-pipeline-components-to-openvino-intermediate-representation-format>`__
 - `ControlNet <#controlnet>`__
 - `Unet <#unet>`__
 - `VAE Decoder <#vae-decoder>`__
@@ -69,8 +68,7 @@ pipeline.
 - `Image Projection Model <#image-projection-model>`__
 - `Prepare OpenVINO InstantID Pipeline <#prepare-openvino-instantid-pipeline>`__
 - `Run OpenVINO pipeline inference <#run-openvino-pipeline-inference>`__
-- `Select inference device for
-  InstantID <#select-inference-device-for-instantid>`__
+- `Select inference device for InstantID <#select-inference-device-for-instantid>`__
 - `Create pipeline <#create-pipeline>`__
 - `Run inference <#run-inference>`__
 - `Quantization <#quantization>`__
@@ -83,6 +81,7 @@ pipeline.
 - `Compare inference time of the FP16 and INT8
   pipelines <#compare-inference-time-of-the-fp16-and-int8-pipelines>`__
 - `Interactive demo <#interactive-demo>`__
+
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -103,19 +102,29 @@ Prerequisites
 
 .. code:: ipython3
 
-    from pathlib import Path
-    import sys
+    import requests
 
-    repo_dir = Path("InstantID")
 
-    if not repo_dir.exists():
-        !git clone https://github.com/InstantID/InstantID.git
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    open("notebook_utils.py", "w").write(r.text)
 
-    sys.path.insert(0, str(repo_dir))
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
+    )
+    open("cmd_helper.py", "w").write(r.text)
 
 .. code:: ipython3
 
-    %pip install -q "openvino>=2023.3.0" opencv-python transformers diffusers accelerate gdown "scikit-image>=0.19.2" "gradio>=4.19" "nncf>=2.9.0" "datasets>=2.14.6" "peft==0.6.2"
+    from cmd_helper import clone_repo
+
+
+    clone_repo("https://github.com/InstantID/InstantID.git")
+
+.. code:: ipython3
+
+    %pip install -q "openvino>=2023.3.0" opencv-python transformers "diffusers>=0.24.0" "matplotlib>=3.4" accelerate gdown "scikit-image>=0.19.2" "gradio>=4.19" "nncf>=2.9.0" "datasets>=2.14.6" "peft>=0.6.2"
 
 Convert and prepare Face IdentityNet
 ------------------------------------
@@ -136,6 +145,9 @@ provides a simple interface compatible with InsightFace for getting face
 recognition results.
 
 .. code:: ipython3
+
+    from pathlib import Path
+
 
     MODELS_DIR = Path("models")
     face_detector_path = MODELS_DIR / "antelopev2" / "scrfd_10g_bnkps.onnx"
@@ -244,8 +256,6 @@ recognition results.
             outputs = self.ov_model.outputs
             self.input_mean = 127.5
             self.input_std = 128.0
-            # print(self.output_names)
-            # assert len(outputs)==10 or len(outputs)==15
             self.use_kps = False
             self._anchor_ratio = 1.0
             self._num_anchors = 1
@@ -508,16 +518,11 @@ Select Inference Device for Face Recognition
 .. code:: ipython3
 
     import openvino as ov
-    import ipywidgets as widgets
 
-    core = ov.Core()
+    from notebook_utils import device_widget
 
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+
+    device = device_widget()
 
     device
 
@@ -599,7 +604,7 @@ generated image
 
 
 
-.. image:: instant-id-with-output_files/instant-id-with-output_15_0.png
+.. image:: instant-id-with-output_files/instant-id-with-output_16_0.png
 
 
 
@@ -610,7 +615,7 @@ generated image
 
 
 
-.. image:: instant-id-with-output_files/instant-id-with-output_16_0.png
+.. image:: instant-id-with-output_files/instant-id-with-output_17_0.png
 
 
 
@@ -1678,29 +1683,6 @@ Select inference device for InstantID
 
 
 
-.. code:: ipython3
-
-    text_encoder = core.compile_model(ov_text_encoder_path, device.value)
-    text_encoder_2 = core.compile_model(ov_text_encoder_2_path, device.value)
-    vae_decoder = core.compile_model(ov_vae_decoder_path, device.value)
-    unet = core.compile_model(ov_unet_path, device.value)
-    controlnet = core.compile_model(ov_controlnet_path, device.value)
-    image_proj_model = core.compile_model(ov_image_proj_encoder_path, device.value)
-
-.. code:: ipython3
-
-    from transformers import AutoTokenizer
-
-    tokenizer = AutoTokenizer.from_pretrained(MODELS_DIR / "tokenizer")
-    tokenizer_2 = AutoTokenizer.from_pretrained(MODELS_DIR / "tokenizer_2")
-    scheduler = LCMScheduler.from_pretrained(MODELS_DIR / "scheduler")
-
-
-.. parsed-literal::
-
-    The config attributes {'interpolation_type': 'linear', 'skip_prk_steps': True, 'use_karras_sigmas': False} were passed to LCMScheduler, but are not expected and will be ignored. Please verify your scheduler_config.json configuration file.
-
-
 Create pipeline
 ~~~~~~~~~~~~~~~
 
@@ -1708,16 +1690,43 @@ Create pipeline
 
 .. code:: ipython3
 
-    ov_pipe = OVStableDiffusionXLInstantIDPipeline(
-        text_encoder,
-        text_encoder_2,
-        image_proj_model,
-        controlnet,
-        unet,
-        vae_decoder,
-        tokenizer,
-        tokenizer_2,
-        scheduler,
+    from transformers import AutoTokenizer
+
+
+    def create_ov_pipe(
+        text_encoder_path,
+        text_encoder_2_path,
+        image_proj_encoder_path,
+        controlnet_path,
+        unet_path,
+        vae_decoder_path,
+        tokenizer_path,
+        tokenizer_2_path,
+        scheduler_path,
+    ):
+        return OVStableDiffusionXLInstantIDPipeline(
+            core.compile_model(text_encoder_path, device.value),
+            core.compile_model(text_encoder_2_path, device.value),
+            core.compile_model(image_proj_encoder_path, device.value),
+            core.compile_model(controlnet_path, device.value),
+            core.compile_model(unet_path, device.value),
+            core.compile_model(vae_decoder_path, device.value),
+            AutoTokenizer.from_pretrained(tokenizer_path),
+            AutoTokenizer.from_pretrained(tokenizer_2_path),
+            LCMScheduler.from_pretrained(scheduler_path),
+        )
+
+
+    ov_pipe = create_ov_pipe(
+        ov_text_encoder_path,
+        ov_text_encoder_2_path,
+        ov_image_proj_encoder_path,
+        ov_controlnet_path,
+        ov_unet_path,
+        ov_vae_decoder_path,
+        MODELS_DIR / "tokenizer",
+        MODELS_DIR / "tokenizer_2",
+        MODELS_DIR / "scheduler",
     )
 
 Run inference
@@ -1754,7 +1763,7 @@ Run inference
 
 
 
-.. image:: instant-id-with-output_files/instant-id-with-output_41_0.png
+.. image:: instant-id-with-output_files/instant-id-with-output_40_0.png
 
 
 
@@ -1785,8 +1794,10 @@ improve model inference speed.
 
 .. code:: ipython3
 
-    skip_for_device = "GPU" in device.value
-    to_quantize = widgets.Checkbox(value=not skip_for_device, description="Quantization", disabled=skip_for_device)
+    from notebook_utils import quantization_widget
+
+    skip_for_device = "GPU" in device.value or (device.value == "AUTO" and any("GPU" in device_name for device_name in core.available_devices))
+    to_quantize = quantization_widget(not skip_for_device)
     to_quantize
 
 
@@ -1988,6 +1999,14 @@ Run ControlNet Quantization
 Quantization of the first ``Convolution`` layer impacts the generation
 results. We recommend using ``IgnoredScope`` to keep accuracy sensitive
 layers in FP16 precision.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+
+    # Delete loaded full precision pipeline before quantization to lower peak memory footprint.
+    ov_pipe = None
+    gc.collect()
 
 .. code:: ipython3
 
@@ -3943,22 +3962,16 @@ pipelines.
 
     %%skip not $to_quantize.value
 
-    optimized_controlnet = core.compile_model(ov_int8_controlnet_path, device.value)
-    optimized_unet = core.compile_model(ov_int8_unet_path, device.value)
-    optimized_text_encoder = core.compile_model(ov_int8_text_encoder_path, device.value)
-    optimized_text_encoder_2 = core.compile_model(ov_int8_text_encoder_2_path, device.value)
-    optimized_vae_decoder = core.compile_model(ov_int8_vae_decoder_path, device.value)
-
-    int8_pipe = OVStableDiffusionXLInstantIDPipeline(
-        optimized_text_encoder,
-        optimized_text_encoder_2,
-        image_proj_model,
-        optimized_controlnet,
-        optimized_unet,
-        optimized_vae_decoder,
-        tokenizer,
-        tokenizer_2,
-        scheduler,
+    int8_pipe = create_ov_pipe(
+        ov_int8_text_encoder_path,
+        ov_int8_text_encoder_2_path,
+        ov_image_proj_encoder_path,
+        ov_int8_controlnet_path,
+        ov_int8_unet_path,
+        ov_int8_vae_decoder_path,
+        MODELS_DIR / "tokenizer",
+        MODELS_DIR / "tokenizer_2",
+        MODELS_DIR / "scheduler"
     )
 
 .. code:: ipython3
@@ -3984,7 +3997,7 @@ pipelines.
 
 .. code:: ipython3
 
-    # %%skip not $to_quantize.value
+    %%skip not $to_quantize.value
 
     import matplotlib.pyplot as plt
 
@@ -4065,13 +4078,33 @@ Compare inference time of the FP16 and INT8 pipelines
 To measure the inference performance of the ``FP16`` and ``INT8``
 pipelines, we use mean inference time on 5 samples.
 
+Please select below whether you would like to run inference time
+comparison.
+
    **NOTE**: For the most accurate performance estimation, it is
    recommended to run ``benchmark_app`` in a terminal/command prompt
    after closing other applications.
 
+..
+
+   **NOTE**: This is a memory consuming step because two pipelines need
+   to be loaded at the same time.
+
 .. code:: ipython3
 
-    %%skip not $to_quantize.value
+    import ipywidgets as widgets
+
+    run_inference_time_comparison = widgets.Checkbox(
+        value=False,
+        description="Inference time comparison",
+        disabled=not to_quantize.value,
+    )
+
+    run_inference_time_comparison
+
+.. code:: ipython3
+
+    %%skip (not $to_quantize.value or not $run_inference_time_comparison.value)
 
     import time
 
@@ -4100,7 +4133,24 @@ pipelines, we use mean inference time on 5 samples.
 
 .. code:: ipython3
 
-    %%skip not $to_quantize.value
+    %%skip (not $to_quantize.value or not $run_inference_time_comparison.value)
+
+    # Load full precision pipeline
+    ov_pipe = create_ov_pipe(
+        ov_text_encoder_path,
+        ov_text_encoder_2_path,
+        ov_image_proj_encoder_path,
+        ov_controlnet_path,
+        ov_unet_path,
+        ov_vae_decoder_path,
+        MODELS_DIR / "tokenizer",
+        MODELS_DIR / "tokenizer_2",
+        MODELS_DIR / "scheduler",
+    )
+
+.. code:: ipython3
+
+    %%skip (not $to_quantize.value or not $run_inference_time_comparison.value)
 
     fp_latency = calculate_inference_time(ov_pipe, face_info)
     print(f"FP16 pipeline: {fp_latency:.3f} seconds")
@@ -4126,6 +4176,8 @@ to launch the interactive demo.
 
 .. code:: ipython3
 
+    import ipywidgets as widgets
+
     quantized_models_present = int8_pipe is not None
 
     use_quantized_models = widgets.Checkbox(
@@ -4144,6 +4196,25 @@ to launch the interactive demo.
     Checkbox(value=True, description='Use quantized models')
 
 
+
+.. code:: ipython3
+
+    if use_quantized_models.value:
+        if ov_pipe is not None:
+            del ov_pipe
+            gc.collect()
+    elif ov_pipe is None:
+        ov_pipe = create_ov_pipe(
+            ov_text_encoder_path,
+            ov_text_encoder_2_path,
+            ov_image_proj_encoder_path,
+            ov_controlnet_path,
+            ov_unet_path,
+            ov_vae_decoder_path,
+            MODELS_DIR / "tokenizer",
+            MODELS_DIR / "tokenizer_2",
+            MODELS_DIR / "scheduler",
+        )
 
 .. code:: ipython3
 

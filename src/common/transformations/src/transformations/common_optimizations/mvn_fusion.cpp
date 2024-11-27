@@ -29,7 +29,7 @@ template <class T>
 std::function<bool(ov::Output<ov::Node>)> value_is_equal_to(const std::vector<T>& ref_values) {
     return [ref_values](ov::Output<ov::Node> output) -> bool {
         auto node = output.get_node_shared_ptr();
-        if (auto const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(node)) {
+        if (auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(node)) {
             return const_node->template cast_vector<T>() == ref_values;
         }
         return false;
@@ -113,17 +113,16 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(x);
 
-        auto const_eps_node =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(eps).get_node_shared_ptr());
+        auto const_eps_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(eps).get_node_shared_ptr());
         float eps_value;
         if (!op::util::get_single_value(const_eps_node, eps_value)) {
             return false;
         }
 
         auto axes_1_node =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(mean1_axes).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(mean1_axes).get_node_shared_ptr());
         auto axes_3_node =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(mean3_axes).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(mean3_axes).get_node_shared_ptr());
 
         if (!axes_1_node || !axes_3_node) {
             return false;
@@ -137,7 +136,7 @@ ov::pass::MVNFusionWithoutConstants::MVNFusionWithoutConstants() {
         }
         if (pattern_to_output.count(mean2_axes)) {
             auto axes_2_node =
-                std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(mean2_axes).get_node_shared_ptr());
+                ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(mean2_axes).get_node_shared_ptr());
             if (!axes_2_node) {
                 return false;
             }
@@ -260,13 +259,11 @@ ov::pass::MVNFusionWithConstantsInside::MVNFusionWithConstantsInside() {
         auto x_output = pattern_to_output.at(x);
 
         auto const_0_5_node =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(const_0_5).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(const_0_5).get_node_shared_ptr());
         auto const_gamma_node =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(gamma).get_node_shared_ptr());
-        auto const_beta_node =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(beta).get_node_shared_ptr());
-        auto const_eps_node =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(eps).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(gamma).get_node_shared_ptr());
+        auto const_beta_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(beta).get_node_shared_ptr());
+        auto const_eps_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(eps).get_node_shared_ptr());
         if (!const_0_5_node || !const_beta_node || !const_gamma_node || !const_eps_node) {
             return false;
         }
@@ -279,9 +276,9 @@ ov::pass::MVNFusionWithConstantsInside::MVNFusionWithConstantsInside() {
         }
 
         auto axes_1_node =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(mean1_axes).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(mean1_axes).get_node_shared_ptr());
         auto axes_2_node =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(mean2_axes).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(mean2_axes).get_node_shared_ptr());
         if (!axes_1_node || !axes_2_node) {
             return false;
         }

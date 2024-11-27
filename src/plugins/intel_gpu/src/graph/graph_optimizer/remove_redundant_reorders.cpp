@@ -31,6 +31,19 @@ using namespace cldnn;
 #define LOG_NODE_REMOVAL(id)      GPU_DEBUG_LOG_PASS << __func__ << ":" << __LINE__  << ": remove node: " << (id) << std::endl;
 #define LOG_NODE_REPLACEMENT(id)  GPU_DEBUG_LOG_PASS << __func__ << ":" << __LINE__  << ": replace node: " << (id) << std::endl;
 
+namespace {
+
+bool does_any_user_have_impl_type(program_node& node, impl_types impl) {
+    for (auto& user : node.get_users()) {
+        if (user->get_preferred_impl_type() == impl)
+            return true;
+    }
+
+    return false;
+}
+
+}  // namespace
+
 remove_redundant_reorders::remove_redundant_reorders(bool enable_reorder_fusing, bool update_implementations,
     bool remove_output_reorders)
     : base_pass("remove_redundant_reorders"), enable_reorder_fusing(enable_reorder_fusing), update_implementations(update_implementations),
@@ -43,7 +56,7 @@ void remove_redundant_reorders::run(program& p) {
             return;
 
         node.set_unique_id();
-        node.set_selected_impl(node.type()->choose_impl(node));
+        node.set_selected_impl(node.type()->create_impl(node));
         if (auto impl = node.get_selected_impl()) {
             auto params = node.get_kernel_impl_params();
             p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
@@ -290,7 +303,7 @@ void remove_redundant_reorders::run(program& p) {
             i_layout.data_padding._upper_size[3] == 0 && i_layout.data_padding._lower_size[3] == 0 &&
             !o_layout.data_padding &&
             i_layout.data_type == o_layout.data_type &&
-            !layout_optimizer::onednn_check_preferred_impl_type_of_users(r_node)) {
+            !does_any_user_have_impl_type(r_node, impl_types::onednn)) {
             // If the newly aligned pad is merged into output layout during post_optimize_graph phase
             // and then buffer is reinterpreted, user node cannot handle pad properly for kernel execution
             if (!update_implementations || (i_layout.feature() % 16 == 0 &&
@@ -421,7 +434,7 @@ void remove_redundant_reorders::run(program& p) {
                 (input.is_type<one_hot>() || input.is_type<permute>() || input.is_type<mvn>() ||
                  input.is_type<concatenation>() || input.is_type<depth_to_space>() || input.is_type<region_yolo>() ||
                  input.is_type<detection_output>() || input.is_type<gather>() || input.is_type<broadcast>() ||
-                 input.is_type<select>() || input.is_type<eltwise>());
+                 input.is_type<select>() || input.is_type<eltwise>()) && !input.is_constant();
             if (!same_data_type && !allowed_dt_conversion_fuse)
                 continue;
 
@@ -435,7 +448,7 @@ void remove_redundant_reorders::run(program& p) {
 
             auto old_output_layout_of_input = input.get_output_layout();
             input.set_output_layout(output_layout, false);
-            if (input.type()->does_possible_implementation_exist(input)) {
+            if (input.type()->has_impl_for(input)) {
                 // Add fused_primitive_desc of reorder to the previous node which propagates original output layout
                 // during shape inference
                 if (input.is_type<mvn>() || input.is_type<concatenation>() || input.is_type<gather>() ||
@@ -476,7 +489,7 @@ void remove_redundant_reorders::run(program& p) {
                             (dep.get_output_layout().format == format::b_fs_yx_fsv16 ||
                              dep.get_output_layout().format == format::bfyx ||
                              (dep.get_output_layout().format == format::fs_b_yx_fsv32 &&
-                             !lo.get_optimization_attributes().use_onednn_impls));
+                             !lo.has_all_enabled_onednn_impls_optimization_attribute()));
 
         auto convert_color_opt = usr->is_type<convert_color>() && prim_desc->has_surface_input();
 
@@ -591,7 +604,7 @@ void remove_redundant_reorders::run(program& p) {
         auto old_output_layout_of_input = input.get_output_layout();
         auto output_layout = node->get_output_layout();
         input.set_output_layout(output_layout, false);
-        if (input.type()->does_possible_implementation_exist(input)) {
+        if (input.type()->has_impl_for(input)) {
             input.set_output_padding(node->get_output_layout().data_padding);
 
             // Add fused_primitive_desc of reorder to convolution which propagate original output layout to jitter
@@ -714,11 +727,6 @@ void remove_redundant_reorders::run(program& p) {
         if (n->is_in_data_flow() && n->is_type<reorder>()) {
             auto preferred_impl = lo.get_preferred_impl_type(*n, n->get_input_layout(0).format);
             n->set_preferred_impl_type(preferred_impl);
-        }
-
-        // Validate fused layout when onednn is enable in post_optimize_graph
-        if (!enable_reorder_fusing && n->get_preferred_impl_type() == impl_types::onednn && !lo.are_layouts_suitable_for_onednn(*n)) {
-            throw std::runtime_error("Onednn doesnot support padded input or output");
         }
     }
 

@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_Preprocessing_Details}
-
 Preprocessing API - details
 ===========================
 

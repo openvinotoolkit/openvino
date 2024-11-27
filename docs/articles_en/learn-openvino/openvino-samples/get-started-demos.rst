@@ -1,5 +1,3 @@
-.. {#openvino_docs_get_started_get_started_demos}
-
 Get Started with Samples
 ========================
 
@@ -274,7 +272,6 @@ Download a Media to use
 Most of the samples require you to provide an image or a video as input for the model. OpenVINO provides several sample images and videos for you to run code samples and demo applications:
 
 - `Sample images and video <https://storage.openvinotoolkit.org/data/test_data/>`__
-- `Sample videos <https://github.com/intel-iot-devkit/sample-videos>`__
 
 To run the sample applications, you can use images and videos from the media files collection available `here <https://storage.openvinotoolkit.org/data/test_data>`__ . As an alternative, you can get them from sites like `Pexels <https://pexels.com>`__ or `Google Images <https://images.google.com>`__ .
 

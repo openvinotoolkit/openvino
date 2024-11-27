@@ -1,12 +1,10 @@
-.. {#openvino_docs_ops_movement_GatherND_5}
-
 GatherND
 ========
 
 
 
 .. meta::
-  :description: Learn about GatherND-5 - a data movement operation, 
+  :description: Learn about GatherND-5 - a data movement operation,
                 which can be performed on two required input tensors.
 
 **Versioned name**: *GatherND-5*
@@ -17,10 +15,10 @@ GatherND
 
 **Detailed description**: *GatherND* gathers slices from ``data`` by ``indices`` and forms a tensor of a shape specified by ``indices``.
 
-``indices`` is ``K``-dimensional integer tensor or ``K-1``-dimensional tensor of tuples with indices by which 
-the operation gathers elements or slices from ``data`` tensor. A position ``i_0, ..., i_{K-2}`` in the ``indices`` 
-tensor corresponds to a tuple with indices ``indices[i_0, ..., i_{K-2}]`` of a length equal to ``indices.shape[-1]``. 
-By this tuple with indices the operation gathers a slice or an element from ``data`` tensor and insert it into the 
+``indices`` is ``K``-dimensional integer tensor or ``K-1``-dimensional tensor of tuples with indices by which
+the operation gathers elements or slices from ``data`` tensor. A position ``i_0, ..., i_{K-2}`` in the ``indices``
+tensor corresponds to a tuple with indices ``indices[i_0, ..., i_{K-2}]`` of a length equal to ``indices.shape[-1]``.
+By this tuple with indices the operation gathers a slice or an element from ``data`` tensor and insert it into the
 output at position ``i_0, ..., i_{K-2}`` as the following formula:
 
 output[i_0, ..., i_{K-2},:,...,:] = data[indices[i_0, ..., i_{K-2}],:,...,:]
@@ -65,14 +63,14 @@ Example 3 shows how *GatherND* operates when `indices` tensor has leading dimens
 
 * *batch_dims*
 
-  * **Description**: *batch_dims* (denoted as ``b``) is a leading number of dimensions of ``data`` tensor 
+  * **Description**: *batch_dims* (denoted as ``b``) is a leading number of dimensions of ``data`` tensor
     and ``indices`` representing the batches, and *GatherND* starts to gather from the ``b+1`` dimension.
     It requires the first ``b`` dimensions in ``data`` and ``indices`` tensors to be equal.
     In case of non-default value for *batch_dims*, the output shape is calculated as
     ``(multiplication of indices.shape[:b]) + indices.shape[b:-1] + data.shape[(indices.shape[-1] + b):]``.
-    
+
     .. note::
-        
+
        The calculation of output shape is incorrect for non-default *batch_dims* value greater than one.
        For correct calculations use the :doc:`GatherND_8 <gather-8>` operation.
 
@@ -105,7 +103,7 @@ Example 5 shows how *GatherND* operates gathering slices for non-default *batch_
    output  = [[ 5,  6,  7,  8], [13, 14, 15, 16]], shape = (2, 4)
 
 
-More complex, example 6 shows how *GatherND* operates gathering slices with leading dimensions 
+More complex, example 6 shows how *GatherND* operates gathering slices with leading dimensions
 for non-default *batch_dims* value:
 
 .. code-block:: sh
@@ -132,7 +130,7 @@ for non-default *batch_dims* value:
 
 * **1**: ``data`` tensor of type *T*. This is a tensor of a rank not lower than 1. **Required.**
 * **2**: ``indices`` tensor of type *T_IND*. This is a tensor of a rank not lower than 1.
-  It requires that all indices from this tensor are be in the range of ``[0, s-1]`` where ``s`` is 
+  It requires that all indices from this tensor are be in the range of ``[0, s-1]`` where ``s`` is
   corresponding dimension to which this index is applied. **Required**.
 
 **Outputs**:

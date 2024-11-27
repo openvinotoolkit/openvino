@@ -1,5 +1,3 @@
-.. {#openvino_sample_hello_reshape_ssd}
-
 Hello Reshape SSD Sample
 ========================
 
@@ -16,7 +14,7 @@ using the sample, refer to the following requirements:
 
 - Models with only one input and output are supported.
 - The sample accepts any file format supported by ``core.read_model``.
-- The sample has been validated with: `person-detection-retail-0013 <https://docs.openvino.ai/2024/omz_models_model_person_detection_retail_0013.html>`__
+- The sample has been validated with: `person-detection-retail-0013 <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/person-detection-retail-0013/README.md>`__
   models and the NCHW layout format.
 - To build the sample, use instructions available at :ref:`Build the Sample Applications <build-samples>`
   section in "Get Started with Samples" guide.

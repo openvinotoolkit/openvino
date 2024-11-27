@@ -2,7 +2,7 @@ module.exports = {
   rules: {
     'semi': ['error'],
     'no-var': ['error'],
-    'max-len': ['error'],
+    'max-len': ['error', { 'ignoreUrls': true }],
     'eol-last': ['error'],
     'indent': ['error', 2],
     'camelcase': ['error'],
@@ -23,5 +23,6 @@ module.exports = {
     'key-spacing': ['error', { beforeColon: false }],
     'no-multiple-empty-lines': ['error', { max: 1, maxBOF: 0, maxEOF: 0 }],
     'keyword-spacing': ['error', { overrides: { catch: { after: false } } }],
+    '@typescript-eslint/no-var-requires': 0,
   }
 };

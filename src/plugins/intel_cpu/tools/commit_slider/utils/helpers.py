@@ -15,12 +15,24 @@ from utils.cfg_manager import CfgManager
 import copy
 
 
+mulKey = 'multiplication_key'
+
 def getMeaningfullCommitTail(commit):
     return commit[:7]
+
 
 def extractModelPath(cmdStr):
     args = cmdStr.split()
     return args[args.index("-m") + 1]
+
+
+def getActualCfg(cfg, multiconfig: str):
+    if isinstance(cfg, list) and \
+        multiconfig != 'undefined':
+        return cfg[int(multiconfig)]
+    else:
+        return cfg
+
 
 def getParams():
     parser = ArgumentParser()
@@ -46,6 +58,14 @@ def getParams():
         help="run utility with specified name",
         default="no_utility",
     )
+
+    parser.add_argument(
+        "-x",
+        "--multiconfig",
+        dest="multiconfig",
+        help="index in config array or 'undefined' mark",
+        default="undefined"
+    )
     args, additionalArgs = parser.parse_known_args()
 
     argHolder = DictHolder(args.__dict__)
@@ -53,36 +73,63 @@ def getParams():
     presetCfgPath = "utils/cfg.json"
     customCfgPath = ""
     customCfgPath = argHolder.configuration
-    presetCfgData = None
-    with open(presetCfgPath) as cfgFile:
-        presetCfgData = json.load(cfgFile)
-    cfgFile.close()
+    presetCfgData = loadJSONToString(presetCfgPath)
 
     if argHolder.utility != "no_utility":
         it = iter(additionalArgs)
         addDict = dict(zip(it, it))
         mergedArgs = {**(args.__dict__), **addDict}
         argHolder = DictHolder(mergedArgs)
+        presetCfgData = loadJSONToObject(presetCfgPath)
         return argHolder, presetCfgData, presetCfgPath
 
-    customCfgData = None
-    with open(customCfgPath) as cfgFile:
-        customCfgData = json.load(cfgFile)
-    cfgFile.close()
+    customCfgData = loadJSONToString(customCfgPath)
+    if mulKey in customCfgData:
+        customCfgData = multiplyCfgByKey(json.loads(customCfgData))
+    else:
+        customCfgData = json.loads(customCfgData)
 
-    # config manager resolves templates in config,
-    # in the future, all interactions with config will
-    # be incapsulated in config manager
-    cm = CfgManager(customCfgData)
-    customCfgData = cm.applyTemplate()
+    presetCfgData = customizeCfg(customCfgData, presetCfgData)
 
-    # customize cfg
-    for key in customCfgData:
-        newVal = customCfgData[key]
-        presetCfgData[key] = newVal
-
-    presetCfgData = absolutizePaths(presetCfgData)
     return argHolder, presetCfgData, customCfgPath
+
+
+def loadJSONToString(path):
+    with open(path, 'r') as file:
+        data = file.read()
+    file.close()
+    return data
+
+
+def loadJSONToObject(path):
+    with open(path) as file:
+        obj = json.load(file)
+    file.close()
+    return obj
+
+
+def customizeCfg(customCfg, presetCfg: str):
+    if isinstance(customCfg, list):
+        returnCfgList = [{}] * len(customCfg)
+        for idx, subCfg in enumerate(customCfg):
+            returnCfgList[idx] = customizeCfg(subCfg, presetCfg)
+        return returnCfgList
+    else:
+        presetCfg = json.loads(presetCfg)
+
+        # config manager resolves templates in config,
+        # in the future, all interactions with config will
+        # be incapsulated in config manager
+        cm = CfgManager(customCfg)
+        customCfg = cm.applyTemplate()
+
+        # customize cfg
+        for key in customCfg:
+            newVal = customCfg[key]
+            presetCfg[key] = newVal
+
+        presetCfg = absolutizePaths(presetCfg)
+        return presetCfg
 
 
 def getBlobDiff(file1, file2):
@@ -112,7 +159,7 @@ def getBlobDiff(file1, file2):
 
 def absolutizePaths(cfg):
     pl = sys.platform
-    if pl == "linux" or pl == "linux2":
+    if pl in ["linux", "linux2", "darwin"]:
         cfg["workPath"] = cfg["linWorkPath"]
         cfg["os"] = "linux"
     elif pl == "win32":
@@ -198,6 +245,12 @@ def runCommandList(commit, cfgData):
     gitPath = cfgData["gitPath"]
     buildPath = cfgData["buildPath"]
     defRepo = gitPath
+    newEnv = os.environ.copy()
+    if "buildEnvVars" in cfgData:
+        for env in cfgData["buildEnvVars"]:
+            envKey = env["name"]
+            envVal = env["val"]
+            newEnv[envKey] = envVal
     for cmd in commandList:
         if "tag" in cmd:
             if cmd["tag"] == "preprocess":
@@ -241,7 +294,8 @@ def runCommandList(commit, cfgData):
         proc = subprocess.Popen(
             formattedCmd, cwd=cwd, stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            encoding="utf-8", errors="replace"
+            encoding="utf-8", errors="replace",
+            env=newEnv
         )
         for line in proc.stdout:
             if cfgData["verboseOutput"]:
@@ -292,7 +346,7 @@ def fetchAppOutput(cfg, commit):
                 {"src": cfg["appPath"], "dst": "appPath"},
                 {"src": sys.executable, "dst": "py"}
                 ]:
-            appCmd = CfgManager.multistepStrFormat(
+            appCmd = CfgManager.singlestepStrFormat(
                 appCmd,
                 item["dst"],
                 item["src"]
@@ -488,8 +542,8 @@ def returnToActualVersion(cfg):
 def setupLogger(name, logPath, logFileName, level=log.INFO):
     if not os.path.exists(logPath):
         os.makedirs(logPath)
-    logFileName = logPath + logFileName
-    with open(logFileName, "w"):  # clear old log
+    logFileName = os.path.join(logPath, logFileName)
+    with open(logFileName, "w+"):  # clear old log
         pass
     handler = log.FileHandler(logFileName)
     formatter = log.Formatter("%(asctime)s %(levelname)s %(message)s")
@@ -628,6 +682,7 @@ class DictHolder:
             for k, v in dict.items():
                 setattr(self, k, v)
 
+
 def formatJSON(content, formatLambda):
     if isinstance(content, dict):
         for k, value in content.items():
@@ -641,6 +696,99 @@ def formatJSON(content, formatLambda):
         # bool or digit object
         pass
     return content
+
+
+def findJSONPathsByValue(content, soughtFor, curPath:list=['$']):
+    pathVector = []
+    if isinstance(content, dict):
+        for k, value in content.items():
+            newRes = findJSONPathsByValue(value, soughtFor,
+                curPath.copy() + [k])
+            if newRes:
+                pathVector.extend(newRes)
+    elif isinstance(content, list):
+        for id, item in enumerate(content):
+            newPath = curPath.copy()
+            newPath.append('[{}]'.format(id))
+            newRes = findJSONPathsByValue(item, soughtFor,
+                newPath)
+            if newRes:
+                pathVector.extend(newRes)
+    else:
+        if content == soughtFor:
+            pathVector.append(curPath)
+    return pathVector
+
+
+def findJSONPathsByKey(content, soughtFor, curPath:list=['$']):
+    pathVector = []
+    if isinstance(content, dict):
+        for k, value in content.items():
+            if k == soughtFor:
+                pathVector.append(curPath)
+            newRes = findJSONPathsByKey(value, soughtFor,
+                curPath.copy() + [k])
+            if newRes:
+                pathVector.extend(newRes)
+    elif isinstance(content, list):
+        for id, item in enumerate(content):
+            newPath = curPath.copy()
+            newPath.append('[{}]'.format(id))
+            newRes = findJSONPathsByKey(item, soughtFor,
+                newPath)
+            if newRes:
+                pathVector.extend(newRes)
+    else:
+        pass
+    return pathVector
+
+
+def multiplyCfgByKey(content):
+    substVector = getSubstVectorByKey(content)
+    pathVector = findJSONPathsByKey(content, mulKey)
+    n = -1
+    for v in substVector:
+        if n != -1 and len(v) != n:
+            raise Exception("Inconsistent multiplication keys: sizes differ")
+        n = len(v)
+    substNum = len(substVector)
+    retList = []
+    for _ in range(n):
+        retList.append(deepCopyJSON(content))
+    for substIdx in range(substNum):
+        for cfgIdx in range(n):
+            deepMapUpdate(retList[cfgIdx], pathVector[substIdx][1:],
+                          substVector[substIdx][cfgIdx])
+    return retList
+
+
+def deepCopyJSON(obj):
+    return json.loads(json.dumps(obj, sort_keys=True))
+
+
+def getSubstVectorByKey(content, soughtFor=mulKey):
+    pathVector = findJSONPathsByKey(content, soughtFor)
+    keyVector = []
+    # populate configs
+    def stepInto(jObj, item):
+        try:
+            idx = int(item[1:-1])
+            if item[0] == '[' and item[-1] == ']':
+                return jObj[idx]
+        except ValueError:
+            pass
+        return jObj[item]
+    for path in pathVector: # except root '$'
+        curObj = content
+        for item in path[1:]:
+            curObj = stepInto(curObj, item)
+        curObj = curObj[mulKey]
+        if isinstance(curObj, list):
+            keyVector.append(curObj)
+        else:
+            raise Exception("Wrong JSON type in multiplicaiton key")
+    return keyVector
+
 
 def applySubstitutionRules(cfg: map, rules: list, commit: str=None):
     # if commit is None or rule['type'] == 'static',
@@ -684,7 +832,7 @@ def applySubstitutionRules(cfg: map, rules: list, commit: str=None):
         dstPos = formatJSON(
             dstPos,
             lambda content:
-            CfgManager.multistepStrFormat(
+            CfgManager.singlestepStrFormat(
                 content,
                 rule["placeholder"],
                 getMapValueByShortHash(srcPos, commit)\
@@ -708,5 +856,11 @@ def deepMapUpdate(content: map, path: list, substitution):
         return substitution
     else:
         root = path.pop(0)
+        if isinstance(content, list):
+            try:
+                root = int(root[1:-1])
+            except TypeError:
+                raise Exception("Wrong index {}".format(root))
         content[root] = deepMapUpdate(content[root], path, substitution)
         return content
+    

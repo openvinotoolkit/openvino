@@ -1,11 +1,9 @@
-.. {#top-k-11}
-
 TopK
 ====
 
 
 .. meta::
-  :description: Learn about TopK-11 - a sorting and maximization operation, 
+  :description: Learn about TopK-11 - a sorting and maximization operation,
                 which can be performed on two required input tensors.
 
 **Versioned name**: *TopK-11*
@@ -136,7 +134,7 @@ The indices are always sorted ascendingly when ``sort == index`` for any given T
 
 This example assumes that ``K`` is equal to 10:
 
-.. code-block:: cpp 
+.. code-block:: cpp
 
   <layer ... type="TopK" ... >
       <data axis="3" mode="max" sort="value" stable="true" index_element_type="i64"/>

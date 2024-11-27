@@ -1,5 +1,3 @@
-.. {#openvino_docs_ops_sparse_EmbeddingBagOffsetsSum_3}
-
 EmbeddingBagOffsetsSum
 ======================
 

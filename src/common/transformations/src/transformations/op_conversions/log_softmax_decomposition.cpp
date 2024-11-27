@@ -26,7 +26,7 @@ ov::pass::LogSoftmaxDecomposition::LogSoftmaxDecomposition() {
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto log_softmax_node =
-            std::dynamic_pointer_cast<ov::op::v5::LogSoftmax>(pattern_to_output.at(log_softmax).get_node_shared_ptr());
+            ov::as_type_ptr<ov::op::v5::LogSoftmax>(pattern_to_output.at(log_softmax).get_node_shared_ptr());
 
         if (log_softmax_node == nullptr || transformation_callback(log_softmax_node)) {
             return false;

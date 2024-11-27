@@ -38,6 +38,7 @@ a model source.
    video encoder. Ubuntu has it preinstalled, but for Windows, you
    should install it manually.
 
+
 **Table of contents:**
 
 
@@ -78,7 +79,6 @@ Prerequisites
 
 .. code:: ipython3
 
-    import platform
     import os
     
     %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
@@ -91,10 +91,7 @@ Prerequisites
     
     %pip install -q tensorflow_hub tf_keras numpy "opencv-python" tqdm "gradio>=4.19" Pillow "openvino>=2023.2.0"
     
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q "matplotlib>=3.4"
 
 .. code:: ipython3
 
@@ -118,6 +115,14 @@ Prerequisites
     import gradio as gr
     import PIL
     import IPython
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    
+    open("notebook_utils.py", "w").write(r.text)
+    
+    from notebook_utils import device_widget
 
 .. code:: ipython3
 
@@ -394,15 +399,8 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import ipywidgets as widgets
-    
     core = ov.Core()
-    device = widgets.Dropdown(
-        options=core.available_devices + ["AUTO"],
-        value="AUTO",
-        description="Device:",
-        disabled=False,
-    )
+    device = device_widget()
     device
 
 

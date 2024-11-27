@@ -126,8 +126,7 @@ bool constantIsEqualTo(const std::shared_ptr<op::v0::Constant>& const_node, floa
 
 bool has_f16_constants(const std::shared_ptr<const ov::Model>& function) {
     for (auto& layer : function->get_ops()) {
-        if (std::dynamic_pointer_cast<op::v0::Constant>(layer) &&
-            layer->output(0).get_element_type() == ov::element::f16) {
+        if (ov::as_type_ptr<op::v0::Constant>(layer) && layer->output(0).get_element_type() == ov::element::f16) {
             return true;
         }
     }
@@ -226,7 +225,7 @@ bool is_seq_len_provided(const std::shared_ptr<Node>& X, const std::shared_ptr<N
     }
 
     auto max_seq_len_val = max_seq_dim.get_length();
-    if (const auto& seq_len_const = std::dynamic_pointer_cast<op::v0::Constant>(seq_len_input)) {
+    if (const auto& seq_len_const = ov::as_type_ptr<op::v0::Constant>(seq_len_input)) {
         const auto& seq_len_values = seq_len_const->cast_vector<int64_t>();
         return std::any_of(seq_len_values.begin(), seq_len_values.end(), [max_seq_len_val](const int64_t val) {
             return val != max_seq_len_val;
@@ -356,7 +355,7 @@ bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
     }
 
     // check if constant has a single value with either 0 (for Add, Subtract) or 1 (for Multiply, Divide)
-    auto constant_ptr = std::dynamic_pointer_cast<ov::op::v0::Constant>(constant.get_node_shared_ptr());
+    auto constant_ptr = ov::as_type_ptr<ov::op::v0::Constant>(constant.get_node_shared_ptr());
     if (!constant_ptr) {
         return false;
     }

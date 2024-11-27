@@ -1,5 +1,3 @@
-.. {#openvino_docs_Extensibility_UG_matcher_pass}
-
 OpenVINO Matcher Pass
 =====================
 
@@ -28,7 +26,7 @@ Template for MatcherPass transformation class
 
    .. tab-item:: Python
       :sync: py
-      
+
       .. doxygensnippet:: docs/articles_en/assets/snippets/ov_matcher_pass.py
          :language: py
          :fragment: [matcher_pass:ov_matcher_pass_py]

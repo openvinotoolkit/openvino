@@ -23,6 +23,7 @@ This tutorial include following steps:
 -  Comparing results on one picture.
 -  Comparing performance.
 
+
 **Table of contents:**
 
 
@@ -80,30 +81,17 @@ Settings
 
 .. code:: ipython3
 
-    import platform
-    
     # Install openvino package
-    %pip install -q "openvino>=2023.1.0" opencv-python tqdm
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q "openvino>=2023.1.0" opencv-python tqdm "matplotlib>=3.4"
     
     %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
-    %pip install -q "tensorflow-macos>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version <= '3.8'" # macOS M1 and M2
     %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
-    %pip install -q "tensorflow>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version <= '3.8'" # macOS x86
     %pip install -q "tensorflow>=2.5; sys_platform != 'darwin' and python_version > '3.8'"
-    %pip install -q "tensorflow>=2.5; sys_platform != 'darwin' and python_version <= '3.8'"
     %pip install -q tf_keras tensorflow_hub
 
 
 .. parsed-literal::
 
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
@@ -213,15 +201,6 @@ and save it to the disk.
 .. parsed-literal::
 
     WARNING:tensorflow:Compiled the loaded model, but the compiled metrics have yet to be built. `model.compile_metrics` will be empty until you train or evaluate the model.
-
-
-.. parsed-literal::
-
-    WARNING:absl:Found untraced functions such as _jit_compiled_convolution_op, _jit_compiled_convolution_op, _jit_compiled_convolution_op, _jit_compiled_convolution_op, _jit_compiled_convolution_op while saving (showing 5 of 94). These functions will not be directly callable after loading.
-
-
-.. parsed-literal::
-
     INFO:tensorflow:Assets written to: model/InceptionResNetV2/assets
 
 
@@ -365,7 +344,7 @@ for mean/scale normalization.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7fc9480c3b30>
+    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7fe3ec331c70>
 
 
 
@@ -396,7 +375,7 @@ may be specified is input data
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7fc9480cacf0>
+    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7fe3ec2aef70>
 
 
 
@@ -434,7 +413,7 @@ then such conversion will be added explicitly.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7fc9480c3870>
+    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7fe3ec2aef30>
 
 
 
@@ -648,6 +627,6 @@ Compare performance
 
 .. parsed-literal::
 
-    IR model in OpenVINO Runtime/CPU with manual image preprocessing: 0.0151 seconds per image, FPS: 66.44
-    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0140 seconds per image, FPS: 71.66
+    IR model in OpenVINO Runtime/CPU with manual image preprocessing: 0.0153 seconds per image, FPS: 65.56
+    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0143 seconds per image, FPS: 70.14
 

@@ -3,7 +3,7 @@ Monodepth Estimation with OpenVINO
 
 This tutorial demonstrates Monocular Depth Estimation with MidasNet in
 OpenVINO. Model information can be found
-`here <https://docs.openvino.ai/2024/omz_models_model_midasnet.html>`__.
+`here <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/midasnet/README.md>`__.
 
 .. figure:: https://user-images.githubusercontent.com/36741649/127173017-a0bbcf75-db24-4d2c-81b9-616e04ab7cd9.gif
    :alt: monodepth
@@ -27,6 +27,7 @@ Cross-dataset
 Transfer,” <https://ieeexplore.ieee.org/document/9178977>`__ in IEEE
 Transactions on Pattern Analysis and Machine Intelligence, doi:
 ``10.1109/TPAMI.2020.3019967``.
+
 
 **Table of contents:**
 
@@ -77,24 +78,22 @@ Install requirements
 
 .. code:: ipython3
 
-    import platform
-    
     %pip install -q "openvino>=2023.1.0"
     %pip install -q opencv-python requests tqdm
     
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q "matplotlib>=3.4"
     
     # Fetch `notebook_utils` module
     import requests
+    from pathlib import Path
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
     
-    open("notebook_utils.py", "w").write(r.text)
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+    
+        open("notebook_utils.py", "w").write(r.text)
 
 
 .. parsed-literal::
@@ -102,14 +101,6 @@ Install requirements
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
-
-
-
-
-.. parsed-literal::
-
-    24165
-
 
 
 Imports
@@ -120,7 +111,6 @@ Imports
 .. code:: ipython3
 
     import time
-    from pathlib import Path
     
     import cv2
     import matplotlib.cm
@@ -156,8 +146,11 @@ format.
     ir_model_name_xml = "MiDaS_small.xml"
     ir_model_name_bin = "MiDaS_small.bin"
     
-    download_file(ir_model_url + ir_model_name_xml, filename=ir_model_name_xml, directory=model_folder)
-    download_file(ir_model_url + ir_model_name_bin, filename=ir_model_name_bin, directory=model_folder)
+    
+    if not (model_folder / ir_model_name_xml).exists():
+        download_file(ir_model_url + ir_model_name_xml, filename=ir_model_name_xml, directory=model_folder)
+    if not (model_folder / ir_model_name_bin).exists():
+        download_file(ir_model_url + ir_model_name_bin, filename=ir_model_name_bin, directory=model_folder)
     
     model_xml_path = model_folder / ir_model_name_xml
 
@@ -242,12 +235,15 @@ output keys and the expected input shape for the model.
 
 .. code:: ipython3
 
+    import openvino.properties as props
+    
+    
     # Create cache folder
     cache_folder = Path("cache")
     cache_folder.mkdir(exist_ok=True)
     
     core = ov.Core()
-    core.set_property({"CACHE_DIR": cache_folder})
+    core.set_property({props.cache_dir(): cache_folder})
     model = core.read_model(model_xml_path)
     compiled_model = core.compile_model(model=model, device_name=device.value)
     
@@ -273,14 +269,27 @@ H=height, W=width).
 
 .. code:: ipython3
 
-    IMAGE_FILE = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg"
-    image = load_image(path=IMAGE_FILE)
+    IMAGE_URL = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg"
+    IMAGE_PATH = "coco_bike.jpg"
+    
+    if not Path(IMAGE_PATH).exists():
+        download_file(IMAGE_URL, IMAGE_PATH)
+    
+    image = load_image(IMAGE_PATH)
+    
     
     # Resize to input shape for network.
     resized_image = cv2.resize(src=image, dsize=(network_image_height, network_image_width))
     
     # Reshape the image to network input shape NCHW.
     input_image = np.expand_dims(np.transpose(resized_image, (2, 0, 1)), 0)
+
+
+
+.. parsed-literal::
+
+    coco_bike.jpg:   0%|          | 0.00/182k [00:00<?, ?B/s]
+
 
 Do inference on the image
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -305,7 +314,7 @@ original image shape.
 
 .. parsed-literal::
 
-    /tmp/ipykernel_149792/2076527990.py:15: MatplotlibDeprecationWarning: The get_cmap function was deprecated in Matplotlib 3.7 and will be removed two minor releases later. Use ``matplotlib.colormaps[name]`` or ``matplotlib.colormaps.get_cmap(obj)`` instead.
+    /tmp/ipykernel_3590807/2076527990.py:15: MatplotlibDeprecationWarning: The get_cmap function was deprecated in Matplotlib 3.7 and will be removed two minor releases later. Use ``matplotlib.colormaps[name]`` or ``matplotlib.colormaps.get_cmap(obj)`` instead.
       cmap = matplotlib.cm.get_cmap(colormap)
 
 
@@ -342,7 +351,13 @@ Video Settings
 .. code:: ipython3
 
     # Video source: https://www.youtube.com/watch?v=fu1xcQdJRws (Public Domain)
-    VIDEO_FILE = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Coco%20Walking%20in%20Berkeley.mp4"
+    VIDEO_FILE = "Coco-Walking-in-Berkeley.mp4"
+    if not Path(VIDEO_FILE).exists():
+        download_file(
+            "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Coco%20Walking%20in%20Berkeley.mp4",
+            VIDEO_FILE,
+        )
+    
     # Number of seconds of input video to process. Set `NUM_SECONDS` to 0 to process
     # the full video.
     NUM_SECONDS = 4
@@ -364,6 +379,13 @@ Video Settings
     output_directory = Path("output")
     output_directory.mkdir(exist_ok=True)
     result_video_path = output_directory / f"{Path(VIDEO_FILE).stem}_monodepth.mp4"
+
+
+
+.. parsed-literal::
+
+    Coco-Walking-in-Berkeley.mp4:   0%|          | 0.00/877k [00:00<?, ?B/s]
+
 
 Load the Video
 ~~~~~~~~~~~~~~
@@ -504,8 +526,8 @@ Do Inference on a Video and Create Monodepth Video
 
 .. parsed-literal::
 
-    Processed 60 frames in 26.07 seconds. Total FPS (including video processing): 2.30.Inference FPS: 45.85 
-    Monodepth Video saved to 'output/Coco%20Walking%20in%20Berkeley_monodepth.mp4'.
+    Processed 60 frames in 8.99 seconds. Total FPS (including video processing): 6.67.Inference FPS: 58.38 
+    Monodepth Video saved to 'output/Coco-Walking-in-Berkeley_monodepth.mp4'.
 
 
 Display Monodepth Video
@@ -531,14 +553,14 @@ Display Monodepth Video
 .. parsed-literal::
 
     Showing monodepth video saved at
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-761/.workspace/scm/ov-notebook/notebooks/vision-monodepth/output/Coco%20Walking%20in%20Berkeley_monodepth.mp4
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/vision-monodepth/output/Coco-Walking-in-Berkeley_monodepth.mp4
     If you cannot see the video in your browser, please click on the following link to download the video 
 
 
 
 .. raw:: html
 
-    output/Coco%20Walking%20in%20Berkeley_monodepth.mp4<br>
+    output/Coco-Walking-in-Berkeley_monodepth.mp4<br>
 
 
 

@@ -36,6 +36,7 @@ enum DataLayout {
     bfxy,                   // 3D+batch
     byfx,
     bxfy,
+    ybfx,
     b_fs_yx_fsv2,
     b_fs_zyx_fsv2,
     b_fs_yx_fsv4,           // reordering format for swizzled input for convolution using IMAD
@@ -113,6 +114,7 @@ enum WeightsLayout {
     os_i_osv16,
     os_is_yx_osv16_isv16,           // weights for int8 blocked conv
     os_is_yx_osv32_isv2,            // weights for fully connected kernels with int4 compressed data type
+    os_is_yx_osv64_isv2,            // weights for fully connected kernels with int4 compressed data type
     os_is_zyx_osv16_isv16,
     os_is_zyx_osv32_isv16,
     os_is_zyx_osv64_isv16,
@@ -254,6 +256,7 @@ inline bool SimpleLayout(DataLayout l) {
         case DataLayout::fb:
         case DataLayout::bfyx:
         case DataLayout::yxfb:
+        case DataLayout::ybfx:
         case DataLayout::byxf:
         case DataLayout::byfx:
         case DataLayout::bxfy:

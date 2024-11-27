@@ -136,6 +136,14 @@ struct values_info {
         if (all_type_pshape.empty())
             return true;
         auto index = value.get_index();
+        if (index >= all_type_pshape.size()) {
+            _VERBOSE_LOG("* mismatched vtype : value from output port ",
+                         index,
+                         ", but only ",
+                         all_type_pshape.size(),
+                         " ports are expected!");
+            return false;
+        }
         auto& item = all_type_pshape[index];
         if (!item.first.compatible(value.get_element_type()) || !item.second.compatible(value.get_partial_shape())) {
             _VERBOSE_LOG("* mismatched vtype between value & pattern : ",
