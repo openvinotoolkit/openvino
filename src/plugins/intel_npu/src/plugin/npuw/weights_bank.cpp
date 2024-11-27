@@ -47,6 +47,9 @@ ov::Tensor Bank::get(const LazyTensor& tensor, const std::string& device) {
 
     if (iter_device != device_bank.storage.end() && iter_device->second) {
         // Already allocated
+        // tensor (the key) may be coming from a 2nd (3rd, ...) model
+        // detach it here just in case
+        const_cast<LazyTensor&>(tensor).detach();
         return iter_device->second;
     }
     dev_guard.unlock();
