@@ -16,6 +16,8 @@ namespace intel_cpu {
 
 class IStaticShapeInfer : public IShapeInfer {
 public:
+    using IShapeInfer::infer;
+
     /**
      * @brief Do shape inference.
      *
