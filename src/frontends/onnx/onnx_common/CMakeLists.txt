@@ -78,10 +78,15 @@ ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
     target_compile_options(${TARGET_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wno-missing-declarations>)
 endif()
-# Protobuf generates files which cause this warning
+# Protobuf generates files which cause a following warnings
 if(SUGGEST_OVERRIDE_SUPPORTED)
     target_compile_options(${TARGET_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wno-suggest-override>)
 endif()
-
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # 4244 conversion from 'XXX' to 'YYY', possible loss of data
+    ov_add_compiler_flags(/wd4244)
+    # '<': signed/unsigned mismatch
+    ov_add_compiler_flags(/wd4018)
+endif()
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
