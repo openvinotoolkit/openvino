@@ -996,10 +996,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     GPU_DEBUG_TRACE << root->get_friendly_name() << " : dynamic quantization is turned off because weight may not representable in 8 bit" << std::endl;
                     return true;
                 }
-
-                // Currently only per-token quantization is supported for onednn path
-                if (dynamic_quantization_group_size != UINT64_MAX)
-                    return true;
                 return false;
             });
             manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size);
