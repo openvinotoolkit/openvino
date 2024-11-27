@@ -33,8 +33,8 @@ bool Roll::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
     return true;
 }
 
-Roll::Roll(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
-                Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+Roll::Roll(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         layerErrorPrefix = "Roll layer with name '" + getName() + "'";

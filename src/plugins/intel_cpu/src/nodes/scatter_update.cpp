@@ -58,11 +58,13 @@ bool ScatterUpdate::isExecutable() const {
 }
 
 ScatterUpdate::ScatterUpdate(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-        : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)),
-          dataSize(0lu), indicesSize(0lu), axisSize(0lu),
-          dataPrec(ov::element::undefined),
-          indicesPrec(ov::element::undefined),
-          axisPrec(ov::element::undefined) {
+    : Node(op, context, NgraphShapeInferFactory(op)),
+      dataSize(0lu),
+      indicesSize(0lu),
+      axisSize(0lu),
+      dataPrec(ov::element::undefined),
+      indicesPrec(ov::element::undefined),
+      axisPrec(ov::element::undefined) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = std::string(op->get_type_name()) + " node with name '" + getName() + "'";

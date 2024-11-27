@@ -26,7 +26,7 @@ bool STFT::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
 }
 
 STFT::STFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, NgraphShapeInferFactory(op, PortMask(2, 3))) {
+    : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         THROW_CPU_NODE_ERR(errorMessage);

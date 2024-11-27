@@ -116,7 +116,7 @@ bool MemoryOutputBase::isSupportedOperation(const std::shared_ptr<const ov::Node
 }
 
 MemoryOutputBase::MemoryOutputBase(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-        : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) , MemoryNode(op) {
+    : Node(op, context, NgraphShapeInferFactory(op)), MemoryNode(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);

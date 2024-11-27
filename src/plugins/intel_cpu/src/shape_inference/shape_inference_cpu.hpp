@@ -5,8 +5,9 @@
 #pragma once
 
 #include <cpu_memory.h>
-#include <openvino/core/node.hpp>
-#include <openvino/core/coordinate_diff.hpp>
+
+#include "openvino/core/coordinate_diff.hpp"
+#include "openvino/core/node.hpp"
 #include "shape_inference_status.hpp"
 
 namespace ov {
@@ -98,14 +99,13 @@ public:
      * @brief Construct a new Ngraph Shape Infer Factory object
      *
      * @param op ngraph operation
-     * @param port_mask port mask should be defined by the user. Will be stored in the shape infer object and returned
-     * by the get_port_mask() call
      */
-    NgraphShapeInferFactory(std::shared_ptr<ov::Node> op, IShapeInfer::port_mask_t port_mask) : m_op(op), m_port_mask(port_mask) {}
+    NgraphShapeInferFactory(std::shared_ptr<ov::Node> op);
+
     ShapeInferPtr makeShapeInfer() const override;
+
 private:
     std::shared_ptr<ov::Node> m_op;
-    IShapeInfer::port_mask_t m_port_mask;
 };
 }   // namespace intel_cpu
 }   // namespace ov
