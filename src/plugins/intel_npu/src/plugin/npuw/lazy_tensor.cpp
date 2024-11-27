@@ -146,7 +146,7 @@ public:
     std::size_t get_hash() const;
 
     Transform m_transform;
-    std::size_t m_hash = 0;
+    const std::size_t m_hash = 0;
 };
 
 }  // namespace weights
@@ -166,24 +166,12 @@ template <class... Ts>
 overloaded(Ts...) -> overloaded<Ts...>;
 
 std::size_t LazyTensorImpl::get_hash() const {
-    // Already calculated
-    if (m_hash != 0) {
-        return m_hash;
-    }
-
-    // Get hash
-    std::size_t seed = 0;
-    std::visit(overloaded{[&seed](const auto& op) {
-                   seed ^= op.hash();
-               }},
-               m_transform);
-
-    return seed;
+    return m_hash;
 }
 
-LazyTensorImpl::LazyTensorImpl(Transform&& t) {
-    m_transform = std::move(t);
-    m_hash = get_hash();
+LazyTensorImpl::LazyTensorImpl(Transform&& t)
+    : m_transform(std::move(t))
+    , m_hash(std::visit(overloaded{[](const auto& op) { return op.hash(); }}, m_transform)) {
 }
 
 bool LazyTensorImpl::operator==(const LazyTensorImpl& other) const {
@@ -200,13 +188,7 @@ ov::Tensor LazyTensorImpl::eval() const {
     some kind of indicator that the only difference is concat and we should look for an existing ov::Tensor.
     Perhaps it should be done after model compilation and not handled here.
     */
-
-    ov::Tensor result = std::visit(overloaded{[](const auto& op) {
-                                       return op.eval();
-                                   }},
-                                   m_transform);
-    NPUW_ASSERT(result);
-    return result;
+    return std::visit(overloaded{[](const auto& op) { return op.eval(); }}, m_transform);
 }
 
 LazyTensor::LazyTensor(const std::shared_ptr<ov::op::v0::Constant>& const_ptr)
@@ -233,11 +215,17 @@ LazyTensor LazyTensor::convert(const ov::element::Type& type) {
 }
 
 bool LazyTensor::operator==(const LazyTensor& other) const {
+    if (!m_impl && !other.m_impl) {
+        return true;
+    }
+    if ((!m_impl && other.m_impl) || (m_impl && !other.m_impl)) {
+        return false;
+    }
     return *m_impl.get() == *other.m_impl.get();
 }
 
 bool LazyTensor::operator!=(const LazyTensor& other) const {
-    return !(*m_impl.get() == *other.m_impl.get());
+    return !(*this == other);
 }
 
 ov::Tensor LazyTensor::eval() const {
