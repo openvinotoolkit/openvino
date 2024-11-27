@@ -24,3 +24,5 @@ Use the following cmake option to enable debug capabilities:
   `OV_CPU_SUMMARY_PERF=1`  
   Set the environment variable to display performance summary at the time when model is being destructed.  
   Internal performance counter will be enabled automatically. 
+* [Average counters](average_counters.md)  
+  `OV_CPU_AVERAGE_COUNTERS=filename`

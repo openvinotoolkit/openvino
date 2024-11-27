@@ -58,6 +58,7 @@ namespace intel_cpu {
 
 Graph::~Graph() {
     CPU_DEBUG_CAP_ENABLE(summary_perf(*this));
+    CPU_DEBUG_CAP_ENABLE(average_counters(*this));
 }
 
 template<typename NET>
