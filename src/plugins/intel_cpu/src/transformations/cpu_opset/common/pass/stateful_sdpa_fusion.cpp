@@ -270,7 +270,7 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
                         if (assign) {
                             if (assign->get_variable_id() == rv->get_variable_id()) {
                                 // Markup to runtime info
-                                rv->get_rt_info()["DisableWithSubgraph"] = true;
+                                rv->get_rt_info()["DisableInitSubgraphFusing"] = true;
                                 break;
                             }
                         }
