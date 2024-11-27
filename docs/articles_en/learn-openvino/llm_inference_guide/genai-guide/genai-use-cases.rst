@@ -118,7 +118,7 @@ sample shows basic usage of the ``Text2ImagePipeline`` pipeline.
                    image_write("baseline.bmp", image)
 
       For more information, refer to the
-      `Python sample <https://github.com/openvinotoolkit/openvino.genai/blob/master/samples/python/text2image/README.md>`__
+      `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/text2image/>`__
 
    .. tab-item:: C++
       :sync: cpp
@@ -218,7 +218,7 @@ sample shows basic usage of the ``Text2ImagePipeline`` pipeline.
 
 
       For more information, refer to the
-      `C++ sample <https://github.com/openvinotoolkit/openvino.genai/blob/master/samples/cpp/text2image/README.md>`__
+      `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/text2image/>`__
 
 
 
@@ -269,7 +269,7 @@ and use audio files in WAV format at a sampling rate of 16 kHz as input.
 
 
       For more information, refer to the
-      `Python sample <https://github.com/openvinotoolkit/openvino.genai/blob/master/samples/python/whisper_speech_recognition/README.md>`__.
+      `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/whisper_speech_recognition/>`__.
 
    .. tab-item:: C++
       :sync: cpp
@@ -322,7 +322,7 @@ and use audio files in WAV format at a sampling rate of 16 kHz as input.
 
 
       For more information, refer to the
-      `C++ sample <https://github.com/openvinotoolkit/openvino.genai/blob/master/samples/cpp/whisper_speech_recognition/README.md>`__.
+      `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/whisper_speech_recognition/>`__.
 
 
 Using GenAI in Chat Scenario
@@ -367,7 +367,7 @@ mark a conversation session, as shown in the samples below:
 
 
       For more information, refer to the
-      `Python sample <https://github.com/openvinotoolkit/openvino.genai/blob/master/samples/python/chat_sample/README.md>`__.
+      `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/chat_sample/>`__.
 
    .. tab-item:: C++
       :sync: cpp
@@ -415,18 +415,14 @@ mark a conversation session, as shown in the samples below:
 
 
       For more information, refer to the
-      `C++ sample <https://github.com/openvinotoolkit/openvino.genai/blob/master/samples/cpp/chat_sample/README.md>`__
+      `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/chat_sample/>`__
 
 
 Using GenAI with Vision Language Models
 #######################################
 
-OpenVINO GenAI introduces the ``openvino_genai.VLMPipeline`` pipeline for
-inference of multimodal text-generation Vision Language Models (VLMs) such as MiniCPM-V series.
-miniCPM-V-2_6, as well as other models from the series, are Large Language Models that
-support multilingual multimodal interaction.
-
-A chat scenario is presented in the samples below:
+With a text prompt and image as input, VLMPipeline can generate text using
+models such as LLava or MiniCPM-V. A chat scenario is presented in the samples below:
 
 .. tab-set::
 
@@ -485,7 +481,7 @@ A chat scenario is presented in the samples below:
 
 
       For more information, refer to the
-      `Python sample <https://github.com/openvinotoolkit/openvino.genai/blob/master/samples/python/visual_language_chat/README.md>`__.
+      `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/visual_language_chat>`__.
 
    .. tab-item:: C++
       :sync: cpp
@@ -551,7 +547,7 @@ A chat scenario is presented in the samples below:
 
 
       For more information, refer to the
-      `C++ sample <https://github.com/openvinotoolkit/openvino.genai/blob/master/samples/cpp/visual_language_chat/README.md>`__
+      `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/visual_language_chat/>`__
 
 Additional Resources
 #####################

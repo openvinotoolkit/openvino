@@ -228,7 +228,7 @@ while the main model validates these predictions and corrects them if necessary.
 
 Each predicted token is compared, and when there is a difference between the draft and
 main model, the last token predicted by the main model is kept. Then, the draft
-model acquires this token and retries prediction of the next K tokens,
+model acquires this token and tries prediction of the next K tokens,
 thus repeating the cycle.
 
 This method eliminates the need for multiple infer requests to the main model,
@@ -269,7 +269,7 @@ shown in the code samples below:
 
 
       For more information, refer to the
-      `Python sample <https://github.com/openvinotoolkit/openvino.genai/blob/master/samples/python/speculative_decoding_lm/README.md>`__.
+      `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/speculative_decoding_lm/>`__.
 
 
    .. tab-item:: C++
@@ -325,7 +325,7 @@ shown in the code samples below:
 
 
       For more information, refer to the
-      `C++ sample <https://github.com/openvinotoolkit/openvino.genai/blob/master/samples/cpp/speculative_decoding_lm/README.md>`__
+      `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/speculative_decoding_lm/>`__
 
 Comparing with Hugging Face Results
 #######################################
