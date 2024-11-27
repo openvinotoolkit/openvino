@@ -7,7 +7,6 @@
 #include "intel_npu/config/common.hpp"
 #include "intel_npu/config/runtime.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
-#include "openvino/runtime/shared_buffer.hpp"
 
 namespace intel_npu {
 

@@ -12,8 +12,8 @@
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
-#include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/profiling_info.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 
 namespace intel_npu {
 

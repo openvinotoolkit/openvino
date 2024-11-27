@@ -10,7 +10,6 @@
 
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
-#include "openvino/runtime/shared_buffer.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 
 namespace intel_npu {

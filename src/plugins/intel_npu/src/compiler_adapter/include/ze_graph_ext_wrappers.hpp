@@ -15,8 +15,6 @@
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
 
-#include "openvino/runtime/aligned_buffer.hpp"
-
 namespace intel_npu {
 
 using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
