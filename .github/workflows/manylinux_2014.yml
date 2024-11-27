@@ -69,7 +69,7 @@ jobs:
           images: |
             ov_build/ubuntu_22_04_x64_docker
             ov_build/manylinux2014_x86_64
-            ov_test/ubuntu_20_04_x64
+            ov_test/ubuntu_20_04_x64_py313
             ov_test/ubuntu_22_04_x64
             ov_test/ubuntu_24_04_x64
             ov_test/fedora_33
@@ -266,6 +266,8 @@ jobs:
             image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
           - python-version: "3.12"
             image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}
+          - python-version: "3.13"
+            image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64_py313 }}
     runs-on: aks-linux-4-cores-16gb
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
