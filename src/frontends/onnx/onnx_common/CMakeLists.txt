@@ -18,6 +18,7 @@ source_group("include" FILES ${PUBLIC_HEADERS} ${PUBLIC_HEADERS})
 # Create static library
 
 if(NOT ONNX_FOUND)
+    message (STATUS "ONNX DBG Generating own onnx headers")
     # Generate protobuf file on build time for each '.proto' file in src/proto
     set(protofiles_root_dir "${CMAKE_CURRENT_SOURCE_DIR}/src/proto")
     file(GLOB_RECURSE proto_files ${protofiles_root_dir}/*.proto)
@@ -58,6 +59,7 @@ target_include_directories(${TARGET_NAME}
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime openvino::util)
 
 if(ONNX_FOUND)
+    message (STATUS "ONNX DBG Linked system onnx_proto and onnx")
     ov_link_system_libraries(${TARGET_NAME} PUBLIC onnx_proto onnx)
 else()
     target_compile_definitions(${TARGET_NAME} PUBLIC ONNX_NAMESPACE=${OV_ONNX_NAMESPACE})
@@ -68,6 +70,7 @@ else()
         set(protobuf_target_name libprotobuf)
     endif()
 
+    message (STATUS "ONNX DBG Linked system Protobuf: " ${protobuf_target_name})
     ov_link_system_libraries(${TARGET_NAME} PUBLIC ${protobuf_target_name})
 endif()
 
