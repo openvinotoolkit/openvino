@@ -27,7 +27,7 @@ Pipeline::Pipeline(const Config& config,
                    uint32_t group_ordinal)
     : _graph(graph),
       _config(config),
-      _id(_graph->get_id_index()),
+      _id(_graph->get_unique_id()),
       _number_of_command_lists(_graph->get_batch_size().has_value() ? *_graph->get_batch_size() : 1),
       _event_pool{
           std::make_shared<EventPool>(initStructs->getDevice(),
@@ -81,8 +81,8 @@ Pipeline::Pipeline(const Config& config,
         }
 
         if (_config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-            if (_graph->get_event_to_wait_for(i)) {
-                _graph->get_event_to_wait_for(i)->AppendWaitOnEvent(*_command_lists.at(i));
+            if (_graph->get_last_submitted_event(i)) {
+                _graph->get_last_submitted_event(i)->AppendWaitOnEvent(*_command_lists.at(i));
             }
         }
 
@@ -102,12 +102,12 @@ Pipeline::Pipeline(const Config& config,
         }
 
         if (_config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-            if (_graph->get_event_to_wait_for(i)) {
-                _graph->get_event_to_wait_for(i)->AppendEventReset(*_command_lists.at(i));
+            if (_graph->get_last_submitted_event(i)) {
+                _graph->get_last_submitted_event(i)->AppendEventReset(*_command_lists.at(i));
             }
 
             _events.at(i)->AppendSignalEvent(*_command_lists.at(i));
-            _graph->set_event_to_wait_for(_events.at(i), i);
+            _graph->set_last_submitted_event(_events.at(i), i);
         }
 
         // appendBarrier used in L0 as well
@@ -125,14 +125,14 @@ void Pipeline::push() {
 
     if (_config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         if (_id) {
-            auto previousIndex = _graph->get_previous_id_index();
+            auto previousIndex = _graph->get_last_submitted_id();
 
             if (_id != ++previousIndex) {
                 OPENVINO_THROW("Inferences should be called in the same order they were called the first time!");
             }
         }
 
-        _graph->set_previous_id_index(_id);
+        _graph->set_last_submitted_id(_id);
     }
 
     for (size_t i = 0; i < _command_lists.size(); ++i) {

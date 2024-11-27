@@ -16,8 +16,8 @@ namespace intel_npu {
 
 IGraph::IGraph(ze_graph_handle_t handle,
                NetworkMetadata metadata,
-               std::optional<std::vector<uint8_t>> blob,
-               const Config& config)
+               const Config& config,
+               std::optional<std::vector<uint8_t>> blob)
     : _handle(handle),
       _metadata(std::move(metadata)),
       _logger("IGraph", config.get<LOG_LEVEL>()) {
@@ -74,24 +74,24 @@ std::mutex& IGraph::get_mutex() {
     return _mutex;
 }
 
-void IGraph::set_event_to_wait_for(const std::shared_ptr<Event>& event, size_t indexOfCommandList) {
-    _previous_event_used[indexOfCommandList] = event;
+void IGraph::set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList) {
+    _last_submitted_event[indexOfCommandList] = event;
 }
 
-const std::shared_ptr<Event>& IGraph::get_event_to_wait_for(size_t indexOfCommandList) const {
-    return _previous_event_used[indexOfCommandList];
+const std::shared_ptr<Event>& IGraph::get_last_submitted_event(size_t indexOfCommandList) const {
+    return _last_submitted_event[indexOfCommandList];
 }
 
-uint32_t IGraph::get_id_index() {
-    return _id_index++;
+uint32_t IGraph::get_unique_id() {
+    return _unique_id++;
 }
 
-void IGraph::set_previous_id_index(uint32_t id_index) {
-    _previous_infer_id = id_index;
+void IGraph::set_last_submitted_id(uint32_t id_index) {
+    _last_submitted_id = id_index;
 }
 
-const uint32_t IGraph::get_previous_id_index() const {
-    return _previous_infer_id;
+const uint32_t IGraph::get_last_submitted_id() const {
+    return _last_submitted_id;
 }
 
 std::optional<size_t> IGraph::get_batch_size(const NetworkMetadata& metadata) {

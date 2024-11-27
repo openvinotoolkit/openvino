@@ -16,7 +16,7 @@ DriverGraph::DriverGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
                          NetworkMetadata metadata,
                          const Config& config,
                          std::optional<std::vector<uint8_t>> blob)
-    : IGraph(graphHandle, std::move(metadata), std::move(blob), config),
+    : IGraph(graphHandle, std::move(metadata), config, std::move(blob)),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
       _logger("DriverGraph", config.get<LOG_LEVEL>()) {
@@ -134,7 +134,7 @@ void DriverGraph::initialize(const Config& config) {
     if (config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         auto number_of_command_lists = _batch_size.has_value() ? *_batch_size : 1;
 
-        _previous_event_used.resize(number_of_command_lists);
+        _last_submitted_event.resize(number_of_command_lists);
     }
 }
 

@@ -331,8 +331,10 @@ static constexpr ov::Property<std::string> backend_compilation_params{"NPU_BACKE
  * @brief [Only for NPU Plugin]
  * Type: boolean, default is false.
  * This option allows to run inferences sequentially, in the order in which they were created
+ * @note Experimental property, for now it only works in very specific scenarios. We need driver updates before we can
+ * implement a robust solution for in-order execution
  */
-static constexpr ov::Property<std::string> run_inferences_sequentially{"NPU_RUN_INFERENCES_SEQUENTIALLY"};
+static constexpr ov::Property<bool> run_inferences_sequentially{"NPU_RUN_INFERENCES_SEQUENTIALLY"};
 
 }  // namespace intel_npu
 }  // namespace ov

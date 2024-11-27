@@ -20,8 +20,8 @@ class IGraph : public std::enable_shared_from_this<IGraph> {
 public:
     IGraph(ze_graph_handle_t handle,
            NetworkMetadata metadata,
-           std::optional<std::vector<uint8_t>> blob,
-           const Config& config);
+           const Config& config,
+           std::optional<std::vector<uint8_t>> blob);
 
     virtual void export_blob(std::ostream& stream) const = 0;
 
@@ -47,12 +47,12 @@ public:
 
     std::mutex& get_mutex();
 
-    void set_event_to_wait_for(const std::shared_ptr<Event>& event, size_t indexOfCommandList);
-    const std::shared_ptr<Event>& get_event_to_wait_for(size_t indexOfCommandList) const;
+    void set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList);
+    const std::shared_ptr<Event>& get_last_submitted_event(size_t indexOfCommandList) const;
 
-    uint32_t get_id_index();
-    void set_previous_id_index(uint32_t id_index);
-    const uint32_t get_previous_id_index() const;
+    uint32_t get_unique_id();
+    void set_last_submitted_id(uint32_t id_index);
+    const uint32_t get_last_submitted_id() const;
 
     const std::optional<std::size_t> get_batch_size() const;
 
@@ -83,7 +83,7 @@ protected:
     std::vector<ArgumentDescriptor> _output_descriptors;
 
     std::shared_ptr<CommandQueue> _command_queue;
-    std::vector<std::shared_ptr<Event>> _previous_event_used;
+    std::vector<std::shared_ptr<Event>> _last_submitted_event;
 
     // Used to protect zero pipeline creation in the graph. The pipeline should be created only once per graph when the
     // first inference starts running
@@ -91,8 +91,8 @@ protected:
 
     std::vector<uint8_t> _blob;
 
-    uint32_t _id_index = 0;
-    uint32_t _previous_infer_id;
+    uint32_t _unique_id = 0;
+    uint32_t _last_submitted_id;
 
     /**
      * @brief The batch size used by the corresponding model.
