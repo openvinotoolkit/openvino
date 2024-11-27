@@ -201,6 +201,12 @@ public:
                                                          ov::AnyMap& config) const;
 
     /*
+     * @brief Apply rt_info from IR model
+     */
+    void apply_rt_info(const std::shared_ptr<const ov::Model>& model,
+                    ov::AnyMap& config) const;
+
+    /*
      * @brief Register plugins according to the build configuration
      */
     void register_compile_time_plugins();

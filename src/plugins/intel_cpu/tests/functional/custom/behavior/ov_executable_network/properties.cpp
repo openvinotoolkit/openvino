@@ -327,4 +327,18 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCPUExecutionDevice) {
     ASSERT_EQ(value.as<std::string>(), "CPU");
 }
 
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCPURuntimOptions) {
+    ov::Core ie;
+    ov::Any type;
+    ov::Any size;
+    ov::CompiledModel compiledModel;
+    model->set_rt_info("f16", "runtime_options", "KV_CACHE_PRECISION");
+    model->set_rt_info("0", "runtime_options", "DYNAMIC_QUANTIZATION_GROUP_SIZE");
+    OV_ASSERT_NO_THROW(compiledModel = ie.compile_model(model, deviceName));
+    OV_ASSERT_NO_THROW(type = compiledModel.get_property(ov::hint::kv_cache_precision));
+    OV_ASSERT_NO_THROW(size = compiledModel.get_property(ov::hint::dynamic_quantization_group_size));
+    ASSERT_EQ(type.as<ov::element::Type>(), ov::element::f16);
+    ASSERT_EQ(size.as<uint64_t>(), 0);
+}
+
 } // namespace
