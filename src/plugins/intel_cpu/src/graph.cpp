@@ -1150,6 +1150,7 @@ public:
         try {
             for (size_t i = node_indx; i < stop_indx; i++) {
                 const auto& node = m_executableGraphNodes[i];
+                auto perf = LinuxPerf::Profile("update" + node->getName());
                 if (node->isDynamicNode()) {
                     node->updateShapes();
                 }
@@ -1175,6 +1176,7 @@ public:
             while (local_counter < prepareCounter) {
                 const auto& node = m_executableGraphNodes[local_counter++];
                 if (node->isDynamicNode()) {
+                    auto perf = LinuxPerf::Profile("prepare" + node->getName());
                     node->updateDynamicParams();
                 }
             }

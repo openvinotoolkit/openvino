@@ -1197,6 +1197,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLM3_PagedAttention) {
                                                    {{"config.slice_start", 0},
                                                     {"config.slice_stop", 4096},
                                                     {"config.input_trans0213", false},
+                                                    {"config.output_trans0213", false},
                                                     {"config.is_interleaved", false},
                                                     {"config.rotary_ndims", rotary_ndims},
                                                     {"config.is_chatglm", true},
@@ -1207,5 +1208,80 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLM3_PagedAttention) {
                                                     {"config.gather_position_arg_id", 0}});
         model_ref =
             std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{input, gather_cos_sin});
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_GPTJ_PagedAttention) {
+    disable_rt_info_check();
+    const int batch = -1;
+    const int num_heads = 16;
+    const int ndims = 256;
+    const int rotary_ndims = 64;
+    using namespace ov;
+    {
+        std::vector<int32_t> rpi_idx(rotary_ndims);
+        for (int i = 0, index = 0; i < rotary_ndims; i += 2, index++) {
+            rpi_idx[i] = index;
+            rpi_idx[i + 1] = index;
+        }
+        auto repeat_interleave_index = makeConst(ov::element::i32, ov::Shape({rotary_ndims}), rpi_idx);
+
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{batch, 1, num_heads, ndims});
+        auto aten_gather_GatherElements = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{-1, 1, rotary_ndims});
+
+        auto prim_ListUnpack_VariadicSplit = makeOP<opset1::VariadicSplit>({aten_gather_GatherElements, -1,
+            {rotary_ndims / 2, -1}});
+        auto aten_unsqueeze_Unsqueeze_1 = makeOP<opset1::Reshape>({prim_ListUnpack_VariadicSplit->output(1),
+            {-1, 1, 1, rotary_ndims / 2}}, {{"special_zero", false}});
+        auto aten_repeat_interleave_Gather_1 = makeOP<opset8::Gather>({aten_unsqueeze_Unsqueeze_1, repeat_interleave_index, 3},
+            {{"batch_dims", 0}});
+
+        auto aten_unsqueeze_Unsqueeze_2 = makeOP<opset1::Reshape>({prim_ListUnpack_VariadicSplit->output(0),
+            {-1, 1, 1, rotary_ndims / 2}}, {{"special_zero", false}});
+        auto aten_repeat_interleave_Gather_3 = makeOP<opset8::Gather>({aten_unsqueeze_Unsqueeze_2, repeat_interleave_index, 3},
+            {{"batch_dims", 0}});
+
+        auto VariadicSplit_32371 = makeOP<opset1::VariadicSplit>({input, 3, {rotary_ndims, ndims - rotary_ndims}});
+        auto aten_mul_Multiply = makeOP<opset1::Multiply>({VariadicSplit_32371->output(0), aten_repeat_interleave_Gather_1},
+            {{"auto_broadcast", "numpy"}});
+        auto aten_slice_Slice_10 = makeOP<opset8::Slice>({VariadicSplit_32371->output(0), {1}, {INT_MAX}, {2}, {3}});
+        auto Constant_65243 = makeConst(element::f32, ov::Shape({1, 1, 1, 1}), {-1.000000f});
+        auto aten_neg_Multiply = makeOP<opset1::Multiply>({aten_slice_Slice_10, Constant_65243},
+            {{"auto_broadcast", "numpy"}});
+        auto Unsqueeze_28998 = makeOP<opset1::Reshape>({aten_neg_Multiply, {-1, 1, num_heads, rotary_ndims / 2, 1}},
+            {{"special_zero", false}});
+        auto aten_slice_Slice_14 = makeOP<opset8::Slice>({VariadicSplit_32371->output(0), {0}, {INT_MAX}, {2}, {3}});
+        auto Unsqueeze_28999 = makeOP<opset1::Reshape>({aten_slice_Slice_14, {-1, 1, num_heads, rotary_ndims / 2, 1}},
+            {{"special_zero", false}});
+        auto aten_stack = makeOP<opset1::Concat>({Unsqueeze_28998, Unsqueeze_28999}, {{"axis", -1}});
+        auto aten_flatten_Reshape = makeOP<opset1::Reshape>({aten_stack, {0, 0, num_heads, rotary_ndims}}, {{"special_zero", true}});
+        auto aten_mul_Multiply_1 = makeOP<opset1::Multiply>({aten_flatten_Reshape, aten_repeat_interleave_Gather_3},
+            {{"auto_broadcast", "numpy"}});
+        auto aten_add_Add = makeOP<opset1::Add>({aten_mul_Multiply, aten_mul_Multiply_1},
+            {{"auto_broadcast", "numpy"}});
+        auto aten_cat_Concat_1 = makeOP<opset1::Concat>({aten_add_Add, VariadicSplit_32371->output(1)}, {{"axis", -1}});
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{aten_cat_Concat_1},
+                                            ov::ParameterVector{input, aten_gather_GatherElements});
+    }
+    manager.register_pass<ov::pass::RoPEFusion>(false);
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{batch, 1, num_heads, ndims});
+        auto aten_gather_GatherElements = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{-1, 1, 64});
+        auto rope = makeOP<ov::op::internal::RoPE>({input, aten_gather_GatherElements, aten_gather_GatherElements},
+                                                   {{"config.slice_start", 0},
+                                                    {"config.slice_stop", 0},
+                                                    {"config.input_trans0213", false},
+                                                    {"config.output_trans0213", false},
+                                                    {"config.is_interleaved", true},
+                                                    {"config.rotary_ndims", rotary_ndims},
+                                                    {"config.is_chatglm", false},
+                                                    {"config.support_2d_rope", false},
+                                                    {"config.is_qwen", false},
+                                                    {"config.head_cnt", 0},
+                                                    {"config.head_size", 0},
+                                                    {"config.gather_position_arg_id", 0}});
+        model_ref =
+            std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{input, aten_gather_GatherElements});
     }
 }

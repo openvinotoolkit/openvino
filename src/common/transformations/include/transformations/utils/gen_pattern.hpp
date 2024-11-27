@@ -41,7 +41,11 @@ namespace gen_pattern {
 #ifdef CPU_DEBUG_CAPS
 
 #ifdef __GNUC__
-#define GENP_VERBOSE_INCLUDE_LINE_NO
+#define CURRENT_LINE_NO __builtin_LINE()
+#define CURRENT_FILE __builtin_FILE()
+#else
+#define CURRENT_LINE_NO -1
+#define CURRENT_FILE ""
 #endif
 
 template <typename... Args>
@@ -62,6 +66,10 @@ static bool matcher_verbose_enabled() {
         if (matcher_verbose_enabled()) \
         _verbose_log(__VA_ARGS__)
 #else
+
+#define CURRENT_LINE_NO -1
+#define CURRENT_FILE ""
+
 static bool matcher_verbose_enabled() {
     return false;
 }
@@ -226,21 +234,13 @@ public:
         entity->op = 'n';
         entity->name = name;
     }
-#ifdef GENP_VERBOSE_INCLUDE_LINE_NO
-    Symbol(const int value, int line_no = __builtin_LINE(), const char* file = __builtin_FILE()) {
+    Symbol(const int value, int line_no = CURRENT_LINE_NO, const char* file = CURRENT_FILE) {
         entity = std::make_shared<Entity>();
         entity->op = 'l';
         entity->literal_const_value = value;
         entity->line_no = line_no;
         entity->filename = file;
     }
-#else
-    Symbol(const int value) {
-        entity = std::make_shared<Entity>();
-        entity->op = 'l';
-        entity->literal_const_value = value;
-    }
-#endif
     Symbol(char op, const Symbol& lhs, const Symbol& rhs) {
         entity = std::make_shared<Entity>();
         entity->op = op;
@@ -263,15 +263,11 @@ public:
         return entity.get();
     }
     std::string get_name() const {
-#ifdef GENP_VERBOSE_INCLUDE_LINE_NO
-        if (is_independent_var())
+        if (entity->line_no == -1 || is_independent_var())
             return entity->name;
         auto filename = strrchr(entity->filename, '/') ? strrchr(entity->filename, '/') + 1 : entity->filename;
         std::string name(filename); // use filename:lineno instead
         return name + ":" + std::to_string(entity->line_no);
-#else
-        return entity->name;
-#endif
     }
     bool operator<(const Symbol& rhs) const {
         return get_id() < rhs.get_id();
@@ -839,23 +835,7 @@ public:
         bool ret = matcher->match_arguments(pattern_value.get_node(), graph_value.get_node_shared_ptr());
         if (matcher_verbose_enabled()) {
             level.pop_back();
-            size_t index_in_parent_inputs = std::numeric_limits<size_t>::max();
-            for (auto&& input : graph_value.get_target_inputs()) {
-                for (auto&& item : pattern_map) {
-                    if (item.second.get_node() == input.get_node()) {
-                        index_in_parent_inputs = input.get_index();
-                        break;
-                    }
-                }
-            }
-            // append input index in parent node, O1 means it's second input for parent node:
-            //   O1 P733<opset1::VariadicSplit>...
-            std::string prefix = (ret ? "O" : "X");
-            if (index_in_parent_inputs == std::numeric_limits<size_t>::max())
-                prefix += "?";
-            else
-                prefix += std::to_string(index_in_parent_inputs);
-            _VERBOSE_LOG(level, prefix, m_signature, " vs ", graph_value);
+            _VERBOSE_LOG(level, ret ? "O" : "X", m_signature, " vs ", graph_value);
         }
         return ret;
     }
@@ -1060,13 +1040,9 @@ template <class T>
 std::shared_ptr<Node> makePattern(const std::vector<detail::PatternNode>& inputs,
                                   detail::AttrMap attrmap = {},
                                   const char* vt = nullptr,
-#ifdef GENP_VERBOSE_INCLUDE_LINE_NO
                                   const char* friendly_name = nullptr,
-                                  int line_no = __builtin_LINE(),
-                                  const char* file = __builtin_FILE()) {
-#else
-                                  const char* friendly_name = nullptr) {
-#endif
+                                  int line_no = CURRENT_LINE_NO,
+                                  const char* file = CURRENT_FILE) {
     OutputVector args;
     for (auto& in : inputs)
         args.push_back(in.get_output());
@@ -1074,11 +1050,8 @@ std::shared_ptr<Node> makePattern(const std::vector<detail::PatternNode>& inputs
     // pattern nodes are better for pattern matching because
     //  - it can be generic/incomplete, so normal OP node is not working properly
     //  - it has predicate to correctly decide which branch to take (in Or pattern)
-#ifdef GENP_VERBOSE_INCLUDE_LINE_NO
     auto pattern_node = std::make_shared<detail::GenericPattern>(T::get_type_info_static(), args, attrmap, vt, line_no, file);
-#else
-    auto pattern_node = std::make_shared<detail::GenericPattern>(T::get_type_info_static(), args, attrmap, vt);
-#endif
+
     if (friendly_name)
         pattern_node->set_friendly_name(friendly_name);
 
@@ -1171,13 +1144,9 @@ inline std::shared_ptr<Node> GenStridedSlice(detail::PatternNode data,
                                              detail::PatternNode start,
                                              detail::PatternNode stop,
                                              detail::PatternNode step,
-#ifdef GENP_VERBOSE_INCLUDE_LINE_NO
                                              size_t axis,
-                                             int line_no = __builtin_LINE(),
-                                             const char* file = __builtin_FILE()) {
-#else
-                                             size_t axis) {
-#endif
+                                             int line_no = CURRENT_LINE_NO,
+                                             const char* file = CURRENT_FILE) {
     std::vector<int64_t> begin_mask(axis + 1, 1);
     std::vector<int64_t> end_mask(axis + 1, 1);
     std::vector<int64_t> new_axis_mask;
@@ -1194,24 +1163,16 @@ inline std::shared_ptr<Node> GenStridedSlice(detail::PatternNode data,
                                                    {"shrink_axis_mask", shrink_axis_mask},
                                                    {"ellipsis_mask", ellipsis_mask}},
                                                   nullptr,
-#ifdef GENP_VERBOSE_INCLUDE_LINE_NO
                                                   nullptr,
                                                   line_no,
                                                   file);
-#else
-                                                  nullptr);
-#endif
     return opt2;
 }
 
-#ifdef GENP_VERBOSE_INCLUDE_LINE_NO
-inline std::shared_ptr<Node> GenSlice(detail::PatternNode data, Symbol start, Symbol stop, Symbol step, size_t axis, int line_no = __builtin_LINE(),
-                                  const char* file = __builtin_FILE()) {
+inline std::shared_ptr<Node> GenSlice(detail::PatternNode data, Symbol start, Symbol stop, Symbol step, size_t axis, int line_no = CURRENT_LINE_NO,
+                                  const char* file = CURRENT_FILE) {
     auto opt1 = makePattern<opset8::Slice>({data, {start}, {stop}, {step}, {static_cast<int>(axis)}}, {}, nullptr, nullptr, line_no, file);
-#else
-inline std::shared_ptr<Node> GenSlice(detail::PatternNode data, Symbol start, Symbol stop, Symbol step, size_t axis) {
-    auto opt1 = makePattern<opset8::Slice>({data, {start}, {stop}, {step}, {static_cast<int>(axis)}});
-#endif
+
     std::vector<Symbol> vbegin(axis + 1, Symbol(0));
     std::vector<Symbol> vend(axis + 1, Symbol(0));
     std::vector<Symbol> vstride(axis + 1, Symbol(1));
@@ -1239,14 +1200,10 @@ inline std::shared_ptr<Node> GenSlice(detail::PatternNode data, Symbol start, Sy
                                                    {"new_axis_mask", new_axis_mask},
                                                    {"shrink_axis_mask", shrink_axis_mask},
                                                    {"ellipsis_mask", ellipsis_mask}},
-#ifdef GENP_VERBOSE_INCLUDE_LINE_NO
                                                    nullptr,
                                                    nullptr,
                                                    line_no,
                                                    file);
-#else
-                                                   nullptr);
-#endif
     return opt1 | opt2;
 }
 

@@ -202,7 +202,7 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
             auto* x = t_src.ptr<T>(b, p, h);
             float* sin = &t_sin_cos.at<float>({b, p, 0}, true);
             float* cos = &t_sin_cos.at<float>({b, p, half_rotary_dims}, true);
-            auto* dst = t_dst.ptr<T>(b, h, p);
+            auto* dst = m_config.output_trans0213 ? t_dst.ptr<T>(b, h, p) : t_dst.ptr<T>(b, p, h);
 
             if (m_rotaryKernel) {
                 execJitKernel(m_rotaryKernel, x, dst, cos, sin);
@@ -392,7 +392,7 @@ void RoPE::initSupportedPrimitiveDescriptors() {
             m_executor = std::make_shared<RoPEExecutorChatGLM<float>>(m_config);
             rtPrecision = ov::element::f32;
         }
-    } else if (m_config.is_interleaved && m_config.output_trans0213) {
+    } else if (m_config.is_interleaved) {
         OPENVINO_ASSERT(m_config.input_trans0213 == false);
         OPENVINO_ASSERT(m_config.slice_start == 0);
         OPENVINO_ASSERT(m_config.slice_stop == 0);

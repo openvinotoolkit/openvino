@@ -1,3 +1,4 @@
+#if 0
 
 #include <linux/perf_event.h>
 #include <time.h>
@@ -1183,7 +1184,6 @@ struct PerfEventGroup : public IPerfEventDumper {
 
 using ProfileScope = PerfEventGroup::ProfileScope;
 
-#if 0
 // pwe-thread event group with default events pre-selected
 template <typename ... Args>
 ProfileScope Profile(const std::string& title, int id = 0, Args&&... args) {
@@ -1219,24 +1219,33 @@ inline int Init() {
     auto dummy = Profile("start");
     return 0;
 }
+} // namespace LinuxPerf
 
 #else
 
+#include <string>
+
+namespace LinuxPerf {
+struct dummy {
+    dummy() {}
+    ~dummy() {}
+};
+
 template <typename ... Args>
-int Profile(const std::string& title, int id = 0, Args&&... args) {
-    return 0;
+dummy Profile(const std::string& title, int id = 0, Args&&... args) {
+    return dummy();
 }
 
 // overload accept sampling_probability, which can be used to disable profile in scope 
 template <typename ... Args>
-int Profile(float sampling_probability, const std::string& title, int id = 0, Args&&... args) {
-    return 0;
+dummy Profile(float sampling_probability, const std::string& title, int id = 0, Args&&... args) {
+    return dummy();
 }
 
 inline int Init() {
     return 0;
 }
 
-#endif
-
 } // namespace LinuxPerf
+
+#endif
