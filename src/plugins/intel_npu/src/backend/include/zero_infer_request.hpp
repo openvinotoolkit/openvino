@@ -39,25 +39,6 @@ private:
     std::vector<uint8_t> get_raw_profiling_data() const;
 
     /**
-     * @brief Determines if batching can be addressed inside the plugin. In the positive case, the batch size used by
-     * the model will also be deduced and returned.
-     * @details Batching can be handled by the plugin only if:
-     *  - The batch axis is the first axis.
-     *  - The batch size received by the compiler takes the default value of 1.
-     *  - The batch size found in the IR model matches for all inputs/outputs and takes a value different than the
-     * default one.
-     *
-     * If any of the previous conditions is not fulfilled, the functon will return the default batch size, thus no
-     * custom algorithm will be applied inside the plugin in order to address batching.
-     *
-     * @param metadata Metadata containing the shape values as seen by both the compiler and IR model. These will
-     * ultimately be used for determining the batch size.
-     * @returns The batch size deduced by the algorithm or the default value of 1 if batching cannot be performed inside
-     * the plugin.
-     */
-    std::optional<size_t> get_batch_size(const NetworkMetadata& metadata);
-
-    /**
      * @brief Check the received tensor and set the Level Zero tensor accordingly
      * @param tensor Reference to a tensor.
      * @param index The index corresponding to the position of the tensor inside the I/O structures.
@@ -105,22 +86,6 @@ private:
     zeroProfiling::ProfilingQuery _profilingQuery;
     std::shared_ptr<zeroProfiling::NpuInferProfiling> _npuProfiling;
     std::unique_ptr<Pipeline> _pipeline;
-
-    /**
-     * @brief Indicates how many command lists will be used inside the pipeline.
-     * @details Leveraging multiple command lists implies distributing the input/output buffers accross the batch axis
-     * between these lists.
-     *
-     * If batching is handled on compiler's side then a single command list shall be used, we don't do any
-     * specific operation inside the plugin in this case.
-     */
-    size_t _numberOfCommandLists = 1;
-
-    /**
-     * @brief The batch size used by the corresponding model.
-     * @details The attribute contains a value only if the plugin performs the batches splitting operation.
-     */
-    std::optional<std::size_t> _batchSize = std::nullopt;
 
     bool _pipelineIsCreated = false;
 };

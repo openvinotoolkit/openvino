@@ -568,6 +568,12 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.getString<BACKEND_COMPILATION_PARAMS>();
           }}},
+        {ov::intel_npu::run_inferences_sequentially.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<RUN_INFERENCES_SEQUENTIALLY>();
+          }}},
         {ov::intel_npu::batch_mode.name(), {false, ov::PropertyMutability::RW, [](const Config& config) {
                                                 return config.getString<BATCH_MODE>();
                                             }}}};
