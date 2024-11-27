@@ -777,6 +777,22 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
             OPENVINO_ASSERT(outputs.size() == 1);
             auto itr = outputs.begin();
             src = itr->second->getSrcMemoryAtPort(0);
+
+            // since the shape inference(InternalDynShapeInfer, do nothing) is performed, a memory of the extra child
+            // edges, attached to the output ports has to be updated after an inference of the inner graph finished
+            auto& childEdges = getChildEdges();
+            for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
+                const auto mem = getDstMemoryAtPort(i);
+                for (size_t j = getOriginalOutputsNumber(); j < childEdges.size(); j++) {
+                    auto& childEdge = childEdges[j];
+                    auto childEdgePtr = childEdge.lock();
+                    assert(childEdgePtr);
+
+                    if (childEdgePtr->getInputNum() == static_cast<int>(i)) {
+                        childEdgePtr->getMemoryPtr()->redefineDesc(mem->getDescPtr());
+                    }
+                }
+            }
         } else {
             src = getSrcMemoryAtPort(0);
         }
