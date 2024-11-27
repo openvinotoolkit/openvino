@@ -1098,8 +1098,7 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
     return ov::details::apply_batch_affinity(model, deviceNameWithoutBatch);
 }
 
-void ov::CoreImpl::apply_rt_info(const std::shared_ptr<const ov::Model>& model,
-                                 ov::AnyMap& config) const {
+void ov::CoreImpl::apply_rt_info(const std::shared_ptr<const ov::Model>& model, ov::AnyMap& config) const {
     if (model->has_rt_info({"runtime_options", "KV_CACHE_PRECISION"})) {
         if (config.find("KV_CACHE_PRECISION") == config.end()) {
             const auto kv_cache_precision =
@@ -1115,7 +1114,6 @@ void ov::CoreImpl::apply_rt_info(const std::shared_ptr<const ov::Model>& model,
         }
     }
 }
-
 
 void ov::CoreImpl::set_property(const std::string& device_name, const AnyMap& properties) {
     OPENVINO_ASSERT(device_name.find("HETERO:") != 0,
