@@ -126,6 +126,7 @@ add_dependencies(ov_onnx_frontend_tests openvino_template_extension)
 
 # Working with ModelProto
 if(NOT ONNX_FOUND)
+    add_dependencies(ov_onnx_frontend_tests openvino_onnx_common)
     target_link_libraries(ov_onnx_frontend_tests PRIVATE openvino_onnx_common)
 endif()
 
