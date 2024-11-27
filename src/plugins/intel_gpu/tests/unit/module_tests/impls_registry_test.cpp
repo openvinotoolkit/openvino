@@ -44,7 +44,6 @@
 #include "intel_gpu/primitives/group_normalization.hpp"
 #include "intel_gpu/primitives/kv_cache.hpp"
 #include "intel_gpu/primitives/loop.hpp"
-#include "intel_gpu/primitives/lstm.hpp"
 #include "intel_gpu/primitives/matrix_nms.hpp"
 #include "intel_gpu/primitives/multiclass_nms.hpp"
 #include "intel_gpu/primitives/multinomial.hpp"
@@ -176,7 +175,6 @@ TEST(registry_test, no_null_impls) {
                 cldnn::group_normalization,
                 cldnn::kv_cache,
                 cldnn::lrn,
-                cldnn::lstm_elt,
                 cldnn::multiclass_nms,
                 cldnn::multinomial,
                 cldnn::mutable_data,
