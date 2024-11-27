@@ -20,19 +20,19 @@ namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(reshape)
 
 padding propagate_padding(const layout& in_layout, const ov::PartialShape& out_shape, reshape::reshape_mode mode, const ov::ITensorAccessor& ta) {
-    if (mode == reshape::reshape_mode::base)
-        return padding();
-
     auto in_pad = in_layout.data_padding;
     if (!in_pad.is_dynamic()) {
         return padding();
     }
 
     std::vector<int64_t> axes;
-    if (auto t = ta(1)) {
-        axes = ov::get_tensor_data_as<int64_t, std::vector<int64_t>>(t);
-    } else {
-        OPENVINO_THROW("[GPU] Can't propagate padding for reshape op as axes data is not available");
+    // axes data is only needed when reshape mode is unsqueeze or squeeze
+    if (mode != reshape::reshape_mode::base) {
+        if (auto t = ta(1)) {
+            axes = ov::get_tensor_data_as<int64_t, std::vector<int64_t>>(t);
+        } else {
+            OPENVINO_THROW("[GPU] Can't propagate padding for reshape op as axes data is not available");
+        }
     }
 
     auto rank = in_layout.get_partial_shape().size();
@@ -76,7 +76,7 @@ padding propagate_padding(const layout& in_layout, const ov::PartialShape& out_s
                 update_pad_mask.push_back(0);
             }
         }
-    } else {
+    } else if (mode == reshape::reshape_mode::squeeze) {
         std::unordered_set<int64_t> unique_axes;
         std::transform(axes.begin(), axes.end(), std::inserter(unique_axes, unique_axes.end()), [=](int64_t axis) {
             return ov::util::normalize(axis, rank);
@@ -96,6 +96,11 @@ padding propagate_padding(const layout& in_layout, const ov::PartialShape& out_s
                     return padding();
             }
         }
+    } else {
+        // padding propagation is allowed only if the batch dimension can be squeezed
+        update_pad_lower = std::vector<int32_t>(pad_lower.begin() + 1, pad_lower.end());
+        update_pad_upper = std::vector<int32_t>(pad_upper.begin() + 1, pad_upper.end());
+        update_pad_mask = std::vector<int32_t>(pad_mask.begin() + 1, pad_mask.end());
     }
 
     // TODO: rework this method
@@ -189,10 +194,14 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
                 op.set_special_zero(prim->special_zero);
                 op.set_friendly_name(prim->id.c_str());
                 output_shapes = ov::op::v1::shape_infer(&op, input_shapes, ta);
-                // If the reshape is base mode, it is currently not set as can_be_optimized at prepare_buffer_fusing.
-                // So we can just run the reshape kernel
+                // If the reshape is base mode, it is currently not set as can_be_optimized at prepare_buffer_fusing
+                // On the other hand, it is only allowed if the batch dimension can be squeezed
+                // In other cases, we can just run the reshape kernel
                 // TODO: allow propagatable reshapes
-                out_pad = padding();
+                if (node.batch_can_be_squeezed())
+                    out_pad = propagate_padding(input_layout, output_shapes[0], prim->mode, ta);
+                else
+                    out_pad = padding();
                 break;
             }
             case reshape::reshape_mode::squeeze: {

@@ -176,6 +176,21 @@ std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<con
         return transposed_input_pshape;
     };
 
+    auto get_input_padding = [&](const layout& layout, size_t input_rank, size_t output_rank) {
+        auto pad = layout.data_padding;
+        std::vector<tensor::value_type> pad_lower, pad_upper;
+        for (size_t i = 0; i < input_rank; i++) {
+            pad_lower.push_back(pad._lower_size[i]);
+            pad_upper.push_back(pad._upper_size[i]);
+        }
+
+        size_t ones_to_add = std::max(output_rank, static_cast<size_t>(4)) - input_rank;
+        pad_lower.insert(pad_lower.begin(), ones_to_add, 0);
+        pad_upper.insert(pad_upper.begin(), ones_to_add, 0);
+
+        return padding(pad_lower, pad_upper);
+    };
+
     auto input0_pshape = input_layouts[0].get_partial_shape();
     auto input1_pshape = input_layouts[1].get_partial_shape();
 
@@ -190,6 +205,10 @@ std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<con
     std::vector<layout> layouts = input_layouts;
     layouts[0].set_partial_shape(transposed_input0_pshape);
     layouts[1].set_partial_shape(transposed_input1_pshape);
+    if (layouts[0].data_padding)
+        layouts[0].data_padding = get_input_padding(layouts[0], input_rank, output_rank);
+    if (layouts[1].data_padding)
+        layouts[1].data_padding = get_input_padding(layouts[1], weight_rank, output_rank);
 
     if (primitive->input_size() == 3) {
         auto bias_pshape = input_layouts[2].get_partial_shape();

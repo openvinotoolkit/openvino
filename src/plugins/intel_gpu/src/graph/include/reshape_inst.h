@@ -6,7 +6,9 @@
 #include "intel_gpu/primitives/reshape.hpp"
 #include "intel_gpu/runtime/tensor_accessor.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "concatenation_inst.h"
 #include "crop_inst.h"
+#include "kv_cache_inst.h"
 #include "rope_inst.h"
 #include "mvn_inst.h"
 #include "primitive_inst.h"
@@ -50,6 +52,9 @@ public:
             return true;
         }
 
+        if (batch_can_be_squeezed())
+            return true;
+
         // TODO: This function is to limit condition to a specific case (crop + reshape) among cases for the base mode
         if (!input().is_type<crop>())
             return false;
@@ -89,6 +94,25 @@ public:
             return false;
 
         return true;
+    }
+
+    bool batch_can_be_squeezed() const {
+        auto prim = typed_desc();
+        if (prim->mode == reshape::reshape_mode::base) {
+            if (!input().is_type<kv_cache>() || !prim->output_pattern.empty() || !get_dependency(1).is_type<concatenation>())
+                return false;
+
+            const auto& kv_cache_ps = input().get_output_layout(false).get_partial_shape();
+            const auto& concat_ps = get_dependency(1).get_output_layout(false).get_partial_shape();
+            if (concat_ps.size() != 1 || concat_ps[0].is_dynamic())
+                return false;
+
+            if (kv_cache_ps.size() - 1 != static_cast<size_t>(concat_ps[0].get_length()))
+                return false;
+
+            return true;
+        }
+        return false;
     }
 
     bool has_padding() const {
@@ -144,7 +168,7 @@ public:
         if (input_layout.data_padding.is_dynamic()) {
             auto prim = typed_desc();
             // TODO: If outer padding exists, ouput padding propagation is not supported in the base mode
-            if (prim->mode == reshape::reshape_mode::base)
+            if (prim->mode == reshape::reshape_mode::base && !batch_can_be_squeezed())
                 return;
 
             ov::PartialShape pattern_shape = { static_cast<int64_t>(prim->output_pattern.size()) };
