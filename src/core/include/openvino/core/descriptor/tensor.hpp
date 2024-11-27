@@ -107,7 +107,6 @@ protected:
     friend OPENVINO_API void set_tensor_type(Tensor& tensor,
                                              const element::Type& element_type,
                                              const PartialShape& pshape);
-    friend class pass::ReverseShapeAndTypeInfer;
 
 private:
     mutable std::atomic<bool> m_shape_changing{false};
