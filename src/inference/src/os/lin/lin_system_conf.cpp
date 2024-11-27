@@ -210,6 +210,7 @@ CPU::CPU() {
                                _numa_nodes,
                                _sockets,
                                _cores,
+                               _blocked_cores,
                                _proc_type_table,
                                _cpu_mapping_table);
     }
@@ -367,10 +368,10 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
                             int& _numa_nodes,
                             int& _sockets,
                             int& _cores,
+                            int& _blocked_cores,
                             std::vector<std::vector<int>>& _proc_type_table,
                             std::vector<std::vector<int>>& _cpu_mapping_table) {
     int n_group = 0;
-    int _blocked_cores = 0;
 
     _processors = system_info_table.size();
     _cpu_mapping_table.resize(_processors, std::vector<int>(CPU_MAP_TABLE_SIZE, -1));
@@ -380,6 +381,7 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
         _cores = 0;
         _numa_nodes = 0;
         _sockets = 0;
+        _blocked_cores = 0;
         _cpu_mapping_table.clear();
         _proc_type_table.clear();
         return;
@@ -504,8 +506,8 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
                             _cpu_mapping_table[n][CPU_MAP_CORE_TYPE] = EFFICIENT_CORE_PROC;
                             _cpu_mapping_table[n][CPU_MAP_SOCKET_ID] = _sockets;
                             _cpu_mapping_table[n][CPU_MAP_NUMA_NODE_ID] = _cpu_mapping_table[n][CPU_MAP_SOCKET_ID];
-                            _cpu_mapping_table[n][CPU_MAP_GROUP_ID] = -100;
-                            _cpu_mapping_table[n][CPU_MAP_USED_FLAG] = -100;
+                            _cpu_mapping_table[n][CPU_MAP_GROUP_ID] = CPU_BLOCKED;
+                            _cpu_mapping_table[n][CPU_MAP_USED_FLAG] = CPU_BLOCKED;
                             _blocked_cores++;
                         } else {
                             for (int m = core_1; m <= core_2; m++) {

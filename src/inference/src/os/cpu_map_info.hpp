@@ -114,6 +114,7 @@ void parse_node_info_linux(const std::vector<std::string> node_info_table,
  * @param[out] _numa_nodes total number for nodes in system
  * @param[out] _sockets total number for sockets in system
  * @param[out] _cores total number for physical CPU cores in system
+ * @param[out] _blocked_cores total number for blocked processors in system
  * @param[out] _proc_type_table summary table of number of processors per type
  * @param[out] _cpu_mapping_table CPU mapping table for each processor
  * @return
@@ -124,6 +125,7 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
                             int& _numa_nodes,
                             int& _sockets,
                             int& _cores,
+                            int& _blocked_cores,
                             std::vector<std::vector<int>>& _proc_type_table,
                             std::vector<std::vector<int>>& _cpu_mapping_table);
 
