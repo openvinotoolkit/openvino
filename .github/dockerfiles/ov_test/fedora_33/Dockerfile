@@ -6,7 +6,10 @@ USER root
 RUN yum update -y && yum install -y \
     git \
     curl \
-    python3
+    python3 \
+    # parallel gzip
+    pigz \
+    xz
 
 # Install Node
 ENV NODE_VERSION=21.7.3
