@@ -62,7 +62,7 @@ Tensor read_tensor_data(
     using Buffer = ov::SharedBuffer<std::shared_ptr<MappedMemory>>;
     auto mmaped = std::make_shared<Buffer>(mapped_memory->data(),
                                            mapped_memory->size(),
-                                        mapped_memory);
+                                           mapped_memory);
 
     return Tensor(element_type, shape.get_shape(), StaticBufferAllocator(mmaped));
 }
