@@ -270,7 +270,7 @@ jobs:
             image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64_py313 }}
     runs-on: aks-linux-4-cores-16gb
     container:
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
+      image: ${{ matrix.image }}
       volumes:
         - /mount:/mount
     env:
