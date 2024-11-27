@@ -9,14 +9,6 @@ set(OV_ONNX_NAMESPACE openvino_onnx)
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
-# Create named folders for the sources within the .vcproj
-# Empty name lists them directly under the .vcproj
-
-source_group("src" FILES ${LIBRARY_SRC})
-source_group("include" FILES ${PUBLIC_HEADERS} ${PUBLIC_HEADERS})
-
-# Create static library
-
 if(NOT ONNX_FOUND)
     message (STATUS "ONNX DBG Generating own onnx headers")
     # Generate protobuf file on build time for each '.proto' file in src/proto
@@ -42,6 +34,12 @@ if(NOT ONNX_FOUND)
     endforeach()
 endif()
 
+# Create named folders for the sources within the .vcproj
+# Empty name lists them directly under the .vcproj
+source_group("src" FILES ${LIBRARY_SRC})
+source_group("include" FILES ${PUBLIC_HEADERS} ${PUBLIC_HEADERS})
+
+# Create static library
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
 set_target_properties(${TARGET_NAME} PROPERTIES
