@@ -1521,16 +1521,26 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_int8)
 {
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 32, 1, 2 } });
+    auto input_prim = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 32, 1, 2 } });
 
     topology topology;
     topology.add(input_layout("input", input_prim->get_layout()));
-    topology.add(reorder("reorder_input", input_info("input"), layout(data_types::i8, format::fs_b_yx_fsv32, { 1, 32, 1, 2 })));
+    topology.add(reorder("reorder_input", input_info("input"), layout(data_types::i8, format::fs_b_yx_fsv32, { 2, 32, 1, 2 })));
     topology.add(pooling("avg_pooling", input_info("reorder_input"), pooling_mode::average, { 7, 7 }, { 2, 2 }));
-    topology.add(reorder("reorder_after_pooling", input_info("avg_pooling"), layout(data_types::f32, format::fs_b_yx_fsv32, { 1, 32, 1, 1 })));
+    topology.add(reorder("reorder_after_pooling", input_info("avg_pooling"), layout(data_types::f32, format::fs_b_yx_fsv32, { 2, 32, 1, 1 })));
 
     network network(engine, topology, get_test_default_config(engine));
     set_values(input_prim, { 41.f, 42.f, 43.f, 44.f, 45.f, 46.f, 47.f, 48.f,
+                             11.f, 12.f, 13.f, 14.f, 15.f, 16.f, 17.f, 18.f,
+                             21.f, 22.f, 23.f, 24.f, 25.f, 26.f, 27.f, 28.f,
+                             31.f, 32.f, 33.f, 34.f, 35.f, 36.f, 37.f, 38.f,
+
+                             31.f, 32.f, 33.f, 34.f, 35.f, 36.f, 37.f, 38.f,
+                             21.f, 22.f, 23.f, 24.f, 25.f, 26.f, 27.f, 28.f,
+                             51.f, 52.f, 53.f, 54.f, 55.f, 56.f, 57.f, 58.f,
+                             11.f, 12.f, 13.f, 14.f, 15.f, 16.f, 17.f, 18.f,
+                             
+                             41.f, 42.f, 43.f, 44.f, 45.f, 46.f, 47.f, 48.f,
                              11.f, 12.f, 13.f, 14.f, 15.f, 16.f, 17.f, 18.f,
                              21.f, 22.f, 23.f, 24.f, 25.f, 26.f, 27.f, 28.f,
                              31.f, 32.f, 33.f, 34.f, 35.f, 36.f, 37.f, 38.f,
@@ -1549,10 +1559,15 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_int8)
 
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
 
-    std::vector<float> ref_data = { 36.f, 37.f, 38.f, 39.f, 40.f, 41.f, 42.f, 43.f,
-                                    16.f, 17.f, 18.f, 19.f, 20.f, 21.f, 22.f, 23.f,
-                                    36.f, 37.f, 38.f, 39.f, 40.f, 41.f, 42.f, 43.f,
-                                    21.f, 22.f, 23.f, 24.f, 25.f, 26.f, 27.f, 28.f };
+    std::vector<float> ref_data = { 41.f, 43.f, 45.f, 47.f, 11.f, 13.f, 15.f, 17.f,
+                                    21.f, 23.f, 25.f, 27.f, 31.f, 33.f, 35.f, 37.f,
+                                    31.f, 33.f, 35.f, 37.f, 21.f, 23.f, 25.f, 27.f,
+                                    51.f, 53.f, 55.f, 57.f, 11.f, 13.f, 15.f, 17.f,
+
+                                    42.f, 44.f, 46.f, 48.f, 12.f, 14.f, 16.f, 18.f,
+                                    22.f, 24.f, 26.f, 28.f, 32.f, 34.f, 36.f, 38.f,
+                                    32.f, 34.f, 36.f, 38.f, 22.f, 24.f, 26.f, 28.f,
+                                    52.f, 54.f, 56.f, 58.f, 12.f, 14.f, 16.f, 18.f };
 
     for (size_t i = 0; i < ref_data.size(); i++) {
         ASSERT_EQ(ref_data[i], float(output_ptr[i]));
