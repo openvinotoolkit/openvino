@@ -2363,11 +2363,15 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
     // Also if the successor of a node is an cpu, then memory needs to be lockable.
     bool is_cpu = _node.get_selected_impl() ? _node.get_selected_impl()->is_cpu() :
                                               _node.get_preferred_impl_type() == impl_types::cpu;
-    auto use_lockable_memory =
-        is_output_buffer || is_cpu ||
-        has_any_cpu_user_not_shape_of(_node.get_users()) ||
-        !_engine.supports_allocation(allocation_type::usm_device) ||
-        (_node.is_shape_infer_dep() && _engine.get_device_info().dev_type == device_type::integrated_gpu);
+
+    // WA
+    auto need_lockable_memory = is_cpu || has_any_cpu_user_not_shape_of(_node.get_users())
+                            || _node.is_shape_infer_dep()
+                            || !_engine.supports_allocation(allocation_type::usm_device);
+
+    auto use_lockable_memory = need_lockable_memory ? true :
+        (_engine.get_device_info().dev_type == device_type::discrete_gpu) ? false : true;
+
     const auto& lockable_mem_type = _engine.get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
 
     auto alloc_type = use_lockable_memory ? lockable_mem_type
