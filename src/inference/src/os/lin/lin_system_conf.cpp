@@ -29,20 +29,22 @@ CPU::CPU() {
         int cache_files = 3;
 
         std::vector<std::string> one_info(cache_files);
+        std::string cache_info;
 
         while (1) {
             for (int n = 0; n < cache_files; n++) {
                 cache_index = (n == 0) ? n : n + 1;
+                cache_info.clear();
 
                 std::ifstream cache_file("/sys/devices/system/cpu/cpu" + std::to_string(cpu_index) + "/cache/index" +
                                          std::to_string(cache_index) + "/shared_cpu_list");
-                if (!cache_file.is_open()) {
+                if (cache_file.is_open() ) {
+                    std::getline(cache_file, cache_info);
+                } else if (cache_index == 0) {
                     cache_index = -1;
                     break;
-                }
-                std::string cache_info;
-                std::getline(cache_file, cache_info);
-                one_info[n] = std::move(cache_info);
+                } 
+                one_info[n] = std::move(cache_info);                
             }
 
             if (cache_index == -1) {
@@ -368,6 +370,7 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
                             std::vector<std::vector<int>>& _proc_type_table,
                             std::vector<std::vector<int>>& _cpu_mapping_table) {
     int n_group = 0;
+    int _blocked_cores = 0;
 
     _processors = system_info_table.size();
     _cpu_mapping_table.resize(_processors, std::vector<int>(CPU_MAP_TABLE_SIZE, -1));
@@ -488,7 +491,34 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
             }
 
             while (1) {
-                if ((endpos = system_info_table[n][2].find('-', pos)) != std::string::npos) {
+                if (system_info_table[n][2].size() == 0) {
+                    if ((endpos = system_info_table[n][1].find('-', pos)) != std::string::npos) {
+                        sub_str = system_info_table[n][1].substr(pos, endpos - pos);
+                        core_1 = std::stoi(sub_str);
+                        sub_str = system_info_table[n][1].substr(endpos + 1);
+                        core_2 = std::stoi(sub_str);
+
+                        if (core_2 - core_1 == 1) {
+                            _cpu_mapping_table[n][CPU_MAP_PROCESSOR_ID] = n;
+                            _cpu_mapping_table[n][CPU_MAP_CORE_ID] = _cores++;
+                            _cpu_mapping_table[n][CPU_MAP_CORE_TYPE] = EFFICIENT_CORE_PROC;
+                            _cpu_mapping_table[n][CPU_MAP_SOCKET_ID] = _sockets;
+                            _cpu_mapping_table[n][CPU_MAP_NUMA_NODE_ID] = _cpu_mapping_table[n][CPU_MAP_SOCKET_ID];
+                            _cpu_mapping_table[n][CPU_MAP_GROUP_ID] = -100;
+                            _cpu_mapping_table[n][CPU_MAP_USED_FLAG] = -100;
+                            _blocked_cores++;
+                        } else {
+                            for (int m = core_1; m <= core_2; m++) {
+                                _cpu_mapping_table[m][CPU_MAP_SOCKET_ID] = _sockets;
+                                _cpu_mapping_table[m][CPU_MAP_NUMA_NODE_ID] = _cpu_mapping_table[m][CPU_MAP_SOCKET_ID];
+                                update_proc_map_info(m);
+                                if (_processors == 0) {
+                                    return;
+                                };
+                            }
+                        }
+                    }
+                } else if ((endpos = system_info_table[n][2].find('-', pos)) != std::string::npos) {
                     sub_str = system_info_table[n][2].substr(pos, endpos - pos);
                     core_1 = std::stoi(sub_str);
                     sub_str = system_info_table[n][2].substr(endpos + 1);
@@ -521,6 +551,10 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
                 }
             }
             _sockets++;
+            if (_proc_type_table[0][ALL_PROC] == 0) {
+                _proc_type_table.erase(_proc_type_table.begin());
+                _sockets--;
+            }
         }
     }
 
@@ -540,6 +574,9 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
         _numa_nodes = node_info_table.size();
         parse_node_info_linux(node_info_table, _numa_nodes, _sockets, _proc_type_table, _cpu_mapping_table);
     }
+
+    _processors -= _blocked_cores;
+    _cores -= _blocked_cores;
 };
 
 void get_cpu_mapping_from_cores(const int _processors,
