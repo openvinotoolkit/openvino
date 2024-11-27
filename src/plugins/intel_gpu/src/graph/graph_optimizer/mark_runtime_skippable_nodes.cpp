@@ -63,8 +63,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
         for (const auto& dep : node->get_dependencies()) {
             if (dep.first->is_runtime_skippable() &&
                (runtime_skippable_depth.find(dep.first) != runtime_skippable_depth.end())) {
-                dep_runtime_skippable_depth = (runtime_skippable_depth[dep.first] > dep_runtime_skippable_depth) ?
-                                              runtime_skippable_depth[dep.first] : dep_runtime_skippable_depth;
+                dep_runtime_skippable_depth = std::max(runtime_skippable_depth[dep.first], dep_runtime_skippable_depth);
             }
         }
         if (!node->is_runtime_skippable() && (dep_runtime_skippable_depth >= max_runtime_skippable_depth)) {
