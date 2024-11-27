@@ -45,7 +45,7 @@ struct rope_impl : typed_primitive_impl_ocl<rope> {
         params.slice_stop = primitive->config.slice_stop;
 
         params.axis = primitive->config.is_qwen || primitive->config.is_chatglm ? 2 : 3;
-        params.num_of_inputs = primitive->config.is_chatglm || primitive->config.is_interleaved ? 2 : 3;
+        params.num_of_inputs = primitive->config.is_chatglm || (primitive->config.output_trans0213 && primitive->config.is_interleaved)  ? 2 : 3;
 
         if (params.gather_rank > 0) {
             params.num_of_inputs++;
@@ -53,6 +53,7 @@ struct rope_impl : typed_primitive_impl_ocl<rope> {
 
         params.is_qwen = primitive->config.is_qwen;
         params.is_chatglm = primitive->config.is_chatglm;
+        params.is_interleaved = primitive->config.is_interleaved;
         params.support_2d_rope = primitive->config.support_2d_rope;
         params.transposed_input = primitive->config.input_trans0213;
 

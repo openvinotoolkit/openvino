@@ -2028,7 +2028,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
     , _inputs_memory_count(node.get_inputs_count())
     , _outputs_memory_count(node.get_outputs_count())
     , _fused_mem_count(node.get_fused_inputs_count())
-    , _fused_mem_offset((_fused_mem_count > 0 && node.get_first_fused_dep_idx() > 0) ? node.get_first_fused_dep_idx() : 0)
+    , _fused_mem_offset((_fused_mem_count > 0 && node.get_first_fused_dep_idx() > 0) ? static_cast<uint64_t>(node.get_first_fused_dep_idx()) : 0)
     , _can_be_optimized(node.can_be_optimized())
     , _can_share_buffer(node.can_share_buffer())
     , _is_constant(node.is_constant())
@@ -2561,7 +2561,8 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
         ExecutionConfig subgraph_config{
             ov::intel_gpu::allow_static_input_reorder(true),
             ov::intel_gpu::allow_new_shape_infer(true),
-            ov::enable_profiling(get_network().get_config().get_property(ov::enable_profiling))
+            ov::enable_profiling(get_network().get_config().get_property(ov::enable_profiling)),
+            ov::intel_gpu::use_onednn(get_network().get_config().get_property(ov::intel_gpu::use_onednn))
         };
         auto prog = program::build_program(get_network().get_engine(),
                                            t,
