@@ -475,7 +475,6 @@ std::shared_ptr<py::function> wrap_pyfunction(py::function f_callback) {
     });
     return callback_sp;
 }
-
 };  // namespace utils
 };  // namespace Common
 
