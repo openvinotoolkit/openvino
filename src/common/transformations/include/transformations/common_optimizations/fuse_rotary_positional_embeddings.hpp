@@ -12,6 +12,7 @@ namespace pass {
 
 class TRANSFORMATIONS_API RoPEFusion;
 class TRANSFORMATIONS_API RoPEFusionGPTNEOX;
+class TRANSFORMATIONS_API RoPEFusionFlux;
 class TRANSFORMATIONS_API RoPEFusionGPTJ;
 class TRANSFORMATIONS_API RoPEFusionChatGLM;
 class TRANSFORMATIONS_API RoPEFusionQwen;
@@ -27,6 +28,12 @@ class ov::pass::RoPEFusionGPTNEOX : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("RoPEFusionGPTNEOX", "0");
     RoPEFusionGPTNEOX();
+};
+
+class ov::pass::RoPEFusionFlux : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("RoPEFusionFlux", "0");
+    RoPEFusionFlux();
 };
 
 class ov::pass::RoPEFusionGPTJ : public ov::pass::MatcherPass {
@@ -85,6 +92,7 @@ class ov::pass::RoPEFusion : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("RoPEFusion", "0");
     RoPEFusion(bool support_2d_rope = false) {
+        add_matcher<ov::pass::RoPEFusionFlux>();
         add_matcher<ov::pass::RoPEFusionGPTNEOX>();
         add_matcher<ov::pass::RoPEFusionGPTJ>();
         // optional heads & tails are fused in separate matcher pass,

@@ -39,7 +39,6 @@ void register_implementations() {
     REGISTER_OCL(kv_cache);
     REGISTER_OCL(paged_attention);
     REGISTER_OCL(lrn);
-    REGISTER_OCL(lstm_elt);
     REGISTER_OCL(multiclass_nms);
     REGISTER_OCL(multinomial);
     REGISTER_OCL(mutable_data);
@@ -88,6 +87,7 @@ void register_implementations() {
     REGISTER_OCL(unique_gather);
     REGISTER_OCL(scaled_dot_product_attention);
     REGISTER_OCL(rope);
+    REGISTER_OCL(search_sorted);
 }
 
 }  // namespace ocl
