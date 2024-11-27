@@ -19,9 +19,12 @@
 #include "scatter_nd_update_inst.h"
 #include "program_helpers.h"
 
+#include <unordered_map>
+
 using namespace cldnn;
 
 void mark_runtime_skippable_nodes::run(program& p) {
+    std::unordered_map<program_node*, uint8_t> runtime_skippable_depth;
     auto itr = p.get_processing_order().begin();
 
     while (itr != p.get_processing_order().end()) {
@@ -49,6 +52,24 @@ void mark_runtime_skippable_nodes::run(program& p) {
             node->can_be_optimized(true);
             GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node->id() << " has only shape_of as users. Set can_be_optimized always"
                                    << std::endl;
+            continue;
+        }
+
+        // Check whether consecutive runtime skippable nodes is lower than max count.
+        // Too long consecutive runtime skippable nodes causes huge time consumption in add_memory_dependency() of basic_memory_dependencies pass.
+        // max count 7 is experimentally selected in specific model.
+        const uint8_t max_runtime_skippable_depth = 7;
+        uint8_t dep_runtime_skippable_depth = 0;
+        for (const auto& dep : node->get_dependencies()) {
+            if (dep.first->is_runtime_skippable() &&
+               (runtime_skippable_depth.find(dep.first) != runtime_skippable_depth.end())) {
+                dep_runtime_skippable_depth = std::max(runtime_skippable_depth[dep.first], dep_runtime_skippable_depth);
+            }
+        }
+        if (!node->is_runtime_skippable() && (dep_runtime_skippable_depth >= max_runtime_skippable_depth)) {
+            GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node->id()
+                                   << " doesn't have runtime skippable due to max_runtime_skippable_depth("
+                                   << static_cast<int>(max_runtime_skippable_depth) << ")." << std::endl;
             continue;
         }
 
@@ -255,5 +276,9 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
             }
         });
+
+        if (node->is_runtime_skippable()) {
+            runtime_skippable_depth[node] = dep_runtime_skippable_depth + 1;
+        }
     }
 }
