@@ -193,7 +193,8 @@ public:
      * @param properties A ov::AnyMap of properties
      * @return An Compiled model
      */
-    virtual std::shared_ptr<ov::ICompiledModel> import_model(std::shared_ptr<ov::AlignedBuffer> model_buffer,
+    virtual std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                             std::shared_ptr<ov::AlignedBuffer> model_buffer,
                                                              const ov::AnyMap& properties) const;
 
     /**
@@ -206,7 +207,8 @@ public:
      * @param properties A ov::AnyMap of properties
      * @return An Compiled model
      */
-    virtual std::shared_ptr<ov::ICompiledModel> import_model(std::shared_ptr<ov::AlignedBuffer> model_buffer,
+    virtual std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                             std::shared_ptr<ov::AlignedBuffer> model_buffer,
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const;
 

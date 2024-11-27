@@ -574,51 +574,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
 
     ModelDeserializer deserializer(
         model_stream,
-        nullptr,
-        [this](const std::shared_ptr<ov::AlignedBuffer>& model, const std::shared_ptr<ov::AlignedBuffer>& weights) {
-            return get_core()->read_model(model, weights);
-        },
-        decrypt, decript_from_string);
-
-    std::shared_ptr<ov::Model> model;
-    deserializer >> model;
-
-    Config conf = engConfig;
-    Config::ModelType modelType = getModelType(model);
-
-    // check ov::loaded_from_cache property and erase it to avoid exception in readProperties.
-    auto _config = config;
-    const auto& it = _config.find(ov::loaded_from_cache.name());
-    bool loaded_from_cache = false;
-    if (it != _config.end()) {
-        loaded_from_cache = it->second.as<bool>();
-        _config.erase(it);
-    }
-    conf.readProperties(_config, modelType);
-
-    // import config props from caching model
-    calculate_streams(conf, model, true);
-    auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), conf, loaded_from_cache);
-    return compiled_model;
-}
-
-
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::shared_ptr<ov::AlignedBuffer> model_buffer,
-                                                         const ov::AnyMap& config) const {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
-
-    CacheDecrypt decrypt{ codec_xor };
-    bool decript_from_string = false;
-    if (config.count(ov::cache_encryption_callbacks.name())) {
-        auto encryption_callbacks = config.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>();
-        decrypt.m_decrypt_str = encryption_callbacks.decrypt;
-        decript_from_string = true;
-    }
-
-    std::stringstream empty_model_stream("");
-
-    ModelDeserializer deserializer(
-        empty_model_stream,
         model_buffer,
         [this](const std::shared_ptr<ov::AlignedBuffer>& model, const std::shared_ptr<ov::AlignedBuffer>& weights) {
             return get_core()->read_model(model, weights);
