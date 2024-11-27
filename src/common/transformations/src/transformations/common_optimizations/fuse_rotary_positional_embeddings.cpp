@@ -23,6 +23,94 @@
 
 using namespace ov::gen_pattern;
 
+ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
+    MATCHER_SCOPE(RoPEFusionFlux);
+    // x[?,24,?,128]
+    // x1 = reshape(x, [?,24,?,64,2])
+    // x1_0, x1_1 = split(x1, -1)
+    // x2 = concat(x1_0, x1_1 * (-1), -1)
+    // x3 = reshape(x2, [?,24,?,128])
+    // y1 = x * t_cos
+    // y2 = x3 * t_sin
+    // y = y1 + y2
+    auto x = makePattern(ov::Rank(4));
+    auto t_cos = makePattern(ov::Rank(4));
+    auto t_sin = makePattern(ov::Rank(4));
+
+    auto num_heads = ov::gen_pattern::Symbol("num_heads");
+    auto head_size = ov::gen_pattern::Symbol("head_size");
+
+    auto x1_target_shape = makeConst({0, num_heads, 0, -1, 2});
+    auto x1 = makePattern<opset1::Reshape>({x, x1_target_shape}, {{"special_zero", true}});
+    auto split = makePattern<opset1::Split>({x1, -1}, {{"num_splits", 2}});
+    split->set_output_size(2);
+
+    // 3 versions of mulitply by -1 depending on transformations execution prior to this pass
+    auto x1_1_neg_1 = makePattern<opset1::Multiply>({split->output(1), -1.0f}, {{"auto_broadcast", "numpy"}});
+
+    auto squeeze_2 = makePattern<opset1::Squeeze>({split->output(1), -1});
+    auto x1_1_neg_2 = makePattern<opset1::Multiply>({squeeze_2, -1.0f}, {{"auto_broadcast", "numpy"}});
+    auto unsqueeze_2 = makePattern<opset1::Unsqueeze>({x1_1_neg_2, -1});
+
+    auto x1_1_neg_3 = makePattern<opset1::Multiply>({split->output(1), -1.0f}, {{"auto_broadcast", "numpy"}});
+    auto squeeze_3 = makePattern<opset1::Squeeze>({x1_1_neg_3, -1});
+    auto unsqueeze_3 = makePattern<opset1::Unsqueeze>({squeeze_3, -1});
+
+    auto x2 = makePattern<opset1::Concat>({x1_1_neg_1 | unsqueeze_2 | unsqueeze_3, split->output(0)}, {{"axis", -1}});
+    auto x3_target_shape = makeConst({0, num_heads, 0, head_size});
+    auto x3 = makePattern<opset1::Reshape>({x2, x3_target_shape}, {{"special_zero", true}});
+
+    auto y1 = makePattern<opset1::Multiply>({x, t_cos}, {{"auto_broadcast", "numpy"}});
+    auto y2 = makePattern<opset1::Multiply>({x3, t_sin}, {{"auto_broadcast", "numpy"}});
+
+    auto y = makePattern<opset1::Add>({y1, y2}, {{"auto_broadcast", "numpy"}});
+    auto result = y;
+
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        PatternValidator validator(m);
+        if (!validator) {
+            return false;
+        }
+
+        const auto& pattern_map = m.get_pattern_value_map();
+        auto root = m.get_match_root();
+
+        op::internal::RoPE::Config config;
+        config.head_cnt = static_cast<size_t>(validator["num_heads"]);
+        config.head_size = static_cast<size_t>(validator["head_size"]);
+        config.rotary_ndims = config.head_size;
+        config.is_interleaved = true;
+        config.output_trans0213 = false;
+
+        OutputVector new_args;
+        new_args.push_back(pattern_map.at(x));
+        new_args.push_back(pattern_map.at(t_cos));
+        new_args.push_back(pattern_map.at(t_sin));
+
+        auto old_node = root;
+        auto new_node = std::make_shared<op::internal::RoPE>(new_args, config);
+        new_node->set_friendly_name(old_node->get_friendly_name());
+        ov::copy_runtime_info({pattern_map.at(x1).get_node_shared_ptr(),
+                               pattern_map.at(split).get_node_shared_ptr(),
+                               pattern_map.at(x2).get_node_shared_ptr(),
+                               pattern_map.at(x3).get_node_shared_ptr(),
+                               pattern_map.at(y1).get_node_shared_ptr(),
+                               pattern_map.at(y2).get_node_shared_ptr(),
+                               pattern_map.at(result).get_node_shared_ptr()},
+                              new_node);
+
+        ov::replace_node(old_node, new_node);
+
+        // this new node may match following additional matchers
+        register_new_node(new_node);
+
+        return true;
+    };
+
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
+    this->register_matcher(m, callback);
+}
+
 ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
     MATCHER_SCOPE(RoPEFusionGPTNEOX);
 
@@ -373,6 +461,7 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
         OutputVector new_args;
         config.rotary_ndims = static_cast<size_t>(validator["ndims"]);
 
+        config.output_trans0213 = true;
         config.is_interleaved = true;
 
         // input is [B,L,H,S]
