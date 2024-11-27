@@ -11,7 +11,7 @@ using namespace ov::intel_npu;
 // register
 //
 
-void intel_npu::registerNpuwOptions(OptionsDesc& desc) {
+void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
     desc.add<NPU_USE_NPUW>();
     desc.add<NPUW_DEVICES>();
     desc.add<NPUW_SUBMODEL_DEVICE>();
@@ -55,7 +55,7 @@ void intel_npu::registerNpuwOptions(OptionsDesc& desc) {
 #endif
 }
 
-void intel_npu::registerNpuwLlmOptions(OptionsDesc& desc) {
+void intel_npu::registerNPUWLLMOptions(OptionsDesc& desc) {
     desc.add<NPUW_LLM>();
     desc.add<NPUW_LLM_MODEL_DESC>();
     desc.add<NPUW_LLM_MAX_PROMPT_LEN>();

@@ -117,8 +117,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_cfg(m_options_desc),
       m_name(model->get_friendly_name()),
       m_loaded_from_cache(false) {
-    ::intel_npu::registerNpuwOptions(*m_options_desc);
-    ::intel_npu::registerNpuwLlmOptions(*m_options_desc);
+    ::intel_npu::registerNPUWOptions(*m_options_desc);
 
     std::map<std::string, ov::Any> npuw_props;
     split_properties(properties, m_non_npuw_props, npuw_props);

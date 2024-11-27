@@ -16,8 +16,8 @@ namespace intel_npu {
 // register
 //
 
-void registerNpuwOptions(OptionsDesc& desc);
-void registerNpuwLlmOptions(OptionsDesc& desc);
+void registerNPUWOptions(OptionsDesc& desc);
+void registerNPUWLLMOptions(OptionsDesc& desc);
 
 #define DEFINE_OPT(Name, Type, DefaultValue, PropertyKey, Mode)                     \
     struct Name final : OptionBase<Name, Type> {                                    \
@@ -118,7 +118,7 @@ struct NPUW_LLM_MODEL_DESC final : OptionBase<NPUW_LLM_MODEL_DESC, ::intel_npu::
     }
 
     static bool isPublic() {
-        return false;
+        return true;
     }
 };
 
@@ -170,7 +170,7 @@ struct NPUW_LLM_GENERATE_HINT final : OptionBase<NPUW_LLM_GENERATE_HINT, ::intel
     }
 
     static bool isPublic() {
-        return false;
+        return true;
     }
 };
 }  // namespace intel_npu

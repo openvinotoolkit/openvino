@@ -8,6 +8,7 @@
 
 #include "llm_compiled_model.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "logging.hpp"
 
 template <typename T>
 void fill_tensor(ov::SoPtr<ov::ITensor> tensor, T fill_val, size_t offset = 0u) {
@@ -51,23 +52,17 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
 void ov::npuw::LLMInferRequest::prepare_for_new_conversation() {
     // FIXME: for input_ids it must be padding from tokenizer that not available from here
     // Get it from NPUW options
-    LOG_INFO("Preparing for new conversation: nullyfying input_ids, position_ids for prefill"
-             << " and attention_mask for prefill and kvcache.");
-    LOG_BLOCK();
-
     fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at("input_ids")), 0u);
     fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at("attention_mask")), 0u);
     fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at("position_ids")), 0u);
     fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask")), 0u);
     m_kvcache_desc.num_stored_tokens = 0u;
-
-    LOG_INFO("Done");
 }
 
 void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                               ov::SoPtr<ov::ITensor> attention_mask,
                                               ov::SoPtr<ov::ITensor> position_ids) {
-    LOG_INFO("Calling inference for prefill model...");
+    LOG_DEBUG("Calling inference for prefill model...");
     LOG_BLOCK();
 
     prepare_for_new_conversation();
@@ -90,13 +85,13 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
 
     m_logits = m_prefill_request->get_tensor(m_prefill_out_ports.at("logits"));
 
-    LOG_INFO("Done");
+    LOG_DEBUG("Done");
 }
 
 void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                                                ov::SoPtr<ov::ITensor> attention_mask,
                                                ov::SoPtr<ov::ITensor> position_ids) {
-    LOG_INFO("Calling inference for generate model...");
+    LOG_DEBUG("Calling inference for generate model...");
     LOG_BLOCK();
 
     // NB: KV-cache is full, further generation is impossible
@@ -105,7 +100,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     }
 
     if (m_need_copy_kvcache) {
-        LOG_INFO("Copying kv-cache from prefill to generate model.");
+        LOG_DEBUG("Copying kv-cache from prefill to generate model.");
         const auto kStartOutputKVCacheLayers = 1u;
         const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
         for (int i = 0; i < kvcache_compiled->outputs().size() - 1; ++i) {
@@ -130,7 +125,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
 
             prefill_out_slice->copy_to(kvcache_in_slice._ptr);
         }
-        LOG_INFO("Prepare attention mask pattern.");
+        LOG_DEBUG("Prepare attention mask pattern.");
         auto* attention_mask_data =
             m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask"))->data<int64_t>();
         attention_mask_data[m_kvcache_desc.total_size - 1] = 1;
@@ -152,7 +147,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     m_logits = m_kvcache_request->get_tensor(m_kvcache_out_ports.at("logits"));
     m_kvcache_desc.num_stored_tokens += 1;
 
-    LOG_INFO("Write KV-cache for the new token to the correct input position for next iteration.");
+    LOG_DEBUG("Write KV-cache for the new token to the correct input position for next iteration.");
     const auto kStartOutputKVCacheLayers = 1u;
     const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
     for (int i = 0; i < kvcache_compiled->outputs().size() - 1; ++i) {
@@ -166,7 +161,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         auto kvcache_out_tensor = m_kvcache_request->get_tensor(m_kvcache_out_ports.at(output_name));
         kvcache_out_tensor->copy_to(kvcache_in_slice._ptr);
     }
-    LOG_INFO("Done");
+    LOG_DEBUG("Done");
 }
 
 void ov::npuw::LLMInferRequest::infer() {
