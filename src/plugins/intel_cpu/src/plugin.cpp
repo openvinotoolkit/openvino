@@ -207,12 +207,12 @@ static Config::ModelType getModelType(const std::shared_ptr<const Model>& model)
 }
 
 void Plugin::apply_rt_info(const std::shared_ptr<const ov::Model>& model, ov::intel_cpu::Config& config) const {
-    if (model->has_rt_info({"runtime_options", "KV_CACHE_PRECISION"})) {
-        config.kvCachePrecision = model->get_rt_info<ov::element::Type>({"runtime_options", "KV_CACHE_PRECISION"});
+    if (model->has_rt_info({"runtime_options", ov::hint::kv_cache_precision.name()})) {
+        config.kvCachePrecision = model->get_rt_info<ov::element::Type>({"runtime_options", ov::hint::kv_cache_precision.name()});
     }
-    if (model->has_rt_info({"runtime_options", "DYNAMIC_QUANTIZATION_GROUP_SIZE"})) {
+    if (model->has_rt_info({"runtime_options", ov::hint::dynamic_quantization_group_size.name()})) {
         config.fcDynamicQuantizationGroupSize =
-            model->get_rt_info<uint64_t>({"runtime_options", "DYNAMIC_QUANTIZATION_GROUP_SIZE"});
+            model->get_rt_info<uint64_t>({"runtime_options", ov::hint::dynamic_quantization_group_size.name()});
     }
 }
 
