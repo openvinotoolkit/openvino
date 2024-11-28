@@ -40,13 +40,13 @@ namespace gen_pattern {
 
 #ifdef CPU_DEBUG_CAPS
 
-#ifdef __GNUC__
-#define CURRENT_LINE_NO __builtin_LINE()
-#define CURRENT_FILE __builtin_FILE()
-#else
-#define CURRENT_LINE_NO -1
-#define CURRENT_FILE ""
-#endif
+#    ifdef __GNUC__
+#        define CURRENT_LINE_NO __builtin_LINE()
+#        define CURRENT_FILE    __builtin_FILE()
+#    else
+#        define CURRENT_LINE_NO -1
+#        define CURRENT_FILE    ""
+#    endif
 
 template <typename... Args>
 static inline void _verbose_log(Args&&... args) {
@@ -67,8 +67,8 @@ static bool matcher_verbose_enabled() {
         _verbose_log(__VA_ARGS__)
 #else
 
-#define CURRENT_LINE_NO -1
-#define CURRENT_FILE ""
+#    define CURRENT_LINE_NO -1
+#    define CURRENT_FILE    ""
 
 static bool matcher_verbose_enabled() {
     return false;
@@ -266,7 +266,7 @@ public:
         if (entity->line_no == -1 || is_independent_var())
             return entity->name;
         auto filename = strrchr(entity->filename, '/') ? strrchr(entity->filename, '/') + 1 : entity->filename;
-        std::string name(filename); // use filename:lineno instead
+        std::string name(filename);  // use filename:lineno instead
         return name + ":" + std::to_string(entity->line_no);
     }
     bool operator<(const Symbol& rhs) const {
@@ -799,7 +799,13 @@ public:
         // strictly requires pattern & graph value to come from output port with same index,
         // this is absolute necessary when pattern contains split node connections.
         if (pattern_value.get_index() != graph_value.get_index()) {
-            _VERBOSE_LOG(level, "X output index mismatch:(", m_signature, "): ", pattern_value.get_index(), "!=", graph_value.get_index());
+            _VERBOSE_LOG(level,
+                         "X output index mismatch:(",
+                         m_signature,
+                         "): ",
+                         pattern_value.get_index(),
+                         "!=",
+                         graph_value.get_index());
             return false;
         }
 
@@ -1050,7 +1056,8 @@ std::shared_ptr<Node> makePattern(const std::vector<detail::PatternNode>& inputs
     // pattern nodes are better for pattern matching because
     //  - it can be generic/incomplete, so normal OP node is not working properly
     //  - it has predicate to correctly decide which branch to take (in Or pattern)
-    auto pattern_node = std::make_shared<detail::GenericPattern>(T::get_type_info_static(), args, attrmap, vt, line_no, file);
+    auto pattern_node =
+        std::make_shared<detail::GenericPattern>(T::get_type_info_static(), args, attrmap, vt, line_no, file);
 
     if (friendly_name)
         pattern_node->set_friendly_name(friendly_name);
@@ -1169,9 +1176,19 @@ inline std::shared_ptr<Node> GenStridedSlice(detail::PatternNode data,
     return opt2;
 }
 
-inline std::shared_ptr<Node> GenSlice(detail::PatternNode data, Symbol start, Symbol stop, Symbol step, size_t axis, int line_no = CURRENT_LINE_NO,
-                                  const char* file = CURRENT_FILE) {
-    auto opt1 = makePattern<opset8::Slice>({data, {start}, {stop}, {step}, {static_cast<int>(axis)}}, {}, nullptr, nullptr, line_no, file);
+inline std::shared_ptr<Node> GenSlice(detail::PatternNode data,
+                                      Symbol start,
+                                      Symbol stop,
+                                      Symbol step,
+                                      size_t axis,
+                                      int line_no = CURRENT_LINE_NO,
+                                      const char* file = CURRENT_FILE) {
+    auto opt1 = makePattern<opset8::Slice>({data, {start}, {stop}, {step}, {static_cast<int>(axis)}},
+                                           {},
+                                           nullptr,
+                                           nullptr,
+                                           line_no,
+                                           file);
 
     std::vector<Symbol> vbegin(axis + 1, Symbol(0));
     std::vector<Symbol> vend(axis + 1, Symbol(0));
@@ -1200,10 +1217,10 @@ inline std::shared_ptr<Node> GenSlice(detail::PatternNode data, Symbol start, Sy
                                                    {"new_axis_mask", new_axis_mask},
                                                    {"shrink_axis_mask", shrink_axis_mask},
                                                    {"ellipsis_mask", ellipsis_mask}},
-                                                   nullptr,
-                                                   nullptr,
-                                                   line_no,
-                                                   file);
+                                                  nullptr,
+                                                  nullptr,
+                                                  line_no,
+                                                  file);
     return opt1 | opt2;
 }
 
@@ -1365,7 +1382,8 @@ public:
                 if (symbol_value_map.count(id)) {
                     if (symbol_value_map[id] != value) {
                         _VERBOSE_LOG(" in-consistency between multiple references of same symbol(",
-                                     sym.get_name(), "): ",
+                                     sym.get_name(),
+                                     "): ",
                                      symbol_value_map[id],
                                      " != ",
                                      value);
@@ -1381,7 +1399,12 @@ public:
             if (sym.is_literal_const()) {
                 auto literal = sym.eval(symbol_value_map);
                 if (literal != value) {
-                    _VERBOSE_LOG(" mismatch between literal symbol & value(", sym.get_name(), "): ", literal, " != ", value);
+                    _VERBOSE_LOG(" mismatch between literal symbol & value(",
+                                 sym.get_name(),
+                                 "): ",
+                                 literal,
+                                 " != ",
+                                 value);
                     return false;
                 }
                 // no need to put literal into value map to eval them.
@@ -1410,7 +1433,8 @@ public:
                 }
                 if (!is_match) {
                     _VERBOSE_LOG(" mismatch between derived & value(",
-                                 sym.get_name(), "): ",
+                                 sym.get_name(),
+                                 "): ",
                                  std::setprecision(std::numeric_limits<float>::max_digits10),
                                  derived,
                                  " != ",

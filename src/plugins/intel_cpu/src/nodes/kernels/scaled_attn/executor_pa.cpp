@@ -1167,7 +1167,7 @@ struct MHAHelper {
         // aligned to cache line (64bytes=16*sizeof(float)) to avoid false sharing
         _weight_bhl.resize<float>({B, _H, q_len, rnd_up(max_context_len, std::max(_block_size, size_t{16}))});
 
-        // the small batches  static scheduler has small overhead
+        // for small batches static scheduler has notable overhead
         bool prefer_static_loop;
         bool loop_hk = B * kv_len_in_blocks * _Hk > 2 * _nthr;
         if (B <= 32) {
@@ -1474,7 +1474,9 @@ struct MHA {
 
         // loop along HK dimension: if elements count is enough, loop HK to reuse KV in the CPU cache
         //    else if elements count is small, prefer to loop H to get more work to avoid thread imbalance
-        bool loop_hk = attn_work_count * Hk > 2 * _helper._nthr;
+        bool loop_hk = _workitems.get_reorder_max_batch_size() == past_lens.m_dims[0] ||        // if only first token, loop H
+            attn_work_count * Hk <= 2 * _helper._nthr ? false : true;                           // or less than 2 work items per thread, loop H
+
         //auto perf1 = LinuxPerf::Profile("fma");
         parallel_for2d_dynamic(attn_work_count, loop_hk ? Hk : _helper._H, [&](size_t w, size_t hx) {
             size_t hk, hq_beg, hq_end;
