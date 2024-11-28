@@ -64,15 +64,11 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         config.quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Symmetric;
         config.scale_dt = element::f16;
         config.group_sizes = shape_group_size;
-        char *azp = getenv("AZP");
-        if (azp != nullptr) {
+
+        if (debug_config->dynamic_quantize_asym) {
             config.quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
             config.quantization_dt = element::u8;
-            config.zp_dt = element::u8; // FIXME: can it be u4?
-            static bool first = true;
-            if (first)
-                std::cout << "AZP turned on!!" << std::endl;
-            first = false;
+            config.zp_dt = element::u8; // XXX: can it be u4?
         }
 
         auto dyn_quan = std::make_shared<ov::op::internal::DynamicQuantize>(m_data, config);
