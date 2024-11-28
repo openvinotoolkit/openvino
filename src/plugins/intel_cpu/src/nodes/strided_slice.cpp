@@ -76,11 +76,9 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
         isConstantInput[i] = ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
         if (!isConstantInput[i] && one_of(i, attrs.BEGIN_ID, attrs.END_ID, attrs.STRIDE_ID)) {
             hasConstAttrInputs = false;
-            if (!attrs.isSliceScatterOp) {
-                shapeHasDataDependency = true;
-            }
         }
     }
+    shapeHasDataDependency = attrs.isSliceScatterOp ? false : (!hasConstAttrInputs);
     if (isAxesSpecified) {
         hasConstAttrInputs &= isConstantInput[attrs.AXES_ID];
     }
@@ -327,11 +325,14 @@ bool StridedSlice::needShapeInfer() const {
 }
 
 void StridedSlice::execute(dnnl::stream strm) {
-    if (!execPtr && !Node::isDynamic) {
+    if (!execPtr) {
+        if (!isDynamicNode() && !hasConstAttrInputs) {
         // SliceScatter due to not having data dependency on shape may not call prepareParams when start/stop/step values are non-constant in Static execution.
+        // In Slice and SliceScatter op, prepareParams would be called by createPrimitive (if const inputs) or by updateDynamicParams in case of dynamic node.
         StridedSlice::prepareParams();
-    } else if (!execPtr) {
-        OPENVINO_THROW(errorPrefix, "doesn't have compiled executor!");
+        } else {
+            OPENVINO_THROW(errorPrefix, "doesn't have compiled executor!");
+        }
     }
     execPtr->exec(srcMemory, dstMemory);
 }
