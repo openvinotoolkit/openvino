@@ -21,20 +21,10 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
     : ov::pass::MatcherPass() {
     GPU_DEBUG_GET_INSTANCE(debug_config);
     using namespace ov::pass::pattern;
-    auto is_dynamic = [](const ov::Output<ov::Node>& output) -> bool {
-        // Please remove this function
-        return true;
-        bool is_dynamic = output.get_node_shared_ptr()->get_output_partial_shape(0).is_dynamic();
-        size_t num_inputs = output.get_node_shared_ptr()->get_input_size();
-        for (size_t idx = 0; idx < num_inputs; idx++) {
-            is_dynamic |= output.get_node_shared_ptr()->get_input_partial_shape(idx).is_dynamic();
-        }
-        return is_dynamic;
-    };
 
     auto data = any_input();
-    auto fully_connected_compressed3 = wrap_type<op::FullyConnectedCompressed>({data, any_input(), any_input(), any_input()}, is_dynamic);
-    auto fully_connected_compressed4 = wrap_type<op::FullyConnectedCompressed>({data, any_input(), any_input(), any_input(), any_input()}, is_dynamic);
+    auto fully_connected_compressed3 = wrap_type<op::FullyConnectedCompressed>({data, any_input(), any_input(), any_input()});
+    auto fully_connected_compressed4 = wrap_type<op::FullyConnectedCompressed>({data, any_input(), any_input(), any_input(), any_input()});
     auto fully_connected_compressed = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{fully_connected_compressed3, fully_connected_compressed4});
 
 
