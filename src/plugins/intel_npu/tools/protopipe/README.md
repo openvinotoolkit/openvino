@@ -60,7 +60,6 @@ log_level: INFO
 - `ol` - **Optional**. Output layer layout.
 - `iml` - **Optional**. Input model layout.
 - `oml` - **Optional**. Output model layout.
-- `reshape` - **Optional**. Set shape for input layers. For example, "input1: [1,3,224,224], input2: [1,4]" or "[1,3,224,224]" in case of one input layer.
 
 Examples:
 ```
