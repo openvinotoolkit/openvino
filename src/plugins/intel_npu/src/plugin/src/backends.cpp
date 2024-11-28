@@ -155,6 +155,14 @@ uint32_t NPUBackends::getGraphExtVersion() const {
     OPENVINO_THROW("No available backend");
 }
 
+uint32_t NPUBackends::getCompilerVersion() const {
+    if (_backend != nullptr) {
+        return _backend->getCompilerVersion();
+    }
+
+    OPENVINO_THROW("No available backend");
+}
+
 bool NPUBackends::isBatchingSupported() const {
     if (_backend != nullptr) {
         return _backend->isBatchingSupported();

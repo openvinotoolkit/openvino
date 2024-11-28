@@ -33,6 +33,10 @@ uint32_t IEngineBackend::getGraphExtVersion() const {
     OPENVINO_THROW("Get NPU driver extension version is not supported with this backend");
 }
 
+uint32_t IEngineBackend::getCompilerVersion() const {
+    OPENVINO_THROW("Get NPU driver-compiler version is not supported with this backend");
+}
+
 void* IEngineBackend::getContext() const {
     OPENVINO_THROW("Get NPU context is not supported with this backend");
 }

@@ -29,6 +29,10 @@ uint32_t ZeroEngineBackend::getGraphExtVersion() const {
     return _initStruct->getGraphDdiTable().version();
 }
 
+uint32_t ZeroEngineBackend::getCompilerVersion() const {
+    return _initStruct->getCompilerVersion();
+}
+
 bool ZeroEngineBackend::isBatchingSupported() const {
     return _initStruct->isExtensionSupported("ZE_extension_graph_1_6", ZE_MAKE_VERSION(1, 6));
 }

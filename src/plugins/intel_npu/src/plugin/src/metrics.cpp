@@ -134,6 +134,14 @@ uint32_t Metrics::GetGraphExtVersion() const {
     return _backends->getGraphExtVersion();
 }
 
+uint32_t Metrics::GetCompilerVersion() const {
+    if (_backends == nullptr) {
+        OPENVINO_THROW("No available backends");
+    }
+
+    return _backends->getCompilerVersion();
+}
+
 uint32_t Metrics::GetSteppingNumber(const std::string& specifiedDeviceName) const {
     const auto devName = getDeviceName(specifiedDeviceName);
     auto device = _backends->getDevice(devName);

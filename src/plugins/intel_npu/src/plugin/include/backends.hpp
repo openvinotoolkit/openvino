@@ -32,6 +32,7 @@ public:
     std::string getBackendName() const;
     uint32_t getDriverVersion() const;
     uint32_t getGraphExtVersion() const;
+    uint32_t getCompilerVersion() const;
     bool isBatchingSupported() const;
     bool isCommandQueueExtSupported() const;
     bool isLUIDExtSupported() const;
