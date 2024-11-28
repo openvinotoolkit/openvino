@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/op/identity.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace op {
