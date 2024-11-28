@@ -747,7 +747,7 @@ TEST_F(TransformationTestsF, GatherReverseInferIndicesRank) {
     }
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, ov::PartialShape{1, 22, 333, 4444});
-        auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{dyn});
+        auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape::dynamic(1));
         auto axis = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
         auto gather = std::make_shared<ov::op::v8::Gather>(data, indices, axis);
 
@@ -759,7 +759,6 @@ TEST_F(TransformationTestsF, GatherReverseInferIndicesRank) {
 }
 
 TEST_F(TransformationTestsF, GatherReverseInferIndicesRankCustomBatchDims) {
-    auto dyn = Dimension::dynamic();
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 5});
         auto indices = std::make_shared<opset10::Parameter>(ov::element::i32, ov::PartialShape::dynamic());
@@ -777,7 +776,7 @@ TEST_F(TransformationTestsF, GatherReverseInferIndicesRankCustomBatchDims) {
     }
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 5});
-        auto indices = std::make_shared<opset10::Parameter>(ov::element::i32, ov::PartialShape{dyn, dyn});
+        auto indices = std::make_shared<opset10::Parameter>(ov::element::i32, ov::PartialShape::dynamic(2));
         auto axis = ov::op::v0::Constant::create(element::i32, Shape{}, {1});
         int64_t batch_dims = 1;
         auto gather = std::make_shared<ov::op::v8::Gather>(data, indices, axis, batch_dims);
@@ -790,7 +789,6 @@ TEST_F(TransformationTestsF, GatherReverseInferIndicesRankCustomBatchDims) {
 }
 
 TEST_F(TransformationTestsF, GatherReverseInferIndicesRankCustomBatchDims2) {
-    auto dyn = Dimension::dynamic();
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 2, 5});
         auto indices = std::make_shared<opset10::Parameter>(ov::element::i32, ov::PartialShape::dynamic());
@@ -808,7 +806,7 @@ TEST_F(TransformationTestsF, GatherReverseInferIndicesRankCustomBatchDims2) {
     }
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 2, 5});
-        auto indices = std::make_shared<opset10::Parameter>(ov::element::i32, ov::PartialShape{dyn, dyn, dyn});
+        auto indices = std::make_shared<opset10::Parameter>(ov::element::i32, ov::PartialShape::dynamic(3));
         auto axis = ov::op::v0::Constant::create(element::i32, Shape{}, {2});
         int64_t batch_dims = 2;
         auto gather = std::make_shared<ov::op::v8::Gather>(data, indices, axis, batch_dims);
@@ -821,7 +819,6 @@ TEST_F(TransformationTestsF, GatherReverseInferIndicesRankCustomBatchDims2) {
 }
 
 TEST_F(TransformationTestsF, GatherReverseInferIndicesRankCustomBatchDims3) {
-    auto dyn = Dimension::dynamic();
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 1, 5, 4});
         auto indices = std::make_shared<opset10::Parameter>(ov::element::i32, ov::PartialShape::dynamic());
@@ -839,7 +836,7 @@ TEST_F(TransformationTestsF, GatherReverseInferIndicesRankCustomBatchDims3) {
     }
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 1, 5, 4});
-        auto indices = std::make_shared<opset10::Parameter>(ov::element::i32, ov::PartialShape{dyn, dyn});
+        auto indices = std::make_shared<opset10::Parameter>(ov::element::i32, ov::PartialShape::dynamic(2));
         auto axis = ov::op::v0::Constant::create(element::i32, Shape{}, {2});
         int64_t batch_dims = 1;
         auto gather = std::make_shared<ov::op::v8::Gather>(data, indices, axis, batch_dims);
