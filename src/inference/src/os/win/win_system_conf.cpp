@@ -169,6 +169,12 @@ void parse_processor_info_win(const char* base_ptr,
                     } else {
                         _proc_type_table[0][group_type]++;
                     }
+                } else {
+                    proc_info[CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
+                    proc_info[CPU_MAP_GROUP_ID] = group;
+
+                    _proc_type_table[0][MAIN_CORE_PROC]++;
+                    group++;
                 }
                 _cpu_mapping_table.push_back(proc_info);
             }
