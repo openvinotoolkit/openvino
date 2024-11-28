@@ -15,8 +15,8 @@
 #include "nodes/executors/mlas/mlas_gemm.hpp"
 #include "utils/debug_capabilities.h"
 
-#define FLOAT_MIN (0xff7fffff)
-#define FLOAT_MAX (0x7f7fffff)
+#define FLOAT_MAX 3.4028235e38f
+#define FLOAT_MIN -3.4028235e38f
 
 namespace ov {
 namespace intel_cpu {
@@ -30,6 +30,9 @@ static std::vector<T> normalizeDimsTo2D(const std::vector<T>& dims) {
 }
 
 bool MatMulKleidiAIExecutor::supports(const FCConfig& config) {
+    if (config.attrs.weightsNonTransposed) {
+        return false;
+    }
     return true;
 }
 
@@ -63,10 +66,7 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
     auto srcMem = memory.at(ARG_SRC);
     auto weiMem = memory.at(ARG_WEI);
     auto dstMem = memory.at(ARG_DST);
-    std::shared_ptr<IMemory> biasMem = nullptr;
-    if (m_attrs.withBias) {
-        biasMem = memory.at(ARG_BIAS);
-    }
+    auto biasMem = memory.at(ARG_BIAS);
     auto srcDims = normalizeDimsTo2D(srcMem->getDesc().getShape().getDims());
     auto weiDims = weiMem->getDesc().getShape().getDims();
     auto M = srcDims[0];
@@ -79,23 +79,27 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
     const size_t dst_stride_col = sizeof(float);
 
     const size_t rhs_packed_size = kai_get_rhs_packed_size_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(N, K);
+    float* rhs_packed = new float[rhs_packed_size];
 
     const size_t nr = ukernel.get_nr();
     const size_t kr = ukernel.get_kr();
     const size_t sr = ukernel.get_sr();
 
-    auto lhs = srcMem->getDataAs<float>();
-    auto rhs = weiMem->getDataAs<float>();
-    auto dst = dstMem->getDataAs<float>();
-
-    float* rhs_packed = new float[rhs_packed_size];
+    float* lhs = srcMem->getDataAs<float>();
+    float* rhs = weiMem->getDataAs<float>();
+    float* dst = dstMem->getDataAs<float>();
+    float* bias = biasMem->getDataAs<float>();
+    if (bias == nullptr) {
+        bias = new float[N];
+        memset(bias, 0, N * sizeof(float));
+    }
 
     kai_run_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(
         1, N, K, nr, kr, sr,  // Packing arguments
         rhs_stride,           // RHS stride
         rhs,                  // RHS
-        nullptr,                 // Bias
-        nullptr,                 // Scale
+        bias,                 // Bias
+        nullptr,        // Scale
         rhs_packed,           // RHS packed
         0, nullptr);
 

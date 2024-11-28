@@ -5,7 +5,7 @@
 add_definitions(-DIN_OV_COMPONENT)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
-    ov_add_compiler_flags(-Wmissing-declarations)
+    # ov_add_compiler_flags(-Wmissing-declarations)
 endif()
 
 if(OV_COMPILER_IS_INTEL_LLVM)

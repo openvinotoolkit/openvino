@@ -216,6 +216,10 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             ShapeTolerance::Agnostic,
             // supports
             [](const FCConfig& config) -> bool {
+                VERIFY(noPostOps(config), UNSUPPORTED_POST_OPS);
+                VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
+                VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
+                VERIFY(everyone_is(f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
                 return MatMulKleidiAIExecutor::supports(config);
             },
             // requiresFallback
