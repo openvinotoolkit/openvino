@@ -35,7 +35,7 @@ static std::shared_ptr<dnnl::deconvolution_forward::primitive_desc> get_deconvol
     auto output_md = onednn::layout_to_memory_desc(output_layout, tag_in_out);
     auto grouped_weights = format::is_grouped(weights_layout.format) || prim->grouped_weights_shape;
 
-    for (size_t i = 0; i < dilation.size(); i++) {
+    for (size_t i = 0; i < dilation.size() - 1; i++) {
         dilation[i]--;
         int weights_offset = (grouped_weights ? 3 : 2) + static_cast<int>(i);
         auto os = output_md.get_dims()[2 + i];
