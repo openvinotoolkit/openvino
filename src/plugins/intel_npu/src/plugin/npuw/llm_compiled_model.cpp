@@ -4,9 +4,9 @@
 #include "llm_compiled_model.hpp"
 
 #include "llm_infer_request.hpp"
+#include "logging.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
-#include "logging.hpp"
 
 namespace {
 uint32_t align_to(uint32_t value, uint32_t alignment) {
@@ -15,7 +15,7 @@ uint32_t align_to(uint32_t value, uint32_t alignment) {
 
 std::shared_ptr<ov::Model> redirect_new_kv_to_output(const std::shared_ptr<ov::Model>& model) {
     const auto kStartOutputKVCacheLayers = 1u;
-    for (int i = kStartOutputKVCacheLayers; i < model->outputs().size(); ++i) {
+    for (std::size_t i = kStartOutputKVCacheLayers; i < model->outputs().size(); ++i) {
         auto kvout = model->output(i);
         auto kvrslt = kvout.get_node();
         auto kvcat = kvrslt->inputs()[0].get_source_output().get_node();
@@ -279,7 +279,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto prefill_config = get_default_prefill_config(model, npudesc);
     // NB: GENERATE_HINT is only applicable for default generate config!
     const ::intel_npu::npuw::llm::GenerateHint generate_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_HINT>();
-    LOG_DEBUG("9. Passed GENERATE_HINT: " << ::intel_npu::NPUW_LLM_GENERATE_HINT::toString(generate_hint));
+    LOG_DEBUG("9. Passed GENERATE_HINT: " << std::string(::intel_npu::NPUW_LLM_GENERATE_HINT::toString(generate_hint)));
     auto generate_config = get_default_generate_config(model, npudesc, generate_hint);
     merge_config_with(prefill_config, properties_copy);
     merge_config_with(generate_config, properties_copy);

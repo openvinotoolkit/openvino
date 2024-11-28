@@ -7,8 +7,8 @@
 #include <regex>
 
 #include "llm_compiled_model.hpp"
-#include "openvino/runtime/iasync_infer_request.hpp"
 #include "logging.hpp"
+#include "openvino/runtime/iasync_infer_request.hpp"
 
 template <typename T>
 void fill_tensor(ov::SoPtr<ov::ITensor> tensor, T fill_val, size_t offset = 0u) {

@@ -178,10 +178,10 @@ struct OptionPrinter<std::map<K, V>> final {
         std::stringstream ss;
         std::size_t counter = 0;
         std::size_t size = val.size();
-        for (auto [key, value] : val) {
+        for (auto& [key, value] : val) {
             std::string key_str = OptionPrinter<K>::toString(key);
             std::string value_str = OptionPrinter<V>::toString(value);
-            ss << key_str << ":" << value_str;
+        ss << key_str << ":" << value_str;
             if (counter < size - 1) {
                 ss << ",";
             }
