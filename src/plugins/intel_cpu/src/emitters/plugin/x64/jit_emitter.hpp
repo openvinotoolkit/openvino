@@ -27,6 +27,12 @@ enum emitter_in_out_map {
     gpr_to_gpr,
 };
 
+// Arithmetic modes for data type conversion in store_emitter
+enum arithmetic_mode {
+    saturation,
+    truncation
+};
+
 // structure for storage of emitter parameters to hash in map
 struct emitter_params {
     virtual size_t hash() const = 0;

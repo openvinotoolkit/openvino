@@ -13,7 +13,7 @@ namespace test {
 using selectParams = std::tuple<std::vector<InputShape>,    // input shapes
                                 ElementType,                // Then/Else precision
                                 ov::op::AutoBroadcastSpec,  // broadcast
-                                bool,                       // true: trunction data check
+                                bool,                       // true: saturation data check
                                 ov::AnyMap,                 // Additional config
                                 fusingSpecificParams>;
 
@@ -26,9 +26,9 @@ public:
         ElementType precision;
         ov::op::AutoBroadcastSpec broadcast;
         fusingSpecificParams fusingParams;
-        bool isTruncCheck;
+        bool isSatCheck;
         ov::AnyMap additionalConfig;
-        std::tie(shapes, precision, broadcast, isTruncCheck, additionalConfig, fusingParams) = obj.param;
+        std::tie(shapes, precision, broadcast, isSatCheck, additionalConfig, fusingParams) = obj.param;
 
         std::ostringstream result;
         result << "Condition_prc_" << ElementType::boolean << "_Then_Else_prc_" << precision << "_";
@@ -43,7 +43,7 @@ public:
             }
         }
         result << "Broadcast=" << broadcast.m_type << "_";
-        result << "TruncCheck=" << isTruncCheck << "_";
+        result << "SatCheck=" << isSatCheck << "_";
         if (!additionalConfig.empty()) {
             result << "_PluginConf";
             for (auto& item : additionalConfig) {
@@ -57,7 +57,7 @@ public:
     }
 
 protected:
-    bool isTruncCheck;
+    bool isSatCheck;
     ov::AnyMap additionalConfig;
     void SetUp() override {
         abs_threshold = 0;
@@ -66,7 +66,7 @@ protected:
         ElementType precision;
         ov::op::AutoBroadcastSpec broadcast;
         fusingSpecificParams fusingParams;
-        std::tie(shapes, precision, broadcast, isTruncCheck, additionalConfig, fusingParams) = this->GetParam();
+        std::tie(shapes, precision, broadcast, isSatCheck, additionalConfig, fusingParams) = this->GetParam();
         init_input_shapes(shapes);
         std::tie(inFmts, outFmts, priority, selectedType) = emptyCPUSpec;
         selectedType = makeSelectedTypeStr(getPrimitiveType(), ov::element::i8);
@@ -77,7 +77,7 @@ protected:
             parameters.push_back(param_node);
         }
         auto select = std::make_shared<ov::op::v1::Select>(parameters[0], parameters[1], parameters[2], broadcast);
-        if (isTruncCheck) {
+        if (isSatCheck) {
             auto conv_filter_shape = ov::Shape{1, 1, 3, 3};
             auto conv_filter = ov::op::v0::Constant::create(precision, conv_filter_shape, {1});
             auto strides = ov::Strides{1, 1};
@@ -106,7 +106,7 @@ protected:
         in_data.resolution = 2;
         auto condTensor = ov::test::utils::create_and_fill_tensor(modelInputs[0].get_element_type(), targetInputStaticShapes[0], in_data);
 
-        if (isTruncCheck) {
+        if (isSatCheck) {
             in_data.start_from = -3.40282e+38;
             in_data.range = 1;
             in_data.resolution = 1;
@@ -117,7 +117,7 @@ protected:
         }
         auto thenTensor = ov::test::utils::create_and_fill_tensor(modelInputs[1].get_element_type(), targetInputStaticShapes[1], in_data);
 
-        if (isTruncCheck) {
+        if (isSatCheck) {
             in_data.start_from = 3.40282e+38;
             in_data.range = 10;
             in_data.resolution = 2;
@@ -134,7 +134,7 @@ protected:
 };
 
 TEST_P(SelectLayerCPUTest, CompareWithRefs) {
-    if (isTruncCheck && !ov::with_cpu_x86_avx512_core_amx_bf16()) {
+    if (isSatCheck && !ov::with_cpu_x86_avx512_core_amx_bf16()) {
         GTEST_SKIP();
     }
     run();
@@ -219,7 +219,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefsNone_dynamic,
                          noneCases,
                          SelectLayerCPUTest::getTestCaseName);
 
-const std::vector<std::vector<InputShape>> inShapesTrunc = {
+const std::vector<std::vector<InputShape>> inShapesSat = {
     {
         // Condition
         {{-1, -1, -1, -1}, {{2, 1, 32, 32}}},
@@ -230,17 +230,17 @@ const std::vector<std::vector<InputShape>> inShapesTrunc = {
     },
 };
 
-const auto truncCases =
-    ::testing::Combine(::testing::ValuesIn(inShapesTrunc),
+const auto satCases =
+    ::testing::Combine(::testing::ValuesIn(inShapesSat),
                        ::testing::Values(ElementType::f32),
                        ::testing::Values(ov::op::AutoBroadcastType::NUMPY),
                        ::testing::Values(true),
                        ::testing::Values(ov::AnyMap{ov::hint::inference_precision(ov::element::bf16)}),
                        ::testing::Values(emptyFusingSpec));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefsTrunc_dynamic,
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefsSat_dynamic,
                          SelectLayerCPUTest,
-                         truncCases,
+                         satCases,
                          SelectLayerCPUTest::getTestCaseName);
 
 }  // namespace test
