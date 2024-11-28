@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <list>
 #include <memory>
 #include <typeinfo>
