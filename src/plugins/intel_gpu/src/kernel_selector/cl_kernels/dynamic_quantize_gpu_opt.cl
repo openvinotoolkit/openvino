@@ -4,7 +4,7 @@
 
 #include "include/batch_headers/fetch_data.cl"
 
-#if OUTPUT_DIMS != 4
+#if OUTPUT_DIMS != 4 && OUTPUT_DIMS != 2
 #error "dynamic_quantize_gpu_opt.cl: Unsupported output dimension"
 #endif
 

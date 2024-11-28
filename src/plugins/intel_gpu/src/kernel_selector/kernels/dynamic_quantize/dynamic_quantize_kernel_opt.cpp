@@ -13,9 +13,8 @@ namespace kernel_selector {
 static std::pair<size_t, size_t> get_input_bf_size(const dynamic_quantize_params& params) {
     size_t input_f = params.inputs[0].Feature().v;
     size_t input_batch = params.inputs[0].Batch().v;
-    // 3D input
-    // FIXME: how to check 2d tensor properly?
-    if (params.outputs[0].GetLayout() == DataLayout::bfyx && params.inputs[0].X().v * params.inputs[0].Y().v != 1) {
+    // 4D input
+    if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
         input_f = params.inputs[0].Y().v * params.inputs[0].X().v;
         input_batch = params.inputs[0].Batch().v * params.inputs[0].Feature().v;
     }
@@ -50,7 +49,9 @@ ParamsKey DynamicQuantizeKernelOpt::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableDifferentTypes();
+    k.EnableInputLayout(DataLayout::bf);
     k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::bf);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
@@ -160,10 +161,10 @@ bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {
 
     const auto& dq_params = static_cast<const dynamic_quantize_params&>(params);
 
-    // Todo : Add proper exception here
-    // FIXME: when input is 2d, both X and Y will be 1.
-    // if (((dq_params.inputs[0].X().v * dq_params.inputs[0].Y().v) % (simd * 2)) != 0)
-    //     return false;
+
+    auto bf = get_input_bf_size(dq_params);
+    if (((bf.second) % (simd * 2)) != 0)
+        return false;
 
     if (dq_params.inputs[0].GetPaddedVal() != 0 || dq_params.outputs[0].GetPaddedVal() != 0)
         return false;
