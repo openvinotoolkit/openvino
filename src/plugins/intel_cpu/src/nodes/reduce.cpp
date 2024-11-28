@@ -2030,22 +2030,7 @@ void Reduce::initSupportedPrimitiveDescriptors() {
                 dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
             }
 
-            auto attrs = reduceAttrs;
-            bool apply_ref = customImplPriorities.size() > 0 && customImplPriorities[0] == ref;
-            bool single_axis_only = one_of(algorithm, Algorithm::ReduceSum, Algorithm::ReduceMax,
-                                                      Algorithm::ReduceMin, Algorithm::ReduceProd);
-            // For the case of empty input, transformations ConvertReduceProd(Min, Max, Sum) are disabled to avoid empty output.
-            // So these 4 reduce modes with empty input reducing more than one axis are not supported by acl executor. Then
-            // factory->isEmpty() returns true, supportedPrimitiveDescriptors is emtpy. Though we don't actually need these acl
-            // kernels in execution, here we pass a fake axis {1} to pass assertion of "!supportedPrimitiveDescriptors.empty()"
-            // in Node::filterSupportedPrimitiveDescriptors().
-            if (!apply_ref && !isDynamicNode() && single_axis_only) {
-                const auto& src_shape = getInputShapeAtPort(REDUCE_DATA).getStaticDims();
-                if (shape_size(src_shape) == 0) {
-                    attrs.axes = {1};
-                }
-            }
-            auto factory = std::make_shared<ReduceExecutorFactory>(attrs, srcMemoryDescs, dstMemoryDescs,
+            auto factory = std::make_shared<ReduceExecutorFactory>(reduceAttrs, srcMemoryDescs, dstMemoryDescs,
                                                                    std::make_shared<ExecutorContext>(context, getImplPriority()));
             if (!factory->isEmpty()) {
                 supportedPrimitiveDescriptors.push_back({config, impl_type, factory});
@@ -2057,16 +2042,22 @@ void Reduce::initSupportedPrimitiveDescriptors() {
     };
 
 #if defined (OV_CPU_WITH_ACL)
-        reduceAttrs.operation = algorithm;
-        reduceAttrs.keepDims = keep_dims;
-        reduceAttrs.axes = raw_axes;
-        for (auto &axis : reduceAttrs.axes) {
-            if (axis < 0)
-                axis += static_cast<int>(getInputShapeAtPort(REDUCE_DATA).getRank());
+        // acl doesn't support empty input
+        if (!isDynamicNode() && shape_size(getInputShapeAtPort(REDUCE_DATA).getStaticDims()) == 0) {
+            canUseAclExecutor = false;
+        } else {
+            reduceAttrs.operation = algorithm;
+            reduceAttrs.keepDims = keep_dims;
+            reduceAttrs.axes = raw_axes;
+            for (auto &axis : reduceAttrs.axes) {
+                if (axis < 0)
+                    axis += static_cast<int>(getInputShapeAtPort(REDUCE_DATA).getRank());
+            }
+            pushDesc(LayoutType::nspc, LayoutType::nspc, input_prec, output_prec, impl_desc_type::undef, true);
+            pushDesc(LayoutType::ncsp, LayoutType::ncsp, input_prec, output_prec, impl_desc_type::undef, true);
+            canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
         }
-        pushDesc(LayoutType::nspc, LayoutType::nspc, input_prec, output_prec, impl_desc_type::undef, true);
-        pushDesc(LayoutType::ncsp, LayoutType::ncsp, input_prec, output_prec, impl_desc_type::undef, true);
-        canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
+
         if (canUseAclExecutor)
             return;
 #endif
@@ -2114,7 +2105,7 @@ void Reduce::prepareParams() {
     auto dstMemPtr = getDstMemoryAtPort(0);
     const auto& src_shape = srcMemPtr->getStaticDims();
     dst_size = dstMemPtr->getSize();
-    empty_input = shape_size(src_shape) == 0 || srcMemPtr->getSize() == 0;
+    empty_input = shape_size(src_shape) == 0;
 #if defined (OV_CPU_WITH_ACL)
     if (canUseAclExecutor) {
         std::vector<MemoryDescPtr> srcMemoryDescs;

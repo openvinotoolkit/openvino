@@ -105,13 +105,6 @@ const std::vector<std::vector<int>> axesGather = {
         {3}
 };
 
-const std::vector<std::vector<int>> axesZeroDim {
-        {1, 3},
-        {0, 1, 3},
-        {1, 2, 3},
-        {0, 1, 2, 3}
-};
-
 const std::vector<std::vector<int>> axesZeroDimFusing = {
         {1, 3},
 };
@@ -160,6 +153,17 @@ const auto fusingFakeQuantizeTranspose = fusingSpecificParams{std::make_shared<p
             const auto transpose = ov::builder::subgraph::Transpose(order);
             return ov::builder::subgraph::makeTranspose(fakeQuantize, transpose);
         }, "FakeQuantize(PerTensor)"}}), {"FakeQuantize"}};
+
+const std::vector<fusingSpecificParams> fusingParamsFullSet {
+        emptyFusingSpec,
+        /* activations */
+        fusingSwish,
+        /* FQ */
+        fusingFakeQuantizePerChannelRelu,
+        fusingFakeQuantizePerTensorRelu,
+        /* another patterns */
+        fusingScaleShift
+};
 
 const std::vector<fusingSpecificParams> fusingParamsSet {
         /* activations */
@@ -342,34 +346,6 @@ const auto params_SingleBatch = testing::Combine(
         testing::Values(emptyFusingSpec),
         testing::ValuesIn(additionalConfig()));
 
-const auto params_DimZero_Arithmetic = testing::Combine(
-        testing::Combine(
-                testing::ValuesIn(axesZeroDim),
-                testing::Values(ov::test::utils::OpType::VECTOR),
-                testing::ValuesIn(keepDims()),
-                testing::ValuesIn(reductionTypesArithmetic()),
-                testing::ValuesIn(inpOutPrc()),
-                testing::Values(ElementType::undefined),
-                testing::Values(ElementType::undefined),
-                testing::ValuesIn(inputShapes_Dynmic_ZeroDim)),
-        testing::Values(emptyCPUSpec),
-        testing::Values(emptyFusingSpec),
-        testing::ValuesIn(additionalConfig()));
-
-const auto params_DimZero_Compare = testing::Combine(
-        testing::Combine(
-                testing::ValuesIn(axesZeroDim),
-                testing::Values(ov::test::utils::OpType::VECTOR),
-                testing::ValuesIn(keepDims()),
-                testing::ValuesIn(reductionTypesCompare()),
-                testing::ValuesIn(inpOutPrc()),
-                testing::Values(ElementType::undefined),
-                testing::Values(ElementType::undefined),
-                testing::ValuesIn(inputShapes_Dynmic_ZeroDim)),
-        testing::Values(emptyCPUSpec),
-        testing::Values(emptyFusingSpec),
-        testing::ValuesIn(additionalConfigFP32()));
-
 INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_OneAxis_CPU,
         ReduceCPULayerTest,
@@ -444,20 +420,6 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_SingleBatch_CPU,
         ReduceCPULayerTest,
         params_SingleBatch,
-        ReduceCPULayerTest::getTestCaseName
-);
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_Reduce_DimZero_Arithmetic_CPU,
-        ReduceCPULayerTest,
-        params_DimZero_Arithmetic,
-        ReduceCPULayerTest::getTestCaseName
-);
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_Reduce_DimZero_Compare_CPU,
-        ReduceCPULayerTest,
-        params_DimZero_Compare,
         ReduceCPULayerTest::getTestCaseName
 );
 
@@ -670,7 +632,7 @@ const auto params_DimZero_Arithmetic_fusing = testing::Combine(
                 testing::Values(ElementType::undefined),
                 testing::ValuesIn(inputShapes_Dynmic_ZeroDim)),
         testing::Values(emptyCPUSpec),
-        testing::ValuesIn(fusingParamsSet),
+        testing::ValuesIn(fusingParamsFullSet),
         testing::ValuesIn(additionalConfig()));
 
 const auto params_DimZero_Compare_fusing = testing::Combine(
@@ -684,7 +646,7 @@ const auto params_DimZero_Compare_fusing = testing::Combine(
                 testing::Values(ElementType::undefined),
                 testing::ValuesIn(inputShapes_Dynmic_ZeroDim)),
         testing::Values(emptyCPUSpec),
-        testing::ValuesIn(fusingParamsSet),
+        testing::ValuesIn(fusingParamsFullSet),
         testing::ValuesIn(additionalConfigFP32()));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -779,34 +741,6 @@ const auto params_MultiAxis_5D_Hybrid_fusing_KeepNoDims = testing::Combine(
         testing::ValuesIn(fusingParamsSet_KeepNoDims),
         testing::ValuesIn(additionalConfigFP32()));
 
-const auto params_DimZero_Arithmetic_fusing_KeepNoDims = testing::Combine(
-        testing::Combine(
-                testing::ValuesIn(axesZeroDimFusing),
-                testing::Values(ov::test::utils::OpType::VECTOR),
-                testing::Values(false),
-                testing::ValuesIn(reductionTypesArithmetic()),
-                testing::ValuesIn(inpOutPrc()),
-                testing::Values(ElementType::undefined),
-                testing::Values(ElementType::undefined),
-                testing::ValuesIn(inputShapes_Dynmic_ZeroDim)),
-        testing::Values(emptyCPUSpec),
-        testing::ValuesIn(fusingParamsSet_KeepNoDims),
-        testing::ValuesIn(additionalConfig()));
-
-const auto params_DimZero_Compare_fusing_KeepNoDims = testing::Combine(
-        testing::Combine(
-                testing::ValuesIn(axesZeroDimFusing),
-                testing::Values(ov::test::utils::OpType::VECTOR),
-                testing::Values(false),
-                testing::ValuesIn(reductionTypesCompare()),
-                testing::ValuesIn(inpOutPrc()),
-                testing::Values(ElementType::undefined),
-                testing::Values(ElementType::undefined),
-                testing::ValuesIn(inputShapes_Dynmic_ZeroDim)),
-        testing::Values(emptyCPUSpec),
-        testing::ValuesIn(fusingParamsSet_KeepNoDims),
-        testing::ValuesIn(additionalConfigFP32()));
-
 INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_OneAxis_fusing_KeepNoDims_CPU,
         ReduceCPULayerTest,
@@ -825,20 +759,6 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_MultiAxis_5D_Hybrid_fusing_KeepNoDims_CPU,
         ReduceCPULayerTest,
         params_MultiAxis_5D_Hybrid_fusing_KeepNoDims,
-        ReduceCPULayerTest::getTestCaseName
-);
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_Reduce_DimZero_Arithmetic_fusing_KeepNoDims_CPU,
-        ReduceCPULayerTest,
-        params_DimZero_Arithmetic_fusing_KeepNoDims,
-        ReduceCPULayerTest::getTestCaseName
-);
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_Reduce_DimZero_Comapre_fusing_KeepNoDims_CPU,
-        ReduceCPULayerTest,
-        params_DimZero_Arithmetic_fusing_KeepNoDims,
         ReduceCPULayerTest::getTestCaseName
 );
 
