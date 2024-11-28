@@ -54,9 +54,10 @@ void check_level_zero_attributes_match(const IODescriptor& ioDescriptor, const A
                     "Maximum number of dimensions supported: " + std::to_string(ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE) +
                         '\n' + "Given: " + std::to_string(ovDimensions.size()));
 
+    const uint32_t dynamicDim = std::numeric_limits<uint32_t>::max();
     for (size_t index = 0; index < ovDimensions.size(); ++index) {
         OPENVINO_ASSERT(
-            ioDescriptor.shapeFromCompiler.is_dynamic() || ovDimensions[index] == zeDescriptor.info.dims[index],
+            ovDimensions[index] == zeDescriptor.info.dims[index] || zeDescriptor.info.dims[index] == dynamicDim,
             "Shape mismatch for input/output named " + ioDescriptor.nameFromCompiler);
     }
     for (size_t index = ovDimensions.size(); index < ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE; ++index) {
