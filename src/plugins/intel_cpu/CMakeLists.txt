@@ -8,6 +8,20 @@ endif()
 
 set(TARGET_NAME "openvino_intel_cpu_plugin")
 
+#TODO: Patch KleidiAI CMakeLists to remove absolute include path
+execute_process(
+    COMMAND git apply ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/kleidiai_include_directories_patch.diff
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/kleidiai
+    RESULT_VARIABLE patch_result
+    OUTPUT_VARIABLE patch_output
+    ERROR_VARIABLE patch_error
+)
+if(NOT patch_result EQUAL 0)
+    message(FATAL_ERROR "Failed to apply patch: ${patch_error}")
+else()
+    message(STATUS "Patch applied successfully: ${patch_output}")
+endif()
+
 if((CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG) AND CMAKE_CXX_STANDARD GREATER_EQUAL 20)
     set(CMAKE_CXX_FLAGS "-Wno-error=deprecated ${CMAKE_CXX_FLAGS}")
 endif()
@@ -292,9 +306,9 @@ include_directories(SYSTEM INTERFACE ${KLEIDIAI_INCLUDE_DIRS})
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:kleidiai,KLEIDIAI_INCLUDE_DIRS>)
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
 
-set(KLEIDIAI_LIB_PATH "/Users/seyedmortezahosseini/Codes/openvino/bin/arm64/Release/libkleidiai.a")
-target_link_libraries(${TARGET_NAME} PRIVATE ${KLEIDIAI_LIB_PATH})
-target_link_options(${TARGET_NAME} PRIVATE "-Wl,-force_load,${KLEIDIAI_LIB_PATH}")
+#set(KLEIDIAI_LIB_PATH "/Users/seyedmortezahosseini/Codes/openvino/bin/arm64/Release/libkleidiai.a")
+target_link_libraries(${TARGET_NAME} PRIVATE kleidiai)
+#target_link_options(${TARGET_NAME} PRIVATE "-Wl,-force_load,${KLEIDIAI_LIB_PATH}")
 
 # Temporal solution to use template reference implementations in cases where optimizied implementation
 # is not (yet) needed.
