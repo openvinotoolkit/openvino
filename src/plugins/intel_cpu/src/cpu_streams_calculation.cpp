@@ -204,13 +204,13 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
         current_socket_id = input_current_socket_id == -1 ? get_current_socket_id() : input_current_socket_id;
         if (input_threads > 0) {
             if (hint_model_distribution_policy.size() == 0) {
+                n_threads_per_stream = std::min(input_threads, proc_type_table[0][ALL_PROC]);
+            } else {
                 for (auto& row : proc_socket_table) {
                     if (current_socket_id == row[PROC_SOCKET_ID]) {
                         n_threads_per_stream = std::min(input_threads, row[ALL_PROC]);
                     }
                 }
-            } else {
-                n_threads_per_stream = std::min(input_threads, proc_type_table[0][ALL_PROC]);
             }
             if (proc_type_table.size() == 1) {
                 if ((n_threads_per_stream > proc_type_table[0][MAIN_CORE_PROC]) &&
