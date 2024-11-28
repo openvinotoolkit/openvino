@@ -115,6 +115,17 @@ std::vector<std::shared_ptr<IGraph>> PluginCompilerAdapter::compileWS(const std:
 
     _logger.debug("compile start");
 
+    const auto starts_with = [](const std::string& str, const std::string& prefix) {
+        return str.substr(0, prefix.size()) == prefix;
+    };
+    const auto isInit = [&](std::string name) {
+        return starts_with(name, "init");
+    };
+    
+    const auto isMain = [&](std::string name) {
+        return starts_with(name, "main");
+    };
+
     switch (config.get<SEPARATE_WEIGHTS_VERSION>()) {
     case 1: {
         const std::vector<std::shared_ptr<NetworkDescription>> initMainNetworkDescriptions =
@@ -124,8 +135,47 @@ std::vector<std::shared_ptr<IGraph>> PluginCompilerAdapter::compileWS(const std:
         mainNetworkDescription = initMainNetworkDescriptions[1];
     } break;
     case 2: {
-        initNetworkDescription = _compiler->compileWS_v2(model, config);
-        mainNetworkDescription = _compiler->compileWS_v2(model, config);
+        // initNetworkDescription = _compiler->compileWS_v2(model, config);
+        // mainNetworkDescription = _compiler->compileWS_v2(model, config);
+
+        std::vector<std::shared_ptr<NetworkDescription>> initDscrs;
+        while(auto networkDescription = _compiler->compileWS_v2(model, config)) {
+            if(isInit(networkDescription->metadata.name)) {
+                initDscrs.push_back(networkDescription);
+                continue;
+            }
+            if(!isMain(networkDescription->metadata.name)) {
+                throw std::runtime_error("Unexpected network name: " + networkDescription->metadata.name);
+            }
+
+            mainNetworkDescription = std::move(networkDescription);
+            break;
+        }
+
+        // FIXME
+        initNetworkDescription = std::move(initDscrs[0]);
+    } break;
+    case 3: {
+        //initNetworkDescription = _compiler->compileWS_v3(model, config, 0);
+        //mainNetworkDescription = _compiler->compileWS_v3(model, config, 1);
+
+        std::vector<std::shared_ptr<NetworkDescription>> initDscrs;
+        size_t i = 0;
+        while(auto networkDescription = _compiler->compileWS_v3(model, config, i++)) {
+            if(isInit(networkDescription->metadata.name)) {
+                initDscrs.push_back(networkDescription);
+                continue;
+            }
+            if(!isMain(networkDescription->metadata.name)) {
+                throw std::runtime_error("Unexpected network name: " + networkDescription->metadata.name);
+            }
+
+            mainNetworkDescription = std::move(networkDescription);
+            break;
+        }
+
+        // FIXME
+        initNetworkDescription = std::move(initDscrs[0]);
     } break;
     default:
         OPENVINO_THROW("Invalid \"SEPARATE_WEIGHTS_VERSION\" value found within the \"compileWS\" call");
