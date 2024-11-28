@@ -736,7 +736,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     ov::AnyMap config_with_batch = config;
     // if auto-batching is applicable, the below function will patch the device name and config accordingly:
     auto model = apply_auto_batching(model_, deviceName, config_with_batch);
-    apply_rt_info(model_, config_with_batch);
+
     auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch, is_proxy_device(device_name));
     auto plugin = get_plugin(parsed._deviceName);
     ov::SoPtr<ov::ICompiledModel> res;
@@ -769,7 +769,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     ov::AnyMap config_with_batch = config;
     // if auto-batching is applicable, the below function will patch the device name and config accordingly:
     auto model = apply_auto_batching(model_, deviceName, config_with_batch);
-    apply_rt_info(model_, config_with_batch);
+
     auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch, is_proxy_device(deviceName));
     auto plugin = get_plugin(parsed._deviceName);
     ov::SoPtr<ov::ICompiledModel> res;
@@ -1096,23 +1096,6 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
         break;
     }
     return ov::details::apply_batch_affinity(model, deviceNameWithoutBatch);
-}
-
-void ov::CoreImpl::apply_rt_info(const std::shared_ptr<const ov::Model>& model, ov::AnyMap& config) const {
-    if (model->has_rt_info({"runtime_options", "KV_CACHE_PRECISION"})) {
-        if (config.find("KV_CACHE_PRECISION") == config.end()) {
-            const auto kv_cache_precision =
-                model->get_rt_info<ov::element::Type>({"runtime_options", "KV_CACHE_PRECISION"});
-            config.insert(ov::hint::kv_cache_precision(kv_cache_precision));
-        }
-    }
-    if (model->has_rt_info({"runtime_options", "DYNAMIC_QUANTIZATION_GROUP_SIZE"})) {
-        if (config.find("DYNAMIC_QUANTIZATION_GROUP_SIZE") == config.end()) {
-            const auto dyn_quant_group_size =
-                model->get_rt_info<uint64_t>({"runtime_options", "DYNAMIC_QUANTIZATION_GROUP_SIZE"});
-            config.insert(ov::hint::dynamic_quantization_group_size(dyn_quant_group_size));
-        }
-    }
 }
 
 void ov::CoreImpl::set_property(const std::string& device_name, const AnyMap& properties) {
