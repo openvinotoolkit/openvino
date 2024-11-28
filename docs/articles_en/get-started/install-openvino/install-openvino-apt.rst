@@ -14,28 +14,8 @@ Install Intel® Distribution of OpenVINO™ Toolkit for Linux Using APT Reposito
    * is dedicated to Linux users only
    * additionally includes code samples
 
-
-.. tab-set::
-
-   .. tab-item:: System Requirements
-      :sync: system-requirements
-
-      | Full requirement listing is available in:
-      | :doc:`System Requirements Page <../../../about-openvino/release-notes-openvino/system-requirements>`
-
-   .. tab-item:: Processor Notes
-      :sync: processor-notes
-
-      | To see if your processor includes the integrated graphics technology and supports iGPU inference, refer to:
-      | `Product Specifications <https://ark.intel.com/>`__
-
-   .. tab-item:: Software Requirements
-      :sync: software-requirements
-
-      * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`__
-      * GCC 7.5.0 (for Ubuntu 18.04), GCC 9.3.0 (for Ubuntu 20.04) or GCC 11.3.0 (for Ubuntu 22.04)
-      * `Python 3.9 - 3.12, 64-bit <https://www.python.org/downloads/>`__
-
+   Before installing OpenVINO, see the
+   :doc:`System Requirements page <../../../about-openvino/release-notes-openvino/system-requirements>`.
 
 Installing OpenVINO Runtime
 #######################################
@@ -57,7 +37,7 @@ Step 1: Set Up the OpenVINO Toolkit APT Repository
 
       .. code-block:: sh
 
-         sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+         sudo gpg --output /etc/apt/trusted.gpg.d/intel.gpg --dearmor GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
 
       .. note::
 

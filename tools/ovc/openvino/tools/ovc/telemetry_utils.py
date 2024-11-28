@@ -25,7 +25,7 @@ def is_optimum():
     return False
 
 
-def init_mo_telemetry(app_name='Model Conversion API', app_version=None):
+def init_ovc_telemetry(app_name='OVC', app_version=None):
     app_version = app_version if app_version is not None else get_rt_version()
     return init_telemetry_class(tid=get_tid(),
                                 app_name=app_name,
@@ -97,22 +97,19 @@ def arg_to_str(arg):
     return str(type(arg))
 
 
-def send_params_info(argv: argparse.Namespace, cli_parser: argparse.ArgumentParser):
+def send_params_info(params: dict):
     """
     This function sends information about used command line parameters.
-    :param argv: command line parameters.
-    :param cli_parser: command line parameters parser.
+    :param params: command-line parameters dictionary.
     """
     t = tm.Telemetry()
     params_with_paths = get_params_with_paths_list()
-    for arg in vars(argv):
-        arg_value = getattr(argv, arg)
-        if not check_values_equal(arg_value, cli_parser.get_default(arg)):
-            if arg in params_with_paths:
-                # If command line argument value is a directory or a path to file it is not sent
-                # as it may contain confidential information. "1" value is used instead.
-                param_str = arg + ":" + str(1)
-            else:
-                param_str = arg + ":" + arg_to_str(arg_value)
+    for key, value in params.items():
+        if key in params_with_paths:
+            # If command line argument value is a directory or a path to file it is not sent
+            # as it may contain confidential information. "1" value is used instead.
+            param_str = key + ":" + str(1)
+        else:
+            param_str = key + ":" + arg_to_str(value)
 
-            t.send_event('ovc', 'cli_parameters', param_str)
+        t.send_event('ovc', 'cli_parameters', param_str)

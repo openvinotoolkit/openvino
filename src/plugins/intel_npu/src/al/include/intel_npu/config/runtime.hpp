@@ -132,6 +132,38 @@ struct CREATE_EXECUTOR final : OptionBase<CREATE_EXECUTOR, int64_t> {
 };
 
 //
+// DEFER_WEIGHTS_LOAD
+//
+
+struct DEFER_WEIGHTS_LOAD final : OptionBase<DEFER_WEIGHTS_LOAD, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::defer_weights_load.name();
+    }
+
+    static int64_t defaultValue() {
+        return false;
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "bool";
+    }
+
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+    static std::string_view envVar() {
+        return "OV_NPU_DEFER_WEIGHTS_LOAD";
+    }
+#endif
+
+    static bool isPublic() {
+        return false;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+};
+
+//
 // NUM_STREAMS
 //
 struct NUM_STREAMS final : OptionBase<NUM_STREAMS, ov::streams::Num> {
@@ -238,4 +270,22 @@ struct BYPASS_UMD_CACHING final : OptionBase<BYPASS_UMD_CACHING, bool> {
         return OptionMode::RunTime;
     }
 };
+
+//
+// RUN_INFERENCES_SEQUENTIALLY
+//
+struct RUN_INFERENCES_SEQUENTIALLY final : OptionBase<RUN_INFERENCES_SEQUENTIALLY, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::run_inferences_sequentially.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+};
+
 }  // namespace intel_npu

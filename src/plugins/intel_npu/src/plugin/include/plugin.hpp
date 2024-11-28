@@ -9,9 +9,7 @@
 #include <string>
 
 #include "backends.hpp"
-#include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
-#include "intel_npu/icompiler.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "metrics.hpp"
 #include "openvino/runtime/iplugin.hpp"
@@ -54,7 +52,7 @@ public:
                                     const ov::AnyMap& properties) const override;
 
 private:
-    ov::SoPtr<ICompiler> getCompiler(const Config& config) const;
+    std::unique_ptr<ICompilerAdapter> getCompiler(const Config& config) const;
 
     std::shared_ptr<NPUBackends> _backends;
 
