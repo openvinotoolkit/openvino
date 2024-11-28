@@ -17,12 +17,11 @@ Linux
 
 To use a GPU device for OpenVINO inference, you must install OpenCL runtime packages.
 
-If you are using a discrete GPU (for example Arc 770), you must also be using a supported Linux kernel as per `documentation. <https://dgpu-docs.intel.com/driver/kernel-driver-types.html>`__
-
-- For Arc GPU, kernel 6.2 or higher is recommended.
+- For Arc A GPU, kernel 6.2 or higher is recommended. Ubuntu 24.04 includes a supported kernel. For more information, refer to `documentation <https://dgpu-docs.intel.com/driver/kernel-driver-types.html>`__ about supported kernels.
+- For Intel Core Ultra series 2 (codenamed Lunar Lake) integrated graphics, kernel 6.11 or higher is required. Follow instructions for `graphics drivers installation <https://dgpu-docs.intel.com/driver/client/overview.html#installing-client-gpus-on-ubuntu-desktop-24-10>`__
 - For Max and Flex GPU, or Arc with kernel version lower than 6.2, you must also install the ``intel-i915-dkms`` and ``xpu-smi`` kernel modules as described in the installation documentation for `Max/Flex <https://dgpu-docs.intel.com/driver/installation.html>`__ or `Arc. <https://dgpu-docs.intel.com/driver/client/overview.html>`__
 
-Below are the instructions on how to install the OpenCL packages on supported Linux distributions. These instructions install the `Intel(R) Graphics Compute Runtime for oneAPI Level Zero and OpenCL(TM) Driver <https://github.com/intel/compute-runtime/releases/tag/23.22.26516.18>`__ and its dependencies:
+Below are the instructions on how to install the OpenCL packages on supported Linux distributions. These instructions install the `Intel(R) Graphics Compute Runtime for oneAPI Level Zero and OpenCL(TM) Driver <https://github.com/intel/compute-runtime>`__ and its dependencies:
 
 - `Intel Graphics Memory Management Library <https://github.com/intel/gmmlib>`__
 - `Intel® Graphics Compiler for OpenCL™ <https://github.com/intel/intel-graphics-compiler>`__
@@ -33,17 +32,11 @@ Below are the instructions on how to install the OpenCL packages on supported Li
    .. tab-item:: Ubuntu 22.04 LTS / Ubuntu 24.04 LTS
       :sync: ubuntu-22
 
-      Download and install the `deb` packages published `here <https://github.com/intel/compute-runtime/releases/latest>`__
-      and install the apt package `ocl-icd-libopencl1` with the OpenCl ICD loader.
-
-      Alternatively, you can add the apt repository by following the
-      `installation guide <https://dgpu-docs.intel.com/driver/installation.html#ubuntu>`__.
-      Then install the `ocl-icd-libopencl1`, `intel-opencl-icd`, `intel-level-zero-gpu` and `level-zero`
-      apt packages:
-
       .. code-block:: sh
 
-         apt-get install -y ocl-icd-libopencl1 intel-opencl-icd intel-level-zero-gpu level-zero
+         apt-get install -y intel-opencl-icd
+
+      Alternatively, install the latest drivers from the `compute-runtime repository <https://github.com/intel/compute-runtime/releases>`__.
 
    .. tab-item:: Ubuntu 20.04 LTS
       :sync: ubuntu-20
