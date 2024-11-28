@@ -76,7 +76,6 @@ JitConstants DynamicQuantizeKernelOpt::GetJitConstants(const dynamic_quantize_pa
     jit.AddConstant(MakeJitConstant("BLOCK_NUM", block_num));
     jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", params.group_sizes.back()));
     jit.AddConstant(MakeJitConstant("ASYMMETRIC_QUANTIZATION", params.use_asymmetric_quantization));
-    jit.AddConstant(MakeJitConstant("IS_2D", params.inputs[0].X().v * params.inputs[0].Y().v == 1 ? 1 : 0));
     jit.Merge(GetTensorFriendlyWorkGroupsJit(params.outputs[0]));
 
     return jit;

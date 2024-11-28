@@ -16,7 +16,6 @@
 #define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
 #define AS_INPUT_TYPE_N(x) AS_TYPE_N(INPUT0_TYPE, VEC_SIZE, x)
 
-
 #if QUANTIZE_GROUP_SIZE <= 128
 
 #if ASYMMETRIC_QUANTIZATION
@@ -30,7 +29,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
     __global OUTPUT1_TYPE* output_scale
     ) {
 
-#if IS_2D
+#if OUTPUT_DIMS == 2
     const uint b = get_global_id(0);
     const uint f_grp = get_global_id(1);
     const uint input_offset = INPUT0_GET_INDEX(b, f_grp * QUANTIZE_GROUP_SIZE, 0, 0);
@@ -66,7 +65,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
         vstore4(quantized_value[i], 0, &output[output_offset + i * 4]);
     }
 
-#if IS_2D
+#if OUTPUT_DIMS == 2
     output_scale[OUTPUT1_GET_INDEX(b, f_grp, 0, 0)] = 1.0h / quan_scale;
 #else
     output_scale[OUTPUT1_GET_INDEX(b, f, y_grp, 0)] = 1.0h / quan_scale;
@@ -91,7 +90,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
     const uint local_id = (uint)get_local_id(1);
 
     const uint block_size = SIMD * VEC_SIZE;
-#if IS_2D
+#if OUTPUT_DIMS == 2
     const uint b_offset = bf * INPUT0_BATCH_PITCH;
 #else
     const uint b_offset = bf * INPUT0_FEATURE_PITCH;

@@ -50,7 +50,7 @@ struct dynamic_quantize_impl : typed_primitive_impl_ocl<dynamic_quantize> {
             params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(2)));
 
         // Keep 2d data as bf layout
-        if (primitive->input_size != 3)
+        if (primitive->input_size == 2)
             params.outputs[0] = params.outputs[0].FlattenFeatureAndSpatials();
 
         const auto& desc = impl_param.typed_desc<dynamic_quantize>();
