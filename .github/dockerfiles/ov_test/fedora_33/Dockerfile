@@ -7,6 +7,7 @@ RUN yum update -y && yum install -y \
     git \
     curl \
     python3 \
+    findutils \
     # parallel gzip
     pigz \
     xz
