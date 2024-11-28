@@ -103,6 +103,14 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
         if (pattern_map.count(matmul_m))
             scaled_op = std::dynamic_pointer_cast<ov::op::Op>(pattern_map.at(matmul_m).get_node_shared_ptr());
 
+        auto child_node = scaled_op->get_output_target_inputs(0).begin()->get_node();
+        if (scaled_op->get_output_target_inputs(0).size() == 1 &&
+            ov::is_type<ov::op::v0::Convert>(child_node) &&
+            ov::fp16_compression_is_disabled(child_node->shared_from_this()) && 
+            ov::pass::constant_folding_is_disabled(child_node->shared_from_this())) {
+            return false;
+        }
+
         if (transformation_callback(scaled_op))
             return false;
 
@@ -121,13 +129,12 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
         std::set<ov::Input<ov::Node>> target_inputs;
         std::shared_ptr<ov::Node> runtime_scaled_op;
 
-        auto child = scaled_op->get_output_target_inputs(0).begin()->get_node();
         bool has_bias = false;
         size_t bias_index = 1;
         {
-            if (scaled_op->get_output_target_inputs(0).size() == 1 && ov::is_type<ov::op::v1::Add>(child)) {
-                bias_index = (child->get_input_node_shared_ptr(0) == scaled_op) ? 1 : 0;
-                const auto& bias_pshape = child->get_input_partial_shape(bias_index);
+            if (scaled_op->get_output_target_inputs(0).size() == 1 && ov::is_type<ov::op::v1::Add>(child_node)) {
+                bias_index = (child_node->get_input_node_shared_ptr(0) == scaled_op) ? 1 : 0;
+                const auto& bias_pshape = child_node->get_input_partial_shape(bias_index);
                 if (bias_pshape.is_static()) {
                     const auto& bias_shape = bias_pshape.get_shape();
                     const bool per_channel = std::count_if(bias_shape.begin(), bias_shape.end(), [](size_t x) { return x > 1; }) == 1;
@@ -139,7 +146,7 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
         }
 
         if (has_bias) {
-            auto add = child->shared_from_this();
+            auto add = child_node->shared_from_this();
             target_inputs = add->get_output_target_inputs(0);
             auto scale_down_bias = std::make_shared<ov::op::v1::Multiply>(
                 add->input(bias_index).get_source_output(),
@@ -673,7 +680,8 @@ ov::pass::activations_scaling::MulConcatTransformation::MulConcatTransformation(
         }
 
         // check if all inputs are Multiply with scalar operand
-        ov::Output<ov::Node> last_dep_const;
+        ov::Output<ov::Node> last_dep_const = {};
+        ov::element::Type last_dep_const_type = ov::element::undefined;
         for (auto& input : concat->inputs()) {
             auto dep_node =
                 std::dynamic_pointer_cast<ov::op::v1::Multiply>(input.get_source_output().get_node_shared_ptr());
@@ -689,9 +697,11 @@ ov::pass::activations_scaling::MulConcatTransformation::MulConcatTransformation(
             }
             last_dep_const =
                 dep_const0 ? dep_node->input(0).get_source_output() : dep_node->input(1).get_source_output();
-            if (!is_scalar_node(last_dep_const)) {
+            if (!is_scalar_node(last_dep_const))
                 return false;
-            }
+            if (last_dep_const_type != ov::element::undefined && last_dep_const_type != last_dep_const.get_element_type())
+                return false;
+            last_dep_const_type = last_dep_const.get_element_type();
         }
 
         auto target_inputs = concat->get_output_target_inputs(0);
@@ -702,17 +712,26 @@ ov::pass::activations_scaling::MulConcatTransformation::MulConcatTransformation(
             size_t const_index = ov::is_type<ov::op::v0::Constant>(dep_input0) ? 0 : 1;
             size_t activation_index = ov::is_type<ov::op::v0::Constant>(dep_input0) ? 1 : 0;
 
-            auto new_mul = register_new_node<ov::op::v1::Multiply>(
-                dep_node->input(activation_index).get_source_output(),
-                ov::op::util::eltwise_fold<ov::op::v1::Divide>(dep_node->input(const_index).get_source_output(),
-                                                               last_dep_const));
+            auto dep_type = dep_node->get_output_element_type(0);
+            auto new_mul = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Multiply>>(
+                std::vector<element::Type>{dep_type, dep_type},
+                std::vector<element::Type>{dep_type},
+                ov::op::TemporaryReplaceOutputType(dep_node->input(activation_index).get_source_output(), dep_type).get(),
+                ov::op::TemporaryReplaceOutputType(ov::op::util::eltwise_fold<ov::op::v1::Divide>(
+                                                    dep_node->input(const_index).get_source_output(),
+                                                    last_dep_const), dep_type).get());
             new_mul->set_friendly_name(dep_node->get_friendly_name() + "_c");
             ov::copy_runtime_info(dep_node, new_mul);
 
             input.replace_source_output(new_mul);
         }
 
-        auto new_mul = register_new_node<ov::op::v1::Multiply>(concat, last_dep_const);
+        auto concat_type = concat->get_output_element_type(0);
+        auto new_mul = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Multiply>>(
+            std::vector<element::Type>{concat_type, concat_type},
+            std::vector<element::Type>{concat_type},
+            ov::op::TemporaryReplaceOutputType(concat->output(0), concat_type).get(),
+            ov::op::TemporaryReplaceOutputType(last_dep_const, concat_type).get());
         new_mul->set_friendly_name(concat->get_friendly_name() + "_c");
         ov::copy_runtime_info(concat, new_mul);
 
