@@ -368,7 +368,7 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
             if (op->get_input_size() > 1 && batch >= 0 && op->get_input_partial_shape(1).rank().is_dynamic()) {
                 set_source_output_shape(*op,
                                         PartialShape::dynamic(output_shape.rank() - data_shape.rank() + batch + 1),
-                                        0);
+                                        1);
                 is_changed = true;
             }
         }
