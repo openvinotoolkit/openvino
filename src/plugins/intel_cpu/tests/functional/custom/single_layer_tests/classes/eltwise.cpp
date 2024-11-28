@@ -318,7 +318,7 @@ const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInp() {
         utils::EltwiseTypes::SUBTRACT,                // TODO: Fix CVS-105430
         utils::EltwiseTypes::DIVIDE,                  // TODO: Fix CVS-105430
         utils::EltwiseTypes::FLOOR_MOD,               // TODO: Fix CVS-111875
-#else if defined(OPENVINO_ARCH_ARM64)
+#elif defined(OPENVINO_ARCH_ARM64)
         utils::EltwiseTypes::FLOOR_MOD,
 #endif
         utils::EltwiseTypes::SQUARED_DIFF,
