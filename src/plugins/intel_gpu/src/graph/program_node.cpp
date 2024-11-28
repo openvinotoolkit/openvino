@@ -1542,7 +1542,7 @@ void program_node::create_onednn_primitive_attributes(
                     size_t rank = cldnn::format::dimension(in.format);
                     auto in_pshape = in.get_partial_shape();
                     auto out_pshape = get_output_layout().get_partial_shape();
-                    size_t ones_to_add = 0;
+                    int ones_to_add = 0;
 
                     if (is_type<fully_connected>()) {
                         auto prim = this->as<fully_connected>().get_primitive();
