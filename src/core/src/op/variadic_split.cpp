@@ -99,7 +99,7 @@ bool VariadicSplit::evaluate(TensorVector& outputs, const TensorVector& inputs) 
             ++out_partial_shape;
         }
 
-        return op::variadic_split::evaluate(outputs, inputs);
+        return variadic_split::evaluate(outputs, inputs);
     } else {
         return false;
     }
@@ -112,18 +112,16 @@ bool VariadicSplit::has_evaluate() const {
 
 bool VariadicSplit::evaluate_lower(TensorVector& output_values) const {
     OV_OP_SCOPE(v1_Split_evaluate_lower);
-    return op::variadic_split::has_axis_and_splits_bound_set(this) &&
-           default_lower_bound_evaluator(this, output_values);
+    return variadic_split::has_axis_and_splits_bound_set(this) && default_lower_bound_evaluator(this, output_values);
 }
 
 bool VariadicSplit::evaluate_upper(TensorVector& output_values) const {
     OV_OP_SCOPE(v1_Split_evaluate_upper);
-    return op::variadic_split::has_axis_and_splits_bound_set(this) &&
-           default_upper_bound_evaluator(this, output_values);
+    return variadic_split::has_axis_and_splits_bound_set(this) && default_upper_bound_evaluator(this, output_values);
 }
 
 bool VariadicSplit::evaluate_symbol(TensorSymbolVector& output_symbols) const {
-    return op::variadic_split::has_axis_and_splits_bound_set(this) &&
+    return variadic_split::has_axis_and_splits_bound_set(this) &&
            ov::util::default_symbol_evaluator(this, output_symbols);
 }
 }  // namespace v1

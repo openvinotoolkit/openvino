@@ -10,8 +10,6 @@
 
 namespace ov {
 namespace op {
-namespace v1 {
-
 namespace variadic_split {
 template <typename T, class TRShape = result_shape_t<T>>
 std::vector<TRShape> shape_infer(const Node* op,
@@ -123,11 +121,12 @@ std::vector<TRShape> shape_infer(const Node* op,
 }
 }  // namespace variadic_split
 
+namespace v1 {
 template <typename T, class TRShape = result_shape_t<T>>
 std::vector<TRShape> shape_infer(const VariadicSplit* op,
                                  const std::vector<T>& input_shapes,
                                  const ITensorAccessor& ta = make_tensor_accessor()) {
-    return variadic_split::shape_infer(op, input_shapes, ta);
+    return op::variadic_split::shape_infer(op, input_shapes, ta);
 }
 
 }  // namespace v1
