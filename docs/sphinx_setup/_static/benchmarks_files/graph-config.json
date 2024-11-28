@@ -152,8 +152,6 @@
         "parameters": {
             "name": "parameters",
             "data": [
-                "Vllm",
-                "Ovms"
             ]
         },
         "precision": {
