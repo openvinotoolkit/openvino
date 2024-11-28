@@ -17,8 +17,7 @@ Install required dependencies:
 
    python -m venv npu-env
    npu-env\Scripts\activate
-   pip install nncf==2.12 onnx==1.16.1 optimum-intel==1.19.0
-   pip install openvino==2024.5 openvino-tokenizers==2024.5 openvino-genai==2024.5
+   pip install --upgrade --upgrade-strategy eager optimum[openvino] openvino-genai>=2024.5
 
 Note that for systems based on Intel® Core™ Ultra Processors Series 2, more than 16GB of RAM
 may be required to run prompts over 1024 tokens on models exceeding 7B parameters,
@@ -27,7 +26,7 @@ such as Llama-2-7B, Mistral-0.2-7B, and Qwen-2-7B.
 Export an LLM model via Hugging Face Optimum-Intel
 ##################################################
 
-Since **symmetrically-quantized 4-bit (INT4) models are preffered for inference on NPU**, make
+Since **symmetrically-quantized 4-bit (INT4) models are supported for inference on NPU**, make
 sure to export the model with the proper conversion and optimization settings.
 
 | You may export LLMs via Optimum-Intel, using one of two compression methods:
@@ -44,7 +43,7 @@ You select one of the methods by setting the ``--group-size`` parameter to eithe
       .. code-block:: console
          :name: group-quant
 
-         optimum-cli export openvino -m TinyLlama/TinyLlama-1.1B-Chat-v1.0 --weight-format int4 --sym --ratio 1.0 --group_size 128 TinyLlama-1.1B-Chat-v1.0
+         optimum-cli export openvino -m TinyLlama/TinyLlama-1.1B-Chat-v1.0 --weight-format int4 --sym --ratio 1.0 --group-size 128 TinyLlama-1.1B-Chat-v1.0
 
    .. tab-item:: Channel-wise quantization
 
@@ -62,7 +61,7 @@ You select one of the methods by setting the ``--group-size`` parameter to eithe
 
             If you want to improve accuracy, make sure you:
 
-            1. Update NNCF: ``pip install nncf==2.13``
+            1. Update NNCF: ``pip install --upgrade nncf``
             2. Use ``--scale_estimation --dataset=<dataset_name>`` and accuracy aware quantization ``--awq``:
 
                .. code-block:: console
@@ -87,7 +86,7 @@ which do not require specifying quantization parameters:
 
 
 | Remember, NPU supports GenAI models quantized symmetrically to INT4.
-| Below is a list of such models:
+| Below is a list of supported models:
 
 * meta-llama/Meta-Llama-3-8B-Instruct
 * microsoft/Phi-3-mini-4k-instruct
@@ -118,6 +117,7 @@ you need to add ``do_sample=False`` **to the** ``generate()`` **method:**
          :emphasize-lines: 4
 
          import openvino_genai as ov_genai
+
          model_path = "TinyLlama"
          pipe = ov_genai.LLMPipeline(model_path, "NPU")
          print(pipe.generate("The Sun is yellow because", max_new_tokens=100, do_sample=False))
@@ -184,8 +184,8 @@ Cache compiled models
 +++++++++++++++++++++
 
 Specify the ``NPUW_CACHE_DIR`` option in ``pipeline_config`` for NPU pipeline to
-cache the compiled models. Using the code snippet below shortens the initialization time
-of the pipeline runs coming next:
+cache the compiled models in the specified directory.  Using the code snippet below caches the models on the first
+run; on subsequent runs the models will be loaded from cache, resulting in much faster pipeline initialization.
 
 .. tab-set::
 
