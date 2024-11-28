@@ -563,34 +563,34 @@ public:
         auto input0 = model->get_parameters().at(0);
         auto input1 = model->get_parameters().at(1);
 
-        auto infer_request1 = compiled_model.create_infer_request();
-        auto infer_request2 = compiled_model.create_infer_request();
+        auto ireq1 = compiled_model.create_infer_request();
+        auto ireq2 = compiled_model.create_infer_request();
 
-        auto tensor1_input1 = ov::test::utils::create_and_fill_tensor_real_distribution(element_type, {n_batch, context_size, n_heads, n_features}, -0.5f, 0.5f, 1);
-        auto tensor1_input2 = ov::test::utils::create_and_fill_tensor_real_distribution(element_type, {n_batch, n_heads, context_size, context_size}, -0.5f, 0.5f, 1);
-        infer_request1.set_tensor(input0, tensor1_input1);
-        infer_request1.set_tensor(input1, tensor1_input2);
+        auto ireq1_input0 = ov::test::utils::create_and_fill_tensor_real_distribution(element_type, {n_batch, context_size, n_heads, n_features}, -0.5f, 0.5f, 1);
+        auto ireq1_input1 = ov::test::utils::create_and_fill_tensor_real_distribution(element_type, {n_batch, n_heads, context_size, context_size}, -0.5f, 0.5f, 1);
+        ireq1.set_tensor(input0, ireq1_input0);
+        ireq1.set_tensor(input1, ireq1_input1);
 
-        auto tensor2_input1 = ov::test::utils::create_and_fill_tensor_real_distribution(element_type, {n_batch, context_size + 1, n_heads, n_features}, -0.5f, 0.5f, 555);
-        auto tensor2_input2 = ov::test::utils::create_and_fill_tensor_real_distribution(element_type, {n_batch, n_heads, context_size + 1, context_size + 1}, -0.5f, 0.5f, 555);
-        infer_request2.set_tensor(input0, tensor2_input1);
-        infer_request2.set_tensor(input1, tensor2_input2);
+        auto ireq2_input0 = ov::test::utils::create_and_fill_tensor_real_distribution(element_type, {n_batch, context_size + 1, n_heads, n_features}, -0.5f, 0.5f, 555);
+        auto ireq2_input1 = ov::test::utils::create_and_fill_tensor_real_distribution(element_type, {n_batch, n_heads, context_size + 1, context_size + 1}, -0.5f, 0.5f, 555);
+        ireq2.set_tensor(input0, ireq2_input0);
+        ireq2.set_tensor(input1, ireq2_input1);
 
         std::stringstream oss1;
         std::stringstream oss2;
-        for (auto&& state : infer_request1.query_state()) {
+        for (auto&& state : ireq1.query_state()) {
             state.reset();
         }
-        infer_request1.infer();
-        for (auto&& state : infer_request1.query_state()) {
+        ireq1.infer();
+        for (auto&& state : ireq1.query_state()) {
             oss1.write((char*)state.get_state().data(), state.get_state().get_byte_size());
         }
 
-        for (auto&& state : infer_request2.query_state()) {
+        for (auto&& state : ireq2.query_state()) {
             state.reset();
         }
-        infer_request2.infer();
-        for (auto&& state : infer_request1.query_state()) {
+        ireq2.infer();
+        for (auto&& state : ireq1.query_state()) {
             oss2.write((char*)state.get_state().data(), state.get_state().get_byte_size());
         }
 
@@ -598,7 +598,7 @@ public:
     }
 };
 
-TEST_F(KVCacheIssueTests, smoke_issue_cases) {
+TEST_F(KVCacheIssueTests, conflicted_memory_for_two_inf_req) {
     this->test_smoke_conflicted_memory_for_two_inf_req();
 }
 
