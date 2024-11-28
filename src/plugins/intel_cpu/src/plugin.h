@@ -50,7 +50,7 @@ private:
 
     void get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) const;
     void calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported = false) const;
-
+    void apply_rt_info(const std::shared_ptr<const ov::Model>& model, ov::intel_cpu::Config& config) const;
     Config engConfig;
     /* Explicily configured streams have higher priority than performance hints.
        So track if streams is set explicitly (not auto-configured) */

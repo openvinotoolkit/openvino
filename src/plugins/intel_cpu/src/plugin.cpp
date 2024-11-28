@@ -206,6 +206,16 @@ static Config::ModelType getModelType(const std::shared_ptr<const Model>& model)
     return Config::ModelType::Unknown;
 }
 
+void Plugin::apply_rt_info(const std::shared_ptr<const ov::Model>& model, ov::intel_cpu::Config& config) const {
+    if (model->has_rt_info({"runtime_options", "KV_CACHE_PRECISION"})) {
+        config.kvCachePrecision = model->get_rt_info<ov::element::Type>({"runtime_options", "KV_CACHE_PRECISION"});
+    }
+    if (model->has_rt_info({"runtime_options", "DYNAMIC_QUANTIZATION_GROUP_SIZE"})) {
+        config.fcDynamicQuantizationGroupSize =
+            model->get_rt_info<uint64_t>({"runtime_options", "DYNAMIC_QUANTIZATION_GROUP_SIZE"});
+    }
+}
+
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                           const ov::AnyMap& orig_config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Plugin::compile_model");
@@ -246,6 +256,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // update the props after the perf mode translated to configs
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
+    apply_rt_info(cloned_model, conf);
     conf.readProperties(config, modelType);
 
     Transformations transformations(cloned_model, conf);
@@ -519,6 +530,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
     Config conf = engConfig;
     Config::ModelType modelType = getModelType(model);
+    apply_rt_info(model, conf);
     conf.readProperties(config, modelType);
 
     auto context = std::make_shared<GraphContext>(conf, fake_w_cache, false);
@@ -574,6 +586,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
 
     Config conf = engConfig;
     Config::ModelType modelType = getModelType(model);
+    apply_rt_info(model, conf);
 
     // check ov::loaded_from_cache property and erase it to avoid exception in readProperties.
     auto _config = config;
