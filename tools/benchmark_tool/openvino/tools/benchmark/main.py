@@ -49,6 +49,9 @@ def parse_and_check_command_line():
         raise Exception("Cannot set precision for a compiled model. " \
                         "Please re-compile your model with required precision.")
 
+    if args.api_type == "sync" and args.number_infer_requests > args.number_iterations:
+        raise Exception("Number of infer requests should be less than or equal to number of iterations in sync mode.")
+
     return args, is_network_compiled
 
 def main():
@@ -85,7 +88,8 @@ def main():
         next_step(step_id=2)
 
         benchmark = Benchmark(args.target_device, args.number_infer_requests,
-                              args.number_iterations, args.time, args.api_type, args.inference_only)
+                              args.number_iterations, args.time, args.api_type,
+                              args.inference_only, args.maximum_inference_rate)
 
         if args.extensions:
             benchmark.add_extension(path_to_extensions=args.extensions)

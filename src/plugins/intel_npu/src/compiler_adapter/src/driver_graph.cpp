@@ -10,13 +10,13 @@
 
 namespace intel_npu {
 
-DriverGraph::DriverGraph(const std::shared_ptr<ZeGraphExtWrappersInterface>& zeGraphExt,
+DriverGraph::DriverGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
                          const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                          ze_graph_handle_t graphHandle,
                          NetworkMetadata metadata,
                          const Config& config,
                          std::optional<std::vector<uint8_t>> blob)
-    : IGraph(graphHandle, std::move(metadata), std::move(blob)),
+    : IGraph(graphHandle, std::move(metadata), config, std::move(blob)),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
       _logger("DriverGraph", config.get<LOG_LEVEL>()) {
@@ -109,12 +109,10 @@ void DriverGraph::initialize(const Config& config) {
         turbo = config.get<TURBO>();
     }
 
-    _command_queue = std::make_shared<CommandQueue>(_zeroInitStruct->getDevice(),
-                                                    _zeroInitStruct->getContext(),
+    _command_queue = std::make_shared<CommandQueue>(_zeroInitStruct,
                                                     zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                    _zeroInitStruct->getCommandQueueDdiTable(),
-                                                    turbo,
-                                                    groupOrdinal);
+                                                    groupOrdinal,
+                                                    turbo);
 
     if (config.has<WORKLOAD_TYPE>()) {
         set_workload_type(config.get<WORKLOAD_TYPE>());
@@ -128,6 +126,16 @@ void DriverGraph::initialize(const Config& config) {
     //  _zeGraphExt->initializeGraph(). The driver will not access the original blob from this moment on, so we are
     //  releasing it here to avoid unnecessary memory usage.
     _blobIsReleased = release_blob(config);
+
+    if (config.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER) {
+        _batch_size = get_batch_size(_metadata);
+    }
+
+    if (config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        auto number_of_command_lists = _batch_size.has_value() ? *_batch_size : 1;
+
+        _last_submitted_event.resize(number_of_command_lists);
+    }
 }
 
 bool DriverGraph::release_blob(const Config& config) {

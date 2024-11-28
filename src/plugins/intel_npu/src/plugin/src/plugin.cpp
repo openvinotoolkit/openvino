@@ -538,12 +538,6 @@ Plugin::Plugin()
           [&](const Config&) {
               return _metrics->GetBackendName();
           }}},
-        {ov::intel_npu::use_elf_compiler_backend.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.getString<USE_ELF_COMPILER_BACKEND>();
-          }}},
         {ov::intel_npu::create_executor.name(),
          {false,
           ov::PropertyMutability::RW,
@@ -573,6 +567,12 @@ Plugin::Plugin()
           ov::PropertyMutability::RW,
           [](const Config& config) {
               return config.getString<BACKEND_COMPILATION_PARAMS>();
+          }}},
+        {ov::intel_npu::run_inferences_sequentially.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<RUN_INFERENCES_SEQUENTIALLY>();
           }}},
         {ov::intel_npu::batch_mode.name(), {false, ov::PropertyMutability::RW, [](const Config& config) {
                                                 return config.getString<BATCH_MODE>();

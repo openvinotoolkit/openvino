@@ -26,4 +26,19 @@ void init_class(Napi::Env env,
                 Prototype func,
                 Napi::FunctionReference& reference);
 
+template <typename Callable>
+void init_function(Napi::Env env,
+                   Napi::Object exports,
+                   std::string func_name,
+                   Callable func) {
+    const auto& napi_func = Napi::Function::New(env, func, func_name);
+
+    exports.Set(func_name, napi_func);
+}
+
 Napi::Object init_module(Napi::Env env, Napi::Object exports);
+
+/**
+     * @brief Saves model in a specified path.
+*/
+Napi::Value save_model_sync(const Napi::CallbackInfo& info);

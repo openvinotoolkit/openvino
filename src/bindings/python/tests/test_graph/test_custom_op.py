@@ -12,7 +12,7 @@ from openvino import CompiledModel, Model, Dimension, Shape, Tensor, compile_mod
 from openvino.runtime import DiscreteTypeInfo
 import openvino.runtime.opset14 as ops
 
-from tests.utils.helpers import create_filename_for_test
+from tests.utils.helpers import create_filenames_for_ir
 
 
 class CustomOp(Op):
@@ -108,7 +108,7 @@ class CustomOpWithAttribute(Op):
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 @pytest.fixture
 def prepared_paths(request, tmp_path):
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
 
     yield xml_path, bin_path
 

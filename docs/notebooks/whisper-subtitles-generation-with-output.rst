@@ -78,11 +78,16 @@ Install dependencies.
 
 .. code:: ipython3
 
-    %pip install -q "nncf>=2.13.0"
-    %pip install -q --pre -U "openvino" "openvino-tokenizers" "openvino-genai" --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+    import platform
+    
+    %pip install -q "nncf>=2.14.0"
+    %pip install -q -U "openvino>=2024.5.0" "openvino-tokenizers>=2024.5.0" "openvino-genai>=2024.5.0"
     %pip install -q "python-ffmpeg<=1.0.16" "ffmpeg" "moviepy" "transformers>=4.45" "git+https://github.com/huggingface/optimum-intel.git" "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q -U "yt_dlp>=2024.8.6" soundfile librosa jiwer
-    %pip install -q  "gradio>=4.19"
+    %pip install -q  "gradio>=4.19" "typing_extensions>=4.9"
+    
+    if platform.system() == "Darwin":
+        %pip install -q "numpy<2.0"
 
 .. code:: ipython3
 
@@ -243,9 +248,9 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import openvino_genai
+    import openvino_genai as ov_genai
     
-    ov_pipe = openvino_genai.WhisperPipeline(str(model_dir), device=device.value)
+    ov_pipe = ov_genai.WhisperPipeline(str(model_dir), device=device.value)
 
 Run video transcription pipeline
 --------------------------------
@@ -529,6 +534,7 @@ Please select below whether you would like to run Whisper quantization.
     open("skip_kernel_extension.py", "w").write(r.text)
     
     ov_quantized_model = None
+    quantized_ov_pipe = None
     
     %load_ext skip_kernel_extension
 
@@ -562,6 +568,8 @@ interface for ``automatic-speech-recognition``.
 
 .. code:: ipython3
 
+    %%skip not $to_quantize.value
+    
     from transformers import AutoProcessor
     from optimum.intel.openvino import OVModelForSpeechSeq2Seq
     
@@ -692,7 +700,7 @@ negligible.
             shutil.copy(model_path / "merges.txt", quantized_model_path / "merges.txt")
             shutil.copy(model_path / "added_tokens.json", quantized_model_path / "added_tokens.json")
     
-        quantized_ov_pipe = openvino_genai.WhisperPipeline(str(quantized_model_path), device=device.value)
+        quantized_ov_pipe = ov_genai.WhisperPipeline(str(quantized_model_path), device=device.value)
         return quantized_ov_pipe
     
     

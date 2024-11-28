@@ -293,12 +293,6 @@ void CompiledModel::initialize_properties() {
           [](const Config& config) {
               return config.getString<DYNAMIC_SHAPE_TO_STATIC>();
           }}},
-        {ov::intel_npu::use_elf_compiler_backend.name(),
-         {false,
-          ov::PropertyMutability::RO,
-          [](const Config& config) {
-              return config.getString<USE_ELF_COMPILER_BACKEND>();
-          }}},
         {ov::intel_npu::create_executor.name(),
          {false,
           ov::PropertyMutability::RO,
@@ -316,6 +310,12 @@ void CompiledModel::initialize_properties() {
           ov::PropertyMutability::RO,
           [](const Config& config) {
               return config.getString<BATCH_MODE>();
+          }}},
+        {ov::intel_npu::run_inferences_sequentially.name(),
+         {false,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.get<RUN_INFERENCES_SEQUENTIALLY>();
           }}},
     };
 

@@ -59,7 +59,7 @@ implemented in your solutions. Click the buttons below to see the chosen benchma
    .. grid-item::
 
       .. button-link:: #
-         :class: ovms-toolkit-benchmark-llm
+         :class: ovms-toolkit-benchmark-llm-result
          :color: primary
          :outline:
          :expand:
@@ -132,21 +132,21 @@ For a listing of all platforms and configurations used for testing, refer to the
 
    .. grid-item::
 
-      .. button-link:: ../_static/benchmarks_files/OV-2024.4-platform_list.pdf
+      .. button-link:: ../_static/benchmarks_files/OV-2024.5-platform_list.pdf
          :color: primary
          :outline:
          :expand:
 
          :material-regular:`download;1.5em` Click for Hardware Platforms [PDF]
 
-      .. button-link:: ../_static/benchmarks_files/OV-2024.4-system-info-detailed.xlsx
+      .. button-link:: ../_static/benchmarks_files/OV-2024.5-system-info-detailed.xlsx
          :color: primary
          :outline:
          :expand:
 
          :material-regular:`download;1.5em` Click for Configuration Details [XLSX]
 
-      .. button-link:: ../_static/benchmarks_files/OV-2024.4-Performance-Data.xlsx
+      .. button-link:: ../_static/benchmarks_files/OV-2024.5-Performance-Data.xlsx
          :color: primary
          :outline:
          :expand:
@@ -160,10 +160,10 @@ For a listing of all platforms and configurations used for testing, refer to the
 **Disclaimers**
 
 * Intel® Distribution of OpenVINO™ toolkit performance results are based on release
-  2024.3, as of July 31, 2024.
+  2024.5, as of November 20, 2024.
 
 * OpenVINO Model Server performance results are based on release
-  2024.3, as of Aug. 19, 2024.
+  2024.4, as of Sept. 30, 2024.
 
 The results may not reflect all publicly available updates. Intel technologies' features and
 benefits depend on system configuration and may require enabled hardware, software, or service
