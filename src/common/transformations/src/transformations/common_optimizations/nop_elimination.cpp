@@ -446,6 +446,18 @@ pass::EliminateConvert::EliminateConvert() {
         if (convert->get_input_element_type(0) == convert->get_element_type()) {
             return replace_output_update_name(convert->output(0), convert->input_value(0));
         }
+
+        // Eliminate useless convert pattern:
+        // Convert[fp16->fp32] -> Convert[fp32->f16]
+        if (convert && convert->get_output_size() > 0u && convert->get_input_size() > 0u) {
+            auto convert2 = ov::as_type_ptr<ov::op::v0::Convert>(
+                convert->get_output_target_inputs(0).begin()->get_node()->shared_from_this());
+            if (convert2 && convert->get_input_element_type(0) == convert2->get_output_element_type(0) &&
+                convert->get_output_partial_shape(0) == convert2->get_output_partial_shape(0)) {
+                replace_output_update_name(convert2->output(0), convert->input_value(0));
+            }
+        }
+
         return false;
     };
 
