@@ -39,8 +39,8 @@ public:
     bool operator!=(const LazyTensor& other) const;
 
     ov::Tensor eval() const;
-
     std::size_t get_hash() const;
+    void detach();
 
 private:
     std::shared_ptr<LazyTensorImpl> m_impl = nullptr;

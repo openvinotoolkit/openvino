@@ -23,7 +23,7 @@ using ov::npuw::online::detail::isOp;
 Group::Group(const std::shared_ptr<ov::Node>& node,
              size_t gid,
              own::ade::NodeHandle nh,
-             const std::shared_ptr<own::ade::Graph>& g,
+             const std::weak_ptr<own::ade::Graph>& g,
              const std::weak_ptr<Snapshot>& snapshot)
     : m_nh(std::move(nh)),
       m_id(gid),
@@ -36,7 +36,7 @@ Group::Group(const std::shared_ptr<ov::Node>& node,
 
 Group::Group(size_t gid,
              own::ade::NodeHandle nh,
-             const std::shared_ptr<own::ade::Graph>& g,
+             const std::weak_ptr<own::ade::Graph>& g,
              const std::weak_ptr<Snapshot>& snapshot)
     : m_nh(std::move(nh)),
       m_id(gid),
@@ -214,14 +214,16 @@ void Group::relinkGraph(const Group::GPtr& gptr_other) {
     auto consumers = gptr_other->dstNodes();
 
     // Remove gptr_other node from the graph. Note: also removes all it's edges
-    m_graph->remove(gptr_other->getHandle());
+    auto&& graph = m_graph.lock();
+    NPUW_ASSERT(graph);
+    graph->remove(gptr_other->getHandle());
     for (const auto& nh : producers) {
         if (m_nh == nh) {
             continue;
         }
         // relink the graph
-        if (!m_graph->linked(nh, m_nh)) {
-            m_graph->link(nh, m_nh);
+        if (!graph->linked(nh, m_nh)) {
+            graph->link(nh, m_nh);
         }
     }
     for (const auto& nh : consumers) {
@@ -229,8 +231,8 @@ void Group::relinkGraph(const Group::GPtr& gptr_other) {
             continue;
         }
         // relink the graph
-        if (!m_graph->linked(m_nh, nh)) {
-            m_graph->link(m_nh, nh);
+        if (!graph->linked(m_nh, nh)) {
+            graph->link(m_nh, nh);
         }
     }
 }

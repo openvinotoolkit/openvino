@@ -19,23 +19,34 @@ namespace npuw {
 namespace weights {
 namespace op {
 struct Const {
-    std::shared_ptr<ov::op::v0::Constant> node;
+    std::shared_ptr<ov::op::v0::Constant> m_node;
+    ov::element::Type m_cached_type;
+    ov::Shape m_cached_shape;
+    const void* m_cached_ptr = nullptr;
 
+    explicit Const(std::shared_ptr<ov::op::v0::Constant> n) : m_node(n) {
+        m_cached_type = m_node->get_element_type();
+        m_cached_shape = m_node->get_shape();
+        m_cached_ptr = m_node->get_data_ptr();
+    }
     std::size_t hash() const {
-        std::size_t seed = std::hash<const void*>()(node->get_data_ptr()) + 0x9e3779b9;
-        seed ^= node->get_element_type().hash() + 0x9e3779b9;
-        for (const auto& dim : node->get_shape()) {
+        std::size_t seed = std::hash<const void*>()(m_cached_ptr) + 0x9e3779b9;
+        seed ^= m_cached_type.hash() + 0x9e3779b9;
+        for (const auto& dim : m_cached_shape) {
             seed ^= std::hash<std::size_t>()(dim) + 0x9e3779b9;
         }
         return seed;
     }
     bool operator==(const Const& other) const {
-        return (node->get_shape() == other.node->get_shape() &&
-                node->get_element_type() == other.node->get_element_type() &&
-                node->get_data_ptr() == other.node->get_data_ptr());
+        return (m_cached_type == other.m_cached_type && m_cached_shape == other.m_cached_shape &&
+                m_cached_ptr == other.m_cached_ptr);
     }
     ov::Tensor eval() const {
-        return ov::npuw::util::tensor_from_const(node);
+        NPUW_ASSERT(m_node && "Const::eval() can only happen before detach");
+        return ov::npuw::util::tensor_from_const(m_node);
+    }
+    void detach() {
+        m_node.reset();
     }
 };
 struct Concat {
@@ -58,6 +69,11 @@ struct Concat {
             to_concat.push_back(lt.eval());
         }
         return ov::npuw::util::concat(to_concat, axis);
+    }
+    void detach() {
+        for (auto&& lt : tensors) {
+            lt.detach();
+        }
     }
 };
 
@@ -95,6 +111,11 @@ struct Unpack {
         }
         return dst;
     }
+    void detach() {
+        w.detach();
+        z.detach();
+        s.detach();
+    }
 };
 struct Permute {
     LazyTensor tensor;
@@ -113,6 +134,9 @@ struct Permute {
     ov::Tensor eval() const {
         return ov::npuw::util::permute(tensor.eval(), axes);
     }
+    void detach() {
+        tensor.detach();
+    }
 };
 struct Convert {
     LazyTensor tensor;
@@ -130,6 +154,9 @@ struct Convert {
         NPUW_ASSERT(ov::element::f16 == type);
         return ov::npuw::util::to_f16(tensor.eval());
     }
+    void detach() {
+        tensor.detach();
+    }
 };
 }  // namespace op
 
@@ -137,16 +164,16 @@ using Transform = std::variant<op::Const, op::Concat, op::Unpack, op::Permute, o
 
 struct LazyTensorImpl {
 public:
-    LazyTensorImpl() = default;
     explicit LazyTensorImpl(Transform&& t);
+    bool operator==(const LazyTensorImpl& other) const;
 
     ov::Tensor eval() const;
-
-    bool operator==(const LazyTensorImpl& other) const;
     std::size_t get_hash() const;
 
+    void detach();
+
     Transform m_transform;
-    std::size_t m_hash = 0;
+    const std::size_t m_hash = 0;
 };
 
 }  // namespace weights
@@ -165,26 +192,12 @@ struct overloaded : Ts... {
 template <class... Ts>
 overloaded(Ts...) -> overloaded<Ts...>;
 
-std::size_t LazyTensorImpl::get_hash() const {
-    // Already calculated
-    if (m_hash != 0) {
-        return m_hash;
-    }
-
-    // Get hash
-    std::size_t seed = 0;
-    std::visit(overloaded{[&seed](const auto& op) {
-                   seed ^= op.hash();
-               }},
-               m_transform);
-
-    return seed;
-}
-
-LazyTensorImpl::LazyTensorImpl(Transform&& t) {
-    m_transform = std::move(t);
-    m_hash = get_hash();
-}
+LazyTensorImpl::LazyTensorImpl(Transform&& t)
+    : m_transform(std::move(t)),
+      m_hash(std::visit(overloaded{[](const auto& op) {
+                            return op.hash();
+                        }},
+                        m_transform)) {}
 
 bool LazyTensorImpl::operator==(const LazyTensorImpl& other) const {
     return m_hash == other.m_hash && m_transform == other.m_transform;
@@ -200,17 +213,25 @@ ov::Tensor LazyTensorImpl::eval() const {
     some kind of indicator that the only difference is concat and we should look for an existing ov::Tensor.
     Perhaps it should be done after model compilation and not handled here.
     */
+    return std::visit(overloaded{[](const auto& op) {
+                          return op.eval();
+                      }},
+                      m_transform);
+}
 
-    ov::Tensor result = std::visit(overloaded{[](const auto& op) {
-                                       return op.eval();
-                                   }},
-                                   m_transform);
-    NPUW_ASSERT(result);
-    return result;
+std::size_t LazyTensorImpl::get_hash() const {
+    return m_hash;
+}
+
+void LazyTensorImpl::detach() {
+    std::visit(overloaded{[](auto& op) {
+                   op.detach();
+               }},
+               m_transform);
 }
 
 LazyTensor::LazyTensor(const std::shared_ptr<ov::op::v0::Constant>& const_ptr)
-    : m_impl(std::make_shared<LazyTensorImpl>(op::Const{const_ptr})) {}
+    : m_impl(std::make_shared<LazyTensorImpl>(op::Const(const_ptr))) {}
 LazyTensor::LazyTensor(const std::vector<LazyTensor>& to_concat, const std::size_t axis)
     : m_impl(std::make_shared<LazyTensorImpl>(op::Concat{to_concat, axis})) {}
 LazyTensor::LazyTensor(const LazyTensor& cw,
@@ -233,11 +254,17 @@ LazyTensor LazyTensor::convert(const ov::element::Type& type) {
 }
 
 bool LazyTensor::operator==(const LazyTensor& other) const {
+    if (!m_impl && !other.m_impl) {
+        return true;
+    }
+    if ((!m_impl && other.m_impl) || (m_impl && !other.m_impl)) {
+        return false;
+    }
     return *m_impl.get() == *other.m_impl.get();
 }
 
 bool LazyTensor::operator!=(const LazyTensor& other) const {
-    return !(*m_impl.get() == *other.m_impl.get());
+    return !(*this == other);
 }
 
 ov::Tensor LazyTensor::eval() const {
@@ -252,6 +279,12 @@ std::size_t LazyTensor::get_hash() const {
         return 0;
     }
     return m_impl->get_hash();
+}
+
+void LazyTensor::detach() {
+    if (m_impl) {
+        m_impl->detach();
+    }
 }
 
 std::size_t LazyTensor::Hash::operator()(const LazyTensor& lt) const {
