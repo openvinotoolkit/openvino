@@ -44,7 +44,7 @@ For UNIX-like systems, you can use ``wget``:
 
 
 The link was taken from ``setup.sh`` in the ``speech_recoginitin/rnnt`` subfolder. You will get exactly the same weights as
-if you were following the `guide <https://github.com/mlcommons/inference/tree/master/speech_recognition/rnnt>`__.
+if you were following the `guide <https://github.com/mlcommons/inference/tree/master/retired_benchmarks/speech_recognition/rnnt>`__.
 
 **Step 4**. Install required Python packages:
 

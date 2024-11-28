@@ -60,9 +60,12 @@ Config::Config() {
  * configuration properties
  */
 void Config::applyDebugCapsProperties() {
-    // always enable perf counters for verbose mode and performance summary
-    if (!debugCaps.verbose.empty() || !debugCaps.summaryPerf.empty())
+    // always enable perf counters for verbose, performance summary and average counters
+    if (!debugCaps.verbose.empty() ||
+        !debugCaps.summaryPerf.empty() ||
+        !debugCaps.averageCountersPath.empty()) {
         collectPerfCounters = true;
+    }
 }
 #endif
 
@@ -358,6 +361,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             }
         } else if (key == ov::hint::kv_cache_precision.name()) {
             try {
+                kvCachePrecisionSetExplicitly = true;
                 auto const prec = val.as<ov::element::Type>();
                 if (one_of(prec, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8)) {
                     kvCachePrecision = prec;
@@ -410,6 +414,9 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
     if (executionMode == ov::hint::ExecutionMode::ACCURACY) {
         if (!fcDynamicQuantizationGroupSizeSetExplicitly) {
             fcDynamicQuantizationGroupSize = 0;
+        }
+        if (!kvCachePrecisionSetExplicitly) {
+            kvCachePrecision = ov::element::f32;
         }
     }
 

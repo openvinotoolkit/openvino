@@ -18,7 +18,7 @@ find_package(PkgConfig QUIET)
 # cmake older than 3.18 cannot create an alias for imported non-GLOBAL targets
 # so, we have to use 'IMPORTED_GLOBAL' property
 if(CMAKE_VERSION VERSION_LESS 3.18)
-    set(OV_PkgConfig_VISILITY GLOBAL)
+    set(OV_PkgConfig_VISIBILITY GLOBAL)
 endif()
 
 if(SUGGEST_OVERRIDE_SUPPORTED)
@@ -69,9 +69,21 @@ endif()
 #
 
 if(ENABLE_INTEL_NPU)
-    add_subdirectory(thirdparty/level_zero EXCLUDE_FROM_ALL)
+    if(ENABLE_SYSTEM_LEVEL_ZERO)
+        pkg_search_module(level_zero QUIET
+                          IMPORTED_TARGET
+                          ${OV_PkgConfig_VISIBILITY}
+                          level-zero)
+        if(level_zero_FOUND)
+            add_library(LevelZero::LevelZero ALIAS PkgConfig::level_zero)
+            message(STATUS "${PKG_CONFIG_EXECUTABLE}: level_zero (${level_zero_VERSION}) is found at ${level_zero_PREFIX}")
+        endif()
+    endif()
 
-    add_library(LevelZero::LevelZero ALIAS ze_loader)
+    if(NOT libze_loader_FOUND)
+        add_subdirectory(thirdparty/level_zero EXCLUDE_FROM_ALL)
+        add_library(LevelZero::LevelZero ALIAS ze_loader)
+    endif()
 endif()
 
 #
@@ -190,7 +202,7 @@ if(ENABLE_SYSTEM_PUGIXML)
         # Ubuntu 18.04 case when cmake interface is not available
         pkg_search_module(pugixml QUIET
                           IMPORTED_TARGET
-                          ${OV_PkgConfig_VISILITY}
+                          ${OV_PkgConfig_VISIBILITY}
                           pugixml)
         if(pugixml_FOUND)
             set(pugixml_target PkgConfig::pugixml)
@@ -249,7 +261,7 @@ if(ENABLE_SYSTEM_PUGIXML)
             message(FATAL_ERROR "Debian | RPM package build requires shared Pugixml library")
         endif()
 
-        if(OV_PkgConfig_VISILITY)
+        if(OV_PkgConfig_VISIBILITY)
             # need to set GLOBAL visibility in order to create ALIAS for this target
             set_target_properties(${pugixml_target} PROPERTIES IMPORTED_GLOBAL ON)
         endif()
@@ -299,7 +311,7 @@ if(ENABLE_TESTS)
 
     if(GTest_FOUND)
         foreach(gtest_target gtest gtest_main gmock gmock_main)
-            if(OV_PkgConfig_VISILITY)
+            if(OV_PkgConfig_VISIBILITY)
                 # need to set GLOBAL visibility in order to create ALIAS for this target
                 set_target_properties(GTest::${gtest_target} PROPERTIES IMPORTED_GLOBAL ON)
             endif()
@@ -448,7 +460,7 @@ if(ENABLE_SNAPPY_COMPRESSION)
             set(ov_snappy_lib Snappy::snappy-static)
         endif()
 
-        if(OV_PkgConfig_VISILITY)
+        if(OV_PkgConfig_VISIBILITY)
             # need to set GLOBAL visibility in order to create ALIAS for this target
             set_target_properties(${ov_snappy_lib} PROPERTIES IMPORTED_GLOBAL ON)
         endif()

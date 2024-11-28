@@ -7,6 +7,7 @@
 #include <ze_api.h>
 
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 
@@ -36,7 +37,7 @@ private:
 class Event {
 public:
     Event() = delete;
-    Event(const ze_event_pool_handle_t& event_pool, uint32_t event_index);
+    Event(const std::shared_ptr<EventPool>& event_pool, uint32_t event_index);
     Event(const Event&) = delete;
     Event(Event&&) = delete;
     Event& operator=(const Event&) = delete;
@@ -50,6 +51,7 @@ public:
     ~Event();
 
 private:
+    std::shared_ptr<EventPool> _event_pool;
     ze_event_handle_t _handle = nullptr;
 
     Logger _log;
@@ -59,9 +61,7 @@ class CommandList {
 public:
     friend class CommandQueue;
     CommandList() = delete;
-    CommandList(const ze_device_handle_t& device_handle,
-                const ze_context_handle_t& context,
-                ze_graph_dditable_ext_curr_t& graph_ddi_table_ext,
+    CommandList(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
                 const uint32_t& group_ordinal,
                 bool mtci_is_supported = false);
     CommandList(const CommandList&) = delete;
@@ -85,12 +85,12 @@ public:
     }
 
 private:
-    ze_command_list_handle_t _handle = nullptr;
-    const ze_context_handle_t _context = nullptr;
-    ze_graph_dditable_ext_curr_t& _graph_ddi_table_ext;
-    uint64_t _command_id = 0;
+    std::shared_ptr<ZeroInitStructsHolder> _initStructs;
 
     Logger _log;
+
+    uint64_t _command_id = 0;
+    ze_command_list_handle_t _handle = nullptr;
 };
 
 class Fence {
@@ -118,12 +118,10 @@ private:
 class CommandQueue {
 public:
     CommandQueue() = delete;
-    CommandQueue(const ze_device_handle_t& device_handle,
-                 const ze_context_handle_t& context,
+    CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
                  const ze_command_queue_priority_t& priority,
-                 ze_command_queue_npu_dditable_ext_curr_t& command_queue_npu_dditable_ext,
-                 bool turbo,
-                 const uint32_t& group_ordinal);
+                 const uint32_t& group_ordinal,
+                 bool turbo = false);
     CommandQueue(const CommandQueue&) = delete;
     CommandQueue(CommandQueue&&) = delete;
     CommandQueue& operator=(const CommandQueue&) = delete;
@@ -138,11 +136,11 @@ public:
     }
 
 private:
-    ze_command_queue_handle_t _handle = nullptr;
-    ze_context_handle_t _context = nullptr;
-    ze_command_queue_npu_dditable_ext_curr_t& _command_queue_npu_dditable_ext;
+    std::shared_ptr<ZeroInitStructsHolder> _initStructs;
 
     Logger _log;
+
+    ze_command_queue_handle_t _handle = nullptr;
 };
 
 }  // namespace intel_npu

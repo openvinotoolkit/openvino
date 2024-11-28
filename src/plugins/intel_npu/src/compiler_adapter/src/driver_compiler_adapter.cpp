@@ -155,29 +155,7 @@ DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStruc
 
     _logger.info("DriverCompilerAdapter creating adapter using graphExtVersion");
 
-    switch (graphExtVersion) {
-    case ZE_GRAPH_EXT_VERSION_1_3:
-        _zeGraphExt = std::make_shared<ZeGraphExtWrappers<ZE_GRAPH_EXT_VERSION_1_3>>(_zeroInitStruct);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_4:
-        _zeGraphExt = std::make_shared<ZeGraphExtWrappers<ZE_GRAPH_EXT_VERSION_1_4>>(_zeroInitStruct);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_5:
-        _zeGraphExt = std::make_shared<ZeGraphExtWrappers<ZE_GRAPH_EXT_VERSION_1_5>>(_zeroInitStruct);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_6:
-        _zeGraphExt = std::make_shared<ZeGraphExtWrappers<ZE_GRAPH_EXT_VERSION_1_6>>(_zeroInitStruct);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_7:
-        _zeGraphExt = std::make_shared<ZeGraphExtWrappers<ZE_GRAPH_EXT_VERSION_1_7>>(_zeroInitStruct);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_8:
-        _zeGraphExt = std::make_shared<ZeGraphExtWrappers<ZE_GRAPH_EXT_VERSION_1_8>>(_zeroInitStruct);
-        break;
-    default:
-        _zeGraphExt = std::make_shared<ZeGraphExtWrappers<ZE_GRAPH_EXT_VERSION_1_2>>(_zeroInitStruct);
-        break;
-    }
+    _zeGraphExt = std::make_shared<ZeGraphExtWrappers>(_zeroInitStruct);
 
     _logger.info("initialize DriverCompilerAdapter complete, using graphExtVersion: %d.%d",
                  ZE_MAJOR_VERSION(graphExtVersion),
@@ -563,13 +541,21 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
         content = std::regex_replace(content, std::regex(batchstr.str()), "");
     }
 
-    // NPU_DEFER_WEIGHTS_LOAD is not supported in versions < 6.2 - need to remove it
-    if ((compilerVersion.major < 6) || (compilerVersion.major == 6 && compilerVersion.minor < 2)) {
+    // NPU_DEFER_WEIGHTS_LOAD is needed at runtime only
+    {
         std::ostringstream batchstr;
         batchstr << ov::intel_npu::defer_weights_load.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
                  << VALUE_DELIMITER;
-        logger.warning(
-            "NPU_DEFER_WEIGHTS_LOAD property is not suppored by this compiler version. Removing from parameters");
+        logger.info("NPU_DEFER_WEIGHTS_LOAD property is needed at runtime only. Removing from parameters");
+        content = std::regex_replace(content, std::regex(batchstr.str()), "");
+    }
+
+    // NPU_RUN_INFERENCES_SEQUENTIALLY is needed at runtime only
+    {
+        std::ostringstream batchstr;
+        batchstr << ov::intel_npu::run_inferences_sequentially.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER
+                 << "\\S+" << VALUE_DELIMITER;
+        logger.info("NPU_RUN_INFERENCES_SEQUENTIALLY property is needed at runtime only. Removing from parameters");
         content = std::regex_replace(content, std::regex(batchstr.str()), "");
     }
 
