@@ -3,7 +3,7 @@
 
 import sys
 from openvino.tools.ovc.convert import convert_model
-from openvino.tools.ovc.telemetry_utils import is_optimum, init_mo_telemetry, is_torch
+from openvino.tools.ovc.telemetry_utils import is_optimum, init_ovc_telemetry, is_torch
 
 import importlib.metadata as importlib_metadata
 
