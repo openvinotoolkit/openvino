@@ -530,7 +530,7 @@ jit_floor_mod_emitter::jit_floor_mod_emitter(dnnl::impl::cpu::aarch64::jit_gener
 
 size_t jit_floor_mod_emitter::get_inputs_count() const { return 2; }
 
-size_t jit_mod_emitter::get_aux_vecs_count() const { return 1; }
+size_t jit_floor_mod_emitter::get_aux_vecs_count() const { return 1; }
 
 void jit_floor_mod_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
