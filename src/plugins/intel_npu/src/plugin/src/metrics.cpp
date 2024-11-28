@@ -9,6 +9,11 @@
 #include "intel_npu/npu_private_properties.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 
+#ifndef ONEAPI_MAKE_VERSION
+/// @brief Generates generic 'oneAPI' API versions
+#    define ONEAPI_MAKE_VERSION(_major, _minor) ((_major << 16) | (_minor & 0x0000ffff))
+#endif  // ONEAPI_MAKE_VERSION
+
 namespace intel_npu {
 
 Metrics::Metrics(const std::shared_ptr<const NPUBackends>& backends) : _backends(backends) {
@@ -39,6 +44,13 @@ Metrics::Metrics(const std::shared_ptr<const NPUBackends>& backends) : _backends
                             ov::hint::num_requests.name(),
                             ov::intel_npu::compilation_mode_params.name(),
                             ov::intel_npu::dynamic_shape_to_static.name()};
+
+    // optimizationCapabilities: append dynamic features based on compiler version
+    uint32_t compilerversion = GetCompilerVersion();
+    // Dynamic quantization supported starting from compiler version x
+    if (compilerversion >= ONEAPI_MAKE_VERSION(6, 3)) {
+        _optimizationCapabilities.push_back(std::string("COMPILER_DYNAMIC_QUANTIZATION"));
+    }
 }
 
 std::vector<std::string> Metrics::GetAvailableDevicesNames() const {
@@ -132,6 +144,14 @@ uint32_t Metrics::GetGraphExtVersion() const {
     }
 
     return _backends->getGraphExtVersion();
+}
+
+uint32_t Metrics::GetCompilerVersion() const {
+    if (_backends == nullptr) {
+        OPENVINO_THROW("No available backends");
+    }
+
+    return _backends->getCompilerVersion();
 }
 
 uint32_t Metrics::GetSteppingNumber(const std::string& specifiedDeviceName) const {

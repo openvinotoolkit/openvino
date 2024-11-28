@@ -24,6 +24,7 @@ public:
     const std::vector<std::string> getDeviceNames() const override;
     uint32_t getDriverVersion() const override;
     uint32_t getGraphExtVersion() const override;
+    uint32_t getCompilerVersion() const override;
 
     bool isBatchingSupported() const override;
     bool isCommandQueueExtSupported() const override;

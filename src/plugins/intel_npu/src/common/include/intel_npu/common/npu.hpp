@@ -33,6 +33,8 @@ public:
     virtual uint32_t getDriverVersion() const;
     /** @brief Provide driver extension version */
     virtual uint32_t getGraphExtVersion() const;
+    /** @brief Provide compiler-in-driver version */
+    virtual uint32_t getCompilerVersion() const;
     /** @brief Get name of backend */
     virtual const std::string getName() const = 0;
     /** @brief Backend has support for concurrency batching */
