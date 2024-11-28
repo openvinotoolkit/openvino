@@ -19,7 +19,6 @@ TEST_F(Identityv16StaticShapeInferenceTest, Identity_default_ctor) {
     input_shapes = ShapeVector{{2, 2}};
 
     auto output_shapes = shape_inference(op.get(), input_shapes);
-
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes[0], StaticShape({2, 2}));
 }
@@ -30,7 +29,7 @@ TEST_F(Identityv16StaticShapeInferenceTest, Identity_4_4_small_matrix) {
     input_shapes = ShapeVector{{4, 4}};
 
     auto output_shapes = shape_inference(op.get(), input_shapes);
-    ASSERT_EQ(output_shapes[0], StaticShape({4, 4}));
+    EXPECT_EQ(output_shapes[0], StaticShape({4, 4}));
 }
 
 TEST_F(Identityv16StaticShapeInferenceTest, Identity_10_10_big_matrix) {
@@ -39,7 +38,7 @@ TEST_F(Identityv16StaticShapeInferenceTest, Identity_10_10_big_matrix) {
     input_shapes = ShapeVector{{10, 10}};
 
     auto output_shapes = shape_inference(op.get(), input_shapes);
-    ASSERT_EQ(output_shapes[0], StaticShape({10, 10}));
+    EXPECT_EQ(output_shapes[0], StaticShape({10, 10}));
 }
 
 TEST_F(Identityv16StaticShapeInferenceTest, Identity_10_1_1_keep_batch_when_single_cell_matrix) {
@@ -48,7 +47,7 @@ TEST_F(Identityv16StaticShapeInferenceTest, Identity_10_1_1_keep_batch_when_sing
     input_shapes = ShapeVector{{10, 1, 1}};
 
     auto output_shapes = shape_inference(op.get(), input_shapes);
-    ASSERT_EQ(output_shapes[0], StaticShape({10, 1, 1}));
+    EXPECT_EQ(output_shapes[0], StaticShape({10, 1, 1}));
 }
 
 TEST_F(Identityv16StaticShapeInferenceTest, Identity_10_9_9_keep_batch_big_matrix) {
@@ -57,7 +56,7 @@ TEST_F(Identityv16StaticShapeInferenceTest, Identity_10_9_9_keep_batch_big_matri
     input_shapes = ShapeVector{{10, 9, 9}};
 
     auto output_shapes = shape_inference(op.get(), input_shapes);
-    ASSERT_EQ(output_shapes[0], StaticShape({10, 9, 9}));
+    EXPECT_EQ(output_shapes[0], StaticShape({10, 9, 9}));
 }
 
 TEST_F(Identityv16StaticShapeInferenceTest, Identity_10_5_3_2_2_complex_multi_dim_matrix) {
@@ -66,5 +65,5 @@ TEST_F(Identityv16StaticShapeInferenceTest, Identity_10_5_3_2_2_complex_multi_di
     input_shapes = ShapeVector{{10, 5, 3, 2, 2}};
 
     auto output_shapes = shape_inference(op.get(), input_shapes);
-    ASSERT_EQ(output_shapes[0], StaticShape({10, 5, 3, 2, 2}));
+    EXPECT_EQ(output_shapes[0], StaticShape({10, 5, 3, 2, 2}));
 }
