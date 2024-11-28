@@ -10,13 +10,12 @@
 using namespace ov;
 using namespace ov::intel_cpu;
 
-class Identityv14StaticShapeInferenceTest : public OpStaticShapeInferenceTest<op::v16::Identity> {
+class Identityv16StaticShapeInferenceTest : public OpStaticShapeInferenceTest<op::v16::Identity> {
 protected:
 };
 
-TEST_F(Identityv14StaticShapeInferenceTest, Identity_default_ctor) {
+TEST_F(Identityv16StaticShapeInferenceTest, Identity_default_ctor) {
     op = make_op();
-    op->set_adjoint(false);
 
     input_shapes = ShapeVector{{2, 2}};
     auto output_shapes = shape_inference(op.get(), input_shapes);
@@ -25,47 +24,47 @@ TEST_F(Identityv14StaticShapeInferenceTest, Identity_default_ctor) {
     EXPECT_EQ(output_shapes[0], StaticShape({2, 2}));
 }
 
-TEST_F(Identityv14StaticShapeInferenceTest, Identity_4_4_small_matrix) {
+TEST_F(Identityv16StaticShapeInferenceTest, Identity_4_4_small_matrix) {
     auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(2));
-    auto Identity = std::make_shared<op::v14::Identity>(data);
+    auto op = make_op(data);
 
     input_shapes = ShapeVector{{4, 4}};
-    auto output_shapes = shape_inference(Identity.get(), input_shapes);
+    auto output_shapes = shape_inference(op.get(), input_shapes);
     ASSERT_EQ(output_shapes[0], StaticShape({4, 4}));
 }
 
-TEST_F(Identityv14StaticShapeInferenceTest, Identity_10_10_big_matrix) {
+TEST_F(Identityv16StaticShapeInferenceTest, Identity_10_10_big_matrix) {
     auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(2));
-    auto Identity = std::make_shared<op::v14::Identity>(data);
+    auto op = make_op(data);
 
     input_shapes = ShapeVector{{10, 10}};
-    auto output_shapes = shape_inference(Identity.get(), input_shapes);
+    auto output_shapes = shape_inference(op.get(), input_shapes);
     ASSERT_EQ(output_shapes[0], StaticShape({10, 10}));
 }
 
-TEST_F(Identityv14StaticShapeInferenceTest, Identity_10_1_1_keep_batch_when_single_cell_matrix) {
+TEST_F(Identityv16StaticShapeInferenceTest, Identity_10_1_1_keep_batch_when_single_cell_matrix) {
     auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(3));
-    auto Identity = std::make_shared<op::v14::Identity>(data);
+    auto op = make_op(data);
 
     input_shapes = ShapeVector{{10, 1, 1}};
-    auto output_shapes = shape_inference(Identity.get(), input_shapes);
+    auto output_shapes = shape_inference(op.get(), input_shapes);
     ASSERT_EQ(output_shapes[0], StaticShape({10, 1, 1}));
 }
 
-TEST_F(Identityv14StaticShapeInferenceTest, Identity_10_9_9_keep_batch_big_matrix) {
+TEST_F(Identityv16StaticShapeInferenceTest, Identity_10_9_9_keep_batch_big_matrix) {
     auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(3));
-    auto Identity = std::make_shared<op::v14::Identity>(data);
+    auto op = make_op(data);
 
     input_shapes = ShapeVector{{10, 9, 9}};
-    auto output_shapes = shape_inference(Identity.get(), input_shapes);
+    auto output_shapes = shape_inference(op.get(), input_shapes);
     ASSERT_EQ(output_shapes[0], StaticShape({10, 9, 9}));
 }
 
-TEST_F(Identityv14StaticShapeInferenceTest, Identity_10_5_3_2_2_complex_multi_dim_matrix) {
+TEST_F(Identityv16StaticShapeInferenceTest, Identity_10_5_3_2_2_complex_multi_dim_matrix) {
     auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(3));
-    auto Identity = std::make_shared<op::v14::Identity>(data);
+    auto op = make_op(data);
 
-input_shapes = ShapeVector{{10, 5, 3, 2, 2}};
-    auto output_shapes = shape_inference(Identity.get(), input_shapes);
+    input_shapes = ShapeVector{{10, 5, 3, 2, 2}};
+    auto output_shapes = shape_inference(op.get(), input_shapes);
     ASSERT_EQ(output_shapes[0], StaticShape({10, 5, 3, 2, 2}));
 }
