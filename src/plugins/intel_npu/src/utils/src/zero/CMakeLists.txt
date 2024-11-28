@@ -15,12 +15,12 @@ ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 add_library(openvino::npu_zero_utils ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME npu_zero_utils)
 
-add_library(ze_interface INTERFACE IMPORTED)
-target_include_directories(ze_interface INTERFACE $<TARGET_PROPERTY:LevelZero::LevelZero,INTERFACE_INCLUDE_DIRECTORIES>)
+add_library(level-zero-headers INTERFACE)
+set_property(TARGET level-zero-headers APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/thirdparty/level_zero/level-zero/include>)
 
 target_include_directories(${TARGET_NAME}
   PUBLIC
-    $<TARGET_PROPERTY:ze_interface,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:level-zero-headers,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:LevelZero::NPUExt,INTERFACE_INCLUDE_DIRECTORIES>
     $<BUILD_INTERFACE:${NPU_UTILS_SOURCE_DIR}/include>)
 
@@ -37,3 +37,6 @@ ov_developer_package_export_targets(TARGET openvino::npu_zero_utils
 
 ov_developer_package_export_targets(TARGET level-zero-ext)
 ov_install_static_lib(level-zero-ext ${NPU_PLUGIN_COMPONENT})
+
+ov_developer_package_export_targets(TARGET level-zero-headers)
+ov_install_static_lib(level-zero-headers ${NPU_PLUGIN_COMPONENT})
