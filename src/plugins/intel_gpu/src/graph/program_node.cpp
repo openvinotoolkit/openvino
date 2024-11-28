@@ -1542,14 +1542,15 @@ void program_node::create_onednn_primitive_attributes(
                     size_t rank = cldnn::format::dimension(in.format);
                     auto in_pshape = in.get_partial_shape();
                     auto out_pshape = get_output_layout().get_partial_shape();
-                    int ones_to_add = 0;
+                    size_t ones_to_add = 0;
 
                     if (is_type<fully_connected>()) {
                         auto prim = this->as<fully_connected>().get_primitive();
                         if (prim->input_size == in_pshape.size()) {
                             ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(rank)) - in_pshape.size();
                         } else {
-                            ones_to_add = in_pshape.size() - prim->input_size;
+                            if (in_pshape.size() > prim->input_size)
+                                ones_to_add = in_pshape.size() - prim->input_size;
                         }
                         if (ones_to_add > 0) {
                             layout new_layout = in;
