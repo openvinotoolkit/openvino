@@ -164,7 +164,6 @@ using Transform = std::variant<op::Const, op::Concat, op::Unpack, op::Permute, o
 
 struct LazyTensorImpl {
 public:
-    LazyTensorImpl() = default;
     explicit LazyTensorImpl(Transform&& t);
     bool operator==(const LazyTensorImpl& other) const;
 
