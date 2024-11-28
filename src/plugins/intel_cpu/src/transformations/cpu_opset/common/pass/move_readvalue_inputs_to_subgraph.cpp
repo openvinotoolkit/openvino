@@ -36,58 +36,86 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
             return false;
         }
 
-        bool found_output = false;  // Flag: find Output node
-
         NodeVector subgraph_nodes;
-        std::unordered_set<std::shared_ptr<ov::Node>> visited;  // Visited flag.
+        std::unordered_set<std::shared_ptr<ov::Node>> visited_path_to_output;  // Cache nodes which connect to Output.
+        std::unordered_set<std::shared_ptr<ov::Node>> visited_path_to_rv;  // Cache nodes which connect to ReadValue.
         NodeVector inputs = {};
         OutputVector outputs = {};
 
         // DFS, Check if current node's final successor is only ReadValue.
-        std::function<void(std::shared_ptr<ov::Node>)> dfs = [&](std::shared_ptr<ov::Node> node) {
-            if (visited.find(node) != visited.end()) {
+        std::function<void(std::shared_ptr<ov::Node>, bool&)> dfs = [&](std::shared_ptr<ov::Node> node, bool& found_output) {
+            if (found_output) {
                 return;
             }
 
-            // Output node.
+            if (visited_path_to_output.find(node) != visited_path_to_output.end()) {
+                found_output = true;
+                return;
+            }
+
+            if (visited_path_to_rv.find(node) != visited_path_to_rv.end()) {
+                return;
+            }
+
+            // node is Output
             if (node->get_output_target_inputs(0).size() == 0u) {
                 found_output = true;
                 return;
             }
 
+            bool any_child_found_output = false;
             for (const auto& child : node->get_output_target_inputs(0)) {
                 auto son = child.get_node()->shared_from_this();
                 if (son == readvalue) {
                     continue;
                 }
-                dfs(son);
+
+                bool new_found_output = false;
+                dfs(son, new_found_output);
+                if (new_found_output) {
+                    any_child_found_output = true;
+                }
             }
-            if (!found_output) {
-                visited.insert(node);
+
+            if (any_child_found_output) {
+                visited_path_to_output.insert(node);
+                found_output = any_child_found_output;
             }
         };
 
         std::function<void(std::shared_ptr<ov::Node>)> reverse_dfs = [&](std::shared_ptr<ov::Node> node) {
+            if (visited_path_to_output.find(node) != visited_path_to_output.end()) {
+                inputs.emplace_back(node);
+                return;
+            }
+
+            if (visited_path_to_rv.find(node) != visited_path_to_rv.end()) {
+                return;
+            }
+
             if (ov::op::util::is_parameter(node)) {
                 inputs.emplace_back(node);
                 return;
             }
 
-            // Check whether current node have same successor[root_node_name].
-            found_output = false;
-            dfs(node);
-            visited.insert(node);
+            // Check if the current node has path(bypassing the ReadValue node) to the Output node via dfs algorithm.
+            bool found_output = false;  // Flag: find Output node
+            dfs(node, found_output);
+
             if (found_output) {
                 inputs.emplace_back(node);
+                visited_path_to_output.insert(node);
                 return;
             }
+
+            visited_path_to_rv.insert(node);
+
+            // Cache to subgraph_nodes
+            subgraph_nodes.emplace_back(node);
 
             for (size_t i = 0; i < node->get_input_size(); i++) {
                 reverse_dfs(node->get_input_node_shared_ptr(i));
             }
-
-            // Cache to subgraph_nodes
-            subgraph_nodes.emplace_back(node);
         };
 
         // Reverse DFS ReadValue, find all suitable nodes and move them to subgraph_nodes.

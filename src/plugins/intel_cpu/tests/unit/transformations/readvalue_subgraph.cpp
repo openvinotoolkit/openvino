@@ -163,26 +163,37 @@ TEST(TransformationTests, ReadValueWithSubgraph_2) {
 
         {
             auto input = std::make_shared<ov::op::v0::Parameter>(in_type, shape);
+            input->set_friendly_name("input");
 
             auto convert = std::make_shared<ov::op::v0::Convert>(input, out_type);
+            convert->set_friendly_name("convert");
 
             auto add1 = std::make_shared<ov::op::v1::Add>(convert, CREATE_CONST(ov::Shape{4}));
+            add1->set_friendly_name("add1");
 
             auto add2 = std::make_shared<ov::op::v1::Add>(convert, CREATE_CONST(ov::Shape{4}));
+            add2->set_friendly_name("add2");
 
             auto add3 = std::make_shared<ov::op::v1::Add>(add2, convert);
+            add3->set_friendly_name("add3");
 
             auto add4 = std::make_shared<ov::op::v1::Add>(add2, add3);
+            add4->set_friendly_name("add4");
 
             auto add5 = std::make_shared<ov::op::v1::Add>(add1, add4);
+            add5->set_friendly_name("add5");
 
             auto readvalue = std::make_shared<ov::op::v6::ReadValue>(add5, variable);
+            readvalue->set_friendly_name("readvalue");
 
             auto assign = std::make_shared<ov::op::v6::Assign>(readvalue, variable);
+            assign->set_friendly_name("assign");
 
             auto result1 = std::make_shared<ov::op::v0::Result>(readvalue);
+            result1->set_friendly_name("result1");
 
             auto result2 = std::make_shared<ov::op::v0::Result>(add3);
+            result2->set_friendly_name("result2");
 
             model = std::make_shared<ov::Model>(ov::ResultVector{result1, result2},
                                                 ov::SinkVector{assign},
