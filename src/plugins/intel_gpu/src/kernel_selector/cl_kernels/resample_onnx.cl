@@ -155,7 +155,11 @@ KERNEL (resample_onnx)(__global INPUT0_TYPE* input,
         OUT_VEC_TYPE out = TO_OUT_VEC_TYPE(ACTIVATION(res, ACTIVATION_PARAMS));
 #endif // #if HAS_FUSED_OPS
 
+#if defined (NOT_ALIGNED_TO_FEATURE)
+        output[OUTPUT_GET_INDEX(b, feature_num, z, y, (x + out_x))] = out;
+#else
         WRITE_FUNC(output, OUTPUT_GET_INDEX(b, feature_block, z, y, (x + out_x)), out);
+#endif // #if defined(NOT_ALIGNED_TO_FEATURE)
     }
 #else // #if defined (THREE_SPATIAL_RESAMPLE)
 
@@ -220,11 +224,19 @@ KERNEL (resample_onnx)(__global INPUT0_TYPE* input,
         OUT_VEC_TYPE out = TO_OUT_VEC_TYPE(ACTIVATION(res, ACTIVATION_PARAMS));
 #endif
 
-#if OUTPUT_DIMS == 5
-        WRITE_FUNC(output, OUTPUT_GET_INDEX(b, feature_block, z, y, (x + out_x)), out);
+#if defined (NOT_ALIGNED_TO_FEATURE)
+    #if OUTPUT_DIMS == 5
+        output[OUTPUT_GET_INDEX(b, feature_num, z, y, (x + out_x))] = out;
+    #else
+        output[OUTPUT_GET_INDEX(b, feature_num, y, (x + out_x))] = out;
+    #endif
 #else
+    #if OUTPUT_DIMS == 5
+        WRITE_FUNC(output, OUTPUT_GET_INDEX(b, feature_block, z, y, (x + out_x)), out);
+    #else
         WRITE_FUNC(output, OUTPUT_GET_INDEX(b, feature_block, y, (x + out_x)), out);
-#endif
+    #endif
+#endif // #if defined (NOT_ALIGNED_TO_FEATURE)
     }
 #endif // #if defined (THREE_SPATIAL_RESAMPLE)
 }
