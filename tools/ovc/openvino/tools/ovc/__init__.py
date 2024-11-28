@@ -21,6 +21,7 @@ if is_optimum() and optimum_version is not None:
     telemetry.send_event("optimum", "import", "import_from_optimum,ov_version:{}".format(get_rt_version()))
 
 if is_torch() and 'torch' in sys.modules:
+    from openvino.runtime import get_version as get_rt_version  # pylint: disable=no-name-in-module,import-error
     torch_version = importlib_metadata.version("torch")
     telemetry = init_ovc_telemetry("PyTorch", torch_version)
-    telemetry.send_event("torch", "import", "Import from torch.compile")
+    telemetry.send_event("torch", "import", "Import from torch.compile(), ov_version:{}".format(get_rt_version()))
