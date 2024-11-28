@@ -1,8 +1,9 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import sys
 from openvino.tools.ovc.convert import convert_model
-from openvino.tools.ovc.telemetry_utils import is_optimum, init_ovc_telemetry
+from openvino.tools.ovc.telemetry_utils import is_optimum, init_mo_telemetry, is_torch
 
 import importlib.metadata as importlib_metadata
 
@@ -18,3 +19,8 @@ telemetry.send_event("ov", "import", "general_import")
 if is_optimum() and optimum_version is not None:
     telemetry = init_ovc_telemetry("Optimum Intel", optimum_version)
     telemetry.send_event("optimum", "import", "import_from_optimum,ov_version:{}".format(get_rt_version()))
+
+if is_torch() and 'torch' in sys.modules:
+    torch_version = importlib_metadata.version("torch")
+    telemetry = init_ovc_telemetry("PyTorch", torch_version)
+    telemetry.send_event("torch", "import", "Import from torch.compile")
