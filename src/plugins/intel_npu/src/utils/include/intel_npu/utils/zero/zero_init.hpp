@@ -52,6 +52,9 @@ public:
     inline uint32_t getMutableCommandListVersion() const {
         return mutable_command_list_version;
     }
+    inline uint32_t getCompilerVersion() const {
+        return compiler_version;
+    }
     // Helper function to check if extension with <ext_name> exists and its newer than <version>
     inline bool isExtensionSupported(std::string ext_name, uint32_t version) const {
         auto iter = driver_extension_properties.find(ext_name);
@@ -78,6 +81,8 @@ private:
 
     ze_driver_properties_t driver_properties = {};
     uint32_t mutable_command_list_version = 0;
+
+    uint32_t compiler_version = 0;
 };
 
 }  // namespace intel_npu
