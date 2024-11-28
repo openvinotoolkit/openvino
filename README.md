@@ -96,7 +96,7 @@ data = np.random.rand(1, 224, 224, 3)
 output = compiled_model({0: data})
 ```
 
-OpenVINO supports the CPU, GPU, and NPU [devices](https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes.html) and works with models from PyTorch, TensorFlow, ONNX, TensorFlow Lite, and PaddlePaddle [frameworks](https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html). It includes [APIs](https://docs.openvino.ai/2024/api/api_reference.html) in C++, Python, C, NodeJS, and offers the GenAI API for optimized model pipelines and performance.
+OpenVINO supports the CPU, GPU, and NPU [devices](https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes.html) and works with models from PyTorch, TensorFlow, ONNX, TensorFlow Lite, PaddlePaddle, and JAX/Flax [frameworks](https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html). It includes [APIs](https://docs.openvino.ai/2024/api/api_reference.html) in C++, Python, C, NodeJS, and offers the GenAI API for optimized model pipelines and performance.
 
 ## Generative AI with OpenVINO
 
