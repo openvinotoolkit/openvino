@@ -685,17 +685,6 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*smoke_OVClassNetworkTestP/OVClassNetworkTestPNPU.*"
         });
 
-        // [Tracking number: E#125086]
-        _skipRegistry.addPatterns(devices.has3720() && backendName.isZero(), 
-                "Failing tests after functional tests migration to OV", {
-                #ifdef WIN32
-                        ".*OVInferRequestPerfCountersExceptionTest.perfCountWereNotEnabledExceptionTest.*",
-                #elif defined(__linux__)
-                        ".*OVInferRequestMultithreadingTests.canRun3AsyncRequestsConsistently.*",
-                #endif
-                ".*OVCompiledModelPropertiesDefaultSupportedTests.CanCompileWithDefaultValueFromPlugin.*"
-        });
-
         _skipRegistry.addPatterns(
                 "NPU plugin doesn't support infer dynamic", {
                 ".*OVInferRequestBatchedTests.SetInputTensors_Can_Infer_Dynamic.*",
