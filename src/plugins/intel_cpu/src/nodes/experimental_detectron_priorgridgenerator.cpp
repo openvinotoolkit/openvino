@@ -26,10 +26,9 @@ bool ExperimentalDetectronPriorGridGenerator::isSupportedOperation(const std::sh
     return true;
 }
 
-ExperimentalDetectronPriorGridGenerator::ExperimentalDetectronPriorGridGenerator(
-    const std::shared_ptr<ov::Node>& op,
-    const GraphContext::CPtr context)
-    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+ExperimentalDetectronPriorGridGenerator::ExperimentalDetectronPriorGridGenerator(const std::shared_ptr<ov::Node>& op,
+                                                                                 const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
