@@ -1505,7 +1505,7 @@ void program_node::create_onednn_primitive_attributes(
                     oc_dim = static_cast<int>(desc.output_layout.get_partial_shape()[1].get_max_length());
                 else
                     oc_dim = static_cast<int>(desc.output_layout.get_tensor().feature.size());
-                post_ops.append_prelu(1 << std::max(0, oc_dim));
+                post_ops.append_prelu(1 << static_cast<unsigned>(std::max(0, oc_dim)));
                 update_onednn_post_op_list(onednn_post_op_type::binary_relu, dep_idx);
             } else if (fused_desc->activation_function == cldnn::activation_func::hard_sigmoid) {
                 post_ops.append_eltwise(dnnl::algorithm::eltwise_hardsigmoid, fused_desc->additional_params.a, fused_desc->additional_params.b);

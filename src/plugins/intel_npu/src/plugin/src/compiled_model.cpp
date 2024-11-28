@@ -311,6 +311,12 @@ void CompiledModel::initialize_properties() {
           [](const Config& config) {
               return config.getString<BATCH_MODE>();
           }}},
+        {ov::intel_npu::run_inferences_sequentially.name(),
+         {false,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.get<RUN_INFERENCES_SEQUENTIALLY>();
+          }}},
     };
 
     for (auto& property : _properties) {
