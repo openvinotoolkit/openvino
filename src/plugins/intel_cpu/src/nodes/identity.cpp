@@ -105,10 +105,10 @@ std::string Identity::getPrimitiveDescriptorType() const {
     std::string str_type;
     if (type == impl_desc_type::unknown)
         str_type = "unknown";
-    else if (str_type.empty())
-        str_type = "undef";
-    else
+    else if (type == impl_desc_type::ref_any)
         str_type = "ref_any";
+    else
+        str_type = "undef";
 
     if (selectedPrimitiveDesc) {
         if (selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision() != ov::element::u8) {
