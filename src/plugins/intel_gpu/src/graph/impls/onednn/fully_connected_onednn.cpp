@@ -251,6 +251,7 @@ public:
         ob << has_bias;
         ob << is_compressed;
         ob << prim->dynamic_quantized_activation;
+        ob << prim->dynamic_quantized_activation_zp;
 
         bool has_decompression_scale = !prim->decompression_scale.empty();
         if (has_decompression_scale) {
@@ -277,10 +278,12 @@ public:
         bool has_bias = false;
         bool is_compressed = false;
         bool dynamic_quantized_activation;
+        bool dynamic_quantized_activation_zp;
         ib >> input_size;
         ib >> has_bias;
         ib >> is_compressed;
         ib >> dynamic_quantized_activation;
+        ib >> dynamic_quantized_activation_zp;
 
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
         auto prim = impl_params->typed_desc<fully_connected>();
@@ -299,11 +302,12 @@ public:
 
         bool has_decompression_zp = !prim->decompression_zero_point.empty() || prim->decompression_zero_point_scalar.has_value();
         auto& arg = impl_params->get_program().get_node(impl_params->desc->id).as<fully_connected>();
-        int idx = !arg.bias_term() ? 3 : 4;
+        int idx = !arg.bias_term() ? 2 : 3;
 
         if (has_decompression_zp) {
             ib >> make_data(&_dzp_data_type, sizeof(dnnl::memory::data_type));
-            auto dzp_layout = arg.get_dependency(idx++).get_output_layout();
+            auto decompression_zp_idx = ++idx;
+            auto dzp_layout = arg.get_dependency(decompression_zp_idx).get_output_layout();
 
             if (dzp_layout.count() == 1) {
                 _attrs->set_zero_points(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, _dzp_data_type);
@@ -318,13 +322,17 @@ public:
         }
 
         if (dynamic_quantized_activation) {
-            // TODO: it supports per-token activation scale only
+            auto src_scale_idx = ++idx;
             auto partial_shape = impl_params->get_input_layout(0).get_partial_shape();
             auto innermost_len = partial_shape[partial_shape.size() - 1].get_length();
+            auto& src_scale_shape = impl_params->input_layouts[src_scale_idx].get_partial_shape();
+            int src_scale_ngroups = src_scale_shape[src_scale_shape.size() - 1].get_length();
+            int src_group_size = innermost_len / src_scale_ngroups;
 
-            auto act_scale_data_type = convert_data_type(impl_params->get_input_layout(idx).data_type);
-            _attrs->set_scales(DNNL_ARG_SRC, GROUPED, dnnl::memory::dims{1, innermost_len}, act_scale_data_type);
-            // FIXME: mingyuki - test for model caching
+            auto act_scale_data_type = convert_data_type(impl_params->get_input_layout(src_scale_idx).data_type);
+            _attrs->set_scales(DNNL_ARG_SRC, GROUPED, dnnl::memory::dims{1, src_group_size}, act_scale_data_type);
+            if (dynamic_quantized_activation_zp)
+                _attrs->set_zero_points(DNNL_ARG_SRC, GROUPED, dnnl::memory::dims{1, src_group_size}, dnnl::memory::data_type::u8);
         }
 
         if (is_compressed) {
@@ -394,14 +402,14 @@ public:
             }
 
             if (prim->dynamic_quantized_activation) {
-                ++idx;
+                auto src_scale_idx = ++idx;
                 auto& partial_shape = impl_params.input_layouts[0].get_partial_shape();
                 auto innermost_len = partial_shape[partial_shape.size() - 1].get_length();
-                auto& src_scale_shape = impl_params.input_layouts[idx].get_partial_shape();
+                auto& src_scale_shape = impl_params.input_layouts[src_scale_idx].get_partial_shape();
                 int src_scale_ngroups = src_scale_shape[src_scale_shape.size() - 1].get_length();
                 int src_group_size = innermost_len / src_scale_ngroups;
 
-                auto act_scale_data_type = convert_data_type(impl_params.input_layouts[idx].data_type);
+                auto act_scale_data_type = convert_data_type(impl_params.input_layouts[src_scale_idx].data_type);
                 attr->set_scales(DNNL_ARG_SRC, GROUPED, dnnl::memory::dims{1, src_group_size}, act_scale_data_type);
 
                 if (prim->activation_zero_point.is_valid())

@@ -96,6 +96,7 @@ struct fully_connected : public primitive_base<fully_connected> {
           decompression_scale(decompression_scale),
           decompression_zero_point(decompression_zero_point),
           dynamic_quantized_activation(false),
+          dynamic_quantized_activation_zp(false),
           input_size(input_size),
           weights_rank(weights_rank) {
         OPENVINO_ASSERT(!decompression_scale.empty(), "[GPU] Compressed fully connected requires at least decompression scale input");
@@ -128,12 +129,15 @@ struct fully_connected : public primitive_base<fully_connected> {
           decompression_scale(decompression_scale),
           decompression_zero_point(decompression_zero_point),
           dynamic_quantized_activation(false),
+          dynamic_quantized_activation_zp(false),
           activation_scale(activation_scale),
           activation_zero_point(activation_zero_point),
           input_size(input_size),
           weights_rank(weights_rank) {
         if (activation_scale.is_valid())
             dynamic_quantized_activation = true;
+        if (activation_zero_point.is_valid())
+            dynamic_quantized_activation_zp = true;
 
         OPENVINO_ASSERT(!decompression_scale.empty(), "[GPU] Compressed fully connected requires at least decompression scale input");
     }
@@ -147,6 +151,7 @@ struct fully_connected : public primitive_base<fully_connected> {
     primitive_id decompression_scale = "";
     primitive_id decompression_zero_point = "";
     bool dynamic_quantized_activation = false;
+    bool dynamic_quantized_activation_zp = false;
     input_info activation_scale = {"", 0};
     input_info activation_zero_point = {"", 0};
     optional_value<float> decompression_zero_point_scalar = optional_value<float>();
@@ -200,6 +205,7 @@ struct fully_connected : public primitive_base<fully_connected> {
         ob << input_size;
         ob << weights_rank;
         ob << dynamic_quantized_activation;
+        ob << dynamic_quantized_activation_zp;
 
         if (decompression_zero_point_scalar.has_value()) {
             ob << true;
@@ -222,6 +228,7 @@ struct fully_connected : public primitive_base<fully_connected> {
         ib >> input_size;
         ib >> weights_rank;
         ib >> dynamic_quantized_activation;
+        ib >> dynamic_quantized_activation_zp;
 
         bool has_value;
         ib >> has_value;
