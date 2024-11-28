@@ -144,7 +144,11 @@ protected:
         auto output_md = onednn::layout_to_memory_desc(output_layout, dnnl::memory::format_tag::ab, false);
 
         if (has_bias) {
-            auto bias_md = onednn::layout_to_memory_desc(impl_params.get_input_layout(2), dnnl::memory::format_tag::ab, false);
+            dnnl::memory::format_tag target_fmt = dnnl::memory::format_tag::ab;
+            auto bias_l = impl_params.get_input_layout(2);
+            if (bias_l.get_shape().size() == 1)
+                target_fmt = dnnl::memory::format_tag::ba;
+            auto bias_md = onednn::layout_to_memory_desc(impl_params.get_input_layout(2), target_fmt, false);
             return std::make_shared<dnnl::matmul::primitive_desc>(
                 engine.get_onednn_engine(),
                 input_md,
