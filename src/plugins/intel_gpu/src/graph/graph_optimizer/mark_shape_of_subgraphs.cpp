@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "broadcast_inst.h"
+#include "reorder_inst.h"
 #include "shape_of_inst.h"
 #include "read_value_inst.h"
 #include "reshape_inst.h"
@@ -26,6 +28,10 @@ void mark_shape_of_subgraphs::look_for_shape_of_subgraph(program_node& node) {
     bool has_shape_of_subgraph_dep = false;
     for (auto& dependency : node.get_dependencies()) {
         if (dependency.first->is_in_shape_of_subgraph()) {
+            // skip mark_node for reorder node if dependency node is broadcast
+            if (dependency.first->is_type<broadcast>() && node.is_type<reorder>()) {
+                break;
+            }
             has_shape_of_subgraph_dep = true;
         } else if (!dependency.first->is_constant()) {
             can_execute_in_subgraph = false;
