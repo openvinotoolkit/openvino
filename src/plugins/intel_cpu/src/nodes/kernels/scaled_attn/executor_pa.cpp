@@ -343,6 +343,57 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
 
         return (uint8_t) ((val >> shift) & 0x000F);
     };
+#if defined(HAVE_AVX512F)
+    for (size_t j = 0; j < block_size; j++) {
+        dst_offset = 0;
+        src_offset = 0;
+        while (dst_offset < S) {
+            auto v0 = reinterpret_cast<float*>(v + src_offset);
+            size_t i = 0;
+            auto attn_w_vec0 = _mm512_set1_ps(weight[j] * v0[0]);
+            auto v_zp = _mm512_set1_ps(v0[1]);
+            for (; i + vec_len_f32_avx512 * 2 < _group_size; i += vec_len_f32_avx512 * 2) {
+                auto high_half = _mm_loadu_si128(reinterpret_cast<__m128i*>(v + i/2 + src_offset + params_offset));
+                __m128i low_half = _mm_srli_epi16(high_half, 4);
+                const __m128i mask = _mm_set1_epi8(0x0F);
+                low_half = _mm_and_si128(mask, low_half);
+                high_half = _mm_and_si128(mask, high_half);
+
+                //cvt to f32
+                auto v_256_low_half = _mm512_cvtepu8_epi32(low_half);
+                auto v_256_high_half = _mm512_cvtepu8_epi32(high_half);
+                auto v_f32_low_half = _mm512_cvtepi32_ps(v_256_low_half);
+                auto v_f32_high_half = _mm512_cvtepi32_ps(v_256_high_half);
+                // q - zp
+                v_f32_low_half = _mm512_sub_ps(v_f32_low_half, v_zp);
+                v_f32_high_half = _mm512_sub_ps(v_f32_high_half, v_zp);
+
+                __m512i idx1 = _mm512_set_epi32(23, 7, 22, 6, 21, 5, 20, 4, 19, 3, 18, 2, 17, 1, 16, 0);
+                __m512i idx2 = _mm512_set_epi32(31, 15, 30, 14, 29, 13, 28, 12, 27, 11, 26, 10, 25, 9, 24, 8);
+                __m512 first_half = _mm512_permutex2var_ps(v_f32_low_half, idx1, v_f32_high_half);
+                __m512 second_half = _mm512_permutex2var_ps(v_f32_low_half, idx2, v_f32_high_half);
+                auto v_out0 = mm512_uni_loadu_ps(out + dst_offset + i);
+                auto v_out1 = mm512_uni_loadu_ps(out + dst_offset + i + vec_len_f32_avx512);
+                v_out0 = _mm512_fmadd_ps(attn_w_vec0, first_half, v_out0);
+                v_out1 = _mm512_fmadd_ps(attn_w_vec0, second_half, v_out1);
+                mm512_uni_storeu_ps(out + dst_offset + i, v_out0);
+                mm512_uni_storeu_ps(out + dst_offset + i + vec_len_f32_avx512, v_out1);
+            }
+
+            for (; i < _group_size; i += 2) {
+                uint8_t data = v[i/2 + src_offset + params_offset];
+                float tmp0 = extract_half_byte(data, (bool)(i % 2));
+                float tmp1 = extract_half_byte(data, (bool)((i + 1) % 2));
+                out[dst_offset + i] += weight[j] * (tmp0 - v0[1]) * v0[0];
+                out[dst_offset + i + 1] += weight[j] * (tmp1 - v0[1]) * v0[0];
+            }
+            dst_offset += _group_size;
+            src_offset += _group_size / sub_byte_multiplyer + params_offset;
+        }
+        v += src_stride;
+    }
+    return;
+#endif
     for (size_t j = 0; j < block_size; j++) {
         dst_offset = 0;
         src_offset = 0;
@@ -361,6 +412,89 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
         v += src_stride;
     }
 }
+
+// template<typename T, ov::element::Type_t SRC_PREC, typename std::enable_if<SRC_PREC == ov::element::s4, bool>::type = true>
+// static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S, size_t block_size, size_t group_size = 0) {
+//     size_t src_offset = 0;
+//     size_t dst_offset = 0;
+//     const size_t _group_size = group_size ? group_size : S;
+//     const size_t params_offset = sizeof(float) * 1;
+//     auto sub_byte_multiplyer = 8 / 4;
+//     const size_t src_stride = S / _group_size * (_group_size / sub_byte_multiplyer + params_offset);
+//     auto extract_half_byte = [](uint8_t val, bool high_half) -> uint8_t {
+//         uint8_t shift = high_half ? 0 : 4;
+
+//         return (uint8_t) ((val >> shift) & 0x000F);
+//     };
+// // #if defined(HAVE_AVX512F)
+// //     for (size_t j = 0; j < block_size; j++) {
+// //         dst_offset = 0;
+// //         src_offset = 0;
+// //         while (dst_offset < S) {
+// //             auto v0 = reinterpret_cast<float*>(v + src_offset);
+// //             size_t i = 0;
+// //             auto attn_w_vec0 = _mm512_set1_ps(weight[j] * v0[0]);
+// //             auto v_zp = _mm512_set1_ps(v0[1]);
+// //             for (; i + vec_len_f32_avx512 * 2 < _group_size; i += vec_len_f32_avx512 * 2) {
+// //                 auto high_half = _mm_loadu_si128(reinterpret_cast<__m128i*>(v + i/2 + src_offset + params_offset));
+// //                 __m128i low_half = _mm_srli_epi16(high_half, 4);
+// //                 const __m128i mask = _mm_set1_epi8(0x0F);
+// //                 low_half = _mm_and_si128(mask, low_half);
+// //                 high_half = _mm_and_si128(mask, high_half);
+
+// //                 //cvt to f32
+// //                 auto v_256_low_half = _mm512_cvtepu8_epi32(low_half);
+// //                 auto v_256_high_half = _mm512_cvtepu8_epi32(high_half);
+// //                 auto v_f32_low_half = _mm512_cvtepi32_ps(v_256_low_half);
+// //                 auto v_f32_high_half = _mm512_cvtepi32_ps(v_256_high_half);
+// //                 // q - zp
+// //                 v_f32_low_half = _mm512_sub_ps(v_f32_low_half, v_zp);
+// //                 v_f32_high_half = _mm512_sub_ps(v_f32_high_half, v_zp);
+
+// //                 __m512i idx1 = _mm512_set_epi32(23, 7, 22, 6, 21, 5, 20, 4, 19, 3, 18, 2, 17, 1, 16, 0);
+// //                 __m512i idx2 = _mm512_set_epi32(31, 15, 30, 14, 29, 13, 28, 12, 27, 11, 26, 10, 25, 9, 24, 8);
+// //                 __m512 first_half = _mm512_permutex2var_ps(v_f32_low_half, idx1, v_f32_high_half);
+// //                 __m512 second_half = _mm512_permutex2var_ps(v_f32_low_half, idx2, v_f32_high_half);
+// //                 auto v_out0 = mm512_uni_loadu_ps(out + dst_offset + i);
+// //                 auto v_out1 = mm512_uni_loadu_ps(out + dst_offset + i + vec_len_f32_avx512);
+// //                 v_out0 = _mm512_fmadd_ps(attn_w_vec0, first_half, v_out0);
+// //                 v_out1 = _mm512_fmadd_ps(attn_w_vec0, second_half, v_out1);
+// //                 mm512_uni_storeu_ps(out + dst_offset + i, v_out0);
+// //                 mm512_uni_storeu_ps(out + dst_offset + i + vec_len_f32_avx512, v_out1);
+// //             }
+
+// //             for (; i < _group_size; i += 2) {
+// //                 uint8_t data = v[i/2 + src_offset + params_offset];
+// //                 float tmp0 = extract_half_byte(data, (bool)(i % 2));
+// //                 float tmp1 = extract_half_byte(data, (bool)((i + 1) % 2));
+// //                 out[dst_offset + i] += weight[j] * (tmp0 - v0[1]) * v0[0];
+// //                 out[dst_offset + i + 1] += weight[j] * (tmp1 - v0[1]) * v0[0];
+// //             }
+// //             dst_offset += _group_size;
+// //             src_offset += _group_size / sub_byte_multiplyer + params_offset;
+// //         }
+// //         v += src_stride;
+// //     }
+// //     return;
+// // #endif
+//     for (size_t j = 0; j < block_size; j++) {
+//         dst_offset = 0;
+//         src_offset = 0;
+//         while (dst_offset < S) {
+//             auto v0 = reinterpret_cast<float*>(v + src_offset);
+//             for (size_t i = 0; i < _group_size; i += 2) {
+//                 uint8_t data = v[i/2 + src_offset + params_offset];
+//                 float tmp0 = extract_half_byte(data, (bool)(i % 2));
+//                 float tmp1 = extract_half_byte(data, (bool)((i + 1) % 2));
+//                 out[dst_offset + i] += weight[j] * tmp0 * v0[0];
+//                 out[dst_offset + i + 1] += weight[j] * tmp1 * v0[0];
+//             }
+//             dst_offset += _group_size;
+//             src_offset += _group_size / sub_byte_multiplyer + params_offset;
+//         }
+//         v += src_stride;
+//     }
+// }
 
 template<typename TA, typename TB>
 static void dot_product_block(TA* a, TB* b, float* c, size_t n, size_t block_size, size_t group_size = 0) {
