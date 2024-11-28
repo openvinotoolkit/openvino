@@ -760,6 +760,11 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*OVExecGraphSerializationTest.ExecutionGraph.*"
         });
 
+        // get_runtime_model method is not supported on NPU
+        _skipRegistry.addPatterns("get_runtime_model method is not supported on NPU", {
+                ".*OVClassModelOptionalTestP.CompileModelCreateDefaultExecGraphResult.*",
+        });
+
         return _skipRegistry;
     }();
     // clang-format on
