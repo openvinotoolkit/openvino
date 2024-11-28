@@ -4,6 +4,7 @@
 
 #include "intel_npu/utils/zero/zero_init.hpp"
 
+#include <loader/ze_loader.h>
 #include <ze_command_queue_npu_ext.h>
 
 #include <regex>
@@ -53,30 +54,93 @@ static std::tuple<uint32_t, std::string> queryDriverExtensionVersion(
     return std::make_tuple(targetVersion, functionExtName ? functionExtName : "");
 }
 
+void ZeroInitStructsHolder::initNpuDriver() {
+    auto setNpuDriver = [&](uint32_t drivers_count, std::vector<ze_driver_handle_t> all_drivers) {
+        driver_properties.stype = ZE_STRUCTURE_TYPE_DRIVER_PROPERTIES;
+        log.debug("ZeroInitStructsHolder::initNpuDriver - setting driver properties to "
+                  "ZE_STRUCTURE_TYPE_DRIVER_PROPERTIES");
+        for (uint32_t i = 0; i < drivers_count; ++i) {
+            zeDriverGetProperties(all_drivers[i], &driver_properties);
+
+            if (memcmp(&driver_properties.uuid, &uuid, sizeof(uuid)) == 0) {
+                driver_handle = all_drivers[i];
+                break;
+            }
+        }
+        if (driver_handle == nullptr) {
+            OPENVINO_THROW("NPU driver wasn't found!");
+        }
+    };
+
+    auto fallbackToZeDriverGet = [&]() {
+        log.debug("ZeroInitStructsHolder - zeInitDrivers not supported, fallback to zeDriverGet");
+
+        uint32_t drivers_count = 0;
+        THROW_ON_FAIL_FOR_LEVELZERO("zeDriverGet", zeDriverGet(&drivers_count, nullptr));
+
+        std::vector<ze_driver_handle_t> all_drivers(drivers_count);
+        THROW_ON_FAIL_FOR_LEVELZERO("zeDriverGet", zeDriverGet(&drivers_count, all_drivers.data()));
+
+        // Get our target driver
+        setNpuDriver(drivers_count, std::move(all_drivers));
+    };
+
+    zel_version_t loader_version = {};
+    size_t num_components;
+    auto result = zelLoaderGetVersions(&num_components, nullptr);
+    if (result == ZE_RESULT_SUCCESS) {
+        zel_component_version_t* versions = new zel_component_version_t[num_components];
+        result = zelLoaderGetVersions(&num_components, versions);
+
+        if (result == ZE_RESULT_SUCCESS) {
+            for (size_t i = 0; i < num_components; ++i) {
+                if (strncmp(versions[i].component_name, "loader", strlen("loader")) == 0) {
+                    loader_version = versions[i].component_lib_version;
+
+                    log.debug("ZeroInitStructsHolder - ze_loader.dll version: %d.%d.%d",
+                              loader_version.major,
+                              loader_version.minor,
+                              loader_version.patch);
+                }
+            }
+        }
+
+        delete[] versions;
+    }
+
+    if (loader_version.major > 1 || (loader_version.major == 1 && loader_version.minor > 18) ||
+        (loader_version.major == 1 && loader_version.minor == 18 && loader_version.patch >= 5)) {
+        uint32_t drivers_count = 0;
+        ze_init_driver_type_desc_t desc = {};
+        desc.flags = ZE_INIT_DRIVER_TYPE_FLAG_NPU;
+        auto result = zeInitDrivers(&drivers_count, nullptr, &desc);
+        if (result != ZE_RESULT_SUCCESS) {
+            fallbackToZeDriverGet();
+            return;
+        }
+
+        std::vector<ze_driver_handle_t> all_drivers(drivers_count);
+        result = zeInitDrivers(&drivers_count, all_drivers.data(), &desc);
+        if (result != ZE_RESULT_SUCCESS) {
+            fallbackToZeDriverGet();
+            return;
+        }
+
+        // Get our target driver
+        setNpuDriver(drivers_count, std::move(all_drivers));
+
+        return;
+    }
+
+    fallbackToZeDriverGet();
+}
+
 ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder", Logger::global().level()) {
-    log.debug("ZeroInitStructsHolder - performing zeInit on VPU only");
+    log.debug("ZeroInitStructsHolder - performing zeInit on NPU only");
     THROW_ON_FAIL_FOR_LEVELZERO("zeInit", zeInit(ZE_INIT_FLAG_VPU_ONLY));
 
-    uint32_t drivers = 0;
-    THROW_ON_FAIL_FOR_LEVELZERO("zeDriverGet", zeDriverGet(&drivers, nullptr));
-
-    std::vector<ze_driver_handle_t> all_drivers(drivers);
-    THROW_ON_FAIL_FOR_LEVELZERO("zeDriverGet", zeDriverGet(&drivers, all_drivers.data()));
-
-    // Get our target driver
-    driver_properties.stype = ZE_STRUCTURE_TYPE_DRIVER_PROPERTIES;
-    log.debug("ZeroInitStructsHolder - setting driver properties to ZE_STRUCTURE_TYPE_DRIVER_PROPERTIES");
-    for (uint32_t i = 0; i < drivers; ++i) {
-        zeDriverGetProperties(all_drivers[i], &driver_properties);
-
-        if (memcmp(&driver_properties.uuid, &uuid, sizeof(uuid)) == 0) {
-            driver_handle = all_drivers[i];
-            break;
-        }
-    }
-    if (driver_handle == nullptr) {
-        OPENVINO_THROW("zeDriverGet failed to return NPU driver");
-    }
+    log.debug("ZeroInitStructsHolder - initialize NPU Driver");
+    initNpuDriver();
 
     // Check L0 API version
     THROW_ON_FAIL_FOR_LEVELZERO("zeDriverGetApiVersion", zeDriverGetApiVersion(driver_handle, &ze_drv_api_version));
