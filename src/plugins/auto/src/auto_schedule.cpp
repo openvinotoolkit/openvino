@@ -101,6 +101,8 @@ void AutoSchedule::init() {
     auto load_device_task = [&](AutoCompileContext* context_ptr,  const std::shared_ptr<ov::Model>& model) {
         try_to_compile_model(*context_ptr, model);
         if (context_ptr->m_is_load_success) {
+            // release cloned model here
+            const_cast<std::shared_ptr<ov::Model>&>(model).reset();
             if (context_ptr->m_worker_name.empty()) {
                 context_ptr->m_worker_name = context_ptr->m_device_info.device_name;
             }
