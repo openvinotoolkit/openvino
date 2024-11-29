@@ -750,11 +750,6 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                 if (user_inst->can_be_optimized()
                         && (curr_output_memory_ptr
                             && get_network().get_engine().is_the_same_buffer(*curr_output_memory_ptr, *target_mem_ptr))) {
-                    if (user_inst->mem_allocated()) {
-                        get_network().get_memory_pool().release_memory(user_inst->_outputs[0].get(),
-                                user_inst->get_node().get_unique_id(), user_inst->id(), get_network_id());
-                        _mem_allocated = false;
-                    }
                     user_inst->clear_output_memory();
                     reset_user_output_memory(user_inst, target_mem_ptr);
                 }
