@@ -181,7 +181,7 @@ struct OptionPrinter<std::map<K, V>> final {
         for (auto& [key, value] : val) {
             std::string key_str = OptionPrinter<K>::toString(key);
             std::string value_str = OptionPrinter<V>::toString(value);
-        ss << key_str << ":" << value_str;
+            ss << key_str << ":" << value_str;
             if (counter < size - 1) {
                 ss << ",";
             }

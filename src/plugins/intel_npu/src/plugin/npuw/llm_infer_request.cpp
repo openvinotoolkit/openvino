@@ -10,6 +10,7 @@
 #include "logging.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 
+namespace {
 template <typename T>
 void fill_tensor(ov::SoPtr<ov::ITensor> tensor, T fill_val, size_t offset = 0u) {
     T* tensor_data = tensor->data<T>();
@@ -26,6 +27,7 @@ ov::SoPtr<ov::ITensor> make_tensor_slice(ov::SoPtr<ov::ITensor> tensor,
     end_shape[dim] = end_pos;
     return ov::get_tensor_impl(ov::Tensor(ov::make_tensor(tensor), start_shape, end_shape));
 }
+}  // anonymous namespace
 
 ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model,
                                            const ov::npuw::LLMCompiledModel::KVCacheDesc& kvcache_desc)
@@ -101,9 +103,9 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
 
     if (m_need_copy_kvcache) {
         LOG_DEBUG("Copying kv-cache from prefill to generate model.");
-        const auto kStartOutputKVCacheLayers = 1u;
+        const std::size_t kStartOutputKVCacheLayers = 1u;
         const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
-        for (int i = 0; i < kvcache_compiled->outputs().size() - 1; ++i) {
+        for (std::size_t i = 0; i < kvcache_compiled->outputs().size() - 1; ++i) {
             const auto& output_name = kvcache_compiled->outputs()[kStartOutputKVCacheLayers + i].get_any_name();
             auto prefill_out_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
 
@@ -148,9 +150,9 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     m_kvcache_desc.num_stored_tokens += 1;
 
     LOG_DEBUG("Write KV-cache for the new token to the correct input position for next iteration.");
-    const auto kStartOutputKVCacheLayers = 1u;
+    const std::size_t kStartOutputKVCacheLayers = 1u;
     const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
-    for (int i = 0; i < kvcache_compiled->outputs().size() - 1; ++i) {
+    for (std::size_t i = 0; i < kvcache_compiled->outputs().size() - 1; ++i) {
         const auto& output_name = kvcache_compiled->outputs()[kStartOutputKVCacheLayers + i].get_any_name();
         const auto& input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
         auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
