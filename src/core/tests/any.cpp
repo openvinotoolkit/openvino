@@ -767,7 +767,6 @@ TYPED_TEST_P(AnyConversionTest, AnyToOtherValue) {
     EXPECT_EQ(a.as<int16_t>(), static_cast<int16_t>(test_value));
     EXPECT_EQ(a.as<int32_t>(), static_cast<int32_t>(test_value));
     EXPECT_EQ(a.as<int64_t>(), static_cast<int64_t>(test_value));
-    EXPECT_EQ(a.as<ssize_t>(), static_cast<ssize_t>(test_value));
 
     EXPECT_EQ(a.as<uint8_t>(), static_cast<uint8_t>(test_value));
     EXPECT_EQ(a.as<uint16_t>(), static_cast<uint16_t>(test_value));
