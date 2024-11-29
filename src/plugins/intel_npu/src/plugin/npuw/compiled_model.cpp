@@ -727,8 +727,9 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::CompiledModel::create_sync_infe
         const auto num_submodels = m_compiled_submodels.size();
         for (std::size_t idx = 0u; idx < num_submodels; idx++) {
             const auto& comp_model_desc = m_compiled_submodels[idx];
-            if (!comp_model_desc.replaced_by.has_value()) {
-                // not a funcall, do nothing
+            if (!comp_model_desc.replaced_by.has_value() || comp_model_desc.forced_to_fcall) {
+                // not a funcall, do nothing, or a subgraph that was forced to funcall
+                // (a 1-call function) - skip
                 continue;
             }
             const auto real_idx = comp_model_desc.replaced_by.value();
