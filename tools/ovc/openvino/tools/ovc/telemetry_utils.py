@@ -24,7 +24,7 @@ def is_optimum():
             return True
     return False
 
-def is_torch():
+def is_torch_compile():
     import traceback
     for line in traceback.format_stack():
         if os.path.join("torch", "_dynamo", "backends", "registry.py") in line:
