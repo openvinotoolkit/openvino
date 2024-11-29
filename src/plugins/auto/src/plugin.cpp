@@ -481,7 +481,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     if (is_cumulative) {
         impl = std::make_shared<AutoCumuCompiledModel>(cloned_model, shared_from_this(), device_context, auto_s_context, scheduler);
     } else {
-        impl = std::make_shared<AutoCompiledModel>(cloned_model, shared_from_this(), device_context, auto_s_context, scheduler);
+        auto model = auto_s_context->m_model;
+        if (std::static_pointer_cast<AutoSchedule>(scheduler)->m_compile_context[ACTUALDEVICE].m_is_already) {
+            // release cloned model here if actual device finish compiling model.
+            model.reset();
+            auto_s_context->m_model.reset();
+        }
+        impl =
+            std::make_shared<AutoCompiledModel>(model, shared_from_this(), device_context, auto_s_context, scheduler);
     }
     return impl;
 }
