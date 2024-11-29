@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import sys
 import numpy as np
 import pytest
 import math
@@ -830,3 +831,14 @@ def test_model_with_statement():
     with add_model as model:
         pass
     assert add_model.friendly_name is None
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
+def test_model_tempdir_fails():
+    # Generate a model with stateful components, ensuring the .bin file will be non-empty after saving
+    mem_model = generate_model_with_memory(input_shape=Shape([2, 1]), data_type=Type.f32)
+    with pytest.raises(PermissionError):
+        with tempfile.TemporaryDirectory() as model_save_dir:
+            save_model(mem_model, f"{model_save_dir}/model.xml")
+            model = Core().read_model(f"{model_save_dir}/model.xml")
+            assert mem_model.friendly_name == model.friendly_name
