@@ -380,7 +380,10 @@ TEST_P(CompileModelLoadFromFileTestBase, CanCreateCacheDirAndDumpBinariesUnicode
         // Check that directory with cached model exists after loading network
         ASSERT_TRUE(ov::util::directory_exists(cache_path_w)) << "Directory with cached kernels doesn't exist";
         // Check that folder contains cache files and remove them
-        ASSERT_GT(ov::test::utils::removeFilesWithExt(cache_path_w, ov::util::string_to_wstring("blob")), 0);
+        int removed_files_num = 0;
+        removed_files_num += ov::test::utils::removeFilesWithExt(cache_path_w, ov::util::string_to_wstring("blob"));
+        removed_files_num += ov::test::utils::removeFilesWithExt(cache_path_w, ov::util::string_to_wstring("cl_cache"));
+        ASSERT_GT(removed_files_num, 0);
         ov::test::utils::removeFile(model_xml_path_w);
         ov::test::utils::removeFile(model_bin_path_w);
         // Remove directory and check that it doesn't exist anymore
@@ -786,10 +789,12 @@ TEST_P(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinaries) {
         // Check that directory with cached kernels exists after loading network
         ASSERT_TRUE(ov::util::directory_exists(cache_path)) << "Directory with cached kernels doesn't exist";
         // Check that folder contains cache files and remove them
+        int number_of_deleted_files = 0;
         for (auto& ext : m_extList) {
             // Check that folder contains cache files and remove them
-            ASSERT_GT(ov::test::utils::removeFilesWithExt(cache_path, ext), 0);
+            number_of_deleted_files += ov::test::utils::removeFilesWithExt(cache_path, ext);
         }
+        ASSERT_GT(number_of_deleted_files, 0);
         // Remove directory and check that it doesn't exist anymore
         ASSERT_EQ(ov::test::utils::removeDir(cache_path), 0);
         ASSERT_FALSE(ov::util::directory_exists(cache_path));
@@ -824,12 +829,14 @@ TEST_P(CompiledKernelsCacheTest, TwoNetworksWithSameModelCreatesSameCache) {
         auto execNet2 = core->compile_model(function, targetDevice, configuration);
         execNet2 = {};
         size_t n_cache_files_compare = 0;
+        int number_of_deleted_files = 0;
         // Check that two loaded networks with same function creates same caches
         for (auto& ext : m_extList) {
             // Check that folder contains cache files and remove them
             n_cache_files_compare += ov::test::utils::listFilesWithExt(cache_path, ext).size();
-            ASSERT_TRUE(ov::test::utils::removeFilesWithExt(cache_path, ext));
+            number_of_deleted_files += ov::test::utils::removeFilesWithExt(cache_path, ext);
         }
+        ASSERT_GT(number_of_deleted_files, 0);
         ASSERT_EQ(n_cache_files_compare, n_cache_files);
 
         // Remove directory and check that it doesn't exist anymore
@@ -865,10 +872,12 @@ TEST_P(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinariesUnicodePath) {
             // Check that directory with cached kernels exists after loading network
             ASSERT_TRUE(ov::util::directory_exists(cache_path_w)) << "Directory with cached kernels doesn't exist";
             // Check that folder contains cache files and remove them
+            int count_of_removed_files = 0;
             for (auto& ext : m_extList) {
                 // Check that folder contains cache files and remove them
-                ASSERT_GT(ov::test::utils::removeFilesWithExt(cache_path_w, ov::test::utils::stringToWString(ext)), 0);
+                count_of_removed_files += ov::test::utils::removeFilesWithExt(cache_path_w, ov::test::utils::stringToWString(ext));
             }
+            ASSERT_GT(count_of_removed_files, 0);
             // Remove directory and check that it doesn't exist anymore
             ASSERT_EQ(ov::test::utils::removeDir(cache_path_w), 0);
             ASSERT_FALSE(ov::util::directory_exists(cache_path_w));

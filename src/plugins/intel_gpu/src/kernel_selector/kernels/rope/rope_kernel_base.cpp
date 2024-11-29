@@ -51,6 +51,8 @@ JitConstants RoPEKernelBase::GetJitConstants(const rope_params& params, RoPEKern
             jit.AddConstant(MakeJitConstant("SUPPORT_2D_ROPE", true));
         }
         jit.AddConstant(MakeJitConstant("CHATGLM", true));
+    } else if (params.is_interleaved) {
+        jit.AddConstant(MakeJitConstant("RotateInterleaved", true));
     } else {
         jit.AddConstant(MakeJitConstant("RotateHalf", true));
     }

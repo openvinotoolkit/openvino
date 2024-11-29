@@ -11,14 +11,24 @@ namespace ov {
 namespace intel_cpu {
 
 /**
- * This class wraps core specific shape inference class to implement CPU plugin specific interface.
- *
+ * @brief This class wraps core specific shape inference class to implement CPU plugin specific interface.
  */
 class NgraphShapeInfer : public IShapeInfer {
 public:
-    NgraphShapeInfer(std::shared_ptr<IStaticShapeInfer> shape_infer, IShapeInfer::port_mask_t port_mask)
-        : m_shape_infer(shape_infer),
-          m_port_mask(port_mask) {}
+    /**
+     * @brief Wraps IStaticShapeInfer into IShapeInfer interface. Will use port mask defined in IStaticShapeInfer.
+     *
+     * @param shape_infer Instance of IStaticShapeInfer.
+     */
+    NgraphShapeInfer(std::shared_ptr<IStaticShapeInfer> shape_infer);
+
+    /**
+     * @brief Wraps IStaticShapeInfer into IShapeInfer interface. Will use port mask defined by user
+     *
+     * @param shape_infer Instance of IStaticShapeInfer.
+     * @param port_mask   Port mask define.
+     */
+    NgraphShapeInfer(std::shared_ptr<IStaticShapeInfer> shape_infer, IShapeInfer::port_mask_t port_mask);
 
     Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
@@ -34,6 +44,7 @@ public:
     port_mask_t get_port_mask() const override {
         return m_port_mask;
     }
+
 private:
     std::shared_ptr<IStaticShapeInfer> m_shape_infer;
     IShapeInfer::port_mask_t m_port_mask;
