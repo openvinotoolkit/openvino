@@ -23,6 +23,9 @@ ov::matcher_pass_callback ov::intel_cpu::ConvertReduceMultiAxisBase::convert_red
         if (!reduction_axes) {
             return false;
         }
+        if (!reduce->is_dynamic() && ov::shape_size(input0.get_shape()) == 0) {
+            return false;
+        }
         if (ov::shape_size(input1.get_shape()) <= 1) {
             return false;
         }
