@@ -391,7 +391,7 @@ TEST(RTInfoSerialization, custom_info) {
     const auto result = std::make_shared<op::v0::Result>(add);
 
     const auto add_info = [](const std::shared_ptr<Node>& node, const std::string& value) {
-        const_cast<std::string&>(node->get_name()) = "node_" + value;
+        node->set_friendly_name("node_" + value);
         node->get_rt_info()["node_info_" + value] = "v_" + value;
         node->output(0).get_rt_info()["output_info_" + value] = "o_" + value;
     };
@@ -401,7 +401,7 @@ TEST(RTInfoSerialization, custom_info) {
     add_info(result, "D");
 
     const auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
-    const_cast<std::string&>(model->get_name()) = "CustomRTI";
+    model->set_friendly_name("CustomRTI");
 
     std::stringstream model_ss, weights_ss;
     EXPECT_NO_THROW((ov::pass::Serialize{model_ss, weights_ss}.run_on_model(model)));
@@ -462,16 +462,16 @@ TEST(RTInfoSerialization, AnyMap_info) {
     const auto abs = std::make_shared<op::v0::Abs>(data);
     const auto result = std::make_shared<op::v0::Result>(abs);
 
-    const_cast<std::string&>(data->get_name()) = "data";
-    const_cast<std::string&>(abs->get_name()) = "abs";
-    const_cast<std::string&>(result->get_name()) = "result";
+    data->set_friendly_name("data");
+    abs->set_friendly_name("abs");
+    result->set_friendly_name("result");
 
     const auto empty = AnyMap{};
     const auto nested = AnyMap{{"c", "d"}};
     abs->get_rt_info()["AnyMap"] = AnyMap{{"a", "b"}, {"empty", empty}, {"i", 7}, {"x", 3.14}, {"nested", nested}};
 
     const auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
-    const_cast<std::string&>(model->get_name()) = "CustomRTI";
+    model->set_friendly_name("CustomRTI");
 
     std::stringstream model_ss, weights_ss;
     EXPECT_NO_THROW((ov::pass::Serialize{model_ss, weights_ss}.run_on_model(model)));
