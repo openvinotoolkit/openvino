@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/type/element_type.hpp"
 #include "ov_ops/fully_connected.hpp"
 #include "convert_matmul_to_fc.hpp"
 #include "openvino/op/matmul.hpp"
@@ -152,12 +153,12 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             fc_input_b = convert;
         }
 
-        auto bias_ph = std::make_shared<ov::op::v0::Constant>(element::undefined, Shape{0});
-        new_ops.push_back(bias_ph);
+        auto bias = std::make_shared<ov::op::v0::Constant>(element::undefined, Shape{0});
+        new_ops.push_back(bias);
 
         auto fc = std::make_shared<ov::op::internal::FullyConnected>(fc_input_a,
                                                                      fc_input_b,
-                                                                     bias_ph,
+                                                                     bias,
                                                                      matmul->get_output_element_type(0));
 
         fc->set_friendly_name(matmul->get_friendly_name());

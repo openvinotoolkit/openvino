@@ -34,14 +34,7 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model> &model, const C
     ov::pass::Manager manager("CPU:ConvertToCPUSpecificOpset");
     manager.set_per_pass_validation(false);
 
-    // CPU_REGISTER_PASS_COMMON(manager, AlignMatMulInputRanks);
     CPU_REGISTER_PASS_COMMON(manager, ConvertMatMulToFC);
-    if (std::getenv("EXTRA_DUMP")) {
-        manager.run_passes(model);
-        ov::pass::Serialize("after_fc.xml", "/dev/null").run_on_model(model);
-        CPU_DISABLE_PASS_COMMON(manager, ConvertMatMulToFC);
-    }
-
     CPU_REGISTER_PASS_COMMON(manager, FullyConnectedBiasFusion);
 
     std::vector<ov::element::Type> supported_activation_types {
@@ -70,12 +63,6 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model> &model, const C
         });
 
     CPU_REGISTER_PASS_X64(manager, pass::ConvertFCToFCQuantizedLegacy);
-    if (std::getenv("EXTRA_DUMP")) {
-        manager.run_passes(model);
-        ov::pass::Serialize("after_fc_quantized.xml", "/dev/null").run_on_model(model);
-        CPU_DISABLE_PASS_COMMON(manager, ConvertMatMulToFC);
-    }
-
     CPU_REGISTER_PASS_X64(manager, MoveFCReshapeToWeights);
     CPU_REGISTER_PASS_X64(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_COMMON(manager, AlignMatMulInputRanks);
