@@ -118,7 +118,7 @@ sample shows basic usage of the ``Text2ImagePipeline`` pipeline.
                    image_write("baseline.bmp", image)
 
       For more information, refer to the
-      `Python sample <https://github.com/openvinotoolkit/openvino.genai/blob/master/samples/python/text2image/README.md>`__
+      `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/text2image/>`__
 
    .. tab-item:: C++
       :sync: cpp
@@ -218,7 +218,7 @@ sample shows basic usage of the ``Text2ImagePipeline`` pipeline.
 
 
       For more information, refer to the
-      `C++ sample <https://github.com/openvinotoolkit/openvino.genai/blob/master/samples/cpp/text2image/README.md>`__
+      `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/text2image/>`__
 
 
 
@@ -269,7 +269,7 @@ and use audio files in WAV format at a sampling rate of 16 kHz as input.
 
 
       For more information, refer to the
-      `Python sample <https://github.com/openvinotoolkit/openvino.genai/blob/master/samples/python/whisper_speech_recognition/README.md>`__.
+      `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/whisper_speech_recognition/>`__.
 
    .. tab-item:: C++
       :sync: cpp
@@ -322,7 +322,7 @@ and use audio files in WAV format at a sampling rate of 16 kHz as input.
 
 
       For more information, refer to the
-      `C++ sample <https://github.com/openvinotoolkit/openvino.genai/blob/master/samples/cpp/whisper_speech_recognition/README.md>`__.
+      `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/whisper_speech_recognition/>`__.
 
 
 Using GenAI in Chat Scenario
@@ -367,7 +367,7 @@ mark a conversation session, as shown in the samples below:
 
 
       For more information, refer to the
-      `Python sample <https://github.com/openvinotoolkit/openvino.genai/blob/master/samples/python/chat_sample/README.md>`__.
+      `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/chat_sample/>`__.
 
    .. tab-item:: C++
       :sync: cpp
@@ -415,7 +415,142 @@ mark a conversation session, as shown in the samples below:
 
 
       For more information, refer to the
-      `C++ sample <https://github.com/openvinotoolkit/openvino.genai/blob/master/samples/cpp/chat_sample/README.md>`__
+      `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/chat_sample/>`__
+
+
+Using GenAI with Vision Language Models
+#######################################
+
+OpenVINO GenAI introduces the ``openvino_genai.VLMPipeline`` pipeline for
+inference of multimodal text-generation Vision Language Models (VLMs).
+With a text prompt and an image as input, VLMPipeline can generate text using
+models such as LLava or MiniCPM-V. See the chat scenario presented
+in the samples below:
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. code-block:: python
+
+         import numpy as np
+         import openvino_genai
+         from PIL import Image
+         from openvino import Tensor
+         from pathlib import Path
+
+
+         def streamer(subword: str) -> bool:
+             print(subword, end='', flush=True)
+
+
+         def read_image(path: str) -> Tensor:
+             pic = Image.open(path).convert("RGB")
+             image_data = np.array(pic.getdata()).reshape(1, pic.size[1], pic.size[0], 3).astype(np.uint8)
+             return Tensor(image_data)
+
+
+         def read_images(path: str) -> list[Tensor]:
+             entry = Path(path)
+             if entry.is_dir():
+                 return [read_image(str(file)) for file in sorted(entry.iterdir())]
+             return [read_image(path)]
+
+
+         def infer(model_dir: str, image_dir: str):
+             rgbs = read_images(image_dir)
+             device = 'CPU'  # GPU can be used as well.
+             enable_compile_cache = dict()
+             if "GPU" == device:
+                 enable_compile_cache["CACHE_DIR"] = "vlm_cache"
+             pipe = openvino_genai.VLMPipeline(model_dir, device, **enable_compile_cache)
+
+             config = openvino_genai.GenerationConfig()
+             config.max_new_tokens = 100
+
+             pipe.start_chat()
+             prompt = input('question:\n')
+             pipe.generate(prompt, images=rgbs, generation_config=config, streamer=streamer)
+
+             while True:
+                 try:
+                     prompt = input("\n----------\n"
+                         "question:\n")
+                 except EOFError:
+                     break
+                 pipe.generate(prompt, generation_config=config, streamer=streamer)
+             pipe.finish_chat()
+
+
+      For more information, refer to the
+      `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/visual_language_chat>`__.
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. code-block:: cpp
+
+         #include "load_image.hpp"
+         #include <openvino/genai/visual_language/pipeline.hpp>
+         #include <filesystem>
+
+         bool print_subword(std::string&& subword) {
+             return !(std::cout << subword << std::flush);
+         }
+
+         int main(int argc, char* argv[]) try {
+             if (3 != argc) {
+                 throw std::runtime_error(std::string{"Usage "} + argv[0] + " <MODEL_DIR> <IMAGE_FILE OR DIR_WITH_IMAGES>");
+             }
+
+             std::vector<ov::Tensor> rgbs = utils::load_images(argv[2]);
+
+             std::string device = "CPU";  // GPU can be used as well.
+             ov::AnyMap enable_compile_cache;
+             if ("GPU" == device) {
+                 enable_compile_cache.insert({ov::cache_dir("vlm_cache")});
+             }
+             ov::genai::VLMPipeline pipe(argv[1], device, enable_compile_cache);
+
+             ov::genai::GenerationConfig generation_config;
+             generation_config.max_new_tokens = 100;
+
+             std::string prompt;
+
+             pipe.start_chat();
+             std::cout << "question:\n";
+
+             std::getline(std::cin, prompt);
+             pipe.generate(prompt,
+                           ov::genai::images(rgbs),
+                           ov::genai::generation_config(generation_config),
+                           ov::genai::streamer(print_subword));
+             std::cout << "\n----------\n"
+                 "question:\n";
+             while (std::getline(std::cin, prompt)) {
+                 pipe.generate(prompt,
+                               ov::genai::generation_config(generation_config),
+                               ov::genai::streamer(print_subword));
+                 std::cout << "\n----------\n"
+                     "question:\n";
+             }
+             pipe.finish_chat();
+         } catch (const std::exception& error) {
+             try {
+                 std::cerr << error.what() << '\n';
+             } catch (const std::ios_base::failure&) {}
+             return EXIT_FAILURE;
+         } catch (...) {
+             try {
+                 std::cerr << "Non-exception object thrown\n";
+             } catch (const std::ios_base::failure&) {}
+             return EXIT_FAILURE;
+         }
+
+
+      For more information, refer to the
+      `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/visual_language_chat/>`__
 
 Additional Resources
 #####################
@@ -423,4 +558,6 @@ Additional Resources
 * :doc:`Install OpenVINO GenAI <../../../get-started/install-openvino/install-openvino-genai>`
 * `OpenVINO GenAI Repo <https://github.com/openvinotoolkit/openvino.genai>`__
 * `OpenVINO GenAI Samples <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples>`__
+* A Jupyter notebook demonstrating
+  `Visual-language assistant with MiniCPM-V2 and OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/minicpm-v-multimodal-chatbot>`__
 * `OpenVINO Tokenizers <https://github.com/openvinotoolkit/openvino_tokenizers>`__
