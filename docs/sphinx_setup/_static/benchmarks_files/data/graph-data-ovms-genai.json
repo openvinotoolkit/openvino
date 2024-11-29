@@ -6,7 +6,7 @@
         "whats_new_model": false,
         "PlatformType": "Server Platforms (Intel® Xeon®)",
         "Parameters": {
-            "OpenVINO Model Server": {
+            "Ovms": {
                 "Precisions": [
                     {
                         "Throughput": {
@@ -30,7 +30,7 @@
                     }
                 ]
             },
-            "vLLM with OpenVINO backend": {
+            "Vllm": {
                 "Precisions": [
                     {
                         "Throughput": {
@@ -63,7 +63,7 @@
         "whats_new_model": false,
         "PlatformType": "Server Platforms (Intel® Xeon®)",
         "Parameters": {
-            "OpenVINO Model Server": {
+            "Ovms": {
                 "Precisions": [
                     {
                         "Throughput": {
@@ -87,7 +87,7 @@
                     }
                 ]
             },
-            "vLLM with OpenVINO backend": {
+            "Vllm": {
                 "Precisions": [
                     {
                         "Throughput": {
@@ -120,7 +120,7 @@
         "whats_new_model": false,
         "PlatformType": "Server Platforms (Intel® Xeon®)",
         "Parameters": {
-            "OpenVINO Model Server": {
+            "Ovms": {
                 "Precisions": [
                     {
                         "Throughput": {
@@ -144,7 +144,7 @@
                     }
                 ]
             },
-            "vLLM with OpenVINO backend": {
+            "Vllm": {
                 "Precisions": [
                     {
                         "Throughput": {
@@ -177,7 +177,7 @@
         "whats_new_model": true,
         "PlatformType": "Server Platforms (Intel® Xeon®)",
         "Parameters": {
-            "OpenVINO Model Server": {
+            "Ovms": {
                 "Precisions": [
                     {
                         "Throughput": {
@@ -201,7 +201,7 @@
                     }
                 ]
             },
-            "vLLM with OpenVINO backend": {
+            "Vllm": {
                 "Precisions": [
                     {
                         "Throughput": {
@@ -228,7 +228,7 @@
         "whats_new_model": true,
         "PlatformType": "Server Platforms (Intel® Xeon®)",
         "Parameters": {
-            "OpenVINO Model Server": {
+            "Ovms": {
                 "Precisions": [
                     {
                         "Throughput": {
@@ -252,7 +252,7 @@
                     }
                 ]
             },
-            "vLLM with OpenVINO backend": {
+            "Vllm": {
                 "Precisions": [
                     {
                         "Throughput": {
@@ -283,7 +283,7 @@
         "whats_new_model": true,
         "PlatformType": "Server Platforms (Intel® Xeon®)",
         "Parameters": {
-            "OpenVINO Model Server": {
+            "Ovms": {
                 "Precisions": [
                     {
                         "Throughput": {
@@ -307,7 +307,7 @@
                     }
                 ]
             },
-            "vLLM with OpenVINO backend": {
+            "Vllm": {
                 "Precisions": [
                     {
                         "Throughput": {
@@ -338,7 +338,7 @@
         "whats_new_model": false,
         "PlatformType": "Server Platforms (Intel® Xeon®)",
         "Parameters": {
-            "OpenVINO Model Server": {
+            "Ovms": {
                 "Precisions": [
                     {
                         "Throughput": {
@@ -362,7 +362,7 @@
                     }
                 ]
             },
-            "vLLM with OpenVINO backend": {
+            "Vllm": {
                 "Precisions": [
                     {
                         "Throughput": {
@@ -393,7 +393,7 @@
         "whats_new_model": false,
         "PlatformType": "Server Platforms (Intel® Xeon®)",
         "Parameters": {
-            "OpenVINO Model Server": {
+            "Ovms": {
                 "Precisions": [
                     {
                         "Throughput": {
@@ -417,7 +417,7 @@
                     }
                 ]
             },
-            "vLLM with OpenVINO backend": {
+            "Vllm": {
                 "Precisions": [
                     {
                         "Throughput": {
@@ -450,7 +450,7 @@
         "whats_new_model": false,
         "PlatformType": "Server Platforms (Intel® Xeon®)",
         "Parameters": {
-            "OpenVINO Model Server": {
+            "Ovms": {
                 "Precisions": [
                     {
                         "Throughput": {
@@ -474,7 +474,7 @@
                     }
                 ]
             },
-            "vLLM with OpenVINO backend": {
+            "Vllm": {
                 "Precisions": [
                     {
                         "Throughput": {
