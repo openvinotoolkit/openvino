@@ -1,4 +1,4 @@
-Run LLMs with Hugging Face and Optimum Intel
+Inference with Optimum Intel
 ===============================================================================================
 
 .. meta::
