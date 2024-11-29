@@ -162,7 +162,11 @@ void parse_processor_info_win(const char* base_ptr,
                 proc_info[CPU_MAP_CORE_ID] = _cores;
                 if ((_processors > group_start) && (_processors <= group_end)) {
                     proc_info[CPU_MAP_CORE_TYPE] = group_type;
-                    proc_info[CPU_MAP_GROUP_ID] = group_id;
+                    if ((group_type == MAIN_CORE_PROC) && (group_end - group_start != 1)) {
+                        proc_info[CPU_MAP_GROUP_ID] = group++;
+                    } else {
+                        proc_info[CPU_MAP_GROUP_ID] = group_id;
+                    }
                     if (group_id == CPU_BLOCKED) {
                         proc_info[CPU_MAP_USED_FLAG] = CPU_BLOCKED;
                         _blocked_cores++;
@@ -219,13 +223,15 @@ void parse_processor_info_win(const char* base_ptr,
                 if (_processors <= list[list_len - 1] + base_proc) {
                     group_start = list[0];
                     group_end = list[list_len - 1];
+                    group_id = group;
                     group_type = MAIN_CORE_PROC;
                 }
                 for (int m = 0; m < _processors - list[0]; m++) {
-                    _cpu_mapping_table[list[m] + base_proc][CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
-                    _cpu_mapping_table[list[m] + base_proc][CPU_MAP_GROUP_ID] = group_id;
-                    _proc_type_table[0][MAIN_CORE_PROC]++;
-                    group_id = group++;
+                    if (_cpu_mapping_table[list[m] + base_proc][CPU_MAP_CORE_TYPE] == -1) {
+                        _cpu_mapping_table[list[m] + base_proc][CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
+                        _cpu_mapping_table[list[m] + base_proc][CPU_MAP_GROUP_ID] = group++;
+                        _proc_type_table[0][MAIN_CORE_PROC]++;
+                    }
                 }
             }
         }
