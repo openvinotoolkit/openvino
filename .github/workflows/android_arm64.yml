@@ -107,8 +107,6 @@ jobs:
 
       - name: Init submodules for non vcpkg dependencies
         run: |
-          export tag=${{ github.event.pull_request.title }}
-          docker build -t "$tag" .
           pushd ${OPENVINO_REPO}
             git submodule update --init -- ${OPENVINO_REPO}/src/plugins
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/zlib
