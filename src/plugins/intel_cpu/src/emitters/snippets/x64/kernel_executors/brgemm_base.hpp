@@ -52,13 +52,13 @@ public:
 
 protected:
     struct StaticBaseParams {
-        StaticBaseParams(const element::Type& in0_dtype, const element::Type& in1_dtype, dnnl::impl::cpu::x64::cpu_isa_t primitive_isa);
+        StaticBaseParams(const element::Type& in0_dtype, const element::Type& in1_dtype, dnnl::impl::cpu::x64::cpu_isa_t primitive_isa, size_t hash_seed);
         virtual ~StaticBaseParams() = default;
 
         const dnnl_data_type_t dt_in0 {dnnl_f32}, dt_in1 {dnnl_f32};
         const dnnl::impl::cpu::x64::cpu_isa_t isa {dnnl::impl::cpu::x64::isa_undef};
 
-        virtual size_t hash() const = 0;
+        size_t hash() const { return m_hash; }
 
         bool operator==(const StaticBaseParams& rhs) const;
         bool operator!=(const StaticBaseParams& rhs) const { return !(*this == rhs); }
@@ -66,7 +66,9 @@ protected:
         std::string to_string() const;
 #endif
     protected:
-        virtual size_t compute_hash() const;
+        static size_t compute_hash(size_t hash_seed, dnnl_data_type_t dt_in0, dnnl_data_type_t dt_in1, dnnl::impl::cpu::x64::cpu_isa_t isa);
+
+        const size_t m_hash {0};
     };
 
     virtual std::shared_ptr<StaticBaseParams> get_static_params() const = 0;
@@ -88,11 +90,11 @@ protected:
                               const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                               BrgemmBaseKernelConfig& config);
 
-    static void create_brgemm_kernel(std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& kernel, dnnl_data_type_t dt0, dnnl_data_type_t dt1,
+    static void create_brgemm_kernel(std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& kernel, dnnl_data_type_t dt0, dnnl_data_type_t dt1,
                                      dnnl::impl::cpu::x64::cpu_isa_t isa, dnnl_dim_t M, dnnl_dim_t N, dnnl_dim_t K,
                                      dnnl_dim_t LDA, dnnl_dim_t LDB, dnnl_dim_t LDC, float beta, bool with_amx = false, char* palette = nullptr);
 
-    static void execute_brgemm_kernel(const std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& kernel, const void* src, const void* wei,
+    static void execute_brgemm_kernel(const std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& kernel, const void* src, const void* wei,
                                       void* dst, void* scratch, bool with_comp);
 };
 

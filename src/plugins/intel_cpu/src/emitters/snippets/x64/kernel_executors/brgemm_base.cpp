@@ -11,6 +11,9 @@
 
 #define DIM_CAST(X) static_cast<dnnl_dim_t>(X)
 #define DTYPE_CAST(X) static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(X))
+#define PRINT(X) ss << #X  << " = " << X << "\n"
+#define EQ(X) X == rhs.X
+#define HASH(X) seed = hash_combine(seed, X)
 
 using namespace Xbyak;
 using namespace dnnl::impl;
@@ -28,12 +31,10 @@ bool BrgemmBaseKernelConfig::is_empty() const {
 }
 
 bool BrgemmBaseKernelConfig::operator==(const BrgemmBaseKernelConfig& rhs) const {
-#define EQ(X) X == rhs.X
     return EQ(m_hash) && EQ(m_beta) &&
            EQ(m_M) && EQ(m_N) && EQ(m_K) &&
            EQ(m_LDA) && EQ(m_LDB) && EQ(m_LDC) &&
-           (EQ(get_static_params().get()) || *get_static_params() == *(rhs.get_static_params()));
-#undef EQ
+           (EQ(get_static_params()) || *get_static_params() == *(rhs.get_static_params()));
 }
 
 void BrgemmBaseKernelConfig::update(dnnl_dim_t M, dnnl_dim_t N, dnnl_dim_t K, dnnl_dim_t LDA, dnnl_dim_t LDB, dnnl_dim_t LDC, float beta) {
@@ -53,34 +54,27 @@ void BrgemmBaseKernelConfig::update(dnnl_dim_t M, dnnl_dim_t N, dnnl_dim_t K, dn
 
 size_t BrgemmBaseKernelConfig::compute_hash() const {
     size_t seed = get_static_params()->hash();
-#define HASH(X) seed = hash_combine(seed, X)
     HASH(m_M); HASH(m_N); HASH(m_K);
     HASH(m_LDA); HASH(m_LDB); HASH(m_LDC);
     HASH(m_beta);
-#undef HASH
     return seed;
 }
 
 BrgemmBaseKernelConfig::StaticBaseParams::StaticBaseParams(const element::Type& in0_dtype, const element::Type& in1_dtype,
-                                                           dnnl::impl::cpu::x64::cpu_isa_t primitive_isa)
-    : dt_in0(DTYPE_CAST(in0_dtype)), dt_in1(DTYPE_CAST(in1_dtype)), isa(primitive_isa) {}
+                                                           cpu_isa_t primitive_isa, size_t hash_seed)
+    : dt_in0(DTYPE_CAST(in0_dtype)), dt_in1(DTYPE_CAST(in1_dtype)), isa(primitive_isa), m_hash(compute_hash(hash_seed, dt_in0, dt_in1, isa)) {}
 
 bool BrgemmBaseKernelConfig::StaticBaseParams::operator==(const StaticBaseParams& rhs) const {
-#define EQ(X) X == rhs.X
     return EQ(hash()) && EQ(dt_in0) && EQ(dt_in1) && EQ(isa);
-#undef EQ
 }
 
-size_t BrgemmBaseKernelConfig::StaticBaseParams::compute_hash() const {
-    size_t seed = 0;
-#define HASH(X) seed = hash_combine(seed, X)
+size_t BrgemmBaseKernelConfig::StaticBaseParams::compute_hash(size_t hash_seed, dnnl_data_type_t dt_in0, dnnl_data_type_t dt_in1, cpu_isa_t isa) {
+    size_t seed = hash_seed;
     HASH(dt_in0); HASH(dt_in1); HASH(isa);
-#undef HASH
     return seed;
 }
 
 #ifdef SNIPPETS_DEBUG_CAPS
-#define PRINT(X) ss << #X  << " = " << X << "\n"
 std::string BrgemmBaseKernelConfig::StaticBaseParams::to_string() const {
     std::stringstream ss;
     PRINT(dt_in0); PRINT(dt_in1);
@@ -96,7 +90,6 @@ std::string BrgemmBaseKernelConfig::to_string() const {
     PRINT(m_beta);
     return ss.str();
 }
-#undef PRINT
 #endif
 
 float BrgemmBaseKernelExecutor::get_beta(const ov::snippets::lowered::LoopManagerPtr& loop_manager, int loop_id,
@@ -233,7 +226,7 @@ void BrgemmBaseKernelExecutor::update_config(const ov::snippets::lowered::Expres
     config.update(DIM_CAST(M), DIM_CAST(N), DIM_CAST(K), LDA, LDB, LDC, beta);
 }
 
-void BrgemmBaseKernelExecutor::create_brgemm_kernel(std::unique_ptr<brgemm_kernel_t>& kernel, dnnl_data_type_t dt0, dnnl_data_type_t dt1,
+void BrgemmBaseKernelExecutor::create_brgemm_kernel(std::shared_ptr<brgemm_kernel_t>& kernel, dnnl_data_type_t dt0, dnnl_data_type_t dt1,
                                                     cpu_isa_t isa, dnnl_dim_t M, dnnl_dim_t N, dnnl_dim_t K,
                                                     dnnl_dim_t LDA, dnnl_dim_t LDB, dnnl_dim_t LDC, float beta, bool with_amx, char* palette) {
     cpu::x64::brgemm_desc_t desc;
@@ -252,7 +245,7 @@ void BrgemmBaseKernelExecutor::create_brgemm_kernel(std::unique_ptr<brgemm_kerne
     kernel = std::unique_ptr<brgemm_kernel_t>(kernel_);
 }
 
-void BrgemmBaseKernelExecutor::execute_brgemm_kernel(const std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& kernel,
+void BrgemmBaseKernelExecutor::execute_brgemm_kernel(const std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& kernel,
                                                      const void* src, const void* wei, void* dst, void* scratch, bool with_comp) {
     cpu::x64::brgemm_kernel_params_t brgemm_p;
     brgemm_p.batch = nullptr;  // default value
@@ -269,6 +262,12 @@ void BrgemmBaseKernelExecutor::execute_brgemm_kernel(const std::unique_ptr<dnnl:
     OV_CPU_JIT_EMITTER_ASSERT(kernel, "has nullptr Brgemm kernel");
     (*kernel)(&brgemm_p);
 }
+
+#undef DIM_CAST
+#undef DTYPE_CAST
+#undef PRINT
+#undef EQ
+#undef HASH
 
 }   // namespace intel_cpu
 }   // namespace ov

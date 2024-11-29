@@ -27,17 +27,13 @@ private:
 
         const bool is_with_comp {false};
 
-        size_t hash() const override { return m_hash; }
-
         bool operator==(const StaticParams& rhs) const;
         bool operator!=(const StaticParams& rhs) const { return !(*this == rhs); }
 #ifdef SNIPPETS_DEBUG_CAPS
         std::string to_string() const;
 #endif
     private:
-        size_t compute_hash() const override;
-
-        const size_t m_hash {0};
+        static size_t compute_hash(bool is_with_comp);
     };
 
     std::shared_ptr<StaticBaseParams> get_static_params() const override { return m_static_params; }
@@ -45,8 +41,11 @@ private:
     std::shared_ptr<StaticParams> m_static_params {nullptr};
 };
 
+// The `update_kernel` method verifies that a compiled kernel is not nullptr.
+// However, the compiled kernel might be empty in cases if nothing is to be compiled (`Config.is_empty() == true`).
+// To cover this case, we wrap the `brgemm_kernel_t` in the separate structure which may contain empty `brgemm_kernel_t`
 struct BrgemmCompiledKernel {
-    std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_kernel = nullptr;
+    std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_kernel = nullptr;
 };
 
 class BrgemmKernelExecutor : public BrgemmBaseKernelExecutor,
@@ -80,6 +79,7 @@ public:
 protected:
     std::shared_ptr<BrgemmCompiledKernel> compile_kernel(const BrgemmKernelConfig& c) const override;
 };
+
 struct brgemm_ref_kernel : public dnnl::impl::cpu::x64::brgemm_kernel_t {
     brgemm_ref_kernel(BrgemmKernelConfig c);
     void operator()(dnnl::impl::cpu::x64::brgemm_kernel_params_t *) const override;

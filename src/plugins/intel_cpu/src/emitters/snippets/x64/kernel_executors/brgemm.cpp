@@ -28,15 +28,14 @@ BrgemmKernelConfig::BrgemmKernelConfig(const element::Type& in0_dtype, const ele
 
 BrgemmKernelConfig::StaticParams::StaticParams(const element::Type& in0_dtype, const element::Type& in1_dtype,
                                                bool is_with_comp, dnnl::impl::cpu::x64::cpu_isa_t primitive_isa)
-    : StaticBaseParams(in0_dtype, in1_dtype, primitive_isa), is_with_comp(is_with_comp), m_hash(compute_hash()) {}
+    : StaticBaseParams(in0_dtype, in1_dtype, primitive_isa, compute_hash(is_with_comp)), is_with_comp(is_with_comp) {}
 
 bool BrgemmKernelConfig::StaticParams::operator==(const StaticParams& rhs) const {
     return StaticBaseParams::operator==(rhs) && is_with_comp == rhs.is_with_comp;
 }
 
-size_t BrgemmKernelConfig::StaticParams::compute_hash() const {
-    size_t seed = StaticBaseParams::compute_hash();
-    return hash_combine(seed, is_with_comp);
+size_t BrgemmKernelConfig::StaticParams::compute_hash(bool is_with_comp) {
+    return hash_combine(0, is_with_comp);
 }
 
 #ifdef SNIPPETS_DEBUG_CAPS
@@ -46,7 +45,6 @@ std::string BrgemmKernelConfig::StaticParams::to_string() const {
     ss << "is_with_comp = " << is_with_comp << "\n";
     return ss.str();
 }
-#undef PRINT
 #endif
 
 BrgemmKernelExecutor::BrgemmKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, BrgemmKernelConfig config) :

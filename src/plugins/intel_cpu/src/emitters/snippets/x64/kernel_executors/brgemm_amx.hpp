@@ -38,17 +38,13 @@ private:
         const dnnl_dim_t inner_k_blk {0};
         const dnnl_dim_t vnni_factor {0};
 
-        size_t hash() const override { return m_hash; }
-
         bool operator==(const StaticParams& rhs) const;
         bool operator!=(const StaticParams& rhs) const { return !(*this == rhs); }
 #ifdef SNIPPETS_DEBUG_CAPS
         std::string to_string() const;
 #endif
     private:
-        size_t compute_hash() const override;
-
-        const size_t m_hash {0};
+        static size_t compute_hash(dnnl_dim_t inner_k_blk, dnnl_dim_t vnni_factor);
     };
 
     std::shared_ptr<StaticBaseParams> get_static_params() const override { return m_static_params; }
@@ -57,13 +53,16 @@ private:
 };
 
 struct BrgemmAMXCompiledKernel {
-    std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_kernel_k_body = nullptr;
-    std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_kernel_k_tail = nullptr;
-    std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_a_t> brgemm_copy_a_kernel = nullptr;
-    // Note: Palette is treated as a part of a kernel because it is initialized during the kernel compilation stage.
-    //       Each kernel need to store the pallet it was compiled with.
-    char palette_body[64] = {};
-    char palette_tail[64] = {};
+    struct BrgemmKernel {
+        std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_kernel {nullptr};
+        // Note: Palette is treated as a part of a kernel because it is initialized during the kernel compilation stage.
+        //       Each kernel need to store the pallet it was compiled with.
+        char palette[64] = {};
+    };
+
+    std::shared_ptr<BrgemmKernel> K_body_kernel {nullptr};
+    std::shared_ptr<BrgemmKernel> K_tail_kernel {nullptr};
+    std::shared_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_a_t> brgemm_copy_a_kernel {nullptr};
 };
 
 class BrgemmAMXKernelExecutor : public BrgemmBaseKernelExecutor,
@@ -90,11 +89,11 @@ protected:
 
     static void configure_tiles_if_needed(amx_tile_config_t* config, const char* palette, dnnl_dim_t M, dnnl_dim_t N, dnnl_dim_t K);
 
-    static void create_brgemm_copy_a_kernel(std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_a_t>& kernel,
+    static void create_brgemm_copy_a_kernel(std::shared_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_a_t>& kernel,
                                             dnnl::impl::cpu::x64::cpu_isa_t isa, dnnl_data_type_t dt,
                                             dnnl_dim_t K, dnnl_dim_t K_blk, dnnl_dim_t K_tail, dnnl_dim_t src_stride, dnnl_dim_t LDA);
 
-    static void execute_brgemm_copy_a_kernel(const std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_a_t>& kernel,
+    static void execute_brgemm_copy_a_kernel(const std::shared_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_a_t>& kernel,
                                              const void* src, const void* tr_src, dnnl_dim_t M, dnnl_dim_t K);
 };
 #define GET_OFF_BRGEMM_AMX_ARGS(field) offsetof(BrgemmAMXKernelExecutor::call_args, field)
