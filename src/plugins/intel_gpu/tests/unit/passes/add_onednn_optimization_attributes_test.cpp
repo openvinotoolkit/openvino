@@ -48,7 +48,7 @@ TEST(add_onednn_optimization_attributes, init_attribute_for_fused_onednn_primiti
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     auto prog = program::build_program(engine, topology, config, false, false);
 
-    prog->get_layout_optimizer().set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
+    prog->get_layout_optimizer().add_all_onednn_impls_optimization_attribute();
 
     program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
     program_wrapper::apply_opt_pass<add_onednn_optimization_attributes>(*prog);

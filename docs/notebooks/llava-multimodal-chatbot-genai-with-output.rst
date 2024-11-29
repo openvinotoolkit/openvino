@@ -121,9 +121,9 @@ Install required dependencies
     import requests
     
     %pip install -q "torch>=2.1.0" "torchvision" "torchaudio" --index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "git+https://github.com/eaidova/optimum-intel.git@ea/minicpmv"
-    %pip install -q  "nncf>=2.13.0"  "sentencepiece" "tokenizers>=0.12.1" "transformers>=4.45.0" "gradio>=4.36"
-    %pip install -q -U --pre --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly openvino-tokenizers openvino openvino-genai
+    %pip install -q "git+https://github.com/huggingface/optimum-intel.git"  --index-url https://download.pytorch.org/whl/cpu
+    %pip install -q  "nncf>=2.14.0"  "sentencepiece" "tokenizers>=0.12.1" "transformers>=4.45.0" "gradio>=4.36"
+    %pip install -q -U  "openvino-tokenizers>=2024.5.0" "openvino>=2024.5.0" "openvino-genai>=2024.5.0"|
     
     
     utility_files = ["notebook_utils.py", "cmd_helper.py"]
@@ -134,8 +134,8 @@ Install required dependencies
             r = requests.get(
                 url=f"https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/{local_path.name}",
             )
-        with local_path.open("w") as f:
-            f.write(r.text)
+            with local_path.open("w") as f:
+                f.write(r.text)
 
 Convert and Optimize Model
 --------------------------
@@ -329,7 +329,7 @@ conversation about provided images content.
 
 .. code:: ipython3
 
-    from openvino_genai import VLMPipeline, GenerationConfig
+    import openvino_genai as ov_genai
 
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -397,7 +397,7 @@ and inference device.
 
 .. code:: ipython3
 
-    ov_model = VLMPipeline(str(model_base_path / model_variant.value), device=device.value)
+    ov_model = ov_genai.VLMPipeline(str(model_base_path / model_variant.value), device=device.value)
 
 Run model inference
 -------------------
@@ -435,7 +435,7 @@ one of the most critical aspects of a smooth experience.
     from io import BytesIO
     import numpy as np
     
-    config = GenerationConfig()
+    config = ov_genai.GenerationConfig()
     config.max_new_tokens = 100
     
     
@@ -445,7 +445,7 @@ one of the most critical aspects of a smooth experience.
             image = Image.open(BytesIO(response.content)).convert("RGB")
         else:
             image = Image.open(image_file).convert("RGB")
-        image_data = np.array(image.getdata()).reshape(1, 3, image.size[1], image.size[0]).astype(np.byte)
+        image_data = np.array(image.getdata()).reshape(1, image.size[1], image.size[0], 3).astype(np.byte)
         return image, ov.Tensor(image_data)
     
     
