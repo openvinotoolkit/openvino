@@ -158,6 +158,10 @@ protected:
         if (!instance.has_indirect_inputs())
             return false;
 
+        // if instance has no intermediate buffer, uses only default_sdpa
+        if (instance.get_intermediates_memories().empty())
+            return false;
+
         const auto& params = *instance.get_impl_params();
         const auto indirect_axis = desc->indirect_axis;
         if (params.input_layouts[get_beam_table_id(desc)].get_partial_shape()[indirect_axis].get_length() == 1)
