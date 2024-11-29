@@ -11,3 +11,40 @@ index b6dc841..d4166dc 100644
  )
  
  target_compile_options(kleidiai
+diff --git a/kai/kai_common.h b/kai/kai_common.h
+index 944f4d0..7321e75 100644
+--- a/kai/kai_common.h
++++ b/kai/kai_common.h
+@@ -78,13 +78,13 @@ inline static size_t kai_get_datatype_size_in_bytes(enum kai_datatype dt) {
+ /// @param[in] f16 The f16 value
+ ///
+ /// @return the f32 value
+-#if defined(__ARM_NEON)
++//#if defined(__ARM_NEON)
+ inline static float kai_cast_f32_f16(uint16_t f16) {
+     __fp16 f32 = 0;
+     memcpy(&f32, &f16, sizeof(uint16_t));
+     return (float)f32;
+ }
+-#endif
++//#endif
+ 
+ /// Converts a scalar bf16 value to f32
+ /// @param[in] bf16 The f16 value
+@@ -116,14 +116,14 @@ inline static uint16_t kai_cast_bf16_f32(float f32) {
+ /// @param[in] f32 The f32 value
+ ///
+ /// @return the f16 value
+-#if defined(__ARM_NEON)
++//#if defined(__ARM_NEON)
+ inline static uint16_t kai_cast_f16_f32(float f32) {
+     uint16_t f16 = 0;
+     __fp16 tmp = (__fp16)f32;
+     memcpy(&f16, &tmp, sizeof(uint16_t));
+     return f16;
+ }
+-#endif
++//#endif
+ 
+ inline static size_t kai_roundup(size_t a, size_t b) {
+     return ((a + b - 1) / b) * b;
