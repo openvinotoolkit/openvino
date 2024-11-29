@@ -133,7 +133,7 @@ public:
 KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compression_dt) {
     using namespace ov::pass::pattern;
 
-    if (compression_dt != element::i8)
+    if (compression_dt != element::i8 && compression_dt != element::u8)
         return;
 
     const auto quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
