@@ -262,7 +262,7 @@ static void quant_u4(const T* src, void* dst, size_t n, float& scale, float& zp)
         auto mask = _mm512_set1_epi32(0x0F);
         second_half = _mm512_and_epi32(second_half, mask);
         auto combined =  _mm512_or_epi32(first_half, second_half);
-        _mm512_mask_cvtusepi32_storeu_epi8(dst_ptr + i / 2, 0xffff, combined);
+        _mm512_mask_cvtepi32_storeu_epi8(dst_ptr + i / 2, 0xffff, combined);
     }
 #endif
     for (; i < n; i++) {
@@ -298,9 +298,37 @@ static void quant_s4(const T* src, void* dst, size_t n, float& scale) {
     if (scale == 0)
         scale = 0.0001f;
     i = 0;
+#if defined(HAVE_AVX512F)
+    auto v_scale = _mm512_set1_ps(1 / scale);
+    auto v_upper = _mm512_set1_epi32(7.0);
+    auto v_lower = _mm512_set1_epi32(-8.0);
+    for (; i + 2 * vec_len_f32_avx512 <= n; i += 2 * vec_len_f32_avx512) {
+        auto v0 = mm512_uni_loadu_ps(src + i);
+        auto v1 = mm512_uni_loadu_ps(src + i + vec_len_f32_avx512);
+        v0 = _mm512_mul_ps(v0, v_scale);
+        v1 = _mm512_mul_ps(v1, v_scale);
+        auto v0_i32 = _mm512_cvt_roundps_epi32(v0, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+        auto v1_i32 = _mm512_cvt_roundps_epi32(v1, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+
+        v0_i32 = _mm512_max_epi32(v0_i32, v_lower);
+        v1_i32 = _mm512_max_epi32(v1_i32, v_lower);
+        v0_i32 = _mm512_min_epi32(v0_i32, v_upper);
+        v1_i32 = _mm512_min_epi32(v1_i32, v_upper);
+
+        __m512i idx1 = _mm512_set_epi32(30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
+        __m512i idx2 = _mm512_set_epi32(31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1);
+        auto first_half =  _mm512_permutex2var_epi32(v0_i32, idx1, v1_i32);
+        auto second_half =  _mm512_permutex2var_epi32(v0_i32, idx2, v1_i32);
+
+        auto mask = _mm512_set1_epi32(0x0F);
+        second_half = _mm512_and_epi32(second_half, mask);
+        first_half = _mm512_slli_epi32(first_half, 4);
+        auto combined =  _mm512_or_epi32(first_half, second_half);
+        _mm512_mask_cvtepi32_storeu_epi8(dst_ptr + i / 2, 0xffff, combined);
+    }
+#endif
     for (; i < n; i++) {
         float tmp = src[i];
-        // add 8.5 here is to save a clamp to (-2^3)
         float temp1 = std::round(tmp / scale);
         float temp2 = (int8_t)(tmp / scale);
         int8_t src_val = std::min((int8_t)(7), (int8_t)std::round(tmp / scale));
