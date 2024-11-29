@@ -1,5 +1,5 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index b6dc841..d4166dc 100644
+index b6dc841..a8065c5 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -161,7 +161,7 @@ if((CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL
@@ -7,7 +7,7 @@ index b6dc841..d4166dc 100644
  
  target_include_directories(kleidiai
 -    PUBLIC  .
-+    PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
++    PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}> $<INSTALL_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
  )
  
  target_compile_options(kleidiai
