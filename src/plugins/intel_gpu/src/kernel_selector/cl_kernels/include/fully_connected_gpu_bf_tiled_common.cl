@@ -428,8 +428,8 @@ inline void (FUNC_NAME)(
         }
     }
 #if OUTER_OFM > 1 && !defined(SWIGLU_LENGTH)
-//    out_f += TILE_OFM * SIMD;
-//    input_offset = input_offset_init;
+    out_f += TILE_OFM * SIMD;
+    input_offset = input_offset_init;
     }
 #endif
     // =====================================================================================================================================
