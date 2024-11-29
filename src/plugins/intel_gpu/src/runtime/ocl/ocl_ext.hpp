@@ -44,13 +44,13 @@ typedef cl_va_api_device_set_intel    cl_device_set_intel;
 #ifndef CL_DEVICE_SUB_GROUP_SIZES_INTEL
 #define CL_DEVICE_SUB_GROUP_SIZES_INTEL           0x4108
 #endif
-
 namespace cl {
 namespace detail {
-CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_SUB_GROUP_SIZES_INTEL, vector<size_type>)
+CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_SUB_GROUP_SIZES_INTEL, cl::vector<size_type>)
 }  // namespace detail
 }  // namespace cl
 #endif // cl_intel_required_subgroup_size
+
 
 /***************************************************************
 * cl_intel_command_queue_families
@@ -299,9 +299,7 @@ CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_FEATURE_CAPABILITIES_INTE
 CL_HPP_PARAM_NAME_CL_INTEL_COMMAND_QUEUE_FAMILIES_(CL_HPP_DECLARE_PARAM_TRAITS_)
 }  // namespace detail
 }  // namespace cl
-
 #endif // cl_intel_device_attribute_query
-
 
 #include <memory>
 
