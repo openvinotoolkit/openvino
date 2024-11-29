@@ -96,12 +96,10 @@ ClosureRemap build_remap(const Function& fbody, const DCOFFParams& params_to) {
             LOG_DEBUG("This is an OK parameter, will be kept");
             m.closure_remap.push_back(i - fbody._param_offset);
 
-            // Check if unpack is indeed required
-            const auto& type = param->get_element_type();
-            if (type == ov::element::i4 || type == ov::element::u4 || type == ov::element::i8 ||
-                type == ov::element::u8) {
-                m.weights_to_unpack.insert(i - fbody._param_offset);
-            }
+            // FIXME: type should be queried from a lazy tensor
+            // and compared against param->get_element_type()
+            // to decide 100%
+            m.weights_to_unpack.insert(i - fbody._param_offset);
         }
 
         // Process zero points for parameters
