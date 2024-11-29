@@ -191,15 +191,23 @@ protected:
 
         const auto& deps = instance.dependencies();
 
-        const auto kvcache_dep_idx = 1;
-        const auto& dep = deps[kvcache_dep_idx].first;
-        if (dynamic_cast<const kv_cache_inst*>(dep) == nullptr) {
-            return true;
-        }
+        const auto in_q_idx = 0;
+        const auto& in_q_dep = deps[in_q_idx].first;
 
-        auto state_layout = dep->get_impl_params()->get_input_layout(0);
-        bool is_prefill = state_layout.count() == 0;
-        return !is_prefill;
+        const auto& query_layout = in_q_dep->get_impl_params()->get_output_layout(0);
+
+        auto get_reordered_dimension = [](const ov::PartialShape& pshape, const std::vector<int64_t>& order, size_t idx) -> ov::Dimension {
+            if (order.empty())
+                return pshape[idx];
+
+            return pshape[order[idx]];
+        };
+
+        const auto& desc = instance.get_impl_params()->typed_desc<scaled_dot_product_attention>();
+        const auto dim_L = get_reordered_dimension(query_layout.get_partial_shape(), desc->input_q_transpose_order, 2 /* y */);
+
+        bool is_generate = dim_L.get_length() == 1;  // L
+        return is_generate;
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, scaled_dot_product_attention_inst& instance) override {
