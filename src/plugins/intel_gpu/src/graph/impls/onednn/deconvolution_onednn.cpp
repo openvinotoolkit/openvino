@@ -26,7 +26,7 @@ static std::shared_ptr<dnnl::deconvolution_forward::primitive_desc> get_deconvol
     auto output_layout = impl_params.get_output_layout();
 
     dnnl::memory::dims stride(prim->stride.begin(), prim->stride.end());
-    dnnl::memory::dims dilation(input_layout.get_spatial_rank(), 1);
+    dnnl::memory::dims dilation(prim->dilations.begin(), prim->dilations.end());
     dnnl::memory::dims pad_l(prim->pad.begin(), prim->pad.end());
     dnnl::memory::dims pad_r(prim->pad.begin(), prim->pad.end());
 
@@ -34,14 +34,6 @@ static std::shared_ptr<dnnl::deconvolution_forward::primitive_desc> get_deconvol
     auto weights_md = onednn::layout_to_memory_desc(weights_layout, dnnl::memory::format_tag::any);
     auto output_md = onednn::layout_to_memory_desc(output_layout, tag_in_out);
     auto grouped_weights = format::is_grouped(weights_layout.format) || prim->grouped_weights_shape;
-
-    // Extend deconv parameters in case if spatials rank of output memory doesn't match size of parameters
-    int64_t insert_count = static_cast<int64_t>(output_md.get_dims().size()) - 2 - stride.size();
-    if (insert_count > 0) {
-        stride.insert(stride.end(), insert_count, 1);
-        pad_l.insert(pad_l.end(), insert_count, 0);
-        pad_r.insert(pad_r.end(), insert_count, 0);
-    }
 
     for (size_t i = 0; i < dilation.size(); i++) {
         dilation[i]--;
@@ -51,6 +43,15 @@ static std::shared_ptr<dnnl::deconvolution_forward::primitive_desc> get_deconvol
         auto ks = weights_md.get_dims()[weights_offset];
         auto kernel_range = 1 + (ks - 1) * (dilation[i] + 1);
         pad_r[i] = (is - 1) * stride[i] - os + kernel_range - pad_l[i];
+    }
+
+    // Extend deconv parameters in case if spatials rank of output memory doesn't match size of parameters
+    int64_t insert_count = static_cast<int64_t>(output_md.get_dims().size()) - 2 - stride.size();
+    if (insert_count > 0) {
+        stride.insert(stride.end(), insert_count, 1);
+        dilation.insert(dilation.end(), insert_count, 0);
+        pad_l.insert(pad_l.end(), insert_count, 0);
+        pad_r.insert(pad_r.end(), insert_count, 0);
     }
 
     if (!prim->bias.empty()) {
