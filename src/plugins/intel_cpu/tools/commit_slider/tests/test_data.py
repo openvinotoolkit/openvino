@@ -71,7 +71,8 @@ class TestData():
         CustomizedLog = 15,
         MultiConfig = 16,
         ConfigMultiplicator = 17,
-        MultiConfigWithKey = 18
+        MultiConfigWithKey = 18,
+        AcModeDataBitwise = 19
 
     def requireTestData(self, reqLambda):
         # mapping json to test data holder
@@ -180,6 +181,19 @@ class BenchmarkAppDataStable(TestData):
 class AcModeData(TestData):
     def getTestCase():
         return TestData.TestCase.ACModeData
+
+    def getTestName(self):
+        return "ACMode"
+
+    def __init__(self):
+        from test_util import requireBinarySearchData
+        self.requireTestData(
+            requireBinarySearchData
+        )
+
+class AcModeDataBitwise(TestData):
+    def getTestCase():
+        return TestData.TestCase.AcModeDataBitwise
 
     def getTestName(self):
         return "ACMode"

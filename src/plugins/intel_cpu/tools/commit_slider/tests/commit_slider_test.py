@@ -14,7 +14,8 @@ from test_data import FirstBadVersionData, FirstValidVersionData,\
     BenchmarkAppDataUnstable, BenchmarkAppDataStable, BenchmarkAppNoDegradationData,\
     BenchmarkAppUnstableDevData, BenchmarkAppWrongPathData, BenchmarkAppPathFoundData,\
     BenchmarkFirstFixedAppData, AcModeData, BenchmarkMetricData, CustomizedLogData, \
-    MultiConfigData, ConfigMultiplicatorData, ConfigMultiplicatorWithKeyData
+    MultiConfigData, ConfigMultiplicatorData, ConfigMultiplicatorWithKeyData, \
+    AcModeDataBitwise
 
 class CommitSliderTest(TestCase):
     @skip_commit_slider_devtest
@@ -81,9 +82,9 @@ class CommitSliderTest(TestCase):
         self.assertEqual(breakCommit, actualCommit)
 
     @skip_commit_slider_devtest
-    def testACMode(self):
+    def testACModeBitwise(self):
         breakCommit, updatedData = getExpectedCommit(
-            AcModeData())
+            AcModeDataBitwise())
         actualCommit, _ = getActualCommit(updatedData)
         self.assertEqual(breakCommit, actualCommit)
 

@@ -288,7 +288,7 @@ class AccuracyCheckerMode(Mode):
     def __init__(self, cfg):
         super().__init__(cfg)
         self.thresholdPattern = ":\s([0-9]*[.][0-9]*)%.*abs error"
-        self.breakThroughput = 0
+        self.curMetric = None
         self.createCash()
 
     def prepareRun(self, list, cfg):
@@ -317,29 +317,21 @@ class AccuracyCheckerMode(Mode):
         self.sampleThroughput = float(foundThroughput)
         return list
 
-    def checkCfg(self, cfg):
-        super().checkCfg(cfg)
-        if not ("threshold" in cfg["runConfig"]):
-            raise CfgError("Threshold is not configured")
-        else:
-            self.threshold = cfg["runConfig"]["threshold"]
-            self.threshold = float(self.threshold.strip('%'))
-
-
     def compareCommits(self, lCommit: str, rCommit: str, cfg: map):
-        leftThroughput = self.getPseudoMetric(lCommit, cfg)
-        rightThroughput = self.getPseudoMetric(rCommit, cfg)
-        isLeftGood = leftThroughput >= float(self.threshold)
-        isRightGood = rightThroughput >= float(self.threshold)
-        if not isRightGood:
-            self.breakThroughput = rightThroughput
+        leftMetric = self.getPseudoMetric(lCommit, cfg)
+        rightMetric = self.getPseudoMetric(rCommit, cfg)
+        isDiff = leftMetric != rightMetric
+        if isDiff:
+            self.curMetric = rightMetric
         curCommit = rCommit.replace('"', "")
         commitLogger = getCommitLogger(cfg, curCommit)
-        commitLogger.info("Current accuracy is {}%".format(rightThroughput))
+        commitLogger.info("Current accuracy is {}%".format(rightMetric))
         commitLogger.info(
-            "Commit is {status}".format(status=("bad" if isRightGood else "good"))
+            "Commit {status} from {c}".format(
+                status=("differs" if isDiff else "doesn't differ"),
+                c=lCommit)
         )
-        return isLeftGood != isRightGood
+        return isDiff
 
     def getPseudoMetric(self, commit, cfg):
         commit = commit.replace('"', "")
@@ -372,12 +364,12 @@ class AccuracyCheckerMode(Mode):
         return curThroughput
 
     def setOutputInfo(self, pathCommit):
-        pathCommit.breakThroughput = self.breakThroughput
+        pathCommit.metric = self.curMetric
 
     def getCommitInfo(self, commit):
-        return "{ci}, throughput = {d}".format(
+        return "{ci}, metric = {d}".format(
                 ci=super().getCommitInfo(commit),
-                d=commit.breakThroughput)
+                d=commit.metric)
 
 
 class CompareBlobsMode(Mode):
