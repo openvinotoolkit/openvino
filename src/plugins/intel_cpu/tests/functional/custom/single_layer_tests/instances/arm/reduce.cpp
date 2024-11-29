@@ -20,6 +20,11 @@ std::vector<std::vector<ov::test::InputShape>> inputShapes_5D = {
     {{{}, {{2, 19, 2, 2, 9}}}},
 };
 
+std::vector<std::vector<ov::test::InputShape>> inputShapes_5D_ZeroDim = {
+    {{{}, {{2, 19, 0, 2, 9}}}},
+    {{{}, {{2, 19, 0, 2, 0}}}},
+};
+
 const std::vector<std::vector<int>> axes5D = {
         {2, 4},
         {1, 2, 4},
@@ -70,6 +75,20 @@ const auto params_MultiAxis_5D_ref = testing::Combine(
         testing::Values(emptyFusingSpec),
         testing::ValuesIn(config_infer_prec_f32));
 
+const auto params_MultiAxis_5D_ZeroDim_ref = testing::Combine(
+        testing::Combine(
+                testing::ValuesIn(axes5D),
+                testing::Values(ov::test::utils::OpType::VECTOR),
+                testing::Values(true),
+                testing::ValuesIn(reductionTypes()),
+                testing::ValuesIn(inpOutPrc()),
+                testing::Values(ElementType::undefined),
+                testing::Values(ElementType::undefined),
+                testing::ValuesIn(inputShapes_5D_ZeroDim)),
+        testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_ref)),
+        testing::Values(emptyFusingSpec),
+        testing::ValuesIn(additionalConfigFP32()));
+
 //There are dedicated instences of smoke_Reduce_MultiAxis_5D_CPU test in arm and x64 folders
 //because ACL does not support 0 as reduction axis
 INSTANTIATE_TEST_SUITE_P(
@@ -84,6 +103,13 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_MultiAxis_5D_CPU_ref,
         ReduceCPULayerTest,
         params_MultiAxis_5D_ref,
+        ReduceCPULayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Reduce_MultiAxis_5D_ZeroDim_CPU_ref,
+        ReduceCPULayerTest,
+        params_MultiAxis_5D_ZeroDim_ref,
         ReduceCPULayerTest::getTestCaseName
 );
 

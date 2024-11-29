@@ -53,6 +53,12 @@ std::vector<std::vector<ov::test::InputShape>> inputShapes_SingleBatch_dyn = {
     {{{{1, 5}, 19, {1, 5}, {1, 10}}, {{1, 19, 2, 2}, {1, 19, 2, 9}}}},
 };
 
+std::vector<std::vector<ov::test::InputShape>> inputShapes_Dynmic_ZeroDim = {
+    {{{-1, -1, -1, -1}, {{2, 0, 3, 9}}}},
+    {{{2, 0, -1, -1}, {{2, 0, 3, 9}}}},
+    {{{2, 0, -1, -1}, {{2, 0, 3, 0}}}}
+};
+
 std::vector<CPUSpecificParams> cpuParams_3D = {
         CPUSpecificParams({ncw}, {ncw}, {}, {}),
 };
@@ -99,6 +105,10 @@ const std::vector<std::vector<int>> axesGather = {
         {3}
 };
 
+const std::vector<std::vector<int>> axesZeroDimFusing = {
+        {1, 3},
+};
+
 std::vector<CPUSpecificParams> cpuParams_5D = {
         CPUSpecificParams({nCdhw16c}, {nCdhw16c}, {}, {}),
         CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),
@@ -143,6 +153,17 @@ const auto fusingFakeQuantizeTranspose = fusingSpecificParams{std::make_shared<p
             const auto transpose = ov::builder::subgraph::Transpose(order);
             return ov::builder::subgraph::makeTranspose(fakeQuantize, transpose);
         }, "FakeQuantize(PerTensor)"}}), {"FakeQuantize"}};
+
+const std::vector<fusingSpecificParams> fusingParamsFullSet {
+        emptyFusingSpec,
+        /* activations */
+        fusingSwish,
+        /* FQ */
+        fusingFakeQuantizePerChannelRelu,
+        fusingFakeQuantizePerTensorRelu,
+        /* another patterns */
+        fusingScaleShift
+};
 
 const std::vector<fusingSpecificParams> fusingParamsSet {
         /* activations */
@@ -600,6 +621,34 @@ const auto params_LowPrecision_fusing = testing::Combine(
         testing::ValuesIn(fusingParamsSet_LowPrecision),
         testing::ValuesIn(additionalConfig()));
 
+const auto params_DimZero_Arithmetic_fusing = testing::Combine(
+        testing::Combine(
+                testing::ValuesIn(axesZeroDimFusing),
+                testing::Values(ov::test::utils::OpType::VECTOR),
+                testing::Values(true),
+                testing::ValuesIn(reductionTypesArithmetic()),
+                testing::ValuesIn(inpOutPrc()),
+                testing::Values(ElementType::undefined),
+                testing::Values(ElementType::undefined),
+                testing::ValuesIn(inputShapes_Dynmic_ZeroDim)),
+        testing::Values(emptyCPUSpec),
+        testing::ValuesIn(fusingParamsFullSet),
+        testing::ValuesIn(additionalConfig()));
+
+const auto params_DimZero_Compare_fusing = testing::Combine(
+        testing::Combine(
+                testing::ValuesIn(axesZeroDimFusing),
+                testing::Values(ov::test::utils::OpType::VECTOR),
+                testing::Values(true),
+                testing::ValuesIn(reductionTypesCompare()),
+                testing::ValuesIn(inpOutPrc()),
+                testing::Values(ElementType::undefined),
+                testing::Values(ElementType::undefined),
+                testing::ValuesIn(inputShapes_Dynmic_ZeroDim)),
+        testing::Values(emptyCPUSpec),
+        testing::ValuesIn(fusingParamsFullSet),
+        testing::ValuesIn(additionalConfigFP32()));
+
 INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_OneAxis_fusing_CPU,
         ReduceCPULayerTest,
@@ -632,6 +681,20 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_LowPrecision_fusing_CPU,
         ReduceCPULayerTest,
         params_LowPrecision_fusing,
+        ReduceCPULayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Reduce_DimZero_Arithmetic_fusing_CPU,
+        ReduceCPULayerTest,
+        params_DimZero_Arithmetic_fusing,
+        ReduceCPULayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Reduce_DimZero_Compare_fusing_CPU,
+        ReduceCPULayerTest,
+        params_DimZero_Compare_fusing,
         ReduceCPULayerTest::getTestCaseName
 );
 
