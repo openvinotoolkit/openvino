@@ -162,8 +162,14 @@ if(RISCV64_XUANTIE)
 else()
     set(ENABLE_SHL_FOR_CPU_DEFAULT OFF)
 endif()
-set(ENABLE_KLEIDIAI_FOR_CPU ON)
 ov_dependent_option(ENABLE_SHL_FOR_CPU "Enable SHL for OpenVINO CPU Plugin" ${ENABLE_SHL_FOR_CPU_DEFAULT} "RISCV64" OFF)
+
+if(ARM OR AARCH64)
+    set(ENABLE_KLEIDIAI_FOR_CPU_DEFAULT ON)
+else()
+    set(ENABLE_KLEIDIAI_FOR_CPU_DEFAULT OFF)
+endif()
+ov_dependent_option(ENABLE_KLEIDIAI_FOR_CPU "Enable KleidiAI for OpenVINO CPU Plugin" ${ENABLE_KLEIDIAI_FOR_CPU_DEFAULT} "ARM OR AARCH64" OFF)
 
 add_subdirectory(thirdparty)
 
@@ -292,23 +298,25 @@ endif ()
 if(ENABLE_SHL_FOR_CPU)
     target_link_libraries(${TARGET_NAME} PRIVATE shl)
 endif()
-set(KLEIDIAI_INCLUDE_DIRS
-        thirdparty/kleidiai/
-        thirdparty/kleidiai/kai/
-        thirdparty/kleidiai/kai/ukernels/
-        thirdparty/kleidiai/kai/ukernels/matmul/
-        thirdparty/kleidiai/kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi4cxp/
-        thirdparty/kleidiai/kai/ukernels/matmul/matmul_clamp_f32_qsi8d32p_qsi4c32p/
-        thirdparty/kleidiai/kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi4c32p/
-        thirdparty/kleidiai/kai/ukernels/matmul/pack/
-)
-include_directories(SYSTEM INTERFACE ${KLEIDIAI_INCLUDE_DIRS})
-target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:kleidiai,KLEIDIAI_INCLUDE_DIRS>)
-target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
+if(ENABLE_KLEIDIAI_FOR_CPU)
+    set(KLEIDIAI_INCLUDE_DIRS
+            thirdparty/kleidiai/
+            thirdparty/kleidiai/kai/
+            thirdparty/kleidiai/kai/ukernels/
+            thirdparty/kleidiai/kai/ukernels/matmul/
+            thirdparty/kleidiai/kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi4cxp/
+            thirdparty/kleidiai/kai/ukernels/matmul/matmul_clamp_f32_qsi8d32p_qsi4c32p/
+            thirdparty/kleidiai/kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi4c32p/
+            thirdparty/kleidiai/kai/ukernels/matmul/pack/
+    )
+    include_directories(SYSTEM INTERFACE ${KLEIDIAI_INCLUDE_DIRS})
+    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:kleidiai,KLEIDIAI_INCLUDE_DIRS>)
+    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
 
-#set(KLEIDIAI_LIB_PATH "/Users/seyedmortezahosseini/Codes/openvino/bin/arm64/Release/libkleidiai.a")
-target_link_libraries(${TARGET_NAME} PRIVATE kleidiai)
-#target_link_options(${TARGET_NAME} PRIVATE "-Wl,-force_load,${KLEIDIAI_LIB_PATH}")
+    #set(KLEIDIAI_LIB_PATH "/Users/seyedmortezahosseini/Codes/openvino/bin/arm64/Release/libkleidiai.a")
+    target_link_libraries(${TARGET_NAME} PRIVATE kleidiai)
+    #target_link_options(${TARGET_NAME} PRIVATE "-Wl,-force_load,${KLEIDIAI_LIB_PATH}")
+endif()
 
 # Temporal solution to use template reference implementations in cases where optimizied implementation
 # is not (yet) needed.
