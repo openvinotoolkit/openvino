@@ -18,6 +18,8 @@ RUN yum update -y && yum install -y \
     tar \
     gcc \
     gcc-c++ \
+    # parallel gzip
+    pigz \
     xz
 
 # Install build dependencies

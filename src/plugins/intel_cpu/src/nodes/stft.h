@@ -22,6 +22,7 @@ public:
     bool created() const override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void prepareParams() override;
+    bool needPrepareParams() const override;
 
     void execute(dnnl::stream strm) override;
     void executeDynamicImpl(dnnl::stream strm) override;
@@ -29,12 +30,17 @@ public:
         return false;
     }
 
+protected:
+    bool needShapeInfer() const override;
+
 private:
     /// STFT params
     bool m_transpose_frames = false;
 
     // RDFT executor
     std::shared_ptr<RDFTExecutor> rdft_executor;
+    bool m_is_frame_size_const = false;
+    bool m_is_frame_step_const = false;
 
     // Input indices
     static constexpr size_t DATA_IDX = 0lu;

@@ -182,6 +182,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         (activation_type == utils::ActivationTypes::Elu) ||
         (activation_type == utils::ActivationTypes::Exp) ||
         (activation_type == utils::ActivationTypes::Floor) ||
+        (activation_type == utils::ActivationTypes::Ceiling) ||
         (activation_type == utils::ActivationTypes::HSwish) ||
         (activation_type == utils::ActivationTypes::IsInf) ||
         (activation_type == utils::ActivationTypes::HardSigmoid) ||
@@ -192,6 +193,8 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         (activation_type == utils::ActivationTypes::GeluTanh) ||
         (activation_type == utils::ActivationTypes::Relu) ||
         (activation_type == utils::ActivationTypes::Sigmoid) ||
+        (activation_type == utils::ActivationTypes::SoftSign) ||
+        (activation_type == utils::ActivationTypes::Sqrt) ||
         (activation_type == utils::ActivationTypes::Swish) ||
         (activation_type == utils::ActivationTypes::LogicalNot) ||
         (activation_type == utils::ActivationTypes::Tanh))) {
@@ -204,6 +207,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
     }
 #endif
     if ((activation_type == utils::ActivationTypes::Floor) ||
+       (activation_type == utils::ActivationTypes::Ceiling) ||
        (activation_type == utils::ActivationTypes::IsNaN) ||
        (activation_type == utils::ActivationTypes::IsFinite)) {
         return "ref";
@@ -244,6 +248,7 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Clamp,       {{-2.0f, 2.0f}}},
         {Elu,         {{0.1f}}},
         {Floor,       {{}}},
+        {Ceiling,     {{}}},
         {Swish,       {{0.1f}}},
         {HSwish,      {{}}},
         {PReLu,       {{-0.01f}}},

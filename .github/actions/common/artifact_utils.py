@@ -9,7 +9,9 @@ from .constants import EventType, ProductType, PlatformKey
 def add_common_args(parser: argparse.ArgumentParser):
     parser.add_argument('-s', '--commit_sha', help='Commit hash for which artifacts were generated', required=True)
     parser.add_argument('-b', '--branch_name', help='Name of GitHub branch', required=False,
-                        default=os.getenv('GITHUB_BASE_REF') or os.getenv('GITHUB_REF_NAME'))
+                        default=os.getenv('GITHUB_BASE_REF') or
+                                os.getenv('MERGE_QUEUE_BASE_REF').replace('refs/heads/', '') or
+                                os.getenv('GITHUB_REF_NAME'))
     parser.add_argument('-e', '--event_name', help='Name of GitHub event', required=False,
                         default=os.getenv('GITHUB_EVENT_NAME'))
     parser.add_argument('--storage_root', help='Root path of the artifacts storage', required=False,

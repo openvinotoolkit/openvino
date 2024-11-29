@@ -2625,6 +2625,88 @@ TEST(constant, hold_tensor_custom_strides_revalidate) {
     EXPECT_EQ(const_op->get_tensor_view().get_strides(), strides);
 }
 
+TEST(constant, hold_shared_memory_same_size) {
+    auto storage =
+        std::make_shared<std::vector<int32_t>>(std::initializer_list<int32_t>{1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1});
+    {
+        auto c = op::v0::Constant(element::i32, Shape{storage->size()}, storage->data(), {});
+        std::fill_n(storage->begin() + 3, 4, 0);
+
+        EXPECT_EQ(storage.use_count(), 1);
+        EXPECT_EQ(c.get_data_ptr(), storage->data());
+        EXPECT_EQ(c.get_vector<int32_t>(), std::vector<int32_t>({1, 2, 3, 0, 0, 0, 0, 4, 3, 2, 1}));
+        EXPECT_EQ(c.cast_vector<int32_t>(), std::vector<int32_t>({1, 2, 3, 0, 0, 0, 0, 4, 3, 2, 1}));
+    }
+    EXPECT_EQ(storage.use_count(), 1);
+}
+
+TEST(constant, hold_shared_memory_shape_within_memory_size) {
+    auto storage = std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1};
+    auto c = op::v0::Constant(element::u8, Shape{2, 3}, storage.data(), {});
+
+    EXPECT_EQ(c.get_data_ptr(), storage.data());
+    EXPECT_EQ(c.get_vector<uint8_t>(), std::vector<uint8_t>({1, 2, 3, 4, 5, 6}));
+    EXPECT_EQ(c.cast_vector<uint8_t>(), std::vector<uint8_t>({1, 2, 3, 4, 5, 6}));
+}
+
+TEST(constant, hold_shared_memory_different_precision) {
+    auto storage = std::vector<uint32_t>{1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1};
+    auto c = op::v0::Constant(element::u8, Shape{2, 3, 1}, storage.data(), {});
+
+    EXPECT_EQ(c.get_data_ptr(), storage.data());
+    EXPECT_EQ(c.get_vector<uint8_t>(), std::vector<uint8_t>({1, 0, 0, 0, 2, 0}));
+    EXPECT_EQ(c.cast_vector<uint8_t>(), std::vector<uint8_t>({1, 0, 0, 0, 2, 0}));
+}
+
+TEST(constant, own_shared_memory) {
+    struct CustomStorage {
+        CustomStorage(std::initializer_list<int16_t> values) : values{std::move(values)} {
+            ON_CALL(*this, dtor_impl).WillByDefault(testing::Return());
+        }
+
+        ~CustomStorage() {
+            dtor_impl();
+        }
+
+        MOCK_METHOD(void, dtor_impl, ());
+
+        constexpr ov::element::Type get_element_type() const {
+            return ov::element::i16;
+        }
+
+        std::vector<int16_t> values{};
+    };
+
+    {
+        auto storage = std::make_shared<CustomStorage>(std::initializer_list<int16_t>{1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1});
+        auto c =
+            std::make_shared<op::v0::Constant>(storage->get_element_type(), Shape{2}, storage->values.data(), storage);
+
+        EXPECT_EQ(storage.use_count(), 2);
+
+        c = nullptr;
+        EXPECT_EQ(storage.use_count(), 1);
+        EXPECT_CALL(*storage, dtor_impl).Times(1);
+    }
+
+    {
+        std::shared_ptr<op::v0::Constant> c;
+        CustomStorage* s_ptr;
+        {
+            auto storage = std::make_shared<testing::StrictMock<CustomStorage>>(
+                std::initializer_list<int16_t>{1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1});
+            s_ptr = storage.get();
+            c = std::make_shared<op::v0::Constant>(storage->get_element_type(),
+                                                   Shape{2},
+                                                   storage->values.data(),
+                                                   storage);
+        }
+
+        EXPECT_CALL(*s_ptr, dtor_impl).Times(1);
+        c = nullptr;
+    }
+}
+
 // Test verifies 2 things:
 // a) Checks that bitwise comparison happens on first call of 'get_all_data_elements_bitwise_identical'
 // b) Next call of 'get_all_data_elements_bitwise_identical' takes already calculated value

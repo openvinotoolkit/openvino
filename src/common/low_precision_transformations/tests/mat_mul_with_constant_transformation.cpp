@@ -157,6 +157,22 @@ std::vector<MatMullTransformationTestValues> testValues = {
       {},
       {}}},
 
+    // test: multiply with f16 constant
+    {LayerTransformation::createParamsU8I8(),
+     {ov::element::u8,
+      {ov::element::f32, {}, ov::builder::subgraph::DequantizationOperations::Multiply{0.02f}.setConstantPrecision(ov::element::f16)},
+      {std::vector<float>(1024 * 1024, 1.f), ov::element::i8, ov::Shape{1024, 1024}},
+      {},
+      {ov::element::f32, {}, {0.1f}},
+     },
+     {ov::element::u8,
+      {},
+      {std::vector<float>(1024 * 1024, 1.f), ov::element::i8, ov::Shape{1024, 1024}},
+      ov::element::u8,
+      {{}, {}, {0.02f * 0.1f}},
+      {},
+      {}}},
+
     // supported 3D: U8 & I8 with Dq on weights
     {LayerTransformation::createParamsU8I8(),
      {

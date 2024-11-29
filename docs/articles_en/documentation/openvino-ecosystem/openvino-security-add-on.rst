@@ -17,7 +17,7 @@ In this release, one person performs the role of both the Model Developer and th
 Overview
 ########
 
-The OpenVINO™ Security Add-on works with the :doc:`OpenVINO™ Model Server <../../ovms_what_is_openvino_model_server>` on Intel® architecture. Together, the OpenVINO™ Security Add-on and the OpenVINO™ Model Server provide a way for Model Developers and Independent Software Vendors to use secure packaging and secure model execution to enable access control to the OpenVINO™ models, and for model Users to run inference within assigned limits.
+The OpenVINO™ Security Add-on works with the :doc:`OpenVINO™ Model Server <../../openvino-workflow/model-server/ovms_what_is_openvino_model_server>` on Intel® architecture. Together, the OpenVINO™ Security Add-on and the OpenVINO™ Model Server provide a way for Model Developers and Independent Software Vendors to use secure packaging and secure model execution to enable access control to the OpenVINO™ models, and for model Users to run inference within assigned limits.
 
 The OpenVINO™ Security Add-on consists of three components that run in Kernel-based Virtual Machines (KVMs). These components provide a way to run security-sensitive operations in an isolated environment. A brief description of the three components are as follows. Click each triangled line for more information about each.
 
@@ -580,7 +580,7 @@ Building OpenVINO™ Security Add-on depends on OpenVINO™ Model Server docker 
 
 1. Download the `OpenVINO™ Model Server software <https://github.com/openvinotoolkit/model_server>`__
 
-2. Build the `OpenVINO™ Model Server Docker images <https://github.com/openvinotoolkit/model_server/blob/main/docs/docker_container.md>`__
+2. Build the `OpenVINO™ Model Server Docker images <https://github.com/openvinotoolkit/model_server/blob/main/docs/developer_guide.md#step-1-compile-source-code>`__
 
    .. code-block:: sh
 

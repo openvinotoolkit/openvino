@@ -186,6 +186,17 @@ public:
     /// \param data A void* to constant data.
     Constant(const element::Type& type, const Shape& shape, const void* data);
 
+    /// \brief Construct a tensor constant from shared memory.
+    ///
+    /// The Constant can take ownership of shared memory if provided shared object is not null and manges memory
+    /// lifetime.
+    ///
+    /// \param type   The element type of the tensor constant.
+    /// \param shape  The shape of the tensor constant.
+    /// \param data   The pointer to shared memory.
+    /// \param so     The shared object to take it ownership.
+    Constant(const element::Type& type, const Shape& shape, const void* data, std::shared_ptr<void> so);
+
     Constant(const element::Type& type, const Shape& shape, const std::shared_ptr<ov::AlignedBuffer>& data);
 
     Constant(const Constant& other);
@@ -204,7 +215,7 @@ public:
     bool evaluate_upper(TensorVector& outputs) const override;
 
     // Don't constant fold a constant; it would make a copy
-    bool constant_fold(OutputVector& outputs, const OutputVector& inputs) override;
+    bool can_constant_fold(const OutputVector& inputs_values) const override;
 
     /// \brief Returns the value of the constant node as a Shape object
     ///        Can only be used on element::i64 nodes and interprets

@@ -32,9 +32,8 @@ using namespace snippets::lowered;
 namespace {
 template<typename T>
 void set_full_port_desc(const T& port) {
-    const auto& shape = port.get_shape();
-    static const std::vector<size_t> full_dim_subtensor(std::min(shape.size(), size_t(2)),
-                                                        ov::snippets::utils::get_full_dim_value());
+    const auto& shape_rank = port.get_partial_shape().size();
+    static const std::vector<size_t> full_dim_subtensor(std::min(shape_rank, size_t(2)), ov::snippets::utils::get_full_dim_value());
     PortDescriptorUtils::set_port_descriptor(port, full_dim_subtensor);
 }
 } // namespace
@@ -62,7 +61,6 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
         const auto dimsMatMulIn1 = snippets::utils::get_planar_pshape(brgemm->input(1));
 
         const auto K = *dimsMatMulIn0.rbegin();
-        const auto N = *dimsMatMulIn1.rbegin();
 
         const auto& layout_a = brgemm_in0_desc->get_layout();
         const auto& layout_b = brgemm_in1_desc->get_layout();
@@ -70,7 +68,7 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
 
         const auto element_type_a = brgemm->get_input_element_type(0);
         const bool transpose_b = !layout_b.empty() && layout_b.back() != layout_b.size() - 1;
-        const auto brgemm_type = brgemm_utils::get_brgemm_type(element_type_a, K, N, transpose_b);
+        const auto brgemm_type = brgemm_utils::get_brgemm_type(element_type_a, K, transpose_b);
         const auto offset_a = brgemm->get_offset_a();
         const auto offset_b = brgemm->get_offset_b();
         const auto offset_c = brgemm->get_offset_c();

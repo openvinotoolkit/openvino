@@ -2,11 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/loop.hpp"
+#include "openvino/op/search_sorted.hpp"
 
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
@@ -304,6 +307,18 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
     prim->origin_op_name = op.get_friendly_name();
     prim->origin_op_type_name = op.get_type_name();
 
+    if (this->m_config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE) {
+        if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
+            auto rt_info = op.get_rt_info();
+            auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
+            if (weightless_cache_attr != rt_info.end()) {
+                data_prim->bin_offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
+                data_prim->original_size =
+                    weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().original_size;
+            }
+        }
+    }
+
     bool should_profile = prim->type != cldnn::mutable_data::type_id() &&
                           prim->type != cldnn::data::type_id();
 
@@ -336,10 +351,20 @@ bool ProgramBuilder::requires_new_shape_infer(const std::shared_ptr<ov::Node>& o
         return true;
     }
 
+    // HACK: SearchSorted has specific shape requirements.
+    // E.g. static input shapes: sorted:[8], values:[2,3,4] are prefectly fine,
+    // but sorted:[8,1,1,1], values:[2,3,4,1] is not valid.
+    if (ov::is_type<ov::op::v15::SearchSorted>(op))
+        return true;
+
     if (ov::is_type<ov::op::v5::Loop>(op)) {
         const auto body_function = std::static_pointer_cast<ov::op::v5::Loop>(op)->get_function();
         if (body_function->is_dynamic())
             return true;
+    }
+
+    if (ov::is_type<ov::op::v5::LSTMSequence>(op) || ov::is_type<ov::op::v4::LSTMCell>(op)) {
+        return true;
     }
     // When input node has dynamic shape with 4 dimension, this function return false
     // because op.is_dynamic() which only checks input shapes return false.

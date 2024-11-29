@@ -538,9 +538,9 @@ public:
         config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"reduce", reduce_impl}}));
         cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input", input_mem);
-        network->execute();
+        auto outputs = network->execute();
 
-        auto out_mem = network->get_output("reduce").get_memory();
+        auto out_mem = outputs.at("reduce").get_memory();
         cldnn::mem_lock<output_t> out_ptr(out_mem, get_test_stream());
         auto out_lay = out_mem->get_layout();
 
@@ -1834,7 +1834,7 @@ TEST(reduce_gpu, reduce_min_max_default_output_element_type_should_be_same_to_in
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({data_types::i8, format::bfyx, {1, 1, 2, 2}});
-    set_values(input, {1, 1, 1, 1});
+    set_values<int8_t>(input, {1, 1, 1, 1});
 
     topology topology1(
         input_layout("input", input->get_layout()),
@@ -1972,9 +1972,9 @@ public:
             cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
             network->set_input_data("input", input_mem);
 
-            network->execute();
+            auto outputs = network->execute();
 
-            auto out_mem = network->get_output("reduce").get_memory();
+            auto out_mem = outputs.at("reduce").get_memory();
             cldnn::mem_lock<output_t> out_ptr(out_mem, get_test_stream());
             auto out_lay = out_mem->get_layout();
 
@@ -2132,9 +2132,9 @@ public:
         network network(engine, topology, config);
         network.set_input_data("input", input_mem);
 
-        network.execute();
+        auto outputs = network.execute();
 
-        auto out_mem = network.get_output("reduce").get_memory();
+        auto out_mem = outputs.at("reduce").get_memory();
         cldnn::mem_lock<output_t> out_ptr(out_mem, get_test_stream());
         auto out_lay = out_mem->get_layout();
 

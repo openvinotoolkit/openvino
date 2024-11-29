@@ -28,24 +28,27 @@ bool STFT::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
 }
 
 STFT::STFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, NgraphShapeInferFactory(op, PortMask(2, 3))) {
+    : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         THROW_CPU_NODE_ERR(errorMessage);
     }
 
-    auto STFT_op = as_type_ptr<op::v15::STFT>(op);
-    m_transpose_frames = STFT_op->get_transpose_frames();
+    const auto stft_op = as_type_ptr<op::v15::STFT>(op);
+    m_transpose_frames = stft_op->get_transpose_frames();
+
+    m_is_frame_size_const = is_type<op::v0::Constant>(stft_op->get_input_node_ptr(FRAME_SIZE_IDX));
+    m_is_frame_step_const = is_type<op::v0::Constant>(stft_op->get_input_node_ptr(FRAME_STEP_IDX));
 
     rdft_executor = std::make_shared<RDFTRefExecutor>(false);
 }
 
 void STFT::getSupportedDescriptors() {
     if (getParentEdges().size() != 4) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges.");
+        THROW_CPU_NODE_ERR("STFT has incorrect number of input edges.");
     }
     if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges.");
+        THROW_CPU_NODE_ERR("STFT has incorrect number of output edges.");
     }
 }
 
@@ -53,17 +56,21 @@ void STFT::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    const auto& dataPrecision = getOriginalInputPrecisionAtPort(DATA_IDX);
-    if (!dataPrecision.is_real()) {
-        OPENVINO_THROW("STFT has unsupported 'data' input precision: ", dataPrecision.get_type_name());
+    auto dataPrecision = getOriginalInputPrecisionAtPort(DATA_IDX);
+    if (!one_of(dataPrecision, ov::element::f32)) {
+        dataPrecision = ov::element::f32;
     }
 
-    std::vector<PortConfigurator> configurators({{LayoutType::ncsp, ov::element::f32},
-                                                 {LayoutType::ncsp, ov::element::f32},
+    std::vector<PortConfigurator> configurators({{LayoutType::ncsp, dataPrecision},
+                                                 {LayoutType::ncsp, dataPrecision},
                                                  {LayoutType::ncsp, ov::element::i32},
                                                  {LayoutType::ncsp, ov::element::i32}});
 
-    addSupportedPrimDesc(configurators, {{LayoutType::ncsp, ov::element::f32}}, impl_desc_type::ref_any);
+    addSupportedPrimDesc(configurators, {{LayoutType::ncsp, dataPrecision}}, impl_desc_type::ref_any);
+}
+
+bool STFT::needPrepareParams() const {
+    return false;
 }
 
 void STFT::prepareParams() {
@@ -79,12 +86,12 @@ bool STFT::created() const {
     return getType() == Type::STFT;
 }
 
-void transpose_out(const char* in,
-                   char* out,
-                   const VectorDims& in_shape,
-                   const std::vector<size_t>& axes_order,
-                   const VectorDims& out_shape,
-                   size_t elem_size) {
+static void transpose_out(const char* in,
+                          char* out,
+                          const VectorDims& in_shape,
+                          const std::vector<size_t>& axes_order,
+                          const VectorDims& out_shape,
+                          size_t elem_size) {
     parallel_for4d(out_shape[0],
                    out_shape[1],
                    out_shape[2],
@@ -103,15 +110,15 @@ void transpose_out(const char* in,
                    });
 }
 
-void stft_impl(const float* signal,
-               const float* window,
-               float* rdft_result,
-               const VectorDims& signal_shape,
-               const VectorDims& window_shape,
-               const int64_t frame_size,
-               const int64_t frame_step,
-               const bool transpose_frames,
-               std::shared_ptr<RDFTExecutor> rdft_executor) {
+static void stft_impl(const float* signal,
+                      const float* window,
+                      float* rdft_result,
+                      const VectorDims& signal_shape,
+                      const VectorDims& window_shape,
+                      const int64_t frame_size,
+                      const int64_t frame_step,
+                      const bool transpose_frames,
+                      std::shared_ptr<RDFTExecutor> rdft_executor) {
     constexpr size_t signal_axis = 1;
     const auto batch_size = signal_shape[0];
     const auto signal_length = signal_shape[signal_axis];
@@ -146,7 +153,7 @@ void stft_impl(const float* signal,
                                twiddles,
                                1,
                                {0},
-                               {frame_size_dim},
+                               {frame_size},
                                {frame_size_dim},
                                fft_out_shape,
                                {1},
@@ -178,11 +185,11 @@ void STFT::execute(dnnl::stream strm) {
 }
 
 void STFT::executeDynamicImpl(dnnl::stream strm) {
-    auto result = shapeInfer();
-    if (ShapeInferStatus::success == result.status) {
-        redefineOutputMemory(result.dims);
-    }
     execute(strm);
+}
+
+bool STFT::needShapeInfer() const {
+    return !(m_is_frame_size_const && m_is_frame_step_const) || Node::needShapeInfer();
 }
 
 }  // namespace node

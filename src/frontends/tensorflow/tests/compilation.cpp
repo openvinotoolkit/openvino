@@ -13,8 +13,8 @@ using namespace ov::frontend::tensorflow::tests;
 
 class CompileModelsTests : public ::testing::Test {};
 
-#ifdef OPENVINO_ARCH_ARM64
-// Ticket: 122666
+#if defined OPENVINO_ARCH_ARM64 || defined OPENVINO_ARCH_ARM
+// Ticket: 122666, 153163
 TEST_F(CompileModelsTests, DISABLED_NgramCompilation) {
     ov::Core core;
     auto model = convert_model("model_ngram/model_ngram.pbtxt");
@@ -40,8 +40,8 @@ TEST_F(CompileModelsTests, NgramCompilation) {
 }
 #endif
 
-#ifdef OPENVINO_ARCH_ARM64
-// Ticket: CVS-122396
+#if defined OPENVINO_ARCH_ARM64 || defined OPENVINO_ARCH_ARM
+// Ticket: CVS-122396, 153163
 TEST_F(CompileModelsTests, DISABLED_ModelWithSplitConvConcat)
 #else
 TEST_F(CompileModelsTests, ModelWithSplitConvConcat)

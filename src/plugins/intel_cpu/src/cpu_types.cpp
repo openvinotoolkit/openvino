@@ -116,6 +116,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"GroupConvolutionBackpropData", Type::Deconvolution},
         {"StridedSlice", Type::StridedSlice},
         {"Slice", Type::StridedSlice},
+        {"SliceScatter", Type::StridedSlice},
         {"Tile", Type::Tile},
         {"ROIAlign", Type::ROIAlign},
         {"ROIAlignRotated", Type::ROIAlignRotated},
@@ -190,7 +191,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Atan", Type::Math},
         {"Atanh", Type::Math},
         {"Ceil", Type::Math},
-        {"Ceiling", Type::Math},
+        {"Ceiling", Type::Eltwise},
         {"Cos", Type::Math},
         {"Cosh", Type::Math},
         {"Floor", Type::Eltwise},
@@ -245,6 +246,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Ngram", Type::Ngram},
         {"ScaledDotProductAttention", Type::ScaledDotProductAttention},
         {"ScaledDotProductAttentionWithKVCache", Type::ScaledDotProductAttention},
+        {"SDPAWithTransposeReshape", Type::ScaledDotProductAttention},
         {"PagedAttentionExtension", Type::PagedAttention},
         {"RoPE", Type::RoPE},
         {"GatherCompressed", Type::Gather},
@@ -253,7 +255,9 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"EmbeddingBagOffsets", Type::EmbeddingBagOffsets},
         {"LLMMLP", Type::LLMMLP},
         {"QKVProjection", Type::QKVProjection},
-        {"RMS", Type::RMS}
+        {"RMS", Type::RMS},
+        {"SearchSorted", Type::SearchSorted},
+        {"LoraSubgraph", Type::LoRA}
     };
     return type_to_name_tbl;
 }
@@ -385,6 +389,8 @@ std::string NameFromType(const Type type) {
         CASE(LLMMLP);
         CASE(QKVProjection);
         CASE(RMS);
+        CASE(SearchSorted);
+        CASE(LoRA);
         CASE(Unknown);
     }
 #undef CASE
@@ -413,6 +419,7 @@ std::string algToString(const Algorithm alg) {
         CASE(EltwiseSubtract);
         CASE(EltwiseDivide);
         CASE(EltwiseFloor);
+        CASE(EltwiseCeiling);
         CASE(EltwiseFloorMod);
         CASE(EltwiseMod);
         CASE(EltwiseMaximum);

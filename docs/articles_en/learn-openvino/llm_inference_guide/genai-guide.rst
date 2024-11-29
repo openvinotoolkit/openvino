@@ -9,6 +9,7 @@ Run LLM Inference on OpenVINO with the GenAI Flavor
    :hidden:
 
    NPU inference of LLMs <genai-guide-npu>
+   genai-guide/genai-use-cases
 
 
 This guide will show you how to integrate the OpenVINO GenAI flavor into your application, covering
@@ -174,59 +175,6 @@ You can also create your custom streamer for more sophisticated processing:
             pipe.generate("The Sun is yellow because", ov::genai::streamer(custom_streamer), ov::genai::max_new_tokens(100));
          }
 
-Using GenAI in Chat Scenario
-################################
-
-For chat scenarios where inputs and outputs represent a conversation, maintaining KVCache across inputs
-may prove beneficial. The chat-specific methods **start_chat** and **finish_chat** are used to
-mark a conversation session, as you can see in these simple examples:
-
-.. tab-set::
-
-   .. tab-item:: Python
-      :sync: py
-
-      .. code-block:: python
-
-         import openvino_genai as ov_genai
-         pipe = ov_genai.LLMPipeline(model_path)
-
-         pipe.set_generation_config({'max_new_tokens': 100)
-
-         pipe.start_chat()
-         while True:
-            print('question:')
-            prompt = input()
-            if prompt == 'Stop!':
-               break
-            print(pipe.generate(prompt))
-         pipe.finish_chat()
-
-
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. code-block:: cpp
-
-         int main(int argc, char* argv[]) {
-            std::string prompt;
-
-            std::string model_path = argv[1];
-            ov::genai::LLMPipeline pipe(model_path, "CPU");
-
-            ov::genai::GenerationConfig config = pipe.get_generation_config();
-            config.max_new_tokens = 100;
-            pipe.set_generation_config(config)
-
-            pipe.start_chat();
-            for (size_t i = 0; i < questions.size(); i++) {
-               std::cout << "question:\n";
-               std::getline(std::cin, prompt);
-
-               std::cout << pipe.generate(prompt) << std::endl;
-            }
-            pipe.finish_chat();
-         }
 
 Optimizing Generation with Grouped Beam Search
 #######################################################
@@ -270,6 +218,114 @@ Specify generation_config to use grouped beam search:
             cout << pipe.generate("The Sun is yellow because", config);
          }
 
+Efficient Text Generation via Speculative Decoding
+##################################################
+
+Speculative decoding (or assisted-generation) enables faster token generation
+when an additional smaller draft model is used alongside the main model.
+The draft model predicts the next K tokens one by one in an autoregressive manner,
+while the main model validates these predictions and corrects them if necessary.
+
+Each predicted token is compared, and when there is a difference between the draft and
+main model, the last token predicted by the main model is kept. Then, the draft
+model acquires this token and tries prediction of the next K tokens,
+thus repeating the cycle.
+
+This method eliminates the need for multiple infer requests to the main model,
+which results in increased performance. Its implementation in the pipeline is
+shown in the code samples below:
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. code-block:: python
+
+         import openvino_genai
+         import queue
+         import threading
+
+         def streamer(subword):
+                 print(subword, end='', flush=True)
+                 return False
+
+         def infer(model_dir: str, draft_model_dir: str, prompt: str):
+             main_device = 'CPU'  # GPU can be used as well.
+             draft_device = 'CPU'
+
+             scheduler_config = openvino_genai.SchedulerConfig()
+             scheduler_config.cache_size = 2
+
+             draft_model = openvino_genai.draft_model(draft_model_dir, draft_device)
+
+             pipe = openvino_genai.LLMPipeline(model_dir, main_device, scheduler_config=scheduler_config, draft_model=draft_model)
+
+             config = openvino_genai.GenerationConfig()
+             config.max_new_tokens = 100
+             config.num_assistant_tokens = 5
+
+             pipe.generate(prompt, config, streamer)
+
+
+      For more information, refer to the
+      `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/speculative_decoding_lm/>`__.
+
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. code-block:: cpp
+
+         #include <openvino/openvino.hpp>
+
+         #include "openvino/genai/llm_pipeline.hpp"
+
+         int main(int argc, char* argv[]) try {
+             if (4 != argc) {
+                 throw std::runtime_error(std::string{"Usage: "} + argv[0] + " <MODEL_DIR> <DRAFT_MODEL_DIR> '<PROMPT>'");
+             }
+
+             ov::genai::GenerationConfig config;
+             config.max_new_tokens = 100;
+             config.num_assistant_tokens = 5;
+
+             std::string main_model_path = argv[1];
+             std::string draft_model_path = argv[2];
+             std::string prompt = argv[3];
+
+             std::string main_device = "CPU", draft_device = "CPU";
+
+             ov::genai::SchedulerConfig scheduler_config;
+             scheduler_config.cache_size = 5;
+
+             ov::genai::LLMPipeline pipe(
+                 main_model_path,
+                 main_device,
+                 ov::genai::draft_model(draft_model_path, draft_device),
+                 ov::genai::scheduler_config(scheduler_config));
+
+             auto streamer = [](std::string subword) {
+                 std::cout << subword << std::flush;
+                 return false;
+             };
+
+             pipe.generate(prompt, config, streamer);
+         } catch (const std::exception& error) {
+             try {
+                 std::cerr << error.what() << '\n';
+             } catch (const std::ios_base::failure&) {}
+             return EXIT_FAILURE;
+         } catch (...) {
+             try {
+                 std::cerr << "Non-exception object thrown\n";
+             } catch (const std::ios_base::failure&) {}
+             return EXIT_FAILURE;
+         }
+
+
+      For more information, refer to the
+      `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/speculative_decoding_lm/>`__
 
 Comparing with Hugging Face Results
 #######################################

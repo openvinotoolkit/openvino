@@ -26,7 +26,7 @@ bool CTCLoss::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
 }
 
 CTCLoss::CTCLoss(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+    : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -84,7 +84,8 @@ void CTCLoss::execute(dnnl::stream strm) {
     std::vector<int> decodedTargetLenB(batchNum, 0);
     std::vector<std::vector<int>> targetDB(batchNum);
     std::vector<std::vector<std::vector<float>>> logProbabilitiesB(batchNum);
-    std::vector<std::string> errorMsgB(parallel_get_max_threads());
+    const auto threads_num = parallel_get_max_threads();
+    std::vector<std::string> errorMsgB(threads_num);
 
     auto threadBody_1 = [&](const int ithr, const int nthr) {
         size_t start(0lu), end(0lu);
@@ -153,7 +154,7 @@ void CTCLoss::execute(dnnl::stream strm) {
         } // for batch
     }; // threadBody_1
 
-    parallel_nt(0, threadBody_1);
+    parallel_nt(threads_num, threadBody_1);
     if (returnCode != 0) {
         std::string resErr("");
         for (auto& err : errorMsgB) {

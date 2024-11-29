@@ -8,7 +8,8 @@ from openvino.runtime import Core
 from openvino.tools.mo.convert import convert_model
 from sys import platform
 
-
+# TODO: Segfault on CPU CVS-154874
+@unittest.skip("Segfault on CPU CVS-154874")
 class TestMoFreezePlaceholderTFFE(unittest.TestCase):
     def basic(self, input_model, argv_input, inputs, dtype, expected, freeze_placeholder_with_value=None,
               input_shape=None, only_conversion=False, input_model_is_text=True, use_new_frontend=True,

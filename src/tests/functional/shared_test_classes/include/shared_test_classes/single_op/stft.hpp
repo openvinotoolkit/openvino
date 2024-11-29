@@ -22,7 +22,7 @@ typedef std::tuple<std::vector<InputShape>,
                    ov::test::TargetDevice>
     STFTParams;
 
-class STFTLayerTest : public testing::WithParamInterface<STFTParams>, virtual public ov::test::SubgraphBaseStaticTest {
+class STFTLayerTest : public testing::WithParamInterface<STFTParams>, virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<STFTParams>& obj);
 

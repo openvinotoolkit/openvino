@@ -1031,9 +1031,9 @@ public:
             network.set_input_data(input_ids[i].pid, in_memory[i]);
         }
 
-        network.execute();
+        auto outputs = network.execute();
 
-        auto out_mem = network.get_output("concat").get_memory();
+        auto out_mem = outputs.at("concat").get_memory();
         cldnn::mem_lock<Type> out_ptr(out_mem, get_test_stream());
 
         for (size_t bi = 0; bi < batch_num; bi++) {
@@ -1117,9 +1117,9 @@ public:
             network.set_input_data(input_ids[i].pid, in_memory[i]);
         }
 
-        network.execute();
+        auto outputs = network.execute();
 
-        auto out_mem = network.get_output("concat").get_memory();
+        auto out_mem = outputs.at("concat").get_memory();
         cldnn::mem_lock<Type> out_ptr(out_mem, get_test_stream());
 
         for (size_t bi = 0; bi < batch_num; bi++) {
@@ -1283,9 +1283,9 @@ public:
             network.set_input_data(input_ids[i].pid, in_memory[i]);
         }
 
-        network.execute();
+        auto outputs = network.execute();
 
-        auto out_mem = network.get_output("conv").get_memory();
+        auto out_mem = outputs.at("conv").get_memory();
         cldnn::mem_lock<OutputT> out_ptr(out_mem, get_test_stream());
         ASSERT_EQ(out_mem->get_layout().format, fmt);
 
@@ -1420,13 +1420,13 @@ public:
         for (size_t i = 0; i < in_features.size(); i++) {
             concat_network->set_input_data(input_ids[i], in_memory[i]);
         }
-        concat_network->execute();
+        auto outputs = concat_network->execute();
 
         bool concat_opt_enabled = config.get_property(ov::intel_gpu::optimize_data);
         bool concat_opt_result = std::static_pointer_cast<concatenation_inst>(concat_network->get_primitive("concat"))->can_be_optimized();
         EXPECT_EQ(concat_opt_enabled, concat_opt_result);
 
-        return concat_network->get_output("reorder").get_memory();
+        return outputs.at("reorder").get_memory();
     }
 
     std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> generate_input() {
@@ -1640,13 +1640,13 @@ public:
         for (size_t i = 0; i < in_features.size(); i++) {
             concat_network.set_input_data(input_ids[i], in_memory[i]);
         }
-        concat_network.execute();
+        auto outputs = concat_network.execute();
 
         bool concat_opt_enabled = config.get_property(ov::intel_gpu::optimize_data);
         bool concat_opt_result = std::static_pointer_cast<concatenation_inst>(concat_network.get_primitive("concat"))->node->can_be_optimized();
         EXPECT_EQ(concat_opt_enabled, concat_opt_result);
 
-        return concat_network.get_output("reorder").get_memory();
+        return outputs.at("reorder").get_memory();
     }
 
     std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> generate_input() {
@@ -1803,7 +1803,7 @@ public:
         for (size_t i = 0; i < 4; i++) {
             concat_network.set_input_data(input_ids[i], in_memory[i]);
         }
-        concat_network.execute();
+        auto outputs = concat_network.execute();
 
         bool concat_opt_enabled = config.get_property(ov::intel_gpu::optimize_data);
         bool concat_opt_result = std::static_pointer_cast<concatenation_inst>(concat_network.get_primitive("concat"))->node->can_be_optimized();
@@ -1813,7 +1813,7 @@ public:
         if (concat_opt_enabled && batch_num > 1) concat_opt_result = !concat_opt_result;
         EXPECT_EQ(concat_opt_enabled, concat_opt_result);
 
-        return concat_network.get_output("reorder").get_memory();
+        return outputs.at("reorder").get_memory();
     }
 
     std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> generate_input() {

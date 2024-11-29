@@ -57,7 +57,7 @@ struct ReorderImplementationManager : public ImplementationManager {
             return true;
 
         const auto& info = node.get_program().get_engine().get_device_info();
-        if (!info.supports_immad)
+        if (!info.supports_immad || info.arch == gpu_arch::unknown)
             return false;
 
         if (!one_of(input_fmt.value, supported_formats) || !one_of(output_fmt.value, supported_formats))
