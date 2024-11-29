@@ -434,6 +434,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
     // Finalize memory in closures and weight banks
     finalize_weights_bank();
+    detach_memory();
 
     // Print stats report when possible
     {
@@ -497,6 +498,23 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
     }
 
     LOG_INFO("Done.");
+}
+
+void ov::npuw::CompiledModel::detach_memory() {
+    LOG_INFO("Detaching model & weight memory...");
+    LOG_BLOCK();
+    for (size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
+        auto& comp_model_desc = m_compiled_submodels[idx];
+        auto& proto_comp_model_desc = m_compiled_submodels[comp_model_desc.replaced_by.value_or(idx)];
+        if (!proto_comp_model_desc.model || !proto_comp_model_desc.compiled_model) {
+            continue;  // optimized-out OR already cleared - skip
+        }
+        if (proto_comp_model_desc.device_it + 1 == m_dev_list.end()) {
+            LOG_INFO("No fallback expected - clear the OV model for Subgraph[" << idx << "]");
+            proto_comp_model_desc.model.reset();
+        }
+    }
+    LOG_INFO("Done");
 }
 
 std::string ov::npuw::CompiledModel::global_mem_device() const {
@@ -709,8 +727,9 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::CompiledModel::create_sync_infe
         const auto num_submodels = m_compiled_submodels.size();
         for (std::size_t idx = 0u; idx < num_submodels; idx++) {
             const auto& comp_model_desc = m_compiled_submodels[idx];
-            if (!comp_model_desc.replaced_by.has_value()) {
-                // not a funcall, do nothing
+            if (!comp_model_desc.replaced_by.has_value() || comp_model_desc.forced_to_fcall) {
+                // not a funcall, do nothing, or a subgraph that was forced to funcall
+                // (a 1-call function) - skip
                 continue;
             }
             const auto real_idx = comp_model_desc.replaced_by.value();
