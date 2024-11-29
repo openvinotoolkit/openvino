@@ -190,12 +190,11 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
     }
     if (has_swiglu) {
         ov::op::internal::GLU swiglu_op;
-        for (auto f : fused_prims) {
-            if (f.is_type<swiglu>()) {
-                swiglu_op.set_axis(f.typed_desc<swiglu>()->axis);
-                swiglu_op.set_split_lengths(f.typed_desc<swiglu>()->split_lengths);
-            }
-        }
+        OPENVINO_ASSERT(fused_prims.size() == 1);
+        OPENVINO_ASSERT(fused_prims[0].typed_desc<swiglu>()->glu_type == ov::op::internal::GLU::GluType::Swish);
+        swiglu_op.set_axis(fused_prims[0].typed_desc<swiglu>()->axis);
+        swiglu_op.set_split_lengths(fused_prims[0].typed_desc<swiglu>()->split_lengths);
+        swiglu_op.set_glu_type(fused_prims[0].typed_desc<swiglu>()->glu_type);
         std::vector<ShapeType> input_shapes = {
             output_shapes[0],
             ShapeType(ov::Shape({})),

@@ -543,7 +543,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 return false;
             }
             if (lo.has_all_enabled_onednn_impls_optimization_attribute() &&
-                    lo.get_preferred_impl_type(node, format::any /*dummy*/) == impl_types::onednn) {
+                lo.get_preferred_impl_type(node, format::any /*dummy*/) == impl_types::onednn) {
                 return true;
             } else {
                 auto in_dt = node.get_input_layout(0).data_type;
