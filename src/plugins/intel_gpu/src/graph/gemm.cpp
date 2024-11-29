@@ -178,17 +178,23 @@ std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<con
 
     auto get_input_padding = [&](const layout& layout, size_t input_rank, size_t output_rank) {
         auto pad = layout.data_padding;
-        std::vector<tensor::value_type> pad_lower, pad_upper;
+        std::vector<tensor::value_type> pad_lower, pad_upper, pad_mask;
         for (size_t i = 0; i < input_rank; i++) {
             pad_lower.push_back(pad._lower_size[i]);
             pad_upper.push_back(pad._upper_size[i]);
+            pad_mask.push_back(pad._dynamic_dims_mask[i]);
         }
 
         size_t ones_to_add = std::max(output_rank, static_cast<size_t>(4)) - input_rank;
         pad_lower.insert(pad_lower.begin(), ones_to_add, 0);
         pad_upper.insert(pad_upper.begin(), ones_to_add, 0);
+        pad_mask.insert(pad_mask.begin(), ones_to_add, 0);
 
-        return padding(pad_lower, pad_upper);
+        padding::DynamicDimsMask updated_pad_mask;
+        for (size_t i = 0; i < pad_mask.size(); i++) {
+            updated_pad_mask[i] = pad_mask[i];
+        }
+        return padding(pad_lower, pad_upper, updated_pad_mask);
     };
 
     auto input0_pshape = input_layouts[0].get_partial_shape();
