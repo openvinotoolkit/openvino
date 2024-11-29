@@ -348,16 +348,11 @@ public:
             kernels_data.push_back(kernel_selector.get_best_kernel(indirect_kernel_params));
         }
 
-        if (impl_param.get_program().get_engine().get_device_info().gfx_ver.major == 12) { // ARL only
+        const auto& gfx_ver = impl_param.get_program().get_engine().get_device_info().gfx_ver;
+        if (gfx_ver.major == 12 && gfx_ver.minor == 74) { // ARL only
             sdpa_kernel_params.should_use_sdpa_opt = true;
             kernels_data.push_back(kernel_selector.get_best_kernel(sdpa_kernel_params));
         }
-
-        std::cout << "=========== impl_param.get_program().get_engine().get_device_info().gfx_ver=" <<
-        impl_param.get_program().get_engine().get_device_info().gfx_ver.major <<
-        "." << impl_param.get_program().get_engine().get_device_info().gfx_ver.minor <<
-        "." << impl_param.get_program().get_engine().get_device_info().gfx_ver.revision <<
-        "." << std::endl;
 
         return cldnn::make_unique<scaled_dot_product_attention_impl>(kernels_data);
     }
@@ -378,11 +373,7 @@ public:
             (_kernels_data[indirect_sdpa].update_dispatch_data_func)(*_kernels_data[indirect_sdpa].params, _kernels_data[indirect_sdpa]);
         }
         if (_kernels_data.size() == 3) {
-            if (_kernels_data[2].params == nullptr) {
-                _kernels_data[2].params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true, false, true));
-            }
-            update_shapes(*_kernels_data[2].params, impl_param);
-            (_kernels_data[2].update_dispatch_data_func)(*_kernels_data[2].params, _kernels_data[2]);
+            (_kernels_data[2].update_dispatch_data_func)(*_kernels_data[default_sdpa].params, _kernels_data[2]);
         }
     }
 };

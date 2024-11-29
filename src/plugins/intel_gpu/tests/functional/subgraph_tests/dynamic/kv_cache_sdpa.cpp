@@ -94,15 +94,6 @@ public:
         manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
         manager.run_passes(ref_model);
 
-        {
-        ov::pass::Serialize serialize("sdpa_model.xml", "sdpa_model.bin");
-        serialize.run_on_model(model);
-        }
-        {
-        ov::pass::Serialize serialize("ref_model.xml", "ref_model.bin");
-        serialize.run_on_model(ref_model);
-        }
-
         auto compiled_model = core->compile_model(model, ov::test::utils::DEVICE_GPU, properties);
 
         auto in_q = model->get_parameters().at(0);
