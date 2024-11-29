@@ -12,7 +12,6 @@
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
-#include "nodes/executors/mlas/mlas_gemm.hpp"
 #include "utils/debug_capabilities.h"
 
 #define FLOAT_MAX 3.4028235e38f
