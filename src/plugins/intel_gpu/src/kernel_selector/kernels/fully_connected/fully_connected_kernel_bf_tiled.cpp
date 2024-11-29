@@ -48,7 +48,6 @@ static std::pair<size_t, size_t> get_output_aligned_bf_size(const fully_connecte
     }
 
     output_b = (needs_align == true) ? CeilDiv(output_b, align_b) : output_b;
-//    std::cout << "aligned bf size : out_b : " << output_b << " out_f : " << output_f << std::endl;
 
     return {output_b, output_f};
 }
@@ -179,7 +178,7 @@ static bool is_swiglu_fused(const fully_connected_params& params) {
 }
 static bool is_suitable_outer_ofm(const fully_connected_params& params, size_t output_f) {
     if (is_swiglu_fused(params))
-        return true;
+        return true;;;
     size_t min_num_threads = params.engineInfo.computeUnitsCount * simd;
     return (params.weights.OFM().v > params.weights.IFM().v * 6
             && output_f / 8 /* tile_ofm=4 and outer_ofm=2 */ > min_num_threads * 1.5);

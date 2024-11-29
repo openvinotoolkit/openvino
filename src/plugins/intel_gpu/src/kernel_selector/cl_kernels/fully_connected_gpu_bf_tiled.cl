@@ -791,8 +791,8 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
         }
     }
 #if OUTER_OFM > 1 && !defined(SWIGLU_LENGTH)
-//    out_f += TILE_OFM * SIMD;
-//    input_offset = input_offset_init;
+    out_f += TILE_OFM * SIMD;
+    input_offset = input_offset_init;
     }
 #endif
     // =====================================================================================================================================
@@ -1323,8 +1323,6 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
         }
     }
 #if OUTER_OFM > 1 && !defined(SWIGLU_LENGTH)
-//    out_f += TILE_OFM * SIMD;
-//    input_offset = input_offset_init;
     }
 #endif
     // =====================================================================================================================================
