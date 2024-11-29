@@ -23,4 +23,4 @@ if is_optimum() and optimum_version is not None:
 if is_torch_compile() and 'torch' in sys.modules:
     torch_version = importlib_metadata.version("torch")
     telemetry = init_ovc_telemetry("torch.compile", torch_version)
-    telemetry.send_event("torch.compile", "import", "Import from torch.compile(), ov_version:{} ".format(get_rt_version()))
+    telemetry.send_event("torch.compile", "import", "Import from torch.compile(), ov_version: {}".format(get_rt_version()))
