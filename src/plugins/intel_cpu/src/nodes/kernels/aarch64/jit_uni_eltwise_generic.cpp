@@ -50,13 +50,18 @@ void jit_uni_eltwise_generic<isa>::generate() {
     if (jep.use_runtime_ptrs) {
         for (size_t i = 0; i < jep.inputs_number; i++) {
             ldr(start_to_offsets, ptr(reg_const_params, static_cast<int32_t>(offsetof(node::jit_eltwise_call_args_ptrs, src_offsets) + i * sizeof(size_t))));
+            RegPrints::print_gpr(start_to_offsets.getIdx(), "start_to_offsets");
             ldr(get_src_reg(i), ptr(reg_const_params, static_cast<int32_t>(offsetof(node::jit_eltwise_call_args_ptrs, src_ptr[0]) + i * sizeof(size_t))));
+            RegPrints::print_gpr(get_src_reg(i).getIdx(), "src_ptr");
             XReg offset_reg = get_aux_gpr(0); // X_TMP_0;
             XReg index_reg = get_aux_gpr(1);  // X_TMP_1;
             for (int j = 0; j < offset_count; j++) {
                 ldr(offset_reg, ptr(start_to_offsets, static_cast<int32_t>(j * sizeof(size_t))));
+                RegPrints::print_gpr(offset_reg.getIdx(), "offset_reg");
                 ldr(index_reg, ptr(reg_indexes, static_cast<int32_t>(j * sizeof(size_t))));
+                RegPrints::print_gpr(index_reg.getIdx(), "index_reg");
                 madd(get_src_reg(i), offset_reg, index_reg, get_src_reg(i));
+                RegPrints::print_gpr(get_src_reg(i).getIdx(), "effective_address");
             }
         }
 
