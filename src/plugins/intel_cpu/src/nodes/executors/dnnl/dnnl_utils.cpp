@@ -41,10 +41,6 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
         auto src_wdt = srcWeightDesc->getPrecision();
         auto dst_wdt = dstWeightDesc->getPrecision();
 
-        // if (cloneWeights) {
-        //     std::cout << "Cloning the weightsMem in scope of FC node" << "\n";
-        // }
-
         if (needShiftSignedToUnsigned && src_wdt.is_integral_number() && src_wdt.is_signed() &&
             dst_wdt.is_integral_number() && !dst_wdt.is_signed()) {
             assert(src_wdt.bitwidth() == dst_wdt.bitwidth());

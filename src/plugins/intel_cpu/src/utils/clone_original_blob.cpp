@@ -75,16 +75,15 @@ InputPrepType requiresPreProcessing(const IMemory& blob, GraphContext::CPtr cont
     bool needFlushDenormalsToZero = context->getConfig().DAZOn ? false : true;
 
     auto isBlobAligned = [&] () {
-        const void *ptr = blob.getData();
         bool blobAlignedOnSSE = true;
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         // Majority of arithmetic and data processing instructions in legacy SSE isa requires
         // the memory address in the operands must be aligned on 16-byte boundary. To ensure
         // safely reusing ngraph const blob memory, need to check address alignment.
+        const void *ptr = blob.getData();
         blobAlignedOnSSE = mayiuse(dnnl::impl::cpu::x64::avx2) || ((reinterpret_cast<uintptr_t>(ptr) & 15) == 0);
 #endif
-        const bool blobAlignedWithPrec = prec.size() > 1 ? (reinterpret_cast<size_t>(ptr) % prec.size()) == 0 : true;
-        return blobAlignedWithPrec && blobAlignedOnSSE;
+        return blobAlignedOnSSE;
     };
 
     // @WARNING The order of the checks below matters

@@ -17,7 +17,6 @@
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "openvino/core/except.hpp"
 #include "post_ops.hpp"
-#include "openvino/runtime/threading/cpu_message.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -73,11 +72,11 @@ public:
     bool canBeExecutedInInt8() const override;
 
     bool canPrepInput(size_t idx) const override {
-        return idx == 1;
+        return idx == WEIGHTS_ID;
     }
 
     void prepInput(size_t idx, InputPrepType type) override {
-        OPENVINO_ASSERT(idx == 1, "Only weights input (1) can be preprocessed");
+        OPENVINO_ASSERT(idx == WEIGHTS_ID, "Only weights input (1) can be preprocessed");
         attrs.weightsPrepType = type;
     }
 

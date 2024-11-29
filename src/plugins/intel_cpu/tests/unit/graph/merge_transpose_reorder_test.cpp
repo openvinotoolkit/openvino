@@ -7,7 +7,7 @@
 #include <memory_desc/cpu_blocked_memory_desc.h>
 
 #include "common_test_utils/node_builders/constant.hpp"
-#include "dummy_node.hpp"
+#include "generic_node.hpp"
 #include "graph.h"
 #include "nodes/input.h"
 #include "nodes/reorder.h"

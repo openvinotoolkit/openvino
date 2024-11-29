@@ -1006,12 +1006,12 @@ void Graph::PreProcessConstantInputs() {
         }
 
         // that means this is an input node
-        OPENVINO_ASSERT(node->getType() == Type::Input, "Only Input node is expected to have no parent edges");
-
         auto input = std::dynamic_pointer_cast<node::Input>(node);
+        OPENVINO_ASSERT(input && input->getType() == Type::Input, "Only Input node is expected to have no parent edges");
+
         MemoryCPtr inputMemory = input->getMemoryPtr();
 
-        InputPrepType prepType = requiresPreProcessing(*inputMemory, context, getEngine());
+        InputPrepType prepType = requiresPreProcessing(*inputMemory, m_context, getEngine());
 
         if (prepType == InputPrepType::None) {
             return {};
@@ -1040,7 +1040,7 @@ void Graph::PreProcessConstantInputs() {
             return cloneBlob(*inputMemory, getEngine(), prepType == InputPrepType::FTZ);
         };
 
-        auto weightCache = context->getWeightsCache();
+        auto weightCache = m_context->getWeightsCache();
         auto clone = weightCache ? *weightCache->findOrCreate(blobKey(input), create)
         : create();
 

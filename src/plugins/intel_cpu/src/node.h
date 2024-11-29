@@ -12,6 +12,7 @@
 #include "cpu_types.h"
 #include "edge.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "openvino/core/except.hpp"
 #include "selective_build.h"
 #include "memory_desc/dnnl_memory_desc.h"
 #include "onednn/dnnl.h"
@@ -273,7 +274,7 @@ public:
     }
 
     /**
-     * Return true if a node can perform a preprocessing for an input \idx
+     * Return true if a node can perform preprocessing for an input \idx
      */
     virtual bool canPrepInput(size_t idx) const {
         (void) idx;
@@ -286,6 +287,7 @@ public:
     virtual void prepInput(size_t idx, InputPrepType type) {
         (void) idx;
         (void) type;
+        OPENVINO_THROW_NOT_IMPLEMENTED("Input preprocessing is not implemented for node: ", *this);
     }
 
     enum class ConstantType {

@@ -258,7 +258,6 @@ protected:
     void ResolveComplexInplaceConflicts();
     bool ProcessDynNodes();
     void PreProcessConstantInputs();
-    void GroupParallelNodes();
     void Allocate(const std::vector<size_t>& syncNodesInds);
     void AllocateWithReuse(const std::vector<size_t>& syncNodesInds);
     void CreatePrimitivesAndExecConstants() const;

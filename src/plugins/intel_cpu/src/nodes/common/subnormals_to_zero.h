@@ -3,12 +3,7 @@
 //
 #pragma once
 
-#include "cpu/x64/jit_generator.hpp"
-#include "cpu_memory.h"
-
-using namespace dnnl;
-using namespace dnnl::impl::cpu::x64;
-using namespace Xbyak;
+#include <cstddef>
 
 namespace ov {
 namespace intel_cpu {

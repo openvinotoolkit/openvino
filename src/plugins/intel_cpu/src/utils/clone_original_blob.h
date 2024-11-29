@@ -9,7 +9,7 @@
 namespace ov {
 namespace intel_cpu {
 
-enum InputPrepType {
+enum class InputPrepType {
     FTZ,
     PutToNumaLocalCache,
     SimpleClone,

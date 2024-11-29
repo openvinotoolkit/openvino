@@ -3,7 +3,7 @@
 //
 #include <gtest/gtest.h>
 
-#include "dummy_node.hpp"
+#include "generic_node.hpp"
 #include "graph.h"
 #include "nodes/input.h"
 #include "nodes/concat.h"

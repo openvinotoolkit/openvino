@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/except.hpp"
 #include "openvino/core/visibility.hpp"
 
 #include "has_subnormals.h"
 #include "cpu_memory.h"
 #include "openvino/core/parallel.hpp"
 #include "cpu/x64/jit_generator.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl;
 using namespace dnnl::impl::cpu::x64;
@@ -201,19 +203,22 @@ struct jit_has_subnormals : public jit_has_subnormals_base {
     }
 };
 
-static std::shared_ptr<jit_has_subnormals_base> createKernel() {
-    std::shared_ptr<jit_has_subnormals_base> kernel;
-    if (mayiuse(cpu_isa_t::avx2)) {
-        kernel = std::make_shared<jit_has_subnormals<cpu_isa_t::avx2>>();
-    } else if (mayiuse(cpu_isa_t::sse41)) {
-        kernel = std::make_shared<jit_has_subnormals<cpu_isa_t::sse41>>();
-    }
+static std::unique_ptr<jit_has_subnormals_base> createKernel() {
+    auto constructHasSubnormals = []() -> std::unique_ptr<jit_has_subnormals_base> {
+        if (mayiuse(cpu_isa_t::avx2)) {
+            return make_unique<jit_has_subnormals<cpu_isa_t::avx2>>();
+        } else if (mayiuse(cpu_isa_t::sse41)) {
+            return make_unique<jit_has_subnormals<cpu_isa_t::sse41>>();
+        } else {
+            return nullptr;
+        }
+    };
 
-    if (kernel) {
-        kernel->create_ker();
-        if (!kernel->jit_ker())
-            kernel = nullptr;
-    }
+    std::unique_ptr<jit_has_subnormals_base> kernel = constructHasSubnormals();
+    OPENVINO_ASSERT(kernel, "Failed to construct 'jit_has_subnormals' kernel");
+
+    kernel->create_ker();
+    OPENVINO_ASSERT(kernel->jit_ker(), "Failed to create 'jit_has_subnormals' kernel");
 
     return kernel;
 }
@@ -232,7 +237,7 @@ bool HasSubnormals::execute(const IMemory& src) {
     const uint32_t* u32data = src.getDataAs<uint32_t>();
 
 #if defined(OPENVINO_ARCH_X86_64)
-    static std::shared_ptr<jit_has_subnormals_base> kernel = createKernel();
+    static std::unique_ptr<jit_has_subnormals_base> kernel = createKernel();
     if (kernel) {
         static const size_t batch_size = 2048;
         const size_t iterations_num = size / batch_size + 1;

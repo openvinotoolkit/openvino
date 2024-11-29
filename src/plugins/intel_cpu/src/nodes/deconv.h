@@ -49,6 +49,10 @@ public:
     bool canBeExecutedInInt8() const override;
     const std::vector<impl_desc_type>& getDefaultImplPriority() override;
 
+    bool canPrepInput(size_t idx) const override {
+        return idx == 1;
+    }
+
     void prepInput(size_t idx, InputPrepType type) override {
         OPENVINO_ASSERT(idx == 1, "Only weights input (1) can be preprocessed");
         this->weightsPrepType = type;
