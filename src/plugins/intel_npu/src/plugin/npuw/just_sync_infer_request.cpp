@@ -783,9 +783,6 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx) {
 
             // Now copy the views from the output full-nway tensor to the output tensors
             for (std::size_t out_idx = 0u; out_idx < num_outputs; out_idx++) {
-                const auto& oport = comp_model_desc.compiled_model->outputs()[out_idx];
-                auto spatial_tensor_shape = oport.get_shape();
-
                 auto in_view = ov::npuw::util::view(m_spatial_io[real_idx].output_tails.at(out_idx),
                                                     spatial.out_dim,
                                                     0,

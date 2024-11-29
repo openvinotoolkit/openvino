@@ -336,7 +336,7 @@ ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,
         view_shape.push_back(to[d] - from[d]);
     }
 
-    const auto strides = src->get_strides();
+    const auto& strides = src->get_strides();
     uint8_t* ptr = static_cast<uint8_t*>(src->data());
 
     // Shift PTR according to the strides
@@ -352,7 +352,7 @@ ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,
                                             std::size_t dim,
                                             std::size_t offset,
                                             std::size_t len) {
-    const auto shape = src->get_shape();
+    const auto& shape = src->get_shape();
     View view_start = View(shape.size(), 0u);
     View view_end = shape;
     view_start[dim] = offset;
