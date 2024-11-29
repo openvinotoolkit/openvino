@@ -165,6 +165,7 @@
 #include "transformations/opset_conversions/convert_opset2_to_opset1.hpp"
 #include "transformations/opset_conversions/convert_opset3_to_opset2.hpp"
 #include "transformations/resolve_names_collisions.hpp"
+#include "transformations/rt_info/dequantization_node.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
@@ -938,6 +939,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             pass_config->disable<MatMulTransformation>();
             pass_config->disable<MVNTransformation>();
             pass_config->disable<ConcatTransformation>();
+
+            pass_config->set_callback<FoldConvertTransformation>(
+                [](const std::shared_ptr<const ov::Node> &node) -> bool {
+                    return ov::is_dequantization_node(node);
+                });
+
+            pass_config->set_callback<FuseConvertTransformation>(
+                [](const std::shared_ptr<const ov::Node> &node) -> bool {
+                    return (ov::is_dequantization_node(node) || ov::is_type<ov::opset1::FakeQuantize>(node));
+                });
 
             manager.register_pass<ov::pass::activations_scaling::ScaleDownSingleLayer>(activations_scale_factor, scaled_precision);
             auto params = LayerTransformation::Params(false, scaled_precision, {scaled_precision}, true);

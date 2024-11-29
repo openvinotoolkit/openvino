@@ -103,16 +103,22 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
         if (pattern_map.count(matmul_m))
             scaled_op = std::dynamic_pointer_cast<ov::op::Op>(pattern_map.at(matmul_m).get_node_shared_ptr());
 
+        if (transformation_callback(scaled_op))
+            return false;
+
+        bool keep_precision = false;
+        std::shared_ptr<ov::op::Op> output_of_scaled_op = scaled_op;
         auto child_node = scaled_op->get_output_target_inputs(0).begin()->get_node();
         if (scaled_op->get_output_target_inputs(0).size() == 1 &&
             ov::is_type<ov::op::v0::Convert>(child_node) &&
             ov::fp16_compression_is_disabled(child_node->shared_from_this()) && 
             ov::pass::constant_folding_is_disabled(child_node->shared_from_this())) {
-            return false;
+            output_of_scaled_op = std::dynamic_pointer_cast<ov::op::Op>(child_node->shared_from_this());
+            child_node = output_of_scaled_op->get_output_target_inputs(0).begin()->get_node();
+            keep_precision = true;
         }
 
-        if (transformation_callback(scaled_op))
-            return false;
+        auto output_prec = output_of_scaled_op->output(0).get_element_type();
 
         auto scale_down = std::make_shared<ov::op::v1::Multiply>(
             scaled_op->input(0).get_source_output(),
@@ -120,12 +126,19 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
         scale_down->set_friendly_name(scaled_op->get_friendly_name() + "_scale_down");
         ov::copy_runtime_info(scaled_op, scale_down);
 
-        auto convert_prec0 = std::make_shared<ov::op::v0::Convert>(scale_down->output(0), scaled_prec);
-        scaled_op->input(0).replace_source_output(convert_prec0->output(0));
-        auto convert_prec1 = std::make_shared<ov::op::v0::Convert>(scaled_op->input(1).get_source_output(), scaled_prec);
-        scaled_op->input(1).replace_source_output(convert_prec1->output(0));
+        if (scale_down->output(0).get_element_type() != scaled_prec && !keep_precision) {
+            auto convert_prec0 = std::make_shared<ov::op::v0::Convert>(scale_down->output(0), scaled_prec);
+            scaled_op->input(0).replace_source_output(convert_prec0->output(0));
+        } else {
+            scaled_op->input(0).replace_source_output(scale_down->output(0));
+        }
+        if (scaled_op->input(1).get_element_type() != scaled_prec && !keep_precision) {
+            auto convert_prec1 = std::make_shared<ov::op::v0::Convert>(scaled_op->input(1).get_source_output(), scaled_prec);
+            scaled_op->input(1).replace_source_output(convert_prec1->output(0));
+        }
 
-        auto output_prec = scaled_op->output(0).get_element_type();
+        scaled_op->revalidate_and_infer_types();
+
         std::set<ov::Input<ov::Node>> target_inputs;
         std::shared_ptr<ov::Node> runtime_scaled_op;
 
@@ -153,12 +166,25 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
                 (add->input(bias_index).get_element_type() == ov::element::f32) ? scale_down_const_f32 : scale_down_const_f16);
             scale_down_bias->set_friendly_name(add->get_friendly_name() + "_scale_down");
             ov::copy_runtime_info(add, scale_down_bias);
-            auto convert_bias_prec = std::make_shared<ov::op::v0::Convert>(scale_down_bias->output(0), scaled_prec);
-            add->input(bias_index).replace_source_output(convert_bias_prec->output(0));
-            runtime_scaled_op = std::make_shared<ov::op::v0::Convert>(add->output(0), output_prec);
+            if (scale_down_bias->output(0).get_element_type() != scaled_prec && !keep_precision) {
+                auto convert_bias_prec = std::make_shared<ov::op::v0::Convert>(scale_down_bias->output(0), scaled_prec);
+                add->input(bias_index).replace_source_output(convert_bias_prec->output(0));
+            } else {
+                add->input(bias_index).replace_source_output(scale_down_bias->output(0));
+            }
+            add->revalidate_and_infer_types();
+            if (add->output(0).get_element_type() != output_prec && !keep_precision) {
+                runtime_scaled_op = std::make_shared<ov::op::v0::Convert>(add->output(0), output_prec);
+            } else {
+                runtime_scaled_op = add;
+            }
         } else {
-            target_inputs = scaled_op->get_output_target_inputs(0);
-            runtime_scaled_op = std::make_shared<ov::op::v0::Convert>(scaled_op->output(0), output_prec);
+            target_inputs = output_of_scaled_op->get_output_target_inputs(0);
+            if (output_of_scaled_op->output(0).get_element_type() != output_prec && !keep_precision) {
+                runtime_scaled_op = std::make_shared<ov::op::v0::Convert>(output_of_scaled_op->output(0), output_prec);
+            } else {
+                runtime_scaled_op = output_of_scaled_op;
+            }
         }
 
         auto scale_up = register_new_node<ov::op::v1::Multiply>(
@@ -169,8 +195,6 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
         for (auto& in : target_inputs) {
             in.replace_source_output(scale_up);
         }
-
-        scaled_op->revalidate_and_infer_types();
 
         return true;
     };
