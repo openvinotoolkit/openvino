@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "program_helpers.h"
 #include "pass_manager.h"
@@ -183,7 +182,7 @@ void prepare_primitive_fusing::fuse_swiglu(program &p) {
             if (node->get_dependencies().size() == 1 &&
                 node->get_dependency(0).is_type<fully_connected>() &&
                 node->get_dependency(0).get_fused_primitives().empty() &&
-                prim->glu_type == ov::intel_gpu::op::SwiGLU::GluType::Swish &&
+                prim->glu_type == ov::op::internal::GLU::GluType::Swish &&
                 (prim->axis == -1 || prim->axis == static_cast<int64_t>(node->get_output_layout(0).get_partial_shape().size()) - 1)) {
                 auto& fc_node = node->get_dependency(0);
                 GPU_DEBUG_TRACE_DETAIL << node->id() << " : fuse swiglu to " << fc_node.id() << std::endl;

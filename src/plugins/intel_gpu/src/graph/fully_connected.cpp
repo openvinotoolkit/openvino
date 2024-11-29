@@ -189,7 +189,7 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
         }
     }
     if (has_swiglu) {
-        ov::intel_gpu::op::SwiGLU swiglu_op;
+        ov::op::internal::GLU swiglu_op;
         for (auto f : fused_prims) {
             if (f.is_type<swiglu>()) {
                 swiglu_op.set_axis(f.typed_desc<swiglu>()->axis);
