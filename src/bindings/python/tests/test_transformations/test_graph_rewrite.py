@@ -18,6 +18,18 @@ def test_graph_rewrite():
 
     assert count_ops(model, "Relu") == [2]
 
+def test_runtime_graph_rewrite():
+    import openvino.runtime.passes as rt
+    model = get_relu_model()
+
+    manager = rt.Manager()
+    # check that register pass returns pass instance
+    anchor = manager.register_pass(rt.GraphRewrite())
+    anchor.add_matcher(PatternReplacement())
+    manager.run_passes(model)
+
+    assert count_ops(model, "Relu") == [2]
+
 
 def test_register_new_node():
     class InsertExp(MatcherPass):
