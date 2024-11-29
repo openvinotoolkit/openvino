@@ -26,6 +26,7 @@ def patch_gptq():
     orig_cuda_is_bf16_supported = torch.cuda.is_bf16_supported
     orig_cuda_get_device_capability = torch.cuda.get_device_capability
     orig_post_init_model = None
+    orig_gemm_forward = None
     torch.set_default_dtype(torch.float32)
     torch.cuda.is_available = lambda: True
     torch.cuda.is_bf16_supported = lambda: False
@@ -83,16 +84,25 @@ def patch_gptq():
                 out = out.unsqueeze(0)
             return out
 
+        orig_gemm_forward = WQLinearMMFunction.forward
         WQLinearMMFunction.forward = new_forward
     except ImportError:
         pass
-    return (orig_cuda_is_available, orig_cuda_is_bf16_supported, orig_cuda_get_device_capability), orig_post_init_model
+    return (orig_cuda_is_available, orig_cuda_is_bf16_supported, orig_cuda_get_device_capability), orig_post_init_model, orig_gemm_forward
 
 
-def unpatch_gptq(orig_cuda_check, orig_post_init_model):
-    from optimum.gptq import GPTQQuantizer
+def unpatch_gptq(orig_cuda_check, orig_post_init_model, orig_gemm_forward):
     torch.cuda.is_available, torch.cuda.is_bf16_supported, torch.cuda.get_device_capability = orig_cuda_check
-    GPTQQuantizer.post_init_model = orig_post_init_model
+    try:
+        from optimum.gptq import GPTQQuantizer
+        GPTQQuantizer.post_init_model = orig_post_init_model
+    except ImportError:
+        pass
+    try:
+        from awq.modules.linear.gemm import WQLinearMMFunction
+        WQLinearMMFunction.forward = orig_gemm_forward
+    except ImportError:
+        pass
 
 
 def to_numpy(t):
@@ -126,7 +136,7 @@ torch.manual_seed(0)
 class TestLLMModel(TestTorchConvertModel):
     def setup_class(self):
         self.infer_timeout = 1800
-        self.cuda_available, self.gptq_postinit = None, None
+        self.cuda_available, self.gptq_postinit, self.orig_gemm_forward = None, None, None
 
     @retry(3, exceptions=(OSError,), delay=1)
     def load_model(self, name, type):
@@ -141,7 +151,7 @@ class TestLLMModel(TestTorchConvertModel):
         is_gpt2 = name == "openai-community/gpt2"
 
         if is_quant:
-            self.cuda_available, self.gptq_postinit = patch_gptq()
+            self.cuda_available, self.gptq_postinit, self.orig_gemm_forward = patch_gptq()
             model_kwargs["torch_dtype"] = "auto"
             model_kwargs["torch_dtype"] = torch.float32
             self.ov_config = {"DYNAMIC_QUANTIZATION_GROUP_SIZE": "0"}
@@ -214,8 +224,8 @@ class TestLLMModel(TestTorchConvertModel):
     def teardown_method(self):
         # restore after gptq patching
         if self.cuda_available is not None:
-            unpatch_gptq(self.cuda_available, self.gptq_postinit)
-            self.cuda_available, self.gptq_postinit = None, None
+            unpatch_gptq(self.cuda_available, self.gptq_postinit, self.orig_gemm_forward)
+            self.cuda_available, self.gptq_postinit, self.orig_gemm_forward = None, None, None
         super().teardown_method()
 
     @staticmethod

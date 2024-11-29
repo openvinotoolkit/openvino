@@ -56,7 +56,7 @@ def patch_quantized(model: torch.nn.Module) -> None:
         model._openvino_gptq_patched = True
         gptq.patch_model(model)  # type: ignore
     else:
-        raise RuntimeError("Unknown quantization type.")
+        raise RuntimeError(f"Unknown quantization type: {quant_type}.")
 
 
 def unpatch_quantized(model: torch.nn.Module) -> None:
