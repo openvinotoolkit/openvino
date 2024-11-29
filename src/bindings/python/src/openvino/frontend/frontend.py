@@ -29,7 +29,7 @@ class FrontEnd(FrontEndBase):
         return Model(super().decode(model))
 
     def normalize(self, model: Model) -> None:
-        super().normalize(model)
+        super().normalize(model._Model__model)
 
 
 class FrontEndManager(FrontEndManagerBase):
