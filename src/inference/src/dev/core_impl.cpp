@@ -776,10 +776,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     ov::AnyMap config_with_batch = config;
     // if auto-batching is applicable, the below function will patch the device name and config accordingly:
     auto model = apply_auto_batching(model_, deviceName, config_with_batch);
-    apply_rt_info(model_, config_with_batch);
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, coreConfig, config_with_batch, is_proxy_device(deviceName));
     auto plugin = get_plugin(parsed._deviceName);
+    apply_rt_info(plugin, model_, parsed._config);
     ov::SoPtr<ov::ICompiledModel> res;
     // will consume ov::cache_dir if plugin not support it
     auto cacheManager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
@@ -811,10 +811,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     ov::AnyMap config_with_batch = config;
     // if auto-batching is applicable, the below function will patch the device name and config accordingly:
     auto model = apply_auto_batching(model_, deviceName, config_with_batch);
-    apply_rt_info(model_, config_with_batch);
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, coreConfig, config_with_batch, is_proxy_device(deviceName));
     auto plugin = get_plugin(parsed._deviceName);
+    apply_rt_info(plugin, model_, parsed._config);
     ov::SoPtr<ov::ICompiledModel> res;
     // will consume ov::cache_dir if plugin not support it
     auto cacheManager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
@@ -1136,13 +1136,16 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
     return ov::details::apply_batch_affinity(model, deviceNameWithoutBatch);
 }
 
-void ov::CoreImpl::apply_rt_info(const std::shared_ptr<const ov::Model>& model,
+void ov::CoreImpl::apply_rt_info(const ov::Plugin& plugin,
+                                 const std::shared_ptr<const ov::Model>& model,
                                  ov::AnyMap& config) const {
-    if (model->has_rt_info({"runtime_options", "ACTIVATIONS_SCALE_FACTOR"})) {
-        if (config.find("ACTIVATIONS_SCALE_FACTOR") == config.end()) {
-            const auto activations_scale_factor =
-                model->get_rt_info<std::float_t>({"runtime_options", "ACTIVATIONS_SCALE_FACTOR"});
-            config.insert(ov::hint::activations_scale_factor(activations_scale_factor));
+    if (util::contains(plugin.get_property(ov::supported_properties), ov::hint::activations_scale_factor)) {
+        if (model->has_rt_info({"runtime_options", "ACTIVATIONS_SCALE_FACTOR"})) {
+            if (config.find("ACTIVATIONS_SCALE_FACTOR") == config.end()) {
+                const auto activations_scale_factor =
+                    model->get_rt_info<std::float_t>({"runtime_options", "ACTIVATIONS_SCALE_FACTOR"});
+                config.insert(ov::hint::activations_scale_factor(activations_scale_factor));
+            }
         }
     }
 }
