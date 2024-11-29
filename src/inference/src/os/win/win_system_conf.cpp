@@ -169,12 +169,6 @@ void parse_processor_info_win(const char* base_ptr,
                     } else {
                         _proc_type_table[0][group_type]++;
                     }
-                } else {
-                    proc_info[CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
-                    proc_info[CPU_MAP_GROUP_ID] = group;
-
-                    _proc_type_table[0][MAIN_CORE_PROC]++;
-                    group++;
                 }
                 _cpu_mapping_table.push_back(proc_info);
             }
@@ -219,14 +213,17 @@ void parse_processor_info_win(const char* base_ptr,
                         _proc_type_table[0][MAIN_CORE_PROC]++;
                     }
                 }
-
-            } else if (1 == list_len) {
-                if ((_cpu_mapping_table.size() > list[0]) &&
-                    (_cpu_mapping_table[list[0] + base_proc][CPU_MAP_CORE_TYPE] == -1)) {
-                    group_id = group++;
-                    _cpu_mapping_table[list[0] + base_proc][CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
-                    _cpu_mapping_table[list[0] + base_proc][CPU_MAP_GROUP_ID] = group_id;
+            } else {
+                if (_processors <= list[list_len - 1] + base_proc) {
+                    group_start = list[0];
+                    group_end = list[list_len - 1];
+                    group_type = MAIN_CORE_PROC;
+                }
+                for (int m = 0; m < _processors - list[0]; m++) {
+                    _cpu_mapping_table[list[m] + base_proc][CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
+                    _cpu_mapping_table[list[m] + base_proc][CPU_MAP_GROUP_ID] = group_id;
                     _proc_type_table[0][MAIN_CORE_PROC]++;
+                    group_id = group++;
                 }
             }
         }
