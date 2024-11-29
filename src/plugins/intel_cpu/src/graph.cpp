@@ -1019,12 +1019,12 @@ void Graph::PreProcessConstantInputs() {
 
         const bool isInPlace = inPlaceOutPort >= 0;
 
-        if (isInPlace && oneShotCopyPossible && !std::getenv("DISABLE_CLONE_POSTPONE")) {
+        if (isInPlace && oneShotCopyPossible) {
             // clone will be done by a node
             return ov::optional<InputPrepType>(prepType);
         }
 
-        if (!isInPlace && prepType == InputPrepType::PutToNumaLocalCache && !std::getenv("DISABLE_CLONE_POSTPONE")) {
+        if (!isInPlace && prepType == InputPrepType::PutToNumaLocalCache) {
             // no need for numa local copy, since current constant path is not inplace, so it will produce a new blob anyway
             return {};
         }
