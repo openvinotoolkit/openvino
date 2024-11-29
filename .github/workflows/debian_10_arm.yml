@@ -49,7 +49,7 @@ jobs:
   Docker:
     needs: Smart_CI
     if: "!needs.smart_ci.outputs.skip_workflow"
-    runs-on: aks-linux-16-cores-arm-docker-build
+    runs-on: aks-linux-4-cores-8gb-arm-docker-build
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
