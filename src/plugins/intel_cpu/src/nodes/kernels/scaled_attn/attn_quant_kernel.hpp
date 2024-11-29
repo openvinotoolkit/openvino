@@ -64,24 +64,18 @@ void attn_dequant_u4_kernel(const uint8_t* src, TDST* dst, size_t n, float scale
     size_t i = 0;
     uint8_t* src_nc = const_cast<uint8_t*>(src);
 #if defined(HAVE_AVX512F)
-    auto extract_half_byte2 = [&](uint8_t val, bool high_half) -> uint8_t {
-        uint8_t shift = high_half ? 0 : 4;
-        return (uint8_t) ((val >> shift) & 0x000F);
-    };
     auto v_zp = _mm512_set1_ps(zp);
     auto v_scale = _mm512_set1_ps(scale);
     for (; i + vec_len_f32_avx512 * 2 <= n; i += vec_len_f32_avx512 * 2) {
-        auto high_half = _mm_loadu_si128(reinterpret_cast<__m128i*>(src_nc + i / 2));
-        __m128i low_half = _mm_srli_epi16(high_half, 4);
-        const __m128i mask = _mm_set1_epi8(0x0F);
-        low_half = _mm_and_si128(mask, low_half);
-        high_half = _mm_and_si128(mask, high_half);
+        auto data = _mm_loadu_si128(reinterpret_cast<__m128i*>(src_nc + i/2));
+        auto v_i32 = _mm512_cvtepu8_epi32(data);
 
-        //cvt to f32
-        auto v_256_low_half = _mm512_cvtepu8_epi32(low_half);
-        auto v_256_high_half = _mm512_cvtepu8_epi32(high_half);
-        auto v_f32_low_half = _mm512_cvtepi32_ps(v_256_low_half);
-        auto v_f32_high_half = _mm512_cvtepi32_ps(v_256_high_half);
+        auto v_512_low_half = _mm512_srli_epi32(v_i32, 4);
+        auto v_f32_low_half = _mm512_cvtepi32_ps(v_512_low_half);
+
+        auto mask = _mm512_set1_epi32(0x0F);
+        auto v_512_high_half = _mm512_and_si512(v_i32, mask);
+        auto v_f32_high_half = _mm512_cvtepi32_ps(v_512_high_half);
         // q - zp
         v_f32_low_half = _mm512_sub_ps(v_f32_low_half, v_zp);
         v_f32_high_half = _mm512_sub_ps(v_f32_high_half, v_zp);
@@ -95,6 +89,34 @@ void attn_dequant_u4_kernel(const uint8_t* src, TDST* dst, size_t n, float scale
         __m512 second_half = _mm512_permutex2var_ps(v_f32_low_half, idx2, v_f32_high_half);
         mm512_uni_storeu_ps(dst + i, first_half);
         mm512_uni_storeu_ps(dst + i + vec_len_f32_avx512, second_half);
+    }
+    auto v256_zp = _mm256_set1_ps(zp);
+    auto v256_scale = _mm256_set1_ps(scale);
+    for (; i + vec_len_f32_avx2 * 2 <= n; i += vec_len_f32_avx2 * 2) {
+        auto data = _mm_loadu_si64(reinterpret_cast<__m128i*>(src_nc + i/2));
+
+        auto v_i32 = _mm256_cvtepu8_epi32(data);
+        auto v_256_low_half = _mm256_srli_epi32(v_i32, 4);
+        auto v_f32_low_half = _mm256_cvtepi32_ps(v_256_low_half);
+
+        auto mask = _mm256_set1_epi32(0x0F);
+        auto v_256_high_half = _mm256_and_si256(v_i32, mask);
+        auto v_f32_high_half = _mm256_cvtepi32_ps(v_256_high_half);
+        // q - zp
+        v_f32_low_half = _mm256_sub_ps(v_f32_low_half, v256_zp);
+        v_f32_high_half = _mm256_sub_ps(v_f32_high_half, v256_zp);
+    
+        v_f32_low_half = _mm256_mul_ps(v_f32_low_half, v256_scale);
+        v_f32_high_half = _mm256_mul_ps(v_f32_high_half, v256_scale);
+
+        __m256 first_half = _mm256_permute2f128_ps(v_f32_low_half, v_f32_high_half, 0x20);
+        auto idx1 = _mm256_set_epi32(7, 3, 6, 2, 5, 1, 4, 0);
+        first_half = _mm256_permutevar8x32_ps(first_half, idx1);
+        __m256 second_half = _mm256_permute2f128_ps(v_f32_low_half, v_f32_high_half, 0x31);
+        second_half = _mm256_permutevar8x32_ps(second_half, idx1);
+
+        mm256_uni_storeu_ps(dst + i, first_half);
+        mm256_uni_storeu_ps(dst + i + vec_len_f32_avx2, second_half);
     }
 #endif
     auto extract_half_byte = [&](uint8_t val, bool high_half) -> uint8_t {
@@ -121,18 +143,17 @@ void attn_dequant_s4_kernel(const uint8_t* src, TDST* dst, size_t n, float scale
     */
     size_t i = 0;
     uint8_t* src_nc = const_cast<uint8_t*>(src);
+#if defined(HAVE_AVX512F)
     for (; i + vec_len_f32_avx512 * 2 <= n; i += vec_len_f32_avx512 * 2) {
-        auto high_half = _mm_loadu_si128(reinterpret_cast<__m128i*>(src_nc + i / 2));
-        __m128i low_half = _mm_srli_epi16(high_half, 4);
-        const __m128i mask = _mm_set1_epi8(0x0F);
-        low_half = _mm_and_si128(mask, low_half);
-        auto v_scale = _mm512_set1_ps(1/scale);
-        //cvt to f32
-        auto v_256_low_half = _mm512_cvtepi8_epi32(low_half);
-        auto v_256_high_half = _mm512_cvtepi8_epi32(high_half);
-        v_256_high_half = _mm512_slli_epi32(v_256_high_half, 28);
-        v_256_high_half = _mm512_srai_epi32(v_256_high_half, 28);
+        auto v_scale = _mm512_set1_ps(scale);
+        auto data = _mm_loadu_si128(reinterpret_cast<__m128i*>(src_nc + i / 2));
+        // cvt to f32
+        auto v_i32 = _mm512_cvtepi8_epi32(data);
+
+        auto v_256_low_half = _mm512_srai_epi32(v_i32, 4);
         auto v_f32_low_half = _mm512_cvtepi32_ps(v_256_low_half);
+        auto v_256_high_half = _mm512_slli_epi32(v_i32, 28);
+        v_256_high_half = _mm512_srai_epi32(v_256_high_half, 28);
         auto v_f32_high_half = _mm512_cvtepi32_ps(v_256_high_half);
         // q * scale
         v_f32_low_half = _mm512_mul_ps(v_f32_low_half, v_scale);
@@ -141,16 +162,43 @@ void attn_dequant_s4_kernel(const uint8_t* src, TDST* dst, size_t n, float scale
         __m512i idx1 = _mm512_set_epi32(23, 7, 22, 6, 21, 5, 20, 4, 19, 3, 18, 2, 17, 1, 16, 0);
         __m512i idx2 = _mm512_set_epi32(31, 15, 30, 14, 29, 13, 28, 12, 27, 11, 26, 10, 25, 9, 24, 8);
         __m512 first_half = _mm512_permutex2var_ps(v_f32_low_half, idx1, v_f32_high_half);
-        __m512 second_half = _mm512_permutex2var_ps(v_f32_low_half, idx2, v_f32_high_half);  
+        __m512 second_half = _mm512_permutex2var_ps(v_f32_low_half, idx2, v_f32_high_half);
         mm512_uni_storeu_ps(dst + i, first_half);
-        mm512_uni_storeu_ps(dst + i + vec_len_f32_avx512, second_half);  
+        mm512_uni_storeu_ps(dst + i + vec_len_f32_avx512, second_half);
     }
-    auto extract_half_byte = [&](uint8_t val, bool high_half) -> uint8_t {
+
+    for (; i + vec_len_f32_avx2 * 2 <= n; i += vec_len_f32_avx2 * 2) {
+        auto v256_scale = _mm256_set1_ps(scale);
+        auto data = _mm_loadu_si64(reinterpret_cast<__m128i*>(src_nc + i / 2));
+
+        auto v_i32 = _mm256_cvtepi8_epi32(data);
+        auto v_256_low_half = _mm256_srai_epi32(v_i32, 4);
+        auto v_f32_low_half = _mm256_cvtepi32_ps(v_256_low_half);
+
+        auto v_256_high_half = _mm256_slli_epi32(v_i32, 28);
+        v_256_high_half = _mm256_srai_epi32(v_256_high_half, 28);
+        auto v_f32_high_half = _mm256_cvtepi32_ps(v_256_high_half);
+
+        // q * scale
+        v_f32_low_half = _mm256_mul_ps(v_f32_low_half, v256_scale);
+        v_f32_high_half = _mm256_mul_ps(v_f32_high_half, v256_scale);
+
+        __m256 first_half = _mm256_permute2f128_ps(v_f32_low_half, v_f32_high_half, 0x20);
+        auto idx1 = _mm256_set_epi32(7, 3, 6, 2, 5, 1, 4, 0);
+        first_half = _mm256_permutevar8x32_ps(first_half, idx1);
+        __m256 second_half = _mm256_permute2f128_ps(v_f32_low_half, v_f32_high_half, 0x31);
+        second_half = _mm256_permutevar8x32_ps(second_half, idx1);
+        mm256_uni_storeu_ps(dst + i, first_half);
+        mm256_uni_storeu_ps(dst + i + vec_len_f32_avx2, second_half);
+    }
+#endif
+    auto extract_half_byte = [&](uint8_t val, bool high_half) -> int8_t {
         uint8_t shift = high_half ? 0 : 4;
-        return (int8_t) ((val >> shift) & 0x000F);
+        return float((val >> shift) & 0x000F);
     };
     for (; i < n; ++i) {
         float tmp = extract_half_byte(src_nc[i / 2], (uint8_t)(i % 2));
+        tmp = tmp > 8 ? (tmp - 16) : tmp;
         tmp = tmp * scale;
         dst[i] = tmp;
     }
