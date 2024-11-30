@@ -4,6 +4,7 @@
 
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
+#include "itt.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
@@ -36,9 +37,13 @@ void set_rt_info(const PatternValueMap& pt_map,
     for (const auto& pattern_node : pattern_nodes) {
         if (pt_map.count(pattern_node)) {
             auto node = pt_map.at(pattern_node).get_node_shared_ptr();
+
+            // we don't need to mark Converts with disable_cf attribute if the `from` type (input type)
+            // is not in the `precisions` list.
             if (ov::as_type_ptr<v0::Convert>(node) && !check_precision(node->get_input_element_type(0), precisions)) {
                 continue;
             }
+
             rt_info_setter(node);
         }
     }
@@ -69,6 +74,8 @@ bool swap_nodes(const PatternValueMap& pt_map,
 ov::pass::MarkDequantization::MarkDequantization(const element::TypeVector& precisions,
                                                  const bool fold_subtract_const,
                                                  const bool fold_multiply_const) {
+    MATCHER_SCOPE(MarkDequantization);
+
     // data input:
     auto input_pattern = any_input();
     auto convert_pattern = wrap_type<v0::Convert>({input_pattern}, consumers_count(1));
@@ -120,7 +127,7 @@ ov::pass::MarkDequantization::MarkDequantization(const element::TypeVector& prec
 
         // Move Reshape/Unsqueeze ops up to fold them in ConstantFolding.
         auto changed = swap_nodes(pt_map, zp_convert_pattern, zp_reshape_pattern);
-        changed = changed || swap_nodes(pt_map, scale_convert_pattern, scale_reshape_pattern);
+        changed = swap_nodes(pt_map, scale_convert_pattern, scale_reshape_pattern) || changed;
         return changed;
     };
 
@@ -131,6 +138,8 @@ ov::pass::MarkDequantization::MarkDequantization(const element::TypeVector& prec
 ov::pass::KeepConstsPrecision::KeepConstsPrecision(const element::TypeVector& precisions,
                                                    bool fold_subtract_const,
                                                    bool fold_multiply_const) {
+    MATCHER_SCOPE(KeepConstsPrecision);
+
     // data input:
     auto input_pattern = any_input();
     auto convert_pattern = wrap_type<v0::Convert>({input_pattern}, consumers_count(1));
@@ -160,8 +169,8 @@ ov::pass::KeepConstsPrecision::KeepConstsPrecision(const element::TypeVector& pr
         for (const auto& pattern_node : keep_const_precisions) {
             if (pt_map.count(pattern_node.first)) {
                 auto node = pt_map.at(pattern_node.first).get_node_shared_ptr();
-                if (ov::as_type_ptr<v0::Constant>(node) &&
-                    check_precision(node->get_output_element_type(0), precisions)) {
+                const auto& precision = node->get_output_element_type(0);
+                if (ov::as_type_ptr<v0::Constant>(node) && check_precision(precision, precisions)) {
                     if (pattern_node.second) {
                         ov::disable_keep_const_precision(node);
                     } else {

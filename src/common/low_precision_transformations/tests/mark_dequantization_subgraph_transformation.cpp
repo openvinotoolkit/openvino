@@ -45,7 +45,14 @@ TEST_F(TransformationTestsF, KeepConstPrecision) {
         auto multiply = std::make_shared<opset10::Multiply>(subtract, scale);
         auto stub_op = std::make_shared<opset10::Relu>(multiply);
         model_ref = std::make_shared<Model>(stub_op, ParameterVector{});
+
+        mark_as_dequantization_node(subtract);
+        mark_as_dequantization_node(multiply);
+        enable_keep_const_precision(lp_const);
+        ov::pass::disable_constant_folding(second_convert);
     }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
 }
 
 TEST_F(TransformationTestsF, MarkDequantizationTransformation) {
