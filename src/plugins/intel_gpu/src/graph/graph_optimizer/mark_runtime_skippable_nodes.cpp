@@ -47,6 +47,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
             !node->is_type<non_max_suppression_gather>()) {
             // always to skip, no runtime execution
             node->can_be_optimized(true);
+            node->set_runtime_skippable(true);
             GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node->id() << " has only shape_of as users. Set can_be_optimized always"
                                    << std::endl;
             continue;
