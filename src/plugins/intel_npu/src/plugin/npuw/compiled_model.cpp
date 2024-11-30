@@ -434,6 +434,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
     // Finalize memory in closures and weight banks
     finalize_weights_bank();
+    detach_memory();
 
     // Print stats report when possible
     {
@@ -497,6 +498,23 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
     }
 
     LOG_INFO("Done.");
+}
+
+void ov::npuw::CompiledModel::detach_memory() {
+    LOG_INFO("Detaching model & weight memory...");
+    LOG_BLOCK();
+    for (size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
+        auto& comp_model_desc = m_compiled_submodels[idx];
+        auto& proto_comp_model_desc = m_compiled_submodels[comp_model_desc.replaced_by.value_or(idx)];
+        if (!proto_comp_model_desc.model || !proto_comp_model_desc.compiled_model) {
+            continue;  // optimized-out OR already cleared - skip
+        }
+        if (proto_comp_model_desc.device_it + 1 == m_dev_list.end()) {
+            LOG_INFO("No fallback expected - clear the OV model for Subgraph[" << idx << "]");
+            proto_comp_model_desc.model.reset();
+        }
+    }
+    LOG_INFO("Done");
 }
 
 std::string ov::npuw::CompiledModel::global_mem_device() const {
