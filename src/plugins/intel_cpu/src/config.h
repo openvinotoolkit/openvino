@@ -106,6 +106,8 @@ struct Config {
 
     void updateProperties();
 
+    void applyRtInfo(const std::shared_ptr<const ov::Model>& model);
+
     std::map<std::string, std::string> _config;
 
     int modelPreferThreads = -1;
