@@ -78,8 +78,8 @@ private:
     void implement_properties();
 
     void finalize_weights_bank();
-    void detach_memory(); 
- 
+    void detach_memory();
+
     std::string global_mem_device() const;
     std::string funcall_mem_device(const std::size_t idx) const;
 
