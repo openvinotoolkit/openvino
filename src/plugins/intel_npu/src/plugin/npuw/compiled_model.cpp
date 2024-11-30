@@ -28,6 +28,7 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
+#include "llm_compiled_model.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -85,10 +86,33 @@ ov::npuw::DeviceProperties get_properties_per_device(const std::shared_ptr<const
 }  // namespace npuw
 }  // namespace ov
 
+std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
+    const std::shared_ptr<ov::Model>& model,
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    const ov::AnyMap& properties) {
+    LOG_INFO("Choosing which NPUW CompiledModel to create");
+    LOG_BLOCK();
+    std::shared_ptr<ov::npuw::ICompiledModel> compiled_model;
+    auto use_llm_key = ov::intel_npu::npuw::llm::enabled.name();
+    if (properties.count(use_llm_key) && properties.at(use_llm_key).as<bool>() == true) {
+        LOG_INFO("ov::npuw::LLMCompiledModel will be created.");
+        compiled_model = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, properties);
+    } else {
+        LOG_INFO("ov::npuw::CompiledModel will be created.");
+        compiled_model = std::make_shared<ov::npuw::CompiledModel>(model, plugin, properties);
+    }
+    LOG_INFO("Done");
+    return compiled_model;
+}
+
+ov::npuw::ICompiledModel::ICompiledModel(const std::shared_ptr<ov::Model>& model,
+                                         const std::shared_ptr<const ov::IPlugin>& plugin)
+    : ov::ICompiledModel(model, plugin) {}
+
 ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                        const std::shared_ptr<const ov::IPlugin>& plugin,
                                        const ov::AnyMap& properties)
-    : ov::ICompiledModel(model, plugin),
+    : ov::npuw::ICompiledModel(model, plugin),
       m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
       m_cfg(m_options_desc),
       m_name(model->get_friendly_name()),
