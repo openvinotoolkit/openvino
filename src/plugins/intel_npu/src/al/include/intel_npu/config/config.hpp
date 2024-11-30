@@ -75,6 +75,11 @@ struct OptionParser<int32_t> final {
 };
 
 template <>
+struct OptionParser<uint32_t> final {
+    static uint32_t parse(std::string_view val);
+};
+
+template <>
 struct OptionParser<int64_t> final {
     static int64_t parse(std::string_view val);
 };
@@ -162,6 +167,25 @@ struct OptionPrinter final {
             return ss.str();
         } else {
             ss << val;
+        }
+        return ss.str();
+    }
+};
+
+template <typename K, typename V>
+struct OptionPrinter<std::map<K, V>> final {
+    static std::string toString(const std::map<K, V>& val) {
+        std::stringstream ss;
+        std::size_t counter = 0;
+        std::size_t size = val.size();
+        for (auto& [key, value] : val) {
+            std::string key_str = OptionPrinter<K>::toString(key);
+            std::string value_str = OptionPrinter<V>::toString(value);
+            ss << key_str << ":" << value_str;
+            if (counter < size - 1) {
+                ss << ",";
+            }
+            ++counter;
         }
         return ss.str();
     }
