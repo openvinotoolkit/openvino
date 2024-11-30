@@ -489,6 +489,12 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.get<BYPASS_UMD_CACHING>();
           }}},
+        {ov::intel_npu::defer_weights_load.name(),
+         {true,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<DEFER_WEIGHTS_LOAD>();
+          }}},
         // NPU Private
         // =========
         {ov::intel_npu::dma_engines.name(),
@@ -544,12 +550,6 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.get<CREATE_EXECUTOR>();
           }}},
-        {ov::intel_npu::defer_weights_load.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<DEFER_WEIGHTS_LOAD>();
-          }}},
         {ov::intel_npu::dynamic_shape_to_static.name(),
          {false,
           ov::PropertyMutability::RW,
@@ -567,6 +567,12 @@ Plugin::Plugin()
           ov::PropertyMutability::RW,
           [](const Config& config) {
               return config.getString<BACKEND_COMPILATION_PARAMS>();
+          }}},
+        {ov::intel_npu::run_inferences_sequentially.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<RUN_INFERENCES_SEQUENTIALLY>();
           }}},
         {ov::intel_npu::batch_mode.name(), {false, ov::PropertyMutability::RW, [](const Config& config) {
                                                 return config.getString<BATCH_MODE>();
