@@ -84,7 +84,8 @@ ov_sitemap_urlset = [
 ov_sitemap_meta = [
     ('coveo:metadata', {
         'ovversion': version_name,
-        'ovdoctype': 'null'
+        'ovdoctype': 'null',
+        'ovcategory': 'null'
     })
 ]
 
@@ -201,7 +202,6 @@ html_js_files = [
     'js/openvino_sphinx_theme.js',
     'js/splide.min.js',
     'js/sortable_tables.js',
-    'js/graphsLLM.js',
     'js/graphs.js',
     'js/gsearch.js',
     'js/hide_banner.js',

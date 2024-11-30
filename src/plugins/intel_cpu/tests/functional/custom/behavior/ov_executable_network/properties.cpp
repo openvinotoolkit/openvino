@@ -194,6 +194,17 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckAccuracyModeDynamicQuantiz
     ASSERT_EQ(groupSize, 0);
 }
 
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckAccuracyModeKVCachePrecision) {
+    ov::Core core;
+
+    ASSERT_NO_THROW(core.set_property(deviceName, ov::hint::execution_mode(ov::hint::ExecutionMode::ACCURACY)));
+    ov::CompiledModel compiledModel = core.compile_model(model, deviceName);
+
+    auto kv_cache_precision_value = ov::element::undefined;
+    ASSERT_NO_THROW(kv_cache_precision_value = compiledModel.get_property(ov::hint::kv_cache_precision));
+    ASSERT_EQ(kv_cache_precision_value, ov::element::f32);
+}
+
 const auto bf16_if_can_be_emulated = ov::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
 
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckExecutionModeIsAvailableInCoreAndModel) {
@@ -314,6 +325,37 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCPUExecutionDevice) {
     OV_ASSERT_NO_THROW(compiledModel = ie.compile_model(model, deviceName));
     OV_ASSERT_NO_THROW(value = compiledModel.get_property(ov::execution_devices));
     ASSERT_EQ(value.as<std::string>(), "CPU");
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCPURuntimOptions) {
+    ov::Core ie;
+    ov::Any type;
+    ov::Any size;
+    ov::CompiledModel compiledModel;
+    model->set_rt_info("f16", "runtime_options", ov::hint::kv_cache_precision.name());
+    model->set_rt_info("0", "runtime_options", ov::hint::dynamic_quantization_group_size.name());
+    OV_ASSERT_NO_THROW(compiledModel = ie.compile_model(model, deviceName));
+    OV_ASSERT_NO_THROW(type = compiledModel.get_property(ov::hint::kv_cache_precision));
+    OV_ASSERT_NO_THROW(size = compiledModel.get_property(ov::hint::dynamic_quantization_group_size));
+    ASSERT_EQ(type.as<ov::element::Type>(), ov::element::f16);
+    ASSERT_EQ(size.as<uint64_t>(), 0);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCPURuntimOptionsWithCompileConfig) {
+    ov::Core ie;
+    ov::Any type;
+    ov::Any size;
+    ov::CompiledModel compiledModel;
+    model->set_rt_info("f16", "runtime_options", ov::hint::kv_cache_precision.name());
+    model->set_rt_info("0", "runtime_options", ov::hint::dynamic_quantization_group_size.name());
+    ov::AnyMap config;
+    config[ov::hint::kv_cache_precision.name()] = "u8";
+    config[ov::hint::dynamic_quantization_group_size.name()] = "16";
+    OV_ASSERT_NO_THROW(compiledModel = ie.compile_model(model, deviceName, config));
+    OV_ASSERT_NO_THROW(type = compiledModel.get_property(ov::hint::kv_cache_precision));
+    OV_ASSERT_NO_THROW(size = compiledModel.get_property(ov::hint::dynamic_quantization_group_size));
+    ASSERT_EQ(type.as<ov::element::Type>(), ov::element::u8);
+    ASSERT_EQ(size.as<uint64_t>(), 16);
 }
 
 } // namespace

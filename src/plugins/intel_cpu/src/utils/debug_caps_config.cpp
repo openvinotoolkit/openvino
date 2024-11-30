@@ -54,15 +54,18 @@ void DebugCapsConfig::readProperties() {
     if ((envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_NAME")))
         blobDumpFilters[FILTER::BY_NAME] = envVarValue;
 
-    if ((envVarValue = readEnv("OV_CPU_SUMMARY_PERF"))) {
-        summaryPerf = envVarValue;
-    }
-
     if ((envVarValue = readEnv("OV_CPU_DISABLE")))
         disable.parseAndSet(envVarValue);
 
     if ((envVarValue = readEnv("OV_CPU_DUMP_IR")))
         dumpIR.parseAndSet(envVarValue);
+
+    if ((envVarValue = readEnv("OV_CPU_SUMMARY_PERF"))) {
+        summaryPerf = envVarValue;
+    }
+
+    if ((envVarValue = readEnv("OV_CPU_AVERAGE_COUNTERS")))
+        averageCountersPath = envVarValue;
 }
 
 }   // namespace intel_cpu

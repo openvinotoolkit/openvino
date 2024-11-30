@@ -116,7 +116,7 @@ bool MemoryOutputBase::isSupportedOperation(const std::shared_ptr<const ov::Node
 }
 
 MemoryOutputBase::MemoryOutputBase(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-        : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) , MemoryNode(op) {
+    : Node(op, context, NgraphShapeInferFactory(op)), MemoryNode(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -254,7 +254,7 @@ void MemoryOutput::resolveInPlaceEdges(Edge::LOOK look) {
     auto parentEdge = getParentEdgeAt(0); // always only one parent edge
 
     OPENVINO_ASSERT(one_of(parentEdge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
-        " Unexpected inplace resolve call to an allocated edge: ", parentEdge->name());
+        " Unexpected inplace resolve call to an allocated edge: ", *parentEdge);
 
     auto memDesc = selected_pd->getConfig().inConfs.front().getMemDesc();
     memBlock = std::make_shared<ProxyMemoryBlock>();
@@ -350,7 +350,7 @@ void MemoryOutputStub::resolveInPlaceEdges(Edge::LOOK look) {
     auto parentEdge = getParentEdgeAt(0); // always only one parent edge
 
     OPENVINO_ASSERT(one_of(parentEdge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
-        " Unexpected inplace resolve call to an allocated edge: ", parentEdge->name());
+        " Unexpected inplace resolve call to an allocated edge: ", *parentEdge);
 
     auto memDesc = selected_pd->getConfig().inConfs.front().getMemDesc();
     // make a fake memory
@@ -717,7 +717,7 @@ void MemoryInput::resolveInPlaceEdges(Edge::LOOK look) {
 
     for (auto&& edge : getChildEdgesAtPort(0)) { // always only one child port
         OPENVINO_ASSERT(one_of(edge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
-            " Unexpected inplace resolve call to an allocated edge: ", edge->name());
+            " Unexpected inplace resolve call to an allocated edge: ", *edge);
 
         auto edgeMem = std::make_shared<Memory>(getEngine(), memDesc, memBlock);
         edge->reuse(edgeMem);
@@ -846,7 +846,7 @@ void MemoryInputSDPA::resolveInPlaceEdges(Edge::LOOK look) {
         auto memDesc = getBaseMemDescAtOutputPort(0);
         for (auto&& edge : getChildEdgesAtPort(0)) { // always only one child port
             OPENVINO_ASSERT(one_of(edge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
-                " Unexpected inplace resolve call to an allocated edge: ", edge->name());
+                " Unexpected inplace resolve call to an allocated edge: ", *edge);
 
             auto edgeMem = std::make_shared<MemoryStub>(getEngine(), memDesc);
             edge->reuse(edgeMem);
