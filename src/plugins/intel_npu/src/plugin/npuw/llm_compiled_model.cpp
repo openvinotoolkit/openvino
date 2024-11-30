@@ -328,19 +328,19 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_llm_in
 }
 
 void ov::npuw::LLMCompiledModel::implement_properties() {
-#define BIND(N, T)                                                                         \
+#define BIND(N, T, GETTER)                                                                 \
     {                                                                                      \
         ov::intel_npu::N.name(), {                                                         \
             ov::PropertyMutability::RW, [](const ::intel_npu::Config& config) -> ov::Any { \
-                return config.get<::intel_npu::T>();                                       \
+                return config.GETTER<::intel_npu::T>();                                    \
             }                                                                              \
         }                                                                                  \
     }
 
-    m_prop_to_opt.insert({BIND(npuw::llm::enabled, NPUW_LLM),
-                          BIND(npuw::llm::model_desc, NPUW_LLM_MODEL_DESC),
-                          BIND(npuw::llm::max_prompt_len, NPUW_LLM_MAX_PROMPT_LEN),
-                          BIND(npuw::llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN),
-                          BIND(npuw::llm::generate_hint, NPUW_LLM_GENERATE_HINT)});
+    m_prop_to_opt.insert({BIND(npuw::llm::enabled, NPUW_LLM, get),
+                          BIND(npuw::llm::model_desc, NPUW_LLM_MODEL_DESC, getString),
+                          BIND(npuw::llm::max_prompt_len, NPUW_LLM_MAX_PROMPT_LEN, get),
+                          BIND(npuw::llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN, get),
+                          BIND(npuw::llm::generate_hint, NPUW_LLM_GENERATE_HINT, getString)});
 #undef BIND
 }

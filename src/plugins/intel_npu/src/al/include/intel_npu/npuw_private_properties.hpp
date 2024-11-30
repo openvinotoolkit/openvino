@@ -390,10 +390,11 @@ static constexpr ov::Property<bool> enabled{"NPUW_LLM"};
 /**
  * @brief
  * Type: std::map<std::string, std::string>.
- * Tell NPUW about your LLM model.
- * Default value: empty map.
+ * Tell NPUW about your LLM model. Use following structure for that:
+ * "type:<type>,name_or_path:<name_or_path>,num_key_value_heads:<number>".
+ * Default value: empty structure defined above.
  */
-static constexpr ov::Property<std::map<std::string, std::string>> model_desc{"NPUW_LLM_MODEL_DESC"};
+static constexpr ov::Property<std::string> model_desc{"NPUW_LLM_MODEL_DESC"};
 
 /**
  * @brief
