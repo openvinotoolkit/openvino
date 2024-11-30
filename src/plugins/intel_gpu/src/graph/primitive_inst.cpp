@@ -1392,7 +1392,7 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
 void primitive_inst::do_runtime_skip_gather() {
     // Check pattern
     if (!get_node().is_type<gather>()
-        || !get_node().can_be_optimized()
+        || !get_node().is_runtime_skippable()
         || _impl_params->has_fused_primitives()
         || _impl_params->get_input_layout(0).data_type != _impl_params->get_output_layout().data_type
         || get_node().get_dependency(1).is_constant() || get_node().get_dependency(1).is_type<data>())
@@ -1464,7 +1464,6 @@ void primitive_inst::do_runtime_skip_permute() {
     // Check pattern
     if (!get_node().is_type<permute>()
         || is_output()
-        || !get_node().can_be_optimized()
         || !get_node().is_runtime_skippable()
         || _impl_params->has_fused_primitives()
         || _impl_params->get_input_layout(0).data_type != _impl_params->get_output_layout().data_type)
@@ -1504,7 +1503,7 @@ void primitive_inst::do_runtime_skip_permute() {
 void primitive_inst::do_runtime_skip_strided_slice() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_skip_strided_slice: " + id()));
     // Check pattern
-    if (!get_node().is_type<strided_slice>() || !get_node().can_be_optimized())
+    if (!get_node().is_type<strided_slice>() || !get_node().is_runtime_skippable())
         return;
 
     GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_strided_slice] " << id() << " : check optimizability" << std::endl;
@@ -1528,7 +1527,7 @@ void primitive_inst::do_runtime_skip_strided_slice() {
 void primitive_inst::do_runtime_skip_broadcast() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_skip_broadcast: " + id()));
     // Check pattern
-    if (!get_node().is_type<broadcast>() || !get_node().can_be_optimized())
+    if (!get_node().is_type<broadcast>() || !get_node().is_runtime_skippable())
         return;
 
     GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_broadcast] " << id() << " : check optimizability" << std::endl;
@@ -1637,7 +1636,7 @@ void primitive_inst::do_runtime_skip_scatter_update() {
     if (!(get_node().is_type<scatter_update>()
         || get_node().is_type<scatter_elements_update>()
         || get_node().is_type<scatter_nd_update>())
-        || !get_node().can_be_optimized())
+        || !get_node().is_runtime_skippable())
         return;
 
     GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_scatter_update] " << id() << " : check optimizability" << std::endl;
