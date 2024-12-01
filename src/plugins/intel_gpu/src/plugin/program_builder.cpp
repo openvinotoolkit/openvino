@@ -11,7 +11,6 @@
 #include "openvino/op/loop.hpp"
 #include "openvino/op/search_sorted.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
->>>>>>> 8712b84b30 (support static-shape sd with dyn_quan)
 
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"

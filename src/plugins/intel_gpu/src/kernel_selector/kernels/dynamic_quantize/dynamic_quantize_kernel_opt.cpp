@@ -13,7 +13,7 @@ namespace kernel_selector {
 static std::pair<size_t, size_t> get_input_bf_size(const dynamic_quantize_params& params) {
     size_t input_f = params.inputs[0].Feature().v;
     size_t input_batch = params.inputs[0].Batch().v;
-    // 4D input
+    // 3D input
     if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
         input_f = params.inputs[0].Y().v * params.inputs[0].X().v;
         input_batch = params.inputs[0].Batch().v * params.inputs[0].Feature().v;
@@ -33,7 +33,6 @@ static size_t get_match_vector_size(const dynamic_quantize_params& params) {
     auto bf = get_input_bf_size(params);
     auto f = bf.second;
 
-    // FIXME: please implement test case with 2d, 3d, 4d tensors
     for (auto block_size : block_sizes) {
         if ((f / simd) % block_size == 0) {
             return block_size;
@@ -184,7 +183,6 @@ bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {
                 return false;
     }
 
-    // it supports only separated output
     if (dq_params.use_asymmetric_quantization) {
         if (dq_params.combine_scales_and_zp)
             return false;

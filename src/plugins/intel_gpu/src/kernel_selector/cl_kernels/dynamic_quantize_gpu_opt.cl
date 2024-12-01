@@ -173,10 +173,11 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #endif
     }
 
-    if (sglid == 0 && local_id == 0)
+    if (sglid == 0 && local_id == 0) {
         output_scale[bf] = 1.0h / scale;
 #if ASYMMETRIC_QUANTIZATION
-    output_zp[bf] = convert_uchar_rte(zp);
+        output_zp[bf] = convert_uchar_rte(zp);
 #endif
+    }
 }
 #endif  // QUANTIZE_GROUP_SIZE <= 128

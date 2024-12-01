@@ -58,7 +58,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         if (debug_config->dynamic_quantize_asym) {
             config.quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
             config.quantization_dt = element::u8;
-            config.zp_dt = element::u8; // XXX: can it be u4?
+            config.zp_dt = element::u8; // it supports u8 only now
         }
 
         auto dyn_quan = std::make_shared<ov::op::internal::DynamicQuantize>(m_data, config);

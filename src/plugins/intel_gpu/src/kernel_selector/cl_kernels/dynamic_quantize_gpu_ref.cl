@@ -99,11 +99,10 @@ KERNEL(dynamic_quantize_gpu_ref)(
     }
 
 #if ASYMMETRIC_QUANTIZATION
-    // need to support output data precision of i8 and u8
     OUTPUT1_TYPE scale = (OUTPUT1_TYPE)((CHAR_MAX - CHAR_MIN) / (max_val - min_val));
 #   if UNSIGNED_OUTPUT
     OUTPUT1_TYPE zp = (OUTPUT1_TYPE)(-min_val * scale);
-#   else // SIGNED_OUTPUT
+#   else // !UNSIGNED_OUTPUT
     OUTPUT1_TYPE zp = (OUTPUT1_TYPE)(-min_val * scale) - CHAR_MAX;
 #   endif
 #else  // !ASYMMETRIC_QUANTIZATION
