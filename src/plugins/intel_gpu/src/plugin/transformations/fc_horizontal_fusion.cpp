@@ -30,8 +30,8 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
     // Onednn gemms are to be handled in a different way (TBD)
     if (fuse_mlp_swiglu)
         min_num_fcs_to_fuse = 2;
-    const int max_num_fcs_to_fuse = 3;
-    auto is_target_pattern = [min_num_fcs_to_fuse, max_num_fcs_to_fuse](const Output<Node>& output) {
+    auto is_target_pattern = [min_num_fcs_to_fuse](const Output<Node>& output) {
+        const int max_num_fcs_to_fuse = 3;
         // Currently this pass targets only compressed FCs (QKV) on dynamic generative models
         // inputs: input, weight, bias, scale, [zp]
         // Bias/scale/zp are constant or none

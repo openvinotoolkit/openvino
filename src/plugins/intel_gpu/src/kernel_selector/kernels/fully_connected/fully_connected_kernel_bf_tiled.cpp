@@ -178,7 +178,7 @@ static bool is_swiglu_fused(const fully_connected_params& params) {
 }
 static bool is_suitable_outer_ofm(const fully_connected_params& params, size_t output_f) {
     if (is_swiglu_fused(params))
-        return true;;;
+        return true;
     size_t min_num_threads = params.engineInfo.computeUnitsCount * simd;
     return (params.weights.OFM().v > params.weights.IFM().v * 6
             && output_f / 8 /* tile_ofm=4 and outer_ofm=2 */ > min_num_threads * 1.5);
@@ -461,9 +461,8 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
             }
         } else {
             // Try to use SLM kernels if possible
-            size_t forced_outer_ofm = swiglu_fused ? 2 : 1;
+            unsigned int forced_outer_ofm = swiglu_fused ? 2 : 1;
             if (preferred_kernel_type != KernelType::DEFAULT) {
-//                if (params.is_shape_agnostic && !should_dynamic_quantize(params) && !swiglu_fused) {
                 if (params.is_shape_agnostic && !should_dynamic_quantize(params)) {
                     selector.Case(tune_params(16, 2, 2, 4, forced_outer_ofm, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
                             .Case(tune_params(16, 2, 1, 4, forced_outer_ofm, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
