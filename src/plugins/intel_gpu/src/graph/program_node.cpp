@@ -1549,14 +1549,15 @@ void program_node::create_onednn_primitive_attributes(
                         if (prim->input_size == in_pshape.size()) {
                             ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(rank)) - in_pshape.size();
                         } else {
-                            if (in_pshape.size() > prim->input_size)
-                                ones_to_add = in_pshape.size() - prim->input_size;
+                            if (prim->input_size == 3)
+                                cldnn::onednn::combine_bf_with_first_spatial_dim(in);
+                            ones_to_add = std::max(in_pshape.size(), prim->input_size) - std::min(in_pshape.size(), prim->input_size);
                         }
                         if (ones_to_add > 0) {
                             layout new_layout = in;
                             ov::PartialShape new_input_pshape;
                             auto last = in_pshape.begin() + in_pshape.size();
-                            if (prim->input_size != in_pshape.size())
+                            if (in_pshape.size() > prim->input_size)
                                 last -= ones_to_add;
                             std::vector<ov::Dimension> dims(in_pshape.begin(), last);
                             new_input_pshape = ov::PartialShape(dims);

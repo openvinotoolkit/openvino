@@ -980,7 +980,7 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
     // correctly and we need to do it manually
 #ifdef ENABLE_ONEDNN_FOR_GPU
     for (auto& node : p.get_processing_order()) {
-        if (node->is_type<gemm>() && node->get_preferred_impl_type() == impl_types::onednn) {
+        if ((node->is_type<gemm>() || node->is_type<fully_connected>()) && node->get_preferred_impl_type() == impl_types::onednn) {
             for (const auto& fused_prim : node->get_fused_primitives()) {
                 if (fused_prim.is_type<eltwise>() &&
                     one_of(fused_prim.typed_desc<eltwise>()->mode, {eltwise_mode::sum, eltwise_mode::sub, eltwise_mode::prod})) {
