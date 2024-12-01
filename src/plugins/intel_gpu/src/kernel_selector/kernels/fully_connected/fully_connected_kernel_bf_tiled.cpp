@@ -444,7 +444,6 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
                     return selector.Default(tune_params(1, 1, 4, 4, 1, 1, 1, EXE_MODE_DEFAULT));
                 } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
                     // Here : b1 static
-//                    std::cout << "weight_ofm: " << params.weights.OFM().v << ", output_f:" << output_f << std::endl;
                     if (swiglu_fused) {
                         return selector.Default(tune_params(1, 4, 4, 2, 2, 1, 1, EXE_MODE_DEFAULT));
                     } else {

@@ -171,25 +171,34 @@ void prepare_primitive_fusing::fuse_swiglu(program &p) {
     // Apply only for high performant GPU
     if (disable_fc_swiglu_fusion || p.get_engine().get_device_info().execution_units_count < 128)
         return;
+    // TODO: to support other glu types && other weight data types
     auto itr = p.get_processing_order().begin();
     std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>> fusing_history;
     while (itr != p.get_processing_order().end()) {
         auto node_itr = itr++;
         auto& node = (*node_itr);
         if (node->is_type<swiglu>()) {
-            // TODO: to support other types of glu
-            auto prim = node->get_kernel_impl_params()->typed_desc<swiglu>();
-            if (node->get_dependencies().size() == 1 &&
-                node->get_dependency(0).is_type<fully_connected>() &&
-                node->get_dependency(0).get_fused_primitives().empty() &&
-                prim->glu_type == ov::op::internal::GLU::GluType::Swish &&
-                (prim->axis == -1 || prim->axis == static_cast<int64_t>(node->get_output_layout(0).get_partial_shape().size()) - 1)) {
-                auto& fc_node = node->get_dependency(0);
-                GPU_DEBUG_TRACE_DETAIL << node->id() << " : fuse swiglu to " << fc_node.id() << std::endl;
-                GPU_DEBUG_TRACE_DETAIL << " - split axis : " << prim->axis << std::endl;
-                GPU_DEBUG_TRACE_DETAIL << " - split length : " << prim->split_lengths << std::endl;
-                p.fuse_nodes(fc_node, *node, &fusing_history);
-            }
+            if (!node->get_dependency(0).is_type<fully_connected>())
+                continue;
+            auto swiglu_prim = node->get_kernel_impl_params()->typed_desc<swiglu>();
+            auto& fc_node = node->get_dependency(0);
+            if (node->get_dependencies().size() > 1)
+                continue;
+            if (!node->get_dependency(0).get_fused_primitives().empty())
+                continue;
+            auto in_dt = fc_node.get_input_layout(0).data_type;
+            if (in_dt != data_types::f16)
+                continue;
+            auto wt_dt = fc_node.get_input_layout(1).data_type;
+            if (!data_type_traits::is_i4_u4(wt_dt))
+                continue;
+            if (swiglu_prim->glu_type != ov::op::internal::GLU::GluType::Swish ||
+               !(swiglu_prim->axis == -1 || swiglu_prim->axis == static_cast<int64_t>(node->get_output_layout(0).get_partial_shape().size()) - 1))
+                continue;
+            GPU_DEBUG_TRACE_DETAIL << node->id() << " : fuse swiglu to " << fc_node.id() << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << " - split axis : " << swiglu_prim->axis << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << " - split length : " << swiglu_prim->split_lengths << std::endl;
+            p.fuse_nodes(fc_node, *node, &fusing_history);
         }
     }
 }
