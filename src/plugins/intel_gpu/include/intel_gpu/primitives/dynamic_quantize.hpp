@@ -27,7 +27,7 @@ struct dynamic_quantize : public primitive_base<dynamic_quantize> {
     dynamic_quantize(const primitive_id& id,
            const input_info& input,
            const Attributes& attrs,
-           const size_t input_size = 2)
+           const size_t input_size = 3)
            : primitive_base(id, {input})
            , attrs(attrs)
            , input_size(input_size) {

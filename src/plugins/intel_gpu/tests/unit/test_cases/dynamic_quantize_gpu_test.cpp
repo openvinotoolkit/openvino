@@ -147,6 +147,10 @@ TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_large_size) {
     this->test_dynamic_quantization(false, {11, 1, 1, 4096}, {2048, 1, 1, 4096});
 }
 
+TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_large_size_dynamic) {
+    this->test_dynamic_quantization(false, {-1, 1, 1, 4096}, {2048, 1, 1, 4096});
+}
+
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_small_size) {
     this->test_dynamic_quantization(false, {1, 1, 1, 4096}, {64, 1, 1, 4096});
 }

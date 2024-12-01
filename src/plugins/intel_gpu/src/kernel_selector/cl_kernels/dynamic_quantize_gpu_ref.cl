@@ -6,6 +6,14 @@
 
 #define UINT64_MAX 0xFFFFFFFFFFFFFFFF
 
+#if ASYMMETRIC_QUANTIZATION && UNSIGNED_OUTPUT
+    #define TO_OUTPUT_TYPE_RTE(val)  convert_uchar_rte(val)
+    #define TO_OUTPUT_VEC_TYPE_RTE(val)  convert_uchar8_rte(val)
+#else
+    #define TO_OUTPUT_TYPE_RTE(val)  convert_char_rte(val)
+    #define TO_OUTPUT_VEC_TYPE_RTE(val)  convert_char8_rte(val)
+#endif
+
 #if OUTPUT_DIMS != 4
 #error "dynamic_quantize_gpu_ref.cl: Unsupported output dimension"
 #endif
@@ -93,8 +101,12 @@ KERNEL(dynamic_quantize_gpu_ref)(
 #if ASYMMETRIC_QUANTIZATION
     // need to support output data precision of i8 and u8
     OUTPUT1_TYPE scale = (OUTPUT1_TYPE)((CHAR_MAX - CHAR_MIN) / (max_val - min_val));
+#   if UNSIGNED_OUTPUT
     OUTPUT1_TYPE zp = (OUTPUT1_TYPE)(-min_val * scale);
-#else
+#   else // SIGNED_OUTPUT
+    OUTPUT1_TYPE zp = (OUTPUT1_TYPE)(-min_val * scale) - CHAR_MAX;
+#   endif
+#else  // !ASYMMETRIC_QUANTIZATION
     max_val = work_group_reduce_max(max_val);
     OUTPUT1_TYPE scale = 127.0h / max_val;
 #endif
@@ -107,43 +119,31 @@ KERNEL(dynamic_quantize_gpu_ref)(
         const uint out_offset = OUTPUT_GET_INDEX(b + b_off, f + f_off, y + y_off, x);
 
         half val = input[in_offset];
+        val *= scale;
 #if ASYMMETRIC_QUANTIZATION
-        val *= scale;
         val += zp;
-        // printf("1 val %f\n", val);
-        output[out_offset] = convert_uchar_rte(val);
-#else
-        val *= scale;
-        output[out_offset] = convert_char_rte(val);
 #endif
+        output[out_offset] = TO_OUTPUT_TYPE_RTE(val);
 #else
         const uint in_offset = INPUT0_GET_INDEX(b + b_off, f + f_off, y + y_off, 0);
         const uint out_offset = OUTPUT_GET_INDEX(b + b_off, f + f_off, y + y_off, 0);
         int x;
         for (x = 0; x < INPUT0_SIZE_X / 8; x++) {
             half8 val = as_half8(vload8(0, (ushort*)input + in_offset + x * 8));
+            val *= scale;
 #if ASYMMETRIC_QUANTIZATION
-            val *= scale;
             val += zp;
-            // printf("2 val %f\n", val);
-            vstore8(convert_uchar8_rte(val), 0, output + out_offset + x * 8);
-#else
-            val *= scale;
-            vstore8(convert_char8_rte(val), 0, output + out_offset + x * 8);
 #endif
+            vstore8(TO_OUTPUT_VEC_TYPE_RTE(val), 0, output + out_offset + x * 8);
         }
         x *= 8;
         for (; x < INPUT0_SIZE_X; x++) {
             half val = input[in_offset + x];
+            val *= scale;
 #if ASYMMETRIC_QUANTIZATION
-            val *= scale;
             val += zp;
-            // printf("3 val %f zp %f\n", val, zp);
-            output[out_offset + x] = convert_uchar_rte(val);
-#else
-            val *= scale;
-            output[out_offset + x] = convert_char_rte(val);
 #endif
+            output[out_offset + x] = TO_OUTPUT_TYPE_RTE(val);
         }
 #endif
     }

@@ -54,6 +54,7 @@ JitConstants DynamicQuantizeKernelRef::GetJitConstants(const dynamic_quantize_pa
 
     jit.AddConstant(MakeJitConstant("ASYMMETRIC_QUANTIZATION", params.use_asymmetric_quantization));
     jit.AddConstant(MakeJitConstant("GROUP_SCALES_WITH_ZP", params.combine_scales_and_zp));
+    jit.AddConstant(MakeJitConstant("UNSIGNED_OUTPUT", params.outputs[0].GetDType() == Datatype::UINT8 ? 1 : 0));
 
     auto group_sizes = params.group_sizes;
     group_sizes.resize(std::min((size_t)4, group_sizes.size()), 1);
