@@ -91,7 +91,13 @@ elseif(NOT TARGET arm_compute::arm_compute)
     # Options
     #
 
-    set(ARM_COMPUTE_SCONS_JOBS "8" CACHE STRING "Number of parallel threads to build ARM Compute Library")    
+    include(ProcessorCount)
+    ProcessorCount(NUM_PROC)
+    if(NUM_PROC GREATER 1)
+        set(ARM_COMPUTE_SCONS_JOBS ${NUM_PROC} CACHE STRING "Number of parallel threads to build ARM Compute Library")
+    else()
+        set(ARM_COMPUTE_SCONS_JOBS "8" CACHE STRING "Number of parallel threads to build ARM Compute Library")
+    endif()
 
     #
     # Configure & build
@@ -119,8 +125,6 @@ elseif(NOT TARGET arm_compute::arm_compute)
 
     set(extra_cxx_flags "${CMAKE_CXX_FLAGS} -Wno-undef")
     if(MSVC64)
-        # Recommended Win ARM arch build in https://arm-software.github.io/ComputeLibrary/latest/how_to_build.xhtml
-        set(OV_CPU_ARM_TARGET_ARCH armv8a)
         # clang-cl does not recognize /MP option
         string(REPLACE "/MP " "" extra_cxx_flags "${extra_cxx_flags}")
     elseif(CMAKE_POSITION_INDEPENDENT_CODE)
@@ -163,10 +167,10 @@ elseif(NOT TARGET arm_compute::arm_compute)
         endif()
     endif()
 
-    if(NOT MSVC64)
-        list(APPEND ARM_COMPUTE_OPTIONS
-            install_dir=install)
-    endif()
+    set(ARM_COMPUTE_BUILD_DIR   "${CMAKE_BINARY_DIR}/arm_compute_library/build")
+    set(ARM_COMPUTE_INSTALL_DIR "${CMAKE_BINARY_DIR}/arm_compute_library/install")
+    list(APPEND ARM_COMPUTE_OPTIONS build_dir=${ARM_COMPUTE_BUILD_DIR})
+    list(APPEND ARM_COMPUTE_OPTIONS install_dir=${ARM_COMPUTE_INSTALL_DIR})
 
     if(ARM_COMPUTE_SCONS_JOBS)
         list(APPEND ARM_COMPUTE_OPTIONS --jobs=${ARM_COMPUTE_SCONS_JOBS})
@@ -344,12 +348,12 @@ elseif(NOT TARGET arm_compute::arm_compute)
         list(APPEND ARM_COMPUTE_OPTIONS --silent)
     endif()
 
+    set(arm_compute "${ARM_COMPUTE_INSTALL_DIR}/lib")
     if(MSVC64)
-        set(arm_compute build/arm_compute-static.lib)
+        set(arm_compute_full_path "${arm_compute}/arm_compute-static.lib")
     else()
-        set(arm_compute build/libarm_compute-static.a)
+        set(arm_compute_full_path "${arm_compute}/libarm_compute-static.a")
     endif()
-    set(arm_compute_full_path "${ARM_COMPUTE_SOURCE_DIR}/${arm_compute}")
 
     list(APPEND ARM_COMPUTE_OPTIONS fixed_format_kernels=True)
 
@@ -358,7 +362,7 @@ elseif(NOT TARGET arm_compute::arm_compute)
             ${arm_compute_full_path}
         COMMAND ${CMAKE_COMMAND} -E env ${cmake_build_env}
             ${SCONS} ${ARM_COMPUTE_OPTIONS}
-                ${arm_compute}
+                ${arm_compute_full_path}
         WORKING_DIRECTORY ${ARM_COMPUTE_SOURCE_DIR}
         COMMENT "Build Arm Compute Library"
         DEPENDS ${SOURCES}
