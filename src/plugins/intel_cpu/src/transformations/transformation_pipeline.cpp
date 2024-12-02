@@ -121,6 +121,7 @@
 #include "transformations/cpu_opset/convert_to_cpu_specific_opset.hpp"
 #if defined(OPENVINO_ARCH_ARM64)
 #include "transformations/snippets/aarch64/pass/snippets_mark_skipped.hpp"
+#include "transformations/cpu_opset/arm/pass/mat_mul_decomposition.hpp"
 #else
 #include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
 #endif
@@ -743,7 +744,11 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
                 }),
             PrecisionsRestriction::create<ov::opset1::MatMul>({
                     {{0}, {ov::element::u8, ov::element::i8}},
+#if defined(OPENVINO_ARCH_ARM64)
+                    {{1}, {ov::element::u8, ov::element::i8}}
+#else
                     {{1}, {ov::element::i8}}
+#endif
                 }),
             PrecisionsRestriction::create<ov::opset5::LSTMSequence>({
                     {{0, 1}, {ov::element::u8}}
@@ -904,10 +909,13 @@ void Transformations::PostLpt() {
     auto symbolic_pipeline = CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::SymbolicOptimizations, false);
     symbolic_pipeline->get_manager()->register_pass<NgramFusion>();
 
+    CPU_REGISTER_PASS_ARM64(postLPTPassManager, ov::intel_cpu::MatMulDecomposition);
+
     postLPTPassManager.run_passes(model);
 }
 
 void Transformations::MainSnippets(void) {
+    //return;
     auto is_supported_isa = [](){
 #if defined(OPENVINO_ARCH_X86_64)
         return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);

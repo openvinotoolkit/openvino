@@ -10,6 +10,13 @@
 
 #include <array>
 
+#if defined(OPENVINO_ARCH_ARM64) and !defined(OPENVINO_MAT_MUL_REFERENCE)
+#include "nodes/executors/executor_factory.hpp"
+#include "nodes/executors/memory_arguments.hpp"
+#include "nodes/executors/fullyconnected_config.hpp"
+#include "post_ops.hpp"
+#endif
+
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -22,6 +29,9 @@ public:
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
     void initSupportedPrimitiveDescriptors() override;
+#if defined(OPENVINO_ARCH_ARM64) and !defined(OPENVINO_MAT_MUL_REFERENCE)
+    void createPrimitive() override;
+#endif
     MemoryDescPtr getSrcMemDesc(const dnnl::primitive_desc &prim_desc, size_t idx) const override;
     bool canFuse(const NodePtr& node) const override;
     bool created() const override;
@@ -67,6 +77,19 @@ private:
 
     std::array<DnnlBlockedMemoryDescPtr, 2> inDataDesc;
     DnnlBlockedMemoryDescPtr outDataDesc;
+#if defined(OPENVINO_ARCH_ARM64) and !defined(OPENVINO_MAT_MUL_REFERENCE)
+    static const size_t DATA_ID = 0;
+    static const size_t WEIGHTS_ID = 1;
+    static const size_t BIAS_ID = 2;
+
+    ExecutorPtr createExecutor();
+
+    GEMMAttrs attrs;
+    PostOps postOps;
+    MemoryArgs memory;
+    ExecutorFactoryPtr<GEMMAttrs, node::MatMul> factory;
+    ExecutorPtr executor;
+#endif
 };
 
 }   // namespace node

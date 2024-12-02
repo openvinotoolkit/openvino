@@ -322,7 +322,9 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
                     PropagateIfHasOnlyChild(node, fusingChainType);
                 } else if (isSuitableChildForFusingSimple(node)) {
 #if defined (OV_CPU_WITH_ACL)
-                    if (one_of(fusingChainType, NodeFusingType::FusedWithConvolution, NodeFusingType::FusedWithBinaryConvolution)) {
+                    if (one_of(fusingChainType, NodeFusingType::FusedWithConvolution,
+                                                NodeFusingType::FusedWithBinaryConvolution,
+                                                NodeFusingType::FusedWithFC)) {
                         PropagateIfHasOnlyChild(node, NodeFusingType::FusedTerminator);
                         continue;
                     }

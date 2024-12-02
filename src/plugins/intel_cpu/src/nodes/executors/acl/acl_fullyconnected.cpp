@@ -80,11 +80,11 @@ bool ACLFullyConnectedExecutor::supports(const FCConfig &config) {
     return true;
 }
 
-void ACLFullyConnectedExecutor::updateTensorsShapes(ACLShapes& aclMemoryShapes) {
+void ACLFullyConnectedExecutor::updateTensorsShapes(ACLMemoryShapes& aclMemoryShapes) {
     acl_fc_executor::updateFCTensorsShapes(aclMemoryShapes);
 }
 
-arm_compute::Status ACLFullyConnectedExecutor::validateTensorsInfo(const ACLInfos & aclMemoryInfos) {
+arm_compute::Status ACLFullyConnectedExecutor::validateTensorsInfo(const ACLMemoryInfo & aclMemoryInfos) {
     if (aclfcAttrs.isConvertedWeights) {
         aclMemoryInfos[ACLArgs::ACL_WEI]->set_data_type(aclMemoryInfos[ACLArgs::ACL_SRC_0]->data_type());
     }
@@ -100,7 +100,7 @@ arm_compute::Status ACLFullyConnectedExecutor::validateTensorsInfo(const ACLInfo
                                     arm_compute::WeightsInfo(false, 1, 1, ic_total, false, expectedWeightFormat));
 }
 
-ACLFunction ACLFullyConnectedExecutor::configureFunction(const ACLTensors & aclMemoryTensors) {
+ACLFunction ACLFullyConnectedExecutor::configureFunction(const ACLMemoryTensors & aclMemoryTensors) {
     auto neFC = std::make_unique<arm_compute::NEFullyConnectedLayer>();
     aclMemoryTensors[ACLArgs::ACL_WEI]->allocator()->init(weiTensorInfo);
     int icTotal = aclMemoryTensors[ACLArgs::ACL_WEI]->info()->dimension(0);

@@ -68,7 +68,7 @@ ACLCommonExecutor::ACLCommonExecutor() {
 
 bool ACLCommonExecutor::update(const MemoryArgs &memory) {
     // Initialize ACL tensors params
-    ACLShapes  aclMemoryShapes;
+    ACLMemoryShapes  aclMemoryShapes;
     ACLTypes   aclDataType{};
     ACLLayouts aclDataLayout{};
     for (auto& cpu_mem_ptr : memory) {

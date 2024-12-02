@@ -285,20 +285,20 @@ arm_compute::TensorShape acl_fc_executor::normalizeDimsTo2D(const arm_compute::T
     return arm_compute::TensorShape(shape[0], norm_dim);
 }
 
-void acl_fc_executor::updateFCTensorsShapes(ACLShapes& aclMemoryShapes) {
+void acl_fc_executor::updateFCTensorsShapes(ACLMemoryShapes& aclMemoryShapes) {
     aclMemoryShapes[ACLArgs::ACL_WEI] = normalizeDimsTo2D(aclMemoryShapes[ACLArgs::ACL_WEI]);
     aclMemoryShapes[ACLArgs::ACL_SRC_0] = normalizeDimsTo2D(aclMemoryShapes[ACLArgs::ACL_SRC_0]);
     aclMemoryShapes[ACLArgs::ACL_DST] = normalizeDimsTo2D(aclMemoryShapes[ACLArgs::ACL_DST]);
     std::swap(aclMemoryShapes[ACLArgs::ACL_WEI][0], aclMemoryShapes[ACLArgs::ACL_WEI][1]);
 }
 
-arm_compute::Status acl_fc_executor::ACLWeightsConverter::validateTensorsInfo(const ACLInfos &aclMemoryInfos) {
+arm_compute::Status acl_fc_executor::ACLWeightsConverter::validateTensorsInfo(const ACLMemoryInfo &aclMemoryInfos) {
     return arm_compute::NECast::validate(aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
                                          aclMemoryInfos[ACLArgs::ACL_DST].get(),
                                          arm_compute::ConvertPolicy::SATURATE);
 }
 
-ACLFunction acl_fc_executor::ACLWeightsConverter::configureFunction(const ACLTensors &aclMemoryTensors) {
+ACLFunction acl_fc_executor::ACLWeightsConverter::configureFunction(const ACLMemoryTensors &aclMemoryTensors) {
     auto neCast = std::make_unique<arm_compute::NECast>();
     neCast->configure(aclMemoryTensors[ACLArgs::ACL_SRC_0].get(),
                       aclMemoryTensors[ACLArgs::ACL_DST].get(),
@@ -312,11 +312,11 @@ acl_fc_executor::ACLWeightFormatGenerator::ACLWeightFormatGenerator(const FCAttr
     initFCAttrs(attrs, aclTensorAttrs, aclfcAttrs, memory, fullyConnectedLayerInfo, postOps);
 }
 
-void acl_fc_executor::ACLWeightFormatGenerator::updateTensorsShapes(ACLShapes &aclMemoryShapes) {
+void acl_fc_executor::ACLWeightFormatGenerator::updateTensorsShapes(ACLMemoryShapes &aclMemoryShapes) {
     updateFCTensorsShapes(aclMemoryShapes);
 }
 
-arm_compute::Status acl_fc_executor::ACLWeightFormatGenerator::validateTensorsInfo(const ACLInfos &aclMemoryInfos) {
+arm_compute::Status acl_fc_executor::ACLWeightFormatGenerator::validateTensorsInfo(const ACLMemoryInfo &aclMemoryInfos) {
     if (aclfcAttrs.isConvertedWeights) {
         aclMemoryInfos[ACLArgs::ACL_WEI]->set_data_type(aclMemoryInfos[ACLArgs::ACL_SRC_0]->data_type());
     }
@@ -331,7 +331,7 @@ arm_compute::Status acl_fc_executor::ACLWeightFormatGenerator::validateTensorsIn
             arm_compute::WeightsInfo(false, 1, 1, icTotal, false, arm_compute::WeightFormat::ANY));
 }
 
-ACLFunction acl_fc_executor::ACLWeightFormatGenerator::configureFunction(const ACLTensors &aclMemoryTensors) {
+ACLFunction acl_fc_executor::ACLWeightFormatGenerator::configureFunction(const ACLMemoryTensors &aclMemoryTensors) {
     return std::make_unique<arm_compute::NEFullyConnectedLayer>();
 }
 

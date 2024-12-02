@@ -76,11 +76,11 @@ bool ACLLowpFullyConnectedExecutor::supports(const FCConfig &config) {
     return true;
 }
 
-void ACLLowpFullyConnectedExecutor::updateTensorsShapes(ACLShapes& aclMemoryShapes) {
+void ACLLowpFullyConnectedExecutor::updateTensorsShapes(ACLMemoryShapes& aclMemoryShapes) {
     acl_fc_executor::updateFCTensorsShapes(aclMemoryShapes);
 }
 
-arm_compute::Status ACLLowpFullyConnectedExecutor::validateTensorsInfo(const ACLInfos & aclMemoryInfos) {
+arm_compute::Status ACLLowpFullyConnectedExecutor::validateTensorsInfo(const ACLMemoryInfo & aclMemoryInfos) {
     auto &tensor_info = aclMemoryInfos[ACLArgs::ACL_SRC_0];
     if (dequantizationScales.empty()) {
         tensor_info->set_quantization_info(arm_compute::QuantizationInfo(1.f));
@@ -100,7 +100,7 @@ arm_compute::Status ACLLowpFullyConnectedExecutor::validateTensorsInfo(const ACL
     return matMulValid;
 }
 
-ACLFunction ACLLowpFullyConnectedExecutor::configureFunction(const ACLTensors & aclMemoryTensors) {
+ACLFunction ACLLowpFullyConnectedExecutor::configureFunction(const ACLMemoryTensors & aclMemoryTensors) {
     auto gemm = std::make_unique<arm_compute::NEGEMMLowpMatrixMultiplyCore>();
     gemm->configure(
             aclMemoryTensors[ACLArgs::ACL_SRC_0].get(),
