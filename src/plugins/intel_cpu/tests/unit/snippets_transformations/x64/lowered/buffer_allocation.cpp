@@ -3,6 +3,7 @@
 //
 
 #include "openvino/opsets/opset.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/mark_loops.hpp"
@@ -17,7 +18,7 @@
 
 #include "transformations/snippets/x64/shape_inference.hpp"
 #include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
-#include "transformations/snippets/x64/pass/lowered/insert_brgemm_copy_b_buffers.hpp"
+#include "transformations/snippets/x64/pass/lowered/insert_brgemm_copy_buffers.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 
@@ -90,7 +91,7 @@ protected:
         pipeline.register_pass<ov::snippets::lowered::pass::ReduceDecomposition>(m_vector_size);
         pipeline.register_pass<ov::snippets::lowered::pass::FuseLoops>();
         pipeline.register_pass<ov::snippets::lowered::pass::SplitLoops>();
-        pipeline.register_pass<ov::intel_cpu::pass::InsertBrgemmCopyBBuffers>();
+        pipeline.register_pass<ov::intel_cpu::pass::InsertBrgemmCopyBuffers>();
         pipeline.register_pass<ov::snippets::lowered::pass::InsertBuffers>();
         pipeline.register_pass<ov::snippets::lowered::pass::InsertLoadStore>(m_vector_size);
         pipeline.register_pass<ov::snippets::lowered::pass::InitLoops>();
@@ -255,6 +256,11 @@ TEST_P(MHAFP32BufferAllocationTest, BufferAllocationCPU) {
 }
 
 TEST_P(MHABF16AMXBufferAllocationTest, BufferAllocationCPU) {
+    // Scratchpad memory for AMX with CopyA (dynamic case) has allocation size which depends on element count in vector register.
+    // So the current `expected_allocation_size` in the test is targeted on real AVX512 platforms with vector registers with 512 bits.
+    // If the test infrastructure has AVX2, the allocation size will not be matched.
+    if (!with_cpu_x86_avx512_core())
+        GTEST_SKIP();
     Validate();
 }
 
@@ -363,7 +369,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHABF16AMXOptimizedWSpl
                                  ::testing::Values(dynamic_shapes),
                                  ::testing::Values(true),
                                  ::testing::Values(true),
-                                 ::testing::Values(32768),  // only WSP buffers
+                                 ::testing::Values(34816),  // only WSP buffers
                                  ::testing::Values(3),
                                  ::testing::Values(7)),
                          BufferAllocationCPUTest::getTestCaseName);
