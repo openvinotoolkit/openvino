@@ -64,7 +64,8 @@ using ov::pass::pattern::op::Or;
 // Conv/MatMul
 //    ==>
 // Multiply(scale_down by scale_factor) --> Conv/MatMul --> Multiply(scale_up by scale_factor)
-ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float scale_factor, ov::element::Type scaled_prec) {
+ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float scale_factor,
+                                                                          ov::element::Type scaled_prec) {
     MATCHER_SCOPE(ScaleDownSingleLayer);
 
     auto activation_m = any_input();
@@ -104,8 +105,7 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
         bool keep_precision = false;
         std::shared_ptr<ov::op::Op> output_of_scaled_op = scaled_op;
         auto child_node = scaled_op->get_output_target_inputs(0).begin()->get_node();
-        if (scaled_op->get_output_target_inputs(0).size() == 1 &&
-            ov::is_type<ov::op::v0::Convert>(child_node) &&
+        if (scaled_op->get_output_target_inputs(0).size() == 1 && ov::is_type<ov::op::v0::Convert>(child_node) &&
             ov::fp16_compression_is_disabled(child_node->shared_from_this()) && 
             ov::pass::constant_folding_is_disabled(child_node->shared_from_this())) {
             output_of_scaled_op = std::dynamic_pointer_cast<ov::op::Op>(child_node->shared_from_this());
@@ -129,7 +129,8 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
             scaled_op->input(0).replace_source_output(scale_down->output(0));
         }
         if (scaled_op->input(1).get_element_type() != scaled_prec && !keep_precision) {
-            auto convert_prec1 = std::make_shared<ov::op::v0::Convert>(scaled_op->input(1).get_source_output(), scaled_prec);
+            auto convert_prec1 =
+                std::make_shared<ov::op::v0::Convert>(scaled_op->input(1).get_source_output(), scaled_prec);
             scaled_op->input(1).replace_source_output(convert_prec1->output(0));
         }
 
@@ -146,7 +147,9 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
                 const auto& bias_pshape = child_node->get_input_partial_shape(bias_index);
                 if (bias_pshape.is_static()) {
                     const auto& bias_shape = bias_pshape.get_shape();
-                    const bool per_channel = std::count_if(bias_shape.begin(), bias_shape.end(), [](size_t x) { return x > 1; }) == 1;
+                    const bool per_channel = std::count_if(bias_shape.begin(), bias_shape.end(), [](size_t x) {
+                                                 return x > 1;
+                                             }) == 1;
                     if (ov::shape_size(bias_shape) == 1 || per_channel) {
                         has_bias = true;
                     }
@@ -159,7 +162,8 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
             target_inputs = add->get_output_target_inputs(0);
             auto scale_down_bias = std::make_shared<ov::op::v1::Multiply>(
                 add->input(bias_index).get_source_output(),
-                (add->input(bias_index).get_element_type() == ov::element::f32) ? scale_down_const_f32 : scale_down_const_f16);
+                (add->input(bias_index).get_element_type() == ov::element::f32) ? scale_down_const_f32
+                                                                                : scale_down_const_f16);
             scale_down_bias->set_friendly_name(add->get_friendly_name() + "_scale_down");
             ov::copy_runtime_info(add, scale_down_bias);
             if (scale_down_bias->output(0).get_element_type() != scaled_prec && !keep_precision) {
@@ -185,7 +189,8 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
 
         auto scale_up = register_new_node<ov::op::v1::Multiply>(
             runtime_scaled_op->output(0),
-            (runtime_scaled_op->output(0).get_element_type() == ov::element::f32) ? scale_up_const_f32 : scale_up_const_f16);
+            (runtime_scaled_op->output(0).get_element_type() == ov::element::f32) ? scale_up_const_f32
+                                                                                  : scale_up_const_f16);
         scale_up->set_friendly_name(scaled_op->get_friendly_name() + "_scale_up");
         ov::copy_runtime_info(scaled_op, scale_up);
         for (auto& in : target_inputs) {
@@ -235,19 +240,20 @@ ov::pass::activations_scaling::ScaleDownFusion::ScaleDownFusion(float scale_fact
         if (transformation_callback(mul))
             return false;
 
-        if (!ov::is_type<ov::op::v0::Convert>(parent) &&
-            !ov::is_type<ov::op::v1::Divide>(parent) &&
-            !ov::is_type<ov::op::v1::Multiply>(parent) &&
-            !ov::is_type<ov::op::v1::Reshape>(parent)) {
+        if (!ov::is_type<ov::op::v0::Convert>(parent) && !ov::is_type<ov::op::v1::Divide>(parent) &&
+            !ov::is_type<ov::op::v1::Multiply>(parent) && !ov::is_type<ov::op::v1::Reshape>(parent)) {
             return false;
         }
 
         ov::Shape scale_const_shape = {1};
         std::vector<float> scale_down_value = {1.f / scale_factor};
         std::shared_ptr<ov::Node> scale_down_const =
-            std::make_shared<ov::op::v0::Constant>(parent->input(0).get_element_type(), scale_const_shape, scale_down_value);
+            std::make_shared<ov::op::v0::Constant>(parent->input(0).get_element_type(),
+                                                   scale_const_shape,
+                                                   scale_down_value);
 
-        auto new_scale_down = std::make_shared<ov::op::v1::Multiply>(parent->input(0).get_source_output(), scale_down_const);
+        auto new_scale_down =
+            std::make_shared<ov::op::v1::Multiply>(parent->input(0).get_source_output(), scale_down_const);
         new_scale_down->set_friendly_name(parent->get_friendly_name() + "_scale_down");
         ov::copy_runtime_info(parent, new_scale_down);
         parent->input(0).replace_source_output(new_scale_down->output(0));
@@ -362,7 +368,8 @@ ov::pass::activations_scaling::MulGroupNormTransformation::MulGroupNormTransform
         OPENVINO_ASSERT(pattern_map.count(norm_m));
 
         auto mul = std::dynamic_pointer_cast<ov::op::v1::Multiply>(pattern_map.at(mul_m).get_node_shared_ptr());
-        auto norm = std::dynamic_pointer_cast<ov::op::v12::GroupNormalization>(pattern_map.at(norm_m).get_node_shared_ptr());
+        auto norm
+            = std::dynamic_pointer_cast<ov::op::v12::GroupNormalization>(pattern_map.at(norm_m).get_node_shared_ptr());
 
         if (transformation_callback(norm)) {
             return false;
@@ -377,8 +384,10 @@ ov::pass::activations_scaling::MulGroupNormTransformation::MulGroupNormTransform
                 activation = activation.get_node()->get_input_source_output(0);
             auto newGroupNorm = std::make_shared<ov::op::TypeRelaxed<ov::op::v12::GroupNormalization>>(
                 ov::op::v12::GroupNormalization(activation,
-                norm->get_input_source_output(1), norm->get_input_source_output(2),
-                norm->get_num_groups(), norm->get_epsilon()),
+                                                norm->get_input_source_output(1),
+                                                norm->get_input_source_output(2),
+                                                norm->get_num_groups(),
+                                                norm->get_epsilon()),
                 norm->get_output_element_type(0));
             ov::copy_runtime_info(norm, newGroupNorm);
             ov::replace_node(norm, newGroupNorm);
@@ -429,10 +438,13 @@ ov::pass::activations_scaling::MulMVNTransformation::MulMVNTransformation() {
             auto activation = mul->get_input_source_output(activation_index);
             if (ov::is_type<ov::op::v0::Convert>(activation.get_node()))
                 activation = activation.get_node()->get_input_source_output(0);
-            auto newMVN = std::make_shared<ov::op::TypeRelaxed<ov::op::v6::MVN>>(
-                ov::op::v6::MVN(activation, norm->get_input_source_output(1),
-                norm->get_normalize_variance(), norm->get_eps(), norm->get_eps_mode()),
-                norm->get_output_element_type(0));
+            auto newMVN
+                = std::make_shared<ov::op::TypeRelaxed<ov::op::v6::MVN>>(ov::op::v6::MVN(activation,
+                                                                                         norm->get_input_source_output(1),
+                                                                                         norm->get_normalize_variance(),
+                                                                                         norm->get_eps(),
+                                                                                         norm->get_eps_mode()),
+                                                                         norm->get_output_element_type(0));
             ov::copy_runtime_info(norm, newMVN);
             ov::replace_node(norm, newMVN);
             return true;
@@ -682,7 +694,8 @@ ov::pass::activations_scaling::MulConcatTransformation::MulConcatTransformation(
                 dep_const0 ? dep_node->input(0).get_source_output() : dep_node->input(1).get_source_output();
             if (!is_scalar_node(last_dep_const))
                 return false;
-            if (last_dep_const_type != ov::element::undefined && last_dep_const_type != last_dep_const.get_element_type())
+            if (last_dep_const_type != ov::element::undefined &&
+                last_dep_const_type != last_dep_const.get_element_type())
                 return false;
             last_dep_const_type = last_dep_const.get_element_type();
         }
@@ -699,10 +712,13 @@ ov::pass::activations_scaling::MulConcatTransformation::MulConcatTransformation(
             auto new_mul = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Multiply>>(
                 std::vector<element::Type>{dep_type, dep_type},
                 std::vector<element::Type>{dep_type},
-                ov::op::TemporaryReplaceOutputType(dep_node->input(activation_index).get_source_output(), dep_type).get(),
-                ov::op::TemporaryReplaceOutputType(ov::op::util::eltwise_fold<ov::op::v1::Divide>(
-                                                    dep_node->input(const_index).get_source_output(),
-                                                    last_dep_const), dep_type).get());
+                ov::op::TemporaryReplaceOutputType(dep_node->input(activation_index).get_source_output(), dep_type)
+                    .get(),
+                ov::op::TemporaryReplaceOutputType(
+                    ov::op::util::eltwise_fold<ov::op::v1::Divide>(dep_node->input(const_index).get_source_output(),
+                                                                   last_dep_const),
+                    dep_type)
+                    .get());
             new_mul->set_friendly_name(dep_node->get_friendly_name() + "_c");
             ov::copy_runtime_info(dep_node, new_mul);
 
