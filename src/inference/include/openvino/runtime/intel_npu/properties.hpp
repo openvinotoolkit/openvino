@@ -95,5 +95,12 @@ static constexpr ov::Property<int64_t> max_tiles{"NPU_MAX_TILES"};
  */
 static constexpr ov::Property<bool> bypass_umd_caching{"NPU_BYPASS_UMD_CACHING"};
 
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: boolean, default is false
+ * This option allows to delay loading the weights until inference is created
+ */
+static constexpr ov::Property<bool> defer_weights_load{"NPU_DEFER_WEIGHTS_LOAD"};
+
 }  // namespace intel_npu
 }  // namespace ov
