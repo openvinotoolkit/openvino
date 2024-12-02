@@ -219,7 +219,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
                     You might want to use this function if you are developing a dynamically-loaded library which should clean up all
                     resources after itself when the library is unloaded.
                 )");
-
+    regclass_Extension(m);
     regclass_graph_PyRTMap(m);
     regmodule_graph_types(m);
     regclass_graph_Symbol(m);     // Symbol must be registered before Dimension
@@ -276,7 +276,6 @@ PYBIND11_MODULE(_pyopenvino, m) {
     regclass_Version(m);
     regclass_AsyncInferQueue(m);
     regclass_ProfilingInfo(m);
-    regclass_Extension(m);
 
     regclass_RemoteContext(m);
     regclass_RemoteTensor(m);

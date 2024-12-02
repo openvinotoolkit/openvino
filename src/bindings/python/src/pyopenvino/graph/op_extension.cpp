@@ -9,11 +9,12 @@
 #include <pyopenvino/graph/op_extension.hpp>
 #include "pyopenvino/graph/op.hpp"
 #include "pyopenvino/core/common.hpp"
+#include "pyopenvino/core/extension.hpp"
 
 namespace py = pybind11;
 
 void regclass_graph_OpExtension(py::module m) {
-    py::class_<ov::OpExtension<PyOp>, std::shared_ptr<ov::OpExtension<PyOp>>> op_extension(m, "OpExtension");
+    py::class_<ov::OpExtension<PyOp>, std::shared_ptr<ov::OpExtension<PyOp>>, ov::Extension> op_extension(m, "OpExtension");
     op_extension.doc() = "openvino.OpExtension provides the base interface for OpenVINO extensions.";
 
     op_extension.def("__repr__", [](const ov::OpExtension<PyOp>& self) {
@@ -22,7 +23,8 @@ void regclass_graph_OpExtension(py::module m) {
 
     op_extension.def(py::init<>());
     op_extension.def(py::init([](py::object dtype) {
-        if (py::isinstance<PyOp>(dtype)) {
+        py::object py_issubclass = py::module::import("builtins").attr("issubclass");
+        if (py_issubclass(dtype, py::type::of<PyOp>())) {
             return ov::OpExtension<PyOp>();
         }
         std::stringstream str;
