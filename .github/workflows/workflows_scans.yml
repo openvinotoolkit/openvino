@@ -35,4 +35,4 @@ jobs:
 
       - name: Semgrep scan
         run: |
-          semgrep scan --error -q -j 8 --config "p/github-actions" .github/workflows/*
+          semgrep scan --error -j 8 --config "p/github-actions" .github/workflows/*
