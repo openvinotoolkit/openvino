@@ -106,7 +106,7 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
         std::shared_ptr<ov::op::Op> output_of_scaled_op = scaled_op;
         auto child_node = scaled_op->get_output_target_inputs(0).begin()->get_node();
         if (scaled_op->get_output_target_inputs(0).size() == 1 && ov::is_type<ov::op::v0::Convert>(child_node) &&
-            ov::fp16_compression_is_disabled(child_node->shared_from_this()) && 
+            ov::fp16_compression_is_disabled(child_node->shared_from_this()) &&
             ov::pass::constant_folding_is_disabled(child_node->shared_from_this())) {
             output_of_scaled_op = std::dynamic_pointer_cast<ov::op::Op>(child_node->shared_from_this());
             child_node = output_of_scaled_op->get_output_target_inputs(0).begin()->get_node();
@@ -368,8 +368,8 @@ ov::pass::activations_scaling::MulGroupNormTransformation::MulGroupNormTransform
         OPENVINO_ASSERT(pattern_map.count(norm_m));
 
         auto mul = std::dynamic_pointer_cast<ov::op::v1::Multiply>(pattern_map.at(mul_m).get_node_shared_ptr());
-        auto norm
-            = std::dynamic_pointer_cast<ov::op::v12::GroupNormalization>(pattern_map.at(norm_m).get_node_shared_ptr());
+        auto norm =
+            std::dynamic_pointer_cast<ov::op::v12::GroupNormalization>(pattern_map.at(norm_m).get_node_shared_ptr());
 
         if (transformation_callback(norm)) {
             return false;
@@ -438,13 +438,13 @@ ov::pass::activations_scaling::MulMVNTransformation::MulMVNTransformation() {
             auto activation = mul->get_input_source_output(activation_index);
             if (ov::is_type<ov::op::v0::Convert>(activation.get_node()))
                 activation = activation.get_node()->get_input_source_output(0);
-            auto newMVN
-                = std::make_shared<ov::op::TypeRelaxed<ov::op::v6::MVN>>(ov::op::v6::MVN(activation,
-                                                                                         norm->get_input_source_output(1),
-                                                                                         norm->get_normalize_variance(),
-                                                                                         norm->get_eps(),
-                                                                                         norm->get_eps_mode()),
-                                                                         norm->get_output_element_type(0));
+            auto newMVN =
+                std::make_shared<ov::op::TypeRelaxed<ov::op::v6::MVN>>(ov::op::v6::MVN(activation,
+                                                                                       norm->get_input_source_output(1),
+                                                                                       norm->get_normalize_variance(),
+                                                                                       norm->get_eps(),
+                                                                                       norm->get_eps_mode()),
+                                                                       norm->get_output_element_type(0));
             ov::copy_runtime_info(norm, newMVN);
             ov::replace_node(norm, newMVN);
             return true;
