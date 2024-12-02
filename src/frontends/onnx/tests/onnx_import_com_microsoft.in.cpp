@@ -1356,3 +1356,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_quickgelu) {
         test_case.run();
     }
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_dynamic_quantize_matmul) {
+    const auto model = convert_model("com.microsoft/dynamic_quantize_matmul.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // Fill test case here
+}
