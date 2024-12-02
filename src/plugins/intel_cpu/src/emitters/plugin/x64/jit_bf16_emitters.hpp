@@ -39,16 +39,15 @@ private:
     }
 
     template <typename Vmm>
-    void saturate_input(Vmm& truncated,
+    void saturate_input(Vmm& clamped,
                         const Vmm& in,
                         const std::string& bf16_min_key,
                         const std::string& bf16_max_key) const {
-        Vmm bf16_max = Vmm(aux_vec_idxs[0]);
-        Vmm bf16_min = Vmm(aux_vec_idxs[1]);
-        h->uni_vmovups(bf16_max, table_val(bf16_max_key));
-        h->uni_vmovups(bf16_min, table_val(bf16_min_key));
-        h->uni_vmaxps(truncated, in, bf16_min);
-        h->uni_vminps(truncated, truncated, bf16_max);
+        Vmm bf16_bound = Vmm(aux_vec_idxs[0]);
+        h->uni_vmovups(bf16_bound, table_val(bf16_min_key));
+        h->uni_vmaxps(clamped, in, bf16_bound);
+        h->uni_vmovups(bf16_bound, table_val(bf16_max_key));
+        h->uni_vminps(clamped, clamped, bf16_bound);
     }
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
@@ -60,52 +59,47 @@ private:
         Vmm in = Vmm(in_vec_idxs[0]);
 
         if (mode_ == arithmetic_mode::saturation) {
-            Vmm truncated = Vmm(aux_vec_idxs[2]);
+            Vmm clamped = Vmm(aux_vec_idxs[1]);
+            saturate_input(clamped, in, "bf16_min", "bf16_max");
             if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
                 Ymm out = Ymm(out_vec_idxs[0]);
-                saturate_input(truncated, in, "bf16_min", "bf16_max");
-                h->vcvtneps2bf16(out, truncated);
+                h->vcvtneps2bf16(out, clamped);
             } else if (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::avx512_core) {
-                saturate_input(truncated, in, "bf16_min", "bf16_max");
-
-                Zmm aux = Zmm(aux_vec_idxs[3]);
-                Zmm aux1 = Zmm(aux_vec_idxs[4]);
+                Zmm aux = Zmm(aux_vec_idxs[0]);
+                Zmm aux1 = Zmm(aux_vec_idxs[2]);
                 Ymm out = Ymm(out_vec_idxs[0]);
 
-                h->uni_vpsrld(aux, truncated, 16);
+                h->uni_vpsrld(aux, clamped, 16);
                 h->vpandd(aux, aux, table_val("one"));
                 h->uni_vmovups(aux1, table_val("even"));
                 h->uni_vpaddd(aux, aux1, aux);
-                h->uni_vpaddd(aux, truncated, aux);
-                h->vfixupimmps(aux, truncated, table_val("selector"), 0);
+                h->uni_vpaddd(aux, clamped, aux);
+                h->vfixupimmps(aux, clamped, table_val("selector"), 0);
                 h->vpsrad(aux, aux, 16);
                 h->vpmovdw(out, aux);
             } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::cpu_isa_t::avx2_vnni_2)) {
-                saturate_input(truncated, in, "bf16_min", "bf16_max");
                 Xmm out = Xmm(out_vec_idxs[0]);
-                h->vcvtneps2bf16(out, truncated, PreferredEncoding::VexEncoding);
+                h->vcvtneps2bf16(out, clamped, PreferredEncoding::VexEncoding);
             } else {
                 Xmm out = Xmm(out_vec_idxs[0]);
-                Vmm aux = Vmm(aux_vec_idxs[3]);
-
-                saturate_input(truncated, in, "bf16_min", "bf16_max");
+                Vmm aux = Vmm(aux_vec_idxs[0]);
 
                 if (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::avx2) {
-                    h->uni_vandps(aux, truncated, table_val("rounding"));
+                    h->uni_vandps(aux, clamped, table_val("rounding"));
                 } else {
-                    h->uni_vmovups(aux, truncated);
+                    h->uni_vmovups(aux, clamped);
                     h->uni_vandps(aux, aux, table_val("rounding"));
                 }
 
-                h->uni_vpsrld(truncated, truncated, 16);
-                h->uni_vandps(truncated, truncated, table_val("mask_truncation_word"));
-                h->uni_vpackusdw(truncated, truncated, truncated);
+                h->uni_vpsrld(clamped, clamped, 16);
+                h->uni_vandps(clamped, clamped, table_val("mask_truncation_word"));
+                h->uni_vpackusdw(clamped, clamped, clamped);
 
                 if (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::avx2) {
-                    h->vpermq(Ymm(truncated.getIdx()), Ymm(truncated.getIdx()), 0xD8);  // 11 01 10 00
-                    h->vextracti128(out, Ymm(truncated.getIdx()), 0);
+                    h->vpermq(Ymm(clamped.getIdx()), Ymm(clamped.getIdx()), 0xD8);  // 11 01 10 00
+                    h->vextracti128(out, Ymm(clamped.getIdx()), 0);
                 } else {
-                    h->uni_vmovups(out, truncated);
+                    h->uni_vmovups(out, clamped);
                 }
             }
         } else {
@@ -183,17 +177,10 @@ private:
     }
 
     size_t aux_vecs_count() const override {
-        if (mode_ == arithmetic_mode::saturation) {
-            if (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::avx512_core) {
-                return 5;
-            } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::cpu_isa_t::avx2_vnni_2) ||
-                       dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::cpu_isa_t::avx512_core_bf16)) {
-                return 3;
-            }
-            return 4;
-        } else {
+        if (mode_ == arithmetic_mode::saturation)
+            return (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::avx512_core) ? 3 : 2;
+        else
             return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 2 : 1;
-        }
     }
 };
 
