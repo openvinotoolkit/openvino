@@ -58,10 +58,11 @@ class Filter {
         return kpis;
     }
     // param: GraphData[], clientPlatforms[]
-    static ByClientPlatforms(graphDataArr, platformsArr) {
-        return graphDataArr.filter((data) => {
-            return platformsArr.includes(data.Platform)
-        });
+    static BySortPlatforms(graphDataArr, platformsArr) {
+        return graphDataArr
+        .filter((data) => platformsArr.includes(data.Platform))
+        .sort((a, b) => a.Platform.localeCompare(b.Platform));
+        //sort is necessary
     }
 }
 
@@ -100,13 +101,14 @@ class Graph {
             .sort((a, b) => a.localeCompare(b));
     }
     static getIeTypes(graphDataArr) {
-        return Array.from(new Set(graphDataArr.map((obj) => obj.PlatformType))).sort((a, b) => a.localeCompare(b));
+        return Array.from(new Set(graphDataArr.map((obj) => obj.PlatformType)))
+            .sort((a, b) => a.localeCompare(b));
     }
 
     // param: GraphData[]
     static getPlatformNames(graphDataArr) {
         return graphDataArr.map((data) => data.Platform)
-        .sort((a, b) => a.localeCompare(b));
+            .sort((a, b) => a.localeCompare(b));
     }
 
     // param: GraphData[], engine: string, precisions: list
@@ -659,17 +661,16 @@ $(document).ready(function () {
 
             var filteredNetworkModels = Filter.FilterByNetworkModel(graph, [networkModel]);
             var filteredIeTypes = Filter.ByIeTypes(filteredNetworkModels, ieTypes);
-            var filteredGraphData = Filter.ByClientPlatforms(filteredIeTypes, platforms);
+            var filteredGraphData = Filter.BySortPlatforms(filteredIeTypes, platforms);
             $('.chart-placeholder').append(chartContainer);
-            var labels = Graph.getPlatformNames(filteredGraphData);
             if (filteredGraphData.length > 0) {
                 if (isLLM === true) {
                     var graphConfigs = setGraphConfigsByEngines(filteredGraphData, appConfig, kpis, precisions)
-                    createChartWithNewDataByEngines(labels, graphConfigs, chartContainer, display);
+                    createChartWithNewDataByEngines(platforms, graphConfigs, chartContainer, display);
                 }
                 else {
                     var graphConfigs = setGraphConfigs(filteredGraphData, appConfig, kpis, precisions)
-                    createChartWithNewData(labels, graphConfigs, appConfig, chartContainer, display);
+                    createChartWithNewData(platforms, graphConfigs, appConfig, chartContainer, display);
                 }
 
             } else {

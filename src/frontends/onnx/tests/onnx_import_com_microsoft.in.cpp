@@ -1357,6 +1357,28 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_quickgelu) {
     }
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_simplified_layer_normalization) {
+    const auto model = convert_model("com.microsoft/skip_simplified_layer_normalization.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    std::vector<float> input = {1.f,  2.f,  3.f,  4.f,  5.f,  6.f,  7.f,  8.f,  9.f,  10.f, 11.f, 12.f,
+                                13.f, 14.f, 15.f, 16.f, 17.f, 18.f, 19.f, 20.f, 21.f, 22.f, 23.f, 24.f};
+    std::vector<float> skip = {1.f,  2.f,  3.f,  4.f,  5.f,  6.f,  7.f,  8.f,  9.f,  10.f, 11.f, 12.f,
+                               13.f, 14.f, 15.f, 16.f, 17.f, 18.f, 19.f, 20.f, 21.f, 22.f, 23.f, 24.f};
+    std::vector<float> expected_output = {
+        0.0353291891515255f,  0.1317980140447617f,  0.3415765166282654f,  0.5857689380645752f,  0.07553060352802277f,
+        0.1764662563800812f,  0.3244849443435669f,  0.4868034422397614f,  0.08510704338550568f, 0.1860678195953369f,
+        0.3164101839065552f,  0.4556762874126434f,  0.08931596577167511f, 0.1901365667581558f,  0.3122786283493042f,
+        0.4408963620662689f,  0.09167447686195374f, 0.19237320125103f,    0.3097965121269226f,  0.4322993457317352f,
+        0.09318139404058456f, 0.1937852799892426f,  0.3081453144550323f,  0.4266831874847412f};
+
+    test_case.add_input<float>(Shape{3, 2, 4}, input);
+    test_case.add_input<float>(Shape{3, 2, 4}, skip);
+    test_case.add_expected_output<float>({3, 2, 4}, expected_output);
+
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_simplified_layer_normalization_2x2x8) {
     const auto model = convert_model("com.microsoft/simplified_layer_normalization_2x2x8.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
@@ -1392,6 +1414,45 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_simplified_layer_normalization
         {0.19802852f, 0.39605704f, 0.5940855f,  0.7921141f,  0.9901426f, 1.188171f,  1.3861997f, 1.5842282f,
          0.70813656f, 0.7861516f,  0.86516684f, 0.94418204f, 1.0231973f, 1.1022125f, 1.1802275f, 1.2592428f,
          0.82395196f, 0.8729491f,  0.9209463f,  0.96994346f, 1.0179406f, 1.0669378f, 1.114935f,  1.1629322f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fusedmatmul_2x3) {
+    const auto model = convert_model("com.microsoft/fusedmatmul_2D.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<float> data_A{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f};
+    const std::vector<float> data_B{7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f};
+    const std::vector<float> expected_output{66.75f, 73.5f, 87.f, 96.f};
+
+    test_case.add_input<float>(Shape{3, 2}, data_A);
+    test_case.add_input<float>(Shape{3, 2}, data_B);
+    test_case.add_expected_output<float>(Shape{2, 2}, expected_output);
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fusedmatmul_2x5x3x6x4_2x6x3x4x7) {
+    const auto model = convert_model("com.microsoft/fusedmatmul_trans_and_transbatch_enabled.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<float> data_A = {1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,  8.0f,  9.0f,  10.0f,
+                                       11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f,
+                                       21.0f, 22.0f, 23.0f, 24.0f, 25.0f, 26.0f, 27.0f, 28.0f, 29.0f, 30.0f,
+                                       31.0f, 32.0f, 33.0f, 34.0f, 35.0f, 36.0f, 37.0f, 38.0f, 39.0f, 40.0f};
+
+    const std::vector<float> data_B = {1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,  8.0f,  9.0f,  10.0f,
+                                       11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f,
+                                       21.0f, 22.0f, 23.0f, 24.0f, 25.0f, 26.0f, 27.0f, 28.0f, 29.0f, 30.0f};
+
+    const std::vector<float> expected_output = {87.5f,   200.0f,  312.5f,  95.0f,   220.0f,  345.0f,  102.5f,  240.0f,
+                                                377.5f,  110.0f,  260.0f,  410.0f,  1325.0f, 1687.5f, 2050.0f, 1370.0f,
+                                                1745.0f, 2120.0f, 1415.0f, 1802.5f, 2190.0f, 1460.0f, 1860.0f, 2260.0f};
+
+    test_case.add_input<float>(Shape{2, 5, 4}, data_A);
+    test_case.add_input<float>(Shape{2, 3, 5}, data_B);
+    test_case.add_expected_output<float>(Shape{2, 4, 3}, expected_output);
 
     test_case.run();
 }

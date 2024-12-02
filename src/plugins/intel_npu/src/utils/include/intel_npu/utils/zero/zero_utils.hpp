@@ -188,7 +188,7 @@ static inline uint32_t findGroupOrdinal(ze_device_handle_t device_handle, const 
         "zeDeviceGetCommandQueueGroupProperties",
         zeDeviceGetCommandQueueGroupProperties(device_handle, &command_queue_group_count, nullptr));
 
-    log.debug("ZeroDevice::ZeroDevice - resize command_queue_group_count");
+    log.debug("zero_utils::findGroupOrdinal - resize command_queue_group_count");
     command_group_properties.resize(command_queue_group_count);
 
     for (auto& prop : command_group_properties) {
