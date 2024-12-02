@@ -19,6 +19,12 @@ static std::pair<size_t, size_t> get_input_bf_size(const dynamic_quantize_params
         input_batch = params.inputs[0].Batch().v * params.inputs[0].Feature().v;
     }
 
+    // In Some model, input_f could be dynamic in input0. It refers to IFM value of weight.
+    if (params.inputs[0].is_dynamic() && input_f == 0) {
+        OPENVINO_ASSERT(params.fc_ifm_size != 0, "[GPU] Invalid fc_ifm_size value");
+        input_f = params.fc_ifm_size;
+    }
+
     return {input_batch, input_f};
 }
 
@@ -147,6 +153,20 @@ bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {
 
     if (dq_params.inputs[0].GetPaddedVal() != 0 || dq_params.outputs[0].GetPaddedVal() != 0)
         return false;
+
+    if (dq_params.append_axis != -1)
+        return false;
+
+    if (dq_params.group_sizes.back() != UINT64_MAX)
+        return false;
+
+    // Allow only default scales order
+    const auto& scales_output_order = dq_params.scales_output_order;
+    if (!scales_output_order.empty()) {
+        for (size_t i = 0; i < scales_output_order.size(); i++)
+            if (scales_output_order[i] != i)
+                return false;
+    }
 
     return true;
 }

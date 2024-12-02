@@ -129,9 +129,6 @@ public:
     // Return element type in string representation
     std::string to_string() const;
 
-    OPENVINO_DEPRECATED("This constructor is deprecated. It will be removed in 2025.0")
-    Type(size_t bitwidth, bool is_real, bool is_signed, bool is_quantized, const std::string& cname);
-
 private:
     Type_t m_type{Type_t::undefined};
 };

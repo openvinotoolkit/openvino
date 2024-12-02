@@ -60,3 +60,4 @@ runs:
         EVENT_PARAM: "-e ${{ inputs.event_name }}"
         TO_RESTORE: "-r ${{ inputs.to_restore }}"
         DEFAULT_TARGET_DIR: "${{ env.GITHUB_WORKSPACE }}/${{ inputs.storage_dir || inputs.platform }}"
+        MERGE_QUEUE_BASE_REF: "${{ github.event.merge_group.base_ref }}"

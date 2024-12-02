@@ -116,16 +116,7 @@ void ov::descriptor::Tensor::clone_from(const ov::descriptor::Tensor& old) {
     m_lower_value = old.get_lower_value();
     m_upper_value = old.get_upper_value();
     m_value_symbol = old.get_value_symbol();
-    m_legacy_name = old.m_legacy_name;
     m_rt_info = old.get_rt_info();
-}
-
-std::string ov::descriptor::get_ov_tensor_legacy_name(const ov::descriptor::Tensor& tensor) {
-    return tensor.m_legacy_name;
-}
-
-void ov::descriptor::set_ov_tensor_legacy_name(ov::descriptor::Tensor& tensor, const std::string& tensor_name) {
-    tensor.m_legacy_name = tensor_name;
 }
 
 void ov::descriptor::set_tensor_type(ov::descriptor::Tensor& tensor,
@@ -148,10 +139,6 @@ std::ostream& ov::descriptor::operator<<(std::ostream& out, const ov::descriptor
             names += ", ";
         names += name;
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (names.empty())
-        names = get_ov_tensor_legacy_name(tensor);
-    OPENVINO_SUPPRESS_DEPRECATED_END
     out << "Tensor(" << names << ")";
     return out;
 }

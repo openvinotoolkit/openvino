@@ -5,7 +5,7 @@
 #include "zero_memory.hpp"
 
 #include "intel_npu/utils/zero/zero_api.hpp"
-#include "zero_utils.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 
 namespace intel_npu {
 namespace zeroMemory {

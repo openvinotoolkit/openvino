@@ -5,6 +5,7 @@
 #include <subgraph_customizable.hpp>
 #include <snippets_helpers.hpp>
 #include <transformations/snippets/aarch64/pass/snippets_mark_skipped.hpp>
+#include "openvino/core/visibility.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
 
@@ -41,7 +42,12 @@ TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipConvFused_ConvMulRelu) {
     run();
 }
 
+#if (defined OPENVINO_ARCH_ARM && defined(__linux__))
+// Ticket: 153166
+TEST_F(SnippetsMarkSkippedTests, DISABLED_smoke_Snippets_SkipConvFused_ConvSumRelu) {
+#else
 TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipConvFused_ConvSumRelu) {
+#endif
     std::vector<std::shared_ptr<Node>> eltwiseOps {std::make_shared<ov::op::v1::Add>(),
                                                    std::make_shared<ov::op::v0::Relu>(),
                                                    std::make_shared<ov::op::v0::Relu>()};
@@ -64,7 +70,12 @@ TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipConvFused_ConvBiasRelu) {
     run();
 }
 
+#if (defined OPENVINO_ARCH_ARM && defined(__linux__))
+// Ticket: 153166
+TEST_F(SnippetsMarkSkippedTests, DISABLED_smoke_Snippets_SkipConvFused_ConvBiasTwoRelu) {
+#else
 TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipConvFused_ConvBiasTwoRelu) {
+#endif
     std::vector<std::shared_ptr<Node>> eltwiseOps {std::make_shared<ov::op::v1::Add>(),
                                                    std::make_shared<ov::op::v0::Relu>(),
                                                    std::make_shared<ov::op::v0::Relu>()};

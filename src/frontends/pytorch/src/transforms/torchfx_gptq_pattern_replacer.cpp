@@ -40,18 +40,6 @@ uint32_t read_u4_data(const void* array, size_t index) {
     return val;
 };
 
-void write_u4_data(void* array, size_t index, uint32_t data) {
-    auto arr_u32 = reinterpret_cast<uint32_t*>(array);
-    size_t idx_u32 = index / 8;
-    size_t offset_u32 = index % 8;
-    uint32_t old_val = arr_u32[idx_u32];
-    data = data << (offset_u32 * 4);
-    uint32_t mask = 15;
-    mask = ~(mask << (offset_u32 * 4));
-    uint32_t new_val = (old_val & mask) | data;
-    arr_u32[idx_u32] = new_val;
-};
-
 GPTQDecompressionReplacer::GPTQDecompressionReplacer() {
     const auto& const_1 = wrap_type<v0::Constant>();
     const auto& const_2 = wrap_type<v0::Constant>();
@@ -73,61 +61,157 @@ GPTQDecompressionReplacer::GPTQDecompressionReplacer() {
     const auto& convert_2 = wrap_type<v0::Convert>({const_6});
     const auto& bitwise_and = wrap_type<ov::op::v13::BitwiseAnd>({add_or_convert, convert_2});
 
-    ov::matcher_pass_callback callback = [unsqueeze_1](Matcher& m) {
+    ov::matcher_pass_callback callback = [=](Matcher& m) {
         auto bitwise_and = m.get_match_root();
         if (!bitwise_and) {
             return false;
         }
         const auto& pattern_map = m.get_pattern_value_map();
-        const auto& input_node = pattern_map.at(unsqueeze_1).get_node_shared_ptr();
-        auto weights_u32 = std::dynamic_pointer_cast<v0::Constant>(input_node->get_input_node_shared_ptr(0));
-        auto axis = std::dynamic_pointer_cast<v0::Constant>(input_node->get_input_node_shared_ptr(1));
-        auto axis_data = axis->get_data_ptr<uint32_t>();
+        auto unsqueeze_1_node = pattern_map.at(unsqueeze_1).get_node_shared_ptr();
+        auto unsqueeze_1_in0_const =
+            std::dynamic_pointer_cast<v0::Constant>(unsqueeze_1_node->get_input_node_shared_ptr(0));
+        auto unsqueeze_1_in1_const =
+            std::dynamic_pointer_cast<v0::Constant>(unsqueeze_1_node->get_input_node_shared_ptr(1));
+        auto abs_node = pattern_map.at(abs).get_node_shared_ptr();
+        auto abs_in_const = std::dynamic_pointer_cast<v0::Constant>(abs_node->get_input_node_shared_ptr(0));
+        auto broadcast_node = pattern_map.at(broadcast).get_node_shared_ptr();
+        auto unsqueeze_2_node = pattern_map.at(unsqueeze_2).get_node_shared_ptr();
+        auto unsqueeze_2_in0_const =
+            std::dynamic_pointer_cast<v0::Constant>(unsqueeze_2_node->get_input_node_shared_ptr(0));
+        auto unsqueeze_2_in1_const =
+            std::dynamic_pointer_cast<v0::Constant>(unsqueeze_2_node->get_input_node_shared_ptr(1));
 
-        auto u8_shape = weights_u32->get_shape();
-        auto src = weights_u32->get_data_ptr<uint32_t>();
-
-        ov::Shape u4_shape;
-        bool dim_added = false;
-        size_t stride = 1;
-        size_t size_y = 1;
-        for (size_t i = 0; i < u8_shape.size(); i++) {
-            if (axis_data[0] == i) {
-                u4_shape.push_back(8);
-                dim_added = true;
-            }
-            if (axis_data[0] <= i) {
-                stride *= u8_shape[i];
-            } else {
-                size_y *= u8_shape[i];
-            }
-            u4_shape.push_back(u8_shape[i]);
-        }
-        if (!dim_added) {
-            u4_shape.push_back(8);
+        OutputVector outputs_1(unsqueeze_1_node->get_output_size());
+        OutputVector unsqueeze_1_inputs(2);
+        unsqueeze_1_inputs[0] = unsqueeze_1_in0_const->outputs()[0];
+        unsqueeze_1_inputs[1] = unsqueeze_1_in1_const->outputs()[0];
+        if (!unsqueeze_1_node->constant_fold(outputs_1, unsqueeze_1_inputs)) {
+            return false;
         }
 
-        auto new_const = std::make_shared<v0::Constant>(element::u4, u4_shape);
-        auto dst = const_cast<uint32_t*>(reinterpret_cast<const uint32_t*>(new_const->get_data_ptr()));
+        OutputVector outputs_2(abs_node->get_output_size());
+        if (!abs_node->constant_fold(outputs_2, abs_in_const->outputs())) {
+            return false;
+        }
+
+        OutputVector outputs_3(broadcast_node->get_output_size());
+        OutputVector broadcast_inputs(2);
+        broadcast_inputs[0] = outputs_1[0];
+        broadcast_inputs[1] = outputs_2[0];
+        if (!broadcast_node->constant_fold(outputs_3, broadcast_inputs)) {
+            return false;
+        }
+
+        OutputVector outputs_4(unsqueeze_2_node->get_output_size());
+        OutputVector unsqueeze_2_inputs(2);
+        unsqueeze_2_inputs[0] = unsqueeze_2_in0_const->outputs()[0];
+        unsqueeze_2_inputs[1] = unsqueeze_2_in1_const->outputs()[0];
+        if (!unsqueeze_2_node->constant_fold(outputs_4, unsqueeze_2_inputs)) {
+            return false;
+        }
+        const int32_t* rs_in0 =
+            std::dynamic_pointer_cast<v0::Constant>(outputs_3[0].get_node_shared_ptr())->get_data_ptr<int32_t>();
+        const int32_t* rs_in1 =
+            std::dynamic_pointer_cast<v0::Constant>(outputs_4[0].get_node_shared_ptr())->get_data_ptr<int32_t>();
+        auto shifted_const = std::make_shared<v0::Constant>(element::i32, outputs_3[0].get_shape());
+        auto dst = const_cast<int32_t*>(reinterpret_cast<const int32_t*>(shifted_const->get_data_ptr()));
         if (!dst)
             return false;
 
-        size_t in_idx = 0;
-        for (size_t y = 0; y < size_y; y++) {
-            size_t offset = y * stride * 8;
-            for (size_t x = 0; x < stride; x++) {
-                for (size_t z = 0; z < 8; z++) {
-                    uint32_t val = read_u4_data(src, in_idx);
-                    write_u4_data(dst, (offset + x + stride * z), val);
-                    in_idx++;
-                }
+        // TODO: Bitwise right shift operation below might need to be
+        // optimized to reduce FIL.
+        size_t rs_in0_shape_size = shape_size(outputs_3[0].get_shape());
+        const auto& rs_in0_shape = outputs_3[0].get_shape();
+        const auto& rs_in1_shape = outputs_4[0].get_shape();
+        int shift_dim = -1;
+        size_t shift_offset = 1;
+        for (size_t i = 0; i < rs_in1_shape.size(); ++i) {
+            size_t dim = rs_in1_shape[i];
+            if (dim != 1 && dim != rs_in0_shape[i]) {
+                return false;
+            }
+            if (shift_dim != -1) {
+                shift_offset *= rs_in0_shape[i];
+            }
+            if (dim == rs_in0_shape[i]) {
+                shift_dim = static_cast<int>(i);
+            }
+        }
+        if (shift_dim == -1)
+            return false;
+        for (size_t k = 0; k < rs_in0_shape_size; ++k) {
+            size_t shift_idx = (k / shift_offset) % rs_in1_shape[shift_dim];
+            int32_t shift_val = rs_in1[shift_idx];
+            dst[k] = (rs_in0[k] >> shift_val);
+        }
+
+        std::shared_ptr<ov::Node> convert_1_node = nullptr;
+        OutputVector outputs_7;
+        if (pattern_map.find(convert_1) != pattern_map.end()) {
+            convert_1_node = pattern_map.at(convert_1).get_node_shared_ptr();
+            outputs_7.resize(convert_1_node->get_output_size());
+            if (!convert_1_node->constant_fold(outputs_7, shifted_const->outputs())) {
+                return false;
+            }
+        } else {
+            auto convert_3_node = pattern_map.at(convert_3).get_node_shared_ptr();
+            auto convert_4_node = pattern_map.at(convert_4).get_node_shared_ptr();
+            auto convert_4_in_const =
+                std::dynamic_pointer_cast<v0::Constant>(convert_4_node->get_input_node_shared_ptr(0));
+            auto add_node = pattern_map.at(add).get_node_shared_ptr();
+            OutputVector outputs_5(convert_3_node->get_output_size());
+            if (!convert_3_node->constant_fold(outputs_5, shifted_const->outputs())) {
+                return false;
+            }
+            OutputVector outputs_6(convert_4_node->get_output_size());
+            if (!convert_4_node->constant_fold(outputs_6, convert_4_in_const->outputs())) {
+                return false;
+            }
+            outputs_7.resize(add_node->get_output_size());
+            OutputVector add_inputs(2);
+            add_inputs[0] = outputs_5[0];
+            add_inputs[1] = outputs_6[0];
+            if (!add_node->constant_fold(outputs_7, add_inputs)) {
+                return false;
             }
         }
 
-        copy_runtime_info_and_name(weights_u32, {new_const}, {weights_u32, bitwise_and});
+        auto convert_2_node = pattern_map.at(convert_2).get_node_shared_ptr();
+        auto convert_2_in_const = std::dynamic_pointer_cast<v0::Constant>(convert_2_node->get_input_node_shared_ptr(0));
 
-        auto new_convert = std::make_shared<v0::Convert>(new_const, bitwise_and->get_output_element_type(0));
-        copy_runtime_info_and_name(bitwise_and, {new_convert}, {input_node});
+        OutputVector outputs_8(convert_2_node->get_output_size());
+        if (!convert_2_node->constant_fold(outputs_8, convert_2_in_const->outputs())) {
+            return false;
+        }
+
+        OutputVector outputs_9(bitwise_and->get_output_size());
+
+        const int8_t* and_in0 =
+            std::dynamic_pointer_cast<v0::Constant>(outputs_7[0].get_node_shared_ptr())->get_data_ptr<int8_t>();
+        const int8_t* and_in1 =
+            std::dynamic_pointer_cast<v0::Constant>(outputs_8[0].get_node_shared_ptr())->get_data_ptr<int8_t>();
+        auto masked_const = std::make_shared<v0::Constant>(element::i8, outputs_7[0].get_shape());
+        auto masked_dst = const_cast<int8_t*>(reinterpret_cast<const int8_t*>(masked_const->get_data_ptr()));
+        if (!masked_dst)
+            return false;
+
+        size_t and_in0_shape_size = shape_size(outputs_7[0].get_shape());
+        // TODO: Bitwise and operation below might need to be
+        // optimized to reduce FIL.
+        int8_t mask = and_in1[0];
+        for (size_t k = 0; k < and_in0_shape_size; ++k) {
+            masked_dst[k] = (and_in0[k] & mask);
+        }
+
+        auto convert_to_u4 = std::make_shared<v0::Convert>(masked_const, element::u4);
+        OutputVector outputs_10(convert_to_u4->get_output_size());
+        if (!convert_to_u4->constant_fold(outputs_10, masked_const->outputs())) {
+            return false;
+        }
+
+        auto new_convert =
+            std::make_shared<v0::Convert>(outputs_10[0].get_node_shared_ptr(), bitwise_and->get_output_element_type(0));
+        copy_runtime_info_and_name(bitwise_and, {new_convert}, {unsqueeze_1_node});
         replace_node(bitwise_and, new_convert);
         return true;
     };

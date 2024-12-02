@@ -366,21 +366,21 @@ void run_eltwise_int_bitwise_generic_test(cldnn::eltwise_mode mode) {
     cldnn::format test_inputs_fmt = cldnn::format::bfyx;
     const int dim_size = 227;
 
-#define ELTWISE_INT_TEST_CASES(type)                                                         \
-    generic_eltwise_int_test<type, type>(test_inputs_fmt,                                    \
-                                         1,                                                  \
-                                         1,                                                  \
-                                         dim_size,                                           \
-                                         dim_size,                                           \
-                                         mode,                                               \
-                                         0,                                                  \
-                                         0,                                                  \
-                                         0,                                                  \
-                                         0,                                                  \
-                                         0,                                                  \
-                                         static_cast<int>(std::numeric_limits<type>::max()), \
-                                         0,                                                  \
-                                         static_cast<int>(std::numeric_limits<type>::max()));
+#define ELTWISE_INT_TEST_CASES(type)                                                           \
+    generic_eltwise_int_test<type, type>(test_inputs_fmt,                                      \
+                                         1,                                                    \
+                                         1,                                                    \
+                                         dim_size,                                             \
+                                         dim_size,                                             \
+                                         mode,                                                 \
+                                         0,                                                    \
+                                         0,                                                    \
+                                         0,                                                    \
+                                         0,                                                    \
+                                         0,                                                    \
+                                         static_cast<int>(std::numeric_limits<type>::max())/16,\
+                                         0,                                                    \
+                                         static_cast<int>(std::numeric_limits<type>::max())/16);
 
     ELTWISE_INT_TEST_CASES(int8_t);
     ELTWISE_INT_TEST_CASES(uint8_t);

@@ -14,14 +14,6 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-class SKIP_TokenizeMHASnippetsTests : public TokenizeMHASnippetsTests {
-public:
-    void SetUp() override {
-        GTEST_SKIP();
-    }
-    void TearDown() override{};
-};
-
 void TokenizeMHASnippetsTests::run() {
     ASSERT_TRUE(model);
     manager.register_pass<ov::snippets::pass::ExtractReshapesFromMHA>();
@@ -103,8 +95,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_with_MatMul0_Transpose) {
     run();
 }
 
-TEST_F(SKIP_TokenizeMHASnippetsTests /* CVS-142098 */, smoke_Snippets_MHA_with_MatMul0_Transpose_Dynamic) {
-    GTEST_SKIP();
+TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_with_MatMul0_Transpose_Dynamic) {
     const auto &f = MHAMatMul0TransposeFunction(std::vector<PartialShape>{{-1, -1, -1, -1}, {-1, -1, -1, -1}, {-1, -1, -1, -1}, {-1, -1, -1, -1}},
                                                 std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}),
                                                 false);
@@ -113,8 +104,7 @@ TEST_F(SKIP_TokenizeMHASnippetsTests /* CVS-142098 */, smoke_Snippets_MHA_with_M
     run();
 }
 
-TEST_F(SKIP_TokenizeMHASnippetsTests /* CVS-114607 */, smoke_Snippets_MHA_with_int_Matmuls) {
-    GTEST_SKIP();
+TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_with_int_Matmuls) {
     const auto &f = MHAINT8MatMulTypeRelaxedFunction(std::vector<PartialShape>{{1, 128, 12, 64}, {1, 128, 12, 64}, {1, 12, 128, 128}, {1, 128, 12, 64}});
     model = f.getOriginal();
     model_ref = f.getReference();
@@ -128,8 +118,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_Transpose_extraction) {
     run();
 }
 
-TEST_F(SKIP_TokenizeMHASnippetsTests /* CVS-142098 */, smoke_Snippets_MHA_Dynamic_Transpose_extraction) {
-    GTEST_SKIP();
+TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_Dynamic_Transpose_extraction) {
     const auto& f = MHATransposedInputFunction(std::vector<PartialShape>{{-1, -1, -1, -1}, {-1, -1, -1, -1}, {-1, -1, -1, -1}}, true);
     model = f.getOriginal();
     model_ref = f.getReference();
@@ -144,8 +133,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_Transpose_extraction_and_uns
     run();
 }
 
-TEST_F(SKIP_TokenizeMHASnippetsTests /* CVS-142098 */, smoke_Snippets_MHA_Dynamic_Transpose_extraction_and_unsupported_existing_transpose) {
-    GTEST_SKIP();
+TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_Dynamic_Transpose_extraction_and_unsupported_existing_transpose) {
     const auto& f = MHATransposedInputFunction(std::vector<PartialShape>{{-1, -1, -1, -1}, {-1, -1, -1, -1}, {-1, -1, -1, -1}}, true,
                                                std::vector<int64_t>{0, 3, 1, 2});
     model = f.getOriginal();
@@ -216,7 +204,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA4D_SplitM_withMul) {
 TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHAWOTranspose_SplitM) {
     const auto& f = MHAWOTransposeSplitMFunction(std::vector<PartialShape>{{10, 9216, 128}, {10, 128, 9216}, {10, 9216, 128}},
                                                  std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32}),
-                                                 std::vector<Shape>{{10, 3, 3072, 128}, {10, 1, 128, 9216}, {10, 1, 9216, 128}, {10, 9216, 128}});
+                                                 std::vector<Shape>{{10, 18, 512, 128}, {10, 1, 128, 9216}, {10, 1, 9216, 128}, {10, 9216, 128}});
     model = f.getOriginal();
     model_ref = f.getReference();
     config.set_concurrency(18);

@@ -41,12 +41,14 @@ For more details, refer to the
 API Development
 #####################
 
+Get started with OpenVINO Node.js API development :doc:`here <./addon>`.
+
 OpenVINO 2024.4 has introduced the following methods:
 
--	Model.clone()
--	Model.getoutputelementtype()
--	CompiledModel getProperty()
--	CompiledModel.setProperty()
+- :ref:`Model.clone() <clone>`
+- :ref:`Model.getOutputElementType() <getOutputElementType>`
+- :ref:`CompiledModel.getProperty() <getProperty>`
+- :ref:`CompiledModel.setProperty() <setProperty>`
 
 
 Additional Resources

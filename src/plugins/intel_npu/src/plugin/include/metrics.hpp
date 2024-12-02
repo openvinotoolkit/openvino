@@ -9,8 +9,8 @@
 #include <vector>
 
 #include "backends.hpp"
-#include "npu.hpp"
-#include "npu_private_properties.hpp"
+#include "intel_npu/common/npu.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -25,6 +25,7 @@ public:
     const std::vector<std::string>& SupportedMetrics() const;
     std::string GetFullDeviceName(const std::string& specifiedDeviceName) const;
     IDevice::Uuid GetDeviceUuid(const std::string& specifiedDeviceName) const;
+    ov::device::LUID GetDeviceLUID(const std::string& specifiedDeviceName) const;
     const std::vector<std::string>& GetSupportedConfigKeys() const;
     const std::vector<std::string> GetOptimizationCapabilities() const;
     const std::tuple<uint32_t, uint32_t, uint32_t>& GetRangeForAsyncInferRequest() const;
@@ -63,7 +64,6 @@ private:
                                                               ov::intel_npu::compilation_mode.name(),
                                                               ov::intel_npu::driver_version.name(),
                                                               ov::intel_npu::compiler_type.name(),
-                                                              ov::intel_npu::use_elf_compiler_backend.name(),
                                                               ov::intel_npu::batch_mode.name(),
                                                               ov::hint::execution_mode.name()};
 

@@ -78,7 +78,7 @@ There is currently no support for multiple devices, which means only one level-z
 
 ### Inference pipeline
 
-The result of the model compilation is represented through a NetworkDescription. This model description is passed by the plugin to the driver to create a level zero graph instance and obtain a graph handle that can later be used to execute multiple inferences in parallel for the same model. Since the same model instance is shared across all subsequent inference objects, this initialization step is performed by default right after the model is compiled and it can be postponed until the creation of the first inference request through the use of an environment variable: "IE_NPU_CREATE_EXECUTOR" (IE_NPU_CREATE_EXECUTOR=0 to postpone the initialization).
+The result of the model compilation is represented through an IGraph object, which contains a valid level zero graph handle that can later be used to execute multiple inferences in parallel for the same model. By default, weights are loaded into the NPU memory right after the model is compiled, but this step can be postponed until the creation of the first inference request through the use of an internal NPU property: "NPU_DEFER_WEIGHTS_LOAD".
 
 Users can create one or more inference requests for a compiled model using OpenVINO API:
 
@@ -176,6 +176,7 @@ The following properties are supported:
 | `ov::intel_npu::tiles`/</br>`NPU_TILES` | RW | Sets the number of npu tiles to compile the model for | `[0-]` | `-1` |
 | `ov::intel_npu::max_tiles`/</br>`NPU_MAX_TILES` | RW | Maximum number of tiles supported by the device we compile for. Can be set for offline compilation. If not set, it will be populated by driver.| `[0-]` | `[1-6] depends on npu platform` |
 | `ov::intel_npu::bypass_umd_caching`/</br>`NPU_BYPASS_UMD_CACHING` | RW | Bypass the caching of compiled models in UMD. | `YES`/ `NO`| `NO` |
+| `ov::intel_npu::defer_weights_load`/</br>`NPU_DEFER_WEIGHTS_LOAD` | RW | Delay loading the weights until inference is created. | `YES`/ `NO`| `NO` |
 
 &nbsp;
 ### Performance Hint: Default Number of DPU Groups / DMA Engines

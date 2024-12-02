@@ -5,6 +5,7 @@
 #ifdef SNIPPETS_DEBUG_CAPS
 
 #include "jit_segfault_detector_emitter.hpp"
+#include "emitters/plugin/x64/utils.hpp"
 
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl;
@@ -43,16 +44,18 @@ void jit_uni_segfault_detector_emitter::emit_impl(const std::vector<size_t>& in_
 
 void jit_uni_segfault_detector_emitter::save_target_emitter() const {
     // use internal call as "->local" shoule be the execution thread. Otherwise always compilation thread.
-    internal_call_preamble();
+    EmitABIRegSpills spill(h);
+    spill.preamble();
 
     const auto &set_local_handler_overload = static_cast<void (*)(jit_uni_segfault_detector_emitter*)>(set_local_handler);
     h->mov(h->rax, reinterpret_cast<size_t>(set_local_handler_overload));
     h->mov(abi_param1, reinterpret_cast<uint64_t>(this));
-    internal_call_rsp_align();
-    h->call(h->rax);
-    internal_call_rsp_restore();
 
-    internal_call_postamble();
+    spill.rsp_align();
+    h->call(h->rax);
+    spill.rsp_restore();
+
+    spill.postamble();
 }
 
 void jit_uni_segfault_detector_emitter::set_local_handler(jit_uni_segfault_detector_emitter* emitter_address) {

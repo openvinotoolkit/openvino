@@ -93,20 +93,25 @@ static void CreateCommonSplitOp(ProgramBuilder& p, const std::shared_ptr<ov::Nod
         for (size_t i = 0; i < op->get_output_size(); i++) {
             const auto outPartialShape = op->get_output_partial_shape(i);
             if (outPartialShape.size() != start_offset.size()) {
-                OPENVINO_THROW("Invalid dimesions in split layer: ", op->get_friendly_name(),
+                OPENVINO_THROW("Invalid dimensions in split layer: ", op->get_friendly_name(),
                                " output: ", op->get_output_tensor(i).get_any_name());
             }
             for (size_t idx = 0; idx < input_pshape.size(); idx++) {
                 if ((outPartialShape[idx].get_length() + static_cast<ov::Dimension::value_type>(start_offset[idx])) > input_pshape[idx].get_length()) {
-                    OPENVINO_THROW("Invalid dimesions in split layer: ", op->get_friendly_name(),
+                    OPENVINO_THROW("Invalid dimensions in split layer: ", op->get_friendly_name(),
                                    " output: ", op->get_output_tensor(idx).get_any_name());
                 }
             }
 
             auto offsetTensor = tensor_from_dims(start_offset, 0);
             auto outTensor = tensor_from_dims(op->get_output_shape(i), 1);
-            auto cropPrim = cldnn::crop(get_layer_name(i), inputs[0], outTensor, offsetTensor);
-            p.add_primitive(*op, cropPrim);
+
+            const auto& users = op->get_output_target_inputs(i);
+            // don't add crop primitive if port is not used by anyone
+            if (users.size() != 0) {
+                auto cropPrim = cldnn::crop(get_layer_name(i), inputs[0], outTensor, offsetTensor);
+                p.add_primitive(*op, cropPrim);
+            }
 
             for (size_t idx = 0; idx < input_pshape.size(); idx++) {
                 if (outPartialShape[idx] != input_pshape[idx]) {

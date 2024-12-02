@@ -5,6 +5,7 @@
 #include "jit_loop_emitters.hpp"
 
 #include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "emitters/snippets/x64/utils.hpp"
 #include "snippets/utils/utils.hpp"
 
 using namespace Xbyak;
@@ -21,7 +22,7 @@ public:
         : m_h(host), m_pool_gpr_idxs(pool_gpr_idxs) {
         // If the pool is empty, let's manualy allocate the gpr and push original vlaue on stack
         if (m_pool_gpr_idxs.empty()) {
-            m_aux_gpr_idx = Reg64(static_cast<int>(allocate_aux_gpr(used_gpr_idxs)));
+            m_aux_gpr_idx = ov::intel_cpu::utils::get_aux_gpr(used_gpr_idxs);
             m_is_preserved = true;
             m_h->push(m_aux_gpr_idx);
         } else {
@@ -41,18 +42,6 @@ public:
     const Reg64& get_reg() const { return m_aux_gpr_idx; }
 
 private:
-    size_t allocate_aux_gpr(const std::vector<size_t>& used_gpr_idxs) const {
-        // RSP, RBP - stack-related registers, abi_param1 - runtime parameter register in the kernel
-        static std::set<size_t> blakclist_gpr_idxs = { Operand::RSP, Operand::RBP, static_cast<size_t>(abi_param1.getIdx()) };
-        for (size_t gpr_idx = 0; gpr_idx <= Operand::R15; ++gpr_idx) {
-            size_t _idx = Operand::R15 - gpr_idx; // we allocate from the end
-            if (std::find(used_gpr_idxs.cbegin(), used_gpr_idxs.cend(), _idx) != used_gpr_idxs.cend()) continue;
-            if (std::find(blakclist_gpr_idxs.cbegin(), blakclist_gpr_idxs.cend(), _idx) != blakclist_gpr_idxs.cend()) continue;
-            return _idx;
-        }
-        OV_CPU_JIT_EMITTER_THROW("Failed to allocate aux GPR");
-    }
-
     dnnl::impl::cpu::x64::jit_generator* m_h;
     std::vector<size_t>& m_pool_gpr_idxs;
     Reg64 m_aux_gpr_idx {};

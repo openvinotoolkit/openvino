@@ -153,26 +153,27 @@ Prerequisites
 
 .. code:: ipython3
 
-    import sys
     from pathlib import Path
     import requests
     
     
-    dynamicrafter_path = Path("dynamicrafter")
-    
-    if not dynamicrafter_path.exists():
-        dynamicrafter_path.mkdir(parents=True, exist_ok=True)
-        !git clone https://github.com/Doubiiu/DynamiCrafter.git dynamicrafter
-        %cd dynamicrafter
-        !git checkout 26e665cd6c174234238d2ded661e2e56f875d360 -q  # to avoid breaking changes
-        %cd ..
-    
-    sys.path.append(str(dynamicrafter_path))
+    if not Path("cmd_helper.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
+        )
+        open("cmd_helper.py", "w").write(r.text)
     
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
     open("notebook_utils.py", "w").write(r.text)
+
+.. code:: ipython3
+
+    from cmd_helper import clone_repo
+    
+    
+    clone_repo("https://github.com/Doubiiu/DynamiCrafter.git", "26e665cd6c174234238d2ded661e2e56f875d360")
 
 Load and run the original pipeline
 ----------------------------------
@@ -192,7 +193,7 @@ We will use model for 256x256 resolution as example. Also, models for
     from huggingface_hub import hf_hub_download
     from omegaconf import OmegaConf
     
-    from dynamicrafter.utils.utils import instantiate_from_config
+    from utils.utils import instantiate_from_config
     
     
     def load_model_checkpoint(model, ckpt):
@@ -307,7 +308,7 @@ Convert CLIP text encoder
 
 .. code:: ipython3
 
-    from dynamicrafter.lvdm.modules.encoders.condition import FrozenOpenCLIPEmbedder
+    from lvdm.modules.encoders.condition import FrozenOpenCLIPEmbedder
     
     MODEL_DIR = Path("models")
     
@@ -952,7 +953,7 @@ To collect intermediate model inputs for calibration we should customize
             modified_model = CompiledModelDecorator(original_diffusion_model, keep_prob=1)
             model.model.diffusion_model = CModelWrapper(modified_model, model.model.diffusion_model.out_channels)
         
-            dataset = datasets.load_dataset("jovianzm/Pexels-400k", split="train", streaming=True).shuffle(seed=42).take(subset_size)
+            dataset = datasets.load_dataset("google-research-datasets/conceptual_captions", trust_remote_code=True, split="train", streaming=True).shuffle(seed=42).take(subset_size)
         
             pbar = tqdm(total=subset_size)
             channels = model.model.diffusion_model.out_channels
@@ -960,8 +961,8 @@ To collect intermediate model inputs for calibration we should customize
             h, w = 256 // 8, 256 // 8
             noise_shape = [1, channels, frames, h, w]
             for batch in dataset:
-                prompt = batch["title"]
-                image_path = batch["thumbnail"]
+                prompt = batch["caption"]
+                image_path = batch["image_url"]
                 image = download_image(image_path)
                 if image is None:
                     continue

@@ -354,8 +354,8 @@ function addFooter() {
 }
 
 function initSplide() {
-    var splider = document.getElementsByClassName('.splide');
-    if(splider.length != 0){
+    var spliderLi = document.getElementById('ov-homepage-slide1');
+    if(spliderLi){
         var splide = new Splide('.splide', {
             type: 'fade',
             autoHeight: true,
@@ -407,26 +407,29 @@ function addViewTypeListeners() {
 document.addEventListener('DOMContentLoaded', function () {
     (async () => {
         await customElements.whenDefined("atomic-search-interface");
+    
+        const initializeSearchInterface = async (element, version = null) => {
+            if (!element) return;
+    
+            if (version) {
+                element.innerHTML = element.innerHTML.replace('search.html', `/${version}/search.html#f-ovversion=${version}`);
+            }
+    
+            await element.initialize({
+                accessToken: "xx1f2aebd3-4307-4632-aeea-17c13378b237",
+                organizationId: "intelcorporationproductione78n25s6"
+            });
+    
+            element.executeFirstSearch();
+        };
+    
         const searchInterfaceSa = document.querySelector("#sa-search");
         const searchInterface = document.querySelector("#search");
-        if (searchInterfaceSa) {
-            let ver = getCurrentVersion();
-            if (ver) {
-                searchInterfaceSa.innerHTML = searchInterfaceSa.innerHTML.replace('search.html', '/' + ver + '/search.html#f-ovversion=' + ver);
-            }
-            await searchInterfaceSa.initialize({
-                accessToken: "xx1f2aebd3-4307-4632-aeea-17c13378b237",
-                organizationId: "intelcorporationnonproduction2ybdyblf7",
-            });
-            searchInterfaceSa.executeFirstSearch();
-        }
-        if (searchInterface) {
-            await searchInterface.initialize({
-                accessToken: "xx1f2aebd3-4307-4632-aeea-17c13378b237",
-                organizationId: "intelcorporationnonproduction2ybdyblf7",
-            });
-            searchInterface.executeFirstSearch();
-        }
+        const currentVersion = getCurrentVersion();
+    
+        await initializeSearchInterface(searchInterfaceSa, currentVersion);
+        await initializeSearchInterface(searchInterface);
+    
         addViewTypeListeners();
     })();
 })

@@ -40,6 +40,7 @@ public:
     };
 
     std::string execGraphPath;
+    std::string averageCountersPath;
     std::string verbose;
     std::string blobDumpDir = "cpu_dump";
     FORMAT blobDumpFormat = FORMAT::TEXT;

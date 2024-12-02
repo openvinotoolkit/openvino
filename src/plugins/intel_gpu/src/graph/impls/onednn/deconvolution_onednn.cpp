@@ -45,6 +45,14 @@ static std::shared_ptr<dnnl::deconvolution_forward::primitive_desc> get_deconvol
         pad_r[i] = (is - 1) * stride[i] - os + kernel_range - pad_l[i];
     }
 
+    // Extend deconv parameters in case if spatials rank of output memory doesn't match size of parameters
+    int64_t insert_count = static_cast<int64_t>(output_md.get_dims().size()) - 2 - stride.size();
+    if (insert_count > 0) {
+        stride.insert(stride.end(), insert_count, 1);
+        pad_l.insert(pad_l.end(), insert_count, 0);
+        pad_r.insert(pad_r.end(), insert_count, 0);
+    }
+
     if (!prim->bias.empty()) {
         auto bias_md = onednn::layout_to_memory_desc(impl_params.get_input_layout(2), dnnl::memory::format_tag::any, true);
         return std::make_shared<dnnl::deconvolution_forward::primitive_desc>(

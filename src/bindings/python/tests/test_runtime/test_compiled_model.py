@@ -2,6 +2,7 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 import pytest
 import numpy as np
 
@@ -14,6 +15,7 @@ from tests.utils.helpers import (
     generate_relu_compiled_model_with_config,
     encrypt_base64,
     decrypt_base64,
+    create_filenames_for_ir,
     create_filename_for_test)
 from openvino import Model, Shape, Core, Tensor, serialize
 from openvino.runtime import ConstOutput
@@ -90,6 +92,43 @@ def test_export_import_advanced(device):
     compiled_model.export_model(user_stream)
 
     new_compiled = core.import_model(user_stream, device)
+
+    img = generate_image()
+    res = new_compiled.infer_new_request({"data": img})
+
+    assert np.argmax(res[new_compiled.outputs[0]]) == 531
+
+
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+@pytest.fixture
+def prepare_blob_path(request, tmp_path):
+    filename = create_filename_for_test(request.node.name)
+    path_to_blob = tmp_path / str(filename + ".blob")
+    yield path_to_blob
+
+    os.remove(path_to_blob)
+
+
+def test_export_import_via_file(prepare_blob_path, device):
+    import io
+
+    core = Core()
+
+    if props.device.Capability.EXPORT_IMPORT not in core.get_property(device, props.device.capabilities):
+        pytest.skip(f"{core.get_property(device, props.device.full_name)} plugin due-to export, import model API isn't implemented.")
+
+    compiled_model = generate_relu_compiled_model(device)
+
+    user_stream = io.BytesIO()
+
+    compiled_model.export_model(user_stream)
+    path_to_blob = prepare_blob_path
+
+    with open(path_to_blob, "wb") as f_w:
+        f_w.write(user_stream.getbuffer())
+
+    with open(path_to_blob, "rb") as f_r:
+        new_compiled = core.import_model(f_r.read(), device)
 
     img = generate_image()
     res = new_compiled.infer_new_request({"data": img})
@@ -250,7 +289,7 @@ def test_direct_infer(device, shared_flag):
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_compiled_model_after_core_destroyed(request, tmp_path, device):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
     model = get_relu_model()
     serialize(model, xml_path, bin_path)
     with open(bin_path, "rb") as f:
@@ -267,7 +306,7 @@ def test_compiled_model_after_core_destroyed(request, tmp_path, device):
 
 def test_compiled_model_from_buffer_in_memory(request, tmp_path, device):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
     model = get_relu_model()
     serialize(model, xml_path, bin_path)
     with open(bin_path, "rb") as f:
