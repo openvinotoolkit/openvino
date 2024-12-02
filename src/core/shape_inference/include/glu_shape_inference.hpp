@@ -26,8 +26,8 @@ std::vector<TRShape> shape_infer(const GLU* op, const std::vector<TShape>& input
     const ov::Shape scalar{};
     std::vector<TShape> variadic_split_input_shapes{input_shapes[0], scalar, split_len_size};
 
-    return {
-        ov::op::variadic_split::shape_infer(op, variadic_split_input_shapes, ov::make_tensor_accessor(const_data))[0]};
+    return {std::move(
+        ov::op::variadic_split::shape_infer(op, variadic_split_input_shapes, ov::make_tensor_accessor(const_data))[0])};
 }
 }  // namespace internal
 }  // namespace op
