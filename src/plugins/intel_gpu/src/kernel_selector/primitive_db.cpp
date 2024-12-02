@@ -3,17 +3,15 @@
 //
 
 #include "primitive_db.h"
-
 #include <assert.h>
-
 #include <algorithm>
-#include <stdexcept>
-#include <utility>
 #include <vector>
+#include <utility>
+#include <stdexcept>
 
 #ifndef NDEBUG
-#    include <fstream>
-#    include <iostream>
+#include <fstream>
+#include <iostream>
 #endif
 
 namespace kernel_selector {
