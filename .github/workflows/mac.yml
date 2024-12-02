@@ -204,16 +204,13 @@ jobs:
       - name: Build additional Python wheels
         run: |
           for py_version in "3.9" "3.10" "3.12"
-          do
-            export PY_BUILD_DIR=${{ github.workspace }}/py$py_version
-            mkdir -p ${PY_BUILD_DIR}
-            
+          do            
             python_exec_path=$(python$py_version -c "import sys; print(sys.executable)")
             $python_exec_path -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
             
-            cmake -DPython3_EXECUTABLE=$python_exec_path -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B ${PY_BUILD_DIR}
-            cmake --build ${PY_BUILD_DIR} --parallel
-            cmake --install "$PY_BUILD_DIR" --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_WHEELS_DIR }} --component python_wheels
+            cmake -DPython3_EXECUTABLE=$python_exec_path -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B ${{ github.workspace }}/py$py_version
+            cmake --build ${{ github.workspace }}/py$py_version --parallel
+            cmake --install ${{ github.workspace }}/py$py_version --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_WHEELS_DIR }} --component python_wheels
           done
 
       # Setup Python 3.11 as the default one
