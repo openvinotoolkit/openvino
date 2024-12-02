@@ -18,6 +18,7 @@ def test_graph_rewrite():
 
     assert count_ops(model, "Relu") == [2]
 
+
 def test_runtime_graph_rewrite():
     import openvino.runtime.passes as rt
     model = get_relu_model()
