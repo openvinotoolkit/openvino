@@ -17,7 +17,8 @@
 namespace ov {
 namespace intel_gpu {
 
-DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size) {
+DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size)
+    : ov::pass::MatcherPass() {
     GPU_DEBUG_GET_INSTANCE(debug_config);
     using namespace ov::pass::pattern;
 
