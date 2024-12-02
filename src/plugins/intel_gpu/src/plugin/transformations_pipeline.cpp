@@ -973,20 +973,21 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             auto dynamic_quantization_group_size = config.get_property(ov::hint::dynamic_quantization_group_size);
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
                 if (root->get_input_node_shared_ptr(0)->get_element_type() == ov::element::Type_t::f32) {
-                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dynamic quantization is turned off: input type is not supported" << std::endl;
+                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: input type is not supported" << std::endl;
                     return true;
                 }
 
                 auto weight_shape = root->get_input_partial_shape(1);
                 const size_t innermost_size = weight_shape[weight_shape.size() - 1].get_length();
                 if (innermost_size < 32) {
-                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dynamic quantization is turned off: shape is too small - " << innermost_size << std::endl;
+                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: shape is too small - " << innermost_size << std::endl;
                     return true;
                 }
 
                 // AZP does not support 8bit weight
-                if (debug_config->dynamic_quantize_asym && (root->get_input_element_type(1) == ov::element::i8 || root->get_input_element_type(1) == ov::element::u8)) {
-                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dynamic quantization is turned off: asymmetric quantization does not support 8bit weight" << std::endl;
+                if (debug_config->dynamic_quantize_asym
+                    && (root->get_input_element_type(1) == ov::element::i8 || root->get_input_element_type(1) == ov::element::u8)) {
+                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: asym quantization does not support 8bit weight" << std::endl;
                     return true;
                 }
 
@@ -994,7 +995,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 if ((root->get_input_element_type(1) == ov::element::i8 || root->get_input_element_type(1) == ov::element::u8)
                     && has_wzp
                     && dynamic_quantization_group_size != UINT64_MAX) {
-                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dynamic quantization is turned off: asymmetric 8bit weight does not support grouped quantization" << std::endl;
+                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off:"
+                                                                    " asym 8bit weight does not support grouped quantization" << std::endl;
                     return true;
                 }
                 return false;
