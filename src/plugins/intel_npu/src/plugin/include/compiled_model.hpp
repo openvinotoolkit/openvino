@@ -61,7 +61,6 @@ private:
 
     void configure_stream_executors();
 
-    const std::shared_ptr<const ov::Model> _model;
     Config _config;
     Logger _logger;
     const std::shared_ptr<IDevice> _device;

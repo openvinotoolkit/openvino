@@ -131,11 +131,16 @@ T ceil_div(const T& x, const T& y) {
     return (x == 0 ? 0 : (1 + (x - 1) / y));
 }
 
-template <typename T, typename A, typename V>
-bool contains(const std::vector<T, A>& vec, const V& v) {
-    return std::any_of(vec.begin(), vec.end(), [&](const T& x) {
-        return x == v;
-    });
+/**
+ * @brief Checks if container contains the specific value.
+ *
+ * @param container  The container of elements to examine.
+ * @param value      Value to compare the elements to.
+ * @return True if value found in the container, false otherwise.
+ */
+template <typename R, typename V>
+bool contains(const R& container, const V& value) {
+    return std::find(std::begin(container), std::end(container), value) != std::end(container);
 }
 
 /**
