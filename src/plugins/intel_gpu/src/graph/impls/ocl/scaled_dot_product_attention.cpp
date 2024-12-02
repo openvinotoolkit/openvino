@@ -191,10 +191,7 @@ protected:
 
         const auto& deps = instance.dependencies();
 
-        const auto in_q_idx = 0;
-        const auto& in_q_dep = deps[in_q_idx].first;
-
-        const auto& query_layout = in_q_dep->get_impl_params()->get_output_layout(0);
+        const auto& query_layout = instance.get_impl_params()->get_input_layout(0);
 
         auto get_reordered_dimension = [](const ov::PartialShape& pshape, const std::vector<int64_t>& order, size_t idx) -> const ov::Dimension& {
             if (order.empty())
