@@ -9,6 +9,14 @@
 
 using namespace ov::intel_cpu;
 
+NgraphShapeInfer::NgraphShapeInfer(std::shared_ptr<IStaticShapeInfer> shape_infer)
+    : m_shape_infer(std::move(shape_infer)),
+      m_port_mask(m_shape_infer->get_port_mask()) {}
+
+NgraphShapeInfer::NgraphShapeInfer(std::shared_ptr<IStaticShapeInfer> shape_infer, IShapeInfer::port_mask_t port_mask)
+    : m_shape_infer(std::move(shape_infer)),
+      m_port_mask(port_mask) {}
+
 IShapeInfer::Result
 NgraphShapeInfer::infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
