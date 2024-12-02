@@ -96,12 +96,10 @@ public:
         RegistersPool::WeakPtr regPool;
     };
 
+    static thread_local bool is_created;
+
     virtual ~RegistersPool() {
-        try {
-            check_unique_and_update(false);
-        } catch (...) {
-            // Ignore as check_unique_and_update() throws only in ctor mode.
-        }
+        is_created = false;
     }
 
     template <ov::reference::jit::cpu_isa_t isa>
@@ -188,7 +186,7 @@ private:
         }
     }
 
-    void check_unique_and_update(bool isCtor = true);
+    void check_unique_and_update();
 
     PhysicalSet m_general_set;
     PhysicalSet m_simd_set;
