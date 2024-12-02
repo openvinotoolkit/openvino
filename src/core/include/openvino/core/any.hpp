@@ -700,7 +700,7 @@ class OPENVINO_API Any {
     template <class T>
     T& as_impl(...) {
         impl_check();
-        if (_impl->is<T>() || _impl->is_base_type_info(typeid(decay_t<T>))) {
+        if (is<T>()) {
             return _impl->as<T>();
         }
 
@@ -759,30 +759,7 @@ class OPENVINO_API Any {
     }
 
     template <class T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    T& as_impl(int) {
-        impl_check();
-        if (_impl->is<T>() || _impl->is_base_type_info(typeid(decay_t<T>))) {
-            return _impl->as<T>();
-        } else if (util::Readable<T>::value && _impl->is<std::string>()) {
-            _temp = std::make_shared<Impl<decay_t<T>>>();
-            _impl->read_to(*_temp);
-            return _temp->as<T>();
-        } else if (_impl->is_signed_integral()) {
-            auto value = _impl->convert<long long>();
-            _temp = std::make_shared<Impl<decay_t<T>>>(static_cast<T>(value));
-            return _temp->as<T>();
-        } else if (_impl->is_unsigned_integral()) {
-            auto value = _impl->convert<unsigned long long>();
-            _temp = std::make_shared<Impl<decay_t<T>>>(static_cast<T>(value));
-            return _temp->as<T>();
-        } else if (_impl->is_floating_point()) {
-            auto value = _impl->convert<double>();
-            _temp = std::make_shared<Impl<decay_t<T>>>(static_cast<T>(value));
-            return _temp->as<T>();
-        }
-
-        OPENVINO_THROW("Bad as from: ", _impl->type_info().name(), " to: ", typeid(T).name());
-    }
+    T& as_impl(int);
 
     template <
         class T,
@@ -791,7 +768,7 @@ class OPENVINO_API Any {
     T& as_impl(int) {
         impl_check();
 
-        if (_impl->is<T>() || _impl->is_base_type_info(typeid(decay_t<T>))) {
+        if (is<T>()) {
             return _impl->as<T>();
         } else if (_impl->is<std::string>()) {
             _temp = std::make_shared<Impl<decay_t<T>>>();
@@ -1000,4 +977,29 @@ OPENVINO_API long long Any::Base::convert<long long>() const;
 template <>
 OPENVINO_API double Any::Base::convert<double>() const;
 
+template <class T, typename std::enable_if<std::is_arithmetic<T>::value>::type*>
+T& Any::as_impl(int) {
+    impl_check();
+    if (is<T>()) {
+        return _impl->as<T>();
+    } else if (util::Readable<T>::value && _impl->is<std::string>()) {
+        _temp = std::make_shared<Impl<decay_t<T>>>();
+        _impl->read_to(*_temp);
+        return _temp->as<T>();
+    } else if (_impl->is_signed_integral()) {
+        auto value = _impl->convert<long long>();
+        _temp = std::make_shared<Impl<decay_t<T>>>(static_cast<T>(value));
+        return _temp->as<T>();
+    } else if (_impl->is_unsigned_integral()) {
+        auto value = _impl->convert<unsigned long long>();
+        _temp = std::make_shared<Impl<decay_t<T>>>(static_cast<T>(value));
+        return _temp->as<T>();
+    } else if (_impl->is_floating_point()) {
+        auto value = _impl->convert<double>();
+        _temp = std::make_shared<Impl<decay_t<T>>>(static_cast<T>(value));
+        return _temp->as<T>();
+    }
+
+    OPENVINO_THROW("Bad as from: ", _impl->type_info().name(), " to: ", typeid(T).name());
+}
 }  // namespace ov
