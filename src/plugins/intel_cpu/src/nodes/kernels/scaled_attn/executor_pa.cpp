@@ -1155,18 +1155,20 @@ template <class KVCACHE_TYPE>
 void rotate_kv_cache(PlainTensor& key_cache,
                      const PlainTensor& rotation_coefficients,
                      const PlainTensor& rotated_block_indices) {
-    size_t num_rotated_blocks = rotated_block_indices.size(0);
     size_t num_blocks_in_total = key_cache.size(0);
-    size_t block_size = key_cache.size(2);
-    int32_t* rotated_block_indices_data = rotated_block_indices.ptr<int32_t>();
     size_t num_heads = key_cache.size(1);       // H;
+    size_t block_size = key_cache.size(2);
     size_t embedding_size = key_cache.size(3);  // S;
-    size_t head_chunk_size = block_size * embedding_size;
+
+    size_t num_rotated_blocks = rotated_block_indices.size(0);
+    int32_t* rotated_block_indices_data = rotated_block_indices.ptr<int32_t>();
+    size_t block_chunk_size = block_size * embedding_size;
+
 
     for (size_t i = 0; i < num_rotated_blocks; i++) {
         size_t rotated_block_index = *(rotated_block_indices_data + i);
         OPENVINO_ASSERT(rotated_block_index < num_blocks_in_total);
-        float* rotation_coefficient_block_data = rotation_coefficients.ptr<float>() + i * head_chunk_size;
+        float* rotation_coefficient_block_data = rotation_coefficients.ptr<float>() + i * block_chunk_size;
         KVCACHE_TYPE* cache_block_ptr = key_cache.ptr<KVCACHE_TYPE>(rotated_block_index);
         rotate_kv_cache_block(cache_block_ptr, rotation_coefficient_block_data, num_heads, block_size, embedding_size);
     }
@@ -1914,9 +1916,6 @@ struct MHA {
         auto attn_work_count = _workitems.attn_work_size();
         auto reorder_work_count = _workitems.reorder_work_size();
 
-        if (rotation_coefficients) {
-            rotate_kv_cache<KVCACHE_TYPE>(k_cache, rotation_coefficients, rotated_block_indices);
-        }
 
         // buffer for transpose and repack
         _helper.init_reorder_buffers(_workitems.get_reorder_max_batch_size(),
@@ -2325,6 +2324,11 @@ struct AttentionExecutor : public PagedAttentionExecutor {
              rotated_block_indices,
              output_emb,
              output_score);
+
+        if (rotation_coefficients) {
+            rotate_kv_cache<KVCACHE_TYPE>(k_cache, rotation_coefficients, rotated_block_indices);
+        }
+
         concat_pastkv(k, v, k_cache, v_cache, past_lens, subsequence_begins, block_indices, block_indices_begins);
 
         _kernel(q,
