@@ -164,10 +164,6 @@ JitConstants ResampleKernelOnnx::GetJitConstants(const resample_params& params) 
 
     jit.AddConstant(MakeJitConstant("VEC_SIZE", vec_size));
 
-    if (params.outputs[0].Feature().v % sub_group_size != 0) {
-        jit.AddConstant(MakeJitConstant("NOT_ALIGNED_TO_FEATURE", 1));
-    }
-
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order;
         if (params.inputs[0].Dimentions() == 5)

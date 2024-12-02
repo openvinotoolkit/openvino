@@ -64,9 +64,6 @@ KERNEL (resample_onnx)(__global INPUT0_TYPE* input,
 
     const int in_size[5] = { INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_Z, INPUT0_SIZE_Y, INPUT0_SIZE_X };
 
-    if (feature_num >= OUTPUT_FEATURE_NUM)
-        return;
-
     const int PADDED_Y = INPUT0_SIZE_Y + PADS_BEGIN[3] + PADS_END[3];
     const int PADDED_X = INPUT0_SIZE_X + PADS_BEGIN[4] + PADS_END[4];
     const ACCUMULATOR_TYPE iy = FUNC_CALL(get_original_coordinate)(y, SCALES[3], OUTPUT_SIZE_Y, PADDED_Y);
@@ -155,11 +152,7 @@ KERNEL (resample_onnx)(__global INPUT0_TYPE* input,
         OUT_VEC_TYPE out = TO_OUT_VEC_TYPE(ACTIVATION(res, ACTIVATION_PARAMS));
 #endif // #if HAS_FUSED_OPS
 
-#if defined (NOT_ALIGNED_TO_FEATURE)
-        output[OUTPUT_GET_INDEX(b, feature_num, z, y, (x + out_x))] = out;
-#else
         WRITE_FUNC(output, OUTPUT_GET_INDEX(b, feature_block, z, y, (x + out_x)), out);
-#endif // #if defined(NOT_ALIGNED_TO_FEATURE)
     }
 #else // #if defined (THREE_SPATIAL_RESAMPLE)
 
@@ -224,19 +217,11 @@ KERNEL (resample_onnx)(__global INPUT0_TYPE* input,
         OUT_VEC_TYPE out = TO_OUT_VEC_TYPE(ACTIVATION(res, ACTIVATION_PARAMS));
 #endif
 
-#if defined (NOT_ALIGNED_TO_FEATURE)
-    #if OUTPUT_DIMS == 5
-        output[OUTPUT_GET_INDEX(b, feature_num, z, y, (x + out_x))] = out;
-    #else
-        output[OUTPUT_GET_INDEX(b, feature_num, y, (x + out_x))] = out;
-    #endif
-#else
-    #if OUTPUT_DIMS == 5
+#if OUTPUT_DIMS == 5
         WRITE_FUNC(output, OUTPUT_GET_INDEX(b, feature_block, z, y, (x + out_x)), out);
-    #else
+#else
         WRITE_FUNC(output, OUTPUT_GET_INDEX(b, feature_block, y, (x + out_x)), out);
-    #endif
-#endif // #if defined (NOT_ALIGNED_TO_FEATURE)
+#endif
     }
 #endif // #if defined (THREE_SPATIAL_RESAMPLE)
 }
