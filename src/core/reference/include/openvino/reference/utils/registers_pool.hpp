@@ -64,7 +64,13 @@ public:
         }
         void release() {
             if (auto pool = regPool.lock()) {
-                pool->return_to_pool(reg);
+                try {
+                    pool->return_to_pool(reg);
+                } catch (...) {
+                    // This function is called by destructor and should not throw. Well formed Reg object won't cause
+                    // any exception throw from return_to_pool, while on badly formed object the destructor is most
+                    // likely called during exception stack unwind.
+                }
                 regPool.reset();
             }
         }
@@ -91,7 +97,11 @@ public:
     };
 
     virtual ~RegistersPool() {
-        check_unique_and_update(false);
+        try {
+            check_unique_and_update(false);
+        } catch (...) {
+            // Ignore as check_unique_and_update() throws only in ctor mode.
+        }
     }
 
     template <ov::reference::jit::cpu_isa_t isa>
