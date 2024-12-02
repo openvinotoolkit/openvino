@@ -1,4 +1,4 @@
-Run LLMs with OpenVINO GenAI Flavor on NPU
+Inference with OpenVINO GenAI
 ==========================================
 
 .. meta::
