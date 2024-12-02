@@ -91,13 +91,7 @@ elseif(NOT TARGET arm_compute::arm_compute)
     # Options
     #
 
-    include(ProcessorCount)
-    ProcessorCount(NUM_PROC)
-    if(NOT NUM_PROC EQUAL 0)
-        set(ARM_COMPUTE_SCONS_JOBS ${NUM_PROC} CACHE STRING "Number of parallel threads to build ARM Compute Library")
-    else()
-        set(ARM_COMPUTE_SCONS_JOBS "8" CACHE STRING "Number of parallel threads to build ARM Compute Library")
-    endif()
+    set(ARM_COMPUTE_SCONS_JOBS "8" CACHE STRING "Number of parallel threads to build ARM Compute Library")
 
     #
     # Configure & build
