@@ -11,9 +11,16 @@ Inference with OpenVINO GenAI
    NPU inference of LLMs <genai-guide-npu>
 
 
-This article provides reference code and guidance on running generative AI models,
-using OpenVINO GenAI. Note that the base OpenVINO version will not work with these instructions,
-make sure to :doc:`install OpenVINO GenAI <../../get-started/install-openvino/install-openvino-genai>`.
+OpenVINO™ GenAI is a library of pipelines and methods, extending the OpenVINO runtime to work
+with generative AI models more efficiently. This article provides reference code and guidance
+on its usage. Note that the base OpenVINO version will not work with these instructions,
+make sure to :doc:`install OpenVINO with GenAI <../../get-started/install-openvino/install-openvino-genai>`.
+
+.. image:: ../../assets/images/genai_main_diagram.svg
+   :align: center
+   :width: 500
+   :alt: OpenVINO workflow diagram for convenience
+
 
 | Here is sample code for several Generative AI use case scenarios. Note that these are very basic
   examples and may need adjustments for your specific needs, like changing the inference device.
