@@ -1,4 +1,4 @@
-Run LLM Inference on Native OpenVINO (not recommended)
+Generative AI with Base OpenVINO (not recommended)
 ===============================================================================================
 
 To run Generative AI models using native OpenVINO APIs you need to follow regular

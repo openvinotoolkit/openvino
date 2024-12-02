@@ -64,7 +64,7 @@ implemented in your solutions. Click the buttons below to see the chosen benchma
          :outline:
          :expand:
 
-         :material-regular:`bar_chart;1.4em` OVMS for GenAI (coming soon)
+         :material-regular:`bar_chart;1.4em` OVMS for GenAI
 
 
 
@@ -163,7 +163,7 @@ For a listing of all platforms and configurations used for testing, refer to the
   2024.5, as of November 20, 2024.
 
 * OpenVINO Model Server performance results are based on release
-  2024.4, as of Sept. 30, 2024.
+  2024.5, as of November 20, 2024.
 
 The results may not reflect all publicly available updates. Intel technologies' features and
 benefits depend on system configuration and may require enabled hardware, software, or service
