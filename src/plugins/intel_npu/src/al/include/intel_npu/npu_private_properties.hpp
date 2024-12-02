@@ -352,13 +352,6 @@ static constexpr ov::Property<BatchMode> batch_mode{"NPU_BATCH_MODE"};
 static constexpr ov::Property<int64_t> create_executor{"NPU_CREATE_EXECUTOR"};
 
 /**
- * @brief [Only for NPU Plugin]
- * Type: boolean, default is false
- * This option allows to omit loading the weights until inference is created
- */
-static constexpr ov::Property<bool> defer_weights_load{"NPU_DEFER_WEIGHTS_LOAD"};
-
-/**
  * @brief Read-only property to get the name of used backend
  */
 static constexpr ov::Property<std::string, ov::PropertyMutability::RO> backend_name{"NPU_BACKEND_NAME"};
