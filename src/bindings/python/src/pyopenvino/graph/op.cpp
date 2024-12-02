@@ -20,7 +20,7 @@ void PyOp::validate_and_infer_types() {
     PYBIND11_OVERRIDE(void, ov::op::Op, validate_and_infer_types);
 }
 
-bool  PyOp::visit_attributes(ov::AttributeVisitor& value) {
+bool PyOp::visit_attributes(ov::AttributeVisitor& value) {
     py::gil_scoped_acquire gil;  // Acquire the GIL while in this scope.
     // Try to look up the overridden method on the Python side.
     py::function overrided_py_method = pybind11::get_override(this, "visit_attributes");
@@ -30,7 +30,7 @@ bool  PyOp::visit_attributes(ov::AttributeVisitor& value) {
     return false;
 }
 
-std::shared_ptr<ov::Node>  PyOp::clone_with_new_inputs(const ov::OutputVector& new_args) const {
+std::shared_ptr<ov::Node> PyOp::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     PYBIND11_OVERRIDE_PURE(std::shared_ptr<Node>, ov::op::Op, clone_with_new_inputs, new_args);
 }
 
@@ -38,11 +38,11 @@ const ov::op::Op::type_info_t& PyOp::get_type_info() const {
     PYBIND11_OVERRIDE(const ov::Node::type_info_t&, ov::op::Op, get_type_info);
 }
 
-bool  PyOp::evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const {
+bool PyOp::evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const {
     PYBIND11_OVERRIDE(bool, ov::op::Op, evaluate, output_values, input_values);
 }
 
-bool  PyOp::has_evaluate() const {
+bool PyOp::has_evaluate() const {
     PYBIND11_OVERRIDE(bool, ov::op::Op, has_evaluate);
 }
 
