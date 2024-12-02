@@ -23,7 +23,7 @@ enum class BRGEMM_TYPE {
 
 dnnl::impl::cpu::x64::cpu_isa_t get_primitive_isa(const ov::element::Type& dt_in0, bool is_with_amx);
 
-BRGEMM_TYPE get_brgemm_type(const element::Type& element_type_a, const Dimension& K_dim, bool transpose_b);
+BRGEMM_TYPE get_brgemm_type(const element::Type& element_type_a, bool transpose_b);
 
 inline bool stand_alone(BRGEMM_TYPE type) { return type == BRGEMM_TYPE::STAND_ALONE; }
 
@@ -45,6 +45,8 @@ size_t get_elems_in_vec(const ov::element::Type& precision);
 namespace repacking {
 /// \brief  Computes inner N block size used by OneDNN implementation. Depends on tensor precision
 size_t compute_inner_n_block(const ov::element::Type& precision);
+/// \brief  Computes inner K block size used by OneDNN implementation. Depends on tensor precision
+size_t compute_inner_k_block(const ov::element::Type& precision);
 /**
  * @brief Computes leading dimension (LDB) which must be used in brgemm and brgemm_copy_b emitters
  * @param n_block N block size shared between BrgemmCPU and BrgemmCopyB node

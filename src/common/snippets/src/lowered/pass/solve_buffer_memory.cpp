@@ -102,9 +102,8 @@ std::vector<ov::MemorySolver::Box> SolveBufferMemory::init_boxes(const Buffers& 
     boxes.reserve(map_boxes.size());
     for (auto& p : map_boxes) {
         auto& box = p.second;
-        // We use data alignment to put data in the line cache
-        // TODO [143395] : Please check if alignment is really needed here
-        box.size = utils::div_up(box.size, m_alignment);
+        // Align with cache line size. The experiments show that it affects performance.
+        box.size = utils::div_up(box.size, byte_alignment);
 
         boxes.push_back(box);
     }
@@ -116,12 +115,12 @@ void SolveBufferMemory::solve_static_buffer_memory(const Buffers& static_buffer_
     const auto boxes = init_boxes(static_buffer_expressions, linear_ir);
 
     ov::MemorySolver memSolver(boxes);
-    m_static_buffer_scratchpad_size = static_cast<size_t>(memSolver.solve()) * m_alignment;  // alignment in byte
+    m_static_buffer_scratchpad_size = static_cast<size_t>(memSolver.solve()) * byte_alignment;  // alignment in byte
 
     // Set offsets for Buffers
     for (const auto& buffer_expr : static_buffer_expressions) {
         const auto offset = static_cast<size_t>(memSolver.get_offset(static_cast<int>(buffer_expr->get_cluster_id())));
-        buffer_expr->set_offset(offset * m_alignment);  // alignment in byte
+        buffer_expr->set_offset(offset * byte_alignment);  // alignment in byte
     }
 }
 
