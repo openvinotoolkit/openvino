@@ -687,6 +687,7 @@ def test_patched_16bit_model_converts():
     from openvino.frontend.pytorch import patch_model
     from openvino import convert_model, compile_model
     import copy
+    import inspect
     from transformers.pytorch_utils import Conv1D
 
     class ModelWithLinear(torch.nn.Module):
@@ -716,6 +717,9 @@ def test_patched_16bit_model_converts():
     model_fp16 = copy.deepcopy(model_ref).half()
 
     patch_model.__make_16bit_traceable(model_fp16)
+    # verify torch.nn.Linear signature after patching
+    signature = inspect.signature(model_ref.branch1[0].forward).parameters
+    assert ["input"] == list(signature)
     # the approach with patching only works for node with no grad
     with torch.no_grad():
         converted_model = convert_model(model_fp16, example_input=example)

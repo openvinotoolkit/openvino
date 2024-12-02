@@ -14,7 +14,7 @@ concurrency:
 
 env:
   TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
-  PIP_CACHE_PATH: /mount/caches/pip/win
+  PIP_CACHE_PATH: "C:\\mount\\caches\\pip\\win"
   PYTHON_VERSION: '3.11'
 
 permissions: read-all
@@ -287,7 +287,7 @@ jobs:
         with:
           version: ${{ env.PYTHON_VERSION }}
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'false'
+          should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
 
       - name: Install OpenVINO Python wheels
