@@ -84,21 +84,36 @@ bool Any::Base::is_base_type_info(const std::type_info& user_type) const {
 }
 
 bool Any::Base::is_signed_integral() const {
-    return contains_type_index(std::initializer_list<std::type_index>{typeid(char),
-                                                                      typeid(signed char),
-                                                                      typeid(short),
-                                                                      typeid(int),
-                                                                      typeid(long),
-                                                                      typeid(long long)},
-                               type_info());
+    return std::is_signed<char>::value ? contains_type_index(std::initializer_list<std::type_index>{typeid(char),
+                                                                                                    typeid(signed char),
+                                                                                                    typeid(short),
+                                                                                                    typeid(int),
+                                                                                                    typeid(long),
+                                                                                                    typeid(long long)},
+                                                             type_info())
+                                       : contains_type_index(std::initializer_list<std::type_index>{typeid(signed char),
+                                                                                                    typeid(short),
+                                                                                                    typeid(int),
+                                                                                                    typeid(long),
+                                                                                                    typeid(long long)},
+                                                             type_info());
 }
+
 bool Any::Base::is_unsigned_integral() const {
-    return contains_type_index(std::initializer_list<std::type_index>{typeid(unsigned char),
-                                                                      typeid(unsigned short),
-                                                                      typeid(unsigned int),
-                                                                      typeid(unsigned long),
-                                                                      typeid(unsigned long long)},
-                               type_info());
+    return std::is_signed<char>::value
+               ? contains_type_index(std::initializer_list<std::type_index>{typeid(unsigned char),
+                                                                            typeid(unsigned short),
+                                                                            typeid(unsigned int),
+                                                                            typeid(unsigned long),
+                                                                            typeid(unsigned long long)},
+                                     type_info())
+               : contains_type_index(std::initializer_list<std::type_index>{typeid(char),
+                                                                            typeid(unsigned char),
+                                                                            typeid(unsigned short),
+                                                                            typeid(unsigned int),
+                                                                            typeid(unsigned long),
+                                                                            typeid(unsigned long long)},
+                                     type_info());
 }
 bool Any::Base::is_floating_point() const {
     return contains_type_index(
@@ -344,17 +359,25 @@ U Any::Base::convert_impl() const {
 
 template <>
 long long Any::Base::convert<long long>() const {
-    return convert_impl<long long, char, signed char, short, int, long, long long>();
+    return std::is_signed<char>::value ? convert_impl<long long, char, signed char, short, int, long, long long>()
+                                       : convert_impl<long long, signed char, short, int, long, long long>();
 }
 
 template <>
 unsigned long long Any::Base::convert<unsigned long long int>() const {
-    return convert_impl<unsigned long long,
-                        unsigned char,
-                        unsigned short,
-                        unsigned int,
-                        unsigned long,
-                        unsigned long long>();
+    return std::is_signed<char>::value ? convert_impl<unsigned long long,
+                                                      unsigned char,
+                                                      unsigned short,
+                                                      unsigned int,
+                                                      unsigned long,
+                                                      unsigned long long>()
+                                       : convert_impl<unsigned long long,
+                                                      char,
+                                                      unsigned char,
+                                                      unsigned short,
+                                                      unsigned int,
+                                                      unsigned long,
+                                                      unsigned long long>();
 }
 
 template <>
