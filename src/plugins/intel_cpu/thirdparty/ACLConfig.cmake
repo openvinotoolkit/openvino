@@ -93,7 +93,7 @@ elseif(NOT TARGET arm_compute::arm_compute)
 
     include(ProcessorCount)
     ProcessorCount(NUM_PROC)
-    if(NUM_PROC GREATER 1)
+    if(NOT NUM_PROC EQUAL 0)
         set(ARM_COMPUTE_SCONS_JOBS ${NUM_PROC} CACHE STRING "Number of parallel threads to build ARM Compute Library")
     else()
         set(ARM_COMPUTE_SCONS_JOBS "8" CACHE STRING "Number of parallel threads to build ARM Compute Library")
