@@ -4,6 +4,7 @@
 #include <iostream>
 #include <cstdint>
 #include <arm_neon.h> // For SIMD support
+#include "openvino/util/ov_string_utils.hpp" // For ov::util::join
 
 class RegPrints {
 public:
@@ -17,8 +18,7 @@ public:
         float values[4];
         vst1q_f32(values, reg_value); // Store SIMD register into an array
         std::cout << "SIMD Register " << reg_name << ": ["
-                  << values[0] << ", " << values[1] << ", "
-                  << values[2] << ", " << values[3] << "]" << std::endl;
+                  << ov::util::join(values, values + 4, ", ") << "]" << std::endl;
     }
 };
 
