@@ -1,0 +1,38 @@
+name: GitHub Actions Workflows Scans
+on:
+  workflow_dispatch: {}
+  push:
+    paths:
+      - '.github/workflows/**'
+    branches:
+      - 'master'
+      - 'releases/**'
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: read-all
+
+jobs:
+  semgrep:
+    name: github_actions_workflows_scan/semgrep
+    runs-on: ubuntu-latest
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+
+    container:
+      image: semgrep/semgrep
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          submodules: 'false'
+          sparse-checkout: .github/workflows
+
+      - name: Semgrep scan
+        run: |
+          semgrep scan --error -j 8 --config "p/github-actions" .github/workflows/*
