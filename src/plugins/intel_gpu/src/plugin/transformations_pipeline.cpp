@@ -951,6 +951,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 });
 
             manager.register_pass<ov::pass::activations_scaling::ScaleDownSingleLayer>(activations_scale_factor, scaled_precision);
+            manager.register_pass<ov::pass::activations_scaling::ScaleDownFusion>(activations_scale_factor);
             auto params = LayerTransformation::Params(false, scaled_precision, {scaled_precision}, true);
             auto lpt_pass = manager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization, params);
             lpt_pass->add_main<ov::pass::activations_scaling::MulGroupNormTransformation>();

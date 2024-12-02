@@ -16,8 +16,21 @@ class TRANSFORMATIONS_API ActivationsScaling;
 
 namespace activations_scaling {
 
+TRANSFORMATIONS_API void mark_as_scale_down_node(const std::shared_ptr<Node>& node);
+
+TRANSFORMATIONS_API bool is_scale_down_node(const std::shared_ptr<const Node>& node);
+
+class TRANSFORMATIONS_API ScaleDownNode : public RuntimeAttribute {
+public:
+    OPENVINO_RTTI("scale_down_node", "0");
+
+    bool is_copyable() const override {
+        return false;
+    }
+};
+
 class TRANSFORMATIONS_API ScaleDownSingleLayer;
-class TRANSFORMATIONS_API ScaleDownMultipleLayers;
+class TRANSFORMATIONS_API ScaleDownFusion;
 class TRANSFORMATIONS_API MulGroupNormTransformation;
 class TRANSFORMATIONS_API MulMulAddTransformation;
 class TRANSFORMATIONS_API SplitTransformation;
@@ -52,10 +65,10 @@ public:
     ScaleDownSingleLayer(float scale_factor, ov::element::Type scaled_prec);
 };
 
-class ov::pass::activations_scaling::ScaleDownMultipleLayers : public ov::pass::MatcherPass {
+class ov::pass::activations_scaling::ScaleDownFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ScaleDownMultipleLayers", "0");
-    ScaleDownMultipleLayers(float scale_factor);
+    OPENVINO_RTTI("ScaleDownFusion", "0");
+    ScaleDownFusion(float scale_factor);
 };
 
 class ov::pass::activations_scaling::MulGroupNormTransformation : public ov::pass::MatcherPass {

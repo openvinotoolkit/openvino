@@ -46,6 +46,16 @@ const auto is_non_const_node = [](const ov::Output<ov::Node>& output) -> bool {
 };
 }  // namespace
 
+void ov::pass::activations_scaling::mark_as_scale_down_node(const std::shared_ptr<Node>& node) {
+    auto& rt_info = node->get_rt_info();
+    rt_info[ScaleDownNode::get_type_info_static()] = ScaleDownNode();
+}
+
+bool ov::pass::activations_scaling::is_scale_down_node(const std::shared_ptr<const Node>& node) {
+    const auto& rt_info = node->get_rt_info();
+    return rt_info.find(ScaleDownNode::get_type_info_static()) != rt_info.end();
+}
+
 using namespace ov::pass::activations_scaling;
 using namespace ov::pass::pattern;
 using ov::pass::pattern::op::Or;
@@ -57,25 +67,10 @@ using ov::pass::pattern::op::Or;
 ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float scale_factor, ov::element::Type scaled_prec) {
     MATCHER_SCOPE(ScaleDownSingleLayer);
 
-    auto are_not_mutiple_matmuls_connected = [](const Output<Node>& output) {
-        auto matmul = std::dynamic_pointer_cast<ov::op::v0::MatMul>(output.get_node_shared_ptr());
-        auto input = matmul->get_input_node_shared_ptr(0);
-        if (input->get_output_size() > 1)
-            return true;
-        size_t user_matmul_count = 0;
-        for (const auto& u : input->get_users()) {
-            auto matmul_user = std::dynamic_pointer_cast<ov::op::v0::MatMul>(u);
-            if (!matmul_user)
-                continue;
-            user_matmul_count++;
-        }
-        return user_matmul_count == 1;
-    };
-
     auto activation_m = any_input();
     auto weights_m = any_input();
     auto convolution_m = wrap_type<ov::op::v1::Convolution>({activation_m, weights_m});
-    auto matmul_m = wrap_type<ov::op::v0::MatMul>({activation_m, weights_m});//, are_not_mutiple_matmuls_connected);
+    auto matmul_m = wrap_type<ov::op::v0::MatMul>({activation_m, weights_m});
     auto scaled_op_m = std::make_shared<Or>(OutputVector{convolution_m, matmul_m});
 
     ov::Shape scale_const_shape = {1};
@@ -125,6 +120,7 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
             (scaled_op->input(0).get_element_type() == ov::element::f32) ? scale_down_const_f32 : scale_down_const_f16);
         scale_down->set_friendly_name(scaled_op->get_friendly_name() + "_scale_down");
         ov::copy_runtime_info(scaled_op, scale_down);
+        mark_as_scale_down_node(scale_down);
 
         if (scale_down->output(0).get_element_type() != scaled_prec && !keep_precision) {
             auto convert_prec0 = std::make_shared<ov::op::v0::Convert>(scale_down->output(0), scaled_prec);
@@ -203,106 +199,69 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
     this->register_matcher(m, callback);
 }
 
-//                                           scale_down
-//                                                |
-//           input           ==>                input
-//          /     \                            /     \_
-//    MatMul_a   MatMul_b                MatMul_a   MatMul_b
-//                                          |          |
-//                                       scale_up   scale_up
-ov::pass::activations_scaling::ScaleDownMultipleLayers::ScaleDownMultipleLayers(float scale_factor) {
-    MATCHER_SCOPE(ScaleDownMultipleLayers);
+//               input                      Mul_c
+//               /   \           ==>          |
+//           Mul_a   Mul_b                  input
+ov::pass::activations_scaling::ScaleDownFusion::ScaleDownFusion(float scale_factor) {
+    MATCHER_SCOPE(ScaleDownFusion);
 
-    auto are_mutiple_matmuls_connected = [](const Output<Node>& output) {
-        auto matmul = std::dynamic_pointer_cast<ov::op::v0::MatMul>(output.get_node_shared_ptr());
-        auto input = matmul->get_input_node_shared_ptr(0);
-        if (input->get_output_size() > 1)
-            return false;
-        size_t user_matmul_count = 0;
-        for (const auto& u : input->get_users()) {
-            auto matmul_user = std::dynamic_pointer_cast<ov::op::v0::MatMul>(u);
-            if (!matmul_user)
-                continue;
-            user_matmul_count++;
-        }
-        return !ov::is_type<ov::op::v1::Multiply>(input) && input->get_users().size() > 1 &&
-               input->get_users().size() == user_matmul_count;
+    const auto is_scale_down_mul = [](const ov::Output<ov::Node>& output) -> bool {
+        return is_scale_down_node(output.get_node_shared_ptr());
     };
 
     auto activation_m = any_input();
-    auto weights_m = any_input();
-    auto scaled_op_m = wrap_type<ov::op::v0::MatMul>({activation_m, weights_m}, are_mutiple_matmuls_connected);
-
-    ov::Shape scale_const_shape = {1};
-    std::vector<float> scale_down_value = {1.f / scale_factor};
-    std::shared_ptr<ov::Node> scale_down_const_f16 =
-        std::make_shared<ov::op::v0::Constant>(ov::element::f16, scale_const_shape, scale_down_value);
-    std::shared_ptr<ov::Node> scale_down_const_f32 =
-        std::make_shared<ov::op::v0::Constant>(ov::element::f32, scale_const_shape, scale_down_value);
-    std::vector<float> scale_up_value = {scale_factor};
-    std::shared_ptr<ov::Node> scale_up_const_f16 =
-        std::make_shared<ov::op::v0::Constant>(ov::element::f16, scale_const_shape, scale_up_value);
-    std::shared_ptr<ov::Node> scale_up_const_f32 =
-        std::make_shared<ov::op::v0::Constant>(ov::element::f32, scale_const_shape, scale_up_value);
+    auto scale_const_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(is_scalar_node);
+    auto mul_m = wrap_type<ov::op::v1::Multiply>({activation_m, scale_const_m}, is_scale_down_mul);
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        auto scaled_op =
-            std::dynamic_pointer_cast<ov::op::v0::MatMul>(pattern_map.at(scaled_op_m).get_node_shared_ptr());
-        if (!scaled_op || transformation_callback(scaled_op))
+        auto mul = std::dynamic_pointer_cast<ov::op::v1::Multiply>(pattern_map.at(mul_m).get_node_shared_ptr());
+        auto parent = mul->get_input_node_shared_ptr(0);
+        if (parent->get_output_size() > 1)
             return false;
 
-        auto input_node = scaled_op->input(0).get_source_output();
-        auto scale_down = std::make_shared<ov::op::v1::Multiply>(
-            input_node,
-            (input_node.get_element_type() == ov::element::f32) ? scale_down_const_f32 : scale_down_const_f16);
-        scale_down->set_friendly_name(scaled_op->get_friendly_name() + "_scale_down");
-        ov::copy_runtime_info(scaled_op, scale_down);
+        auto children = parent->get_users();
+        size_t num_scaled_down_nodes = 0;
+        for (const auto& child : children) {
+            if (!is_scale_down_node(child))
+                return false;
+            num_scaled_down_nodes += 1;
+        }
 
-        for (const auto& u : input_node.get_target_inputs()) {
-            auto matmul_user = std::dynamic_pointer_cast<ov::op::v0::MatMul>(u.get_node()->shared_from_this());
-            if (matmul_user) {
-                matmul_user->input(0).replace_source_output(scale_down);
-                auto child = matmul_user->get_output_target_inputs(0).begin()->get_node();
-                if (matmul_user->get_output_target_inputs(0).size() == 1 && ov::is_type<ov::op::v1::Add>(child)) {
-                    auto add = child->shared_from_this();
-                    auto target_inputs = add->get_output_target_inputs(0);
-                    auto scale_down_bias = std::make_shared<ov::op::v1::Multiply>(
-                        add->input(1).get_source_output(),
-                        (add->input(1).get_element_type() == ov::element::f32) ? scale_down_const_f32
-                                                                               : scale_down_const_f16);
-                    scale_down_bias->set_friendly_name(add->get_friendly_name() + "_scale_down");
-                    ov::copy_runtime_info(add, scale_down_bias);
-                    add->input(1).replace_source_output(scale_down_bias->output(0));
+        if (num_scaled_down_nodes < 2)
+            return false;
 
-                    auto scale_up = register_new_node<ov::op::v1::Multiply>(
-                        add->output(0),
-                        (add->output(0).get_element_type() == ov::element::f32) ? scale_up_const_f32
-                                                                                : scale_up_const_f16);
-                    scale_up->set_friendly_name(matmul_user->get_friendly_name() + "_scale_up");
-                    ov::copy_runtime_info(matmul_user, scale_up);
-                    for (auto& in : target_inputs) {
-                        in.replace_source_output(scale_up);
-                    }
-                } else {
-                    auto target_inputs = matmul_user->get_output_target_inputs(0);
-                    auto scale_up = register_new_node<ov::op::v1::Multiply>(
-                        matmul_user->output(0),
-                        (matmul_user->output(0).get_element_type() == ov::element::f32) ? scale_up_const_f32
-                                                                                        : scale_up_const_f16);
-                    scale_up->set_friendly_name(matmul_user->get_friendly_name() + "_scale_up");
-                    ov::copy_runtime_info(matmul_user, scale_up);
-                    for (auto& in : target_inputs) {
-                        in.replace_source_output(scale_up);
-                    }
-                }
+        if (transformation_callback(mul))
+            return false;
+
+        if (!ov::is_type<ov::op::v0::Convert>(parent) &&
+            !ov::is_type<ov::op::v1::Divide>(parent) &&
+            !ov::is_type<ov::op::v1::Multiply>(parent) &&
+            !ov::is_type<ov::op::v1::Reshape>(parent)) {
+            return false;
+        }
+
+        ov::Shape scale_const_shape = {1};
+        std::vector<float> scale_down_value = {1.f / scale_factor};
+        std::shared_ptr<ov::Node> scale_down_const =
+            std::make_shared<ov::op::v0::Constant>(parent->input(0).get_element_type(), scale_const_shape, scale_down_value);
+
+        auto new_scale_down = std::make_shared<ov::op::v1::Multiply>(parent->input(0).get_source_output(), scale_down_const);
+        new_scale_down->set_friendly_name(parent->get_friendly_name() + "_scale_down");
+        ov::copy_runtime_info(parent, new_scale_down);
+        parent->input(0).replace_source_output(new_scale_down->output(0));
+
+        for (const auto& child : children) {
+            for (auto& target : child->get_output_target_inputs(0)) {
+                target.replace_source_output(parent->output(0));
             }
         }
+
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(scaled_op_m, "ScaleDownMultipleLayers");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(mul_m, "ScaleDownFusion");
     this->register_matcher(m, callback);
 }
 
@@ -780,7 +739,7 @@ bool ov::pass::ActivationsScaling::run_on_model(const std::shared_ptr<ov::Model>
     manager.set_per_pass_validation(false);
 
     manager.register_pass<ScaleDownSingleLayer>(m_scale_factor, m_scaled_prec);
-    manager.register_pass<ScaleDownMultipleLayers>(m_scale_factor);
+    manager.register_pass<ScaleDownFusion>(m_scale_factor);
     manager.register_pass<MultiplyMultiplyFusion>();
     manager.register_pass<MulGroupNormTransformation>();
     manager.register_pass<MultiplyMultiplyFusion>();
