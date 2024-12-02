@@ -3,7 +3,6 @@
 //
 
 #include "broadcast_inst.h"
-#include "reorder_inst.h"
 #include "shape_of_inst.h"
 #include "read_value_inst.h"
 #include "reshape_inst.h"
@@ -28,8 +27,8 @@ void mark_shape_of_subgraphs::look_for_shape_of_subgraph(program_node& node) {
     bool has_shape_of_subgraph_dep = false;
     for (auto& dependency : node.get_dependencies()) {
         if (dependency.first->is_in_shape_of_subgraph()) {
-            // skip mark_node for reorder node if dependency node is broadcast
-            if (dependency.first->is_type<broadcast>() && node.is_type<reorder>()) {
+            // skip mark_node for broadcast node if dependency node is shape_of
+            if (dependency.first->is_type<shape_of>() && node.is_type<broadcast>()) {
                 break;
             }
             has_shape_of_subgraph_dep = true;
