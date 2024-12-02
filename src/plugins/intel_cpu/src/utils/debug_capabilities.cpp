@@ -151,12 +151,6 @@ std::ostream & operator<<(std::ostream & os, const NodeDesc& desc) {
     return os;
 }
 
-std::ostream & operator<<(std::ostream & os, const Edge& edge) {
-    os << edge.getParent()->getName() << "[" << edge.getInputNum() << "]->"
-       << edge.getChild()->getName() << "[" << edge.getOutputNum() << "]";
-    return os;
-}
-
 std::ostream & operator<<(std::ostream & os, const Node &c_node) {
     Node & node = const_cast<Node &>(c_node);
     const int align_col = 50;

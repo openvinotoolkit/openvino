@@ -17,7 +17,7 @@ PluginGraph::PluginGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
                          NetworkMetadata metadata,
                          std::vector<uint8_t> blob,
                          const Config& config)
-    : IGraph(graphHandle, std::move(metadata), std::optional<std::vector<uint8_t>>(std::move(blob))),
+    : IGraph(graphHandle, std::move(metadata), config, std::optional<std::vector<uint8_t>>(std::move(blob))),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
       _compiler(compiler),
@@ -114,6 +114,16 @@ void PluginGraph::initialize(const Config& config) {
     }
 
     _zeGraphExt->initializeGraph(_handle, config);
+
+    if (config.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER) {
+        _batch_size = get_batch_size(_metadata);
+    }
+
+    if (config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        auto number_of_command_lists = _batch_size.has_value() ? *_batch_size : 1;
+
+        _last_submitted_event.resize(number_of_command_lists);
+    }
 
     _logger.debug("Graph initialize finish");
 }
