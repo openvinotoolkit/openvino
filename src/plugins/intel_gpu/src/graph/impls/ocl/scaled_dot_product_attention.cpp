@@ -196,7 +196,7 @@ protected:
 
         const auto& query_layout = in_q_dep->get_impl_params()->get_output_layout(0);
 
-        auto get_reordered_dimension = [](const ov::PartialShape& pshape, const std::vector<int64_t>& order, size_t idx) -> ov::Dimension {
+        auto get_reordered_dimension = [](const ov::PartialShape& pshape, const std::vector<int64_t>& order, size_t idx) -> const ov::Dimension& {
             if (order.empty())
                 return pshape[idx];
 
