@@ -61,7 +61,6 @@ OP_CONVERTER(translate_clamp);
 OP_CONVERTER(translate_col2im);
 OP_CONVERTER(translate_constant);
 OP_CONVERTER(translate_conv_transposend);
-OP_CONVERTER(translate_conv1d_ext);
 OP_CONVERTER(translate_convnd);
 OP_CONVERTER(translate_convolution);
 OP_CONVERTER(translate_convolution_mode);
@@ -77,7 +76,6 @@ OP_CONVERTER(translate_dot);
 OP_CONVERTER(translate_elu);
 OP_CONVERTER(translate_embedding);
 OP_CONVERTER(translate_embedding_bag);
-OP_CONVERTER(translate_embedding_ext);
 OP_CONVERTER(translate_empty);
 OP_CONVERTER(translate_empty_like);
 OP_CONVERTER(translate_erf);
@@ -325,6 +323,10 @@ OP_CONVERTER(translate_unbind_int_fx);
 OP_CONVERTER(translate_unique2);
 OP_CONVERTER(translate_zeros_fx);
 OP_CONVERTER(translate_zeros_like_fx);
+// Extensions
+OP_CONVERTER(translate_conv1d_ext);
+OP_CONVERTER(translate_embedding_ext);
+OP_CONVERTER(translate_linear_awq);
 
 }  // namespace op
 
@@ -699,6 +701,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::zero", op::translate_zeros_like},
         {"aten::zeros", op::translate_zeros},
         {"aten::zeros_like", op::translate_zeros_like},
+        {"ov_ext::awq_gemm", op::translate_linear_awq},
         {"ov_ext::embedding", op::translate_embedding_ext},
         {"ov_ext::conv1d", op::translate_conv1d_ext},
         {"ov_ext::linear", op::translate_linear},

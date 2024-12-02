@@ -42,7 +42,11 @@ using namespace ov::op;
 
 void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs) {
     auto num_inputs = context.get_input_size();
-    FRONT_END_OP_CONVERSION_CHECK(num_inputs >= min_inputs, "Got less inputs than expected");
+    FRONT_END_OP_CONVERSION_CHECK(num_inputs >= min_inputs,
+                                  "Got less inputs ",
+                                  num_inputs,
+                                  " than expected ",
+                                  min_inputs);
     for (auto i = max_inputs; i < num_inputs; i++) {
         FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(i), "Got more inputs than expected.");
     }
