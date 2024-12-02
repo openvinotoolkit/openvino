@@ -270,4 +270,22 @@ struct BYPASS_UMD_CACHING final : OptionBase<BYPASS_UMD_CACHING, bool> {
         return OptionMode::RunTime;
     }
 };
+
+//
+// RUN_INFERENCES_SEQUENTIALLY
+//
+struct RUN_INFERENCES_SEQUENTIALLY final : OptionBase<RUN_INFERENCES_SEQUENTIALLY, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::run_inferences_sequentially.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+};
+
 }  // namespace intel_npu

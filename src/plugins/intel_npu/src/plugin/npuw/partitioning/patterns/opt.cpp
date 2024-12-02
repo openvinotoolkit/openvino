@@ -20,6 +20,14 @@ namespace opt {
 
 void Context::permute(PPtr orig_param, const Context::Axes& order) {
     closures_to_permute[orig_param] = order;
+
+    const auto& orig_shape = orig_param->get_shape();
+    ov::Shape tw_shape;
+    for (const auto& axis : order) {
+        tw_shape.push_back(orig_shape[axis]);
+    }
+    orig_param->set_partial_shape(tw_shape);
+    orig_param->validate_and_infer_types();
 }
 
 void Context::to_f16(PPtr orig_param) {
@@ -126,7 +134,7 @@ namespace uat = ov::npuw::util::at;
 //     Param/Const(S) -> (Reshape) -> (to(f32)) -> Reshape -->
 //
 
-DQMatMulCWi::DQMatMulCWi() {
+DQMatMulCWi::DQMatMulCWi(Context::Ref ctx) {
     auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
     auto qcoeff = opp::any_input();
     auto reshapew = opp::optional<ov::op::v1::Reshape>({qweight, opp::any_input()});
@@ -158,8 +166,16 @@ DQMatMulCWi::DQMatMulCWi() {
             auto matched_node_cvtw = node_to_output.at(qcvtw).get_node_shared_ptr();
             auto matched_node_muls = node_to_output.at(qmuls).get_node_shared_ptr();
             auto matched_node_mmi = node_to_output.at(qmmi).get_node_shared_ptr();
-            auto matched_node_qcoeff_out = uat::_(node_to_output).at_or_at_or_at(qcvtc, reshapec, qcoeff);
-            auto matched_node_muls_out = uat::_(node_to_output).at_or_at(qcvtm, qmuls);
+            auto& matched_node_qcoeff_out = uat::_(node_to_output).at_or_at_or_at(qcvtc, reshapec, qcoeff);
+            auto& matched_node_muls_out = uat::_(node_to_output).at_or_at(qcvtm, qmuls);
+
+            if (!ctx.get().mm_dq_full) {
+                const auto& matm_mul_out_shape = matched_matmul->get_output_shape(0);
+                const auto& matm_mul_in_shape = matched_matmul->get_input_shape(1);
+                NPUW_ASSERT(matm_mul_out_shape.back() == matm_mul_in_shape.front());
+                NPUW_ASSERT(matched_matmul->get_transpose_b());
+                return false;  // root hasn't changed
+            }
 
             // Reconnect MatMul to read from Convert(W) directly.
             // Note: ACT has to be converted too.
@@ -238,7 +254,9 @@ DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
 
         auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
         auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
+        auto matched_node_qmuls = node_to_output.at(qmuls).get_node_shared_ptr();
         auto matched_node_matmul = node_to_output.at(qmm).get_node_shared_ptr();
+        auto matched_node_qreshp = node_to_output.at(qreshp).get_node_shared_ptr();
         auto matched_out_mmi = node_to_output.at(qmmi);
 
         auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
@@ -255,10 +273,36 @@ DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
             act_shape.size() == 3 && act_shape[1] == 1 &&  // single-token case
             qcoeff_shape[0] == qweight_shape[0] && qcoeff_shape[1] == 1 && qcoeff_shape[2] == qweight_shape[2] &&
             !matched_matmul->get_transpose_a() && !matched_matmul->get_transpose_b()) {
+            if (!ctx.get().mm_dq_full) {
+                // Transpose weight and coeff
+                ctx.get().permute(matched_qweight, {0, 2, 1});
+                ctx.get().permute(matched_qcoeff, {0, 2, 1});
+
+                // Add Transpose and insert it
+                std::vector<std::size_t> new_transpose_order = {1, 0, 2};
+                auto new_transpose_order_c =
+                    std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, new_transpose_order);
+                auto new_transpose = std::make_shared<ov::op::v1::Transpose>(matched_node_qmuls, new_transpose_order_c);
+                matched_node_qreshp->input(0).replace_source_output(new_transpose);
+                matched_node_qreshp->validate_and_infer_types();
+
+                // Change Reshape's shape
+                std::vector<std::size_t> transposed_shape = {qweight_shape[2], qweight_shape[0] * qweight_shape[1]};
+                auto transposed_shape_c =
+                    std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{2}, transposed_shape);
+                matched_node_qreshp->input(1).replace_source_output(transposed_shape_c);
+                matched_node_qreshp->validate_and_infer_types();
+
+                matched_matmul->set_transpose_b(true);
+                matched_matmul->validate_and_infer_types();
+
+                const auto& matm_mul_out_shape = matched_matmul->get_output_shape(0);
+                const auto& matm_mul_in_shape = matched_matmul->get_input_shape(1);
+                NPUW_ASSERT(matm_mul_out_shape.back() == matm_mul_in_shape.front());
+                return false;  // root hasn't changed
+            }
+
             // Mark W closure to transpose, and transpose the respective parameter
-            ov::Shape tw_shape = {qweight_shape[0], qweight_shape[2], qweight_shape[1]};
-            matched_qweight->set_partial_shape(tw_shape);
-            matched_qweight->validate_and_infer_types();
             ctx.get().permute(matched_qweight, {0, 2, 1});
 
             // Mark S closure to be lowered fo f16
@@ -353,7 +397,9 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
 
         auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
         auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
+        auto matched_node_qmuls = node_to_output.at(qmuls).get_node_shared_ptr();
         auto matched_node_matmul = node_to_output.at(qmm).get_node_shared_ptr();
+        auto matched_node_qreshp = node_to_output.at(qreshp).get_node_shared_ptr();
         auto matched_out_mmi = node_to_output.at(qmmi);
 
         auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
@@ -370,19 +416,32 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
             act_shape.size() == 3 && act_shape[0] == 1 && act_shape[1] == 1 && qcoeff_shape[0] == qweight_shape[0] &&
             qcoeff_shape[2] == 1 && qcoeff_shape[1] == qweight_shape[1] && !matched_matmul->get_transpose_a() &&
             matched_matmul->get_transpose_b()) {
+            if (!ctx.get().mm_dq_full) {
+                // Transpose weight and coeff
+                ctx.get().permute(matched_qweight, {1, 0, 2});
+                ctx.get().permute(matched_qcoeff, {1, 0, 2});
+
+                // Add Transpose and insert it
+                std::vector<std::size_t> new_transpose_order = {1, 0, 2};
+                auto new_transpose_order_c =
+                    std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, new_transpose_order);
+                auto new_transpose = std::make_shared<ov::op::v1::Transpose>(matched_node_qmuls, new_transpose_order_c);
+                matched_node_qreshp->input(0).replace_source_output(new_transpose);
+                matched_node_qreshp->validate_and_infer_types();
+                matched_matmul->validate_and_infer_types();
+
+                const auto& matm_mul_out_shape = matched_matmul->get_output_shape(0);
+                const auto& matm_mul_in_shape = matched_matmul->get_input_shape(1);
+                NPUW_ASSERT(matm_mul_out_shape.back() == matm_mul_in_shape.front());
+                NPUW_ASSERT(matched_matmul->get_transpose_b());
+                return false;  // root hasn't changed
+            }
+
             // Mark W closure to transpose, and transpose the respective parameter
             ctx.get().permute(matched_qweight, {1, 0, 2});
 
-            ov::Shape tw_shape = {qweight_shape[1], qweight_shape[0], qweight_shape[2]};
-            matched_qweight->set_partial_shape(tw_shape);
-            matched_qweight->validate_and_infer_types();
-
             // Also transpose S, but in a different way (see diagram above)
             ctx.get().permute(matched_qcoeff, {1, 2, 0});
-
-            ov::Shape ts_shape = {qcoeff_shape[1], qcoeff_shape[2], qcoeff_shape[0]};
-            matched_qcoeff->set_partial_shape(ts_shape);
-            matched_qcoeff->validate_and_infer_types();
 
             // Reshape the Act to group format
             const auto NSPLIT = qweight_shape[1];
@@ -473,7 +532,9 @@ DQMatMulGQiP::DQMatMulGQiP(Context::Ref ctx) {
 
         auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
         auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
+        auto matched_node_qmuls = node_to_output.at(qmuls).get_node_shared_ptr();
         auto matched_node_matmul = node_to_output.at(qmm).get_node_shared_ptr();
+        auto matched_node_qreshp = node_to_output.at(qreshp).get_node_shared_ptr();
         auto matched_out_mmi = node_to_output.at(qmmi);
 
         auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
@@ -489,15 +550,39 @@ DQMatMulGQiP::DQMatMulGQiP(Context::Ref ctx) {
             act_shape.size() == 3 && act_shape[1] > 1 &&  // multi-token case
             qcoeff_shape[0] == qweight_shape[0] && qcoeff_shape[1] == 1 && qcoeff_shape[2] == qweight_shape[2] &&
             !matched_matmul->get_transpose_a() && !matched_matmul->get_transpose_b()) {
+            if (!ctx.get().mm_dq_full) {
+                // Transpose weight and coeff
+                ctx.get().permute(matched_qweight, {0, 2, 1});
+                ctx.get().permute(matched_qcoeff, {0, 2, 1});
+
+                // Add Transpose and insert it
+                std::vector<std::size_t> new_transpose_order = {1, 0, 2};
+                auto new_transpose_order_c =
+                    std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, new_transpose_order);
+                auto new_transpose = std::make_shared<ov::op::v1::Transpose>(matched_node_qmuls, new_transpose_order_c);
+                matched_node_qreshp->input(0).replace_source_output(new_transpose);
+                matched_node_qreshp->validate_and_infer_types();
+
+                // // Change Reshape's shape
+                std::vector<std::size_t> transposed_shape = {qweight_shape[2], qweight_shape[0] * qweight_shape[1]};
+                auto transposed_shape_c =
+                    std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{2}, transposed_shape);
+                matched_node_qreshp->input(1).replace_source_output(transposed_shape_c);
+                matched_node_qreshp->validate_and_infer_types();
+
+                matched_matmul->set_transpose_b(true);
+                matched_matmul->validate_and_infer_types();
+
+                const auto& matm_mul_out_shape = matched_matmul->get_output_shape(0);
+                const auto& matm_mul_in_shape = matched_matmul->get_input_shape(1);
+                NPUW_ASSERT(matm_mul_out_shape.back() == matm_mul_in_shape.front());
+                return false;  // root hasn't changed
+            }
+
             // Mark W closure to transpose, and transpose the respective parameter
-            ov::Shape tw_shape = {qweight_shape[0], qweight_shape[2], qweight_shape[1]};
-            matched_qweight->set_partial_shape(tw_shape);
-            matched_qweight->validate_and_infer_types();
             ctx.get().permute(matched_qweight, {0, 2, 1});
 
             // Mark S closure to be lowered fo f16
-            matched_qcoeff->set_element_type(ov::element::f16);
-            matched_qcoeff->validate_and_infer_types();
             ctx.get().to_f16(matched_qcoeff);
 
             // Reshape the Act to group format
@@ -586,7 +671,9 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
 
         auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
         auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
+        auto matched_node_qmuls = node_to_output.at(qmuls).get_node_shared_ptr();
         auto matched_node_matmul = node_to_output.at(qmm).get_node_shared_ptr();
+        auto matched_node_qreshp = node_to_output.at(qreshp).get_node_shared_ptr();
         auto matched_out_mmi = node_to_output.at(qmmi);
 
         auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
@@ -606,18 +693,32 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
             act_shape.size() == 3 && just_one(act_shape[0], act_shape[1]) &&  // multi-token case
             qcoeff_shape[0] == qweight_shape[0] && qcoeff_shape[1] == qweight_shape[1] && qcoeff_shape[2] == 1 &&
             !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
+            if (!ctx.get().mm_dq_full) {
+                // Transpose weight and coeff
+                ctx.get().permute(matched_qweight, {1, 0, 2});
+                ctx.get().permute(matched_qcoeff, {1, 0, 2});
+
+                // Add Transpose and insert it
+                std::vector<std::size_t> new_transpose_order = {1, 0, 2};
+                auto new_transpose_order_c =
+                    std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, new_transpose_order);
+                auto new_transpose = std::make_shared<ov::op::v1::Transpose>(matched_node_qmuls, new_transpose_order_c);
+                matched_node_qreshp->input(0).replace_source_output(new_transpose);
+                matched_node_qreshp->validate_and_infer_types();
+                matched_matmul->validate_and_infer_types();
+
+                const auto& matm_mul_out_shape = matched_matmul->get_output_shape(0);
+                const auto& matm_mul_in_shape = matched_matmul->get_input_shape(1);
+                NPUW_ASSERT(matm_mul_out_shape.back() == matm_mul_in_shape.front());
+                NPUW_ASSERT(matched_matmul->get_transpose_b());
+                return false;  // root hasn't changed
+            }
+
             // Mark W closure to transpose, and transpose the respective parameter
-            ov::Shape tw_shape = {qweight_shape[1], qweight_shape[0], qweight_shape[2]};
-            matched_qweight->set_partial_shape(tw_shape);
-            matched_qweight->validate_and_infer_types();
             ctx.get().permute(matched_qweight, {1, 0, 2});
 
             // Also transpose S, but in a different way (see diagram above)
             ctx.get().permute(matched_qcoeff, {1, 2, 0});
-
-            ov::Shape ts_shape = {qcoeff_shape[1], qcoeff_shape[2], qcoeff_shape[0]};
-            matched_qcoeff->set_partial_shape(ts_shape);
-            matched_qcoeff->validate_and_infer_types();
 
             // Select proper activation shape
             std::size_t act_dim = act_shape[0] > act_shape[1] ? 0 : 1;
@@ -1331,7 +1432,7 @@ SliceLastMatmul::SliceLastMatmul() {
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
 
-        auto matched_out_matmul = node_to_output.at(matmul);
+        auto& matched_out_matmul = node_to_output.at(matmul);
 
         auto shape = matched_out_matmul.get_node()->input(0).get_shape();
 
@@ -1367,7 +1468,7 @@ SliceLastMatmulAdd::SliceLastMatmulAdd() {
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
 
-        auto matched_out_matmul = node_to_output.at(matmul);
+        auto& matched_out_matmul = node_to_output.at(matmul);
 
         auto shape = matched_out_matmul.get_node()->input(0).get_shape();
 
@@ -1403,7 +1504,7 @@ SliceLastMatmulTranspose::SliceLastMatmulTranspose() {
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
 
-        auto matched_out_matmul = node_to_output.at(matmul);
+        auto& matched_out_matmul = node_to_output.at(matmul);
 
         auto shape = matched_out_matmul.get_node()->input(0).get_shape();
 
@@ -1441,7 +1542,7 @@ SliceLastMatmulMultiply::SliceLastMatmulMultiply() {
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
 
-        auto matched_out_matmul = node_to_output.at(matmul);
+        auto& matched_out_matmul = node_to_output.at(matmul);
 
         auto shape = matched_out_matmul.get_node()->input(0).get_shape();
 

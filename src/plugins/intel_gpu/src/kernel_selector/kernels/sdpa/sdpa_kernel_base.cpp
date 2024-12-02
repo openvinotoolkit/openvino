@@ -107,7 +107,7 @@ JitConstants SDPAKernelBase::GetJitConstants(const sdpa_params& params) const {
     };
 
     auto use_index_calc_func = [&](const std::vector<int64_t> order, bool is_query = false) {
-        if (!params.input0_order.empty() && !is_default_order(params.input0_order))
+        if (!order.empty() && !is_default_order(order))
             return true;
 
         if (params.conf.broadcast_axis != -1)
