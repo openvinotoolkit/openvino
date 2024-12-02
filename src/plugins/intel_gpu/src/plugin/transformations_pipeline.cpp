@@ -397,7 +397,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const int32_t vec_size = 8;
             return static_cast<int32_t>((gamma_shape.back() / vec_size)) > static_cast<int32_t>(device_info.max_work_group_size);
         });
-        // manager.register_pass<ov::pass::RMSFusion>(false);
+        manager.register_pass<ov::pass::RMSFusion>(false);
 
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
@@ -921,7 +921,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         float activations_scale_factor = config.get_property(ov::hint::activations_scale_factor);
         ov::element::Type scaled_precision = element::f16;
-        std::cout << "scale_factor: " << activations_scale_factor << std::endl;
 
         if (activations_scale_factor > 0.f) {
             using namespace ov::pass::low_precision;
