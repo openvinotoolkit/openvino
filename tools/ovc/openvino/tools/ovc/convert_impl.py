@@ -12,7 +12,6 @@ from collections import OrderedDict
 from pathlib import Path
 from typing import Iterable, Callable
 
-
 try:
     import openvino_telemetry as tm
     from openvino_telemetry.backend import backend_ga4
@@ -33,9 +32,11 @@ from openvino.tools.ovc.version import VersionChecker
 from openvino.tools.ovc.utils import check_values_equal
 from openvino.tools.ovc.logger import init_logger
 from openvino.tools.ovc.telemetry_utils import send_params_info, send_conversion_result, \
-    init_mo_telemetry
-from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, extract_input_info_from_example
+    init_ovc_telemetry
+from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, \
+    extract_input_info_from_example, get_pytorch_decoder_for_model_on_disk
 from openvino.tools.ovc.moc_frontend.paddle_frontend_utils import paddle_frontend_converter
+
 try:
     from openvino.tools.ovc.moc_frontend.jax_frontend_utils import get_jax_decoder
 except:
@@ -232,7 +233,7 @@ def check_model_object(argv):
                                                                     paddle.fluid.dygraph.layers.Layer) or isinstance(
             model, paddle.fluid.executor.Executor):
             return "paddle"
-        
+
     if 'jax' in sys.modules:
         import jax
         if isinstance(model, (jax.core.Jaxpr, jax.core.ClosedJaxpr)):
@@ -242,8 +243,6 @@ def check_model_object(argv):
 
 
 def driver(argv: argparse.Namespace, non_default_params: dict):
-    init_logger('ERROR', argv.verbose)
-
     # Log dictionary with non-default cli parameters where complex classes are excluded.
     log.debug(str(non_default_params))
 
@@ -427,12 +426,16 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
         tracemalloc.start()
 
     simplified_ie_version = VersionChecker().get_ie_simplified_version()
-    telemetry = init_mo_telemetry()
+    telemetry = init_ovc_telemetry()
     telemetry.start_session('ovc')
     telemetry.send_event('ovc', 'version', simplified_ie_version)
     # Initialize logger with 'ERROR' as default level to be able to form nice messages
     # before arg parser deliver log_level requested by user
-    init_logger('ERROR', False)
+    verbose = False
+    if "verbose" in args and args["verbose"] or "--verbose" in sys.argv:
+        verbose = True
+
+    init_logger('ERROR', verbose, python_api_used)
     argv = None
     # Minimize modifications among other places in case if multiple pieces are passed as input_model
     if python_api_used:
@@ -475,23 +478,37 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
                     get_jax_decoder(args['input_model'], args)
                 else:
                     raise Error("JAX Frontend is not available.")
-                
 
         argv = pack_params_to_args_namespace(args, cli_parser, python_api_used)
+
         argv.framework = model_framework
         argv.is_python_object = inp_model_is_object
 
         argv.feManager = FrontEndManager()
 
-        # send telemetry with params info
-        send_params_info(argv, cli_parser)
-
         non_default_params = get_non_default_params(argv, cli_parser)
         argv.is_python_api_used = python_api_used
 
+        # send telemetry with params info
+        send_params_info(non_default_params)
+
         argv.framework = model_framework
 
+        orig_input_model = argv.input_model
+        pytorch_model_on_disk = False
+        if argv.framework is None and get_pytorch_decoder_for_model_on_disk(argv, args):
+            # try to load a model from disk as TorchScript or ExportedProgram
+            # TorchScriptPythonDecoder or TorchFXPythonDecoder object will be assigned to argv.input_model
+            # saved TorchScript and ExportedModel model can be passed to both ovc tool and Python convert_model
+            pytorch_model_on_disk = True
+
         ov_model = driver(argv, {"conversion_parameters": non_default_params})
+
+        if pytorch_model_on_disk:
+            # release memory allocated for temporal object
+            del argv.input_model
+            # restore original model name in arguments for tool reporting
+            argv.input_model = orig_input_model
 
         if inp_model_is_object and model_framework == "paddle":
             if paddle_runtime_converter:

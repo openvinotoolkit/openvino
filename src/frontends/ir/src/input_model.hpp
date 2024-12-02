@@ -22,7 +22,13 @@ class InputModel : public ov::frontend::InputModel {
 public:
     InputModel(std::istream& stream,
                const std::shared_ptr<ov::AlignedBuffer>& weights,
-               const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions);
+               const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
+               std::string weights_path = {});
+
+    InputModel(const std::shared_ptr<ov::AlignedBuffer>& model_buf,
+               const std::shared_ptr<ov::AlignedBuffer>& weights,
+               const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
+               std::string weights_path = {});
 
     std::shared_ptr<Model> convert();
 };

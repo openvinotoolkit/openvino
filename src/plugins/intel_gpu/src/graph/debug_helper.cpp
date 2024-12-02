@@ -51,11 +51,13 @@ void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream, bool dump
     if (tmp_size == size) {
         file_stream << "shape: " << size.to_string() << " ";
         file_stream << "(count: " << size.count()
+                    << ", addr: " << mem->buffer_ptr()
                     << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format) << ")"
                     << (dump_raw ? " raw data" : "") << std::endl;
     } else {
         file_stream << "shape: " << tmp_size.to_string() << " ";
         file_stream << "(count: " << tmp_size.count()
+                    << ", addr: " << mem->buffer_ptr()
                     << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format)
                     << ", original shape: " << size.to_string() << ")"
                     << (dump_raw ? " raw data" : "") << std::endl;
@@ -295,7 +297,7 @@ NodeDebugHelper::NodeDebugHelper(const primitive_inst& inst)
             debug_config->dump_layers_dst_only == 0 && debug_config->is_layer_for_dumping(layer_name)) {
             std::string debug_str_for_bin_load = " Command for loading : OV_GPU_LoadDumpRawBinary=\"" + layer_name + ":";
             for (size_t i = 0; i < m_inst.dependencies().size(); i++) {
-                std::string name = get_file_prefix() + layer_name + "_src" + std::to_string(i);
+                std::string name = get_file_prefix() + "_src" + std::to_string(i);
                 auto input_mem = m_inst.dep_memory_ptr(i);
                 if (input_mem == nullptr) {
                     GPU_DEBUG_COUT  << " input_mem_" << i << " is nullptr. Nothing to dump." << std::endl;

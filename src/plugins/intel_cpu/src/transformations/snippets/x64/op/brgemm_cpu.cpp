@@ -68,13 +68,9 @@ void BrgemmCPU::custom_constructor_validate_and_infer_types(std::vector<size_t> 
     INTERNAL_OP_SCOPE(BrgemmCPU_constructor_validate_and_infer_types);
     validate_inputs();
 
-    // During ctor call, BrgemmCPU doesn't know his port descriptors.
-    // So we use port descs from source inputs
-    const auto brgemm_copy = with_repacking(m_type) ? get_brgemm_copy() : nullptr;
-    const auto planar_input_shapes =
-        std::vector<ov::PartialShape>{ snippets::utils::get_planar_pshape(get_input_partial_shape(0), layout_a),
-                                       brgemm_copy ? snippets::utils::get_planar_pshape(brgemm_copy->input(0))
-                                                   : snippets::utils::get_planar_pshape(get_input_partial_shape(1), layout_b) };
+    const std::vector<ov::PartialShape> planar_input_shapes{
+        snippets::utils::get_planar_pshape(get_input_partial_shape(0), layout_a),
+        snippets::utils::get_planar_pshape(get_input_partial_shape(1), layout_b)};
     auto output_shape = infer_output_partial_shape(planar_input_shapes);
     set_output_type(0, get_output_type(), snippets::utils::get_planar_pshape(output_shape, layout_c));
 
@@ -128,20 +124,6 @@ std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_a
             snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(1))->get_layout(),
             snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout());
     }
-}
-
-std::shared_ptr<BrgemmCopyB> BrgemmCPU::get_brgemm_copy() const {
-    OPENVINO_ASSERT(one_of(m_type, BRGEMM_TYPE::REPACKING_ONLY, BRGEMM_TYPE::WITH_COMPENSATIONS, BRGEMM_TYPE::WITH_AMX), "Brgemm doesn't need BrgemmCopyB");
-    auto b_input_node = get_input_node_shared_ptr(1);
-    if (const auto brgemm_copy_b = ov::as_type_ptr<BrgemmCopyB>(b_input_node)) {
-        return brgemm_copy_b;
-    }
-    if (ov::is_type<snippets::op::Buffer>(b_input_node)) {
-        if (const auto brgemm_copy_b = ov::as_type_ptr<BrgemmCopyB>(b_input_node->get_input_node_shared_ptr(0))) {
-            return brgemm_copy_b;
-        }
-    }
-    OPENVINO_THROW("BrgemmCopyB hasn't been found!");
 }
 
 size_t BrgemmCPU::get_offset_scratch() const {

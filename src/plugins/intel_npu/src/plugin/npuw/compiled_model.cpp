@@ -5,11 +5,12 @@
 
 #include <iostream>
 #include <memory>
+#include <string>
 
 #include "accuracy/comparator.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "just_sync_infer_request.hpp"
 #include "logging.hpp"
-#include "npu_private_properties.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
@@ -20,13 +21,14 @@
 #include "openvino/util/common_util.hpp"
 #include "partitioning/patterns/opt.hpp"
 #include "plugin.hpp"
+#include "unfold_sync_infer_request.hpp"
 #include "util.hpp"
 
 // required for get_properties_per_device()
-#include <intel_npu/al/config/config.hpp>
-#include <intel_npu/al/config/npuw.hpp>
-#include <npuw_private_properties.hpp>
-
+#include "intel_npu/config/config.hpp"
+#include "intel_npu/config/npuw.hpp"
+#include "intel_npu/npuw_private_properties.hpp"
+#include "llm_compiled_model.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -84,10 +86,33 @@ ov::npuw::DeviceProperties get_properties_per_device(const std::shared_ptr<const
 }  // namespace npuw
 }  // namespace ov
 
+std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
+    const std::shared_ptr<ov::Model>& model,
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    const ov::AnyMap& properties) {
+    LOG_INFO("Choosing which NPUW CompiledModel to create");
+    LOG_BLOCK();
+    std::shared_ptr<ov::npuw::ICompiledModel> compiled_model;
+    auto use_llm_key = ov::intel_npu::npuw::llm::enabled.name();
+    if (properties.count(use_llm_key) && properties.at(use_llm_key).as<bool>() == true) {
+        LOG_INFO("ov::npuw::LLMCompiledModel will be created.");
+        compiled_model = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, properties);
+    } else {
+        LOG_INFO("ov::npuw::CompiledModel will be created.");
+        compiled_model = std::make_shared<ov::npuw::CompiledModel>(model, plugin, properties);
+    }
+    LOG_INFO("Done");
+    return compiled_model;
+}
+
+ov::npuw::ICompiledModel::ICompiledModel(const std::shared_ptr<ov::Model>& model,
+                                         const std::shared_ptr<const ov::IPlugin>& plugin)
+    : ov::ICompiledModel(model, plugin) {}
+
 ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                        const std::shared_ptr<const ov::IPlugin>& plugin,
                                        const ov::AnyMap& properties)
-    : ov::ICompiledModel(model, plugin),
+    : ov::npuw::ICompiledModel(model, plugin),
       m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
       m_cfg(m_options_desc),
       m_name(model->get_friendly_name()),
@@ -144,6 +169,16 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherAsymCW>();
         rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymCW>();
         rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymGQ>();
+        rewr.run_on_model(model);
+    }
+
+    if (m_cfg.get<::intel_npu::NPUW_SLICE_OUT>()) {
+        // Add Slice before last MatMul for the prefill model
+        ov::pass::GraphRewrite rewr;
+        rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmul>();
+        rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulAdd>();
+        rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulTranspose>();
+        rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulMultiply>();
         rewr.run_on_model(model);
     }
 
@@ -236,8 +271,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     }  // for(ordered_subgraphs)
     // NOTE(dm): there's a better way to do it, like we do in G-API backends.
 
-    m_update_required = m_cfg.get<::intel_npu::NPUW_FOLD>();
-
     // Store mapping between manually splitted inputs/outputs
     // to connect tensors between compiled submodels
     m_submodels_input_to_prev_output = partitioning.input_to_prev_output;
@@ -247,6 +280,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // - dump the subgraphs, if necessary
     std::map<std::string, std::size_t> compiledFunctions;
     m_compiled_submodels.resize(orderedSubgraphs.size());
+    const std::size_t end_sub_idx = orderedSubgraphs.size();
 
     const std::string dump_sub_opt = m_cfg.get<::intel_npu::NPUW_DUMP_SUBS>();
 
@@ -283,18 +317,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
                 // Fill in the spatial information, if it is present
                 if (fcn_template._spatial) {
-                    using S = CompiledModelDesc::Spatial;
-                    S s;
-                    s.range = fcn_template._spatial->_range;
-                    s.nway = fcn_template._spatial->_slice;
-                    s.out_dim = fcn_template._spatial->_out_dim;
-                    s.nway_iters = s.range / s.nway;
-                    s.tail_size = s.range % s.nway;
-                    for (auto&& input : fcn_template._spatial->_inputs) {
-                        std::size_t p_idx = fcn_template._model->get_parameter_index(input.param);
-                        s.params.push_back(S::Param{p_idx, input.dim});
-                    }
-                    m_compiled_submodels[id].spatial = std::move(s);
+                    m_compiled_submodels[id].spatial =
+                        compiled::Spatial(fcn_template._spatial.value(), fcn_template._model);
                 }
                 LOG_INFO("Subgraph[" << id << "] is a function body for " << subgraph._funcall);
             } else {
@@ -324,7 +348,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             fill_empty_tensor_names(m_compiled_submodels[real_id].model);
         }
 
-        if (ov::npuw::util::is_set(id, dump_sub_opt)) {
+        if (ov::npuw::util::is_set(id, dump_sub_opt, end_sub_idx)) {
             LOG_INFO("Dumping Subgraph[" << id << "]");
             LOG_BLOCK();
             if (real_id != id) {
@@ -341,7 +365,14 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     }      // for(orderedSubgraphs)
 
     std::map<std::size_t, std::string> forced_sub_devices{};
-    const std::string fsd_opt = m_cfg.get<::intel_npu::NPUW_SUBMODEL_DEVICE>();
+    std::string fsd_opt = m_cfg.get<::intel_npu::NPUW_SUBMODEL_DEVICE>();
+    // Change "last" keyword to tail subgraph number
+    std::size_t last_pos = fsd_opt.find("last");
+    if (last_pos != std::string::npos) {
+        fsd_opt.erase(last_pos, 4);
+        fsd_opt.insert(last_pos, std::to_string(end_sub_idx));
+    }
+
     forced_sub_devices = ::intel_npu ::OptionParser<std::map<std::size_t, std::string>>::parse(fsd_opt);
 
     // Exclude optimized out subgraphs from compilation target beforehand - otherwise we might get head and repeated
@@ -427,6 +458,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
     // Finalize memory in closures and weight banks
     finalize_weights_bank();
+    detach_memory();
 
     // Print stats report when possible
     {
@@ -436,19 +468,18 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     }
 
     implement_properties();
-
-    m_finalized = true;
-    reset_io();
+    report_io();
 }
 
 void ov::npuw::CompiledModel::finalize_weights_bank() {
+    LOG_INFO("Finalizing weights bank...");
     // Register lazy tensors
     for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
         auto& comp_model_desc = m_compiled_submodels[idx];
 
         // Skip optimized out and non-functions
         if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
-            return;
+            continue;
         }
 
         const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
@@ -489,6 +520,57 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             comp_model_desc.is_remote[tidx] = m_weights_bank->is_remote(lt);
         }
     }
+
+    LOG_INFO("Done.");
+}
+
+void ov::npuw::CompiledModel::detach_memory() {
+    LOG_INFO("Detaching model & weight memory...");
+    LOG_BLOCK();
+    for (size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
+        auto& comp_model_desc = m_compiled_submodels[idx];
+        auto& proto_comp_model_desc = m_compiled_submodels[comp_model_desc.replaced_by.value_or(idx)];
+        if (!proto_comp_model_desc.model || !proto_comp_model_desc.compiled_model) {
+            continue;  // optimized-out OR already cleared - skip
+        }
+        if (proto_comp_model_desc.device_it + 1 == m_dev_list.end()) {
+            LOG_INFO("No fallback expected - clear the OV model for Subgraph[" << idx << "]");
+            proto_comp_model_desc.model.reset();
+        }
+    }
+    LOG_INFO("Done");
+}
+
+std::string ov::npuw::CompiledModel::global_mem_device() const {
+    // Force globally set device if set
+    const std::string device_alloc = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK_ALLOC>();
+    if (!device_alloc.empty()) {
+        return device_alloc;
+    }
+
+    // Check if there is at least 1 NPU submodel
+    for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
+        auto& comp_model_desc = m_compiled_submodels[idx];
+        if (!comp_model_desc.compiled_model) {
+            continue;
+        }
+        if (ov::npuw::util::starts_with(*comp_model_desc.device_it, "NPU")) {
+            return "NPU";
+        }
+    }
+
+    return "CPU";
+}
+
+std::string ov::npuw::CompiledModel::funcall_mem_device(const std::size_t idx) const {
+    // Force globally set device if set
+    const std::string device_alloc = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK_ALLOC>();
+    if (!device_alloc.empty()) {
+        return device_alloc;
+    }
+
+    auto& comp_model_desc = m_compiled_submodels[idx];
+    return *comp_model_desc.device_it;
 }
 
 void ov::npuw::CompiledModel::remove_long_output_names(const std::shared_ptr<ov::Model>& model) {
@@ -529,19 +611,7 @@ void ov::npuw::CompiledModel::fill_empty_tensor_names(const std::shared_ptr<ov::
     }
 }
 
-void ov::npuw::CompiledModel::reset_io() {
-    // Restore inputs/outputs from compiled submodels
-    // FIXME: this method is also called from IBaseInferReqeust::create_infer_request
-    // which is called in the CompiledModel(). So this method executes even before it
-    // is called for the right thing from the ctor directly.
-    if (!m_finalized)
-        return;  // avoid getting called before it is really the time
-
-    // Don't be like HETERO here - don't override the inputs/outputs(),
-    // as the ICompiledModel already creates one for us.
-    // Instead, remember the mapping from the original CompiledModel::input/output ports
-    // to the Subgraph's input/output ports.
-
+void ov::npuw::CompiledModel::report_io() const {
     LOG_VERB("*** Partition graph ***");
     int idx_in = 0, idx_out = 0;  // FIXME: use indexed()
     for (const auto& to_submodel : m_inputs_to_submodels_inputs) {
@@ -640,6 +710,10 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
     // NOTE(dm): Not sure if it is required for the NPUW plugin, but likely it is
     auto& device_config = m_meta_devices[device];
 
+    if (ov::npuw::util::starts_with(device, "NPU") && m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>()) {
+        device_config["NPU_RUN_INFERENCES_SEQUENTIALLY"] = "YES";
+    }
+
     const auto& cache_dir = m_cfg.get<::intel_npu::NPUW_CACHE_DIR>();
     if (!cache_dir.empty()) {
         LOG_INFO("NPUW will try to utilize CACHE_DIR for " << submodel->get_friendly_name() << " submodel.");
@@ -660,22 +734,49 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
 
 void ov::npuw::CompiledModel::dump_on_fail(std::size_t id, const std::string& device_to_try, const char* extra) {
     const std::string dof_opt = m_cfg.get<::intel_npu::NPUW_DUMP_SUBS_ON_FAIL>();
+    const std::size_t end_idx = m_compiled_submodels.size();
 
-    if (ov::npuw::util::is_set(id, dof_opt)) {
+    if (ov::npuw::util::is_set(id, dof_opt, end_idx)) {
         ov::npuw::dump_failure(m_compiled_submodels[id].model, device_to_try, extra);
     }
-}
-
-std::shared_ptr<ov::ISyncInferRequest> ov::npuw::CompiledModel::create_just_sync_infer_request() {
-    auto this_sptr = std::static_pointer_cast<ov::npuw::CompiledModel>(shared_from_this());
-    return std::make_shared<ov::npuw::JustInferRequest>(this_sptr);
 }
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::CompiledModel::create_sync_infer_request() const {
     // Synchronous infer request implementation may vary based on the
     // selected strategy
     auto* non_const_this = const_cast<ov::npuw::CompiledModel*>(this);  // because of const in API
-    return non_const_this->create_just_sync_infer_request();
+    auto non_const_this_sptr = std::static_pointer_cast<ov::npuw::CompiledModel>(non_const_this->shared_from_this());
+
+    auto no_spatial_unpack = [&]() {
+        const auto num_submodels = m_compiled_submodels.size();
+        for (std::size_t idx = 0u; idx < num_submodels; idx++) {
+            const auto& comp_model_desc = m_compiled_submodels[idx];
+            if (!comp_model_desc.replaced_by.has_value() || comp_model_desc.forced_to_fcall) {
+                // not a funcall, do nothing, or a subgraph that was forced to funcall
+                // (a 1-call function) - skip
+                continue;
+            }
+            const auto real_idx = comp_model_desc.replaced_by.value();
+            if (m_compiled_submodels[real_idx].spatial) {
+                LOG_WARN("Subgraph[" << idx << "] is a call to spatial function, unfold can't be done");
+                return false;  // Spatial graph
+            }
+            if (unpack_required(idx)) {
+                LOG_WARN("Subgraph[" << idx << "] requires unpack, unfold can't be done");
+                return false;  // Unpack required
+            }
+        }
+        return true;  // no spatial & subgraphs requiring unpack found
+    };
+
+    std::shared_ptr<ov::ISyncInferRequest> result;
+    if (m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>() && no_spatial_unpack()) {
+        result.reset(new ov::npuw::UnfoldInferRequest(non_const_this_sptr));
+    } else {
+        result.reset(new ov::npuw::JustInferRequest(non_const_this_sptr));
+    }
+    NPUW_ASSERT(result);
+    return result;
 }
 
 std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::CompiledModel::create_infer_request() const {
@@ -732,6 +833,46 @@ std::string ov::npuw::CompiledModel::submodel_device(const std::size_t idx) cons
 
     NPUW_ASSERT(comp_subm_desc.device_it != m_dev_list.end());
     return *comp_subm_desc.device_it;
+}
+
+bool ov::npuw::CompiledModel::unpack_required(const std::size_t idx) const {
+    auto& comp_model_desc = m_compiled_submodels.at(idx);
+    for (std::size_t cidx = 0u; cidx < comp_model_desc.closure.size(); cidx++) {
+        if (unpack_required(idx, cidx)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool ov::npuw::CompiledModel::unpack_required(const std::size_t idx, const std::size_t cidx) const {
+    if (is_gather_closure(idx, cidx)) {
+        return false;
+    }
+
+    auto& comp_model_desc = m_compiled_submodels.at(idx);
+    const auto real_idx = comp_model_desc.replaced_by.value();
+    auto& func_desc = m_compiled_submodels.at(real_idx);
+
+    auto& closure = comp_model_desc.closure.at(cidx);
+    const auto closure_param_id = comp_model_desc.param_base + cidx;
+
+    auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
+    return (closure.get_element_type() != iport.get_element_type());
+}
+
+bool ov::npuw::CompiledModel::is_gather_closure(const std::size_t idx, const std::size_t cidx) const {
+    auto& comp_model_desc = m_compiled_submodels.at(idx);
+    const auto real_idx = comp_model_desc.replaced_by.value();
+    auto& func_desc = m_compiled_submodels.at(real_idx);
+
+    const auto closure_param_id = comp_model_desc.param_base + cidx;
+
+    if (func_desc.host_gather.dst_idx != -1 &&
+        static_cast<uint64_t>(func_desc.host_gather.dst_idx) == closure_param_id) {
+        return true;
+    }
+    return false;
 }
 
 void ov::npuw::CompiledModel::log_device_dist() const {
@@ -881,15 +1022,19 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::fold, NPUW_FOLD),
                           BIND(npuw::partitioning::cwai, NPUW_CWAI),
                           BIND(npuw::partitioning::dyn_quant, NPUW_DQ),
+                          BIND(npuw::partitioning::dyn_quant_full, NPUW_DQ_FULL),
                           BIND(npuw::partitioning::par_matmul_merge_dims, NPUW_PMM),
+                          BIND(npuw::partitioning::slice_out, NPUW_SLICE_OUT),
                           BIND(npuw::partitioning::spatial, NPUW_SPATIAL),
-                          BIND(npuw::partitioning::spatial, NPUW_SPATIAL_NWAY),
+                          BIND(npuw::partitioning::spatial_nway, NPUW_SPATIAL_NWAY),
+                          BIND(npuw::partitioning::spatial_dyn, NPUW_SPATIAL_DYN),
                           BIND(npuw::partitioning::host_gather, NPUW_HOST_GATHER),
                           BIND(npuw::partitioning::funcall_for_all, NPUW_FUNCALL_FOR_ALL),
                           BIND(npuw::partitioning::dcoff_type, NPUW_DCOFF_TYPE),
                           BIND(npuw::partitioning::dcoff_with_scale, NPUW_DCOFF_SCALE),
                           BIND(npuw::parallel_compilation, NPUW_PARALLEL_COMPILE),
                           BIND(npuw::funcall_async, NPUW_FUNCALL_ASYNC),
+                          BIND(npuw::unfold_ireqs, NPUW_UNFOLD_IREQS),
                           BIND(npuw::weights_bank, NPUW_WEIGHTS_BANK),
                           BIND(npuw::weights_bank_alloc, NPUW_WEIGHTS_BANK_ALLOC),
                           BIND(npuw::cache_dir, NPUW_CACHE_DIR),

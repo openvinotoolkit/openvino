@@ -141,7 +141,6 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::wstring& path) {
     holder->set(path);
     return holder;
 }
-
 #endif
 
 }  // namespace ov

@@ -27,7 +27,7 @@ def convert_model(
 
     Framework-agnostic parameters:
         :param input_model:
-            Model object in original framework (PyTorch, Tensorflow) or path to model file.
+            Model object in original framework (PyTorch, TensorFlow) or path to model file.
 
             Supported formats of input model:
 
@@ -35,6 +35,7 @@ def convert_model(
             torch.nn.Module
             torch.jit.ScriptModule
             torch.jit.ScriptFunction
+            torch.export.ExportedProgram
 
             TF
             tf.compat.v1.Graph
@@ -84,7 +85,11 @@ def convert_model(
             list of paths, objects derived from BaseExtension class or lists of
             objects.
         :param verbose:
-            Print detailed information about conversion.
+            Print detailed information about conversion. The detailed information is logged via standard logging library.
+            The log level can be changed by setting the log level using logging library.
+            Example:
+                import logging
+                logging.getLogger().setLevel(logging.DEBUG)
         :param share_weights:
             Reuse weights allocated in the original model. If input model is in file,
             then mmap is used to allocate weights directly from file. If input model is

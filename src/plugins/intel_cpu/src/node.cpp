@@ -475,7 +475,7 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
             auto parentEdge = getParentEdgeAt(i);
             OPENVINO_ASSERT(parentEdge->getStatus() == Edge::Status::NotAllocated,
                             " Unexpected inplace resolve call to an allocated edge: ",
-                            parentEdge->name());
+                            *parentEdge);
 
             //search for already allocated edge
             const auto& childEdges = getChildEdgesAtPort(inplaceOutIndx);
@@ -504,7 +504,7 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
             for (auto& childEdge : childEdges) {
                 OPENVINO_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated,
                                 " Unexpected inplace resolve call to an allocated edge: ",
-                                childEdge->name());
+                                *childEdge);
                 auto newMem = std::make_shared<Memory>(getEngine(), selected_pd->getConfig().outConfs[i].getMemDesc(), memBlock);
                 childEdge->reuse(newMem);
             }
@@ -655,7 +655,7 @@ std::vector<EdgePtr> Node::getChildEdgesAtPort(int inputNum) const {
         if (!edge)
             OPENVINO_THROW("Node ", getName(), " contains dead weak ptr");
         if (edge->getInputNum() == inputNum)
-            res.push_back(edge);
+            res.emplace_back(std::move(edge));
     }
     return res;
 }
@@ -793,11 +793,10 @@ void Node::redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) 
 void Node::redefineOutputMemory(const size_t port, const VectorDims& new_output_shape) {
     const auto edges = getChildEdgesAtPort(port);
 
+    static const VectorDims single_element_shape = {1};
+
     // avoid 0D shape incompatible
-    auto new_shape = new_output_shape;
-    if (new_shape.empty()) {
-        new_shape.push_back(1);
-    }
+    const auto& new_shape = new_output_shape.empty() ? single_element_shape : new_output_shape;
 
     const auto& curr_desc = edges[0]->getMemory().getDesc();
     if (curr_desc.getShape().isStatic() && curr_desc.getShape().getStaticDims() == new_shape) {

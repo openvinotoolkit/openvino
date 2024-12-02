@@ -44,6 +44,7 @@
 #include <oneapi/dnnl/dnnl.hpp>
 #include "common/primitive_desc_iface.hpp"
 
+#include "openvino/runtime/exception.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "openvino/core/parallel.hpp"
 
@@ -57,6 +58,7 @@ namespace intel_cpu {
 
 Graph::~Graph() {
     CPU_DEBUG_CAP_ENABLE(summary_perf(*this));
+    CPU_DEBUG_CAP_ENABLE(average_counters(*this));
 }
 
 template<typename NET>
@@ -194,8 +196,8 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model,
         const auto port = unusedOutput.get_index();
         const auto nodeName = std::string("stub_") + std::to_string(unusedOutput.get_index()) + "_" + parentNode->getName();
         const NodePtr outNode = std::make_shared<node::Input>(parentNode->outputShapes[port],
-                                                                        parentNode->getOriginalOutputPrecisionAtPort(port),
-                                                                        nodeName, "Result", m_context);
+                                                              parentNode->getOriginalOutputPrecisionAtPort(port),
+                                                              nodeName, "Result", m_context);
         CreateEdge(parentNode, outNode, port, 0);
         AddNode(outNode);
     }
@@ -276,13 +278,8 @@ static std::tuple<std::vector<NodePtr>, std::vector<size_t>> ExtractExecutableNo
     std::vector<NodePtr> executableGraphNodes;
     for (size_t i = 0; i < graphNodes.size(); i++) {
         const auto& graphNode = graphNodes[i];
-        if ((!graphNode->isConstant() && CPU_DEBUG_CAPS_ALWAYS_TRUE(graphNode->isExecutable())) || // non-constant executable or
+        if ((!graphNode->isConstant() && graphNode->isExecutable()) || // non-constant executable or
             (graphNode->isDynamicNode() && !one_of(graphNode->getType(), Type::Input, Type::Output))) { // dynamic, except inputs / outputs
-            /* @todo
-             * Revise implementation.
-             * With current way it is possible that with debug_caps enabled
-             * we execute a node, which is not ready to be executed
-             */
             graphIdToExecutableId[i] = executableGraphNodes.size();
             executableGraphNodes.emplace_back(graphNode);
         }
@@ -370,9 +367,20 @@ void Graph::Activate(const std::vector<MemoryPtr>& externalInputMemory,
 
     std::tie(m_executableGraphNodes, m_executableSyncNodesInds) = ExtractExecutableNodesAndSyncPoints(syncNodesInds, graphNodes);
 
-    status = hasDynNodes ? (parallel_get_max_threads() > 1 ? Status::ReadyDynamic : Status::ReadyDynamicSeq)
-        : Status::ReadyStatic;
-
+    if (hasDynNodes) {
+        status = Status::ReadyDynamic;
+        // Here we use the following heuristic: if the number of sync nodes is less than 10 times of the number of exec
+        // nodes, it does make sense to use Sequential dynamic shapes processing due to the high overheads on context
+        // switching when the dynamic shapes are being processed in parallel and there are a lot of sync points. Also
+        // this rule works for short graphs (usually subgraphs) when the amount of nodes is to low to process them in
+        // parallel.
+        const auto exec2sync = m_executableGraphNodes.size() / m_executableSyncNodesInds.size();
+        if (exec2sync < 10 || parallel_get_max_threads() < 2) {
+            status = Status::ReadyDynamicSeq;
+        }
+    } else {
+        status = Status::ReadyStatic;
+    }
     CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
 
@@ -509,7 +517,7 @@ void Graph::CreatePrimitivesAndExecConstants() const {
             auto edgePtr = node->getChildEdgeAt(i);
             if (edgePtr) {
                 if (edgePtr->isUseExternalMemory()) {
-                    auto ptr = m_context->getWeightsCache()->get(edgePtr->name());
+                    auto ptr = m_context->getWeightsCache()->get(edgePtr->hash());
                     outputs.emplace_back(ptr);
                     if (!ptr->isValid())
                         hasExternalInvalidEdges = true;
@@ -1285,23 +1293,40 @@ public:
         if (origin_nested_levels < 2) {
             set_max_nested_levels(2);
         }
+        // In OpenMP, an exception that is thrown in a parallel region must be caught and handled in the same region by the same thread.
+        // Therefore, need to pass the error message and throw a new exception outside the parallel region.
+        const char* what = nullptr;
 
         #pragma omp parallel
         #pragma omp sections
         {
             #pragma omp section
             {
-                updateDynParams(startCounter, stopIndx);
+                try {
+                    updateDynParams(startCounter, stopIndx);
+                } catch (std::exception& e) {
+                    what = e.what();
+                } catch (...) {
+                    what = "[ CPU ] Could not update dynamic parameters.";
+                }
             }
             #pragma omp section
             {
-                updateShapes(startCounter, stopIndx);
+                try {
+                    updateShapes(startCounter, stopIndx);
+                } catch (std::exception& e) {
+                    what = e.what();
+                } catch (...) {
+                    what = "[ CPU ] Could not update shapes.";
+                }
             }
         }
 
         if (origin_nested_levels != 2) {
             set_max_nested_levels(origin_nested_levels);
         }
+
+        OPENVINO_ASSERT(what == nullptr, what);
     }
 };
 #endif
@@ -1330,6 +1355,8 @@ inline void Graph::ExecuteNodeWithCatch(const NodePtr& node, SyncInferRequest* r
 
     try {
         ExecuteNode(node, request, numaId);
+    } catch (const ov::Cancelled&) {
+        throw;
     } catch (const std::exception& exp) {
         OPENVINO_THROW(*node, exp.what());
     }
@@ -1609,7 +1636,7 @@ NodePtr Graph::InsertReorder(EdgePtr edge,
     reorder->setOptimized(isOptimized);
     reorder->setSrcPermutation(src_perm);
 
-    DEBUG_LOG(reorder->getName(), " edge=", edge->name(), " isOptimized=", isOptimized);
+    DEBUG_LOG(reorder->getName(), " edge=", *edge, " isOptimized=", isOptimized);
     DEBUG_LOG("    inDesc: ", inDesc.getShape().toString(), inDesc.getPrecision().get_type_name(), " ", inDesc.serializeFormat());
     DEBUG_LOG("   outDesc: ", outDesc.getShape().toString(), outDesc.getPrecision().get_type_name(), " ", outDesc.serializeFormat());
 
@@ -1685,7 +1712,9 @@ void Graph::EnforceInferencePrecision() {
                         Type::MatMul,         // bert nets
                         Type::ROIPooling,     // object detection nets
                         Type::Interpolate,    // super resolution nets
-                        Type::PagedAttention))// page attention
+                        Type::PagedAttention, // page attention
+                        Type::QKVProjection,
+                        Type::LLMMLP))
                     continue;   // stop at significant nodes
             } else if (inferPrec == ov::element::f16) {
                 /* list of node types that must be forced to be executed in FP16 precision

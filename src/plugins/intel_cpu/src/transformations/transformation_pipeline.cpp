@@ -37,6 +37,7 @@
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mark_rope_input_to_keep_in_mixed_precision.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
+#include "transformations/common_optimizations/lora_subgraph_fusion.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/fp16_compression/mark_floatpoint_range.hpp"
@@ -63,6 +64,7 @@
 #include "transformations/op_conversions/convert_scatter_nd_update15_downgrade.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
 #include "transformations/op_conversions/convert_shuffle_channels3.hpp"
+#include "transformations/op_conversions/convert_slicescatter.hpp"
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 #include "transformations/op_conversions/convert_space_to_batch.hpp"
 #include "transformations/op_conversions/convert_space_to_depth.hpp"
@@ -100,7 +102,7 @@
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/transpose_sinking/ts_shape_of.hpp"
 #include "utils/ngraph_transformation.hpp"
-#include "utils/print_model.hpp"
+#include "transformations/utils/print_model.hpp"
 
 // LPT transformations
 #include "low_precision/add.hpp"
@@ -139,6 +141,7 @@
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
 #include "transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp"
+#include "transformations/cpu_opset/x64/pass/sdpa_fuse_transpose_reshape.hpp"
 
 // Snippets
 #include "snippets/pass/tokenization.hpp"
@@ -235,6 +238,17 @@ bool Transformations::fuse_type_to_fq(const std::shared_ptr<ov::Node>& node, con
         input.replace_source_output(convert_after);
     }
 
+    return true;
+}
+
+bool Transformations::fuse_type_to_pa(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
+    auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node);
+    if (!pa)
+        return false;
+    // PagedAttentionExtension's 2nd output type should be kept f32.
+    // The reason is that the pagedattention node in CPU plugin hardcodes 2nd output type as f32.
+    // So, set f32 to the 2nd output type, which can avoid extra data type conversion during transformation.
+    pa->set_out_type(1, ov::element::f32);
     return true;
 }
 
@@ -391,7 +405,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
         type_to_fuse_map fuse_map = {{ov::opset1::FakeQuantize::get_type_info_static(), fuse_type_to_fq}};
 #else
-        type_to_fuse_map fuse_map = {};
+        type_to_fuse_map fuse_map = {{ov::op::PagedAttentionExtension::get_type_info_static(), fuse_type_to_pa}};
 #endif
         const bool keep_precision_sensitive_in_fp32 = true;
         CPU_REGISTER_PASS_COMMON(manager,
@@ -644,6 +658,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::HSwishDecomposition);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::MatMulConstTransposesExtraction);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertScatterNDUpdate15ToScatterNDUpdate3);
+    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertSliceScatter);
     CPU_DISABLE_PASS_X64(manager, ov::pass::HSigmoidDecomposition);
 
     CPU_DISABLE_PASS_X64(manager, ov::pass::ReduceL1Decomposition);
@@ -679,6 +694,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EnableDecompressionConvertConstantFolding);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompression);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::LoraSubgraphFusion);
 
     manager.run_passes(model);
 }
@@ -824,35 +840,51 @@ void Transformations::PostLpt() {
     // Execute before snippets. Otherwise FQ will be converted to Subgraph
     CPU_REGISTER_PASS_X64(postLPTPassManager, ConvertFqRnnToQuantizedRnn);
 
-    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RoPEFusion);
-    CPU_REGISTER_PASS_ARM64(postLPTPassManager, ov::pass::RoPEFusion);
+    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RoPEFusion, true);
+    CPU_REGISTER_PASS_ARM64(postLPTPassManager, ov::pass::RoPEFusion, true);
+    CPU_DISABLE_PASS_COMMON(postLPTPassManager, ov::pass::RoPEFusionFlux);
     CPU_REGISTER_PASS_X64(postLPTPassManager, CausalMaskPreprocessFusion);
 
+#if defined(OPENVINO_ARCH_X86_64)
     // MLP & QKV fusion optimizations is focused on throughput, only enabled on AMX-bf16 & LLM serving use cases.
-    auto can_use_amx_bf16 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) && (config.inferencePrecision == element::bf16);
-    if (can_use_amx_bf16) {
+    auto can_use_amx_bf16_int8 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) && (config.inferencePrecision == element::bf16);
+    auto can_use_amx_fp16 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16) && (config.inferencePrecision == element::f16);
+
+    if (can_use_amx_bf16_int8 || can_use_amx_fp16) {
+        const auto fcDynamicQuantizationGroupSize = config.fcDynamicQuantizationGroupSize;
         CPU_REGISTER_PASS_X64(postLPTPassManager, MLPFusion);
         CPU_SET_CALLBACK_X64(postLPTPassManager,
-            [](const_node_ptr &node) -> bool {
+            [fcDynamicQuantizationGroupSize](const_node_ptr &node) -> bool {
                 std::string errorMsg;
-                return node::LLMMLP::isSupportedOperation(node, errorMsg);
+                return node::LLMMLP::isSupportedOperation(node, errorMsg, fcDynamicQuantizationGroupSize);
             },
             MLPFusion);
 
         size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
         if (concurrency == 0)
             concurrency = parallel_get_max_threads();
+
         CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion);
         CPU_SET_CALLBACK_X64(postLPTPassManager,
-            [concurrency](const_node_ptr &node) -> bool {
+            [=](const_node_ptr &node) -> bool {
                 std::string errorMsg;
-                return node::QKVProjection::isSupportedOperation(node, errorMsg, concurrency);
+                return node::QKVProjection::isSupportedOperation(node, errorMsg, concurrency, fcDynamicQuantizationGroupSize);
             },
             QKVProjFusion);
+
+        CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion2);
+        CPU_SET_CALLBACK_X64(postLPTPassManager,
+            [=](const_node_ptr &node) -> bool {
+                std::string errorMsg;
+                return node::QKVProjection::isSupportedOperation(node, errorMsg, concurrency, fcDynamicQuantizationGroupSize);
+            },
+            QKVProjFusion2);
     }
+#endif // OPENVINO_ARCH_X86_64
 
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::transpose_sinking::TSShapeOfForward);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, StatefulSDPAFusion);
+    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::SDPAFuseTransposeReshape);
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RMSFusion, false);
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::DecomposeRMSNorm);
     CPU_SET_CALLBACK_X64(postLPTPassManager,

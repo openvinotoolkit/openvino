@@ -33,7 +33,7 @@ KERNEL(lrn_within_channel_byxf_opt)(
 
     const int x_start = ((int)x - PADDING);
     const int y_start = ((int)y - PADDING);
-    int input_offset = (GET_DATA_INDEX(INPUT0, b, f, y_start, x_start))/8;
+    int input_offset = ((int)(GET_DATA_INDEX(INPUT0, b, f, y_start, x_start)))/8;
 
     VECTOR_TYPE feature_block;
 

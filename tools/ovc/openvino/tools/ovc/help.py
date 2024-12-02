@@ -7,7 +7,8 @@ def get_convert_model_help_specifics():
     return {
         'input_model':
             {'description':
-                 'Input model file(s) from TensorFlow, ONNX, PaddlePaddle. '
+                 'Input model file(s) from PyTorch (ExportedProgram saved on a disk), '
+                 'TensorFlow, ONNX, PaddlePaddle. '
                  'Use openvino.convert_model in Python to convert models from PyTorch.'
                  '',
              'action': CanonicalizePathCheckExistenceAction,
@@ -42,4 +43,6 @@ def get_convert_model_help_specifics():
             {'action': 'version',
              # FIXME: Why the following is not accessible from arg parser?
              'version': 'OpenVINO Model Converter (ovc) {}'.format(VersionChecker().get_ie_version())},
+        'verbose':
+            {'description': 'Print detailed information about conversion.'}
     }

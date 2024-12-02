@@ -11,7 +11,7 @@
 #include <string>
 
 #include "intel_npu/utils/logger/logger.hpp"
-#include "zero_init.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
 
 namespace {
 

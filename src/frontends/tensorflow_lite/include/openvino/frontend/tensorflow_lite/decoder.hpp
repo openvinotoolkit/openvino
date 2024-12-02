@@ -14,7 +14,7 @@ namespace ov {
 namespace frontend {
 namespace tensorflow_lite {
 
-struct TensorMetaInfo {
+struct TENSORFLOW_LITE_API TensorMetaInfo {
     std::shared_ptr<QuantizationInfo> m_quantization_info;
     std::shared_ptr<SparsityInfo> m_sparsity_info;
     ov::PartialShape m_partial_shape;
@@ -23,11 +23,11 @@ struct TensorMetaInfo {
     std::string m_tensor_name;
 };
 
-class DecoderBase : public ov::frontend::DecoderBase {};
+class TENSORFLOW_LITE_API DecoderBase : public ov::frontend::DecoderBase {};
 
 // DecoderBaseOperation corresponds to operation node to retrieve its attributes and information about input and output
 // tensors
-class DecoderBaseOperation : public ov::frontend::tensorflow_lite::DecoderBase {
+class TENSORFLOW_LITE_API DecoderBaseOperation : public ov::frontend::tensorflow_lite::DecoderBase {
 public:
     /// \brief Get input tensor name by index
     /// Operation nodes are connected between each other by tensors.
@@ -71,7 +71,7 @@ public:
 
 // DecoderBaseTensor corresponds to tensor node to retrieve information about type, shapem quantization and sparsity
 // information
-class DecoderBaseTensor : public ov::frontend::tensorflow_lite::DecoderBase {
+class TENSORFLOW_LITE_API DecoderBaseTensor : public ov::frontend::tensorflow_lite::DecoderBase {
 public:
     /// \brief Get tensor info
     virtual TensorMetaInfo get_tensor_info() const = 0;

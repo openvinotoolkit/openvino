@@ -69,14 +69,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 
 .. code:: ipython3
 
-    import platform
-
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
-
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu requests pysbd transformers "torch>=2.1" "openvino>=2023.1.0" seaborn ipywidgets
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu requests pysbd transformers "torch>=2.1" "openvino>=2023.1.0" seaborn ipywidgets "matplotlib>=3.4"
 
 Get Books
 ---------

@@ -122,6 +122,7 @@ private:
         size_t workAmount = 0lu;
         size_t lastDstDim = 0lu;
         size_t srcShift = 0lu;
+        size_t m_threads_num = 0lu;
     };
     using executorPtr = std::shared_ptr<StridedSliceExecutor>;
     executorPtr execPtr = nullptr;

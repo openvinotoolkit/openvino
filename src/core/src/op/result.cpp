@@ -67,7 +67,7 @@ bool Result::has_evaluate() const {
     return true;
 }
 
-bool Result::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
+bool Result::can_constant_fold(const OutputVector& input_values) const {
     return false;
 }
 

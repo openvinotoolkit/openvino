@@ -6,8 +6,10 @@
 
 #include "dnnl_extension_utils.h"
 #include "emitters/utils.hpp"
-#include "snippets/utils/utils.hpp"
+#include "snippets/lowered/expressions/buffer_expression.hpp"
+#include "snippets/op/buffer.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
+#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "utils/general_utils.h"
 
 using namespace Xbyak;
@@ -42,18 +44,17 @@ cpu_isa_t get_primitive_isa(const ov::element::Type& dt_in0, bool is_with_amx) {
 #undef SUPPORT
 }
 
-BRGEMM_TYPE get_brgemm_type(const ov::element::Type& element_type_a, const Dimension& K_dim, bool transpose_b) {
+BRGEMM_TYPE get_brgemm_type(const ov::element::Type& element_type_a, bool transpose_b) {
     if (element_type_a == element::f32)
         return transpose_b ? BRGEMM_TYPE::REPACKING_ONLY : BRGEMM_TYPE::STAND_ALONE;
 
     OPENVINO_ASSERT(element_type_a != element::bf16 || mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16),
                     "BF16 precision is not supported on this hardware");
 
-    const auto brgemmVNNIFactor = 4 / element_type_a.size();
     if (one_of(element_type_a, element::u8, element::i8, element::bf16) &&
-        dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
-        K_dim.is_static() && K_dim.get_length() % brgemmVNNIFactor == 0)
+        dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx))
         return BRGEMM_TYPE::WITH_AMX;
+
     // Note: this condition reproduces logic from the OneDNN Brgemm implementation. This is needed to align with the
     // backend requirements. More details in onednn/src/cpu/x64/brgemm/brgemm_utils.cpp
     if (element_type_a == ov::element::i8)
@@ -76,10 +77,6 @@ size_t get_elems_in_vec(const ov::element::Type& precision) {
 }
 
 namespace repacking {
-size_t compute_out_leading_dim(const size_t n_block, const ov::element::Type& precision) {
-    return std::max(n_block, compute_inner_n_block(precision));
-}
-
 size_t compute_inner_n_block(const ov::element::Type& precision) {
     switch (precision) {
         case element::i8: return 64;
@@ -87,6 +84,25 @@ size_t compute_inner_n_block(const ov::element::Type& precision) {
         case element::f32: return 16;
         default: OPENVINO_THROW("BrgemmCopyB doesn't support precision ", precision);
     }
+}
+
+size_t compute_inner_k_block(const ov::element::Type& precision) {
+    return brgemm_utils::get_elems_in_vec(precision);
+}
+
+ov::snippets::lowered::ExpressionPtr get_copy_b_expr(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) {
+    OPENVINO_ASSERT(ov::is_type<BrgemmCPU>(brgemm_expr->get_node()), "get_copy_b_expr must be called only for BrgemmCPU node");
+    const auto b_input_expr = brgemm_expr->get_input_port_connector(1)->get_source().get_expr();
+    if (ov::is_type<BrgemmCopyB>(b_input_expr->get_node())) {
+        return b_input_expr;
+    } else if (ov::is_type<snippets::lowered::BufferExpression>(b_input_expr)) {
+        OPENVINO_ASSERT(b_input_expr->get_input_count() >= 1, "BufferExpression on brgemm's B input must have at least one input");
+        const auto input_buffer_expr = b_input_expr->get_input_port_connector(0)->get_source().get_expr();
+        if (ov::is_type<BrgemmCopyB>(input_buffer_expr->get_node())) {
+            return input_buffer_expr;
+        }
+    }
+    return nullptr;
 }
 }   // namespace repacking
 }   // namespace brgemm_utils
