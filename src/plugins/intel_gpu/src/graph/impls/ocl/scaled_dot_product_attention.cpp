@@ -189,8 +189,6 @@ protected:
         if (instance.has_indirect_inputs() && _kernels_data.size() < 3)
             return false;
 
-        const auto& deps = instance.dependencies();
-
         const auto& query_layout = instance.get_impl_params()->get_input_layout(0);
 
         auto get_reordered_dimension = [](const ov::PartialShape& pshape, const std::vector<int64_t>& order, size_t idx) -> const ov::Dimension& {
@@ -267,7 +265,7 @@ protected:
     }
 
 public:
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_dynamic, bool indirect = false, bool force_sdpa_opt = false) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_dynamic, bool indirect = false) {
         const auto& desc = impl_param.typed_desc<scaled_dot_product_attention>();
         auto params = get_default_params<kernel_selector::sdpa_params>(impl_param, is_dynamic);
 
@@ -287,8 +285,6 @@ public:
         for (size_t i = 0; i < data_inputs_num; i++) {
             params.inputs[i] = convert_data_tensor(impl_param.get_input_layout(i));
         }
-
-        params.should_use_sdpa_opt = force_sdpa_opt;
 
         params.conf = get_sdpa_configuration(impl_param);
 
