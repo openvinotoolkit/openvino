@@ -85,7 +85,7 @@ def convert_model(
             list of paths, objects derived from BaseExtension class or lists of
             objects.
         :param verbose:
-            Print detailed information about conversion. The detailed information is logged via standard logger library.
+            Print detailed information about conversion. The detailed information is logged via standard logging library.
             The log level can be changed by setting the log level using logging library.
             Example:
                 import logging
