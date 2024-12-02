@@ -37,9 +37,8 @@ RegistersPool::RegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude, in
 thread_local bool RegistersPool::is_created = false;
 
 void RegistersPool::check_unique_and_update() {
-    if (is_created) {
-        OPENVINO_THROW("There should be only one instance of RegistersPool per thread");
-    }
+    OPENVINO_ASSERT(!is_created, "There should be only one instance of RegistersPool per thread");
+
     is_created = true;
 }
 
