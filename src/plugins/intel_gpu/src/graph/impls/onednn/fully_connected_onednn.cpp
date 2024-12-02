@@ -403,6 +403,7 @@ public:
             prim_onednn->_ds_group_size = group_size;
             prim_onednn->_ds_data_type = ds_data_type;
             prim_onednn->_dzp_data_type = dzp_data_type;
+
             return prim_onednn;
         } else {
             auto prim_desc = get_inner_product_primitive_descriptor(impl_params, impl_params.prog->get_engine(),
