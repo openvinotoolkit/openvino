@@ -162,7 +162,6 @@ if(RISCV64_XUANTIE)
 else()
     set(ENABLE_SHL_FOR_CPU_DEFAULT OFF)
 endif()
-ov_option(ENABLE_KLEIDIAI_FOR_CPU "Enable Kleidiai for OpenVINO CPU Plugin" ON)
 ov_dependent_option(ENABLE_SHL_FOR_CPU "Enable SHL for OpenVINO CPU Plugin" ${ENABLE_SHL_FOR_CPU_DEFAULT} "RISCV64" OFF)
 
 if(ARM OR AARCH64)
@@ -299,9 +298,9 @@ endif ()
 if(ENABLE_SHL_FOR_CPU)
     target_link_libraries(${TARGET_NAME} PRIVATE shl)
 endif()
-target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
 
 target_link_libraries(${TARGET_NAME} PRIVATE kleidiai)
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
 
 # Temporal solution to use template reference implementations in cases where optimizied implementation
 # is not (yet) needed.

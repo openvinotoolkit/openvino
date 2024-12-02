@@ -7,7 +7,7 @@ index b6dc841..a8065c5 100644
  
  target_include_directories(kleidiai
 -    PUBLIC  .
-+    PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}> $<INSTALL_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
++    PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
  )
  
  target_compile_options(kleidiai

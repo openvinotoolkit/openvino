@@ -26,7 +26,7 @@ function(ov_create_acl_version_file)
     file(WRITE ${ACL_VERSION_FILE_PATH} "\"arm_compute_version=v${ACL_VERSION}\"")
 endfunction()
 
-function(ov_build_kleidai_static)
+function(ov_build_kleidiai_static)
     set(BUILD_SHARED_LIBS OFF)
     set(KLEIDIAI_BUILD_TESTS OFF CACHE BOOL "" FORCE)
     add_subdirectory(kleidiai)
@@ -177,7 +177,7 @@ if(ENABLE_SHL_FOR_CPU)
 endif()
 
 if(ENABLE_KLEIDIAI_FOR_CPU)
-    ov_build_kleidai_static()
+    ov_build_kleidiai_static()
 endif()
 
 ov_add_onednn()

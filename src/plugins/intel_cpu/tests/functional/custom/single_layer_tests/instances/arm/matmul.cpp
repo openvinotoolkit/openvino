@@ -20,6 +20,11 @@ static const std::vector<CPUSpecificParams>& filterSpecificParamsFC() {
     return specificParams;
 }
 
+static const std::vector<CPUSpecificParams>& filterKleidiaiSpecificParamsFC() {
+    static const std::vector<CPUSpecificParams> specificParams = {CPUSpecificParams{{}, {}, {"kleidiai"}, "kleidiai"}};
+    return specificParams;
+}
+
 std::vector<fusingSpecificParams> fusingParamsSet2D_smoke {
     emptyFusingSpec,
     fusingBias,
@@ -27,6 +32,18 @@ std::vector<fusingSpecificParams> fusingParamsSet2D_smoke {
     fusingRelu,
     fusingTanh
 };
+
+const auto testParams2D_kleidiai_smoke = ::testing::Combine(::testing::Combine(::testing::ValuesIn(IS2D_smoke()),
+                                                                      ::testing::Values(ElementType::f32),
+                                                                      ::testing::Values(ElementType::undefined),
+                                                                      ::testing::Values(ElementType::undefined),
+                                                                      ::testing::Values(utils::InputLayerType::CONSTANT),
+                                                                      ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                                                      ::testing::Values(emptyAdditionalConfig())),
+                                                   ::testing::Values(MatMulNodeType::FullyConnected),
+                                                   ::testing::ValuesIn(fusingParamsSet2D_smoke),
+                                                   ::testing::ValuesIn(filterCPUInfo(filterKleidiaiSpecificParamsFC())));
+INSTANTIATE_TEST_SUITE_P(smoke_FC_KLEIDIAI_2D, MatMulLayerCPUTest, testParams2D_kleidiai_smoke, MatMulLayerCPUTest::getTestCaseName);
 
 const auto testParams2D_smoke = ::testing::Combine(::testing::Combine(::testing::ValuesIn(IS2D_smoke()),
                                                                       ::testing::Values(ElementType::f32),

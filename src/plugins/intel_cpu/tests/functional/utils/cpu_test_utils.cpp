@@ -265,7 +265,7 @@ CPUTestsBase::CPUInfo CPUTestsBase::getCPUInfo() const {
 
 #if defined(OV_CPU_WITH_ACL)
 std::string CPUTestsBase::getPrimitiveType() const {
-    return "undef";
+    return "kleidiai";
 }
 #else
 std::string CPUTestsBase::getPrimitiveType() const {
