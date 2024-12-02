@@ -423,7 +423,7 @@ protected:
     bool use_async_compilation();
     // if primitive_inst doesn't replace impl to new impl(static impl with opt kerenl or dynamic impl), return false
     bool update_impl(bool use_async_compilation);
-    event::ptr realloc_if_needed();
+    event::ptr realloc_if_needed(bool prev_execution_skipped = false);
 
     cldnn::network::ptr get_unfused_subgraph();
 
@@ -476,6 +476,8 @@ protected:
         }
         return false;
     }
+
+    void clear_output_memory();
 
     // This could be implemented via single map std::unordered_map<instrumentation::perf_counter_key, std::tuple<int64_t, size_t>>
     // but the overhead on using perf_counter_key as map key is too big, thus we use hash as map key

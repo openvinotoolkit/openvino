@@ -553,7 +553,12 @@ bool primitive_inst::all_dependencies_cpu_impl() const {
     return check_all_deps_cpu(this);
 }
 
-event::ptr primitive_inst::realloc_if_needed() {
+void primitive_inst::clear_output_memory() {
+    _outputs[0] = nullptr;
+    _max_output_layout_count[0] = 0;
+}
+
+event::ptr  primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("realloc_if_needed: " + id()));
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);
@@ -743,21 +748,15 @@ event::ptr primitive_inst::realloc_if_needed() {
 
     // Clear out memory if was previously reused, but now primitive can't be optimized
     if (!_node->is_type<concatenation>() && (_node->is_runtime_skippable() || _node->is_type<crop>())) {
-        std::function<void(cldnn::primitive_inst*, cldnn::memory::ptr)> reset_user_output_memory;
-        reset_user_output_memory = [&](cldnn::primitive_inst* curr_inst, cldnn::memory::ptr input_mem_ptr) {
-            auto curr_output_memory_ptr = curr_inst->output_memory_ptr(0);
-            if (curr_inst->can_be_optimized()
-                    && (curr_output_memory_ptr
-                        && get_network().get_engine().is_the_same_buffer(*curr_output_memory_ptr, *input_mem_ptr))) {
-                if (curr_inst->mem_allocated()) {
-                    get_network().get_memory_pool().release_memory(curr_inst->_outputs[0].get(),
-                            curr_inst->get_node().get_unique_id(), curr_inst->id(), get_network_id());
-                    _mem_allocated = false;
-                }
-                curr_inst->_outputs[0] = nullptr;
-                curr_inst->_max_output_layout_count[0] = 0;
-                for (auto& user_inst : curr_inst->get_user_insts()) {
-                    reset_user_output_memory(user_inst, input_mem_ptr);
+        std::function<void(cldnn::primitive_inst*, cldnn::memory::ptr)> reset_user_output_memory
+                            = [&](cldnn::primitive_inst* curr_inst, cldnn::memory::ptr target_mem_ptr) {
+            for (auto& user_inst : curr_inst->get_user_insts()) {
+                auto curr_output_memory_ptr = user_inst->output_memory_ptr(0);
+                if (user_inst->can_be_optimized()
+                        && (curr_output_memory_ptr
+                            && get_network().get_engine().is_the_same_buffer(*curr_output_memory_ptr, *target_mem_ptr))) {
+                    user_inst->clear_output_memory();
+                    reset_user_output_memory(user_inst, target_mem_ptr);
                 }
             }
         };
@@ -771,9 +770,7 @@ event::ptr primitive_inst::realloc_if_needed() {
             // * iter1: node1(skipped)  -> node2(skipped) -> node3(executed)
             if (_outputs[0] && dep_memory_ptr(0)
                 && !_network.get_engine().is_the_same_buffer(dep_memory(0), output_memory(0))) {
-                for (auto& user_inst : get_user_insts()) {
-                    reset_user_output_memory(user_inst, dep_memory_ptr(0));
-                }
+                reset_user_output_memory(this, dep_memory_ptr(0));
             }
             return ev;
         } else if (_outputs[0] && dep_memory_ptr(0) &&
@@ -783,16 +780,22 @@ event::ptr primitive_inst::realloc_if_needed() {
                         get_node().get_unique_id(), id(), get_network_id());
                 _mem_allocated = false;
             }
-            _outputs[0] = nullptr;
-            _max_output_layout_count[0] = 0;
+            clear_output_memory();
             // Check users recursively and if the users is can_be_optimized && runtime_skippable
             // && output_memory of user is same as current input memory,
             // then reset the users output memory too.
             // Ex.
             // * iter0: node1(skipped)  -> node2(skipped) -> node3(skipped)
             // * iter1: node1(executed) -> node2(skipped) -> node3(executed)
-            for (auto& user_inst : get_user_insts()) {
-                reset_user_output_memory(user_inst, dep_memory_ptr(0));
+            reset_user_output_memory(this, dep_memory_ptr(0));
+        } else {
+            // when this inst was not executed at the previous iteration,
+            // Reset output memory becuase current output memory is invalid.
+            if (prev_execution_skipped) {
+                if (_outputs[0]) {
+                    reset_user_output_memory(this, _outputs[0]);
+                }
+                clear_output_memory();
             }
         }
     }
@@ -1392,7 +1395,7 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
 void primitive_inst::do_runtime_skip_gather() {
     // Check pattern
     if (!get_node().is_type<gather>()
-        || !get_node().can_be_optimized()
+        || !get_node().is_runtime_skippable()
         || _impl_params->has_fused_primitives()
         || _impl_params->get_input_layout(0).data_type != _impl_params->get_output_layout().data_type
         || get_node().get_dependency(1).is_constant() || get_node().get_dependency(1).is_type<data>())
@@ -1464,7 +1467,6 @@ void primitive_inst::do_runtime_skip_permute() {
     // Check pattern
     if (!get_node().is_type<permute>()
         || is_output()
-        || !get_node().can_be_optimized()
         || !get_node().is_runtime_skippable()
         || _impl_params->has_fused_primitives()
         || _impl_params->get_input_layout(0).data_type != _impl_params->get_output_layout().data_type)
@@ -1504,7 +1506,7 @@ void primitive_inst::do_runtime_skip_permute() {
 void primitive_inst::do_runtime_skip_strided_slice() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_skip_strided_slice: " + id()));
     // Check pattern
-    if (!get_node().is_type<strided_slice>() || !get_node().can_be_optimized())
+    if (!get_node().is_type<strided_slice>() || !get_node().is_runtime_skippable())
         return;
 
     GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_strided_slice] " << id() << " : check optimizability" << std::endl;
@@ -1528,7 +1530,7 @@ void primitive_inst::do_runtime_skip_strided_slice() {
 void primitive_inst::do_runtime_skip_broadcast() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_skip_broadcast: " + id()));
     // Check pattern
-    if (!get_node().is_type<broadcast>() || !get_node().can_be_optimized())
+    if (!get_node().is_type<broadcast>() || !get_node().is_runtime_skippable())
         return;
 
     GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_broadcast] " << id() << " : check optimizability" << std::endl;
@@ -1637,7 +1639,7 @@ void primitive_inst::do_runtime_skip_scatter_update() {
     if (!(get_node().is_type<scatter_update>()
         || get_node().is_type<scatter_elements_update>()
         || get_node().is_type<scatter_nd_update>())
-        || !get_node().can_be_optimized())
+        || !get_node().is_runtime_skippable())
         return;
 
     GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_scatter_update] " << id() << " : check optimizability" << std::endl;
@@ -1753,6 +1755,11 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     GPU_DEBUG_TRACE_DETAIL << "-----------------------------------------------------------------" << std::endl;
     bool need_args_update = false;
     _mem_changed = false;
+
+    // If it is optimized out or skipped for zero dimension at the previous iteration,
+    // Set this flag true to reset output memory in realloc_if_needed.
+    const bool prev_execution_skipped = can_be_optimized()
+                        || (_impl_params->output_layouts[0].is_static() && _impl_params->output_layouts[0].count() == 0);
     const auto orig_outputs = _outputs;
     std::vector<event::ptr> dependencies;
     if ((is_dynamic() || _node->is_in_shape_of_subgraph()) && !has_inner_networks()) {
@@ -1845,7 +1852,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                 auto ev = update_weights();
                 if (ev)
                     dependencies.push_back(ev);
-                auto ev_reset = realloc_if_needed();
+                auto ev_reset = realloc_if_needed(prev_execution_skipped);
                 if (ev_reset)
                     dependencies.push_back(ev_reset);
 
@@ -1859,7 +1866,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
             _impl->update(*this, *_impl_params);
 
             need_args_update = true;
-            auto ev_reset = realloc_if_needed();
+            auto ev_reset = realloc_if_needed(prev_execution_skipped);
             if (ev_reset)
                 dependencies.push_back(ev_reset);
         }
