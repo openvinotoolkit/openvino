@@ -834,11 +834,22 @@ def test_model_with_statement():
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
-def test_model_tempdir_fails():
+@pytest.mark.skipif(sys.version_info < (3, 11), reason="Python 3.11+")
+def test_tempdir_save_load_permission_error():
     # Generate a model with stateful components, ensuring the .bin file will be non-empty after saving
     mem_model = generate_model_with_memory(input_shape=Shape([2, 1]), data_type=Type.f32)
     with pytest.raises(PermissionError):
         with tempfile.TemporaryDirectory() as model_save_dir:
             save_model(mem_model, f"{model_save_dir}/model.xml")
-            model = Core().read_model(f"{model_save_dir}/model.xml")
-            assert mem_model.friendly_name == model.friendly_name
+            _ = Core().read_model(f"{model_save_dir}/model.xml")
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
+@pytest.mark.skipif(sys.version_info >= (3, 11), reason="Python < 3.11")
+def test_tempdir_save_load_not_a_directory_error():
+    # Generate a model with stateful components, ensuring the .bin file will be non-empty after saving
+    mem_model = generate_model_with_memory(input_shape=Shape([2, 1]), data_type=Type.f32)
+    with pytest.raises(NotADirectoryError):
+        with tempfile.TemporaryDirectory() as model_save_dir:
+            save_model(mem_model, f"{model_save_dir}/model.xml")
+            _ = Core().read_model(f"{model_save_dir}/model.xml")
