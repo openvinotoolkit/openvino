@@ -11,8 +11,8 @@ generative AI, video, audio, and language with models from popular frameworks li
 TensorFlow, ONNX, and more. Convert and optimize models, and deploy across a mix of Intel®
 hardware and environments, on-premises and on-device, in the browser or in the cloud.
 
-Check out the `OpenVINO Cheat Sheet. <https://docs.openvino.ai/2024/_static/download/OpenVINO_Quick_Start_Guide.pdf>`__
-
+| Check out the `OpenVINO Cheat Sheet [PDF] <https://docs.openvino.ai/2024/_static/download/OpenVINO_Quick_Start_Guide.pdf>`__
+| Check out the `GenAI Quick-start Guide [PDF] <https://docs.openvino.ai/2024/_static/download/GenAI_Quick_Start_Guide.pdf>`__
 
 
 .. container::
