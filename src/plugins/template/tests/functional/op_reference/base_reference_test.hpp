@@ -32,7 +32,7 @@ public:
 
 protected:
     bool legacy_compare = false;
-    std::string targetDevice;
+    const std::string targetDevice;
     std::shared_ptr<ov::Core> core;
     std::shared_ptr<ov::Model> function;
 

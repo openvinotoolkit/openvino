@@ -17,16 +17,14 @@ struct STFTParams {
                const reference_tests::Tensor& frame_step,
                bool transpose_frames,
                const reference_tests::Tensor& expected_tensor,
-               std::string name,
-               std::string device = "CPU")
+               std::string name)
         : signal{signal},
           window{window},
           frame_size{frame_size},
           frame_step{frame_step},
           transpose_frames(transpose_frames),
           expected_tensor(expected_tensor),
-          test_case_name{std::move(name)},
-          device{std::move(device)} {}
+          test_case_name{std::move(name)} {}
 
     reference_tests::Tensor signal;
     reference_tests::Tensor window;
@@ -36,7 +34,6 @@ struct STFTParams {
 
     reference_tests::Tensor expected_tensor;
     std::string test_case_name;
-    std::string device;
 };
 
 class ReferenceSTFT : public testing::TestWithParam<STFTParams>, public reference_tests::CommonReferenceTest {
@@ -46,13 +43,10 @@ public:
         function = CreateFunction(params);
         inputData = {params.signal.data, params.window.data, params.frame_size.data, params.frame_step.data};
         refOutData = {params.expected_tensor.data};
-        targetDevice = params.device;
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<STFTParams>& obj) {
         std::ostringstream name;
-        name << obj.param.device;
-        name << "_device_";
         name << obj.param.test_case_name;
         name << "_signal_input_type_";
         name << obj.param.signal.type;
@@ -95,7 +89,7 @@ private:
 };
 
 template <ov::element::Type_t ET, ov::element::Type_t IT = ov::element::i64>
-std::vector<STFTParams> generateSTFTParams(const std::string device = "TEMPLATE") {
+std::vector<STFTParams> generateSTFTParams() {
     using VT = typename ov::element_type_traits<ET>::value_type;
     using INT_T = typename ov::element_type_traits<IT>::value_type;
 
@@ -348,16 +342,14 @@ std::vector<STFTParams> generateSTFTParams(const std::string device = "TEMPLATE"
                         frame_step_16,
                         transpose_frames_true,
                         output_1_9_3_2_transp,
-                        "basic_batch_1_transp",
-                        device);
+                        "basic_batch_1_transp");
     params.emplace_back(signal_2_48,
                         hann_window_16,
                         frame_size_16,
                         frame_step_16,
                         transpose_frames_true,
                         output_2_9_3_2_transp,
-                        "basic_batch_2_transp",
-                        device);
+                        "basic_batch_2_transp");
     params.emplace_back(signal_2_48,
                         hann_window_16,
                         frame_size_16,
@@ -399,20 +391,13 @@ std::vector<STFTParams> generateSTFTParams(const std::string device = "TEMPLATE"
                         frame_step_100,
                         transpose_frames_true,
                         output_1_5_1_2_transp,
-                        "step_>_signal_size_transp",
-                        device);
+                        "step_>_signal_size_transp");
     return params;
 }
 
 std::vector<STFTParams> generateSTFTParams() {
-    std::vector<std::vector<STFTParams>> combo_params{generateSTFTParams<ov::element::f16, ov::element::i64>("TEMPLATE"),
-                                                      generateSTFTParams<ov::element::f16, ov::element::i32>("TEMPLATE"),
-                                                      generateSTFTParams<ov::element::f32, ov::element::i64>("TEMPLATE"),
-                                                      generateSTFTParams<ov::element::f32, ov::element::i32>("TEMPLATE"),
-                                                      generateSTFTParams<ov::element::f16, ov::element::i64>("CPU"),
-                                                      generateSTFTParams<ov::element::f16, ov::element::i32>("CPU"),
-                                                      generateSTFTParams<ov::element::f32, ov::element::i64>("CPU"),
-                                                      generateSTFTParams<ov::element::f32, ov::element::i32>("CPU")};
+    std::vector<std::vector<STFTParams>> combo_params{generateSTFTParams<ov::element::f16>(),
+                                                      generateSTFTParams<ov::element::f32>()};
     std::vector<STFTParams> test_params;
     for (auto& params : combo_params)
         std::move(params.begin(), params.end(), std::back_inserter(test_params));
