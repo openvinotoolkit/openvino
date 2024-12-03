@@ -844,6 +844,8 @@ void Transformations::PostLpt() {
     CPU_REGISTER_PASS_ARM64(postLPTPassManager, ov::pass::RoPEFusion, true);
     CPU_DISABLE_PASS_COMMON(postLPTPassManager, ov::pass::RoPEFusionFlux);
     CPU_REGISTER_PASS_X64(postLPTPassManager, CausalMaskPreprocessFusion);
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::NopElimination);
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::Serialize, "after_nop.xml", "after_nop.bin");
 
 #if defined(OPENVINO_ARCH_X86_64)
     // MLP & QKV fusion optimizations is focused on throughput, only enabled on AMX-bf16 & LLM serving use cases.

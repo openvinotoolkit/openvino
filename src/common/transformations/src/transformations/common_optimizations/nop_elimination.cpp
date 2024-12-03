@@ -135,24 +135,33 @@ static bool eliminate_nop(const shared_ptr<Node>& node) {
 static bool eliminate_reshape_v1(const shared_ptr<Node>& node) {
     auto input = node->input_value(0);
 
+    std::cout << "THIS: " << node->get_friendly_name() << " "  << node->get_name() << std::endl;
+    std::cout << "INPUT: " << input.get_node_shared_ptr()->get_friendly_name() << " "  << input.get_node_shared_ptr()->get_name() << std::endl;
+
     if (input.get_partial_shape().rank().is_static() && input.get_partial_shape().rank().same_scheme(1)) {
-        if (input.get_partial_shape().same_scheme(node->get_output_partial_shape(0)))
+        if (input.get_partial_shape().same_scheme(node->get_output_partial_shape(0))) {
+            std::cout << "EXIT HERE" << std::endl;
             return replace_output_update_name(node->output(0), input);
+        }
     }
 
     // check if reshape is not identity op
     if (input.get_partial_shape().is_dynamic() || node->get_output_partial_shape(0).is_dynamic()) {
         OPENVINO_DEBUG(node, " has dynamic shapes.");
+        std::cout << "EXIT HERE 1" << std::endl;
         return false;
     }
     // remove identity op
     if (input.get_shape() == node->get_output_shape(0)) {
+        std::cout << "EXIT HERE 2" << std::endl;
         return replace_output_update_name(node->output(0), input);
     }
     // eliminate redundant reshape, squeeze, or unsqueeze
     auto input_node = input.get_node_shared_ptr();
     if (ov::as_type_ptr<ov::op::v0::Squeeze>(input_node) || ov::as_type_ptr<ov::op::v0::Unsqueeze>(input_node) ||
         ov::as_type_ptr<ov::op::v1::Reshape>(input_node)) {
+        std::cout << "---: " << node->get_friendly_name() << " "  << node->get_name() << std::endl;
+        std::cout << "---: " << input.get_node_shared_ptr()->get_friendly_name() << " "  << input.get_node_shared_ptr()->get_name() << std::endl;
         if (input_node->get_output_target_inputs(0).size() != 1)
             return false;
 
