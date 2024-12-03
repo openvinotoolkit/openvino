@@ -8,8 +8,6 @@
 namespace ov {
 namespace intel_cpu {
 
-struct jit_has_subnormals_base;
-
 class HasSubnormals {
 public:
     bool execute(const IMemory& src);

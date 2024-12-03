@@ -3,24 +3,15 @@
 //
 
 #include "clone_original_blob.h"
-#include <optional>
 
 #include "cpu_memory.h"
 #include "graph_context.h"
-#include "cpu/x64/jit_generator.hpp"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "nodes/common/has_subnormals.h"
-#include "openvino/core/parallel.hpp"
-// #include "dnnl_extension_utils.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "openvino/core/type/element_type.hpp"
-#include "ov_optional.hpp"
 #include "dnnl_extension_utils.h"
 #include "utils/debug_capabilities.h"
-
-using namespace dnnl;
-using namespace dnnl::impl::cpu::x64;
-using namespace Xbyak;
+#include <cpu/x64/cpu_isa_traits.hpp>
 
 namespace ov {
 namespace intel_cpu {
@@ -28,7 +19,6 @@ namespace intel_cpu {
 MemoryPtr cloneBlob(const IMemory& blob, const dnnl::engine& engine, bool needFlushDenormalsToZero) {
     const auto& memDesc = blob.getDesc();
     const auto prec = blob.getPrecision();
-    const size_t size = blob.getShape().getElementsCount();
     MemoryPtr memory;
 
     // CVS-74980
@@ -46,6 +36,7 @@ MemoryPtr cloneBlob(const IMemory& blob, const dnnl::engine& engine, bool needFl
             memory = std::make_shared<StringMemory>(engine, memDesc);
             auto src = blob.getDataAs<StringMemory::OvString>();
             auto dst = memory->getDataAs<StringMemory::OvString>();
+            const size_t size = blob.getShape().getElementsCount();
             std::copy(src, src + size, dst);
         } else {
             memory = std::make_shared<Memory>(engine, memDesc);
@@ -66,13 +57,12 @@ MemoryPtr cloneBlob(const IMemory& blob, const dnnl::engine& engine, bool needFl
 }
 
 InputPrepType requiresPreProcessing(const IMemory& blob, GraphContext::CPtr context, const dnnl::engine& engine) {
-    const auto shape = blob.getShape();
     const auto prec = blob.getPrecision();
 
     // DAZ has been set, processor automatically converts all denormal source operands
     // to a zero with the sign of the original operand before performing any
     // computations on them, thus no need to flush them to zero manually
-    bool needFlushDenormalsToZero = context->getConfig().DAZOn ? false : true;
+    const bool needFlushDenormalsToZero = context->getConfig().DAZOn ? false : true;
 
     auto isBlobAligned = [&] () {
         bool blobAlignedOnSSE = true;
@@ -81,7 +71,7 @@ InputPrepType requiresPreProcessing(const IMemory& blob, GraphContext::CPtr cont
         // the memory address in the operands must be aligned on 16-byte boundary. To ensure
         // safely reusing ngraph const blob memory, need to check address alignment.
         const void *ptr = blob.getData();
-        blobAlignedOnSSE = mayiuse(dnnl::impl::cpu::x64::avx2) || ((reinterpret_cast<uintptr_t>(ptr) & 15) == 0);
+        blobAlignedOnSSE = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) || ((reinterpret_cast<uintptr_t>(ptr) & 15) == 0);
 #endif
         return blobAlignedOnSSE;
     };
@@ -93,10 +83,12 @@ InputPrepType requiresPreProcessing(const IMemory& blob, GraphContext::CPtr cont
         return InputPrepType::SimpleClone;
     }
 
-    const bool mustFlushDenormalsToZero = needFlushDenormalsToZero && std::make_shared<HasSubnormals>()->execute(blob);
-    if (mustFlushDenormalsToZero) {
-        DEBUG_LOG("Clone is necessary for Constant containing subnormals");
-        return InputPrepType::FTZ;
+    if (needFlushDenormalsToZero) {
+        const auto hasSubnormals = HasSubnormals().execute(blob);
+        if (hasSubnormals) {
+            DEBUG_LOG("Clone is necessary for Constant containing subnormals");
+            return InputPrepType::FTZ;
+        }
     }
 
     if (!isBlobAligned()) {

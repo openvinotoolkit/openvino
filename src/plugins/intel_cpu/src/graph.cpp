@@ -995,13 +995,14 @@ void Graph::PreProcessConstantInputs() {
         visited[node->getExecIndex()] = true;
 
         if (!node->getParentEdges().empty()) {
+            const int inputPort = inPlaceOutPort >= 0 ? node->inPlaceOutPort(inPlaceOutPort) : inPlaceOutPort;
+
             for (size_t i = 0; i < node->getParentEdges().size(); i++) {
                 const auto edge = node->getParentEdgeAt(i);
-                const auto parent = node->getParentEdgeAt(0)->getParent();
                 // keep track of inplace up by inplace output ports
-                inPlaceOutPort = inPlaceOutPort == parent->inPlaceOutPort(i) ? edge->parent_port : -1;
+                inPlaceOutPort = (static_cast<int>(i) == inputPort) ? edge->getInputNum() : -1;
 
-                return visitConstantPath(parent, inPlaceOutPort, oneShotCopyPossible);
+                return visitConstantPath(edge->getParent(), inPlaceOutPort, oneShotCopyPossible);
             }
         }
 
@@ -1054,13 +1055,16 @@ void Graph::PreProcessConstantInputs() {
             continue; // constant nodes will be visited in scope of 'visitConstantPath'
 
         for (size_t i = 0; i < node->getParentEdges().size(); i++) {
-            const auto parent = node->getParentEdgeAt(i)->getParent();
+            const auto parentEdge = node->getParentEdgeAt(i);
+            const auto parent = parentEdge->getParent();
 
             if (!parent->isConstant())
                 continue;
 
             bool oneShotCopyPossible = node->canPrepInput(i);
-            if (auto postponePreProcessing = visitConstantPath(parent, true, oneShotCopyPossible)) {
+            const auto inputNum = parentEdge->getInputNum();
+
+            if (auto postponePreProcessing = visitConstantPath(parent, inputNum, oneShotCopyPossible)) {
                 const auto preprocessing = *postponePreProcessing;
                 node->prepInput(i, preprocessing);
             }
