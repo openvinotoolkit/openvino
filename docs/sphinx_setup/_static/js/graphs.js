@@ -549,14 +549,22 @@ $(document).ready(function () {
                 const boxSpan = document.createElement('span');
                 boxSpan.style.background = item.fillStyle;
                 boxSpan.style.borderColor = item.strokeStyle;
-                boxSpan.style.borderWidth = item.lineWidth + 'px';
                 boxSpan.style.display = 'inline-block';
                 boxSpan.style.height = '10px';
                 boxSpan.style.marginRight = '4px';
                 boxSpan.style.width = '30px';
 
+                const textSpan = document.createElement('span');
+                textSpan.style.bottom = '1px'
+                textSpan.style.position = 'relative'
+                textSpan.style.fontSize = '0.6rem';
+                textSpan.style.textDecoration = item.hidden ? 'line-through' : '';
+
+                const text = document.createTextNode(item.text);
+                textSpan.appendChild(text);
+
                 li.appendChild(boxSpan);
-                li.appendChild(document.createTextNode(item.text));
+                li.appendChild(textSpan);
                 ul.appendChild(li);
             });
         }
