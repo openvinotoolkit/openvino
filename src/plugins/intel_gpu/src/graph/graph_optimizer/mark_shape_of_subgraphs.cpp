@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "broadcast_inst.h"
 #include "shape_of_inst.h"
 #include "read_value_inst.h"
 #include "reshape_inst.h"
@@ -16,9 +15,37 @@
 
 using namespace cldnn;
 
+namespace {
+    bool conv_reorder_with_fake_quantize(program_node& node) {
+        if (!node.is_type<reorder>()) {
+            return false;
+        }
+
+        std::string dequantize_name = "DequantizationMultiply";
+        for (auto& dependency : node.get_dependencies()) {
+            if (dependency.first->is_type<convolution>()) {
+                auto& conv_deps = dependency.first->get_dependencies();
+
+                for (auto& conv_dep : conv_deps) {
+                    if (conv_dep.first->id().find(dequantize_name) != std::string::npos) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+} // namespace
+
 void mark_shape_of_subgraphs::look_for_shape_of_subgraph(program_node& node) {
     if (node.is_type<shape_of>()) {
         mark_node(node);
+        return;
+    }
+
+    // skip mark_node for reorder node (after convolution node) for quantized model
+    if (conv_reorder_with_fake_quantize(node)) {
         return;
     }
 
@@ -27,10 +54,6 @@ void mark_shape_of_subgraphs::look_for_shape_of_subgraph(program_node& node) {
     bool has_shape_of_subgraph_dep = false;
     for (auto& dependency : node.get_dependencies()) {
         if (dependency.first->is_in_shape_of_subgraph()) {
-            // skip mark_node for broadcast node if dependency node is shape_of
-            if (dependency.first->is_type<shape_of>() && node.is_type<broadcast>()) {
-                break;
-            }
             has_shape_of_subgraph_dep = true;
         } else if (!dependency.first->is_constant()) {
             can_execute_in_subgraph = false;
