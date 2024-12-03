@@ -197,3 +197,53 @@ def test_custom_op():
     input_tensor = Tensor(input_data)
     results = request.infer({"data": input_tensor})
     assert np.allclose(results[list(results)[0]], expected_output, 1e-4, 1e-4)
+
+
+def test_op_extension():
+    import numpy as np
+    from openvino import Core, OpExtension
+    from openvino import Op
+    from openvino import CompiledModel, Model, Dimension, Shape, Tensor, compile_model, serialize
+    from openvino.runtime import DiscreteTypeInfo
+    import openvino.runtime.opset14 as ops
+
+
+    class CustomOpWithAttribute(Op):
+        class_type_info = DiscreteTypeInfo("CustomOpWithAttribute", "extension")
+
+        def __init__(self, inputs, attrs):
+            super().__init__(self)
+            self._attrs = attrs
+            self.set_arguments(inputs)
+            self.constructor_validate_and_infer_types()
+
+        def validate_and_infer_types(self):
+            self.set_output_type(0, self.get_input_element_type(0), self.get_input_partial_shape(0))
+
+        def clone_with_new_inputs(self, new_inputs):
+            return CustomOpWithAttribute(new_inputs)
+
+        def get_type_info(self):
+            return CustomOpWithAttribute.class_type_info
+
+        def visit_attributes(self, visitor):
+            visitor.on_attributes(self._attrs)
+            return True
+
+
+    #core.add_extension<TemplateExtension::Identity>();
+    core = Core()
+    core.add_extension(OpExtension(CustomOpWithAttribute))
+    input_shape = [2, 1]
+
+    param1 = ops.parameter(Shape(input_shape), dtype=np.float32, name="data1")
+    param2 = ops.parameter(Shape(input_shape), dtype=np.float32, name="data2")
+    custom = CustomOpWithAttribute(inputs=[param1, param2], attrs={"value_str": "test_attribute"})
+    #res = ops.result(custom, name="result")
+    model_with_op_attr = Model(custom, [param1, param2], "CustomModel")
+
+    serialize(model_with_op_attr, "model_with_custom.xml", "model_with_custom.bin")
+    m = core.read_model("model_with_custom.xml")
+
+
+
