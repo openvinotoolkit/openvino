@@ -98,7 +98,7 @@ OutputVector translate_varhandle_op(const NodeContext& node) {
 
         TENSORFLOW_OP_VALIDATION(node, result, "[TensorFlow Frontend] Internal error: Cannot find requested variable.");
 
-        ::tensorflow::BundleEntryProto entry;
+        ::tensorflow::BundleEntryProto entry{};
         TENSORFLOW_OP_VALIDATION(node,
                                  entry.ParseFromArray(entry_data, static_cast<int>(entry_size)),
                                  "[TensorFlow Frontend] Internal error: Cannot get read bundle entry.");
