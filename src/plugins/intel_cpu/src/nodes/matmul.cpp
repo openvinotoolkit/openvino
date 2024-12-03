@@ -38,10 +38,19 @@ struct MatMulKey {
     dnnl::primitive_attr attr;
     impl_desc_type implType;
 
+#ifndef _WIN32
+[[maybe_unused]]
+#endif
     size_t hash() const;
+#ifndef _WIN32
+[[maybe_unused]]
+#endif
     bool operator==(const MatMulKey& rhs) const;
 };
 
+#ifndef _WIN32
+[[maybe_unused]]
+#endif
 size_t MatMulKey::hash() const {
     using namespace dnnl::impl;
     using namespace dnnl::impl::primitive_hashing;
@@ -59,6 +68,9 @@ size_t MatMulKey::hash() const {
     return seed;
 }
 
+#ifndef _WIN32
+[[maybe_unused]]
+#endif
 bool MatMulKey::operator==(const MatMulKey &rhs) const {
     bool retVal = true;
     if (inp0 != rhs.inp0) {
