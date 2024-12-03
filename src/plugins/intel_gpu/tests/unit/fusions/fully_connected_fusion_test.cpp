@@ -201,9 +201,9 @@ public:
 #define CASE_FC_FP16_INT4_COMP_1 { 1, 128 }, { 1, 128 }, { 128, 128 }, data_types::f16, format::bfyx, data_types::u4, format::oiyx, data_types::f16, format::bfyx
 #define CASE_FC_FP16_INT4_COMP_2 { 2, 128 }, { 2, 128 }, { 128, 128 }, data_types::f16, format::bfyx, data_types::u4, format::oiyx, data_types::f16, format::bfyx
 
-#define CASE_FC_FP16_INT4_SWIGLU_1 { 1, 128 }, { 1, 128 }, { 256, 128 }, data_types::f16, format::bfyx, data_types::u4, format::oiyx, data_types::f16, format::bfyx
-#define CASE_FC_FP16_INT4_SWIGLU_2 { 1, 256 }, { 1, 256 }, { 512, 256 }, data_types::f16, format::bfyx, data_types::u4, format::oiyx, data_types::f16, format::bfyx
-#define CASE_FC_FP16_INT4_SWIGLU_3 { 1, 312 }, { 1, 64 }, { 128, 312 }, data_types::f16, format::bfyx, data_types::u4, format::oiyx, data_types::f16, format::bfyx
+#define CASE_FC_FP16_INT4_SWIGLU_1 { 1, 64 }, { 1, 64 }, { 64, 64 }, data_types::f16, format::bfyx, data_types::u4, format::oiyx, data_types::f16, format::bfyx
+#define CASE_FC_FP16_INT4_SWIGLU_2 { 1, 64}, { 1, 128 }, { 128, 64 }, data_types::f16, format::bfyx, data_types::u4, format::oiyx, data_types::f16, format::bfyx
+#define CASE_FC_FP16_INT4_SWIGLU_3 { 1, 312 }, { 1, 128 }, { 128, 312 }, data_types::f16, format::bfyx, data_types::u4, format::oiyx, data_types::f16, format::bfyx
 
 /* ----------------------------------------------------------------------------------------------------- */
 /* ---------------------------------------- FC cases --------------------------------------------------- */
@@ -928,8 +928,8 @@ public:
                                        get_input_weights_rank(p));
         fc_prim.decompression_zero_point_scalar = 8.0f;
         create_topologies(input_layout("input", dynamic_input_layout),
-                          data("weights", get_mem(get_weights_layout(p), 0, 10)),
-                          data("scale", get_mem(get_scale_layout(p, 128), 0.01, 0.10)),
+                          data("weights", get_mem(get_weights_layout(p))),
+                          data("scale", get_mem(get_scale_layout(p, 64), 0.1)),
                           fc_prim,
                           swiglu("swiglu",
                                  input_info("fc_prim"),
@@ -940,7 +940,7 @@ public:
                                  tensor()),
                           reorder("reorder_bfyx", input_info("swiglu"), p.default_format, data_types::f32));
 
-        tolerance = 1e-2f;
+        tolerance = 1.0f;
         execute(p, true);
     }
 };

@@ -581,8 +581,6 @@ FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int au
     dispatchData.tile_ms = tparams.dispatch_bsv;
     dispatchData.tile_ns = tparams.dispatch_fsv;
     dispatchData.use_slm = can_use_slm;
-//    std::cout << "gws[0] : " << dispatchData.gws[0] << std::endl;
-//    std::cout << "gws[2] : " << dispatchData.gws[2] << std::endl;
 
     return dispatchData;
 }
