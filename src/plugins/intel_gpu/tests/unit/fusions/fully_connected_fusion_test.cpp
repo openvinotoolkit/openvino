@@ -948,6 +948,9 @@ public:
 TEST_P(fc_fp16_swiglu_ocl_dynamic, basic) {
     if (engine.get_device_info().supports_immad)
         return;
+
+    if (engine.get_device_info().execution_units_count < 128)
+        return;
     run_test();
 }
 
