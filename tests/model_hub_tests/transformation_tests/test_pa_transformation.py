@@ -37,7 +37,7 @@ def compare_diffs(ov_model: ov.Model,
     for op in set(after_map.keys()) | set(before_map.keys()):
         resulting_map[op] = after_map.get(op, 0) - before_map.get(op, 0)
 
-    use_cache_eviction = use_block_indices_inputs and use_score_outputs
+    use_cache_eviction = use_block_indices_inputs and use_score_outputs and allow_cache_rotation
     reference_map = ref_diff_map_cache_eviction[model_id] if use_cache_eviction else ref_diff_map[model_id]
 
     assert reference_map == resulting_map
@@ -58,14 +58,14 @@ def compare_diffs(ov_model: ov.Model,
 
     # Test for block_indices inputs and scores outputs to appear in the model
     if (use_block_indices_inputs):
-        interesting_input_patterns["block_indices"] = r'block_indices\.[0-9]+'
+        interesting_input_patterns["block_indices"] = r'^block_indices\.[0-9]+'
 
     if (use_score_outputs):
-        interesting_output_patterns["scores"] = r'scores\.[0-9]+'
+        interesting_output_patterns["scores"] = r'^scores\.[0-9]+'
 
     if (allow_cache_rotation):
-        interesting_input_patterns["rotation_coefficients"] = r'rotation_coefficients\.[0-9]+';
-        interesting_input_patterns["rotated_block_indices"] = r'rotated_block_indices\.[0-9]+';
+        interesting_input_patterns["rotation_coefficients"] = r'^rotation_coefficients\.[0-9]+';
+        interesting_input_patterns["rotated_block_indices"] = r'^rotated_block_indices\.[0-9]+';
 
     input_counters = {k: 0 for k in interesting_input_patterns}
     output_counters = {k: 0 for k in interesting_output_patterns}
@@ -95,11 +95,12 @@ def run_pa(tmp_path,
            model_link,
            cls: Union[Type[OVModelForCausalLM], Type[OVModelForVisualCausalLM]],
            use_block_indices_inputs,
-           use_score_outputs):
+           use_score_outputs,
+           allow_cache_rotation):
     model = cls.from_pretrained(model_id, export=True, trust_remote_code=True)
     ov_model = model.model if cls is OVModelForCausalLM else model.lm_model
 
-    compare_diffs(ov_model, model_id, use_block_indices_inputs, use_score_outputs)
+    compare_diffs(ov_model, model_id, use_block_indices_inputs, use_score_outputs, allow_cache_rotation)
 
 @pytest.mark.precommit
 @pytest.mark.parametrize("model_name, model_link, mark, reason", utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-models-precommit")))
@@ -110,7 +111,7 @@ def test_pa_precommit(tmp_path, model_name, model_link, mark, reason, ie_device)
         pytest.skip(reason)
     elif mark == 'xfail':
         pytest.xfail(reason)
-    run_pa(tmp_path, model_name, model_link, OVModelForCausalLM False, False, False)
+    run_pa(tmp_path, model_name, model_link, OVModelForCausalLM, False, False, False)
 
 @pytest.mark.precommit
 @pytest.mark.parametrize("model_name, model_link, mark, reason", utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-models-precommit")))
@@ -121,7 +122,7 @@ def test_pa_precommit_use_cache_eviction(tmp_path, model_name, model_link, mark,
         pytest.skip(reason)
     elif mark == 'xfail':
         pytest.xfail(reason)
-    run_pa(tmp_path, model_name, model_link, OVModelForCausalLM, True, True)
+    run_pa(tmp_path, model_name, model_link, OVModelForCausalLM, True, True, True)
 
 @pytest.mark.precommit
 @pytest.mark.parametrize("model_name, model_link, mark, reason", utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-vl-models-precommit")))
