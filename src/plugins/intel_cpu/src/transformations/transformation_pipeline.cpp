@@ -157,6 +157,7 @@
 #endif
 
 // Misc
+#include "nodes/act_sparse_fc.h"
 #include "nodes/mvn.h"
 #include "nodes/normalize.h"
 #include "nodes/fake_quantize.h"
@@ -880,6 +881,13 @@ void Transformations::PostLpt() {
     }
 
     CPU_REGISTER_PASS_X64(postLPTPassManager, ActivationSparsityFusion);
+    CPU_SET_CALLBACK_X64(
+        postLPTPassManager,
+        [=](const_node_ptr& node) -> bool {
+            std::string errorMsg;
+            return node::ActSparseFC::isSupportedOperation(node, errorMsg);
+        },
+        ActivationSparsityFusion);
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::PrintModel, "xxx.cpp");
 
 #endif // OPENVINO_ARCH_X86_64

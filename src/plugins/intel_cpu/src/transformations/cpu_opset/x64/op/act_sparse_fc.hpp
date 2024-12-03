@@ -19,6 +19,7 @@ public:
     struct Config {
         int oc;
         int ic;
+        int ic_q_group_size;
         float threshold;
     };
 

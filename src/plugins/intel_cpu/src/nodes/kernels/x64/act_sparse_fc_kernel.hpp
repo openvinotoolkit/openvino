@@ -26,6 +26,17 @@ void dynPruneLinear_i8(const float* input,
                        int IC,
                        int OC);
 
+void dynPruneLinear_i8_opt(const float* input,
+                           float threshold,
+                           float zero_point,
+                           const uint8_t* W,
+                           const uint8_t* zp,
+                           const float* scales,
+                           float* output,
+                           int M,
+                           int IC,
+                           int OC);
+
 }  // namespace XARCH
 }  // namespace Cpu
 }  // namespace Extensions

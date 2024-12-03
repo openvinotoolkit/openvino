@@ -100,6 +100,7 @@ ov::intel_cpu::ActivationSparsityFusion::ActivationSparsityFusion() {
         ActSparseFCNode::Config config;
         config.ic = 0;
         config.oc = 0;
+        config.ic_q_group_size = 0; // per-OC by default
         config.threshold = thr[0];
 
         auto const_weight = ov::as_type_ptr<opset1::Constant>(pattern_map.at(fc_weight_u8).get_node_shared_ptr());
@@ -116,9 +117,9 @@ ov::intel_cpu::ActivationSparsityFusion::ActivationSparsityFusion() {
         new_node->set_friendly_name(old_node->get_friendly_name());
 
         // callback is for plugin implementation to check if it can be supported
-        // if (!transformation_callback(new_node)) {
-        //    return false;
-        //}
+        if (!transformation_callback(new_node)) {
+            return false;
+        }
 
         if (std::getenv("NO_SPARSE"))
             return false;

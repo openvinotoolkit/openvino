@@ -165,6 +165,11 @@ bool ActSparseFC::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
 #if defined(OPENVINO_ARCH_X86_64)
     try {
         const auto node = std::dynamic_pointer_cast<const ActSparseFCNode>(op);
+        const auto& config = node->get_config();
+        if (config.ic_q_group_size > 0) {
+            errorMessage = "Unsupported IC group size";
+            return false;
+        }
     } catch (...) {
         return false;
     }
