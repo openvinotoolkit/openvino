@@ -14,6 +14,7 @@
 #include <vector>
 #include <utility>
 #include <bitset>
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 namespace kernel_selector {
 using DataTensor = Tensor::DataTensor;
@@ -41,6 +42,8 @@ protected:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ParamsKey
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#define CHECK_SUPPORT(org, target, key_type, key_name)   if (!((org.key_type.val.key_name & target.key_type.val.key_name) == target.key_type.val.key_name)) { GPU_DEBUG_LOG << "       --- Not support k.key."#key_type"."#key_name"(" << k.key.key_type.val.key_name << ")" << std::endl; }
+
 class DeviceFeaturesKey {
 public:
     DeviceFeaturesKey() {
@@ -73,7 +76,19 @@ public:
     void merge(DeviceFeaturesKey k) { key.machine_features.raw = key.machine_features.raw | k.key.machine_features.raw; }
 
     bool supports(DeviceFeaturesKey k) const {
-        return (key.machine_features.raw & k.key.machine_features.raw) == k.key.machine_features.raw;
+        if (!((key.machine_features.raw & k.key.machine_features.raw) == k.key.machine_features.raw)) {
+            CHECK_SUPPORT(key, k.key, machine_features, subgroups)
+            CHECK_SUPPORT(key, k.key, machine_features, subgroup_blocked_read_write)
+            CHECK_SUPPORT(key, k.key, machine_features, subgroup_blocked_read_write_short)
+            CHECK_SUPPORT(key, k.key, machine_features, subgroup_blocked_read_write_char)
+            CHECK_SUPPORT(key, k.key, machine_features, reqd_subgroup_size)
+            CHECK_SUPPORT(key, k.key, machine_features, subgroup_broadcast)
+            CHECK_SUPPORT(key, k.key, machine_features, subgroup_shuffle)
+            CHECK_SUPPORT(key, k.key, machine_features, subgroup_shuffle_relative)
+            CHECK_SUPPORT(key, k.key, machine_features, subgroup_reduce)
+            return false;
+        }
+        return true;
     }
 
     struct Key {

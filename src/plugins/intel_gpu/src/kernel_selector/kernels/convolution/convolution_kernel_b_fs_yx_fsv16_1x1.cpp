@@ -5,6 +5,7 @@
 #include <iostream>
 #include "convolution_kernel_b_fs_yx_fsv16_1x1.h"
 #include "kernel_selector_utils.h"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include <string>
 
 namespace kernel_selector {
@@ -183,7 +184,9 @@ bool ConvolutionKernel_b_fs_yx_fsv16_1x1::Validate(const Params& p) const {
     const bool bPadding = (!input.Feature().pad.is_dynamic && input.Feature().pad.before % tuning_data.feature_block_size != 0) ||
                           (!output.Feature().pad.is_dynamic && output.Feature().pad.before % tuning_data.feature_block_size != 0);
 
-    if  (bOutputSizes || bFilterSize || bStride || bPadding) {
+    if (bOutputSizes || bFilterSize || bStride || bPadding) {
+        GPU_DEBUG_LOG << " bOutputSizes:" << bOutputSizes << ", bFilterSize["<< params.filterSize.x <<","<< params.filterSize.y <<"]: " << bFilterSize
+                      << ", bStride: " << bStride << ", bPadding: " << bPadding << std::endl;
         return false;
     }
 
@@ -335,6 +338,7 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
     const bool bWeightsOK = bSupportedWeightsLayout || newParams.allowStaticInputReordering;
 
     if (!succeed || !bWeightsOK) {
+        GPU_DEBUG_LOG << "!succeed(" << !succeed << ") || !bWeightsOK(" << !bWeightsOK << ")" << std::endl;
         return {};
     }
 
@@ -345,8 +349,10 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
         } else {
             kd.reorderInput = ConvolutionUpdateInputParams(newParams);
 
-            if (kd.reorderInput && !newParams.allowInputReordering)
+            if (kd.reorderInput && !newParams.allowInputReordering) {
+                GPU_DEBUG_LOG << "kd.reorderInput(" << kd.reorderInput << ") && !newParams.allowInputReordering(" << !newParams.allowInputReordering << ")" << std::endl;
                 return {};
+            }
         }
     }
 
@@ -354,6 +360,7 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
 
     if (!params.is_shape_agnostic && !CheckWorkGroups(dispatchData)) {
         // Internal Error - wrong calculation of global/local work group sizes
+        GPU_DEBUG_LOG << "!params.is_shape_agnostic(" << !params.is_shape_agnostic << ") && !CheckWorkGroups(dispatchData)(" << !CheckWorkGroups(dispatchData) << ")" << std::endl;
         return {};
     }
 

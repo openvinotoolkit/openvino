@@ -5,6 +5,7 @@
 #include "convolution_kernel_b_fs_yx_fsv16_imad_1x1.h"
 #include "kernel_selector_utils.h"
 #include "common_tools.h"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include <vector>
 #include <iostream>
 #include <algorithm>
@@ -187,28 +188,13 @@ bool Convolution_kernel_b_fs_yx_fsv16_imad_1x1::Validate(const Params& params) c
     if ((conv_params.filterSize.x != conv_params.filterSize.y) ||
         conv_params.filterSize.x != 1) {
         // Fitler size needs to be 1x1
+        GPU_DEBUG_LOG << " Fitler size needs to be 1x1:: conv_params.filterSize.x: " << conv_params.filterSize.x << ", conv_params.filterSize.y: " << conv_params.filterSize.y << std::endl;
         return false;
     }
 
-    if (conv_params.groups != 1)
+    if (conv_params.groups != 1) {
+        GPU_DEBUG_LOG << " group size should be 1.:: conv_params.groups: " << conv_params.groups << std::endl;
         return false;
-
-    if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS) {
-        if ((conv_params.activations_zero_points.empty() || conv_params.weights_zero_points.empty()) &&
-            (conv_params.compensation.empty()))
-            return false;
-    } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA) {
-        if ((conv_params.activations_zero_points.empty()) &&
-            (conv_params.compensation.empty()))
-            return false;
-    } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_WEIGHTS) {
-        if (conv_params.weights_zero_points.empty())
-            return false;
-    } else {
-        if (!conv_params.activations_zero_points.empty() ||
-            !conv_params.weights_zero_points.empty() ||
-            !conv_params.compensation.empty())
-            return false;
     }
 
     return true;

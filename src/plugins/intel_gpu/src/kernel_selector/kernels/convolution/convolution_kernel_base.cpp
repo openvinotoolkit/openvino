@@ -3,23 +3,63 @@
 //
 
 #include "convolution_kernel_base.h"
+#include "kernel_selector_common.h"
 #include "kernel_selector_utils.h"
 #include "common_tools.h"
 #include <string>
 #include <vector>
 #include <algorithm>
 
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include <typeinfo>
+
+#define CLASS_NAME  typeid(*this).name()
+
 namespace kernel_selector {
 bool ConvolutionKernelBase::Validate(const Params& p) const {
     if (p.GetType() != KernelType::CONVOLUTION) {
+        GPU_DEBUG_LOG << " [" << CLASS_NAME << "] p.GetType(" << toString(p.GetType()) << ")" << std::endl;
         return false;
     }
 
     const convolution_params& params = static_cast<const convolution_params&>(p);
 
     for (auto& fused_op : params.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op))
+        if (!IsFusedPrimitiveSupported(fused_op)) {
+            GPU_DEBUG_LOG << " [" << CLASS_NAME << "] !IsFusedPrimitiveSupported(" << toString(fused_op.GetType()) << ")" << std::endl;
             return false;
+        }
+    }
+
+    if (params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS) {
+        if ((params.activations_zero_points.empty() || params.weights_zero_points.empty()) &&
+            (params.compensation.empty())) {
+            GPU_DEBUG_LOG << " [" << CLASS_NAME << "] " << " [ASYMMETRIC_DATA_AND_WEIGHTS] params.activations_zero_points.empty(): " << params.activations_zero_points.empty()
+                        << ", params.weights_zero_points.empty(): " << params.weights_zero_points.empty()
+                        << ", params.compensation.empty(): " << params.compensation.empty() << std::endl;
+            return false;
+        }
+    } else if (params.quantization == QuantizationType::ASYMMETRIC_DATA) {
+        if ((params.activations_zero_points.empty()) &&
+            (params.compensation.empty())) {
+            GPU_DEBUG_LOG << " [" << CLASS_NAME << "] " << " [ASYMMETRIC_DATA] params.activations_zero_points.empty(): " << params.activations_zero_points.empty()
+                        << ", params.compensation.empty(): " << params.compensation.empty() << std::endl;
+            return false;
+        }
+    } else if (params.quantization == QuantizationType::ASYMMETRIC_WEIGHTS) {
+        if (params.weights_zero_points.empty()) {
+            GPU_DEBUG_LOG << " [" << CLASS_NAME << "] " << " [ASYMMETRIC_WEIGHTS] params.weights_zero_points.empty(): " << params.weights_zero_points.empty() << std::endl;
+            return false;
+        }
+    } else {
+        if (!params.activations_zero_points.empty() ||
+            !params.weights_zero_points.empty() ||
+            !params.compensation.empty()) {
+            GPU_DEBUG_LOG << " [" << CLASS_NAME << "] " << " [not quantize] params.activations_zero_points.empty(): " << params.activations_zero_points.empty()
+                        << ", params.weights_zero_points.empty(): " << params.weights_zero_points.empty()
+                        << ", params.compensation.empty(): " << params.compensation.empty() << std::endl;
+            return false;
+        }
     }
 
     return true;
@@ -198,18 +238,23 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
     const bool bWeightsOK = bSupportedWeightsLayout || newParams.allowStaticInputReordering;
 
     if (!succeed || !bWeightsOK) {
+        GPU_DEBUG_LOG << " [" << CLASS_NAME << "] UpdateWeightsParams(" << succeed << ") bWeightsOK(" << bWeightsOK << ")" << std::endl;
         return {};
     }
 
     if (NeedPaddedInput()) {
         if (newParams.has_dynamic_inputs()) {
-            if (!CheckConvolutionExplicitPaddings(newParams))
+            if (!CheckConvolutionExplicitPaddings(newParams)) {
+                GPU_DEBUG_LOG << " [" << CLASS_NAME << "] CheckConvolutionExplicitPaddings() = false" << std::endl;
                 return {};
+            }
         } else {
             kd.reorderInput = ConvolutionUpdateInputParams(newParams);
 
-            if (kd.reorderInput && !newParams.allowInputReordering)
+            if (kd.reorderInput && !newParams.allowInputReordering) {
+                GPU_DEBUG_LOG << " [" << CLASS_NAME << "] kd.reorderInput && !newParams.allowInputReordering" << std::endl;
                 return {};
+            }
         }
     }
 
@@ -217,6 +262,7 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
 
     if (!params.is_shape_agnostic && !CheckWorkGroups(dispatchData)) {
         // Internal Error - wrong calculation of global/local work group sizes
+        GPU_DEBUG_LOG << " [" << CLASS_NAME << "] Internal Error - wrong calculation of global/local work group sizes" << std::endl;
         return {};
     }
 
@@ -316,8 +362,10 @@ static DataTensor GetConvolutionBFYXPaddedTensor(const convolution_params& cp) {
 }
 
 bool CheckConvolutionExplicitPaddings(const convolution_params& conv_params) {
-    if (!conv_params.has_explicit_paddings)
+    if (!conv_params.has_explicit_paddings) {
+        GPU_DEBUG_LOG << " !conv_params.has_explicit_paddings" << std::endl;
         return false;
+    }
 
     bool proper_padding = true;
     proper_padding &= conv_params.padding_begin.x == conv_params.inputs[0].X().pad.before &&
@@ -327,6 +375,10 @@ bool CheckConvolutionExplicitPaddings(const convolution_params& conv_params) {
     proper_padding &= conv_params.padding_end.x == conv_params.inputs[0].X().pad.after &&
                       conv_params.padding_end.y == conv_params.inputs[0].Y().pad.after &&
                       conv_params.padding_end.z == conv_params.inputs[0].Z().pad.after;
+
+    if (!proper_padding) {
+        GPU_DEBUG_LOG << " !proper_padding" << std::endl;
+    }
 
     return proper_padding;
 }
@@ -342,6 +394,7 @@ bool ConvolutionCheckInput(const Params& p) {
     const bool bInputPadded = params.allowInputReordering || bProperInputDesc;
 
     if (!bInputPadded) {
+        GPU_DEBUG_LOG << " !bInputPadded" << std::endl;
         return false;
     }
 

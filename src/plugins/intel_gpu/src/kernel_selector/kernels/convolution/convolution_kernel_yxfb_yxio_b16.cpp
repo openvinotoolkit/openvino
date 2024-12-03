@@ -3,6 +3,7 @@
 //
 
 #include "convolution_kernel_yxfb_yxio_b16.h"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include <string>
 #include <algorithm>
 
@@ -112,6 +113,7 @@ bool ConvolutionKernel_yxfb_yxio_b16::Validate(const Params& p) const {
         (filter_ofm_num > 0) && (batch_size > 0) && (params.outputs[0].Feature().v == filter_ofm_num * filter_groups_num);
 
     if (!bInputValidated) {
+        GPU_DEBUG_LOG << " bInputValidated: false" << std::endl;
         return false;
     }
 
@@ -127,10 +129,12 @@ bool ConvolutionKernel_yxfb_yxio_b16::Validate(const Params& p) const {
             0;  // Batch size dividable by minimum number of batches processed when smallest local work size is used.
 
         if (!bFilterOK || !bBatchOK) {
+            GPU_DEBUG_LOG << " bFilterOK: " << bFilterOK << ", bBatchOK: " << bBatchOK << std::endl;
             return false;
         }
     } else {
         if ((filter_ofm_num * batch_size) % min_lws != 0 || batch_size < 32) {  // TODO: check why it's not supported
+            GPU_DEBUG_LOG << "filter_ofm_num: " << filter_ofm_num << ", min_lws: " << min_lws << ", batch_size(>=32): " << batch_size << std::endl;
             return false;
         }
     }

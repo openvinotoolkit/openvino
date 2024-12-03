@@ -5,6 +5,7 @@
 #include <iostream>
 #include "convolution_kernel_b_fs_yx_fsv16_depthwise.h"
 #include "kernel_selector_utils.h"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include <string>
 
 namespace kernel_selector {
@@ -35,6 +36,7 @@ ParamsKey ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetSupportedKey() const {
     k.EnableGroupedConvolution();
     k.EnableDilation();
     k.EnableDifferentTypes();
+    // k.EnableDynamicShapesSupport();
     return k;
 }
 
@@ -48,15 +50,23 @@ DeviceFeaturesKey ConvolutionKernel_b_fs_yx_fsv16_depthwise::get_required_device
 bool ConvolutionKernel_b_fs_yx_fsv16_depthwise::Validate(const Params& p) const {
     const convolution_params& cp = static_cast<const convolution_params&>(p);
 
-    if (cp.groups == 1)
+    if (cp.groups == 1) {
+        GPU_DEBUG_LOG << " cp.groups == 1" << std::endl;
         return false;
+    }
 
-    if (cp.inputs[0].Feature().v != cp.groups || cp.outputs[0].Feature().v != cp.groups)
+    if (cp.inputs[0].Feature().v != cp.groups || cp.outputs[0].Feature().v != cp.groups) {
+        GPU_DEBUG_LOG << " cp.inputs[0].Feature().v(" << cp.inputs[0].Feature().v << ") != cp.groups(" << cp.groups
+                    << ") || cp.outputs[0].Feature().v(" << cp.outputs[0].Feature().v << ") != cp.groups" << std::endl;
         return false;
+    }
 
     // Check that padding features doesn't miss-align the blocks
-    if (cp.inputs[0].Feature().pad.before % feature_block_size != 0 || cp.outputs[0].Feature().pad.before % feature_block_size != 0)
+    if (cp.inputs[0].Feature().pad.before % feature_block_size != 0 || cp.outputs[0].Feature().pad.before % feature_block_size != 0) {
+        GPU_DEBUG_LOG << " cp.inputs[0].Feature().pad.before(" << cp.inputs[0].Feature().pad.before << ") \% feature_block_size(" << feature_block_size
+                << ") != 0 || cp.outputs[0].Feature().pad.before(" << cp.outputs[0].Feature().pad.before << ") \% feature_block_size != 0" << std::endl;
         return false;
+    }
 
     return true;
 }

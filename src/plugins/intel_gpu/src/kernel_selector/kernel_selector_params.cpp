@@ -9,6 +9,7 @@
 
 #include <activation/activation_kernel_base.h>
 #include "jitter.h"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 namespace kernel_selector {
 
@@ -419,28 +420,98 @@ void ParamsKey::EnableQuantization(QuantizationType q) {
 }
 
 bool ParamsKey::Support(const ParamsKey& k) const {
-    if (!((key.restrict.raw & k.key.restrict.raw) == k.key.restrict.raw))  // check if this kernel supports this params
-        return false;
-    if (!((key.inputType.raw & k.key.inputType.raw) == k.key.inputType.raw))
-        return false;
-    if (!((key.outputType.raw & k.key.outputType.raw) == k.key.outputType.raw))
-        return false;
-    if (!((key.inputWeightsType.raw & k.key.inputWeightsType.raw) == k.key.inputWeightsType.raw))
-        return false;
-    if (!((key.outputWeightsType.raw & k.key.outputWeightsType.raw) == k.key.outputWeightsType.raw))
-        return false;
-    if (!((key.inputLayout & k.key.inputLayout) != 0 || key.inputLayout == k.key.inputLayout))
-        return false;
-    if (!((key.outputLayout & k.key.outputLayout) != 0 || key.outputLayout == k.key.outputLayout))
-        return false;
+    bool ret = true;
+    if (!((key.restrict.raw & k.key.restrict.raw) == k.key.restrict.raw)) { // check if this kernel supports this params
+        CHECK_SUPPORT(key, k.key, restrict, different_types)
+        CHECK_SUPPORT(key, k.key, restrict, different_input_weights_types)
+        CHECK_SUPPORT(key, k.key, restrict, offset)
+        CHECK_SUPPORT(key, k.key, restrict, pitches)
+        CHECK_SUPPORT(key, k.key, restrict, batching)
+        CHECK_SUPPORT(key, k.key, restrict, biasPerFeatureMap)
+        CHECK_SUPPORT(key, k.key, restrict, biasPerOutput)
+        CHECK_SUPPORT(key, k.key, restrict, nonBias)
+        CHECK_SUPPORT(key, k.key, restrict, activationAdditionalParamsAsInput)
+        CHECK_SUPPORT(key, k.key, restrict, FP16Emulation)
+        CHECK_SUPPORT(key, k.key, restrict, momentum)
+        CHECK_SUPPORT(key, k.key, restrict, quantization)
+        CHECK_SUPPORT(key, k.key, restrict, sym_quantization)
+        CHECK_SUPPORT(key, k.key, restrict, asym_w_quantization)
+        CHECK_SUPPORT(key, k.key, restrict, asym_d_quantization)
+        CHECK_SUPPORT(key, k.key, restrict, dynamic_shapes)
+        CHECK_SUPPORT(key, k.key, restrict, compressed_weights)
+        CHECK_SUPPORT(key, k.key, restrict, dedicated.conv.dilation)
+        CHECK_SUPPORT(key, k.key, restrict, dedicated.conv.grouped)
+        CHECK_SUPPORT(key, k.key, restrict, dedicated.conv.deformable)
+        CHECK_SUPPORT(key, k.key, restrict, dedicated.conv.bilinear_interpolation_pad)
+        CHECK_SUPPORT(key, k.key, restrict, dedicated.conv.deformable_mask_enabled)
+        ret = false;
+    }
+    if (!((key.inputType.raw & k.key.inputType.raw) == k.key.inputType.raw)) {
+        CHECK_SUPPORT(key, k.key, inputType, int4)
+        CHECK_SUPPORT(key, k.key, inputType, int8)
+        CHECK_SUPPORT(key, k.key, inputType, uint8)
+        CHECK_SUPPORT(key, k.key, inputType, int16)
+        CHECK_SUPPORT(key, k.key, inputType, uint16)
+        CHECK_SUPPORT(key, k.key, inputType, uint32)
+        CHECK_SUPPORT(key, k.key, inputType, int64)
+        CHECK_SUPPORT(key, k.key, inputType, F16)
+        CHECK_SUPPORT(key, k.key, inputType, F32)
+        CHECK_SUPPORT(key, k.key, inputType, BF16)
+        ret = false;
+    }
+    if (!((key.outputType.raw & k.key.outputType.raw) == k.key.outputType.raw)) {
+        CHECK_SUPPORT(key, k.key, outputType, int4)
+        CHECK_SUPPORT(key, k.key, outputType, int8)
+        CHECK_SUPPORT(key, k.key, outputType, uint8)
+        CHECK_SUPPORT(key, k.key, outputType, int16)
+        CHECK_SUPPORT(key, k.key, outputType, uint16)
+        CHECK_SUPPORT(key, k.key, outputType, uint32)
+        CHECK_SUPPORT(key, k.key, outputType, int64)
+        CHECK_SUPPORT(key, k.key, outputType, F16)
+        CHECK_SUPPORT(key, k.key, outputType, F32)
+        CHECK_SUPPORT(key, k.key, outputType, BF16)
+        ret = false;
+    }
+    if (!((key.inputWeightsType.raw & k.key.inputWeightsType.raw) == k.key.inputWeightsType.raw)) {
+        GPU_DEBUG_LOG << "       --- Not support k.key.inputWeightsType" << std::endl;
+        ret = false;
+    }
+    if (!((key.outputWeightsType.raw & k.key.outputWeightsType.raw) == k.key.outputWeightsType.raw)) {
+        GPU_DEBUG_LOG << "       --- Not support k.key.outputWeightsType" << std::endl;
+        ret = false;
+    }
+    if (!((key.inputLayout & k.key.inputLayout) != 0 || key.inputLayout == k.key.inputLayout)) {
+        for (size_t i = 0; i < DataLayout::DataLayoutCount; ++i) {
+            if (!((key.inputLayout[i] & k.key.inputLayout[i]) == k.key.inputLayout[i]))
+                GPU_DEBUG_LOG << "       --- Not support k.key.inputLayout: " << toString((DataLayout)i) << ", i: " << i << std::endl;
+        }
+        ret = false;
+    }
+    if (!((key.outputLayout & k.key.outputLayout) != 0 || key.outputLayout == k.key.outputLayout)) {
+        for (size_t i = 0; i < DataLayout::DataLayoutCount; ++i) {
+            if (!((key.outputLayout[i] & k.key.outputLayout[i]) == k.key.outputLayout[i]))
+                GPU_DEBUG_LOG << "       --- Not support k.key.outputLayout: " << toString((DataLayout)i) << ", i: " << i << std::endl;
+        }
+        ret = false;
+    }
     if (!((key.weightsInputLayout & k.key.weightsInputLayout) != 0 ||
-          key.weightsInputLayout == k.key.weightsInputLayout))
-        return false;
+          key.weightsInputLayout == k.key.weightsInputLayout)) {
+        for (size_t i = 0; i < WeightsLayout::WeightsLayoutCount; ++i) {
+            if (!((key.weightsInputLayout[i] & k.key.weightsInputLayout[i]) == k.key.weightsInputLayout[i]))
+                GPU_DEBUG_LOG << "       --- Not support k.key.weightsInputLayout: " << toString((WeightsLayout)i) << ", i: " << i << std::endl;
+        }
+        ret = false;
+    }
     if (!((key.weightsOutputLayout & k.key.weightsOutputLayout) != 0 ||
-          key.weightsOutputLayout == k.key.weightsOutputLayout))
-        return false;
+          key.weightsOutputLayout == k.key.weightsOutputLayout)) {
+        for (size_t i = 0; i < WeightsLayout::WeightsLayoutCount; ++i) {
+            if (!((key.weightsOutputLayout[i] & k.key.weightsOutputLayout[i]) == k.key.weightsOutputLayout[i]))
+                GPU_DEBUG_LOG << "       --- Not support k.key.weightsOutputLayout: " << toString((WeightsLayout)i) << ", i: " << i << std::endl;
+        }
+        ret = false;
+    }
 
-    return true;
+    return ret;
 }
 
 ParamsKey ParamsKey::Merge(const ParamsKey& k) const {
