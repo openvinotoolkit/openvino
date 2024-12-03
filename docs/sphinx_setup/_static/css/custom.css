@@ -923,6 +923,8 @@ h5 {
     position: relative;
     bottom: -16px;
     left: 0;
+    margin-left: auto; 
+    padding-right: 30px;
 }
 
 .modal-footer-content {
