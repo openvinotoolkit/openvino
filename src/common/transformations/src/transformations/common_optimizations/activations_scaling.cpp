@@ -111,7 +111,9 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
         // adding a scale_down layer before the target node
         auto scale_down = std::make_shared<ov::op::v1::Multiply>(
             scaled_op->input(0).get_source_output(),
-            std::make_shared<ov::op::v0::Constant>(scaled_op->input(0).get_element_type(), scale_shape, scale_down_value));
+            std::make_shared<ov::op::v0::Constant>(scaled_op->input(0).get_element_type(),
+                                                   scale_shape,
+                                                   scale_down_value));
         scale_down->set_friendly_name(scaled_op->get_friendly_name() + "_scale_down");
         ov::copy_runtime_info(scaled_op, scale_down);
         mark_as_scale_down_node(scale_down);
@@ -157,7 +159,9 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
             target_inputs = add->get_output_target_inputs(0);
             auto scale_down_bias = std::make_shared<ov::op::v1::Multiply>(
                 add->input(bias_index).get_source_output(),
-                std::make_shared<ov::op::v0::Constant>(add->input(bias_index).get_element_type(), scale_shape, scale_down_value));
+                std::make_shared<ov::op::v0::Constant>(add->input(bias_index).get_element_type(),
+                                                       scale_shape,
+                                                       scale_down_value));
             scale_down_bias->set_friendly_name(add->get_friendly_name() + "_scale_down");
             ov::copy_runtime_info(add, scale_down_bias);
             if (scale_down_bias->output(0).get_element_type() != scaled_prec && !keep_precision) {
@@ -175,7 +179,8 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
         } else {
             target_inputs = output_of_scaled_op->get_output_target_inputs(0);
             if (output_of_scaled_op->output(0).get_element_type() != output_prec && !keep_precision) {
-                output_of_scaled_op = std::make_shared<ov::op::v0::Convert>(output_of_scaled_op->output(0), output_prec);
+                output_of_scaled_op =
+                    std::make_shared<ov::op::v0::Convert>(output_of_scaled_op->output(0), output_prec);
             } else {
                 output_of_scaled_op = output_of_scaled_op;
             }
@@ -183,7 +188,9 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
 
         auto scale_up = register_new_node<ov::op::v1::Multiply>(
             output_of_scaled_op->output(0),
-            std::make_shared<ov::op::v0::Constant>(output_of_scaled_op->output(0).get_element_type(), scale_shape, scale_up_value));
+            std::make_shared<ov::op::v0::Constant>(output_of_scaled_op->output(0).get_element_type(),
+                                                   scale_shape,
+                                                   scale_up_value));
         scale_up->set_friendly_name(scaled_op->get_friendly_name() + "_scale_up");
         ov::copy_runtime_info(scaled_op, scale_up);
         for (auto& in : target_inputs) {
