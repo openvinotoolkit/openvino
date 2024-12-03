@@ -760,8 +760,6 @@ TYPED_TEST_P(AnyConversionTest, AnyToOtherValue) {
     const TypeParam test_value{static_cast<TypeParam>(23.15f)};
     const auto a = Any{test_value};
 
-    EXPECT_EQ(a.as<bool>(), true);
-
     EXPECT_EQ(a.as<int8_t>(), static_cast<int8_t>(test_value));
     EXPECT_EQ(a.as<int16_t>(), static_cast<int16_t>(test_value));
     EXPECT_EQ(a.as<int32_t>(), static_cast<int32_t>(test_value));

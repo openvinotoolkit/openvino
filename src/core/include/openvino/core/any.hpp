@@ -758,13 +758,16 @@ class OPENVINO_API Any {
         }
     }
 
-    template <class T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    template <class T,
+              typename std::enable_if<std::is_arithmetic<T>::value &&
+                                      !std::is_same<typename std::decay<T>::type, bool>::value>::type* = nullptr>
     T& as_impl(int);
 
-    template <
-        class T,
-        typename std::enable_if<(util::Istreamable<T>::value || util::Readable<T>::value) &&
-                                !std::is_same<T, std::string>::value && !std::is_arithmetic<T>::value>::type* = nullptr>
+    template <class T,
+              typename std::enable_if<
+                  (util::Istreamable<T>::value || util::Readable<T>::value) && !std::is_same<T, std::string>::value &&
+                  (!std::is_arithmetic<T>::value || std::is_same<typename std::decay<T>::type, bool>::value)>::type* =
+                  nullptr>
     T& as_impl(int) {
         impl_check();
 
@@ -977,7 +980,9 @@ OPENVINO_API long long Any::Base::convert<long long>() const;
 template <>
 OPENVINO_API double Any::Base::convert<double>() const;
 
-template <class T, typename std::enable_if<std::is_arithmetic<T>::value>::type*>
+template <class T,
+          typename std::enable_if<std::is_arithmetic<T>::value &&
+                                  !std::is_same<typename std::decay<T>::type, bool>::value>::type*>
 T& Any::as_impl(int) {
     impl_check();
     if (is<T>()) {
