@@ -493,3 +493,200 @@ class CompareBlobsMode(Mode):
         return "{ci}, diff = {d}".format(
                 ci=super().getCommitInfo(commit),
                 d=commit.diff)
+
+class LLMBenchmarkMode(Mode):
+    def __init__(self, cfg):
+        super().__init__(cfg)
+        self.perfRel = 0
+        self.createCash()
+
+    def isPerformanceBased(self):
+        return True
+
+    def prepareRun(self, list, cfg):
+        super().prepareRun(list, cfg)
+        sampleCommit = list[0]
+        sampleCommit = sampleCommit.replace('"', "")
+        self.commonLogger.info(
+            "Prepare sample commit - {commit}".format(commit=sampleCommit)
+        )
+        commitLogger = getCommitLogger(cfg, sampleCommit)
+        foundLatency = 0
+        isCommitCashed, cashedThroughput = self.getCommitIfCashed(sampleCommit)
+        if isCommitCashed:
+            logMsg = "Cashed commit - {commit}".format(commit=sampleCommit)
+            self.commonLogger.info(logMsg)
+            commitLogger.info(logMsg)
+            foundLatency = cashedThroughput
+        else:
+            handleCommit(sampleCommit, cfg)
+            output = fetchAppOutput(cfg, sampleCommit)
+            commitLogger.info(output)
+            foundLatency = re.search(
+                self.outPattern, output, flags=re.MULTILINE
+            ).group(3)
+            self.setCommitCash(sampleCommit, float(foundLatency))
+        self.sampleThroughput = float(foundLatency)
+        return list
+
+    def checkCfg(self, cfg):
+        super().checkCfg(cfg)
+        if not ("perfAppropriateDeviation" in cfg["runConfig"]):
+            raise CfgError("Appropriate deviation is not configured")
+        else:
+            self.apprDev = cfg["runConfig"]["perfAppropriateDeviation"]
+        if ("metric" in cfg["runConfig"]):
+            self.outPattern = self.specifyMetric(cfg["runConfig"]["metric"])
+        else:
+            self.outPattern = self.specifyMetric()
+
+
+    def specifyMetric(self, metric: str = "1024:1st token latency"):
+        if metric in [
+            "32:1st token latency",
+            "32:2nd token latency",
+            "1024:1st token latency",
+            "1024:2nd token latency",
+            "32:throughput",
+            "1024:throughput"]:
+            spec = metric.split(":")
+            spec0 = spec[0]
+            spec1 = spec[1]
+            idStr = "ms"
+            if "throughput" in spec:
+                idStr = "tokens"
+
+            res = r'Average(.*)token size: {spec0}(.*){spec1}:\s*([0-9]*[.][0-9]*)\s*{idStr}'.format(
+                spec0=spec0, spec1=spec1, idStr=idStr)
+            return res
+        raise CfgError("Benchmark metric {} is not supported".format(metric))
+
+    def preliminaryCheck(self, list, cfg):
+        # model path checking
+        if cfg["preliminaryCheckCfg"]["checkBenchmarkModelPath"]:
+            cmdStr = cfg["appCmd"]
+            matcher = re.search(
+                "benchmark.py.*-m[\s*]([^\S]*)",
+                cmdStr,
+                flags=re.MULTILINE
+                )
+            if matcher is not None:
+                try:
+                    modelPath = extractModelPath(cmdStr)
+                    if not os.path.exists(modelPath):
+                        raise FileNotFoundError(f"The path {modelPath} does not exist or is unreachable.")
+                    
+                    model_file = os.path.join(modelPath, "openvino_model.xml")
+                    if not os.path.isfile(model_file):
+                        raise FileNotFoundError(f"The file {model_file} does not exist in the given path.")
+
+                except (IndexError, ValueError, FileNotFoundError):
+                    raise PreliminaryAnalysisError(
+                        "commandline '{cmdStr}' is not correct, check config".format(
+                            cmdStr=cmdStr
+                        ),
+                        PreliminaryAnalysisError.PreliminaryErrType.WRONG_COMMANDLINE
+                    )
+            else:
+                raise PreliminaryAnalysisError(
+                        "commandline '{cmdStr}' is not correct, check config".format(
+                            cmdStr=cmdStr
+                        ),
+                        PreliminaryAnalysisError.PreliminaryErrType.WRONG_COMMANDLINE
+                    )
+
+        # common if-degradation-exists check
+        super().preliminaryCheck(list, cfg)
+
+        # performance - specific check if results for borders are stable,
+        isLeftStable = not cfg["preliminaryCheckCfg"]["leftCheck"] or\
+            self.preliminaryStabilityCheck(list[0], cfg)
+        isRightStable = not cfg["preliminaryCheckCfg"]["rightCheck"] or\
+            self.preliminaryStabilityCheck(list[-1], cfg)
+        if (not isLeftStable or not isRightStable):
+            raise PreliminaryAnalysisError(
+                "{lCommit} is {lStable}, {rCommit} is {rStable}".format(
+                    lCommit=list[0],
+                    rCommit=list[-1],
+                    lStable="stable" if isLeftStable else "unstable",
+                    rStable="stable" if isRightStable else "unstable"
+                ),
+                PreliminaryAnalysisError.PreliminaryErrType.UNSTABLE_APPLICATION
+                )
+
+    def compareCommits(self, lCommit: str, rCommit: str, cfg: map):
+        leftThroughput = self.getPseudoMetric(lCommit, cfg)
+        rightThroughput = self.getPseudoMetric(rCommit, cfg)
+        isBad, curRel = self.traversal.numericComparator(
+            leftThroughput, rightThroughput, self.apprDev
+        )
+        if isBad:
+            self.perfRel = curRel
+        curCommit = rCommit.replace('"', "")
+        commitLogger = getCommitLogger(cfg, curCommit)
+        commitLogger.info("Performance relation is {rel}".format(rel=curRel))
+        commitLogger.info(
+            "Commit is {status}".format(status=("bad" if isBad else "good"))
+        )
+        return isBad
+
+    def getPseudoMetric(self, commit, cfg):
+        commit = commit.replace('"', "")
+        curThroughput = 0
+        commitLogger = getCommitLogger(cfg, commit)
+        isCommitCashed, cashedThroughput = self.getCommitIfCashed(commit)
+        pc = Mode.CommitPath.PathCommit(
+            commit,
+            Mode.CommitPath.CommitState.DEFAULT
+        )
+        self.setOutputInfo(pc)
+        self.commitPath.accept(self.traversal, pc)
+        if isCommitCashed:
+            logMsg = "Cashed commit - {commit}".format(commit=commit)
+            self.commonLogger.info(logMsg)
+            commitLogger.info(logMsg)
+            curThroughput = cashedThroughput
+        else:
+            self.commonLogger.info("New commit: {commit}".format(
+                commit=commit)
+            )
+            handleCommit(commit, cfg)
+            output = fetchAppOutput(cfg, commit)
+            commitLogger.info(output)
+            foundLatency = re.search(
+                self.outPattern, output, flags=re.MULTILINE
+            ).group(1)
+            curThroughput = float(foundLatency)
+            self.setCommitCash(commit, curThroughput)
+        return curThroughput
+
+    def preliminaryStabilityCheck(self, commit, cfg):
+        commit = commit.replace('"', "")
+        curThroughput = 0
+
+        self.commonLogger.info(
+            "Preliminary check of commit: {commit}".format(
+                commit=commit)
+        )
+        handleCommit(commit, cfg)
+        throughputList = []
+        dev = self.apprDev = cfg["runConfig"]["perfAppropriateDeviation"]
+        for i in range(cfg["preliminaryCheckCfg"]["tryCount"]):
+            output = fetchAppOutput(cfg, commit)
+            foundLatency = re.search(
+                self.outPattern, output, flags=re.MULTILINE
+            ).group(1)
+            curThroughput = float(foundLatency)
+            throughputList.append(curThroughput)
+        resStable = checkStability(throughputList, dev)
+        if resStable:
+            self.setCommitCash(commit, curThroughput)
+        return resStable
+
+    def setOutputInfo(self, pathCommit):
+        pathCommit.perfRel = self.perfRel
+
+    def getCommitInfo(self, commit):
+        return "{ci}, perf. ratio = {d}".format(
+                ci=super().getCommitInfo(commit),
+                d=commit.perfRel)

@@ -4,7 +4,8 @@
         "bmPerf" : "BenchmarkAppPerformanceMode",
         "compareBlobs" : "CompareBlobsMode",
         "ac" : "AccuracyCheckerMode",
-        "nop" : "NopMode"
+        "nop" : "NopMode",
+        "llmPerf" : "LLMBenchmarkMode"
     },
     "traversalMap" : {
         "firstFailedVersion" : "FirstFailedVersion",
