@@ -171,7 +171,7 @@ jobs:
 
   Python_API_Tests:
     name: Python API tests
-    needs: [ Build, Smart_CI ]
+    needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_python_api_tests.yml
     with:
       runner: 'aks-linux-16-cores-arm'
