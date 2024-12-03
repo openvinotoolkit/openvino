@@ -32,7 +32,7 @@
 #include "emitters/snippets/x64/cpu_generator.hpp"
 #include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
 #include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
-#include "transformations/snippets/x64/pass/lowered/insert_brgemm_copy_b_buffers.hpp"
+#include "transformations/snippets/x64/pass/lowered/insert_brgemm_copy_buffers.hpp"
 #include "transformations/snippets/x64/pass/remove_converts.hpp"
 #include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
 #include "transformations/snippets/x64/pass/eliminate_brgemm_copy_b.hpp"
@@ -694,7 +694,7 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::snippets::lowered::pass::InsertLoops,
                                     ov::intel_cpu::pass::FuseLoadStoreConvert);
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::Before, ov::snippets::lowered::pass::InsertBuffers,
-                                    ov::intel_cpu::pass::InsertBrgemmCopyBBuffers);
+                                    ov::intel_cpu::pass::InsertBrgemmCopyBuffers);
 
 #ifdef SNIPPETS_LIBXSMM_TPP
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::Before, ov::intel_cpu::pass::BrgemmCPUBlocking,
