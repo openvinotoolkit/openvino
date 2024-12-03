@@ -535,10 +535,9 @@ $(document).ready(function () {
                 li.style.alignItems = 'center';
                 li.style.display = 'block';
                 li.style.flexDirection = 'column';
-                li.style.marginLeft = '4px';
+                li.style.marginLeft = '6px';
+                li.style.cursor = "pointer";
                 li.style.fontSize = '0.6rem';
-                li.style.padding = 0;
-                li.style.marginLeft = '3px';
                 li.style.textDecoration = item.hidden ? 'line-through' : '';
                 li.onclick = () => {
                     charts.forEach((chartItem) => {
@@ -547,7 +546,6 @@ $(document).ready(function () {
                       })
                 };
                 
-                // Color box
                 const boxSpan = document.createElement('span');
                 boxSpan.style.background = item.fillStyle;
                 boxSpan.style.borderColor = item.strokeStyle;
@@ -557,16 +555,14 @@ $(document).ready(function () {
                 boxSpan.style.marginRight = '4px';
                 boxSpan.style.width = '30px';
 
-
                 li.appendChild(boxSpan);
-                const text = document.createTextNode(item.text);
-                li.appendChild(text);
+                li.appendChild(document.createTextNode(item.text));
                 ul.appendChild(li);
             });
         }
     };
 
-    function getChartOptionsByEngines(containerId, allowedAxisIDs) {
+    function getChartOptionsByEngines(allowedAxisIDs) {
         const axisConfigs = {
             x: {
                 title: { display: true, text: 'Request Rate' }
@@ -601,7 +597,7 @@ $(document).ready(function () {
             }
         };
     }
-    function getChartOptions(title, containerId) {
+    function getChartOptions(title) {
         return {
             responsive: true,
             indexAxis: 'y',
@@ -628,7 +624,7 @@ $(document).ready(function () {
                     display: false
                 },
                 htmlLegend: {
-                    containerID: containerId,
+                    containerID: 'modal-footer',
                 }
             }
         }
@@ -833,7 +829,7 @@ $(document).ready(function () {
             new Chart(context, {
                 type: 'bar',
                 data: getChartData(labels, datasets),
-                options: getChartOptions(chartTitle, containerId),
+                options: getChartOptions(chartTitle),
                 plugins: [htmlLegendPlugin]
             });
         });
@@ -908,7 +904,7 @@ $(document).ready(function () {
                     labels: labels,
                     datasets: graphDatas
                 },
-                options: getChartOptionsByEngines(containerId, allowedAxisIDs),
+                options: getChartOptionsByEngines(allowedAxisIDs),
                 plugins: [htmlLegendPlugin]
             });
 
