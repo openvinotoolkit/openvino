@@ -17,10 +17,11 @@ set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME npu_zero_utils)
 
 add_library(level-zero-headers INTERFACE)
 set_property(TARGET level-zero-headers APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/thirdparty/level_zero/level-zero/include>)
+add_library(LevelZero::Headers ALIAS level-zero-headers)
 
 target_include_directories(${TARGET_NAME}
   PUBLIC
-    $<TARGET_PROPERTY:level-zero-headers,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:LevelZero::Headers,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:LevelZero::NPUExt,INTERFACE_INCLUDE_DIRECTORIES>
     $<BUILD_INTERFACE:${NPU_UTILS_SOURCE_DIR}/include>)
 
