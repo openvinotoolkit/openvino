@@ -119,16 +119,12 @@ void FullyConnected::needPrepareParamsForTensorParallel() {
     }
 }
 
-ExecutorPtr FullyConnected::createExecutor() {
-    const auto& executor = factory->make(memory);
-    getSelectedPrimitiveDescriptor()->setImplementationType(executor->implType());
-
-    return executor;
-}
-
 void FullyConnected::prepareParams() {
     needPrepareParamsForTensorParallel();
-    executor = createExecutor();
+
+    executor->update(memory);
+    // @todo avoid updating implementation type in scope of every prepareParams call
+    getSelectedPrimitiveDescriptor()->setImplementationType(executor->implType());
 }
 
 void FullyConnected::initTensorParallelSync() {
@@ -431,7 +427,7 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     needUpdateZeroPointForTensorParallel();
 
     auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
-    factory = std::make_shared<ExecutorFactory<FCAttrs, node::FullyConnected>>(attrs, postOps, executionContext, descs);
+    factory = std::make_shared<ExecutorFactory<FCAttrs>>(attrs, postOps, executionContext, descs);
     const auto nodeDescriptors = factory->getProperMemoryDescriptors(descs);
 
     NodeConfig nodeConfig;
@@ -496,7 +492,7 @@ void FullyConnected::createPrimitive() {
     needSplitMemoryForTensorParallel();
     // @todo should we preconfigure only for dynamic shapes?
     // Since for static shapes primitive is created in scope of compile_model() anyway
-    factory->preconfigure(memory);
+    executor = factory->make(memory);
 
     Node::createPrimitive();
 }
