@@ -63,7 +63,7 @@ jobs:
         run: ls -laR ${{ env.INSTALL_TEST_DIR }}
 
       - name: Extract OpenVINO packages
-        run: pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
+        run: pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_TEST_DIR}
         working-directory: ${{ env.INSTALL_TEST_DIR }}
 
       - name: check install dir
