@@ -56,6 +56,9 @@ from openvino._pyopenvino import RemoteContext
 from openvino._pyopenvino import RemoteTensor
 from openvino._pyopenvino import Op
 
+# Import opsets
+from openvino import opset1
+
 # libva related:
 from openvino._pyopenvino import VAContext
 from openvino._pyopenvino import VASurfaceTensor
