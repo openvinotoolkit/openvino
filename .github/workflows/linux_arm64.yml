@@ -175,7 +175,7 @@ jobs:
     uses: ./.github/workflows/job_python_api_tests.yml
     with:
       runner: 'aks-linux-16-cores-arm'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}", "volumes": ["/mount:/mount", "${{ github.workspace }}:${{ github.workspace }}"]}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}", "volumes": ["/mount:/mount"]}'
       python-version: '3.11'
     if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
 
