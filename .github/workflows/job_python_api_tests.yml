@@ -56,6 +56,12 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install pigz
 
+      - name: check install dir
+        run: ls -laR ${{ env.INSTALL_DIR }}
+
+      - name: check install dir
+        run: ls -laR ${{ env.INSTALL_TEST_DIR }}
+
       - name: Extract OpenVINO packages
         run: pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
         working-directory: ${{ env.INSTALL_TEST_DIR }}
