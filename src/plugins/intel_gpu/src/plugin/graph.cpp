@@ -247,7 +247,8 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 { "gemm", "Gemm" },
                 { "input_layout", "Input" },
                 { "lrn", "LRN" },
-                { "lstm_elt", "LSTM_Eltwise" },
+                { "lstm_cell", "LSTM_Cell" },
+                { "lstm_seq", "LSTM_Seq" },
                 { "mvn", "MVN" },
                 { "normalize", "Normalize" },
                 { "permute", "Permute" },
@@ -578,9 +579,11 @@ void Graph::update_profiling_info() {
         auto event = execIter->second;
         executedPrimitives.erase(execIter);
 
-        cldnn::instrumentation::profiling_info cldnnInfo{profiledID, event->get_profiling_info()};
+        if (event) {
+            cldnn::instrumentation::profiling_info cldnnInfo{profiledID, event->get_profiling_info()};
+            collectTimings(cldnnInfo, perfCount);
+        }
 
-        collectTimings(cldnnInfo, perfCount);
         perfCount.num++;
     }
 

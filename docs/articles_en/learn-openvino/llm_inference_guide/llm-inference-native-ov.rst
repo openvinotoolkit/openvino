@@ -1,4 +1,4 @@
-Run LLM Inference on Native OpenVINO (not recommended)
+Generative AI with Base OpenVINO (not recommended)
 ===============================================================================================
 
 To run Generative AI models using native OpenVINO APIs you need to follow regular
@@ -31,8 +31,8 @@ some examples of popular Generative AI scenarios:
 
 To write such pipelines, you can follow the examples provided as part of OpenVINO:
 
-* `OpenVINO Latent Consistency Model C++ image generation pipeline <https://github.com/openvinotoolkit/openvino.genai/tree/master/image_generation/lcm_dreamshaper_v7/cpp>`__
-* `OpenVINO Stable Diffusion (with LoRA) C++ image generation pipeline <https://github.com/openvinotoolkit/openvino.genai/tree/master/image_generation/stable_diffusion_1_5/cpp>`__
+* `OpenVINO Latent Consistency Model C++ image generation pipeline <https://github.com/openvinotoolkit/openvino.genai/tree/releases/2024/4/image_generation/lcm_dreamshaper_v7/cpp>`__
+* `OpenVINO Stable Diffusion (with LoRA) C++ image generation pipeline <https://github.com/openvinotoolkit/openvino.genai/tree/releases/2024/4/image_generation/stable_diffusion_1_5/cpp>`__
 
 To perform inference, models must be first converted to OpenVINO IR format using
 Hugging Face Optimum-Intel API.

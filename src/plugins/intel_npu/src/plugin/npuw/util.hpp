@@ -100,6 +100,15 @@ struct Impl {
     }
 
     template <typename K>
+    V& at_or_at_or_at(const K& k1, const K& k2, const K& k3) {
+        const auto iter = m->find(k1);
+        if (iter == m->end()) {
+            return at_or_at(k2, k3);
+        }
+        return iter->second;
+    }
+
+    template <typename K>
     const V& at(const K& k) const {
         return const_cast<Impl*>(this)->at(k);
     }
@@ -107,6 +116,11 @@ struct Impl {
     template <typename K>
     const V& at_or_at(const K& k1, const K& k2) const {
         return const_cast<Impl*>(this)->at_or_at(k1, k2);
+    }
+
+    template <typename K>
+    const V& at_or_at_or_at(const K& k1, const K& k2, const K& k3) const {
+        return const_cast<Impl*>(this)->at_or_at_or_at(k1, k2, k3);
     }
 };
 
@@ -126,6 +140,14 @@ Impl<M> _(std::shared_ptr<M> pM) {
 }
 
 }  // namespace at
+
+// Written here to be a drop-in replacement for ov::parallel_for for the debug purposes
+template <typename F>
+void non_parallel_for(std::size_t count, F&& f) {
+    for (std::size_t idx = 0u; idx < count; idx++) {
+        f(idx);
+    }
+}
 
 }  // namespace util
 }  // namespace npuw

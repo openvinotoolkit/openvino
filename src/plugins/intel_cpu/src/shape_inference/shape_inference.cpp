@@ -56,6 +56,7 @@
 #include "gather_nd_shape_inference.hpp"
 #include "gather_shape_inference.hpp"
 #include "gather_tree_shape_inference.hpp"
+#include "glu_shape_inference.hpp"
 #include "grid_sample_shape_inference.hpp"
 #include "group_convolution_backprop_shape_inference.hpp"
 #include "group_convolution_shape_inference.hpp"
@@ -214,13 +215,12 @@ public:
         ov::OutputVector new_inputs;
         for (size_t i = 0; i < op->get_input_size(); ++i) {
             if (auto t = tensor_accessor(i)) {
-                new_inputs.push_back(
-                    std::make_shared<ov::opset1::Constant>(t));
-            } else if (dynamic_cast<ov::opset1::Constant*>(op->get_input_node_ptr(i))) {
-                new_inputs.push_back(op->get_input_node_ptr(i)->clone_with_new_inputs(ov::OutputVector{}));
+                new_inputs.push_back(std::make_shared<ov::opset1::Constant>(t));
+            } else if (auto c = ov::as_type<const op::v0::Constant>(op->get_input_node_ptr(i))) {
+                new_inputs.push_back(c->clone_with_new_inputs(ov::OutputVector{}));
             } else {
-                new_inputs.push_back(std::make_shared<ov::opset1::Parameter>(op->get_input_element_type(i),
-                                                                             input_shapes[i].to_partial_shape()));
+                new_inputs.push_back(std::make_shared<op::v0::Parameter>(op->get_input_element_type(i),
+                                                                         input_shapes[i].to_partial_shape()));
             }
         }
         local_op = op->clone_with_new_inputs(new_inputs);
@@ -461,7 +461,6 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     _OV_OP_SHAPE_INFER_VA_REG(opset7::Gather, ShapeInferTA, op::util::GatherBase, util::bit::mask(2)),
     // opset6
     _OV_OP_SHAPE_INFER_MASK_REG(opset6::CTCGreedyDecoderSeqLen, ShapeInferTA, util::bit::mask()),
-    _OV_OP_SHAPE_INFER_MASK_REG(opset6::CTCGreedyDecoderSeqLen, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset6::ExperimentalDetectronDetectionOutput, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset6::ExperimentalDetectronGenerateProposalsSingleImage, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset6::ExperimentalDetectronPriorGridGenerator, ShapeInferTA, util::bit::mask()),
@@ -565,9 +564,6 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::Unsqueeze, ShapeInferTA, util::bit::mask(1)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset1::VariadicSplit, ShapeInferTA, util::bit::mask(1, 2)),
     _OV_OP_SHAPE_INFER_NON_TEMPLATE_REG(opset1::BatchNormInference, ShapeInferBase),
-    _OV_OP_SHAPE_INFER_NON_TEMPLATE_REG(opset1::BatchNormInference, ShapeInferBase),
-    _OV_OP_SHAPE_INFER_NON_TEMPLATE_REG(opset1::Convert, ShapeInferCopy),
-    _OV_OP_SHAPE_INFER_NON_TEMPLATE_REG(opset1::Convert, ShapeInferCopy),
     _OV_OP_SHAPE_INFER_NON_TEMPLATE_REG(opset1::Convert, ShapeInferCopy),
     _OV_OP_SHAPE_INFER_NON_TEMPLATE_REG(opset1::HardSigmoid, ShapeInferBase),
     _OV_OP_SHAPE_INFER_NON_TEMPLATE_REG(opset1::LogicalNot, ShapeInferCopy),
@@ -580,6 +576,7 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     _OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::AUGRUCell, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::AUGRUSequence, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::RMSNorm, ShapeInferTA, util::bit::mask(1)),
+    _OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::GLU, ShapeInferTA, util::bit::mask()),
 };
 // clang-format on
 

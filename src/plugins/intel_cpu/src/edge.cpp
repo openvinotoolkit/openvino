@@ -235,7 +235,7 @@ Edge::ReorderStatus Edge::needReorder() {
 }
 
 void Edge::reuse(MemoryPtr ptr) {
-    OPENVINO_ASSERT(ptr != nullptr, "Attempt to reuse initialized memory in " + name());
+    OPENVINO_ASSERT(ptr != nullptr, "Attempt to reuse initialized memory in ", *this);
     memoryPtr = ptr;
     changeStatus(Status::Allocated);
 
@@ -286,15 +286,14 @@ void Edge::allocate(MemoryBlockPtr memBlock) {
     allocateCommon(allocateFunc);
 }
 
-std::string Edge::name() const {
+std::string Edge::hash() const {
     auto parentPtr = getParent();
     auto childPtr = getChild();
 
     std::stringstream result;
 
-    result << parentPtr->getName() << " port " << parent_port << " <-> " << childPtr->getName() << " port " << child_port;
-
-    return  result.str();
+    return parentPtr->getName() + "_" + std::to_string(parent_port) + "_" +
+        childPtr->getName() + "_" + std::to_string(child_port);
 }
 
 void Edge::externalAllocate(WeightsSharing::Ptr weightsCache) {
@@ -312,7 +311,7 @@ void Edge::externalAllocate(WeightsSharing::Ptr weightsCache) {
             return memoryPtr;
         };
 
-        auto ptr = weightsCache->findOrCreate(name(), alloc, false);
+        auto ptr = weightsCache->findOrCreate(hash(), alloc, false);
         memoryPtr = *ptr;
         DEBUG_LOG(*this, " memoryPtr=", memoryPtr);
         useExternalMemory = true;
@@ -330,7 +329,7 @@ void Edge::changeStatus(Edge::Status state) {
         OPENVINO_THROW("Incorrect behaviour! Use method validate()");
     }
     if (Status::Validated == this->status) {
-        OPENVINO_THROW("Unexpected attempt of memory change on edge: ", name());
+        OPENVINO_THROW("Unexpected attempt of memory change on edge: ", *this);
     }
     if (this->status != Status::Uninitialized && state == Status::NeedAllocation)
         return;
@@ -419,7 +418,7 @@ const MemoryDesc& Edge::getDesc() const {
 
 const IMemory &Edge::getMemory() {
     auto memPtr = getMemoryPtr();
-    OPENVINO_ASSERT(memPtr != nullptr, " Dereferencing NULL memory in edge: ", name());
+    OPENVINO_ASSERT(memPtr != nullptr, " Dereferencing NULL memory in edge: ", *this);
     return *memPtr;
 }
 
@@ -449,7 +448,7 @@ void Edge::validate() {
 EdgePtr Edge::getSharedEdge() const {
     auto memoryFromEdgePtr = memoryFromEdge.lock();
     if (!memoryFromEdgePtr) {
-        OPENVINO_THROW("Cannot get memory ptr for edge( ", name(), " ). The pointer on the edge with memory is empty!");
+        OPENVINO_THROW("Cannot get memory ptr for edge( ", *this, " ). The pointer on the edge with memory is empty!");
     }
     return memoryFromEdgePtr;
 }
@@ -494,7 +493,7 @@ EdgePtr Edge::getBaseEdge(int look) {
 
     OPENVINO_ASSERT(!(parentInPlacePort >= 0 && childInPlacePort >= 0),
                     "Unresolved in place memory conflict detected on edge: ",
-                    name());
+                    *this);
 
     if ((childInPlacePort >= 0) && (look & LOOK_DOWN)) {
         auto ch_edges = getChild()->getChildEdgesAtPort(childInPlacePort);
@@ -590,6 +589,13 @@ NodePtr Edge::modifiedInPlace() const {
 
     // nothing has been found
     return nullptr;
+}
+
+std::ostream& operator<<(std::ostream &os, const Edge& edge) {
+    return os << "(" << edge.getParent()->getName() << ")" << "[" << edge.getInputNum() << "] "
+              << "<->"
+              << "(" << edge.getChild()->getName() << ")" << "[" << edge.getOutputNum() << "]"
+              << ":" << Edge::statusToString(edge.getStatus());
 }
 
 }   // namespace intel_cpu

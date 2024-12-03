@@ -6,7 +6,9 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
@@ -133,6 +135,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_LLama2_no_gather) {
                                                       {{"config.slice_start", 0},
                                                        {"config.slice_stop", 0},
                                                        {"config.input_trans0213", true},
+                                                       {"config.output_trans0213", false},
                                                        {"config.is_interleaved", false},
                                                        {"config.is_chatglm", false},
                                                        {"config.support_2d_rope", false},
@@ -169,6 +172,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_LLama2_with_gather) {
                                                       {{"config.slice_start", 0},
                                                        {"config.slice_stop", 0},
                                                        {"config.input_trans0213", true},
+                                                       {"config.output_trans0213", false},
                                                        {"config.is_interleaved", false},
                                                        {"config.is_chatglm", false},
                                                        {"config.support_2d_rope", false},
@@ -308,6 +312,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTNEOX_no_gather) {
                                                    {{"config.slice_start", 0},
                                                     {"config.slice_stop", ndims},
                                                     {"config.input_trans0213", true},
+                                                    {"config.output_trans0213", false},
                                                     {"config.is_interleaved", false},
                                                     {"config.is_chatglm", false},
                                                     {"config.support_2d_rope", false},
@@ -343,6 +348,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTNEOX_with_gather) {
                                                    {{"config.slice_start", 0},
                                                     {"config.slice_stop", ndims},
                                                     {"config.input_trans0213", true},
+                                                    {"config.output_trans0213", false},
                                                     {"config.is_interleaved", false},
                                                     {"config.is_chatglm", false},
                                                     {"config.support_2d_rope", false},
@@ -459,6 +465,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ) {
                                                    {{"config.slice_start", 0},
                                                     {"config.slice_stop", 0},
                                                     {"config.input_trans0213", false},
+                                                    {"config.output_trans0213", true},
                                                     {"config.is_interleaved", true},
                                                     {"config.is_chatglm", false},
                                                     {"config.support_2d_rope", false},
@@ -568,6 +575,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML) {
                                                    {{"config.slice_start", 0},
                                                     {"config.slice_stop", 4096},
                                                     {"config.input_trans0213", false},
+                                                    {"config.output_trans0213", false},
                                                     {"config.is_interleaved", false},
                                                     {"config.rotary_ndims", rotary_ndims},
                                                     {"config.is_chatglm", true},
@@ -646,6 +654,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML_Slice) {
                                                    {{"config.slice_start", 0},
                                                     {"config.slice_stop", 4096},
                                                     {"config.input_trans0213", false},
+                                                    {"config.output_trans0213", false},
                                                     {"config.is_interleaved", false},
                                                     {"config.rotary_ndims", rotary_ndims},
                                                     {"config.is_chatglm", true},
@@ -728,6 +737,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ_Slice) {
                                                    {{"config.slice_start", 0},
                                                     {"config.slice_stop", 0},
                                                     {"config.input_trans0213", false},
+                                                    {"config.output_trans0213", true},
                                                     {"config.is_interleaved", true},
                                                     {"config.is_chatglm", false},
                                                     {"config.support_2d_rope", false},
@@ -843,6 +853,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML_2d_rope) {
                                                    {{"config.slice_start", 0},
                                                     {"config.slice_stop", 4096},
                                                     {"config.input_trans0213", false},
+                                                    {"config.output_trans0213", false},
                                                     {"config.is_interleaved", false},
                                                     {"config.rotary_ndims", rotary_ndims},
                                                     {"config.is_chatglm", true},
@@ -854,4 +865,269 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML_2d_rope) {
         model_ref =
             std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{input, cos_sin_cache, position_ids});
     }
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_chatGML_nano_2d_rope) {
+    disable_rt_info_check();
+    const int batch = 2;
+    const int seq_len = 7;
+    const int num_heads = 16;
+    const int ndims = 128;
+    const int rotary_ndims = 128;
+    const int max_pos_length = 2048;
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{batch, seq_len, 3072});
+        auto cos_sin_cache =
+            std::make_shared<ov::opset1::Parameter>(ov::element::f32,
+                                                    ov::PartialShape{max_pos_length, (rotary_ndims / 2), 2});
+        auto position_ids = std::make_shared<ov::opset1::Parameter>(ov::element::i32, ov::PartialShape{batch, seq_len});
+
+        auto __module_transformer_index_67_Gather =
+            makeOP<ov::opset8::Gather>({cos_sin_cache, position_ids, 0}, {{"batch_dims", 0}});
+
+        auto ListUnpack_321 = makeOP<ov::opset1::VariadicSplit>({input, -1, {2048, 512, 512}});
+        auto view_Reshape = makeOP<ov::opset1::Reshape>({ListUnpack_321->output(0), {0, 0, num_heads, ndims}},
+                                                        {{"special_zero", true}});
+
+        auto permute_Transpose = makeOP<ov::opset1::Transpose>({view_Reshape, {0, 2, 1, 3}}, {});
+
+        auto slice_Slice_357 =
+            makeOP<ov::opset1::StridedSlice>({permute_Transpose, {0, 0, 0, 0}, {0, 0, 0, rotary_ndims}, {1, 1, 1, 1}},
+                                             {{"begin_mask", {1, 1, 1, 0}},
+                                              {"end_mask", {1, 1, 1, 0}},
+                                              {"new_axis_mask", {}},
+                                              {"shrink_axis_mask", {}},
+                                              {"ellipsis_mask", {}}});
+
+        auto aten_view_Reshape_1 =
+            makeOP<ov::opset1::Reshape>({ListUnpack_321->output(1), {0, 0, 2, ndims}}, {{"special_zero", true}});
+        auto aten_transpose_1 = makeOP<ov::opset8::Transpose>({aten_view_Reshape_1, {0, 2, 1, 3}});
+        auto shape_of_105249 = makeOP<ov::opset8::ShapeOf>({aten_transpose_1}, {{"output_type", "i32"}});
+        auto gather_105252 = makeOP<ov::opset8::Gather>({shape_of_105249, {2}, {0}}, {{"batch_dims", 0}});
+        auto scatter_update_63441 = makeOP<ov::opset8::ScatterUpdate>({{0, 0}, {1}, gather_105252, {0}});
+        // connected to cos_sin_cache
+        auto slice_Slice_369 = makeOP<ov::opset1::StridedSlice>(
+            {__module_transformer_index_67_Gather, {0, 0}, scatter_update_63441, {1, 1}},
+            {{"begin_mask", {1, 0}},
+             {"end_mask", {1, 0}},
+             {"new_axis_mask", {}},
+             {"shrink_axis_mask", {}},
+             {"ellipsis_mask", {}}});
+        auto list_construct_concat_1 =
+            makeOP<ov::opset1::Concat>({{-1}, {1}, gather_105252, {rotary_ndims / 2}, {2}}, {{"axis", 0}});
+
+        auto reshape_Reshape_373 =
+            makeOP<ov::opset1::Reshape>({slice_Slice_357, {0, 16, 0, 64, 2}}, {{"special_zero", true}});
+        auto select_Gather_384 =
+            makeOP<ov::opset8::Gather>({reshape_Reshape_373, 0, -1}, {{"batch_dims", 0}});  // x_even
+        auto select_Gather_381 =
+            makeOP<ov::opset8::Gather>({reshape_Reshape_373, 1, -1}, {{"batch_dims", 0}});  // x_odd
+        auto view_Reshape_380 =
+            makeOP<ov::opset1::Reshape>({slice_Slice_369, list_construct_concat_1}, {{"special_zero", false}});
+        auto select_Gather_385 = makeOP<ov::opset8::Gather>({view_Reshape_380, 0, -1}, {{"batch_dims", 0}});  // cos_tab
+        auto select_Gather_382 = makeOP<ov::opset8::Gather>({view_Reshape_380, 1, -1}, {{"batch_dims", 0}});  // sin_tab
+
+        auto mul_Multiply_386 = makeOP<ov::opset1::Multiply>({select_Gather_381, select_Gather_382},
+                                                             {{"auto_broadcast", "numpy"}});  // x_odd_sin
+        auto mul_Multiply_383 = makeOP<ov::opset1::Multiply>({select_Gather_384, select_Gather_385},
+                                                             {{"auto_broadcast", "numpy"}});  // x_even_cos
+        auto Multiply_101315 =
+            makeOP<ov::opset1::Multiply>({mul_Multiply_386, -1.000000f}, {{"auto_broadcast", "numpy"}});
+        auto sub_Subtract_389 =
+            makeOP<ov::opset1::Add>({mul_Multiply_383, Multiply_101315}, {{"auto_broadcast", "numpy"}});
+
+        auto mul_Multiply_391 = makeOP<ov::opset1::Multiply>({select_Gather_381, select_Gather_385},
+                                                             {{"auto_broadcast", "numpy"}});  // x_odd_cos
+        auto mul_Multiply_393 = makeOP<ov::opset1::Multiply>({select_Gather_384, select_Gather_382},
+                                                             {{"auto_broadcast", "numpy"}});  // x_even_sin
+        auto add_Add_396 = makeOP<ov::opset1::Add>({mul_Multiply_391, mul_Multiply_393}, {{"auto_broadcast", "numpy"}});
+
+        auto Unsqueeze_62716 = makeOP<ov::opset1::Unsqueeze>({sub_Subtract_389, -1}, {});
+        auto Unsqueeze_62717 = makeOP<ov::opset1::Unsqueeze>({add_Add_396, -1}, {});
+
+        auto stack_401 = makeOP<ov::opset1::Concat>({Unsqueeze_62716, Unsqueeze_62717}, {{"axis", -1}});
+        auto flatten_Reshape_421 =
+            makeOP<ov::opset1::Reshape>({stack_401, {0, num_heads, 0, rotary_ndims}}, {{"special_zero", true}});
+        model = std::make_shared<ov::Model>(ov::NodeVector{flatten_Reshape_421},
+                                            ov::ParameterVector{input, cos_sin_cache, position_ids});
+    }
+    manager.register_pass<ov::pass::RoPEFusion>(true);
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{batch, seq_len, 3072});
+        auto cos_sin_cache =
+            std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{max_pos_length, (rotary_ndims / 2), 2});
+        auto position_ids = std::make_shared<ov::opset1::Parameter>(ov::element::i32, ov::PartialShape{batch, seq_len});
+        auto gather_cos_sin = makeOP<ov::opset8::Gather>({cos_sin_cache, position_ids, 0}, {{"batch_dims", 0}});
+        auto rope = makeOP<ov::op::internal::RoPE>({input, gather_cos_sin, gather_cos_sin},
+                                                   {{"config.slice_start", 0},
+                                                    {"config.slice_stop", 2048},
+                                                    {"config.input_trans0213", false},
+                                                    {"config.output_trans0213", false},
+                                                    {"config.is_interleaved", false},
+                                                    {"config.rotary_ndims", rotary_ndims},
+                                                    {"config.is_chatglm", true},
+                                                    {"config.support_2d_rope", true},
+                                                    {"config.is_qwen", false},
+                                                    {"config.head_cnt", num_heads},
+                                                    {"config.head_size", ndims},
+                                                    {"config.gather_position_arg_id", 0}});
+        model_ref =
+            std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{input, cos_sin_cache, position_ids});
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_Flux_mul) {
+    disable_rt_info_check();
+    const int batch = 2;
+    const int num_heads = 32;
+    const int ndims = 128;
+    {
+        auto x =
+            std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{batch, num_heads, -1, ndims});
+        auto t_cos = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
+        auto t_sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
+
+        auto x1_shape = makeConst(ov::element::i64, ov::Shape({5}), {0, num_heads, 0, -1, 2});
+        auto x1 = std::make_shared<ov::op::v1::Reshape>(x, x1_shape, true);
+
+        auto split_axis = makeConst(ov::element::i64, ov::Shape(), {-1});
+        auto split = std::make_shared<ov::op::v1::Split>(x1, split_axis, 2);
+
+        auto minus_one = makeConst(ov::element::f32, ov::Shape({}), {-1.0f});
+        auto x1_1_neg = std::make_shared<ov::op::v1::Multiply>(split->output(1), minus_one);
+
+        auto x2 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{x1_1_neg->output(0), split->output(0)}, -1);
+
+        auto x3_shape = makeConst(ov::element::i64, ov::Shape({4}), {0, num_heads, 0, ndims});
+        auto x3 = std::make_shared<ov::op::v1::Reshape>(x2, x3_shape, true);
+
+        auto y1 = std::make_shared<ov::op::v1::Multiply>(x, t_cos);
+        auto y2 = std::make_shared<ov::op::v1::Multiply>(x3, t_sin);
+        auto y = std::make_shared<ov::op::v1::Add>(y1, y2);
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{y}, ov::ParameterVector{x, t_cos, t_sin});
+    }
+    manager.register_pass<ov::pass::RoPEFusion>(true);
+    {
+        auto x =
+            std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{batch, num_heads, -1, ndims});
+        auto t_cos = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
+        auto t_sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
+        ov::op::internal::RoPE::Config config;
+        config.is_interleaved = true;
+        config.rotary_ndims = ndims;
+        config.head_cnt = num_heads;
+        config.head_size = ndims;
+        auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{x, t_cos, t_sin}, config);
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{x, t_cos, t_sin});
+    }
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_Flux_squeeze_mul_unsqueeze) {
+    disable_rt_info_check();
+    const int batch = 2;
+    const int num_heads = 32;
+    const int ndims = 128;
+    {
+        auto x =
+            std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{batch, num_heads, -1, ndims});
+        auto t_cos = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
+        auto t_sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
+
+        auto x1_shape = makeConst(ov::element::i64, ov::Shape({5}), {0, num_heads, 0, -1, 2});
+        auto x1 = std::make_shared<ov::op::v1::Reshape>(x, x1_shape, true);
+
+        auto split_axis = makeConst(ov::element::i64, ov::Shape(), {-1});
+        auto split = std::make_shared<ov::op::v1::Split>(x1, split_axis, 2);
+
+        auto squeeze_axis = makeConst(ov::element::i32, ov::Shape({}), {-1});
+        auto squeeze = std::make_shared<ov::op::v0::Squeeze>(split->output(1), squeeze_axis);
+
+        auto minus_one = makeConst(ov::element::f32, ov::Shape({}), {-1.0f});
+        auto x1_1_neg = std::make_shared<ov::op::v1::Multiply>(squeeze, minus_one);
+
+        auto unsqueeze_axis = makeConst(ov::element::i32, ov::Shape({}), {-1});
+        auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(x1_1_neg, unsqueeze_axis);
+
+        auto x2 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{unsqueeze->output(0), split->output(0)}, -1);
+
+        auto x3_shape = makeConst(ov::element::i64, ov::Shape({4}), {0, num_heads, 0, ndims});
+        auto x3 = std::make_shared<ov::op::v1::Reshape>(x2, x3_shape, true);
+
+        auto y1 = std::make_shared<ov::op::v1::Multiply>(x, t_cos);
+        auto y2 = std::make_shared<ov::op::v1::Multiply>(x3, t_sin);
+        auto y = std::make_shared<ov::op::v1::Add>(y1, y2);
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{y}, ov::ParameterVector{x, t_cos, t_sin});
+    }
+    manager.register_pass<ov::pass::RoPEFusion>(true);
+    {
+        auto x =
+            std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{batch, num_heads, -1, ndims});
+        auto t_cos = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
+        auto t_sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
+        ov::op::internal::RoPE::Config config;
+        config.is_interleaved = true;
+        config.rotary_ndims = ndims;
+        config.head_cnt = num_heads;
+        config.head_size = ndims;
+        auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{x, t_cos, t_sin}, config);
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{x, t_cos, t_sin});
+    }
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_Flux_mul_squeeze_unsqueeze) {
+    disable_rt_info_check();
+    const int batch = 2;
+    const int num_heads = 32;
+    const int ndims = 128;
+    {
+        auto x =
+            std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{batch, num_heads, -1, ndims});
+        auto t_cos = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
+        auto t_sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
+
+        auto x1_shape = makeConst(ov::element::i64, ov::Shape({5}), {0, num_heads, 0, -1, 2});
+        auto x1 = std::make_shared<ov::op::v1::Reshape>(x, x1_shape, true);
+
+        auto split_axis = makeConst(ov::element::i64, ov::Shape(), {-1});
+        auto split = std::make_shared<ov::op::v1::Split>(x1, split_axis, 2);
+
+        auto minus_one = makeConst(ov::element::f32, ov::Shape({}), {-1.0f});
+        auto x1_1_neg = std::make_shared<ov::op::v1::Multiply>(split->output(1), minus_one);
+
+        auto squeeze_axis = makeConst(ov::element::i32, ov::Shape({}), {-1});
+        auto squeeze = std::make_shared<ov::op::v0::Squeeze>(x1_1_neg, squeeze_axis);
+
+        auto unsqueeze_axis = makeConst(ov::element::i32, ov::Shape({}), {-1});
+        auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(squeeze, unsqueeze_axis);
+
+        auto x2 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{unsqueeze->output(0), split->output(0)}, -1);
+
+        auto x3_shape = makeConst(ov::element::i64, ov::Shape({4}), {0, num_heads, 0, ndims});
+        auto x3 = std::make_shared<ov::op::v1::Reshape>(x2, x3_shape, true);
+
+        auto y1 = std::make_shared<ov::op::v1::Multiply>(x, t_cos);
+        auto y2 = std::make_shared<ov::op::v1::Multiply>(x3, t_sin);
+        auto y = std::make_shared<ov::op::v1::Add>(y1, y2);
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{y}, ov::ParameterVector{x, t_cos, t_sin});
+    }
+    manager.register_pass<ov::pass::RoPEFusion>(true);
+    {
+        auto x =
+            std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{batch, num_heads, -1, ndims});
+        auto t_cos = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
+        auto t_sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
+        ov::op::internal::RoPE::Config config;
+        config.is_interleaved = true;
+        config.rotary_ndims = ndims;
+        config.head_cnt = num_heads;
+        config.head_size = ndims;
+        auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{x, t_cos, t_sin}, config);
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{x, t_cos, t_sin});
+    }
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
 }
