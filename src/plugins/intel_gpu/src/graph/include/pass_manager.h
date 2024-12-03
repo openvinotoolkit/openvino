@@ -196,6 +196,11 @@ private:
     weights_bias_offset get_weights_bias_offset(const T& node);
     template<typename T>
     void optimize_weights(T& node, program& p);
+    void select_implementation(program& p, program_node& node);
+    void add_lstm_weights_reorder(primitive_id input_id, std::shared_ptr<WeightsReorderParams> reorder_params, program& p, cldnn::program_node&, \
+                                  cldnn::program_node&, size_t);
+    void add_lstm_bias_reorder(primitive_id input_id, std::shared_ptr<WeightsReorderParams> reorder_params, program& p, cldnn::program_node&, \
+                               cldnn::program_node&);
     reorder_factory& _rf;
 };
 
@@ -302,13 +307,8 @@ public:
         if ((node->can_be_optimized() && !node->is_runtime_skippable()) || !dep->can_be_optimized()) {
             node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
         } else {
-            if (node->is_runtime_skippable() || dep->is_runtime_skippable()) {
+            if (node->is_runtime_skippable() || dep->is_runtime_skippable() || dep->can_be_optimized()) {
                 node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
-                for (const auto& subdep : dep->get_dependencies()) {
-                    add_memory_dependency(node, subdep.first);
-                    add_memory_dependency(subdep.first, node);
-                }
-                return;
             }
 
             for (const auto& subdep : dep->get_dependencies()) {
