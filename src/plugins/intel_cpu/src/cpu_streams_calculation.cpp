@@ -175,11 +175,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
         std::unordered_set<int> socket_id_list(proc_type_table.size());
         for (size_t i = 1; i < proc_type_table.size(); i++) {
             if (!socket_id_list.count(proc_type_table[i][PROC_SOCKET_ID])) {
-                if (proc_type_table[i][PROC_SOCKET_ID] == input_current_socket_id) {
-                    proc_socket_table.insert(proc_socket_table.begin(), proc_type_table[i]);
-                } else {
-                    proc_socket_table.push_back(proc_type_table[i]);
-                }
+                proc_socket_table.push_back(proc_type_table[i]);
                 socket_id_list.insert(proc_type_table[i][PROC_SOCKET_ID]);
             } else {
                 for (auto& row : proc_socket_table) {
@@ -201,7 +197,12 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
         ((input_streams_changed == true) && (input_streams == 1))) {
         n_streams = 1;
         stream_info[NUMBER_OF_STREAMS] = n_streams;
-        current_socket_id = input_current_socket_id == -1 ? get_current_socket_id() : input_current_socket_id;
+        for (size_t n = 0; n < proc_socket_table.size(); n++) {
+            if (proc_socket_table[n][ALL_PROC] > 0) {
+                current_socket_id = proc_socket_table[n][PROC_SOCKET_ID];
+                break;
+            }
+        }
         if (input_threads > 0) {
             if (hint_model_distribution_policy.size() == 0) {
                 for (auto& row : proc_socket_table) {

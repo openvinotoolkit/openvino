@@ -2575,10 +2575,10 @@ StreamsCalculationTestCase _2sockets_mock_latency_35 = {
     "LATENCY",
     {},
     {{200, 100, 0, 100, -1, -1},
+     {20, 10, 0, 10, 3, 3},
      {80, 40, 0, 40, 0, 0},
      {60, 30, 0, 30, 1, 1},
-     {40, 20, 0, 20, 2, 2},
-     {20, 10, 0, 10, 3, 3}},
+     {40, 20, 0, 20, 2, 2}},
     {{1, ALL_PROC, 20, 3, 3}, {0, MAIN_CORE_PROC, 10, 3, 3}, {0, HYPER_THREADING_PROC, 10, 3, 3}},
 };
 StreamsCalculationTestCase _2sockets_mock_latency_36 = {
@@ -2591,10 +2591,10 @@ StreamsCalculationTestCase _2sockets_mock_latency_36 = {
     "LATENCY",
     {},
     {{200, 100, 0, 100, -1, -1},
+     {20, 10, 0, 10, 3, 3},
      {80, 40, 0, 40, 0, 0},
      {60, 30, 0, 30, 1, 1},
-     {40, 20, 0, 20, 2, 2},
-     {20, 10, 0, 10, 3, 3}},
+     {40, 20, 0, 20, 2, 2}},
     {{1, ALL_PROC, 20, 3, 3}, {0, MAIN_CORE_PROC, 10, 3, 3}, {0, HYPER_THREADING_PROC, 10, 3, 3}},
 };
 StreamsCalculationTestCase _2sockets_mock_latency_37 = {
@@ -2606,7 +2606,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_37 = {
     1,
     "LATENCY",
     {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL},
-    {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
+    {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 1, 1}, {24, 24, 0, 0, 0, 0}},
     {{1, MAIN_CORE_PROC, 48, -1, -1}, {-1, MAIN_CORE_PROC, 24, 1, 1}, {-1, MAIN_CORE_PROC, 24, 0, 0}},
 };
 StreamsCalculationTestCase _2sockets_mock_latency_38 = {
