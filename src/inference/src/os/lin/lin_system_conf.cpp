@@ -577,7 +577,7 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
         parse_node_info_linux(node_info_table, _numa_nodes, _sockets, _proc_type_table, _cpu_mapping_table);
     }
 
-    for (int n = 0; n < offline_list.size(); n++) {
+    for (size_t n = 0; n < offline_list.size(); n++) {
         _cpu_mapping_table.erase(_cpu_mapping_table.begin() + offline_list[n] - n);
         _processors--;
     }
@@ -656,7 +656,6 @@ void parse_freq_info_linux(const std::vector<std::vector<std::string>> system_in
                            std::vector<std::vector<int>>& _cpu_mapping_table) {
     int freq_max = 0;
     bool ecore_enabled = false;
-    bool ht_enabled = false;
 
     _processors = system_info_table.size();
     _numa_nodes = 0;
@@ -715,7 +714,6 @@ void parse_freq_info_linux(const std::vector<std::vector<std::string>> system_in
                     _cpu_mapping_table[core_2][CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
                     _cpu_mapping_table[core_2][CPU_MAP_GROUP_ID] = _cpu_mapping_table[core_1][CPU_MAP_GROUP_ID];
 
-                    ht_enabled = true;
                     int core_freq = std::stoi(system_info_table[core_1][2]);
                     freq_max = std::max(core_freq, freq_max);
                 } else if (system_info_table[n][0].size() > 0) {
@@ -781,7 +779,7 @@ void parse_freq_info_linux(const std::vector<std::vector<std::string>> system_in
         parse_node_info_linux(node_info_table, _numa_nodes, _sockets, _proc_type_table, _cpu_mapping_table);
     }
 
-    for (int n = 0; n < offline_list.size(); n++) {
+    for (size_t n = 0; n < offline_list.size(); n++) {
         _cpu_mapping_table.erase(_cpu_mapping_table.begin() + offline_list[n] - n);
         _processors--;
     }
