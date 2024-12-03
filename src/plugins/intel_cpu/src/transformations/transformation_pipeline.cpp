@@ -909,7 +909,8 @@ void Transformations::PostLpt() {
     auto symbolic_pipeline = CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::SymbolicOptimizations, false);
     symbolic_pipeline->get_manager()->register_pass<NgramFusion>();
 
-    CPU_REGISTER_PASS_ARM64(postLPTPassManager, ov::intel_cpu::MatMulDecomposition);
+    //TODO: MatMulDecomposition transformation has been moved from PostLpt to ConvertToCPUSpecificOpset
+    //CPU_REGISTER_PASS_ARM64(postLPTPassManager, ov::intel_cpu::MatMulDecomposition);
 
     postLPTPassManager.run_passes(model);
 }
