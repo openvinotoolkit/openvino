@@ -460,5 +460,15 @@ void Config::updateProperties() {
     _config.insert({ov::hint::num_requests.name(), std::to_string(hintNumRequests)});
 }
 
+void Config::applyRtInfo(const std::shared_ptr<const ov::Model>& model) {
+    if (model->has_rt_info({"runtime_options", ov::hint::kv_cache_precision.name()})) {
+        this->kvCachePrecision = model->get_rt_info<ov::element::Type>({"runtime_options", ov::hint::kv_cache_precision.name()});
+    }
+    if (model->has_rt_info({"runtime_options", ov::hint::dynamic_quantization_group_size.name()})) {
+        this->fcDynamicQuantizationGroupSize =
+            model->get_rt_info<uint64_t>({"runtime_options", ov::hint::dynamic_quantization_group_size.name()});
+    }
+}
+
 }  // namespace intel_cpu
 }  // namespace ov
