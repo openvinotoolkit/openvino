@@ -35,8 +35,8 @@ jobs:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
-      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/openvino_tests
+      INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/openvino_wheels
     steps:
       - name: Download OpenVINO artifacts (tarballs and wheels)
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
