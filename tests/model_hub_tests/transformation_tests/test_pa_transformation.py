@@ -56,7 +56,7 @@ def compare_diffs(ov_model: ov.Model,
     interesting_output_patterns = {}
 
 
-    # Test for block_indices inputs and scores outputs to appear in the model 
+    # Test for block_indices inputs and scores outputs to appear in the model
     if (use_block_indices_inputs):
         interesting_input_patterns["block_indices"] = r'block_indices\.[0-9]+'
 
@@ -70,8 +70,8 @@ def compare_diffs(ov_model: ov.Model,
     input_counters = {k: 0 for k in interesting_input_patterns}
     output_counters = {k: 0 for k in interesting_output_patterns}
 
-    for pattern_dict, counter_dict, io_set in zip([interesting_input_patterns, interesting_output_patterns], 
-                                                  [input_counters, output_counters], 
+    for pattern_dict, counter_dict, io_set in zip([interesting_input_patterns, interesting_output_patterns],
+                                                  [input_counters, output_counters],
                                                 [ov_model.inputs, ov_model.outputs]):
         for input_id in counter_dict:
             pattern = pattern_dict[input_id]
@@ -87,7 +87,6 @@ def compare_diffs(ov_model: ov.Model,
     for output_id, count in output_counters.items():
         assert count == resulting_map["PagedAttentionExtension"], \
                f"The number of {output_id} outputs doesn't correspond to the expected value. Expected {resulting_map['PagedAttentionExtension']}, received {count}"
->>>>>>> cb34f79532 (Add cache rotation inputs in transformations, CPU and GPU plugins)
 
 
 @retry(3, exceptions=(OSError,), delay=1)

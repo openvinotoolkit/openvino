@@ -17,7 +17,7 @@ inline static void rotate_kv_cache_chunk_avx512(CT* current_x_values_ptr,
                                                 float* current_rotation_coeffts_cos_ptr,
                                                 float* current_rotation_coeffts_sin_ptr,
                                                 size_t num_vectorized_elements_per_iteration,
-                                                bool is_underutilizing) {
+                                                bool is_tail) {
     using namespace ov::Extensions::Cpu::XARCH;
 
     auto result_x = _mm512_setzero_ps();
@@ -29,7 +29,7 @@ inline static void rotate_kv_cache_chunk_avx512(CT* current_x_values_ptr,
     auto cache_values_x = _mm512_undefined_ps();
     auto cache_values_y = _mm512_undefined_ps();
 
-    if (!is_underutilizing) {
+    if (!is_tail) {
         coeffts_cos = mm512_uni_loadu_ps(current_rotation_coeffts_cos_ptr);
         coeffts_sin = mm512_uni_loadu_ps(current_rotation_coeffts_sin_ptr);
 
@@ -49,7 +49,7 @@ inline static void rotate_kv_cache_chunk_avx512(CT* current_x_values_ptr,
     result_y = _mm512_fmadd_ps(cache_values_x, coeffts_sin, result_y);
     result_y = _mm512_fmadd_ps(cache_values_y, coeffts_cos, result_y);
 
-    if (!is_underutilizing) {
+    if (!is_tail) {
         mm512_uni_storeu_ps(current_x_values_ptr, result_x);
         mm512_uni_storeu_ps(current_y_values_ptr, result_y);
     } else {
@@ -66,7 +66,7 @@ inline static void rotate_kv_cache_chunk_avx2(CT* current_x_values_ptr,
                                               float* current_rotation_coeffts_cos_ptr,
                                               float* current_rotation_coeffts_sin_ptr,
                                               size_t num_vectorized_elements_per_iteration,
-                                              size_t is_underutilizing) {
+                                              size_t is_tail) {
     using namespace ov::Extensions::Cpu::XARCH;
 
     auto result_x = _mm256_setzero_ps();
@@ -78,7 +78,7 @@ inline static void rotate_kv_cache_chunk_avx2(CT* current_x_values_ptr,
     auto cache_values_x = _mm256_undefined_ps();
     auto cache_values_y = _mm256_undefined_ps();
 
-    if (!is_underutilizing) {
+    if (!is_tail) {
         coeffts_cos = mm256_uni_loadu_ps(current_rotation_coeffts_cos_ptr);
         coeffts_sin = mm256_uni_loadu_ps(current_rotation_coeffts_sin_ptr);
 
@@ -98,7 +98,7 @@ inline static void rotate_kv_cache_chunk_avx2(CT* current_x_values_ptr,
     result_y = _mm256_fmadd_ps(cache_values_x, coeffts_sin, result_y);
     result_y = _mm256_fmadd_ps(cache_values_y, coeffts_cos, result_y);
 
-    if (!is_underutilizing) {
+    if (!is_tail) {
         mm256_uni_storeu_ps(current_x_values_ptr, result_x);
         mm256_uni_storeu_ps(current_y_values_ptr, result_y);
     } else {
@@ -109,7 +109,7 @@ inline static void rotate_kv_cache_chunk_avx2(CT* current_x_values_ptr,
 #endif
 
 template <class CT>
-inline static void rotate_kv_cache_block_hw(CT* cache_block_ptr,
+inline static void rotate_kv_cache_block_opt(CT* cache_block_ptr,
                                             float* block_rotation_coefficients_ptr,
                                             size_t num_heads,
                                             size_t block_size,
@@ -117,7 +117,7 @@ inline static void rotate_kv_cache_block_hw(CT* cache_block_ptr,
 #if !defined(HAVE_AVX2) && !defined(HAVE_AVX512F)
     OPENVINO_THROW("host CPU must support either AVX2 or AVX512 instructions");
 #else
-    bool is_underutilizing = false;
+    bool is_tail = false;
 
 #    if defined(HAVE_AVX512F)
     constexpr size_t vec_len_in_f32_elts = ov::Extensions::Cpu::XARCH::vec_len_f32_avx512;
@@ -133,7 +133,7 @@ inline static void rotate_kv_cache_block_hw(CT* cache_block_ptr,
     if (embedding_size >= num_processed_elements_per_iteration) {
         OPENVINO_ASSERT(!(num_processed_elements_per_iteration % vec_len_in_f32_elts));
     } else {
-        is_underutilizing = true;
+        is_tail = true;
         OPENVINO_ASSERT(!(embedding_size % 2));
         num_processed_elements_per_iteration = embedding_size;
         num_iterations = 1;
@@ -163,14 +163,14 @@ inline static void rotate_kv_cache_block_hw(CT* cache_block_ptr,
                                              current_rotation_coeffts_cos_ptr,
                                              current_rotation_coeffts_sin_ptr,
                                              num_processed_elements_per_iteration / 2,
-                                             is_underutilizing);
+                                             is_tail);
 #    else   // HAVE_AVX2
                 rotate_kv_cache_chunk_avx2(current_x_values_ptr,
                                            current_y_values_ptr,
                                            current_rotation_coeffts_cos_ptr,
                                            current_rotation_coeffts_sin_ptr,
                                            num_processed_elements_per_iteration / 2,
-                                           is_underutilizing);
+                                           is_tail);
 #    endif  // defined(HAVE_AVX512F)
             }
         }
@@ -179,7 +179,7 @@ inline static void rotate_kv_cache_block_hw(CT* cache_block_ptr,
 }
 
 template <class CT>
-inline static void rotate_kv_cache_block_sw(CT* cache_block_ptr,
+inline static void rotate_kv_cache_block_ref(CT* cache_block_ptr,
                                             float* block_rotation_coefficients_ptr,
                                             size_t num_heads,
                                             size_t block_size,
@@ -218,9 +218,9 @@ inline static void rotate_kv_cache_block(CT* cache_block_ptr,
                                          size_t block_size,
                                          size_t embedding_size) {
 #if defined(HAVE_AVX512F) || defined(HAVE_AVX2)
-    rotate_kv_cache_block_hw(cache_block_ptr, block_rotation_coefficients_ptr, num_heads, block_size, embedding_size);
+    rotate_kv_cache_block_opt(cache_block_ptr, block_rotation_coefficients_ptr, num_heads, block_size, embedding_size);
 #else
-    rotate_kv_cache_block_sw(cache_block_ptr, block_rotation_coefficients_ptr, num_heads, block_size, embedding_size);
+    rotate_kv_cache_block_ref(cache_block_ptr, block_rotation_coefficients_ptr, num_heads, block_size, embedding_size);
 #endif  // defined(HAVE_AVX512F) || defined(HAVE_AVX2)
 }
 

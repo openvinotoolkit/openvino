@@ -183,8 +183,8 @@ public:
         },
     };
 
-    void test_block_hw_vs_sw(size_t num_heads, size_t embedding_size, size_t block_size) {
-        auto cache_block_mem_sw = get_block_memory(num_heads, block_size, embedding_size, Rank3Matrix<TypeParam>{});
+    void test_block_opt_vs_ref(size_t num_heads, size_t embedding_size, size_t block_size) {
+        auto cache_block_mem_ref = get_block_memory(num_heads, block_size, embedding_size, Rank3Matrix<TypeParam>{});
         auto rotation_coeffts_block_mem = get_block_memory(block_size, embedding_size, Rank2Matrix<float>{});
 
         std::mt19937 engine;
@@ -195,7 +195,7 @@ public:
             return TypeParam(rng(engine));
         };
 
-        std::generate(cache_block_mem_sw.begin(), cache_block_mem_sw.end(), generate_fn);
+        std::generate(cache_block_mem_ref.begin(), cache_block_mem_ref.end(), generate_fn);
         // coeffts are now not strictly sine-cosine pairs, but it does not matter for the kernels
         std::generate(rotation_coeffts_block_mem.begin(),
                       rotation_coeffts_block_mem.end(),
@@ -203,16 +203,16 @@ public:
 
 
 
-        auto cache_block_mem_hw = cache_block_mem_sw;
+        auto cache_block_mem_hw = cache_block_mem_ref;
 
-        auto raw_mem_ptr_sw = cache_block_mem_sw.data();
+        auto raw_mem_ptr_ref = cache_block_mem_ref.data();
         auto raw_rotation_coefficients_mem_ptr = rotation_coeffts_block_mem.data();
         auto raw_mem_ptr_hw = cache_block_mem_hw.data();
 
         ov::intel_cpu::PerfCount counter;
         {
             ov::intel_cpu::PerfHelper helper(counter);
-            rotate_kv_cache_block_hw(raw_mem_ptr_hw,
+            rotate_kv_cache_block_opt(raw_mem_ptr_hw,
                                      raw_rotation_coefficients_mem_ptr,
                                      num_heads,
                                      block_size,
@@ -221,16 +221,16 @@ public:
 
         {
             ov::intel_cpu::PerfHelper helper(counter);
-            rotate_kv_cache_block_sw(raw_mem_ptr_sw,
+            rotate_kv_cache_block_ref(raw_mem_ptr_ref,
                                      raw_rotation_coefficients_mem_ptr,
                                      num_heads,
                                      block_size,
                                      embedding_size);
         }
 
-        auto sw_values_after_rotation = get_matrix_from_mem(cache_block_mem_sw, num_heads, block_size, embedding_size);
-        auto hw_values_after_rotation = get_matrix_from_mem(cache_block_mem_hw, num_heads, block_size, embedding_size);
-        compare_with_tolerance(hw_values_after_rotation, sw_values_after_rotation, get_tolerance<TypeParam>());
+        auto ref_values_after_rotation = get_matrix_from_mem(cache_block_mem_ref, num_heads, block_size, embedding_size);
+        auto opt_values_after_rotation = get_matrix_from_mem(cache_block_mem_hw, num_heads, block_size, embedding_size);
+        compare_with_tolerance(opt_values_after_rotation, ref_values_after_rotation, get_tolerance<TypeParam>());
     }
 };
 
@@ -238,11 +238,11 @@ using OV_FP_TYPES = ::testing::Types<float, ov::float16, ov::bfloat16>;
 
 TYPED_TEST_SUITE_P(CacheRotationKernelInputTypeParameterizedTest);
 
-TYPED_TEST_P(CacheRotationKernelInputTypeParameterizedTest, SWBlockRotationGivesReferenceResults) {
+TYPED_TEST_P(CacheRotationKernelInputTypeParameterizedTest, RefBlockRotationGivesReferenceResults) {
     auto raw_cache_mem_ptr = this->cache_mem.data();
     auto raw_rotation_coefficients_mem_ptr = this->rotation_coefficients_mem.data();
 
-    rotate_kv_cache_block_sw(raw_cache_mem_ptr,
+    rotate_kv_cache_block_ref(raw_cache_mem_ptr,
                              raw_rotation_coefficients_mem_ptr,
                              this->num_heads,
                              this->block_size,
@@ -257,7 +257,7 @@ enum class TargetInstructionSet { AVX2, AVX512 };
 
 #if defined(__GNUC__)
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wsuggest-override"
+#pragma GCC diagnostic ignored "-Wsuggest-override" // false positive in gtest macro internals
 #endif
 
 MATCHER_P3(IsNFirstValuesNear, ref_container, abs_err, n, "") {
@@ -293,6 +293,9 @@ protected:
     template <class T>
     void test_chunk_rotation_for_type() {
         auto instruction_set = std::get<0>(GetParam());
+        if (instruction_set == TargetInstructionSet::AVX512 && (!ov::with_cpu_x86_avx512f())) {
+            GTEST_SKIP() << "test executor must have AVX512 support";
+        }
         auto num_elements_to_process = std::get<1>(GetParam());
 
         MemChunk<T> chunk_x = {-0.76777814f,
@@ -416,7 +419,7 @@ protected:
                                        chunk_cos.data(),
                                        chunk_sin.data(),
                                        num_elements_to_process,
-                                       /* is_underutilizing = */ num_elements_to_process < vec_len_f32_avx2);
+                                       /* is_tail = */ num_elements_to_process < vec_len_f32_avx2);
             break;
         case TargetInstructionSet::AVX512:
             rotate_kv_cache_chunk_avx512(chunk_x.data(),
@@ -424,7 +427,7 @@ protected:
                                          chunk_cos.data(),
                                          chunk_sin.data(),
                                          num_elements_to_process,
-                                         /* is_underutilizing = */ num_elements_to_process < vec_len_f32_avx512);
+                                         /* is_tail = */ num_elements_to_process < vec_len_f32_avx512);
             break;
         default:
             FAIL() << "unknown target instruction set";
@@ -442,7 +445,7 @@ protected:
     }
 };
 
-TEST_P(CacheRotationKernelInstructionParameterizedTest, HWChunkRotationGivesReferenceResults) {
+TEST_P(CacheRotationKernelInstructionParameterizedTest, OptChunkRotationGivesReferenceResults) {
     test_chunk_rotation_for_type<float>();
     test_chunk_rotation_for_type<ov::float16>();
     test_chunk_rotation_for_type<ov::bfloat16>();
@@ -473,11 +476,11 @@ INSTANTIATE_TEST_SUITE_P(AVX512,
                                                              ov::Extensions::Cpu::XARCH::vec_len_f32_avx512 + 1)),
                          TEST_STRUCT_TO_NAME_FN);
 
-TYPED_TEST_P(CacheRotationKernelInputTypeParameterizedTest, HWBlockRotationGivesReferenceResults) {
+TYPED_TEST_P(CacheRotationKernelInputTypeParameterizedTest, OptBlockRotationGivesReferenceResults) {
     auto raw_cache_mem_ptr = this->cache_mem.data();
     auto raw_rotation_coefficients_mem_ptr = this->rotation_coefficients_mem.data();
 
-    rotate_kv_cache_block_hw(raw_cache_mem_ptr,
+    rotate_kv_cache_block_opt(raw_cache_mem_ptr,
                              raw_rotation_coefficients_mem_ptr,
                              this->num_heads,
                              this->block_size,
@@ -488,16 +491,16 @@ TYPED_TEST_P(CacheRotationKernelInputTypeParameterizedTest, HWBlockRotationGives
     compare_with_tolerance(test_values_after_rotation, this->ref_values_after_rotation, get_tolerance<TypeParam>());
 }
 
-TYPED_TEST_P(CacheRotationKernelInputTypeParameterizedTest, HWBlockRotationIsSimilarToSW) {
+TYPED_TEST_P(CacheRotationKernelInputTypeParameterizedTest, OptBlockRotationIsSimilarToRef) {
     // short case
-    this->test_block_hw_vs_sw(/* num_heads = */ 4, /* embedding_size = */ 64, /* block_size = */ 2);
+    this->test_block_opt_vs_ref(/* num_heads = */ 4, /* embedding_size = */ 64, /* block_size = */ 2);
 
     // long case
-    this->test_block_hw_vs_sw(256, 1024, 32);
+    this->test_block_opt_vs_ref(256, 1024, 32);
 }
 
 REGISTER_TYPED_TEST_SUITE_P(CacheRotationKernelInputTypeParameterizedTest,
-                            SWBlockRotationGivesReferenceResults,
-                            HWBlockRotationGivesReferenceResults,
-                            HWBlockRotationIsSimilarToSW);
+                            RefBlockRotationGivesReferenceResults,
+                            OptBlockRotationGivesReferenceResults,
+                            OptBlockRotationIsSimilarToRef);
 INSTANTIATE_TYPED_TEST_SUITE_P(AllFPTypes, CacheRotationKernelInputTypeParameterizedTest, OV_FP_TYPES);
