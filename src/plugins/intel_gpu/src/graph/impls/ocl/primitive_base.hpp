@@ -22,6 +22,9 @@
 #include "permute_inst.h"
 #include "strided_slice_inst.h"
 #include "broadcast_inst.h"
+#include "scatter_update_inst.h"
+#include "scatter_elements_update_inst.h"
+#include "scatter_nd_update_inst.h"
 
 #include <vector>
 #include <list>
@@ -89,11 +92,8 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         // concat buffer fusing for dynamic shape is adaptively applied at runtime. So we need to build dynamic impl at build time.
         if (impl_param.can_be_optimized() &&
             !((impl_param.is_type<concatenation>() ||
-               impl_param.is_type<gather>() ||
-               impl_param.is_type<permute>() ||
-               impl_param.is_type<strided_slice>() ||
-               impl_param.is_type<broadcast>() ||
-               impl_param.is_type<crop>()) && impl_param.is_dynamic())) {
+               impl_param.is_type<crop>() ||
+               impl_param.runtime_skippable()) && impl_param.is_dynamic())) {
             return make_unique<ImplType>(kernel_selector::kernel_data{});
         }
         auto kernel_params = ImplType::get_kernel_params(ImplType::static_canonicalize_shapes(impl_param));
