@@ -8,8 +8,6 @@
 #include <vector>
 
 #include "ov_lpt_models/reduce.hpp"
-#include "transformations/common_optimizations/nop_elimination.hpp"
-#include "openvino/pass/manager.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -61,10 +59,6 @@ void ReduceMeanTransformation::SetUp() {
         param.reduceMean.constantValues,
         param.reduceMean.keepDims,
         param.dequantizationAfter);
-
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::DisableEliminateUselessConvert>();
-    manager.run_passes(function);
 }
 
 void ReduceMeanTransformation::run() {

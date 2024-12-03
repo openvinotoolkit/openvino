@@ -12,7 +12,6 @@ namespace pass {
 
 class TRANSFORMATIONS_API EliminateConcat;
 class TRANSFORMATIONS_API EliminateConvert;
-class TRANSFORMATIONS_API DisableEliminateUselessConvert;
 class TRANSFORMATIONS_API EliminateConvertNonZero;
 class TRANSFORMATIONS_API EliminateEltwise;
 class TRANSFORMATIONS_API EliminateScatterUpdate;
@@ -62,17 +61,6 @@ class ov::pass::EliminateConvert : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("EliminateConvert", "0");
     EliminateConvert();
-};
-
-/**
- * @ingroup ov_transformation_common_api
- * @brief DisableEliminateUselessConvert eliminates convert(a->b) + convert(b->a) that does nothing. Add just for some
- * testing.
- */
-class ov::pass::DisableEliminateUselessConvert : public ov::pass::MatcherPass {
-public:
-    OPENVINO_RTTI("DisableEliminateUselessConvert", "0");
-    DisableEliminateUselessConvert();
 };
 
 /**

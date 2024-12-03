@@ -12,8 +12,6 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "ov_lpt_models/fake_quantize_and_convolution.hpp"
-#include "transformations/common_optimizations/nop_elimination.hpp"
-#include "openvino/pass/manager.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -52,10 +50,6 @@ void ConvolutionQDqTransformation::SetUp() {
         {});
 
     this->configuration[ov::hint::inference_precision.name()] = "f32";
-
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::DisableEliminateUselessConvert>();
-    manager.run_passes(function);
 }
 
 void ConvolutionQDqTransformation::run() {

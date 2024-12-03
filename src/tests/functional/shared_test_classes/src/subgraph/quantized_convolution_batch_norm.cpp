@@ -7,8 +7,6 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "shared_test_classes/subgraph/quantized_convolution_batch_norm.hpp"
-#include "transformations/common_optimizations/nop_elimination.hpp"
-#include "openvino/pass/manager.hpp"
 
 namespace ov {
 namespace test {
@@ -171,10 +169,6 @@ void QuantizedConvolutionBatchNorm::SetUp() {
     auto var = std::make_shared<ov::op::v0::Constant>(var_tensor);
     auto batch_norm = std::make_shared<ov::op::v5::BatchNormInference>(conv, gamma, beta, mean, var, 0.00001);
     function = std::make_shared<ov::Model>(batch_norm, ParameterVector{parameter});
-
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::DisableEliminateUselessConvert>();
-    manager.run_passes(function);
 }
 
 void QuantizedConvolutionBatchNorm::TearDown() {

@@ -389,7 +389,6 @@ def test_float_to_f8e8m0_constant_matrix(ov_type, numpy_dtype, opset):
 
     compressed_const = opset.constant(data, dtype=ov_type, name="fx_constant")
     convert_to_fp8 = opset.convert(compressed_const, Type.f8e8m0)
-    convert_to_fp8.get_rt_info()["DisableEliminateUselessConvert"] = "1"
     convert_back = opset.convert(convert_to_fp8, ov_type)
     parameter = opset.parameter(ov.PartialShape([-1, -1]), ov_type)
     add_op = opset.add(parameter, convert_back)
@@ -482,7 +481,6 @@ def test_float_to_f8e5m2_convert(ov_type, numpy_dtype, opset):
 
     compressed_const = opset.constant(data, dtype=ov_type, name="fx_constant")
     convert_to_fp8 = opset.convert(compressed_const, Type.f8e5m2)
-    convert_to_fp8.get_rt_info()["DisableEliminateUselessConvert"] = "1"
     convert_back = opset.convert(convert_to_fp8, ov_type)
     parameter = opset.parameter(ov.PartialShape([-1]), ov_type)
     add_op = opset.add(parameter, convert_back)
@@ -516,7 +514,6 @@ def test_float_to_f8e4m3_convert(ov_type, numpy_dtype, opset):
 
     compressed_const = opset.constant(data, dtype=ov_type, name="fx_constant")
     convert_to_fp8 = opset.convert(compressed_const, Type.f8e4m3)
-    convert_to_fp8.get_rt_info()["DisableEliminateUselessConvert"] = "1"
     convert_back = opset.convert(convert_to_fp8, ov_type)
     parameter = opset.parameter(ov.PartialShape([-1]), ov_type)
     add_op = opset.add(parameter, convert_back)
@@ -552,7 +549,6 @@ def test_float_to_f8e8m0_convert(ov_type, numpy_dtype, opset):
 
     compressed_const = opset.constant(data, dtype=ov_type, name="fx_constant")
     convert_to_fp8 = opset.convert(compressed_const, Type.f8e8m0)
-    convert_to_fp8.get_rt_info()["DisableEliminateUselessConvert"] = "1"
     convert_back = opset.convert(convert_to_fp8, ov_type)
     parameter = opset.parameter(ov.PartialShape([-1]), ov_type)
     add_op = opset.add(parameter, convert_back)

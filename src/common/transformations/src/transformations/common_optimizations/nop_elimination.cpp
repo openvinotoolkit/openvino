@@ -443,18 +443,11 @@ pass::EliminateConvert::EliminateConvert() {
         if (!convert) {
             return false;
         }
-
-        // Only for some test.
-        if (convert->get_rt_info().count("DisableEliminateUselessConvert") &&
-            convert->get_rt_info()["DisableEliminateUselessConvert"].as<std::string>() == std::string("1")) {
-            return false;
-        }
-
         if (convert->get_input_element_type(0) == convert->get_element_type()) {
             return replace_output_update_name(convert->output(0), convert->input_value(0));
         }
 
-        // Eliminate useless convert pattern, for example:
+        // Eliminate useless convert pattern:
         // Convert[fp16->fp32] -> Convert[fp32->f16]
         if (convert && convert->get_output_size() > 0u && convert->get_input_size() > 0u) {
             auto convert2 = ov::as_type_ptr<ov::op::v0::Convert>(
@@ -462,29 +455,10 @@ pass::EliminateConvert::EliminateConvert() {
             if (convert2 && convert->get_input_element_type(0) == convert2->get_output_element_type(0) &&
                 convert->get_output_partial_shape(0) == convert2->get_output_partial_shape(0)) {
                 replace_output_update_name(convert2->output(0), convert->input_value(0));
-                return true;
             }
         }
 
         return false;
-    };
-
-    auto m = make_shared<pattern::Matcher>(convert_pattern, matcher_name);
-    this->register_matcher(m, callback);
-}
-
-pass::DisableEliminateUselessConvert::DisableEliminateUselessConvert() {
-    MATCHER_SCOPE(DisableEliminateUselessConvert);
-    auto convert_pattern = pattern::wrap_type<ov::op::v0::Convert>();
-
-    matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto convert = dynamic_pointer_cast<ov::op::v0::Convert>(m.get_match_root());
-        if (!convert) {
-            return false;
-        }
-        convert->get_rt_info()["DisableEliminateUselessConvert"] = "1";
-
-        return true;
     };
 
     auto m = make_shared<pattern::Matcher>(convert_pattern, matcher_name);
