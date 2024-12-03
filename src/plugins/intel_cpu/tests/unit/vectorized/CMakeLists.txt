@@ -20,6 +20,13 @@ else()
       ${CMAKE_CURRENT_SOURCE_DIR}/stub.cpp)
 endif()
 
+if (ENABLE_MLAS_FOR_CPU)
+    set(MLAS_LIBRARY "mlas")
+endif()
+
+if (ENABLE_SHL_FOR_CPU)
+    set(SHL_LIBRARY "shl")
+endif()
 
 ov_add_test_target(
         NAME ${TARGET_NAME}
