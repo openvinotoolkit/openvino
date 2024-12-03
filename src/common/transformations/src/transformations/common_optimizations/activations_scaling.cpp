@@ -181,8 +181,6 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
             if (output_of_scaled_op->output(0).get_element_type() != output_prec && !keep_precision) {
                 output_of_scaled_op =
                     std::make_shared<ov::op::v0::Convert>(output_of_scaled_op->output(0), output_prec);
-            } else {
-                output_of_scaled_op = output_of_scaled_op;
             }
         }
 
