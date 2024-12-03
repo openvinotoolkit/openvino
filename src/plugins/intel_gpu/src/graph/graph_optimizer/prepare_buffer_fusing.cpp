@@ -852,7 +852,8 @@ void prepare_buffer_fusing::run(program& p) {
                 // Therefore, the padding of crop_layout should be shifted properly.
                 const size_t TDIM = 4;
                 auto user = node.get_users().front();
-                if (user->is_type<gemm>() && pred_layout.is_static() && user->get_dependency(1).id().compare(node.id()) == 0) {
+                bool allow_new_shape_infer = node.get_program().is_new_shape_infer();
+                if (!allow_new_shape_infer && user->is_type<gemm>() && user->get_dependency(1).id().compare(node.id()) == 0) {
                     auto input_rank = user->get_kernel_impl_params()->typed_desc<gemm>()->weight_rank;
                     if (input_rank < TDIM) {
                         std::vector<int32_t> l_pad = {0, 0, 0, 0};
