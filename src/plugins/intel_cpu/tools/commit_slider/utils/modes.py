@@ -655,7 +655,7 @@ class LLMBenchmarkMode(Mode):
             commitLogger.info(output)
             foundLatency = re.search(
                 self.outPattern, output, flags=re.MULTILINE
-            ).group(1)
+            ).group(3)
             curThroughput = float(foundLatency)
             self.setCommitCash(commit, curThroughput)
         return curThroughput
@@ -675,7 +675,7 @@ class LLMBenchmarkMode(Mode):
             output = fetchAppOutput(cfg, commit)
             foundLatency = re.search(
                 self.outPattern, output, flags=re.MULTILINE
-            ).group(1)
+            ).group(3)
             curThroughput = float(foundLatency)
             throughputList.append(curThroughput)
         resStable = checkStability(throughputList, dev)
