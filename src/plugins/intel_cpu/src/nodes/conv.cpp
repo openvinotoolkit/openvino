@@ -817,7 +817,11 @@ void Convolution::initSupportedPrimitiveDescriptors() {
 #endif
     for (size_t dIdx = 0; dIdx < descs.size(); dIdx++) {
         auto& desc = descs[dIdx];
-        auto first_desc = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get()));
+        auto primitive_desc = desc.get(true); //true mean allow empty
+        if (primitive_desc == nullptr) {
+            continue;
+        }
+        auto first_desc = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(primitive_desc));
 
         auto add_supported_desc = [&](dnnl::primitive_desc& desc) {
             addSupportedPrimitiveDescriptor(desc);
@@ -825,7 +829,7 @@ void Convolution::initSupportedPrimitiveDescriptors() {
         };
 
         const bool first_match = customImplPriorities.empty();
-        DEBUG_LOG("#", getName(),
+        DEBUG_LOG("#", getName(), ",descIndex:", dIdx + 1, "/", descs.size(),
                        ", itpd.impl_info_str(): ", desc.impl_info_str(),
                     ", parsed imp_type: ", impl_type_to_string(parse_impl_name(desc.impl_info_str())),
                     ", first_match: ", first_match ? "true" : "false");
@@ -946,8 +950,7 @@ void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
             const auto desc = createDescriptorInternal(getEngine(),
                                                        inDnnlDesc, weightDnnlDesc, biasDnnlDesc, outDnnlDesc, withBiases,
                                                        stride, dilation, paddingL, paddingR, alg, attr);
-            if (desc)
-                descs.emplace_back(desc);
+            descs.emplace_back(desc);
         }
     }
 }
