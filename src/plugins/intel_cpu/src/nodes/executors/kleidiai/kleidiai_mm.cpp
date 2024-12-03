@@ -29,6 +29,8 @@ static std::vector<T> normalizeDimsTo2D(const std::vector<T>& dims) {
 }
 
 bool MatMulKleidiAIExecutor::supports(const FCConfig& config) {
+    if (!config.attrs.weightsNonTransposed)
+        return false;
     return true;
 }
 

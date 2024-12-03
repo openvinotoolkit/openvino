@@ -106,6 +106,8 @@ void MatMulLayerCPUTest::SetUp() {
         }
     }
 
+    std::cout << targetStaticShapes[0][0] << " " << targetStaticShapes[0][1] << std::endl;
+
     const auto& inShapeA = inputDynamicShapes[0];
     const auto& inShapeB = inputDynamicShapes[1];
 
