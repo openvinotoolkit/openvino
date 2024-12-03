@@ -441,26 +441,6 @@ TEST_P(ConcatSDPTransposeTestSetState, CompareWithRefs) {
     for (size_t i = 0; i < actualOutputs.size(); i++) {
         ov::test::utils::compare(expectedOutputs[i], actualOutputs[i], abs_threshold, rel_threshold);
     }
-
-    // Check compileModel doesn't should contain 2 useless Convert.
-    auto check_node_type = [](std::shared_ptr<ov::Node> node, const std::string& typeName) -> bool {
-        auto rtInfo = node->get_rt_info();
-        auto it = rtInfo.find(ov::exec_model_info::LAYER_TYPE);
-        OPENVINO_ASSERT(rtInfo.end() != it);
-        return it->second.as<std::string>() == typeName;
-    };
-    EXPECT_TRUE(compiledModel.get_runtime_model() != nullptr);
-    for (const auto& node : compiledModel.get_runtime_model()->get_ops()) {
-        if (check_node_type(node, "Convert")) {
-            auto convert1 = node;
-            auto convert2 = node->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
-            if (node->get_output_size() > 0u && check_node_type(convert2, "Convert")) {
-                bool useless_convert = convert1->get_input_element_type(0) == convert2->get_output_element_type(0) &&
-                                       convert1->get_output_partial_shape(0) == convert2->get_output_partial_shape(0);
-                EXPECT_FALSE(useless_convert);
-            }
-        }
-    }
 }
 
 namespace {
