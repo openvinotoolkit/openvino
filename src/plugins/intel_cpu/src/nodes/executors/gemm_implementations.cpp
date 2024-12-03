@@ -62,7 +62,9 @@ static const MappingNotation aclMatMulMappingNotation {
 };
 
 // clang-format on
-
+#ifndef _WIN32
+[[maybe_unused]]
+#endif
 static bool fullyMatchConfiguration(const MemoryDescArgs& currentDescriptors,
                                     const InOutTypes& typeConfig,
                                     const LayoutConfig& layoutConfig,
@@ -84,6 +86,9 @@ static bool fullyMatchConfiguration(const MemoryDescArgs& currentDescriptors,
     return true;
 }
 
+#ifndef _WIN32
+[[maybe_unused]]
+#endif
 static MemoryDescArgs createOptimalDescriptors(const MemoryDescArgs& currentDescriptors,
                                                const InOutTypes& typeConfig,
                                                const LayoutConfig& layoutConfig,
