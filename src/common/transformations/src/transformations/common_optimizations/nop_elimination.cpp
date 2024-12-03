@@ -444,14 +444,14 @@ pass::EliminateConvert::EliminateConvert() {
             return false;
         }
 
+        if (convert->get_input_element_type(0) == convert->get_element_type()) {
+            return replace_output_update_name(convert->output(0), convert->input_value(0));
+        }
+
         // Only for some test.
         if (convert->get_rt_info().count("DisableEliminateUselessConvert") &&
             convert->get_rt_info()["DisableEliminateUselessConvert"].as<std::string>() == std::string("1")) {
             return false;
-        }
-
-        if (convert->get_input_element_type(0) == convert->get_element_type()) {
-            return replace_output_update_name(convert->output(0), convert->input_value(0));
         }
 
         // Eliminate useless convert pattern, for example:
