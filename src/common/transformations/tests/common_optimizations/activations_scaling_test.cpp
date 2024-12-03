@@ -47,7 +47,7 @@ TEST_F(TransformationTestsF, ScaleDownSingleLayerTest) {
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 16, 16});
         auto weights_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{3, 3, 3, 3}, {1});
-        auto scale_down_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1.f / scale_factor});
+        auto scale_down_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {1.f / scale_factor});
         auto scale_down = std::make_shared<ov::op::v1::Multiply>(input, scale_down_const);
         auto conv = std::make_shared<ov::op::v1::Convolution>(scale_down,
                                                               weights_const,
@@ -55,7 +55,7 @@ TEST_F(TransformationTestsF, ScaleDownSingleLayerTest) {
                                                               CoordinateDiff{},
                                                               CoordinateDiff{},
                                                               Strides{});
-        auto scale_up_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {scale_factor});
+        auto scale_up_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {scale_factor});
         auto scale_up = std::make_shared<ov::op::v1::Multiply>(conv, scale_up_const);
         auto convert = std::make_shared<ov::op::v0::Convert>(scale_up, ov::element::f32);
         auto result = std::make_shared<ov::op::v0::Result>(convert);
@@ -67,7 +67,7 @@ TEST_F(TransformationTestsF, ScaleDownSingleLayerTest) {
 TEST_F(TransformationTestsF, ScaleDownFusionTest) {
     float scale_factor = 128.f;
     {
-        ov::Shape scale_const_shape = {1};
+        ov::Shape scale_const_shape = {};
         std::vector<float> scale_down_value = {1.f / scale_factor};
         std::shared_ptr<ov::Node> scale_down_const =
             std::make_shared<ov::op::v0::Constant>(ov::element::f16, scale_const_shape, scale_down_value);
@@ -91,7 +91,7 @@ TEST_F(TransformationTestsF, ScaleDownFusionTest) {
         manager.register_pass<ov::pass::activations_scaling::ScaleDownFusion>(scale_factor);
     }
     {
-        ov::Shape scale_const_shape = {1};
+        ov::Shape scale_const_shape = {};
         std::vector<float> scale_down_value = {1.f / scale_factor};
         std::shared_ptr<ov::Node> scale_down_const =
             std::make_shared<ov::op::v0::Constant>(ov::element::f16, scale_const_shape, scale_down_value);
