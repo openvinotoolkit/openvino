@@ -244,7 +244,7 @@ static VectorDims getStridesAndModifyShape(Shape& shape, const bool transpose) {
     return strides;
 }
 
-#if defined(OPENVINO_ARCH_ARM64) and !defined(OPENVINO_MAT_MUL_REFERENCE)
+#if defined(OPENVINO_ARCH_ARM64)
 ExecutorPtr MatMul::createExecutor() {
     const auto& executor = factory->make(memory);
     getSelectedPrimitiveDescriptor()->setImplementationType(executor->implType());
@@ -472,7 +472,7 @@ void MatMul::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-#if defined(OPENVINO_ARCH_ARM64) and !defined(OPENVINO_MAT_MUL_REFERENCE)
+#if defined(OPENVINO_ARCH_ARM64)
     attrs.withBias = getOriginalInputsNumber() == 3;
     attrs.transpose_a = this->transposeIn[0];
     attrs.transpose_b = this->transposeIn[1];
@@ -581,7 +581,7 @@ void MatMul::initSupportedPrimitiveDescriptors() {
 #endif
 }
 
-#if defined(OPENVINO_ARCH_ARM64) and !defined(OPENVINO_MAT_MUL_REFERENCE)
+#if defined(OPENVINO_ARCH_ARM64)
 void MatMul::createPrimitive() {
     memory[ARG_SRC] = getSrcMemoryAtPort(DATA_ID);
     memory[ARG_WEI] = getSrcMemoryAtPort(WEIGHTS_ID);
@@ -615,7 +615,7 @@ ov::element::Type MatMul::getRuntimePrecision() const {
 }
 
 void MatMul::prepareParams() {
-#if defined(OPENVINO_ARCH_ARM64) and !defined(OPENVINO_MAT_MUL_REFERENCE)
+#if defined(OPENVINO_ARCH_ARM64)
     executor = createExecutor();
 #else
     auto dstMemPtr = getDstMemoryAtPort(0);
@@ -742,7 +742,7 @@ void MatMul::prepareParams() {
 }
 
 void MatMul::execute(dnnl::stream strm) {
-#if defined(OPENVINO_ARCH_ARM64) and !defined(OPENVINO_MAT_MUL_REFERENCE)
+#if defined(OPENVINO_ARCH_ARM64)
     executor->execute(memory);
 #else
     if (execPtr) {
