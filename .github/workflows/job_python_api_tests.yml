@@ -43,7 +43,6 @@ jobs:
         with:
           pattern: openvino_@(wheels|tests)
           path: ${{ env.INSTALL_DIR }}
-          merge-multiple: true
 
       # Needed as ${{ github.workspace }} is not working correctly when using Docker
       - name: Setup Variables
