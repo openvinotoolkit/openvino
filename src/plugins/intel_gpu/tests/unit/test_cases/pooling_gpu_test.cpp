@@ -2276,6 +2276,40 @@ private:
     VF<output_t> _shift;
 };
 
+using pooling_random_test_int8_uint8 = pooling_random_test;
+
+TEST_P(pooling_random_test_int8_uint8, avg_int8) {
+    auto test_case = pooling_random_test_base<int8_t, pooling_mode::average>();
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam(), false));
+}
+
+TEST_P(pooling_random_test_int8_uint8, max_int8) {
+    auto test_case = pooling_random_test_base<int8_t, pooling_mode::max>();
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam(), false));
+}
+
+TEST_P(pooling_random_test_int8_uint8, avg_uint8) {
+    auto test_case = pooling_random_test_base<uint8_t, pooling_mode::average>();
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam(), false));
+}
+
+TEST_P(pooling_random_test_int8_uint8, max_uint8) {
+    auto test_case = pooling_random_test_base<uint8_t, pooling_mode::max>();
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam(), false));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_low_precision,
+    pooling_random_test_int8_uint8,
+    testing::Combine(testing::Values(1, 2),
+                     testing::Values(3, 8),
+                     testing::Values(std::tuple<size_t, size_t, size_t>(12, 12, 1)),
+                     testing::Values(std::tuple<size_t, size_t, size_t>(4, 4, 1)),
+                     testing::Values(std::tuple<int, int, int>(2, 2, 1)),
+                     testing::Values(std::tuple<int, int, int>(0, 0, 0)),
+                     testing::Values(format::fs_b_yx_fsv32)),
+    testing::internal::DefaultParamName<pooling_random_test_params>);
+
 using pooling_random_test_fp16_fp32 = pooling_random_test;
 
 TEST_P(pooling_random_test_fp16_fp32, avg_fp16) {
