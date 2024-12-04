@@ -56,6 +56,17 @@ struct rope_impl : typed_primitive_impl_ocl<rope> {
         params.is_interleaved = primitive->config.is_interleaved;
         params.support_2d_rope = primitive->config.support_2d_rope;
         params.transposed_input = primitive->config.input_trans0213;
+        switch (impl_param.get_input_layout(0).data_type) {
+        case data_types::f16:
+            params.vec_size = 16;
+            break;
+        case data_types::f32:
+            params.vec_size = 8;
+            break;
+        default:
+            params.vec_size = 1;
+            break;
+        }
 
         for (size_t i = 1; i < impl_param.input_layouts.size(); ++i) {
             params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
