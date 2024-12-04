@@ -132,6 +132,8 @@ jobs:
       - name: Docs Python snippets
         if: runner.os != 'macOS'
         run: |
+          # torch
+          python3 -m pip install -r ${INSTALL_TEST_DIR}/tests/python/preprocess/torchvision/requirements.txt
           # to find 'snippets' module in docs
           export PYTHONPATH=${OPENVINO_REPO}/docs/articles_en/assets
           # for 'template' extension
