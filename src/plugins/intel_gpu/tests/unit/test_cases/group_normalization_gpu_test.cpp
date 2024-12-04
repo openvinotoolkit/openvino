@@ -4,8 +4,15 @@
 
 #include "test_utils.h"
 #include "random_generator.hpp"
+#include "program_wrapper.h"
+#include "pass_manager.h"
+
 #include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/group_normalization.hpp>
+#include <intel_gpu/primitives/reshape.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/permute.hpp>
 #include "openvino/reference/group_normalization.hpp"
 #include "intel_gpu/runtime/compilation_context.hpp"
 
@@ -156,3 +163,57 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn({padding(), padding({0, 0, 1, 1})})));
 
 } // anonymous namespace
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+TEST(group_normalization, input_bfyx_output_fsv16) {
+    auto& engine = get_test_engine();
+
+    auto in_layout = layout{ ov::PartialShape::dynamic(5), data_types::f16, format::bfzyx };
+    auto scale_layout = layout{ ov::PartialShape{1}, data_types::f16, format::bfyx };
+    auto bias_layout = layout{ ov::PartialShape{1}, data_types::f16, format::bfyx };
+
+    auto input_mem = engine.allocate_memory({ ov::PartialShape{2, 6, 320, 35, 28}, data_types::f16, format::bfzyx });
+    auto scale_mem = engine.allocate_memory(scale_layout);
+    auto bias_mem = engine.allocate_memory(bias_layout);
+
+    tests::random_generator rg{"group_normalization"};
+    std::vector<float> input = rg.generate_random_1d<float>(ov::shape_size(input_mem->get_layout().get_shape()), -1, 1);
+    std::vector<float> scale = rg.generate_random_1d<float>(ov::shape_size(scale_layout.get_shape()), -1, 1);
+    std::vector<float> bias = rg.generate_random_1d<float>(ov::shape_size(bias_layout.get_shape()), -1, 1);
+
+    set_values(scale_mem, scale);
+    set_values(bias_mem, bias);
+
+    topology topology(
+        input_layout("input", in_layout),
+        data("scale", scale_mem),
+        data("bias", bias_mem),
+        reshape("reshape", input_info("input"), true, {12, 320, 35, 28}, ov::PartialShape::dynamic(4)),
+        reorder("reorder1", input_info("reshape"), format::b_fs_yx_fsv16, data_types::f16),
+        group_normalization("group_normalization", input_info("reorder1"), input_info("scale"), input_info("bias"), static_cast<std::int64_t>(1), 0.0025),
+        reorder("reorder2", input_info("group_normalization"), format::b_fs_yx_fsv16, data_types::f16),
+        permute("output", input_info("reorder2"), {0, 2, 3, 1})
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc gn_impl = { format::bfyx, "", impl_types::ocl };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"group_normalization", gn_impl}}));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    reorder_factory rf;
+    auto program = program::build_program(engine, topology, config, false, true);
+    program_wrapper::apply_opt_pass<reorder_inputs>(*program, rf);
+    auto& reorder_node = program->get_node("reorder1");
+    std::vector<layout> layouts = {layout { ov::PartialShape::dynamic(4), data_types::f16, format::bfyx }};
+    reorder_node.set_output_layouts(layouts, false);
+
+    network network(program, false, false);
+    network.set_input_data("input", input_mem);
+    auto output = network.execute();
+
+    ASSERT_EQ(output.size(), size_t(1));
+    ASSERT_EQ(output.begin()->first, "output");
+
+}
+#endif // ENABLE_ONEDNN_FOR_GPU
