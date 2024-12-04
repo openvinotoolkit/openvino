@@ -18,7 +18,6 @@ make sure to :doc:`install OpenVINO with GenAI <../../get-started/install-openvi
 
 .. image:: ../../assets/images/genai_main_diagram.svg
    :align: center
-   :width: 500
    :alt: OpenVINO workflow diagram for convenience
 
 
