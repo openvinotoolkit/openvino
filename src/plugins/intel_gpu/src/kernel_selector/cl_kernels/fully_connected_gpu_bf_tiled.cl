@@ -20,15 +20,8 @@
 #define INPUT_LOAD_SIZE                     4
 
 #if FC_KERNEL_DYNAMIC_QUANTIZE
-//#define VLOAD_N CAT(vload, VEC_SIZE)
-//#define VSTORE_N CAT(vstore, VEC_SIZE)
-//#define CONVERT_CHAR_N CAT(convert_char, VEC_SIZE)
-//#define AS_TYPE_N_(type, n, x) as_##type##n(x)
-//#define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
-//#define AS_INPUT_TYPE_N(x) AS_TYPE_N(INPUT0_TYPE, VEC_SIZE, x)
 
 KERNEL(quantize_input)(
-    // OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
     __global DQ_TYPE* quantized_input,
     __global float* quan_var
@@ -37,37 +30,21 @@ KERNEL(quantize_input)(
 
     const uint input_offset = offset * QUANTIZE_GROUP_SIZE;
     const uint quantize_block = QUANTIZE_GROUP_SIZE / 4;
-    // MAKE_VECTOR_TYPE(INPUT0_TYPE, INPUT_LOAD_SIZE) input_0[quantize_block];
     MAKE_VECTOR_TYPE(DQ_TYPE, INPUT_LOAD_SIZE) quantized_value;
-    // INPUT0_TYPE  max[quantize_block];
-    INPUT0_TYPE max_value = 0.001f;
+    float max_value = 0.0001f;
 
     MAKE_VECTOR_TYPE(INPUT0_TYPE, INPUT_LOAD_SIZE) input_buff;
     for (uint i = 0 ; i < quantize_block ; ++i) {
-        // input_0[i] = vload4(0, &input[input_offset + i * 4]);
-        // max[i] = fmax(fmax(fabs(input_0[i][0]), fabs(input_0[i][1])), fmax(fabs(input_0[i][2]), fabs(input_0[i][3])));
         input_buff = vload4(0, &input[input_offset + i * 4]);
         INPUT0_TYPE max = fmax(fmax(fabs(input_buff[0]), fabs(input_buff[1])), fmax(fabs(input_buff[2]), fabs(input_buff[3])));
         max_value = fmax(max, max_value);
     }
-    // unroll_for (uint i = 0 ; i < quantize_block ; ++i) {
-    //     input_0[i] = vload4(0, &input[input_offset + i * 4]);
-    //     max[i] = fmax(fmax(fabs(input_0[i][0]), fabs(input_0[i][1])), fmax(fabs(input_0[i][2]), fabs(input_0[i][3])));
-    // }
 
-    // float max_value = 0.001f;
-    // for (uint i = 0 ; i < quantize_block ; i+=8) {
-    //     INPUT0_TYPE temp = fmax(fmax(fmax(max[i], max[i+1]), fmax(max[i+2], max[i+3])),
-    //                             fmax(fmax(max[i+4], max[i+5]), fmax(max[i+6], max[i+7])));
-    //     max_value = fmax((float)(temp), max_value);
-    // }
-
-    float quan_scale = (float)max_value / 127.f;
+    float quan_scale = max_value / 127.f;
     #if COMPRESSED_WEIGHTS_INT8
         int quantized_sum = 0;
     #endif
     for (uint i = 0 ; i < quantize_block ; ++i) {
-        // float4 buff = (convert_float4)(input_0[i]) / (float4)quan_scale;
         float4 buff = (convert_float4)(vload4(0, &input[input_offset + i * 4])) / (float4)quan_scale;
 
         quantized_value = CAT(CAT(convert_, MAKE_VECTOR_TYPE(DQ_TYPE, INPUT_LOAD_SIZE)), _rte)(buff);
