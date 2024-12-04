@@ -189,6 +189,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config);
+    if (model->has_rt_info("runtime_options"))
+        config.apply_rt_info(model->get_rt_info<ov::AnyMap>("runtime_options"));
     config.apply_user_properties(context->get_engine().get_device_info());
 
     set_cache_info(model, config);
@@ -278,6 +280,8 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config);
+    if (model->has_rt_info("runtime_options"))
+        config.apply_rt_info(model->get_rt_info<ov::AnyMap>("runtime_options"));
     config.apply_user_properties(ctx->get_engine().get_device_info());
 
     ProgramBuilder prog(ctx->get_engine(), config);
