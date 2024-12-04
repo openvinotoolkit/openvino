@@ -110,7 +110,6 @@ public:
                         "No graph was found in the compiled model: ",
                         m_compiled_model->name());
         m_graph = &(m_compiled_model->get_graph()._graph);
-        OPENVINO_ASSERT(m_graph, "Graph ptr null check failed");
         m_id = (m_compiled_model->m_numRequests)++;
     }
 

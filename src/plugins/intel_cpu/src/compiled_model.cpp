@@ -346,7 +346,8 @@ void CompiledModel::release_memory() {
         // try to lock mutex, since it may be already locked (e.g by an infer request)
         std::unique_lock<std::mutex> lock(graph._mutex, std::try_to_lock);
         OPENVINO_ASSERT(lock.owns_lock(),
-                "Attempt to call release_memory() on a graph locked by another thread");
+                        "Attempt to call release_memory() on a compiled model in a busy state. Please ensure that all "
+                        "infer requests are completed before releasing memory.");
         auto ctx = graph.getGraphContext();
         ctx->getNetworkMemoryControl()->releaseMemory();
     }
