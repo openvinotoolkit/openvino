@@ -106,46 +106,19 @@ LoRAHorizontalFusion::LoRAHorizontalFusion() {
             old_multiply->clear_control_dependencies();
         }
 
-        bool fuse_second_matmul = true;
-        size_t not_concatenable_idx = 0;
-        const auto& base_dim = variable_b_nodes[0]->get_output_partial_shape(0)[not_concatenable_idx];
-        for (size_t i = 1; i < variable_b_nodes.size(); ++i) {
-            const auto& dim = variable_b_nodes[i]->get_output_partial_shape(0)[not_concatenable_idx];
-            if (dim.is_dynamic() || dim.get_length() != base_dim.get_length()) {
-                fuse_second_matmul = false;
-            }
+        auto axis_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {fused_multiply->get_output_partial_shape(0).size() - 1});
+        auto output_split = std::make_shared<ov::op::v1::Split>(fused_multiply, axis_const, matmul2_nodes.size());
+        auto split_name = fused_multiply->get_friendly_name() + "_split";
+        copy_runtime_info(fused_multiply, output_split);
+        output_split->set_friendly_name(split_name);
+        for (size_t i = 0; i < matmul2_nodes.size(); ++i) {
+            matmul2_nodes[i]->input(0).replace_source_output(output_split->output(i));
         }
 
-        std::shared_ptr<ov::Node> fused_matmul2 = nullptr;
-        if (fuse_second_matmul) {
-            auto fused_variable_b = std::make_shared<ov::op::v0::Concat>(variable_b_nodes, 1);
-            fused_variable_b->set_friendly_name(variable_b_nodes[0]->get_friendly_name() +
-                                                "_fused" + std::to_string(variable_b_nodes.size()) + "_ReadValues");
-            ov::copy_runtime_info(variable_b_nodes, fused_variable_b);
-
-            bool transpose_a2 = std::dynamic_pointer_cast<ov::op::v0::MatMul>(matmul2_nodes[0])->get_transpose_a();
-            bool transpose_b2 = std::dynamic_pointer_cast<ov::op::v0::MatMul>(matmul2_nodes[0])->get_transpose_b();
-            fused_matmul2 = std::make_shared<ov::op::v0::MatMul>(fused_multiply, fused_variable_b, transpose_a2, transpose_b2);
-            auto matmul2_name = matmul2_nodes[0]->get_friendly_name() + "_fused_" + std::to_string(matmul2_nodes.size()) + "_MatMuls";
-            fused_matmul2->set_friendly_name(matmul2_name);
-            ov::copy_runtime_info(matmul2_nodes, fused_matmul2);
-            for (const auto& old_matmul2 : matmul2_nodes) {
-                old_matmul2->clear_control_dependencies();
-            }
-        } else {
-            auto axis_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {fused_multiply->get_output_partial_shape(0).size() - 1});
-            auto output_split = std::make_shared<ov::op::v1::Split>(fused_multiply, axis_const, matmul2_nodes.size());
-            auto split_name = fused_multiply->get_friendly_name() + "_split";
-            copy_runtime_info(fused_multiply, output_split);
-            output_split->set_friendly_name(split_name);
-            for (size_t i = 0; i < matmul2_nodes.size(); ++i) {
-                matmul2_nodes[i]->input(0).replace_source_output(output_split->output(i));
-            }
-
-            fused_matmul2 = std::make_shared<ov::op::v0::Concat>(matmul2_nodes, matmul2_nodes[0]->get_output_partial_shape(0).size() - 1);
-            auto matmul2_name = matmul2_nodes[0]->get_friendly_name() + "_fused_" + std::to_string(matmul2_nodes.size()) + "_MatMuls_output";
-            fused_matmul2->set_friendly_name(matmul2_name);
-        }
+        auto fused_matmul2 = std::make_shared<ov::op::v0::Concat>(matmul2_nodes, matmul2_nodes[0]->get_output_partial_shape(0).size() - 1);
+        auto matmul2_name = matmul2_nodes[0]->get_friendly_name() + "_fused_" + std::to_string(matmul2_nodes.size()) + "_MatMuls_output";
+        fused_matmul2->set_friendly_name(matmul2_name);
+        ov::copy_runtime_info(matmul2_nodes, fused_matmul2);
 
         auto fused_add = std::make_shared<ov::op::v1::Add>(split->get_input_node_shared_ptr(0), fused_matmul2);
         auto fused_add_name = add_nodes[0]->get_friendly_name() + "_fused_" + std::to_string(add_nodes.size()) + "_Adds";
