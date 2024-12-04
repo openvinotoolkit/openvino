@@ -4711,6 +4711,11 @@ struct eltwise_layout_test_params {
 #define CASE_ELTWISE_TEST7  eltwise_mode::sum, {4, 5, 4, 1}, {4, 1, 4, 1}, format::bfyx, format::b_fs_yx_fsv16, "generic_eltwise_ref"
 #define CASE_ELTWISE_TEST8  eltwise_mode::sum, {4, 2, 4, 4}, {1, 1, 1, 1}, format::bfyx, format::b_fs_yx_fsv16, "generic_eltwise_ref"
 #define CASE_ELTWISE_TEST9  eltwise_mode::eq,  {4, 2, 4, 4}, {1, 1, 1, 1}, format::b_fs_yx_fsv16, format::bfyx, "generic_eltwise_ref"
+#define CASE_ELTWISE_TEST10 eltwise_mode::sum, {4, 8, 1, 1}, {1, 8, 1, 1}, format::b_fs_yx_fsv32, format::bfyx, "eltwise_blocked_opt"
+#define CASE_ELTWISE_TEST11 eltwise_mode::sum, {4, 8, 1, 1}, {1, 8, 1, 1}, format::b_fs_yx_fsv16, format::bfyx, "eltwise_blocked_opt"
+#define CASE_ELTWISE_TEST12 eltwise_mode::sum, {4, 16, 4, 4}, {1, 16, 1, 1}, format::b_fs_yx_fsv16, format::bfyx, "eltwise_blocked_opt"
+#define CASE_ELTWISE_TEST13 eltwise_mode::sum, {4, 7, 4, 4}, {1, 7, 1, 1}, format::b_fs_yx_fsv16, format::bfyx, "generic_eltwise_ref"
+#define CASE_ELTWISE_TEST14 eltwise_mode::sum, {1, 8, 1, 1}, {4, 8, 1, 1}, format::bfyx, format::b_fs_yx_fsv32, "generic_eltwise_ref"
 
 class eltwise_layout_test : public BaseEltwiseTest<eltwise_layout_test_params> {
 public:
@@ -4800,6 +4805,11 @@ INSTANTIATE_TEST_SUITE_P(eltwise, eltwise_test_mixed_layout,
                             eltwise_layout_test_params{CASE_ELTWISE_TEST7},
                             eltwise_layout_test_params{CASE_ELTWISE_TEST8},
                             eltwise_layout_test_params{CASE_ELTWISE_TEST9},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST10},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST11},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST12},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST13},
+                            eltwise_layout_test_params{CASE_ELTWISE_TEST14},
                         }));
 
 //
