@@ -88,7 +88,7 @@ TEST_F(TransformationTestsF, ScaleDownFusionTest) {
         auto result1 = std::make_shared<ov::op::v0::Result>(reshape_post1);
 
         model = std::make_shared<ov::Model>(ov::ResultVector{result0, result1}, ov::ParameterVector{input});
-        manager.register_pass<ov::pass::activations_scaling::ScaleDownFusion>(scale_factor);
+        manager.register_pass<ov::pass::activations_scaling::ScaleDownFusion>();
     }
     {
         ov::Shape scale_const_shape = {};
@@ -97,16 +97,16 @@ TEST_F(TransformationTestsF, ScaleDownFusionTest) {
             std::make_shared<ov::op::v0::Constant>(ov::element::f16, scale_const_shape, scale_down_value);
 
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 16, 16});
-        auto new_scale_down = std::make_shared<ov::op::v1::Multiply>(input->output(0), scale_down_const);
-
         auto shape_pre = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {1, 3, 256});
-        auto reshape_pre = std::make_shared<ov::op::v1::Reshape>(new_scale_down, shape_pre, true);
+        auto reshape_pre = std::make_shared<ov::op::v1::Reshape>(input, shape_pre, true);
         auto shape_post = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 3, 16, 16});
 
-        auto reshape_post0 = std::make_shared<ov::op::v1::Reshape>(reshape_pre, shape_post, true);
+        auto scale_down0 = std::make_shared<ov::op::v1::Multiply>(reshape_pre->output(0), scale_down_const);
+        ov::pass::activations_scaling::mark_as_scale_down_node(scale_down0);
+        auto reshape_post0 = std::make_shared<ov::op::v1::Reshape>(scale_down0, shape_post, true);
         auto result0 = std::make_shared<ov::op::v0::Result>(reshape_post0);
 
-        auto reshape_post1 = std::make_shared<ov::op::v1::Reshape>(reshape_pre, shape_post, true);
+        auto reshape_post1 = std::make_shared<ov::op::v1::Reshape>(scale_down0, shape_post, true);
         auto result1 = std::make_shared<ov::op::v0::Result>(reshape_post1);
 
         model_ref = std::make_shared<ov::Model>(ov::ResultVector{result0, result1}, ov::ParameterVector{input});
