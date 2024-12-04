@@ -38,7 +38,7 @@ private:
     // Bank for specified device and their allocated memory
     struct DeviceBank {
         std::unordered_map<LazyTensor, ov::Tensor, LazyTensor::Hash> storage;
-        std::mutex mutex;
+        mutable std::mutex mutex;
     };
     std::unordered_map<std::string, DeviceBank> m_device_banks;
 
