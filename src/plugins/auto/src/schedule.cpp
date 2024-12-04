@@ -53,7 +53,7 @@ void Schedule::run(ov::threading::Task pipeline_task) {
 
 bool Schedule::run_pipeline_task(ov::threading::Task& pipeline_task,
                                  NotBusyPriorityWorkerRequests& idle_workerrequests,
-    const DeviceName& preferred_device) {
+                                 const DeviceName& preferred_device) {
     WorkerInferRequest* worker_request_ptr = nullptr;
     std::pair<int, WorkerInferRequest*> worker;
     if (idle_workerrequests.try_pop(worker)) {
