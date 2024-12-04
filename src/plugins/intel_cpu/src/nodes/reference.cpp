@@ -4,7 +4,7 @@
 
 #include "reference.h"
 #include "common/cpu_memcpy.h"
-#include "shape_inference/shape_inference_ngraph.hpp"
+#include "shape_inference/shape_inference.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -14,7 +14,7 @@ public:
     ReferenceShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op{std::move(op)} {}
 
     ShapeInferPtr makeShapeInfer() const override {
-        return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), FULL_PORT_MASK);
+        return make_shape_inference(m_op, FULL_PORT_MASK);
     }
 
 private:

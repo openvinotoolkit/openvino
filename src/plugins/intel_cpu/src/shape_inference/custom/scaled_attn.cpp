@@ -4,8 +4,7 @@
 
 #include "scaled_attn.hpp"
 
-#include "shape_inference/shape_inference_cpu.hpp"
-#include "shape_inference/shape_inference_ngraph.hpp"
+#include "shape_inference/shape_inference.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "utils.hpp"
 
@@ -78,7 +77,7 @@ ShapeInferPtr SDPAShapeInferFactory::makeShapeInfer() const {
             return std::make_shared<SDPAShapeInfer>(config);
     }
     // fallback to ngraph shape infer on non-perf-critical case
-    return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), EMPTY_PORT_MASK);
+    return make_shape_inference(m_op);
 }
 
 }  // namespace node

@@ -5,7 +5,7 @@
 #include "strided_slice.hpp"
 #include "utils.hpp"
 #include "slice_shape_inference.hpp"
-#include "shape_inference/shape_inference_ngraph.hpp"
+#include "shape_inference/shape_inference.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -75,13 +75,13 @@ Result StridedSliceShapeInfer::infer(
 
 ShapeInferPtr StridedSliceShapeInferFactory::makeShapeInfer() const {
     if (const auto Slice_op = ov::as_type_ptr<const ov::op::v8::Slice>(m_op)) {
-        return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), port_mask);
+        return make_shape_inference(m_op);
     } else if (const auto SliceScatter_op = ov::as_type_ptr<const ov::op::v15::SliceScatter>(m_op)) {
-        return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), PortMask(2, 3, 4, 5));
+        return make_shape_inference(m_op);
     } else if (const auto StridedSlice_op = ov::as_type_ptr<const ov::op::v1::StridedSlice>(m_op)) {
         const auto& ellipsis_mask = StridedSlice_op->get_ellipsis_mask();
         if (std::any_of(ellipsis_mask.begin(), ellipsis_mask.end(), [](int64_t x){ return x == 1; })) {
-            return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), port_mask);
+            return make_shape_inference(m_op);
         } else {
             auto vec_to_set = [](const std::vector<int64_t>& vec){
                 std::unordered_set<int64_t> to_set;

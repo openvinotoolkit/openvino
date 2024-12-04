@@ -21,7 +21,6 @@
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/opsets/opset4.hpp"
 #include "shape_inference/shape_inference.hpp"
-#include "shape_inference/shape_inference_ngraph.hpp"
 #include "shape_inference/static_shape.hpp"
 #include "utils/bfloat16.hpp"
 #include "utils/cpu_utils.hpp"
@@ -1763,19 +1762,14 @@ class InterpolateShapeInferFactory : public ShapeInferFactory {
 public:
     InterpolateShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
     ShapeInferPtr makeShapeInfer() const override {
-        IShapeInfer::port_mask_t port_mask = 0x00;
         if (auto interp4 = ov::as_type_ptr<ov::opset4::Interpolate>(m_op)) {
             const auto &attr = interp4->get_attrs();
-
-            if (attr.shape_calculation_mode == ngInterpShapeCalcMode::SCALES) {
-                port_mask = PortMask(Interpolate::SCALES_ID, Interpolate::AXES_ID);
-            } else if (attr.shape_calculation_mode == ngInterpShapeCalcMode::SIZES) {
-                port_mask = PortMask(Interpolate::TARGET_SHAPE_ID, Interpolate::AXES_ID);
-            } else {
-                OPENVINO_ASSERT(false, "Unsupported interpolate shape calculation mode");
-            }
+            const auto is_supported_mode = (attr.shape_calculation_mode == ngInterpShapeCalcMode::SCALES) ||
+                                           (attr.shape_calculation_mode == ngInterpShapeCalcMode::SIZES);
+            OPENVINO_ASSERT(is_supported_mode, "Unsupported interpolate shape calculation mode");
+            return make_shape_inference(m_op);
         } else if (auto interp11 = ov::as_type_ptr<ov::op::v11::Interpolate>(m_op)) {
-            port_mask = PortMask(Interpolate::SIZE_OR_SCALE_ID_V11, Interpolate::AXES_ID_V11);
+            return make_shape_inference(m_op);
         } else {
             OPENVINO_THROW("Shape infer factory cannot be created for ",
                            m_op->get_type_name(),
@@ -1783,7 +1777,6 @@ public:
                            m_op->get_friendly_name(),
                            ", only versions 4 and 11 are supported.");
         }
-        return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), port_mask);
     }
 
 private:

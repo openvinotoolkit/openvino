@@ -3,8 +3,8 @@
 //
 
 #include <node.h>
+
 #include "shape_inference/shape_inference_cpu.hpp"
-#include "shape_inference/shape_inference_ngraph.hpp"
 
 #pragma once
 namespace ov {
@@ -42,4 +42,3 @@ private:
 } // namespace node
 } // namespace intel_cpu
 } // namespace ov
-

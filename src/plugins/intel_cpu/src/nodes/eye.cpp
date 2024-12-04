@@ -6,7 +6,7 @@
 #include "openvino/op/eye.hpp"
 #include <utils/bfloat16.hpp>
 #include "openvino/core/parallel.hpp"
-#include "shape_inference/shape_inference_ngraph.hpp"
+#include "shape_inference/shape_inference.hpp"
 #include "utils/bfloat16.hpp"
 
 #define THROW_ERROR(...) OPENVINO_THROW(NameFromType(getType()), " node with name '", getName(), "' ", __VA_ARGS__)
@@ -33,13 +33,8 @@ class EyeShapeInferFactory : public ShapeInferFactory {
 public:
     EyeShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
     ShapeInferPtr makeShapeInfer() const override {
-        IShapeInfer::port_mask_t port_mask = EMPTY_PORT_MASK;
-        if (m_op->get_input_size() == 4) {
-            port_mask =  PortMask(Eye::ROWS_NUM, Eye::COLS_NUM, Eye::DIAGONAL_INDEX, Eye::BATCH_SHAPE);
-        } else {
-            port_mask =  PortMask(Eye::ROWS_NUM, Eye::COLS_NUM, Eye::DIAGONAL_INDEX);
-        }
-        return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), port_mask);
+        return (m_op->get_input_size() == 4) ? make_shape_inference(m_op)
+                                             : make_shape_inference(m_op, PortMask(Eye::ROWS_NUM, Eye::COLS_NUM));
     }
 private:
     std::shared_ptr<ov::Node> m_op;

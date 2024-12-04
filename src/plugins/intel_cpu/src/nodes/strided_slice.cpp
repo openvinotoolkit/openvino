@@ -8,7 +8,6 @@
 #include "common/cpu_memcpy.h"
 #include "input.h"
 #include "openvino/opsets/opset1.hpp"
-#include "shape_inference/shape_inference_ngraph.hpp"
 #include "slice_shape_inference_utils.hpp"
 #include "shape_inference/custom/strided_slice.hpp"
 
