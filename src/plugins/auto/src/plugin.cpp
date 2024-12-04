@@ -302,10 +302,10 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
                                                          arguments.at(ov::device::priorities.name()).as<std::string>())
                                                    : get_core()->get_available_devices();
         bool enable_startup_cpu = arguments.count(ov::intel_auto::enable_startup_fallback.name())
-                                      ? arguments.at(ov::intel_auto::enable_startup_fallback).as<bool>()
+                                      ? arguments.at(ov::intel_auto::enable_startup_fallback.name()).as<bool>()
                                       : true;
         bool enable_runtime_cpu = arguments.count(ov::intel_auto::enable_runtime_fallback.name())
-                                      ? arguments.at(ov::intel_auto::enable_runtime_fallback).as<bool>()
+                                      ? arguments.at(ov::intel_auto::enable_runtime_fallback.name()).as<bool>()
                                       : true;
         bool enable_cpu = enable_startup_cpu || enable_runtime_cpu;
         std::vector<std::string> capabilities;
