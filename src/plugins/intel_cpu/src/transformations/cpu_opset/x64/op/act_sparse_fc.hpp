@@ -17,10 +17,11 @@ public:
     ActSparseFCNode() = default;
 
     struct Config {
-        int oc;
-        int ic;
-        int ic_q_group_size;
-        float threshold;
+        int oc = 0;
+        int ic = 0;
+        int ic_q_group_size = 0;
+        bool is_int4 = false;
+        float threshold = 0;
     };
 
     // args:

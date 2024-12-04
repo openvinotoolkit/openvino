@@ -15,6 +15,7 @@
 #include "cpu/x64/jit_generator.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/plain_tensor.hpp"
+#include "nodes/reorder.h"
 
 #if defined(OPENVINO_ARCH_X86_64)
 #include "kernels/x64/act_sparse_fc_kernel.hpp"
@@ -34,29 +35,138 @@ namespace node {
 struct ActSparseFC::Executor : public ActSparseFC::ExecutorBase {
     ActSparseFC * m_node;
     DnnlScratchPadPtr m_scrachPad;
+    MemoryPtr m_weight;
+    MemoryPtr m_zp;
+    MemoryPtr m_scales;
+    ActSparseFCNode::Config& m_config;
 
-    Executor(ActSparseFC* pnode, DnnlScratchPadPtr scrachPad) : m_node(pnode), m_scrachPad(scrachPad) {}
+    void show(const char * name, uint8_t * src, int stride, int rows, int cols) {
+        printf("===== %s \n", name);
+        for (int r = 0; r < rows; r++, src += stride) {
+            for (int c = 0; c < cols; c++) {
+                printf("%02X,", src[c]);
+            }
+            printf("\n");
+        }
+    }
+
+    Executor(ActSparseFC* pnode, DnnlScratchPadPtr scrachPad) : m_node(pnode), m_scrachPad(scrachPad), m_config(m_node->m_config) {
+        // reorder weights
+        const auto& context = m_node->context;
+        const auto& engine = m_node->getEngine();
+
+        std::cout << m_node->getName() << std::endl;
+        auto create_weight = [&]() {
+            auto raw_weight_mem = m_node->getSrcMemoryAtPort(1);
+            MemoryPtr weight_mem;
+            if (m_config.is_int4) {
+                // weight : [OC, IC/group_size, group_size] => [IC, OC/2, 2]
+                // each row is further reordered in unit of 16 x i4 in [0,8,1,9,2,a,3,b,4,c,5,d,6,e,7,f] order
+                weight_mem = std::make_shared<Memory>(engine, raw_weight_mem->getDescPtr());
+
+                const auto& dims = raw_weight_mem->getShape().getStaticDims();
+                OPENVINO_ASSERT(dims.size() == 3);
+                OPENVINO_ASSERT(dims[0] == m_config.oc);
+                OPENVINO_ASSERT(dims[1] == m_config.ic / m_config.ic_q_group_size);
+                OPENVINO_ASSERT(dims[2] == m_config.ic_q_group_size);
+
+                auto* src = raw_weight_mem->getDataAs<uint8_t>();
+                auto* dst = weight_mem->getDataAs<uint8_t>();
+                ov::Extensions::Cpu::XARCH::dynPruneLinear_repack_i4(src, dst, m_config.ic, m_config.oc);
+            } else {
+                // raw [OC, IC] layout
+                // target [IC, OC] layout
+                ArbitraryOrderDescCreator descCreator({1, 0});
+                auto dst_mem_desc =
+                    descCreator.createSharedDesc(raw_weight_mem->getPrecision(), raw_weight_mem->getShape());
+
+                weight_mem = std::make_shared<Memory>(engine, dst_mem_desc);
+                node::Reorder::reorderData(*raw_weight_mem, *weight_mem, context->getParamsCache());
+            }
+            return weight_mem;
+        };
+
+        auto create_zp_i4 = [&]() {
+            // [OC, IC/group_size, 1] => [IC/group_size, OC]
+            auto raw_zp_mem = m_node->getSrcMemoryAtPort(2);
+            auto zp_mem = std::make_shared<Memory>(engine, raw_zp_mem->getDescPtr());
+
+            auto* src = raw_zp_mem->getDataAs<uint8_t>();
+            auto* dst = zp_mem->getDataAs<uint8_t>();
+
+            ov::Extensions::Cpu::XARCH::dynPruneLinear_repack_i4(src, dst, m_config.ic/m_config.ic_q_group_size, m_config.oc);
+            return zp_mem;
+        };
+
+        auto create_scales_i4 = [&]() {
+            // [OC, IC/group_size, 1] => [IC/group_size, OC]
+            auto raw_scales_mem = m_node->getSrcMemoryAtPort(3);
+            ArbitraryOrderDescCreator descCreator({2, 1, 0});
+            auto dst_mem_desc =
+                descCreator.createSharedDesc(raw_scales_mem->getPrecision(), raw_scales_mem->getShape());
+
+            auto scales_mem = std::make_shared<Memory>(engine, dst_mem_desc);
+            node::Reorder::reorderData(*raw_scales_mem, *scales_mem, context->getParamsCache());
+            return scales_mem;
+        };
+
+        if (!m_config.is_int4) {
+            // int8 is perOC, no need for reorder
+            m_zp = m_node->getSrcMemoryAtPort(2);
+            m_scales = m_node->getSrcMemoryAtPort(3);
+        }
+
+        auto weightCache = context->getWeightsCache();
+        if (weightCache != nullptr) {
+            const auto string_hash = m_node->getOriginalLayers() + std::to_string(m_config.is_int4);
+            m_weight = *weightCache->findOrCreate(string_hash + "_weight", create_weight);
+            if (m_config.is_int4) {
+                m_zp = *weightCache->findOrCreate(string_hash + "_zp_i4", create_zp_i4);
+                m_scales = *weightCache->findOrCreate(string_hash + "_scales_i4", create_scales_i4);
+            }
+        } else {
+            m_weight = create_weight();
+            if (m_config.is_int4) {
+                m_zp = create_zp_i4();
+                m_scales = create_scales_i4();
+            }
+        }
+    }
 
     void execute() override {
         const auto* input = m_node->getSrcDataAtPortAs<float>(0);
-        const auto* weight = m_node->getSrcDataAtPortAs<uint8_t>(1);
-        const auto* zp = m_node->getSrcDataAtPortAs<uint8_t>(2);
-        const auto* scales = m_node->getSrcDataAtPortAs<float>(3);
+        const auto* weight = m_weight->getDataAs<uint8_t>();
+        const auto* zp = m_zp->getDataAs<uint8_t>();
+        const auto* scales = m_scales->getDataAs<float>();
         auto* output = m_node->getDstDataAtPortAs<float>(0);
 
         const auto& ishape = m_node->getSrcMemoryAtPort(0)->getStaticDims();
         int M = shape_size(ishape) / ishape[ishape.size() - 1];
 
-        ov::Extensions::Cpu::XARCH::dynPruneLinear_i8(input,
-                                                      m_node->m_config.threshold,
-                                                      0,
-                                                      weight,
-                                                      zp,
-                                                      scales,
-                                                      output,
-                                                      M,
-                                                      m_node->m_config.ic,
-                                                      m_node->m_config.oc);
+        if (m_config.is_int4) {
+            ov::Extensions::Cpu::XARCH::dynPruneLinear_i4(input,
+                                                        m_config.threshold,
+                                                        0,
+                                                        weight,
+                                                        zp,
+                                                        scales,
+                                                        output,
+                                                        M,
+                                                        m_config.ic,
+                                                        m_config.oc,
+                                                        m_config.ic_q_group_size);
+        } else {
+            ov::Extensions::Cpu::XARCH::dynPruneLinear_i8(input,
+                                                        m_node->m_config.threshold,
+                                                        0,
+                                                        weight,
+                                                        zp,
+                                                        scales,
+                                                        output,
+                                                        M,
+                                                        m_node->m_config.ic,
+                                                        m_node->m_config.oc);
+        }
     }
 };
 #else
@@ -72,6 +182,7 @@ void ActSparseFC::createPrimitive() {
 #ifdef OPENVINO_ARCH_X86_64
     m_executor = std::make_shared<Executor>(this, context->getScratchPad());
 #endif
+
     if (!m_executor) {
         OPENVINO_THROW("ActSparseFC Executor creation fails with precision " + rtPrecision.to_string());
     }
@@ -102,62 +213,17 @@ void ActSparseFC::initSupportedPrimitiveDescriptors() {
     auto rtPrecision = getOriginalInputPrecisionAtPort(0);
     OPENVINO_ASSERT(rtPrecision == ov::element::f32, "Unexpected rtPrecision:", rtPrecision);
 
-    NodeConfig config;
-
-    for (int i = 0; i < 4; i++) {
-        PortConfig dataConfig;
-        ov::element::Type prec = rtPrecision;
-        if (i == 1) prec = ov::element::u8; // fc_weight_u8
-        if (i == 2) prec = ov::element::u8; // fc_weight_zero_point_u8
-        if (i == 3) prec = ov::element::f32; // fc_weight_scales_per_OC
-        dataConfig.inPlace(-1);
-        dataConfig.constant(false);
-        if (i == 1) {
-            ArbitraryOrderDescCreator descCreator({1, 0});
-            dataConfig.setMemDesc(descCreator.createSharedDesc(prec, getInputShapeAtPort(i)));
-        } else {
-            auto descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
-            dataConfig.setMemDesc(descCreator->createSharedDesc(prec, getInputShapeAtPort(i)));
-        }
-        config.inConfs.push_back(dataConfig);
-    }
-    {
-        PortConfig dataConfig;
-        dataConfig.inPlace(-1);
-        dataConfig.constant(false);
-        auto descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
-        dataConfig.setMemDesc(descCreator->createSharedDesc(rtPrecision, getOutputShapeAtPort(0)));
-        config.outConfs.push_back(dataConfig);
-    }
-
-    supportedPrimitiveDescriptors.push_back({config, impl_desc_type::ref_any});
-
-    DEBUG_LOG(">>>>>>>>>", supportedPrimitiveDescriptors[0]);
-    return;
-#if 0
-    DEBUG_LOG(">>>>>>>>>");
-    if (!supportedPrimitiveDescriptors.empty())
-        return;
-
-    DEBUG_LOG(">>>>>>>>>");
-    auto rtPrecision = getOriginalInputPrecisionAtPort(0);
-    OPENVINO_ASSERT(rtPrecision == ov::element::f32, "Unexpected rtPrecision:", rtPrecision);
-
-
-    DEBUG_LOG(">>>>>>>>>");
     std::vector<PortConfigurator> inPortConfigs;
     std::vector<PortConfigurator> outPortConfigs;
-    inPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getInputShapeAtPort(0), false, -1);      // input
-    inPortConfigs.emplace_back(LayoutType::nspc, ov::element::u8, getInputShapeAtPort(1), false, -1);  // fc_weight_u8
-    inPortConfigs.emplace_back(LayoutType::ncsp, ov::element::u8, getInputShapeAtPort(2), false, -1);  // fc_weight_zero_point_u8
-    inPortConfigs.emplace_back(LayoutType::ncsp, ov::element::f32, getInputShapeAtPort(3), false, -1); // fc_weight_scales_per_OC
 
-    outPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getOutputShapeAtPort(0), false, -1);    // output
+    inPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getInputShapeAtPort(0), false, -1);      // input
+    inPortConfigs.emplace_back(LayoutType::ncsp, getOriginalInputPrecisionAtPort(1), getInputShapeAtPort(1), false, -1);  // weight
+    inPortConfigs.emplace_back(LayoutType::ncsp, getOriginalInputPrecisionAtPort(2), getInputShapeAtPort(2), false, -1);  // zero-pt
+    inPortConfigs.emplace_back(LayoutType::ncsp, ov::element::f32, getInputShapeAtPort(3), false, -1);  // scales
+
+    outPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getOutputShapeAtPort(0), false, -1);
 
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any);
-
-    DEBUG_LOG(">>>>>>>>>", supportedPrimitiveDescriptors[0]);
-#endif
 }
 
 bool ActSparseFC::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
@@ -166,8 +232,9 @@ bool ActSparseFC::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
     try {
         const auto node = std::dynamic_pointer_cast<const ActSparseFCNode>(op);
         const auto& config = node->get_config();
-        if (config.ic_q_group_size > 0) {
-            errorMessage = "Unsupported IC group size";
+        if ((config.oc % 16) > 0) {
+            errorMessage = "Unsupported OC size for node " + node->get_friendly_name();
+            std::cout << "ActSparseFC: " << errorMessage << std::endl;
             return false;
         }
     } catch (...) {

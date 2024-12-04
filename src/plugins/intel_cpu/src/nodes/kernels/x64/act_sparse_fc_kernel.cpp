@@ -365,6 +365,139 @@ static inline void accumulate_w8_peroc(int N,
 }
 
 
+static inline void accumulate_w4_peroc(float* base_dst, int OC,
+                                       int* ic_ids, int ic_cnt,
+                                       const uint8_t* W,
+                                       const uint8_t* zp,
+                                       const float* scales,
+                                       float* dense_x, int IC, int IC_group_size) {
+    // decompress zero-point
+    thread_local std::vector<float> zpbuff;
+    zpbuff.resize(OC);
+    int last_gid = -1;
+    // vector x weights
+    for (int g = 0; g < ic_cnt; g+=4) {
+        auto ic0 = ic_ids[g];
+        auto ic1 = ic_ids[g+1];
+        auto ic2 = ic_ids[g+2];
+        auto ic3 = ic_ids[g+3];
+        auto gid = ic0 / IC_group_size;
+        auto* p_scales = scales + gid*OC;
+
+        // entering a new group, decompress zero-points
+        if (last_gid != gid) {
+            auto* dst_zp = zpbuff.data();
+            auto* src_zp = zp + gid * (OC/2);
+            int oc = 0;
+        #if defined(HAVE_AVX2)
+            auto vmask_u4 = _mm256_set1_epi32(0xF);
+            for (; oc + 16 <= OC; oc += 16, src_zp += 8) {
+                auto vzp16xu4 = _mm_loadu_si64(static_cast<void const*>(src_zp));
+                auto vzp16xu4_i32 = _mm256_cvtepu8_epi32(vzp16xu4);
+                auto vzp16xu4_i32_low = _mm256_and_si256(vzp16xu4_i32, vmask_u4);
+                auto vzp16xu4_i32_high = _mm256_srli_epi32(vzp16xu4_i32, 4);
+                auto vzpf32_low = _mm256_cvtepi32_ps(vzp16xu4_i32_low);
+                auto vzpf32_high = _mm256_cvtepi32_ps(vzp16xu4_i32_high);
+                _mm256_storeu_ps(dst_zp + oc, vzpf32_low);
+                _mm256_storeu_ps(dst_zp + oc + 8, vzpf32_high);
+            }
+        #endif
+            for (; oc < OC; oc +=2, src_zp++) {
+                dst_zp[oc] = src_zp[0] & 0xF;
+                dst_zp[oc + 1] = src_zp[0] >> 4;
+            }
+            last_gid = gid;
+        }
+
+        const auto* p_w0 = W + ic0 * OC/2;
+        const auto* p_w1 = W + ic1 * OC/2;
+        const auto* p_w2 = W + ic2 * OC/2;
+        const auto* p_w3 = W + ic3 * OC/2;
+        auto* dst_zp = zpbuff.data();
+
+        int oc = 0;
+#if defined(HAVE_AVX2)
+        auto vmask_u4 = _mm256_set1_epi32(0xF);
+        auto vx0 = _mm256_broadcast_ss(dense_x + g + 0);
+        auto vx1 = _mm256_broadcast_ss(dense_x + g + 1);
+        auto vx2 = _mm256_broadcast_ss(dense_x + g + 2);
+        auto vx3 = _mm256_broadcast_ss(dense_x + g + 3);
+        for (; oc + 16 <= OC; oc += 16) {
+            auto vzp0 = _mm256_loadu_ps(dst_zp + oc);
+            auto vzp1 = _mm256_loadu_ps(dst_zp + oc + 8);
+
+            auto vdst0 = _mm256_loadu_ps(base_dst + oc);
+            auto vdst1 = _mm256_loadu_ps(base_dst + oc + 8);
+
+            auto wb0 = _mm_loadu_si64(static_cast<void const*>(p_w0)); p_w0 += 8;
+            auto vsum0 = _mm256_setzero_ps();
+            auto vsum1 = _mm256_setzero_ps();
+
+            auto wdw_i32 = _mm256_cvtepu8_epi32(wb0);
+            auto wdw0 = _mm256_cvtepi32_ps(_mm256_and_si256(wdw_i32, vmask_u4));
+            auto wdw1 = _mm256_cvtepi32_ps(_mm256_srli_epi32(wdw_i32, 4));
+            vsum0 = _mm256_fmadd_ps(_mm256_sub_ps(wdw0, vzp0), vx0, vsum0);
+            vsum1 = _mm256_fmadd_ps(_mm256_sub_ps(wdw1, vzp1), vx0, vsum1);
+
+            wb0 = _mm_loadu_si64(static_cast<void const*>(p_w1)); p_w1 += 8;
+            wdw_i32 = _mm256_cvtepu8_epi32(wb0);
+            wdw0 = _mm256_cvtepi32_ps(_mm256_and_si256(wdw_i32, vmask_u4));
+            wdw1 = _mm256_cvtepi32_ps(_mm256_srli_epi32(wdw_i32, 4));
+            vsum0 = _mm256_fmadd_ps(_mm256_sub_ps(wdw0, vzp0), vx1, vsum0);
+            vsum1 = _mm256_fmadd_ps(_mm256_sub_ps(wdw1, vzp1), vx1, vsum1);
+
+            wb0 = _mm_loadu_si64(static_cast<void const*>(p_w2)); p_w2 += 8;
+            wdw_i32 = _mm256_cvtepu8_epi32(wb0);
+            wdw0 = _mm256_cvtepi32_ps(_mm256_and_si256(wdw_i32, vmask_u4));
+            wdw1 = _mm256_cvtepi32_ps(_mm256_srli_epi32(wdw_i32, 4));
+            vsum0 = _mm256_fmadd_ps(_mm256_sub_ps(wdw0, vzp0), vx2, vsum0);
+            vsum1 = _mm256_fmadd_ps(_mm256_sub_ps(wdw1, vzp1), vx2, vsum1);
+
+            wb0 = _mm_loadu_si64(static_cast<void const*>(p_w3)); p_w3 += 8;
+            wdw_i32 = _mm256_cvtepu8_epi32(wb0);
+            wdw0 = _mm256_cvtepi32_ps(_mm256_and_si256(wdw_i32, vmask_u4));
+            wdw1 = _mm256_cvtepi32_ps(_mm256_srli_epi32(wdw_i32, 4));
+            vsum0 = _mm256_fmadd_ps(_mm256_sub_ps(wdw0, vzp0), vx3, vsum0);
+            vsum1 = _mm256_fmadd_ps(_mm256_sub_ps(wdw1, vzp1), vx3, vsum1);
+
+            auto vscales0 = _mm256_loadu_ps(p_scales + oc);
+            auto vscales1 = _mm256_loadu_ps(p_scales + oc + 8);
+
+            vdst0 = _mm256_fmadd_ps(vsum0, vscales0, vdst0);
+            vdst1 = _mm256_fmadd_ps(vsum1, vscales1, vdst1);
+            _mm256_storeu_ps(base_dst + oc, vdst0);
+            _mm256_storeu_ps(base_dst + oc + 8, vdst1);
+        }
+#endif
+        if (oc < OC) {
+            auto x0 = dense_x[g + 0];
+            auto x1 = dense_x[g + 1];
+            auto x2 = dense_x[g + 2];
+            auto x3 = dense_x[g + 3];
+            for (; oc < OC; oc += 16, p_w0 += 8, p_w1 += 8, p_w2 += 8, p_w3 += 8) {
+                for (int i = 0; i < 8; i++) {
+                    auto zero_point = dst_zp[oc + i];
+                    auto scale = p_scales[oc + i];
+                    auto weight0 = (p_w0[i] & 0xF) - zero_point;
+                    auto weight1 = (p_w1[i] & 0xF) - zero_point;
+                    auto weight2 = (p_w2[i] & 0xF) - zero_point;
+                    auto weight3 = (p_w3[i] & 0xF) - zero_point;
+                    base_dst[oc + i] += (x0 * weight0 + x1 * weight1 + x2 * weight2 + x3 * weight3) * scale;
+                }
+                for (int i = 0; i < 8; i++) {
+                    auto zero_point = dst_zp[oc + i + 8];
+                    auto scale = p_scales[oc + i + 8];
+                    auto weight0 = (p_w0[i] >> 4) - zero_point;
+                    auto weight1 = (p_w1[i] >> 4) - zero_point;
+                    auto weight2 = (p_w2[i] >> 4) - zero_point;
+                    auto weight3 = (p_w3[i] >> 4) - zero_point;
+                    base_dst[oc + i + 8] += (x0 * weight0 + x1 * weight1 + x2 * weight2 + x3 * weight3) * scale;
+                }
+            }
+        }
+    }
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // gemm
 #if defined(HAVE_AVX2)
@@ -563,14 +696,12 @@ void MM_ComputeBounded_reuseA_i8(
         for (int n = n0; n + 2 * 8 <= n1; n += 2 * 8) {
             // prepack [BK, 16] into scratch
             {
-                const auto* srcW = W + n;
                 auto* dst = repacked_B;
-
                 auto vzp0 = _mm256_loadu_ps(zero_points + (n - n0));
                 auto vzp1 = _mm256_loadu_ps(zero_points + (n - n0) + 8);
                 auto vscale0 = _mm256_loadu_ps(scales + n);
                 auto vscale1 = _mm256_loadu_ps(scales + n + 8);
-
+                const auto* srcW = W + n;
                 for (int k = 0; k < bK; k++, dst += 2 * 8, srcW += W_stride) {
                     auto wb0 = _mm_loadu_si64(static_cast<void const*>(srcW + 8 * 0));
                     auto wb1 = _mm_loadu_si64(static_cast<void const*>(srcW + 8 * 1));
@@ -597,6 +728,119 @@ void MM_ComputeBounded_reuseA_i8(
         }
     }
 }
+
+void MM_ComputeBounded_reuseA_i4(
+            const float * A,
+            float * C,
+            const uint8_t* W,
+            const uint8_t* zp,
+            const float* scales,
+            int M, int IC, int OC,
+            int n0, int n1, int icgs) {
+    int BK = icgs;
+    float* scratch = scratch_alloc<float>(16 * BK + OC);
+
+    int K = IC;
+    auto A_stride = IC;
+    auto C_stride = OC;
+    auto W_stride = (OC/2);
+
+    void (*brgmm6x2_tail)(const float*, int, const float*, int, float*, int, int, bool) = nullptr;
+    auto M_tails = M % 6;
+    auto M_body = M - M_tails;
+    switch (M_tails) {
+    case 5:
+        brgmm6x2_tail = &brgemm_6x2<5>;
+        break;
+    case 4:
+        brgmm6x2_tail = &brgemm_6x2<4>;
+        break;
+    case 3:
+        brgmm6x2_tail = &brgemm_6x2<3>;
+        break;
+    case 2:
+        brgmm6x2_tail = &brgemm_6x2<2>;
+        break;
+    case 1:
+        brgmm6x2_tail = &brgemm_6x2<1>;
+        break;
+    }
+
+    float* repacked_B = scratch;
+    float* zero_points = scratch + 16 * BK;
+
+    for (int k = 0; k < K; k += BK, A += BK, W += BK * W_stride, zp += W_stride, scales += OC) {
+        int bK = std::min(K - k, BK);
+        auto is_accumulate_C = (k > 0);
+
+        // deocompress zero-point into scratch buffer
+        {
+            const auto* pzp = zp;
+            int n = 0;
+            auto vmask_u4 = _mm256_set1_epi32(0xF);
+            for (n = n0; n + 16 <= n1; n += 16, pzp += 8) {
+                auto vzp16xu4 = _mm_loadu_si64(static_cast<void const*>(pzp));
+                // 8 x low-4bits  : 0,1,2,3,4,5,6,7
+                // 8 x high-4bits : 8,9,a,b,c,d,e,f
+                auto vzp16xu4_i32 = _mm256_cvtepu8_epi32(vzp16xu4);
+
+                auto vzp16xu4_i32_low = _mm256_and_si256(vzp16xu4_i32, vmask_u4);
+                auto vzp16xu4_i32_high = _mm256_srli_epi32(vzp16xu4_i32, 4);
+
+                auto vzpf32_low = _mm256_cvtepi32_ps(vzp16xu4_i32_low);
+                auto vzpf32_high = _mm256_cvtepi32_ps(vzp16xu4_i32_high);
+                _mm256_storeu_ps(zero_points + n - n0, vzpf32_low);
+                _mm256_storeu_ps(zero_points + n - n0 + 8, vzpf32_high);
+            }
+            for (; n < n1; n += 2, pzp++) {
+                zero_points[n - n0] = (*pzp) & 0xF;
+                zero_points[n - n0 + 1] = (*pzp) >> 4;
+            }
+        }
+
+        for (int n = n0; n + 2 * 8 <= n1; n += 2 * 8) {
+            // prepack subB [BK, 16] into scratch
+            // because BK is fully contained within IC-group (BK == n*IC_group_size), it can share same zp & scales
+            {
+                auto* dst = repacked_B;
+                auto vzp0 = _mm256_loadu_ps(zero_points + (n - n0));
+                auto vzp1 = _mm256_loadu_ps(zero_points + (n - n0) + 8);
+                auto vscale0 = _mm256_loadu_ps(scales + n);
+                auto vscale1 = _mm256_loadu_ps(scales + n + 8);
+                const auto* srcW = W + n/2;
+                auto vmask_u4 = _mm256_set1_epi32(0xF);
+                for (int k = 0; k < bK; k++, dst += 2 * 8, srcW += W_stride) {
+                    // 16 x i4
+                    auto wb0 = _mm_loadu_si64(static_cast<void const*>(srcW + 8 * 0));
+                    auto wdw = _mm256_cvtepu8_epi32(wb0);
+
+                    auto wdw_low = _mm256_and_si256(wdw, vmask_u4);
+                    auto wdw_high = _mm256_srli_epi32(wdw, 4);
+
+                    auto wf0 = _mm256_sub_ps(_mm256_cvtepi32_ps(wdw_low), vzp0);
+                    auto wf1 = _mm256_sub_ps(_mm256_cvtepi32_ps(wdw_high), vzp1);
+                    wf0 = _mm256_mul_ps(wf0, vscale0);
+                    wf1 = _mm256_mul_ps(wf1, vscale1);
+
+                    // prefetch right
+                    _mm_prefetch(srcW + 64, _MM_HINT_T0);
+
+                    _mm256_storeu_ps(dst + 8 * 0, wf0);
+                    _mm256_storeu_ps(dst + 8 * 1, wf1);
+                }
+            }
+
+            // matmul(A, subB)
+            auto *pA = A;
+            auto* pC = C + n;
+            for (int m = 0; m < M_body; m += 6, pA += 6 * A_stride, pC += 6 * C_stride) {
+                brgemm_6x2<6>(pA, A_stride, repacked_B, 2 * 8, pC, C_stride, bK, is_accumulate_C);
+            }
+            if (brgmm6x2_tail)
+                (*brgmm6x2_tail)(pA, A_stride, repacked_B, 2 * 8, pC, C_stride, bK, is_accumulate_C);
+        }
+    }
+}
 #else
 void MM_ComputeBounded_reuseA_i8(
             const float * A,
@@ -606,6 +850,15 @@ void MM_ComputeBounded_reuseA_i8(
             const float* scales,
             int M, int IC, int OC,
             int n0, int n1) {
+}
+void MM_ComputeBounded_reuseA_i4(
+            const float * A,
+            float * C,
+            const uint8_t* W,
+            const uint8_t* zp,
+            const float* scales,
+            int M, int IC, int OC,
+            int n0, int n1, int icgs) {
 }
 #endif
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -622,7 +875,6 @@ void dynPruneLinear_i8(const float* input,      // [M, IC]
         throw std::runtime_error("OC is not multiple of 8");
     }
 
-    auto prof = LinuxPerf::Profile("gate_ids");
     if (M > 1) {
         parallel_nt(0, [&](const int ithr, const int nthr) {
             int n0, n1;
@@ -634,41 +886,9 @@ void dynPruneLinear_i8(const float* input,      // [M, IC]
                 W, zp, scales, M, IC, OC, n0, n1);
         });
         return;
-        // M > 1 is much less likely to benefit from sparsity
-        for (int m = 0; m < M; m++, input += IC, output += OC) {
-            for (int oc = 0; oc < OC; oc++)
-                output[oc] = 0;
-
-            for (int ic = 0; ic < IC; ic++) {
-                float x = input[ic];
-                if (std::abs(x - zero_point) < threshold) continue;
-
-                auto * pw = W + ic*OC;
-                int oc = 0;
-#if defined(HAVE_AVX2)
-                auto vx = _mm256_broadcast_ss(input + ic);
-                for (; oc + 8 <= OC; oc += 8) {
-                    auto vw = _mm_loadu_si64(static_cast<void const*>(pw + oc));
-                    auto vzp = _mm_loadu_si64(static_cast<void const*>(zp + oc));
-                    auto vscale = _mm256_loadu_ps(scales + oc);
-
-                    auto vdst = _mm256_loadu_ps(output + oc);
-                    auto wdecomp = _mm256_sub_ps(_mm256_cvtepi32_ps(_mm256_cvtepu8_epi32(vw)),
-                                                  _mm256_cvtepi32_ps(_mm256_cvtepu8_epi32(vzp)));
-                    wdecomp = _mm256_mul_ps(wdecomp, vscale);
-                    vdst = _mm256_fmadd_ps(vx, wdecomp, vdst);
-                    _mm256_storeu_ps(output + oc, vdst);
-                }
-#endif
-                for (; oc < OC; oc ++) {
-                    auto weight = static_cast<float>(pw[oc]) - static_cast<float>(zp[oc]);
-                    output[oc] += x * weight * scales[oc];
-                }
-            }
-        }
-        return;
     }
 
+    auto prof = LinuxPerf::Profile("gate_ids");
     static std::vector<int> gate_ids;
     static std::vector<float> gate_val;
     int gate_cnt = 0;
@@ -708,36 +928,9 @@ void dynPruneLinear_i8(const float* input,      // [M, IC]
         splitter(gate_cnt/4, nthr, ithr, g0, g1);
         g0 *= 4;
         g1 *= 4;
-
         auto* pdst = &output_temp[ithr * M * OC];
         memset(pdst, 0, M * OC * sizeof(output_temp[0]));
-
-        if (M == 1) {
-            accumulate_w8_peroc(1, pdst, OC, &gate_ids[g0], g1 - g0, W, zp, scales, &gate_val[g0], IC);
-        } else {
-            thread_local std::vector<float> weight_deq;
-            weight_deq.resize(OC);
-
-            for (int g = g0; g < g1; g++) {
-                int ic = gate_ids[g];
-
-                // dequantize-weight for ic
-                auto* pw = W + ic * OC;
-                for (int oc = 0; oc < OC; oc++) {
-                    weight_deq[oc] = (static_cast<float>(pw[oc]) - static_cast<float>(zp[oc])) * scales[oc];
-                }
-
-                // accumulate dequantized weight into output vectors
-                auto* src = input;
-                auto* dst = &output_temp[ithr * M * OC];
-                for (int m = 0; m < M; m++, src += IC, dst += OC) {
-                    auto x = src[ic];
-                    for (int oc = 0; oc < OC; oc++) {
-                        dst[oc] += x * weight_deq[oc];
-                    }
-                }
-            }
-        }
+        accumulate_w8_peroc(1, pdst, OC, &gate_ids[g0], g1 - g0, W, zp, scales, &gate_val[g0], IC);
     });
 
     prof = LinuxPerf::Profile("reduce");
@@ -774,67 +967,149 @@ cannot change weight-layout for M>1 case.
 
 note: for INT8 weight compressed in per-OC only (no per-group)
 ******************************************************************/
-
-void dynPruneLinear_i8_opt(const float* input,
+void dynPruneLinear_i4(const float* input,      // [M, IC]
                         float threshold,
                         float zero_point,
-                        const uint8_t* W,
-                        const uint8_t* zp,
-                        const float* scales,
-                        float* output, int M, int IC, int OC) {
+                        const uint8_t* W,       // [IC, OC]
+                        const uint8_t* zp,      // [OC]
+                        const float* scales,    // [OC]
+                        float* output,          // [M, OC]
+                        int M, int IC, int OC,
+                        int IC_group_size) {
+    if ((OC % 8) > 0) {
+        throw std::runtime_error("OC is not multiple of 8");
+    }
+
+    if (M > 1) {
+        // a reference impl
+        parallel_nt(0, [&](const int ithr, const int nthr) {
+            int n0, n1;
+            splitter(OC/8, nthr, ithr, n0, n1);
+            n0 *= 8;
+            n1 *= 8;
+            MM_ComputeBounded_reuseA_i4(
+                input, output,
+                W, zp, scales, M, IC, OC, n0, n1, IC_group_size);
+        });
+        return;
+    }
+
+    auto prof = LinuxPerf::Profile("gate_ids");
     static std::vector<int> gate_ids;
+    static std::vector<float> gate_val;
     int gate_cnt = 0;
     gate_ids.resize(IC);
-    for (int channel = 0; channel < IC; channel++) {
-        auto* src = input + channel;
-        for (int m = 0; m < M; m++, src += IC) {
-            auto& value = src[m];
-            if (std::abs(value - zero_point) > threshold) {
+    gate_val.resize(IC);
+    for (int c0 = 0; c0 < IC; c0 += IC_group_size) {
+        for (int c1 = 0; c1 < IC_group_size; c1++) {
+            auto channel = c0 + c1;
+            auto& value = input[channel];
+            if (std::abs(value - zero_point) >= threshold) {
                 gate_ids[gate_cnt] = channel;
+                gate_val[gate_cnt] = value;
                 gate_cnt++;
-                break;
+            }
+        }
+        if (gate_cnt & 3) {
+            // padding : ensuer 4 rows are from same group
+            auto n_pad = 4 - (gate_cnt & 3);
+            auto ic_pad = gate_ids[gate_cnt-1];
+            for (int i = 0; i < n_pad; i++) {
+                gate_ids[gate_cnt] = ic_pad;
+                gate_val[gate_cnt] = 0.0f;
+                gate_cnt++;
             }
         }
     }
 
+    // std::cout << M << "," << IC << "," << OC << "," << threshold << "," << zero_point << std::endl;
+    prof = LinuxPerf::Profile("mm");
+
+    // this mm kernel is the most time-consuming one
     auto nthr_max = parallel_get_max_threads();
     static std::vector<float> output_temp;
     output_temp.resize(nthr_max * M * OC);
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
         int g0, g1;
-        splitter(gate_cnt, nthr, ithr, g0, g1);
-
-        thread_local std::vector<float> weight_deq;
-        weight_deq.resize(OC);
-
-        memset(&output_temp[ithr * M * OC], 0, M * OC * sizeof(output_temp[0]));
-
-        for (int g = g0; g < g1; g++) {
-            int ic = gate_ids[g];
-
-            // dequantize-weight for ic
-            auto* pw = W + ic * OC;
-            for (int oc = 0; oc < OC; oc++) {
-                weight_deq[oc] = (static_cast<float>(pw[oc]) - static_cast<float>(zp[oc])) * scales[oc];
-            }
-
-            // accumulate dequantized weight into output vectors
-            auto* src = input;
-            auto* dst = &output_temp[ithr * M * OC];
-            for (int m = 0; m < M; m++, src += IC, dst += OC) {
-                auto x = src[ic];
-                for (int oc = 0; oc < OC; oc++) {
-                    dst[oc] += x * weight_deq[oc];
-                }
-            }
-        }
+        splitter(gate_cnt/4, nthr, ithr, g0, g1);
+        g0 *= 4;
+        g1 *= 4;
+        auto* pdst = &output_temp[ithr * M * OC];
+        memset(pdst, 0, M * OC * sizeof(output_temp[0]));
+        accumulate_w4_peroc(pdst, OC, &gate_ids[g0], g1 - g0, W, zp, scales, &gate_val[g0], IC, IC_group_size);
     });
 
+    prof = LinuxPerf::Profile("reduce");
     reduce_outputs(output, output_temp.data(), nthr_max, M, OC);
     return;
 }
 
+// [OC, IC/2, 2] => [IC, OC/2, 2]
+// each row is further reordered in unit of 16 x i4 in [0,8,1,9,2,a,3,b,4,c,5,d,6,e,7,f] order
+void dynPruneLinear_repack_i4(uint8_t * src, uint8_t * dst, int IC, int OC) {
+    auto src_stride = IC / 2;
+
+    int ic = 0;
+#if defined(HAVE_AVX2)
+    uint8_t scratch0[64];
+    uint8_t scratch1[64];
+    for (ic = 0; ic + 2*32 <= IC; ic += 2*32) {
+        // 64-ic
+        auto* pdst = dst + ic * (OC / 2);
+        auto vmask_low_u4 = _mm256_set1_epi8(0xF);
+        auto vmask_high_u4 = _mm256_set1_epi8(0xF0);
+        for (int oc = 0; oc < OC; oc += 16, pdst += 8) {
+            // 64-ic x 16-oc
+            auto* psrc_oc0 = src + (ic / 2) + (oc + 0)*src_stride;
+            auto* psrc_oc8 = src + (ic / 2) + (oc + 8)*src_stride;
+            for (int k = 0; k < 8; k++, psrc_oc0 += src_stride, psrc_oc8 += src_stride) {
+                // oc+0: ic0~64
+                auto b0 = _mm256_loadu_si256(reinterpret_cast<__m256i const *>(psrc_oc0));
+                // oc+8: ic0~64
+                auto b8 = _mm256_loadu_si256(reinterpret_cast<__m256i const *>(psrc_oc8));
+                auto b0_ic0 = _mm256_and_si256(b0, vmask_low_u4);
+                auto b0_ic1 = _mm256_and_si256(_mm256_srli_epi16(b0, 4), vmask_low_u4);
+
+                auto b8_ic0 = _mm256_and_si256(_mm256_slli_epi16(b8, 4), vmask_high_u4);
+                auto b8_ic1 = _mm256_and_si256(b8, vmask_high_u4);
+
+                auto bdst_ic0 = _mm256_or_si256(b8_ic0, b0_ic0);    // even channels
+                auto bdst_ic1 = _mm256_or_si256(b8_ic1, b0_ic1);    // odd channels
+
+                _mm256_storeu_si256(reinterpret_cast<__m256i *>(scratch0), bdst_ic0);
+                _mm256_storeu_si256(reinterpret_cast<__m256i *>(scratch1), bdst_ic1);
+
+                auto* pdst_temp0 = pdst + k;
+                auto* pdst_temp1 = pdst + k + (OC / 2);
+                for (int i = 0; i < 32; i++, pdst_temp0 += OC, pdst_temp1 += OC) {
+                    *pdst_temp0 = scratch0[i];
+                    *pdst_temp1 = scratch1[i];
+                }
+            }
+        }
+    }
+#endif
+    // tails
+    for (; ic < IC; ic += 2) {
+        auto* pdst_a = dst + ic * (OC / 2);
+        auto* pdst_b = pdst_a + (OC / 2);
+        for (int oc = 0; oc < OC; oc += 16, pdst_a += 8, pdst_b += 8) {
+            auto* psrc_oc0 = src + (ic / 2) + (oc + 0)*src_stride;
+            auto* psrc_oc8 = src + (ic / 2) + (oc + 8)*src_stride;
+            for (int k = 0; k < 8; k++, psrc_oc0 += src_stride, psrc_oc8 += src_stride) {
+                auto data0 = *psrc_oc0;  // [ic1, ic0] packed in same u8
+                auto u40a = (data0 & 0xF);
+                auto u40b = (data0 >> 4);
+                auto data8 = *psrc_oc8;
+                auto u48a = (data8 & 0xF);
+                auto u48b = (data8 >> 4);
+                pdst_a[k] = (u48a << 4) | u40a;
+                pdst_b[k] = (u48b << 4) | u40b;
+            }
+        }
+    }
+}
 
 }  // namespace XARCH
 }  // namespace Cpu

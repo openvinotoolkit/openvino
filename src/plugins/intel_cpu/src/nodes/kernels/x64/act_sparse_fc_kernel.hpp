@@ -25,17 +25,18 @@ void dynPruneLinear_i8(const float* input,
                        int M,
                        int IC,
                        int OC);
-
-void dynPruneLinear_i8_opt(const float* input,
-                           float threshold,
-                           float zero_point,
-                           const uint8_t* W,
-                           const uint8_t* zp,
-                           const float* scales,
-                           float* output,
-                           int M,
-                           int IC,
-                           int OC);
+void dynPruneLinear_i4(const float* input,
+                       float threshold,
+                       float zero_point,
+                       const uint8_t* W,
+                       const uint8_t* zp,
+                       const float* scales,
+                       float* output,
+                       int M,
+                       int IC,
+                       int OC,
+                       int IC_group_size);
+void dynPruneLinear_repack_i4(uint8_t * src, uint8_t * dst, int IC, int OC);
 
 }  // namespace XARCH
 }  // namespace Cpu

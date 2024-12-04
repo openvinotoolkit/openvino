@@ -63,8 +63,37 @@ ov::intel_cpu::ActivationSparsityFusion::ActivationSparsityFusion() {
     auto fc_weight_deq =
         makePattern<opset1::Multiply>({fc_weight_zp, fc_weight_scales_per_OC}, {{"auto_broadcast", "numpy"}});
 
-    auto fc_result = makePattern<opset1::MatMul>({sparse_input, fc_weight | fc_weight_compressed | fc_weight_deq},
-                                                 {{"transpose_a", false}, {"transpose_b", true}});  // [?,?,up_size]
+
+    // INT4 groupped quantization would have a reshape
+    //      weight const  u4  [OC, IC//group_size, group_size]
+    //           convert f16  [OC, IC//group_size, group_size]
+    //  zero_point const  u4  [OC, IC//group_size, 1]
+    //           convert f16  [OC, IC//group_size, 1]
+    //          Subtract f16  [OC, IC//group_size, group_size]
+    //       scale const f16  [OC, IC//group_size, 1]
+    //          Multiply f16  [OC, IC//group_size, group_size] x [OC, IC//group_size, 1]
+    //           Reshape f16  [OC, IC//group_size, group_size] => [OC, IC]
+    //
+    auto fc_weight_u4 =
+        makeConst(ov::element::u4, ov::PartialShape({ov::Dimension(), ov::Dimension(), ov::Dimension()}), nullptr);
+    auto fc_weight_u4f32 = makePattern<opset1::Convert>({fc_weight_u4}, {{"destination_type", "f32"}});
+    auto fc_weight_zero_point_u4 =
+        makeConst(ov::element::u4, ov::PartialShape({ov::Dimension(), ov::Dimension(), ov::Dimension(1)}), nullptr);
+    auto fc_weight_zero_point_u4f32 =
+        makePattern<opset1::Convert>({fc_weight_zero_point_u4}, {{"destination_type", "f32"}});
+    auto fc_weight_sub_zp =
+        makePattern<opset1::Subtract>({fc_weight_u4f32, fc_weight_zero_point_u4f32}, {{"auto_broadcast", "numpy"}});
+    auto fc_weight_scales_gr =
+        makeConst(ov::element::f32, ov::PartialShape({ov::Dimension(), ov::Dimension(), ov::Dimension(1)}), nullptr);
+    auto fc_weight_u4_deq =
+        makePattern<opset1::Multiply>({fc_weight_sub_zp, fc_weight_scales_gr}, {{"auto_broadcast", "numpy"}});
+    auto fc_weight_shape = makePattern("[?]");
+    auto fc_weight_u4_deq_reshape =
+        makePattern<opset1::Reshape>({fc_weight_u4_deq, fc_weight_shape}, {{"special_zero", false}});
+
+    auto fc_result = makePattern<opset1::MatMul>(
+        {sparse_input, fc_weight | fc_weight_compressed | fc_weight_deq | fc_weight_u4_deq_reshape},
+        {{"transpose_a", false}, {"transpose_b", true}});  // [?,?,up_size]
 
     auto result = fc_result;
 
@@ -85,9 +114,40 @@ ov::intel_cpu::ActivationSparsityFusion::ActivationSparsityFusion() {
         OutputVector new_args;
 
         new_args.push_back(pattern_map.at(input));
-        new_args.push_back(pattern_map.at(fc_weight_u8));
-        new_args.push_back(pattern_map.at(fc_weight_zero_point_u8));
-        new_args.push_back(pattern_map.at(fc_weight_scales_per_OC));
+
+        ActSparseFCNode::Config config;
+        config.ic = 0;
+        config.oc = 0;
+        config.ic_q_group_size = 0; // per-OC by default
+        config.is_int4 = false;
+
+        if (pattern_map.count(fc_weight_u8) > 0) {
+            new_args.push_back(pattern_map.at(fc_weight_u8));
+            new_args.push_back(pattern_map.at(fc_weight_zero_point_u8));
+            new_args.push_back(pattern_map.at(fc_weight_scales_per_OC));
+            auto const_weight = ov::as_type_ptr<opset1::Constant>(pattern_map.at(fc_weight_u8).get_node_shared_ptr());
+            if (!const_weight)
+                return false;
+            const auto& w_shape = const_weight->get_shape();
+            config.oc = w_shape[0];
+            config.ic = w_shape[1];
+        } else if (pattern_map.count(fc_weight_u4) > 0) {
+            new_args.push_back(pattern_map.at(fc_weight_u4));
+            new_args.push_back(pattern_map.at(fc_weight_zero_point_u4));
+            new_args.push_back(pattern_map.at(fc_weight_scales_gr));
+
+            auto const_weight = ov::as_type_ptr<opset1::Constant>(pattern_map.at(fc_weight_u4).get_node_shared_ptr());
+            if (!const_weight)
+                return false;
+
+            const auto& w_shape = const_weight->get_shape();
+            config.oc = w_shape[0];
+            config.ic = w_shape[1] * w_shape[2];
+            config.ic_q_group_size = w_shape[2];
+            config.is_int4 = true;
+        } else {
+            return false;
+        }
 
         auto const_thr = ov::as_type_ptr<opset1::Constant>(pattern_map.at(sparsity_threshold).get_node_shared_ptr());
         if (!const_thr)
@@ -97,20 +157,7 @@ ov::intel_cpu::ActivationSparsityFusion::ActivationSparsityFusion() {
         if (thr.size() != 1)
             return false;
 
-        ActSparseFCNode::Config config;
-        config.ic = 0;
-        config.oc = 0;
-        config.ic_q_group_size = 0; // per-OC by default
         config.threshold = thr[0];
-
-        auto const_weight = ov::as_type_ptr<opset1::Constant>(pattern_map.at(fc_weight_u8).get_node_shared_ptr());
-        if (const_weight) {
-            const auto& w_shape = const_weight->get_shape();
-            config.oc = w_shape[0];
-            config.ic = w_shape[1];
-        } else {
-            return false;
-        }
 
         auto old_node = root;
         auto new_node = std::make_shared<ActSparseFCNode>(new_args, config);
