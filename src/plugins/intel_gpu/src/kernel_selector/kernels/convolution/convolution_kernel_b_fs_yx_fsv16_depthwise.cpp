@@ -36,7 +36,7 @@ ParamsKey ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetSupportedKey() const {
     k.EnableGroupedConvolution();
     k.EnableDilation();
     k.EnableDifferentTypes();
-    // k.EnableDynamicShapesSupport();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 
@@ -55,17 +55,23 @@ bool ConvolutionKernel_b_fs_yx_fsv16_depthwise::Validate(const Params& p) const 
         return false;
     }
 
-    if (cp.inputs[0].Feature().v != cp.groups || cp.outputs[0].Feature().v != cp.groups) {
-        GPU_DEBUG_LOG << " cp.inputs[0].Feature().v(" << cp.inputs[0].Feature().v << ") != cp.groups(" << cp.groups
-                    << ") || cp.outputs[0].Feature().v(" << cp.outputs[0].Feature().v << ") != cp.groups" << std::endl;
-        return false;
-    }
-
+    // Check that features and groups are different
     // Check that padding features doesn't miss-align the blocks
-    if (cp.inputs[0].Feature().pad.before % feature_block_size != 0 || cp.outputs[0].Feature().pad.before % feature_block_size != 0) {
-        GPU_DEBUG_LOG << " cp.inputs[0].Feature().pad.before(" << cp.inputs[0].Feature().pad.before << ") \% feature_block_size(" << feature_block_size
-                << ") != 0 || cp.outputs[0].Feature().pad.before(" << cp.outputs[0].Feature().pad.before << ") \% feature_block_size != 0" << std::endl;
-        return false;
+    auto& input_feature = cp.inputs[0].Feature();
+    if (!input_feature.is_dynamic) {
+        if (input_feature.v != cp.groups || input_feature.pad.before % feature_block_size != 0) {
+            GPU_DEBUG_LOG << " input_feature(" << input_feature.v << ") != cp.groups(" << cp.groups
+                          << ") || input_feature.pad.before(" << input_feature.pad.before << ") != feature_block_size(" << feature_block_size << ")" << std::endl;
+            return false;
+        }
+    }
+    auto& output_feature = cp.outputs[0].Feature();
+    if (!output_feature.is_dynamic) {
+        if (output_feature.v != cp.groups || output_feature.pad.before % feature_block_size != 0) {
+            GPU_DEBUG_LOG << " output_feature(" << output_feature.v << ") != cp.groups(" << cp.groups
+                          << ") || output_feature.pad.before(" << output_feature.pad.before << ") != feature_block_size(" << feature_block_size << ")" << std::endl;
+            return false;
+        }
     }
 
     return true;
@@ -123,12 +129,30 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetJitConstants(const co
     }
 
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
-    jit.AddConstant(MakeJitConstant("X_BLOCKS", CeilDiv(params.outputs[0].X().v, block_width)));
-    jit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", (params.outputs[0].X().v != 1) ? 8 : 1));
     jit.AddConstant(MakeJitConstant("IC_BLOCK", feature_block_size));
     jit.AddConstant(MakeJitConstant("FILTER_SIZE_X_DIV_2", params.filterSize.x / 2));
-    if (params.outputs[0].Feature().v % feature_block_size != 0) {
-        jit.AddConstant(MakeJitConstant("OUTPUT_LEFTOVERS", 1));
+
+    std::cout << "params.has_dynamic_inputs(): " << params.has_dynamic_inputs() << std::endl;
+    std::cout << "params.has_dynamic_outputs(): " << params.has_dynamic_outputs() << std::endl;
+
+    if (params.has_dynamic_outputs()) {
+        DimensionAccessHelperJit output_dims(params.outputs[0]);
+        const auto block_width_str = std::to_string(block_width);
+        const auto x_blocks = "(" + output_dims.x() + "+" + block_width_str + " - 1) / " + block_width_str;
+        jit.AddConstant(MakeJitConstant("X_BLOCKS", x_blocks));
+
+        const auto x_block_size = "((" + output_dims.x() + " != 1) ? 8 : 1)";
+        jit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", x_block_size));
+
+        const auto output_leftover_num = "(" + output_dims.f() + "%" + std::to_string(feature_block_size) + ")";
+        const auto output_leftover = "(" + output_leftover_num + "!= 0)";
+        jit.AddConstant(MakeJitConstant("OUTPUT_LEFTOVERS", output_leftover));
+    } else {
+        jit.AddConstant(MakeJitConstant("X_BLOCKS", CeilDiv(params.outputs[0].X().v, block_width)));
+        jit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", (params.outputs[0].X().v != 1) ? 8 : 1));
+        if (params.outputs[0].Feature().v % feature_block_size != 0) {
+            jit.AddConstant(MakeJitConstant("OUTPUT_LEFTOVERS", 1));
+        }
     }
 
     return jit;
