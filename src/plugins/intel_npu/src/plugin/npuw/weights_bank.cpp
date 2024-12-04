@@ -132,6 +132,8 @@ ov::Tensor Bank::eval_and_alloc(const LazyTensor& tensor,
 
 bool Bank::is_remote(const LazyTensor& tensor) const {
     // FIXME: make generic
+    std::lock_guard<std::mutex> guard(m_mutex);
+
     auto npu_bank = m_device_banks.find("NPU");
     if (npu_bank != m_device_banks.end() && npu_bank->second.storage.find(tensor) != npu_bank->second.storage.end()) {
         // Found in NPU bank so considered remote (utterly wrong for the generic case)
