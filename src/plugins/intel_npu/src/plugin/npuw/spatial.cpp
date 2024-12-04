@@ -13,7 +13,7 @@ ov::npuw::runtime::spatial::AttentionMask::AttentionMask(std::size_t param_idx, 
 ov::npuw::runtime::spatial::Selector::Ptr ov::npuw::runtime::spatial::AttentionMask::find(
     const ov::ISyncInferRequest& rq) {
     auto is_attn_mask = [](const ov::Output<const ov::Node>& p) {
-        const auto shape = p.get_shape();
+        const auto& shape = p.get_shape();
         return p.get_node()->get_friendly_name() == "attention_mask" &&
                (shape.size() == 1 || (shape.size() == 2 && shape[0] == 1));
     };
