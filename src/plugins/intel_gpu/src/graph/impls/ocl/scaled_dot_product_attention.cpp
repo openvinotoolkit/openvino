@@ -78,10 +78,10 @@ protected:
         }
 
         std::vector<layout> layouts;
-        for (size_t i = 0; i < _kernels_data.size(); i++) {
-            auto dtype = from_data_type(_kernels_data[i].internalBufferDataType);
+        if (kernel_idx < _kernels_data.size()) {
+            auto dtype = from_data_type(_kernels_data[kernel_idx].internalBufferDataType);
             const auto bpp = data_type_traits::size_of(dtype);
-            for (auto size : _kernels_data[i].internalBufferSizes) {
+            for (auto size : _kernels_data[kernel_idx].internalBufferSizes) {
                 layout inbuf_layout = {dtype, format::bfyx, // simple linear format (flattern to x channel)
                                         {1, 1, 1, (tensor::value_type)(size / bpp)}};
                 layouts.push_back(inbuf_layout);
