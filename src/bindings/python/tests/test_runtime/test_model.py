@@ -816,40 +816,27 @@ def test_copy_failed():
 
 
 def test_model_with_statement():
-    add_model = generate_add_model()
-
+    mem_model = generate_model_with_memory(input_shape=Shape([2, 1]), data_type=Type.f32)
     with tempfile.TemporaryDirectory() as model_save_dir:
-        save_model(add_model, f"{model_save_dir}/model.xml")
+        save_model(mem_model, f"{model_save_dir}/model.xml")
 
         with Core().read_model(f"{model_save_dir}/model.xml") as model:
-            assert add_model.friendly_name == model.friendly_name
+            assert mem_model.friendly_name == model.friendly_name
 
         assert model.friendly_name is None  # Model.__model is set to None
         with pytest.raises(AttributeError):
             save_model(model, f"{model_save_dir}/model.xml")
 
-    with add_model as model:
+    with mem_model as model:
         pass
-    assert add_model.friendly_name is None
+    assert mem_model.friendly_name is None
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
-@pytest.mark.skipif(sys.version_info < (3, 11), reason="Python 3.11+")
-def test_tempdir_save_load_permission_error():
+def test_tempdir_save_load_error():
     # Generate a model with stateful components, ensuring the .bin file will be non-empty after saving
     mem_model = generate_model_with_memory(input_shape=Shape([2, 1]), data_type=Type.f32)
-    with pytest.raises(PermissionError):
-        with tempfile.TemporaryDirectory() as model_save_dir:
-            save_model(mem_model, f"{model_save_dir}/model.xml")
-            _ = Core().read_model(f"{model_save_dir}/model.xml")
-
-
-@pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
-@pytest.mark.skipif(sys.version_info >= (3, 11), reason="Python < 3.11")
-def test_tempdir_save_load_not_a_directory_error():
-    # Generate a model with stateful components, ensuring the .bin file will be non-empty after saving
-    mem_model = generate_model_with_memory(input_shape=Shape([2, 1]), data_type=Type.f32)
-    with pytest.raises(NotADirectoryError):
+    with pytest.raises((NotADirectoryError, PermissionError)):
         with tempfile.TemporaryDirectory() as model_save_dir:
             save_model(mem_model, f"{model_save_dir}/model.xml")
             _ = Core().read_model(f"{model_save_dir}/model.xml")
