@@ -1104,10 +1104,10 @@ void ov::CoreImpl::apply_rt_info(const ov::Plugin& plugin,
                                  const std::shared_ptr<const ov::Model>& model,
                                  ov::AnyMap& config) const {
     if (util::contains(plugin.get_property(ov::supported_properties), ov::hint::activations_scale_factor)) {
-        if (model->has_rt_info({"runtime_options", "ACTIVATIONS_SCALE_FACTOR"})) {
-            if (config.find("ACTIVATIONS_SCALE_FACTOR") == config.end()) {
+        if (model->has_rt_info({"runtime_options", ov::hint::activations_scale_factor.name()})) {
+            if (config.find(ov::hint::activations_scale_factor.name()) == config.end()) {
                 const auto activations_scale_factor =
-                    model->get_rt_info<std::float_t>({"runtime_options", "ACTIVATIONS_SCALE_FACTOR"});
+                    model->get_rt_info<std::float_t>({"runtime_options", ov::hint::activations_scale_factor.name()});
                 config.insert(ov::hint::activations_scale_factor(activations_scale_factor));
             }
         }
