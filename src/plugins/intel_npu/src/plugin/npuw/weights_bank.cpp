@@ -110,9 +110,6 @@ ov::Tensor Bank::eval_and_alloc(const LazyTensor& tensor,
         return transformed_tensor;
     }
 
-    // Non-CPU case: detach the evaluated LazyTensor from its memory
-    const_cast<LazyTensor&>(tensor).detach();
-
     ov::SoPtr<ov::ITensor> remote_tensor;
     ov::Tensor allocated_tensor;
 
@@ -124,6 +121,12 @@ ov::Tensor Bank::eval_and_alloc(const LazyTensor& tensor,
     guard.unlock();  // Unlock the guard, map update is done - copy can continue in parallel
 
     transformed_tensor.copy_to(allocated_tensor);
+
+    // Detach the evaluated LazyTensor from its memory here - when it is 100%
+    // not needed anymore (transformations, if any, and copies are done)
+    // Note: this is the non-CPU path!
+    const_cast<LazyTensor&>(tensor).detach();
+
     return allocated_tensor;
 }
 
