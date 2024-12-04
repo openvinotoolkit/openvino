@@ -109,6 +109,7 @@ static size_t get_dynamic_quantize_group_size(const fully_connected_params& para
     }
 
     size_t scale_group_size = get_scale_group_size(params);
+    size_t zp_group_num = params.decompression_zero_point.Feature().v;
     size_t zp_group_size = 0;
     if (params.has_decompression_zp)
         const size_t zp_group_size = params.weights.IFM().v / params.decompression_zero_point.Feature().v;
@@ -119,9 +120,14 @@ static size_t get_dynamic_quantize_group_size(const fully_connected_params& para
         if ((scale_group_size % min_quantize_grp_size) == 0 && scale_group_size > min_quantize_grp_size) {
             dynamic_quantization_group_size = scale_group_size;
 
+            if (is_dyn_quan_8bit_asym(params) && params.has_decompression_zp &&
+                dynamic_quantization_group_size < zp_group_size && (zp_group_size % min_quantize_grp_size) == 0) {
+                dynamic_quantization_group_size = zp_group_size;
+            }
+
             GPU_DEBUG_TRACE_DETAIL << "FC dyn-quantize by per-token. Actual dyn_quan_group_size(" << dynamic_quantization_group_size
                                     << ") : From scale_group_size (" << scale_group_size << ", zp_group_size("  << zp_group_size
-                                    <<  "), ifm_size (" << get_input_bf_size(params).second << ")" << std::endl;
+                                    << "), zp_group_num(" << zp_group_num << "), ifm_size (" << get_input_bf_size(params).second << ")" << std::endl;
             return (size_t)dynamic_quantization_group_size;
         }
     }

@@ -31,7 +31,7 @@ KERNEL(quantize_input)(
     const uint input_offset = offset * QUANTIZE_GROUP_SIZE;
     const uint quantize_block = QUANTIZE_GROUP_SIZE / 4;
     MAKE_VECTOR_TYPE(DQ_TYPE, INPUT_LOAD_SIZE) quantized_value;
-    float max_value = 0.0001f;
+    INPUT0_TYPE max_value = 0.0001h;
 
     MAKE_VECTOR_TYPE(INPUT0_TYPE, INPUT_LOAD_SIZE) input_buff;
     for (uint i = 0 ; i < quantize_block ; ++i) {
@@ -40,7 +40,7 @@ KERNEL(quantize_input)(
         max_value = fmax(max, max_value);
     }
 
-    float quan_scale = max_value / 127.f;
+    float quan_scale = (float)max_value / 127.f;
     #if COMPRESSED_WEIGHTS_INT8
         int quantized_sum = 0;
     #endif
