@@ -158,7 +158,7 @@ model and generate a segmentation map.
 
 .. parsed-literal::
 
-    100%|██████████| 138M/138M [00:02<00:00, 56.5MB/s]
+    100%|██████████| 138M/138M [00:02<00:00, 48.9MB/s]
 
 
 
@@ -170,8 +170,8 @@ model and generate a segmentation map.
 .. parsed-literal::
 
     
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 768x1024 37 objects, 662.7ms
-    Speed: 3.8ms preprocess, 662.7ms inference, 766.0ms postprocess per image at shape (1, 3, 768, 1024)
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 768x1024 37 objects, 642.9ms
+    Speed: 3.9ms preprocess, 642.9ms inference, 771.9ms postprocess per image at shape (1, 3, 768, 1024)
 
 
 The model returns segmentation maps for all the objects on the image.
@@ -214,10 +214,10 @@ tracing. The FastSAM model itself is based on YOLOv8 model.
     PyTorch: starting from 'FastSAM-x.pt' with input shape (1, 3, 1024, 1024) BCHW and output shape(s) ((1, 37, 21504), (1, 32, 256, 256)) (138.3 MB)
     
     OpenVINO: starting export with openvino 2024.4.0-16579-c3152d32c9c-releases/2024/4...
-    OpenVINO: export success ✅ 6.2s, saved as 'FastSAM-x_openvino_model/' (276.1 MB)
+    OpenVINO: export success ✅ 6.1s, saved as 'FastSAM-x_openvino_model/' (276.1 MB)
     
-    Export complete (9.2s)
-    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/fast-segment-anything
+    Export complete (9.1s)
+    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/fast-segment-anything
     Predict:         yolo predict task=segment model=FastSAM-x_openvino_model imgsz=1024  
     Validate:        yolo val task=segment model=FastSAM-x_openvino_model imgsz=1024 data=ultralytics/datasets/sa.yaml  
     Visualize:       https://netron.app
@@ -321,8 +321,8 @@ pipeline.
 .. parsed-literal::
 
     
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/801/archive/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 1024x1024 42 objects, 558.8ms
-    Speed: 5.7ms preprocess, 558.8ms inference, 34.6ms postprocess per image at shape (1, 3, 1024, 1024)
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 1024x1024 42 objects, 494.2ms
+    Speed: 6.6ms preprocess, 494.2ms inference, 30.3ms postprocess per image at shape (1, 3, 1024, 1024)
 
 
 One can observe the converted model outputs in the next cell, they is
@@ -615,8 +615,8 @@ calibration dataset to measure the performance.
 
 .. parsed-literal::
 
-    Segmented in 69 seconds.
-    Resulting in 1.86 fps
+    Segmented in 72 seconds.
+    Resulting in 1.78 fps
 
 
 .. code:: ipython3
@@ -645,7 +645,7 @@ calibration dataset to measure the performance.
 
     Segmented in 23 seconds
     Resulting in 5.57 fps
-    That is 3.0 times faster!
+    That is 3.13 times faster!
 
 
 Try out the converted pipeline

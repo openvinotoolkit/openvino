@@ -14,7 +14,7 @@ concurrency:
 
 env:
   TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
-  PIP_CACHE_PATH: /mount/caches/pip/win
+  PIP_CACHE_PATH: "C:\\mount\\caches\\pip\\win"
   PYTHON_VERSION: '3.11'
 
 permissions: read-all
@@ -59,6 +59,18 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       build-type: 'Release'
       target-branch: ${{ needs.smart_ci.outputs.target_branch }}
+      build-additional-python-wheels: true
+      cmake-options: |-
+            -G "Ninja Multi-Config" `
+            -DENABLE_PYTHON=ON `
+            -DENABLE_CPPLINT=OFF `
+            -DBUILD_SHARED_LIBS=ON `
+            -DENABLE_TESTS=ON `
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON `
+            -DENABLE_STRICT_DEPENDENCIES=OFF `
+            -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
+            -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" `
+            -DOPENVINO_EXTRA_MODULES="${env:OPENVINO_CONTRIB_REPO}/modules/custom_operations;${env:OPENVINO_CONTRIB_REPO}/modules/java_api"
 
   Samples:
     needs: [ Build, Smart_CI ]
@@ -97,11 +109,12 @@ jobs:
             Expand-Archive openvino_tests.zip -DestinationPath .
         working-directory: ${{ env.INSTALL_DIR }}
 
-      - name: Fetch setup_python action
+      - name: Fetch setup_python and install wheels actions
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
+            .github/actions/install_ov_wheels/action.yml
           sparse-checkout-cone-mode: false
           path: 'openvino'
 
@@ -124,11 +137,16 @@ jobs:
         run: |
           & ${{ env.SAMPLES_INSTALL_DIR }}/c/build_samples.ps1 -InstallDirectory ${{ env.INSTALL_DIR }} -BuildDirectory ${{ env.BUILD_DIR }}/c_samples
 
+      # Install Python benchmark_app by installing openvino-*.whl
+      - name: Install OpenVINO Python wheels
+        uses: ./openvino/.github/actions/install_ov_wheels
+        with:
+          wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
+          wheels-to-install: 'openvino'
+
       - name: Samples tests
         run: |
-          # Install Python benchmark_app by installing openvino-*.whl
-          $ovCoreWheelPath=Get-ChildItem -Path ./wheels -Filter openvino-*.whl | % { $_.FullName }
-          python3 -m pip install --ignore-installed PyYAML -r ./tests/smoke_tests/requirements.txt "$ovCoreWheelPath"
+          python3 -m pip install --ignore-installed PyYAML -r ./tests/smoke_tests/requirements.txt
           . "./setupvars.ps1"
           $Env:PYTHONCOERCECLOCALE="warn"
           python3 -bb -W error -X dev -X warn_default_encoding -m pytest ./tests/smoke_tests --numprocesses auto
@@ -178,7 +196,7 @@ jobs:
           path: ${{ env.OPENVINO_JS_LIBS_DIR }}
 
       - name: Setup Node ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v4.0.4
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -224,6 +242,7 @@ jobs:
       runner: 'aks-win-4-cores-8gb'
       shell: pwsh
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: '3.11'
     if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
 
   Python_Unit_Tests:
@@ -258,15 +277,15 @@ jobs:
           merge-multiple: true
 
       - name: Extract OpenVINO packages
-        run: |
-            Expand-Archive openvino_tests.zip -DestinationPath .
+        run: Expand-Archive openvino_tests.zip -DestinationPath .
         working-directory: ${{ env.INSTALL_DIR }}
 
-      - name: Fetch setup_python action
+      - name: Fetch setup_python and install wheels actions
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
+            .github/actions/install_ov_wheels/action.yml
           sparse-checkout-cone-mode: false
           path: 'openvino'
 
@@ -275,19 +294,14 @@ jobs:
         with:
           version: ${{ env.PYTHON_VERSION }}
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'false'
+          should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
 
       - name: Install OpenVINO Python wheels
-        run: |
-          # Find and install the core OV wheel
-          $ovCoreWheelPath=Get-ChildItem -Path . -Filter openvino-*.whl | % { $_.FullName }
-          python3 -m pip install "$ovCoreWheelPath"
-
-          # Find and install the dev OV wheel
-          $ovDevWheelPath=Get-ChildItem -Path . -Filter openvino_dev*.whl | % { $_.FullName }
-          python3 -m pip install "$ovDevWheelPath[caffe,kaldi,onnx,tensorflow2,pytorch]"
-        working-directory: ${{ env.INSTALL_WHEELS_DIR }}
+        uses: ./openvino/.github/actions/install_ov_wheels
+        with:
+          wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
+          wheels-to-install: 'openvino'
 
       - name: Install Python API tests dependencies
         run: |
@@ -297,8 +311,11 @@ jobs:
           # For torchvision to OpenVINO preprocessing converter
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/python/preprocess/torchvision/requirements.txt
 
-          # TODO: replace with Python API tests requirements
-          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/mo/requirements_dev.txt
+          # For validation of Python API
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/bindings/python/requirements_test.txt
+
+          #  ONNX tests requirements
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_onnx
 
           # For getting rid of SSL issues during model downloading for unit tests
           python3 -m pip install certifi
@@ -306,34 +323,15 @@ jobs:
       - name: Set SSL_CERT_FILE for model downloading for unit tests
         run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
 
+      - name: Install Python Layer tests dependencies
+        run: python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
+
       - name: Python API Tests
         #if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test # Ticket: 127101
         shell: cmd
         run: |
           set PYTHONPATH=${{ env.LAYER_TESTS_INSTALL_DIR }};%PYTHONPATH%
           python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/pyopenvino ${{ env.PYTHON_STATIC_ARGS }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_utils/test_utils.py
-
-      - name: Model Optimizer UT
-        if: fromJSON(needs.smart_ci.outputs.affected_components).MO.test
-        shell: cmd
-        run: |
-          python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/mo/unit_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-ModelOptimizer.xml
-
-      - name: Install Python Layer tests dependencies
-        run: |
-          # layer test requirements
-          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
-
-      - name: ONNX Layer Tests
-        if: fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE.test
-        shell: cmd
-        run: |
-          :: requires 'unit_tests' from 'tools/mo'
-          set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\mo;%PYTHONPATH%
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/onnx_tests -n logical -m "not launch_only_if_manually_specified and precommit" --junitxml=${INSTALL_TEST_DIR}/TEST-onnx.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
 
       - name: TensorFlow Lite Layer Tests - TFL FE
         if: fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
@@ -353,18 +351,6 @@ jobs:
           python3 -m pytest ${{ env.INSTALL_TEST_DIR }}/onnx -k "not cuda" ^
           --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-onnx_frontend.xml ^
           --ignore=${{ env.INSTALL_TEST_DIR }}/onnx/test_python/test_zoo_models.py
-
-      - name: MO Python API Tests
-        if: fromJSON(needs.smart_ci.outputs.affected_components).MO.test
-        shell: cmd
-        run: |
-          :: Used for 'test_utils' installed in '<test_package>\python\openvino\test_utils'
-          set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\python\openvino\test_utils;${{ env.INSTALL_TEST_DIR }}\python;%PYTHONPATH%
-
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/mo_python_api_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_mo_convert.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
 
       - name: OVC Python API Tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).MO.test
@@ -394,8 +380,99 @@ jobs:
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         if: ${{ !cancelled() }}
         with:
-          name: test-results-python
+          name: test-results-python-unittests
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          if-no-files-found: 'error'
+
+  Python_API_Tests:
+    name: OpenVINO Python API Tests
+    if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
+    needs: [ Build, Smart_CI ]
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+    defaults:
+      run:
+        shell: pwsh
+    runs-on: aks-win-8-cores-16gb
+    env:
+      OPENVINO_REPO: "${{ github.workspace }}\\openvino"
+      INSTALL_DIR: "${{ github.workspace }}\\install"
+      INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
+      INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
+      PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
+    steps:
+      - name: Download OpenVINO artifacts (tarballs)
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          pattern: openvino_[tests]*
+          path: ${{ env.INSTALL_DIR }}
+          merge-multiple: true
+
+      - name: Download OpenVINO artifacts (wheels)
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          pattern: openvino_[wheels]*
+          path: ${{ env.INSTALL_WHEELS_DIR }}
+          merge-multiple: true
+
+      - name: Extract OpenVINO packages
+        run: Expand-Archive openvino_tests.zip -DestinationPath .
+        working-directory: ${{ env.INSTALL_DIR }}
+
+      - name: Fetch setup_python and install wheels actions
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+            .github/actions/install_ov_wheels/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ matrix.python-version }}
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'true'
+
+      - name: Install OpenVINO Python wheels
+        uses: ./openvino/.github/actions/install_ov_wheels
+        with:
+          wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
+          wheels-to-install: 'openvino'
+
+      - name: Install Python API tests dependencies
+        run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/bindings/python/requirements_test.txt
+
+      - name: Python API Tests
+        shell: cmd
+        run: |
+          set PYTHONPATH=${{ env.INSTALL_TEST_DIR }};%PYTHONPATH%
+          python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/pyopenvino ${{ env.PYTHON_STATIC_ARGS }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_utils/test_utils.py
+
+      - name: Python API Tests -- numpy>=2.0.0
+        shell: cmd
+        run: |
+          python3 -m pip uninstall -y numpy
+          python3 -m pip install "numpy>=2.0.0,<2.1.0"
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/bindings/python/requirements_test.txt
+          # for 'template' extension
+          set PYTHONPATH=${{ env.INSTALL_TEST_DIR }};%PYTHONPATH%
+          set PATH=${{ env.INSTALL_TEST_DIR }};%PATH%
+          python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/pyopenvino --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph_new_numpy.xml --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_utils/test_utils.py
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        if: ${{ !cancelled() }}
+        with:
+          name: test-results-python-${{ matrix.python-version }}
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'error'
 
   TensorFlow_Layer_Tests:
@@ -424,6 +501,8 @@ jobs:
       runner: 'aks-win-4-cores-8gb'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       os: 'windows_2019'
+      build-type: 'Release'
+      timeout-minutes: 50
 
   CPU_Functional_Tests:
     name: CPU functional tests
@@ -481,7 +560,7 @@ jobs:
         run: python3 -m pip install -r ${{ github.workspace }}\install\tests\functional_test_utils\layer_tests_summary\requirements.txt
 
       - name: Restore tests execution time
-        uses: actions/cache/restore@3624ceb22c1c5a301c8db4169662070a689d9ea8 # v4.1.1
+        uses: actions/cache/restore@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
           key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
@@ -495,7 +574,7 @@ jobs:
         timeout-minutes: 60
 
       - name: Save tests execution time
-        uses: actions/cache/save@3624ceb22c1c5a301c8db4169662070a689d9ea8 # v4.1.1
+        uses: actions/cache/save@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
         if: github.ref_name == 'master'
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}

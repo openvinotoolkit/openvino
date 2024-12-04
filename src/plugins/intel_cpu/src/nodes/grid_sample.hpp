@@ -62,7 +62,7 @@ private:
     ov::element::Type dataPrecision;
     ov::element::Type gridPrecision = ov::element::f32;
 
-    int nthr = 1;
+    size_t m_threads_num = 0lu;
     std::vector<threadExecParams> execParamsPerThread;
 
     static constexpr size_t IN_DATA = 0;

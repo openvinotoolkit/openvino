@@ -7,7 +7,7 @@ const fs = require('node:fs/promises');
 const {
   downloadFile,
   checkIfPathExists,
-} = require('../../scripts/download_runtime');
+} = require('../../scripts/lib/utils');
 
 const modelDir = 'tests/unit/test_models/';
 const testModels = {
@@ -22,11 +22,42 @@ const testModels = {
 };
 
 module.exports = {
+  compareModels,
+  sleep,
   getModelPath,
   downloadTestModel,
   isModelAvailable,
   testModels,
 };
+
+function compareModels(model1, model2) {
+  const differences = [];
+  if (model1.getFriendlyName() !== model2.getFriendlyName()) {
+    differences.push('Friendly names of models are not equal ' +
+        `model_one: ${model1.getFriendlyName()},` +
+        `model_two: ${model2.getFriendlyName()}`);
+  }
+
+  if (model1.inputs.length !== model2.inputs.length) {
+    differences.push('Number of models\' inputs are not equal ' +
+    `model_one: ${model1.inputs.length}, ` +
+    `model_two: ${model2.inputs.length}`);
+  }
+
+  if (model1.outputs.length !== model2.outputs.length) {
+    differences.push('Number of models\' outputs are not equal ' +
+        `model_one: ${model1.outputs.length}, ` +
+        `model_two: ${model2.outputs.length}`);
+  }
+
+  if (differences.length) {
+    throw new Error(differences.join('\n'));
+  }
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function getModelPath(isFP16 = false) {
   const modelName = `test_model_fp${isFP16 ? 16 : 32}`;

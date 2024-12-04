@@ -7,6 +7,11 @@
 namespace ov {
 namespace test {
 
+INSTANTIATE_TEST_SUITE_P(smoke_RoPETestFlux,
+                         RoPETestFlux,
+                         ::testing::Values(ov::test::utils::DEVICE_GPU),
+                         RoPETestFlux::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_RoPETestChatGLM,
                          RoPETestChatGLMStridedSlice,
                          ::testing::Values(ov::test::utils::DEVICE_GPU),

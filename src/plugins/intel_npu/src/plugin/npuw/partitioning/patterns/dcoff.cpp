@@ -16,6 +16,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/op/label.hpp"  // any_input
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
 
@@ -94,8 +95,14 @@ ClosureRemap build_remap(const Function& fbody, const DCOFFParams& params_to) {
         } else if (ban_list.find(param) == ban_list.end()) {
             // If it's not in the ban list, it's an OK parameter and should be kept
             LOG_DEBUG("This is an OK parameter, will be kept");
-            m.weights_to_unpack.insert(i - fbody._param_offset);
             m.closure_remap.push_back(i - fbody._param_offset);
+
+            // Check if unpack is indeed required
+            const auto& type = param->get_element_type();
+            if (type == ov::element::i4 || type == ov::element::u4 || type == ov::element::i8 ||
+                type == ov::element::u8) {
+                m.weights_to_unpack.insert(i - fbody._param_offset);
+            }
         }
 
         // Process zero points for parameters
@@ -248,7 +255,7 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
 
     auto matched_paramA = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeA);
     auto element_type = matched_paramA->get_element_type();
-    if (element_type == ov::element::i4 || element_type == ov::element::i8) {
+    if (element_type == ov::element::i4 || element_type == ov::element::i8 || element_type == ov::element::nf4) {
         LOG_DEBUG("Matched: " << matched_paramA << ", set element type to " << m_dcoff_type);
         matched_paramA->set_element_type(m_dcoff_type);
 
@@ -296,7 +303,8 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
 void DCOFFPassMatMul::build() {
     DCOFFPassBase::build();
     auto _mmin1 = opp::any_input();
-    matmul = opp::wrap_type<ov::op::v0::MatMul>({_mmin1, mulply});
+    cvtopt = opp::optional<ov::op::v0::Convert>({mulply->output(0)});
+    matmul = opp::wrap_type<ov::op::v0::MatMul>({_mmin1, cvtopt});
     register_matcher(std::make_shared<opp::Matcher>(matmul, "TagDCOFFMatMul"),
                      std::bind(&DCOFFPassMatMul::matcher_callback, this, std::placeholders::_1));
 }
@@ -306,6 +314,13 @@ void DCOFFPassMatMul::reconnect_root_to_convert(ov::pass::pattern::Matcher& m) {
     auto& node_to_output = m.get_pattern_value_map();
     auto matched_convrt = node_to_output.at(toFP32).get_node_shared_ptr();
     auto matched_matmul = node_to_output.at(matmul).get_node_shared_ptr();
+
+    auto cvt = std::static_pointer_cast<ov::op::v0::Convert>(matched_convrt);
+    auto matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_matmul);
+
+    // NB: In case convert and matmul types don't match
+    cvt->set_destination_type(matmul->inputs()[1].get_element_type());
+
     matched_matmul->input(1).replace_source_output(matched_convrt);
 }
 

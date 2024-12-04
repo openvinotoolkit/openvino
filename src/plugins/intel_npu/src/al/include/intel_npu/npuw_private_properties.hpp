@@ -30,8 +30,8 @@ static constexpr ov::Property<std::string> devices{"NPUW_DEVICES"};
  * @brief
  * Type: std::string.
  * Force the specific subgraph to specific device. The device must be present in the NPUW_DEVICES list.
- * Possible values: Comma-separated "Subgraph index:OpenVINO device name" pairs,
- * e.g. "0:CPU,1:NPU".
+ * Possible values: Comma-separated "Subgraph index:OpenVINO device name" pairs, "last" keyword can be
+ * used for last subgraph, e.g. "0:CPU,1:NPU,last:CPU".
  * Default value: empty.
  */
 static constexpr ov::Property<std::string> submodel_device{"NPUW_SUBMODEL_DEVICE"};
@@ -185,6 +185,14 @@ static constexpr ov::Property<bool> dyn_quant{"NPUW_DQ"};
 
 /**
  * @brief
+ * Type: bool.
+ * Apply the full DQ transformation pipeline in the plugin.
+ * Default value: true.
+ */
+static constexpr ov::Property<bool> dyn_quant_full{"NPUW_DQ_FULL"};
+
+/**
+ * @brief
  * Type: string.
  * Identify and merge parallel MatMuls over dimension(s) specified.
  * When set to YES, applies transformation for all dimensions.
@@ -279,6 +287,14 @@ static constexpr ov::Property<bool> parallel_compilation{"NPUW_PARALLEL_COMPILE"
  */
 static constexpr ov::Property<bool> funcall_async{"NPUW_FUNCALL_ASYNC"};
 
+/**
+ * @brief
+ * Type: boolean
+ * Create individual infer requests for partitiongs, even repeating.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> unfold_ireqs{"NPUW_UNFOLD_IREQS"};
+
 namespace accuracy {
 /**
  * @brief
@@ -323,7 +339,9 @@ static constexpr ov::Property<bool> full{"NPUW_DUMP_FULL"};
  * Type: std::string.
  * Dump the specified subgraph(s) in OpenVINO IR form in the current directory.
  * Possible values: Comma-separated list of subgraph indices or "YES" for all
- * subgraphs, "NO" or just empty value to turn option off. E.g. "0,1" or "YES".
+ * subgraphs, "NO" or just empty value to turn option off. Keyword "last" can
+ * be used for dumping last subgraph without specifying it by specific index.
+ * E.g. "0,1" or "0,1,last" or "YES".
  * Default value: empty.
  */
 static constexpr ov::Property<std::string> subgraphs{"NPUW_DUMP_SUBS"};
@@ -333,7 +351,8 @@ static constexpr ov::Property<std::string> subgraphs{"NPUW_DUMP_SUBS"};
  * Type: std::string.
  * Dump subgraph on disk if a compilation failure happens.
  * Possible values: Comma-separated list of subgraph indices or "YES" for all
- * subgraphs, "NO" or just empty value to turn option off. E.g. "0,1" or "YES".
+ * subgraphs, "NO" or just empty value to turn option off. Keyword "last" can
+ * be used for dumping last subgraph. E.g. "0,1" or "0,1,last" or "YES".
  * Default value: empty.
  */
 static constexpr ov::Property<std::string> subgraphs_on_fail{"NPUW_DUMP_SUBS_ON_FAIL"};
@@ -343,7 +362,8 @@ static constexpr ov::Property<std::string> subgraphs_on_fail{"NPUW_DUMP_SUBS_ON_
  * Type: std::string.
  * Dump input & output tensors for subgraph(s).
  * Possible values: Comma-separated list of subgraph indices or "YES" for all
- * subgraphs, "NO" or just empty value to turn option off. E.g. "0,1" or "YES".
+ * subgraphs, "NO" or just empty value to turn option off. Keyword "last" can
+ * be used for last subgraph. E.g. "0,1" or "0,1,last" or "YES".
  * Default value: empty.
  */
 static constexpr ov::Property<std::string> inputs_outputs{"NPUW_DUMP_IO"};
