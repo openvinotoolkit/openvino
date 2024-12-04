@@ -20,7 +20,15 @@
 #define INPUT_LOAD_SIZE                     4
 
 #if FC_KERNEL_DYNAMIC_QUANTIZE
+//#define VLOAD_N CAT(vload, VEC_SIZE)
+//#define VSTORE_N CAT(vstore, VEC_SIZE)
+//#define CONVERT_CHAR_N CAT(convert_char, VEC_SIZE)
+//#define AS_TYPE_N_(type, n, x) as_##type##n(x)
+//#define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
+//#define AS_INPUT_TYPE_N(x) AS_TYPE_N(INPUT0_TYPE, VEC_SIZE, x)
+
 KERNEL(quantize_input)(
+    // OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
     __global DQ_TYPE* quantized_input,
     __global float* quan_var
@@ -29,33 +37,44 @@ KERNEL(quantize_input)(
 
     const uint input_offset = offset * QUANTIZE_GROUP_SIZE;
     const uint quantize_block = QUANTIZE_GROUP_SIZE / 4;
-    MAKE_VECTOR_TYPE(INPUT0_TYPE, INPUT_LOAD_SIZE) input_0[quantize_block];
-    MAKE_VECTOR_TYPE(DQ_TYPE, INPUT_LOAD_SIZE) quantized_value[quantize_block];
-    INPUT0_TYPE  max[quantize_block];
+    // MAKE_VECTOR_TYPE(INPUT0_TYPE, INPUT_LOAD_SIZE) input_0[quantize_block];
+    MAKE_VECTOR_TYPE(DQ_TYPE, INPUT_LOAD_SIZE) quantized_value;
+    // INPUT0_TYPE  max[quantize_block];
+    INPUT0_TYPE max_value = 0.001f;
 
-    unroll_for (uint i = 0 ; i < quantize_block ; ++i) {
-        input_0[i] = vload4(0, &input[input_offset + i * 4]);
-        max[i] = fmax(fmax(fabs(input_0[i][0]), fabs(input_0[i][1])), fmax(fabs(input_0[i][2]), fabs(input_0[i][3])));
+    MAKE_VECTOR_TYPE(INPUT0_TYPE, INPUT_LOAD_SIZE) input_buff;
+    for (uint i = 0 ; i < quantize_block ; ++i) {
+        // input_0[i] = vload4(0, &input[input_offset + i * 4]);
+        // max[i] = fmax(fmax(fabs(input_0[i][0]), fabs(input_0[i][1])), fmax(fabs(input_0[i][2]), fabs(input_0[i][3])));
+        input_buff = vload4(0, &input[input_offset + i * 4]);
+        INPUT0_TYPE max = fmax(fmax(fabs(input_buff[0]), fabs(input_buff[1])), fmax(fabs(input_buff[2]), fabs(input_buff[3])));
+        max_value = fmax(max, max_value);
     }
+    // unroll_for (uint i = 0 ; i < quantize_block ; ++i) {
+    //     input_0[i] = vload4(0, &input[input_offset + i * 4]);
+    //     max[i] = fmax(fmax(fabs(input_0[i][0]), fabs(input_0[i][1])), fmax(fabs(input_0[i][2]), fabs(input_0[i][3])));
+    // }
 
-    INPUT0_TYPE max_value = 0.001;
-    for (uint i = 0 ; i < quantize_block ; i+=8) {
-        INPUT0_TYPE temp = fmax(fmax(fmax(max[i], max[i+1]), fmax(max[i+2], max[i+3])),
-                                fmax(fmax(max[i+4], max[i+5]), fmax(max[i+6], max[i+7])));
-        max_value = fmax(max_value, temp);
-    }
+    // float max_value = 0.001f;
+    // for (uint i = 0 ; i < quantize_block ; i+=8) {
+    //     INPUT0_TYPE temp = fmax(fmax(fmax(max[i], max[i+1]), fmax(max[i+2], max[i+3])),
+    //                             fmax(fmax(max[i+4], max[i+5]), fmax(max[i+6], max[i+7])));
+    //     max_value = fmax((float)(temp), max_value);
+    // }
 
     float quan_scale = (float)max_value / 127.f;
     #if COMPRESSED_WEIGHTS_INT8
         int quantized_sum = 0;
     #endif
     for (uint i = 0 ; i < quantize_block ; ++i) {
-        float4 buff = (convert_float4)(input_0[i]) / (float4)quan_scale;
-        quantized_value[i] = CAT(CAT(convert_, MAKE_VECTOR_TYPE(DQ_TYPE, INPUT_LOAD_SIZE)), _rte)(buff);
+        // float4 buff = (convert_float4)(input_0[i]) / (float4)quan_scale;
+        float4 buff = (convert_float4)(vload4(0, &input[input_offset + i * 4])) / (float4)quan_scale;
+
+        quantized_value = CAT(CAT(convert_, MAKE_VECTOR_TYPE(DQ_TYPE, INPUT_LOAD_SIZE)), _rte)(buff);
         #if COMPRESSED_WEIGHTS_INT8
-            quantized_sum += quantized_value[i][0] + quantized_value[i][1] + quantized_value[i][2] + quantized_value[i][3];
+            quantized_sum += quantized_value[0] + quantized_value[1] + quantized_value[2] + quantized_value[3];
         #endif
-        vstore4(quantized_value[i], 0, &quantized_input[input_offset + i * 4]);
+        vstore4(quantized_value, 0, &quantized_input[input_offset + i * 4]);
     }
 
     // Pair of quantizing_scale and quantized activation_sum for each group
@@ -1202,7 +1221,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
 
                         #if COMPRESSED_WEIGHTS_INT8
                             ACCUM_DQ_TYPE modified_calc_buff = ((int *)(&acc_tmp[fi]))[bi] - ((float)(wei_zp[fi]) * (activation_sum[bi]));
-                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half)(convert_float(modified_calc_buff) * (float)ds * (float)de_quantize_scale[bi]);
+                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half)(convert_float(modified_calc_buff) * (float)ds * de_quantize_scale[bi]);
                         #else
                             ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[fi]))[bi]) * ds * de_quantize_scale[bi];
                         #endif
@@ -1229,7 +1248,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
 
                         #if COMPRESSED_WEIGHTS_INT8
                             ACCUM_DQ_TYPE modified_calc_buff = ((int *)(&acc_tmp[fi]))[bi] - ((float)(wei_zp[fi]) * (activation_sum[bi]));
-                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half)(convert_float(modified_calc_buff) * (float)ds * (float)de_quantize_scale[bi]);
+                            ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += (convert_half)(convert_float(modified_calc_buff) * (float)ds * de_quantize_scale[bi]);
                         #else
                             ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += convert_half(((int *)(&acc_tmp[fi]))[bi]) * ds * de_quantize_scale[bi];
                         #endif

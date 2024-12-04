@@ -11,9 +11,10 @@
 
 static constexpr size_t lws_batches = 8;
 static constexpr size_t simd = 16;
-static constexpr size_t min_quantize_grp_size = 32;
+static constexpr size_t min_quantize_grp_size = (simd * 2); // SIMD * (min value of tile_ifm)
 static constexpr size_t min_slm_size = 256;
-static std::vector<size_t> available_quantize_grp_size = {128, 64, 32};
+// static std::vector<size_t> available_quantize_grp_size = {128, 64, 32};
+static std::vector<size_t> available_quantize_grp_size = {512, 256, 128, 64, 32};
 
 namespace kernel_selector {
 
@@ -50,6 +51,10 @@ static std::pair<size_t, size_t> get_output_aligned_bf_size(const fully_connecte
     output_b = (needs_align == true) ? CeilDiv(output_b, align_b) : output_b;
 
     return {output_b, output_f};
+}
+
+static size_t get_scale_group_size(const fully_connected_params& params) {
+    return params.weights.IFM().v / params.decompression_scale.Feature().v;
 }
 
 static bool is_dyn_quan_8bit_asym(const fully_connected_params& params) {
@@ -103,10 +108,11 @@ static size_t get_dynamic_quantize_group_size(const fully_connected_params& para
         }
     }
 
-    const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
+    const size_t scale_group_size = get_scale_group_size(params);
 
     // Per-token dyn-quan
-    if (dynamic_quantization_group_size >= min_quantize_grp_size && is_per_token_dynamic_quantize(params)) {
+    if (dynamic_quantization_group_size >= min_quantize_grp_size && is_per_token_dynamic_quantize(params) &&
+        scale_group_size != 0) {
         // if (is_dyn_quan_8bit_asym(params)) {
         //     // Should calculate activation sum by scale_group_size for post-operation
         //     dynamic_quantization_group_size = scale_group_size;
@@ -117,16 +123,22 @@ static size_t get_dynamic_quantize_group_size(const fully_connected_params& para
         //     dynamic_quantization_group_size = get_input_bf_size(params).second;
         // }
 
-        dynamic_quantization_group_size = scale_group_size;
-        // printf("!!!! per token dyn-quan(%s) : scale_group_size(%u) / input_f(%d) dynamic_quantization_group_size(%u)\n",
-        //         ((is_per_token_dynamic_quantize(params) == true) ? "Y" : "N"),
-        //         scale_group_size, (int)get_input_bf_size(params).second, dynamic_quantization_group_size);
-        // return (size_t)dynamic_quantization_group_size;
+        auto selected_size = scale_group_size;
+        // auto selected_size = scale_group_size / 2;
+        if ((scale_group_size % min_quantize_grp_size) == 0 && selected_size > min_quantize_grp_size) {
+            dynamic_quantization_group_size = selected_size;
+
+            // printf("!!!! per token dyn-quan(%s) : scale_group_size(%u) / input_f(%d) dynamic_quantization_group_size(%u)\n",
+            //     ((is_per_token_dynamic_quantize(params) == true) ? "Y" : "N"),
+            //     scale_group_size, (int)get_input_bf_size(params).second, dynamic_quantization_group_size);
+            return (size_t)dynamic_quantization_group_size;
+        }
     }
 
     // Grouped-size dyn-quan : use aligned sizes which are in 'available_quantize_grp_size'
     for (auto group_size : available_quantize_grp_size) {
-        if (dynamic_quantization_group_size >= group_size) {
+        if (dynamic_quantization_group_size >= group_size &&
+            (scale_group_size % group_size) == 0) {
             dynamic_quantization_group_size = group_size;
 
             if (dynamic_quantization_group_size > scale_group_size) {
@@ -137,16 +149,14 @@ static size_t get_dynamic_quantize_group_size(const fully_connected_params& para
                 dynamic_quantization_group_size = scale_group_size;
             }
 
-            printf("!!!! per token dyn-quan(%s) : scale_group_size(%u) / input_f(%d) dynamic_quantization_group_size(%u)\n",
-                    ((is_per_token_dynamic_quantize(params) == true) ? "Y" : "N"),
-                    scale_group_size, (int)get_input_bf_size(params).second, dynamic_quantization_group_size);
+            // printf("!!!! per token dyn-quan(N) : scale_group_size(%u) / input_f(%d) dynamic_quantization_group_size(%u)\n",
+            //         scale_group_size, (int)get_input_bf_size(params).second, dynamic_quantization_group_size);
             return (size_t)dynamic_quantization_group_size;
         }
     }
 
-    printf("!!!! per token dyn-quan(%s) : scale_group_size(%u) / input_f(%d) dynamic_quantization_group_size(%u)\n",
-            ((is_per_token_dynamic_quantize(params) == true) ? "Y" : "N"),
-            scale_group_size, (int)get_input_bf_size(params).second, dynamic_quantization_group_size);
+    // printf("!!!! per token dyn-quan(N) : scale_group_size(%u) / input_f(%d) dynamic_quantization_group_size(%u)\n",
+    //         scale_group_size, (int)get_input_bf_size(params).second, dynamic_quantization_group_size);
 
     return 0;
 }
@@ -163,11 +173,14 @@ static bool should_dynamic_quantize(const fully_connected_params& params, bool p
             return false;
     }
 
+    const size_t scale_group_size = get_scale_group_size(params);
+    if ((scale_group_size % min_quantize_grp_size) != 0)
+        return false;
+
     auto threads = get_input_bf_size(params);
     auto input_b = threads.first;
     auto input_f = threads.second;
 
-    const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
     if ((scale_group_size % simd == 0) && (input_f % dynamic_quantization_group_size == 0) &&
         (params.is_shape_agnostic || (params.inputs[0].Batch().v > 1 && input_b > min_slm_size)) &&
         params.inputs[0].GetDType() == Datatype::F16 && is_weight_dyn_quantizable(params)) {
@@ -185,6 +198,18 @@ static bool should_dynamic_quantize(const fully_connected_params& params, bool p
     }
 
     return false;
+}
+
+static size_t get_match_vector_size(const fully_connected_params& params) {
+    auto block_sizes = { 8, 4, 2 };
+
+    for (auto block_size : block_sizes) {
+        if (((params.inputs[0].X().v * params.inputs[0].Y().v) / simd) % block_size == 0) {
+            return block_size;
+        }
+    }
+
+    return 1;
 }
 
 static bool is_weight_vertical(const fully_connected_params& params, size_t output_f) {
@@ -668,7 +693,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     if (weights_dt == WeightsType::UINT4 || weights_dt == WeightsType::INT4) {
         tile_k_ofm_packed /= 2;
         jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE", weights_dt, tile_k_ofm));
-        const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
+        const size_t scale_group_size = get_scale_group_size(params);
         // Do not use SCALE_POST_OP for SLM kernel, since it demonstrates worse performance
         if (scale_group_size % simd == 0 && !dispatchData.use_slm)
             add_decompress_scale_post_op = true;
@@ -750,6 +775,27 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 1));
         jit.AddConstant(MakeJitConstant("DQ_DECOMPRESSION_SCALE_POST_OP", 1));
         jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", quantize_grp_size));
+        // jit.AddConstant(MakeJitConstant("VEC_SIZE", quantize_grp_size/16));
+
+        // [TEST]
+        // {
+        //     auto vec_size = get_match_vector_size(params);
+        //     auto bf_size = get_input_bf_size(params);
+        //     auto total_block_num = bf_size.second / (simd * vec_size);
+        //     size_t aligned_block_num = (total_block_num > 32) ? Align(total_block_num, 32) : total_block_num;
+        //     size_t block_num = (total_block_num > 32) ? 32 : total_block_num;
+
+        //     jit.AddConstant(MakeJitConstant("VEC_SIZE", vec_size));
+        //     jit.AddConstant(MakeJitConstant("SIMD", simd));
+        //     jit.AddConstant(MakeJitConstant("TOTAL_BLOCK_NUM", total_block_num));
+        //     jit.AddConstant(MakeJitConstant("ALIGNED_BLOCK_NUM", aligned_block_num));
+        //     jit.AddConstant(MakeJitConstant("BLOCK_NUM", block_num));
+        //     jit.Merge(GetTensorFriendlyWorkGroupsJit(params.outputs[0]));
+        // }
+
+        // if (is_per_token_dynamic_quantize(params) && quantize_grp_size == get_input_bf_size(params).second) {
+        //     jit.AddConstant(MakeJitConstant("PER_TOKEN_QUANTIZE_SIZE", 1));
+        // }
     } else {
         if (add_decompress_scale_post_op)
             jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
@@ -887,24 +933,38 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
                     kd.kernels[0].skip_execution = false;
                     size_t input_f = get_input_bf_size(prim_params).second;
                     size_t input_size = input_f * dispatchData.tile_m * dispatchData.gws[2];
+                    OPENVINO_ASSERT(quantize_grp_size != 0, "Error: quantize_grp_size is zero.");
+                    size_t quan_var_size = (input_size / quantize_grp_size) * 4 * 2;
 
-                    printf(">>>> Update-intr-buffer(%s) : input_b(%u) input_f(%u) input_size(%u) quan_group_size(%u) GWS[0](%u) per-token-GWS(%u)\n",
-                            (kd.internalBufferSizes[0] < input_size) ? "Y" : "N",
-                            get_input_bf_size(prim_params).first, input_f, input_size, quantize_grp_size,
-                            (input_size / quantize_grp_size), (input_size / input_f));
+                    // printf(">>>> Update-intr-buffer(%s) : input_b(%u) input_f(%u) input_size(%u) quan_group_size(%u) \
+                    //         GWS[0](%d) per-token-GWS(%d) NUM_LOOP_IN_DYN_QUAN_GROUP(%d)\n",
+                    //         (kd.internalBufferSizes[0] < input_size) ? "Y" : "N",
+                    //         get_input_bf_size(prim_params).first, input_f, input_size, quantize_grp_size,
+                    //         (int)(input_size / quantize_grp_size), (int)(input_size / input_f), (int)(quantize_grp_size / (dispatchData.tile_mk * simd)));
 
-                    if (kd.internalBufferSizes[0] < input_size) {
+                    if (kd.internalBufferSizes[0] < input_size ||
+                        kd.internalBufferSizes[1] < quan_var_size) {
                         kd.internalBufferSizes.clear();
                         // quantized input is char type
                         kd.internalBufferSizes.push_back(input_size);
-                        // half type of de_quan_scale and activation sum for each quantized group
-                        OPENVINO_ASSERT(quantize_grp_size != 0, "Error: quantize_grp_size is zero.");
-                        kd.internalBufferSizes.push_back((input_size / quantize_grp_size) * 4 * 2);
+                        // float type of de_quan_scale and activation sum for each quantized group
+                        kd.internalBufferSizes.push_back(quan_var_size);
                     }
 
                     OPENVINO_ASSERT(quantize_grp_size != 0, "Error: quantize_grp_size is zero.");
-                    kd.kernels[0].params.workGroups.global = {std::max((input_size / quantize_grp_size), (size_t)1), 1, 1};
-                    kd.kernels[0].params.workGroups.local = {16, 1, 1};
+                    kd.kernels[0].params.workGroups.global = {(std::max((input_size / quantize_grp_size), (size_t)1)), 1, 1};
+                    kd.kernels[0].params.workGroups.local = {1, 1, 1};
+                    // [TEST]
+                    // {
+                    //     auto vec_size = get_match_vector_size(prim_params);
+                    //     auto bf_size = get_input_bf_size(prim_params);
+                    //     size_t total_block_num = bf_size.second / (simd * vec_size);
+                    //     size_t batch = get_input_bf_size(prim_params).first;
+                    //     size_t block_num = (total_block_num > 32) ? 32 : total_block_num;
+
+                    //     kd.kernels[0].params.workGroups.global = {simd, block_num, batch};
+                    //     kd.kernels[0].params.workGroups.local = {simd, block_num, 1};
+                    // }
                 }
             }
         };
@@ -1079,8 +1139,22 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
         auto input_size = std::max(fc_params.inputs[0].PhysicalSize(), get_input_bf_size(fc_params).second);
         if (!params.is_shape_agnostic)
             input_size = std::max(input_size, Align(get_input_bf_size(fc_params).first, lws_batches) * get_input_bf_size(fc_params).second);
-        dyn_quan_dispatch.gws = {input_size / quantize_grp_size, 1, 1};
-        dyn_quan_dispatch.lws = {16, 1, 1};
+
+        dyn_quan_dispatch.gws = {(input_size / quantize_grp_size), 1, 1};
+        dyn_quan_dispatch.lws = {1, 1, 1};
+
+        // [TEST]
+        // {
+        //     auto vec_size = get_match_vector_size(fc_params);
+        //     auto bf_size = get_input_bf_size(fc_params);
+        //     size_t total_block_num = bf_size.second / (simd * vec_size);
+        //     size_t batch = get_input_bf_size(fc_params).first;
+        //     size_t block_num = (total_block_num > 32) ? 32 : total_block_num;
+
+        //     dyn_quan_dispatch.gws = {simd, block_num, batch};
+        //     dyn_quan_dispatch.lws = {simd, block_num, 1};
+        // }
+
         quan_kernel.params.workGroups.global = dyn_quan_dispatch.gws;
         quan_kernel.params.workGroups.local = dyn_quan_dispatch.lws;
         quan_kernel.skip_execution = false;
@@ -1105,16 +1179,22 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
                         fc_params.is_shape_agnostic);
 
         quan_kernel.params.arguments.clear();  // Clear original output argument
+        // quan_kernel.params.arguments.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
         quan_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
         quan_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         quan_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         // char type quantized input
         kd.internalBufferSizes.push_back(input_size);
-        // half type of de_quan_scale and activation sum for each quantized group
-        // [TEST]
-        // kd.internalBufferSizes.push_back(input_size / quantize_grp_size * 2 * 2);
+        // float type of de_quan_scale and activation sum for each quantized group
         kd.internalBufferSizes.push_back(input_size / quantize_grp_size * 4 * 2);
         kernel_number++;
+
+        // printf(">>>> Set-buffer : input_b(%u) input_f(%u) input_size(%u) quan_group_size(%u) \
+        //         GWS[0](%d) per-token-GWS(%d) NUM_LOOP_IN_DYN_QUAN_GROUP(%d)\n",
+        //         get_input_bf_size(fc_params).first, get_input_bf_size(fc_params).second, input_size, quantize_grp_size,
+        //         (int)(quan_kernel.params.workGroups.global[0]), (int)(input_size / get_input_bf_size(fc_params).second),
+        //         (int)(quantize_grp_size / (dispatchData.tile_mk * simd)));
+
     }
     // kd.internalBufferDataType = Datatype::F16;
     kd.internalBufferDataType = Datatype::F32;
