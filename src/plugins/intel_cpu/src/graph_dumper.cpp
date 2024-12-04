@@ -358,6 +358,11 @@ void average_counters(const Graph &graph) {
      */
     static int graphIndex = 0;
 
+    if (!graph.getGraphContext()) {
+        DEBUG_LOG("graph.m_context is null. Don't dump average_counters.");
+        return;
+    }
+
     std::ofstream file;
     std::string fileName = graph.getConfig().debugCaps.averageCountersPath + "_" + std::to_string(graphIndex++) + ".csv";
 
