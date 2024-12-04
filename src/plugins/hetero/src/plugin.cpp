@@ -69,6 +69,19 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istrea
     return compiled_model;
 }
 
+std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istream& model,
+                                                                     std::shared_ptr<ov::AlignedBuffer> model_buffer,
+                                                                     const ov::AnyMap& properties) const {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istream& model,
+                                                                     std::shared_ptr<ov::AlignedBuffer> model_buffer,
+                                                                     const ov::SoPtr<ov::IRemoteContext>& context,
+                                                                     const ov::AnyMap& properties) const {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
 ov::hetero::Plugin::DeviceProperties ov::hetero::Plugin::get_properties_per_device(const std::string& device_priorities,
                                                                                    const ov::AnyMap& properties) const {
     auto device_names = ov::DeviceIDParser::get_hetero_devices(device_priorities);

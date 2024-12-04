@@ -246,8 +246,19 @@ void MockPluginBase<DeviceType>::create_implementation() {
         .WillByDefault([](std::istream& model, const ov::AnyMap& properties) -> std::shared_ptr<ov::ICompiledModel> {
             OPENVINO_NOT_IMPLEMENTED;
         });
-    ON_CALL(*this, import_model(testing::_, testing::_, testing::_))
+    ON_CALL(*this, import_model(testing::A<std::istream&>(), testing::A<const ov::SoPtr<ov::IRemoteContext>&>(), testing::A<const ov::AnyMap&>()))
         .WillByDefault([](std::istream& model,
+                          const ov::SoPtr<ov::IRemoteContext>& context,
+                          const ov::AnyMap& properties) -> std::shared_ptr<ov::ICompiledModel> {
+            OPENVINO_NOT_IMPLEMENTED;
+        });
+    ON_CALL(*this, import_model(testing::A<std::istream&>(), testing::A<std::shared_ptr<ov::AlignedBuffer>>(), testing::A<const ov::AnyMap&>()))
+        .WillByDefault([](std::istream& model, std::shared_ptr<ov::AlignedBuffer> model_buffer, const ov::AnyMap& properties) -> std::shared_ptr<ov::ICompiledModel> {
+            OPENVINO_NOT_IMPLEMENTED;
+        });
+    ON_CALL(*this, import_model(testing::_, testing::_, testing::_, testing::_))
+        .WillByDefault([](std::istream& model,
+                          std::shared_ptr<ov::AlignedBuffer> model_buffer,
                           const ov::SoPtr<ov::IRemoteContext>& context,
                           const ov::AnyMap& properties) -> std::shared_ptr<ov::ICompiledModel> {
             OPENVINO_NOT_IMPLEMENTED;

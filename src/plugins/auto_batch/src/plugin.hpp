@@ -53,6 +53,15 @@ public:
                                                      const ov::SoPtr<ov::IRemoteContext>& context,
                                                      const ov::AnyMap& properties) const override;
 
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                     std::shared_ptr<ov::AlignedBuffer> model_buffer,
+                                                     const ov::AnyMap& properties) const override;
+
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                     std::shared_ptr<ov::AlignedBuffer> model_buffer,
+                                                     const ov::SoPtr<ov::IRemoteContext>& context,
+                                                     const ov::AnyMap& properties) const override;
+
 #ifdef AUTOBATCH_UNITTEST
 
 public:

@@ -302,10 +302,24 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return res;
 }
 
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
+                                                         std::shared_ptr<ov::AlignedBuffer> model_buffer,
+                                                         const ov::AnyMap& properties) const {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
+                                                         std::shared_ptr<ov::AlignedBuffer> model_buffer,
+                                                         const ov::SoPtr<ov::IRemoteContext>& context,
+                                                         const ov::AnyMap& properties) const {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model, const ov::AnyMap& config) const {
     std::string device_id = get_device_id(config);
     auto context = get_default_context(device_id);
-    return import_model(model, { context, nullptr }, config);
+    return import_model(model, ov::SoPtr<ov::IRemoteContext>{ context, nullptr }, config);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,

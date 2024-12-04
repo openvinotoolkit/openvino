@@ -473,6 +473,18 @@ public:
         auto ov_model = core.read_model(xmlString, weights);
         return compile_model(ov_model, properties, context);
     }
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                     std::shared_ptr<ov::AlignedBuffer> model_buffer,
+                                                     const ov::AnyMap& properties) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                     std::shared_ptr<ov::AlignedBuffer> model_buffer,
+                                                     const ov::SoPtr<ov::IRemoteContext>& context,
+                                                     const ov::AnyMap& properties) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
 
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const ov::AnyMap& properties) const override {

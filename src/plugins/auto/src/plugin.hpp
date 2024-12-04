@@ -67,6 +67,15 @@ public:
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const override;
 
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                     std::shared_ptr<ov::AlignedBuffer> model_buffer,
+                                                     const ov::AnyMap& properties) const override;
+
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                     std::shared_ptr<ov::AlignedBuffer> model_buffer,
+                                                     const ov::SoPtr<ov::IRemoteContext>& context,
+                                                     const ov::AnyMap& properties) const override;
+
 private:
     std::shared_ptr<ov::ICompiledModel> compile_model_impl(const std::string& model_path,
                                                            const std::shared_ptr<const ov::Model>& model,

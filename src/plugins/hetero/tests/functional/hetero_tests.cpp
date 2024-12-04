@@ -595,6 +595,20 @@ public:
         return res;
     }
 
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                     std::shared_ptr<ov::AlignedBuffer> model_buffer,
+                                                     const ov::AnyMap& properties) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                     std::shared_ptr<ov::AlignedBuffer> model_buffer,
+                                                     const ov::SoPtr<ov::IRemoteContext>& context,
+                                                     const ov::AnyMap& properties) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+
 protected:
     std::string m_default_device_id = "0";
     std::unordered_set<std::string> m_supported_ops;

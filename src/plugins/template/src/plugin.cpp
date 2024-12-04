@@ -127,7 +127,7 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
 // ! [plugin:import_model]
 std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(std::istream& model,
                                                                               const ov::AnyMap& properties) const {
-    return import_model(model, {}, properties);
+    return import_model(model, ov::SoPtr<ov::IRemoteContext>{}, properties);
 }
 // ! [plugin:import_model]
 
@@ -182,6 +182,19 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
     return compiled_model;
 }
 // ! [plugin:import_model_with_remote]
+
+std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(std::istream& model,
+                                                         std::shared_ptr<ov::AlignedBuffer> model_buffer,
+                                                         const ov::AnyMap& properties) const {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(std::istream& model,
+                                                         std::shared_ptr<ov::AlignedBuffer> model_buffer,
+                                                         const ov::SoPtr<ov::IRemoteContext>& context,
+                                                         const ov::AnyMap& properties) const {
+    OPENVINO_NOT_IMPLEMENTED;
+}
 
 // ! [plugin:query_model]
 ov::SupportedOpsMap ov::template_plugin::Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
