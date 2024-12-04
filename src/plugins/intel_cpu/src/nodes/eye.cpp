@@ -28,20 +28,8 @@ bool Eye::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
     return true;
 }
 
-namespace {
-class EyeShapeInferFactory : public ShapeInferFactory {
-public:
-    EyeShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
-    ShapeInferPtr makeShapeInfer() const override {
-        return (m_op->get_input_size() == 4) ? make_shape_inference(m_op)
-                                             : make_shape_inference(m_op, PortMask(Eye::ROWS_NUM, Eye::COLS_NUM));
-    }
-private:
-    std::shared_ptr<ov::Node> m_op;
-};
-} // namespace
-
-Eye::Eye(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) : Node(op, context, EyeShapeInferFactory(op)) {
+Eye::Eye(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
             OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);

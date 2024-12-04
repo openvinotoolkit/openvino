@@ -120,23 +120,6 @@ bool DeconvKey::operator==(const DeconvKey &rhs) const {
     retVal = retVal && *attr.get() == *rhs.attr.get() && implType == rhs.implType;
     return retVal;
 }
-
-/**
- * Deconvolution shape inference factory. It defines the input mask depending on the existence of the `output_shape` input.
- * Since in case it exists, plugin should pass the input data to the shape inference function.
- *
- */
-class DeconfolutionShapeInferFactory : public ShapeInferFactory {
-public:
-    DeconfolutionShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
-
-    ShapeInferPtr makeShapeInfer() const override {
-        const auto port_mask = (m_op->get_input_size() > 2) ? PortMask(2) : EMPTY_PORT_MASK;
-        return make_shape_inference(m_op, port_mask);
-    }
-private:
-    std::shared_ptr<ov::Node> m_op;
-};
 } // namespace
 
 bool Deconvolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
@@ -161,8 +144,8 @@ bool Deconvolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
     return true;
 }
 
-Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op,
-                             const GraphContext::CPtr context) : Node(op, context, DeconfolutionShapeInferFactory(op)) {
+Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     errorPrefix = "Deconvolution node with name '" + getName() + "' ";
     if (!isSupportedOperation(op, errorMessage))

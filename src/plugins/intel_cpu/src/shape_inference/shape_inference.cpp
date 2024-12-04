@@ -610,34 +610,6 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
 #undef _OV_OP_SHAPE_INFER_MASK_REG
 #undef _OV_OP_SHAPE_INFER_VA_REG
 
-class ShapeInferCustomMask : public IShapeInfer {
-public:
-    ShapeInferCustomMask(ShapeInferPtr shape_infer, port_mask_t port_mask)
-        : m_shape_infer{std::move(shape_infer)},
-          m_port_mask{port_mask} {}
-
-    Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                 const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        return m_shape_infer->infer(input_shapes, data_dependency);
-    }
-
-    const ov::CoordinateDiff& get_pads_begin() override {
-        return m_shape_infer->get_pads_begin();
-    }
-
-    const ov::CoordinateDiff& get_pads_end() override {
-        return m_shape_infer->get_pads_end();
-    }
-
-    port_mask_t get_port_mask() const override {
-        return m_port_mask;
-    }
-
-private:
-    const ShapeInferPtr m_shape_infer;
-    const port_mask_t m_port_mask;
-};
-
 std::shared_ptr<IStaticShapeInfer> make_shape_inference(std::shared_ptr<ov::Node> op) {
     if (auto shape_infer = IStaticShapeInferFactory::make(op->get_type_info(), op)) {
         return shape_infer;
@@ -652,8 +624,5 @@ std::shared_ptr<IStaticShapeInfer> make_shape_inference(std::shared_ptr<ov::Node
     }
 }
 
-ShapeInferPtr make_shape_inference(std::shared_ptr<ov::Node> op, IShapeInfer::port_mask_t port_mask) {
-    return std::make_shared<ShapeInferCustomMask>(make_shape_inference(std::move(op)), port_mask);
-}
 }  // namespace intel_cpu
 }  // namespace ov

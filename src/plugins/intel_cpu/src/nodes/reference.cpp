@@ -9,24 +9,14 @@
 namespace ov {
 namespace intel_cpu {
 
-class ReferenceShapeInferFactory : public ShapeInferFactory {
-public:
-    ReferenceShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op{std::move(op)} {}
-
-    ShapeInferPtr makeShapeInfer() const override {
-        return make_shape_inference(m_op, FULL_PORT_MASK);
-    }
-
-private:
-    std::shared_ptr<ov::Node> m_op;
-};
-
 namespace node {
 
 Reference::Reference(const std::shared_ptr<ov::Node>& op,
                      const GraphContext::CPtr& context,
                      const std::string& errorMessage)
-    : Node(op, context, ReferenceShapeInferFactory(op)), ovCoreNode(op), additionalErrorMessage(errorMessage) {
+    : Node(op, context, NgraphShapeInferFactory(op)),
+      ovCoreNode(op),
+      additionalErrorMessage(errorMessage) {
     if (!op->has_evaluate()) {
         OPENVINO_THROW_NOT_IMPLEMENTED(
             "Cannot fallback on ngraph reference implementation (Ngraph::Node::evaluate() is not implemented)");
