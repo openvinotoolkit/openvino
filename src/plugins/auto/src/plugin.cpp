@@ -753,6 +753,19 @@ std::string Plugin::get_device_list(const ov::AnyMap& properties) const {
                 ov::DeviceIDParser parsed{device};
                 std::vector<std::string> device_list = {};
                 try {
+                    if (parsed.get_device_name().find("CPU") != std::string::npos) {
+                        bool enable_startup_cpu =
+                            properties.count(ov::intel_auto::enable_startup_fallback.name())
+                                ? properties.at(ov::intel_auto::enable_startup_fallback.name()).as<bool>()
+                                : true;
+                        bool enable_runtime_cpu =
+                            properties.count(ov::intel_auto::enable_runtime_fallback.name())
+                                ? properties.at(ov::intel_auto::enable_runtime_fallback.name()).as<bool>()
+                                : true;
+                        // Skip to load CPU device if both startup and runtime fallback are disabled
+                        if (!enable_startup_cpu && !enable_runtime_cpu)
+                            continue;
+                    }
                     auto device_id_list = get_core()
                                               ->get_property(parsed.get_device_name(), ov::available_devices.name(), {})
                                               .as<std::vector<std::string>>();
