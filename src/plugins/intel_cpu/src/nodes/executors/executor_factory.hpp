@@ -77,7 +77,7 @@ public:
      * @return A shared pointer to the created Executor.
      */
     ExecutorPtr make(const MemoryArgs& memory) {
-        // only single executor is available and it does not require any fallback
+        // only single executor is available
         if (m_suitableImplementations.size() == 1) {
             auto config = GraphEmitter<Attrs>::createConfig(memory, m_attrs, m_postOps);
 
