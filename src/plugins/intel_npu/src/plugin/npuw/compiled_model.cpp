@@ -471,6 +471,23 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     report_io();
 }
 
+void ov::npuw::CompiledModel::serialize(const std::string& path) const {
+    LOG_INFO("Serializing CompiledModel...");
+    LOG_BLOCK();
+
+
+    LOG_INFO("Done.");
+}
+
+void ov::npuw::CompiledModel::deserialize(const std::string& path) {
+    LOG_INFO("Deserializing CompiledModel...");
+    LOG_BLOCK();
+
+
+    implement_properties();
+    LOG_INFO("Done.");
+}
+
 void ov::npuw::CompiledModel::finalize_weights_bank() {
     LOG_INFO("Finalizing weights bank...");
     // Register lazy tensors

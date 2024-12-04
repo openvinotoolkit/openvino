@@ -247,6 +247,15 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     split_llm_properties(properties, npuw_llm_props, other_props);
     m_cfg.update(any_copy(npuw_llm_props));
 
+    // FIXME: is this the right constructor to do so.
+    // Should it be after properties initialization?
+    auto deserialize_path = m_cfg.getString<::intel_npu::NPUW_DESERIALIZE_PATH>();
+    if (!deserialize_path.empty()) {
+        deserialize(deserialize_path);
+        implement_properties();
+        return;
+    }
+
     LOG_DEBUG("1. Creating kvcache model as clone of passed one.");
     auto kvcache_model = model->clone();
     LOG_DEBUG("2. Transform kvcache model from stateful to stateless.");
@@ -291,7 +300,33 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     m_prefill_compiled = std::make_shared<ov::npuw::CompiledModel>(prefill_model, plugin, prefill_config);
 
     implement_properties();
+
+    auto serialize_path = m_cfg.getString<::intel_npu::NPUW_SERIALIZE_PATH>();
+    if (!serialize_path.empty()) {
+        serialize(serialize_path);
+    }
+
     LOG_DEBUG("Done");
+}
+
+void ov::npuw::LLMCompiledModel::serialize(const std::string& path) const {
+    LOG_INFO("Serializing LLMCompiledModel...");
+    LOG_BLOCK();
+
+    m_kvcache_compiled->serialize(path);
+    m_prefill_compiled->serialize(path);
+
+    LOG_INFO("Done.");
+}
+
+void ov::npuw::LLMCompiledModel::deserialize(const std::string& path) {
+    LOG_INFO("Deserializing LLMCompiledModel...");
+    LOG_BLOCK();
+
+    m_kvcache_compiled->deserialize(path);
+    m_prefill_compiled->deserialize(path);
+
+    LOG_INFO("Done.");
 }
 
 void ov::npuw::LLMCompiledModel::export_model(std::ostream& model) const {

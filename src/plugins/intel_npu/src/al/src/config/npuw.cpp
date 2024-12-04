@@ -43,6 +43,8 @@ void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
     desc.add<NPUW_WEIGHTS_BANK>();
     desc.add<NPUW_WEIGHTS_BANK_ALLOC>();
     desc.add<NPUW_CACHE_DIR>();
+    desc.add<NPUW_SERIALIZE_PATH>();
+    desc.add<NPUW_DESERIALIZE_PATH>();
     desc.add<NPUW_ACC_CHECK>();
     desc.add<NPUW_ACC_THRESH>();
     desc.add<NPUW_ACC_DEVICE>();

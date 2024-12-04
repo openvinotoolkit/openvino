@@ -41,13 +41,16 @@ private:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     void implement_properties();
 
-    std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
-    ::intel_npu::Config m_cfg;
-    GetPropertiesMap m_prop_to_opt;
+    void serialize(const std::string& path) const;
+    void deserialize(const std::string& path);
 
-    KVCacheDesc m_kvcache_desc;
-    std::shared_ptr<ov::npuw::CompiledModel> m_kvcache_compiled;
-    std::shared_ptr<ov::npuw::CompiledModel> m_prefill_compiled;
+    std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc; // no ser
+    ::intel_npu::Config m_cfg; // no ser ?
+    GetPropertiesMap m_prop_to_opt; // no ser ?
+
+    KVCacheDesc m_kvcache_desc; // yes ser
+    std::shared_ptr<ov::npuw::CompiledModel> m_kvcache_compiled; // yes ser
+    std::shared_ptr<ov::npuw::CompiledModel> m_prefill_compiled; // yes ser
 };
 
 }  // namespace npuw
