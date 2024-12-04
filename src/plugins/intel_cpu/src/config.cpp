@@ -358,6 +358,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             }
         } else if (key == ov::hint::kv_cache_precision.name()) {
             try {
+                kvCachePrecisionSetExplicitly = true;
                 auto const prec = val.as<ov::element::Type>();
                 if (one_of(prec, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8)) {
                     kvCachePrecision = prec;
@@ -411,6 +412,9 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         if (!fcDynamicQuantizationGroupSizeSetExplicitly) {
             fcDynamicQuantizationGroupSize = 0;
         }
+        if (!kvCachePrecisionSetExplicitly) {
+            kvCachePrecision = ov::element::f32;
+        }
     }
 
     if (!prop.empty())
@@ -454,10 +458,11 @@ void Config::updateProperties() {
 }
 
 void Config::applyRtInfo(const std::shared_ptr<const ov::Model>& model) {
-    if (model->has_rt_info({"runtime_options", ov::hint::kv_cache_precision.name()})) {
+    // if user sets explicitly, it will be higher priority than rt_info
+    if (!kvCachePrecisionSetExplicitly && model->has_rt_info({"runtime_options", ov::hint::kv_cache_precision.name()})) {
         this->kvCachePrecision = model->get_rt_info<ov::element::Type>({"runtime_options", ov::hint::kv_cache_precision.name()});
     }
-    if (model->has_rt_info({"runtime_options", ov::hint::dynamic_quantization_group_size.name()})) {
+    if (!fcDynamicQuantizationGroupSizeSetExplicitly && model->has_rt_info({"runtime_options", ov::hint::dynamic_quantization_group_size.name()})) {
         this->fcDynamicQuantizationGroupSize =
             model->get_rt_info<uint64_t>({"runtime_options", ov::hint::dynamic_quantization_group_size.name()});
     }
