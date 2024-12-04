@@ -148,7 +148,6 @@ void CumuSchedule::init() {
         // initialize containers before run async task, if not initialized, it will hang during infer
         m_idle_worker_requests[device.device_name];
         m_worker_requests[device.device_name];
-        m_worker_requests_conds[device.device_name];
         m_infer_pipeline_tasks_device_specific[device.device_name] = nullptr;
     }
     // load devices other than CPU first
@@ -248,11 +247,7 @@ bool CumuSchedule::schedule_to_worker_infer_request(ov::threading::Task pipeline
         }
         auto selected_device_name =
             preferred_device.empty() ? schedule_to_next_device(devices, current_device_index) : preferred_device;
-        if (run_pipeline_task(pipeline_task,
-                              m_idle_worker_requests[selected_device_name],
-                              preferred_device,
-                              m_worker_requests_conds[selected_device_name],
-                              m_worker_infer_mutex)) {
+        if (run_pipeline_task(pipeline_task, m_idle_worker_requests[selected_device_name], preferred_device)) {
             return true;
         } else {
             current_device_index++;

@@ -29,11 +29,8 @@ public:
 
 protected:
     virtual void init() = 0;
-    static bool run_pipeline_task(ov::threading::Task& pipeline_task,
-                                  NotBusyPriorityWorkerRequests& idle_worker_request,
-                                  const DeviceName& preferred_device,
-                                  std::condition_variable& idle_worker_request_cv,
-                                  std::mutex& mutex);
+    static bool run_pipeline_task(ov::threading::Task& pipeline_task, NotBusyPriorityWorkerRequests& idle_worker_request,
+                                  const DeviceName& preferred_device);
     virtual void generate_workers(const std::string& device, const SoCompiledModel& compiled_model);
     virtual void try_to_compile_model(AutoCompileContext& context, const std::shared_ptr<ov::Model>& model) = 0;
     virtual bool schedule_to_worker_infer_request(ov::threading::Task, DeviceName preferred_device = "") = 0;
@@ -43,7 +40,6 @@ protected:
     std::shared_ptr<ov::threading::IStreamsExecutor>                     m_executor;
     DeviceMap<NotBusyPriorityWorkerRequests>                             m_idle_worker_requests;
     DeviceMap<std::vector<WorkerInferRequest>>                           m_worker_requests;
-    DeviceMap<std::condition_variable>                                   m_worker_requests_conds;
     TaskQueue                                                            m_infer_pipeline_tasks;
     DeviceMap<std::unique_ptr<TaskQueue>>                                m_infer_pipeline_tasks_device_specific;
     SoCompiledModel                                                      m_passthrough_compiled_model;
@@ -54,7 +50,6 @@ protected:
     mutable std::atomic<std::size_t>                                     m_request_id = {0};
     std::mutex                                                           m_dev_infer_mutex;
     std::unordered_map<IASyncInferPtr, WorkerInferRequest*>              m_dev_infer;
-    std::mutex                                                           m_worker_infer_mutex;
 };
 
 }  // namespace auto_plugin

@@ -53,20 +53,10 @@ void Schedule::run(ov::threading::Task pipeline_task) {
 
 bool Schedule::run_pipeline_task(ov::threading::Task& pipeline_task,
                                  NotBusyPriorityWorkerRequests& idle_workerrequests,
-                                 const DeviceName& preferred_device,
-                                 std::condition_variable& idle_workerrequests_cv,
-                                 std::mutex& worker_infer_mutex) {
+    const DeviceName& preferred_device) {
     WorkerInferRequest* worker_request_ptr = nullptr;
     std::pair<int, WorkerInferRequest*> worker;
-    {
-        std::unique_lock<std::mutex> lck(worker_infer_mutex);
-        if (!idle_workerrequests.try_pop(worker)) {
-            idle_workerrequests_cv.wait(lck, [&idle_workerrequests, &worker] {
-                return idle_workerrequests.try_pop(worker);
-            });
-        }
-    }
-    if (worker.second) {
+    if (idle_workerrequests.try_pop(worker)) {
         worker_request_ptr = worker.second;
         IdleGuard<NotBusyPriorityWorkerRequests> idle_guard{worker_request_ptr, idle_workerrequests};
         m_this_worker_infer_request = worker_request_ptr;
@@ -95,13 +85,15 @@ void Schedule::generate_workers(const std::string& device, const SoCompiledModel
         OPENVINO_THROW("Every device used with AUTO should support query optimal_number_of_infer_requests property from compiled model ",
                     iie.what());
     }
-    auto num_requests =
-        (m_context->m_device_priorities.end() == it_numrequests || it_numrequests->num_requests_per_devices == -1)
-            ? optimal_num
-            : it_numrequests->num_requests_per_devices;
+    auto num_requests = (m_context->m_device_priorities.end() == it_numrequests ||
+                              it_numrequests->num_requests_per_devices == -1) ? optimal_num : it_numrequests->num_requests_per_devices;
+    // If the user creates only one infer request, we need to ensure at least 2 requests per device.
+    // This is necessary to handle the case where a request worker is popped from the idle queue before being pushed back.
+    // Without at least 2 requests, there could be a situation where no requests are available for inference,
+    // leading to potential deadlocks.
+    num_requests = num_requests <= 1 ? 2 : num_requests;
     auto& worker_requests = m_worker_requests[device];
     auto& idle_worker_requests = m_idle_worker_requests[device];
-    auto& worker_requests_cv = m_worker_requests_conds[device];
     worker_requests.resize(num_requests);
     m_infer_pipeline_tasks_device_specific[device] = std::unique_ptr<TaskQueue>(new TaskQueue);
     auto* idle_workerrequests_ptr = &(idle_worker_requests);
@@ -111,11 +103,9 @@ void Schedule::generate_workers(const std::string& device, const SoCompiledModel
         worker_request.m_inferrequest = {compiled_model->create_infer_request(), compiled_model._so};
         auto* worker_request_ptr = &worker_request;
         worker_request_ptr->m_index = num++;
-        OPENVINO_ASSERT(
-            idle_worker_requests.try_push(std::make_pair(worker_request_ptr->m_index, worker_request_ptr)) == true);
+        OPENVINO_ASSERT(idle_worker_requests.try_push(std::make_pair(worker_request_ptr->m_index, worker_request_ptr)) == true);
         worker_request.m_inferrequest->set_callback(
-            [worker_request_ptr, this, device, idle_workerrequests_ptr, &worker_requests_cv](
-                std::exception_ptr exception_ptr) mutable {
+            [worker_request_ptr, this, device, idle_workerrequests_ptr](std::exception_ptr exception_ptr) mutable {
                 IdleGuard<NotBusyPriorityWorkerRequests> idleGuard{worker_request_ptr, *idle_workerrequests_ptr};
                 worker_request_ptr->m_exception_ptr = std::move(exception_ptr);
                 {
@@ -143,12 +133,10 @@ void Schedule::generate_workers(const std::string& device, const SoCompiledModel
                     } else {
                         stop_retry_and_continue();
                     }
-                    std::unique_lock<std::mutex> lck(m_worker_infer_mutex);
-                    if (idleGuard.release()->try_push(
-                            std::make_pair(worker_request_ptr->m_index, worker_request_ptr))) {
-                        // let's try to pop a task, as we know there is at least one idle request, schedule if
-                        // succeeded if no device-agnostic tasks, let's try pop the device specific task, schedule
-                        // if succeeded
+                    // try to return the request to the idle list (fails if the overall object destruction has began)
+                    if (idleGuard.release()->try_push(std::make_pair(worker_request_ptr->m_index, worker_request_ptr))) {
+                        // let's try to pop a task, as we know there is at least one idle request, schedule if succeeded
+                        // if no device-agnostic tasks, let's try pop the device specific task, schedule if succeeded
                         ov::threading::Task t;
                         do {
                             m_infer_pipeline_tasks.try_pop(t);
@@ -156,7 +144,6 @@ void Schedule::generate_workers(const std::string& device, const SoCompiledModel
                         do {
                             m_infer_pipeline_tasks_device_specific[device]->try_pop(t);
                         } while (t && schedule_to_worker_infer_request(std::move(t), device));
-                        worker_requests_cv.notify_all();
                     }
                 }
             });
