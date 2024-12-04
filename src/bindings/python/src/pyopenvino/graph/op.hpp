@@ -15,6 +15,8 @@ class PyOp : public ov::op::Op {
 public:
     using ov::op::Op::Op;
 
+    PyOp() = default;
+
     // Keeps a reference to the Python object to manage its lifetime
     PyOp(const py::object& py_obj) : py_handle(py_obj) {}
 
