@@ -327,6 +327,13 @@ ref_diff_map = {
 	# 	"ReadValue" : -4,
 	# 	"ScaledDotProductAttention" : -2,
 	# },
+    "hf-internal-testing/tiny-random-GPTNeoForCausalLM" : {
+		"ScaledDotProductAttention" : -4,
+		"ReadValue" : -8,
+		"PagedAttentionExtension" : 4,
+		"Parameter" : 11,
+		"Assign" : -8,
+    }
 }
 
 
@@ -653,4 +660,12 @@ ref_diff_map_cache_eviction = {
 	# 	"ReadValue" : -4,
 	# 	"ScaledDotProductAttention" : -2,
 	# },
+
+    "hf-internal-testing/tiny-random-GPTNeoForCausalLM" : {
+		"ScaledDotProductAttention" : -4,
+		"ReadValue" : -8,
+		"PagedAttentionExtension" : 4,
+		"Parameter" : 22,
+		"Assign" : -8,
+    }
 }
