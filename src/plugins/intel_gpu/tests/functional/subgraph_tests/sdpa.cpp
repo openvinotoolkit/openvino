@@ -18,6 +18,8 @@
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 #include "openvino/pass/manager.hpp"
 
+#include "opencl_helper.hpp"
+
 namespace {
 // validate the batch axis padding for sdpa_micro kernel.
 class SDPA : virtual public ov::test::SubgraphBaseStaticTest {
@@ -63,6 +65,10 @@ protected:
 };
 
 TEST_F(SDPA, Inference) {
+    if (!tests::is_supported_sdpa_micro_kernel(ov::test::utils::DEVICE_GPU)) {
+        GTEST_SKIP();
+    }
+
     run();
 }
 }  // namespace
