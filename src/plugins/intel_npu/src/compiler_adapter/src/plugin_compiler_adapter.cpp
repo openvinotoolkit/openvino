@@ -121,7 +121,7 @@ std::vector<std::shared_ptr<IGraph>> PluginCompilerAdapter::compileWS(const std:
     const auto isInit = [&](std::string name) {
         return starts_with(name, "init");
     };
-    
+
     const auto isMain = [&](std::string name) {
         return starts_with(name, "main");
     };
@@ -135,18 +135,15 @@ std::vector<std::shared_ptr<IGraph>> PluginCompilerAdapter::compileWS(const std:
         mainNetworkDescription = initMainNetworkDescriptions[1];
     } break;
     case 2: {
-        // initNetworkDescription = _compiler->compileWS_v2(model, config);
-        // mainNetworkDescription = _compiler->compileWS_v2(model, config);
-
         std::vector<std::shared_ptr<NetworkDescription>> initDscrs;
-        while(auto networkDescription = _compiler->compileWS_v2(model, config)) {
-            if(isInit(networkDescription->metadata.name)) {
+        while (auto networkDescription = _compiler->compileWS_v2(model, config)) {
+            if (isInit(networkDescription->metadata.name)) {
                 initDscrs.push_back(networkDescription);
                 continue;
             }
-            if(!isMain(networkDescription->metadata.name)) {
-                throw std::runtime_error("Unexpected network name: " + networkDescription->metadata.name);
-            }
+            OPENVINO_ASSERT(isMain(networkDescription->metadata.name),
+                            "Unexpected network name: ",
+                            networkDescription->metadata.name);
 
             mainNetworkDescription = std::move(networkDescription);
             break;
@@ -156,19 +153,16 @@ std::vector<std::shared_ptr<IGraph>> PluginCompilerAdapter::compileWS(const std:
         initNetworkDescription = std::move(initDscrs[0]);
     } break;
     case 3: {
-        //initNetworkDescription = _compiler->compileWS_v3(model, config, 0);
-        //mainNetworkDescription = _compiler->compileWS_v3(model, config, 1);
-
         std::vector<std::shared_ptr<NetworkDescription>> initDscrs;
         size_t i = 0;
-        while(auto networkDescription = _compiler->compileWS_v3(model, config, i++)) {
-            if(isInit(networkDescription->metadata.name)) {
+        while (auto networkDescription = _compiler->compileWS_v3(model, config, i++)) {
+            if (isInit(networkDescription->metadata.name)) {
                 initDscrs.push_back(networkDescription);
                 continue;
             }
-            if(!isMain(networkDescription->metadata.name)) {
-                throw std::runtime_error("Unexpected network name: " + networkDescription->metadata.name);
-            }
+            OPENVINO_ASSERT(isMain(networkDescription->metadata.name),
+                            "Unexpected network name: ",
+                            networkDescription->metadata.name);
 
             mainNetworkDescription = std::move(networkDescription);
             break;
