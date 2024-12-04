@@ -301,9 +301,19 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
                                                    ? m_plugin_config.parse_priorities_devices(
                                                          arguments.at(ov::device::priorities.name()).as<std::string>())
                                                    : get_core()->get_available_devices();
+        bool enable_startup_cpu = arguments.count(ov::intel_auto::enable_startup_fallback.name())
+                                      ? arguments.at(ov::intel_auto::enable_startup_fallback).as<bool>()
+                                      : true;
+        bool enable_runtime_cpu = arguments.count(ov::intel_auto::enable_runtime_fallback.name())
+                                      ? arguments.at(ov::intel_auto::enable_runtime_fallback).as<bool>()
+                                      : true;
+        bool enable_cpu = enable_startup_cpu || enable_runtime_cpu;
         std::vector<std::string> capabilities;
         for (auto const& device : device_list) {
             auto real_device = device[0] == '-' ? device.substr(1) : device;
+            if (real_device.find("CPU") != std::string::npos && !enable_cpu) {
+                continue;
+            }
             try {
                 auto devCapabilities = get_core()->get_property(real_device, ov::device::capabilities);
                 capabilities.insert(capabilities.end(), devCapabilities.begin(), devCapabilities.end());
