@@ -104,8 +104,8 @@ public:
 
     void stop() {
         if (m_active) {
-            auto end_time = m_clock.now();
-            m_last_time = end_time - m_start_time;
+            m_end_time = m_clock.now();
+            m_last_time = m_end_time - m_start_time;
             m_active = false;
         }
     }
@@ -122,9 +122,17 @@ public:
         return std::chrono::duration_cast<std::chrono::milliseconds>(get_timer_value()).count();
     }
 
+    std::chrono::nanoseconds get_start_time() const {
+        return std::chrono::duration_cast<std::chrono::nanoseconds>(m_start_time.time_since_epoch());
+    }
+
+    std::chrono::nanoseconds get_end_time() const {
+        return std::chrono::duration_cast<std::chrono::nanoseconds>(m_end_time.time_since_epoch());
+    }
+
 private:
     std::chrono::high_resolution_clock m_clock;
-    std::chrono::time_point<std::chrono::high_resolution_clock> m_start_time;
+    std::chrono::time_point<std::chrono::high_resolution_clock> m_start_time, m_end_time;
     bool m_active = false;
     std::chrono::nanoseconds m_last_time = std::chrono::high_resolution_clock::duration::zero();
 };
@@ -221,6 +229,8 @@ public:
                 if (is_pass_manager) {
                     m_file << "m;" << name << ";" << stopwatch.get_timer_value().count() << ";" << (applied ? "1" : "0")
                            << std::endl;
+                    m_file << "m_start;" << name << ";" << stopwatch.get_start_time().count() << std::endl;
+                    m_file << "m_end;" << name << ";" << stopwatch.get_end_time().count() << std::endl;
                 } else {
                     m_file << "t;" << name << ";" << m_manager_name << ";" << stopwatch.get_timer_value().count() << ";"
                            << (applied ? "1" : "0") << std::endl;
@@ -335,16 +345,18 @@ bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
 
     bool model_changed = false;
     bool pass_changed_model = false;
+    bool needs_validate = false;
 
     profiler.start_timer(m_name);
     for (const auto& pass : m_pass_list) {
         const auto& pass_name = pass->get_name();
 
         profiler.start_timer(pass_name);
-        pass_changed_model = run_pass(pass, model, pass_changed_model);
+        pass_changed_model = run_pass(pass, model, needs_validate);
         profiler.stop_timer(pass_name, pass_changed_model);
 
         model_changed = model_changed || pass_changed_model;
+        needs_validate = needs_validate || pass_changed_model;
 
         profiler.visualize(model, pass_name);
         profiler.serialize(model, pass_name);
@@ -356,7 +368,7 @@ bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
 
 bool ov::pass::Manager::run_pass(const std::shared_ptr<PassBase>& pass,
                                  const std::shared_ptr<Model>& model,
-                                 bool needs_validate) {
+                                 bool& needs_validate) {
     if (m_pass_config->is_disabled(pass->get_type_info())) {
         OPENVINO_DEBUG("Pass ", pass->get_name(), " is disabled.");
         return false;
@@ -378,8 +390,11 @@ bool ov::pass::Manager::run_pass(const std::shared_ptr<PassBase>& pass,
         // GraphRewrite is a temporary container for MatcherPass to make execution on entire ov::Model
         return GraphRewrite(matcher_pass).run_on_model(model);
     } else if (auto model_pass = std::dynamic_pointer_cast<ModelPass>(pass)) {
-        if (std::dynamic_pointer_cast<ov::pass::Validate>(model_pass) && !needs_validate) {
-            return false;
+        if (std::dynamic_pointer_cast<ov::pass::Validate>(model_pass)) {
+            if (!needs_validate) {
+                return false;
+            }
+            needs_validate = false;
         }
         return model_pass->run_on_model(model);
     }
