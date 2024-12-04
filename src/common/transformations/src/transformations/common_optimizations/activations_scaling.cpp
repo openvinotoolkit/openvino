@@ -204,10 +204,12 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
 
 // ScaleDownFusion merges multiple scale_down layers into one.
 //
-//               input                      Mul_c
+//               input                      input
 //               /   \           ==>          |
-//           Mul_a   Mul_b                  input
-ov::pass::activations_scaling::ScaleDownFusion::ScaleDownFusion(float scale_factor) {
+//           Mul_a   Mul_b                  Mul_a
+//             |       |                    /   |
+//           op_a    op_b                op_a  op_b
+ov::pass::activations_scaling::ScaleDownFusion::ScaleDownFusion() {
     MATCHER_SCOPE(ScaleDownFusion);
 
     const auto is_scale_down_mul = [](const ov::Output<ov::Node>& output) -> bool {
@@ -229,9 +231,8 @@ ov::pass::activations_scaling::ScaleDownFusion::ScaleDownFusion(float scale_fact
         auto children = parent->get_users();
         size_t num_scaled_down_nodes = 0;
         for (const auto& child : children) {
-            if (!is_scale_down_node(child))
-                return false;
-            num_scaled_down_nodes += 1;
+            if (is_scale_down_node(child))
+                num_scaled_down_nodes += 1;
         }
 
         if (num_scaled_down_nodes < 2)
@@ -240,24 +241,11 @@ ov::pass::activations_scaling::ScaleDownFusion::ScaleDownFusion(float scale_fact
         if (transformation_callback(mul))
             return false;
 
-        if (!ov::is_type<ov::op::v0::Convert>(parent) && !ov::is_type<ov::op::v1::Divide>(parent) &&
-            !ov::is_type<ov::op::v1::Multiply>(parent) && !ov::is_type<ov::op::v1::Reshape>(parent)) {
-            return false;
-        }
-
-        ov::Shape scale_shape = {};
-        std::vector<float> scale_down_value = {1.f / scale_factor};
-
-        auto new_scale_down = std::make_shared<ov::op::v1::Multiply>(
-            parent->input(0).get_source_output(),
-            std::make_shared<ov::op::v0::Constant>(parent->input(0).get_element_type(), scale_shape, scale_down_value));
-        new_scale_down->set_friendly_name(parent->get_friendly_name() + "_scale_down");
-        ov::copy_runtime_info(parent, new_scale_down);
-        parent->input(0).replace_source_output(new_scale_down->output(0));
-
         for (const auto& child : children) {
-            for (auto& target : child->get_output_target_inputs(0)) {
-                target.replace_source_output(parent->output(0));
+            if (is_scale_down_node(child)) {
+                for (auto& target : child->get_output_target_inputs(0)) {
+                    target.replace_source_output(mul->output(0));
+                }
             }
         }
 

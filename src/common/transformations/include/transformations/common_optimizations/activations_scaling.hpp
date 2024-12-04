@@ -53,7 +53,7 @@ public:
 class ov::pass::activations_scaling::ScaleDownFusion : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ScaleDownFusion", "0");
-    ScaleDownFusion(float scale_factor);
+    ScaleDownFusion();
 };
 
 class ov::pass::activations_scaling::MulGroupNormTransformation : public ov::pass::MatcherPass {
