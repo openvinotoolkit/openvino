@@ -17,6 +17,7 @@
 #include "shared_test_classes/base/utils/compare_results.hpp"
 #include "subgraphs_builders.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
+#include "opencl_helper.hpp"
 
 namespace {
 using ov::test::InputShape;
@@ -42,6 +43,10 @@ public:
 #if defined(ANDROID)
         GTEST_SKIP();
 #endif
+        if (!tests::is_supported_sdpa_micro_kernel(ov::test::utils::DEVICE_GPU)) {
+            GTEST_SKIP();
+        }
+
         auto core = ov::test::utils::PluginCache::get().core();
 
         ov::AnyMap properties = {ov::hint::inference_precision(ov::element::f16),

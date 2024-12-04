@@ -8,7 +8,7 @@
 
 namespace tests {
 
-bool is_supported_sdpa_micro_kernel(const char* device_id) {
+inline bool is_supported_sdpa_micro_kernel(const char* device_id) {
     // Get list of OpenCL platforms.
     std::vector<cl::Platform> platform;
     cl::Platform::get(&platform);
