@@ -154,10 +154,13 @@ std::vector<std::shared_ptr<IGraph>> PluginCompilerAdapter::compileWS(const std:
     } break;
     case 3: {
         std::vector<std::shared_ptr<NetworkDescription>> initDscrs;
+        const std::shared_ptr<ov::Model> originalModel = model->clone();
+        std::shared_ptr<ov::Model> targetModel = model;
         size_t i = 0;
-        while (auto networkDescription = _compiler->compileWS_v3(model, config, i++)) {
+        while (auto networkDescription = _compiler->compileWS_v3(targetModel, config, i++)) {
             if (isInit(networkDescription->metadata.name)) {
                 initDscrs.push_back(networkDescription);
+                targetModel = originalModel->clone();
                 continue;
             }
             OPENVINO_ASSERT(isMain(networkDescription->metadata.name),
