@@ -112,7 +112,7 @@ private:
     Xbyak::Opmask k_mask = Xbyak::Opmask(7);
     Xbyak::Opmask k_mask_one = Xbyak::Opmask(6);
 
-    std::shared_ptr<dnnl::impl::cpu::x64::jit_uni_eltwise_injector_f32<isa>> exp_injector;
+    std::shared_ptr<dnnl::impl::cpu::x64::jit_uni_eltwise_injector<isa>> exp_injector;
 
     inline void hard_nms();
 
