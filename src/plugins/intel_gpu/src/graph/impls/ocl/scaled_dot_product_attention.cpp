@@ -57,20 +57,34 @@ struct scaled_dot_product_attention_impl : multi_stage_primitive<scaled_dot_prod
 
 protected:
     std::vector<layout> get_internal_buffer_layouts_impl() const override {
-        // TODO: current implementation is supposed to have the same kernel version for both indirect/default paths,
-        // considering this, we may assume that both indirect/default kernels have absolutely the same intermediate
-        // buffers number and its' sizes (since update_dispatch_data is called for both kernels too), and
-        // do not double memory allocations during reallocate_if_needed() function call
+        // Look for the first sdpa_opt kernel entry. Currently, it can be used as default sdpa, indirect sdpa, or for both default
+        // and indirect cases. All of sdpa_opt kernels use the same internal buffers, so we can find the first sdpa_opt and
+        // use its` internal buffers configuration. The following scenarios are possible:
+        // 1) _kernels_data[0] - micro_sdpa (default)
+        //   => internal buffers are not needed
+        // 2) _kernels_data[0] - sdpa_opt (default)
+        //   => use internal buffers from [0] kernel
+        // 2) _kernels_data[0] - sdpa_opt (default)
+        //    _kernels_data[1] - sdpa_opt (indirect)
+        //   => use internal buffers from [0] kernel
+        // 3) _kernels_data[0] - micro_sdpa (default)
+        //    _kernels_data[1] - sdpa_opt (indirect)
+        //   => use internal buffers from [1] kernel
+        size_t kernel_idx = _kernels_data.size();
+        if (_kernels_data.size() >= 1 && !_kernels_data[0].internalBufferSizes.empty()) {
+            kernel_idx = 0;
+        } else if (_kernels_data.size() >= 2 && !_kernels_data[1].internalBufferSizes.empty()) {
+            kernel_idx = 1;
+        }
+
         std::vector<layout> layouts;
-        for (size_t i = 0; i < _kernels_data.size(); i++) {
-            if (!_kernels_data[i].internalBufferSizes.empty()) {
-                auto dtype = from_data_type(_kernels_data[i].internalBufferDataType);
-                const auto bpp = data_type_traits::size_of(dtype);
-                for (auto size : _kernels_data[i].internalBufferSizes) {
-                    layout inbuf_layout = {dtype, format::bfyx, // simple linear format (flattern to x channel)
-                                            {1, 1, 1, (tensor::value_type)(size / bpp)}};
-                    layouts.push_back(inbuf_layout);
-                }
+        if (kernel_idx < _kernels_data.size()) {
+            auto dtype = from_data_type(_kernels_data[kernel_idx].internalBufferDataType);
+            const auto bpp = data_type_traits::size_of(dtype);
+            for (auto size : _kernels_data[kernel_idx].internalBufferSizes) {
+                layout inbuf_layout = {dtype, format::bfyx, // simple linear format (flattern to x channel)
+                                        {1, 1, 1, (tensor::value_type)(size / bpp)}};
+                layouts.push_back(inbuf_layout);
             }
         }
 
@@ -332,7 +346,7 @@ public:
         }
 
         if (indirect && has_indirect_inputs(impl_param)) {
-            params.beam_table.SetDynamicShapeOffset(get_beam_table_id(desc));
+            params.beam_table.SetDynamicShapeOffset(in_offsets_map.at(get_beam_table_id(desc)));
         }
 
         return params;
