@@ -212,7 +212,6 @@ jobs:
             tar -cvf - \
               tests/ov_cpu_func_tests \
               tests/libopenvino_template_extension.so \
-              tests/libze_loader.so* \
               tests/libhwloc* \
               tests/libtbb* \
               tests/functional_test_utils/layer_tests_summary/* \
