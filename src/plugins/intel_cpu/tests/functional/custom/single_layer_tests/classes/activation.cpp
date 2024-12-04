@@ -80,11 +80,6 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
         startFrom = 0;
         range = 2;
         resolution = 1;
-    } else if (activationType == utils::ActivationTypes::RoundHalfAwayFromZero ||
-               activationType == utils::ActivationTypes::RoundHalfToEven) {
-        startFrom = -10;
-        range = 20;
-        resolution = 128;
     } else {
         startFrom = 0;
         range = 15;
@@ -197,8 +192,6 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         (activation_type == utils::ActivationTypes::GeluErf) ||
         (activation_type == utils::ActivationTypes::GeluTanh) ||
         (activation_type == utils::ActivationTypes::Relu) ||
-        (activation_type == utils::ActivationTypes::RoundHalfToEven) ||
-        (activation_type == utils::ActivationTypes::RoundHalfAwayFromZero) ||
         (activation_type == utils::ActivationTypes::Sigmoid) ||
         (activation_type == utils::ActivationTypes::SoftSign) ||
         (activation_type == utils::ActivationTypes::Sqrt) ||
@@ -261,8 +254,6 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {PReLu,                 {{-0.01f}}},
         {GeluErf,               {{}}},
         {GeluTanh,              {{}}},
-        {RoundHalfToEven,       {{}}},
-        {RoundHalfAwayFromZero, {{}}},
         {SoftSign,              {{}}},
         {SoftPlus,              {{}}},
         {IsFinite,              {{}}},
