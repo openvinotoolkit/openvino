@@ -47,13 +47,13 @@ KERNEL(quantize_input)(
 
     half quan_scale = (half)max_value / 127;
     #if COMPRESSED_WEIGHTS_INT8
-        half quantized_sum = 0;
+        int quantized_sum = 0;
     #endif
     for (uint i = 0 ; i < quantize_block ; ++i) {
         half4 buff = input_0[i] / (half4)quan_scale;
         quantized_value[i] = CAT(CAT(convert_, MAKE_VECTOR_TYPE(DQ_TYPE, INPUT_LOAD_SIZE)), _rte)(buff);
         #if COMPRESSED_WEIGHTS_INT8
-            quantized_sum += (buff[0] + buff[1] + buff[2] + buff[3]);
+            quantized_sum += quantized_value[i][0] + quantized_value[i][1] + quantized_value[i][2] + quantized_value[i][3];
         #endif
         vstore4(quantized_value[i], 0, &quantized_input[input_offset + i * 4]);
     }
@@ -61,7 +61,7 @@ KERNEL(quantize_input)(
     // Pair of quantizing_scale and quantized activation_sum for each group
     quan_var[offset * 2] = quan_scale;
     #if COMPRESSED_WEIGHTS_INT8
-        quan_var[(offset * 2) + 1] = quantized_sum;
+        quan_var[(offset * 2) + 1] = CAT(CAT(convert_, INPUT0_TYPE), _rte)(quantized_sum);
     #endif
 }
 #else  // !FC_KERNEL_DYNAMIC_QUANTIZE

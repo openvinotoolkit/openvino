@@ -36,7 +36,7 @@ private:
 class Event {
 public:
     Event() = delete;
-    Event(const ze_event_pool_handle_t& event_pool, uint32_t event_index);
+    Event(const std::shared_ptr<EventPool>& event_pool, uint32_t event_index);
     Event(const Event&) = delete;
     Event(Event&&) = delete;
     Event& operator=(const Event&) = delete;
@@ -50,6 +50,7 @@ public:
     ~Event();
 
 private:
+    std::shared_ptr<EventPool> _event_pool;
     ze_event_handle_t _handle = nullptr;
 
     Logger _log;
