@@ -27,8 +27,6 @@ using namespace dnnl;
 namespace ov {
 namespace intel_cpu {
 
-class ShapeInferBase;
-class ShapeInferCustomMask;
 namespace node {
 
 static rnn_direction ieDirection2dnnl(const std::shared_ptr<const ov::Node>& op) {
