@@ -60,7 +60,6 @@ private:
     size_t packedBSize = 0;
     size_t packedASize = 0;
     ov::element::Type inType;
-    bool b_accumulate = false;
     static constexpr size_t MHA_BRGEMM_KERNELS_NUM = 8;
     static constexpr size_t matmulOptimalM = 32;
     struct brgemmCtx {

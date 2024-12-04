@@ -33,8 +33,7 @@ BrgemmKernel::BrgemmKernel(size_t M,
       ldb(ldb),
       ldc(ldc),
       b_transposed(b_transposed),
-      inType(inType),
-      b_accumulate(b_accumulate) {
+      inType(inType) {
     // blocking M
     bool is_bf16 = inType == ov::element::bf16;
     M_blk = matmulOptimalM;
