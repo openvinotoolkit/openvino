@@ -165,20 +165,7 @@ public:
 
         // call shape inference API
         auto shape_infer_result = infer(input_static_shapes, MemoryAccessor(data_dependency, input_ranks));
-
-        Result result{{}, shape_infer_result ? ShapeInferStatus::success : ShapeInferStatus::skip};
-
-        if (shape_infer_result) {
-            result.dims.reserve(shape_infer_result->size());
-            std::transform(shape_infer_result->begin(),
-                           shape_infer_result->end(),
-                           std::back_inserter(result.dims),
-                           [](StaticShape& s) {
-                               return std::move(*s);
-                           });
-        }
-
-        return result;
+        return shape_infer_result ? move_shapes_to_result(*shape_infer_result) : Result{{}, ShapeInferStatus::skip};
     }
 
     const ov::CoordinateDiff& get_pads_begin() override {
@@ -200,6 +187,15 @@ public:
 protected:
     std::vector<int64_t> m_input_ranks;
     std::shared_ptr<ov::Node> m_node;
+
+private:
+    static Result move_shapes_to_result(std::vector<StaticShape>& output_shapes) {
+        Result result{decltype(Result::dims){output_shapes.size()}, ShapeInferStatus::success};
+        std::transform(output_shapes.begin(), output_shapes.end(), result.dims.begin(), [](StaticShape& s) {
+            return std::move(*s);
+        });
+        return result;
+    }
 };
 
 /**
