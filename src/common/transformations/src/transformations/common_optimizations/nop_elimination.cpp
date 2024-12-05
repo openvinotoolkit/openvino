@@ -132,48 +132,59 @@ static bool eliminate_nop(const shared_ptr<Node>& node) {
     return false;
 }
 
+// Check if first dim is dynamic, other dims are static
+static bool only_first_dim_dynamic(const PartialShape& pshape) {
+    if (pshape.rank().is_static() && pshape[0].is_dynamic()) {
+        for (size_t i = 1; i < pshape.size(); ++i) {
+            if (pshape[i].is_dynamic()) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
 static bool eliminate_reshape_v1(const shared_ptr<Node>& node) {
     auto input = node->input_value(0);
 
-    std::cout << "THIS: " << node->get_friendly_name() << " "  << node->get_name() << std::endl;
-    std::cout << "INPUT: " << input.get_node_shared_ptr()->get_friendly_name() << " "  << input.get_node_shared_ptr()->get_name() << std::endl;
-
     if (input.get_partial_shape().rank().is_static() && input.get_partial_shape().rank().same_scheme(1)) {
-        if (input.get_partial_shape().same_scheme(node->get_output_partial_shape(0))) {
-            std::cout << "EXIT HERE" << std::endl;
+        if (input.get_partial_shape().same_scheme(node->get_output_partial_shape(0)))
             return replace_output_update_name(node->output(0), input);
-        }
     }
-
     // check if reshape is not identity op
     if (input.get_partial_shape().is_dynamic() || node->get_output_partial_shape(0).is_dynamic()) {
-        OPENVINO_DEBUG(node, " has dynamic shapes.");
-        std::cout << "EXIT HERE 1" << std::endl;
-        return false;
+        if (!only_first_dim_dynamic(input.get_partial_shape()) || !only_first_dim_dynamic(node->get_output_partial_shape(0))) {
+            OPENVINO_DEBUG(node, " has dynamic shapes.");
+            return false;
+        }
     }
+    
     // remove identity op
-    if (input.get_shape() == node->get_output_shape(0)) {
-        std::cout << "EXIT HERE 2" << std::endl;
+    if (input.get_partial_shape() == node->get_output_partial_shape(0)) {
         return replace_output_update_name(node->output(0), input);
     }
     // eliminate redundant reshape, squeeze, or unsqueeze
     auto input_node = input.get_node_shared_ptr();
     if (ov::as_type_ptr<ov::op::v0::Squeeze>(input_node) || ov::as_type_ptr<ov::op::v0::Unsqueeze>(input_node) ||
         ov::as_type_ptr<ov::op::v1::Reshape>(input_node)) {
-        std::cout << "---: " << node->get_friendly_name() << " "  << node->get_name() << std::endl;
-        std::cout << "---: " << input.get_node_shared_ptr()->get_friendly_name() << " "  << input.get_node_shared_ptr()->get_name() << std::endl;
         if (input_node->get_output_target_inputs(0).size() != 1)
             return false;
 
-        auto shape = node->get_output_shape(0);
+        auto shape = node->get_output_partial_shape(0);
 
         // remove interchangeable nodes
-        if (input_node->get_input_partial_shape(0).is_static() && input_node->get_input_shape(0) == shape) {
+        if (input_node->get_input_partial_shape(0).is_static() && input_node->get_input_shape(0) == node->get_output_shape(0)) {
             return replace_output_update_name(node->output(0), input_node->input_value(0));
         } else {
             vector<int64_t> vi;
-            vi.assign(shape.begin(), shape.end());
-            auto pat = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{vi.size()}, vi);
+            vi.reserve(shape.size());
+            for (const auto& dim : shape) {
+                vi.push_back(dim.is_dynamic() ? -1 : dim.get_length());
+            }
+            auto pat = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{shape.size()}, vi);
             auto new_reshape = make_shared<ov::op::v1::Reshape>(input.get_node()->input_value(0), pat, false);
             new_reshape->set_friendly_name(node->get_friendly_name());
             copy_runtime_info({input_node, node}, new_reshape);
