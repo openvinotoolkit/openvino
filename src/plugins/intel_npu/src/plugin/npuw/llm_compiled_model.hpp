@@ -41,6 +41,7 @@ private:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     void implement_properties();
 
+    // FIXME: make export/import instead?
     void serialize(const std::string& path) const;
     void deserialize(const std::string& path);
 

@@ -471,7 +471,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     report_io();
 }
 
-void ov::npuw::CompiledModel::serialize(const std::string& path) const {
+void ov::npuw::CompiledModel::serialize(const std::ofstream& fout) const {
     LOG_INFO("Serializing CompiledModel...");
     LOG_BLOCK();
 
@@ -479,7 +479,7 @@ void ov::npuw::CompiledModel::serialize(const std::string& path) const {
     LOG_INFO("Done.");
 }
 
-void ov::npuw::CompiledModel::deserialize(const std::string& path) {
+void ov::npuw::CompiledModel::deserialize(const std::ifstream& fin) {
     LOG_INFO("Deserializing CompiledModel...");
     LOG_BLOCK();
 

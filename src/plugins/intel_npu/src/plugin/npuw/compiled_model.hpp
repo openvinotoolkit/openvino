@@ -67,8 +67,8 @@ private:
 
     void report_io() const;
 
-    void serialize(const std::string& path) const;
-    void deserialize(const std::string& path);
+    void serialize(const std::ofstream& fout) const;
+    void deserialize(const std::ifstream& fin);
 
     // This is used for removing too long output tensor names to fix some compilation issues
     // NB: These two methods has nothing to do with this particular class and should be

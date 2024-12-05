@@ -18,6 +18,8 @@
 
 namespace ov {
 namespace npuw {
+// Forward declaration
+class LLMCompiledModel;
 namespace weights {
 
 class Bank {
@@ -35,6 +37,8 @@ public:
     bool is_remote(const LazyTensor& tensor) const;
 
 private:
+    friend class ov::npuw::LLMCompiledModel;
+
     // Bank for specified device and their allocated memory
     struct DeviceBank {
         std::unordered_map<LazyTensor, ov::Tensor, LazyTensor::Hash> storage;
@@ -43,6 +47,9 @@ private:
     std::unordered_map<std::string, DeviceBank> m_device_banks;
 
     ov::Tensor eval_and_alloc(const LazyTensor& tensor, DeviceBank& dbank, const std::string& device);
+
+    void serialize(const std::ofstream& fout) const;
+    void deserialize(const std::ifstream& fin);
 
     std::mutex m_mutex;
     std::shared_ptr<const ov::ICore> m_core = nullptr;

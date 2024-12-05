@@ -140,6 +140,14 @@ bool Bank::is_remote(const LazyTensor& tensor) const {
     return false;
 }
 
+void Bank::serialize(const std::ofstream& fout) const {
+
+}
+
+void Bank::deserialize(const std::ifstream& fin) {
+    
+}
+
 std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name,
                                            const std::shared_ptr<const ov::ICore>& core,
                                            const std::string& alloc_device) {

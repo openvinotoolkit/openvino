@@ -309,22 +309,76 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("Done");
 }
 
+// Should be export_model() + probably additional changes to plugin.cpp (NPUW properties)
 void ov::npuw::LLMCompiledModel::serialize(const std::string& path) const {
     LOG_INFO("Serializing LLMCompiledModel...");
     LOG_BLOCK();
 
-    m_kvcache_compiled->serialize(path);
-    m_prefill_compiled->serialize(path);
+    std::ofstream fout(path, std::ofstream::binary);
+    NPUW_ASSERT(fout.is_open());
+
+    // Serialize general meta info
+    fout << OPENVINO_VERSION_MAJOR << OPENVINO_VERSION_MINOR << OPENVINO_VERSION_PATCH;
+
+    // Serialize LLMCompiledModel-specific data
+    struct KVCacheDesc {
+        uint32_t max_prompt_size = 0u;
+        uint32_t total_size = 0u;
+        uint32_t num_stored_tokens = 0u;
+        uint32_t dim = 0u;
+    };
+    fout << m_kvcache_desc.max_prompt_size << m_kvcache_desc.total_size << m_kvcache_desc.num_stored_tokens << m_kvcache_desc.dim;
+
+    // Serialize CompiledModels
+    m_kvcache_compiled->serialize(fout);
+    m_prefill_compiled->serialize(fout);
+
+    // Serialize weights bank (if required)
+    const auto& kv_bank = m_kvcache_compiled->m_weights_bank;
+    const auto& p_bank = m_prefill_compiled->m_weights_bank;
+    NPUW_ASSERT(kv_bank && p_bank && kv_bank == p_bank && "Prefill and KVCache models' weight bank should be shared!");
+    // FIXME: support weightless option
+    kv_bank->serialize(fout);
 
     LOG_INFO("Done.");
 }
 
+// Should in plugin.cpp import_model() and there check first 8 bytes to check if it's NPUW format (+ properties LLM, NPUW)
 void ov::npuw::LLMCompiledModel::deserialize(const std::string& path) {
     LOG_INFO("Deserializing LLMCompiledModel...");
     LOG_BLOCK();
 
-    m_kvcache_compiled->deserialize(path);
-    m_prefill_compiled->deserialize(path);
+    std::ifstream fin(path, std::ifstream::binary);
+    NPUW_ASSERT(fin.is_open());
+
+    // Deserialize general meta info
+    int vmajor, vminor, vpatch;
+    fin >> vmajor >> vminor >> vpatch;
+
+    NPUW_ASSERT(vmajor == OPENVINO_VERSION_MAJOR
+                && vminor == OPENVINO_VERSION_MINOR
+                && vpatch == OPENVINO_VERSION_PATCH
+                && "Only blobs serialized with the same OV version are supported!");
+
+    // Deserialize LLMCompiledModel-specific data
+    fin >> m_kvcache_desc.max_prompt_size >> m_kvcache_desc.total_size >> m_kvcache_desc.num_stored_tokens >> m_kvcache_desc.dim;
+
+    // Deserialize CompiledModels
+    // Need to serialize ins/outs for dummy model creation
+    // std::shared_ptr<ov::Model> create_dummy_model(){};
+    //m_kvcache_compiled = std::make_shared<ov::npuw::CompiledModel>(create_dummy_model, get_plugin(), properties);
+    //m_prefill_compiled = std::make_shared<ov::npuw::CompiledModel>(create_dummy_model, get_plugin(), properties);
+    m_kvcache_compiled->deserialize(fin);
+    m_prefill_compiled->deserialize(fin);
+
+    // Deserialize weights bank (if required)
+    const std::string weights_bank_opt = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK>();
+    // NPU device assumed by default
+    std::shared_ptr<ov::npuw::weights::Bank> bank = ov::npuw::weights::bank(weights_bank_opt, get_plugin()->get_core(), "NPU");
+    // FIXME: support weightless option
+    bank->deserialize(fin);
+    m_kvcache_compiled->m_weights_bank = bank;
+    m_prefill_compiled->m_weights_bank = bank;
 
     LOG_INFO("Done.");
 }
