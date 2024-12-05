@@ -134,7 +134,7 @@ void FullyConnected::prepareParams() {
 void FullyConnected::initTensorParallelSync() {
     if (tp_cfg.enable_tensor_parallel) {
         tp_cfg.id = tp_cfg.sub_memory->get_memory_id(tp_cfg.w_rank);
-        OPENVINO_ASSERT(tp_cfg.id > 0, "Tensor Parallel Config ID cannot be negative.");
+        OPENVINO_ASSERT(tp_cfg.id >= 0, "Tensor Parallel Config ID cannot be negative.");
         tp_cfg.sub_memory->set_memory_used(tp_cfg.id, tp_cfg.w_rank);
         while (true) {
             std::lock_guard<std::mutex> lock(tp_cfg.sub_memory->_flagMutex);
