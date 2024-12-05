@@ -655,6 +655,12 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
         " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 
     auto config = selectedPd->getConfig();
+    if (haveSubgraph()) {
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
+            auto desc = getParentOutputMemDesc(getParentEdgeAt(i));
+            config.inConfs[i].setMemDesc(desc);
+        }
+    }
     config.outConfs.front().setMemDesc(mem_desc);
     // bypass any checks, we enforce the child descriptor
     selectedPd->setConfig(config);
