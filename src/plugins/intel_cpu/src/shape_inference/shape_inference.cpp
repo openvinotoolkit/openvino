@@ -235,7 +235,6 @@ public:
     ov::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
                                                  const ov::ITensorAccessor& tensor_accessor) override {
         auto op = m_node.get();
-        std::vector<StaticShape> output_shapes;
 
         std::shared_ptr<ov::Node> local_op;
         ov::OutputVector new_inputs;
@@ -252,7 +251,7 @@ public:
         local_op = op->clone_with_new_inputs(new_inputs);
         local_op->validate_and_infer_types();
 
-        output_shapes.resize(local_op->get_output_size());
+        std::vector<StaticShape> output_shapes(local_op->get_output_size());
         for (size_t i = 0; i < output_shapes.size(); ++i) {
             const auto& partial_shape = local_op->get_output_partial_shape(i);
 
@@ -297,6 +296,26 @@ public:
     ov::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
                                                  const ov::ITensorAccessor&) override {
         return {shape_infer(static_cast<TOp*>(m_node.get()), input_shapes)};
+    }
+};
+
+/**
+ * @brief Shape inference for v0 FakeQuantize.
+ *
+ * It requires dedicated port mask for data dependency but not use by shape inference function.
+ */
+template <>
+class ShapeInferTA<ov::op::v0::FakeQuantize, EMPTY_PORT_MASK> : public ShapeInferBase {
+public:
+    using ShapeInferBase::ShapeInferBase;
+
+    ov::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
+                                                 const ov::ITensorAccessor&) override {
+        return {shape_infer(static_cast<ov::op::v0::FakeQuantize*>(m_node.get()), input_shapes)};
+    }
+
+    port_mask_t get_port_mask() const override {
+        return util::bit::mask(0);
     }
 };
 
