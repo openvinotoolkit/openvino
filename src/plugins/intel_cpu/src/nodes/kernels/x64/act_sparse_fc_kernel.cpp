@@ -7,6 +7,7 @@
 #include "openvino/core/parallel.hpp"
 
 #include "/home/tingqian/aboutSHW/include/linux_perf.hpp"
+//#include "/home/openvino-ci-58/tingqian/aboutSHW/include/linux_perf.hpp"
 
 #if defined(HAVE_AVX2)
 #    include <immintrin.h>
@@ -775,7 +776,7 @@ void MM_ComputeBounded_reuseA_i4(
 
         // deocompress zero-point into scratch buffer
         {
-            const auto* pzp = zp;
+            const auto* pzp = zp + n0/2;
             int n = 0;
             auto vmask_u4 = _mm256_set1_epi32(0xF);
             for (n = n0; n + 16 <= n1; n += 16, pzp += 8) {
@@ -976,17 +977,17 @@ void dynPruneLinear_i4(const float* input,      // [M, IC]
                         float* output,          // [M, OC]
                         int M, int IC, int OC,
                         int IC_group_size) {
-    if ((OC % 8) > 0) {
-        throw std::runtime_error("OC is not multiple of 8");
+    if ((OC % 16) > 0) {
+        throw std::runtime_error("OC is not multiple of 16");
     }
 
     if (M > 1) {
         // a reference impl
         parallel_nt(0, [&](const int ithr, const int nthr) {
             int n0, n1;
-            splitter(OC/8, nthr, ithr, n0, n1);
-            n0 *= 8;
-            n1 *= 8;
+            splitter(OC/16, nthr, ithr, n0, n1);
+            n0 *= 16;
+            n1 *= 16;
             MM_ComputeBounded_reuseA_i4(
                 input, output,
                 W, zp, scales, M, IC, OC, n0, n1, IC_group_size);
