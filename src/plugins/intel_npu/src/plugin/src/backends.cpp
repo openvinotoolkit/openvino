@@ -8,7 +8,7 @@
 #include <memory>
 
 #include "intel_npu/common/device_helpers.hpp"
-#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/options.hpp"
 #include "zero_backend.hpp"
 
 #if !defined(OPENVINO_STATIC_LIBRARY) && defined(ENABLE_IMD_BACKEND)

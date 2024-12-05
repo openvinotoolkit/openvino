@@ -6,7 +6,7 @@
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
-#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/options.hpp"
 #include "overload/ov_plugin/life_time.hpp"
 
 using namespace ov::test::behavior;

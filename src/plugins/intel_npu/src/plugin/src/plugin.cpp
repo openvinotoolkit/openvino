@@ -11,10 +11,8 @@
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/itt.hpp"
-#include "intel_npu/config/common.hpp"
-#include "intel_npu/config/compiler.hpp"
 #include "intel_npu/config/npuw.hpp"
-#include "intel_npu/config/runtime.hpp"
+#include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "npuw/compiled_model.hpp"
 #include "openvino/op/constant.hpp"
@@ -198,9 +196,9 @@ Plugin::Plugin()
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
     set_device_name("NPU");
 
-    registerCommonOptions(*_options);
-    registerCompilerOptions(*_options);
-    registerRunTimeOptions(*_options);
+    registerOptions(*_options, OptionMode::RunTime);
+    registerOptions(*_options, OptionMode::Both);
+    registerOptions(*_options, OptionMode::CompileTime);
 
     // parse env_variables to get LOG_LEVEL if needed
     _globalConfig.parseEnvVars();
