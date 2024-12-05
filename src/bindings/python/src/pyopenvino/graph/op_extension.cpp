@@ -11,24 +11,66 @@
 #include "pyopenvino/core/common.hpp"
 #include "pyopenvino/core/extension.hpp"
 #include "pyopenvino/graph/op.hpp"
+#include "pyopenvino/graph/node_output.hpp"
 
 namespace py = pybind11;
 
+class PyOpExtension : public ov::BaseOpExtension {
+public:
+    PyOpExtension(const py::object& dtype) : py_handle_dtype{dtype} {
+        auto type_info = py_handle_dtype.attr("get_type_info")();
+        if (!py::isinstance<ov::DiscreteTypeInfo>(type_info)) {
+            OPENVINO_THROW("blahbla");
+        }
+        m_type_info = py::cast<ov::DiscreteTypeInfo>(type_info);
+        const auto& ext_type = get_type_info();
+        OPENVINO_ASSERT(ext_type.name != nullptr && ext_type.version_id != nullptr,
+                        "Extension type should have information about operation set and operation type.");
+    }
+
+    const ov::DiscreteTypeInfo& get_type_info() const override {
+        return m_type_info;
+    }
+
+    ov::OutputVector create(const ov::OutputVector& inputs, ov::AttributeVisitor& visitor) const override {
+        // TODO: Create new python object using some python API under GIL then call its method
+        py::gil_scoped_acquire acquire;
+        const auto node = py_handle_dtype();
+
+        // node->set_arguments(inputs);
+        auto py_in = py::cast(inputs);
+        node.attr("set_arguments")(py_in);
+        // if (node.attr("visit_attributes")(&visitor)) {
+        //     node.attr("constructor_validate_and_infer_types")();
+        // }
+        const auto q = node.attr("outputs")();
+        const auto t = py::cast<ov::OutputVector>(q);
+        return t;
+    }
+
+    std::vector<ov::Extension::Ptr> get_attached_extensions() const override {
+        return {};
+    }
+
+private:
+    py::object py_handle_dtype;  // Holds the Python object to manage its lifetime
+    ov::DiscreteTypeInfo m_type_info; 
+};
+
 void regclass_graph_OpExtension(py::module m) {
-    py::class_<ov::OpExtension<PyOp>, std::shared_ptr<ov::OpExtension<PyOp>>, ov::Extension> op_extension(
+    py::class_<PyOpExtension, std::shared_ptr<PyOpExtension>, ov::Extension> op_extension(
         m,
         "OpExtension");
     op_extension.doc() = "openvino.OpExtension provides the base interface for OpenVINO extensions.";
 
-    op_extension.def("__repr__", [](const ov::OpExtension<PyOp>& self) {
+    op_extension.def("__repr__", [](const PyOpExtension& self) {
         return Common::get_simple_repr(self);
     });
 
-    op_extension.def(py::init<>());
     op_extension.def(py::init([](py::object dtype) {
         py::object py_issubclass = py::module::import("builtins").attr("issubclass");
         if (py_issubclass(dtype, py::type::of<PyOp>())) {
-            return ov::OpExtension<PyOp>();
+            return PyOpExtension(dtype);
         }
         std::stringstream str;
         str << "Unsupported data type : '" << dtype << "' is passed as an argument.";
