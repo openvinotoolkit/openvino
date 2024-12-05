@@ -318,7 +318,8 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
                 data_prim->cache_info->set_constant_info(attr.bin_offset,
                                                          attr.original_size,
                                                          attr.original_dtype,
-                                                         op.get_element_type());
+                                                         op.get_output_element_type(0),
+                                                         op.get_output_shape(0));
             }
         }
     }

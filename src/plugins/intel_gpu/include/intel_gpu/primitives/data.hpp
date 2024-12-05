@@ -35,11 +35,13 @@ struct weightless_cache_manager {
     void set_constant_info(size_t bin_offset,
                            size_t original_size,
                            ov::element::Type original_dtype,
-                           ov::element::Type curr_dtype) {
+                           ov::element::Type curr_dtype,
+                           ov::Shape shape) {
         this->bin_offset = bin_offset;
         this->original_size = original_size;
         this->original_dtype = original_dtype;
         this->curr_dtype = curr_dtype;
+        this->shape = shape;
         do_weightless_caching = true;
 
         if (original_dtype != curr_dtype) {
@@ -69,6 +71,10 @@ struct weightless_cache_manager {
             ob << original_size;
             ob << make_data(&original_dtype, sizeof(ov::element::Type));
             ob << make_data(&curr_dtype, sizeof(ov::element::Type));
+
+            size_t num_dims = shape.size();
+            ob << make_data(&num_dims, sizeof(size_t));
+            ob << make_data(shape.data(), num_dims * sizeof(ov::Shape::value_type));
         }
         return true;
     }
@@ -89,6 +95,11 @@ struct weightless_cache_manager {
             ib >> original_size;
             ib >> make_data(&original_dtype, sizeof(ov::element::Type));
             ib >> make_data(&curr_dtype, sizeof(ov::element::Type));
+
+            size_t num_dims = 0;
+            ib >> make_data(&num_dims, sizeof(size_t));
+            shape.resize(num_dims);
+            ib >> make_data(shape.data(), num_dims * sizeof(ov::Shape::value_type));
         } else {
             original_size = data_size;
         }
@@ -113,16 +124,17 @@ private:
     size_t original_size = SIZE_MAX;
     ov::element::Type original_dtype = ov::element::Type_t::undefined;
     ov::element::Type curr_dtype = ov::element::Type_t::undefined;
+    ov::Shape shape;
 
     bool should_run_transformations() {
         return do_precision_conversion;
     }
 
     void run_transformations(std::shared_ptr<weights_mem> mem_obj) {
-        size_t num_elems = original_size / original_dtype.size();
-        ov::Shape shape({num_elems});
-        auto orig_constant =
-            std::make_shared<ov::op::v0::Constant>(original_dtype, shape, mem_obj->shared_buf);
+        auto orig_constant = std::make_shared<ov::op::v0::Constant>(original_dtype,
+                                                                    shape,
+                                                                    mem_obj->shared_buf->get_ptr(),
+                                                                    mem_obj->shared_buf);
 
         ov::ParameterVector inputParams;
         ov::ResultVector results;
@@ -147,15 +159,11 @@ private:
 
         manager.run_passes(model);
         const auto ops = model->get_ops();
-        OPENVINO_ASSERT(std::count_if(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& node) {
-                return ov::op::util::is_constant(node);
-            }) == 1);
-        for (auto& op : model->get_ops()) {
-            if ((mem_obj->transformed_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op))) {
-                break;
-            }
-        }
-        OPENVINO_ASSERT(mem_obj->transformed_constant);
+        auto it = std::find_if(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& node) {
+            return ov::op::util::is_constant(node);
+        });
+        OPENVINO_ASSERT(it != ops.end());
+        mem_obj->transformed_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(*it);
         OPENVINO_ASSERT(mem_obj->transformed_constant->get_element_type() == curr_dtype);
     }
 };
