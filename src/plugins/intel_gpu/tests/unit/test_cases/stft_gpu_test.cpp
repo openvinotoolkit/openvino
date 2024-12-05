@@ -129,11 +129,14 @@ public:
         // Prepare the network.
         auto stream = get_test_stream_ptr(get_test_default_config(engine_));
 
+        auto scalar_layout = params.frameSize->get_layout();
+        scalar_layout.set_partial_shape({});
+
         topology topology;
         topology.add(input_layout("signal", params.signal->get_layout()));
         topology.add(input_layout("window", params.window->get_layout()));
-        topology.add(input_layout("frameSize", params.frameSize->get_layout()));
-        topology.add(input_layout("frameStep", params.frameStep->get_layout()));
+        topology.add(input_layout("frameSize", scalar_layout));
+        topology.add(input_layout("frameStep", scalar_layout));
         topology.add(STFT("stft",
                           input_info("signal"),
                           input_info("window"),
