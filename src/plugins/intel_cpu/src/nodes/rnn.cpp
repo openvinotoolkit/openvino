@@ -11,22 +11,22 @@
 #include "nodes/input.h"
 #include "nodes/reorder.h"
 #include "openvino/core/parallel.hpp"
-#include "shape_inference/shape_inference_ngraph.hpp"
-#include "transformations/utils/utils.hpp"
-
-#include "ov_ops/augru_cell.hpp"
-#include "ov_ops/augru_sequence.hpp"
 #include "openvino/op/gru_cell.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/rnn_cell.hpp"
 #include "openvino/op/rnn_sequence.hpp"
+#include "ov_ops/augru_cell.hpp"
+#include "ov_ops/augru_sequence.hpp"
+#include "shape_inference/shape_inference.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace dnnl;
 
 
 namespace ov {
 namespace intel_cpu {
+
 namespace node {
 
 static rnn_direction ieDirection2dnnl(const std::shared_ptr<const ov::Node>& op) {
@@ -356,19 +356,17 @@ namespace {
  * dimentions permutation, necessary due to the mismatch between the ngrpah and the oneDNN RNN node descriptions.
  *
  */
-class RnnShapeInfer : public NgraphShapeInfer {
+class RnnShapeInfer : public IShapeInfer {
 public:
-    RnnShapeInfer(std::shared_ptr<ov::Node> op) :
-        NgraphShapeInfer(make_shape_inference(op), EMPTY_PORT_MASK) {
-            is_sequence = !(RNN::isCell(op));
-
-            native_order = RNN::testNativeOrder(op);
-        }
+    RnnShapeInfer(std::shared_ptr<ov::Node> op)
+        : is_sequence(!(RNN::isCell(op))),
+          native_order(RNN::testNativeOrder(op)),
+          m_shape_infer(make_shape_inference(std::move(op))) {}
 
     Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        auto result = NgraphShapeInfer::infer(input_shapes, data_dependency);
+        auto result = m_shape_infer->infer(input_shapes, data_dependency);
         if (ShapeInferStatus::success != result.status) {
             OPENVINO_THROW("Unexpected: Unexpected shape inference result status");
         }
@@ -382,10 +380,24 @@ public:
         return {std::move(originOutputShapes), result.status};
     }
 
+    const ov::CoordinateDiff& get_pads_begin() override {
+        return m_shape_infer->get_pads_begin();
+    }
+
+    const ov::CoordinateDiff& get_pads_end() override {
+        return m_shape_infer->get_pads_end();
+    }
+
+    port_mask_t get_port_mask() const override {
+        return m_shape_infer->get_port_mask();
+    }
+
 private:
-    bool is_sequence = false;
-    bool native_order = true;
+    bool is_sequence;
+    bool native_order;
+    ShapeInferPtr m_shape_infer;
 };
+
 class RnnShapeInferFactory final : public ShapeInferFactory {
 public:
     RnnShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
