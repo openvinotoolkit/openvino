@@ -194,6 +194,72 @@ public:
 TEST_P(InitGraphStatefulModel, CompareWithRefs) {
     run();
 }
+
+// ReadValueWithSubgraph have different precision.
+//
+//         input[fp32]
+//            |
+//       Convert[fp32->fp16]
+//            |
+//        ReadValue ..........
+//       /       \           .
+//     Add      Assign .......
+//      |
+//    Result
+class InitGraphStatefulDiffPrimitiveModel : public InitGraphStatefulModelBase {
+public:
+    void SetUp() override {
+        targetDevice = utils::DEVICE_CPU;
+
+        std::vector<InputShape> inputShapes;
+        bool directPair;
+        std::tie(inputShapes, directPair) = this->GetParam();
+
+        init_input_shapes(inputShapes);
+        ov::ParameterVector input_params;
+        for (auto&& shape : inputDynamicShapes) {
+            input_params.push_back(std::make_shared<ov::op::v0::Parameter>(netPrc, shape));
+        }
+
+        input_params[0]->set_friendly_name("input");
+
+        // init_graph
+        auto convert = std::make_shared<ov::op::v0::Convert>(input_params[0], ov::element::f16);
+        convert->set_friendly_name("init_graph/convert");
+
+        const std::string variable_name("var_diff_precison");
+        auto variable = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{{inputDynamicShapes[0]}, ov::element::f16, variable_name});
+
+        auto readvalue = std::make_shared<ov::op::v6::ReadValue>(convert, variable);
+
+        std::shared_ptr<ov::Node> add =
+            std::make_shared<ov::op::v1::Add>(readvalue, ov::op::v0::Constant::create(ov::element::f16, {1}, {1.0f}));
+
+        auto assign = std::make_shared<ov::op::v6::Assign>(directPair ? readvalue : add, variable);
+
+        auto res = std::make_shared<ov::op::v0::Result>(add);
+
+        function = std::make_shared<ov::Model>(ov::ResultVector({res}), ov::SinkVector({assign}), input_params);
+    }
+
+    void check_init_graph_node() override {
+        // Node with friendly name "init_graph/convert" should be moved into subgraph.
+        bool found_init_graph = false;
+        for (auto node : compiledModel.get_runtime_model()->get_ops()) {
+            if (node->get_friendly_name() == "init_graph/convert") {
+                found_init_graph = true;
+                break;
+            }
+        }
+        EXPECT_FALSE(found_init_graph);
+    }
+};
+
+TEST_P(InitGraphStatefulDiffPrimitiveModel, CompareWithRefs) {
+    run();
+}
+
 namespace {
 const std::vector<std::vector<InputShape>> inputShapes = {
     {
@@ -221,4 +287,26 @@ INSTANTIATE_TEST_SUITE_P(smoke_StatefulInitGraph,
                          testParams_smoke,
                          InitGraphStatefulModel::getTestCaseName);
 
+
+const std::vector<std::vector<InputShape>> inputShapesDiffPrecision = {
+    {
+        // Dynamic shape.
+        {{1, -1}, {{1, 2}, {1, 2}, {1, 1}}},
+    },
+    {
+        // Static shape.
+        {{1, 1}, {{1, 1}}},
+    }
+};
+
+const auto testParamsDiffPrecision_smoke = ::testing::Combine(
+    ::testing::ValuesIn(inputShapesDiffPrecision),
+    ::testing::ValuesIn(readValueAssginDirectPair));
+
+INSTANTIATE_TEST_SUITE_P(smoke_StatefulInitGraph,
+                         InitGraphStatefulDiffPrimitiveModel,
+                         testParamsDiffPrecision_smoke,
+                         InitGraphStatefulDiffPrimitiveModel::getTestCaseName);
+
 }  // namespace
+
