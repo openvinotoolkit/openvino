@@ -182,6 +182,19 @@ std::shared_ptr<ov::ICompiledModel> MockPlugin::import_model(std::istream& model
     set_parameters_if_need();
     return m_plugin->import_model(model, context, properties);
 }
+std::shared_ptr<ov::ICompiledModel> MockPlugin::import_model(std::istream& model,
+                                                             std::shared_ptr<ov::AlignedBuffer> model_buffer,
+                                                             const ov::AnyMap& properties) const {
+    set_parameters_if_need();
+    return m_plugin->import_model(model, model_buffer, properties);
+}
+std::shared_ptr<ov::ICompiledModel> MockPlugin::import_model(std::istream& model,
+                                                             std::shared_ptr<ov::AlignedBuffer> model_buffer,
+                                                             const ov::SoPtr<ov::IRemoteContext>& context,
+                                                             const ov::AnyMap& properties) const {
+    set_parameters_if_need();
+    return m_plugin->import_model(model, model_buffer, context, properties);
+}
 ov::SupportedOpsMap MockPlugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                             const ov::AnyMap& properties) const {
     set_parameters_if_need();
