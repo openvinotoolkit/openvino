@@ -276,17 +276,14 @@ public:
     /**
      * Return true if a node can perform preprocessing for an input \idx
      */
-    virtual bool canPrepInput(size_t idx) const {
-        (void) idx;
+    virtual bool canPrepInput(size_t /*idx*/) const {
         return false;
     }
 
     /**
      * Require a node to perform \type preprocessing for an input \idx
      */
-    virtual void prepInput(size_t idx, InputPrepType type) {
-        (void) idx;
-        (void) type;
+    virtual void prepInput(size_t /*idx*/, InputPrepType /*type*/) {
         OPENVINO_THROW_NOT_IMPLEMENTED("Input preprocessing is not implemented for node: ", *this);
     }
 
