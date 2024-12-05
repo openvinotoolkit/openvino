@@ -44,13 +44,8 @@ public:
         return rtParamsCache;
     }
 
-    DnnlScratchPadPtr getScratchPad(int subStreamID = -1) const {
-        if (subStreamID < 0) {
-            subStreamID = std::max(0, streamExecutor ? streamExecutor->get_numa_node_id() : subStreamID);
-        }
-        if (subStreamID >= numNumaNodes - 1)
-            subStreamID = numNumaNodes - 1;
-        return rtScratchPads[subStreamID];
+    DnnlScratchPadPtr getScratchPad() const {
+        return rtScratchPads[numaNodeId];
     }
 
     const std::vector<DnnlScratchPadPtr>& getScratchPads() const {
@@ -102,6 +97,7 @@ private:
     std::shared_ptr<SubMemoryManager> subMemoryManager;
 
     int numNumaNodes = 1;
+    int numaNodeId = 0;
 
     std::shared_ptr<node::MemoryStatesRegister> memoryStatesRegister;
     std::shared_ptr<NetworkMemoryControl> networkMemoryControl;

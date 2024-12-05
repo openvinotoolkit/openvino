@@ -788,11 +788,7 @@ protected:
 
     MemoryPtr getScratchPadMem(const MemoryDescPtr& desc) {
         if (!scratchpadMem || !scratchpadMem->getDesc().isCompatible(*desc)) {
-            if (curNumaNode < 0) {
-                auto cpuStreamsExecutor = context->getCPUStreamExecutor();
-                curNumaNode = cpuStreamsExecutor ? cpuStreamsExecutor->get_numa_node_id() : curNumaNode;
-            }
-            scratchpadMem = context->getScratchPad(curNumaNode)->createScratchPadMem(desc);
+            scratchpadMem = context->getScratchPad()->createScratchPadMem(desc);
         }
         return scratchpadMem;
     }

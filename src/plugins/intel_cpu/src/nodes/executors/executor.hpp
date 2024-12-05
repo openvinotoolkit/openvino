@@ -123,12 +123,8 @@ public:
         return runtimeCachePtr;
     }
 
-    DnnlScratchPadPtr getScratchPad(int subStreamID = -1) const {
-        if (subStreamID < 0)
-            subStreamID = curNumaNodeId;
-        if (subStreamID >= numNumaNodes - 1)
-            subStreamID = numNumaNodes - 1;
-        return scratchPads[subStreamID];
+    DnnlScratchPadPtr getScratchPad() const {
+        return scratchPads[curNumaNodeId];
     }
 
     std::shared_ptr<std::unordered_map<std::string, MemoryPtr>> getPrivateWeighCache() const {
@@ -145,10 +141,6 @@ public:
 
     const WeightsSharing::Ptr getWeightsCache() const {
         return weightsCache;
-    }
-
-    const int getCurNumaNodeId() const {
-        return curNumaNodeId;
     }
 
 private:
