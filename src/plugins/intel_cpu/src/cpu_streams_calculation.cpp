@@ -242,7 +242,13 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                 n_threads_per_stream = proc_type_table[0][ALL_PROC];
             }
         } else {
-            const std::vector<int>& current_socket_info = proc_socket_table[0];
+            size_t socket_index = 0;
+            for (socket_index = 0; socket_index < proc_socket_table.size(); socket_index++) {
+                if (proc_socket_table[socket_index][PROC_SOCKET_ID] == current_socket_id) {
+                    break;
+                }
+            }
+            const std::vector<int>& current_socket_info = proc_socket_table[socket_index];
             n_threads_per_stream = model_prefer_threads == 0
                                        ? current_socket_info[ALL_PROC]
                                        : std::min(current_socket_info[ALL_PROC], model_prefer_threads);
