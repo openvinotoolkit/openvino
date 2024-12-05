@@ -266,7 +266,6 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
             auto attn_w_vec0 = _mm512_set1_ps(weight[0] * v_f0[0]);
             auto zp0 = _mm512_set1_ps(v_f0[1]);
             size_t i = 0;
-            // printf("j %d dst_offset %d src_offset %ld src_stride %ld scale %f zp %f vec_len_f32_avx512 %ld _group_size %ld\n", j, dst_offset, src_offset, src_stride, v_f0[0], v_f0[1], vec_len_f32_avx512, _group_size);
             for (; i + vec_len_f32_avx512 <= _group_size; i += vec_len_f32_avx512) {
                 auto v_out = mm512_uni_loadu_ps((out + dst_offset + i));
                 auto v0 = _mm512_sub_ps(_mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(_mm_loadu_si128(reinterpret_cast<__m128i*>(v_data_ptr + i)))), zp0);
@@ -343,13 +342,13 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
 
         return (uint8_t) ((val >> shift) & 0x000F);
     };
-#if defined(HAVE_AVX512F)
     for (size_t j = 0; j < block_size; j++) {
         dst_offset = 0;
         src_offset = 0;
         while (dst_offset < S) {
             auto v0 = reinterpret_cast<float*>(v + src_offset);
             size_t i = 0;
+#if defined(HAVE_AVX512F)
             auto attn_w_vec0 = _mm512_set1_ps(weight[j] * v0[0]);
             auto v_zp = _mm512_set1_ps(v0[1]);
             for (; i + vec_len_f32_avx512 * 2 <= _group_size; i += vec_len_f32_avx512 * 2) {
@@ -378,7 +377,7 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
                 mm512_uni_storeu_ps(out + dst_offset + i, v_out0);
                 mm512_uni_storeu_ps(out + dst_offset + i + vec_len_f32_avx512, v_out1);
             }
-
+#elif defined(HAVE_AVX2) || defined(HAVE_AVX512F)
             auto v256_attn_w_vec0 = _mm256_set1_ps(weight[j] * v0[0]);
             auto v256_zp = _mm256_set1_ps(v0[1]);
             for (; i + vec_len_f32_avx2 * 2 <= _group_size; i += vec_len_f32_avx2 * 2) {
@@ -409,27 +408,8 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
                 mm256_uni_storeu_ps(out + dst_offset + i, v_out0);
                 mm256_uni_storeu_ps(out + dst_offset + i + vec_len_f32_avx2, v_out1);
             }
-
-            for (; i < _group_size; i += 2) {
-                uint8_t data = v[i/2 + src_offset + params_offset];
-                float tmp0 = extract_half_byte(data, (bool)(i % 2));
-                float tmp1 = extract_half_byte(data, (bool)((i + 1) % 2));
-                out[dst_offset + i] += weight[j] * (tmp0 - v0[1]) * v0[0];
-                out[dst_offset + i + 1] += weight[j] * (tmp1 - v0[1]) * v0[0];
-            }
-            dst_offset += _group_size;
-            src_offset += _group_size / sub_byte_multiplyer + params_offset;
-        }
-        v += src_stride;
-    }
-    return;
 #endif
-    for (size_t j = 0; j < block_size; j++) {
-        dst_offset = 0;
-        src_offset = 0;
-        while (dst_offset < S) {
-            auto v0 = reinterpret_cast<float*>(v + src_offset);
-            for (size_t i = 0; i < _group_size; i += 2) {
+            for (; i < _group_size; i += 2) {
                 uint8_t data = v[i/2 + src_offset + params_offset];
                 float tmp0 = extract_half_byte(data, (bool)(i % 2));
                 float tmp1 = extract_half_byte(data, (bool)((i + 1) % 2));
@@ -456,13 +436,14 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
 
         return (uint8_t) ((val >> shift) & 0x000F);
     };
-#if defined(HAVE_AVX512F)
+
     for (size_t j = 0; j < block_size; j++) {
         dst_offset = 0;
         src_offset = 0;
         while (dst_offset < S) {
             auto v0 = reinterpret_cast<float*>(v + src_offset);
             size_t i = 0;
+#if defined(HAVE_AVX512F)
             auto attn_w_vec0 = _mm512_set1_ps(weight[j] * v0[0]);
             for (; i + vec_len_f32_avx512 * 2 <= _group_size; i += vec_len_f32_avx512 * 2) {
                 auto data = _mm_loadu_si128(reinterpret_cast<__m128i*>(v + i/2 + src_offset + params_offset));
@@ -486,6 +467,7 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
                 mm512_uni_storeu_ps(out + dst_offset + i, v_out0);
                 mm512_uni_storeu_ps(out + dst_offset + i + vec_len_f32_avx512, v_out1);
             }
+#elif defined(HAVE_AVX2) || defined(HAVE_AVX512F)
             auto v256_attn_w_vec0 = _mm256_set1_ps(weight[j] * v0[0]);
             for (; i + vec_len_f32_avx2 * 2 <= _group_size; i += vec_len_f32_avx2 * 2) {
                 auto data = _mm_loadu_si64(reinterpret_cast<__m128i*>(v + i/2 + src_offset + params_offset));
@@ -510,29 +492,8 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
                 mm256_uni_storeu_ps(out + dst_offset + i, v_out0);
                 mm256_uni_storeu_ps(out + dst_offset + i + vec_len_f32_avx2, v_out1);
             }
-
-            for (; i < _group_size; i += 2) {
-                uint8_t data = v[i/2 + src_offset + params_offset];
-                float tmp0 = extract_half_byte(data, (bool)(i % 2));
-                tmp0 = tmp0 > 8 ? (tmp0 - 16) : tmp0;
-                float tmp1 = extract_half_byte(data, (bool)((i + 1) % 2));
-                tmp1 = tmp1 > 8 ? (tmp1 - 16) : tmp1;
-                out[dst_offset + i] += weight[j] * (tmp0) * v0[0];
-                out[dst_offset + i + 1] += weight[j] * (tmp1) * v0[0];
-            }
-            dst_offset += _group_size;
-            src_offset += _group_size / sub_byte_multiplyer + params_offset;
-        }
-        v += src_stride;
-    }
-    return;
 #endif
-    for (size_t j = 0; j < block_size; j++) {
-        dst_offset = 0;
-        src_offset = 0;
-        while (dst_offset < S) {
-            auto v0 = reinterpret_cast<float*>(v + src_offset);
-            for (size_t i = 0; i < _group_size; i += 2) {
+            for (; i < _group_size; i += 2) {
                 uint8_t data = v[i/2 + src_offset + params_offset];
                 float tmp0 = extract_half_byte(data, (bool)(i % 2));
                 tmp0 = tmp0 > 8 ? (tmp0 - 16) : tmp0;
@@ -1011,7 +972,6 @@ void dequant(TDST* dst, uint8_t* src, size_t N, size_t K, size_t group_size = 0)
         size_t src_offset = 0;
         size_t dst_offset = 0;
         while (dst_offset < K) {
-            // printf("dequant n %ld dst_offset %ld N %ld K %ldd group_size %ld\n", n, dst_offset, N, K, group_size);
             auto f = reinterpret_cast<float*>(s + src_offset);
             attn_dequant_u4_kernel(s + src_offset + params_offset, dst + dst_offset, _group_size, f[0], f[1]);
             src_offset += _group_size / sub_byte_mulitplier + params_offset;
@@ -1036,7 +996,6 @@ void dequant(TDST* dst, uint8_t* src, size_t N, size_t K, size_t group_size = 0)
         size_t src_offset = 0;
         size_t dst_offset = 0;
         while (dst_offset < K) {
-            // printf("dequant n %ld dst_offset %ld N %ld K %ldd group_size %ld\n", n, dst_offset, N, K, group_size);
             auto f = reinterpret_cast<float*>(s + src_offset);
             attn_dequant_s4_kernel(s + src_offset + params_offset, dst + dst_offset, _group_size, f[0]);
             src_offset += _group_size / sub_byte_mulitplier + params_offset;
@@ -1183,7 +1142,6 @@ static void pack_32NxK(TDST* dst, void* src, TDST* tmp, size_t N, size_t K, size
     // if group_size not set, the whole row is used as a group
     const size_t sub_byte_mulitplier = 2;
     size_t _group_size = group_size ? group_size : K;
-    printf("pack32| i4 N %ld K %ld\n", N, K);
     for (size_t n = 0; n < N; n ++) {
         size_t src_offset = 0;
         size_t dst_offset = 0;
@@ -1581,7 +1539,6 @@ struct MHAHelper {
                             std::min(_block_size, cur_kv_len - pv),
                             _value_group_size);
                     } else if (present_value.get_precision() == ov::element::i4) {
-                        printf("exec_kernel_one_bh|attn_acc i4| shape %ld %ld %ld %ld\n", present_value.m_dims[0], present_value.m_dims[1], present_value.m_dims[2], present_value.m_dims[3]);
                         auto sub_byte_multiplyer = 8 / present_value.get_precision().bitwidth();
                         size_t v_stride = (block_number * present_value.m_strides[0] + hk * present_value.m_strides[1]) / sub_byte_multiplyer;
                         auto* v_ptr = present_value.m_ptr.get() + v_stride;
@@ -1767,7 +1724,6 @@ struct MHAHelper {
                                 std::min(_block_size, context_len - pv),
                                 _value_group_size);
                         } else if (present_value.get_precision() == ov::element::i4) {
-                            printf("exec_loop_bhl|attn_acc i4| shape %ld %ld %ld %ld\n", present_value.m_dims[0], present_value.m_dims[1], present_value.m_dims[2], present_value.m_dims[3]);
                             auto sub_byte_multiplyer = 8 / present_value.get_precision().bitwidth();
                             size_t v_stride = (block_number * present_value.m_strides[0] + hk * present_value.m_strides[1]) / sub_byte_multiplyer;
                             auto* v_ptr = present_value.m_ptr.get() + v_stride;

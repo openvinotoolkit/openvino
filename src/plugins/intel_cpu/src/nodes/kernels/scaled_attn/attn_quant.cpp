@@ -27,10 +27,10 @@ namespace XARCH {
 using namespace ov;
 
 template<typename T>
-static void quant_u8(const T* src, uint8_t* dst, size_t n, float& scale, float& zp) {
+static void find_minmax(const T* src, size_t n, float& min, float& max) {
+    max = -FLT_MAX;
+    min = FLT_MAX;
     size_t i = 0;
-    float max = -FLT_MAX;
-    float min = FLT_MAX;
 #if defined(HAVE_AVX512F)
     auto v0_max = _mm512_set1_ps(-FLT_MAX);
     auto v0_min = _mm512_set1_ps(FLT_MAX);
@@ -131,12 +131,19 @@ static void quant_u8(const T* src, uint8_t* dst, size_t n, float& scale, float& 
         max = std::max(max, tmp);
         min = std::min(min, tmp);
     }
+
+}
+
+template<typename T>
+static void quant_u8(const T* src, uint8_t* dst, size_t n, float& scale, float& zp) {
+    size_t i = 0;
+    float max = -FLT_MAX;
+    float min = FLT_MAX;
+    find_minmax(src, n, min, max);
     scale = (max - min) / 255;
     if (scale == 0)
         scale = 0.0001f;
     zp = -min / scale;
-
-    i = 0;
 #if defined(HAVE_AVX512F)
     auto v_scale = _mm512_set1_ps(1 / scale);
     auto v_zp = _mm512_set1_ps(zp);
@@ -175,58 +182,7 @@ static void quant_u4(const T* src, void* dst, size_t n, float& scale, float& zp)
     size_t i = 0;
     float max = -FLT_MAX;
     float min = FLT_MAX;
-#if defined(HAVE_AVX512F)
-    auto v0_max = _mm512_set1_ps(-FLT_MAX);
-    auto v0_min = _mm512_set1_ps(FLT_MAX);
-    auto v1_max = _mm512_set1_ps(-FLT_MAX);
-    auto v1_min = _mm512_set1_ps(FLT_MAX);
-    auto v2_max = _mm512_set1_ps(-FLT_MAX);
-    auto v2_min = _mm512_set1_ps(FLT_MAX);
-    auto v3_max = _mm512_set1_ps(-FLT_MAX);
-    auto v3_min = _mm512_set1_ps(FLT_MAX);
-    for (; i + 4 * vec_len_f32_avx512 <= n; i += vec_len_f32_avx512 * 4) {
-        auto v0 = mm512_uni_loadu_ps(src + i);
-        auto v1 = mm512_uni_loadu_ps(src + i + vec_len_f32_avx512);
-        auto v2 = mm512_uni_loadu_ps(src + i + 2 * vec_len_f32_avx512);
-        auto v3 = mm512_uni_loadu_ps(src + i + 3 * vec_len_f32_avx512);
-        v0_max = _mm512_max_ps(v0_max, v0);
-        v0_min = _mm512_min_ps(v0_min, v0);
-        v1_max = _mm512_max_ps(v1_max, v1);
-        v1_min = _mm512_min_ps(v1_min, v1);
-        v2_max = _mm512_max_ps(v2_max, v2);
-        v2_min = _mm512_min_ps(v2_min, v2);
-        v3_max = _mm512_max_ps(v3_max, v3);
-        v3_min = _mm512_min_ps(v3_min, v3);
-    }
-    if (i + 2 * vec_len_f32_avx512 <= n) {
-        auto v0 = mm512_uni_loadu_ps(src + i);
-        auto v1 = mm512_uni_loadu_ps(src + i + vec_len_f32_avx512);
-        v0_max = _mm512_max_ps(v0_max, v0);
-        v0_min = _mm512_min_ps(v0_min, v0);
-        v1_max = _mm512_max_ps(v1_max, v1);
-        v1_min = _mm512_min_ps(v1_min, v1);
-        i += 2 * vec_len_f32_avx512;
-    }
-    if (i + vec_len_f32_avx512 <= n) {
-        auto v0 = mm512_uni_loadu_ps(src + i);
-        v0_max = _mm512_max_ps(v0_max, v0);
-        v0_min = _mm512_min_ps(v0_min, v0);
-        i += vec_len_f32_avx512;
-    }
-    v0_max = _mm512_max_ps(v0_max, v1_max);
-    v0_min = _mm512_min_ps(v0_min, v1_min);
-    v2_max = _mm512_max_ps(v2_max, v3_max);
-    v2_min = _mm512_min_ps(v2_min, v3_min);
-    v0_max = _mm512_max_ps(v0_max, v2_max);
-    v0_min = _mm512_min_ps(v0_min, v2_min);
-    max = _mm512_reduce_max_ps(v0_max);
-    min = _mm512_reduce_min_ps(v0_min);
-#endif
-    for (; i < n; i++) {
-        float tmp = static_cast<float>(src[i]);
-        max = std::max(max, tmp);
-        min = std::min(min, tmp);
-    }
+    find_minmax(src, n, min, max);
     auto insert_half_byte = [](uint8_t dst, uint8_t val, bool high_half) -> uint8_t {
         uint8_t shift = high_half ? 0 : 4;
         return dst | (uint8_t) (val << shift);
@@ -236,13 +192,11 @@ static void quant_u4(const T* src, void* dst, size_t n, float& scale, float& zp)
     if (scale == 0)
         scale = 0.0001f;
     zp = -min / scale;
-    i = 0;
 #if defined(HAVE_AVX512F)
     auto v_scale = _mm512_set1_ps(1 / scale);
     auto v_zp = _mm512_set1_ps(zp);
     auto v_zero = _mm512_setzero_epi32();
     auto v_upper = _mm512_set1_epi32(15);
-    printf("total size %ld avx512 size %ld\n", n, vec_len_f32_avx512);
     for (; i + 2 * vec_len_f32_avx512 <= n; i += 2 * vec_len_f32_avx512) {
         auto v0 = mm512_uni_loadu_ps(src + i);
         auto v1 = mm512_uni_loadu_ps(src + i + vec_len_f32_avx512);
@@ -263,6 +217,50 @@ static void quant_u4(const T* src, void* dst, size_t n, float& scale, float& zp)
         second_half = _mm512_and_epi32(second_half, mask);
         auto combined =  _mm512_or_epi32(first_half, second_half);
         _mm512_mask_cvtepi32_storeu_epi8(dst_ptr + i / 2, 0xffff, combined);
+    }
+#endif
+#if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
+    auto v256_zero =  _mm256_set1_epi32(0);
+    auto v256_upper = _mm256_set1_epi32(15);
+    auto v256_scale = _mm256_set1_ps(1 / scale);
+    auto v256_zp = _mm256_set1_ps(zp);
+    for (; i + vec_len_f32_avx2 * 2 <= n; i += vec_len_f32_avx2 * 2) {
+        auto v0 = mm256_uni_loadu_ps(src + i);
+        auto v1 = mm256_uni_loadu_ps(src + i + vec_len_f32_avx2);
+        v0 = _mm256_fmadd_ps(v0, v256_scale, v256_zp);
+        v1 = _mm256_fmadd_ps(v1, v256_scale, v256_zp);
+        v0 = _mm256_round_ps(v0, _MM_ROUND_NEAREST);
+        v1 = _mm256_round_ps(v1, _MM_ROUND_NEAREST);
+
+        auto v0_i32 = _mm256_cvtps_epi32(v0);
+        auto v1_i32 = _mm256_cvtps_epi32(v1);
+        v0_i32 = _mm256_max_epi32(v0_i32, v256_zero);
+        v1_i32 = _mm256_max_epi32(v1_i32, v256_zero);
+        v0_i32 = _mm256_min_epi32(v0_i32, v256_upper);
+        v1_i32 = _mm256_min_epi32(v1_i32, v256_upper);
+        auto idx1 = _mm256_set_epi32(7, 5, 3, 1, 6, 4, 2, 0);
+        v0_i32 = _mm256_permutevar8x32_epi32(v0_i32, idx1);
+        v1_i32 = _mm256_permutevar8x32_epi32(v1_i32, idx1);
+        //    0,1,2,3,4,5,6,7 | 8,9,10,11,12,13,14,15
+        //       _mm256_permutevar8x32_epi32
+        //    0,2,4,6,1,3,5,7 | 8,10,12,14,9,11,13,15
+        //       _mm256_permute2x128_si256
+        // 0,2,4,6,8,10,12,14 | 1,3,5,7,9,11,13,15
+        //          shift + mask + or
+        //     [0,1],[2,3], ..., [12,13], [14,15]
+        auto first_half = _mm256_permute2x128_si256(v0_i32, v1_i32, 0x20);
+        auto second_half = _mm256_permute2x128_si256(v0_i32, v1_i32, 0x31);
+        first_half = _mm256_slli_epi32(first_half, 4);
+        auto mask = _mm256_set1_epi32(0x0F);
+        second_half = _mm256_and_si256(second_half, mask);
+        auto combined = _mm256_or_si256(first_half, second_half);
+
+        auto high4 = _mm256_extractf128_si256(combined, 1);
+        auto low4 = _mm256_castsi256_si128(combined);
+        // ignore sign bit for u4 case
+        auto packed = _mm_packus_epi32(low4, high4);
+        packed = _mm_packus_epi16(packed, packed);
+        _mm_storel_epi64(reinterpret_cast<__m128i*>(dst_ptr + i / 2), packed);
     }
 #endif
     for (; i < n; i++) {
@@ -287,21 +285,15 @@ static void quant_s4(const T* src, void* dst, size_t n, float& scale) {
     size_t i = 0;
     float max = -FLT_MAX;
     float min = FLT_MAX;
-    for (; i < n; i++) {
-        float tmp = src[i];
-        max = std::max(max, tmp);
-        min = std::min(min, tmp);
-    }
+    find_minmax(src, n, min, max);
     float max_abs = std::max(std::abs(min), std::abs(max));
     scale = max_abs / ((1 << 3) - 1);
-    printf("max %f min %f scale %f\n", min, max, scale);
     if (scale == 0)
         scale = 0.0001f;
-    i = 0;
 #if defined(HAVE_AVX512F)
     auto v_scale = _mm512_set1_ps(1 / scale);
-    auto v_upper = _mm512_set1_epi32(7.0);
-    auto v_lower = _mm512_set1_epi32(-8.0);
+    auto v_upper = _mm512_set1_epi32(7);
+    auto v_lower = _mm512_set1_epi32(-8);
     for (; i + 2 * vec_len_f32_avx512 <= n; i += 2 * vec_len_f32_avx512) {
         auto v0 = mm512_uni_loadu_ps(src + i);
         auto v1 = mm512_uni_loadu_ps(src + i + vec_len_f32_avx512);
@@ -327,16 +319,56 @@ static void quant_s4(const T* src, void* dst, size_t n, float& scale) {
         _mm512_mask_cvtepi32_storeu_epi8(dst_ptr + i / 2, 0xffff, combined);
     }
 #endif
+#if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
+    auto v256_lower =  _mm256_set1_epi32(-8);
+    auto v256_upper = _mm256_set1_epi32(7);
+    auto v256_scale = _mm256_set1_ps(1 / scale);
+    for (; i + vec_len_f32_avx2 * 2 <= n; i += vec_len_f32_avx2 * 2) {
+        auto v0 = mm256_uni_loadu_ps(src + i);
+        auto v1 = mm256_uni_loadu_ps(src + i + vec_len_f32_avx2);
+        v0 = _mm256_mul_ps(v0, v256_scale);
+        v1 = _mm256_mul_ps(v1, v256_scale);
+        v0 = _mm256_round_ps(v0, _MM_ROUND_NEAREST);
+        v1 = _mm256_round_ps(v1, _MM_ROUND_NEAREST);
+
+        auto v0_i32 = _mm256_cvtps_epi32(v0);
+        auto v1_i32 = _mm256_cvtps_epi32(v1);
+        v0_i32 = _mm256_max_epi32(v0_i32, v256_lower);
+        v1_i32 = _mm256_max_epi32(v1_i32, v256_lower);
+        v0_i32 = _mm256_min_epi32(v0_i32, v256_upper);
+        v1_i32 = _mm256_min_epi32(v1_i32, v256_upper);
+        auto idx1 = _mm256_set_epi32(7, 5, 3, 1, 6, 4, 2, 0);
+        v0_i32 = _mm256_permutevar8x32_epi32(v0_i32, idx1);
+        v1_i32 = _mm256_permutevar8x32_epi32(v1_i32, idx1);
+
+        //    0,1,2,3,4,5,6,7 | 8,9,10,11,12,13,14,15
+        //       _mm256_permutevar8x32_epi32
+        //    0,2,4,6,1,3,5,7 | 8,10,12,14,9,11,13,15
+        //       _mm256_permute2x128_si256
+        // 0,2,4,6,8,10,12,14 | 1,3,5,7,9,11,13,15
+        //          shift + mask + or
+        //     [0,1],[2,3], ..., [12,13], [14,15]
+        auto first_half = _mm256_permute2x128_si256(v0_i32, v1_i32, 0x20);
+        auto second_half = _mm256_permute2x128_si256(v0_i32, v1_i32, 0x31);
+        first_half = _mm256_slli_epi32(first_half, 4);
+        auto mask = _mm256_set1_epi32(0x0F);
+        second_half = _mm256_and_si256(second_half, mask);
+        auto combined = _mm256_or_si256(first_half, second_half);
+
+        auto high4 = _mm256_extractf128_si256(combined, 1);
+        auto low4 = _mm256_castsi256_si128(combined);
+        // keep sign bit for s4 case
+        auto packed = _mm_packs_epi32(low4, high4);
+        packed = _mm_packs_epi16(packed, packed);
+        _mm_storel_epi64(reinterpret_cast<__m128i*>(dst_ptr + i / 2), packed);
+    }
+#endif
     for (; i < n; i++) {
         float tmp = src[i];
-        float temp1 = std::round(tmp / scale);
-        float temp2 = (int8_t)(tmp / scale);
         int8_t src_val = std::min((int8_t)(7), (int8_t)std::round(tmp / scale));
         src_val = std::max((int8_t)(-8), src_val);
         uint8_t dst_val = i % 2 == 0 ? 0 : dst_ptr[i / 2];
         dst_val = insert_half_byte(dst_val, src_val, (uint8_t)(i % 2));
-        if (i < 16)
-            printf("index %ld float %f temp1 %f temp2 %f src %d hex %x\n", i, tmp, temp1, temp2, src_val, dst_val);
         dst_ptr[i / 2] = dst_val;
     }
 }

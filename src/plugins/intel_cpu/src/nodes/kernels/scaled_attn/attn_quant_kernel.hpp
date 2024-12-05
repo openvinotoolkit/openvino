@@ -90,6 +90,7 @@ void attn_dequant_u4_kernel(const uint8_t* src, TDST* dst, size_t n, float scale
         mm512_uni_storeu_ps(dst + i, first_half);
         mm512_uni_storeu_ps(dst + i + vec_len_f32_avx512, second_half);
     }
+#elif defined(HAVE_AVX2) || defined(HAVE_AVX512F)
     auto v256_zp = _mm256_set1_ps(zp);
     auto v256_scale = _mm256_set1_ps(scale);
     for (; i + vec_len_f32_avx2 * 2 <= n; i += vec_len_f32_avx2 * 2) {
@@ -109,6 +110,11 @@ void attn_dequant_u4_kernel(const uint8_t* src, TDST* dst, size_t n, float scale
         v_f32_low_half = _mm256_mul_ps(v_f32_low_half, v256_scale);
         v_f32_high_half = _mm256_mul_ps(v_f32_high_half, v256_scale);
 
+        // 0,2,4,6,8,10,12,14 | 1,3,5,7,9,11,13,15
+        //         _mm256_permute2f128_ps
+        // 0,2,4,6,1,3,5,7    | 8,10,12,14,9,11,13,15
+        //         _mm256_permutevar8x32_ps
+        // 0,1,2,3,4,5,6,7    | 8,9,10,11,12,13,14,15
         __m256 first_half = _mm256_permute2f128_ps(v_f32_low_half, v_f32_high_half, 0x20);
         auto idx1 = _mm256_set_epi32(7, 3, 6, 2, 5, 1, 4, 0);
         first_half = _mm256_permutevar8x32_ps(first_half, idx1);
@@ -167,6 +173,7 @@ void attn_dequant_s4_kernel(const uint8_t* src, TDST* dst, size_t n, float scale
         mm512_uni_storeu_ps(dst + i + vec_len_f32_avx512, second_half);
     }
 
+#elif defined(HAVE_AVX2) || defined(HAVE_AVX512F)
     for (; i + vec_len_f32_avx2 * 2 <= n; i += vec_len_f32_avx2 * 2) {
         auto v256_scale = _mm256_set1_ps(scale);
         auto data = _mm_loadu_si64(reinterpret_cast<__m128i*>(src_nc + i / 2));
@@ -183,6 +190,11 @@ void attn_dequant_s4_kernel(const uint8_t* src, TDST* dst, size_t n, float scale
         v_f32_low_half = _mm256_mul_ps(v_f32_low_half, v256_scale);
         v_f32_high_half = _mm256_mul_ps(v_f32_high_half, v256_scale);
 
+        // 0,2,4,6,8,10,12,14 | 1,3,5,7,9,11,13,15
+        //         _mm256_permute2f128_ps
+        // 0,2,4,6,1,3,5,7    | 8,10,12,14,9,11,13,15
+        //         _mm256_permutevar8x32_ps
+        // 0,1,2,3,4,5,6,7    | 8,9,10,11,12,13,14,15
         __m256 first_half = _mm256_permute2f128_ps(v_f32_low_half, v_f32_high_half, 0x20);
         auto idx1 = _mm256_set_epi32(7, 3, 6, 2, 5, 1, 4, 0);
         first_half = _mm256_permutevar8x32_ps(first_half, idx1);
