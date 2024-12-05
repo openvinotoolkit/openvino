@@ -608,7 +608,6 @@ public:
         OPENVINO_NOT_IMPLEMENTED;
     }
 
-
 protected:
     std::string m_default_device_id = "0";
     std::unordered_set<std::string> m_supported_ops;
