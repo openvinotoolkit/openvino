@@ -1336,12 +1336,14 @@ const auto groupConvParams_ExplicitPadding_DW_2D_Brdgmm = ::testing::Combine(::t
                                                                       ::testing::ValuesIn(numOutChannels_DW),
                                                                       ::testing::ValuesIn(numGroups_DW),
                                                                       ::testing::Values(ov::op::PadType::EXPLICIT));
-const auto Brdgmm2DCPUSpec = []()-> std::vector<CPUSpecificParams> {
+const auto BrdgmmCPUSpec = []()-> std::vector<CPUSpecificParams> {
+    std::string isaStr;
     if (ov::with_cpu_x86_avx512f()) {
-        return {conv_avx512_dw_2D_nspc_brgconv};
+        isaStr = "avx512";
     } else {
-        return {conv_avx2_dw_2D_nspc_brgconv};
+        isaStr = "avx2";
     }
+    return {CPUSpecificParams{{}, {}, {}, "brgconv_" + isaStr + "_dw"}};
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_DW_FP32_Brdgmm,
@@ -1352,7 +1354,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_DW_FP32_Brdgmm,
                                                                ::testing::Values(ElementType::undefined),
                                                                ::testing::ValuesIn(inputShapes2dDW),
                                                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                                            ::testing::ValuesIn(filterCPUInfoForDevice(Brdgmm2DCPUSpec())),
+                                            ::testing::ValuesIn(filterCPUInfoForDevice(BrdgmmCPUSpec())),
                                             ::testing::ValuesIn(fusingParamsSet_Brdgmm),
                                             ::testing::Values(empty_plugin_config)),
                          GroupConvolutionLayerCPUTest::getTestCaseName);
@@ -1379,7 +1381,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_DW_BF16_Brdgmm,
                                                                ::testing::Values(ElementType::undefined),
                                                                ::testing::ValuesIn(inputShapes2dDW),
                                                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                                            ::testing::ValuesIn(filterCPUInfoForDeviceSupportBF16({conv_avx512_dw_2D_nspc_brgconv})),
+                                            ::testing::ValuesIn(filterCPUInfoForDeviceSupportBF16(BrdgmmCPUSpec())),
                                             ::testing::ValuesIn(fusingParamsSetBF16_Brdgmm),
                                             ::testing::Values(cpu_bf16_plugin_config)),
                          GroupConvolutionLayerCPUTest::getTestCaseName);
@@ -1392,7 +1394,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_2D_DW_FP16_Brdgmm,
                                                                ::testing::Values(ElementType::undefined),
                                                                ::testing::ValuesIn(inputShapes2dDW),
                                                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                                            ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_dw_2D_nspc_brgconv})),
+                                            ::testing::ValuesIn(filterCPUInfoForDevice(BrdgmmCPUSpec())),
                                             ::testing::ValuesIn(fusingParamsSetFP16_Brdgmm),
                                             ::testing::Values(cpu_f16_plugin_config)),
                          GroupConvolutionLayerCPUTest::getTestCaseName);
@@ -1443,13 +1445,6 @@ const auto groupConvParams_ExplicitPadding_DW_3D_Brdgmm = ::testing::Combine(::t
                                                                       ::testing::ValuesIn(numOutChannels_DW),
                                                                       ::testing::ValuesIn(numGroups_DW),
                                                                       ::testing::Values(ov::op::PadType::EXPLICIT));
-const auto Brdgmm3DCPUSpec = []()-> std::vector<CPUSpecificParams> {
-    if (ov::with_cpu_x86_avx512f()) {
-        return {conv_avx512_dw_3D_nspc_brgconv};
-    } else {
-        return {conv_avx2_dw_3D_nspc_brgconv};
-    }
-};
 
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_3D_DW_FP32_Brdgmm,
                          GroupConvolutionLayerCPUTest,
@@ -1459,7 +1454,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConv_3D_DW_FP32_Brdgmm,
                                                                ::testing::Values(ElementType::undefined),
                                                                ::testing::ValuesIn(inputShapes3dDW),
                                                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                                            ::testing::ValuesIn(filterCPUInfoForDevice(Brdgmm3DCPUSpec())),
+                                            ::testing::ValuesIn(filterCPUInfoForDevice(BrdgmmCPUSpec())),
                                             ::testing::ValuesIn(fusingParamsSet_Brdgmm),
                                             ::testing::Values(empty_plugin_config)),
                          GroupConvolutionLayerCPUTest::getTestCaseName);
