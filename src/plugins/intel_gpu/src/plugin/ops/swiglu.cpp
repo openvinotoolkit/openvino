@@ -22,8 +22,7 @@ static void CreateGLUOp(ProgramBuilder& p, const std::shared_ptr<GLU>& op) {
                                 (op->get_axis() < 0 ? op->get_input_partial_shape(0).size() + op->get_axis() : op->get_axis()),
                                 op->get_split_lengths(),
                                 op->get_glu_type(),
-                                op->get_split_to_glu_idx(),
-                                cldnn::tensor());
+                                op->get_split_to_glu_idx());
     prim.output_data_types = get_output_data_types(op);
     p.add_primitive(*op, prim);
 }

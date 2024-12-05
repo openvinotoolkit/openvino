@@ -62,7 +62,6 @@ TEST_P(skip_gather_at_runtime_test, runtime_skip) {
                         reorder("reorder", input_info("gather"), format::get_default_format(input1_rank), data_types::f32));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     network network(engine, topology, config);
