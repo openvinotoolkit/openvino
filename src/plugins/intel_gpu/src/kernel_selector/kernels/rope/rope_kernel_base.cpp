@@ -13,7 +13,6 @@ bool RoPEKernelBase::Validate(const Params& p) const {
 JitConstants RoPEKernelBase::GetJitConstants(const rope_params& params, RoPEKernelBase::DispatchData) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    jit.AddConstant(MakeJitConstant("VEC_SIZE", params.vec_size));
     jit.AddConstant(MakeJitConstant("HEAD_SIZE", params.head_size));
     jit.AddConstant(MakeJitConstant("ROTARY_NDIMS", params.rotary_ndims));
     jit.AddConstant(MakeJitConstant("HALF_ROTARY_NDIMS", params.rotary_ndims / 2));
@@ -72,24 +71,23 @@ RoPEKernelBase::DispatchData RoPEKernelBase::SetDefault(const rope_params& param
         dispatchData.gws = {input.Batch().v,
                             input.Feature().v,
                             params.head_cnt *
-                                std::max(params.rotary_ndims / 2ul, params.head_size - params.rotary_ndims) /
-                                params.vec_size};
+                                std::max(params.rotary_ndims / 2ul, params.head_size - params.rotary_ndims)};
     } else if (params.is_chatglm) {
         if (params.support_2d_rope) {
             // input  [batch_size, seq_length]
             // output [batch_size, head_count, seq_length, half_rotary_ndims]
             dispatchData.gws = {input.Batch().v * params.head_cnt,
                                 input.Feature().v,
-                                params.rotary_ndims / 2ul / params.vec_size};
+                                params.rotary_ndims / 2ul};
         } else {
             dispatchData.gws = {input.Batch().v,
                                 input.Feature().v,
-                                params.head_cnt * (params.rotary_ndims / 2ul / params.vec_size)};
+                                params.head_cnt * (params.rotary_ndims / 2ul)};
         }
     } else {
         dispatchData.gws = {output.Batch().v,
                             output.Feature().v,
-                            output.Y().v * params.rotary_ndims / 2ul / params.vec_size};
+                            output.Y().v * params.rotary_ndims / 2ul};
     }
 
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, input.GetLayout(), output.GetLayout(), dims_by_gws);

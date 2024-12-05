@@ -21,7 +21,6 @@ struct rope_params : public base_params {
     size_t axis = 0;
     size_t num_of_inputs = 0;
     size_t gather_rank = 0;
-    size_t vec_size = 1;
 
     bool is_qwen = false;
     bool is_chatglm = false;
