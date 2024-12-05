@@ -234,7 +234,7 @@ public:
 
     ov::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
                                                  const ov::ITensorAccessor& tensor_accessor) override {
-        auto op = m_node.get();
+        const auto op = m_node.get();
 
         std::shared_ptr<ov::Node> local_op;
         ov::OutputVector new_inputs;
@@ -263,6 +263,11 @@ public:
         }
 
         return {std::move(output_shapes)};
+    }
+
+    port_mask_t get_port_mask() const override {
+        // For fallback return full port mask to try get data for all node's inputs
+        return FULL_PORT_MASK;
     }
 };
 
