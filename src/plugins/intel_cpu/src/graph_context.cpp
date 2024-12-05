@@ -27,6 +27,7 @@ GraphContext::GraphContext(const Config& config,
     numNumaNodes = 1;
     if (streamExecutor) {
         cpuStreamExecutor = std::dynamic_pointer_cast<ov::threading::CPUStreamsExecutor>(streamExecutor);
+        numaNodeId = cpuStreamExecutor ? cpuStreamExecutor->get_numa_node_id() : 0;
         auto nNumaNodes = get_num_numa_nodes();
         if (numNumaNodes < nNumaNodes)
             numNumaNodes = nNumaNodes;
