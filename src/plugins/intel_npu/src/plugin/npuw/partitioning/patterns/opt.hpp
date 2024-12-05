@@ -177,6 +177,11 @@ public:
     ConvToMatmul(Context::Ref ctx);
 };
 
+class UneffectiveZP : public  ov::pass::MatcherPass {
+public:
+    UneffectiveZP();
+};
+
 }  // namespace opt
 }  // namespace patterns
 }  // namespace npuw

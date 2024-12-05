@@ -12,6 +12,7 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace npuw {
@@ -1659,6 +1660,51 @@ ConvToMatmul::ConvToMatmul(Context::Ref ctx) {
         return false;  // root hasn't changed
     };
     register_matcher(std::make_shared<opp::Matcher>(transpose_out, "ConvToMatmul"), std::move(callback));
+}
+
+// Removing uneffective zeropoint layer, specific structure fixed for POC only purpose,
+// further all unefective subtract can be optimized-out
+// anyinput[2D], "uneffective_zp_subgraph"[1D], subtract(boardcast), any_input -> multiply, transpose -> convolution
+// anyinput[2D], any_input -> multiply, transpose -> convolution
+
+UneffectiveZP::UneffectiveZP() {
+    // Constant / param
+    auto zero_point_tensor = opp::any_input();
+    auto sub_bias_convert = opp::optional<ov::op::v0::Convert>({zero_point_tensor->outputs()});
+    auto sub_bias_reshape = opp::optional<ov::op::v1::Reshape>({sub_bias_convert, opp::any_input()});
+    auto sub_weights = opp::any_input();
+    auto subtract = opp::wrap_type<ov::op::v1::Subtract>({sub_weights, sub_bias_reshape});
+    auto multiply_bias = opp::any_input();
+    auto multiply = opp::wrap_type<ov::op::v1::Multiply>({subtract, multiply_bias});
+    auto conv_any_bias = opp::any_input();
+    auto conv = opp::wrap_type<ov::op::v1::Convolution>({conv_any_bias, multiply});
+
+    auto callback = [=](ov::pass::pattern::Matcher& m) -> bool {
+        LOG_DEBUG("UneffectiveZP subgraph candidate detected");
+        auto& node_to_output = m.get_pattern_value_map();
+        auto zero_point_tensor_node = node_to_output.at(zero_point_tensor).get_node_shared_ptr();
+
+        if (op::util::is_constant_and_all_values_equal_int(zero_point_tensor_node, 0)) {
+            LOG_DEBUG("UneffectiveZP subgraph detected with NOP zp tensor: "
+                << zero_point_tensor_node->get_friendly_name() << " shape=" <<  zero_point_tensor_node->get_shape());
+            // removing whole zubgraph with subtract + zeropoints
+            auto multiply_node = node_to_output.at(subtract).get_node_shared_ptr();
+            auto sub_weights_node = node_to_output.at(sub_weights).get_node_shared_ptr();
+
+            //TODO: verify input 0 is subtract
+            multiply_node->input(0).replace_source_output(sub_weights_node->output(0));
+            multiply_node->validate_and_infer_types();
+        } else {
+            // TODO: log zeropoints not equal to int4(0)
+            LOG_DEBUG("UneffectiveZP : non all zeropoints are identity");
+            return false;   // root has changed
+        }
+
+        return true;   // root has not changed
+    };
+
+    LOG_DEBUG("UneffectiveZP is registered ");
+    register_matcher(std::make_shared<opp::Matcher>(conv, "UneffectiveZP"), std::move(callback));
 }
 
 }  // namespace opt
