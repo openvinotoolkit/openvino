@@ -298,11 +298,12 @@ def runCommandList(commit, cfgData):
             env=newEnv
         )
         for line in proc.stdout:
+            stripped_line = line.rstrip()
             if cfgData["verboseOutput"]:
-                sys.stdout.write(line)
-            commitLogger.info(line)
+                sys.stdout.write(stripped_line + '\n')
+            commitLogger.info(stripped_line)
             if "catchMsg" in cmd:
-                isErrFound = re.search(cmd["catchMsg"], line)
+                isErrFound = re.search(cmd["catchMsg"], stripped_line)
                 if isErrFound:
                     raise BuildError(
                         errType=BuildError.BuildErrType.UNDEFINED,
