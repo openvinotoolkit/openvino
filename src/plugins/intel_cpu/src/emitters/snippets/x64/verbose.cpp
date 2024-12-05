@@ -11,6 +11,9 @@
 #include "jit_brgemm_copy_b_emitter.hpp"
 #include "jit_kernel_emitter.hpp"
 #include "jit_snippets_emitters.hpp"
+#include "kernel_executors/brgemm.hpp"
+#include "kernel_executors/brgemm_amx.hpp"
+
 
 #ifndef _WIN32
 #include <cxxabi.h>
@@ -86,9 +89,12 @@ static std::string init_info_jit_store_memory_emitter(const jit_store_memory_emi
 
 std::string init_info_jit_brgemm_emitter(const jit_brgemm_emitter *emitter) {
     std::stringstream ss;
-    ss << "Emitter_type_name:jit_brgemm_emitter"
-       <<  emitter->m_kernel_executor->to_string()
-       << " m_memory_offset:" << vector_to_string(emitter->m_memory_offsets)
+    ss << "Emitter_type_name:jit_brgemm_emitter";
+    if (const auto& common = std::dynamic_pointer_cast<BrgemmKernelExecutor>(emitter->m_kernel_executor))
+        ss << common->to_string();
+    if (const auto& amx = std::dynamic_pointer_cast<BrgemmAMXKernelExecutor>(emitter->m_kernel_executor))
+        ss << amx->to_string();
+    ss << " m_memory_offset:" << vector_to_string(emitter->m_memory_offsets)
        << " m_buffer_ids:" << vector_to_string(emitter->m_buffer_ids);
 
     return ss.str();

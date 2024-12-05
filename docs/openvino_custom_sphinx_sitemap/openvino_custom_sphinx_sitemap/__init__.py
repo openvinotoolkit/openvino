@@ -140,9 +140,21 @@ def extract_hierarchy(link):
     segments = path.split('/')[1:]
     if segments and segments[-1].endswith('.html'):
         segments = segments[:-1]
-    
+
+    if segments and '.' in segments[0]:
+        year, *rest = segments[0].split('.')
+        if year.isdigit() and len(year) == 4:
+            segments[0] = year
+
+    segments = [format_segment(segment) for segment in segments]
+
     hierarchy = []
     for i in range(1, len(segments) + 1):
         hierarchy.append('|'.join(segments[:i]))
-    
+
     return ';'.join(hierarchy)
+
+def format_segment(segment):
+    if segment == 'c_cpp_api': segment = 'c_c++_api'
+
+    return ' '.join(word.capitalize() for word in segment.replace('-', ' ').replace('_', ' ').split())

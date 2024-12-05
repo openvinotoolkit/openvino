@@ -27,6 +27,23 @@ void PassPipeline::register_pass(const std::shared_ptr<PassBase>& pass) {
     m_passes.push_back(pass);
 }
 
+void PassPipeline::run(const lowered::LinearIR& linear_ir) const {
+    for (const auto& pass : m_passes) {
+        OPENVINO_ASSERT(pass != nullptr, "PassPipeline has empty pass!");
+        SNIPPETS_DEBUG_LIR_PASS_DUMP(linear_ir, pass);
+
+        if (m_pass_config->is_disabled(pass->get_type_info())) {
+            continue;
+        }
+        const auto const_pass = std::dynamic_pointer_cast<ConstPass>(pass);
+        OPENVINO_ASSERT(const_pass != nullptr,
+                        "Unexpected pass (",
+                        pass->get_type_info(),
+                        ") is registered in PassPipeline. Only ConstPass is allowed.");
+        const_pass->run(linear_ir);
+    }
+}
+
 void PassPipeline::run(LinearIR& linear_ir) const {
     run(linear_ir, linear_ir.cbegin(), linear_ir.cend());
 }
@@ -41,6 +58,8 @@ void PassPipeline::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearI
         }
         if (auto lir_pass = std::dynamic_pointer_cast<Pass>(pass)) {
             lir_pass->run(linear_ir);
+        } else if (auto const_pass = std::dynamic_pointer_cast<ConstPass>(pass)) {
+            const_pass->run(linear_ir);
         } else if (auto ranged_pass = std::dynamic_pointer_cast<RangedPass>(pass)) {
             ranged_pass->run(linear_ir, begin, end);
         } else {

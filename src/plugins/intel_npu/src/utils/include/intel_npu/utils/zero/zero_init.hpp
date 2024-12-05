@@ -67,6 +67,8 @@ public:
     }
 
 private:
+    void initNpuDriver();
+
     static const ze_driver_uuid_t uuid;
     Logger log;
 
