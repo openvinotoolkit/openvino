@@ -1106,7 +1106,7 @@ void Node::toNumaNodeImpl(int numaNodeID) {
 
     // create scratch pad from specified numa node
     if (scratchpadMem) {
-        scratchpadMem = context->getScratchPad(numaNodeID)->createScratchPadMem(scratchpadMem->getDescPtr());
+        scratchpadMem = context->getScratchPad()->createScratchPadMem(scratchpadMem->getDescPtr());
         primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
     }
 

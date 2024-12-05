@@ -788,7 +788,7 @@ protected:
 
     MemoryPtr getScratchPadMem(const MemoryDescPtr& desc) {
         if (!scratchpadMem || !scratchpadMem->getDesc().isCompatible(*desc)) {
-            scratchpadMem = context->getScratchPad(curNumaNode)->createScratchPadMem(desc);
+            scratchpadMem = context->getScratchPad()->createScratchPadMem(desc);
         }
         return scratchpadMem;
     }
