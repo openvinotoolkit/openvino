@@ -8,7 +8,7 @@ How to Implement Custom GPU Operations
 
 
 To enable operations not supported by OpenVINO™ out of the box, you may need an extension
-for OpenVINO operation set, and a custom kernel for the device you will target. This
+for the OpenVINO operation set and a custom kernel for the target device. This
 article describes custom kernel support for the GPU device.
 
 The GPU codepath abstracts many details about OpenCL. You need to provide the kernel
@@ -17,7 +17,7 @@ parameters to the parameters of the operation.
 
 There are two options for using the custom operation configuration file:
 
-* Include a section with your kernels into the automatically-loaded
+* Include a section with your kernels into the automatically loaded
   ``<lib_path>/cldnn_global_custom_kernels/cldnn_global_custom_kernels.xml`` file.
 * Call the ``ov::Core::set_property()`` method from your application with the
   ``"CONFIG_FILE"`` key and the configuration file name as a value before loading
@@ -61,7 +61,7 @@ Configuration File Format
 #########################
 
 The configuration file is expected to follow the ``.xml`` file structure
-with a node of the type ``CustomLayer`` for every custom operation you provide.
+with a ``CustomLayer`` node for every custom operation you provide.
 
 The definitions described in the sections below use the following notations:
 
@@ -107,7 +107,7 @@ The ``CustomLayer`` node contains the entire configuration for a single custom o
 Kernel Node and Sub-Node Structure
 ++++++++++++++++++++++++++++++++++
 
-The ``Kernel`` node contains all kernel source code configuration.
+The ``Kernel`` node contains all kernel source code configurations.
 
 **Sub-nodes**: ``Source`` (1+), ``Define`` (0+)
 
@@ -125,7 +125,7 @@ The ``Source`` node points to a single OpenCL source file.
     * - ``filename``
       - (1)
       - Name of the file containing OpenCL source code. The path is relative to your
-        executable. Multiple source nodes will have their sources concatenated in order.
+        executable. Multiple ``Source`` nodes will have their sources concatenated in order.
 
 **Sub-nodes**: None
 
@@ -150,7 +150,7 @@ the sources during compilation (JIT).
       - This parameter value is used as the value of this JIT definition.
     * - ``type``
       - (0/1)
-      - The parameter type. Accepted values: ``int`` , ``float`` , and ``int[]`` ,
+      - The parameter type. Accepted values: ``int``, ``float``, ``int[]``,
         ``float[]`` for arrays.
     * - ``default``
       - (0/1)
@@ -166,9 +166,9 @@ Buffers Node and Sub-Node Structure
 +++++++++++++++++++++++++++++++++++
 
 The ``Buffers`` node configures all input/output buffers for the OpenCL entry
-function. No buffers node structure exists.
+function.
 
-**Sub-nodes:** ``Data`` (0+), ``Tensor`` (1+)
+**Sub-nodes**: ``Data`` (0+), ``Tensor`` (1+)
 
 Data Node and Sub-Node Structure
 ++++++++++++++++++++++++++++++++
@@ -187,7 +187,7 @@ weights or biases.
       - Name of a blob attached to an operation in the OpenVINO IR.
     * - ``arg-index``
       - (1)
-      - 0-based index in the entry function arguments to be bound to.
+      - 0-based index in the entry function arguments to bind to.
 
 
 **Sub-nodes**: None
@@ -205,17 +205,17 @@ The ``Tensor`` node configures a single input or output tensor.
       - Description
     * - ``arg-index``
       - (1)
-      - 0-based index in the entry function arguments to be bound to.
+      - 0-based index in the entry function arguments to bind to.
     * - ``type``
       - (1)
       - ``input`` or ``output``
     * - ``port-index``
       - (1)
-      - 0-based index in the operation input/output ports in the OpenVINO IR
+      - 0-based index of the operation's input/output ports in the OpenVINO IR.
     * - ``format``
       - (0/1)
-      - Data layout declaration for the tensor. Accepted values: ``BFYX`` , ``BYXF`` ,
-        ``YXFB`` , ``FYXB`` , and same values in all lowercase. Default value: ``BFYX``.
+      - Data layout declaration for the tensor. Accepted values: ``BFYX``, ``BYXF``,
+        ``YXFB``, ``FYXB``, and the same values in lowercase. Default value: ``BFYX``.
 
 CompilerOptions Node and Sub-Node Structure
 +++++++++++++++++++++++++++++++++++++++++++
@@ -231,7 +231,7 @@ sources.
       - Description
     * - ``options``
       - (1)
-      - Options string to be passed to the OpenCL compiler
+      - Options string to be passed to the OpenCL compiler.
 
 **Sub-nodes**: None
 
@@ -249,14 +249,14 @@ queuing an OpenCL program for execution.
       - Description
     * - ``global`` ``local``
       - (0/1) (0/1)
-      - An array of up to three integers or formulas for defining OpenCL work-sizes to
+      - An array of up to three integers or formulas for defining OpenCL work sizes to
         be used during execution. The formulas can use the values of the B,F,Y,X
-        dimensions and contain the operators: +,-,/,\*,%. All operators are evaluated
-        in integer arithmetic. Default value: ``global=”B\*F\*Y\*X” local=””``
+        dimensions and contain the operators: +, -, /, *, %. All operators are evaluated
+        using integer arithmetic. Default value: ``global="B*F*Y*X" local=""``
     * - ``dim``
       - (0/1)
-      - A tensor to take the work-size from. Accepted values: ``input N`` , ``output`` ,
-        where ``N`` is an index of input tensor starting with 0. Default value: ``output``
+      - A tensor to take the work size from. Accepted values: ``input N``, ``output``,
+        where ``N`` is the index of the input tensor starting with 0. Default value: ``output``.
 
 **Sub-nodes**: None
 
@@ -290,7 +290,7 @@ Built-In Definitions for Custom Layers
 The following table includes definitions that are attached before
 user sources.
 
-For an example, see `Example Kernel <#example-kernel>`__.
+For an example, see the `Example Kernel <#example-kernel>`__.
 
 .. list-table::
     :header-rows: 1
@@ -298,40 +298,40 @@ For an example, see `Example Kernel <#example-kernel>`__.
     * - Name
       - Value
     * - ``NUM_INPUTS``
-      - Number of the input tensors bound to this kernel
+      - Number of input tensors bound to this kernel.
     * - ``GLOBAL_WORKSIZE``
-      - An array of global work sizes used to execute this kernel
+      - An array of global work sizes used to execute this kernel.
     * - ``GLOBAL_WORKSIZE_SIZE``
-      - The size of the ``GLOBAL_WORKSIZE`` array
+      - The size of the ``GLOBAL_WORKSIZE`` array.
     * - ``LOCAL_WORKSIZE``
-      - An array of local work sizes used to execute this kernel
+      - An array of local work sizes used to execute this kernel.
     * - ``LOCAL_WORKSIZE_SIZE``
-      - The size of the ``LOCAL_WORKSIZE`` array
+      - The size of the ``LOCAL_WORKSIZE`` array.
     * - ``<TENSOR>_DIMS``
-      - An array of the tensor dimension sizes. Always ordered as ``BFYX``
+      - An array of the tensor dimension sizes, always ordered as ``BFYX``.
     * - ``<TENSOR>_DIMS_SIZE``
       - The size of the ``<TENSOR>_DIMS`` array.
     * - ``<TENSOR>_TYPE``
-      - The datatype of the tensor: ``float`` , ``half`` , or ``char``
+      - The datatype of the tensor: ``float``, ``half``, or ``char``.
     * - ``<TENSOR>_FORMAT_<TENSOR_FORMAT>``
-      - The format of the tensor, BFYX, BYXF, YXFB , FYXB, or ANY. The format is
+      - The format of the tensor: ``BFYX``, ``BYXF``, ``YXFB``, ``FYXB``, or ``ANY``. The format is
         concatenated to the defined name. You can use the tensor format to define
-        codepaths in your code with ``#ifdef/#endif`` .
+        code paths in your code with ``#ifdef/#endif``.
     * - ``<TENSOR>_LOWER_PADDING``
-      - An array of padding elements used for the tensor dimensions before they start.
-        Always ordered as BFYX.
+      - An array of padding elements used for the tensor dimensions before they start,
+        always ordered as BFYX.
     * - ``<TENSOR>_LOWER_PADDING_SIZE``
-      - The size of the ``<TENSOR>_LOWER_PADDING`` array
+      - The size of the ``<TENSOR>_LOWER_PADDING`` array.
     * - ``<TENSOR>_UPPER_PADDING``
-      - An array of padding elements used for the tensor dimensions after they end.
-        Always ordered as BFYX.
+      - An array of padding elements used for the tensor dimensions after they end,
+        always ordered as BFYX.
     * - ``<TENSOR>_UPPER_PADDING_SIZE``
-      - The size of the ``<TENSOR>_UPPER_PADDING`` array
+      - The size of the ``<TENSOR>_UPPER_PADDING`` array.
     * - ``<TENSOR>_PITCHES``
-      - The offset (in elements) between adjacent elements in each dimension.
-        Always ordered as BFYX.
+      - The offset (in elements) between adjacent elements in each dimension,
+        always ordered as BFYX.
     * - ``<TENSOR>_PITCHES_SIZE``
-      - The size of the ``<TENSOR>_PITCHES`` array
+      - The size of the ``<TENSOR>_PITCHES`` array.
     * - ``<TENSOR>_OFFSET``
       - The number of elements from the start of the tensor to the first valid element,
         bypassing the lower padding.
@@ -343,7 +343,7 @@ in the following example:
 .. code-block:: c
 
    #define INPUT0_DIMS_SIZE 4
-   #define INPUT0_DIMS (int []){ 1,96,55,55, }
+   #define INPUT0_DIMS (int []){ 1,96,55,55 }
 
 .. _example-kernel:
 
@@ -362,34 +362,32 @@ Example Kernel
        const uint idbf = get_global_id(2); // batches*features, as OpenCL supports 3D nd-ranges only
        const uint feature = idbf % OUTPUT0_DIMS[1];
        const uint batch   = idbf / OUTPUT0_DIMS[1];
-       //notice that pitches are in elements, not in bytes!
-       const uint in_id  = batch*INPUT0_PITCHES[0] + feature*INPUT0_PITCHES[1]   + idy*INPUT0_PITCHES[2]  + idx*INPUT0_PITCHES[3]  + INPUT0_OFFSET;
-       const uint out_id = batch*OUTPUT0_PITCHES[0] + feature*OUTPUT0_PITCHES[1]  + idy*OUTPUT0_PITCHES[2]  + idx*OUTPUT0_PITCHES[3]  + OUTPUT0_OFFSET;
+       // Note that pitches are in elements, not in bytes!
+       const uint in_id  = batch * INPUT0_PITCHES[0] + feature * INPUT0_PITCHES[1] + idy * INPUT0_PITCHES[2] + idx * INPUT0_PITCHES[3] + INPUT0_OFFSET;
+       const uint out_id = batch * OUTPUT0_PITCHES[0] + feature * OUTPUT0_PITCHES[1] + idy * OUTPUT0_PITCHES[2] + idx * OUTPUT0_PITCHES[3] + OUTPUT0_OFFSET;
 
        INPUT0_TYPE value = input0[in_id];
-       // neg_slope (which is non-zero for leaky ReLU) is put automatically as #define, refer to the config xml
+       // neg_slope (which is non-zero for leaky ReLU) is automatically defined as #define, refer to the config xml
        output[out_id] = value < 0 ? value * neg_slope : value;
    }
 
 .. _debugging-tips:
-
-.. note::
-   As described in the previous section, all items such as the ``INPUT0_TYPE`` are
-   actually defined as OpenCL (pre-)compiler inputs by OpenVINO for efficiency reasons.
-   See the `Debugging Tips <#debugging-tips>`__ below for information on debugging the results.
 
 Debugging Tips
 ##############
 
 **Using** ``printf`` **in the OpenCL™ Kernels**.
 
-To debug the specific values, use ``printf`` in your kernels.
-However, be careful not to output excessively, which
-could generate too much data. The ``printf`` output is typical, so
+To debug specific values, use ``printf`` in your kernels.
+However, be careful not to output excessively, as it could generate too much data. The ``printf`` output is buffered, so
 your output can be truncated to fit the buffer. Also, because of
 buffering, you actually get an entire buffer of output when the
 execution ends.
 
 For more information, refer to the
-`printf Function <https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/printfFunction.html>`__.
+[`printf` Function](https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/printfFunction.html).
 
+.. note::
+   As described in the previous section, all items such as ``INPUT0_TYPE`` are
+   actually defined as OpenCL (pre-)compiler inputs by OpenVINO for efficiency reasons.
+   See the `Debugging Tips <#debugging-tips>`__ below for information on debugging the results.
