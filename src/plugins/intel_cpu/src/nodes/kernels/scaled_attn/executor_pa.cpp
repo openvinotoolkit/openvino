@@ -1165,7 +1165,8 @@ struct MHAHelper {
 
         // for small batches dynamic scheduler has notable overhead
         bool prefer_static_loop;
-        bool loop_hk = B * kv_len_in_blocks * _Hk > 2 * _nthr;
+        // if less than 2 work items per thread, loop H
+        bool loop_hk = B * kv_len_in_blocks * _Hk <= 2 * _nthr ? false : true;
         if (B <= 32) {
             prefer_static_loop = true;
             // small batch and all batch size is same(like SDPA case)
@@ -1178,18 +1179,22 @@ struct MHAHelper {
             // bigger batch, probably it's vllm path, skip the test to save the cost
             prefer_static_loop = false;
         }
-        auto loop_qk = [&](size_t b, size_t pk_in_blocks, size_t hx) {
-            auto context_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
-            size_t hk, hq_beg, hq_end;
+        auto get_h_params = [] (bool loop_hk, size_t hx, size_t h_each_group_len, size_t& hq_beg, size_t& hq_end, size_t& hk) {
             if (loop_hk) {
                 hk = hx;
-                hq_beg = hk * _h_each_group_len;
-                hq_end = (hk + 1) * _h_each_group_len;
+                hq_beg = hk * h_each_group_len;
+                hq_end = (hk + 1) * h_each_group_len;
             } else {
                 hq_beg = hx;
                 hq_end = hx + 1;
-                hk = hx / _h_each_group_len;
+                hk = hx / h_each_group_len;
             }
+        };
+        auto loop_qk = [&](size_t b, size_t pk_in_blocks, size_t hx) {
+            auto context_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
+            size_t hk, hq_beg, hq_end;
+            get_h_params(loop_hk, hx, _h_each_group_len, hq_beg, hq_end, hk);
+
             // kv_len must be valid
             auto pk = pk_in_blocks * _block_size;
             if (pk < context_len) {
@@ -1237,11 +1242,13 @@ struct MHAHelper {
                                        ov::element::f32,
                                        alibi_slope);
         };
+
+        size_t h_dims = loop_hk ? _Hk : _H;
         if (prefer_static_loop) {
-            parallel_for3d(B, kv_len_in_blocks, loop_hk ? _Hk : _H, loop_qk);
+            parallel_for3d(B, kv_len_in_blocks, h_dims, loop_qk);
             parallel_for3d(B, _H, q_len, loop_softmax);
         } else {
-            parallel_for3d_dynamic(B, kv_len_in_blocks, loop_hk ? _Hk : _H, loop_qk);
+            parallel_for3d_dynamic(B, kv_len_in_blocks, h_dims, loop_qk);
             parallel_for3d_dynamic(B, _H, q_len, loop_softmax);
         }
 
@@ -1267,15 +1274,8 @@ struct MHAHelper {
             auto context_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
             auto pv = pv_in_blocks * _block_size;
             size_t hk, hq_beg, hq_end;
-            if (loop_hk) {
-                hk = hx;
-                hq_beg = hk * _h_each_group_len;
-                hq_end = (hk + 1) * _h_each_group_len;
-            } else {
-                hq_beg = hx;
-                hq_end = hx + 1;
-                hk = hx / _h_each_group_len;
-            }
+            get_h_params(loop_hk, hx, _h_each_group_len, hq_beg, hq_end, hk);
+
             // kv_len must be valid
             if (pv < context_len) {
                 auto block_number = block_indices.ptr<int32_t>()[block_indices_begins.ptr<int32_t>()[b] + pv_in_blocks];
