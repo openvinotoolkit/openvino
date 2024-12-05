@@ -42,7 +42,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
           skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
-      
+
       - name: Get target branch
         id: set_target_branch
         run: |
@@ -53,7 +53,7 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
     uses: ./.github/workflows/job_build_windows.yml
     with:
-      runner: 'aks-win-32-cores-128gb'
+      runner: 'aks-win-32-cores-64gb'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       build-type: 'Debug'
       target-branch: ${{ needs.smart_ci.outputs.target_branch }}
@@ -79,7 +79,7 @@ jobs:
       os: 'windows_2019'
       build-type: 'Debug'
       timeout-minutes: 60
-      
+
   Overall_Status:
     name: ci/gha_overall_status_windows_debug
     needs: [ Smart_CI, Build, CXX_Unit_Tests ]
