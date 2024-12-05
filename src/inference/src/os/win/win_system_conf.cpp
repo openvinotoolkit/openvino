@@ -92,6 +92,10 @@ void parse_processor_info_win(const char* base_ptr,
     _cores = 0;
     _blocked_cores = 0;
 
+    constexpr int initial_core_type = -1;
+    constexpr int group_with_2_cores = 2;
+    constexpr int group_with_4_cores = 4;
+
     PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX info = NULL;
 
     auto MaskToList = [&](const KAFFINITY mask_input) {
@@ -131,7 +135,7 @@ void parse_processor_info_win(const char* base_ptr,
                 base_proc = _processors;
             }
 
-            if (2 == list_len) {
+            if (group_with_2_cores == list_len) {
                 proc_info = cpu_init_line;
                 proc_info[CPU_MAP_PROCESSOR_ID] = list[0] + base_proc;
                 proc_info[CPU_MAP_NUMA_NODE_ID] = _sockets;
@@ -182,7 +186,7 @@ void parse_processor_info_win(const char* base_ptr,
         } else if ((info->Relationship == RelationCache) && (info->Cache.Level == 2)) {
             MaskToList(info->Cache.GroupMask.Mask);
 
-            if (4 == list_len) {
+            if (group_with_4_cores == list_len) {
                 if (_processors <= list[list_len - 1] + base_proc) {
                     group_start = list[0];
                     group_end = list[list_len - 1];
@@ -194,8 +198,8 @@ void parse_processor_info_win(const char* base_ptr,
                     _cpu_mapping_table[list[m] + base_proc][CPU_MAP_GROUP_ID] = group_id;
                     _proc_type_table[0][EFFICIENT_CORE_PROC]++;
                 }
-            } else if (2 == list_len) {
-                if (-1 == _cpu_mapping_table[list[0] + base_proc][CPU_MAP_CORE_TYPE]) {
+            } else if (group_with_2_cores == list_len) {
+                if (initial_core_type == _cpu_mapping_table[list[0] + base_proc][CPU_MAP_CORE_TYPE]) {
                     if (_processors <= list[list_len - 1] + base_proc) {
                         group_start = list[0];
                         group_end = list[list_len - 1];
@@ -227,7 +231,7 @@ void parse_processor_info_win(const char* base_ptr,
                     group_type = MAIN_CORE_PROC;
                 }
                 for (int m = 0; m < _processors - list[0]; m++) {
-                    if (_cpu_mapping_table[list[m] + base_proc][CPU_MAP_CORE_TYPE] == -1) {
+                    if (_cpu_mapping_table[list[m] + base_proc][CPU_MAP_CORE_TYPE] == initial_core_type) {
                         _cpu_mapping_table[list[m] + base_proc][CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
                         _cpu_mapping_table[list[m] + base_proc][CPU_MAP_GROUP_ID] = group++;
                         _proc_type_table[0][MAIN_CORE_PROC]++;
