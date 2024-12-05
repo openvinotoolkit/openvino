@@ -1979,6 +1979,88 @@ void jit_relu_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const st
     h->fmaxnm(dst.s, src.s, tmp.s);
 }
 
+/// ROUND_HALF_AWAY_FROM_ZERO ///
+jit_round_half_away_from_zero_emitter::jit_round_half_away_from_zero_emitter
+                                       (dnnl::impl::cpu::aarch64::jit_generator* host,
+                                        dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                        const std::shared_ptr<ov::Node>& node)
+                                        : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
+}
+
+jit_round_half_away_from_zero_emitter::jit_round_half_away_from_zero_emitter
+                                       (dnnl::impl::cpu::aarch64::jit_generator* host,
+                                        dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                        const ov::element::Type exec_prc)
+                                        : jit_emitter(host, host_isa, exec_prc) {
+}
+
+size_t jit_round_half_away_from_zero_emitter::get_inputs_count() const { return 1; }
+
+std::set<std::vector<element::Type>> jit_round_half_away_from_zero_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32}};
+}
+
+void jit_round_half_away_from_zero_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
+        emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+void jit_round_half_away_from_zero_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
+
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+
+    TReg src = TReg(in_vec_idxs[0]);
+    TReg dst = TReg(out_vec_idxs[0]);
+
+    h->frinta(dst.s, src.s);
+}
+
+/// ROUND_HALF_TO_EVEN ///
+jit_round_half_to_even_emitter::jit_round_half_to_even_emitter
+                                (dnnl::impl::cpu::aarch64::jit_generator* host,
+                                 dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                 const std::shared_ptr<ov::Node>& node)
+                                 : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
+}
+
+jit_round_half_to_even_emitter::jit_round_half_to_even_emitter
+                                (dnnl::impl::cpu::aarch64::jit_generator* host,
+                                 dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                 const ov::element::Type exec_prc)
+                                 : jit_emitter(host, host_isa, exec_prc) {
+}
+
+size_t jit_round_half_to_even_emitter::get_inputs_count() const { return 1; }
+
+std::set<std::vector<element::Type>> jit_round_half_to_even_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32}};
+}
+
+void jit_round_half_to_even_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
+        emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+void jit_round_half_to_even_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
+
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+
+    TReg src = TReg(in_vec_idxs[0]);
+    TReg dst = TReg(out_vec_idxs[0]);
+
+    h->frintn(dst.s, src.s);
+}
+
 /// SELECT ///
 jit_select_emitter::jit_select_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
                                        dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,

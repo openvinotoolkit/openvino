@@ -257,7 +257,7 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {SoftSign,    {{}}},
         {SoftPlus,    {{}}},
         {IsFinite,    {{}}},
-        {IsNaN,    {{}}},
+        {IsNaN,       {{}}},
     };
 
     return activationTypes;

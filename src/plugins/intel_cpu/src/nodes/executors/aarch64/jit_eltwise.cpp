@@ -49,6 +49,8 @@ bool JitEltwiseExecutor::isSupported(
                                      Algorithm::EltwisePowerStatic,
                                      Algorithm::EltwisePrelu,
                                      Algorithm::EltwiseRelu,
+                                     Algorithm::EltwiseRoundHalfAwayFromZero,
+                                     Algorithm::EltwiseRoundHalfToEven,
                                      Algorithm::EltwiseSelect,
                                      Algorithm::EltwiseSigmoid,
                                      Algorithm::EltwiseSoftSign,
