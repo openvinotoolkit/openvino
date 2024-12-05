@@ -20,6 +20,8 @@ public:
     BinaryOutputBuffer(std::ostream& stream)
     : OutputBuffer<BinaryOutputBuffer>(this), stream(stream), _impl_params(nullptr), _strm(nullptr) {}
 
+    virtual ~BinaryOutputBuffer() = default;
+
     virtual void write(void const* data, std::streamsize size) {
         auto const written_size = stream.rdbuf()->sputn(reinterpret_cast<const char*>(data), size);
         OPENVINO_ASSERT(written_size == size,
@@ -45,6 +47,8 @@ public:
     BinaryInputBuffer(std::istream& stream, engine& engine)
     : InputBuffer<BinaryInputBuffer>(this, engine), _stream(stream), _impl_params(nullptr) {}
 
+    virtual ~BinaryInputBuffer() = default;
+
     virtual void read(void* const data, std::streamsize size) {
         auto const read_size = _stream.rdbuf()->sgetn(reinterpret_cast<char*>(data), size);
         OPENVINO_ASSERT(read_size == size,
@@ -66,6 +70,8 @@ public:
           encrypt(encrypt) {
         OPENVINO_ASSERT(encrypt);
     }
+
+    ~EncryptedBinaryOutputBuffer() override = default;
 
     void write(void const* data, std::streamsize size) override {
         plaintext_str.append(reinterpret_cast<const char*>(data), size);
@@ -104,6 +110,8 @@ public:
             str.size());
         plaintext_stream.str(decrypt(str));
     }
+
+    ~EncryptedBinaryInputBuffer() override = default;
 
     void read(void* const data, std::streamsize size) override {
         auto const read_size = plaintext_stream.rdbuf()->sgetn(reinterpret_cast<char*>(data), size);
