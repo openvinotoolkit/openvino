@@ -96,9 +96,9 @@ else:
     if curCfgData['userLogPath']:
         permLogPath = curCfgData['userLogPath']
 
-    safeClearDir(permLogPath, curCfgData)
-    if not curCfgData['clearLogsAposteriori']:
-        copy_tree(tempLogPath, permLogPath)
+    copy_tree(tempLogPath, permLogPath)
+    if curCfgData['clearLogsAposteriori']:
+        safeClearDir(permLogPath, curCfgData)
 
     safeClearDir(permCachePath, curCfgData)
     try:
