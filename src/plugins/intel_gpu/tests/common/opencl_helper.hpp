@@ -54,12 +54,9 @@ inline bool is_supported_sdpa_micro_kernel(const char* device_id) {
 
     cl::Program program(__context, std::string(kernel_code));
 
-    try
-    {
+    try {
         program.build(device[device_idx]);
-    }
-    catch (const cl::Error &)
-    {
+    } catch (const cl::Error &) {
         return false;
     }
     return true;
