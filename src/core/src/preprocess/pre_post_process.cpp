@@ -354,6 +354,11 @@ PreProcessSteps& PreProcessSteps::reverse_channels() {
     return *this;
 }
 
+PreProcessSteps& PreProcessSteps::clamp(float min_value, float max_value) {
+    m_impl->add_clamp(min_value, max_value);
+    return *this;
+}
+
 // --------------------- OutputTensorInfo ------------------
 OutputTensorInfo::OutputTensorInfo() : m_impl(std::unique_ptr<OutputTensorInfoImpl>(new OutputTensorInfoImpl())) {}
 OutputTensorInfo::~OutputTensorInfo() = default;
