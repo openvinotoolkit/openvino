@@ -7,6 +7,10 @@
 #include "openvino/core/parallel.hpp"
 
 #include "/home/tingqian/aboutSHW/include/linux_perf.hpp"
+
+#define PROFILE(x) LinuxPerf::Profile(x)
+#define PROFILE(x) 1
+
 //#include "/home/openvino-ci-58/tingqian/aboutSHW/include/linux_perf.hpp"
 
 #if defined(HAVE_AVX2)
@@ -279,6 +283,118 @@ float dynPruneLinear(float* x, float* W2, float threshold, float zero_point, flo
 #endif
 
 
+#if defined(HAVE_AVX2)
+// AVX2
+#define SIMDW 8
+inline __m256i load_epu8_epi32(void const* ptr) {
+    return _mm256_cvtepu8_epi32(_mm_loadu_si64(ptr));
+}
+inline __m256 cvtepi32_ps(__m256i v) {
+    return _mm256_cvtepi32_ps(v);
+}
+inline void storeu_ps(float* ptr, __m256 v) {
+    _mm256_storeu_ps(ptr, v);
+}
+inline __m256 broadcast_ss(float const * mem_addr) {
+    return _mm256_broadcast_ss(mem_addr);
+}
+inline __m256 loadu_ps(float const * mem_addr) {
+    return _mm256_loadu_ps(mem_addr);
+}
+inline __m256 sub_ps(__m256 a, __m256 b) {
+    return _mm256_sub_ps(a, b);
+}
+inline __m256 fmadd_ps(__m256 a, __m256 b, __m256 c) {
+    return _mm256_fmadd_ps(a, b, c);
+}
+inline __m256 setzero_ps(void) {
+    return _mm256_setzero_ps();
+}
+inline __m256i set1_epi32(int a) {
+    return _mm256_set1_epi32(a);
+}
+inline __m256i and_si(__m256i a, __m256i b) {
+    return _mm256_and_si256(a, b);
+}
+inline __m256i srli_epi32(__m256i a, int imm8) {
+    return _mm256_srli_epi32(a, imm8);
+}
+#elif defined(HAVE_AVX512F)
+// AVX512F
+#define SIMDW 16
+inline __m512i load_epu8_epi32(void const* ptr) {
+    return _mm512_cvtepu8_epi32(_mm_loadu_si64(ptr));
+}
+inline __m512 cvtepi32_ps(__m512i v) {
+    return _mm512_cvtepi32_ps(v);
+}
+inline void storeu_ps(float* ptr, __m512 v) {
+    _mm512_storeu_ps(ptr, v);
+}
+inline __m512 broadcast_ss(float const * mem_addr) {
+    return _mm512_broadcast_ss(mem_addr);
+}
+inline __m512 loadu_ps(float const * mem_addr) {
+    return _mm512_loadu_ps(mem_addr);
+}
+inline __m512 sub_ps(__m512 a, __m512 b) {
+    return _mm512_sub_ps(a, b);
+}
+inline __m512 fmadd_ps(__m512 a, __m512 b, __m512 c) {
+    return _mm512_fmadd_ps(a, b, c);
+}
+inline __m512 setzero_ps(void) {
+    return _mm512_setzero_ps();
+}
+inline __m512i set1_epi32(int a) {
+    return _mm512_set1_epi32(a);
+}
+inline __m512i and_si(__m512i a, __m512i b) {
+    return _mm512_and_si512(a, b);
+}
+inline __m512i srli_epi32(__m512i a, unsigned int imm8) {
+    return _mm512_srli_epi32(a, imm8);
+}
+
+#else
+// scalar
+#define SIMDW 1
+inline uint32_t load_epu8_epi32(void const* ptr) {
+    return *reinterpret_cast<const uint8_t*>(ptr);
+}
+float inline cvtepi32_ps(uint32_t v) {
+    return v;
+}
+inline void storeu_ps(float* ptr, float v) {
+    *ptr = v;
+}
+inline float broadcast_ss(float const * mem_addr) {
+    return *(mem_addr);
+}
+inline float loadu_ps(float const * mem_addr) {
+    return *(mem_addr);
+}
+inline float sub_ps(float a, float b) {
+    return a - b;
+}
+inline float fmadd_ps(float a, float b, float c) {
+    return a*b + c;
+}
+inline float setzero_ps(void) {
+    return 0;
+}
+inline int32_t set1_epi32(int a) {
+    return a;
+}
+inline int32_t and_si(int32_t a, int32_t b) {
+    return a & b;
+}
+inline int32_t srli_epi32(int32_t a, unsigned int imm8) {
+    return a >> imm8;
+}
+#endif
+
+
 static inline void accumulate_w8_peroc(int N,
                                     float* base_dst, int64_t OC,
                                     int* ic_ids, int ic_cnt,
@@ -292,14 +408,11 @@ static inline void accumulate_w8_peroc(int N,
     auto* dst_zp = zpbuff.data();
 
     int oc = 0;
-#if defined(HAVE_AVX2)
-    for (; oc + 8 <= OC; oc += 8) {
-        auto zpu8 = _mm_loadu_si64(static_cast<void const*>(zp + oc));
-        auto zpu32 = _mm256_cvtepu8_epi32(zpu8);
-        auto zpf32 = _mm256_cvtepi32_ps(zpu32);
-        _mm256_storeu_ps(dst_zp + oc, zpf32);
+    for (; oc + SIMDW <= OC; oc += SIMDW) {
+        auto zpu32 = load_epu8_epi32(static_cast<void const*>(zp + oc));
+        auto zpf32 = cvtepi32_ps(zpu32);
+        storeu_ps(dst_zp + oc, zpf32);
     }
-#endif
     for (; oc < OC; oc ++) {
         dst_zp[oc] = zp[oc];
     }
@@ -317,38 +430,35 @@ static inline void accumulate_w8_peroc(int N,
         const auto* p_w3 = Wu8 + ic3 * OC;
 
         oc = 0;
-#if defined(HAVE_AVX2)
-        auto vx0 = _mm256_broadcast_ss(dense_x + g + 0);
-        auto vx1 = _mm256_broadcast_ss(dense_x + g + 1);
-        auto vx2 = _mm256_broadcast_ss(dense_x + g + 2);
-        auto vx3 = _mm256_broadcast_ss(dense_x + g + 3);
-        for (; oc + 8 <= OC; oc += 8) {
-            auto vscales = _mm256_loadu_ps(scales + oc);
-            auto vzp = _mm256_loadu_ps(dst_zp + oc);
 
-            auto vdst = _mm256_loadu_ps(base_dst + oc);
-            auto wb0 = _mm_loadu_si64(static_cast<void const*>(p_w0 + oc));
-            auto wb1 = _mm_loadu_si64(static_cast<void const*>(p_w1 + oc));
-            auto wb2 = _mm_loadu_si64(static_cast<void const*>(p_w2 + oc));
-            auto wb3 = _mm_loadu_si64(static_cast<void const*>(p_w3 + oc));
-            auto vsum = _mm256_setzero_ps();
+        auto vx0 = broadcast_ss(dense_x + g + 0);
+        auto vx1 = broadcast_ss(dense_x + g + 1);
+        auto vx2 = broadcast_ss(dense_x + g + 2);
+        auto vx3 = broadcast_ss(dense_x + g + 3);
+        for (; oc + SIMDW <= OC; oc += SIMDW) {
+            auto vscales = loadu_ps(scales + oc);
+            auto vzp = loadu_ps(dst_zp + oc);
+            auto vdst = loadu_ps(base_dst + oc);
 
-            auto wdw0 = _mm256_cvtepu8_epi32(wb0);
-            vsum = _mm256_fmadd_ps(_mm256_sub_ps(_mm256_cvtepi32_ps(wdw0), vzp), vx0, vsum);
+            auto wdw0 = load_epu8_epi32(static_cast<void const*>(p_w0 + oc));
+            auto wdw1 = load_epu8_epi32(static_cast<void const*>(p_w1 + oc));
+            auto wdw2 = load_epu8_epi32(static_cast<void const*>(p_w2 + oc));
+            auto wdw3 = load_epu8_epi32(static_cast<void const*>(p_w3 + oc));
 
-            auto wdw1 = _mm256_cvtepu8_epi32(wb1);
-            vsum = _mm256_fmadd_ps(_mm256_sub_ps(_mm256_cvtepi32_ps(wdw1), vzp), vx1, vsum);
+            auto vsum = setzero_ps();
 
-            auto wdw2 = _mm256_cvtepu8_epi32(wb2);
-            vsum = _mm256_fmadd_ps(_mm256_sub_ps(_mm256_cvtepi32_ps(wdw2), vzp), vx2, vsum);
+            vsum = fmadd_ps(sub_ps(cvtepi32_ps(wdw0), vzp), vx0, vsum);
 
-            auto wdw3 = _mm256_cvtepu8_epi32(wb3);
-            vsum = _mm256_fmadd_ps(_mm256_sub_ps(_mm256_cvtepi32_ps(wdw3), vzp), vx3, vsum);
+            vsum = fmadd_ps(sub_ps(cvtepi32_ps(wdw1), vzp), vx1, vsum);
 
-            vdst = _mm256_fmadd_ps(vsum, vscales, vdst);
-            _mm256_storeu_ps(base_dst + oc, vdst);
+            vsum = fmadd_ps(sub_ps(cvtepi32_ps(wdw2), vzp), vx2, vsum);
+
+            vsum = fmadd_ps(sub_ps(cvtepi32_ps(wdw3), vzp), vx3, vsum);
+
+            vdst = fmadd_ps(vsum, vscales, vdst);
+            storeu_ps(base_dst + oc, vdst);
         }
-#endif
+
         if (oc < OC) {
             auto x0 = dense_x[g + 0];
             auto x1 = dense_x[g + 1];
@@ -390,19 +500,16 @@ static inline void accumulate_w4_peroc(float* base_dst, int OC,
             auto* dst_zp = zpbuff.data();
             auto* src_zp = zp + gid * (OC/2);
             int oc = 0;
-        #if defined(HAVE_AVX2)
-            auto vmask_u4 = _mm256_set1_epi32(0xF);
-            for (; oc + 16 <= OC; oc += 16, src_zp += 8) {
-                auto vzp16xu4 = _mm_loadu_si64(static_cast<void const*>(src_zp));
-                auto vzp16xu4_i32 = _mm256_cvtepu8_epi32(vzp16xu4);
-                auto vzp16xu4_i32_low = _mm256_and_si256(vzp16xu4_i32, vmask_u4);
-                auto vzp16xu4_i32_high = _mm256_srli_epi32(vzp16xu4_i32, 4);
-                auto vzpf32_low = _mm256_cvtepi32_ps(vzp16xu4_i32_low);
-                auto vzpf32_high = _mm256_cvtepi32_ps(vzp16xu4_i32_high);
-                _mm256_storeu_ps(dst_zp + oc, vzpf32_low);
-                _mm256_storeu_ps(dst_zp + oc + 8, vzpf32_high);
+            auto vmask_u4 = set1_epi32(0xF);
+            for (; oc + SIMDW*2 <= OC; oc += SIMDW*2, src_zp += SIMDW) {
+                auto vzp16xu4_i32 = load_epu8_epi32(static_cast<void const*>(src_zp));
+                auto vzp16xu4_i32_low = and_si(vzp16xu4_i32, vmask_u4);
+                auto vzp16xu4_i32_high = srli_epi32(vzp16xu4_i32, 4);
+                auto vzpf32_low = cvtepi32_ps(vzp16xu4_i32_low);
+                auto vzpf32_high = cvtepi32_ps(vzp16xu4_i32_high);
+                storeu_ps(dst_zp + oc, vzpf32_low);
+                storeu_ps(dst_zp + oc + 8, vzpf32_high);
             }
-        #endif
             for (; oc < OC; oc +=2, src_zp++) {
                 dst_zp[oc] = src_zp[0] & 0xF;
                 dst_zp[oc + 1] = src_zp[0] >> 4;
@@ -417,59 +524,55 @@ static inline void accumulate_w4_peroc(float* base_dst, int OC,
         auto* dst_zp = zpbuff.data();
 
         int oc = 0;
-#if defined(HAVE_AVX2)
-        auto vmask_u4 = _mm256_set1_epi32(0xF);
-        auto vx0 = _mm256_broadcast_ss(dense_x + g + 0);
-        auto vx1 = _mm256_broadcast_ss(dense_x + g + 1);
-        auto vx2 = _mm256_broadcast_ss(dense_x + g + 2);
-        auto vx3 = _mm256_broadcast_ss(dense_x + g + 3);
-        for (; oc + 16 <= OC; oc += 16) {
-            auto vzp0 = _mm256_loadu_ps(dst_zp + oc);
-            auto vzp1 = _mm256_loadu_ps(dst_zp + oc + 8);
 
-            auto vdst0 = _mm256_loadu_ps(base_dst + oc);
-            auto vdst1 = _mm256_loadu_ps(base_dst + oc + 8);
+        auto vmask_u4 = set1_epi32(0xF);
+        auto vx0 = broadcast_ss(dense_x + g + 0);
+        auto vx1 = broadcast_ss(dense_x + g + 1);
+        auto vx2 = broadcast_ss(dense_x + g + 2);
+        auto vx3 = broadcast_ss(dense_x + g + 3);
+        for (; oc + SIMDW*2 <= OC; oc += SIMDW*2) {
+            auto vzp0 = loadu_ps(dst_zp + oc);
+            auto vzp1 = loadu_ps(dst_zp + oc + 8);
 
-            auto wb0 = _mm_loadu_si64(static_cast<void const*>(p_w0)); p_w0 += 8;
-            auto vsum0 = _mm256_setzero_ps();
-            auto vsum1 = _mm256_setzero_ps();
+            auto vdst0 = loadu_ps(base_dst + oc);
+            auto vdst1 = loadu_ps(base_dst + oc + 8);
 
-            auto wdw_i32 = _mm256_cvtepu8_epi32(wb0);
-            auto wdw0 = _mm256_cvtepi32_ps(_mm256_and_si256(wdw_i32, vmask_u4));
-            auto wdw1 = _mm256_cvtepi32_ps(_mm256_srli_epi32(wdw_i32, 4));
-            vsum0 = _mm256_fmadd_ps(_mm256_sub_ps(wdw0, vzp0), vx0, vsum0);
-            vsum1 = _mm256_fmadd_ps(_mm256_sub_ps(wdw1, vzp1), vx0, vsum1);
+            auto wdw_i32 = load_epu8_epi32(static_cast<void const*>(p_w0)); p_w0 += 8;
+            auto vsum0 = setzero_ps();
+            auto vsum1 = setzero_ps();
 
-            wb0 = _mm_loadu_si64(static_cast<void const*>(p_w1)); p_w1 += 8;
-            wdw_i32 = _mm256_cvtepu8_epi32(wb0);
-            wdw0 = _mm256_cvtepi32_ps(_mm256_and_si256(wdw_i32, vmask_u4));
-            wdw1 = _mm256_cvtepi32_ps(_mm256_srli_epi32(wdw_i32, 4));
-            vsum0 = _mm256_fmadd_ps(_mm256_sub_ps(wdw0, vzp0), vx1, vsum0);
-            vsum1 = _mm256_fmadd_ps(_mm256_sub_ps(wdw1, vzp1), vx1, vsum1);
+            auto wdw0 = cvtepi32_ps(and_si(wdw_i32, vmask_u4));
+            auto wdw1 = cvtepi32_ps(srli_epi32(wdw_i32, 4));
+            vsum0 = fmadd_ps(sub_ps(wdw0, vzp0), vx0, vsum0);
+            vsum1 = fmadd_ps(sub_ps(wdw1, vzp1), vx0, vsum1);
 
-            wb0 = _mm_loadu_si64(static_cast<void const*>(p_w2)); p_w2 += 8;
-            wdw_i32 = _mm256_cvtepu8_epi32(wb0);
-            wdw0 = _mm256_cvtepi32_ps(_mm256_and_si256(wdw_i32, vmask_u4));
-            wdw1 = _mm256_cvtepi32_ps(_mm256_srli_epi32(wdw_i32, 4));
-            vsum0 = _mm256_fmadd_ps(_mm256_sub_ps(wdw0, vzp0), vx2, vsum0);
-            vsum1 = _mm256_fmadd_ps(_mm256_sub_ps(wdw1, vzp1), vx2, vsum1);
+            wdw_i32 = load_epu8_epi32(static_cast<void const*>(p_w1)); p_w1 += 8;
+            wdw0 = cvtepi32_ps(and_si(wdw_i32, vmask_u4));
+            wdw1 = cvtepi32_ps(srli_epi32(wdw_i32, 4));
+            vsum0 = fmadd_ps(sub_ps(wdw0, vzp0), vx1, vsum0);
+            vsum1 = fmadd_ps(sub_ps(wdw1, vzp1), vx1, vsum1);
 
-            wb0 = _mm_loadu_si64(static_cast<void const*>(p_w3)); p_w3 += 8;
-            wdw_i32 = _mm256_cvtepu8_epi32(wb0);
-            wdw0 = _mm256_cvtepi32_ps(_mm256_and_si256(wdw_i32, vmask_u4));
-            wdw1 = _mm256_cvtepi32_ps(_mm256_srli_epi32(wdw_i32, 4));
-            vsum0 = _mm256_fmadd_ps(_mm256_sub_ps(wdw0, vzp0), vx3, vsum0);
-            vsum1 = _mm256_fmadd_ps(_mm256_sub_ps(wdw1, vzp1), vx3, vsum1);
+            wdw_i32 = load_epu8_epi32(static_cast<void const*>(p_w2)); p_w2 += 8;
+            wdw0 = cvtepi32_ps(and_si(wdw_i32, vmask_u4));
+            wdw1 = cvtepi32_ps(srli_epi32(wdw_i32, 4));
+            vsum0 = fmadd_ps(sub_ps(wdw0, vzp0), vx2, vsum0);
+            vsum1 = fmadd_ps(sub_ps(wdw1, vzp1), vx2, vsum1);
 
-            auto vscales0 = _mm256_loadu_ps(p_scales + oc);
-            auto vscales1 = _mm256_loadu_ps(p_scales + oc + 8);
+            wdw_i32 = load_epu8_epi32(static_cast<void const*>(p_w3)); p_w3 += 8;
+            wdw0 = cvtepi32_ps(and_si(wdw_i32, vmask_u4));
+            wdw1 = cvtepi32_ps(srli_epi32(wdw_i32, 4));
+            vsum0 = fmadd_ps(sub_ps(wdw0, vzp0), vx3, vsum0);
+            vsum1 = fmadd_ps(sub_ps(wdw1, vzp1), vx3, vsum1);
 
-            vdst0 = _mm256_fmadd_ps(vsum0, vscales0, vdst0);
-            vdst1 = _mm256_fmadd_ps(vsum1, vscales1, vdst1);
-            _mm256_storeu_ps(base_dst + oc, vdst0);
-            _mm256_storeu_ps(base_dst + oc + 8, vdst1);
+            auto vscales0 = loadu_ps(p_scales + oc);
+            auto vscales1 = loadu_ps(p_scales + oc + 8);
+
+            vdst0 = fmadd_ps(vsum0, vscales0, vdst0);
+            vdst1 = fmadd_ps(vsum1, vscales1, vdst1);
+            storeu_ps(base_dst + oc, vdst0);
+            storeu_ps(base_dst + oc + 8, vdst1);
         }
-#endif
+
         if (oc < OC) {
             auto x0 = dense_x[g + 0];
             auto x1 = dense_x[g + 1];
@@ -889,7 +992,7 @@ void dynPruneLinear_i8(const float* input,      // [M, IC]
         return;
     }
 
-    auto prof = LinuxPerf::Profile("gate_ids");
+    auto prof = PROFILE("gate_ids");
     static std::vector<int> gate_ids;
     static std::vector<float> gate_val;
     int gate_cnt = 0;
@@ -917,7 +1020,7 @@ void dynPruneLinear_i8(const float* input,      // [M, IC]
     }
 
     // std::cout << M << "," << IC << "," << OC << "," << threshold << "," << zero_point << std::endl;
-    prof = LinuxPerf::Profile("mm");
+    prof = PROFILE("mm");
 
     // this mm kernel is the most time-consuming one
     auto nthr_max = parallel_get_max_threads();
@@ -934,7 +1037,7 @@ void dynPruneLinear_i8(const float* input,      // [M, IC]
         accumulate_w8_peroc(1, pdst, OC, &gate_ids[g0], g1 - g0, W, zp, scales, &gate_val[g0], IC);
     });
 
-    prof = LinuxPerf::Profile("reduce");
+    prof = PROFILE("reduce");
     reduce_outputs(output, output_temp.data(), nthr_max, M, OC);
     return;
 }
@@ -995,7 +1098,7 @@ void dynPruneLinear_i4(const float* input,      // [M, IC]
         return;
     }
 
-    auto prof = LinuxPerf::Profile("gate_ids");
+    auto prof = PROFILE("gate_ids");
     static std::vector<int> gate_ids;
     static std::vector<float> gate_val;
     int gate_cnt = 0;
@@ -1024,7 +1127,7 @@ void dynPruneLinear_i4(const float* input,      // [M, IC]
     }
 
     // std::cout << M << "," << IC << "," << OC << "," << threshold << "," << zero_point << std::endl;
-    prof = LinuxPerf::Profile("mm");
+    prof = PROFILE("mm");
 
     // this mm kernel is the most time-consuming one
     auto nthr_max = parallel_get_max_threads();
@@ -1041,7 +1144,7 @@ void dynPruneLinear_i4(const float* input,      // [M, IC]
         accumulate_w4_peroc(pdst, OC, &gate_ids[g0], g1 - g0, W, zp, scales, &gate_val[g0], IC, IC_group_size);
     });
 
-    prof = LinuxPerf::Profile("reduce");
+    prof = PROFILE("reduce");
     reduce_outputs(output, output_temp.data(), nthr_max, M, OC);
     return;
 }
