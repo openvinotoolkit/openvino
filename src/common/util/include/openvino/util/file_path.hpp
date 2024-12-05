@@ -10,8 +10,11 @@
 namespace ov {
 namespace util {
 
-namespace fs = std_fs;
-using Path = fs::path;
+#if defined(OPENVINO_HAS_FILESYSTEM)
+using Path = std::filesystem::path;
+#elif defined(OPENVINO_HAS_EXP_FILESYSTEM)
+using Path = std::experimental::filesystem::path;
+#endif
 
 }  // namespace util
 }  // namespace ov
