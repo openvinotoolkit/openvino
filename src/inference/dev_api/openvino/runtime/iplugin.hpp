@@ -195,7 +195,7 @@ public:
      */
     virtual std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
                                                              std::shared_ptr<ov::AlignedBuffer> model_buffer,
-                                                             const ov::AnyMap& properties) const = 0;
+                                                             const ov::AnyMap& properties) const;
 
     /**
      * @brief Creates an compiled model from an previously exported model using plugin implementation
@@ -210,7 +210,7 @@ public:
     virtual std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
                                                              std::shared_ptr<ov::AlignedBuffer> model_buffer,
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
-                                                             const ov::AnyMap& properties) const = 0;
+                                                             const ov::AnyMap& properties) const;
 
     /**
      * @brief Queries a plugin about supported layers in model
