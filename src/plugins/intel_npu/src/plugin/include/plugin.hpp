@@ -14,6 +14,7 @@
 #include "metrics.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/so_ptr.hpp"
+#include "properties.hpp"
 
 namespace intel_npu {
 
@@ -53,18 +54,16 @@ public:
 
 private:
     std::unique_ptr<ICompilerAdapter> getCompiler(const Config& config) const;
+    void init_options(uint32_t comp_ver);
+    void init_properties();
 
     std::shared_ptr<NPUBackends> _backends;
 
-    std::map<std::string, std::string> _config;
     std::shared_ptr<OptionsDesc> _options;
     Config _globalConfig;
     mutable Logger _logger;
-    std::unique_ptr<Metrics> _metrics;
-
-    // properties map: {name -> [supported, mutable, eval function]}
-    std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>> _properties;
-    std::vector<ov::PropertyName> _supportedProperties;
+    std::shared_ptr<Metrics> _metrics;
+    std::unique_ptr<Properties> _properties;
 
     static std::atomic<int> _compiledModelLoadCounter;
 };
