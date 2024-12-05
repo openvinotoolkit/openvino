@@ -66,7 +66,7 @@ void FullyConnected::initTensorParallelConfig(const GraphContext::CPtr context) 
             // init tp_cfg.w_rank and tp_cfg.w_size
             tp_cfg.w_rank = context->getCPUStreamExecutor()->get_rank()[0];
             tp_cfg.w_size = ov::threading::message_manager()->get_num_sub_streams();
-            tp_cfg.enable_tensor_parallel = tp_cfg.w_size > 1 ? true : false;
+            tp_cfg.enable_tensor_parallel = tp_cfg.w_size > 1;
             tp_cfg.sub_memory = context->getSubMemory();
         }
     }

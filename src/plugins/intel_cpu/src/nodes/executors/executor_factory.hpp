@@ -34,9 +34,7 @@ public:
         : m_attrs(attrs),
           m_postOps(postOps),
           m_context(context),
-          m_suitableImplementations(filter(m_attrs, m_postOps, descriptors, implementationPriority)),
-          m_implementationRequiresFallback(m_suitableImplementations.size(), true),
-          m_executors(m_suitableImplementations.size()) {}
+          m_suitableImplementations(filter(m_attrs, m_postOps, descriptors, implementationPriority)) {}
 
     /**
      * @brief Retrieves the proper memory descriptors based on the provided memory descriptors.
@@ -67,10 +65,11 @@ public:
     }
 
     /**
-     * @brief Creates an Executor instance based on the provided \memory arguments.
+     * @brief Creates an Executor instance based on the provided memory arguments.
+     *
      * Depending on the number of available implementations, returns:
-     * - VariableExecutor, if the number of implementations two or more
-     * - simple Executor, if there is only one implementation is available
+     * - VariableExecutor, if the number of implementations is two or more
+     * - Simple Executor, if there is only one available implementation
      *
      * @param memory memory arguments.
      *
@@ -156,10 +155,6 @@ private:
     const PostOps& m_postOps;
     const ExecutorContext::CPtr m_context;
     std::vector<ExecutorImplementationRef> m_suitableImplementations;
-    // stores fallback status to avoid performing the check for every make() call
-    std::vector<bool> m_implementationRequiresFallback;
-    // executors cache
-    std::vector<ExecutorPtr> m_executors;
 };
 
 template <typename Attrs>

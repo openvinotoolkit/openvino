@@ -84,7 +84,6 @@ private:
     static const size_t WEIGHTS_ID = 1;
     static const size_t BIAS_ID = 2;
 
-    // ExecutorPtr createExecutor();
     void fuseDecompressionConstant(const MemoryCPtr& memory, MemoryCPtr& decompressionValuesPtr);
 
     void initTensorParallelConfig(const GraphContext::CPtr context);
