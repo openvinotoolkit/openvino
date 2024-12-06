@@ -12,6 +12,7 @@ OpenVINO™ Ecosystem Overview
    :hidden:
 
    openvino-ecosystem/openvino-training-extensions
+   openvino-ecosystem/openvino-test-drive
    openvino-ecosystem/datumaro
    openvino-ecosystem/openvino-security-add-on
 
@@ -99,6 +100,14 @@ Intel's new software for building computer vision
 models in a fraction of the time and with less data. This software eases laborious
 data labeling, model training and optimization tasks across the AI model
 development process, empowering teams to produce custom AI models at scale.
+|hr|
+
+
+| **Intel® Test Drive**
+| :bdg-link-dark:`Github <https://github.com/openvinotoolkit/openvino_testdrive>`
+
+OpenVINO™ Test Drive is cross-platform graphic user interface application that enables running
+generative AI and vision models directly on your computer or edge device using OpenVINO™ Runtime.
 |hr|
 
 

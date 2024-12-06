@@ -18,7 +18,7 @@ make sure to :doc:`install OpenVINO with GenAI <../../get-started/install-openvi
 
 .. image:: ../../assets/images/genai_main_diagram.svg
    :align: center
-   :alt: OpenVINO workflow diagram for convenience
+   :alt: OpenVINO GenAI workflow diagram
 
 
 | Here is sample code for several Generative AI use case scenarios. Note that these are very basic
