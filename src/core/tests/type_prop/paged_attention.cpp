@@ -44,7 +44,7 @@ TEST(type_prop, paged_attention_static_13_inputs) {
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 4}));
 }
 
-TEST(type_prop, paged_attention_static_15_inputs) {
+TEST(type_prop, paged_attention_static_16_inputs) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
@@ -59,8 +59,9 @@ TEST(type_prop, paged_attention_static_15_inputs) {
     const auto alibi_slopes = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{9});
     const auto max_context_len = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
 
-    const auto rotation_coefficients = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{12});
     const auto rotated_block_indices = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{3});
+    const auto rotation_deltas = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{12});
+    const auto rotation_trig_lut = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{5, 256});
 
     ov::OutputVector args = {query,
                              key,
@@ -75,8 +76,9 @@ TEST(type_prop, paged_attention_static_15_inputs) {
                              sliding_window,
                              alibi_slopes,
                              max_context_len,
-                             rotation_coefficients,
-                             rotated_block_indices};
+                             rotation_deltas,
+                             rotated_block_indices,
+                             rotation_trig_lut};
 
     const auto op = std::make_shared<op::PagedAttentionExtension>(args);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);

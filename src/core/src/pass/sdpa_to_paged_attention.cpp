@@ -54,6 +54,13 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         model_remaining_params.insert(model_remaining_params.begin() + 2, block_indices);
     }
 
+    std::shared_ptr<v0::Parameter> model_rotation_trig_lut;
+
+    if (m_allow_cache_rotation) {
+        model_rotation_trig_lut =
+            setName(std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1}), "rotation_trig_lut");
+    }
+
     auto sliding_window = v0::Constant::create(element::i32, Shape{}, {0});  // sliding_window
 
     auto get_parameter = [=](const std::shared_ptr<ov::Model>& model,
@@ -95,8 +102,9 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     ParameterVector parameters_to_remove;
     ResultVector results_to_remove;  // # used, but cannot really track all Results in stateless model
     ParameterVector block_indices_inputs_for_each_layer;
-    ParameterVector rotation_coefficients_inputs_for_each_layer;
     ParameterVector rotated_block_indices_inputs_for_each_layer;
+    ParameterVector rotation_deltas_inputs_for_each_layer;
+
     ResultVector score_results;
 
     std::shared_ptr<v0::Parameter> position_ids;
@@ -130,8 +138,9 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                   m_use_per_layer_block_indices_inputs,
                                                   m_use_score_outputs,
                                                   m_allow_cache_rotation,
-                                                  rotation_coefficients_inputs_for_each_layer,
-                                                  rotated_block_indices_inputs_for_each_layer);
+                                                  rotated_block_indices_inputs_for_each_layer,
+                                                  rotation_deltas_inputs_for_each_layer,
+                                                  model_rotation_trig_lut);
     manager.register_pass<PrevSequenceLengthPattern>(unsqueezed_input_ids, max_context_len, position_ids);
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
     manager.register_pass<TotalSequenceLengthPatternQwen>(max_context_len);
@@ -190,8 +199,9 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     }
 
     if (m_allow_cache_rotation) {
-        model->add_parameters(rotation_coefficients_inputs_for_each_layer);
         model->add_parameters(rotated_block_indices_inputs_for_each_layer);
+        model->add_parameters(rotation_deltas_inputs_for_each_layer);
+        model->add_parameters({model_rotation_trig_lut});
     }
 
     model->add_parameters(kv_parameters);
