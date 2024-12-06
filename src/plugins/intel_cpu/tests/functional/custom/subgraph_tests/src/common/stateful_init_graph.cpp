@@ -244,7 +244,7 @@ namespace {
 const std::vector<std::vector<InputShape>> inputShapes = {
     {
         // Dynamic shape.
-        {{1, -1}, {{1, 10}, {1, 10}, {1, 1}}},
+        {{1, -1}, {{1, 2}, {1, 2}, {1, 1}}},
         {{2, -1}, {{2, 3}, {2, 10}, {2, 1}}},
         {{-1, 2}, {{3, 2}, {10, 2}, {1, 2}}},
     },
@@ -271,7 +271,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_StatefulInitGraph,
 const std::vector<std::vector<InputShape>> inputShapesDiffPrecision = {
     {
         // Dynamic shape.
-        {{1, -1}, {{1, 10}, {1, 10}, {1, 1}}},
+        {{1, -1}, {{1, 10}, {1, 1}}},
     },
     {
         // Static shape.
