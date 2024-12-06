@@ -63,7 +63,7 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
                 return;
             }
 
-            bool any_child_found_output = false;
+            bool any_child_on_output_path = false;
             for (const auto& child : node->get_output_target_inputs(0)) {
                 auto son = child.get_node()->shared_from_this();
                 if (son == readvalue) {
