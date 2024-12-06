@@ -516,10 +516,9 @@ Iteration <number>:
 ## How to build
 ### Prerequisites
 1. Build OpenCV G-API with OpenVINO/ONNXRT support
-#### Build OpenCV G-API with OpenVINO/ONNXRT support
-1. Clone and build [OpenVINO](https://github.com/openvinotoolkit/openvino) from sources
+- Clone and build [OpenVINO](https://github.com/openvinotoolkit/openvino) from sources
     ```
-    mkdir build && cd build
+    mkdir "build" && cd "build"
     cmake ../ -DCMAKE_BUILD_TYPE=Release     \
               -DENABLE_PLUGINS_XML=ON        \
               -DCMAKE_INSTALL_PREFIX=install \
@@ -528,18 +527,19 @@ Iteration <number>:
 
     cmake --build . --config Release --target install --parallel
     ```
-2. Init OpenVINO enviroment
+- Init OpenVINO enviroment
     ```
-     source <path-to-openvino-install-dir>/setupvars.sh
+     source "<path-to-openvino-install-dir>/setupvars.sh"
     ```
-3. Clone OpenCV repo:
+2. Build OpenCV
+- Clone OpenCV repo:
     ```
     git clone https://github.com/opencv/opencv
     cd opencv && git checkout 3919f33e21
     ```
-4. Build OpenCV G-API:
+- Build OpenCV G-API:
     ```
-    mkdir -p build && cd build
+    mkdir -p "build" && cd "build"
     cmake ../ -DBUILD_LIST=gapi          \
               -DCMAKE_BUILD_TYPE=Release \
               -DWITH_OPENVINO=ON
@@ -547,7 +547,7 @@ Iteration <number>:
     ```
     If ONNX support is needed build OpenCV G-API with ONNX support:
     ```
-    mkdir -p build && cd build
+    mkdir -p "build" && cd "build"
     cmake ../ -DBUILD_LIST=gapi                             \
               -DCMAKE_BUILD_TYPE=Release                    \
               -DWITH_OPENVINO=ON                            \
@@ -555,17 +555,18 @@ Iteration <number>:
               -DORT_INSTALL_DIR=<path-to-onnxrt-install-dir>
     cmake --build . --config Release --target opencv_gapi --parallel
     ```
-5. Build protopipe
+#### Build Protopipe inside openVino
+1. Build protopipe
     ```
     cd <path-to-OpenVINO-root-dir>
-    mkdir src/plugins/intel_npu/tools/protopipe/build && cd src/plugins/intel_npu/tools/protopipe/build
+    mkdir "src/plugins/intel_npu/tools/protopipe/build" && cd "src/plugins/intel_npu/tools/protopipe/build"
     cmake ../ -DOpenCV_DIR=<path-to-opencv-build-dir> -DCMAKE_BUILD_TYPE=Release
-    cmake --build . --target protopipe --parallel
+    cmake --build . --target protopipe --parallel --config Release
     ```
 ### Standalone build
 1. Build `yaml-cpp`
    ```
-   mkdir -p yaml-cpp_build && cd yaml-cpp_build
+   mkdir -p "yaml-cpp_build" && cd "yaml-cpp_build"
    cmake <openvino-dir>/src/plugins/intel_npu/thirdparty/yaml-cpp -DCMAKE_INSTALL_PREFIX=install
    cmake --build . --config Release --target install --parallel
    ```
@@ -573,13 +574,13 @@ Iteration <number>:
    ```
    git clone https://github.com/gflags/gflags
    cd gflags
-   mkdir -p gflags_build && cd gflags_build
+   mkdir -p "gflags_build" && cd "gflags_build"
    cmake ../ -DCMAKE_INSTALL_PREFIX=install
    cmake --build . --config Release --target install --parallel
    ```
 3. Build `Protopipe`
    ```
-   mkdir -p protopipe_build && cd protopipe_build
+   mkdir -p "protopipe_build" && cd "protopipe_build"
    cmake <openvino-dir>/src/plugins/intel_npu/tools/protopipe \
          -DOpenCV_DIR=<path-to-opencv-build>                  \
          -Dyaml-cpp_DIR=<yaml-cpp-build-dir>                  \
