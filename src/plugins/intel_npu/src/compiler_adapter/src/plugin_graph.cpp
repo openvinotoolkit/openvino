@@ -43,10 +43,10 @@ void PluginGraph::custom_export(std::ostream& stream,
     manager.run_passes(initModel);
 
     xmlContent.seekg(0, std::ios::end);
-    size_t xmlSize = xmlContent.tellp();
+    uint32_t xmlSize = xmlContent.tellp();
     xmlContent.seekg(0, std::ios::beg);
     binContent.seekg(0, std::ios::end);
-    size_t binSize = binContent.tellp();
+    uint32_t binSize = binContent.tellp();
     binContent.seekg(0, std::ios::beg);
 
     stream << xmlSize;
@@ -55,11 +55,13 @@ void PluginGraph::custom_export(std::ostream& stream,
     stream << binSize;
     stream << binContent.rdbuf();
 
-    stream << _blob.size();
+    uint32_t mainBlobSize = _blob.size();
+    stream << mainBlobSize;
     stream.write(reinterpret_cast<const char*>(_blob.data()), _blob.size());
 
     const auto& initBlob = initGraph->_blob;
-    stream << initBlob.size();
+    uint32_t initBlobSize = initBlob.size();
+    stream << initBlobSize;
     stream.write(reinterpret_cast<const char*>(initBlob.data()), initBlob.size());
 
     if (!stream) {
@@ -67,7 +69,7 @@ void PluginGraph::custom_export(std::ostream& stream,
     } else {
         if (_logger.level() >= ov::log::Level::INFO) {
             std::stringstream str;
-            str << "Blob size: " << _blob.size() + initBlob.size() + 4 * sizeof(size_t) + xmlSize + binSize
+            str << "Blob size: " << _blob.size() + initBlob.size() + 4 * sizeof(uint32_t) + xmlSize + binSize
                 << std::endl;
             _logger.info(str.str().c_str());
         }

@@ -867,10 +867,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 
             compiledModel = std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig);
         } else {
-            size_t xmlSize;
-            size_t binSize;
-            size_t blobSize;
-            size_t initBlobSize;
+            uint32_t xmlSize;
+            uint32_t binSize;
+            uint32_t blobSize;
+            uint32_t initBlobSize;
             std::string xml;
 
             stream >> xmlSize;
