@@ -134,14 +134,16 @@ static bool eliminate_nop(const shared_ptr<Node>& node) {
 
 // Check if first dim is dynamic, other dims are static
 static bool only_first_dim_dynamic(const PartialShape& pshape) {
-    if (pshape.rank().is_static() && pshape[0].is_dynamic()) {
-        for (size_t i = 1; i < pshape.size(); ++i) {
-            if (pshape[i].is_dynamic()) {
-                return false;
+    if (pshape.rank().is_static() && pshape.size() > 0) { 
+        if (pshape[0].is_dynamic()) {
+            for (size_t i = 1; i < pshape.size(); ++i) {
+                if (pshape[i].is_dynamic()) {
+                    return false;
+                }
             }
-        }
 
-        return true;
+            return true;
+        }
     }
 
     return false;
