@@ -118,6 +118,7 @@ protected:
     void runDynamic(dnnl::stream strm) override;
     void assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& memDesc) override;
 };
+
 class MemoryInputBase : public Input, public MemoryStateNode {
 public:
     enum class mode {

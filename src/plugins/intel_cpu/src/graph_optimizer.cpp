@@ -3122,20 +3122,19 @@ void GraphOptimizer::MatchSdpaKvCache(Graph &graph) {
         auto memInputNode = std::dynamic_pointer_cast<node::MemoryInputBase>(node);
         OPENVINO_ASSERT(memInputNode, "MemoryInput node ", node->getName(), " has unexpected dynamic type");
 
-        ov::optional<std::vector<Shape>> input_shape;
-        ov::optional<std::vector<ov::element::Type>> input_prc;
-
-        std::vector<Shape> input_shape_vec;
-        std::vector<ov::element::Type> input_prc_vec;
+        ov::optional<std::vector<Shape>> inputShapes;
+        ov::optional<std::vector<ov::element::Type>> inputPrcs;
         if (!node->getParentEdges().empty()) {
+            inputShapes = ov::optional<std::vector<Shape>>(std::vector<Shape>{});
+            inputPrcs = ov::optional<std::vector<ov::element::Type>>(std::vector<ov::element::Type>{});
+
+            auto& input_shape_vec = *inputShapes;
+            auto& input_prc_vec = *inputPrcs;
+
             for (size_t i = 0; i < node->getParentEdges().size(); i++) {
                 input_shape_vec.push_back(node->getInputShapeAtPort(i));
                 input_prc_vec.push_back(node->getOriginalInputPrecisionAtPort(i));
             }
-        }
-        if (input_shape_vec.size() > 0) {
-            input_shape = ov::optional<std::vector<Shape>>(input_shape_vec);
-            input_prc = ov::optional<std::vector<ov::element::Type>>(input_prc_vec);
         }
 
         //search for SDPA
@@ -3162,8 +3161,8 @@ void GraphOptimizer::MatchSdpaKvCache(Graph &graph) {
             memInputNode->getOutputShapeAtPort(0),
             memInputNode->getOriginalOutputPrecisionAtPort(0),
             graph.getGraphContext(),
-            input_shape,
-            input_prc,
+            inputShapes,
+            inputPrcs,
             sdpa);
 
         if (!memInputNode->getParentEdges().empty()) {
