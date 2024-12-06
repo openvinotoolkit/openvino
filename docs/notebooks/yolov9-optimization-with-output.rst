@@ -57,6 +57,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 Prerequisites
 -------------
 
+
 .. code:: ipython3
 
     %pip install -q "openvino>=2023.3.0" "nncf>=2.8.1" "opencv-python" "matplotlib>=3.4" "seaborn" "pandas" "scikit-learn" "torch" "torchvision" "tqdm"  --extra-index-url https://download.pytorch.org/whl/cpu
@@ -79,21 +80,24 @@ Prerequisites
     )
 
     open("notebook_utils.py", "w").write(r.text)
+
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
+    )
+    open("cmd_helper.py", "w").write(r.text)
+
+    from cmd_helper import clone_repo
     from notebook_utils import download_file, VideoPlayer, device_widget
 
-    if not Path("yolov9").exists():
-        !git clone https://github.com/WongKinYiu/yolov9
+
+    clone_repo("https://github.com/WongKinYiu/yolov9", add_to_sys_path=False)
+
     %cd yolov9
 
 
 .. parsed-literal::
 
-    Cloning into 'yolov9'...
-    remote: Enumerating objects: 781, done.[K
-    remote: Total 781 (delta 0), reused 0 (delta 0), pack-reused 781 (from 1)[K
-    Receiving objects: 100% (781/781), 3.27 MiB | 16.41 MiB/s, done.
-    Resolving deltas: 100% (331/331), done.
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/yolov9-optimization/yolov9
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/yolov9-optimization/yolov9
 
 
 Get PyTorch model
@@ -131,7 +135,7 @@ applicable for other models from YOLO V9 family.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/yolov9-optimization/yolov9/model/gelan-c.pt')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/yolov9-optimization/yolov9/model/gelan-c.pt')
 
 
 
@@ -186,11 +190,11 @@ using ``ov.save_model``.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/yolov9-optimization/yolov9/models/experimental.py:243: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/yolov9-optimization/yolov9/models/experimental.py:243: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
       ckpt = torch.load(attempt_download(w), map_location='cpu')  # load
     Fusing layers...
     Model summary: 387 layers, 25288768 parameters, 0 gradients, 102.1 GFLOPs
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/yolov9-optimization/yolov9/models/yolo.py:108: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/yolov9-optimization/yolov9/models/yolo.py:108: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       elif self.dynamic or self.shape != shape:
 
 
@@ -571,10 +575,9 @@ asymmetric quantization of activations.
 
 .. parsed-literal::
 
-    2024-11-05 05:37:29.322072: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-11-05 05:37:29.357249: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-11-22 05:53:50.356768: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-11-22 05:53:50.382170: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-11-05 05:37:29.968269: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -673,7 +676,7 @@ models.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 26.54 ms
+    [ INFO ] Read model took 33.87 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: x) : f32 / [...] / [?,3,?,?]
@@ -685,7 +688,7 @@ models.
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'images': [1,3,640,640]
-    [ INFO ] Reshape model took 8.17 ms
+    [ INFO ] Reshape model took 8.32 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     images (node: x) : u8 / [N,C,H,W] / [1,3,640,640]
@@ -695,7 +698,7 @@ models.
     [ INFO ]     xi.3 (node: __module.model.22/aten::cat/Concat_1) : f32 / [...] / [1,144,40,40]
     [ INFO ]     xi (node: __module.model.22/aten::cat/Concat) : f32 / [...] / [1,144,20,20]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 499.10 ms
+    [ INFO ] Compile model took 490.84 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -732,17 +735,17 @@ models.
     [ INFO ] Fill input 'images' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 170.42 ms
+    [ INFO ] First inference took 177.98 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
     [ INFO ] Count:            222 iterations
-    [ INFO ] Duration:         15614.22 ms
+    [ INFO ] Duration:         15282.40 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        412.60 ms
-    [ INFO ]    Average:       419.41 ms
-    [ INFO ]    Min:           210.55 ms
-    [ INFO ]    Max:           885.97 ms
-    [ INFO ] Throughput:   14.22 FPS
+    [ INFO ]    Median:        411.00 ms
+    [ INFO ]    Average:       409.41 ms
+    [ INFO ]    Min:           230.42 ms
+    [ INFO ]    Max:           438.10 ms
+    [ INFO ] Throughput:   14.53 FPS
 
 
 .. code:: ipython3
@@ -767,7 +770,7 @@ models.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 41.88 ms
+    [ INFO ] Read model took 40.80 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: x) : f32 / [...] / [1,3,640,640]
@@ -779,7 +782,7 @@ models.
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'images': [1,3,640,640]
-    [ INFO ] Reshape model took 0.05 ms
+    [ INFO ] Reshape model took 0.04 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     images (node: x) : u8 / [N,C,H,W] / [1,3,640,640]
@@ -789,7 +792,7 @@ models.
     [ INFO ]     xi.3 (node: __module.model.22/aten::cat/Concat_1) : f32 / [...] / [1,144,40,40]
     [ INFO ]     xi (node: __module.model.22/aten::cat/Concat) : f32 / [...] / [1,144,20,20]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 946.19 ms
+    [ INFO ] Compile model took 927.77 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -826,17 +829,17 @@ models.
     [ INFO ] Fill input 'images' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 68.41 ms
+    [ INFO ] First inference took 68.96 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            726 iterations
-    [ INFO ] Duration:         15191.13 ms
+    [ INFO ] Count:            756 iterations
+    [ INFO ] Duration:         15184.79 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        121.43 ms
-    [ INFO ]    Average:       125.10 ms
-    [ INFO ]    Min:           56.89 ms
-    [ INFO ]    Max:           305.84 ms
-    [ INFO ] Throughput:   47.79 FPS
+    [ INFO ]    Median:        120.34 ms
+    [ INFO ]    Average:       120.09 ms
+    [ INFO ]    Min:           65.24 ms
+    [ INFO ]    Max:           132.04 ms
+    [ INFO ] Throughput:   49.79 FPS
 
 
 Run Live Object Detection

@@ -159,8 +159,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
         // Plugin version was changed to ov::Version
         R"(.*VersionTest.pluginCurrentVersionIsCorrect.*)",
-        // Issue: 113703, 114763
-        R"(.*smoke_If/SimpleIfTest.*Cond=0.*)",
         // Issue: 114765
         R"(.*smoke_PSROIPoolingAverageLayoutTest/PSROIPoolingLayerCPUTest.*bf16.*)",
         R"(.*smoke_PSROIPoolingBilinearLayoutTest/PSROIPoolingLayerCPUTest.*bf16.*)",
@@ -312,7 +310,7 @@ std::vector<std::string> disabledTestPatterns() {
     };
 
     // fp32 floor for bf16 models: conversion issue
-    retVector.emplace_back(R"(.*smoke.*ActivationLayerCPUTest.*CompareWithRefs/Floor_.*netPRC=bf16.*)");
+    retVector.emplace_back(R"(.*smoke.*ActivationLayerCPUTest.*CompareWithRefs/(Floor|Ceiling)_.*netPRC=bf16.*)");
 
 #if defined(OPENVINO_ARCH_X86)
     retVector.emplace_back(R"(.*DetectionOutputLayerTest.*)");
@@ -564,18 +562,6 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeEnforceBF16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHA.*EnforceBF16.*)");
         retVector.emplace_back(R"(.*ConcatSDPTest.*bf16.*)");
-    }
-    // [150842] Need to support dynamic K dimension of BF16|INT8 MatMul on AMX systems
-    if (ov::with_cpu_x86_avx512_core_amx()) {
-        retVector.emplace_back(R"(.*smoke_Snippets_MatMul/MatMul.CompareWithRefImpl/.*IS\[0\]=\[2.2.70.\?\].*T\[0\]=(u8|i8|bf16)_T\[1\]=(i8|bf16).*)");
-        retVector.emplace_back(R"(.*smoke_Snippets_MatMul/MatMul.CompareWithRefImpl/.*IS\[0\]=\[\?.\?.\?.\?\].*T\[0\]=(u8|i8|bf16)_T\[1\]=(i8|bf16).*)");
-        retVector.emplace_back(R"(.*smoke_Snippets_MatMulTransposeB.*IS\[0\]=\[\?.\?.\?.\?\].*T\[0\]=(u8|i8|bf16)_T\[1\]=(i8|bf16).*)");
-        retVector.emplace_back(R"(.*smoke_Snippets_MatMulBias.*IS\[0\]=\[\?.\?.\?.\?\].*T\[0\]=(u8|i8|bf16)_T\[1\]=(i8|bf16).*)");
-
-        retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeEnforceBF16_3D.*IS\[1\]=\[2.64.\?\].*)");
-        retVector.emplace_back(R"(.*smoke_Snippets_MHA.*BF16.*/MHA.*IS\[0\]=\[(\?|1).(\?|4).(\?|12).(\?|64)\].*)");
-        retVector.emplace_back(R"(.*smoke_Snippets_MHA.*BF16.*/MHA.*IS\[0\]=\[\?.\?.\?\].*)");
-        retVector.emplace_back(R"(.*smoke_Snippets_(MHAINT8MatMul|MHAQuantMatMul0|MHAFQAfterMatMul_4D|smoke_Snippets_MHAFQ).*IS\[0\]=\[\?.\?.\?\.\?].*)");
     }
 #ifdef SNIPPETS_LIBXSMM_TPP
     // GN in TPP requires exposing tmp Buffer results outside the loop (ticket: 151234)
