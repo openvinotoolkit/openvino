@@ -714,13 +714,6 @@ void MemoryInput::createPrimitive() {
     }
 }
 
-bool MemoryInput::needShapeInfer() const {
-    if (haveSubgraph()) {
-        return true;
-    }
-    return MemoryInputBase::needShapeInfer();
-}
-
 void MemoryInput::runDynamic(dnnl::stream strm) {
     auto assignedMem = getAssignedState()->input_mem();
 
