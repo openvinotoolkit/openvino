@@ -889,6 +889,11 @@ void Node::filterSupportedPrimitiveDescriptors() {
 
     auto isNotSuitableDesc = [&](const NodeDesc& desc) {
         const auto &config = desc.getConfig();
+
+        if (this->getTypeStr() == "Parameter") {
+            return false;
+        }
+
         if (inputMemoryFormatsFilter.size() > config.inConfs.size() || outputMemoryFormatsFilter.size() > config.outConfs.size())
             OPENVINO_THROW("Incorrect number of input or output memory formats");
 
