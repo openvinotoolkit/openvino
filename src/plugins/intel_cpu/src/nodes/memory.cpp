@@ -371,8 +371,8 @@ bool MemoryInputBase::isSupportedOperation(const std::shared_ptr<const ov::Node>
                     ov::op::v3::ReadValue::get_type_info_static(),
                     ov::op::v6::ReadValue::get_type_info_static(),
                     ov::intel_cpu::ReadValueWithSubgraph::get_type_info_static())) {
-            errorMessage = "Node is not an instance of ReadValue/ReadValueWithSubgraph from the operation set v3 "
-                           "or v6, intel_cpu";
+            errorMessage = "Node is not an instance of ReadValue from the operation set v3 "
+                           "or v6, or is not an instance of intel_cpu::ReadValueWithSubgraph";
             return false;
         }
     } catch (...) {
