@@ -21,9 +21,9 @@
 #endif
 
 #if defined(OPENVINO_HAS_FILESYSTEM)
-#include <filesystem>
+#    include <filesystem>
 #elif defined(OPENVINO_HAS_EXP_FILESYSTEM)
-#include <experimental/filesystem>
+#    include <experimental/filesystem>
 #else
-#error "Neither #include <filesystem> nor #include <experimental/filesystem> is available."
+#    error "Neither #include <filesystem> nor #include <experimental/filesystem> is available."
 #endif
