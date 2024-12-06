@@ -715,7 +715,6 @@ tiny-random-BeitForImageClassification,Image Classification,pytorch,intel-optimu
 tiny-random-bert,Natural Language Processing,pytorch,intel-optimum default,+,,
 tiny-random-BlenderbotModel,Large Language Model,pytorch,INT4,+,,
 tiny-random-BloomModel,Large Language Model,pytorch,INT4,+,,
-tiny-random-chatglm2,Large Language Model,pytorch,INT4,+,,
 tiny-random-codegen2,Large Language Model,pytorch,INT4,+,,
 tiny-random-CodeGenForCausalLM,Large Language Model,pytorch,INT4,+,,
 tiny-random-CohereForCausalLM,Large Language Model,pytorch,INT4,+,,
