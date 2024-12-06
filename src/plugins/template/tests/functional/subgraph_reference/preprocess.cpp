@@ -13,6 +13,8 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/common_optimizations/nop_elimination.hpp"
 
 using namespace ov;
 using namespace ov::preprocess;
@@ -139,6 +141,11 @@ static RefPreprocessParams convert_only() {
             .convert_element_type(element::u8)
             .convert_element_type(element::f32);
         p.build();
+
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::DisableEliminateUselessConvert>();
+        manager.run_passes(f);
+
         return f;
     };
     res.inputs.emplace_back(Shape{1, 1, 2, 2}, element::i16, std::vector<int16_t>{2, 3, 4, 5});
