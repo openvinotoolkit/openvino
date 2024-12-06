@@ -138,6 +138,10 @@ public:
 
     void apply_user_properties(const cldnn::device_info& info);
 
+    // Note that RT info property value has lower priority than values set by user via core.set_property or passed to compile_model call
+    // So this method should be called after setting all user properties, but before apply_user_properties() call.
+    void apply_rt_info(const ov::RTMap& rt_info);
+
     std::string to_string() const;
 
 protected:
@@ -146,6 +150,16 @@ protected:
     void apply_performance_hints(const cldnn::device_info& info);
     void apply_priority_hints(const cldnn::device_info& info);
     void apply_debug_options(const cldnn::device_info& info);
+
+    template <typename T, PropertyMutability mutability>
+    void apply_rt_info_property(const ov::Property<T, mutability>& property, const ov::RTMap& rt_info) {
+        if (!is_set_by_user(property)) {
+            auto rt_info_val = rt_info.find(property.name());
+            if (rt_info_val != rt_info.end()) {
+                set_user_property(property(rt_info_val->second.template as<T>()));
+            }
+        }
+    }
 
 private:
     ov::AnyMap internal_properties;
