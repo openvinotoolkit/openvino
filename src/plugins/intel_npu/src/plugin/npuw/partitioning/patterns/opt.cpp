@@ -1585,7 +1585,8 @@ ConvToMatmul::ConvToMatmul(Context::Ref ctx) {
     auto param = opp::wrap_type<ov::op::v0::Parameter>();
     auto convert = opp::wrap_type<ov::op::v0::Convert>({param->output(0)});
     auto param2 = opp::any_input();
-    auto convert2 = opp::optional<ov::op::v0::Convert>({param2->output(0)});
+    auto param2_reshape = opp::optional<ov::op::v1::Reshape>({param2, opp::any_input()});
+    auto convert2 = opp::optional<ov::op::v0::Convert>({param2_reshape->output(0)});
     auto multiply = opp::wrap_type<ov::op::v1::Multiply>({convert, convert2});
     auto tr_input = opp::any_input();
     auto transpose_in = opp::wrap_type<ov::op::v1::Transpose>({tr_input, opp::any_input()});
@@ -1606,7 +1607,11 @@ ConvToMatmul::ConvToMatmul(Context::Ref ctx) {
         const auto& cvt2_or_multiply = uat::_(node_to_output).at_or_at(convert2, multiply);
 
         const auto& shape = matched_node_param->get_shape();
-        const auto& shape2 = matched_node_param2->get_shape();
+
+        const auto& shape2 =
+                node_to_output.count(param2_reshape) ? node_to_output.at(param2_reshape).get_shape() :
+                node_to_output.at(param2).get_shape();
+
         const auto& tr_in_shape = matched_node_transpose_in->input(0).get_shape();
         const auto& tr_out_shape = matched_node_transpose_out->output(0).get_shape();
 
@@ -1619,6 +1624,14 @@ ConvToMatmul::ConvToMatmul(Context::Ref ctx) {
             // first 2 dims are 1
             return shape.size() == 4 && shape[0] == 1 && shape[1] == 1;
         };
+
+        LOG_DEBUG("ConvToMatmull: matched_node_param->get_element_type(): " << matched_node_param->get_element_type());
+        LOG_DEBUG("ConvToMatmull: matched_node_param2->get_element_type(): " << matched_node_param2->get_element_type());
+        LOG_DEBUG("ConvToMatmull: matched_node_param2: " << matched_node_param2->get_friendly_name());
+        LOG_DEBUG("ConvToMatmull: check_shape(shape): " << check_shape(shape));
+        LOG_DEBUG("ConvToMatmull: check_shape(shape2): " << check_shape(shape2));
+        LOG_DEBUG("ConvToMatmull: check_transpose_shape(tr_in_shape): " << check_transpose_shape(tr_in_shape));
+        LOG_DEBUG("ConvToMatmull: check_transpose_shape(tr_out_shape): " << check_transpose_shape(tr_out_shape));
 
         if ((matched_node_param->get_element_type() == ov::element::i4 ||
              matched_node_param->get_element_type() == ov::element::i8) &&
@@ -1688,15 +1701,16 @@ UneffectiveZP::UneffectiveZP() {
             LOG_DEBUG("UneffectiveZP subgraph detected with NOP zp tensor: "
                 << zero_point_tensor_node->get_friendly_name() << " shape=" <<  zero_point_tensor_node->get_shape());
             // removing whole zubgraph with subtract + zeropoints
-            auto multiply_node = node_to_output.at(subtract).get_node_shared_ptr();
+            auto multiply_node = node_to_output.at(multiply).get_node_shared_ptr();
             auto sub_weights_node = node_to_output.at(sub_weights).get_node_shared_ptr();
 
             //TODO: verify input 0 is subtract
-            multiply_node->input(0).replace_source_output(sub_weights_node->output(0));
+            LOG_DEBUG("UneffectiveZP reconnecting  " <<sub_weights_node->get_friendly_name() << " -> " << multiply_node->get_friendly_name());
+            multiply_node->input(0).replace_source_output(sub_weights_node);
             multiply_node->validate_and_infer_types();
         } else {
             // TODO: log zeropoints not equal to int4(0)
-            LOG_DEBUG("UneffectiveZP : non all zeropoints are identity");
+            LOG_DEBUG("UneffectiveZP non all zeropoints are identity");
             return false;   // root has changed
         }
 
