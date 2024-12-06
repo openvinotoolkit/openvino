@@ -757,8 +757,6 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
             const auto& prim_params = static_cast<const fully_connected_params&>(params);
 
             size_t quantize_grp_size = get_dynamic_quantize_group_size(prim_params);
-            OPENVINO_ASSERT(quantize_grp_size != 0, "Error: quantize_grp_size is zero.");
-
             size_t output_batch = get_output_aligned_bf_size(prim_params, false).first;
 
             // Get index of the added shape-agnostic kernel
@@ -807,9 +805,11 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
                         // quantized input is char type
                         kd.internalBufferSizes.push_back(input_size);
                         // half type of de_quan_scale and activation sum for each quantized group
+                        OPENVINO_ASSERT(quantize_grp_size != 0, "Error: quantize_grp_size is zero.");
                         kd.internalBufferSizes.push_back((input_size / quantize_grp_size) * 2 * 2);
                     }
 
+                    OPENVINO_ASSERT(quantize_grp_size != 0, "Error: quantize_grp_size is zero.");
                     kd.kernels[0].params.workGroups.global = {std::max((input_size / quantize_grp_size), (size_t)1), 1, 1};
                     kd.kernels[0].params.workGroups.local = {16, 1, 1};
                 }
