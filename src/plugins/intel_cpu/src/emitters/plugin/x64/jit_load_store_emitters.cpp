@@ -678,7 +678,7 @@ jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::x64::jit_generator* host,
     prepare_table();
     v_len_elt_ = get_vec_length() / exec_prc.size();
     store_size_ = store_num * dst_prc.size();
-    uni_vcvtneps2bf16_.reset(new jit_uni_vcvtneps2bf16(host, host_isa, exec_prc, mode));
+    uni_vcvtneps2bf16_.reset(new jit_uni_vcvtneps2bf16(host, host_isa));
 }
 
 inline bool jit_store_emitter::is_saturation() const {
