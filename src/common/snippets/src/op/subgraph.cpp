@@ -19,6 +19,7 @@
 #include "snippets/pass/align_element_types.hpp"
 #include "snippets/pass/reduce_to_snippets_reduce.hpp"
 #include "snippets/pass/gn_decomposition.hpp"
+#include "snippets/pass/transform_convert.hpp"
 
 #include "snippets/runtime_configurator.hpp"
 #include "snippets/utils/utils.hpp"
@@ -428,6 +429,7 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
     manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
 
     manager.register_positioned_passes(backend_passes);
+    manager.register_pass<snippets::pass::TransformConvertToConvertTruncation>();
     manager.run_passes(body_ptr());
 }
 
