@@ -183,6 +183,13 @@ std::vector<uint8_t> readCompiledModel(std::string_view path) {
     return blob;
 }
 
+bool isInitMetadata(const intel_npu::NetworkMetadata& networkMetadata) {
+    if (networkMetadata.inputs.size() == 0) {
+        return false;
+    }
+    return networkMetadata.inputs.at(0).isInitInputWeights;
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -272,57 +279,77 @@ std::vector<std::shared_ptr<IGraph>> DriverCompilerAdapter::compileWS(const std:
         OPENVINO_THROW("Invalid \"SEPARATE_WEIGHTS_VERSION\" value found within the \"compileWS\" call");
     }
 
-    // WS v3 is based on a stateless compiler. We'll use a separate config entry for informing the compiler the index of
-    // the current call iteration.
-    size_t callNumber = 0;
-    Config updatedConfig = config;
-    updatedConfig.update({{ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber)}});
-
     _logger.debug("serialize IR");
     auto serializedIR = serializeIR(model, compilerVersion, maxOpsetVersion);
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
 
-    _logger.debug("build flags");
-    buildFlags += serializeIOInfo(model, useIndices);
-    buildFlags += " ";
-    buildFlags += serializeConfig(updatedConfig, compilerVersion);
+    // WS v3 is based on a stateless compiler. We'll use a separate config entry for informing the compiler the index of
+    // the current call iteration.
+    std::vector<NetworkMetadata> initNetworkMetadata;
+    NetworkMetadata mainNetworkMetadata;
+    std::vector<ze_graph_handle_t> initGraphHandles;
+    ze_graph_handle_t mainGraphHandle;
+    size_t callNumber = 0;
+    bool compilationDone = false;
 
-    _logger.debug("compileIR Build flags : %s", buildFlags.c_str());
+    while (!compilationDone) {
+        _logger.debug("compileWS iteration %d", callNumber);
 
-    // If UMD Caching is requested to be bypassed or if OV cache is enabled, disable driver caching
-    uint32_t flags = ZE_GRAPH_FLAG_NONE;
-    const auto set_cache_dir = config.get<CACHE_DIR>();
-    if (!set_cache_dir.empty() || config.get<BYPASS_UMD_CACHING>()) {
-        flags = flags | ZE_GRAPH_FLAG_DISABLE_CACHING;
+        Config updatedConfig = config;
+        updatedConfig.update({{ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber++)}});
+
+        _logger.debug("build flags");
+        buildFlags = serializeIOInfo(model, useIndices);
+        buildFlags += " ";
+        buildFlags += serializeConfig(updatedConfig, compilerVersion);
+
+        _logger.debug("compileIR Build flags : %s", buildFlags.c_str());
+
+        // If UMD Caching is requested to be bypassed or if OV cache is enabled, disable driver caching
+        uint32_t flags = ZE_GRAPH_FLAG_NONE;
+        const auto set_cache_dir = config.get<CACHE_DIR>();
+        if (!set_cache_dir.empty() || config.get<BYPASS_UMD_CACHING>()) {
+            flags = flags | ZE_GRAPH_FLAG_DISABLE_CACHING;
+        }
+
+        _logger.debug("compile start");
+        ze_graph_handle_t graphHandle = _zeGraphExt->getGraphHandle(serializedIR, buildFlags, flags);
+        _logger.debug("compile end");
+
+        OV_ITT_TASK_NEXT(COMPILE_BLOB, "getNetworkMeta");
+        NetworkMetadata networkMetadata = _zeGraphExt->getNetworkMeta(graphHandle);
+
+        if (isInitMetadata(networkMetadata)) {
+            networkMetadata.name = model->get_friendly_name() + "_init";
+            initNetworkMetadata.push_back(std::move(networkMetadata));
+            initGraphHandles.push_back(graphHandle);
+        } else {
+            networkMetadata.name = model->get_friendly_name() + "_main";
+            compilationDone = true;
+            mainNetworkMetadata = std::move(networkMetadata);
+            mainGraphHandle = graphHandle;
+        }
     }
 
-    _logger.debug("compile start");
-    ze_graph_handle_t initGraphHandle = _zeGraphExt->getGraphHandle(std::move(serializedIR), buildFlags, flags);
-    ze_graph_handle_t mainGraphHandle = _zeGraphExt->getGraphHandle(std::move(serializedIR), buildFlags, flags);
-    _logger.debug("compile end");
+    std::vector<std::shared_ptr<IGraph>> driverGraphs;
+    for (size_t handleIndex = 0; handleIndex < initGraphHandles.size(); ++handleIndex) {
+        driverGraphs.push_back(std::make_shared<DriverGraph>(_zeGraphExt,
+                                                             _zeroInitStruct,
+                                                             initGraphHandles.at(handleIndex),
+                                                             std::move(initNetworkMetadata.at(handleIndex)),
+                                                             config,
+                                                             std::nullopt));
+    }
+    driverGraphs.push_back(std::make_shared<DriverGraph>(_zeGraphExt,
+                                                         _zeroInitStruct,
+                                                         mainGraphHandle,
+                                                         std::move(mainNetworkMetadata),
+                                                         config,
+                                                         std::nullopt));
 
-    OV_ITT_TASK_NEXT(COMPILE_BLOB, "getNetworkMeta");
-    NetworkMetadata initNetworkMetadata = _zeGraphExt->getNetworkMeta(initGraphHandle);
-    NetworkMetadata mainNetworkMetadata = _zeGraphExt->getNetworkMeta(mainGraphHandle);
-    initNetworkMetadata.name = model->get_friendly_name() + "_init";
-    mainNetworkMetadata.name = model->get_friendly_name() + "_main";
-
-    auto initGraph = std::make_shared<DriverGraph>(_zeGraphExt,
-                                                   _zeroInitStruct,
-                                                   initGraphHandle,
-                                                   std::move(initNetworkMetadata),
-                                                   config,
-                                                   std::nullopt);
-    auto mainGraph = std::make_shared<DriverGraph>(_zeGraphExt,
-                                                   _zeroInitStruct,
-                                                   mainGraphHandle,
-                                                   std::move(mainNetworkMetadata),
-                                                   config,
-                                                   std::nullopt);
-
-    return {initGraph, mainGraph};
+    return driverGraphs;
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::parse(std::vector<uint8_t> network, const Config& config) const {
