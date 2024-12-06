@@ -5,9 +5,9 @@ import shutil
 import tempfile
 
 import pytest
-import whowhatbench as wwb
 from optimum.intel.openvino import (OVModelForCausalLM,
                                     OVWeightQuantizationConfig)
+import whowhatbench as wwb
 from transformers import AutoModelForCausalLM, AutoTokenizer, set_seed
 
 logging.basicConfig(level=logging.INFO)
