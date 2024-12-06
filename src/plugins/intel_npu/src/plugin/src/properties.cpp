@@ -352,6 +352,7 @@ void Properties::registerProperties() {
                                true,
                                _metrics->GetDeviceTotalMemSize(get_specified_device_name(config)));
         REGISTER_SIMPLE_METRIC(ov::intel_npu::driver_version, true, _metrics->GetDriverVersion());
+        REGISTER_SIMPLE_METRIC(ov::intel_npu::compiler_version, true, _metrics->GetCompilerVersion());
         REGISTER_SIMPLE_METRIC(ov::intel_npu::backend_name, false, _metrics->GetBackendName());
         REGISTER_SIMPLE_METRIC(ov::intel_npu::batch_mode, false, _metrics->GetDriverVersion());
         REGISTER_CUSTOM_METRIC(ov::device::architecture,
