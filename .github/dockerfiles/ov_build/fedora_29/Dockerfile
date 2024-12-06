@@ -55,8 +55,9 @@ ENV PATH="$SCCACHE_HOME:$PATH"
 # Use Python 3.9 as default
 RUN python3.9 -m venv venv
 ENV PATH="/venv/bin:$PATH"
-RUN alternatives --install /usr/bin/python python /usr/bin/python3.9 10
-
+RUN alternatives --install /usr/bin/python python /usr/bin/python3.9 10 && \
+    alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 10 &&
+    
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
