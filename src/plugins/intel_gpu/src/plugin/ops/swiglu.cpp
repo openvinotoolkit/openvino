@@ -21,7 +21,7 @@ static void CreateGLUOp(ProgramBuilder& p, const std::shared_ptr<GLU>& op) {
     if (p.use_new_shape_infer()) {
         auto prim = cldnn::swiglu(primitive_name,
                                   inputs[0],
-                                  op->get_axis(),
+                                  (op->get_axis() < 0 ? op->get_input_partial_shape(0).size() + op->get_axis() : op->get_axis()),
                                   op->get_split_lengths(),
                                   op->get_glu_type(),
                                   op->get_split_to_glu_idx(),
@@ -31,7 +31,7 @@ static void CreateGLUOp(ProgramBuilder& p, const std::shared_ptr<GLU>& op) {
     } else {
         auto prim = cldnn::swiglu(primitive_name,
                                   inputs[0],
-                                  op->get_axis(),
+                                  (op->get_axis() < 0 ? op->get_input_partial_shape(0).size() + op->get_axis() : op->get_axis()),
                                   op->get_split_lengths(),
                                   op->get_glu_type(),
                                   op->get_split_to_glu_idx(),

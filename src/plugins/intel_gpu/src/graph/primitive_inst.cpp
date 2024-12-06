@@ -38,6 +38,7 @@
 #include "gather_inst.h"
 #include "broadcast_inst.h"
 #include "dynamic_quantize_inst.h"
+#include "swiglu_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "impls/registry/implementation_manager.hpp"
 #include "impls/registry/registry.hpp"
@@ -2606,6 +2607,16 @@ bool primitive_inst::is_valid_fusion() const {
         } else {
             if (fd.is_type<reorder>() || fd.is_type<quantize>())
                 continue;
+            if (fd.is_type<swiglu>()) {
+                OPENVINO_ASSERT(_node->is_type<fully_connected>() && _node->get_preferred_impl_type() == impl_types::ocl);
+                if (!_node->get_selected_impl())
+                    return false;
+                // TODO : support ref kernel too
+                if (_node->get_selected_impl()->get_kernel_name().find("fully_connected_gpu_bf_tiled") != std::string::npos)
+                    return true;
+                else
+                    return false;
+            }
 
             OPENVINO_THROW("[GPU] Unsupported fused operation in dynamic shape: type=", fd.desc->type_string(), ", id=", fd.desc->id);
         }

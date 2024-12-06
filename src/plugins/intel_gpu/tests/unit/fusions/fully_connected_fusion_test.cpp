@@ -9,6 +9,7 @@
 #include <intel_gpu/primitives/quantize.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/fully_connected.hpp>
+#include <intel_gpu/primitives/swiglu.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/crop.hpp>
 
@@ -73,7 +74,7 @@ public:
     }
 
     layout get_scale_layout(fully_connected_test_params& p, size_t group_size = 1) {
-        if (p.weights_type == data_types::u8 || p.weights_type == data_types::i8) {
+        if (p.weights_type == data_types::u8 || p.weights_type == data_types::i8 || p.weights_type == data_types::u4 || p.weights_type == data_types::i4) {
             auto scale_shape = p.out_shape.size() == 3 ? ov::PartialShape{p.out_shape[2]} : ov::PartialShape{p.out_shape[1]};
             return layout{ scale_shape, p.default_type, p.default_format };
         } else {
@@ -199,6 +200,10 @@ public:
 
 #define CASE_FC_FP16_INT4_COMP_1 { 1, 128 }, { 1, 128 }, { 128, 128 }, data_types::f16, format::bfyx, data_types::u4, format::oiyx, data_types::f16, format::bfyx
 #define CASE_FC_FP16_INT4_COMP_2 { 2, 128 }, { 2, 128 }, { 128, 128 }, data_types::f16, format::bfyx, data_types::u4, format::oiyx, data_types::f16, format::bfyx
+
+#define CASE_FC_FP16_INT4_SWIGLU_1 { 1, 64 }, { 1, 64 }, { 64, 64 }, data_types::f16, format::bfyx, data_types::u4, format::oiyx, data_types::f16, format::bfyx
+#define CASE_FC_FP16_INT4_SWIGLU_2 { 1, 64}, { 1, 128 }, { 128, 64 }, data_types::f16, format::bfyx, data_types::u4, format::oiyx, data_types::f16, format::bfyx
+#define CASE_FC_FP16_INT4_SWIGLU_3 { 1, 312 }, { 1, 128 }, { 128, 312 }, data_types::f16, format::bfyx, data_types::u4, format::oiyx, data_types::f16, format::bfyx
 
 /* ----------------------------------------------------------------------------------------------------- */
 /* ---------------------------------------- FC cases --------------------------------------------------- */
@@ -901,6 +906,58 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_add_ocl_dynamic, ::testing
     fully_connected_test_params{ DYN_CASE_FC_FP16_7, 2, 3 },
     fully_connected_test_params{ DYN_CASE_FC_FP16_3D_1, 2, 3 },
     fully_connected_test_params{ DYN_CASE_FC_FP16_3D_2, 2, 3 },
+}));
+
+class fc_fp16_swiglu_ocl_dynamic : public FullyConnectedFusingTest {
+public:
+    void run_test() {
+        auto p = GetParam();
+        auto test_input_layout = get_input_layout(p);
+        auto dynamic_input_layout = layout{ov::PartialShape::dynamic(test_input_layout.get_partial_shape().size()),
+                                           test_input_layout.data_type,
+                                           test_input_layout.format};
+        int64_t swiglu_length = p.weights_shape[0].get_length()/2;
+        auto fc_prim = fully_connected("fc_prim",
+                                       input_info("input"),
+                                       "weights",
+                                       "",
+                                       "scale",
+                                       "",
+                                       data_types::f16,
+                                       get_output_dim_size(p),
+                                       get_input_weights_rank(p));
+        fc_prim.decompression_zero_point_scalar = 8.0f;
+        create_topologies(input_layout("input", dynamic_input_layout),
+                          data("weights", get_mem(get_weights_layout(p))),
+                          data("scale", get_mem(get_scale_layout(p, 64), 0.1)),
+                          fc_prim,
+                          swiglu("swiglu",
+                                 input_info("fc_prim"),
+                                 -1,
+                                 swiglu_length,
+                                 ov::op::internal::GLU::GluType::Swish,
+                                 0,
+                                 tensor()),
+                          reorder("reorder_bfyx", input_info("swiglu"), p.default_format, data_types::f32));
+
+        tolerance = 1.0f;
+        execute(p, true);
+    }
+};
+
+TEST_P(fc_fp16_swiglu_ocl_dynamic, basic) {
+    if (engine.get_device_info().supports_immad)
+        return;
+
+    if (engine.get_device_info().execution_units_count < 128)
+        return;
+    run_test();
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_swiglu_ocl_dynamic, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP16_INT4_SWIGLU_1, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_INT4_SWIGLU_2, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_INT4_SWIGLU_3, 2, 3 },
 }));
 
 class fc_imad_int8_eltwise_add_ocl_dynamic : public FullyConnectedFusingTest {
