@@ -118,7 +118,9 @@ TEST(TransformationTests, ReadValueWithSubgraph_1) {
  *
  ***************************************************************************************************/
 
-#define CREATE_CONST(SHAPE) std::make_shared<ov::op::v0::Constant>(ov::element::i32, SHAPE, std::vector<int32_t>{1})
+static std::shared_ptr<ov::op::v0::Constant> create_const_node(ov::Shape shape) {
+    return std::make_shared<ov::op::v0::Constant>(ov::element::i32, shape, std::vector<int32_t>{1});
+}
 
 static std::shared_ptr<ov::intel_cpu::ReadValueWithSubgraph> constructRVWithSubGraph2(
     ov::NodeVector inputs,
@@ -131,7 +133,7 @@ static std::shared_ptr<ov::intel_cpu::ReadValueWithSubgraph> constructRVWithSubG
         func_inputs.push_back(func_input);
     }
 
-    auto add1 = std::make_shared<ov::op::v1::Add>(func_inputs[0], CREATE_CONST(ov::Shape{4}));
+    auto add1 = std::make_shared<ov::op::v1::Add>(func_inputs[0], create_const_node(ov::Shape{4}));
 
     auto add4 = std::make_shared<ov::op::v1::Add>(func_inputs[1], func_inputs[2]);
 
@@ -168,10 +170,10 @@ TEST(TransformationTests, ReadValueWithSubgraph_2) {
             auto convert = std::make_shared<ov::op::v0::Convert>(input, out_type);
             convert->set_friendly_name("convert");
 
-            auto add1 = std::make_shared<ov::op::v1::Add>(convert, CREATE_CONST(ov::Shape{4}));
+            auto add1 = std::make_shared<ov::op::v1::Add>(convert, create_const_node(ov::Shape{4}));
             add1->set_friendly_name("add1");
 
-            auto add2 = std::make_shared<ov::op::v1::Add>(convert, CREATE_CONST(ov::Shape{4}));
+            auto add2 = std::make_shared<ov::op::v1::Add>(convert, create_const_node(ov::Shape{4}));
             add2->set_friendly_name("add2");
 
             auto add3 = std::make_shared<ov::op::v1::Add>(add2, convert);
@@ -208,7 +210,7 @@ TEST(TransformationTests, ReadValueWithSubgraph_2) {
 
             auto convert = std::make_shared<ov::op::v0::Convert>(input, out_type);
 
-            auto add2 = std::make_shared<ov::op::v1::Add>(convert, CREATE_CONST(ov::Shape{4}));
+            auto add2 = std::make_shared<ov::op::v1::Add>(convert, create_const_node(ov::Shape{4}));
 
             auto add3 = std::make_shared<ov::op::v1::Add>(add2, convert);
 
