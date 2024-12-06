@@ -405,7 +405,8 @@ public:
     void add_extension(const std::string& library_path);
 
 #ifdef OPENVINO_CPP_VER_17
-    void add_extension(const std::filesystem::path& model_path) const {
+    template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
+    void add_extension(const Path& model_path) {
         add_extension(model_path.string());
     }
 #endif
