@@ -209,7 +209,7 @@ jobs:
             python_exec_path=$(python$py_version -c "import sys; print(sys.executable)")
             $python_exec_path -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
             
-            cmake -DPython3_EXECUTABLE=$python_exec_path -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B ${{ github.workspace }}/py$py_version
+            cmake -DPython3_EXECUTABLE=$python_exec_path -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B ${{ github.workspace }}/py$py_version
             cmake --build ${{ github.workspace }}/py$py_version --parallel
             cmake --install ${{ github.workspace }}/py$py_version --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_WHEELS_DIR }} --component python_wheels
           done
