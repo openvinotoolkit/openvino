@@ -1,4 +1,4 @@
-Run LLM Inference on OpenVINO with the GenAI Flavor
+Inference with OpenVINO GenAI
 ===============================================================================================
 
 .. meta::
@@ -9,39 +9,332 @@ Run LLM Inference on OpenVINO with the GenAI Flavor
    :hidden:
 
    NPU inference of LLMs <genai-guide-npu>
-   genai-guide/genai-use-cases
 
 
-This guide will show you how to integrate the OpenVINO GenAI flavor into your application, covering
-loading a model and passing the input context to receive generated text. Note that the vanilla flavor of OpenVINO
-will not work with these instructions, make sure to
-:doc:`install OpenVINO GenAI <../../get-started/install-openvino/install-openvino-genai>`.
+OpenVINO™ GenAI is a library of pipelines and methods, extending the OpenVINO runtime to work
+with generative AI models more efficiently. This article provides reference code and guidance
+on its usage. Note that the base OpenVINO version will not work with these instructions,
+make sure to :doc:`install OpenVINO with GenAI <../../get-started/install-openvino/install-openvino-genai>`.
 
-.. note::
-
-   The examples use the CPU as the target device, however, the GPU is also supported.
-   Note that for the LLM pipeline, the GPU is used only for inference, while token selection, tokenization, and
-   detokenization remain on the CPU, for efficiency. Tokenizers are represented as a separate model and also run
-   on the CPU.
-
-1. Export an LLM model via Hugging Face Optimum-Intel. A chat-tuned TinyLlama model is used in this example:
-
-   .. code-block:: python
-
-      optimum-cli export openvino --model "TinyLlama/TinyLlama-1.1B-Chat-v1.0" --weight-format fp16 --trust-remote-code "TinyLlama-1.1B-Chat-v1.0"
-
-   *Optional*. Optimize the model:
-
-   The model is an optimized OpenVINO IR with FP16 precision. For enhanced LLM performance,
-   it is recommended to use lower precision for model weights, such as INT4, and to compress weights
-   using NNCF during model export directly:
-
-   .. code-block:: python
-
-      optimum-cli export openvino --model "TinyLlama/TinyLlama-1.1B-Chat-v1.0" --weight-format int4 --trust-remote-code "TinyLlama-1.1B-Chat-v1.0"
+.. image:: ../../assets/images/genai_main_diagram.svg
+   :align: center
+   :alt: OpenVINO workflow diagram for convenience
 
 
-2. Perform generation using the new GenAI API:
+| Here is sample code for several Generative AI use case scenarios. Note that these are very basic
+  examples and may need adjustments for your specific needs, like changing the inference device.
+| For a more extensive instruction and additional options, see the
+  `step-by-step chat-bot guide <#chat-bot-use-case-step-by-step>`__ below.
+
+.. dropdown:: Text-to-Image Generation
+
+   .. tab-set::
+
+      .. tab-item:: Python
+         :sync: python
+
+         .. tab-set::
+
+            .. tab-item:: main.py
+               :name: mainpy
+
+               .. code-block:: python
+
+                  import openvino_genai
+                  from PIL import Image
+                  import numpy as np
+
+                  class Generator(openvino_genai.Generator):
+                      def __init__(self, seed, mu=0.0, sigma=1.0):
+                          openvino_genai.Generator.__init__(self)
+                          np.random.seed(seed)
+                          self.mu = mu
+                          self.sigma = sigma
+
+                      def next(self):
+                          return np.random.normal(self.mu, self.sigma)
+
+
+                  def infer(model_dir: str, prompt: str):
+                      device = 'CPU'  # GPU can be used as well
+                      random_generator = Generator(42)
+                      pipe = openvino_genai.Text2ImagePipeline(model_dir, device)
+                      image_tensor = pipe.generate(
+                          prompt,
+                          width=512,
+                          height=512,
+                          num_inference_steps=20,
+                          num_images_per_prompt=1,
+                          random_generator=random_generator
+                      )
+
+                      image = Image.fromarray(image_tensor.data[0])
+                      image.save("image.bmp")
+
+            .. tab-item:: LoRA.py
+               :name: lorapy
+
+               .. code-block:: python
+
+                  import openvino as ov
+                  import openvino_genai
+                  import numpy as np
+                  import sys
+
+
+                  class Generator(openvino_genai.Generator):
+                      def __init__(self, seed, mu=0.0, sigma=1.0):
+                          openvino_genai.Generator.__init__(self)
+                          np.random.seed(seed)
+                          self.mu = mu
+                          self.sigma = sigma
+
+                      def next(self):
+                          return np.random.normal(self.mu, self.sigma)
+
+
+                  def image_write(path: str, image_tensor: ov.Tensor):
+                      from PIL import Image
+                      image = Image.fromarray(image_tensor.data[0])
+                      image.save(path)
+
+
+                  def infer(models_path: str, prompt: str):
+                      prompt = "cyberpunk cityscape like Tokyo New York with tall buildings at dusk golden hour cinematic lighting"
+
+                      device = "CPU"  # GPU, NPU can be used as well
+                      adapter_config = openvino_genai.AdapterConfig()
+
+                      for i in range(int(len(adapters) / 2)):
+                          adapter = openvino_genai.Adapter(adapters[2 * i])
+                          alpha = float(adapters[2 * i + 1])
+                          adapter_config.add(adapter, alpha)
+
+                      pipe = openvino_genai.Text2ImagePipeline(models_path, device, adapters=adapter_config)
+                      print("Generating image with LoRA adapters applied, resulting image will be in lora.bmp")
+                      image = pipe.generate(prompt,
+                                            random_generator=Generator(42),
+                                            width=512,
+                                            height=896,
+                                            num_inference_steps=20)
+
+                      image_write("lora.bmp", image)
+                      print("Generating image without LoRA adapters applied, resulting image will be in baseline.bmp")
+                      image = pipe.generate(prompt,
+                                            adapters=openvino_genai.AdapterConfig(),
+                                            random_generator=Generator(42),
+                                            width=512,
+                                            height=896,
+                                            num_inference_steps=20
+                                            )
+                      image_write("baseline.bmp", image)
+
+         For more information, refer to the
+         `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/text2image/>`__
+
+      .. tab-item:: C++
+         :sync: cpp
+
+         .. tab-set::
+
+            .. tab-item:: main.cpp
+               :name: maincpp
+
+               .. code-block:: cpp
+
+                  #include "openvino/genai/text2image/pipeline.hpp"
+
+                  #include "imwrite.hpp"
+
+                  int32_t main(int32_t argc, char* argv[]) try {
+                      OPENVINO_ASSERT(argc == 3, "Usage: ", argv[0], " <MODEL_DIR> '<PROMPT>'");
+
+                      const std::string models_path = argv[1], prompt = argv[2];
+                      const std::string device = "CPU";  // GPU, NPU can be used as well
+
+                      ov::genai::Text2ImagePipeline pipe(models_path, device);
+                      ov::Tensor image = pipe.generate(prompt,
+                          ov::genai::width(512),
+                          ov::genai::height(512),
+                          ov::genai::num_inference_steps(20),
+                          ov::genai::num_images_per_prompt(1));
+
+                      imwrite("image_%d.bmp", image, true);
+
+                      return EXIT_SUCCESS;
+                  } catch (const std::exception& error) {
+                      try {
+                          std::cerr << error.what() << '\n';
+                      } catch (const std::ios_base::failure&) {}
+                      return EXIT_FAILURE;
+                  } catch (...) {
+                      try {
+                          std::cerr << "Non-exception object thrown\n";
+                      } catch (const std::ios_base::failure&) {}
+                      return EXIT_FAILURE;
+                  }
+
+            .. tab-item:: LoRA.cpp
+               :name: loracpp
+
+               .. code-block:: cpp
+
+                  #include "openvino/genai/text2image/pipeline.hpp"
+
+                  #include "imwrite.hpp"
+
+                  int32_t main(int32_t argc, char* argv[]) try {
+                      OPENVINO_ASSERT(argc >= 3 && (argc - 3) % 2 == 0, "Usage: ", argv[0], " <MODEL_DIR> '<PROMPT>' [<LORA_SAFETENSORS> <ALPHA> ...]]");
+
+                      const std::string models_path = argv[1], prompt = argv[2];
+                      const std::string device = "CPU";  // GPU, NPU can be used as well
+
+                      ov::genai::AdapterConfig adapter_config;
+                      for(size_t i = 0; i < (argc - 3)/2; ++i) {
+                          ov::genai::Adapter adapter(argv[3 + 2*i]);
+                          float alpha = std::atof(argv[3 + 2*i + 1]);
+                          adapter_config.add(adapter, alpha);
+                      }
+
+                      ov::genai::Text2ImagePipeline pipe(models_path, device, ov::genai::adapters(adapter_config));
+
+                      std::cout << "Generating image with LoRA adapters applied, resulting image will be in lora.bmp\n";
+                      ov::Tensor image = pipe.generate(prompt,
+                          ov::genai::random_generator(std::make_shared<ov::genai::CppStdGenerator>(42)),
+                          ov::genai::width(512),
+                          ov::genai::height(896),
+                          ov::genai::num_inference_steps(20));
+                      imwrite("lora.bmp", image, true);
+
+                      std::cout << "Generating image without LoRA adapters applied, resulting image will be in baseline.bmp\n";
+                      image = pipe.generate(prompt,
+                          ov::genai::adapters(),
+                          ov::genai::random_generator(std::make_shared<ov::genai::CppStdGenerator>(42)),
+                          ov::genai::width(512),
+                          ov::genai::height(896),
+                          ov::genai::num_inference_steps(20));
+                      imwrite("baseline.bmp", image, true);
+
+                      return EXIT_SUCCESS;
+                  } catch (const std::exception& error) {
+                      try {
+                          std::cerr << error.what() << '\n';
+                      } catch (const std::ios_base::failure&) {}
+                      return EXIT_FAILURE;
+                  } catch (...) {
+                      try {
+                          std::cerr << "Non-exception object thrown\n";
+                      } catch (const std::ios_base::failure&) {}
+                      return EXIT_FAILURE;
+                  }
+
+         For more information, refer to the
+         `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/text2image/>`__
+
+
+.. dropdown:: Speech Recognition
+
+   The application performs inference on speech recognition Whisper Models. The samples include
+   the ``WhisperPipeline`` class and use audio files in WAV format at a sampling rate of 16 kHz
+   as input.
+
+   .. tab-set::
+
+      .. tab-item:: Python
+         :sync: cpp
+
+         .. code-block:: python
+
+            import openvino_genai
+            import librosa
+
+
+            def read_wav(filepath):
+                raw_speech, samplerate = librosa.load(filepath, sr=16000)
+                return raw_speech.tolist()
+
+
+            def infer(model_dir: str, wav_file_path: str):
+                device = "CPU"  # GPU or NPU can be used as well.
+                pipe = openvino_genai.WhisperPipeline(model_dir, device)
+
+                # The pipeline expects normalized audio with a sampling rate of 16kHz.
+                raw_speech = read_wav(wav_file_path)
+                result = pipe.generate(
+                    raw_speech,
+                    max_new_tokens=100,
+                    language="<|en|>",
+                    task="transcribe",
+                    return_timestamps=True,
+                )
+
+                print(result)
+
+                for chunk in result.chunks:
+                    print(f"timestamps: [{chunk.start_ts}, {chunk.end_ts}] text: {chunk.text}")
+
+
+         For more information, refer to the
+         `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/whisper_speech_recognition/>`__.
+
+      .. tab-item:: C++
+         :sync: cpp
+
+         .. code-block:: cpp
+
+            #include "audio_utils.hpp"
+            #include "openvino/genai/whisper_pipeline.hpp"
+
+            int main(int argc, char* argv[]) try {
+                if (3 > argc) {
+                    throw std::runtime_error(std::string{"Usage: "} + argv[0] + " <MODEL_DIR> \"<WAV_FILE_PATH>\"");
+                }
+
+                std::filesystem::path models_path = argv[1];
+                std::string wav_file_path = argv[2];
+                std::string device = "CPU";  // GPU or NPU can be used as well.
+
+                ov::genai::WhisperPipeline pipeline(models_path, device);
+
+                ov::genai::WhisperGenerationConfig config(models_path / "generation_config.json");
+                config.max_new_tokens = 100;
+                config.language = "<|en|>";
+                config.task = "transcribe";
+                config.return_timestamps = true;
+
+                // The pipeline expects normalized audio with a sampling rate of 16kHz.
+                ov::genai::RawSpeechInput raw_speech = utils::audio::read_wav(wav_file_path);
+                auto result = pipeline.generate(raw_speech, config);
+
+                std::cout << result << "\n";
+
+                for (auto& chunk : *result.chunks) {
+                    std::cout << "timestamps: [" << chunk.start_ts << ", " << chunk.end_ts << "] text: " << chunk.text << "\n";
+                }
+
+            } catch (const std::exception& error) {
+                try {
+                    std::cerr << error.what() << '\n';
+                } catch (const std::ios_base::failure&) {
+                }
+                return EXIT_FAILURE;
+            } catch (...) {
+                try {
+                    std::cerr << "Non-exception object thrown\n";
+                } catch (const std::ios_base::failure&) {
+                }
+                return EXIT_FAILURE;
+            }
+
+         For more information, refer to the
+         `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/whisper_speech_recognition/>`__.
+
+
+.. dropdown:: Using GenAI in Chat Scenario
+
+   For chat scenarios where inputs and outputs represent a conversation, maintaining KVCache
+   across inputs may prove beneficial. The ``start_chat`` and ``finish_chat`` chat-specific
+   methods are used to mark a conversation session, as shown in the samples below:
 
    .. tab-set::
 
@@ -50,9 +343,35 @@ will not work with these instructions, make sure to
 
          .. code-block:: python
 
-            import openvino_genai as ov_genai
-            pipe = ov_genai.LLMPipeline(model_path, "CPU")
-            print(pipe.generate("The Sun is yellow because", max_new_tokens=100))
+            import openvino_genai
+
+
+            def streamer(subword):
+                print(subword, end='', flush=True)
+                return False
+
+
+            def infer(model_dir: str):
+                device = 'CPU'  # GPU can be used as well.
+                pipe = openvino_genai.LLMPipeline(model_dir, device)
+
+                config = openvino_genai.GenerationConfig()
+                config.max_new_tokens = 100
+
+                pipe.start_chat()
+                while True:
+                    try:
+                        prompt = input('question:\n')
+                    except EOFError:
+                        break
+                    pipe.generate(prompt, config, streamer)
+                    print('\n----------')
+                pipe.finish_chat()
+
+
+
+         For more information, refer to the
+         `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/chat_sample/>`__.
 
       .. tab-item:: C++
          :sync: cpp
@@ -60,27 +379,250 @@ will not work with these instructions, make sure to
          .. code-block:: cpp
 
             #include "openvino/genai/llm_pipeline.hpp"
-            #include <iostream>
 
-            int main(int argc, char* argv[]) {
-               std::string model_path = argv[1];
-               ov::genai::LLMPipeline pipe(model_path, "CPU");
-               std::cout << pipe.generate("The Sun is yellow because", ov::genai::max_new_tokens(100));
+            int main(int argc, char* argv[]) try {
+                if (2 != argc) {
+                    throw std::runtime_error(std::string{"Usage: "} + argv[0] + " <MODEL_DIR>");
+                }
+                std::string prompt;
+                std::string models_path = argv[1];
+
+                std::string device = "CPU";  // GPU, NPU can be used as well
+                ov::genai::LLMPipeline pipe(models_path, device);
+
+                ov::genai::GenerationConfig config;
+                config.max_new_tokens = 100;
+                std::function<bool(std::string)> streamer = [](std::string word) {
+                    std::cout << word << std::flush;
+                    return false;
+                };
+
+                pipe.start_chat();
+                std::cout << "question:\n";
+                while (std::getline(std::cin, prompt)) {
+                    pipe.generate(prompt, config, streamer);
+                    std::cout << "\n----------\n"
+                        "question:\n";
+                }
+                pipe.finish_chat();
+            } catch (const std::exception& error) {
+                try {
+                    std::cerr << error.what() << '\n';
+                } catch (const std::ios_base::failure&) {}
+                return EXIT_FAILURE;
+            } catch (...) {
+                try {
+                    std::cerr << "Non-exception object thrown\n";
+                } catch (const std::ios_base::failure&) {}
+                return EXIT_FAILURE;
             }
 
-The `LLMPipeline` is the main object used for decoding. You can construct it directly from the
-folder with the converted model. It will automatically load the main model, tokenizer, detokenizer,
-and the default generation configuration.
 
-Once the model is exported from Hugging Face Optimum-Intel, it already contains all the information
-necessary for execution, including the tokenizer/detokenizer and the generation config, ensuring that
-its results match those generated by Hugging Face.
+         For more information, refer to the
+         `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/chat_sample/>`__
+
+
+.. dropdown:: Using GenAI with Vision Language Models
+
+   OpenVINO GenAI introduces the ``openvino_genai.VLMPipeline`` pipeline for
+   inference of multimodal text-generation Vision Language Models (VLMs).
+   With a text prompt and an image as input, VLMPipeline can generate text using
+   models such as LLava or MiniCPM-V. See the chat scenario presented
+   in the samples below:
+
+   .. tab-set::
+
+      .. tab-item:: Python
+         :sync: py
+
+         .. code-block:: python
+
+            import numpy as np
+            import openvino_genai
+            from PIL import Image
+            from openvino import Tensor
+            from pathlib import Path
+
+
+            def streamer(subword: str) -> bool:
+                print(subword, end='', flush=True)
+
+
+            def read_image(path: str) -> Tensor:
+                pic = Image.open(path).convert("RGB")
+                image_data = np.array(pic.getdata()).reshape(1, pic.size[1], pic.size[0], 3).astype(np.uint8)
+                return Tensor(image_data)
+
+
+            def read_images(path: str) -> list[Tensor]:
+                entry = Path(path)
+                if entry.is_dir():
+                    return [read_image(str(file)) for file in sorted(entry.iterdir())]
+                return [read_image(path)]
+
+
+            def infer(model_dir: str, image_dir: str):
+                rgbs = read_images(image_dir)
+                device = 'CPU'  # GPU can be used as well.
+                enable_compile_cache = dict()
+                if "GPU" == device:
+                    enable_compile_cache["CACHE_DIR"] = "vlm_cache"
+                pipe = openvino_genai.VLMPipeline(model_dir, device, **enable_compile_cache)
+
+                config = openvino_genai.GenerationConfig()
+                config.max_new_tokens = 100
+
+                pipe.start_chat()
+                prompt = input('question:\n')
+                pipe.generate(prompt, images=rgbs, generation_config=config, streamer=streamer)
+
+                while True:
+                    try:
+                        prompt = input("\n----------\n"
+                            "question:\n")
+                    except EOFError:
+                        break
+                    pipe.generate(prompt, generation_config=config, streamer=streamer)
+                pipe.finish_chat()
+
+
+         For more information, refer to the
+         `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/visual_language_chat>`__.
+
+      .. tab-item:: C++
+         :sync: cpp
+
+         .. code-block:: cpp
+
+            #include "load_image.hpp"
+            #include <openvino/genai/visual_language/pipeline.hpp>
+            #include <filesystem>
+
+            bool print_subword(std::string&& subword) {
+                return !(std::cout << subword << std::flush);
+            }
+
+            int main(int argc, char* argv[]) try {
+                if (3 != argc) {
+                    throw std::runtime_error(std::string{"Usage "} + argv[0] + " <MODEL_DIR> <IMAGE_FILE OR DIR_WITH_IMAGES>");
+                }
+
+                std::vector<ov::Tensor> rgbs = utils::load_images(argv[2]);
+
+                std::string device = "CPU";  // GPU can be used as well.
+                ov::AnyMap enable_compile_cache;
+                if ("GPU" == device) {
+                    enable_compile_cache.insert({ov::cache_dir("vlm_cache")});
+                }
+                ov::genai::VLMPipeline pipe(argv[1], device, enable_compile_cache);
+
+                ov::genai::GenerationConfig generation_config;
+                generation_config.max_new_tokens = 100;
+
+                std::string prompt;
+
+                pipe.start_chat();
+                std::cout << "question:\n";
+
+                std::getline(std::cin, prompt);
+                pipe.generate(prompt,
+                              ov::genai::images(rgbs),
+                              ov::genai::generation_config(generation_config),
+                              ov::genai::streamer(print_subword));
+                std::cout << "\n----------\n"
+                    "question:\n";
+                while (std::getline(std::cin, prompt)) {
+                    pipe.generate(prompt,
+                                  ov::genai::generation_config(generation_config),
+                                  ov::genai::streamer(print_subword));
+                    std::cout << "\n----------\n"
+                        "question:\n";
+                }
+                pipe.finish_chat();
+            } catch (const std::exception& error) {
+                try {
+                    std::cerr << error.what() << '\n';
+                } catch (const std::ios_base::failure&) {}
+                return EXIT_FAILURE;
+            } catch (...) {
+                try {
+                    std::cerr << "Non-exception object thrown\n";
+                } catch (const std::ios_base::failure&) {}
+                return EXIT_FAILURE;
+            }
+
+
+         For more information, refer to the
+         `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/visual_language_chat/>`__
+
+
+|
+
+
+Chat-bot use case - step by step
+###############################################################################################
+
+This example will show you how to create a chat-bot functionality, using the ``ov_genai.LLMPipeline``
+and a chat-tuned TinyLlama model. Apart from the basic implementation, it provides additional
+optimization methods.
+
+Although CPU is used as inference device in the samples below, you may choose GPU instead.
+Note that tasks such as token selection, tokenization, and detokenization are always handled
+by CPU only. Tokenizers, represented as a separate model, are also run on CPU.
+
+Running the model
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+You start with exporting an LLM model via Hugging Face Optimum-Intel. Note that the precision
+of ``int4`` is used, instead of the original ``fp16``, for better performance. The weight
+compression is done by NNCF at the model export stage. The exported model contains all the
+information necessary for execution, including the tokenizer/detokenizer and the generation
+config, ensuring that its results match those generated by Hugging Face.
+
+The `LLMPipeline` is the main object used for decoding and handles all the necessary steps.
+You can construct it directly from the folder with the converted model.
+
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. code-block:: console
+
+         optimum-cli export openvino --model "TinyLlama/TinyLlama-1.1B-Chat-v1.0" --weight-format int4 --trust-remote-code "TinyLlama-1.1B-Chat-v1.0"
+
+      .. code-block:: python
+
+            import openvino_genai as ov_genai
+            pipe = ov_genai.LLMPipeline(model_path, "CPU")
+            print(pipe.generate("The Sun is yellow because", max_new_tokens=100))
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. code-block:: console
+
+         optimum-cli export openvino --model "TinyLlama/TinyLlama-1.1B-Chat-v1.0" --weight-format int4 --trust-remote-code "TinyLlama-1.1B-Chat-v1.0"
+
+      .. code-block:: cpp
+
+         #include "openvino/genai/llm_pipeline.hpp"
+         #include <iostream>
+
+         int main(int argc, char* argv[]) {
+            std::string model_path = argv[1];
+            ov::genai::LLMPipeline pipe(model_path, "CPU");
+            std::cout << pipe.generate("The Sun is yellow because", ov::genai::max_new_tokens(100));
+         }
+
+
 
 Streaming the Output
-###########################
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-For more interactive UIs during generation, streaming of model output tokens is supported. See the example
-below, where a lambda function outputs words to the console immediately upon generation:
+For more interactive UIs during generation, you can stream output tokens. In this example, a
+lambda function outputs words to the console immediately upon generation:
 
 .. tab-set::
 
@@ -177,12 +719,10 @@ You can also create your custom streamer for more sophisticated processing:
 
 
 Optimizing Generation with Grouped Beam Search
-#######################################################
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-Leverage grouped beam search decoding and configure generation_config for better text generation
-quality and efficient batch processing in GenAI applications.
-
-Specify generation_config to use grouped beam search:
+For better text generation quality and more efficient batch processing, specify
+``generation_config`` to leverage grouped beam search decoding.
 
 .. tab-set::
 
@@ -219,10 +759,123 @@ Specify generation_config to use grouped beam search:
          }
 
 
+Efficient Text Generation via Speculative Decoding
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+Speculative decoding (or assisted-generation) enables faster token generation
+when an additional smaller draft model is used alongside the main model. This reduces the
+number of infer requests to the main model, increasing performance.
+
+The draft model predicts the next K tokens one by one in an autoregressive manner. The main
+model validates these predictions and corrects them if necessary - in case of
+a discrepancy, the main model prediction is used. Then, the draft model acquires this token and
+runs prediction of the next K tokens, thus repeating the cycle.
+
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. code-block:: python
+
+         import openvino_genai
+         import queue
+         import threading
+
+         def streamer(subword):
+                 print(subword, end='', flush=True)
+                 return False
+
+         def infer(model_dir: str, draft_model_dir: str, prompt: str):
+             main_device = 'CPU'  # GPU can be used as well.
+             draft_device = 'CPU'
+
+             scheduler_config = openvino_genai.SchedulerConfig()
+             scheduler_config.cache_size = 2
+
+             draft_model = openvino_genai.draft_model(draft_model_dir, draft_device)
+
+             pipe = openvino_genai.LLMPipeline(model_dir, main_device, scheduler_config=scheduler_config, draft_model=draft_model)
+
+             config = openvino_genai.GenerationConfig()
+             config.max_new_tokens = 100
+             config.num_assistant_tokens = 5
+
+             pipe.generate("The Sun is yellow because", config, streamer)
+
+
+      For more information, refer to the
+      `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/speculative_decoding_lm/>`__.
+
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. code-block:: cpp
+
+         #include <openvino/openvino.hpp>
+
+         #include "openvino/genai/llm_pipeline.hpp"
+
+         int main(int argc, char* argv[]) try {
+             if (4 != argc) {
+                 throw std::runtime_error(std::string{"Usage: "} + argv[0] + " <MODEL_DIR> <DRAFT_MODEL_DIR> '<PROMPT>'");
+             }
+
+             ov::genai::GenerationConfig config;
+             config.max_new_tokens = 100;
+             config.num_assistant_tokens = 5;
+
+             std::string main_model_path = argv[1];
+             std::string draft_model_path = argv[2];
+             std::string prompt = argv[3];
+
+             std::string main_device = "CPU", draft_device = "CPU";
+
+             ov::genai::SchedulerConfig scheduler_config;
+             scheduler_config.cache_size = 5;
+
+             ov::genai::LLMPipeline pipe(
+                 main_model_path,
+                 main_device,
+                 ov::genai::draft_model(draft_model_path, draft_device),
+                 ov::genai::scheduler_config(scheduler_config));
+
+             auto streamer = [](std::string subword) {
+                 std::cout << subword << std::flush;
+                 return false;
+             };
+
+             pipe.generate("The Sun is yellow because", config, streamer);
+         } catch (const std::exception& error) {
+             try {
+                 std::cerr << error.what() << '\n';
+             } catch (const std::ios_base::failure&) {}
+             return EXIT_FAILURE;
+         } catch (...) {
+             try {
+                 std::cerr << "Non-exception object thrown\n";
+             } catch (const std::ios_base::failure&) {}
+             return EXIT_FAILURE;
+         }
+
+
+      For more information, refer to the
+      `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/speculative_decoding_lm/>`__
+
+
+
+
+
+
+
+
 Comparing with Hugging Face Results
 #######################################
 
-Compare and analyze results with those generated by Hugging Face models.
+You can compare the results of the above example with those generated by Hugging Face models by
+running the following code:
 
 .. tab-set::
 
@@ -250,30 +903,35 @@ Compare and analyze results with those generated by Hugging Face models.
 
          assert hf_output == ov_output
 
+
+
+
+
+
 GenAI API
 #######################################
 
-OpenVINO GenAI Flavor includes the following API:
+The use case described here uses the following OpenVINO GenAI API methods:
 
-* generation_config - defines a configuration class for text generation, enabling customization of the generation process such as the maximum length of the generated text, whether to ignore end-of-sentence tokens, and the specifics of the decoding strategy (greedy, beam search, or multinomial sampling).
-
-* llm_pipeline - provides classes and utilities for text generation, including a pipeline for processing inputs, generating text, and managing outputs with configurable options.
-
+* generation_config - defines a configuration class for text generation,
+  enabling customization of the generation process such as the maximum length of
+  the generated text, whether to ignore end-of-sentence tokens, and the specifics
+  of the decoding strategy (greedy, beam search, or multinomial sampling).
+* llm_pipeline - provides classes and utilities for processing inputs,
+  text generation, and managing outputs with configurable options.
 * streamer_base - an abstract base class for creating streamers.
-
 * tokenizer - the tokenizer class for text encoding and decoding.
-
 * visibility  -  controls the visibility of the GenAI library.
 
-Learn more in the `GenAI API reference <https://docs.openvino.ai/2024/api/genai_api/api.html>`__.
+Learn more from the `GenAI API reference <https://docs.openvino.ai/2024/api/genai_api/api.html>`__.
 
 Additional Resources
 ####################
 
 * `OpenVINO GenAI Repo <https://github.com/openvinotoolkit/openvino.genai>`__
 * `OpenVINO GenAI Samples <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples>`__
+* A Jupyter notebook demonstrating
+  `Visual-language assistant with MiniCPM-V2 and OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/minicpm-v-multimodal-chatbot>`__
 * `OpenVINO Tokenizers <https://github.com/openvinotoolkit/openvino_tokenizers>`__
 * `Neural Network Compression Framework <https://github.com/openvinotoolkit/nncf>`__
-
-
 

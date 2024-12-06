@@ -12,7 +12,7 @@
 #include <common/primitive_desc.hpp>
 #include <common/primitive_desc_iface.hpp>
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "shape_inference/shape_inference_ngraph.hpp"
+#include "shape_inference/shape_inference.hpp"
 
 #include "eltwise.h"
 #include "fake_quantize.h"
@@ -128,12 +128,11 @@ bool DeconvKey::operator==(const DeconvKey &rhs) const {
  */
 class DeconfolutionShapeInferFactory : public ShapeInferFactory {
 public:
-    DeconfolutionShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
+    DeconfolutionShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
+
     ShapeInferPtr makeShapeInfer() const override {
-        if (m_op->get_input_size() > 2) {
-            return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), PortMask(2));
-        }
-        return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), EMPTY_PORT_MASK);
+        const auto port_mask = (m_op->get_input_size() > 2) ? PortMask(2) : EMPTY_PORT_MASK;
+        return make_shape_inference(m_op, port_mask);
     }
 private:
     std::shared_ptr<ov::Node> m_op;
@@ -418,24 +417,38 @@ std::pair<VectorDims, VectorDims> Deconvolution::makeDummyInOutShape() {
     return {inShape.getStaticDims(), outShape.getStaticDims()};
 }
 
-std::vector<memory::format_tag> Deconvolution::getAvailableFormatsForDims(const Shape &dims) const {
-    if (dims.getRank() == 0)
+std::vector<memory::format_tag> Deconvolution::getAvailableFormatsForDims(const Shape& dims) const {
+    if (dims.getRank() == 0) {
         return {memory::format_tag::x};
-    else if (dims.getRank() == 1)
+    } else if (dims.getRank() == 1) {
         return {memory::format_tag::x};
-    else if (dims.getRank() == 2)
+    } else if (dims.getRank() == 2) {
         return {memory::format_tag::nc};
-    else if (dims.getRank() == 3)
-        return {memory::format_tag::ncw,
-                memory::format_tag::nCw8c,
-                memory::format_tag::nCw16c,
-                memory::format_tag::nwc};
-    else if (dims.getRank() == 4)
-        return {memory::format_tag::nchw, memory::format_tag::nChw8c,
-                memory::format_tag::nChw16c, memory::format_tag::nhwc };
-    else if (dims.getRank() == 5)
-        return {memory::format_tag::ncdhw, memory::format_tag::nCdhw8c,
-                memory::format_tag::nCdhw16c, dnnl::memory::format_tag::ndhwc };
+    } else if (dims.getRank() == 3) {
+        // Ticket 156640
+        if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx_fp16)) {
+            return {memory::format_tag::ncw,
+                    memory::format_tag::nCw8c,
+                    memory::format_tag::nCw16c,
+                    memory::format_tag::nwc};
+        } else {
+            return {memory::format_tag::tnc,
+                    memory::format_tag::ntc,
+                    memory::format_tag::ncw,
+                    memory::format_tag::nCw8c,
+                    memory::format_tag::nCw16c};
+        }
+    } else if (dims.getRank() == 4) {
+        return {memory::format_tag::nchw,
+                memory::format_tag::nChw8c,
+                memory::format_tag::nChw16c,
+                memory::format_tag::nhwc};
+    } else if (dims.getRank() == 5) {
+        return {memory::format_tag::ncdhw,
+                memory::format_tag::nCdhw8c,
+                memory::format_tag::nCdhw16c,
+                dnnl::memory::format_tag::ndhwc};
+    }
     return {memory::format_tag::any};
 }
 
