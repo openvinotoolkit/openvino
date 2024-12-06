@@ -257,12 +257,26 @@ std::vector<std::shared_ptr<IGraph>> DriverCompilerAdapter::compileWS(const std:
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compileWS");
 
     const ze_graph_compiler_version_info_t& compilerVersion = _deviceGraphProperties.compilerVersion;
+
+    if ((compilerVersion.major < 6) || (compilerVersion.major == 6 && compilerVersion.minor < 3)) {
+        OPENVINO_THROW("Minimum compiler version required for weights separation: 6.3. Found: ",
+                       compilerVersion.major,
+                       ".",
+                       compilerVersion.minor);
+    }
+
     const auto maxOpsetVersion = _deviceGraphProperties.maxOVOpsetVersionSupported;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
-    if (config.get<SEPARATE_WEIGHTS_VERSION>() != 2) {
+    if (config.get<SEPARATE_WEIGHTS_VERSION>() != 3) {
         OPENVINO_THROW("Invalid \"SEPARATE_WEIGHTS_VERSION\" value found within the \"compileWS\" call");
     }
+
+    // WS v3 is based on a stateless compiler. We'll use a separate config entry for informing the compiler the index of
+    // the current call iteration.
+    size_t callNumber = 0;
+    Config updatedConfig = config;
+    updatedConfig.update({{ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber)}});
 
     _logger.debug("serialize IR");
     auto serializedIR = serializeIR(model, compilerVersion, maxOpsetVersion);
@@ -273,7 +287,7 @@ std::vector<std::shared_ptr<IGraph>> DriverCompilerAdapter::compileWS(const std:
     _logger.debug("build flags");
     buildFlags += serializeIOInfo(model, useIndices);
     buildFlags += " ";
-    buildFlags += serializeConfig(config, compilerVersion);
+    buildFlags += serializeConfig(updatedConfig, compilerVersion);
 
     _logger.debug("compileIR Build flags : %s", buildFlags.c_str());
 
@@ -661,6 +675,11 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
         separateWeightsStream << ov::intel_npu::separate_weights_version.name() << KEY_VALUE_SEPARATOR
                               << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
         content = std::regex_replace(content, std::regex(separateWeightsStream.str()), "");
+
+        std::ostringstream wsCompileCallNumberStream;
+        wsCompileCallNumberStream << ov::intel_npu::ws_compile_call_number.name() << KEY_VALUE_SEPARATOR
+                                  << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
+        content = std::regex_replace(content, std::regex(wsCompileCallNumberStream.str()), "");
     }
 
     // Remove the properties that are not used by the compiler WorkloadType is used only by compiled model

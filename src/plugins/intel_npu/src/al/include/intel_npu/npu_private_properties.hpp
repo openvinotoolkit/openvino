@@ -305,6 +305,8 @@ static constexpr ov::Property<uint32_t> separate_weights_version{"NPU_SEPARATE_W
 
 static constexpr ov::Property<bool> benchmark_init{"NPU_BENCHMARK_INIT"};
 
+static constexpr ov::Property<uint32_t> ws_compile_call_number{"WS_COMPILE_CALL_NUMBER"};
+
 /**
  * @brief [Only for NPU Plugin]
  * Type: integer, default is 1

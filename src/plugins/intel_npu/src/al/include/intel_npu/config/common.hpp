@@ -303,6 +303,34 @@ struct BENCHMARK_INIT final : OptionBase<BENCHMARK_INIT, bool> {
     }
 };
 
+struct WS_COMPILE_CALL_NUMBER final : OptionBase<WS_COMPILE_CALL_NUMBER, uint32_t> {
+    static std::string_view key() {
+        return ov::intel_npu::ws_compile_call_number.name();
+    }
+
+    static uint32_t defaultValue() {
+        return 0;
+    }
+
+    static uint32_t parse(std::string_view val) {
+        int val_i = -1;
+        try {
+            val_i = std::stoi(val.data());
+            if (val_i >= 0) {
+                return val_i;
+            } else {
+                throw std::logic_error("wrong val");
+            }
+        } catch (const std::exception&) {
+            OPENVINO_THROW("Wrong value of ",
+                           val.data(),
+                           " for property key ",
+                           ov::intel_npu::ws_compile_call_number.name(),
+                           ". Expected only positive integer numbers");
+        }
+    }
+};
+
 }  // namespace intel_npu
 
 namespace ov {

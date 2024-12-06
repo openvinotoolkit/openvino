@@ -24,6 +24,7 @@ void intel_npu::registerCommonOptions(OptionsDesc& desc) {
     desc.add<BATCH_MODE>();
     desc.add<SEPARATE_WEIGHTS_VERSION>();
     desc.add<BENCHMARK_INIT>();
+    desc.add<WS_COMPILE_CALL_NUMBER>();
 }
 
 //
