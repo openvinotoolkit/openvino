@@ -53,12 +53,7 @@ install(TARGETS ${TARGET_NAME}
         LIBRARY DESTINATION tests/${OV_CPACK_PYTHONDIR}/openvino/test_utils
         COMPONENT tests EXCLUDE_FROM_ALL)
 
-install(PROGRAMS ${OpenVINOPython_SOURCE_DIR}/src/openvino/test_utils/__init__.py
-        DESTINATION tests/${OV_CPACK_PYTHONDIR}/openvino/test_utils
-        COMPONENT tests
-        EXCLUDE_FROM_ALL)
-
-install(PROGRAMS ${OpenVINOPython_SOURCE_DIR}/src/openvino/test_utils/test_api.py
-        DESTINATION tests/${OV_CPACK_PYTHONDIR}/openvino/test_utils
+install(DIRECTORY ${OpenVINOPython_SOURCE_DIR}/src/openvino/test_utils
+        DESTINATION tests/${OV_CPACK_PYTHONDIR}/openvino
         COMPONENT tests
         EXCLUDE_FROM_ALL)
