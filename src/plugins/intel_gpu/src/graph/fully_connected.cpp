@@ -10,6 +10,7 @@
 #include "swiglu_inst.h"
 
 #include "matmul_shape_inference.hpp"
+#include "glu_shape_inference.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(fully_connected)
@@ -195,11 +196,7 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
         swiglu_op.set_axis(fused_prims[0].typed_desc<swiglu>()->axis);
         swiglu_op.set_split_lengths(fused_prims[0].typed_desc<swiglu>()->split_lengths);
         swiglu_op.set_glu_type(fused_prims[0].typed_desc<swiglu>()->glu_type);
-        std::vector<ShapeType> input_shapes = {
-            output_shapes[0],
-            ShapeType(ov::Shape({})),
-            ShapeType(ov::Shape{2})
-        };
+        std::vector<ShapeType> input_shapes = { output_shapes[0] };
         output_shapes = shape_infer(&swiglu_op, input_shapes);
     }
 
