@@ -109,6 +109,22 @@ private:
              bool parallelize) override;
 };
 
+#if defined(OPENVINO_ARCH_X86_64)
+struct RDFTJitExecutor : public RDFTExecutor {
+    RDFTJitExecutor(bool inverse, NodeDesc* primDesc = nullptr);
+
+    std::vector<float> generateTwiddlesDFT(size_t inputSize, size_t outputSize, enum dft_type type) override;
+    void dft(float* inputPtr, const float* twiddlesPtr, float* outputPtr,
+             size_t inputSize, size_t signalSize, size_t outputSize,
+             enum dft_type type, bool parallelize) override;
+
+    std::unique_ptr<jit_dft_kernel> rdftKernel = nullptr;
+    std::unique_ptr<jit_dft_kernel> dftKernel = nullptr;
+
+    int vlen;
+};
+#endif
+
 class RDFT : public Node {
 public:
     RDFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);

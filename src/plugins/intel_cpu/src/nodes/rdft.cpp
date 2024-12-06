@@ -733,113 +733,106 @@ std::vector<std::vector<float>> RDFTExecutor::generateTwiddles(const std::vector
     return twiddles;
 }
 #if defined(OPENVINO_ARCH_X86_64)
-struct RDFTJitExecutor : public RDFTExecutor {
-    RDFTJitExecutor(bool inverse, NodeDesc* primDesc) : RDFTExecutor(inverse) {
-        enum dft_type rdftType = isInverse ? complex_to_real : real_to_complex;
-        if (mayiuse(cpu::x64::avx512_core)) {
-            rdftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx512_core>(isInverse, rdftType));
-            dftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx512_core>(isInverse, complex_to_complex));
-            vlen = cpu_isa_traits<cpu::x64::avx512_core>::vlen;
-            primDesc->setImplementationType(jit_avx512);
-        } else if (mayiuse(cpu::x64::avx2)) {
-            rdftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx2>(isInverse, rdftType));
-            dftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx2>(isInverse, complex_to_complex));
-            vlen = cpu_isa_traits<cpu::x64::avx2>::vlen;
-            primDesc->setImplementationType(jit_avx2);
-        } else if (mayiuse(cpu::x64::sse41)) {
-            rdftKernel.reset(new jit_dft_kernel_f32<cpu::x64::sse41>(isInverse, rdftType));
-            dftKernel.reset(new jit_dft_kernel_f32<cpu::x64::sse41>(isInverse, complex_to_complex));
-            vlen = cpu_isa_traits<cpu::x64::sse41>::vlen;
-            primDesc->setImplementationType(jit_sse42);
-        } else {
-            OPENVINO_THROW("Can't create RDFT kernel");
-        }
-
-        if (rdftKernel)
-            rdftKernel->create_ker();
-        if (dftKernel)
-            dftKernel->create_ker();
+RDFTJitExecutor::RDFTJitExecutor(bool inverse, NodeDesc* primDesc) : RDFTExecutor(inverse) {
+    enum dft_type rdftType = isInverse ? complex_to_real : real_to_complex;
+    if (mayiuse(cpu::x64::avx512_core)) {
+        rdftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx512_core>(isInverse, rdftType));
+        dftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx512_core>(isInverse, complex_to_complex));
+        vlen = cpu_isa_traits<cpu::x64::avx512_core>::vlen;
+        if (primDesc) primDesc->setImplementationType(jit_avx512);
+    } else if (mayiuse(cpu::x64::avx2)) {
+        rdftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx2>(isInverse, rdftType));
+        dftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx2>(isInverse, complex_to_complex));
+        vlen = cpu_isa_traits<cpu::x64::avx2>::vlen;
+        if (primDesc) primDesc->setImplementationType(jit_avx2);
+    } else if (mayiuse(cpu::x64::sse41)) {
+        rdftKernel.reset(new jit_dft_kernel_f32<cpu::x64::sse41>(isInverse, rdftType));
+        dftKernel.reset(new jit_dft_kernel_f32<cpu::x64::sse41>(isInverse, complex_to_complex));
+        vlen = cpu_isa_traits<cpu::x64::sse41>::vlen;
+        if (primDesc) primDesc->setImplementationType(jit_sse42);
+    } else {
+        OPENVINO_THROW("Can't create RDFT kernel");
     }
 
-    std::vector<float> generateTwiddlesDFT(size_t inputSize, size_t outputSize, enum dft_type type) override {
-        std::vector<float> twiddles(inputSize * outputSize * 2);
-        int simdSize = vlen / sizeof(float);
+    if (rdftKernel)
+        rdftKernel->create_ker();
+    if (dftKernel)
+        dftKernel->create_ker();
+}
+
+std::vector<float> RDFTJitExecutor::generateTwiddlesDFT(size_t inputSize, size_t outputSize, enum dft_type type) {
+    std::vector<float> twiddles(inputSize * outputSize * 2);
+    int simdSize = vlen / sizeof(float);
+    if (type == real_to_complex) {
+        simdSize /= 2; // there are two floats per one complex element in the output
+    }
+
+    parallel_for2d(outputSize / simdSize, inputSize, [&] (size_t K, size_t n) {
         if (type == real_to_complex) {
-            simdSize /= 2; // there are two floats per one complex element in the output
-        }
-
-        parallel_for2d(outputSize / simdSize, inputSize, [&] (size_t K, size_t n) {
-            if (type == real_to_complex) {
-                for (int k = 0; k < simdSize; k++) {
-                    double angle = 2 * PI * (K * simdSize + k) * n / inputSize;
-                    twiddles[((K * inputSize + n) * simdSize + k) * 2] = std::cos(angle);
-                    twiddles[((K * inputSize + n) * simdSize + k) * 2 + 1] = -std::sin(angle);
-                }
-            } else if (type == complex_to_real || type == complex_to_complex) {
-                for (int k = 0; k < simdSize; k++) {
-                    double angle = 2 * PI * (K * simdSize + k) * n / inputSize;
-                    twiddles[(K * inputSize + n) * 2 * simdSize + k] = std::cos(angle);
-                }
-                for (int k = 0; k < simdSize; k++) {
-                    double angle = 2 * PI * (K * simdSize + k) * n / inputSize;
-                    twiddles[((K * inputSize + n) * 2 + 1) * simdSize + k] = isInverse ? std::sin(angle) : -std::sin(angle);
-                }
+            for (int k = 0; k < simdSize; k++) {
+                double angle = 2 * PI * (K * simdSize + k) * n / inputSize;
+                twiddles[((K * inputSize + n) * simdSize + k) * 2] = std::cos(angle);
+                twiddles[((K * inputSize + n) * simdSize + k) * 2 + 1] = -std::sin(angle);
             }
-        });
-        if ((outputSize % simdSize) != 0) {
-            size_t start = (outputSize / simdSize) * simdSize;
-            parallel_for2d(outputSize - start, inputSize, [&] (size_t k, size_t n) {
-                k += start;
-                double angle = 2 * PI * k * n / inputSize;
-                twiddles[2 * (k * inputSize + n)] = std::cos(angle);
-                twiddles[2 * (k * inputSize + n) + 1] = isInverse ? std::sin(angle) : -std::sin(angle);
-            });
+        } else if (type == complex_to_real || type == complex_to_complex) {
+            for (int k = 0; k < simdSize; k++) {
+                double angle = 2 * PI * (K * simdSize + k) * n / inputSize;
+                twiddles[(K * inputSize + n) * 2 * simdSize + k] = std::cos(angle);
+            }
+            for (int k = 0; k < simdSize; k++) {
+                double angle = 2 * PI * (K * simdSize + k) * n / inputSize;
+                twiddles[((K * inputSize + n) * 2 + 1) * simdSize + k] = isInverse ? std::sin(angle) : -std::sin(angle);
+            }
         }
-        return twiddles;
+    });
+    if ((outputSize % simdSize) != 0) {
+        size_t start = (outputSize / simdSize) * simdSize;
+        parallel_for2d(outputSize - start, inputSize, [&] (size_t k, size_t n) {
+            k += start;
+            double angle = 2 * PI * k * n / inputSize;
+            twiddles[2 * (k * inputSize + n)] = std::cos(angle);
+            twiddles[2 * (k * inputSize + n) + 1] = isInverse ? std::sin(angle) : -std::sin(angle);
+        });
     }
+    return twiddles;
+}
 
-    void dft(float* inputPtr, const float* twiddlesPtr, float* outputPtr,
-             size_t inputSize, size_t signalSize, size_t outputSize,
-             enum dft_type type, bool parallelize) override {
-        jit_dft_kernel* kernel = type == complex_to_complex ? dftKernel.get() : rdftKernel.get();
-        if (parallelize) {
-            const int cachelineSize = 64;
-            size_t blockSize = 4 * cachelineSize / sizeof(float);
-            size_t numBlocks = (outputSize + blockSize - 1) / blockSize;
-            parallel_nt(numBlocks, [&] (size_t i, size_t nthr) {
-                if (numBlocks > nthr) {
-                    auto newBlockSize = (((outputSize / nthr) + blockSize - 1) / blockSize) * blockSize;
-                    blockSize = newBlockSize;
-                    numBlocks = nthr;
-                }
-                jit_dft_args args{};
-                args.input = inputPtr,
-                args.twiddles = twiddlesPtr,
-                args.output = outputPtr,
-                args.input_size = inputSize,
-                args.signal_size = signalSize,
-                args.output_start = i * blockSize,
-                args.output_end = std::min(outputSize - i * blockSize, blockSize),
-                (*kernel)(&args);
-            });
-        } else {
+void RDFTJitExecutor::dft(float* inputPtr, const float* twiddlesPtr, float* outputPtr,
+            size_t inputSize, size_t signalSize, size_t outputSize,
+            enum dft_type type, bool parallelize) {
+    jit_dft_kernel* kernel = type == complex_to_complex ? dftKernel.get() : rdftKernel.get();
+    if (parallelize) {
+        const int cachelineSize = 64;
+        size_t blockSize = 4 * cachelineSize / sizeof(float);
+        size_t numBlocks = (outputSize + blockSize - 1) / blockSize;
+        parallel_nt(numBlocks, [&] (size_t i, size_t nthr) {
+            if (numBlocks > nthr) {
+                auto newBlockSize = (((outputSize / nthr) + blockSize - 1) / blockSize) * blockSize;
+                blockSize = newBlockSize;
+                numBlocks = nthr;
+            }
             jit_dft_args args{};
             args.input = inputPtr,
             args.twiddles = twiddlesPtr,
             args.output = outputPtr,
             args.input_size = inputSize,
             args.signal_size = signalSize,
-            args.output_start = 0,
-            args.output_end = outputSize,
+            args.output_start = i * blockSize,
+            args.output_end = std::min(outputSize - i * blockSize, blockSize),
             (*kernel)(&args);
-        }
+        });
+    } else {
+        jit_dft_args args{};
+        args.input = inputPtr,
+        args.twiddles = twiddlesPtr,
+        args.output = outputPtr,
+        args.input_size = inputSize,
+        args.signal_size = signalSize,
+        args.output_start = 0,
+        args.output_end = outputSize,
+        (*kernel)(&args);
     }
-
-    std::unique_ptr<jit_dft_kernel> rdftKernel = nullptr;
-    std::unique_ptr<jit_dft_kernel> dftKernel = nullptr;
-
-    int vlen;
-};
+}
 #endif
 
 RDFTRefExecutor::RDFTRefExecutor(bool inverse) : RDFTExecutor(inverse) {}

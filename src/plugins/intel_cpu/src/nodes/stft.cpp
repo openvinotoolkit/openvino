@@ -11,6 +11,10 @@
 #include "openvino/op/stft.hpp"
 #include "openvino/reference/stft.hpp"
 
+#include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu/x64/jit_generator.hpp"
+#include "common/primitive_hashing_utils.hpp"
+
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -39,6 +43,16 @@ STFT::STFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
 
     m_is_frame_size_const = is_type<op::v0::Constant>(stft_op->get_input_node_ptr(FRAME_SIZE_IDX));
     m_is_frame_step_const = is_type<op::v0::Constant>(stft_op->get_input_node_ptr(FRAME_STEP_IDX));
+
+#if defined(OPENVINO_ARCH_X86_64)
+    using namespace dnnl::impl;
+    using namespace dnnl::impl::cpu::x64;
+
+    if (mayiuse(cpu::x64::sse41)) {
+        rdft_executor = std::make_shared<RDFTJitExecutor>(false);
+        return;
+    }
+#endif
 
     rdft_executor = std::make_shared<RDFTRefExecutor>(false);
 }
