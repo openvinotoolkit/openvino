@@ -56,9 +56,9 @@ std::map<program_node*, format::type> get_preferred_formats(program& p, layout_o
             onednn_impls_counter++;
     }
 
-    if (lo.get_optimization_attributes().use_onednn_impls && onednn_impls_counter < 1) {
+    if (!lo.is_empty_onednn_impls_optimization_attribute() && onednn_impls_counter < 1) {
         should_update_fmt_map = true;
-        lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 0);
+        lo.clear_onednn_impls_optimization_attribute();
         GPU_DEBUG_LOG << "Disable oneDNN implementations globally" << std::endl;
     }
 
@@ -1001,6 +1001,10 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
                                                                  false);
 
                     if (gemm_dims[0] == data_dims[0])
+                        continue;
+
+                    auto data_shape = data_layout.get_shape();
+                    if (data_shape.size() && shape_size(data_shape) == 1ul)
                         continue;
 
                     static size_t idx = 0;

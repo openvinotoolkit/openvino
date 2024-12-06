@@ -2,7 +2,7 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 from openvino.runtime import opset8
-from openvino.runtime.passes import Manager, Matcher, MatcherPass, WrapType
+from openvino.passes import Manager, Matcher, MatcherPass, WrapType
 from openvino.runtime.utils import replace_node
 
 from tests.test_transformations.utils.utils import count_ops, get_relu_model, PatternReplacement

@@ -59,19 +59,13 @@ Prerequisites
 
 .. code:: ipython3
 
-    import platform
-    
-    %pip install -Uq pip
     %pip install --upgrade --pre openvino-tokenizers "openvino>=2024.2.0" --extra-index-url "https://storage.openvinotoolkit.org/simple/wheels/nightly"
     %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
     %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
     %pip install -q "tensorflow>=2.5; sys_platform != 'darwin' and python_version > '3.8'"
     
     %pip install -q tensorflow_hub tf_keras numpy "opencv-python" "nncf>=2.10.0"
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q "matplotlib>=3.4"
 
 .. code:: ipython3
 
