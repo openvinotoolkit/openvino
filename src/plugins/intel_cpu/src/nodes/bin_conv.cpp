@@ -68,6 +68,7 @@ struct jit_uni_bin_conv_kernel_f32 : public jit_uni_bin_conv_kernel, public jit_
             if (post_op.is_eltwise()) {
                 eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector_f32<isa>>(this,
                                                                                                 post_op.eltwise,
+                                                                                                data_type::f32,
                                                                                                 true,
                                                                                                 eltwise_reserved,
                                                                                                 mask_post_op_reserved));
@@ -217,7 +218,7 @@ private:
 
     Xbyak::Label l_table;
 
-    nstl::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
+    nstl::vector<std::shared_ptr<jit_uni_eltwise_injector<isa>>> eltwise_injectors;
     nstl::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
 
     void cvt2ps(dnnl::memory::data_type type_in, Vmm vmm_in, const Xbyak::Operand& op, bool scalar_load) {
