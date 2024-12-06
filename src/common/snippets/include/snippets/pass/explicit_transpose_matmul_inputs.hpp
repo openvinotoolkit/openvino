@@ -23,7 +23,7 @@ namespace pass {
  */
 class ExplicitTransposeMatMulInputs: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ExplicitTransposeMatMulInputs", "0");
+    OPENVINO_RTTI("ExplicitTransposeMatMulInputs", "0", ov::pass::MatcherPass);
     ExplicitTransposeMatMulInputs();
 
     // Return `True` if all inputs (except 0-th input) have scalar shape. Otherwise returns `False`
