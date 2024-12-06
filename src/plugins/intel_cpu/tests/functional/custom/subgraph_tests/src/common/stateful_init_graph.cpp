@@ -272,7 +272,7 @@ const std::vector<std::vector<InputShape>> inputShapes = {
         // Static shape.
         {{1, 1}, {{1, 1}}},
         {{4, 2}, {{4, 2}}},
-        {{2, 1}, {{2, 1}}},
+        {{2, 10}, {{2, 10}}},
     }
 };
 
