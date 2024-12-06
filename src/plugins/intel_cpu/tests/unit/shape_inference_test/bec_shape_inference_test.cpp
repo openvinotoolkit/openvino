@@ -16,7 +16,7 @@ template <class TOp>
 class BECStaticShapeInferenceTest : public OpStaticShapeInferenceTest<TOp> {
 protected:
     void SetUp() override {
-        this->output_shapes = ShapeVector(1);
+        this->output_shapes = StaticShapeVector(1);
     }
 };
 

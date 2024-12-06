@@ -27,6 +27,7 @@ void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
     desc.add<NPUW_FOLD>();
     desc.add<NPUW_CWAI>();
     desc.add<NPUW_DQ>();
+    desc.add<NPUW_DQ_FULL>();
     desc.add<NPUW_PMM>();
     desc.add<NPUW_SLICE_OUT>();
     desc.add<NPUW_SPATIAL>();
@@ -38,6 +39,7 @@ void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
     desc.add<NPUW_FUNCALL_FOR_ALL>();
     desc.add<NPUW_PARALLEL_COMPILE>();
     desc.add<NPUW_FUNCALL_ASYNC>();
+    desc.add<NPUW_UNFOLD_IREQS>();
     desc.add<NPUW_WEIGHTS_BANK>();
     desc.add<NPUW_WEIGHTS_BANK_ALLOC>();
     desc.add<NPUW_CACHE_DIR>();
@@ -51,4 +53,12 @@ void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
     desc.add<NPUW_DUMP_IO>();
     desc.add<NPUW_DUMP_IO_ITERS>();
 #endif
+}
+
+void intel_npu::registerNPUWLLMOptions(OptionsDesc& desc) {
+    desc.add<NPUW_LLM>();
+    desc.add<NPUW_LLM_MODEL_DESC>();
+    desc.add<NPUW_LLM_MAX_PROMPT_LEN>();
+    desc.add<NPUW_LLM_MIN_RESPONSE_LEN>();
+    desc.add<NPUW_LLM_GENERATE_HINT>();
 }

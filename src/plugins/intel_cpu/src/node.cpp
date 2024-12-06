@@ -475,7 +475,7 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
             auto parentEdge = getParentEdgeAt(i);
             OPENVINO_ASSERT(parentEdge->getStatus() == Edge::Status::NotAllocated,
                             " Unexpected inplace resolve call to an allocated edge: ",
-                            parentEdge->name());
+                            *parentEdge);
 
             //search for already allocated edge
             const auto& childEdges = getChildEdgesAtPort(inplaceOutIndx);
@@ -504,7 +504,7 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
             for (auto& childEdge : childEdges) {
                 OPENVINO_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated,
                                 " Unexpected inplace resolve call to an allocated edge: ",
-                                childEdge->name());
+                                *childEdge);
                 auto newMem = std::make_shared<Memory>(getEngine(), selected_pd->getConfig().outConfs[i].getMemDesc(), memBlock);
                 childEdge->reuse(newMem);
             }
@@ -1106,7 +1106,7 @@ void Node::toNumaNodeImpl(int numaNodeID) {
 
     // create scratch pad from specified numa node
     if (scratchpadMem) {
-        scratchpadMem = context->getScratchPad(numaNodeID)->createScratchPadMem(scratchpadMem->getDescPtr());
+        scratchpadMem = context->getScratchPad()->createScratchPadMem(scratchpadMem->getDescPtr());
         primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
     }
 

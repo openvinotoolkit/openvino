@@ -7,6 +7,7 @@
 #include <fstream>
 
 #include "compiled_model.hpp"
+#include "npuw/compiled_model.hpp"
 #include "driver_compiler_adapter.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/igraph.hpp"
@@ -16,7 +17,6 @@
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/runtime.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
-#include "npuw/compiled_model.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
@@ -489,6 +489,12 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.get<BYPASS_UMD_CACHING>();
           }}},
+        {ov::intel_npu::defer_weights_load.name(),
+         {true,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<DEFER_WEIGHTS_LOAD>();
+          }}},
         // NPU Private
         // =========
         {ov::intel_npu::dma_engines.name(),
@@ -544,12 +550,6 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.get<CREATE_EXECUTOR>();
           }}},
-        {ov::intel_npu::defer_weights_load.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<DEFER_WEIGHTS_LOAD>();
-          }}},
         {ov::intel_npu::dynamic_shape_to_static.name(),
          {false,
           ov::PropertyMutability::RW,
@@ -567,6 +567,12 @@ Plugin::Plugin()
           ov::PropertyMutability::RW,
           [](const Config& config) {
               return config.getString<BACKEND_COMPILATION_PARAMS>();
+          }}},
+        {ov::intel_npu::run_inferences_sequentially.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<RUN_INFERENCES_SEQUENTIALLY>();
           }}},
         {ov::intel_npu::batch_mode.name(), {false, ov::PropertyMutability::RW, [](const Config& config) {
                                                 return config.getString<BATCH_MODE>();
@@ -631,7 +637,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             if (localProperties.count(ov::cache_dir.name()) || !_globalConfig.get<CACHE_DIR>().empty()) {
                 OPENVINO_THROW("Option 'CACHE_DIR' is not supported with NPU_USE_NPUW!");
             }
-            return std::make_shared<ov::npuw::CompiledModel>(model->clone(), shared_from_this(), localProperties);
+            return ov::npuw::ICompiledModel::create(model->clone(), shared_from_this(), localProperties);
         } else {
             // NPUW is disabled, remove the key from the properties
             localProperties.erase(useNpuwKey);
