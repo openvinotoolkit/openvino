@@ -15,7 +15,7 @@ namespace op {
 /// succeeds on the first match. Otherwise the match fails.
 class OPENVINO_API Or : public Pattern {
 public:
-    OPENVINO_RTTI("patternOr","0", Pattern);
+    OPENVINO_RTTI("patternOr", "0", Pattern);
     /// \brief creates an Or node matching one of several sub-patterns in order. Does
     /// not add node to match list.
     /// \param patterns The patterns to try for matching

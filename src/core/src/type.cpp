@@ -5,7 +5,6 @@
 #include "openvino/core/type.hpp"
 
 #include "openvino/util/common_util.hpp"
-#include <iostream>
 namespace std {
 size_t std::hash<ov::DiscreteTypeInfo>::operator()(const ov::DiscreteTypeInfo& k) const {
     return k.hash();
@@ -30,16 +29,6 @@ size_t DiscreteTypeInfo::hash() {
 }
 
 bool DiscreteTypeInfo::is_castable(const DiscreteTypeInfo& target_type) const {
-#if 0
-    std::cout     << "is_castable " << std::endl;
-    std::cout     << "            this " << *this << std::endl;
-    std::cout     << "            target " << target_type << std::endl;
-    if(*this == target_type) {
-        std::cout << "            this equals target" << std::endl;
-    } else {
-        std::cout << "            this doesn't equals to target, comparing parent with target" << std::endl;
-    }
-#endif
     return *this == target_type || (parent && parent->is_castable(target_type));
 }
 

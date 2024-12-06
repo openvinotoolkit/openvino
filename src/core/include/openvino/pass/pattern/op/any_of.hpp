@@ -20,7 +20,7 @@ namespace op {
 /// AnyOf may be given a type and shape for use in strict mode.
 class OPENVINO_API AnyOf : public Pattern {
 public:
-    OPENVINO_RTTI("patternAnyOf","0", Pattern);
+    OPENVINO_RTTI("patternAnyOf", "0", Pattern);
     /// \brief creates a AnyOf node containing a sub-pattern described by \sa type and
     ///        \sa shape.
     AnyOf(const element::Type& type, const PartialShape& s, ValuePredicate pred, const OutputVector& wrapped_values)

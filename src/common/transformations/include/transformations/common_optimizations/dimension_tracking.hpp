@@ -22,7 +22,7 @@ class TRANSFORMATIONS_API FindBatch;
 
 class ov::pass::FindBatch : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("FindBatch","0", ov::pass::ModelPass);
+    OPENVINO_RTTI("FindBatch", "0", ov::pass::ModelPass);
     FindBatch(bool detach_detection_output = false, bool track = true)
         : track(track),
           detach_do(detach_detection_output) {}
