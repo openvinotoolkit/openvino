@@ -56,15 +56,16 @@ implemented in your solutions. Click the buttons below to see the chosen benchma
 
          :material-regular:`table_view;1.4em` LLM performance for AI PC
 
-   .. .. grid-item::
+.. uncomment under veryfication
+   .. grid-item::
 
-   ..    .. button-link:: #
-   ..       :class: ovms-toolkit-benchmark-llm-result
-   ..       :color: primary
-   ..       :outline:
-   ..       :expand:
+      .. button-link:: #
+         :class: ovms-toolkit-benchmark-llm-result
+         :color: primary
+         :outline:
+         :expand:
 
-   ..       :material-regular:`bar_chart;1.4em` OVMS for GenAI
+         :material-regular:`bar_chart;1.4em` OVMS for GenAI
 
 
 
