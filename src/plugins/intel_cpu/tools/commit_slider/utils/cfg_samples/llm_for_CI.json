@@ -1,0 +1,67 @@
+{
+    "appCmd":"source {venvName}/bin/activate && cd {appPath} && {py} -m pip install --upgrade pip && {py} -m pip install openvino=={wheelVersion} --find-links={precommitPath}wheels/ && {testCmd}",
+    "venvCfg":{
+       "venvEnabled":true,
+       "venvDir":"{workPath}/venv/",
+       "venvName":"tempVenv"
+    },
+    "commandList":[
+ 
+    ],
+    "runConfig":{
+        "mode" : "llmPerf",
+        "traversal" : "firstFailedVersion",
+        "perfAppropriateDeviation" : 0.05
+    },
+    "dlbConfig":{
+       "launchedAsJob":true,
+       "toolName":"llm",
+       "wheelVersionsMap":{
+ 
+       },
+       "commonPath":"{precommitPath}",
+       "subPath":"{subPath}",
+       "appPath":"",
+       "appCmd":""
+    },
+    "cachedPathConfig":{
+       "enabled":true,
+       "scheme":"mandatory",
+       "passCmdList":false,
+       "changeAppPath":false,
+       "commonPath":"{precommitPath}",
+       "subPath":"{subPath}",
+       "cashMap":{
+ 
+       }
+    },
+    "substitutionRules":[
+       {
+          "name":"precommitPath",
+          "enabled":true,
+          "type":"map",
+          "placeholder":"precommitPath",
+          "from":"$.cachedPathConfig.cashMap",
+          "to":"$.appCmd"
+       },
+       {
+          "name":"wheelVersion",
+          "enabled":true,
+          "type":"map",
+          "placeholder":"wheelVersion",
+          "from":"$.dlbConfig.wheelVersionsMap",
+          "to":"$.appCmd"
+       }
+    ],
+    "subscriptions":[
+       {
+          "name":"wheelPathsMap",
+          "enabled":true
+       },
+       {
+          "name":"wheelVersionsMap",
+          "enabled":true
+       }
+    ],
+    "verboseOutput":false
+ }

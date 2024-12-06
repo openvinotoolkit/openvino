@@ -36,6 +36,8 @@ class CfgManager():
             fullCfg = self.generatebmFunctionalTemplate()
         elif tmplName == "bm_arm_mac":
             fullCfg = self.generateArmBmTemplate()
+        elif tmplName == "llm":
+            fullCfg = self.generateLlmTemplate()
         else:
             raise Exception(
                 "Unknown template '{}'".format(tmplName)
@@ -162,6 +164,29 @@ class CfgManager():
             tmpJSON["runConfig"]["traversal"] = "firstFixedVersion"
         else:
             tmpJSON["runConfig"]["traversal"] = "firstFailedVersion"
+        return tmpJSON
+
+    def generateLlmTemplate(self):
+        tmpl = self.cfg["template"]
+        tmpJSON = self.readJsonTmpl("llm_for_CI.json")
+
+        if  "precommitPath" in tmpl and\
+            "testCmd" in tmpl:
+            tmpJSON["dlbConfig"]["commonPath"] = tmpl["precommitPath"]
+            tmpJSON["cachedPathConfig"]["commonPath"] = tmpl["precommitPath"]
+            tmpJSON["appCmd"] = CfgManager.singlestepStrFormat(
+                tmpJSON["appCmd"],
+                tmpl["appCmd"],
+                "testCmd"
+            )
+        else:
+            raise("Template is incomplete.")
+        subPath = "private_linux_manylinux2014_release/"
+        if "subPath" in tmpl:
+            subPath = tmpl["subPath"]
+        tmpJSON["dlbConfig"]["subPath"] = subPath
+        tmpJSON["cachedPathConfig"]["subPath"] = subPath
+
         return tmpJSON
 
 # Example 1
