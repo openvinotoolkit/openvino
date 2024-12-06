@@ -458,7 +458,8 @@ void MemoryInputBase::initSupportedPrimitiveDescriptors() {
     if (!getParentEdges().empty()) {
         for (size_t i = 0; i < getParentEdges().size(); i++) {
             const auto& inputShape = getInputShapeAtPort(i);
-            config.inConfs.emplace_back(descCreators.at(LayoutType::ncsp)->createSharedDesc(precision, inputShape));
+            auto inp_prc = getOriginalInputPrecisionAtPort(i);
+            config.inConfs.emplace_back(descCreators.at(LayoutType::ncsp)->createSharedDesc(inp_prc, inputShape));
         }
     }
 
