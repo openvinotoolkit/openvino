@@ -410,6 +410,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                 if (desc->decompression_zero_point_scalar.has_value())
                     fc_with_bias_prim->decompression_zero_point_scalar = desc->decompression_zero_point_scalar.value();
                 fc_with_bias_prim->activation_scale = desc->activation_scale;
+                fc_with_bias_prim->activation_zero_point = desc->activation_zero_point;
                 fc_with_bias_prim->dynamic_quantized_activation = desc->dynamic_quantized_activation;
                 fc_with_bias_prim->dynamic_quantized_activation_zp = desc->dynamic_quantized_activation_zp;
             }
