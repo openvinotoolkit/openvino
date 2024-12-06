@@ -306,14 +306,14 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
                                                          std::shared_ptr<ov::AlignedBuffer> model_buffer,
                                                          const ov::AnyMap& properties) const {
-    OPENVINO_NOT_IMPLEMENTED;
+    import_model(model, properties);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
                                                          std::shared_ptr<ov::AlignedBuffer> model_buffer,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& properties) const {
-    OPENVINO_NOT_IMPLEMENTED;
+    import_model(model, context, properties);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model, const ov::AnyMap& config) const {
