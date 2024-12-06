@@ -381,7 +381,7 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
             auto v256_attn_w_vec0 = _mm256_set1_ps(weight[j] * v0[0]);
             auto v256_zp = _mm256_set1_ps(v0[1]);
             for (; i + vec_len_f32_avx2 * 2 <= _group_size; i += vec_len_f32_avx2 * 2) {
-                auto data = _mm_loadu_si64(reinterpret_cast<__m128i*>(v + i/2 + src_offset + params_offset));
+                auto data = _mm_loadl_epi64(reinterpret_cast<__m128i*>(v + i/2 + src_offset + params_offset));
 
                 auto v_i32 = _mm256_cvtepu8_epi32(data);
                 auto v_256_low_half = _mm256_srli_epi32(v_i32, 4);
@@ -470,7 +470,7 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
 #elif defined(HAVE_AVX2) || defined(HAVE_AVX512F)
             auto v256_attn_w_vec0 = _mm256_set1_ps(weight[j] * v0[0]);
             for (; i + vec_len_f32_avx2 * 2 <= _group_size; i += vec_len_f32_avx2 * 2) {
-                auto data = _mm_loadu_si64(reinterpret_cast<__m128i*>(v + i/2 + src_offset + params_offset));
+                auto data = _mm_loadl_epi64(reinterpret_cast<__m128i*>(v + i/2 + src_offset + params_offset));
 
                 auto v_i32 = _mm256_cvtepi8_epi32(data);
                 auto v_256_low_half = _mm256_srai_epi32(v_i32, 4);
