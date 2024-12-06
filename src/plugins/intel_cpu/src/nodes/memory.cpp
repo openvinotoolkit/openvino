@@ -775,18 +775,13 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
             // since the shape inference(InternalDynShapeInfer, do nothing) is performed, a memory of the extra child
             // edges, attached to the output ports has to be updated after an inference of the inner graph finished
             auto& childEdges = getChildEdges();
-            for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
-                const auto mem = getDstMemoryAtPort(i);
-                for (size_t j = getOriginalOutputsNumber(); j < childEdges.size(); j++) {
-                    auto& childEdge = childEdges[j];
-                    auto childEdgePtr = childEdge.lock();
-                    assert(childEdgePtr);
-
-                    if (childEdgePtr->getInputNum() == static_cast<int>(i)) {
-                        childEdgePtr->getMemoryPtr()->redefineDesc(mem->getDescPtr());
-                    }
-                }
-            }
+        for (size_t j =1; j < childEdges.size(); j++) {
+            auto& childEdge = childEdges[j];
+            auto childEdgePtr = childEdge.lock();
+            assert(childEdgePtr);
+            assert(0 == childEdgePtr->getInputNum());
+            childEdgePtr->getMemoryPtr()->redefineDesc(src->getDescPtr());
+        }
         } else {
             src = getSrcMemoryAtPort(0);
         }
