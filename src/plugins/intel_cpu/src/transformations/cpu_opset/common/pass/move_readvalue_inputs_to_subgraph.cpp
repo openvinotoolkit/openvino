@@ -73,13 +73,13 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
                 bool new_found_output = false;
                 dfs(son, new_found_output);
                 if (new_found_output) {
-                    any_child_found_output = true;
+                    any_child_on_output_path = true;
                 }
             }
 
-            if (any_child_found_output) {
+            if (any_child_on_output_path) {
                 visited_path_to_output.insert(node);
-                found_output = any_child_found_output;
+                found_output = any_child_on_output_path;
             }
         };
 

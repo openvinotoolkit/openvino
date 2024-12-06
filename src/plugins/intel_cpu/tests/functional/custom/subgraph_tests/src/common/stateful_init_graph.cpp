@@ -174,20 +174,8 @@ public:
 
     void check_init_graph_node() override {
         // Node with friendly name "init_graph/add_1" and init_graph/mm_0 should be moved into subgraph.
-        bool found_init_graph_add = false;
-        bool found_init_graph_mm = false;
-        for (auto node : compiledModel.get_runtime_model()->get_ops()) {
-            if (node->get_friendly_name() == "init_graph/add_1") {
-                found_init_graph_add = true;
-                break;
-            }
-            if (node->get_friendly_name() == "init_graph/mm_0") {
-                found_init_graph_mm = true;
-                break;
-            }
-        }
-        EXPECT_FALSE(found_init_graph_add);
-        EXPECT_FALSE(found_init_graph_mm);
+        CheckNumberOfNodesWithType(compiledModel, "Add", 0);
+        CheckNumberOfNodesWithType(compiledModel, "MatMul", 0);
     }
 };
 
@@ -244,15 +232,7 @@ public:
     }
 
     void check_init_graph_node() override {
-        // Node with friendly name "init_graph/convert" should be moved into subgraph.
-        bool found_init_graph = false;
-        for (auto node : compiledModel.get_runtime_model()->get_ops()) {
-            if (node->get_friendly_name() == "init_graph/convert") {
-                found_init_graph = true;
-                break;
-            }
-        }
-        EXPECT_FALSE(found_init_graph);
+        CheckNumberOfNodesWithType(compiledModel, "Convert", function->is_dynamic() ? 1 : 0);
     }
 };
 
