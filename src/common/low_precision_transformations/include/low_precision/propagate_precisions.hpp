@@ -31,7 +31,7 @@ class LP_TRANSFORMATIONS_API PropagatePrecisions;
  */
 class ov::pass::low_precision::PropagatePrecisions : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("PropagatePrecisions", "0");
+    OPENVINO_RTTI("PropagatePrecisions", "0", ov::pass::ModelPass);
     PropagatePrecisions(const AttributeParameters& params = AttributeParameters());
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 

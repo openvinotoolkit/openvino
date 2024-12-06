@@ -45,7 +45,7 @@ public:
         std::unordered_map<std::string, std::vector<PortQuantizationGranularityRestriction>> portsByVersion;
     };
 
-    OPENVINO_RTTI("MarkupPerTensorQuantization", "0");
+    OPENVINO_RTTI("MarkupPerTensorQuantization", "0", ov::pass::ModelPass);
     explicit MarkupQuantizationGranularity(const std::vector<QuantizationGranularityRestriction>& restrictions = {});
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
