@@ -7,7 +7,7 @@ import numpy as np
 
 from openvino import Model, PartialShape, Shape, Core
 from openvino.runtime import opset13 as ops
-from openvino.runtime.passes import (
+from openvino.passes import (
     Manager,
     ConstantFolding,
     MakeStateful,
