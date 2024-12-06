@@ -302,18 +302,17 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return res;
 }
 
-
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
                                                          std::shared_ptr<ov::AlignedBuffer> model_buffer,
                                                          const ov::AnyMap& properties) const {
-    import_model(model, properties);
+    return import_model(model, properties);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
                                                          std::shared_ptr<ov::AlignedBuffer> model_buffer,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& properties) const {
-    import_model(model, context, properties);
+    return import_model(model, context, properties);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model, const ov::AnyMap& config) const {
