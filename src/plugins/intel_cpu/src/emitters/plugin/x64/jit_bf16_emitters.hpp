@@ -44,8 +44,18 @@ private:
         h->uni_vmovups(vmm_temp, table_val(bf16_max_key));
         h->uni_vminps(clamped, clamped, vmm_temp);
 
-        h->uni_vmovups(vmm_temp, table_val("selector"));
-        h->vfixupimmps(clamped, in, vmm_temp, 0);
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
+            h->uni_vmovups(vmm_temp, table_val("selector"));
+            h->vfixupimmps(clamped, in, vmm_temp, 0);
+        } else {
+            Vmm mask = Vmm(aux_vec_idxs[2]);
+            h->uni_vcmpps(mask, in, in, 0x03);  // _CMP_UNORD_Q
+            h->uni_vblendvps(clamped, clamped, table_val("nan"), mask);
+            h->uni_vcmpps(mask, in, table_val("inf"), 0x00);  // _CMP_EQ_OQ
+            h->uni_vblendvps(clamped, clamped, table_val("inf"), mask);
+            h->uni_vcmpps(mask, in, table_val("neg_inf"), 0x00);  // _CMP_EQ_OQ
+            h->uni_vblendvps(clamped, clamped, table_val("neg_inf"), mask);
+        }
     }
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
@@ -132,10 +142,13 @@ private:
         push_arg_entry_of("mask_truncation_word", 0x0000ffff, true);
         push_arg_entry_of("bf16_max", 0x7F7F0000, true);
         push_arg_entry_of("bf16_min", 0xFF7F0000, true);
+        push_arg_entry_of("nan", 0x7FC00000, true);
+        push_arg_entry_of("inf", 0x7F800000, true);
+        push_arg_entry_of("neg_inf", 0xFF800000, true);
     }
 
     size_t aux_vecs_count() const override {
-        return host_isa_ == dnnl::impl::cpu::x64::avx512_core ? 3 : 2;
+        return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) ? 2 : 3;
     }
 };
 
