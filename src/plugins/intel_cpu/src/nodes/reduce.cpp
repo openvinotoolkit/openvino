@@ -1895,7 +1895,7 @@ bool Reduce::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
 }
 
 Reduce::Reduce(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-        : Node(op, context, NgraphShapeInferFactory(op, PortMask(REDUCE_INDEXES))) {
+    : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Reduce node with name '" + getName() + "'";
@@ -2020,6 +2020,7 @@ void Reduce::initSupportedPrimitiveDescriptors() {
         config.outConfs[0].setMemDesc(creatorsMap.at(outFormat)->createSharedDesc(outPrecision, getOutputShapeAtPort(0)));
 
         if (useAclExecutor) {
+#if defined (OV_CPU_WITH_ACL)
             std::vector<MemoryDescPtr> srcMemoryDescs;
             for (size_t i = 0; i < config.inConfs.size(); i++) {
                 srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
@@ -2034,22 +2035,29 @@ void Reduce::initSupportedPrimitiveDescriptors() {
             if (!factory->isEmpty()) {
                 supportedPrimitiveDescriptors.push_back({config, impl_type, factory});
             }
+#endif
         } else {
             supportedPrimitiveDescriptors.push_back({config, impl_type});
         }
     };
 
 #if defined (OV_CPU_WITH_ACL)
-        reduceAttrs.operation = algorithm;
-        reduceAttrs.keepDims = keep_dims;
-        reduceAttrs.axes = raw_axes;
-        for (auto &axis : reduceAttrs.axes) {
-            if (axis < 0)
-                axis += static_cast<int>(getInputShapeAtPort(REDUCE_DATA).getRank());
+        // acl doesn't support empty input
+        if (!isDynamicNode() && shape_size(getInputShapeAtPort(REDUCE_DATA).getStaticDims()) == 0) {
+            canUseAclExecutor = false;
+        } else {
+            reduceAttrs.operation = algorithm;
+            reduceAttrs.keepDims = keep_dims;
+            reduceAttrs.axes = raw_axes;
+            for (auto &axis : reduceAttrs.axes) {
+                if (axis < 0)
+                    axis += static_cast<int>(getInputShapeAtPort(REDUCE_DATA).getRank());
+            }
+            pushDesc(LayoutType::nspc, LayoutType::nspc, input_prec, output_prec, impl_desc_type::undef, true);
+            pushDesc(LayoutType::ncsp, LayoutType::ncsp, input_prec, output_prec, impl_desc_type::undef, true);
+            canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
         }
-        pushDesc(LayoutType::nspc, LayoutType::nspc, input_prec, output_prec, impl_desc_type::undef, true);
-        pushDesc(LayoutType::ncsp, LayoutType::ncsp, input_prec, output_prec, impl_desc_type::undef, true);
-        canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
+
         if (canUseAclExecutor)
             return;
 #endif
@@ -2089,10 +2097,16 @@ void Reduce::initSupportedPrimitiveDescriptors() {
 }
 
 bool Reduce::isExecutable() const {
-    return !isInputTensorAtPortEmpty(REDUCE_DATA);
+    return !isOutputTensorAtPortEmpty(0);
 }
 
 void Reduce::prepareParams() {
+    auto srcMemPtr = getSrcMemoryAtPort(REDUCE_DATA);
+    auto dstMemPtr = getDstMemoryAtPort(0);
+    const auto& src_shape = srcMemPtr->getStaticDims();
+    dst_size = dstMemPtr->getSize();
+    empty_input = shape_size(src_shape) == 0;
+#if defined (OV_CPU_WITH_ACL)
     if (canUseAclExecutor) {
         std::vector<MemoryDescPtr> srcMemoryDescs;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
@@ -2102,11 +2116,15 @@ void Reduce::prepareParams() {
         dstMemoryDescs.push_back(getDstMemoryAtPort(0)->getDescPtr());
 
         auto selectedPD = getSelectedPrimitiveDescriptor();
-        aclExecPtr = selectedPD->getExecutorFactoryAs<ReduceExecutorFactory>()->makeExecutor(reduceAttrs, srcMemoryDescs, dstMemoryDescs, {});
-        selectedPD->setImplementationType(aclExecPtr->getImplType());
-
+        if (!empty_input) {
+            aclExecPtr = selectedPD->getExecutorFactoryAs<ReduceExecutorFactory>()->makeExecutor(reduceAttrs, srcMemoryDescs, dstMemoryDescs, {});
+            selectedPD->setImplementationType(aclExecPtr->getImplType());
+        } else {
+            selectedPD->setImplementationType(acl);
+        }
         return;
     }
+#endif
 
     src_dims = getParentEdgeAt(REDUCE_DATA)->getMemory().getDesc().getShape().getDims();
     std::vector<int> reduce_axes;
@@ -2116,9 +2134,7 @@ void Reduce::prepareParams() {
         reduce_axes = raw_axes;
     }
 
-    auto dstMemPtr = getDstMemoryAtPort(0);
     const VectorDims &dst_dims = dstMemPtr->getDesc().getShape().getDims();
-    dst_size = dstMemPtr->getSize();
     calc_process_dst_dims(reduce_axes, dst_dims);
     if (jit_mode) {
         set_reduce_dim_flags();
@@ -2274,11 +2290,26 @@ void Reduce::execute(dnnl::stream strm) {
     const uint8_t *src_data = srcMemPtr->getDataAs<const uint8_t>();
     uint8_t *dst_data = dstMemPtr->getDataAs<uint8_t>();
 
+    if (empty_input && dst_size > 0) {
+#if defined(OPENVINO_ARCH_X86_64)
+        output_info_reassign(&dst_data);
+        init_dst_data(dst_data, dst_size);
+        output_info_restore(&dst_data);
+        if (attr.get()->post_ops_.len() != 0) {
+            reduce_kernel_post_process(dst_data);
+        }
+#else
+        init_dst_data(dst_data, dst_size);
+#endif
+        return;
+    }
+
     if (jit_mode) {
         if (is_hybrid_layout) {
             dst_data = reinterpret_cast<uint8_t *>(prc_mem.get_data_handle());
         }
         reduce_type(src_data, dst_data);
+#if defined (OV_CPU_WITH_ACL)
     } else if (aclExecPtr) {
         std::vector<MemoryCPtr> srcMemory;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
@@ -2288,6 +2319,7 @@ void Reduce::execute(dnnl::stream strm) {
         dstMemory.push_back(getDstMemoryAtPort(0));
 
         aclExecPtr->exec(srcMemory, dstMemory, postOpsDataPtrs.data());
+#endif
     } else {
         if (layout == ReduceLayoutType::reduce_ncsp) {
             auto in_ptr = reinterpret_cast<const float *>(src_data);
@@ -2725,7 +2757,7 @@ inline void Reduce::reduce_kernel_process(const uint8_t *in_p, uint8_t *out_p, s
 
 inline void Reduce::reduce_kernel_post_process(uint8_t *out_ptr) {
     const uint8_t *in_ptr = fuse_low_precision ? static_cast<uint8_t *>(&intermediate_buf[0]) : nullptr;
-    const size_t integerDivisor = IB * IC * ID * IH * IW / (OB * OC * OD * OH * OW);
+    const size_t integerDivisor = empty_input ? 1 : IB * IC * ID * IH * IW / (OB * OC * OD * OH * OW);
     const float divisor = static_cast<float>(integerDivisor);
     if (layout == ReduceLayoutType::reduce_ncsp) {
         parallel_for2d(OB, OC, [&](size_t ob, size_t oc) {

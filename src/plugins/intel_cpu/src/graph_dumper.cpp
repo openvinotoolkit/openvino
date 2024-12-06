@@ -10,10 +10,12 @@
 #include "openvino/runtime/exec_model_info.hpp"
 #include "utils/debug_capabilities.h"
 
+#include <chrono>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
+#include <fstream>
 
 namespace ov {
 namespace intel_cpu {
@@ -344,6 +346,62 @@ void summary_perf(const Graph &graph) {
             std::cout << ss.str();
         }
     }
+}
+
+void average_counters(const Graph &graph) {
+    /**
+     * @todo improve logic for a graph with inner graphs:
+     * - collect counters only for the outer graph if full path is specified
+     * - collect counters for all the graphs if some keyword (i.e. 'all') is specified, using the following form:
+     * - <nesting-level>_<graph-name>.csv
+     * For example: 0_MyModel.csv
+     */
+    static int graphIndex = 0;
+
+    std::ofstream file;
+    std::string fileName = graph.getConfig().debugCaps.averageCountersPath + "_" + std::to_string(graphIndex++) + ".csv";
+
+    file.open(fileName);
+
+    // table structure is identical to the benchmark_app average_counters report
+    const std::string header = "layerName;execStatus;layerType;execType;realTime (ms);cpuTime (ms);";
+    file << header << "\n";
+
+    uint64_t total = 0;
+
+    auto toMs = [](uint64_t value) {
+        return std::chrono::microseconds(value).count() / 1000.0;
+    };
+
+    auto printAverageCounter = [&toMs, &file](NodePtr node) {
+        const uint64_t avg = node->PerfCounter().avg();
+        const std::string status = avg > 0 ? "EXECUTED" : "NOT_RUN";
+        const auto cpuTime = toMs(avg);
+        const auto realTime = cpuTime;
+
+        file << node->getName() << ";"
+               << status << ";"
+               << node->getTypeStr() << ";"
+               << node->getPrimitiveDescriptorType() << ";"
+               << realTime << ";"
+               << cpuTime << ";"
+               << "\n";
+
+        return avg;
+    };
+
+    for (auto &node : graph.GetNodes()) {
+        if (node->isConstant())
+            continue;
+
+        total += printAverageCounter(node);
+    }
+
+    const auto totalMs = toMs(total);
+
+    file << "Total;;;;" << totalMs << ";" << totalMs << ";" << "\n";
+
+    file.close();
 }
 
 #endif

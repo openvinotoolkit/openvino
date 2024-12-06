@@ -95,8 +95,12 @@ ClosureRemap build_remap(const Function& fbody, const DCOFFParams& params_to) {
         } else if (ban_list.find(param) == ban_list.end()) {
             // If it's not in the ban list, it's an OK parameter and should be kept
             LOG_DEBUG("This is an OK parameter, will be kept");
-            m.weights_to_unpack.insert(i - fbody._param_offset);
             m.closure_remap.push_back(i - fbody._param_offset);
+
+            // FIXME: type should be queried from a lazy tensor
+            // and compared against param->get_element_type()
+            // to decide 100%
+            m.weights_to_unpack.insert(i - fbody._param_offset);
         }
 
         // Process zero points for parameters
@@ -703,7 +707,7 @@ DCOFFPassReshape4::DCOFFPassReshape4(DCOffMode dcoff_mode, ov::element::Type dco
         auto matched_paramA = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeA);
         auto matched_paramC = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeC);
 
-        auto matched_out_mulply = node_to_output.at(mulply);
+        const auto& matched_out_mulply = node_to_output.at(mulply);
 
         if (ov::element::i4 == matched_paramA->get_element_type() &&
             (ov::element::f16 == matched_paramC->get_element_type() ||
