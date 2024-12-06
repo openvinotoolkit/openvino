@@ -913,12 +913,18 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
 
         bool disable_horizontal_fc_fusion = false;
+        bool disable_fc_swiglu_fusion = false;
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->disable_horizontal_fc_fusion == 1)
             disable_horizontal_fc_fusion = true;
-
+        GPU_DEBUG_IF(debug_config->disable_fc_swiglu_fusion == 1)
+            disable_fc_swiglu_fusion = true;
+        // mlp fusion is only supported for cldnn on high performant GPUis
+        bool fuse_mlp_swiglu = !device_info.supports_immad &&
+                               device_info.execution_units_count >= 128 &&
+                               !disable_fc_swiglu_fusion;
         if (!disable_horizontal_fc_fusion)
-            manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>();
+            manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>(fuse_mlp_swiglu);
 
         // ZP should not be folded for FC. But still, ZP should be folded for Gather.
         // Therefore, run MarkDequantizationSubgraph again to fold ZP constant.
