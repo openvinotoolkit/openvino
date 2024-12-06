@@ -1176,7 +1176,7 @@ struct MHAHelper {
                     prefer_static_loop = false;
             }
         } else {
-            // bigger batch, probably it's vllm path, skip the test to save the cost
+            // for bigger batch skip the test to save the cost
             prefer_static_loop = false;
         }
         auto get_h_params = [] (bool loop_hk, size_t hx, size_t h_each_group_len, size_t& hq_beg, size_t& hq_end, size_t& hk) {
