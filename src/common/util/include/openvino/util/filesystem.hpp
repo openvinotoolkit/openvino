@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/core/visibility.hpp"
+#include "util.hpp"
 
 #if defined(_MSC_VER) && defined(OPENVINO_CPP_VER_11)
 #    define OPENVINO_HAS_EXP_FILESYSTEM
