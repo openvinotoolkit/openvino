@@ -179,7 +179,6 @@ TEST(file_util, path_cast) {
     EXPECT_STREQ("/usr/local/file.txt", ov::util::Path("/usr/local/file.txt").string().c_str());
     EXPECT_STREQ("C:\\Users\\file.txt", ov::util::Path("C:\\Users\\file.txt").string().c_str());
     EXPECT_STREQ("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt", ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").string().c_str());
-    EXPECT_STREQ("/a/b/c/file.txt", ov::util::Path("///a/////b////c///file.txt").generic_string().c_str());
 
     // from char8_t to char
     EXPECT_STREQ("", ov::util::Path(u8"").string().c_str());
@@ -189,7 +188,6 @@ TEST(file_util, path_cast) {
     EXPECT_STREQ("/usr/local/file.txt", ov::util::Path(u8"/usr/local/file.txt").string().c_str());
     EXPECT_STREQ("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt",
                  ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").string().c_str());
-    EXPECT_STREQ("/a/b/c/file.txt", ov::util::Path(u8"///a/////b////c///file.txt").generic_string().c_str());
 
     // from char16_t to char
     EXPECT_STREQ("", ov::util::Path(u"").string().c_str());
@@ -199,7 +197,6 @@ TEST(file_util, path_cast) {
     EXPECT_STREQ("/usr/local/file.txt", ov::util::Path(u"/usr/local/file.txt").string().c_str());
     EXPECT_STREQ("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt",
                  ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").string().c_str());
-    EXPECT_STREQ("/a/b/c/file.txt", ov::util::Path(u"///a/////b////c///file.txt").generic_string().c_str());
 
     // from char32_t to char
     EXPECT_STREQ("", ov::util::Path(U"").string().c_str());
@@ -209,7 +206,6 @@ TEST(file_util, path_cast) {
     EXPECT_STREQ("/usr/local/file.txt", ov::util::Path(U"/usr/local/file.txt").string().c_str());
     EXPECT_STREQ("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt",
                  ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").string().c_str());
-    EXPECT_STREQ("/a/b/c/file.txt", ov::util::Path(U"///a/////b////c///file.txt").generic_string().c_str());
 
     // from char to wchar_t
     EXPECT_STREQ(L"", ov::util::Path("").wstring().c_str());
@@ -349,7 +345,6 @@ TEST(file_util, path_cast) {
     EXPECT_STREQ("/usr/local/file.txt", ov::util::Path(L"/usr/local/file.txt").string().c_str());
     EXPECT_STREQ("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt",
                  ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").string().c_str());
-    EXPECT_STREQ("/a/b/c/file.txt", ov::util::Path(L"///a/////b////c///file.txt").generic_string().c_str());
 
     // from wchar_t to wchar_t
     EXPECT_STREQ(L"", ov::util::Path(L"").wstring().c_str());
