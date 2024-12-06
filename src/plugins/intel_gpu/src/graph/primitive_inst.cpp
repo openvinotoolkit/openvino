@@ -1802,19 +1802,17 @@ void primitive_inst::prepare_primitive() {
         OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");
         update_shape();
 
-        bool can_skip_execution = false;
         if (_node->id() == "convert:Convert_11579") {
             auto& variable_id = _node->get_users().front()->get_state_of_init_subgraph()->as<read_value>().get_primitive()->variable_id;
             const auto& variable = get_network().get_variable(variable_id);
             if (variable.is_set())
-                can_skip_execution = true;
+                set_flag(ExecutionFlags::SKIP);
         }
         if (_node->is_in_state_init_subgraph() && !_node->is_type<read_value>()) {
             auto state_prim = _node->get_state_of_init_subgraph()->as<read_value>().get_primitive();
-            const auto& variable = get_network().get_variable(state_prim->variable_id);
             GPU_DEBUG_TRACE_DETAIL << id() << " is in init_subgraph of state " << state_prim->id << std::endl;
-            if (variable.is_set()) {
-                can_skip_execution = true;
+            if (is_init_subgraph_executed()) {
+                set_flag(ExecutionFlags::SKIP);
                 GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping init subgraph because target state " << state_prim->id
                                        << "is already set " << std::endl;
             }
@@ -1912,6 +1910,10 @@ void primitive_inst::prepare_primitive() {
         set_arguments();
     }
     on_execute();
+
+    if (_node->is_in_state_init_subgraph() && !_node->is_type<read_value>()) {
+        set_init_subgraph_executed(true);
+    }
 
     if (!_node->is_type<condition>() && !_node->is_type<loop>()) {
         for (size_t i = 0; i < _outputs.size(); ++i) {
