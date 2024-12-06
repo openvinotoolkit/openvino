@@ -558,8 +558,8 @@ TEST(pattern, multiple_optionals_in_row) {
 
     // Pattern:
     auto in = wrap_type<v0::Parameter>();
-    auto pattern_convert = optional<v0::Convert>(in);
-    auto pattern_relu = optional<v0::Relu>(pattern_convert);
+    auto pattern_convert = pattern::optional<v0::Convert>(in);
+    auto pattern_relu = pattern::optional<v0::Relu>(pattern_convert);
     auto pattern_sigmoid = wrap_type<v0::Sigmoid>({pattern_relu});
 
     // Test:
