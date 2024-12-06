@@ -465,21 +465,6 @@ void SyncInferRequest::wait() {
                     iremote_tensor_ptr->copy_from(plugin_tensor.ptr);
                 }
             }
-        } else if (!is_dynamic && is_remote_tensor_impl && output_memory) {
-            auto& stream = m_graph->get_network()->get_stream();
-            auto user_mem = remote_tensor_impl_ptr->get_original_memory();
-            if (user_mem->get_allocation_type() == cldnn::allocation_type::cl_mem
-                && output_memory->get_allocation_type() != cldnn::allocation_type::cl_mem) {
-                auto plugin_tensor = m_plugin_outputs.at(port_idx);
-                if (is_convert_required(plugin_tensor.ptr->get_element_type(), iremote_tensor_ptr->get_element_type())) {
-                    auto& stream = m_graph->get_network()->get_stream();
-                    convert_and_copy(plugin_tensor.ptr.get(), iremote_tensor_ptr.get(), stream);
-                } else {
-                    iremote_tensor_ptr->copy_from(plugin_tensor.ptr);
-                }
-            } else {
-                copy_events.push_back(output_memory->copy_to(stream, *user_mem, false));
-            }
         } else if (is_remote_tensor_impl && is_dynamic) {
             auto& stream = m_graph->get_network()->get_stream();
             auto user_mem = remote_tensor_impl_ptr->get_original_memory();
