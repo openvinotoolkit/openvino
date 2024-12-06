@@ -36,7 +36,7 @@ public:
             }
             result << ")";
         }
-        result << "_DirectPair=" << ov::test::utils::bool2str(directPair);
+        result << "_DirectAssign=" << ov::test::utils::bool2str(directPair);
         result << ")";
 
         return result.str();
