@@ -16,7 +16,6 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "post_ops.hpp"
-#include "openvino/runtime/threading/cpu_message.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -85,7 +84,6 @@ private:
     static const size_t WEIGHTS_ID = 1;
     static const size_t BIAS_ID = 2;
 
-    ExecutorPtr createExecutor();
     void fuseDecompressionConstant(const MemoryCPtr& memory, MemoryCPtr& decompressionValuesPtr);
 
     void initTensorParallelConfig(const GraphContext::CPtr context);
@@ -103,7 +101,7 @@ private:
     FCAttrs attrs;
     PostOps postOps;
     MemoryArgs memory;
-    ExecutorFactoryPtr<FCAttrs, node::FullyConnected> factory;
+    ExecutorFactoryPtr<FCAttrs> factory;
     ExecutorPtr executor = nullptr;
     std::string errorPrefix;
 

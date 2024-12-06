@@ -5,12 +5,11 @@
 #pragma once
 
 #include <functional>
-#include <vector>
 
 #include "graph.h"
-#include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
 #include "nodes/executors/executor.hpp"
+#include "nodes/executors/executor_config.hpp"
 #include "post_ops.hpp"
 
 namespace ov {
@@ -70,6 +69,49 @@ public:
     GraphPtr emit() {
         OPENVINO_THROW("Not implemented yet!");
         return graph;
+    }
+
+    static MemoryDescArgs memoryDescsFromMemory(const MemoryArgs& memory) {
+        MemoryDescArgs memoryDescs;
+        memoryDescs.reserve(memory.size());
+
+        for (const auto& mem : memory) {
+            memoryDescs[mem.first] = mem.second->getDescPtr();
+        }
+
+        return memoryDescs;
+    }
+
+    static executor::Config<Attrs> createConfig(const MemoryArgs& memory,
+                                                const Attrs& attrs,
+                                                const PostOps& postOps) {
+        return executor::Config<Attrs>{memoryDescsFromMemory(memory), attrs, postOps};
+    }
+
+    static ExecutorPtr fallback(const executor::Config<Attrs>& config,
+                                const executor::Config<Attrs>& fallbackConfig,
+                                const MemoryArgs& memory,
+                                const ExecutorContext::CPtr context,
+                                const std::string& name) {
+        DEBUG_LOG("Falling back to graph executor for ",
+                  name,
+                  ". Original config: ",
+                  config,
+                  " new config:",
+                  fallbackConfig);
+
+        GraphEmitter<Attrs> graphEmitter(config.descs, config.attrs, config.postOps, memory, context, name);
+
+        const auto& graphExecutor =
+            graphEmitter.createGraph(fallbackConfig.descs, fallbackConfig.attrs, fallbackConfig.postOps, context)
+            .ensureAttrsMatch()
+            .ensureSrcDescsMatch()
+            .ensureDstDescsMatch()
+            .ensurePostOpsMatch()
+            .emit();
+        (void)graphExecutor;
+
+        OPENVINO_THROW("Fallback logic is not implemented yet");  // return graphExecutor;
     }
 
 private:
