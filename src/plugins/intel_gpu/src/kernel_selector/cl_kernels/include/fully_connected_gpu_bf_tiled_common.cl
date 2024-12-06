@@ -317,12 +317,22 @@ inline void (FUNC_NAME)(
     // Post-processing: bias, activation, fused-ops
     for (uint bi = 0; bi < FORCED_TILE_B; ++bi) {
         #ifdef SWIGLU_LENGTH
+        #if SWIGLU_SPLIT_TO_GLU_IDX == 0
         if (oi == 0) {
             activated[bi] = TO_ACTIVATION_VEC_TYPE(acc[bi]);
             activated[bi] /= (ACCUMULATOR_VAL_ONE + native_exp(-(ACCUMULATOR_VAL_ONE * activated[bi])));
         } else {
             activated[bi] *= TO_ACTIVATION_VEC_TYPE(acc[bi]);
         }
+        #else
+        if (oi == 0) {
+            // swish
+            activated[bi] = TO_ACTIVATION_VEC_TYPE(acc[bi]);
+        } else {
+            acc[bi] /= (ACCUMULATOR_VAL_ONE + native_exp(-(ACCUMULATOR_VAL_ONE * acc[bi])));
+            activated[bi] *= TO_ACTIVATION_VEC_TYPE(acc[bi]);
+        }
+        #endif
         #else
         activated[bi] = TO_ACTIVATION_VEC_TYPE(acc[bi]);
         #endif
