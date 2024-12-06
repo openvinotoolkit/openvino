@@ -291,7 +291,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_StatefulInitGraph,
 const std::vector<std::vector<InputShape>> inputShapesDiffPrecision = {
     {
         // Dynamic shape.
-        {{1, -1}, {{1, 2}, {1, 2}, {1, 1}}},
+        {{1, -1}, {{1, 10}, {1, 10}, {1, 1}}},
     },
     {
         // Static shape.
