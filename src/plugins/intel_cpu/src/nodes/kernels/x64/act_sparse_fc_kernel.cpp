@@ -13,9 +13,7 @@
 
 //#include "/home/openvino-ci-58/tingqian/aboutSHW/include/linux_perf.hpp"
 
-#if defined(HAVE_AVX2)
-#    include <immintrin.h>
-#endif
+#include "simd.hpp"
 
 // https://github.com/intel-sandbox/dynSparseFC/blob/main/dyn_sparse_fc.cpp
 
@@ -23,14 +21,6 @@ namespace ov {
 namespace Extensions {
 namespace Cpu {
 namespace XARCH {
-
-#if defined(HAVE_AVX2)
-static __m256 load_fp32x8(float* p) {
-    return _mm256_loadu_ps(p);
-}
-static __m256 load_fp32x8(ov::float16* p) {
-    return _mm256_cvtph_ps(_mm_loadu_si128(reinterpret_cast<__m128i const*>(p)));
-}
 
 /*
 dst               : result
@@ -57,56 +47,55 @@ void _sparse_accumulate(float* dst,
         auto p_w1 = pw0 + row1 * stride_w;
         auto p_w2 = pw0 + row2 * stride_w;
         auto p_w3 = pw0 + row3 * stride_w;
-        auto vscale0 = _mm256_broadcast_ss(pscale + row0);
-        auto vscale1 = _mm256_broadcast_ss(pscale + row1);
-        auto vscale2 = _mm256_broadcast_ss(pscale + row2);
-        auto vscale3 = _mm256_broadcast_ss(pscale + row3);
-        for (i = 0; i + 7 < OC; i += 8) {
-            auto vdst = _mm256_loadu_ps(dst + i);
-            auto vw0 = load_fp32x8(p_w0 + i);
-            auto vw1 = load_fp32x8(p_w1 + i);
-            auto vw2 = load_fp32x8(p_w2 + i);
-            auto vw3 = load_fp32x8(p_w3 + i);
+        auto vscale0 = simd_broadcast_ss(pscale + row0);
+        auto vscale1 = simd_broadcast_ss(pscale + row1);
+        auto vscale2 = simd_broadcast_ss(pscale + row2);
+        auto vscale3 = simd_broadcast_ss(pscale + row3);
+        for (i = 0; i + SIMDW <= OC; i += SIMDW) {
+            auto vdst = simd_loadu_ps(dst + i);
+            auto vw0 = simd_loadu_ps(p_w0 + i);
+            auto vw1 = simd_loadu_ps(p_w1 + i);
+            auto vw2 = simd_loadu_ps(p_w2 + i);
+            auto vw3 = simd_loadu_ps(p_w3 + i);
             // prefetch
             //_mm_prefetch(p_w0 + i + 1024, _MM_HINT_T1);
             //_mm_prefetch(p_w1 + i + 1024, _MM_HINT_T1);
             //_mm_prefetch(p_w2 + i + 1024, _MM_HINT_T1);
             //_mm_prefetch(p_w3 + i + 1024, _MM_HINT_T1);
-            vdst = _mm256_fmadd_ps(vw0, vscale0, vdst);
-            vdst = _mm256_fmadd_ps(vw1, vscale1, vdst);
-            vdst = _mm256_fmadd_ps(vw2, vscale2, vdst);
-            vdst = _mm256_fmadd_ps(vw3, vscale3, vdst);
-            _mm256_storeu_ps(dst + i, vdst);
+            vdst = simd_fmadd_ps(vw0, vscale0, vdst);
+            vdst = simd_fmadd_ps(vw1, vscale1, vdst);
+            vdst = simd_fmadd_ps(vw2, vscale2, vdst);
+            vdst = simd_fmadd_ps(vw3, vscale3, vdst);
+            simd_storeu_ps(dst + i, vdst);
         }
     }
 
     for (; g < gate_cnt; g++) {
         auto row = gate_ids[g];
         auto pw = pw0 + row * stride_w;
-        auto vscale = _mm256_broadcast_ss(pscale + row);
+        auto vscale = simd_broadcast_ss(pscale + row);
         for (i = 0; i + 7 < OC; i += 8) {
-            auto vw = load_fp32x8(pw + i);
+            auto vw = simd_loadu_ps(pw + i);
             // prefetch
-            _mm_prefetch(pw + i + 1024, _MM_HINT_T1);
-            auto vdst = _mm256_loadu_ps(dst + i);
-            auto vsum = _mm256_fmadd_ps(vw, vscale, vdst);
-            _mm256_storeu_ps(dst + i, vsum);
+            simd_prefetch(pw + i + 1024, _MM_HINT_T1);
+            auto vdst = simd_loadu_ps(dst + i);
+            auto vsum = simd_fmadd_ps(vw, vscale, vdst);
+            simd_storeu_ps(dst + i, vsum);
         }
     }
 
-    static int32_t mem_mask[] = {0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1, -1};
     auto remain_oc = (OC & 7);
     if (remain_oc) {
-        auto vmask = _mm256_loadu_si256(reinterpret_cast<__m256i const*>(&mem_mask[remain_oc]));
+        simd_mask mask(remain_oc);
         i = OC - 8;
         for (g = 0; g < gate_cnt; g++) {
             auto row = gate_ids[g];
             auto pw = pw0 + row * stride_w;
-            auto vscale = _mm256_broadcast_ss(pscale + row);
-            auto vw = load_fp32x8(pw + i);
-            auto vdst = _mm256_loadu_ps(dst + i);
-            auto vsum = _mm256_fmadd_ps(vw, vscale, vdst);
-            _mm256_maskstore_ps(dst + i, vmask, vsum);
+            auto vscale = simd_broadcast_ss(pscale + row);
+            auto vw = mask.load(pw + i);
+            auto vdst = mask.load(dst + i);
+            auto vsum = simd_fmadd_ps(vw, vscale, vdst);
+            mask.store(dst + i, vsum);
         }
     }
 }
@@ -116,8 +105,6 @@ dst0 : [N, OC]
 src0 : [num_copies, N, OC]
 */
 static inline void reduce_outputs(float* dst0, float* src0, int num_copies, int N, int64_t OC) {
-    static int32_t mem_mask[] = {-1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0};
-
     parallel_nt(0, [&](const int ithr, const int nthr) {
         int64_t oc0, oc1;
         splitter(OC, nthr, ithr, oc0, oc1);
@@ -125,26 +112,26 @@ static inline void reduce_outputs(float* dst0, float* src0, int num_copies, int 
         auto* src = src0;
 
         auto remain_oc = (oc1 - oc0) & 7;
-        auto vmask = _mm256_loadu_si256(reinterpret_cast<__m256i const*>(&mem_mask[8 - remain_oc]));
+        simd_mask mask(remain_oc);
         for (int n = 0; n < N; n++, dst += OC, src += OC) {
             int i;
-            for (i = oc0; i + 8 <= oc1; i += 8) {
+            for (i = oc0; i + SIMDW <= oc1; i += SIMDW) {
                 auto* ptemp = src + i;
-                auto vsum = _mm256_setzero_ps();
+                auto vsum = simd_setzero_ps();
                 for (int k = 0; k < num_copies; k++, ptemp += N * OC) {
-                    auto vw = _mm256_loadu_ps(ptemp);
-                    vsum = _mm256_add_ps(vsum, vw);
+                    auto vw = simd_loadu_ps(ptemp);
+                    vsum = simd_add_ps(vsum, vw);
                 }
-                _mm256_storeu_ps(dst + i, vsum);
+                simd_storeu_ps(dst + i, vsum);
             }
             if (i < oc1) {
                 auto* ptemp = src + i;
-                auto vsum = _mm256_setzero_ps();
+                auto vsum = simd_setzero_ps();
                 for (int k = 0; k < num_copies; k++, ptemp += N * OC) {
-                    auto vw = _mm256_maskload_ps(ptemp, vmask);
-                    vsum = _mm256_add_ps(vsum, vw);
+                    auto vw = mask.load(ptemp);
+                    vsum = simd_add_ps(vsum, vw);
                 }
-                _mm256_maskstore_ps(dst + i, vmask, vsum);
+                mask.store(dst + i, vsum);
             }
             /*
             for (; i < oc1; i++) {
@@ -263,138 +250,6 @@ float dynPruneLinear(float* x, float* W2, float threshold, float zero_point, flo
     return gate_cnt * 1.0f / IC;
 }
 
-#else
-static inline void reduce_outputs(float* dst0, float* src0, int num_copies, int M, int64_t OC) {
-    memset(dst0, 0, M * OC * sizeof(float));
-    for (int i = 0; i < num_copies; i ++) {
-        auto* src = &src0[i * M * OC];
-        auto* dst = dst0;
-        for (int m = 0; m < M; m++, src += OC, dst += OC) {
-            for (int oc = 0; oc < OC; oc++)
-                dst[oc] += src[oc];
-        }
-    }
-}
-
-float dynPruneLinear(float* x, float* W2, float threshold, float zero_point, float* y2, int N, int IC, int OC) {
-    std::cout << "dynPruneLinear not supported\n";
-    return 0;
-}
-#endif
-
-
-#if defined(HAVE_AVX2)
-// AVX2
-#define SIMDW 8
-inline __m256i load_epu8_epi32(void const* ptr) {
-    return _mm256_cvtepu8_epi32(_mm_loadu_si64(ptr));
-}
-inline __m256 cvtepi32_ps(__m256i v) {
-    return _mm256_cvtepi32_ps(v);
-}
-inline void storeu_ps(float* ptr, __m256 v) {
-    _mm256_storeu_ps(ptr, v);
-}
-inline __m256 broadcast_ss(float const * mem_addr) {
-    return _mm256_broadcast_ss(mem_addr);
-}
-inline __m256 loadu_ps(float const * mem_addr) {
-    return _mm256_loadu_ps(mem_addr);
-}
-inline __m256 sub_ps(__m256 a, __m256 b) {
-    return _mm256_sub_ps(a, b);
-}
-inline __m256 fmadd_ps(__m256 a, __m256 b, __m256 c) {
-    return _mm256_fmadd_ps(a, b, c);
-}
-inline __m256 setzero_ps(void) {
-    return _mm256_setzero_ps();
-}
-inline __m256i set1_epi32(int a) {
-    return _mm256_set1_epi32(a);
-}
-inline __m256i and_si(__m256i a, __m256i b) {
-    return _mm256_and_si256(a, b);
-}
-inline __m256i srli_epi32(__m256i a, int imm8) {
-    return _mm256_srli_epi32(a, imm8);
-}
-#elif defined(HAVE_AVX512F)
-// AVX512F
-#define SIMDW 16
-inline __m512i load_epu8_epi32(void const* ptr) {
-    return _mm512_cvtepu8_epi32(_mm_loadu_si64(ptr));
-}
-inline __m512 cvtepi32_ps(__m512i v) {
-    return _mm512_cvtepi32_ps(v);
-}
-inline void storeu_ps(float* ptr, __m512 v) {
-    _mm512_storeu_ps(ptr, v);
-}
-inline __m512 broadcast_ss(float const * mem_addr) {
-    return _mm512_broadcast_ss(mem_addr);
-}
-inline __m512 loadu_ps(float const * mem_addr) {
-    return _mm512_loadu_ps(mem_addr);
-}
-inline __m512 sub_ps(__m512 a, __m512 b) {
-    return _mm512_sub_ps(a, b);
-}
-inline __m512 fmadd_ps(__m512 a, __m512 b, __m512 c) {
-    return _mm512_fmadd_ps(a, b, c);
-}
-inline __m512 setzero_ps(void) {
-    return _mm512_setzero_ps();
-}
-inline __m512i set1_epi32(int a) {
-    return _mm512_set1_epi32(a);
-}
-inline __m512i and_si(__m512i a, __m512i b) {
-    return _mm512_and_si512(a, b);
-}
-inline __m512i srli_epi32(__m512i a, unsigned int imm8) {
-    return _mm512_srli_epi32(a, imm8);
-}
-
-#else
-// scalar
-#define SIMDW 1
-inline uint32_t load_epu8_epi32(void const* ptr) {
-    return *reinterpret_cast<const uint8_t*>(ptr);
-}
-float inline cvtepi32_ps(uint32_t v) {
-    return v;
-}
-inline void storeu_ps(float* ptr, float v) {
-    *ptr = v;
-}
-inline float broadcast_ss(float const * mem_addr) {
-    return *(mem_addr);
-}
-inline float loadu_ps(float const * mem_addr) {
-    return *(mem_addr);
-}
-inline float sub_ps(float a, float b) {
-    return a - b;
-}
-inline float fmadd_ps(float a, float b, float c) {
-    return a*b + c;
-}
-inline float setzero_ps(void) {
-    return 0;
-}
-inline int32_t set1_epi32(int a) {
-    return a;
-}
-inline int32_t and_si(int32_t a, int32_t b) {
-    return a & b;
-}
-inline int32_t srli_epi32(int32_t a, unsigned int imm8) {
-    return a >> imm8;
-}
-#endif
-
-
 static inline void accumulate_w8_peroc(int N,
                                     float* base_dst, int64_t OC,
                                     int* ic_ids, int ic_cnt,
@@ -409,9 +264,9 @@ static inline void accumulate_w8_peroc(int N,
 
     int oc = 0;
     for (; oc + SIMDW <= OC; oc += SIMDW) {
-        auto zpu32 = load_epu8_epi32(static_cast<void const*>(zp + oc));
-        auto zpf32 = cvtepi32_ps(zpu32);
-        storeu_ps(dst_zp + oc, zpf32);
+        auto zpu32 = simd_load_epu8_epi32(static_cast<void const*>(zp + oc));
+        auto zpf32 = simd_cvtepi32_ps(zpu32);
+        simd_storeu_ps(dst_zp + oc, zpf32);
     }
     for (; oc < OC; oc ++) {
         dst_zp[oc] = zp[oc];
@@ -431,32 +286,29 @@ static inline void accumulate_w8_peroc(int N,
 
         oc = 0;
 
-        auto vx0 = broadcast_ss(dense_x + g + 0);
-        auto vx1 = broadcast_ss(dense_x + g + 1);
-        auto vx2 = broadcast_ss(dense_x + g + 2);
-        auto vx3 = broadcast_ss(dense_x + g + 3);
+        auto vx0 = simd_broadcast_ss(dense_x + g + 0);
+        auto vx1 = simd_broadcast_ss(dense_x + g + 1);
+        auto vx2 = simd_broadcast_ss(dense_x + g + 2);
+        auto vx3 = simd_broadcast_ss(dense_x + g + 3);
         for (; oc + SIMDW <= OC; oc += SIMDW) {
-            auto vscales = loadu_ps(scales + oc);
-            auto vzp = loadu_ps(dst_zp + oc);
-            auto vdst = loadu_ps(base_dst + oc);
+            auto vscales = simd_loadu_ps(scales + oc);
+            auto vzp = simd_loadu_ps(dst_zp + oc);
+            auto vdst = simd_loadu_ps(base_dst + oc);
 
-            auto wdw0 = load_epu8_epi32(static_cast<void const*>(p_w0 + oc));
-            auto wdw1 = load_epu8_epi32(static_cast<void const*>(p_w1 + oc));
-            auto wdw2 = load_epu8_epi32(static_cast<void const*>(p_w2 + oc));
-            auto wdw3 = load_epu8_epi32(static_cast<void const*>(p_w3 + oc));
+            auto wdw0 = simd_load_epu8_epi32(static_cast<void const*>(p_w0 + oc));
+            auto wdw1 = simd_load_epu8_epi32(static_cast<void const*>(p_w1 + oc));
+            auto wdw2 = simd_load_epu8_epi32(static_cast<void const*>(p_w2 + oc));
+            auto wdw3 = simd_load_epu8_epi32(static_cast<void const*>(p_w3 + oc));
 
-            auto vsum = setzero_ps();
+            auto vsum = simd_setzero_ps();
 
-            vsum = fmadd_ps(sub_ps(cvtepi32_ps(wdw0), vzp), vx0, vsum);
+            vsum = simd_fmadd_ps(simd_sub_ps(simd_cvtepi32_ps(wdw0), vzp), vx0, vsum);
+            vsum = simd_fmadd_ps(simd_sub_ps(simd_cvtepi32_ps(wdw1), vzp), vx1, vsum);
+            vsum = simd_fmadd_ps(simd_sub_ps(simd_cvtepi32_ps(wdw2), vzp), vx2, vsum);
+            vsum = simd_fmadd_ps(simd_sub_ps(simd_cvtepi32_ps(wdw3), vzp), vx3, vsum);
 
-            vsum = fmadd_ps(sub_ps(cvtepi32_ps(wdw1), vzp), vx1, vsum);
-
-            vsum = fmadd_ps(sub_ps(cvtepi32_ps(wdw2), vzp), vx2, vsum);
-
-            vsum = fmadd_ps(sub_ps(cvtepi32_ps(wdw3), vzp), vx3, vsum);
-
-            vdst = fmadd_ps(vsum, vscales, vdst);
-            storeu_ps(base_dst + oc, vdst);
+            vdst = simd_fmadd_ps(vsum, vscales, vdst);
+            simd_storeu_ps(base_dst + oc, vdst);
         }
 
         if (oc < OC) {
@@ -500,15 +352,15 @@ static inline void accumulate_w4_peroc(float* base_dst, int OC,
             auto* dst_zp = zpbuff.data();
             auto* src_zp = zp + gid * (OC/2);
             int oc = 0;
-            auto vmask_u4 = set1_epi32(0xF);
+            auto vmask_u4 = simd_set1_epi32(0xF);
             for (; oc + SIMDW*2 <= OC; oc += SIMDW*2, src_zp += SIMDW) {
-                auto vzp16xu4_i32 = load_epu8_epi32(static_cast<void const*>(src_zp));
-                auto vzp16xu4_i32_low = and_si(vzp16xu4_i32, vmask_u4);
-                auto vzp16xu4_i32_high = srli_epi32(vzp16xu4_i32, 4);
-                auto vzpf32_low = cvtepi32_ps(vzp16xu4_i32_low);
-                auto vzpf32_high = cvtepi32_ps(vzp16xu4_i32_high);
-                storeu_ps(dst_zp + oc, vzpf32_low);
-                storeu_ps(dst_zp + oc + 8, vzpf32_high);
+                auto vzp16xu4_i32 = simd_load_epu8_epi32(static_cast<void const*>(src_zp));
+                auto vzp16xu4_i32_low = simd_and_si(vzp16xu4_i32, vmask_u4);
+                auto vzp16xu4_i32_high = simd_srli_epi32(vzp16xu4_i32, 4);
+                auto vzpf32_low = simd_cvtepi32_ps(vzp16xu4_i32_low);
+                auto vzpf32_high = simd_cvtepi32_ps(vzp16xu4_i32_high);
+                simd_storeu_ps(dst_zp + oc, vzpf32_low);
+                simd_storeu_ps(dst_zp + oc + 8, vzpf32_high);
             }
             for (; oc < OC; oc +=2, src_zp++) {
                 dst_zp[oc] = src_zp[0] & 0xF;
@@ -525,52 +377,52 @@ static inline void accumulate_w4_peroc(float* base_dst, int OC,
 
         int oc = 0;
 
-        auto vmask_u4 = set1_epi32(0xF);
-        auto vx0 = broadcast_ss(dense_x + g + 0);
-        auto vx1 = broadcast_ss(dense_x + g + 1);
-        auto vx2 = broadcast_ss(dense_x + g + 2);
-        auto vx3 = broadcast_ss(dense_x + g + 3);
+        auto vmask_u4 = simd_set1_epi32(0xF);
+        auto vx0 = simd_broadcast_ss(dense_x + g + 0);
+        auto vx1 = simd_broadcast_ss(dense_x + g + 1);
+        auto vx2 = simd_broadcast_ss(dense_x + g + 2);
+        auto vx3 = simd_broadcast_ss(dense_x + g + 3);
         for (; oc + SIMDW*2 <= OC; oc += SIMDW*2) {
-            auto vzp0 = loadu_ps(dst_zp + oc);
-            auto vzp1 = loadu_ps(dst_zp + oc + 8);
+            auto vzp0 = simd_loadu_ps(dst_zp + oc);
+            auto vzp1 = simd_loadu_ps(dst_zp + oc + 8);
 
-            auto vdst0 = loadu_ps(base_dst + oc);
-            auto vdst1 = loadu_ps(base_dst + oc + 8);
+            auto vdst0 = simd_loadu_ps(base_dst + oc);
+            auto vdst1 = simd_loadu_ps(base_dst + oc + 8);
 
-            auto wdw_i32 = load_epu8_epi32(static_cast<void const*>(p_w0)); p_w0 += 8;
-            auto vsum0 = setzero_ps();
-            auto vsum1 = setzero_ps();
+            auto wdw_i32 = simd_load_epu8_epi32(static_cast<void const*>(p_w0)); p_w0 += 8;
+            auto vsum0 = simd_setzero_ps();
+            auto vsum1 = simd_setzero_ps();
 
-            auto wdw0 = cvtepi32_ps(and_si(wdw_i32, vmask_u4));
-            auto wdw1 = cvtepi32_ps(srli_epi32(wdw_i32, 4));
-            vsum0 = fmadd_ps(sub_ps(wdw0, vzp0), vx0, vsum0);
-            vsum1 = fmadd_ps(sub_ps(wdw1, vzp1), vx0, vsum1);
+            auto wdw0 = simd_cvtepi32_ps(simd_and_si(wdw_i32, vmask_u4));
+            auto wdw1 = simd_cvtepi32_ps(simd_srli_epi32(wdw_i32, 4));
+            vsum0 = simd_fmadd_ps(simd_sub_ps(wdw0, vzp0), vx0, vsum0);
+            vsum1 = simd_fmadd_ps(simd_sub_ps(wdw1, vzp1), vx0, vsum1);
 
-            wdw_i32 = load_epu8_epi32(static_cast<void const*>(p_w1)); p_w1 += 8;
-            wdw0 = cvtepi32_ps(and_si(wdw_i32, vmask_u4));
-            wdw1 = cvtepi32_ps(srli_epi32(wdw_i32, 4));
-            vsum0 = fmadd_ps(sub_ps(wdw0, vzp0), vx1, vsum0);
-            vsum1 = fmadd_ps(sub_ps(wdw1, vzp1), vx1, vsum1);
+            wdw_i32 = simd_load_epu8_epi32(static_cast<void const*>(p_w1)); p_w1 += 8;
+            wdw0 = simd_cvtepi32_ps(simd_and_si(wdw_i32, vmask_u4));
+            wdw1 = simd_cvtepi32_ps(simd_srli_epi32(wdw_i32, 4));
+            vsum0 = simd_fmadd_ps(simd_sub_ps(wdw0, vzp0), vx1, vsum0);
+            vsum1 = simd_fmadd_ps(simd_sub_ps(wdw1, vzp1), vx1, vsum1);
 
-            wdw_i32 = load_epu8_epi32(static_cast<void const*>(p_w2)); p_w2 += 8;
-            wdw0 = cvtepi32_ps(and_si(wdw_i32, vmask_u4));
-            wdw1 = cvtepi32_ps(srli_epi32(wdw_i32, 4));
-            vsum0 = fmadd_ps(sub_ps(wdw0, vzp0), vx2, vsum0);
-            vsum1 = fmadd_ps(sub_ps(wdw1, vzp1), vx2, vsum1);
+            wdw_i32 = simd_load_epu8_epi32(static_cast<void const*>(p_w2)); p_w2 += 8;
+            wdw0 = simd_cvtepi32_ps(simd_and_si(wdw_i32, vmask_u4));
+            wdw1 = simd_cvtepi32_ps(simd_srli_epi32(wdw_i32, 4));
+            vsum0 = simd_fmadd_ps(simd_sub_ps(wdw0, vzp0), vx2, vsum0);
+            vsum1 = simd_fmadd_ps(simd_sub_ps(wdw1, vzp1), vx2, vsum1);
 
-            wdw_i32 = load_epu8_epi32(static_cast<void const*>(p_w3)); p_w3 += 8;
-            wdw0 = cvtepi32_ps(and_si(wdw_i32, vmask_u4));
-            wdw1 = cvtepi32_ps(srli_epi32(wdw_i32, 4));
-            vsum0 = fmadd_ps(sub_ps(wdw0, vzp0), vx3, vsum0);
-            vsum1 = fmadd_ps(sub_ps(wdw1, vzp1), vx3, vsum1);
+            wdw_i32 = simd_load_epu8_epi32(static_cast<void const*>(p_w3)); p_w3 += 8;
+            wdw0 = simd_cvtepi32_ps(simd_and_si(wdw_i32, vmask_u4));
+            wdw1 = simd_cvtepi32_ps(simd_srli_epi32(wdw_i32, 4));
+            vsum0 = simd_fmadd_ps(simd_sub_ps(wdw0, vzp0), vx3, vsum0);
+            vsum1 = simd_fmadd_ps(simd_sub_ps(wdw1, vzp1), vx3, vsum1);
 
-            auto vscales0 = loadu_ps(p_scales + oc);
-            auto vscales1 = loadu_ps(p_scales + oc + 8);
+            auto vscales0 = simd_loadu_ps(p_scales + oc);
+            auto vscales1 = simd_loadu_ps(p_scales + oc + 8);
 
-            vdst0 = fmadd_ps(vsum0, vscales0, vdst0);
-            vdst1 = fmadd_ps(vsum1, vscales1, vdst1);
-            storeu_ps(base_dst + oc, vdst0);
-            storeu_ps(base_dst + oc + 8, vdst1);
+            vdst0 = simd_fmadd_ps(vsum0, vscales0, vdst0);
+            vdst1 = simd_fmadd_ps(vsum1, vscales1, vdst1);
+            simd_storeu_ps(base_dst + oc, vdst0);
+            simd_storeu_ps(base_dst + oc + 8, vdst1);
         }
 
         if (oc < OC) {
@@ -604,7 +456,6 @@ static inline void accumulate_w4_peroc(float* base_dst, int OC,
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // gemm
-#if defined(HAVE_AVX2)
 template <int rows, int prefetch_v = 16>
 void brgemm_6x2(const float* A,
                 int A_stride,  // stride in number of element
@@ -614,123 +465,123 @@ void brgemm_6x2(const float* A,
                 int C_stride,  // stride in number of element
                 int K,
                 bool is_accumulate_C) {
-    __m256 c0, c1, c2, c3, c4, c5;
-    __m256 c6, c7, c8, c9, ca, cb;
+    SIMD_F32 c0, c1, c2, c3, c4, c5;
+    SIMD_F32 c6, c7, c8, c9, ca, cb;
 
     if (is_accumulate_C) {
         auto* src = C;
-        c0 = _mm256_loadu_ps(src + 8 * 0);
-        c1 = _mm256_loadu_ps(src + 8 * 1);
+        c0 = simd_loadu_ps(src + SIMDW * 0);
+        c1 = simd_loadu_ps(src + SIMDW * 1);
         if (rows > 1) {
             src += C_stride;
-            c2 = _mm256_loadu_ps(src + 8 * 0);
-            c3 = _mm256_loadu_ps(src + 8 * 1);
+            c2 = simd_loadu_ps(src + SIMDW * 0);
+            c3 = simd_loadu_ps(src + SIMDW * 1);
         }
         if (rows > 2) {
             src += C_stride;
-            c4 = _mm256_loadu_ps(src + 8 * 0);
-            c5 = _mm256_loadu_ps(src + 8 * 1);
+            c4 = simd_loadu_ps(src + SIMDW * 0);
+            c5 = simd_loadu_ps(src + SIMDW * 1);
         }
         if (rows > 3) {
             src += C_stride;
-            c6 = _mm256_loadu_ps(src + 8 * 0);
-            c7 = _mm256_loadu_ps(src + 8 * 1);
+            c6 = simd_loadu_ps(src + SIMDW * 0);
+            c7 = simd_loadu_ps(src + SIMDW * 1);
         }
         if (rows > 4) {
             src += C_stride;
-            c8 = _mm256_loadu_ps(src + 8 * 0);
-            c9 = _mm256_loadu_ps(src + 8 * 1);
+            c8 = simd_loadu_ps(src + SIMDW * 0);
+            c9 = simd_loadu_ps(src + SIMDW * 1);
         }
         if (rows > 5) {
             src += C_stride;
-            ca = _mm256_loadu_ps(src + 8 * 0);
-            cb = _mm256_loadu_ps(src + 8 * 1);
+            ca = simd_loadu_ps(src + SIMDW * 0);
+            cb = simd_loadu_ps(src + SIMDW * 1);
         }
     } else {
-        c0 = _mm256_setzero_ps();
-        c1 = _mm256_setzero_ps();
-        c2 = _mm256_setzero_ps();
-        c3 = _mm256_setzero_ps();
-        c4 = _mm256_setzero_ps();
-        c5 = _mm256_setzero_ps();
-        c6 = _mm256_setzero_ps();
-        c7 = _mm256_setzero_ps();
-        c8 = _mm256_setzero_ps();
-        c9 = _mm256_setzero_ps();
-        ca = _mm256_setzero_ps();
-        cb = _mm256_setzero_ps();
+        c0 = simd_setzero_ps();
+        c1 = simd_setzero_ps();
+        c2 = simd_setzero_ps();
+        c3 = simd_setzero_ps();
+        c4 = simd_setzero_ps();
+        c5 = simd_setzero_ps();
+        c6 = simd_setzero_ps();
+        c7 = simd_setzero_ps();
+        c8 = simd_setzero_ps();
+        c9 = simd_setzero_ps();
+        ca = simd_setzero_ps();
+        cb = simd_setzero_ps();
     }
 
     const auto* pA3 = A + 3 * A_stride;
     const auto prefetch_stride = B_stride * prefetch_v;
     int k;
     for (k = 0; k < K; k++, B += B_stride, A++, pA3++) {
-        __m256 b0 = _mm256_loadu_ps(B + 8 * 0);
-        __m256 b1 = _mm256_loadu_ps(B + 8 * 1);
+        auto b0 = simd_loadu_ps(B + SIMDW * 0);
+        auto b1 = simd_loadu_ps(B + SIMDW * 1);
 
         if (prefetch_v >= 0)
-            _mm_prefetch(B + 16, _MM_HINT_T0);
+            simd_prefetch(B + 16, _MM_HINT_T0);
         if (prefetch_v > 0)
-            _mm_prefetch(B + prefetch_stride, _MM_HINT_T0);
+            simd_prefetch(B + prefetch_stride, _MM_HINT_T0);
 
-        __m256 a0 = _mm256_broadcast_ss(A);
-        c0 = _mm256_fmadd_ps(a0, b0, c0);
-        c1 = _mm256_fmadd_ps(a0, b1, c1);
+        auto a0 = simd_broadcast_ss(A);
+        c0 = simd_fmadd_ps(a0, b0, c0);
+        c1 = simd_fmadd_ps(a0, b1, c1);
         if (rows > 1) {
-            a0 = _mm256_broadcast_ss(A + A_stride);
-            c2 = _mm256_fmadd_ps(a0, b0, c2);
-            c3 = _mm256_fmadd_ps(a0, b1, c3);
+            a0 = simd_broadcast_ss(A + A_stride);
+            c2 = simd_fmadd_ps(a0, b0, c2);
+            c3 = simd_fmadd_ps(a0, b1, c3);
         }
         if (rows > 2) {
-            a0 = _mm256_broadcast_ss(A + 2 * A_stride);
-            c4 = _mm256_fmadd_ps(a0, b0, c4);
-            c5 = _mm256_fmadd_ps(a0, b1, c5);
+            a0 = simd_broadcast_ss(A + 2 * A_stride);
+            c4 = simd_fmadd_ps(a0, b0, c4);
+            c5 = simd_fmadd_ps(a0, b1, c5);
         }
 
         if (rows > 3) {
-            a0 = _mm256_broadcast_ss(pA3);
-            c6 = _mm256_fmadd_ps(a0, b0, c6);
-            c7 = _mm256_fmadd_ps(a0, b1, c7);
+            a0 = simd_broadcast_ss(pA3);
+            c6 = simd_fmadd_ps(a0, b0, c6);
+            c7 = simd_fmadd_ps(a0, b1, c7);
         }
         if (rows > 4) {
-            a0 = _mm256_broadcast_ss(pA3 + A_stride);
-            c8 = _mm256_fmadd_ps(a0, b0, c8);
-            c9 = _mm256_fmadd_ps(a0, b1, c9);
+            a0 = simd_broadcast_ss(pA3 + A_stride);
+            c8 = simd_fmadd_ps(a0, b0, c8);
+            c9 = simd_fmadd_ps(a0, b1, c9);
         }
         if (rows > 5) {
-            a0 = _mm256_broadcast_ss(pA3 + 2 * A_stride);
-            ca = _mm256_fmadd_ps(a0, b0, ca);
-            cb = _mm256_fmadd_ps(a0, b1, cb);
+            a0 = simd_broadcast_ss(pA3 + 2 * A_stride);
+            ca = simd_fmadd_ps(a0, b0, ca);
+            cb = simd_fmadd_ps(a0, b1, cb);
         }
     }
 
     // store C back
-    _mm256_storeu_ps(C + 8 * 0, c0);
-    _mm256_storeu_ps(C + 8 * 1, c1);
+    simd_storeu_ps(C + SIMDW * 0, c0);
+    simd_storeu_ps(C + SIMDW * 1, c1);
     if (rows > 1) {
         C += C_stride;
-        _mm256_storeu_ps(C + 8 * 0, c2);
-        _mm256_storeu_ps(C + 8 * 1, c3);
+        simd_storeu_ps(C + SIMDW * 0, c2);
+        simd_storeu_ps(C + SIMDW * 1, c3);
     }
     if (rows > 2) {
         C += C_stride;
-        _mm256_storeu_ps(C + 8 * 0, c4);
-        _mm256_storeu_ps(C + 8 * 1, c5);
+        simd_storeu_ps(C + SIMDW * 0, c4);
+        simd_storeu_ps(C + SIMDW * 1, c5);
     }
     if (rows > 3) {
         C += C_stride;
-        _mm256_storeu_ps(C + 8 * 0, c6);
-        _mm256_storeu_ps(C + 8 * 1, c7);
+        simd_storeu_ps(C + SIMDW * 0, c6);
+        simd_storeu_ps(C + SIMDW * 1, c7);
     }
     if (rows > 4) {
         C += C_stride;
-        _mm256_storeu_ps(C + 8 * 0, c8);
-        _mm256_storeu_ps(C + 8 * 1, c9);
+        simd_storeu_ps(C + SIMDW * 0, c8);
+        simd_storeu_ps(C + SIMDW * 1, c9);
     }
     if (rows > 5) {
         C += C_stride;
-        _mm256_storeu_ps(C + 8 * 0, ca);
-        _mm256_storeu_ps(C + 8 * 1, cb);
+        simd_storeu_ps(C + SIMDW * 0, ca);
+        simd_storeu_ps(C + SIMDW * 1, cb);
     }
 }
 
@@ -751,7 +602,7 @@ void MM_ComputeBounded_reuseA_i8(
             int M, int IC, int OC,
             int n0, int n1) {
     constexpr int BK = 54;
-    float* scratch = scratch_alloc<float>(16 * BK + OC);
+    float* scratch = scratch_alloc<float>(BK * (SIMDW*2) + OC);
 
     int K = IC;
     auto A_stride = IC;
@@ -780,14 +631,14 @@ void MM_ComputeBounded_reuseA_i8(
     }
 
     float* repacked_B = scratch;
-    float* zero_points = scratch + 16 * BK;
+    float* zero_points = scratch + BK * (SIMDW*2);
 
     // deocompress zero-point into scratch
     int n = 0;
-    for (n = n0; n + 8 <= n1; n += 8) {
-        auto vzpu8 = _mm_loadu_si64(static_cast<void const*>(zp + n));
-        auto vzpf32 = _mm256_cvtepi32_ps(_mm256_cvtepu8_epi32(vzpu8));
-        _mm256_storeu_ps(zero_points + n - n0, vzpf32);
+    for (n = n0; n + SIMDW <= n1; n += SIMDW) {
+        auto vzpi32 = simd_load_epu8_epi32(static_cast<void const*>(zp + n));
+        auto vzpf32 = simd_cvtepi32_ps(vzpi32);
+        simd_storeu_ps(zero_points + n - n0, vzpf32);
     }
     for (; n < n1; n ++) {
         zero_points[n - n0] = zp[n];
@@ -797,38 +648,38 @@ void MM_ComputeBounded_reuseA_i8(
         int bK = std::min(K - k, BK);
         auto is_accumulate_C = (k > 0);
 
-        for (int n = n0; n + 2 * 8 <= n1; n += 2 * 8) {
+        for (int n = n0; n + 2 * SIMDW <= n1; n += 2 * SIMDW) {
             // prepack [BK, 16] into scratch
             {
                 auto* dst = repacked_B;
-                auto vzp0 = _mm256_loadu_ps(zero_points + (n - n0));
-                auto vzp1 = _mm256_loadu_ps(zero_points + (n - n0) + 8);
-                auto vscale0 = _mm256_loadu_ps(scales + n);
-                auto vscale1 = _mm256_loadu_ps(scales + n + 8);
+                auto vzp0 = simd_loadu_ps(zero_points + (n - n0));
+                auto vzp1 = simd_loadu_ps(zero_points + (n - n0) + SIMDW);
+                auto vscale0 = simd_loadu_ps(scales + n);
+                auto vscale1 = simd_loadu_ps(scales + n + SIMDW);
                 const auto* srcW = W + n;
                 for (int k = 0; k < bK; k++, dst += 2 * 8, srcW += W_stride) {
-                    auto wb0 = _mm_loadu_si64(static_cast<void const*>(srcW + 8 * 0));
-                    auto wb1 = _mm_loadu_si64(static_cast<void const*>(srcW + 8 * 1));
-                    auto wf0 = _mm256_sub_ps(_mm256_cvtepi32_ps(_mm256_cvtepu8_epi32(wb0)), vzp0);
-                    auto wf1 = _mm256_sub_ps(_mm256_cvtepi32_ps(_mm256_cvtepu8_epi32(wb1)), vzp1);
-                    wf0 = _mm256_mul_ps(wf0, vscale0);
-                    wf1 = _mm256_mul_ps(wf1, vscale1);
+                    auto wb0 = simd_load_epu8_epi32(static_cast<void const*>(srcW + 8 * 0));
+                    auto wb1 = simd_load_epu8_epi32(static_cast<void const*>(srcW + 8 * 1));
+                    auto wf0 = simd_sub_ps(simd_cvtepi32_ps(wb0), vzp0);
+                    auto wf1 = simd_sub_ps(simd_cvtepi32_ps(wb1), vzp1);
+                    wf0 = simd_mul_ps(wf0, vscale0);
+                    wf1 = simd_mul_ps(wf1, vscale1);
 
                     // prefetch right
-                    _mm_prefetch(srcW + 64, _MM_HINT_T0);
+                    simd_prefetch(srcW + 64, _MM_HINT_T0);
 
-                    _mm256_storeu_ps(dst + 8 * 0, wf0);
-                    _mm256_storeu_ps(dst + 8 * 1, wf1);
+                    simd_storeu_ps(dst + SIMDW * 0, wf0);
+                    simd_storeu_ps(dst + SIMDW * 1, wf1);
                 }
             }
 
             auto *pA = A;
             auto* pC = C + n;
             for (int m = 0; m < M_body; m += 6, pA += 6 * A_stride, pC += 6 * C_stride) {
-                brgemm_6x2<6>(pA, A_stride, repacked_B, 2 * 8, pC, C_stride, bK, is_accumulate_C);
+                brgemm_6x2<6>(pA, A_stride, repacked_B, 2 * SIMDW, pC, C_stride, bK, is_accumulate_C);
             }
             if (brgmm6x2_tail)
-                (*brgmm6x2_tail)(pA, A_stride, repacked_B, 2 * 8, pC, C_stride, bK, is_accumulate_C);
+                (*brgmm6x2_tail)(pA, A_stride, repacked_B, 2 * SIMDW, pC, C_stride, bK, is_accumulate_C);
         }
     }
 }
@@ -842,7 +693,7 @@ void MM_ComputeBounded_reuseA_i4(
             int M, int IC, int OC,
             int n0, int n1, int icgs) {
     int BK = icgs;
-    float* scratch = scratch_alloc<float>(16 * BK + OC);
+    float* scratch = scratch_alloc<float>(BK * (SIMDW*2) + OC);
 
     int K = IC;
     auto A_stride = IC;
@@ -871,7 +722,7 @@ void MM_ComputeBounded_reuseA_i4(
     }
 
     float* repacked_B = scratch;
-    float* zero_points = scratch + 16 * BK;
+    float* zero_points = scratch + BK*(SIMDW*2);
 
     for (int k = 0; k < K; k += BK, A += BK, W += BK * W_stride, zp += W_stride, scales += OC) {
         int bK = std::min(K - k, BK);
@@ -881,20 +732,19 @@ void MM_ComputeBounded_reuseA_i4(
         {
             const auto* pzp = zp + n0/2;
             int n = 0;
-            auto vmask_u4 = _mm256_set1_epi32(0xF);
-            for (n = n0; n + 16 <= n1; n += 16, pzp += 8) {
-                auto vzp16xu4 = _mm_loadu_si64(static_cast<void const*>(pzp));
+            auto vmask_u4 = simd_set1_epi32(0xF);
+            for (n = n0; n + SIMDW*2 <= n1; n += SIMDW*2, pzp += SIMDW) {
+                auto vzp16xu4_i32 = simd_load_epu8_epi32(static_cast<void const*>(pzp));
                 // 8 x low-4bits  : 0,1,2,3,4,5,6,7
                 // 8 x high-4bits : 8,9,a,b,c,d,e,f
-                auto vzp16xu4_i32 = _mm256_cvtepu8_epi32(vzp16xu4);
 
-                auto vzp16xu4_i32_low = _mm256_and_si256(vzp16xu4_i32, vmask_u4);
-                auto vzp16xu4_i32_high = _mm256_srli_epi32(vzp16xu4_i32, 4);
+                auto vzp16xu4_i32_low = simd_and_si(vzp16xu4_i32, vmask_u4);
+                auto vzp16xu4_i32_high = simd_srli_epi32(vzp16xu4_i32, 4);
 
-                auto vzpf32_low = _mm256_cvtepi32_ps(vzp16xu4_i32_low);
-                auto vzpf32_high = _mm256_cvtepi32_ps(vzp16xu4_i32_high);
-                _mm256_storeu_ps(zero_points + n - n0, vzpf32_low);
-                _mm256_storeu_ps(zero_points + n - n0 + 8, vzpf32_high);
+                auto vzpf32_low = simd_cvtepi32_ps(vzp16xu4_i32_low);
+                auto vzpf32_high = simd_cvtepi32_ps(vzp16xu4_i32_high);
+                simd_storeu_ps(zero_points + n - n0, vzpf32_low);
+                simd_storeu_ps(zero_points + n - n0 + SIMDW, vzpf32_high);
             }
             for (; n < n1; n += 2, pzp++) {
                 zero_points[n - n0] = (*pzp) & 0xF;
@@ -902,35 +752,34 @@ void MM_ComputeBounded_reuseA_i4(
             }
         }
 
-        for (int n = n0; n + 2 * 8 <= n1; n += 2 * 8) {
+        for (int n = n0; n + 2 * SIMDW <= n1; n += 2 * SIMDW) {
             // prepack subB [BK, 16] into scratch
             // because BK is fully contained within IC-group (BK == n*IC_group_size), it can share same zp & scales
             {
                 auto* dst = repacked_B;
-                auto vzp0 = _mm256_loadu_ps(zero_points + (n - n0));
-                auto vzp1 = _mm256_loadu_ps(zero_points + (n - n0) + 8);
-                auto vscale0 = _mm256_loadu_ps(scales + n);
-                auto vscale1 = _mm256_loadu_ps(scales + n + 8);
+                auto vzp0 = simd_loadu_ps(zero_points + (n - n0));
+                auto vzp1 = simd_loadu_ps(zero_points + (n - n0) + SIMDW);
+                auto vscale0 = simd_loadu_ps(scales + n);
+                auto vscale1 = simd_loadu_ps(scales + n + 8);
                 const auto* srcW = W + n/2;
-                auto vmask_u4 = _mm256_set1_epi32(0xF);
-                for (int k = 0; k < bK; k++, dst += 2 * 8, srcW += W_stride) {
+                auto vmask_u4 = simd_set1_epi32(0xF);
+                for (int k = 0; k < bK; k++, dst += 2 * SIMDW, srcW += W_stride) {
                     // 16 x i4
-                    auto wb0 = _mm_loadu_si64(static_cast<void const*>(srcW + 8 * 0));
-                    auto wdw = _mm256_cvtepu8_epi32(wb0);
+                    auto wdw = simd_load_epu8_epi32(static_cast<void const*>(srcW + SIMDW * 0));
 
-                    auto wdw_low = _mm256_and_si256(wdw, vmask_u4);
-                    auto wdw_high = _mm256_srli_epi32(wdw, 4);
+                    auto wdw_low = simd_and_si(wdw, vmask_u4);
+                    auto wdw_high = simd_srli_epi32(wdw, 4);
 
-                    auto wf0 = _mm256_sub_ps(_mm256_cvtepi32_ps(wdw_low), vzp0);
-                    auto wf1 = _mm256_sub_ps(_mm256_cvtepi32_ps(wdw_high), vzp1);
-                    wf0 = _mm256_mul_ps(wf0, vscale0);
-                    wf1 = _mm256_mul_ps(wf1, vscale1);
+                    auto wf0 = simd_sub_ps(simd_cvtepi32_ps(wdw_low), vzp0);
+                    auto wf1 = simd_sub_ps(simd_cvtepi32_ps(wdw_high), vzp1);
+                    wf0 = simd_mul_ps(wf0, vscale0);
+                    wf1 = simd_mul_ps(wf1, vscale1);
 
                     // prefetch right
-                    _mm_prefetch(srcW + 64, _MM_HINT_T0);
+                    simd_prefetch(srcW + 64, _MM_HINT_T0);
 
-                    _mm256_storeu_ps(dst + 8 * 0, wf0);
-                    _mm256_storeu_ps(dst + 8 * 1, wf1);
+                    simd_storeu_ps(dst + SIMDW * 0, wf0);
+                    simd_storeu_ps(dst + SIMDW * 1, wf1);
                 }
             }
 
@@ -938,33 +787,14 @@ void MM_ComputeBounded_reuseA_i4(
             auto *pA = A;
             auto* pC = C + n;
             for (int m = 0; m < M_body; m += 6, pA += 6 * A_stride, pC += 6 * C_stride) {
-                brgemm_6x2<6>(pA, A_stride, repacked_B, 2 * 8, pC, C_stride, bK, is_accumulate_C);
+                brgemm_6x2<6>(pA, A_stride, repacked_B, 2 * SIMDW, pC, C_stride, bK, is_accumulate_C);
             }
             if (brgmm6x2_tail)
-                (*brgmm6x2_tail)(pA, A_stride, repacked_B, 2 * 8, pC, C_stride, bK, is_accumulate_C);
+                (*brgmm6x2_tail)(pA, A_stride, repacked_B, 2 * SIMDW, pC, C_stride, bK, is_accumulate_C);
         }
     }
 }
-#else
-void MM_ComputeBounded_reuseA_i8(
-            const float * A,
-            float * C,
-            const uint8_t* W,
-            const uint8_t* zp,
-            const float* scales,
-            int M, int IC, int OC,
-            int n0, int n1) {
-}
-void MM_ComputeBounded_reuseA_i4(
-            const float * A,
-            float * C,
-            const uint8_t* W,
-            const uint8_t* zp,
-            const float* scales,
-            int M, int IC, int OC,
-            int n0, int n1, int icgs) {
-}
-#endif
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void dynPruneLinear_i8(const float* input,      // [M, IC]
