@@ -674,7 +674,8 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
     OV_CASE(Algorithm::EltwiseSqrt, ov::intel_cpu::aarch64::jit_sqrt_emitter),
     OV_CASE(Algorithm::EltwiseSubtract, ov::intel_cpu::aarch64::jit_subtract_emitter),
     OV_CASE(Algorithm::EltwiseSwish, ov::intel_cpu::aarch64::jit_swish_emitter),
-    OV_CASE(Algorithm::EltwiseTanh, ov::intel_cpu::aarch64::jit_tanh_emitter));
+    OV_CASE(Algorithm::EltwiseTanh, ov::intel_cpu::aarch64::jit_tanh_emitter),
+    OV_CASE(Algorithm::EltwiseSquaredDifference, ov::intel_cpu::aarch64::jit_squared_difference_emitter));
 
     if (!ctx.emitter)
         OPENVINO_THROW("Unsupported operation type '" + algToString(data.algo) + "' for Eltwise emitter");
@@ -853,7 +854,8 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
         OV_CASE(Algorithm::EltwiseSqrt, jit_sqrt_emitter),
         OV_CASE(Algorithm::EltwiseSubtract, jit_subtract_emitter),
         OV_CASE(Algorithm::EltwiseSwish, jit_swish_emitter),
-        OV_CASE(Algorithm::EltwiseTanh, jit_tanh_emitter));
+        OV_CASE(Algorithm::EltwiseTanh, jit_tanh_emitter),
+        OV_CASE(Algorithm::EltwiseSquaredDifference, jit_squared_difference_emitter));
     if (precisions.empty())
         OPENVINO_THROW("Unsupported operation type for Eltwise emitter");
 
