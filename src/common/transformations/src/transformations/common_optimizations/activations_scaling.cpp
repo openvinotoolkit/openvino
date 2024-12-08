@@ -24,10 +24,12 @@
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "transformations/utils/utils.hpp"
+#include "ov_ops/rms.hpp"
 
 namespace {
 const auto is_scalar_node = [](const ov::Output<ov::Node>& output) -> bool {
@@ -256,115 +258,79 @@ ov::pass::activations_scaling::ScaleDownFusion::ScaleDownFusion() {
     this->register_matcher(m, callback);
 }
 
-// GroupNormalization has the following property.
+// Normalization has the following property.
 //
-// GroupNorm(input * const_a) = GroupNorm(input)
+// Norm(input * const_a) = Norm(input)
 //
-// So, we can skip Multiply that is connected to GroupNormalization.
+// So, we can skip Multiply that is connected to Normalization.
 //
-// input --> Multiply --> GroupNormalization
+// input --> Multiply --> Normalization
 //   ==>
-// input --> GroupNormalization
-ov::pass::activations_scaling::MulGroupNormTransformation::MulGroupNormTransformation() {
-    MATCHER_SCOPE(MulGroupNormTransformation);
+// input --> Normalization
+ov::pass::activations_scaling::MulNormTransformation::MulNormTransformation() {
+    MATCHER_SCOPE(MulNormTransformation);
 
     auto activation_m = any_input(is_non_const_node);
+    auto convert_m = ov::pass::pattern::optional<ov::op::v0::Convert>(activation_m);
     auto scale_const_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(is_scalar_node);
-    auto mul_m = wrap_type<ov::op::v1::Multiply>({activation_m, scale_const_m});
-    auto norm_scale_m = any_input();
-    auto norm_bias_m = any_input();
-    auto norm_m = wrap_type<ov::op::v12::GroupNormalization>({mul_m, norm_scale_m, norm_bias_m});
+    auto mul_m = wrap_type<ov::op::v1::Multiply>({convert_m, scale_const_m});
+    auto mvn_m = wrap_type<ov::op::v6::MVN>({mul_m, any_input()});
+    auto rms_m = wrap_type<ov::op::internal::RMS>({mul_m, any_input()});
+    auto group_norm_m = wrap_type<ov::op::v12::GroupNormalization>({mul_m, any_input(), any_input()});
+    auto norm_m = std::make_shared<Or>(OutputVector{mvn_m, rms_m, group_norm_m});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        OPENVINO_ASSERT(pattern_map.count(mul_m));
-        OPENVINO_ASSERT(pattern_map.count(norm_m));
-
-        auto mul = std::dynamic_pointer_cast<ov::op::v1::Multiply>(pattern_map.at(mul_m).get_node_shared_ptr());
-        auto norm =
-            std::dynamic_pointer_cast<ov::op::v12::GroupNormalization>(pattern_map.at(norm_m).get_node_shared_ptr());
-
-        if (transformation_callback(norm)) {
+        if (transformation_callback(m.get_match_root())) {
             return false;
         }
 
-        if (mul && norm) {
-            size_t activation_index =
-                ov::is_type<ov::op::v0::Constant>(mul->get_input_source_output(1).get_node()) ? 0 : 1;
-            auto activation = mul->get_input_source_output(activation_index);
-            if (ov::is_type<ov::op::v0::Convert>(activation.get_node()))
-                activation = activation.get_node()->get_input_source_output(0);
-            auto newGroupNorm = std::make_shared<ov::op::TypeRelaxed<ov::op::v12::GroupNormalization>>(
-                ov::op::v12::GroupNormalization(activation,
-                                                norm->get_input_source_output(1),
-                                                norm->get_input_source_output(2),
-                                                norm->get_num_groups(),
-                                                norm->get_epsilon()),
-                norm->get_output_element_type(0));
-            ov::copy_runtime_info(norm, newGroupNorm);
-            ov::replace_node(norm, newGroupNorm);
-            return true;
+        auto activation = pattern_map.at(activation_m);
+        auto norm = pattern_map.at(norm_m).get_node_shared_ptr();
+
+        OutputVector new_inputs = {activation};
+        for (size_t i = 1; i < norm->get_input_size(); ++i) {
+            new_inputs.push_back(norm->input(i).get_source_output());
         }
-        return false;
+
+        std::shared_ptr<ov::Node> new_norm;
+        if (pattern_map.count(mvn_m)) {
+            auto mvn = std::dynamic_pointer_cast<ov::op::v6::MVN>(pattern_map.at(mvn_m).get_node_shared_ptr());
+            new_norm = 
+                std::make_shared<ov::op::TypeRelaxed<ov::op::v6::MVN>>(ov::op::v6::MVN(new_inputs[0],
+                                                                                       new_inputs[1],
+                                                                                       mvn->get_normalize_variance(),
+                                                                                       mvn->get_eps(),
+                                                                                       mvn->get_eps_mode()),
+                                                                       mvn->get_output_element_type(0));
+
+        } else if (pattern_map.count(rms_m)) {
+            auto rms = std::dynamic_pointer_cast<ov::op::internal::RMS>(pattern_map.at(rms_m).get_node_shared_ptr());
+            new_norm = 
+                std::make_shared<ov::op::TypeRelaxed<ov::op::internal::RMS>>(ov::op::internal::RMS(new_inputs[0],
+                                                                                                   new_inputs[1],
+                                                                                                   rms->get_epsilon(),
+                                                                                                   rms->get_output_element_type(0)),
+                                                                             rms->get_output_element_type(0));
+        } else {
+            auto group_norm = std::dynamic_pointer_cast<ov::op::v12::GroupNormalization>(pattern_map.at(group_norm_m).get_node_shared_ptr());
+            new_norm = std::make_shared<ov::op::TypeRelaxed<ov::op::v12::GroupNormalization>>(
+                        ov::op::v12::GroupNormalization(new_inputs[0],
+                                                        new_inputs[1],
+                                                        new_inputs[2],
+                                                        group_norm->get_num_groups(),
+                                                        group_norm->get_epsilon()),
+                        group_norm->get_output_element_type(0));
+        }
+        new_norm->set_friendly_name(norm->get_friendly_name());
+        ov::copy_runtime_info(norm, new_norm);
+        ov::replace_node(norm, new_norm);
+
+        return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(norm_m, "MulGroupNormTransformation");
-    this->register_matcher(m, callback);
-}
-
-// MVN has the following property.
-//
-// MVN(input * const_a) = MVN(input)
-//
-// So, we can skip Multiply that is connected to MVN.
-//
-// input --> Multiply --> MVN
-//   ==>
-// input --> MVN
-ov::pass::activations_scaling::MulMVNTransformation::MulMVNTransformation() {
-    MATCHER_SCOPE(MulMVNTransformation);
-
-    auto activation_m = any_input(is_non_const_node);
-    auto scale_const_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(is_scalar_node);
-    auto mul_m = wrap_type<ov::op::v1::Multiply>({activation_m, scale_const_m});
-    auto norm_axes_m = any_input();
-    auto norm_m = wrap_type<ov::op::v6::MVN>({mul_m, norm_axes_m});
-
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
-
-        OPENVINO_ASSERT(pattern_map.count(mul_m));
-        OPENVINO_ASSERT(pattern_map.count(norm_m));
-
-        auto mul = std::dynamic_pointer_cast<ov::op::v1::Multiply>(pattern_map.at(mul_m).get_node_shared_ptr());
-        auto norm = std::dynamic_pointer_cast<ov::op::v6::MVN>(pattern_map.at(norm_m).get_node_shared_ptr());
-
-        if (transformation_callback(norm)) {
-            return false;
-        }
-
-        if (mul && norm) {
-            size_t activation_index =
-                ov::is_type<ov::op::v0::Constant>(mul->get_input_source_output(1).get_node()) ? 0 : 1;
-            auto activation = mul->get_input_source_output(activation_index);
-            if (ov::is_type<ov::op::v0::Convert>(activation.get_node()))
-                activation = activation.get_node()->get_input_source_output(0);
-            auto newMVN =
-                std::make_shared<ov::op::TypeRelaxed<ov::op::v6::MVN>>(ov::op::v6::MVN(activation,
-                                                                                       norm->get_input_source_output(1),
-                                                                                       norm->get_normalize_variance(),
-                                                                                       norm->get_eps(),
-                                                                                       norm->get_eps_mode()),
-                                                                       norm->get_output_element_type(0));
-            ov::copy_runtime_info(norm, newMVN);
-            ov::replace_node(norm, newMVN);
-            return true;
-        }
-        return false;
-    };
-
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(norm_m, "MulMVNTransformation");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(norm_m, "MulNormTransformation");
     this->register_matcher(m, callback);
 }
 
@@ -469,5 +435,61 @@ ov::pass::activations_scaling::MulConcatTransformation::MulConcatTransformation(
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(concat_m, "MulConcatTransformation");
+    this->register_matcher(m, callback);
+}
+
+//         input             input
+//         /   \               |
+//       RMS   Mul    ==>     Mul (expect to be fused into the input layer)
+//        |     |            /   \_
+//      op_a   op_b        RMS   op_b
+//                          |
+//                         op_a
+ov::pass::activations_scaling::NormMulTransformation::NormMulTransformation() {
+    MATCHER_SCOPE(NormMulTransformation);
+
+    auto mvn_m = wrap_type<ov::op::v6::MVN>({any_input(), any_input()});
+    auto rms_m = wrap_type<ov::op::internal::RMS>({any_input(), any_input()});
+    auto group_norm_m = wrap_type<ov::op::v12::GroupNormalization>({any_input(), any_input(), any_input()});
+    auto norm_m = std::make_shared<Or>(OutputVector{mvn_m, rms_m, group_norm_m});
+
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+
+        if (transformation_callback(m.get_match_root())) {
+            return false;
+        }
+
+        auto norm = pattern_map.at(norm_m).get_node_shared_ptr();
+
+        auto parent_output = norm->get_input_source_output(0);
+        if (parent_output.get_target_inputs().size() != 2)
+            return false;
+
+        ov::Node *mul = nullptr;
+        for (auto& child : parent_output.get_target_inputs()) {
+            if (child == norm->input(0))
+                continue;
+            mul = child.get_node();
+        }
+
+        if (!ov::is_type<ov::op::v1::Multiply>(mul))
+            return false;
+
+        ov::Output<ov::Node> const_input;
+        for (auto input : mul->input_values()) {
+            if (input == parent_output)
+                continue;
+            const_input = input;
+        }
+
+        if (!is_scalar_node(const_input))
+            return false;
+
+        norm->input(0).replace_source_output(mul->output(0));
+        return false;
+    };
+
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(norm_m, "NormMulTransformation");
     this->register_matcher(m, callback);
 }

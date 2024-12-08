@@ -900,6 +900,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply::activations_scaling");
         ov::pass::Manager manager("GPU:ActivationsScaling");
         manager.set_per_pass_validation(false);
+        auto pass_config = manager.get_pass_config();
 
         // Other ops support eltwise fusions
         const std::vector<DiscreteTypeInfo> allowed_data_movement_ops = {
@@ -919,6 +920,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // not working properly.
         manager.register_pass<ov::pass::Validate>();
 
+        manager.register_pass<ov::pass::RoPEFusion>(true);
+        pass_config->disable<ov::pass::RoPEFusionGPTJ>();
+        pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
+        pass_config->disable<ov::pass::RoPEShareCosSin>();
+
         float activations_scale_factor = config.get_property(ov::hint::activations_scale_factor);
         ov::element::Type scaled_precision = element::f16;
 
@@ -928,7 +934,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             auto supportedPrecisions = std::vector<PrecisionsRestriction>({});
             auto perTensorQuantization = std::vector<QuantizationGranularityRestriction>({});
 
-            auto pass_config = manager.get_pass_config();
             pass_config->disable<ov::pass::AddMultiplyFusion>();
             pass_config->disable<RecurrentCellTransformation>();
             pass_config->disable<MultiplyToGroupConvolutionTransformation>();
@@ -953,9 +958,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::pass::activations_scaling::ScaleDownFusion>();
             auto params = LayerTransformation::Params(false, scaled_precision, {scaled_precision}, true, false);
             auto lpt_pass = manager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization, params);
-            lpt_pass->add_main<ov::pass::activations_scaling::MulGroupNormTransformation>();
-            lpt_pass->add_main<ov::pass::activations_scaling::MulMVNTransformation>();
+            lpt_pass->add_main<ov::pass::activations_scaling::MulNormTransformation>();
             lpt_pass->add_main<ov::pass::activations_scaling::MulConcatTransformation>();
+            manager.register_pass<ov::pass::activations_scaling::NormMulTransformation>();
         }
 
         manager.run_passes(func);
@@ -1029,11 +1034,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         const size_t zp_pad_size = device_info.supports_immad ? 16 : 32;
         manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size, device_info.supports_immad);
-
-        manager.register_pass<ov::pass::RoPEFusion>(true);
-        pass_config->disable<ov::pass::RoPEFusionGPTJ>();
-        pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
-        pass_config->disable<ov::pass::RoPEShareCosSin>();
 
         manager.register_pass<ov::intel_gpu::OptimizeSubsequentReshapes>();
 
