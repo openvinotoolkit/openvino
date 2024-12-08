@@ -2665,19 +2665,41 @@ bool primitive_inst::is_valid_fusion() const {
         // * Gemm fused op shape: (1,f,y,x) -> OneDNN shape: (1*f,y,x)
         // If batch dimension of gemm output is not equal to 1, then OneDNN will not be able to broadcast fused op data
         // correctly and we need to do it manually
-        if ((_node->is_type<gemm>() || _node->is_type<fully_connected>()) && _node->get_preferred_impl_type() == impl_types::onednn) {
+        if (_node->is_type<gemm>() && _node->get_preferred_impl_type() == impl_types::onednn) {
             const auto& gemm_layout = _impl_params->get_output_layout();
             const auto& data_layout = outer_dep.first->_impl_params->get_output_layout();
             auto gemm_dims = onednn::convert_gemm_tensor(gemm_layout.get_tensor(),
                                                          cldnn::format::dimension(gemm_layout.format),
                                                          false);
-
             auto data_dims = onednn::convert_gemm_tensor(data_layout.get_tensor(),
                                                          cldnn::format::dimension(data_layout.format),
                                                          false);
 
             if (gemm_dims[0] != data_dims[0])
                 return false;
+        } else if (_node->is_type<fully_connected>() && _node->get_preferred_impl_type() == impl_types::onednn) {
+            const auto& fc_layout = _impl_params->get_output_layout();
+            const auto& data_layout = outer_dep.first->_impl_params->get_output_layout();
+
+            const auto fc_dims = fc_layout.get_dims();
+            const auto data_dims = data_layout.get_dims();
+
+            auto same_spatial = [](layout a, layout b) {
+                if (a.get_spatial_rank() != b.get_spatial_rank())
+                    return false;
+                for (size_t i = 0; i < a.get_spatial_rank(); i++) {
+                    if (a.spatial(i) != b.spatial(i))
+                        return false;
+                }
+                return true;
+            };
+
+            if (!(fc_dims[0] == 1 || fc_dims[1] == 1) &&
+                !(data_dims[0] == 1 && data_dims[1] == 1) &&
+                !((data_dims[0] == 1 || data_dims[1] == 1) && same_spatial(fc_layout, data_layout)) &&
+                !(fc_layout.count() == data_layout.count())) {
+                return false;
+            }
         }
 #endif
 
