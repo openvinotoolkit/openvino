@@ -18,7 +18,19 @@ public:
     PyOp() = default;
 
     // Keeps a reference to the Python object to manage its lifetime
-    PyOp(const py::object& py_obj) : py_handle(py_obj) {}
+    PyOp(const py::object& py_obj) : py_handle(py_obj) {
+        py::gil_scoped_acquire gil;  // Acquire the GIL while in this scope.
+        // Try to look up the overridden method on the Python side.
+        py::function overrided_py_method = pybind11::get_override(this, "get_type_info");
+        if (overrided_py_method) {   // method is found
+            auto result = overrided_py_method(); // Call the Python function.
+            m_type_info = result.cast<ov::DiscreteTypeInfo>();         
+        } else {
+            py_class_name = py_handle.get_type().attr("__name__").cast<std::string>();
+            m_type_info = ov::DiscreteTypeInfo(py_class_name.c_str(), "extension");
+            std::cout << "from op: " << m_type_info.name << std::endl;
+        }
+    }
 
     void validate_and_infer_types() override;
 
@@ -34,6 +46,8 @@ public:
 
 private:
     py::object py_handle;  // Holds the Python object to manage its lifetime
+    ov::DiscreteTypeInfo m_type_info;
+    std::string py_class_name;
 };
 
 void regclass_graph_Op(py::module m);

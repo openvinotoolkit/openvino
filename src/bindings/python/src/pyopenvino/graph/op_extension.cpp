@@ -18,13 +18,26 @@ namespace py = pybind11;
 class PyOpExtension : public ov::BaseOpExtension {
 public:
     PyOpExtension(const py::object& dtype) : py_handle_dtype{dtype} {
-        auto type_info = py_handle_dtype.attr("get_type_info")();
+        py::handle type_info;
+        std::cout << "1";
+        try {
+            // get_type_info() is a static method
+            type_info = py_handle_dtype.attr("get_type_info")();
+        } catch (const std::exception& exc) {
+            try {
+                //  get_type_info() is a class method
+                std::cout << 2 << std::endl;
+                type_info = py_handle_dtype(py_handle_dtype()).attr("get_type_info")();
+            } catch (const std::exception& exc) {
+                OPENVINO_THROW("Both options failed to get type_info.");
+            }
+        }
+        std::cout << "3 " << py::str(type_info.attr("name"));
         if (!py::isinstance<ov::DiscreteTypeInfo>(type_info)) {
             OPENVINO_THROW("blahbla");
         }
         m_type_info = py::cast<ov::DiscreteTypeInfo>(type_info);
-        const auto& ext_type = get_type_info();
-        OPENVINO_ASSERT(ext_type.name != nullptr && ext_type.version_id != nullptr,
+        OPENVINO_ASSERT(m_type_info.name != nullptr && m_type_info.version_id != nullptr,
                         "Extension type should have information about operation set and operation type.");
     }
 
@@ -35,17 +48,15 @@ public:
     ov::OutputVector create(const ov::OutputVector& inputs, ov::AttributeVisitor& visitor) const override {
         // TODO: Create new python object using some python API under GIL then call its method
         py::gil_scoped_acquire acquire;
+        // add check for default ctor
         const auto node = py_handle_dtype();
 
-        // node->set_arguments(inputs);
-        auto py_in = py::cast(inputs);
-        node.attr("set_arguments")(py_in);
-        // if (node.attr("visit_attributes")(&visitor)) {
-        //     node.attr("constructor_validate_and_infer_types")();
-        // }
-        const auto q = node.attr("outputs")();
-        const auto t = py::cast<ov::OutputVector>(q);
-        return t;
+        node.attr("set_arguments")(py::cast(inputs));
+        if (node.attr("visit_attributes")(&visitor)) {
+            node.attr("constructor_validate_and_infer_types")();
+        }
+
+        return py::cast<ov::OutputVector>(node.attr("outputs")());
     }
 
     std::vector<ov::Extension::Ptr> get_attached_extensions() const override {

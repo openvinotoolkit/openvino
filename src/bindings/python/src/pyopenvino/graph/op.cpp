@@ -10,9 +10,11 @@
 #include <pybind11/stl_bind.h>
 
 #include <pyopenvino/graph/op.hpp>
+#include <pyopenvino/graph/discrete_type_info.hpp>
 
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
 
 namespace py = pybind11;
 
@@ -27,15 +29,26 @@ bool PyOp::visit_attributes(ov::AttributeVisitor& value) {
     if (overrided_py_method) {                                       // method is found
         return static_cast<py::bool_>(overrided_py_method(&value));  // Call the Python function.
     }
-    return false;
+    return true;
 }
 
 std::shared_ptr<ov::Node> PyOp::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    PYBIND11_OVERRIDE_PURE(std::shared_ptr<Node>, ov::op::Op, clone_with_new_inputs, new_args);
+    py::gil_scoped_acquire gil;  // Acquire the GIL while in this scope.
+    // Try to look up the overridden method on the Python side.
+    py::function overrided_py_method = pybind11::get_override(this, "clone_with_new_inputs");
+    if (overrided_py_method) {                                       // method is found
+        auto result = overrided_py_method(new_args); // Call the Python function.
+        return result.cast<std::shared_ptr<ov::Node>>();
+    }
+    // Default implementation for clone_with_new_inputs
+    auto py_handle_type = py_handle.get_type();
+    auto new_py_object = py_handle_type(new_args);
+    return new_py_object.cast<std::shared_ptr<ov::Node>>();
 }
 
 const ov::op::Op::type_info_t& PyOp::get_type_info() const {
-    PYBIND11_OVERRIDE(const ov::Node::type_info_t&, ov::op::Op, get_type_info);
+    std::cout << "from cpp get type: " << m_type_info.name << std::endl;
+    return m_type_info;
 }
 
 bool PyOp::evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const {
