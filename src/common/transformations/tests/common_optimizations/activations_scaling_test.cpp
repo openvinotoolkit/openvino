@@ -113,7 +113,7 @@ TEST_F(TransformationTestsF, ScaleDownFusionTest) {
     }
 }
 
-TEST_F(TransformationTestsF, MulGroupNormTransformationTest) {
+TEST_F(TransformationTestsF, MulNormTransformationTest) {
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 16, 16});
         auto scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {10});
@@ -126,7 +126,7 @@ TEST_F(TransformationTestsF, MulGroupNormTransformationTest) {
         auto result = std::make_shared<ov::op::v0::Result>(convert);
 
         model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
-        manager.register_pass<ov::pass::activations_scaling::MulGroupNormTransformation>();
+        manager.register_pass<ov::pass::activations_scaling::MulNormTransformation>();
     }
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 16, 16});
@@ -135,32 +135,6 @@ TEST_F(TransformationTestsF, MulGroupNormTransformationTest) {
         auto group_norm =
             std::make_shared<ov::op::v12::GroupNormalization>(input, norm_scale_const, norm_bias_const, 1, 0.01f);
         auto convert = std::make_shared<ov::op::v0::Convert>(group_norm, ov::element::f32);
-        auto result = std::make_shared<ov::op::v0::Result>(convert);
-
-        model_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
-    }
-}
-
-TEST_F(TransformationTestsF, MulMVNTransformationTest) {
-    {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 224, 224});
-        auto scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {10});
-        auto mul = std::make_shared<ov::op::v1::Multiply>(input, scale_const);
-        auto norm_axes_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {1, 2, 3});
-        auto mvn =
-            std::make_shared<ov::op::v6::MVN>(mul, norm_axes_const, true, 0.01f, ov::op::MVNEpsMode::INSIDE_SQRT);
-        auto convert = std::make_shared<ov::op::v0::Convert>(mvn, ov::element::f32);
-        auto result = std::make_shared<ov::op::v0::Result>(convert);
-
-        model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
-        manager.register_pass<ov::pass::activations_scaling::MulMVNTransformation>();
-    }
-    {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 224, 224});
-        auto norm_axes_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {1, 2, 3});
-        auto mvn =
-            std::make_shared<ov::op::v6::MVN>(input, norm_axes_const, true, 0.01f, ov::op::MVNEpsMode::INSIDE_SQRT);
-        auto convert = std::make_shared<ov::op::v0::Convert>(mvn, ov::element::f32);
         auto result = std::make_shared<ov::op::v0::Result>(convert);
 
         model_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
