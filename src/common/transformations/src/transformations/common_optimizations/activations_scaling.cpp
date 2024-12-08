@@ -27,9 +27,9 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "ov_ops/rms.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "transformations/utils/utils.hpp"
-#include "ov_ops/rms.hpp"
 
 namespace {
 const auto is_scalar_node = [](const ov::Output<ov::Node>& output) -> bool {
@@ -297,7 +297,7 @@ ov::pass::activations_scaling::MulNormTransformation::MulNormTransformation() {
         std::shared_ptr<ov::Node> new_norm;
         if (pattern_map.count(mvn_m)) {
             auto mvn = std::dynamic_pointer_cast<ov::op::v6::MVN>(pattern_map.at(mvn_m).get_node_shared_ptr());
-            new_norm = 
+            new_norm =
                 std::make_shared<ov::op::TypeRelaxed<ov::op::v6::MVN>>(ov::op::v6::MVN(new_inputs[0],
                                                                                        new_inputs[1],
                                                                                        mvn->get_normalize_variance(),
@@ -307,21 +307,22 @@ ov::pass::activations_scaling::MulNormTransformation::MulNormTransformation() {
 
         } else if (pattern_map.count(rms_m)) {
             auto rms = std::dynamic_pointer_cast<ov::op::internal::RMS>(pattern_map.at(rms_m).get_node_shared_ptr());
-            new_norm = 
-                std::make_shared<ov::op::TypeRelaxed<ov::op::internal::RMS>>(ov::op::internal::RMS(new_inputs[0],
-                                                                                                   new_inputs[1],
-                                                                                                   rms->get_epsilon(),
-                                                                                                   rms->get_output_element_type(0)),
-                                                                             rms->get_output_element_type(0));
+            new_norm = std::make_shared<ov::op::TypeRelaxed<ov::op::internal::RMS>>(
+                ov::op::internal::RMS(new_inputs[0],
+                                      new_inputs[1],
+                                      rms->get_epsilon(),
+                                      rms->get_output_element_type(0)),
+                rms->get_output_element_type(0));
         } else {
-            auto group_norm = std::dynamic_pointer_cast<ov::op::v12::GroupNormalization>(pattern_map.at(group_norm_m).get_node_shared_ptr());
+            auto group_norm = std::dynamic_pointer_cast<ov::op::v12::GroupNormalization>(
+                pattern_map.at(group_norm_m).get_node_shared_ptr());
             new_norm = std::make_shared<ov::op::TypeRelaxed<ov::op::v12::GroupNormalization>>(
-                        ov::op::v12::GroupNormalization(new_inputs[0],
-                                                        new_inputs[1],
-                                                        new_inputs[2],
-                                                        group_norm->get_num_groups(),
-                                                        group_norm->get_epsilon()),
-                        group_norm->get_output_element_type(0));
+                ov::op::v12::GroupNormalization(new_inputs[0],
+                                                new_inputs[1],
+                                                new_inputs[2],
+                                                group_norm->get_num_groups(),
+                                                group_norm->get_epsilon()),
+                group_norm->get_output_element_type(0));
         }
         new_norm->set_friendly_name(norm->get_friendly_name());
         ov::copy_runtime_info(norm, new_norm);
@@ -466,7 +467,7 @@ ov::pass::activations_scaling::NormMulTransformation::NormMulTransformation() {
         if (parent_output.get_target_inputs().size() != 2)
             return false;
 
-        ov::Node *mul = nullptr;
+        ov::Node* mul = nullptr;
         for (auto& child : parent_output.get_target_inputs()) {
             if (child == norm->input(0))
                 continue;
