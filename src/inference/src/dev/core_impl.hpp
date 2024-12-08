@@ -251,10 +251,6 @@ public:
                                                          std::string& deviceName,
                                                          ov::AnyMap& config) const;
 
-    void apply_rt_info(const ov::Plugin& plugin,
-                       const std::shared_ptr<const ov::Model>& model,
-                       ov::AnyMap& config) const;
-
     /*
      * @brief Register plugins according to the build configuration
      */
