@@ -11,30 +11,28 @@
 #include "nodes/input.h"
 #include "nodes/reorder.h"
 #include "openvino/core/parallel.hpp"
-#include "shape_inference/shape_inference_ngraph.hpp"
-#include "transformations/utils/utils.hpp"
-
-#include "ov_ops/augru_cell.hpp"
-#include "ov_ops/augru_sequence.hpp"
 #include "openvino/op/gru_cell.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/rnn_cell.hpp"
 #include "openvino/op/rnn_sequence.hpp"
+#include "ov_ops/augru_cell.hpp"
+#include "ov_ops/augru_sequence.hpp"
+#include "shape_inference/shape_inference.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace dnnl;
 
 
 namespace ov {
 namespace intel_cpu {
+
 namespace node {
 
 static rnn_direction ieDirection2dnnl(const std::shared_ptr<const ov::Node>& op) {
     ov::op::RecurrentSequenceDirection direction = ov::op::RecurrentSequenceDirection::FORWARD;
     if (ov::is_type<ov::op::v5::GRUSequence>(op)) {
         direction = ov::as_type_ptr<const ov::op::v5::GRUSequence>(op)->get_direction();
-    } else if (ov::is_type<ov::op::v0::LSTMSequence>(op)) {
-        direction = ov::as_type_ptr<const ov::op::v0::LSTMSequence>(op)->get_direction();
     } else if (ov::is_type<ov::op::v5::LSTMSequence>(op)) {
         direction = ov::as_type_ptr<const ov::op::v5::LSTMSequence>(op)->get_direction();
     } else if (ov::is_type<ov::op::v5::RNNSequence>(op)) {
@@ -75,14 +73,13 @@ static dnnl::algorithm ie2dnnl(const std::shared_ptr<const ov::Node>& op) {
         else
             return dnnl::algorithm::vanilla_augru;
     } else if (one_of(op->get_type_info(),
-            ov::op::v0::LSTMCell::get_type_info_static(),
-            ov::op::v4::LSTMCell::get_type_info_static(),
-            ov::op::v0::LSTMSequence::get_type_info_static(),
-            ov::op::v5::LSTMSequence::get_type_info_static())) {
+                      ov::op::v0::LSTMCell::get_type_info_static(),
+                      ov::op::v4::LSTMCell::get_type_info_static(),
+                      ov::op::v5::LSTMSequence::get_type_info_static())) {
         return dnnl::algorithm::vanilla_lstm;
     } else if (one_of(op->get_type_info(),
-            ov::op::v0::RNNCell::get_type_info_static(),
-            ov::op::v5::RNNSequence::get_type_info_static())) {
+                      ov::op::v0::RNNCell::get_type_info_static(),
+                      ov::op::v5::RNNSequence::get_type_info_static())) {
         return dnnl::algorithm::vanilla_rnn;
     } else {
         OPENVINO_THROW("Operation ",
@@ -201,16 +198,15 @@ bool RNNKey::operator==(const RNNKey& rhs) const {
 bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!one_of(op->get_type_info(),
-                ov::op::v3::GRUCell::get_type_info_static(),
-                ov::op::internal::AUGRUCell::get_type_info_static(),
-                ov::op::internal::AUGRUSequence::get_type_info_static(),
-                ov::op::v0::LSTMCell::get_type_info_static(),
-                ov::op::v4::LSTMCell::get_type_info_static(),
-                ov::op::v0::RNNCell::get_type_info_static(),
-                ov::op::v5::GRUSequence::get_type_info_static(),
-                ov::op::v0::LSTMSequence::get_type_info_static(),
-                ov::op::v5::LSTMSequence::get_type_info_static(),
-                ov::op::v5::RNNSequence::get_type_info_static())) {
+                    ov::op::v3::GRUCell::get_type_info_static(),
+                    ov::op::internal::AUGRUCell::get_type_info_static(),
+                    ov::op::internal::AUGRUSequence::get_type_info_static(),
+                    ov::op::v0::LSTMCell::get_type_info_static(),
+                    ov::op::v4::LSTMCell::get_type_info_static(),
+                    ov::op::v0::RNNCell::get_type_info_static(),
+                    ov::op::v5::GRUSequence::get_type_info_static(),
+                    ov::op::v5::LSTMSequence::get_type_info_static(),
+                    ov::op::v5::RNNSequence::get_type_info_static())) {
             errorMessage = "Unsupported sequence operation.";
             return false;
         }
@@ -239,9 +235,7 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
                 errorMessage = "Node expects 6 inputs. Actual: " + std::to_string(op->get_input_size());
                 return false;
             }
-        } else if (one_of(op->get_type_info(),
-                ov::op::v0::LSTMSequence::get_type_info_static(),
-                ov::op::v5::LSTMSequence::get_type_info_static())) {
+        } else if (one_of(op->get_type_info(), ov::op::v5::LSTMSequence::get_type_info_static())) {
             if (op->get_input_size() != 7) {
                 errorMessage = "Node expects 7 inputs. Actual: " + std::to_string(op->get_input_size());
                 return false;
@@ -264,7 +258,6 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
             if (one_of(rnnCellBase->get_type_info(),
                        ov::op::v0::LSTMCell::get_type_info_static(),
                        ov::op::v4::LSTMCell::get_type_info_static(),
-                       ov::op::v0::LSTMSequence::get_type_info_static(),
                        ov::op::v5::LSTMSequence::get_type_info_static())) {
                 if (rnnCellBase->get_activations() != std::vector<std::string>{"sigmoid", "tanh", "tanh"}) {
                     errorMessage = "Not supported activation functions";
@@ -294,9 +287,6 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
         if (auto gru_seq = ov::as_type_ptr<const ov::op::v5::GRUSequence>(op)) {
             direction = gru_seq->get_direction();
             seqLenIdx = 2;
-        } else if (auto lstm_seq = ov::as_type_ptr<const ov::op::v0::LSTMSequence>(op)) {
-            direction = lstm_seq->get_direction();
-            seqLenIdx = 3;
         } else if (auto lstm_seq = ov::as_type_ptr<const ov::op::v5::LSTMSequence>(op)) {
             direction = lstm_seq->get_direction();
             seqLenIdx = 3;
@@ -366,19 +356,17 @@ namespace {
  * dimentions permutation, necessary due to the mismatch between the ngrpah and the oneDNN RNN node descriptions.
  *
  */
-class RnnShapeInfer : public NgraphShapeInfer {
+class RnnShapeInfer : public IShapeInfer {
 public:
-    RnnShapeInfer(std::shared_ptr<ov::Node> op) :
-        NgraphShapeInfer(make_shape_inference(op), EMPTY_PORT_MASK) {
-            is_sequence = !(RNN::isCell(op));
-
-            native_order = RNN::testNativeOrder(op);
-        }
+    RnnShapeInfer(std::shared_ptr<ov::Node> op)
+        : is_sequence(!(RNN::isCell(op))),
+          native_order(RNN::testNativeOrder(op)),
+          m_shape_infer(make_shape_inference(std::move(op))) {}
 
     Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        auto result = NgraphShapeInfer::infer(input_shapes, data_dependency);
+        auto result = m_shape_infer->infer(input_shapes, data_dependency);
         if (ShapeInferStatus::success != result.status) {
             OPENVINO_THROW("Unexpected: Unexpected shape inference result status");
         }
@@ -392,10 +380,24 @@ public:
         return {std::move(originOutputShapes), result.status};
     }
 
+    const ov::CoordinateDiff& get_pads_begin() override {
+        return m_shape_infer->get_pads_begin();
+    }
+
+    const ov::CoordinateDiff& get_pads_end() override {
+        return m_shape_infer->get_pads_end();
+    }
+
+    port_mask_t get_port_mask() const override {
+        return m_shape_infer->get_port_mask();
+    }
+
 private:
-    bool is_sequence = false;
-    bool native_order = true;
+    bool is_sequence;
+    bool native_order;
+    ShapeInferPtr m_shape_infer;
 };
+
 class RnnShapeInferFactory final : public ShapeInferFactory {
 public:
     RnnShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
@@ -441,9 +443,7 @@ RNN::RNN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) 
     } else if (op->get_type_info() == ov::op::internal::AUGRUSequence::get_type_info_static()) {
         sIdx = 2; wIdx = 3; rIdx = 4; bIdx = 5; aIdx = 6;
         yIdx = 0; hoIdx = 1;
-    } else if (one_of(op->get_type_info(),
-                      ov::op::v0::LSTMSequence::get_type_info_static(),
-                      ov::op::v5::LSTMSequence::get_type_info_static())) {
+    } else if (one_of(op->get_type_info(), ov::op::v5::LSTMSequence::get_type_info_static())) {
         sIdx = 3; wIdx = 4; rIdx = 5; bIdx = 6;
         yIdx = 0; hoIdx = 1; coIdx = 2;
     }

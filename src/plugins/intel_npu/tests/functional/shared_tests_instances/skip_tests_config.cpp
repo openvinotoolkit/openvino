@@ -481,13 +481,6 @@ std::vector<std::string> disabledTestPatterns() {
                 // [Tracking number: E#111369]
                 ".*OVInferRequestMultithreadingTests.canRun3SyncRequestsConsistently.*"
         });
-
-        // [Tracking number: E#107154]
-        _skipRegistry.addPatterns(
-                "Can't disable ELF Backend since Graphfile does not work on linux", {
-                ".*NPU_USE_ELF_COMPILER_BACKEND:NO.*",
-                ".*USE_ELF_COMPILER_BACKEND_NO.*"
-        });
 #endif
 
         _skipRegistry.addPatterns(backendName.isIMD(), "IMD/Simics do not support the tests",
@@ -765,6 +758,11 @@ std::vector<std::string> disabledTestPatterns() {
         _skipRegistry.addPatterns("Failing runtime model tests", {
                 ".*OVCompiledModelGraphUniqueNodeNamesTest.CheckUniqueNodeNames.*",
                 ".*OVExecGraphSerializationTest.ExecutionGraph.*"
+        });
+
+        // get_runtime_model method is not supported on NPU
+        _skipRegistry.addPatterns("get_runtime_model method is not supported on NPU", {
+                ".*OVClassModelOptionalTestP.CompileModelCreateDefaultExecGraphResult.*",
         });
 
         return _skipRegistry;

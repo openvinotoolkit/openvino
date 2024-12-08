@@ -477,7 +477,7 @@ jobs:
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
             -S ${OPENVINO_CONTRIB_REPO}/modules/nvidia_plugin \
             -B ${NVIDIA_BUILD_DIR}
-          cmake --build ${NVIDIA_BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --verbose -- ov_nvidia_func_tests ov_nvidia_unit_tests
+          cmake --build ${NVIDIA_BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} --verbose -- ov_nvidia_func_tests ov_nvidia_unit_tests
 
       - name: Show ccache stats
         run: ${SCCACHE_PATH} --show-stats
@@ -491,6 +491,7 @@ jobs:
       shell: bash
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: '3.11'
     if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
 
   iGPU:
