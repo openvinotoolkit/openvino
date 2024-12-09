@@ -30,6 +30,8 @@ public:
     virtual bool release_from_memory() {
         OPENVINO_THROW("BlobContainer::release_from_memory() method is not implemented!");
     }
+
+    virtual ~BlobContainer() = default;
 };
 
 class BlobContainerVector : public BlobContainer {
@@ -147,7 +149,7 @@ protected:
     // first inference starts running
     std::mutex _mutex;
 
-    std::shared_ptr<ov::AlignedBuffer> _blob;
+    std::unique_ptr<BlobContainer> _blob;
 
     uint32_t _unique_id = 0;
     uint32_t _last_submitted_id;

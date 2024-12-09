@@ -17,7 +17,10 @@ PluginGraph::PluginGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
                          NetworkMetadata metadata,
                          std::unique_ptr<BlobContainer> blobPtr,
                          const Config& config)
-    : IGraph(graphHandle, std::move(metadata), config, std::optional<std::unique_ptr<BlobContainer>>(std::move(blobPtr))),
+    : IGraph(graphHandle,
+             std::move(metadata),
+             config,
+             std::optional<std::unique_ptr<BlobContainer>>(std::move(blobPtr))),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
       _compiler(compiler),
@@ -40,7 +43,9 @@ size_t PluginGraph::export_blob(std::ostream& stream) {
 
     if (_logger.level() >= ov::log::Level::INFO) {
         std::uint32_t result = 1171117u;
-        for (const uint8_t* it = reinterpret_cast<const uint8_t*>(_blob->get_ptr()); it != reinterpret_cast<const uint8_t*>(_blob->get_ptr()) + _blob->size(); ++it) {
+        for (const uint8_t* it = reinterpret_cast<const uint8_t*>(_blob->get_ptr());
+             it != reinterpret_cast<const uint8_t*>(_blob->get_ptr()) + _blob->size();
+             ++it) {
             result = ((result << 7) + result) + static_cast<uint32_t>(*it);
         }
 
@@ -55,7 +60,8 @@ size_t PluginGraph::export_blob(std::ostream& stream) {
 std::vector<ov::ProfilingInfo> PluginGraph::process_profiling_output(const std::vector<uint8_t>& profData,
                                                                      const Config& config) const {
     std::vector<uint8_t> blob(_blob->size());
-    blob.assign(reinterpret_cast<const uint8_t*>(_blob->get_ptr()), reinterpret_cast<const uint8_t*>(_blob->get_ptr()) + _blob->size());
+    blob.assign(reinterpret_cast<const uint8_t*>(_blob->get_ptr()),
+                reinterpret_cast<const uint8_t*>(_blob->get_ptr()) + _blob->size());
     return _compiler->process_profiling_output(profData, blob, config);
 }
 

@@ -150,7 +150,7 @@ bool DriverGraph::release_blob(const Config& config) {
         return false;
     }
 
-    if(!_blob->release_from_memory()) {
+    if (!_blob->release_from_memory()) {
         return false;
     }
 

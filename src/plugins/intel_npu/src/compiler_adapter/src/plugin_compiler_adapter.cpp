@@ -88,7 +88,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     if (_zeGraphExt) {
         // Depending on the config, we may get an error when trying to get the graph handle from the compiled network
         try {
-            graphHandle = _zeGraphExt->getGraphHandle(reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()), blobPtr->size());
+            graphHandle =
+                _zeGraphExt->getGraphHandle(reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()), blobPtr->size());
         } catch (...) {
             _logger.info("Failed to obtain the level zero graph handle. Inference requests for this model are not "
                          "allowed. Only exports are available");
@@ -103,12 +104,14 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
                                          config);
 }
 
-std::shared_ptr<IGraph> PluginCompilerAdapter::parse(std::unique_ptr<BlobContainer> blobPtr, const Config& config) const {
+std::shared_ptr<IGraph> PluginCompilerAdapter::parse(std::unique_ptr<BlobContainer> blobPtr,
+                                                     const Config& config) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
 
     _logger.debug("parse start");
     std::vector<uint8_t> network(blobPtr->size());
-    network.assign(reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()), reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()) + blobPtr->size());
+    network.assign(reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()),
+                   reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()) + blobPtr->size());
     auto networkMeta = _compiler->parse(network, config);
     network.clear();
     network.shrink_to_fit();
@@ -117,7 +120,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(std::unique_ptr<BlobContain
     ze_graph_handle_t graphHandle = nullptr;
 
     if (_zeGraphExt) {
-        graphHandle = _zeGraphExt->getGraphHandle(reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()), blobPtr->size());
+        graphHandle =
+            _zeGraphExt->getGraphHandle(reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()), blobPtr->size());
     }
 
     return std::make_shared<PluginGraph>(_zeGraphExt,

@@ -861,8 +861,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& /* unusedStream */,
-                                                         std::shared_ptr<ov::AlignedBuffer> model_buffer, 
-                                                         const ov::AnyMap& properties) const { 
+                                                         std::shared_ptr<ov::AlignedBuffer> model_buffer,
+                                                         const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
     OV_ITT_TASK_CHAIN(PLUGIN_IMPORT_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "merge_configs");
 

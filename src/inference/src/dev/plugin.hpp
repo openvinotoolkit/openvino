@@ -59,7 +59,9 @@ public:
                                            const ov::SoPtr<ov::IRemoteContext>& context,
                                            const ov::AnyMap& config) const;
 
-    SoPtr<ov::ICompiledModel> import_model(std::istream& model, std::shared_ptr<ov::AlignedBuffer> model_buffer, const ov::AnyMap& properties) const;
+    SoPtr<ov::ICompiledModel> import_model(std::istream& model,
+                                           std::shared_ptr<ov::AlignedBuffer> model_buffer,
+                                           const ov::AnyMap& properties) const;
 
     SoPtr<ov::ICompiledModel> import_model(std::istream& model,
                                            std::shared_ptr<ov::AlignedBuffer> model_buffer,
@@ -85,4 +87,3 @@ public:
 };
 
 }  // namespace ov
-

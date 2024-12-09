@@ -95,8 +95,8 @@ public:
     }
 
     pos_type seekoff(off_type off,
-        std::ios_base::seekdir dir,
-        std::ios_base::openmode which = std::ios_base::in) override {
+                     std::ios_base::seekdir dir,
+                     std::ios_base::openmode which = std::ios_base::in) override {
         auto pos = SharedStreamBuffer::seekoff(off, dir, which);
         m_shared_obj->updateOffset(m_offset);
         return pos;

@@ -156,7 +156,8 @@ std::string ModelCache::compute_hash(const std::string& modelStr,
 
 //////////////////////////////////////////////////
 
-CompiledBlobHeader::CompiledBlobHeader(std::shared_ptr<ov::AlignedBuffer> model_buffer) : m_model_buffer(model_buffer) {}
+CompiledBlobHeader::CompiledBlobHeader(std::shared_ptr<ov::AlignedBuffer> model_buffer)
+    : m_model_buffer(model_buffer) {}
 
 CompiledBlobHeader::CompiledBlobHeader(const std::string& ieVersion,
                                        const std::string& fileInfo,

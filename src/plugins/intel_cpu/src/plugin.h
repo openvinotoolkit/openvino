@@ -39,8 +39,7 @@ public:
                                                      std::shared_ptr<ov::AlignedBuffer> model_buffer,
                                                      const ov::SoPtr<ov::IRemoteContext>& context,
                                                      const ov::AnyMap& properties) const override {
-        OPENVINO_THROW_NOT_IMPLEMENTED(
-            "import_model with RemoteContext is not supported by CPU plugin!");
+        OPENVINO_THROW_NOT_IMPLEMENTED("import_model with RemoteContext is not supported by CPU plugin!");
     };
 
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,

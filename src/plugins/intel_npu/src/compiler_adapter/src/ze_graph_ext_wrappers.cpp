@@ -372,12 +372,8 @@ ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(const uint8_t* blobData, si
         OPENVINO_THROW("Empty blob");
     }
 
-    ze_graph_desc_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
-                            nullptr,
-                            ZE_GRAPH_FORMAT_NATIVE,
-                            blobSize,
-                            blobData,
-                            nullptr};
+    ze_graph_desc_t desc =
+        {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES, nullptr, ZE_GRAPH_FORMAT_NATIVE, blobSize, blobData, nullptr};
 
     _logger.debug("getGraphHandle - perform pfnCreate");
     auto result = _zeroInitStruct->getGraphDdiTable().pfnCreate(_zeroInitStruct->getContext(),
