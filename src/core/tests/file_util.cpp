@@ -375,8 +375,7 @@ TEST(file_util, path_cast) {
 #endif
 
 #if (!(defined(__GNUC__) && (__GNUC__ < 12 || __GNUC__ == 12 && __GNUC_MINOR__ < 3)) && \
-     !(defined(__clang__) && __clang_major__ < 17) && \
-     !defined(_MSC_VER))
+     !(defined(__clang__) && __clang_major__ < 17) && !defined(_MSC_VER))
     // error C2280: 'std::u32string std::experimental::filesystem::v1::path::u32string(void) const': attempting to
     // reference a deleted function
     //  from wchar_t to char32_t
@@ -386,5 +385,5 @@ TEST(file_util, path_cast) {
     EXPECT_EQ(U"~/local/file.txt", ov::util::Path(L"~/local/file.txt").u32string());
     EXPECT_EQ(U"/usr/local/file.txt", ov::util::Path(L"/usr/local/file.txt").u32string());
     EXPECT_EQ(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt", ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").u32string());
-#   endif
+#endif
 }
