@@ -565,8 +565,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
         decript_from_string = true;
     }
 
+    std::shared_ptr<ov::AlignedBuffer> model_buffer;
+    if (config.count(ov::internal::cached_model_buffer.name()))
+        model_buffer = config.at(ov::internal::cached_model_buffer.name()).as<std::shared_ptr<ov::AlignedBuffer>>();
+
     ModelDeserializer deserializer(
         model_stream,
+        model_buffer,
         [this](const std::shared_ptr<ov::AlignedBuffer>& model, const std::shared_ptr<ov::AlignedBuffer>& weights) {
             return get_core()->read_model(model, weights);
         },
