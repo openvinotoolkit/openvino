@@ -13,7 +13,7 @@
  *     is replaced with a sequence of single-axe Reduce operations.
  *
  * Before:
- * 
+ *
  * +--------------+    +-------------------+
  * |    Data      |    | Axes tensor [A,B] |
  * +-----------+--+    +-+-----------------+
@@ -25,9 +25,9 @@
  *           +------v------+
  *           |   Result    |
  *           +-------------+
- * 
+ *
  * After:
- * 
+ *
  * +-------------+   +---------------+
  * |   Data      |   | Axes scalar A |
  * +---------+---+   +----+----------+
@@ -43,7 +43,7 @@
  *                      +-------v---------+
  *                      |     Result      |
  *                      +-----------------+
- * 
+ *
  */
 
 namespace ov {
@@ -51,38 +51,38 @@ namespace intel_cpu {
 
 class ConvertReduceMultiAxisBase: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertReduceMultiAxisBase", "0");
+    OPENVINO_RTTI("ConvertReduceMultiAxisBase", "0", ov::pass::MatcherPass);
     template <class T>
     ov::matcher_pass_callback convert_reduce();
 };
 
 class ConvertReduceProd: public ConvertReduceMultiAxisBase {
 public:
-    OPENVINO_RTTI("ConvertReduceProd", "0");
+    OPENVINO_RTTI("ConvertReduceProd", "0", ConvertReduceMultiAxisBase);
     ConvertReduceProd();
 };
 
 class ConvertReduceMin: public ConvertReduceMultiAxisBase {
 public:
-    OPENVINO_RTTI("ConvertReduceMin", "0");
+    OPENVINO_RTTI("ConvertReduceMin", "0", ConvertReduceMultiAxisBase);
     ConvertReduceMin();
 };
 
 class ConvertReduceMax: public ConvertReduceMultiAxisBase {
 public:
-    OPENVINO_RTTI("ConvertReduceMax", "0");
+    OPENVINO_RTTI("ConvertReduceMax", "0", ConvertReduceMultiAxisBase);
     ConvertReduceMax();
 };
 
 class ConvertReduceSum: public ConvertReduceMultiAxisBase {
 public:
-    OPENVINO_RTTI("ConvertReduceSum", "0");
+    OPENVINO_RTTI("ConvertReduceSum", "0", ConvertReduceMultiAxisBase);
     ConvertReduceSum();
 };
 
 class ConvertReduceMultiAxis: public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("ConvertReduceMultiAxis", "0");
+    OPENVINO_RTTI("ConvertReduceMultiAxis", "0", ov::pass::GraphRewrite);
     ConvertReduceMultiAxis() {
         add_matcher<ConvertReduceProd>();
         add_matcher<ConvertReduceMin>();

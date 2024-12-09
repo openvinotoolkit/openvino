@@ -11,19 +11,19 @@ namespace intel_cpu {
 
 class ConvertToInteraction: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertToInteraction", "0");
+    OPENVINO_RTTI("ConvertToInteraction", "0", ov::pass::MatcherPass);
     ConvertToInteraction();
 };
 
 class FuseFQtoInteraction: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("FuseFQtoInteraction", "0");
+    OPENVINO_RTTI("FuseFQtoInteraction", "0", ov::pass::MatcherPass);
     FuseFQtoInteraction();
 };
 
 class ConvertInteractionInt8: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertInteractionInt8", "0");
+    OPENVINO_RTTI("ConvertInteractionInt8", "0", ov::pass::MatcherPass);
     ConvertInteractionInt8();
 };
 

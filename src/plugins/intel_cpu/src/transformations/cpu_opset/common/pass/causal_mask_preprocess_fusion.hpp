@@ -11,7 +11,7 @@ namespace intel_cpu {
 
 class CausalMaskPreprocessFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("CausalMaskPreprocessFusion", "0");
+    OPENVINO_RTTI("CausalMaskPreprocessFusion", "0", ov::pass::GraphRewrite);
     CausalMaskPreprocessFusion();
 };
 

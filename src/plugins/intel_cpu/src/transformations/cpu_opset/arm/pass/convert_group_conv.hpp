@@ -13,7 +13,7 @@
  *     equals to number of groups.
  *
  * Before:
- * 
+ *
  * +--------------+    +---------------+
  * | Input tensor |    | Kernel tensor |
  * +-----------+--+    +-+-------------+
@@ -25,9 +25,9 @@
  *           +------v------+
  *           |   Result    |
  *           +-------------+
- * 
+ *
  * After:
- * 
+ *
  * +--------------+    +--------------+ +---------------+   +--------------+
  * | Input tensor |    | Constant (1) | | Kernel tensor |   | Constant (0) |
  * +-----------+--+    +-+------------+ +-----------+---+   +-+------------+
@@ -53,7 +53,7 @@
  *                         +----------v------------+
  *                         |        Result         |
  *                         +-----------------------+
- * 
+ *
  */
 
 namespace ov {
@@ -61,7 +61,7 @@ namespace intel_cpu {
 
 class ConvertGroupConvolution: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertGroupConvolution", "0");
+    OPENVINO_RTTI("ConvertGroupConvolution", "0", ov::pass::MatcherPass);
     ConvertGroupConvolution();
 };
 }  // namespace intel_cpu

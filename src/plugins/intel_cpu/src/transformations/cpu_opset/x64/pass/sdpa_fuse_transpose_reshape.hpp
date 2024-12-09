@@ -10,7 +10,7 @@ namespace ov {
 namespace intel_cpu {
 class SDPAFuseTransposeReshape : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SDPAFuseTransposeReshape", "0");
+    OPENVINO_RTTI("SDPAFuseTransposeReshape", "0", ov::pass::MatcherPass);
     SDPAFuseTransposeReshape();
 };
 
