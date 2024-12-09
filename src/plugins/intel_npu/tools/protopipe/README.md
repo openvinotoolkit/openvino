@@ -555,7 +555,7 @@ Iteration <number>:
               -DORT_INSTALL_DIR=<path-to-onnxrt-install-dir>
     cmake --build . --config Release --target opencv_gapi --parallel
     ```
-#### Build Protopipe inside openVino
+### Build Protopipe inside OpenVino
 1. Build protopipe
     ```
     cd <path-to-OpenVINO-root-dir>
