@@ -56,6 +56,7 @@ implemented in your solutions. Click the buttons below to see the chosen benchma
 
          :material-regular:`table_view;1.4em` LLM performance for AI PC
 
+.. uncomment ander veryfication
    .. grid-item::
 
       .. button-link:: #
