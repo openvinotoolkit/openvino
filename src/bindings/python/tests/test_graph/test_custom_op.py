@@ -247,7 +247,7 @@ def test_op_extension(prepared_paths):
     custom_with_attribute = CustomSimpleOpWithAttribute(inputs=[custom_simple], attrs={"value_str": "test_attribute"})
     custom_add = CustomAdd(inputs=[custom_with_attribute])
     res = ops.result(custom_with_attribute, name="result")
-    simple_model =  Model(res, [param1, param2], "SimpleModel")
+    simple_model = Model(res, [param1, param2], "SimpleModel")
 
     cloned_model = simple_model.clone()
     assert compare_models(simple_model, cloned_model)

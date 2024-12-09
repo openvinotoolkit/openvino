@@ -679,6 +679,17 @@ void regclass_Core(py::module m) {
 
     cls.def(
         "add_extension",
+        static_cast<void (ov::Core::*)(const std::vector<std::shared_ptr<ov::Extension>>&)>(&ov::Core::add_extension),
+        py::arg("extensions"),
+        R"(
+            Registers extensions to a Core object.
+
+            :param extensions: List of Extension objects.
+            :type extensions: list[openvino.runtime.Extension]
+        )");
+
+    cls.def(
+        "add_extension",
         [](ov::Core& self, py::object dtype) {
             self.add_extension(PyOpExtension(dtype));
         },
@@ -688,17 +699,6 @@ void regclass_Core(py::module m) {
 
             :param custom_op: type of custom Op
             :type custom_op: openvino.Op
-        )");
-
-    cls.def(
-        "add_extension",
-        static_cast<void (ov::Core::*)(const std::vector<std::shared_ptr<ov::Extension>>&)>(&ov::Core::add_extension),
-        py::arg("extensions"),
-        R"(
-            Registers extensions to a Core object.
-
-            :param extensions: List of Extension objects.
-            :type extensions: list[openvino.runtime.Extension]
         )");
 
     cls.def("get_available_devices",

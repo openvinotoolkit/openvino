@@ -6,6 +6,9 @@
 
 #include <pybind11/pybind11.h>
 
+#include <pybind11/stl.h>
+#include <pybind11/stl_bind.h>
+
 #include "openvino/core/op_extension.hpp"
 
 namespace py = pybind11;
@@ -17,11 +20,11 @@ public:
         try {
             // get_type_info() is a static method
             type_info = py_handle_dtype.attr("get_type_info")();
-        } catch (const std::exception& exc) {
+        } catch (const std::exception&) {
             try {
                 //  get_type_info() is a class method
                 type_info = py_handle_dtype().attr("get_type_info")();
-            } catch (const std::exception& exc) {
+            } catch (const std::exception&) {
                 OPENVINO_THROW("Both options failed to get type_info.");
             }
         }
