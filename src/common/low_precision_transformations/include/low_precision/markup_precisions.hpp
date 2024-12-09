@@ -65,7 +65,7 @@ public:
         std::unordered_map<std::string, RestrictionByVersion> precisionsByVersion;
     };
 
-    OPENVINO_RTTI("MarkupPrecisions", "0");
+    OPENVINO_RTTI("MarkupPrecisions", "0", ov::pass::ModelPass);
     explicit MarkupPrecisions(const std::vector<PrecisionsRestriction>& restrictions = {},
         const std::vector<ov::element::Type>& defaultPrecisions = { ov::element::u8, ov::element::i8 });
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
