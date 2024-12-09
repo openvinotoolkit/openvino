@@ -48,8 +48,8 @@ private:
 
     ov::Tensor eval_and_alloc(const LazyTensor& tensor, DeviceBank& dbank, const std::string& device);
 
-    void serialize(const std::ofstream& fout) const;
-    void deserialize(const std::ifstream& fin);
+    void serialize(std::ostream& stream) const;
+    static std::shared_ptr<Bank> deserialize(std::istream& stream);
 
     std::mutex m_mutex;
     std::shared_ptr<const ov::ICore> m_core = nullptr;

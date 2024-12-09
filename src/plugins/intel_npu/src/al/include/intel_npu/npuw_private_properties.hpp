@@ -61,24 +61,6 @@ static constexpr ov::Property<std::string> weights_bank_alloc{"NPUW_WEIGHTS_BANK
  */
 static constexpr ov::Property<std::string> cache_dir{"NPUW_CACHE_DIR"};
 
-/**
- * @brief
- * Type: std::string.
- * Specify path where to serialize compiled model.
- * Possible values: any std::string as a path.
- * Default value: empty.
- */
-static constexpr ov::Property<std::string> serialize_path{"NPUW_SERIALIZE_PATH"};
-
-/**
- * @brief
- * Type: std::string.
- * Specify path to serialized compiled model.
- * Possible values: any std::string as a path.
- * Default value: empty.
- */
-static constexpr ov::Property<std::string> deserialize_path{"NPUW_DESERIALIZE_PATH"};
-
 namespace partitioning {
 namespace online {
 /**

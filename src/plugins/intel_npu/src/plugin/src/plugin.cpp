@@ -8,6 +8,7 @@
 
 #include "compiled_model.hpp"
 #include "npuw/compiled_model.hpp"
+#include "npuw/llm_compiled_model.hpp"
 #include "driver_compiler_adapter.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/igraph.hpp"
@@ -768,6 +769,18 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     }
 
     OV_ITT_TASK_NEXT(PLUGIN_IMPORT_MODEL, "parse");
+
+    // If NPUW is active - import via NPUW
+    auto useNpuwKey = ov::intel_npu::use_npuw.name();
+    ov::AnyMap localProperties = properties;
+    if (localProperties.count(useNpuwKey) && localProperties.at(useNpuwKey).as<bool>() == true) {
+        auto llm_enabled = ov::intel_npu::npuw::llm::enabled.name();
+        // Only dynamic statefull models are supported for now supported
+        if (!localProperties.count(llm_enabled) || localProperties.at(llm_enabled).as<bool>() == true) {
+            OPENVINO_THROW("Cannot import non-dynamic NPUW model!");
+        }
+        return ov::npuw::LLMCompiledModel::deserialize(stream, localProperties);
+    }
 
     std::shared_ptr<ov::ICompiledModel> compiledModel;
 

@@ -471,20 +471,20 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     report_io();
 }
 
-void ov::npuw::CompiledModel::serialize(const std::ofstream& fout) const {
+void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
     LOG_INFO("Serializing CompiledModel...");
     LOG_BLOCK();
-
 
     LOG_INFO("Done.");
 }
 
-void ov::npuw::CompiledModel::deserialize(const std::ifstream& fin) {
+std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(std::istream& stream) {
     LOG_INFO("Deserializing CompiledModel...");
     LOG_BLOCK();
 
+    std::shared_ptr<ov::npuw::CompiledModel> compiled;
 
-    implement_properties();
+    compiled->implement_properties();
     LOG_INFO("Done.");
 }
 

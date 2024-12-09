@@ -67,8 +67,8 @@ private:
 
     void report_io() const;
 
-    void serialize(const std::ofstream& fout) const;
-    void deserialize(const std::ifstream& fin);
+    void serialize(std::ostream& stream) const;
+    static std::shared_ptr<CompiledModel> deserialize(std::istream& stream);
 
     // This is used for removing too long output tensor names to fix some compilation issues
     // NB: These two methods has nothing to do with this particular class and should be
@@ -92,14 +92,14 @@ private:
     std::string global_mem_device() const;
     std::string funcall_mem_device(const std::size_t idx) const;
 
-    std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc; // no ser
-    ::intel_npu::Config m_cfg; // no ser ?
-    GetPropertiesMap m_prop_to_opt; // no ser ?
-    std::vector<ov::PropertyName> m_all_supported_props; // no ser
-    ov::AnyMap m_non_npuw_props; // no ser ?
+    std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;  // no ser
+    ::intel_npu::Config m_cfg;                                 // no ser ?
+    GetPropertiesMap m_prop_to_opt;                            // no ser ?
+    std::vector<ov::PropertyName> m_all_supported_props;       // no ser
+    ov::AnyMap m_non_npuw_props;                               // no ser ?
 
-    std::string m_name; // yes ser
-    const bool m_loaded_from_cache; // no ser
+    std::string m_name;              // yes ser
+    const bool m_loaded_from_cache;  // no ser
 
     using ToSubmodel = std::pair<size_t /* submodel_idx */
                                  ,
@@ -108,18 +108,18 @@ private:
     static const constexpr auto NO_LINK = ToSubmodel{-1, -1};
 
     // In the below vector, index == compiled model's input/output port idex.
-    std::vector<ToSubmodel> m_inputs_to_submodels_inputs; // yes ser
-    std::vector<ToSubmodel> m_outputs_to_submodels_outputs; // yes ser
+    std::vector<ToSubmodel> m_inputs_to_submodels_inputs;    // yes ser
+    std::vector<ToSubmodel> m_outputs_to_submodels_outputs;  // yes ser
 
-    std::map<std::size_t, std::vector<ToSubmodel>> m_param_subscribers; // yes ser
+    std::map<std::size_t, std::vector<ToSubmodel>> m_param_subscribers;  // yes ser
 
     std::map<std::pair<size_t /*submodel_idx*/, size_t /*node_idx*/>,  // input ("to")
              std::pair<size_t /*submodel_idx*/, size_t /*node_idx*/>>  // output ("from")
-        m_submodels_input_to_prev_output; // yes ser
+        m_submodels_input_to_prev_output;                              // yes ser
 
-    DeviceProperties m_meta_devices; // no ser
+    DeviceProperties m_meta_devices;  // no ser
 
-    DevList m_dev_list; // no ser
+    DevList m_dev_list;  // no ser
 
     struct execution_stats {
         float gflops{};
@@ -127,45 +127,45 @@ private:
     };
 
     struct CompiledModelDesc {
-        DevList::const_iterator device_it; // yes ser
-        std::set<std::string> devices_to_avoid; // no ser
-        std::shared_ptr<ov::Model> model; // no ser
-        ov::SoPtr<ov::ICompiledModel> compiled_model; // yes ser
+        DevList::const_iterator device_it;             // yes ser
+        std::set<std::string> devices_to_avoid;        // no ser
+        std::shared_ptr<ov::Model> model;              // no ser
+        ov::SoPtr<ov::ICompiledModel> compiled_model;  // yes ser
 
-        std::optional<std::size_t> replaced_by; // yes ser
+        std::optional<std::size_t> replaced_by;  // yes ser
 
-        Subgraph::Gather host_gather; // yes ser
-        std::optional<ov::npuw::compiled::Spatial> spatial; // yes ser
+        Subgraph::Gather host_gather;                        // yes ser
+        std::optional<ov::npuw::compiled::Spatial> spatial;  // yes ser
 
         // FIXME: This is a 1:1 copy of the ov::npuw::Subgraph structure
         // w.r.t. function calls
-        std::size_t param_base = 0; // yes ser
+        std::size_t param_base = 0;  // yes ser
         // NB: closure and lazy_closure are of the same size - to preserve proper indexing.
         //     closure is responsible for host-side tensors (DCOFF, Gather, etc) while
         //     lazy_closure is used for weights sharing and allocating device memory.
-        std::vector<ov::Tensor> closure; // yes ser
-        std::vector<weights::LazyTensor> lazy_closure; // yes ser, weightless
-        std::vector<ov::Tensor> scales; // yes ser
-        std::vector<ov::Tensor> zerops; // yes ser
-        std::vector<bool> is_remote; // yes ser
+        std::vector<ov::Tensor> closure;                // yes ser
+        std::vector<weights::LazyTensor> lazy_closure;  // yes ser, weightless
+        std::vector<ov::Tensor> scales;                 // yes ser
+        std::vector<ov::Tensor> zerops;                 // yes ser
+        std::vector<bool> is_remote;                    // yes ser
 
-        bool forced_to_fcall = false; // yes ser
+        bool forced_to_fcall = false;  // yes ser
 
         // FIXME: Take it out of structure
-        ov::SoPtr<ov::ICompiledModel> ref_compiled_model; // no ser
-        bool switched_to_ref = false; // no ser
+        ov::SoPtr<ov::ICompiledModel> ref_compiled_model;  // no ser
+        bool switched_to_ref = false;                      // no ser
 
         // Metrics
-        execution_stats stat; // no ser
+        execution_stats stat;  // no ser
     };
-    std::vector<CompiledModelDesc> m_compiled_submodels; // yes ser
+    std::vector<CompiledModelDesc> m_compiled_submodels;  // yes ser
 
-    std::function<bool(const ov::SoPtr<ov::ITensor>&, const ov::SoPtr<ov::ITensor>&)> m_acc_check; // no ser
-    std::string m_ref_device; // no ser
+    std::function<bool(const ov::SoPtr<ov::ITensor>&, const ov::SoPtr<ov::ITensor>&)> m_acc_check;  // no ser
+    std::string m_ref_device;                                                                       // no ser
 
-    execution_stats m_total_stat; // no ser
+    execution_stats m_total_stat;  // no ser
 
-    std::shared_ptr<weights::Bank> m_weights_bank = nullptr; // no ser - inderectly instead
+    std::shared_ptr<weights::Bank> m_weights_bank = nullptr;  // no ser - inderectly instead
 };
 }  // namespace npuw
 }  // namespace ov
