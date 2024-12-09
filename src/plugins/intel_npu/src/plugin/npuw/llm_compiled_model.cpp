@@ -30,13 +30,13 @@ std::shared_ptr<ov::Model> redirect_new_kv_to_output(const std::shared_ptr<ov::M
 std::shared_ptr<ov::Model> cvt_kvcache_to_fp16(const std::shared_ptr<ov::Model>& model) {
     ov::preprocess::PrePostProcessor ppp(model);
 
-    for (auto tensor : model->inputs()) {
+    for (const auto& tensor : model->inputs()) {
         if (tensor.get_any_name().find("past_key") != std::string::npos) {
             ppp.input(tensor.get_any_name()).tensor().set_element_type(ov::element::Type_t::f16);
         }
     }
 
-    for (auto tensor : model->outputs()) {
+    for (const auto& tensor : model->outputs()) {
         if (tensor.get_any_name().find("present") != std::string::npos) {
             ppp.output(tensor.get_any_name()).tensor().set_element_type(ov::element::Type_t::f16);
         }
@@ -55,7 +55,7 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
                        const uint32_t kvcache_size,
                        const KVAxesPosition& kv_axes_position) {
     std::map<std::string, ov::PartialShape> new_shapes;
-    for (auto input : model->inputs()) {
+    for (const auto& input : model->inputs()) {
         const auto& input_name = input.get_any_name();
         ov::PartialShape new_shape;
         if (input_name.find("input_ids") != std::string::npos) {
@@ -275,7 +275,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     auto npudesc = extract_npu_descriptor(plugin);
 
-    ov::AnyMap properties_copy = other_props;
+    ov::AnyMap properties_copy = std::move(other_props);
     auto prefill_config = get_default_prefill_config(model, npudesc);
     // NB: GENERATE_HINT is only applicable for default generate config!
     const ::intel_npu::npuw::llm::GenerateHint generate_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_HINT>();
