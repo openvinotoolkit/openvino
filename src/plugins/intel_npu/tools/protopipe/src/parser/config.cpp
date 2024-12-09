@@ -136,18 +136,18 @@ static ScenarioGraph buildGraph(const std::vector<OpDesc>& op_descs,
                                 const std::vector<std::vector<std::string>>& connections);
 
 namespace {
-    void validateNodeChildren(const YAML::Node& node, std::set<std::string> supportedKeys)
+    void validateNodeChildren(const YAML::Node& node, std::set<std::string> supported_keys)
     {
         for (const auto& nodeChild : node) {
             const auto key = nodeChild.first.as<std::string>();
-            if (supportedKeys.find(key) == supportedKeys.end()) {
+            if (supported_keys.find(key) == supported_keys.end()) {
                 const auto mark = node[key].Mark();
                 std::stringstream ss;
                 ss << "Unsupported node: '" << key << "' at line " << mark.line << " column: " << mark.column <<".";
                 ss << " Following nodes are known at this stage: [";
-                for (const auto& supportedKey : supportedKeys) { 
+                for (const auto& supportedKey : supported_keys) { 
                     ss << "\"" << supportedKey << "\"";
-                    if (supportedKey != *supportedKeys.rbegin()) ss << ", ";
+                    if (supportedKey != *supported_keys.rbegin()) ss << ", ";
                 }
                 ss << "].";
                 THROW_ERROR(ss.str());
