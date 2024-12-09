@@ -278,7 +278,7 @@ TEST(file_util, path_cast) {
     EXPECT_EQ(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt", ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").u16string());
     EXPECT_EQ(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt", ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").u16string());
 
-#!defined(_MSC_VER)
+#if !defined(_MSC_VER)
     // error C2280: 'std::u32string std::experimental::filesystem::v1::path::u32string(void) const': attempting to
     // reference a deleted function
 
