@@ -155,6 +155,6 @@ def extract_hierarchy(link):
     return ';'.join(hierarchy)
 
 def format_segment(segment):
-    if segment == 'c_cpp_api': segment = 'c,_c++_api'
+    if segment == 'c_cpp_api': segment = 'c/c++_api'
 
     return ' '.join(word.capitalize() for word in segment.replace('-', ' ').replace('_', ' ').split())
