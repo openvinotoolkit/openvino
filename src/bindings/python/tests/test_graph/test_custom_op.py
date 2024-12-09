@@ -55,10 +55,11 @@ def create_snake_model():
 class CustomAdd(Op):
     class_type_info = DiscreteTypeInfo("CustomAdd", "extension")
 
-    def __init__(self, inputs):
+    def __init__(self, inputs=None):
         super().__init__(self)
-        self.set_arguments(inputs)
-        self.constructor_validate_and_infer_types()
+        if inputs is not None:
+            self.set_arguments(inputs)
+            self.constructor_validate_and_infer_types()
 
     def validate_and_infer_types(self):
         self.set_output_type(0, self.get_input_element_type(0), self.get_input_partial_shape(0))
@@ -85,11 +86,12 @@ def create_add_model():
 class CustomOpWithAttribute(Op):
     class_type_info = DiscreteTypeInfo("CustomOpWithAttribute", "extension")
 
-    def __init__(self, inputs, attrs):
+    def __init__(self, inputs=None, attrs=None):
         super().__init__(self)
-        self._attrs = attrs
-        self.set_arguments(inputs)
-        self.constructor_validate_and_infer_types()
+        if attrs is not None or inputs is not None:
+            self._attrs = attrs
+            self.set_arguments(inputs)
+            self.constructor_validate_and_infer_types()
 
     def validate_and_infer_types(self):
         self.set_output_type(0, self.get_input_element_type(0), self.get_input_partial_shape(0))
@@ -239,14 +241,14 @@ def test_op_extension(prepared_paths):
     core = Core()
     core.add_extension(CustomSimpleOp)
     core.add_extension(OpExtension(CustomSimpleOpWithAttribute))
-
+    core.add_extension(OpExtension(CustomAdd))
     param1 = ops.parameter(Shape(input_shape), dtype=np.float32, name="data1")
     param2 = ops.parameter(Shape(input_shape), dtype=np.float32, name="data2")
     custom_simple = CustomSimpleOp(inputs=[param1, param2])
     custom_simple.set_friendly_name("test_add")
     custom_with_attribute = CustomSimpleOpWithAttribute(inputs=[custom_simple], attrs={"value_str": "test_attribute"})
     custom_add = CustomAdd(inputs=[custom_with_attribute])
-    res = ops.result(custom_with_attribute, name="result")
+    res = ops.result(custom_add, name="result")
     simple_model = Model(res, [param1, param2], "SimpleModel")
 
     cloned_model = simple_model.clone()
@@ -256,3 +258,34 @@ def test_op_extension(prepared_paths):
     serialize(simple_model, xml_path, bin_path)
     model_with_custom_op = core.read_model(xml_path)
     assert compare_models(simple_model, model_with_custom_op)
+
+
+def test_fail_create_op_ext():
+    class BrokeOp(Op):
+        class_type_info = "BrokeOp"
+
+        def __init__(self, inputs=None):
+            super().__init__(self)
+            if inputs is not None:
+                self.set_arguments(inputs)
+                self.constructor_validate_and_infer_types()
+
+        def get_type_info(self):
+            return BrokeOp.class_type_info
+
+    core = Core()
+    with pytest.raises(RuntimeError) as e:
+        core.add_extension(CustomOp)
+    assert "CustomOp.__init__() missing 1 required positional argument: 'inputs'" in str(e.value)
+
+    with pytest.raises(RuntimeError) as e:
+        core.add_extension(OpExtension(bool))
+    assert "Unsupported data type : '<class 'bool'>' is passed as an argument." in str(e.value)
+
+    with pytest.raises(RuntimeError) as e:
+        core.add_extension(bool)
+    assert "Unsupported data type : '<class 'bool'>' is passed as an argument." in str(e.value)
+
+    with pytest.raises(RuntimeError) as e:
+        core.add_extension(BrokeOp)
+    assert "operation type_info must be an instance of DiscreteTypeInfo, but <class \'str\'> is passed." in str(e.value)

@@ -25,12 +25,6 @@ void regclass_graph_OpExtension(py::module m) {
     });
 
     op_extension.def(py::init([](py::object dtype) {
-        py::object py_issubclass = py::module::import("builtins").attr("issubclass");
-        if (py_issubclass(dtype, py::type::of<PyOp>())) {
-            return PyOpExtension(dtype);
-        }
-        std::stringstream str;
-        str << "Unsupported data type : '" << dtype << "' is passed as an argument.";
-        OPENVINO_THROW(str.str());
+        return PyOpExtension(dtype);
     }));
 }

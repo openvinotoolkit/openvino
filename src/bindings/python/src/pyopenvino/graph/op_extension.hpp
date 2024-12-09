@@ -10,12 +10,20 @@
 #include <pybind11/stl_bind.h>
 
 #include "openvino/core/op_extension.hpp"
+#include "pyopenvino/graph/op.hpp"
 
 namespace py = pybind11;
 
 class PyOpExtension : public ov::BaseOpExtension {
 public:
     PyOpExtension(const py::object& dtype) : py_handle_dtype{dtype} {
+        py::object py_issubclass = py::module::import("builtins").attr("issubclass");
+        if (!py_issubclass(dtype, py::type::of<PyOp>()).cast<bool>()) {
+            std::stringstream str;
+            str << "Unsupported data type : '" << dtype << "' is passed as an argument.";
+            OPENVINO_THROW(str.str());
+        }
+
         py::object type_info;
         try {
             // get_type_info() is a static method
@@ -24,12 +32,12 @@ public:
             try {
                 //  get_type_info() is a class method
                 type_info = py_handle_dtype().attr("get_type_info")();
-            } catch (const std::exception&) {
-                OPENVINO_THROW("Both options failed to get type_info.");
+            } catch (const std::exception &exc) {
+                OPENVINO_THROW("Creation of OpExtension failed: ", exc.what());
             }
         }
         if (!py::isinstance<ov::DiscreteTypeInfo>(type_info)) {
-            OPENVINO_THROW("blahbla");
+            OPENVINO_THROW("operation type_info must be an instance of DiscreteTypeInfo, but ", py::str(py::type::of(type_info)), " is passed.");
         }
         m_type_info = type_info.cast<std::shared_ptr<ov::DiscreteTypeInfo>>();
         OPENVINO_ASSERT(m_type_info->name != nullptr && m_type_info->version_id != nullptr,
@@ -41,9 +49,8 @@ public:
     }
 
     ov::OutputVector create(const ov::OutputVector& inputs, ov::AttributeVisitor& visitor) const override {
-        // TODO: Create new python object using some python API under GIL then call its method
         py::gil_scoped_acquire acquire;
-        // add check for default ctor
+
         const auto node = py_handle_dtype();
 
         node.attr("set_arguments")(py::cast(inputs));
