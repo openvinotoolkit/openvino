@@ -265,9 +265,9 @@ void ExecutionConfig::apply_user_properties(const cldnn::device_info& info) {
 void ExecutionConfig::apply_rt_info(const cldnn::device_info& info, const ov::RTMap& rt_info) {
     if (!info.supports_immad) {
         apply_rt_info_property(ov::hint::kv_cache_precision, rt_info);
-        apply_rt_info_property(ov::hint::dynamic_quantization_group_size, rt_info);
         apply_rt_info_property(ov::hint::activations_scale_factor, rt_info);
     }
+    apply_rt_info_property(ov::hint::dynamic_quantization_group_size, rt_info);
 }
 
 std::string ExecutionConfig::to_string() const {
