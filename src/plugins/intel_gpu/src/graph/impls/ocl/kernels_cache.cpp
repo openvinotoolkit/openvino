@@ -153,8 +153,8 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             std::string entry_point = kernel_string->entry_point;
             std::string options = kernel_string->options;
             bool batch_compilation = kernel_string->batch_compilation;
+            bool is_cm = kernel_string->language == kernel_language::CM;
 
-            bool is_cm = options.find("-cmc") != std::string::npos;
             auto& headers = is_cm ? cm_batch_headers : batch_headers;
 
             // Order matters for cm options

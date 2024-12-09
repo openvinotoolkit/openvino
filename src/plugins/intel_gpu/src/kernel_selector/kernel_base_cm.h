@@ -33,6 +33,7 @@ protected:
 
             kernel_string->entry_point = entry_point;
             kernel_string->batch_compilation = true;
+            kernel_string->language = KernelLanguage::CM;
         }
 
         return kernel_string;
