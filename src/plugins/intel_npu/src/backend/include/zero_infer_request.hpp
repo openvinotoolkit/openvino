@@ -62,9 +62,6 @@ private:
     std::shared_ptr<ov::ITensor>& get_level_zero_input(size_t index, size_t tensorNo = 0) const;
     std::vector<std::shared_ptr<ov::ITensor>>& get_level_zero_inputs(size_t index) const;
 
-    std::optional<TensorData>& get_input_tensor_data(size_t index, size_t tensorNo = 0) const;
-    std::vector<std::optional<TensorData>>& get_input_tensors_data(size_t index) const;
-
     const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
     const std::shared_ptr<IGraph> _graph;
     const Config _config;
@@ -75,8 +72,8 @@ private:
     mutable std::vector<std::vector<std::shared_ptr<ov::ITensor>>> _levelZeroInputTensors;
     mutable std::vector<std::shared_ptr<ov::ITensor>> _levelZeroOutputTensors;
 
-    mutable std::vector<std::vector<std::optional<TensorData>>> _inputTensorsData;
-    mutable std::vector<std::optional<TensorData>> _outputTensorsData;
+    mutable std::vector<std::optional<bool>> _inputLevelZeroTensorCreatedLocally;
+    mutable std::vector<std::optional<bool>> _outputLevelZeroTensorCreatedLocally;
 
     ze_device_properties_t _properties = {};
     std::shared_ptr<const zeroMemory::HostMemAllocator> _inputAllocator;

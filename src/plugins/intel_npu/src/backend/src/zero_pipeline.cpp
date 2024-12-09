@@ -22,8 +22,8 @@ Pipeline::Pipeline(const Config& config,
                    zeroProfiling::ProfilingPool& profiling_pool,
                    zeroProfiling::ProfilingQuery& profiling_query,
                    const std::shared_ptr<zeroProfiling::NpuInferProfiling>& npu_profiling,
-                   const std::vector<std::vector<std::optional<TensorData>>>& inputTensorsData,
-                   const std::vector<std::optional<TensorData>>& outputTensorsData,
+                   const std::vector<std::vector<std::shared_ptr<ov::ITensor>>>& inputTensorsData,
+                   const std::vector<std::shared_ptr<ov::ITensor>>& outputTensorsData,
                    uint32_t group_ordinal)
     : _graph(graph),
       _config(config),
@@ -59,24 +59,26 @@ Pipeline::Pipeline(const Config& config,
         size_t ioIndex = 0;
         for (const auto& desc : graph->get_input_descriptors()) {
             if (inputTensorsData.at(ioIndex).size() > 1) {
-                graph->set_argument_value(desc.idx, inputTensorsData.at(ioIndex).at(i)->mem);
+                graph->set_argument_value(desc.idx, inputTensorsData.at(ioIndex).at(i)->data());
 
                 ++ioIndex;
                 continue;
             }
 
-            graph->set_argument_value(desc.idx,
-                                      static_cast<unsigned char*>(inputTensorsData.at(ioIndex).at(0)->mem) +
-                                          (i * inputTensorsData.at(ioIndex).at(0)->size) / _number_of_command_lists);
+            graph->set_argument_value(
+                desc.idx,
+                static_cast<unsigned char*>(inputTensorsData.at(ioIndex).at(0)->data()) +
+                    (i * inputTensorsData.at(ioIndex).at(0)->get_byte_size()) / _number_of_command_lists);
 
             ++ioIndex;
         }
 
         ioIndex = 0;
         for (const auto& desc : graph->get_output_descriptors()) {
-            graph->set_argument_value(desc.idx,
-                                      static_cast<unsigned char*>(outputTensorsData.at(ioIndex)->mem) +
-                                          (i * outputTensorsData.at(ioIndex)->size) / _number_of_command_lists);
+            graph->set_argument_value(
+                desc.idx,
+                static_cast<unsigned char*>(outputTensorsData.at(ioIndex)->data()) +
+                    (i * outputTensorsData.at(ioIndex)->get_byte_size()) / _number_of_command_lists);
             ++ioIndex;
         }
 
@@ -180,7 +182,7 @@ void Pipeline::reset() const {
     _logger.debug("Pipeline - rest() completed");
 };
 
-void Pipeline::updateCommandList(const TensorData& tensorsData, uint32_t index) {
+void Pipeline::updateCommandList(const void* data, size_t byte_size, uint32_t index) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandList");
     _logger.debug("Pipeline - updateCommandList");
 
@@ -189,12 +191,12 @@ void Pipeline::updateCommandList(const TensorData& tensorsData, uint32_t index) 
     for (size_t i = 0; i < _number_of_command_lists; i++) {
         _command_lists.at(i)->updateMutableCommandList(
             index,
-            static_cast<unsigned char*>(tensorsData.mem) + (i * tensorsData.size) / _number_of_command_lists);
+            static_cast<const unsigned char*>(data) + (i * byte_size) / _number_of_command_lists);
         _command_lists.at(i)->close();
     }
 };
 
-void Pipeline::updateCommandList(const TensorData& tensorsData, uint32_t index, size_t commandListIndex) {
+void Pipeline::updateCommandList(const void* data, uint32_t index, size_t commandListIndex) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandList");
     _logger.debug("Pipeline - updateCommandList");
 
@@ -204,7 +206,7 @@ void Pipeline::updateCommandList(const TensorData& tensorsData, uint32_t index, 
                     "Command list index is higgher than the number of Command lists ",
                     commandListIndex);
 
-    _command_lists.at(commandListIndex)->updateMutableCommandList(index, tensorsData.mem);
+    _command_lists.at(commandListIndex)->updateMutableCommandList(index, data);
     _command_lists.at(commandListIndex)->close();
 };
 

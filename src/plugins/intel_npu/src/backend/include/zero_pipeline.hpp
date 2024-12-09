@@ -7,6 +7,8 @@
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
+#include "openvino/runtime/iinfer_request.hpp"
+#include "openvino/runtime/iplugin.hpp"
 #include "zero_memory.hpp"
 #include "zero_profiling.hpp"
 
@@ -26,8 +28,8 @@ public:
              zeroProfiling::ProfilingPool& profiling_pool,
              zeroProfiling::ProfilingQuery& profiling_query,
              const std::shared_ptr<zeroProfiling::NpuInferProfiling>& npu_profiling,
-             const std::vector<std::vector<std::optional<TensorData>>>& inputTensorsData,
-             const std::vector<std::optional<TensorData>>& outputTensorsData,
+             const std::vector<std::vector<std::shared_ptr<ov::ITensor>>>& inputTensorsData,
+             const std::vector<std::shared_ptr<ov::ITensor>>& outputTensorsData,
              uint32_t group_ordinal);
 
     Pipeline(const Pipeline&) = delete;
@@ -38,8 +40,8 @@ public:
     void pull();
     void reset() const;
 
-    void updateCommandList(const TensorData& tensorsData, uint32_t index);
-    void updateCommandList(const TensorData& tensorsData, uint32_t index, size_t commandListIndex);
+    void updateCommandList(const void* data, size_t byte_size, uint32_t index);
+    void updateCommandList(const void* data, uint32_t index, size_t commandListIndex);
 
 protected:
     std::shared_ptr<IGraph> _graph;
