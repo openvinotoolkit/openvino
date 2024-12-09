@@ -13,7 +13,7 @@ namespace pass {
 
 class TRANSFORMATIONS_API GLUFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("GLUFusion", "0");
+    OPENVINO_RTTI("GLUFusion", "0", MatcherPass);
     GLUFusion();
 };
 

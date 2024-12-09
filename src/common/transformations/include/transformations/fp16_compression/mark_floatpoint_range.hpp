@@ -18,7 +18,7 @@ namespace pass {
  */
 class TRANSFORMATIONS_API MarkFloatingPointRange : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MarkFloatingPointRange", "0");
+    OPENVINO_RTTI("MarkFloatingPointRange", "0", MatcherPass);
     MarkFloatingPointRange();
 };
 
