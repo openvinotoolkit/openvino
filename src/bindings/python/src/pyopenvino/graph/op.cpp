@@ -47,8 +47,7 @@ std::shared_ptr<ov::Node> PyOp::clone_with_new_inputs(const ov::OutputVector& ne
 }
 
 const ov::op::Op::type_info_t& PyOp::get_type_info() const {
-    std::cout << "from cpp get type: " << m_type_info.name << std::endl;
-    return m_type_info;
+    return *m_type_info;
 }
 
 bool PyOp::evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const {

@@ -12,37 +12,35 @@
 #include "pyopenvino/core/extension.hpp"
 #include "pyopenvino/graph/op.hpp"
 #include "pyopenvino/graph/node_output.hpp"
+#include "pyopenvino/graph/discrete_type_info.hpp"
 
 namespace py = pybind11;
 
 class PyOpExtension : public ov::BaseOpExtension {
 public:
     PyOpExtension(const py::object& dtype) : py_handle_dtype{dtype} {
-        py::handle type_info;
-        std::cout << "1";
+        py::object type_info;
         try {
             // get_type_info() is a static method
             type_info = py_handle_dtype.attr("get_type_info")();
         } catch (const std::exception& exc) {
             try {
                 //  get_type_info() is a class method
-                std::cout << 2 << std::endl;
-                type_info = py_handle_dtype(py_handle_dtype()).attr("get_type_info")();
+                type_info = py_handle_dtype().attr("get_type_info")();
             } catch (const std::exception& exc) {
                 OPENVINO_THROW("Both options failed to get type_info.");
             }
         }
-        std::cout << "3 " << py::str(type_info.attr("name"));
         if (!py::isinstance<ov::DiscreteTypeInfo>(type_info)) {
             OPENVINO_THROW("blahbla");
         }
-        m_type_info = py::cast<ov::DiscreteTypeInfo>(type_info);
-        OPENVINO_ASSERT(m_type_info.name != nullptr && m_type_info.version_id != nullptr,
+        m_type_info = type_info.cast<std::shared_ptr<ov::DiscreteTypeInfo>>();
+        OPENVINO_ASSERT(m_type_info->name != nullptr && m_type_info->version_id != nullptr,
                         "Extension type should have information about operation set and operation type.");
     }
 
     const ov::DiscreteTypeInfo& get_type_info() const override {
-        return m_type_info;
+        return *m_type_info;
     }
 
     ov::OutputVector create(const ov::OutputVector& inputs, ov::AttributeVisitor& visitor) const override {
@@ -65,7 +63,7 @@ public:
 
 private:
     py::object py_handle_dtype;  // Holds the Python object to manage its lifetime
-    ov::DiscreteTypeInfo m_type_info; 
+    std::shared_ptr<ov::DiscreteTypeInfo> m_type_info; 
 };
 
 void regclass_graph_OpExtension(py::module m) {
