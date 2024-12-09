@@ -258,7 +258,7 @@ bool RegionYolo::needPrepareParams() const {
     return false;
 }
 
-RegionYolo::RegionYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+RegionYolo::RegionYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -387,7 +387,7 @@ inline void RegionYolo::calculate_logistic(size_t start_index, int count, uint8_
     }
 }
 
-void RegionYolo::execute(dnnl::stream strm) {
+void RegionYolo::execute(const dnnl::stream& strm) {
     const auto& inShape = getParentEdgeAt(0)->getMemory().getShape();
     const auto& inDims = inShape.getStaticDims();
     size_t B = (inShape.getRank() > 0) ? inDims[0] : 1;

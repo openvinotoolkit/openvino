@@ -768,7 +768,7 @@ bool DefConvKey::operator==(const DefConvKey& rhs) const {
 
 }  // namespace
 
-DeformableConvolution::DeformableConvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+DeformableConvolution::DeformableConvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -1288,7 +1288,7 @@ void DeformableConvolution::prepareParams() {
     }
 }
 
-void DeformableConvolution::executeDynamicImpl(dnnl::stream strm) {
+void DeformableConvolution::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
@@ -1329,7 +1329,7 @@ void DeformableConvolution::DefConvJitExecutor::exec(const float* src,
     });
 }
 
-void DeformableConvolution::execute(dnnl::stream strm) {
+void DeformableConvolution::execute(const dnnl::stream& strm) {
     const size_t inputsNumber = getOriginalInputsNumber();
 
     auto& srcMemory0 = getParentEdgeAt(0)->getMemory();

@@ -26,7 +26,7 @@ bool ReorgYolo::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
     return true;
 }
 
-ReorgYolo::ReorgYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+ReorgYolo::ReorgYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -52,11 +52,11 @@ void ReorgYolo::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void ReorgYolo::executeDynamicImpl(dnnl::stream strm) {
+void ReorgYolo::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void ReorgYolo::execute(dnnl::stream strm) {
+void ReorgYolo::execute(const dnnl::stream& strm) {
     const auto* src_data = getSrcDataAtPortAs<const float>(0);
     auto* dst_data = getDstDataAtPortAs<float>(0);
 

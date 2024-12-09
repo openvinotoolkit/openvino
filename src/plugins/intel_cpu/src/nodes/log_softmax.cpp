@@ -26,7 +26,7 @@ bool LogSoftmax::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
     return true;
 }
 
-LogSoftmax::LogSoftmax(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+LogSoftmax::LogSoftmax(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -83,11 +83,11 @@ void LogSoftmax::prepareParams() {
         reducedAxisStride *= dims[i];
 }
 
-void LogSoftmax::executeDynamicImpl(dnnl::stream strm) {
+void LogSoftmax::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void LogSoftmax::execute(dnnl::stream strm) {
+void LogSoftmax::execute(const dnnl::stream& strm) {
     const float* srcData = getSrcDataAtPortAs<const float>(0);
     float* dstData = getDstDataAtPortAs<float>(0);
 

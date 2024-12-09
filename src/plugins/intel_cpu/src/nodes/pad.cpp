@@ -38,7 +38,7 @@ bool Pad::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
     return true;
 }
 
-Pad::Pad(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Pad::Pad(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -387,14 +387,14 @@ void Pad::PadExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemP
     }
 }
 
-void Pad::execute(dnnl::stream strm) {
+void Pad::execute(const dnnl::stream& strm) {
     if (!execPtr)
         THROW_CPU_NODE_ERR("has not compiled executor.");
 
     execPtr->exec(getSrcMemoryAtPort(0), getDstMemoryAtPort(0));
 }
 
-void Pad::executeDynamicImpl(dnnl::stream strm) {
+void Pad::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 

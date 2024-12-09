@@ -51,7 +51,7 @@ bool AdaptivePooling::isSupportedOperation(const std::shared_ptr<const ov::Node>
     return true;
 }
 
-AdaptivePooling::AdaptivePooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+AdaptivePooling::AdaptivePooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, AdaptivePoolingShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -126,11 +126,11 @@ void AdaptivePooling::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void AdaptivePooling::executeDynamicImpl(dnnl::stream strm) {
+void AdaptivePooling::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void AdaptivePooling::execute(dnnl::stream strm) {
+void AdaptivePooling::execute(const dnnl::stream& strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().getDataType();
     auto outputPrec = getChildEdgeAt(0)->getMemory().getDataType();
     if (!(inputPrec == dnnl_f32 && outputPrec == dnnl_f32))

@@ -29,7 +29,7 @@ bool Range::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std:
     return true;
 }
 
-Range::Range(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+Range::Range(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -87,11 +87,11 @@ void Range::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void Range::executeDynamicImpl(dnnl::stream strm) {
+void Range::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Range::execute(dnnl::stream strm) {
+void Range::execute(const dnnl::stream& strm) {
     StatusCode retcode = OK;
     switch (getParentEdgeAt(0)->getMemory().getDesc().getPrecision()) {
     case ov::element::f32:

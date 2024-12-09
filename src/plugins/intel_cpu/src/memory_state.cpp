@@ -6,6 +6,8 @@
 
 #include <nodes/common/cpu_convert.h>
 
+#include <utility>
+
 #include "cpu_memory.h"
 #include "cpu_tensor.h"
 #include "dnnl_extension_utils.h"
@@ -21,9 +23,9 @@ using namespace ov::Extensions::Cpu::XARCH;
 namespace ov {
 namespace intel_cpu {
 
-VariableStateBase::VariableStateBase(const std::string& name, const MemoryDescPtr& external_desc)
+VariableStateBase::VariableStateBase(const std::string& name, MemoryDescPtr external_desc)
     : IVariableState{name},
-      m_external_desc{external_desc} {}
+      m_external_desc{std::move(external_desc)} {}
 
 MemoryDescPtr VariableStateBase::to_static(const MemoryDescPtr& desc) {
     if (!desc->isDefined()) {
@@ -165,12 +167,12 @@ MemoryPtr VariableStateDoubleBuffer::internal_state_mem() const {
 }
 
 VariableStateSingleBuffer::VariableStateSingleBuffer(const std::string& name,
-                                                     const MemoryPtr& external_buffer,
-                                                     const MemoryDescPtr& external_desc)
-    : VariableStateBase(name, external_desc) {
+                                                     MemoryPtr external_buffer,
+                                                     MemoryDescPtr external_desc)
+    : VariableStateBase(name, std::move(external_desc)),
+      m_internal_mem(std::move(external_buffer)),
+      m_internal_desc(m_internal_mem->getDescPtr()) {
     OPENVINO_ASSERT(external_buffer);
-    m_internal_mem = external_buffer;
-    m_internal_desc = m_internal_mem->getDescPtr();
     auto&& shape = m_internal_desc->getShape();
 
     if (shape.isStatic()) {
@@ -208,11 +210,11 @@ void VariableStateSingleBuffer::commit_impl() {
 }
 
 VariableStateKVcache::VariableStateKVcache(const std::string& name,
-                                           const MemoryDescPtr& external_desc,
-                                           const BlockedMemoryDescPtr& dense_internal_desc)
-    : VariableStateBase(name, external_desc),
-      m_dense_internal_desc(dense_internal_desc) {
-    auto&& shape = external_desc->getShape();
+                                           MemoryDescPtr external_desc,
+                                           BlockedMemoryDescPtr dense_internal_desc)
+    : VariableStateBase(name, std::move(external_desc)),
+      m_dense_internal_desc(std::move(dense_internal_desc)) {
+    auto&& shape = get_external_desc()->getShape();
 
     OPENVINO_ASSERT(shape.isDynamic(), "VariableStateKVcache is unexpectedly initalized with a static tensor");
 }

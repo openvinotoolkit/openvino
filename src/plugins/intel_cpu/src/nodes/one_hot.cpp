@@ -41,7 +41,7 @@ bool OneHot::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
     return true;
 }
 
-OneHot::OneHot(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+OneHot::OneHot(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, OneHotShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -132,11 +132,11 @@ void OneHot::one_hot(size_t prefix_size, size_t suffix_size) {
     });
 }
 
-void OneHot::executeDynamicImpl(dnnl::stream strm) {
+void OneHot::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void OneHot::execute(dnnl::stream strm) {
+void OneHot::execute(const dnnl::stream& strm) {
     std::size_t prefix_size = 1;
     auto input_dims = getParentEdgeAt(0)->getMemory().getStaticDims();
 

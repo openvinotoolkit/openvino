@@ -25,7 +25,7 @@ bool ShapeOf::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
     return true;
 }
 
-ShapeOf::ShapeOf(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+ShapeOf::ShapeOf(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, ShapeOfShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
@@ -82,7 +82,7 @@ bool ShapeOf::isExecutable() const {
     return true;
 }
 
-void ShapeOf::execute(dnnl::stream strm) {
+void ShapeOf::execute(const dnnl::stream& strm) {
     auto inPtr = getSrcMemoryAtPort(0);
     auto outPtr = getDstMemoryAtPort(0);
     auto&& inDims = inPtr->getStaticDims();

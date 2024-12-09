@@ -112,7 +112,7 @@ bool MatMul::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
     return true;
 }
 
-MatMul::MatMul(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+MatMul::MatMul(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, MMShapeInferFactory(op)),
       withBiases(false) {
     std::string errorMessage;
@@ -255,7 +255,7 @@ static VectorDims getStridesAndModifyShape(Shape& shape, const bool transpose) {
     return strides;
 }
 
-dnnl::memory::desc MatMul::getBiasDescFrom(const DnnlMemoryDescCPtr outMemDesc) {
+dnnl::memory::desc MatMul::getBiasDescFrom(const DnnlMemoryDescCPtr& outMemDesc) {
     // oneDNN matmul requires shape for bias desc to be the same rank
     VectorDims biasDims(outMemDesc->getShape().getRank(), 1);
     const auto outDims = outMemDesc->getShape().getStaticDims();
@@ -684,7 +684,7 @@ void MatMul::prepareParams() {
 #endif
 }
 
-void MatMul::execute(dnnl::stream strm) {
+void MatMul::execute(const dnnl::stream& strm) {
     if (execPtr) {
         execPtr->exec(primArgs, strm);
     } else if (hasEmptyInputTensors()) {
@@ -695,7 +695,7 @@ void MatMul::execute(dnnl::stream strm) {
     }
 }
 
-void MatMul::executeDynamicImpl(dnnl::stream strm) {
+void MatMul::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 

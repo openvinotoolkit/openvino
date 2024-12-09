@@ -29,7 +29,7 @@ struct DeconvAttrs {
 
 class DeconvExecutor {
 public:
-    explicit DeconvExecutor(const ExecutorContext::CPtr context) : context(context) {}
+    explicit DeconvExecutor(const ExecutorContext::CPtr& context) : context(context) {}
 
     virtual bool init(const DeconvAttrs& deconvAttrs,
                       const std::vector<MemoryDescPtr>& srcDescs,

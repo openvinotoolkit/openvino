@@ -29,7 +29,7 @@ bool GatherTree::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
     return true;
 }
 
-GatherTree::GatherTree(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+GatherTree::GatherTree(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -74,7 +74,7 @@ void GatherTree::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void GatherTree::execute(dnnl::stream strm) {
+void GatherTree::execute(const dnnl::stream& strm) {
     if (!execPtr)
         THROW_CPU_NODE_ERR("has not compiled executor.");
 
@@ -117,7 +117,7 @@ void GatherTree::prepareParams() {
     execPtr = std::make_shared<GatherTreeExecutor>(stepIdxDims, parentIdxDims, maxSeqLenDims, dstDims);
 }
 
-void GatherTree::executeDynamicImpl(dnnl::stream strm) {
+void GatherTree::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
