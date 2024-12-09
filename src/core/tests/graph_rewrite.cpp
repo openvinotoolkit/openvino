@@ -23,7 +23,7 @@ using namespace ov::pass;
 
 class TestPass : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TestPass");
+    OPENVINO_RTTI("TestPass", "0", pass::MatcherPass);
     TestPass() : MatcherPass() {
         auto divide = std::make_shared<ov::pass::pattern::op::Label>(element::f32,
                                                                      Shape{},
@@ -44,7 +44,7 @@ public:
 
 class GatherNodesPass : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("GatherNodesPass");
+    OPENVINO_RTTI("GatherNodesPass", "0", pass::MatcherPass);
     GatherNodesPass(NodeVector& order) : MatcherPass() {
         ov::matcher_pass_callback callback = [&order](pattern::Matcher& m) {
             order.push_back(m.get_match_root());
@@ -58,7 +58,7 @@ public:
 
 class Anchor : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("Anchor");
+    OPENVINO_RTTI("Anchor", "0", pass::GraphRewrite);
     Anchor() : GraphRewrite() {}
 };
 
@@ -388,7 +388,7 @@ TEST(PassConfigTest, Test1) {
 
 class CheckConsumers : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("CheckConsumers");
+    OPENVINO_RTTI("CheckConsumers", "0", pass::MatcherPass);
     CheckConsumers() {
         ov::matcher_pass_callback callback = [](pattern::Matcher& m) -> bool {
             auto node = m.get_match_root();
