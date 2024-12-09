@@ -4,6 +4,7 @@
 
 #include <shared_test_classes/base/ov_subgraph.hpp>
 
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "utils/cpu_test_utils.hpp"
 
 using namespace ov::test;
@@ -71,28 +72,37 @@ public:
     void run() override {
         prepare();
 
-        for (const auto& targetStaticShapeVec : targetStaticShapes) {
-            for (auto iters = 0; iters < 2; iters++) {
-                generate_inputs(targetStaticShapeVec);
+        auto&& states = inferRequest.query_state();
+        auto&& refStates = inferRequestRef.query_state();
+
+        for (size_t i = 0; i < targetStaticShapes.size(); i++) {
+            for (auto iters = 0; iters < 5; iters++) {
+                generate_inputs(targetStaticShapes[i]);
+
+                if (iters & 0x1) {
+                    states.front().reset();
+                    refStates.front().reset();
+                } else {
+                    // generate and set state tensors every even iteration
+                    using ov::test::utils::InputGenerateData;
+
+                    auto stateShape = get_state_shape(i);
+                    auto tensor = utils::create_and_fill_tensor(statePrc,
+                                                                stateShape,
+                                                                InputGenerateData{0, 1, 1, iters});
+                    states.front().set_state(tensor);
+                    refStates.front().set_state(tensor);
+                }
+
                 validate();
             }
-            // Different input shape, reset is required.
-            reset();
         }
     }
 
 protected:
-    void reset() {
-        for (auto&& state : inferRequest.query_state()) {
-            state.reset();
-        }
-
-        for (auto&& state : inferRequestRef.query_state()) {
-            state.reset();
-        }
-    }
-
     virtual void check_init_graph_node() = 0;
+
+    virtual ov::Shape get_state_shape(size_t i) = 0;
 
     void prepare() {
         compile_model();
@@ -116,8 +126,10 @@ protected:
         inferRequestRef = compiledModelRef.create_infer_request();
     }
 
+    std::vector<InputShape> inputShapes;
     const ov::element::Type netPrc = ElementType::f32;
     ov::InferRequest inferRequestRef;
+    ov::element::Type statePrc;
 };
 
 // ReadValue Assign direct pair
@@ -139,7 +151,6 @@ public:
     void SetUp() override {
         targetDevice = utils::DEVICE_CPU;
 
-        std::vector<InputShape> inputShapes;
         bool directPair;
         std::tie(inputShapes, directPair) = this->GetParam();
 
@@ -161,8 +172,9 @@ public:
         mm_0->set_friendly_name("init_graph/mm_0");
 
         const std::string variable_name("var_direct_pair");
+        statePrc = netPrc;
         auto variable = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{{inputDynamicShapes[1][0], inputDynamicShapes[2][1]}, netPrc, variable_name});
+            ov::op::util::VariableInfo{{inputDynamicShapes[1][0], inputDynamicShapes[2][1]}, statePrc, variable_name});
 
         auto read = std::make_shared<ov::op::v6::ReadValue>(mm_0, variable);
         std::shared_ptr<ov::Node> add_0 = std::make_shared<ov::op::v1::Add>(input_params[0], read);
@@ -176,6 +188,10 @@ public:
         // Node with friendly name "init_graph/add_1" and init_graph/mm_0 should be moved into subgraph.
         CheckNumberOfNodesWithType(compiledModel, "Add", 0);
         CheckNumberOfNodesWithType(compiledModel, "MatMul", 0);
+    }
+
+    ov::Shape get_state_shape(size_t i) override {
+        return ov::Shape({inputShapes[1].second[i][0], inputShapes[2].second[i][1]});
     }
 };
 
@@ -199,7 +215,6 @@ public:
     void SetUp() override {
         targetDevice = utils::DEVICE_CPU;
 
-        std::vector<InputShape> inputShapes;
         bool directPair;
         std::tie(inputShapes, directPair) = this->GetParam();
 
@@ -216,8 +231,9 @@ public:
         convert->set_friendly_name("init_graph/convert");
 
         const std::string variable_name("var_diff_precison");
+        statePrc = ov::element::f16;
         auto variable = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{{inputDynamicShapes[0]}, ov::element::f16, variable_name});
+            ov::op::util::VariableInfo{{inputDynamicShapes[0]}, statePrc, variable_name});
 
         auto readvalue = std::make_shared<ov::op::v6::ReadValue>(convert, variable);
 
@@ -233,6 +249,10 @@ public:
 
     void check_init_graph_node() override {
         CheckNumberOfNodesWithType(compiledModel, "Convert", function->is_dynamic() ? 1 : 0);
+    }
+
+    ov::Shape get_state_shape(size_t i) override {
+        return inputShapes[0].second[i];
     }
 };
 
