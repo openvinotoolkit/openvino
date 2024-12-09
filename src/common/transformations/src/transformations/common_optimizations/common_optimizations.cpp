@@ -170,7 +170,6 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(decomp, ConvertGELU)
     ADD_MATCHER(decomp, ConvertMinimum)
     ADD_MATCHER(decomp, ConvertSubtract)
-    ADD_MATCHER(decomp, ConvertDivide)
     ADD_MATCHER(decomp, ConvertDepthToSpace)
     ADD_MATCHER(decomp, ConvertSpaceToDepth)
     ADD_MATCHER(decomp, ConvertConvertLike)
