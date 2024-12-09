@@ -3290,7 +3290,7 @@ void GraphOptimizer::DropRedundantMemoryOutput(Graph &graph) {
 
         CPU_GRAPH_OPTIMIZER_SCOPE(DropRedundantMemoryOutput_SubGraph);
         auto memInpNd = std::dynamic_pointer_cast<node::MemoryInput>(node);
-        auto subGraph = memInpNd ? memInpNd->getSubGraph() : nullptr;
+        OPENVINO_ASSERT(memInpNd, "MemoryInput node ", node->getName(), " has unexpected dynamic type");
 
         // now replace the existing MemoryInput with a special type that works without the corresponding MemoryOutput
         auto memInputSingle = std::make_shared<MemoryInputSingle>(memInputNode->getId(),
@@ -3301,7 +3301,7 @@ void GraphOptimizer::DropRedundantMemoryOutput(Graph &graph) {
                                                                   graph.getGraphContext(),
                                                                   inputShapes,
                                                                   inputPrcs,
-                                                                  subGraph);
+                                                                  memInpNd->getSubGraph());
         graph.AddNode(memInputSingle);
 
         if (!memInputNode->getParentEdges().empty()) {
