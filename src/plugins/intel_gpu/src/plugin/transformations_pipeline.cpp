@@ -941,7 +941,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
         manager.register_pass<ov::intel_gpu::TransposeFusion>(device_info.supports_immad);
-        manager.register_pass<ov::intel_gpu::FullyConnectedPerLayerScaling>(config.get_property(ov::hint::activations_scale_factor));
+
+        if (!device_info.supports_immad) {
+            manager.register_pass<ov::intel_gpu::FullyConnectedPerLayerScaling>(config.get_property(ov::hint::activations_scale_factor));
+        }
 
         if (!device_info.supports_immad) {
             manager.register_pass<ov::intel_gpu::UnsqueezeBroadcastReshapeMatmulFusion>();
@@ -951,8 +954,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::GLUFusion>();
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
 
-        auto kv_cache_compression_dt = config.get_property(ov::hint::kv_cache_precision);
-        manager.register_pass<ov::intel_gpu::KVCacheCompression>(kv_cache_compression_dt);
+        if (!device_info.supports_immad) {
+            auto kv_cache_compression_dt = config.get_property(ov::hint::kv_cache_precision);
+            manager.register_pass<ov::intel_gpu::KVCacheCompression>(kv_cache_compression_dt);
+        }
 
         manager.register_pass<ov::intel_gpu::ConvertConvolutionToInternal>();
 
