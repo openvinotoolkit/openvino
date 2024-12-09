@@ -57,7 +57,7 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::internal::query_model_ratio, 1.0f),
         std::make_tuple(ov::cache_mode, ov::CacheMode::OPTIMIZE_SPEED),
         std::make_tuple(ov::cache_encryption_callbacks, EncryptionCallbacks{}),
-        std::make_tuple(ov::hint::dynamic_quantization_group_size, 32),
+        std::make_tuple(ov::hint::dynamic_quantization_group_size, 0),
         std::make_tuple(ov::hint::kv_cache_precision, ov::element::undefined),
         std::make_tuple(ov::intel_gpu::hint::enable_kernels_reuse, false),
         std::make_tuple(ov::weights_path, ""),
@@ -252,6 +252,11 @@ void ExecutionConfig::apply_user_properties(const cldnn::device_info& info) {
     // Enable KV-cache compression by default for non-systolic platforms
     if (!is_set_by_user(ov::hint::kv_cache_precision) && !info.supports_immad) {
         set_property(ov::hint::kv_cache_precision(ov::element::i8));
+    }
+
+    // Enable dynamic quantization by default for non-systolic platforms
+    if (!is_set_by_user(ov::hint::dynamic_quantization_group_size) && !info.supports_immad) {
+        set_property(ov::hint::dynamic_quantization_group_size(32));
     }
 
     user_properties.clear();

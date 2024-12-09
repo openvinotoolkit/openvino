@@ -146,6 +146,7 @@ public:
     std::vector<std::string> dynamic_quantize_layers_without_onednn;  // Specify Fully-connected layers which enable Dynamic quantization
     int use_kv_cache_compression;                               // Enable KV-cache compression
     int dynamic_quantize_group_size;                            // Enable Dynamic quantization for fully connected primitive by specified group size
+    int dynamic_quantize_asym;                                  // Use asymmetric dynamic quantization
     int disable_horizontal_fc_fusion;                           // Disable fc horizontal fusion
     int disable_fc_swiglu_fusion;                               // Disable swiglu fusion to fc
     std::set<int64_t> dump_iteration;                           // Dump n-th execution of network.
