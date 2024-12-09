@@ -15,7 +15,7 @@ single inference, pix2pix-turbo achieves comparable by quality results
 with recent works such as ControlNet for Sketch2Photo and Edge2Image for
 50 steps.
 
-.. image:: https://github.com/GaParmar/img2img-turbo/raw/main/assets/gen_variations.jpg
+|image0|
 
 In this tutorial you will learn how to turn sketches to images using
 `Pix2Pix-Turbo <https://github.com/GaParmar/img2img-turbo>`__ and
@@ -42,6 +42,8 @@ need a Jupyter server to start. For details, please refer to
 `Installation
 Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.md#-installation-guide>`__.
 
+.. |image0| image:: https://github.com/GaParmar/img2img-turbo/raw/main/assets/gen_variations.jpg
+
 Prerequisites
 -------------
 
@@ -52,16 +54,45 @@ and install required packages.
 
 .. code:: ipython3
 
-    %pip install -q "openvino>=2024.1.0" "torch>=2.1" torchvision "diffusers==0.25.1" "peft>=0.6.2" transformers tqdm pillow opencv-python "gradio==3.43.1" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -qU "openvino>=2024.1.0" "torch>=2.1" torchvision "diffusers==0.25.1" "huggingface-hub<0.26.0" "peft>=0.6.2" transformers tqdm pillow opencv-python "gradio==3.43.1" --extra-index-url https://download.pytorch.org/whl/cpu
+
+
+.. parsed-literal::
+
+    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+    modelscope-studio 0.5.2 requires gradio<6.0,>=4.0, but you have gradio 3.43.1 which is incompatible.
+    parler-tts 0.2.1 requires protobuf>=4.0.0, but you have protobuf 3.20.3 which is incompatible.
+    parler-tts 0.2.1 requires transformers<=4.46.1,>=4.46.1, but you have transformers 4.46.3 which is incompatible.
+    Note: you may need to restart the kernel to use updated packages.
+
+
+.. code:: ipython3
+
+    import requests
+
+
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
+    )
+    open("cmd_helper.py", "w").write(r.text)
+
+
+
+
+.. parsed-literal::
+
+    1491
+
+
 
 .. code:: ipython3
 
     from pathlib import Path
 
-    repo_dir = Path("img2img-turbo")
+    from cmd_helper import clone_repo
 
-    if not repo_dir.exists():
-        !git clone https://github.com/GaParmar/img2img-turbo.git
+
+    repo_dir = clone_repo("https://github.com/GaParmar/img2img-turbo.git")
 
     pix2pix_turbo_py_path = repo_dir / "src/pix2pix_turbo.py"
     model_py_path = repo_dir / "src/model.py"
@@ -87,6 +118,12 @@ and install required packages.
                 out_f.write(data)
     %cd $repo_dir
 
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/sketch-to-image-pix2pix-turbo/img2img-turbo
+
+
 Load PyTorch model
 ------------------
 
@@ -106,7 +143,6 @@ diagram indicate trainable layers. Semi-transparent layers are frozen.
 
 .. code:: ipython3
 
-    import requests
     import copy
     from tqdm import tqdm
     import torch
@@ -342,6 +378,16 @@ diagram indicate trainable layers. Semi-transparent layers are frozen.
             output_image = (self.vae.decode(x_denoised / self.vae.config.scaling_factor, current_down_blocks)[0]).clamp(-1, 1)
             return output_image
 
+
+.. parsed-literal::
+
+    2024-11-22 04:46:27.445712: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-11-22 04:46:27.471919: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+      torch.utils._pytree._register_pytree_node(
+
+
 .. code:: ipython3
 
     ov_model_path = Path("model/pix2pix-turbo.xml")
@@ -354,28 +400,27 @@ diagram indicate trainable layers. Semi-transparent layers are frozen.
         pt_model.eval()
 
 
-
 .. parsed-literal::
 
-    model.fp16.safetensors:   0%|          | 0.00/681M [00:00<?, ?B/s]
-
-
-.. parsed-literal::
-
-    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1142: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
       warnings.warn(
 
 
+.. parsed-literal::
+
+    Downloading checkpoint to checkpoints/sketch_to_image_stochastic_lora.pkl
+
 
 .. parsed-literal::
 
-    diffusion_pytorch_model.fp16.safetensors:   0%|          | 0.00/167M [00:00<?, ?B/s]
-
+    100%|██████████| 525M/525M [18:17<00:00, 478kiB/s]
+    /tmp/ipykernel_3576883/2531017353.py:172: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+      sd = torch.load(p_ckpt, map_location="cpu")
 
 
 .. parsed-literal::
 
-    diffusion_pytorch_model.fp16.safetensors:   0%|          | 0.00/1.73G [00:00<?, ?B/s]
+    Downloaded successfully to checkpoints/sketch_to_image_stochastic_lora.pkl
 
 
 Convert PyTorch model to Openvino Intermediate Representation format
@@ -419,6 +464,42 @@ on disk using ``ov.save_model`` in compressed to FP16 format.
     # for file in checkpoints_dir.glob("*"):
     #     shutil.rmtree(file, ignore_errors=True)
 
+
+.. parsed-literal::
+
+    WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
+
+
+.. parsed-literal::
+
+    [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:5006: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+      warnings.warn(
+    `loss_type=None` was set in the config but it is unrecognised.Using the default loss: `ForCausalLMLoss`.
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:88: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if input_shape[-1] > 1 or self.sliding_window is not None:
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:164: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if past_key_values_length > 0:
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/downsampling.py:135: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      assert hidden_states.shape[1] == self.channels
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/downsampling.py:144: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      assert hidden_states.shape[1] == self.channels
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/unet_2d_condition.py:915: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if dim % default_overall_up_factor != 0:
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:149: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      assert hidden_states.shape[1] == self.channels
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:165: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if hidden_states.shape[0] >= 64:
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/schedulers/scheduling_ddpm.py:433: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if model_output.shape[1] == sample.shape[1] * 2 and self.variance_type in ["learned", "learned_range"]:
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/schedulers/scheduling_ddpm.py:440: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      alpha_prod_t_prev = self.alphas_cumprod[prev_t] if prev_t >= 0 else self.one
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/schedulers/scheduling_ddpm.py:479: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if t > 0:
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/schedulers/scheduling_ddpm.py:330: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      alpha_prod_t_prev = self.alphas_cumprod[prev_t] if prev_t >= 0 else self.one
+
+
 Select inference device
 -----------------------
 
@@ -431,7 +512,9 @@ Select inference device
     )
     open("notebook_utils.py", "w").write(r.text)
 
+
     from notebook_utils import device_widget
+
 
     device = device_widget()
 
@@ -442,7 +525,7 @@ Select inference device
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=3, options=('CPU', 'GPU.0', 'GPU.1', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
 
 
 
@@ -477,7 +560,7 @@ professional artwork.
 
 
 
-.. image:: sketch-to-image-pix2pix-turbo-with-output_files/sketch-to-image-pix2pix-turbo-with-output_14_0.png
+.. image:: sketch-to-image-pix2pix-turbo-with-output_files/sketch-to-image-pix2pix-turbo-with-output_15_0.png
 
 
 
@@ -512,7 +595,7 @@ professional artwork.
 
 
 
-.. image:: sketch-to-image-pix2pix-turbo-with-output_files/sketch-to-image-pix2pix-turbo-with-output_18_0.png
+.. image:: sketch-to-image-pix2pix-turbo-with-output_files/sketch-to-image-pix2pix-turbo-with-output_19_0.png
 
 
 
@@ -583,12 +666,37 @@ Download results using download button
     demo = make_demo(fn=run)
 
     try:
-        demo.queue().launch(debug=True)
+        demo.queue().launch(debug=False)
     except Exception:
-        demo.queue().launch(debug=True, share=True)
+        demo.queue().launch(debug=False, share=True)
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/sketch-to-image-pix2pix-turbo/gradio_helper.py:225: GradioDeprecationWarning: 'scale' value should be an integer. Using 0.4 will cause issues.
+      with gr.Column(elem_id="column_process", min_width=50, scale=0.4):
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/gradio/utils.py:776: UserWarning: Expected 1 arguments for function <function make_demo.<locals>.<lambda> at 0x7f22fbf5a550>, received 0.
+      warnings.warn(
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/gradio/utils.py:780: UserWarning: Expected at least 1 arguments for function <function make_demo.<locals>.<lambda> at 0x7f22fbf5a550>, received 0.
+      warnings.warn(
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/sketch-to-image-pix2pix-turbo
+    Running on local URL:  http://127.0.0.1:7860
+
+    To create a public link, set `share=True` in `launch()`.
+
+
+
+
+
+
+
 
 .. code:: ipython3
 

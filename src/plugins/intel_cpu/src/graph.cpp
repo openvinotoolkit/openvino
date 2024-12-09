@@ -58,6 +58,7 @@ namespace intel_cpu {
 
 Graph::~Graph() {
     CPU_DEBUG_CAP_ENABLE(summary_perf(*this));
+    CPU_DEBUG_CAP_ENABLE(average_counters(*this));
 }
 
 template<typename NET>
@@ -516,7 +517,7 @@ void Graph::CreatePrimitivesAndExecConstants() const {
             auto edgePtr = node->getChildEdgeAt(i);
             if (edgePtr) {
                 if (edgePtr->isUseExternalMemory()) {
-                    auto ptr = m_context->getWeightsCache()->get(edgePtr->name());
+                    auto ptr = m_context->getWeightsCache()->get(edgePtr->hash());
                     outputs.emplace_back(ptr);
                     if (!ptr->isValid())
                         hasExternalInvalidEdges = true;
@@ -1635,7 +1636,7 @@ NodePtr Graph::InsertReorder(EdgePtr edge,
     reorder->setOptimized(isOptimized);
     reorder->setSrcPermutation(src_perm);
 
-    DEBUG_LOG(reorder->getName(), " edge=", edge->name(), " isOptimized=", isOptimized);
+    DEBUG_LOG(reorder->getName(), " edge=", *edge, " isOptimized=", isOptimized);
     DEBUG_LOG("    inDesc: ", inDesc.getShape().toString(), inDesc.getPrecision().get_type_name(), " ", inDesc.serializeFormat());
     DEBUG_LOG("   outDesc: ", outDesc.getShape().toString(), outDesc.getPrecision().get_type_name(), " ", outDesc.serializeFormat());
 

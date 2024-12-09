@@ -12,7 +12,7 @@
 #include <common/primitive_desc.hpp>
 #include <common/primitive_desc_iface.hpp>
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "shape_inference/shape_inference_ngraph.hpp"
+#include "shape_inference/shape_inference.hpp"
 
 #include "eltwise.h"
 #include "fake_quantize.h"
@@ -128,12 +128,11 @@ bool DeconvKey::operator==(const DeconvKey &rhs) const {
  */
 class DeconfolutionShapeInferFactory : public ShapeInferFactory {
 public:
-    DeconfolutionShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
+    DeconfolutionShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
+
     ShapeInferPtr makeShapeInfer() const override {
-        if (m_op->get_input_size() > 2) {
-            return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), PortMask(2));
-        }
-        return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), EMPTY_PORT_MASK);
+        const auto port_mask = (m_op->get_input_size() > 2) ? PortMask(2) : EMPTY_PORT_MASK;
+        return make_shape_inference(m_op, port_mask);
     }
 private:
     std::shared_ptr<ov::Node> m_op;
