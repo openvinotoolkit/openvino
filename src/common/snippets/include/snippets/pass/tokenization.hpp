@@ -37,7 +37,7 @@ int64_t GetTopologicalOrder(const std::shared_ptr<const Node>&);
  */
 class EnumerateNodes : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("EnumerateNodes", "0");
+    OPENVINO_RTTI("EnumerateNodes", "0", ov::pass::ModelPass);
     EnumerateNodes() : ModelPass() {}
     bool run_on_model(const std::shared_ptr<ov::Model>&) override;
 };
@@ -123,7 +123,7 @@ public:
         std::set<size_t> m_mha_supported_transpose_ranks = { 3, 4 };
     };
 
-    OPENVINO_RTTI("SnippetsTokenization", "0");
+    OPENVINO_RTTI("SnippetsTokenization", "0", ov::pass::ModelPass);
     SnippetsTokenization(const Config& config) : m_config(config) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 

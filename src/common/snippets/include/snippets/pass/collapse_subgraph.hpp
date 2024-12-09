@@ -35,7 +35,7 @@ namespace pass {
  */
 class TokenizeSnippets: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TokenizeSnippets", "0");
+    OPENVINO_RTTI("TokenizeSnippets", "0", ov::pass::MatcherPass);
     explicit TokenizeSnippets(const SnippetsTokenization::Config& config);
 
     static bool AppropriateForSubgraph(const std::shared_ptr<const Node>&);

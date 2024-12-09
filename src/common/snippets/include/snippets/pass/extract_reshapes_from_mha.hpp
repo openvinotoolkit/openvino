@@ -31,7 +31,7 @@ namespace pass {
  */
 class ExtractReshapesFromMHA: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ExtractReshapesFromMHA", "0");
+    OPENVINO_RTTI("ExtractReshapesFromMHA", "0", ov::pass::MatcherPass);
     ExtractReshapesFromMHA();
 };
 
