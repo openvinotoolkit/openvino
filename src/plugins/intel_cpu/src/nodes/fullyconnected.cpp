@@ -66,7 +66,7 @@ void FullyConnected::initTensorParallelConfig(const GraphContext::CPtr context) 
             // init tp_cfg.w_rank and tp_cfg.w_size
             tp_cfg.w_rank = context->getCPUStreamExecutor()->get_rank()[0];
             tp_cfg.w_size = ov::threading::message_manager()->get_num_sub_streams();
-            tp_cfg.enable_tensor_parallel = tp_cfg.w_size > 1 ? true : false;
+            tp_cfg.enable_tensor_parallel = tp_cfg.w_size > 1;
             tp_cfg.sub_memory = context->getSubMemory();
         }
     }
@@ -119,22 +119,18 @@ void FullyConnected::needPrepareParamsForTensorParallel() {
     }
 }
 
-ExecutorPtr FullyConnected::createExecutor() {
-    const auto& executor = factory->make(memory);
-    getSelectedPrimitiveDescriptor()->setImplementationType(executor->implType());
-
-    return executor;
-}
-
 void FullyConnected::prepareParams() {
     needPrepareParamsForTensorParallel();
-    executor = createExecutor();
+
+    executor->update(memory);
+    // @todo avoid updating implementation type in scope of every prepareParams call
+    getSelectedPrimitiveDescriptor()->setImplementationType(executor->implType());
 }
 
 void FullyConnected::initTensorParallelSync() {
     if (tp_cfg.enable_tensor_parallel) {
         tp_cfg.id = tp_cfg.sub_memory->get_memory_id(tp_cfg.w_rank);
-        OPENVINO_ASSERT(tp_cfg.id > 0, "Tensor Parallel Config ID cannot be negative.");
+        OPENVINO_ASSERT(tp_cfg.id >= 0, "Tensor Parallel Config ID cannot be negative.");
         tp_cfg.sub_memory->set_memory_used(tp_cfg.id, tp_cfg.w_rank);
         while (true) {
             std::lock_guard<std::mutex> lock(tp_cfg.sub_memory->_flagMutex);
@@ -431,7 +427,7 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     needUpdateZeroPointForTensorParallel();
 
     auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
-    factory = std::make_shared<ExecutorFactory<FCAttrs, node::FullyConnected>>(attrs, postOps, executionContext, descs);
+    factory = std::make_shared<ExecutorFactory<FCAttrs>>(attrs, postOps, executionContext, descs);
     const auto nodeDescriptors = factory->getProperMemoryDescriptors(descs);
 
     NodeConfig nodeConfig;
@@ -496,7 +492,7 @@ void FullyConnected::createPrimitive() {
     needSplitMemoryForTensorParallel();
     // @todo should we preconfigure only for dynamic shapes?
     // Since for static shapes primitive is created in scope of compile_model() anyway
-    factory->preconfigure(memory);
+    executor = factory->make(memory);
 
     Node::createPrimitive();
 }

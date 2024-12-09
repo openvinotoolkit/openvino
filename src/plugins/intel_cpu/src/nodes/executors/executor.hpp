@@ -112,8 +112,10 @@ public:
           engine(graphContext->getEngine()),
           implPriorities(implPriorities),
           privateWeighCache(std::move(privateWeighCache)),
-          numNumaNodes(graphContext->getNumNumaNodes())
-    {}
+          numNumaNodes(graphContext->getNumNumaNodes()) {
+        auto cpuStreamsExecutor = graphContext->getCPUStreamExecutor();
+        curNumaNodeId = std::max(0, cpuStreamsExecutor ? cpuStreamsExecutor->get_numa_node_id() : curNumaNodeId);
+    }
 
     MultiCachePtr getRuntimeCache() const {
         auto runtimeCachePtr = runtimeCache.lock();
@@ -121,12 +123,8 @@ public:
         return runtimeCachePtr;
     }
 
-    DnnlScratchPadPtr getScratchPad(int subStreamID = 0) const {
-        if (subStreamID < 0)
-            subStreamID = 0;
-        if (subStreamID >= numNumaNodes - 1)
-            subStreamID = numNumaNodes - 1;
-        return scratchPads[subStreamID];
+    DnnlScratchPadPtr getScratchPad() const {
+        return scratchPads[curNumaNodeId];
     }
 
     std::shared_ptr<std::unordered_map<std::string, MemoryPtr>> getPrivateWeighCache() const {
@@ -156,6 +154,7 @@ private:
     // @todo remove after global cache is used exclusevly
     std::shared_ptr<std::unordered_map<std::string, MemoryPtr>> privateWeighCache;
     int numNumaNodes;
+    int curNumaNodeId = -1;
 };
 
 class ExecutorFactoryLegacy {
