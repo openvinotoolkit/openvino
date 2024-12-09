@@ -2262,10 +2262,10 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
         if (key_cache_type == ov::element::u8) {
             executor = std::make_shared<AttentionExecutor<float, uint8_t, uint8_t>>(key_group_size, value_group_size);
         } else if (key_cache_type == ov::element::f16) {
-            executor = std::make_shared<AttentionExecutor<float, ov::float16, ov::float16>>();
+            executor = std::make_shared<AttentionExecutor<float, ov::float16, ov::float16>>(key_group_size, value_group_size);
         } else {
             OPENVINO_ASSERT(key_cache_type == ov::element::f32, "expect kvcache type f32, current: ", key_cache_type);
-            executor = std::make_shared<AttentionExecutor<float, float, float16>>();
+            executor = std::make_shared<AttentionExecutor<float, float, float>>(key_group_size, value_group_size);
         }
     } else {
         OPENVINO_THROW("make_pa_executor: unsupported precision: ", data_type);
