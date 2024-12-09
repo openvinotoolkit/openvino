@@ -107,7 +107,7 @@ TEST(TransformationTests, ReadValueWithSubgraph_1) {
  *     Add1   Add2   \                          |     |  \   |
  *      |      |  \   |         --->            |     |   Add3
  *       \     |   Add3                         |     |   /   \
- *        \    |   /   \               ReadValueWithSubgraph  Result2     Subgraph(Add1, And4, Add5)
+ *        \    |   /   \               ReadValueWithSubgraph  Result2     Subgraph(Add1, Add4, Add5)
  *         \  Add4      \                           /   \
  *          \  |         \                     Result1  Assign
  *           Add5       Result2
