@@ -76,10 +76,22 @@ public:
                 generate_inputs(targetStaticShapeVec);
                 validate();
             }
+            // Different input shape, reset is required.
+            reset();
         }
     }
 
 protected:
+    void reset() {
+        for (auto&& state : inferRequest.query_state()) {
+            state.reset();
+        }
+
+        for (auto&& state : inferRequestRef.query_state()) {
+            state.reset();
+        }
+    }
+
     virtual void check_init_graph_node() = 0;
 
     void prepare() {
