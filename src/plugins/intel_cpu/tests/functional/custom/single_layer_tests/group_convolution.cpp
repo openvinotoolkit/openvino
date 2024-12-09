@@ -326,6 +326,7 @@ const std::vector<fusingSpecificParams> fusingParamsSet_Brdgmm{emptyFusingSpec,
                                                                fusingFakeQuantizePerTensorRelu,
                                                                fusingFakeQuantizePerChannelRelu
                                                                // sum
+                                                               // comment out sum due to MFDNN-12841
                                                                //fusingSumEluFQ,
                                                                //fusingSum
                                                               };
@@ -336,6 +337,7 @@ const std::vector<fusingSpecificParams> fusingParamsSetBF16_Brdgmm{emptyFusingSp
                                                                    // depthwise
                                                                    fusingReluScaleShift
                                                                    // sum
+                                                                   // comment out sum due to MFDNN-12841
                                                                    //fusingSum
                                                                   };
 
