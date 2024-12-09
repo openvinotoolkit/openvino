@@ -1045,6 +1045,17 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
 
         #if COMPRESSED_WEIGHTS_INT8
             ACCUMULATOR_TYPE wei_zp[TILE_OFM] = { };
+            unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
+                #if DECOMPRESSION_ZP_TERM
+                    #if DECOMPRESSION_ZP_SCALAR
+                        wei_zp[fi] = (TO_ACCUMULATOR_TYPE)(DECOMPRESSION_ZP_VALUE);
+                    #elif DECOMPRESSION_ZP_GROUPS_NUM == 1
+                        wei_zp[fi] = TO_ACCUMULATOR_TYPE(d_zps[fi % DECOMPRESSION_ZP_LENGTH]);
+                    #endif
+                #else
+                    wei_zp[fi] = ACCUMULATOR_VAL_ZERO;
+                #endif
+            }
         #endif
 
         // DQ_DECOMPRESSION_SCALE_POST_OP SHOULD be enabled for dynamic quantize FC : scale is ACCUMULATOR_VAL_ONE
@@ -1108,31 +1119,6 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                 #endif
             #endif
 
-            #if COMPRESSED_WEIGHTS_INT8
-                unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
-                    #if DECOMPRESSION_ZP_TERM
-                        #if DECOMPRESSION_ZP_SCALAR
-                            wei_zp[fi] = (TO_ACCUMULATOR_TYPE)(DECOMPRESSION_ZP_VALUE);
-                        #elif DECOMPRESSION_ZP_GROUPS_NUM > 1
-                            #if FILTER_LOAD_BLOCK_SIZE % DECOMPRESSION_ZP_GROUP_SIZE != 0
-                                #error "FC bf_tiled kernel: Not support DECOMPRESSION_ZP_GROUPS_NUM > 1"
-                            #endif
-
-                            const uint ni_offset = ni * TILE_IFM * SIMD + local_id * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE;
-                            const uint offset_ofm = out_f + fi*SIMD + sglid;
-                            const uint offset_ifm = ni_offset + load_iter * FILTER_LOAD_BLOCK_SIZE;
-                            const uint zp_offset = (offset_ofm % DECOMPRESSION_ZP_BATCH_NUM) * DECOMPRESSION_ZP_BATCH_PITCH +
-                                                    (offset_ifm / DECOMPRESSION_ZP_GROUP_SIZE) * DECOMPRESSION_ZP_FEATURE_PITCH;
-                            wei_zp[fi] = TO_ACCUMULATOR_TYPE(decompression_zp[zp_offset]);
-                        #else
-                            wei_zp[fi] = TO_ACCUMULATOR_TYPE(d_zps[fi % DECOMPRESSION_ZP_LENGTH]);
-                        #endif
-                    #else
-                        wei_zp[fi] = ACCUMULATOR_VAL_ZERO;
-                    #endif
-                }
-            #endif
-
             #if FILTER_LOAD_BLOCK_SIZE == 2
                 SLM_WEIGHT_VEC wei_1 = {dq_wei_unpacked.s01, dq_wei_unpacked.s23};
                 char_slm_weight[wei_local_idx] = as_uint(wei_1);
@@ -1159,6 +1145,21 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                 weights_idx += SIMD * TILE_K_OFM_PACKED;
             #else
                 weights_idx += SIMD * FILTER_ACTUAL_LOAD_BLOCK_SIZE;
+            #endif
+
+            #if COMPRESSED_WEIGHTS_INT8 && DECOMPRESSION_ZP_TERM && DECOMPRESSION_ZP_GROUPS_NUM > 1 && !DECOMPRESSION_ZP_SCALAR
+                unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
+                    #if FILTER_LOAD_BLOCK_SIZE % DECOMPRESSION_ZP_GROUP_SIZE != 0
+                        #error "FC bf_tiled kernel: Not support DECOMPRESSION_ZP_GROUPS_NUM > 1"
+                    #endif
+
+                    const uint ni_offset = ni * TILE_IFM * SIMD + local_id * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE;
+                    const uint offset_ofm = out_f + fi*SIMD + sglid;
+                    const uint offset_ifm = ni_offset + load_iter * FILTER_LOAD_BLOCK_SIZE;
+                    const uint zp_offset = (offset_ofm % DECOMPRESSION_ZP_BATCH_NUM) * DECOMPRESSION_ZP_BATCH_PITCH +
+                                            (offset_ifm / DECOMPRESSION_ZP_GROUP_SIZE) * DECOMPRESSION_ZP_FEATURE_PITCH;
+                    wei_zp[fi] = TO_ACCUMULATOR_TYPE(decompression_zp[zp_offset]);
+                }
             #endif
         }
 
