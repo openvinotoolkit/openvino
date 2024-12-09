@@ -17,6 +17,7 @@ impl_desc_type parse_impl_name(std::string impl_desc_name) {
     if (pos != std::string::npos) impl_desc_name.replace(pos, std::string(#_wrd).length(), #_sub); }
     // Replace the ONEDNN pd name with OV definition.
     REPLACE_WORD(brg_conv, brgconv);
+    REPLACE_WORD(brdgmm, brgconv);
     REPLACE_WORD(avx10_1_512, avx512);
     REPLACE_WORD(brg_matmul, brgemm);
 
@@ -119,6 +120,8 @@ const char* impl_type_to_string(impl_desc_type type) {
     CASE(brgconv_sse42_1x1);
     CASE(brgconv_uni_1x1);
     CASE(brgconv_avx512_amx_1x1);
+    CASE(brgconv_avx512_dw);
+    CASE(brgconv_avx2_dw);
     CASE(brgemm_avx512);
     CASE(brgemm_avx2);
     CASE(brgemm_avx);
