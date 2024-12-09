@@ -8,6 +8,8 @@ RUN yum update -y && yum install -y \
     curl \
     python3 \
     findutils \
+    ocl-icd \
+    ocl-icd-devel \
     # parallel gzip
     pigz \
     xz
