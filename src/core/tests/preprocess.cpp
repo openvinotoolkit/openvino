@@ -37,6 +37,22 @@ static std::shared_ptr<Model> create_trivial(element::Type type, const PartialSh
     return std::make_shared<Model>(ResultVector{res}, ParameterVector{data1});
 }
 
+static std::shared_ptr<Model> create_clamp(element::Type type, const PartialShape& shape, float min, float max) {
+    auto data = std::make_shared<op::v0::Parameter>(type, shape);
+    data->set_friendly_name("input");
+    data->get_output_tensor(0).set_names({"tensor_input"});
+
+    auto clamp_op = std::make_shared<op::v0::Clamp>(data, min, max);
+    clamp_op->set_friendly_name("Clamp");
+    clamp_op->get_output_tensor(0).set_names({"tensor_clamp"});
+
+    auto result = std::make_shared<op::v0::Result>(clamp_op);
+    result->set_friendly_name("Result");
+    result->get_output_tensor(0).set_names({"tensor_output"});
+
+    return std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+}
+
 template <int N>
 static std::shared_ptr<Model> create_n_inputs(element::Type type, const PartialShape& shape) {
     ResultVector res;
@@ -2270,4 +2286,12 @@ TEST(pre_post_process, dump_error) {
     stream << p;
     auto dump = stream.str();
     EXPECT_TRUE(dump.find("Error occurred:") != std::string::npos) << dump;
+}
+
+TEST(pre_post_process, preprocess_clamp) {
+    auto f = create_clamp(element::f16, Shape{1, 3, 2, 2}, 0.0f, 2.0f);
+    auto p = PrePostProcessor(f);
+    p.input("tensor_input").preprocess().clamp(0.0f, 2.0f);
+    f = p.build();
+    EXPECT_EQ(f->get_output_element_type(0), element::f16);
 }
