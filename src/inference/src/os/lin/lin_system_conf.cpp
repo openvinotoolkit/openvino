@@ -501,9 +501,11 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
     const std::vector<int> line_value_0({0, 0, 0, 0, -1, -1});
 
     std::vector<int> offline_list;
+    int info_index = 0;
 
     for (int n = 0; n < _processors; n++) {
-        if (system_info_table[n][2].size() > 0) {
+        if ((system_info_table[n][2].size() > 0) || (system_info_table[n][1].size() > 0)) {
+            info_index = system_info_table[n][2].size() > 0 ? 2 : 1;
             if (-1 == _cpu_mapping_table[n][CPU_MAP_SOCKET_ID]) {
                 std::string::size_type pos = 0;
                 std::string::size_type endpos = 0;
@@ -520,12 +522,16 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
                 }
 
                 while (1) {
-                    if ((endpos = system_info_table[n][2].find('-', pos)) != std::string::npos) {
-                        sub_str = system_info_table[n][2].substr(pos, endpos - pos);
+                    if ((endpos = system_info_table[n][info_index].find('-', pos)) != std::string::npos) {
+                        sub_str = system_info_table[n][info_index].substr(pos, endpos - pos);
                         core_1 = std::stoi(sub_str);
-                        sub_str = system_info_table[n][2].substr(endpos + 1);
+                        sub_str = system_info_table[n][info_index].substr(endpos + 1);
                         core_2 = std::stoi(sub_str);
 
+                        if ((info_index == 1) && (core_2 - core_1 == 1)) {
+                            offline_list.push_back(n);
+                            break;
+                        }
                         for (int m = core_1; m <= core_2; m++) {
                             _cpu_mapping_table[m][CPU_MAP_SOCKET_ID] = _sockets;
                             _cpu_mapping_table[m][CPU_MAP_NUMA_NODE_ID] = _cpu_mapping_table[m][CPU_MAP_SOCKET_ID];
@@ -535,7 +541,7 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
                             };
                         }
                     } else if (pos != std::string::npos) {
-                        sub_str = system_info_table[n][2].substr(pos);
+                        sub_str = system_info_table[n][info_index].substr(pos);
                         core_1 = std::stoi(sub_str);
                         _cpu_mapping_table[core_1][CPU_MAP_SOCKET_ID] = _sockets;
                         _cpu_mapping_table[core_1][CPU_MAP_NUMA_NODE_ID] =
@@ -554,6 +560,10 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
                     }
                 }
                 _sockets++;
+                if (_proc_type_table[0][ALL_PROC] == 0) {
+                    _proc_type_table.erase(_proc_type_table.begin());
+                    _sockets--;
+                }
             }
         } else {
             offline_list.push_back(n);
