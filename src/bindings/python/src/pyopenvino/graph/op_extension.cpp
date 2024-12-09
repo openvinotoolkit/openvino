@@ -10,16 +10,14 @@
 
 #include "pyopenvino/core/common.hpp"
 #include "pyopenvino/core/extension.hpp"
-#include "pyopenvino/graph/op.hpp"
-#include "pyopenvino/graph/node_output.hpp"
 #include "pyopenvino/graph/discrete_type_info.hpp"
+#include "pyopenvino/graph/node_output.hpp"
+#include "pyopenvino/graph/op.hpp"
 
 namespace py = pybind11;
 
 void regclass_graph_OpExtension(py::module m) {
-    py::class_<PyOpExtension, std::shared_ptr<PyOpExtension>, ov::Extension> op_extension(
-        m,
-        "OpExtension");
+    py::class_<PyOpExtension, std::shared_ptr<PyOpExtension>, ov::Extension> op_extension(m, "OpExtension");
     op_extension.doc() = "openvino.OpExtension provides the base interface for OpenVINO extensions.";
 
     op_extension.def("__repr__", [](const PyOpExtension& self) {

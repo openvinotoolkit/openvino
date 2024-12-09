@@ -10,11 +10,9 @@
 #include <pybind11/stl_bind.h>
 
 #include <pyopenvino/graph/op.hpp>
-#include <pyopenvino/graph/discrete_type_info.hpp>
 
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/type.hpp"
 
 namespace py = pybind11;
 
@@ -36,8 +34,8 @@ std::shared_ptr<ov::Node> PyOp::clone_with_new_inputs(const ov::OutputVector& ne
     py::gil_scoped_acquire gil;  // Acquire the GIL while in this scope.
     // Try to look up the overridden method on the Python side.
     py::function overrided_py_method = pybind11::get_override(this, "clone_with_new_inputs");
-    if (overrided_py_method) {                                       // method is found
-        auto result = overrided_py_method(new_args); // Call the Python function.
+    if (overrided_py_method) {                        // method is found
+        auto result = overrided_py_method(new_args);  // Call the Python function.
         return result.cast<std::shared_ptr<ov::Node>>();
     }
     // Default implementation for clone_with_new_inputs
