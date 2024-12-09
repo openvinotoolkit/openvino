@@ -304,8 +304,10 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     LOG_BLOCK();
 
     // Sanity check magic number
-    uint64_t serialization_indicator;
-    stream >> serialization_indicator;
+    uint64_t serialization_indicator = 0;
+    //stream >> serialization_indicator;
+    stream.read(reinterpret_cast<char*>(&serialization_indicator), sizeof serialization_indicator);
+    std::cout << serialization_indicator << " " << SERIALIZATION_INDICATOR << std::endl;
     NPUW_ASSERT(serialization_indicator == SERIALIZATION_INDICATOR && "This blob wasn't serialized via NPUW!");
 
     // Deserialize general meta info
@@ -353,7 +355,14 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& fout) const {
     LOG_BLOCK();
 
     // Serialize magic number first
-    fout << SERIALIZATION_INDICATOR;
+    //fout << SERIALIZATION_INDICATOR;
+    fout.write(reinterpret_cast<const char*>(&SERIALIZATION_INDICATOR), sizeof SERIALIZATION_INDICATOR);
+
+    /*
+    uint64_t serialization_indicator = 0;
+    //stream >> serialization_indicator;
+    stream.read(reinterpret_cast<char*>(&serialization_indicator), sizeof serialization_indicator);
+    */
 
     // Serialize general meta info
     fout << OPENVINO_VERSION_MAJOR << OPENVINO_VERSION_MINOR << OPENVINO_VERSION_PATCH;
