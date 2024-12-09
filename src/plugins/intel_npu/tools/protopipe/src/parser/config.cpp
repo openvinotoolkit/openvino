@@ -136,18 +136,18 @@ static ScenarioGraph buildGraph(const std::vector<OpDesc>& op_descs,
                                 const std::vector<std::vector<std::string>>& connections);
 
 namespace {
-    void validateNodeChildren(const YAML::Node& node, std::set<std::string> supported_keys)
+    void validateNodeChildren(const YAML::Node& node, std::set<std::string> supportedKeys)
     {
         for (const auto& nodeChild : node) {
             const auto key = nodeChild.first.as<std::string>();
-            if (supported_keys.find(key) == supported_keys.end()) {
+            if (supportedKeys.find(key) == supportedKeys.end()) {
                 const auto mark = node[key].Mark();
                 std::stringstream ss;
                 ss << "Unsupported node: '" << key << "' at line " << mark.line << " column: " << mark.column <<".";
                 ss << " Following nodes are known at this stage: [";
-                for (const auto& supportedKey : supported_keys) { 
+                for (const auto& supportedKey : supportedKeys) { 
                     ss << "\"" << supportedKey << "\"";
-                    if (supportedKey != *supported_keys.rbegin()) ss << ", ";
+                    if (supportedKey != *supportedKeys.rbegin()) ss << ", ";
                 }
                 ss << "].";
                 THROW_ERROR(ss.str());
@@ -326,9 +326,9 @@ struct convert<IAccuracyMetric::Ptr> {
 };
 
 namespace {
-    static const std::set<std::string> parseConfig_raw_parameters = {"multi_inference", "metric", "random", "disable_high_resolution_waitable_timer"};
-    static const std::set<std::string> globalOptions_raw_parameters = {"model_dir", "blob_dir", "device_name", "log_level", "compiler_type", "save_validation_outputs"};
-    static const std::set<std::string> globalOptions_parameters = []() {
+    const std::set<std::string> parseConfig_raw_parameters = {"multi_inference", "metric", "random", "disable_high_resolution_waitable_timer"};
+    const std::set<std::string> globalOptions_raw_parameters = {"model_dir", "blob_dir", "device_name", "log_level", "compiler_type", "save_validation_outputs"};
+    const std::set<std::string> globalOptions_parameters = []() {
         std::set<std::string> res = globalOptions_raw_parameters;
         res.insert(parseConfig_raw_parameters.cbegin(), parseConfig_raw_parameters.cend());
         return res;
@@ -531,8 +531,8 @@ struct convert<ONNXRTParams> {
 };
 
 namespace {
-    static const std::set<std::string> network_raw_parameters = {"name", "framework", "random", "metric", "input_data", "output_data"};
-    static const std::set<std::string> network_parameters = []() {
+    const std::set<std::string> network_raw_parameters = {"name", "framework", "random", "metric", "input_data", "output_data"};
+    const std::set<std::string> network_parameters = []() {
         std::set<std::string> res = network_raw_parameters;
 
         return res;
@@ -590,8 +590,8 @@ struct convert<CPUOp> {
     }
 };
 namespace {
-    static const std::set<std::string> parseAdvancedStream_raw_parameters = {"name", "frames_interval_in_ms", "target_fps", "target_latency_in_ms", "exec_time_in_secs", "iteration_count", "op_desc", "connections"};
-    static const std::set<std::string> inferOp_parameters = []() {
+    const std::set<std::string> parseAdvancedStream_raw_parameters = {"name", "frames_interval_in_ms", "target_fps", "target_latency_in_ms", "exec_time_in_secs", "iteration_count", "op_desc", "connections"};
+    const std::set<std::string> inferOp_parameters = []() {
         std::set<std::string> res = inferOp_raw_parameters;
         res.insert(opDesc_raw_parameters.begin(), opDesc_raw_parameters.end());
         res.insert(parseAdvancedStream_raw_parameters.begin(), parseAdvancedStream_raw_parameters.end());
