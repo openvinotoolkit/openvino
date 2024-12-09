@@ -8,12 +8,12 @@
 #include <oneapi/dnnl/dnnl.hpp>
 
 #include "cpu_memory.h"
-#include "nodes/executors/dnnl/dnnl_fullyconnected_primitive.hpp"
-#include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
 #include "nodes/executors/dnnl/dnnl_aliases.hpp"
+#include "nodes/executors/dnnl/dnnl_utils.hpp"
 #include "nodes/executors/executor.hpp"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "nodes/executors/memory_arguments.hpp"
+#include "post_ops.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -73,7 +73,7 @@ public:
             return;
         }
         const auto newPrimMemDesc = m_primitive->scratchPadDesc();
-        m_scratchPadMemory = m_context->getScratchPad(numaNodeID)->createScratchPadMem(newPrimMemDesc);
+        m_scratchPadMemory = m_context->getScratchPad()->createScratchPadMem(newPrimMemDesc);
         m_primArgs[DNNL_ARG_SCRATCHPAD] = m_scratchPadMemory->getPrimitive();
 
         if (m_primArgs.count(DNNL_ARG_WEIGHTS)) {
@@ -139,7 +139,7 @@ private:
         if (currentPrimitive && currentPrimitive->scratchPadDesc()->isCompatible(*newPrimMemDesc))
             return;
 
-        m_scratchPadMemory = m_context->getScratchPad(curNumaNode)->createScratchPadMem(newPrimMemDesc);
+        m_scratchPadMemory = m_context->getScratchPad()->createScratchPadMem(newPrimMemDesc);
         m_primArgs[DNNL_ARG_SCRATCHPAD] = m_scratchPadMemory->getPrimitive();
     }
 
