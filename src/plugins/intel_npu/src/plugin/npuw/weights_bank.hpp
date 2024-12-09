@@ -38,13 +38,13 @@ private:
     // Bank for specified device and their allocated memory
     struct DeviceBank {
         std::unordered_map<LazyTensor, ov::Tensor, LazyTensor::Hash> storage;
-        std::mutex mutex;
+        mutable std::mutex mutex;
     };
     std::unordered_map<std::string, DeviceBank> m_device_banks;
 
     ov::Tensor eval_and_alloc(const LazyTensor& tensor, DeviceBank& dbank, const std::string& device);
 
-    std::mutex m_mutex;
+    mutable std::mutex m_mutex;
     std::shared_ptr<const ov::ICore> m_core = nullptr;
     std::string m_alloc_device;
 };
