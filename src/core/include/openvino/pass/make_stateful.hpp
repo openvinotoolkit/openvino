@@ -18,7 +18,7 @@ namespace pass {
  */
 class OPENVINO_API MakeStateful : public ModelPass {
 public:
-    OPENVINO_RTTI("MakeStateful","0", ModelPass);
+    OPENVINO_RTTI("MakeStateful", "0", ModelPass);
 
     using ParamResPairs =
         std::vector<std::pair<std::shared_ptr<ov::op::v0::Parameter>, std::shared_ptr<ov::op::v0::Result>>>;

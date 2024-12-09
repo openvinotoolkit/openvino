@@ -22,7 +22,7 @@ class TRANSFORMATIONS_API ConvertMaxPool14ToMaxPool8;
  */
 class ov::pass::ConvertMaxPool8ToMaxPool1 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertMaxPool8ToMaxPool1","0", ov::pass::MatcherPass);
+    OPENVINO_RTTI("ConvertMaxPool8ToMaxPool1", "0", ov::pass::MatcherPass);
     ConvertMaxPool8ToMaxPool1();
 };
 

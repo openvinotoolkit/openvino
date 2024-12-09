@@ -31,8 +31,7 @@ ov::pass::ReduceReshapeFusion::ReduceReshapeFusion() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
         auto reshape_node = pattern_map.at(reshape).get_node_shared_ptr();
-        const auto reduce_node =
-            ov::as_type_ptr<op::util::ReductionBase>(pattern_map.at(reduce).get_node_shared_ptr());
+        const auto reduce_node = ov::as_type_ptr<op::util::ReductionBase>(pattern_map.at(reduce).get_node_shared_ptr());
         if (!reduce_node) {
             return false;
         }

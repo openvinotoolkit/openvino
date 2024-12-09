@@ -48,7 +48,7 @@ namespace op {
 //    Issue: 139839
 class OPENVINO_API Optional : public Pattern {
 public:
-    OPENVINO_RTTI("patternOptional","0", Pattern);
+    OPENVINO_RTTI("patternOptional", "0", Pattern);
     /// \brief creates an optional node matching one pattern. Add nodes to match list.
     /// \param type_infos Optional operation types to exclude them from the matching
     /// in case the following op types do not exist in a pattern to match.

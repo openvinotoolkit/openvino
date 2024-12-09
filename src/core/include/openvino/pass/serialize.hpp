@@ -22,7 +22,7 @@ namespace pass {
  */
 class OPENVINO_API Serialize : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("Serialize","0", ov::pass::ModelPass);
+    OPENVINO_RTTI("Serialize", "0", ov::pass::ModelPass);
 
     enum class Version : uint8_t {
         UNSPECIFIED = 0,  // Use the latest or function version
@@ -52,7 +52,7 @@ private:
  */
 class OPENVINO_API StreamSerialize : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("StreamSerialize","0", ov::pass::ModelPass);
+    OPENVINO_RTTI("StreamSerialize", "0", ov::pass::ModelPass);
 
     struct DataHeader {
         size_t custom_data_offset;

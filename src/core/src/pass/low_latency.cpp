@@ -258,8 +258,7 @@ bool ov::pass::LowLatency2::run_on_model(const std::shared_ptr<Model>& f) {
                         generate_variable_name(sub_graph_op->get_friendly_name(), param_name, variable_id);
 
                     const auto& input = sub_graph_op->input(merged_in->m_input_index);
-                    if (ov::as_type_ptr<ReadValueBase>(input.get_source_output().get_node_shared_ptr()) !=
-                        nullptr) {
+                    if (ov::as_type_ptr<ReadValueBase>(input.get_source_output().get_node_shared_ptr()) != nullptr) {
                         OPENVINO_DEBUG(msg_low_latency_2_already_applied);
                         return false;
                     }

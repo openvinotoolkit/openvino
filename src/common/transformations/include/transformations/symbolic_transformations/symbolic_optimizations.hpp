@@ -42,7 +42,7 @@ private:
  */
 class ov::pass::SymbolicPropagation : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("SymbolicPropagation","0", ov::pass::ModelPass);
+    OPENVINO_RTTI("SymbolicPropagation", "0", ov::pass::ModelPass);
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 

@@ -22,7 +22,7 @@ namespace op {
 /// more than one inputs are given, an Or pattern of the inputs serves as the input.
 class OPENVINO_API Label : public Pattern {
 public:
-    OPENVINO_RTTI("patternLabel","0", Pattern);
+    OPENVINO_RTTI("patternLabel", "0", Pattern);
     /// \brief creates a Label node containing a sub-pattern described by \sa type and
     ///        \sa shape.
     ///
