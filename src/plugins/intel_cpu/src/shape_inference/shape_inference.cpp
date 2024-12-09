@@ -307,7 +307,8 @@ public:
 /**
  * @brief Shape inference for v0 FakeQuantize.
  *
- * It requires dedicated port mask for data dependency but not use by shape inference function.
+ * It requires dedicated port mask for CPU output shape data dependency but is not used by inference function.
+ * Review shape_infer function to include this dependency.
  */
 template <>
 class ShapeInferTA<ov::op::v0::FakeQuantize, EMPTY_PORT_MASK> : public ShapeInferBase {
@@ -376,6 +377,48 @@ public:
     ov::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
                                                  const ov::ITensorAccessor&) override {
         return {shape_infer(static_cast<TOp*>(m_node.get()), input_shapes, m_pads_begin, m_pads_end)};
+    }
+};
+
+/**
+ * @brief Shape inference for v14 MaxPool.
+ *
+ * It requires dedicated port mask for CPU output shape data dependency but is not used by inference function.
+ * Review shape_infer function to include this dependency.
+ */
+template <>
+class ShapeInferPaddingTA<ov::op::v14::MaxPool, EMPTY_PORT_MASK> : public ShapeInferPaddingBase {
+public:
+    using ShapeInferPaddingBase::ShapeInferPaddingBase;
+
+    ov::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
+                                                 const ov::ITensorAccessor&) override {
+        return {shape_infer(static_cast<ov::op::v14::MaxPool*>(m_node.get()), input_shapes, m_pads_begin, m_pads_end)};
+    }
+
+    port_mask_t get_port_mask() const override {
+        return util::bit::mask(0);
+    }
+};
+
+/**
+ * @brief Shape inference for v8 MaxPool.
+ *
+ * It requires dedicated port mask for CPU output shape data dependency but is not used by inference function.
+ * Review shape_infer function to include this dependency.
+ */
+template <>
+class ShapeInferPaddingTA<ov::op::v8::MaxPool, EMPTY_PORT_MASK> : public ShapeInferPaddingBase {
+public:
+    using ShapeInferPaddingBase::ShapeInferPaddingBase;
+
+    ov::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
+                                                 const ov::ITensorAccessor&) override {
+        return {shape_infer(static_cast<ov::op::v8::MaxPool*>(m_node.get()), input_shapes, m_pads_begin, m_pads_end)};
+    }
+
+    port_mask_t get_port_mask() const override {
+        return util::bit::mask(0);
     }
 };
 
