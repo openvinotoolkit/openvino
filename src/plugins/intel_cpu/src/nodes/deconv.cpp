@@ -121,20 +121,11 @@ bool DeconvKey::operator==(const DeconvKey &rhs) const {
     return retVal;
 }
 
-// class FCShapeInfer : public ShapeInferEmptyPads {
-// public:
-//     FCShapeInfer(size_t outPut_rank) : out_rank(outPut_rank) {}
-//     Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-//                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
-
-//     port_mask_t get_port_mask() const override {
-//         return EMPTY_PORT_MASK;
-//     }
-
-// private:
-//     size_t out_rank = 0;
-// };
-
+/**
+ * Deconvolution shape inference factory. It defines the input mask depending on the existence of the `output_shape`
+ * input. Since in case it exists, plugin should pass the input data to the shape inference function.
+ *
+ */
 class DeconvolutionShapeInferFactory : public ShapeInferFactory {
 public:
     DeconvolutionShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
