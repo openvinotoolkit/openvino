@@ -181,7 +181,7 @@ void CompiledModel::export_model(std::ostream& model) const {
 
     const ov::EncryptionCallbacks encryption_callbacks = m_config.get_property(ov::cache_encryption_callbacks);
 
-    // Do not allow encryption for CacheMode::OPTIMIZE_SHAPE - the cache size may cause severe memory penalty.
+    // Do not allow encryption for CacheMode::OPTIMIZE_SPEED - the cache size may cause severe memory penalty.
     const bool encryption_enabled = encryption_callbacks.encrypt && cache_mode == ov::CacheMode::OPTIMIZE_SIZE;
     std::unique_ptr<cldnn::BinaryOutputBuffer> ob_ptr =
         encryption_enabled
