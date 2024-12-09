@@ -243,8 +243,6 @@ def check_model_object(argv):
 
 
 def driver(argv: argparse.Namespace, non_default_params: dict):
-    init_logger('ERROR', argv.verbose)
-
     # Log dictionary with non-default cli parameters where complex classes are excluded.
     log.debug(str(non_default_params))
 
@@ -433,7 +431,11 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
     telemetry.send_event('ovc', 'version', simplified_ie_version)
     # Initialize logger with 'ERROR' as default level to be able to form nice messages
     # before arg parser deliver log_level requested by user
-    init_logger('ERROR', False)
+    verbose = False
+    if "verbose" in args and args["verbose"] or "--verbose" in sys.argv:
+        verbose = True
+
+    init_logger('ERROR', verbose, python_api_used)
     argv = None
     # Minimize modifications among other places in case if multiple pieces are passed as input_model
     if python_api_used:
