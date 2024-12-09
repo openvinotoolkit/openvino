@@ -753,7 +753,27 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
     OV_ITT_TASK_CHAIN(PLUGIN_IMPORT_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "merge_configs");
 
-    const std::map<std::string, std::string> propertiesMap = any_copy(properties);
+    // If NPUW is active - import via NPUW
+    auto useNpuwKey = ov::intel_npu::use_npuw.name();
+    ov::AnyMap localProperties = properties;
+    if (localProperties.count(useNpuwKey) && localProperties.at(useNpuwKey).as<bool>() == true) {
+        auto llm_enabled = ov::intel_npu::npuw::llm::enabled.name();
+        // Only dynamic statefull models are supported for now supported
+        if (!localProperties.count(llm_enabled) || localProperties.at(llm_enabled).as<bool>() == false) {
+            OPENVINO_THROW("Cannot import non-dynamic NPUW model!");
+        }
+        return ov::npuw::LLMCompiledModel::deserialize(stream, localProperties);
+    }
+
+    // Drop NPUW properties if there are any
+    ov::AnyMap npu_plugin_properties;
+    for (auto it = properties.begin(); it != properties.end(); ++it) {
+        if (it->first.find("NPUW") == it->first.npos) {
+            npu_plugin_properties.insert(*it);
+        }
+    }
+    const std::map<std::string, std::string> propertiesMap = any_copy(npu_plugin_properties);
+
     auto localConfig = merge_configs(_globalConfig, propertiesMap, OptionMode::RunTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform = _backends->getCompilationPlatform(localConfig.get<PLATFORM>(), localConfig.get<DEVICE_ID>());
@@ -769,18 +789,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     }
 
     OV_ITT_TASK_NEXT(PLUGIN_IMPORT_MODEL, "parse");
-
-    // If NPUW is active - import via NPUW
-    auto useNpuwKey = ov::intel_npu::use_npuw.name();
-    ov::AnyMap localProperties = properties;
-    if (localProperties.count(useNpuwKey) && localProperties.at(useNpuwKey).as<bool>() == true) {
-        auto llm_enabled = ov::intel_npu::npuw::llm::enabled.name();
-        // Only dynamic statefull models are supported for now supported
-        if (!localProperties.count(llm_enabled) || localProperties.at(llm_enabled).as<bool>() == true) {
-            OPENVINO_THROW("Cannot import non-dynamic NPUW model!");
-        }
-        return ov::npuw::LLMCompiledModel::deserialize(stream, localProperties);
-    }
 
     std::shared_ptr<ov::ICompiledModel> compiledModel;
 
