@@ -174,7 +174,7 @@ void reshape(ov::OutputVector inputsInfo, InputsInfo& infoMap, std::shared_ptr<o
         if (device.find("NPU") != std::string::npos ||
             // FIXME: SIT on CPU also requires to bound dynamic shapes
             device.find("CPU") != std::string::npos || device.find("TEMPLATE") != std::string::npos) {
-            boundDynamicShape(model);
+            //boundDynamicShape(model);
         }
     }
 }

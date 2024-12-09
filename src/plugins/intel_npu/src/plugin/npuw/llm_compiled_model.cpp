@@ -8,6 +8,8 @@
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 
+const constexpr uint64_t SERIALIZATION_INDICATOR = 0x0123456789abcdef;
+
 namespace {
 uint32_t align_to(uint32_t value, uint32_t alignment) {
     return (value + alignment - 1) & ~(alignment - 1);
@@ -111,6 +113,7 @@ struct NPUDesc {
 };
 
 std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin) {
+    return std::nullopt; // FIXME: below upsupported on CPU!
     const ov::Any arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{});
     const ov::Any max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{});
     return std::make_optional(NPUDesc{arch.as<std::string>(), max_tiles.as<int64_t>()});
@@ -300,9 +303,10 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     LOG_INFO("Deserializing LLMCompiledModel...");
     LOG_BLOCK();
 
-    std::shared_ptr<ov::npuw::LLMCompiledModel> compiled;
-
-    // deserialize ins/outs first, then create a dummy ov model, then create compiled, then the rest
+    // Sanity check magic number
+    uint64_t serialization_indicator;
+    stream >> serialization_indicator;
+    NPUW_ASSERT(serialization_indicator == SERIALIZATION_INDICATOR && "This blob wasn't serialized via NPUW!");
 
     // Deserialize general meta info
     int vmajor, vminor, vpatch;
@@ -310,6 +314,12 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
 
     NPUW_ASSERT(vmajor == OPENVINO_VERSION_MAJOR && vminor == OPENVINO_VERSION_MINOR &&
                 vpatch == OPENVINO_VERSION_PATCH && "Only blobs serialized with the same OV version are supported!");
+
+    std::cout << "DESERIALIZED!" << std::endl;
+    return 0;
+
+    std::shared_ptr<ov::npuw::LLMCompiledModel> compiled;
+    // deserialize ins/outs first, then create a dummy ov model, then create compiled, then the rest
 
     // Deserialize LLMCompiledModel-specific data
     stream >> compiled->m_kvcache_desc.max_prompt_size >> compiled->m_kvcache_desc.total_size >>
@@ -342,6 +352,9 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& fout) const {
     LOG_INFO("Serializing LLMCompiledModel...");
     LOG_BLOCK();
 
+    // Serialize magic number first
+    fout << SERIALIZATION_INDICATOR;
+
     // Serialize general meta info
     fout << OPENVINO_VERSION_MAJOR << OPENVINO_VERSION_MINOR << OPENVINO_VERSION_PATCH;
 
@@ -354,6 +367,9 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& fout) const {
     };
     fout << m_kvcache_desc.max_prompt_size << m_kvcache_desc.total_size << m_kvcache_desc.num_stored_tokens
          << m_kvcache_desc.dim;
+
+    std::cout << "SERIALIZED!" << std::endl;
+    return;
 
     // Serialize CompiledModels
     m_kvcache_compiled->serialize(fout);
