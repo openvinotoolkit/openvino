@@ -129,7 +129,8 @@ struct kernel_string {
     bool has_microkernels;
     kernel_language language;
 
-    kernel_string() : str(""), jit(""), undefs(""), options(""), entry_point(""), batch_compilation(false), has_microkernels(false), language(kernel_language::OCLC) {}
+    kernel_string() : str(""), jit(""), undefs(""), options(""), entry_point(""),
+    batch_compilation(false), has_microkernels(false), language(kernel_language::OCLC) {}
 
     std::string get_str() const { return str + jit + undefs + options + entry_point; }
     size_t get_hash() const { return std::hash<std::string>()(get_str()); }

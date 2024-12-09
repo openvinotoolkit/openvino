@@ -58,7 +58,11 @@ public:
         bool has_microkernels;
         std::map<std::string, std::pair<kernel_impl_params, size_t>> entry_point_to_id;
 
-        explicit batch_program(int32_t _bucket_id, int32_t _batch_id, std::string _options, const std::map<std::string, std::string>& batch_headers, bool is_cm = false)
+        explicit batch_program(int32_t _bucket_id,
+                               int32_t _batch_id,
+                               std::string _options,
+                               const std::map<std::string, std::string>& batch_headers,
+                               bool is_cm = false)
             : bucket_id(_bucket_id),
               batch_id(_batch_id),
               hash_value(0),
@@ -68,7 +72,7 @@ public:
               dump_custom_program(false),
               has_microkernels(false),
               entry_point_to_id({}) {
-            if (!is_cm){
+            if (!is_cm) {
                 static const std::vector<std::string> micro_kernel_include_names {
                     "generic_vector_ops",
                     "tile_ops",
@@ -81,9 +85,10 @@ public:
                         micro_headers.push_back(kv.second);
                     }
                 }
-            } else
+            } else {
             for (const auto& kv : batch_headers)
                 source.push_back(kv.second);
+            }
         }
     };
 

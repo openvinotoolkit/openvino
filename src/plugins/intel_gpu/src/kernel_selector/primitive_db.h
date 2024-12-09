@@ -21,7 +21,7 @@ using primitive_id = std::string;
 struct primitive_db {
     primitive_db();
 
-    std::vector<code> get(const primitive_id& id, bool is_cm=false) const;
+    std::vector<code> get(const primitive_id& id, bool is_cm = false) const;
     std::map<std::string, code> get_batch_headers() const { return std::move(batch_headers); }
     std::map<std::string, code> get_cm_batch_headers() const { return std::move(cm_batch_headers); }
 
