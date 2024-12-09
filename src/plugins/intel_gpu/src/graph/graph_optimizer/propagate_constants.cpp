@@ -104,7 +104,6 @@ void propagate_constants::run(program& p) {
                 return false;
             }
 
-            return true;
             auto aux_layout = dst_layout;
             aux_layout.data_type = in_layout->data_type;
             return aux_layout == *in_layout.get();
@@ -147,8 +146,8 @@ propagate_constants::calculate(engine& engine,
     cf_config.set_property(ov::intel_gpu::optimize_data(false));
     cf_config.set_property(ov::intel_gpu::custom_outputs(const_outputs));
     network::ptr net = network::build_network(engine, nodes, cf_config, task_executor, true);
-    std::map<primitive_id, std::shared_ptr<weightless_cache_manager>> weightless_cache_map;
-    std::map<primitive_id, std::shared_ptr<layout>> weightless_cache_input_layout_map;
+    std::map<primitive_id, std::pair<std::shared_ptr<weightless_cache_manager>, std::shared_ptr<layout>>>
+        weightless_cache_map;
     for (auto& cin : const_inputs) {
         net->set_input_data(cin->id(), cin->get_attached_memory_ptr());
 
@@ -157,8 +156,8 @@ propagate_constants::calculate(engine& engine,
             auto rprim = users.front()->as<reorder>().get_primitive();
             auto id = rprim->id;
             auto cache_ptr = cin->as<data>().get_primitive()->cache_info;
-            weightless_cache_map.emplace(id, cache_ptr);
-            weightless_cache_input_layout_map.emplace(id, std::make_shared<layout>(cin->get_output_layout()));
+            auto layout_ptr = std::make_shared<layout>(cin->get_output_layout());
+            weightless_cache_map.emplace(id, std::make_pair(cache_ptr, layout_ptr));
         }
     }
 
@@ -170,16 +169,13 @@ propagate_constants::calculate(engine& engine,
         ret;
     for (auto& out : outputs) {
         std::shared_ptr<weightless_cache_manager> cache_ptr = nullptr;
-        std::shared_ptr<layout> in_layout = nullptr;
+        std::shared_ptr<layout> layout_ptr = nullptr;
         auto it = weightless_cache_map.find(out->id());
         if (it != weightless_cache_map.end()) {
-            cache_ptr = it->second;
+            cache_ptr = it->second.first;
+            layout_ptr = it->second.second;
         }
-        auto layout_it = weightless_cache_input_layout_map.find(out->id());
-        if (layout_it != weightless_cache_input_layout_map.end()) {
-            in_layout = layout_it->second;
-        }
-        ret.push_back({out->id(), out->output_memory_ptr(), cache_ptr, in_layout});
+        ret.push_back({out->id(), out->output_memory_ptr(), cache_ptr, layout_ptr});
     }
 
     return ret;
