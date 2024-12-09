@@ -11,10 +11,10 @@
 
 static constexpr size_t lws_batches = 8;
 static constexpr size_t simd = 16;
+static constexpr size_t act_load_size = 4;
 static constexpr size_t min_quantize_grp_size = (simd * 2); // SIMD * (min value of tile_ifm)
 static constexpr size_t min_slm_size = 256;
-// static std::vector<size_t> available_quantize_grp_size = {128, 64, 32};
-static std::vector<size_t> available_quantize_grp_size = {512, 256, 128, 64, 32};
+static std::vector<size_t> available_quantize_grp_size = {128, 64, 32};
 
 namespace kernel_selector {
 
@@ -112,7 +112,7 @@ static size_t get_dynamic_quantize_group_size(const fully_connected_params& para
     size_t zp_group_num = params.decompression_zero_point.Feature().v;
     size_t zp_group_size = 0;
     if (params.has_decompression_zp)
-        const size_t zp_group_size = params.weights.IFM().v / params.decompression_zero_point.Feature().v;
+        zp_group_size = params.weights.IFM().v / params.decompression_zero_point.Feature().v;
 
     // Per-token dyn-quan
     if (dynamic_quantization_group_size >= min_quantize_grp_size && is_per_token_dynamic_quantize(params)) {
@@ -120,8 +120,9 @@ static size_t get_dynamic_quantize_group_size(const fully_connected_params& para
         if ((scale_group_size % min_quantize_grp_size) == 0 && scale_group_size > min_quantize_grp_size) {
             dynamic_quantization_group_size = scale_group_size;
 
-            if (is_dyn_quan_8bit_asym(params) && params.has_decompression_zp &&
-                dynamic_quantization_group_size < zp_group_size && (zp_group_size % min_quantize_grp_size) == 0) {
+            // For int8 ASYM model, activation_sum should fit to weight zp
+            if (is_dyn_quan_8bit_asym(params) && params.has_decompression_zp == true &&
+                dynamic_quantization_group_size > zp_group_size && (zp_group_size % act_load_size) == 0) {
                 dynamic_quantization_group_size = zp_group_size;
             }
 
@@ -773,10 +774,12 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 0));
         jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", min_quantize_grp_size));
     }
-    jit.AddConstant(MakeJitConstant("DQ_TYPE", "char"));
 
+    jit.AddConstant(MakeJitConstant("INPUT_LOAD_SIZE", act_load_size));
+    jit.AddConstant(MakeJitConstant("DQ_TYPE", "char"));
     jit.AddConstant(MakeJitConstant("IFM_SIZE", get_input_bf_size(params).second));
     jit.AddConstant(MakeJitConstant("SIMD", simd));
+
     jit.AddConstant(MakeJitConstant("TILE_B", dispatchData.tile_m));
     jit.AddConstant(MakeJitConstant("HALF_TILE_B", dispatchData.tile_m/2));
     jit.AddConstant(MakeJitConstant("TILE_OFM", dispatchData.tile_n));
