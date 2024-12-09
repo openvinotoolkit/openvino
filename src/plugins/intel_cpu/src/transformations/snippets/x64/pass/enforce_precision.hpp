@@ -15,7 +15,7 @@ namespace pass {
 
 class EnforcePrecision: public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("EnforcePrecision", "0");
+    OPENVINO_RTTI("EnforcePrecision", "0", ov::pass::ModelPass);
 
     EnforcePrecision(
         const element::Type source,

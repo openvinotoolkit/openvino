@@ -10,7 +10,7 @@ namespace ov {
 namespace intel_cpu {
 class StatefulSDPAFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("StatefulSDPAFusion", "0");
+    OPENVINO_RTTI("StatefulSDPAFusion", "0", ov::pass::MatcherPass);
     StatefulSDPAFusion();
 };
 

@@ -11,7 +11,7 @@ namespace intel_cpu {
 
 class NgramFusion: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("NgramFusion", "0");
+    OPENVINO_RTTI("NgramFusion", "0", ov::pass::MatcherPass);
     NgramFusion();
 };
 

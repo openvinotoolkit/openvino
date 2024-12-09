@@ -11,7 +11,7 @@ namespace intel_cpu {
 
 class ConvertToSwishCPU: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertToSwishCPU", "0");
+    OPENVINO_RTTI("ConvertToSwishCPU", "0", ov::pass::MatcherPass);
     ConvertToSwishCPU();
 };
 

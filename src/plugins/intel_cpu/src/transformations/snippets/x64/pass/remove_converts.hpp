@@ -17,7 +17,7 @@ namespace pass {
  */
 class RemoveConverts : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("RemoveConverts", "0");
+    OPENVINO_RTTI("RemoveConverts", "0", ov::pass::MatcherPass);
     RemoveConverts();
 };
 

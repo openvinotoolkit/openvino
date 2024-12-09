@@ -11,7 +11,7 @@ namespace intel_cpu {
 
 class ConvertTileToSeqTiles: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertTileToSeqTiles", "0");
+    OPENVINO_RTTI("ConvertTileToSeqTiles", "0", ov::pass::MatcherPass);
     ConvertTileToSeqTiles();
 };
 
