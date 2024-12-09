@@ -82,7 +82,7 @@ DEFINE_string(iml, "",
               "Model input layout for all model inputs, or ';' separated list of pairs <input>:<layout>. Regex in "
               "<input> is supported");
 DEFINE_string(oml, "",
-              "Model output layout for all outputs, or or ';' separated list of of pairs <output>:<layout>. Regex in "
+              "Model output layout for all outputs, or ';' separated list of pairs <output>:<layout>. Regex in "
               "<output> is supported");
 DEFINE_bool(img_as_bin, false, "Force binary input even if network expects an image");
 DEFINE_bool(pc, false, "Report performance counters");
