@@ -4,6 +4,7 @@
 
 #include "fully_connected_kernel_bf_tiled.h"
 #include "kernel_selector_utils.h"
+#include "swiglu/swiglu_kernel_base.h"
 #include <vector>
 #include <functional>
 #include "common_types.h"
@@ -163,7 +164,21 @@ static bool is_weight_small_kn(const fully_connected_params& params, size_t outp
     return output_f / 2 /*most frequently used tile_ofm*/ <= min_num_threads;
 }
 
+static bool is_swiglu_fused(const fully_connected_params& params) {
+    bool swiglu_fused = false;
+    if (!params.fused_ops.empty()) {
+        for (auto p : params.fused_ops) {
+            if (p.GetType() == kernel_selector::KernelType::SWIGLU)
+                swiglu_fused = true;
+        }
+    }
+    if (swiglu_fused)
+        OPENVINO_ASSERT(params.fused_ops.size() == 1);
+    return swiglu_fused;
+}
 static bool is_suitable_outer_ofm(const fully_connected_params& params, size_t output_f) {
+    if (is_swiglu_fused(params))
+        return true;
     size_t min_num_threads = params.engineInfo.computeUnitsCount * simd;
     return (params.weights.OFM().v > params.weights.IFM().v * 6
             && output_f / 8 /* tile_ofm=4 and outer_ofm=2 */ > min_num_threads * 1.5);
@@ -406,6 +421,8 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
     while (max_tile_ofm * 2 * simd <= output_f && max_tile_ofm < 4)
         max_tile_ofm *= 2;
 
+    bool swiglu_fused = is_swiglu_fused(params);
+
     if (params.weights.GetDType() == WeightsType::UINT4 || params.weights.GetDType() == WeightsType::INT4 ||
         (is_weight_dyn_quantizable(params) && should_dynamic_quantize(params))) {
         // Only 4bit weight type is fully optimized to use SLM. In default kernel, SLM is not applied to 8bit weight.
@@ -426,30 +443,39 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
                 if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
                     return selector.Default(tune_params(1, 1, 4, 4, 1, 1, 1, EXE_MODE_DEFAULT));
                 } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
-                    selector.Case(tune_params(1, 4, 4, 2, 2, 1, 1, EXE_MODE_DEFAULT))
-                            .Case(tune_params(1, 4, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
+                    // Here : b1 static
+                    if (swiglu_fused) {
+                        return selector.Default(tune_params(1, 4, 4, 2, 2, 1, 1, EXE_MODE_DEFAULT));
+                    } else {
+                        selector.Case(tune_params(1, 4, 4, 2, 2, 1, 1, EXE_MODE_DEFAULT))
+                                .Case(tune_params(1, 4, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
+                    }
                 } else {
-                    return selector.Default(tune_params(1, 2, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
+                    if (swiglu_fused) {
+                        return selector.Default(tune_params(1, 2, 4, 2, 2, 1, 1, EXE_MODE_DEFAULT));
+                    } else {
+                        return selector.Default(tune_params(1, 2, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
+                    }
                 }
             }
         } else {
             // Try to use SLM kernels if possible
+            unsigned int forced_outer_ofm = swiglu_fused ? 2 : 1;
             if (preferred_kernel_type != KernelType::DEFAULT) {
                 if (params.is_shape_agnostic && !should_dynamic_quantize(params)) {
-                    selector.Case(tune_params(16, 2, 2, 4, 1, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
-                            .Case(tune_params(16, 2, 1, 4, 1, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
+                    selector.Case(tune_params(16, 2, 2, 4, forced_outer_ofm, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
+                            .Case(tune_params(16, 2, 1, 4, forced_outer_ofm, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
                 }
-
-                selector.Case(tune_params(8, 2, 2, 4, 1, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
-                        .Case(tune_params(8, 2, 1, 4, 1, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
+                selector.Case(tune_params(8, 2, 2, 4, forced_outer_ofm, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
+                        .Case(tune_params(8, 2, 1, 4, forced_outer_ofm, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
             }
 
             if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16)
-                return selector.Default(tune_params(8, 1, 1, 4, 1, 1, 1, EXE_MODE_DEFAULT));
+                return selector.Default(tune_params(8, 1, 1, 4, forced_outer_ofm, 1, 1, EXE_MODE_DEFAULT));
             else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2)
-                return selector.Default(tune_params(8, 4, 1, 2, 1, 1, 1, EXE_MODE_DEFAULT));
+                return selector.Default(tune_params(8, 4, 1, 2, forced_outer_ofm, 1, 1, EXE_MODE_DEFAULT));
             else
-                return selector.Default(tune_params(8, 2, 1, 4, 1, 1, 1, EXE_MODE_DEFAULT));
+                return selector.Default(tune_params(8, 2, 1, 4, forced_outer_ofm, 1, 1, EXE_MODE_DEFAULT));
         }
     } else if (params.compressed && params.engineInfo.supports_immad) {
         return selector.Default(tune_params(1, 1, 1, 4, 1, 1, 1, EXE_MODE_DEFAULT));
@@ -526,8 +552,12 @@ FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int au
         kernel_type = kernel_number == 0 ? KernelType::DEFAULT : KernelType::SLM;
 
     auto tparams = GetAutoTuneParams(params, kernel_type, autoTuneIndex);
+    std::pair<size_t, size_t> threads;
+    if (is_swiglu_fused(params))
+        threads = get_output_aligned_bf_size(params, true, tparams.tile_b, tparams.tile_ofm * simd);
+    else
+        threads = get_output_aligned_bf_size(params, true, tparams.tile_b, tparams.tile_ofm * tparams.outer_ofm * simd);
 
-    auto threads = get_output_aligned_bf_size(params, true, tparams.tile_b, tparams.tile_ofm * tparams.outer_ofm * simd);
     auto batch_threads = threads.first;
     auto feature_threads = threads.second;
 
@@ -574,6 +604,13 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     size_t tile_k_ofm = dispatchData.tile_nk * dispatchData.tile_n;
     size_t tile_k_ofm_packed = tile_k_ofm;
     size_t quantize_grp_size = get_dynamic_quantize_group_size(params);
+
+    if (is_swiglu_fused(params)) {
+        auto split_length = params.fused_ops[0].GetOpParams<swiglu_fuse_params>()->split_length;
+        auto split_to_glu_idx = params.fused_ops[0].GetOpParams<swiglu_fuse_params>()->split_to_glu_idx;
+        jit.AddConstant(MakeJitConstant("SWIGLU_LENGTH", split_length));
+        jit.AddConstant(MakeJitConstant("SWIGLU_SPLIT_TO_GLU_IDX", split_to_glu_idx));
+    }
 
     bool add_decompress_scale_post_op = false;
     WeightsType weights_dt = params.weights.GetDType();
@@ -723,7 +760,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         jit.AddConstant(MakeJitConstant("BATCH_SIZE", "(OUTPUT_BATCH_NUM)"));
     }
 
-    if (!params.fused_ops.empty()) {
+    if (!params.fused_ops.empty() && !is_swiglu_fused(params)) {
         std::vector<std::string> idx_order_scalar = { "(out_b + bi)", "(out_f + sglid)", "0", "0" };
         std::vector<std::string> idx_order_vec = { "(out_b + bi)", "(out_f + sglid + fi * SIMD)", "0", "0" };
         if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
@@ -828,7 +865,7 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
     auto output_f = get_output_aligned_bf_size(fc_params, false).second;
 
     WeightsLayout weights_layout = WeightsLayout::os_iyx_osv16;
-    if (fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16
+    if (!is_swiglu_fused(fc_params) && fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16
         && (fc_params.weights.GetLayout() == WeightsLayout::oiyx || fc_params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2)
         && (fc_params.weights.GetDType() == WeightsType::INT4 || fc_params.weights.GetDType() == WeightsType::UINT4)
         && is_weight_horizontal(fc_params, output_f)) {

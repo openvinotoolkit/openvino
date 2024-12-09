@@ -18,16 +18,25 @@
 namespace ov {
 namespace intel_gpu {
 
-FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion() {
+FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swiglu) {
     using namespace ov::pass::pattern;
 
-    auto is_target_pattern = [](const Output<Node>& output) {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    // Three FCs connected to the same input
+    size_t min_num_fcs_to_fuse = 3;
+    // Note:
+    // For cldnn, two fcs in mlp will be fused at horizontal fc fusion, and then swiglu will be fused at prepare_primitive_fusion
+    // i.e., eltwise((fc + swish), fc) => fused_fc + swiglu => fused_fc_swilgu
+    // Onednn gemms are to be handled in a different way (TBD)
+    if (fuse_mlp_swiglu)
+        min_num_fcs_to_fuse = 2;
+    auto is_target_pattern = [min_num_fcs_to_fuse](const Output<Node>& output) {
+        const int max_num_fcs_to_fuse = 3;
         // Currently this pass targets only compressed FCs (QKV) on dynamic generative models
         // inputs: input, weight, bias, scale, [zp]
         // Bias/scale/zp are constant or none
         // if it is not constant, the only allowed cases are Constant => convert
         // All FCs have same # of valid inputs (e.g., if one of the fc has zp, all fcs have zp)
-
         auto is_constant = [](const std::shared_ptr<ov::Node> node) {
             if (std::dynamic_pointer_cast<ov::op::v0::Constant>(node))
                 return true;
@@ -40,9 +49,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion() {
         auto is_placeholder = [](const std::shared_ptr<ov::Node> node) {
             return std::dynamic_pointer_cast<op::Placeholder>(node);
         };
-        // Three FCs connected to the same input
-        const int min_num_fcs_to_fuse = 3;
-        const int max_num_fcs_to_fuse = 3;
+
         const auto& fc = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(output.get_node_shared_ptr());
         const auto& input = fc->get_input_node_shared_ptr(0);
         if (!fc->get_input_partial_shape(0).is_dynamic())
