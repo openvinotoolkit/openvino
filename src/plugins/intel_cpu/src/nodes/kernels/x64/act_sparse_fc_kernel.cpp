@@ -657,9 +657,9 @@ void MM_ComputeBounded_reuseA_i8(
                 auto vscale0 = simd_loadu_ps(scales + n);
                 auto vscale1 = simd_loadu_ps(scales + n + SIMDW);
                 const auto* srcW = W + n;
-                for (int k = 0; k < bK; k++, dst += 2 * 8, srcW += W_stride) {
-                    auto wb0 = simd_load_epu8_epi32(static_cast<void const*>(srcW + 8 * 0));
-                    auto wb1 = simd_load_epu8_epi32(static_cast<void const*>(srcW + 8 * 1));
+                for (int k = 0; k < bK; k++, dst += 2 * SIMDW, srcW += W_stride) {
+                    auto wb0 = simd_load_epu8_epi32(static_cast<void const*>(srcW + SIMDW * 0));
+                    auto wb1 = simd_load_epu8_epi32(static_cast<void const*>(srcW + SIMDW * 1));
                     auto wf0 = simd_sub_ps(simd_cvtepi32_ps(wb0), vzp0);
                     auto wf1 = simd_sub_ps(simd_cvtepi32_ps(wb1), vzp1);
                     wf0 = simd_mul_ps(wf0, vscale0);
@@ -805,16 +805,16 @@ void dynPruneLinear_i8(const float* input,      // [M, IC]
                         const float* scales,    // [OC]
                         float* output,          // [M, OC]
                         int M, int IC, int OC) {
-    if ((OC % 8) > 0) {
-        throw std::runtime_error("OC is not multiple of 8");
+    if ((OC % SIMDW) > 0) {
+        throw std::runtime_error("OC is not multiple of SIMD width");
     }
 
     if (M > 1) {
         parallel_nt(0, [&](const int ithr, const int nthr) {
             int n0, n1;
-            splitter(OC/8, nthr, ithr, n0, n1);
-            n0 *= 8;
-            n1 *= 8;
+            splitter(OC/SIMDW, nthr, ithr, n0, n1);
+            n0 *= SIMDW;
+            n1 *= SIMDW;
             MM_ComputeBounded_reuseA_i8(
                 input, output,
                 W, zp, scales, M, IC, OC, n0, n1);
