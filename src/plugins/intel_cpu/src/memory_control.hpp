@@ -5,12 +5,11 @@
 #pragma once
 
 #include "edge.h"
-
 namespace ov {
 namespace intel_cpu {
 
-using edgeCluster = std::unordered_set<EdgePtr>;
-using edgeClusters = std::vector<edgeCluster>;
+using EdgeCluster = std::unordered_set<EdgePtr>;
+using EdgeClusters = std::vector<EdgeCluster>;
 
 struct MemoryRegion {
     int start;     // Execution order index of first use.
@@ -22,17 +21,33 @@ struct MemoryRegion {
     enum class AllocType : uint8_t { POD, STRING, UNKNOWN } alloc_type;
 };
 
+struct MemoryStatisticsRecord {
+    const char* id;
+    size_t total_regions; // number of regions
+    size_t total_blocks; // bytes
+    size_t total_size; // bytes
+    size_t optimal_total_size; // bytes
+    size_t max_block_size;  // bytes
+};
+
+std::ostream& operator<<(std::ostream& os, const MemoryStatisticsRecord& record);
+
+using MemoryStatistics = std::vector<MemoryStatisticsRecord>;
+using MemoryRegions = std::vector<MemoryRegion>;
+
 class MemoryControl {
 public:
     class RegionHandler;
 
     using RegionHandlerPtr = std::shared_ptr<RegionHandler>;
-    using MemoryBlockMap = std::unordered_map<decltype(MemoryRegion::id), MemoryBlockPtr>;
+    using MemorySolution = std::unordered_map<decltype(MemoryRegion::id), MemoryBlockPtr>;
 
 public:
-    static edgeClusters findEdgeClusters(const std::vector<EdgePtr>& graphEdges);
+    static EdgeClusters findEdgeClusters(const std::vector<EdgePtr>& graphEdges);
 
-    MemoryBlockMap insert(const std::vector<MemoryRegion>& regions);
+    void insert(const MemoryRegions& regions, const std::vector<size_t>& syncInds);
+
+    MemorySolution solve();
 
     bool allocated() const {
         return m_allocated;
@@ -41,13 +56,20 @@ public:
     void allocateMemory();
     void releaseMemory();
 
+    MemoryStatistics dumpStatistics() const;
+
+    const std::string& getId() const {
+        return m_id;
+    }
+
 private:
-    explicit MemoryControl(std::vector<size_t> syncInds);
-    void insert(const MemoryRegion& region);
+    explicit MemoryControl(std::string id);
+    void insert(const MemoryRegion& region, const std::vector<size_t>& syncInds);
 
     friend class NetworkMemoryControl;
 
 private:
+    std::string m_id;
     std::vector<size_t> m_syncInds;
     std::vector<RegionHandlerPtr> m_handlers;
     bool m_allocated = false;
@@ -56,10 +78,12 @@ private:
 class NetworkMemoryControl {
 public:
     NetworkMemoryControl() = default;
-    MemoryControl& createMemoryControlUnit(std::vector<size_t> syncInds);
+    MemoryControl& createMemoryControlUnit(std::string id);
 
     void allocateMemory();
     void releaseMemory();
+
+    std::unordered_map<std::string, MemoryStatistics> dumpStatistics() const;
 
 private:
     using value_type = std::unique_ptr<MemoryControl>;

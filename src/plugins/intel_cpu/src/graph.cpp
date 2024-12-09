@@ -714,7 +714,7 @@ static inline bool isConstOutput(EdgePtr edge) {
 }
 
 void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
-    edgeClusters edge_clusters = MemoryControl::findEdgeClusters(graphEdges);
+    EdgeClusters edge_clusters = MemoryControl::findEdgeClusters(graphEdges);
 
     size_t remaining_edge_clusters_count = edge_clusters.size();
 
@@ -879,10 +879,11 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
     memoryRegions.erase(it, memoryRegions.end());
 
     //Set up the memory control subsystem.
-    this->m_pMemoryControl = &(getGraphContext()->getNetworkMemoryControl()->createMemoryControlUnit(syncNodesInds));
-    auto memoryBlocks = m_pMemoryControl->insert(memoryRegions);
+    this->m_pMemoryControl = &(getGraphContext()->getNetworkMemoryControl()->createMemoryControlUnit(this->_name));
+    m_pMemoryControl->insert(memoryRegions, syncNodesInds);
+    auto memoryBlocks = m_pMemoryControl->solve();
 
-    // attach all the not yet allocated edges to the memory contol
+    // attach all the not yet allocated edges to the memory control
     for (auto&& item : memoryBlocks) {
         int count = 0;
         for (auto&& edge : edge_clusters[item.first]) {

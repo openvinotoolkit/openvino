@@ -8,6 +8,7 @@
 
 #include "node.h"
 #include "openvino/runtime/memory_solver.hpp"
+#include "utils/general_utils.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -76,6 +77,10 @@ public:
         m_pInternalMem->free();
     }
 
+    size_t size() const {
+        return m_pInternalMem->size();
+    }
+
 private:
     MemoryBlockPtr m_pBlock;
     MemoryBlockWithReuse* m_pInternalMem;
@@ -84,10 +89,11 @@ private:
 class IMemoryManager {
 public:
     virtual ~IMemoryManager() = default;
-    virtual void insert(const MemoryRegion& reg) = 0;
-    virtual const MemoryControl::MemoryBlockMap& lastSolution() = 0;
+    virtual void insert(const MemoryRegion& reg, const std::vector<size_t>& syncInds) = 0;
+    virtual const MemoryControl::MemorySolution& lastSolution() = 0;
     virtual void allocate() = 0;
     virtual void release() = 0;
+    virtual MemoryStatisticsRecord dumpStatistics() = 0;
 };
 
 using MemoryManagerPtr = std::shared_ptr<IMemoryManager>;
@@ -97,14 +103,25 @@ std::shared_ptr<DnnlMemoryBlock> makeDnnlMemoryBlock(Args&&... args) {
     return std::make_shared<DnnlMemoryBlock>(make_unique<T>(std::forward<Args>(args)...));
 }
 
+template<typename T>
+std::shared_ptr<DnnlMemoryBlock> makeDnnlMemoryBlock(std::unique_ptr<T> ptr) {
+    return std::make_shared<DnnlMemoryBlock>(std::move(ptr));
+}
+
 class MemoryManagerIO : public IMemoryManager {
 public:
-    void insert(const MemoryRegion& reg) override {
-        m_blocks.insert({reg.id, makeDnnlMemoryBlock<MemoryBlockWithReuse>()});
+    using BlockType = MemoryBlockWithReuse;
+
+public:
+    void insert(const MemoryRegion& reg, const std::vector<size_t>& syncInds) override {
+        (void) syncInds;
+        auto block = make_unique<BlockType>();
+        m_blocks.push_back(*block);
+        m_solution.insert({reg.id, makeDnnlMemoryBlock(std::move(block))});
     }
 
-    const MemoryControl::MemoryBlockMap& lastSolution() override {
-        return m_blocks;
+    const MemoryControl::MemorySolution& lastSolution() override {
+        return m_solution;
     }
 
     void allocate() override {
@@ -114,21 +131,93 @@ public:
         // nothing to do
     }
 
+    MemoryStatisticsRecord dumpStatistics() override {
+        MemoryStatisticsRecord retVal;
+        retVal.id = getClassName();
+        retVal.total_regions = m_blocks.size(); // as the number of blocks ie equal to regions
+        retVal.total_blocks = m_blocks.size();
+        retVal.total_size = std::accumulate(m_blocks.begin(),
+                                            m_blocks.end(),
+                                            0,
+                                            [](size_t acc, const BlockType& item) {
+                                                return acc + item.size();
+                                            });
+        retVal.optimal_total_size = retVal.total_size;
+        // find max size memory block in m_blocks
+        retVal.max_block_size = std::accumulate(m_blocks.begin(),
+                                                m_blocks.end(),
+                                                0,
+                                                [](size_t acc, const BlockType& item) {
+                                                    return std::max(acc, item.size());
+                                                });
+        return retVal;
+    }
+
 private:
-    MemoryControl::MemoryBlockMap m_blocks;
+    static const char* getClassName() {
+        return "MemoryManagerIO";
+    }
+
+private:
+    MemoryControl::MemorySolution m_solution;
+    std::vector<std::reference_wrapper<BlockType>> m_blocks;
 };
 
 class MemoryManagerStatic : public IMemoryManager {
 public:
-    void insert(const MemoryRegion& reg) override {
+    void insert(const MemoryRegion& reg, const std::vector<size_t>& syncInds) override {
+        (void) syncInds;
+        OPENVINO_ASSERT(reg.size >= 0, getClassName(), ": got undefined block size");
         m_boxes.emplace_back(MemorySolver::Box{reg.start, reg.finish, reg.size, reg.id});
+        reset_flag = true;
     }
 
-    const MemoryControl::MemoryBlockMap& lastSolution() override {
-        if (!m_boxes.empty() && m_blocks.empty()) {
+    const MemoryControl::MemorySolution& lastSolution() override {
+        if (reset_flag && !m_boxes.empty()) {
             solve();
+            reset_flag = false;
         }
         return m_blocks;
+    }
+
+    MemoryStatisticsRecord dumpStatistics() override {
+        MemoryStatisticsRecord retVal;
+        retVal.id = getClassName();
+        retVal.total_regions = m_boxes.size();
+        retVal.total_blocks = m_blocks.size();
+        retVal.total_size = m_totalSize;
+
+        {
+            // calculate the optimal memory size
+            auto tmp_boxes = m_boxes;
+            ov::MemorySolver::normalize_boxes(tmp_boxes);
+
+            retVal.max_block_size = 0;
+            std::vector<std::pair<int, int64_t>> start_events;
+            std::vector<std::pair<int, int64_t>> finish_events;
+            for (auto&& box : tmp_boxes) {
+                retVal.max_block_size = std::max(retVal.max_block_size, static_cast<size_t>(box.size));
+                start_events.emplace_back(box.start, box.size);
+                finish_events.emplace_back(box.finish, -box.size);
+            }
+
+            size_t i = 0, j = 0;
+            ptrdiff_t current_size = 0;
+            ptrdiff_t max_size = 0;
+
+            while (i < start_events.size() || j < finish_events.size()) {
+                if (i < start_events.size() && (start_events[i].first <= finish_events[j].first || j >= finish_events.size())) {
+                    current_size += start_events[i].second;
+                    max_size = std::max(max_size, current_size);
+                    i++;
+                } else {
+                    current_size += finish_events[j].second;
+                    j++;
+                }
+            }
+            retVal.optimal_total_size = max_size;
+        }
+        return retVal;
     }
 
 private:
@@ -148,7 +237,6 @@ private:
             auto memoryBlock = std::make_shared<StaticPartitionMemoryBlock>(m_workspace, offset * alignment);
             m_blocks[box.id] = std::move(memoryBlock);
         }
-        m_boxes.clear();
     }
 
     void allocate() override {
@@ -158,28 +246,32 @@ private:
         if (m_workspace) m_workspace->free();
     }
 
+    static const char* getClassName() {
+        return "MemoryManagerStatic";
+    }
+
 private:
-    MemoryControl::MemoryBlockMap m_blocks;
+    MemoryControl::MemorySolution m_blocks;
     std::vector<MemorySolver::Box> m_boxes;
     std::shared_ptr<MemoryBlockWithRelease> m_workspace;
     size_t m_totalSize = 0;
+    bool reset_flag = true;
 };
 
-class MemoryManageNonOverlapingSets : public IMemoryManager {
+class MemoryManageNonOverlappingSets : public IMemoryManager {
 public:
-    MemoryManageNonOverlapingSets(std::vector<size_t> syncInds) : m_syncInds(std::move(syncInds)) {}
-    void insert(const MemoryRegion& reg) override {
+    void insert(const MemoryRegion& reg, const std::vector<size_t>& syncInds) override {
         MemorySolver::Box box = {reg.start, reg.finish, reg.size, reg.id};
         if (-1 != reg.finish) {
             //We have to extend the lifespan of tensors that are crossing a sync point border in order to save
             //the intermediate computation results from possible loss due to the tensor resize
             auto itr_upper =
-                std::upper_bound(m_syncInds.begin(), m_syncInds.end(), box.finish, [](int y, int x) {
+                std::upper_bound(syncInds.begin(), syncInds.end(), box.finish, [](int y, int x) {
                     return y <= x;
                 });
-            auto itr_lower = std::lower_bound(m_syncInds.begin(), m_syncInds.end(), box.start);
+            auto itr_lower = std::lower_bound(syncInds.begin(), syncInds.end(), box.start);
             if (itr_lower != itr_upper) { // across sections
-                if (itr_upper == m_syncInds.end()) {
+                if (itr_upper == syncInds.end()) {
                     box.finish = -1;
                 } else {
                     box.finish = *itr_upper;
@@ -187,14 +279,37 @@ public:
             }
         }
         m_boxes.emplace_back(std::move(box));
+        reset_flag = true;
     }
 
-    const MemoryControl::MemoryBlockMap& lastSolution() override {
-        if (!m_boxes.empty() && m_blocks.empty()) {
+    const MemoryControl::MemorySolution& lastSolution() override {
+        if (reset_flag && !m_boxes.empty()) {
             solve();
-            m_blocks = MemoryControl::MemoryBlockMap{m_internalBlocks.begin(), m_internalBlocks.end()};
+            m_blocks = MemoryControl::MemorySolution{m_internalBlocks.begin(), m_internalBlocks.end()};
+            reset_flag = false;
         }
         return m_blocks;
+    }
+
+    MemoryStatisticsRecord dumpStatistics() override {
+        MemoryStatisticsRecord retVal;
+        retVal.id = getClassName();
+        retVal.total_regions = m_boxes.size();
+        retVal.total_blocks = m_internalBlocks.size();
+        retVal.total_size = std::accumulate(m_internalBlocks.begin(),
+                                            m_internalBlocks.end(),
+                                            0,
+                                            [](size_t acc, const decltype(m_internalBlocks)::value_type& item) {
+                                                return acc + item.second->size();
+                                            });
+        retVal.optimal_total_size = 0; // it's not possible to calculate this at the moment
+        retVal.max_block_size = std::accumulate(m_internalBlocks.begin(),
+                                                m_internalBlocks.end(),
+                                                0,
+                                                [](size_t acc, const decltype(m_internalBlocks)::value_type& item) {
+                                                    return std::max(acc, item.second->size());
+                                                });
+        return retVal;
     }
 
 private:
@@ -225,7 +340,6 @@ private:
                 m_internalBlocks[box.id] = grpMemBlock;
             }
         }
-        m_boxes.clear();
     }
 
     void allocate() override {
@@ -237,15 +351,29 @@ private:
         }
     }
 
+    static const char* getClassName() {
+        return "MemoryManageNonOverlappingSets";
+    }
+
 private:
-    MemoryControl::MemoryBlockMap m_blocks;
-    std::unordered_map<MemoryControl::MemoryBlockMap::key_type, std::shared_ptr<MemoryBlockWithRelease>>
+    MemoryControl::MemorySolution m_blocks;
+    std::unordered_map<MemoryControl::MemorySolution::key_type, std::shared_ptr<MemoryBlockWithRelease>>
         m_internalBlocks;
     std::vector<MemorySolver::Box> m_boxes;
-    std::vector<size_t> m_syncInds;
+    bool reset_flag = true;
 };
 
 }  // namespace
+
+std::ostream& operator<<(std::ostream& os, const MemoryStatisticsRecord& record) {
+    os << "Memory profile record: " << record.id << std::endl;
+    os << "Total regions: " << record.total_regions << std::endl;
+    os << "Total blocks: " << record.total_blocks << std::endl;
+    os << "Total size: " << record.total_size << " bytes" << std::endl;
+    os << "Optimal total size: " << record.optimal_total_size << " bytes" << std::endl;
+    os << "Max block size: " << record.max_block_size << " bytes" << std::endl;
+    return os;
+}
 
 class MemoryControl::RegionHandler {
 public:
@@ -256,16 +384,16 @@ public:
         : m_cond(std::move(cond)),
           m_memManager(std::move(memManager)) {}
 
-    bool insert(const MemoryRegion& reg) {
+    bool insert(const MemoryRegion& reg, const std::vector<size_t>& syncInds) {
         if (!m_cond(reg)) {
             return false;
         }
 
-        m_memManager->insert(reg);
+        m_memManager->insert(reg, syncInds);
         return true;
     }
 
-    const MemoryControl::MemoryBlockMap& lastSolution() const {
+    const MemoryControl::MemorySolution& lastSolution() const {
         return m_memManager->lastSolution();
     }
 
@@ -275,6 +403,10 @@ public:
 
     void release() {
         m_memManager->release();
+    }
+
+    MemoryStatisticsRecord dumpStatistics() const {
+        return m_memManager->dumpStatistics();
     }
 
 private:
@@ -292,10 +424,8 @@ MemoryControl::RegionHandlerPtr buildHandler(F&& f, Args&&... args) {
 
 }  // namespace
 
-MemoryControl::MemoryControl(std::vector<size_t> syncInds) {
+MemoryControl::MemoryControl(std::string id) : m_id(std::move(id)) {
     // init handlers
-
-    // handler for dynamic tensors
     m_handlers.emplace_back(buildHandler<MemoryManagerStatic>([](const MemoryRegion& reg) {
         if (reg.size < 0 || MemoryRegion::RegionType::VARIABLE != reg.type ||
             MemoryRegion::AllocType::POD != reg.alloc_type) {
@@ -305,13 +435,13 @@ MemoryControl::MemoryControl(std::vector<size_t> syncInds) {
     }));
 
     // handler for static tensors
-    m_handlers.emplace_back(buildHandler<MemoryManageNonOverlapingSets>([](const MemoryRegion& reg) {
+    m_handlers.emplace_back(buildHandler<MemoryManageNonOverlappingSets>([](const MemoryRegion& reg) {
         if (reg.size >= 0 || MemoryRegion::RegionType::VARIABLE != reg.type ||
             MemoryRegion::AllocType::POD != reg.alloc_type) {
             return false;
         }
         return true;
-    }, std::move(syncInds)));
+    }));
 
     //handler for I/O tensors, so far simply individual blocks
     m_handlers.emplace_back(buildHandler<MemoryManagerIO>([](const MemoryRegion& reg) {
@@ -322,22 +452,23 @@ MemoryControl::MemoryControl(std::vector<size_t> syncInds) {
     }));
 }
 
-void MemoryControl::insert(const MemoryRegion& region) {
+void MemoryControl::insert(const MemoryRegion& region, const std::vector<size_t>& syncInds) {
     for (auto&& handler : m_handlers) {
-        if (handler->insert(region)) {
+        if (handler->insert(region, syncInds)) {
             return;
         }
     }
-    OPENVINO_THROW("No suitable hanlder was found for the given memory region");
+    OPENVINO_THROW("No suitable handler was found for the given memory region");
 }
 
-MemoryControl::MemoryBlockMap MemoryControl::insert(const std::vector<MemoryRegion>& regions) {
+void MemoryControl::insert(const MemoryRegions& regions, const std::vector<size_t>& syncInds) {
     for (auto&& region : regions) {
-        insert(region);
+        insert(region, syncInds);
     }
+}
 
-    MemoryControl::MemoryBlockMap blocksMap;
-    blocksMap.reserve(regions.size());
+MemoryControl::MemorySolution MemoryControl::solve() {
+    MemoryControl::MemorySolution blocksMap;
 
     for (auto&& handler : m_handlers) {
         auto&& solution = handler->lastSolution();
@@ -364,10 +495,18 @@ void MemoryControl::releaseMemory() {
     m_allocated = false;
 }
 
-edgeClusters MemoryControl::findEdgeClusters(const std::vector<EdgePtr>& graphEdges) {
+MemoryStatistics MemoryControl::dumpStatistics() const {
+    MemoryStatistics profileData;
+    for (auto&& handler : m_handlers) {
+        profileData.push_back(handler->dumpStatistics());
+    }
+    return profileData;
+}
+
+EdgeClusters MemoryControl::findEdgeClusters(const std::vector<EdgePtr>& graphEdges) {
     typedef std::unordered_map<EdgePtr, size_t> edge_cluster_idx_map_t;
 
-    edgeClusters edge_clusters;
+    EdgeClusters edge_clusters;
     edge_cluster_idx_map_t edge_cluster_indices;
 
     for (auto& edge : graphEdges) {
@@ -393,7 +532,7 @@ edgeClusters MemoryControl::findEdgeClusters(const std::vector<EdgePtr>& graphEd
         edge_cluster_indices.emplace(edge, cluster_idx);
 
         if (cluster_idx == edge_clusters.size())
-            edge_clusters.emplace_back(edgeCluster{edge});
+            edge_clusters.emplace_back(EdgeCluster{edge});
         else
             edge_clusters[cluster_idx].emplace(edge);
 
@@ -407,8 +546,8 @@ edgeClusters MemoryControl::findEdgeClusters(const std::vector<EdgePtr>& graphEd
     return edge_clusters;
 }
 
-MemoryControl& NetworkMemoryControl::createMemoryControlUnit(std::vector<size_t> syncInds) {
-    m_controlUnits.emplace_back(std::unique_ptr<MemoryControl>(new MemoryControl(syncInds)));
+MemoryControl& NetworkMemoryControl::createMemoryControlUnit(std::string id) {
+    m_controlUnits.emplace_back(std::unique_ptr<MemoryControl>(new MemoryControl(std::move(id))));
     return *(m_controlUnits.back());
 }
 
@@ -422,6 +561,14 @@ void NetworkMemoryControl::releaseMemory() {
     for (auto&& item : m_controlUnits) {
         item->releaseMemory();
     }
+}
+
+std::unordered_map<std::string, MemoryStatistics> NetworkMemoryControl::dumpStatistics() const {
+    std::unordered_map<std::string, MemoryStatistics> retVal;
+    for (auto&& item : m_controlUnits) {
+        retVal.insert({item->getId(), item->dumpStatistics()});
+    }
+    return retVal;
 }
 
 }  // namespace intel_cpu
