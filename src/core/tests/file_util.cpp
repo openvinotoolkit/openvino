@@ -262,23 +262,24 @@ TEST(file_util, path_cast) {
     EXPECT_EQ(u"C:\\Users\\file.txt", ov::util::Path(U"C:\\Users\\file.txt").u16string());
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-    EXPECT_STREQ("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt", ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").string().c_str());
-    EXPECT_STREQ("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt",
-                 ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").string().c_str());
-    EXPECT_STREQ("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt",
-                 ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").string().c_str());
-    EXPECT_STREQ("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt",
-                 ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").string().c_str());
-    EXPECT_EQ(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt", ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").u16string());
-    EXPECT_EQ(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt", ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").u16string());
-    EXPECT_EQ(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt", ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").u16string());
-    EXPECT_EQ(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt", ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").u16string());
+    EXPECT_STREQ("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗1.txt",
+                 ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗1.txt").string().c_str());
+    EXPECT_STREQ("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗2.txt",
+                 ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗2.txt").string().c_str());
+    EXPECT_STREQ("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗3.txt",
+                 ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗3.txt").string().c_str());
+    EXPECT_STREQ("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗4.txt",
+                 ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗4.txt").string().c_str());
+    EXPECT_EQ(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗5.txt", ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗5.txt").u16string());
+    EXPECT_EQ(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗6.txt", ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗6.txt").u16string());
+    EXPECT_EQ(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗7.txt", ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗7.txt").u16string());
+    EXPECT_EQ(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗8.txt", ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗8.txt").u16string());
 
     // from char, char8_t, char16_t, char32_t to u16string
-    EXPECT_EQ(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt", ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").u16string());
-    EXPECT_EQ(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt", ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").u16string());
-    EXPECT_EQ(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt", ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").u16string());
-    EXPECT_EQ(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt", ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").u16string());
+    EXPECT_EQ(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗9.txt", ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗9.txt").u16string());
+    EXPECT_EQ(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗10.txt", ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗10.txt").u16string());
+    EXPECT_EQ(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗11.txt", ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗11.txt").u16string());
+    EXPECT_EQ(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗12.txt", ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗12.txt").u16string());
 #endif
 
 #if !defined(_MSC_VER)
@@ -292,7 +293,7 @@ TEST(file_util, path_cast) {
     EXPECT_EQ(U"~/local/file.txt", ov::util::Path("~/local/file.txt").u32string());
     EXPECT_EQ(U"/usr/local/file.txt", ov::util::Path("/usr/local/file.txt").u32string());
     EXPECT_EQ(U"C:\\Users\\file.txt", ov::util::Path("C:\\Users\\file.txt").u32string());
-    EXPECT_EQ(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt", ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").u32string());
+    EXPECT_EQ(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗13.txt", ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗13.txt").u32string());
 
     // from char8_t to u32string
     EXPECT_EQ(U"", ov::util::Path(u8"").u32string());
@@ -301,7 +302,7 @@ TEST(file_util, path_cast) {
     EXPECT_EQ(U"~/local/file.txt", ov::util::Path(u8"~/local/file.txt").u32string());
     EXPECT_EQ(U"/usr/local/file.txt", ov::util::Path(u8"/usr/local/file.txt").u32string());
     EXPECT_EQ(U"C:\\Users\\file.txt", ov::util::Path(u8"C:\\Users\\file.txt").u32string());
-    EXPECT_EQ(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt", ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").u32string());
+    EXPECT_EQ(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗14.txt", ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗14.txt").u32string());
 
     // from char16_t to u32string
     EXPECT_EQ(U"", ov::util::Path(u"").u32string());
@@ -310,7 +311,7 @@ TEST(file_util, path_cast) {
     EXPECT_EQ(U"~/local/file.txt", ov::util::Path(u"~/local/file.txt").u32string());
     EXPECT_EQ(U"/usr/local/file.txt", ov::util::Path(u"/usr/local/file.txt").u32string());
     EXPECT_EQ(U"C:\\Users\\file.txt", ov::util::Path(u"C:\\Users\\file.txt").u32string());
-    EXPECT_EQ(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt", ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").u32string());
+    EXPECT_EQ(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗15.txt", ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗15.txt").u32string());
 
     // from char32_t to u32string
     EXPECT_EQ(U"", ov::util::Path(U"").u32string());
@@ -319,13 +320,13 @@ TEST(file_util, path_cast) {
     EXPECT_EQ(U"~/local/file.txt", ov::util::Path(U"~/local/file.txt").u32string());
     EXPECT_EQ(U"/usr/local/file.txt", ov::util::Path(U"/usr/local/file.txt").u32string());
     EXPECT_EQ(U"C:\\Users\\file.txt", ov::util::Path(U"C:\\Users\\file.txt").u32string());
-    EXPECT_EQ(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt", ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").u32string());
+    EXPECT_EQ(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗16.txt", ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗16.txt").u32string());
 
     // from char, char8_t, char16_t, char32_t to u32string
-    EXPECT_EQ(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt", ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").u32string());
-    EXPECT_EQ(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt", ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").u32string());
-    EXPECT_EQ(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt", ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").u32string());
-    EXPECT_EQ(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt", ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").u32string());
+    EXPECT_EQ(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗17.txt", ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗17.txt").u32string());
+    EXPECT_EQ(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗18.txt", ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗18.txt").u32string());
+    EXPECT_EQ(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗19.txt", ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗19.txt").u32string());
+    EXPECT_EQ(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗20.txt", ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗20.txt").u32string());
 #endif
 
 #if (!(defined(__GNUC__) && (__GNUC__ < 12 || __GNUC__ == 12 && __GNUC_MINOR__ < 3)) && \
@@ -339,8 +340,8 @@ TEST(file_util, path_cast) {
     EXPECT_STREQ("./local/file.txt", ov::util::Path(L"./local/file.txt").string().c_str());
     EXPECT_STREQ("~/local/file.txt", ov::util::Path(L"~/local/file.txt").string().c_str());
     EXPECT_STREQ("/usr/local/file.txt", ov::util::Path(L"/usr/local/file.txt").string().c_str());
-    EXPECT_STREQ("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt",
-                 ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").string().c_str());
+    EXPECT_STREQ("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗21.txt",
+                 ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗21.txt").string().c_str());
 
     // from wchar_t to wchar_t
     EXPECT_STREQ(L"", ov::util::Path(L"").wstring().c_str());
@@ -355,8 +356,8 @@ TEST(file_util, path_cast) {
     EXPECT_STREQ("./local/file.txt", ov::util::Path(L"./local/file.txt").u8string().c_str());
     EXPECT_STREQ("~/local/file.txt", ov::util::Path(L"~/local/file.txt").u8string().c_str());
     EXPECT_STREQ("/usr/local/file.txt", ov::util::Path(L"/usr/local/file.txt").u8string().c_str());
-    EXPECT_STREQ("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt",
-                 ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").u8string().c_str());
+    EXPECT_STREQ("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗22.txt",
+                 ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗22.txt").u8string().c_str());
 
     // from wchar_t to char16_t
     EXPECT_EQ(u"", ov::util::Path(L"").u16string());
@@ -364,7 +365,7 @@ TEST(file_util, path_cast) {
     EXPECT_EQ(u"./local/file.txt", ov::util::Path(L"./local/file.txt").u16string());
     EXPECT_EQ(u"~/local/file.txt", ov::util::Path(L"~/local/file.txt").u16string());
     EXPECT_EQ(u"/usr/local/file.txt", ov::util::Path(L"/usr/local/file.txt").u16string());
-    EXPECT_EQ(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt", ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").u16string());
+    EXPECT_EQ(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗23.txt", ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗23.txt").u16string());
 
 #endif
 
@@ -373,14 +374,14 @@ TEST(file_util, path_cast) {
      defined(_MSC_VER) && (defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)))
 
     // from char, char8_t, char16_t, char32_t to wchar_t
-    EXPECT_STREQ(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt",
-                 ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").wstring().c_str());
-    EXPECT_STREQ(L"/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt",
-                 ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").wstring().c_str());
-    EXPECT_STREQ(L"/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt",
-                 ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").wstring().c_str());
-    EXPECT_STREQ(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt",
-                 ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").wstring().c_str());
+    EXPECT_STREQ(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗24.txt",
+                 ov::util::Path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗24.txt").wstring().c_str());
+    EXPECT_STREQ(L"/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗25.txt",
+                 ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗25.txt").wstring().c_str());
+    EXPECT_STREQ(L"/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗26.txt",
+                 ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗26.txt").wstring().c_str());
+    EXPECT_STREQ(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗27.txt",
+                 ov::util::Path(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗27.txt").wstring().c_str());
 #endif
 
 #if (!(defined(__GNUC__) && (__GNUC__ < 12 || __GNUC__ == 12 && __GNUC_MINOR__ < 3)) && \
@@ -393,6 +394,6 @@ TEST(file_util, path_cast) {
     EXPECT_EQ(U"./local/file.txt", ov::util::Path(L"./local/file.txt").u32string());
     EXPECT_EQ(U"~/local/file.txt", ov::util::Path(L"~/local/file.txt").u32string());
     EXPECT_EQ(U"/usr/local/file.txt", ov::util::Path(L"/usr/local/file.txt").u32string());
-    EXPECT_EQ(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt", ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗.txt").u32string());
+    EXPECT_EQ(U"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗28.txt", ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗28.txt").u32string());
 #endif
 }
