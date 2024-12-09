@@ -29,7 +29,7 @@ bool EmbeddingBagOffset::isSupportedOperation(const std::shared_ptr<const ov::No
 }
 
 EmbeddingBagOffset::EmbeddingBagOffset(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)),
+    : Node(op, context, NgraphShapeInferFactory(op)),
       EmbeddingBag(op, 3lu, 1lu, 4lu, 3lu) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {

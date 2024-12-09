@@ -327,4 +327,54 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCPUExecutionDevice) {
     ASSERT_EQ(value.as<std::string>(), "CPU");
 }
 
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCPURuntimOptions) {
+    ov::Core ie;
+    ov::Any type;
+    ov::Any size;
+    ov::CompiledModel compiledModel;
+    model->set_rt_info("f16", "runtime_options", ov::hint::kv_cache_precision.name());
+    model->set_rt_info("0", "runtime_options", ov::hint::dynamic_quantization_group_size.name());
+    OV_ASSERT_NO_THROW(compiledModel = ie.compile_model(model, deviceName));
+    OV_ASSERT_NO_THROW(type = compiledModel.get_property(ov::hint::kv_cache_precision));
+    OV_ASSERT_NO_THROW(size = compiledModel.get_property(ov::hint::dynamic_quantization_group_size));
+    ASSERT_EQ(type.as<ov::element::Type>(), ov::element::f16);
+    ASSERT_EQ(size.as<uint64_t>(), 0);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCPURuntimOptionsWithCompileConfig) {
+    ov::Core ie;
+    ov::Any type;
+    ov::Any size;
+    ov::CompiledModel compiledModel;
+    model->set_rt_info("f16", "runtime_options", ov::hint::kv_cache_precision.name());
+    model->set_rt_info("0", "runtime_options", ov::hint::dynamic_quantization_group_size.name());
+    ov::AnyMap config;
+    config[ov::hint::kv_cache_precision.name()] = "u8";
+    config[ov::hint::dynamic_quantization_group_size.name()] = "16";
+    OV_ASSERT_NO_THROW(compiledModel = ie.compile_model(model, deviceName, config));
+    OV_ASSERT_NO_THROW(type = compiledModel.get_property(ov::hint::kv_cache_precision));
+    OV_ASSERT_NO_THROW(size = compiledModel.get_property(ov::hint::dynamic_quantization_group_size));
+    ASSERT_EQ(type.as<ov::element::Type>(), ov::element::u8);
+    ASSERT_EQ(size.as<uint64_t>(), 16);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCPURuntimOptionsWithCoreProperties) {
+    ov::Core core;
+    ov::Any type;
+    ov::Any size;
+
+    core.set_property(deviceName, ov::hint::kv_cache_precision(ov::element::f32));
+    core.set_property(deviceName, ov::hint::dynamic_quantization_group_size(16));
+
+    ov::CompiledModel compiledModel;
+    model->set_rt_info("f16", "runtime_options", ov::hint::kv_cache_precision.name());
+    model->set_rt_info("0", "runtime_options", ov::hint::dynamic_quantization_group_size.name());
+
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, deviceName));
+    OV_ASSERT_NO_THROW(type = compiledModel.get_property(ov::hint::kv_cache_precision));
+    OV_ASSERT_NO_THROW(size = compiledModel.get_property(ov::hint::dynamic_quantization_group_size));
+    ASSERT_EQ(type.as<ov::element::Type>(), ov::element::f32);
+    ASSERT_EQ(size.as<uint64_t>(), 16);
+}
+
 } // namespace

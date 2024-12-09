@@ -30,7 +30,6 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<IGraph>& graph,
                              const Config& config)
     : ICompiledModel(model, plugin),
-      _model(model),
       _config(config),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
@@ -77,7 +76,7 @@ void CompiledModel::export_model(std::ostream& stream) const {
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
-    return _model;
+    OPENVINO_NOT_IMPLEMENTED;
 }
 
 void CompiledModel::set_property(const ov::AnyMap& properties) {
@@ -310,6 +309,12 @@ void CompiledModel::initialize_properties() {
           ov::PropertyMutability::RO,
           [](const Config& config) {
               return config.getString<BATCH_MODE>();
+          }}},
+        {ov::intel_npu::run_inferences_sequentially.name(),
+         {false,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.get<RUN_INFERENCES_SEQUENTIALLY>();
           }}},
     };
 

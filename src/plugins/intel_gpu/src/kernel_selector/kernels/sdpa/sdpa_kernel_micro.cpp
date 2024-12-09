@@ -316,6 +316,9 @@ bool SDPAKernelMicro::Validate(const Params& p) const {
 
     const sdpa_params& params = static_cast<const sdpa_params&>(p);
 
+    if (params.should_use_sdpa_opt)
+        return false;
+
     if (params.conf.is_paged_attention)
         return false;
 
@@ -332,10 +335,7 @@ bool SDPAKernelMicro::Validate(const Params& p) const {
     auto K_num_heads_dim = get_num_heads(params.inputs[1], params.input1_order);
     auto V_num_heads_dim = get_num_heads(params.inputs[2], params.input2_order);
 
-    if (params.input0_order != params.input1_order || params.input0_order != params.input2_order)
-        return false;
-
-    if (params.input0_order[3] != 3)
+    if (params.input0_order[3] != 3 || params.input1_order[3] != 3 || params.input2_order[3] != 3)
         return false;
 
     if (Q_num_heads_dim.is_dynamic || K_num_heads_dim.is_dynamic || V_num_heads_dim.is_dynamic || K_num_heads_dim.v != V_num_heads_dim.v)
