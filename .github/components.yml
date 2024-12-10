@@ -149,6 +149,7 @@ PyTorch_FE:
   build:
     - CPU
     - Python_API
+    - TOKENIZERS # PyTorch_FE tests depend on tokenizers build
 
 JAX_FE:
   revalidate:
