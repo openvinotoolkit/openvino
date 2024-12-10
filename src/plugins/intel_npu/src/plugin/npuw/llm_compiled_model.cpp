@@ -339,9 +339,12 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     read(stream, compiled->m_kvcache_desc.num_stored_tokens);
     read(stream, compiled->m_kvcache_desc.dim);
 
-    // Deserialize CompiledModels
-    compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin, properties);
-    compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin, properties);
+    // Deserialize CompiledModels. Remove NPUW_LLM properties beforehand
+    std::map<std::string, ov::Any> npuw_llm_props;
+    std::map<std::string, ov::Any> other_props;
+    split_llm_properties(properties, npuw_llm_props, other_props);
+    compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin, other_props);
+    compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin, other_props);
 
     // // Deserialize weights bank (if required)
     // const std::string weights_bank_opt = compiled->m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK>();

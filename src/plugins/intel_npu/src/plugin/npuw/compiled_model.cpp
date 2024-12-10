@@ -115,7 +115,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     : ov::npuw::ICompiledModel(model, plugin),
       m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
       m_cfg(m_options_desc),
-      m_name(model->get_friendly_name()),
       m_loaded_from_cache(false) {
     ::intel_npu::registerNPUWOptions(*m_options_desc);
 
@@ -133,6 +132,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         LOG_DEBUG("CompiledModel is being deserialized, skipping the full constructor flow...");
         return;
     }
+
+    m_name = model->get_friendly_name();
 
     const bool acc_check_opt = m_cfg.get<::intel_npu::NPUW_ACC_CHECK>();
     if (acc_check_opt) {
@@ -551,6 +552,8 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
     stream.read(reinterpret_cast<char*>(&m_name_size), sizeof m_name_size);
     stream.read(compiled->m_name.data(), m_name_size);
 
+    // FIXME: bad_alloc below
+
     // m_inputs_to_submodels_inputs
     std::size_t m_inputs_to_submodels_inputs_size = 0;
     stream.read(reinterpret_cast<char*>(&m_inputs_to_submodels_inputs_size), sizeof m_inputs_to_submodels_inputs_size);
@@ -611,6 +614,8 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
     // FIXME: to continue with m_compiled_submodels
 
     LOG_INFO("Done.");
+
+    return compiled;
 }
 
 void ov::npuw::CompiledModel::finalize_weights_bank() {
