@@ -865,6 +865,41 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& modelStre
     return get_plugin(parsed._deviceName).import_model(modelStream, context, parsed._config);
 }
 
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(const ov::Tensor& model_buffer,
+                                                         const std::string& device_name,
+                                                         const ov::AnyMap& config) const {
+    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
+    auto parsed = parseDeviceNameIntoConfig(device_name, config);
+    auto plugin = get_plugin(parsed._deviceName);
+
+    auto aligned_buffer = std::make_shared<ov::SharedBuffer<ov::Tensor>>((char*)model_buffer.data(), model_buffer.get_byte_size(), model_buffer);
+    OwningSharedStreamBuffer buf(aligned_buffer);
+    std::istream stream(&buf);
+    if (coreConfig.get_enable_mmap() && ov::util::contains(plugin.get_property(ov::internal::supported_properties), ov::internal::caching_with_mmap)) {
+        parsed._config[ov::internal::cached_model_buffer.name()] = aligned_buffer;
+    }
+
+    return get_plugin(parsed._deviceName).import_model(stream, parsed._config);
+}
+
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(const ov::Tensor& model_buffer,
+                                                         const ov::SoPtr<ov::IRemoteContext>& context,
+                                                         const ov::AnyMap& config) const {
+    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
+    OPENVINO_ASSERT(context, "Remote context must not be empty.");
+    auto parsed = parseDeviceNameIntoConfig(context->get_device_name(), config);
+    auto plugin = get_plugin(parsed._deviceName);
+
+    auto aligned_buffer = std::make_shared<ov::SharedBuffer<ov::Tensor>>((char*)model_buffer.data(), model_buffer.get_byte_size(), model_buffer);
+    OwningSharedStreamBuffer buf(aligned_buffer);
+    std::istream stream(&buf);
+    if (coreConfig.get_enable_mmap() && ov::util::contains(plugin.get_property(ov::internal::supported_properties), ov::internal::caching_with_mmap)) {
+        parsed._config[ov::internal::cached_model_buffer.name()] = aligned_buffer;
+    }
+
+    return get_plugin(parsed._deviceName).import_model(stream, context, parsed._config);
+}
+
 ov::SupportedOpsMap ov::CoreImpl::query_model(const std::shared_ptr<const ov::Model>& model,
                                               const std::string& device_name,
                                               const ov::AnyMap& config) const {

@@ -494,6 +494,20 @@ public:
 
     /**
      * @brief Imports a compiled model from the previously exported one.
+     * @param model_buffer ov::Tensor input buffer containing a model previously exported using the
+     * ov::CompiledModel::export_model method.
+     * @param device_name Name of a device to import a compiled model for. Note, if @p device_name device was not used
+     * to compile the original mode, an exception is thrown.
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this load
+     * operation.
+     * @return A compiled model.
+     */
+    CompiledModel import_model(const ov::Tensor& model_buffer,
+                               const std::string& device_name,
+                               const AnyMap& properties = {});
+
+    /**
+     * @brief Imports a compiled model from the previously exported one.
      * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types.
      * @param model_stream Model stream.
      * @param device_name Name of a device to import a compiled model for. Note, if @p device_name device was not used
@@ -510,6 +524,23 @@ public:
     }
 
     /**
+     * @brief Imports a compiled model from the previously exported one.
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types.
+     * @param model_buffer Model buffer.
+     * @param device_name Name of a device to import a compiled model for. Note, if @p device_name device was not used
+     * to compile the original mode, an exception is thrown.
+     * @param properties Optional pack of pairs: (property name, property value) relevant only for this
+     * load operation.
+     * @return A compiled model.
+     */
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> import_model(const ov::Tensor& model_buffer,
+                                                                          const std::string& device_name,
+                                                                          Properties&&... properties) {
+        return import_model(model_buffer, device_name, AnyMap{std::forward<Properties>(properties)...});
+    }
+
+    /**
      * @brief Imports a compiled model from the previously exported one with the specified remote context.
      * @param model_stream std::istream input stream containing a model previously exported from
      * ov::CompiledModel::export_model
@@ -520,6 +551,18 @@ public:
      * @return A compiled model.
      */
     CompiledModel import_model(std::istream& model_stream, const RemoteContext& context, const AnyMap& properties = {});
+
+    /**
+     * @brief Imports a compiled model from the previously exported one with the specified remote context.
+     * @param model_stream model_buffer ov::Tensor input buffer containing a model previously exported from
+     * ov::CompiledModel::export_model
+     * @param context A reference to a RemoteContext object. Note, if the device from @p context was not used to compile
+     * the original mode, an exception is thrown.
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this load
+     * operation.
+     * @return A compiled model.
+     */
+    CompiledModel import_model(const ov::Tensor& model_buffer, const RemoteContext& context, const AnyMap& properties = {});
 
     /**
      * @brief Imports a compiled model from the previously exported one with the specified remote context.
@@ -535,6 +578,22 @@ public:
                                                                           const RemoteContext& context,
                                                                           Properties&&... properties) {
         return import_model(model_stream, context, AnyMap{std::forward<Properties>(properties)...});
+    }
+
+    /**
+     * @brief Imports a compiled model from the previously exported one with the specified remote context.
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types.
+     * @param model_buffer Model buffer.
+     * @param context Pointer to a RemoteContext object.
+     * @param properties Optional pack of pairs: (property name, property value) relevant only for this
+     * load operation.
+     * @return A compiled model.
+     */
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> import_model(const ov::Tensor& model_buffer,
+                                                                          const RemoteContext& context,
+                                                                          Properties&&... properties) {
+        return import_model(model_buffer, context, AnyMap{std::forward<Properties>(properties)...});
     }
 
     /**

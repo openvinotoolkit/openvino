@@ -157,6 +157,30 @@ public:
                                                        const ov::AnyMap& config = {}) const = 0;
 
     /**
+     * @brief Creates a compiled model from a previously exported model
+     * @param model_buffer model buffer
+     * @param device_name Name of device load executable model on
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation*
+     * @return A pointer to compiled model
+     */
+    virtual ov::SoPtr<ov::ICompiledModel> import_model(const ov::Tensor& model_buffer,
+                                                       const std::string& device_name,
+                                                       const ov::AnyMap& config = {}) const = 0;
+
+    /**
+     * @brief Creates a compiled model from a previously exported model
+     * @param model_buffer model buffer
+     * @param context Remote context
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation*
+     * @return A pointer to compiled model
+     */
+    virtual ov::SoPtr<ov::ICompiledModel> import_model(const ov::Tensor& model_buffer,
+                                                       const ov::SoPtr<ov::IRemoteContext>& context,
+                                                       const ov::AnyMap& config = {}) const = 0;
+
+    /**
      * @brief Query device if it supports specified network with specified configuration
      *
      * @param model OpenVINO Model
