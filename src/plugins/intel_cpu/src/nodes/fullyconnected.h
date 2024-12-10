@@ -124,6 +124,7 @@ private:
     std::string errorPrefix;
 
     FCTensorParallelConfig tp_cfg;
+    bool more_numa_nodes = false;
 };
 
 }  // namespace node

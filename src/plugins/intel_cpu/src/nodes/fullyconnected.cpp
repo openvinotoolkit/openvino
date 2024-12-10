@@ -126,6 +126,7 @@ void FullyConnected::initTensorParallelConfig(const GraphContext::CPtr context) 
             tp_cfg.enable_tensor_parallel = tp_cfg.w_size > 1;
             tp_cfg.sub_memory = context->getSubMemory();
         }
+        more_numa_nodes = context->getCPUStreamExecutor()->get_numa_node_id() < 0 ? true : false;
     }
 }
 
@@ -350,7 +351,9 @@ bool FullyConnected::created() const {
 }
 
 void FullyConnected::toNumaNodeImpl(int numaID) {
-    executor->moveMemToNumaNode(numaID);
+    if (!more_numa_nodes) {
+        executor->moveMemToNumaNode(numaID);
+    }
 }
 
 const std::vector<impl_desc_type>& FullyConnected::getDefaultImplPriority() {

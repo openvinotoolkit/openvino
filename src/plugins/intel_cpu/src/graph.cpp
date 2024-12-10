@@ -1381,7 +1381,7 @@ static int GetNumaNodeId(const GraphContext::CPtr& context) {
 #if defined(__x86_64__) && defined(__linux__)
     if ((context->getCPUStreamExecutor()) &&
         (context->getConfig().hintPerfMode == ov::hint::PerformanceMode::LATENCY)) {
-        numaNodeId = context->getCPUStreamExecutor()->get_numa_node_id();
+        numaNodeId = std::max(0, context->getCPUStreamExecutor()->get_numa_node_id());
     }
 #endif
     return numaNodeId;

@@ -114,6 +114,7 @@ struct CPUStreamsExecutor::Impl {
                                    const int numa_node_id,
                                    const int max_threads_per_core) {
             auto stream_processors = _impl->_config.get_stream_processor_ids();
+            _multNumaNodes = numa_node_id < 0 ? true : _multNumaNodes;
             _numaNodeId = std::max(0, numa_node_id);
             _socketId = get_socket_by_numa_node(_numaNodeId);
             if (stream_type == STREAM_WITHOUT_PARAM) {
@@ -197,6 +198,7 @@ struct CPUStreamsExecutor::Impl {
         Impl* _impl = nullptr;
         int _streamId = 0;
         int _numaNodeId = 0;
+        bool _multNumaNodes = false;
         int _socketId = 0;
         bool _execute = false;
         std::vector<int> _rank;
@@ -476,7 +478,7 @@ int CPUStreamsExecutor::get_numa_node_id() {
         return 0;
     }
     auto stream = _impl->_streams.local();
-    return stream->_numaNodeId;
+    return stream->_multNumaNodes ? -1 : stream->_numaNodeId;
 }
 
 int CPUStreamsExecutor::get_socket_id() {
