@@ -2965,11 +2965,10 @@ public:
                 max_diff = abs_diff;
             avg += abs_diff;
             count++;
-            // OPENVINO_ASSERT(abs_diff < 6);
+            OPENVINO_ASSERT(abs_diff < 6);
         }
-        // GPU_DEBUG_LOG << "---> count: " << count << ", max_diff:" << max_diff << ", avg_diff: " << (avg/count) << std::endl;
-        // OPENVINO_ASSERT((avg/count) < 0.5);
-        std::cout << "---> count: " << count << ", max_diff:" << max_diff << ", avg_diff: " << (avg/count) << std::endl;
+        GPU_DEBUG_LOG << "---> count: " << count << ", max_diff:" << max_diff << ", avg_diff: " << (avg/count) << std::endl;
+        OPENVINO_ASSERT((avg/count) < 0.5);
     }
 
     void test_compressed_int8_scale_dyn_quan_weight_u8(bool is_dynamic, int batch = 1, int ifm = 512, int ofm = 2048,
@@ -3093,11 +3092,10 @@ public:
                 max_diff = abs_diff;
             avg += abs_diff;
             count++;
-            // OPENVINO_ASSERT(abs_diff < 8);
+            OPENVINO_ASSERT(abs_diff < 8);
         }
-        // GPU_DEBUG_LOG << "---> count: " << count << ", max_diff:" << max_diff << ", avg_diff: " << (avg/count) << std::endl;
-        //OPENVINO_ASSERT((avg/count) < 0.8);
-        std::cout << "---> count: " << count << ", max_diff:" << max_diff << ", avg_diff: " << (avg/count) << std::endl;
+        GPU_DEBUG_LOG << "---> count: " << count << ", max_diff:" << max_diff << ", avg_diff: " << (avg/count) << std::endl;
+        OPENVINO_ASSERT((avg/count) < 0.8);
     }
 };
 
