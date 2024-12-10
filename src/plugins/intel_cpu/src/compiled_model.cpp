@@ -19,6 +19,7 @@
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
 #include "utils/serialize.hpp"
+#include "utils/debug_capabilities.h"
 
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include <cstring>
@@ -40,6 +41,45 @@ struct ImmediateSerialExecutor : public ov::threading::ITaskExecutor {
     }
     std::mutex _mutex;
 };
+
+#ifdef CPU_DEBUG_CAPS
+static void dumpMemoryStats(unsigned level, const std::string& name, std::deque<CompiledModel::GraphGuard>& graphs) {
+    if (level > 0) {
+        std::cout << "Memory stats for model name: " << name << " " << std::endl;
+        if (graphs.empty()) {
+            std::cout << "No graphs were found" << std::endl;
+            return;
+        }
+        for (auto&& graph : graphs) {
+            CompiledModel::GraphGuard::Lock graph_lock{graph};
+            std::cout << "Memory stats for graph name: " << graph_lock._graph.GetName() << std::endl;
+            std::cout << std::endl;
+            auto ctx = graph_lock._graph.getGraphContext();
+            auto&& statistics = ctx->getNetworkMemoryControl()->dumpStatistics();
+
+            for (auto&& stat : statistics) {
+                std::cout << "Memory control ID: " << stat.first << std::endl;
+                for (auto&& item : stat.second) {
+                    std::cout << item << std::endl;
+                }
+            }
+
+            auto& scratchpads = ctx->getScratchPads();
+            for (size_t i = 0; i < scratchpads.size(); ++i) {
+                std::cout << "Scratchpad " << i << " size: " << scratchpads[i]->size() << " bytes" << std::endl;
+            }
+        }
+    }
+}
+#endif
+
+CompiledModel::~CompiledModel() {
+    if (m_has_sub_compiled_models) {
+        m_sub_compiled_models.clear();
+        m_sub_memory_manager->_memorys_table.clear();
+    }
+    CPU_DEBUG_CAP_ENABLE(dumpMemoryStats(m_cfg.debugCaps.memoryStatisticsDumpLevel, m_name, m_graphs));
+}
 
 CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,

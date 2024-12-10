@@ -23,18 +23,22 @@ class CompiledModel : public ov::ICompiledModel {
 public:
     typedef std::shared_ptr<CompiledModel> Ptr;
 
+    struct GraphGuard : public Graph {
+        std::mutex _mutex;
+        struct Lock : public std::unique_lock<std::mutex> {
+            explicit Lock(GraphGuard& graph) : std::unique_lock<std::mutex>(graph._mutex), _graph(graph) {}
+            GraphGuard& _graph;
+        };
+    };
+
+public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const Config& cfg,
                   const bool loaded_from_cache,
                   const std::shared_ptr<SubMemoryManager> sub_memory_manager = nullptr);
 
-    ~CompiledModel() {
-        if (m_has_sub_compiled_models) {
-            m_sub_compiled_models.clear();
-            m_sub_memory_manager->_memorys_table.clear();
-        }
-    }
+    ~CompiledModel();
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
 
@@ -66,13 +70,6 @@ private:
     Config m_cfg;
     mutable std::atomic_int m_numRequests = {0};
     std::string m_name;
-    struct GraphGuard : public Graph {
-        std::mutex _mutex;
-        struct Lock : public std::unique_lock<std::mutex> {
-            explicit Lock(GraphGuard& graph) : std::unique_lock<std::mutex>(graph._mutex), _graph(graph) {}
-            GraphGuard& _graph;
-        };
-    };
 
     const bool m_loaded_from_cache;
     // WARNING: Do not use m_graphs directly.
