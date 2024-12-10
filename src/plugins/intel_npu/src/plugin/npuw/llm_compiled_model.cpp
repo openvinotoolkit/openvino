@@ -113,7 +113,7 @@ struct NPUDesc {
 };
 
 std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin) {
-    return std::nullopt; // FIXME: below upsupported on CPU!
+    return std::nullopt;  // FIXME: below upsupported on CPU!
     const ov::Any arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{});
     const ov::Any max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{});
     return std::make_optional(NPUDesc{arch.as<std::string>(), max_tiles.as<int64_t>()});
@@ -250,6 +250,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     split_llm_properties(properties, npuw_llm_props, other_props);
     m_cfg.update(any_copy(npuw_llm_props));
 
+    if (!model) {
+        LOG_DEBUG("LLMCompiledModel is being deserialized, skipping the full constructor flow...");
+        return;
+    }
+
     LOG_DEBUG("1. Creating kvcache model as clone of passed one.");
     auto kvcache_model = model->clone();
     LOG_DEBUG("2. Transform kvcache model from stateful to stateless.");
@@ -298,98 +303,96 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("Done");
 }
 
-std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserialize(std::istream& stream,
-                                                                                    const ov::AnyMap& properties) {
+template <typename T>
+void read(std::istream& stream, T& var) {
+    stream.read(reinterpret_cast<char*>(&var), sizeof var);
+}
+
+std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserialize(
+    std::istream& stream,
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    const ov::AnyMap& properties) {
     LOG_INFO("Deserializing LLMCompiledModel...");
     LOG_BLOCK();
 
     // Sanity check magic number
     uint64_t serialization_indicator = 0;
-    //stream >> serialization_indicator;
-    stream.read(reinterpret_cast<char*>(&serialization_indicator), sizeof serialization_indicator);
-    std::cout << serialization_indicator << " " << SERIALIZATION_INDICATOR << std::endl;
+    read(stream, serialization_indicator);
     NPUW_ASSERT(serialization_indicator == SERIALIZATION_INDICATOR && "This blob wasn't serialized via NPUW!");
 
     // Deserialize general meta info
     int vmajor, vminor, vpatch;
+    read(stream, vmajor);
+    read(stream, vminor);
+    read(stream, vpatch);
     stream >> vmajor >> vminor >> vpatch;
 
     NPUW_ASSERT(vmajor == OPENVINO_VERSION_MAJOR && vminor == OPENVINO_VERSION_MINOR &&
                 vpatch == OPENVINO_VERSION_PATCH && "Only blobs serialized with the same OV version are supported!");
 
-    std::cout << "DESERIALIZED!" << std::endl;
-    return 0;
-
-    std::shared_ptr<ov::npuw::LLMCompiledModel> compiled;
-    // deserialize ins/outs first, then create a dummy ov model, then create compiled, then the rest
+    // Create a dummy LLMCompiledModel with an empty ov::Model - this will skip the constructor flow
+    // to continue deserialization
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(nullptr, plugin, properties);
 
     // Deserialize LLMCompiledModel-specific data
-    stream >> compiled->m_kvcache_desc.max_prompt_size >> compiled->m_kvcache_desc.total_size >>
-        compiled->m_kvcache_desc.num_stored_tokens >> compiled->m_kvcache_desc.dim;
+    read(stream, compiled->m_kvcache_desc.max_prompt_size);
+    read(stream, compiled->m_kvcache_desc.total_size);
+    read(stream, compiled->m_kvcache_desc.num_stored_tokens);
+    read(stream, compiled->m_kvcache_desc.dim);
 
     // Deserialize CompiledModels
-    // Need to serialize ins/outs for dummy model creation
-    // std::shared_ptr<ov::Model> create_dummy_model(){};
-    // m_kvcache_compiled = std::make_shared<ov::npuw::CompiledModel>(create_dummy_model, get_plugin(), properties);
-    // m_prefill_compiled = std::make_shared<ov::npuw::CompiledModel>(create_dummy_model, get_plugin(), properties);
-    compiled->m_kvcache_compiled->deserialize(stream);
-    compiled->m_prefill_compiled->deserialize(stream);
+    compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin, properties);
+    compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin, properties);
 
-    // Deserialize weights bank (if required)
-    const std::string weights_bank_opt = compiled->m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK>();
-    // NPU device assumed by default
-    std::shared_ptr<ov::npuw::weights::Bank> bank =
-        ov::npuw::weights::bank(weights_bank_opt, compiled->get_plugin()->get_core(), "NPU");
-    // FIXME: support weightless option
-    bank->deserialize(stream);
-    compiled->m_kvcache_compiled->m_weights_bank = bank;
-    compiled->m_prefill_compiled->m_weights_bank = bank;
+    // // Deserialize weights bank (if required)
+    // const std::string weights_bank_opt = compiled->m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK>();
+    // // NPU device assumed by default
+    // std::shared_ptr<ov::npuw::weights::Bank> bank =
+    //     ov::npuw::weights::bank(weights_bank_opt, compiled->get_plugin()->get_core(), "NPU");
+    // // FIXME: support weightless option
+    // bank->deserialize(stream);
+    // compiled->m_kvcache_compiled->m_weights_bank = bank;
+    // compiled->m_prefill_compiled->m_weights_bank = bank;
 
-    compiled->implement_properties();
+    // compiled->implement_properties();
 
     LOG_INFO("Done.");
 }
 
-void ov::npuw::LLMCompiledModel::export_model(std::ostream& fout) const {
+template <typename T>
+void write(std::ostream& stream, const T& var) {
+    stream.write(reinterpret_cast<const char*>(&var), sizeof var);
+}
+
+void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     LOG_INFO("Serializing LLMCompiledModel...");
     LOG_BLOCK();
 
     // Serialize magic number first
-    //fout << SERIALIZATION_INDICATOR;
-    fout.write(reinterpret_cast<const char*>(&SERIALIZATION_INDICATOR), sizeof SERIALIZATION_INDICATOR);
-
-    /*
-    uint64_t serialization_indicator = 0;
-    //stream >> serialization_indicator;
-    stream.read(reinterpret_cast<char*>(&serialization_indicator), sizeof serialization_indicator);
-    */
+    write(stream, SERIALIZATION_INDICATOR);
 
     // Serialize general meta info
-    fout << OPENVINO_VERSION_MAJOR << OPENVINO_VERSION_MINOR << OPENVINO_VERSION_PATCH;
+    write(stream, OPENVINO_VERSION_MAJOR);
+    write(stream, OPENVINO_VERSION_MINOR);
+    write(stream, OPENVINO_VERSION_PATCH);
 
     // Serialize LLMCompiledModel-specific data
-    struct KVCacheDesc {
-        uint32_t max_prompt_size = 0u;
-        uint32_t total_size = 0u;
-        uint32_t num_stored_tokens = 0u;
-        uint32_t dim = 0u;
-    };
-    fout << m_kvcache_desc.max_prompt_size << m_kvcache_desc.total_size << m_kvcache_desc.num_stored_tokens
-         << m_kvcache_desc.dim;
-
-    std::cout << "SERIALIZED!" << std::endl;
-    return;
+    write(stream, m_kvcache_desc.max_prompt_size);
+    write(stream, m_kvcache_desc.total_size);
+    write(stream, m_kvcache_desc.num_stored_tokens);
+    write(stream, m_kvcache_desc.dim);
 
     // Serialize CompiledModels
-    m_kvcache_compiled->serialize(fout);
-    m_prefill_compiled->serialize(fout);
+    m_kvcache_compiled->serialize(stream);
+    m_prefill_compiled->serialize(stream);
 
     // Serialize weights bank (if required)
-    const auto& kv_bank = m_kvcache_compiled->m_weights_bank;
-    const auto& p_bank = m_prefill_compiled->m_weights_bank;
-    NPUW_ASSERT(kv_bank && p_bank && kv_bank == p_bank && "Prefill and KVCache models' weight bank should be shared!");
-    // FIXME: support weightless option
-    kv_bank->serialize(fout);
+    // const auto& kv_bank = m_kvcache_compiled->m_weights_bank;
+    // const auto& p_bank = m_prefill_compiled->m_weights_bank;
+    // NPUW_ASSERT(kv_bank && p_bank && kv_bank == p_bank && "Prefill and KVCache models' weight bank should be
+    // shared!");
+    // // FIXME: support weightless option
+    // kv_bank->serialize(stream);
 
     LOG_INFO("Done.");
 }

@@ -762,7 +762,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         if (!localProperties.count(llm_enabled) || localProperties.at(llm_enabled).as<bool>() == false) {
             OPENVINO_THROW("Cannot import non-dynamic NPUW model!");
         }
-        return ov::npuw::LLMCompiledModel::deserialize(stream, localProperties);
+        return ov::npuw::LLMCompiledModel::deserialize(stream, shared_from_this(), localProperties);
     }
 
     // Drop NPUW properties if there are any
