@@ -85,13 +85,13 @@ void Schedule::generate_workers(const std::string& device, const SoCompiledModel
         OPENVINO_THROW("Every device used with AUTO should support query optimal_number_of_infer_requests property from compiled model ",
                     iie.what());
     }
-    auto num_requests = (m_context->m_device_priorities.end() == it_numrequests ||
-                              it_numrequests->num_requests_per_devices == -1) ? optimal_num : it_numrequests->num_requests_per_devices;
-    // If the user creates only one infer request, we need to ensure at least 2 requests per device.
-    // This is necessary to handle the case where a request worker is popped from the idle queue before being pushed back.
-    // Without at least 2 requests, there could be a situation where no requests are available for inference,
-    // leading to potential deadlocks.
-    num_requests = num_requests <= 1 ? 2 : num_requests;
+    auto num_requests =
+        (m_context->m_device_priorities.end() == it_numrequests || it_numrequests->num_requests_per_devices == -1)
+            ? optimal_num
+            : it_numrequests->num_requests_per_devices;
+    num_requests = num_requests <= 1 && m_context->m_performance_hint == ov::hint::PerformanceMode::THROUGHPUT
+                       ? 2
+                       : num_requests;
     auto& worker_requests = m_worker_requests[device];
     auto& idle_worker_requests = m_idle_worker_requests[device];
     worker_requests.resize(num_requests);
