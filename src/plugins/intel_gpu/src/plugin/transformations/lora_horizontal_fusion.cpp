@@ -22,13 +22,16 @@ LoRAHorizontalFusion::LoRAHorizontalFusion() {
             #define check(node) if (!node) return false;
 
             const auto& add =            std::dynamic_pointer_cast<ov::op::v1::Add>(node);                                               check(add)
-            const auto& matmul2 =        std::dynamic_pointer_cast<ov::op::v0::MatMul>(add->get_input_node_shared_ptr(1));               check(matmul2)
+            const auto& matmul2 =        std::dynamic_pointer_cast<ov::op::v0::MatMul>(add->get_input_node_shared_ptr(0)) ?
+                                         std::dynamic_pointer_cast<ov::op::v0::MatMul>(add->get_input_node_shared_ptr(0)) :
+                                         std::dynamic_pointer_cast<ov::op::v0::MatMul>(add->get_input_node_shared_ptr(1));               check(matmul2)
             const auto& multiply =       std::dynamic_pointer_cast<ov::op::v1::Multiply>(matmul2->get_input_node_shared_ptr(0));         check(multiply)
             const auto& variable_b =     std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(matmul2->get_input_node_shared_ptr(1));  check(variable_b)
             const auto& matmul1 =        std::dynamic_pointer_cast<ov::op::v0::MatMul>(multiply->get_input_node_shared_ptr(0));          check(matmul1)
             const auto& variable_alpha = std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(multiply->get_input_node_shared_ptr(1)); check(variable_alpha)
             const auto& variable_a =     std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(matmul1->get_input_node_shared_ptr(1));  check(variable_a)
 
+            #undef check
             return true;
         };
 
@@ -64,7 +67,10 @@ LoRAHorizontalFusion::LoRAHorizontalFusion() {
 
         for (const auto& add : split->get_users()) {
             add_nodes.emplace_back(add);
-            matmul2_nodes.emplace_back(add->get_input_node_shared_ptr(1));
+
+            bool first_input_matmul = std::dynamic_pointer_cast<ov::op::v0::MatMul>(add->get_input_node_shared_ptr(0)) != nullptr;
+            matmul2_nodes.emplace_back(first_input_matmul ? add->get_input_node_shared_ptr(0)
+                                                          : add->get_input_node_shared_ptr(1));
         }
         for (const auto& matmul2 : matmul2_nodes) {
             multiply_nodes.emplace_back(matmul2->get_input_node_shared_ptr(0));
