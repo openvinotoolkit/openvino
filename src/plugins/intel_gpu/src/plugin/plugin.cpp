@@ -329,6 +329,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
         _orig_config.erase(it);
     }
 
+    std::shared_ptr<ov::AlignedBuffer> model_buffer;
+    if (_orig_config.count(ov::internal::cached_model_buffer.name())) {
+        model_buffer = _orig_config.at(ov::internal::cached_model_buffer.name()).as<std::shared_ptr<ov::AlignedBuffer>>();
+        _orig_config.erase(ov::internal::cached_model_buffer.name());
+    }
+
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(_orig_config);
     config.apply_user_properties(context_impl->get_engine().get_device_info());

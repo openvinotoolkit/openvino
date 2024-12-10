@@ -27,8 +27,7 @@ public:
                         const size_t indexOfOutputChannelDim,
                         const bool isINT8,
                         const int weiScaleMaskPerChannel,
-                        const std::vector<float>& DQScales,
-                        const bool hasBias,
+                        const MemoryArgs& memory,
                         const dnnl::memory::data_type outDataType);
     DnnlPrimitiveAttrs compose();
     void appendDecompressionScales(const MemoryCPtr& scales_ptr, bool needTranspose, ov::element::Type dstPrecision);
