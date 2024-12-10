@@ -25,8 +25,7 @@ RUN dnf update -y && dnf install -y \
     # parallel gzip
     pigz \
     xz \
-    # rpmlint dependency
-    rpm-python
+    rpm-devel
 
 # Install build dependencies
 ADD install_build_dependencies.sh /install_build_dependencies.sh
