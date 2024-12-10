@@ -6,8 +6,8 @@
 
 #include "openvino/core/parallel.hpp"
 
-#include "/home/tingqian/aboutSHW/include/linux_perf.hpp"
-//#include "/home/openvino-ci-58/tingqian/aboutSHW/include/linux_perf.hpp"
+//#include "/home/tingqian/aboutSHW/include/linux_perf.hpp"
+#include "/home/openvino-ci-58/tingqian/aboutSHW/include/linux_perf.hpp"
 
 #define PROFILE(x) LinuxPerf::Profile(x)
 #define PROFILE(x) 1
@@ -106,11 +106,15 @@ src0 : [num_copies, N, OC]
 static inline void reduce_outputs(float* dst0, float* src0, int num_copies, int N, int64_t OC) {
     parallel_nt(0, [&](const int ithr, const int nthr) {
         int64_t oc0, oc1;
-        splitter(OC, nthr, ithr, oc0, oc1);
+        splitter(OC/SIMDW, nthr, ithr, oc0, oc1);
+        oc0 *= SIMDW;
+        oc1 *= SIMDW;
+        if (oc1 > OC) oc1 = OC;
+
         auto* dst = dst0;
         auto* src = src0;
 
-        auto remain_oc = (oc1 - oc0) & 7;
+        auto remain_oc = (oc1 - oc0) % SIMDW;
         simd_mask mask(remain_oc);
         for (int n = 0; n < N; n++, dst += OC, src += OC) {
             int i;
@@ -1126,7 +1130,7 @@ void dynPruneLinear_i8(const float* input,      // [M, IC]
                         const float* scales,    // [OC]
                         float* output,          // [M, OC]
                         int M, int IC, int OC) {
-    if (M >= 1) {
+    if (M > 1) {
         if (M < 32) {
             parallel_nt(0, [&](const int ithr, const int nthr) {
                 int n0, n1;
@@ -1183,11 +1187,10 @@ void dynPruneLinear_i8(const float* input,      // [M, IC]
 
     // this mm kernel is the most time-consuming one
     auto nthr_max = parallel_get_max_threads();
-    nthr_max = 1;
     static std::vector<float> output_temp;
     output_temp.resize(nthr_max * M * OC);
 
-    parallel_nt(1, [&](const int ithr, const int nthr) {
+    parallel_nt(0, [&](const int ithr, const int nthr) {
         int g0, g1;
         splitter(gate_cnt/4, nthr, ithr, g0, g1);
         g0 *= 4;
