@@ -7,11 +7,10 @@
 #include "openvino/core/parallel.hpp"
 
 #include "/home/tingqian/aboutSHW/include/linux_perf.hpp"
+//#include "/home/openvino-ci-58/tingqian/aboutSHW/include/linux_perf.hpp"
 
 #define PROFILE(x) LinuxPerf::Profile(x)
 #define PROFILE(x) 1
-
-//#include "/home/openvino-ci-58/tingqian/aboutSHW/include/linux_perf.hpp"
 
 #include "simd.hpp"
 
@@ -856,7 +855,7 @@ void MM_ComputeBounded_reuseB_i8(const float * A,
     float* scratch = scratch_alloc<float>(BN * BK + BN);
     float* repacked_B_n24 = scratch;
     float* repacked_B_n8 = repacked_B_n24 + bN_SIMDWx3 * BK;
-    float* zero_points = repacked_B_n8 + bN_SIMDWx1 * BK;
+    float* zero_points = repacked_B_n8 + SIMDW*3 * BK;
 
     const auto A_stride = IC;
     const auto B_stride = OC;
@@ -1127,26 +1126,28 @@ void dynPruneLinear_i8(const float* input,      // [M, IC]
                         const float* scales,    // [OC]
                         float* output,          // [M, OC]
                         int M, int IC, int OC) {
-    if ((OC % SIMDW) > 0) {
-        throw std::runtime_error("OC is not multiple of SIMD width");
-    }
-
-    if (M > 1) {
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            int n0, n1;
-            splitter(OC/SIMDW, nthr, ithr, n0, n1);
-            n0 *= SIMDW;
-            n1 *= SIMDW;
-            if (M < 32) {
+    if (M >= 1) {
+        if (M < 32) {
+            parallel_nt(0, [&](const int ithr, const int nthr) {
+                int n0, n1;
+                splitter(OC/(2*SIMDW), nthr, ithr, n0, n1);
+                n0 *= 2*SIMDW;
+                n1 *= 2*SIMDW;
                 MM_ComputeBounded_reuseA_i8(
                     input, output,
                     W, zp, scales, M, IC, OC, n0, n1);
-            } else {
+            });
+        } else {
+            parallel_nt(0, [&](const int ithr, const int nthr) {
+                int n0, n1;
+                splitter(OC/(SIMDW), nthr, ithr, n0, n1);
+                n0 *= SIMDW;
+                n1 *= SIMDW;
                 MM_ComputeBounded_reuseB_i8(
                     input, output,
                     W, zp, scales, M, IC, OC, n0, n1);
-            }
-        });
+            });
+        }
         return;
     }
 
@@ -1182,10 +1183,11 @@ void dynPruneLinear_i8(const float* input,      // [M, IC]
 
     // this mm kernel is the most time-consuming one
     auto nthr_max = parallel_get_max_threads();
+    nthr_max = 1;
     static std::vector<float> output_temp;
     output_temp.resize(nthr_max * M * OC);
 
-    parallel_nt(0, [&](const int ithr, const int nthr) {
+    parallel_nt(1, [&](const int ithr, const int nthr) {
         int g0, g1;
         splitter(gate_cnt/4, nthr, ithr, g0, g1);
         g0 *= 4;
