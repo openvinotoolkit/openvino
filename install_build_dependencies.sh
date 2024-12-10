@@ -131,7 +131,9 @@ elif [ -f /etc/redhat-release ] || grep -q "rhel\|tencentos\|opencloudos" /etc/o
         opencl-headers \
         `# python API` \
         python3-pip \
-        python3-devel
+        python3-devel \
+        `# rpmlint dependency` \
+        rpm-python
 elif [ -f /etc/os-release ] && grep -q "SUSE" /etc/os-release ; then
     zypper refresh
     zypper install -y \
