@@ -26,9 +26,11 @@ struct dynamic_quantize : public primitive_base<dynamic_quantize> {
     /// @param output_size Output data size of the primitive
     dynamic_quantize(const primitive_id& id,
            const input_info& input,
-           const Attributes& attrs)
+           const Attributes& attrs,
+           const size_t input_size = 3)
            : primitive_base(id, {input})
-           , attrs(attrs) {
+           , attrs(attrs)
+           , input_size(input_size) {
         num_outputs = 2;
         if (attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric &&
             attrs.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar)
@@ -36,6 +38,7 @@ struct dynamic_quantize : public primitive_base<dynamic_quantize> {
     }
 
     Attributes attrs;
+    size_t input_size;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -46,6 +49,7 @@ struct dynamic_quantize : public primitive_base<dynamic_quantize> {
         seed = hash_combine(seed, attrs.scale_dt.hash());
         seed = hash_combine(seed, attrs.zp_dt.hash());
         seed = hash_combine(seed, attrs.output_storage_type);
+        seed = hash_combine(seed, input_size);
 
         return seed;
     }
@@ -62,7 +66,8 @@ struct dynamic_quantize : public primitive_base<dynamic_quantize> {
                attrs.quantization_dt == rhs_casted.attrs.quantization_dt &&
                attrs.scale_dt == rhs_casted.attrs.scale_dt &&
                attrs.zp_dt == rhs_casted.attrs.zp_dt &&
-               attrs.quantization_type == rhs_casted.attrs.quantization_type;;
+               attrs.quantization_type == rhs_casted.attrs.quantization_type &&
+               input_size == rhs_casted.input_size;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -75,6 +80,7 @@ struct dynamic_quantize : public primitive_base<dynamic_quantize> {
         ob << make_data(&attrs.output_storage_type, sizeof(attrs.output_storage_type));
         ob << attrs.scales_zp_output_order;
         ob << attrs.group_sizes;
+        ob << input_size;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -87,6 +93,7 @@ struct dynamic_quantize : public primitive_base<dynamic_quantize> {
         ib >> make_data(&attrs.output_storage_type, sizeof(attrs.output_storage_type));
         ib >> attrs.scales_zp_output_order;
         ib >> attrs.group_sizes;
+        ib >> input_size;
     }
 };
 }  // namespace cldnn
