@@ -285,8 +285,7 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
             ov::PropertyName{ov::inference_num_threads.name(), ov::PropertyMutability::RW},
-            ov::PropertyName{ov::internal::threads_per_stream.name(), ov::PropertyMutability::RW},
-            ov::PropertyName{ov::cache_encryption_callbacks.name(), ov::PropertyMutability::WO}};
+            ov::PropertyName{ov::internal::threads_per_stream.name(), ov::PropertyMutability::RW}};
     } else if (ov::available_devices == name) {
         // TODO: fill list of available devices
         return decltype(ov::available_devices)::value_type{{""}};

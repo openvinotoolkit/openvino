@@ -453,13 +453,6 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
 #endif
             ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
             ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
-            // as write-only as internal only
-            ov::PropertyName{ov::intel_cpu::snippets_mode.name(), ov::PropertyMutability::WO},
-            ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(),
-                                ov::PropertyMutability::RO},
-            ov::PropertyName{ov::cache_encryption_callbacks.name(), ov::PropertyMutability::WO},
-            ov::PropertyName{ov::intel_cpu::lp_transforms_mode.name(), ov::PropertyMutability::WO},
-            ov::PropertyName{ov::intel_cpu::cpu_runtime_cache_capacity.name(), ov::PropertyMutability::WO},
         };
     } else if (name == ov::device::full_name) {
         return decltype(ov::device::full_name)::value_type(deviceFullName);

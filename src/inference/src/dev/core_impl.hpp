@@ -63,6 +63,9 @@ private:
 
     class CoreConfig final {
     public:
+        CoreConfig() = default;
+        CoreConfig(const CoreConfig& other);
+
         struct CacheConfig {
             std::string _cacheDir;
             std::shared_ptr<ov::ICacheManager> _cacheManager;
@@ -83,9 +86,8 @@ private:
 
         bool get_enable_mmap() const;
 
-        // Creating thread-safe copy of config including shared_ptr to ICacheManager
-        // Passing empty or not-existing name will return global cache config
-        CacheConfig get_cache_config_for_device(const ov::Plugin& plugin, ov::AnyMap& parsedConfig) const;
+        // Creating thread-safe copy of global config including shared_ptr to ICacheManager
+        CacheConfig get_cache_config_for_device(const ov::Plugin& plugin) const;
 
     private:
         mutable std::mutex _cacheConfigMutex;
@@ -96,12 +98,15 @@ private:
 
     struct CacheContent {
         explicit CacheContent(const std::shared_ptr<ov::ICacheManager>& cache_manager,
+                              bool mmap_enabled = false,
                               const std::string model_path = {})
             : cacheManager(cache_manager),
-              modelPath(model_path) {}
+              modelPath(model_path),
+              mmap_enabled{mmap_enabled} {}
         std::shared_ptr<ov::ICacheManager> cacheManager;
         std::string blobId = {};
         std::string modelPath = {};
+        bool mmap_enabled = false;
     };
 
     // Core settings (cache config, etc)
@@ -182,12 +187,6 @@ private:
         }
     }
     void add_extensions_unsafe(const std::vector<ov::Extension::Ptr>& extensions) const;
-
-    Plugin get_plugin(const std::string& pluginName, bool on_create_filter_config) const;
-
-    AnyMap get_supported_property(const Plugin& plugin, const AnyMap& config, bool keep_core, bool rw_only) const;
-
-    AnyMap get_hw_plugin_properties_or_forward(const Plugin& plugin, const AnyMap& config) const;
 
 public:
     CoreImpl();

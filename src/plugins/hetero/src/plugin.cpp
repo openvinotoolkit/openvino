@@ -284,8 +284,6 @@ ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyM
     } else if (ov::internal::supported_properties == name) {
         return decltype(ov::internal::supported_properties)::value_type{
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
-            // write-only as internal
-            ov::PropertyName{ov::cache_encryption_callbacks.name(), ov::PropertyMutability::WO},
         };
     } else if (ov::device::full_name == name) {
         return decltype(ov::device::full_name)::value_type{get_device_name()};
