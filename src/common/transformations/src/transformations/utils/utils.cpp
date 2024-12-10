@@ -26,6 +26,10 @@
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
 
+//TODO: remove wrap type
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+
+
 namespace ov {
 namespace op {
 namespace util {
@@ -498,3 +502,43 @@ bool process_subgraph(ov::pass::ModelPass& model_pass, const std::shared_ptr<Nod
 }  // namespace util
 }  // namespace op
 }  // namespace ov
+
+//TODO: move to a better place under the flag
+std::string node_version_type_name_str(const std::shared_ptr<ov::Node>& node) {
+    if (auto wrap_type = ov::as_type_ptr<ov::pass::pattern::op::WrapType>(node)) {
+        return wrap_type->type_description_str();
+    }
+
+    auto version = node->get_type_info().version_id;
+    std::string res;
+    if (version)
+        res = version + std::string("::");
+    
+    return res + node->get_type_info().name + std::string(" ") + node->get_name();
+}
+
+std::string node_with_arguments(const std::shared_ptr<ov::Node>& node) {
+    std::string res;
+    if (auto wrap_type = ov::as_type_ptr<ov::pass::pattern::op::WrapType>(node)) {
+        res += wrap_type->type_description_str();
+    } else {
+        auto version = node->get_type_info().version_id;
+        if (version)
+            res += version + std::string("::");
+    
+        res += node->get_type_info().name + std::string(" ") + node->get_name();
+    }
+
+    std::string sep = "";
+    std::stringstream stream;
+    stream << " (";
+    for (const auto& arg : node->input_values()) {
+        stream << sep << arg;
+        sep = ", ";
+    }
+    stream << ")";
+
+    res += stream.str();
+
+    return res;
+}

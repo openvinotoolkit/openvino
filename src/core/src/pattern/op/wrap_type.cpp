@@ -51,3 +51,18 @@ std::ostream& ov::pass::pattern::op::WrapType::write_type_description(std::ostre
     out << (m_wrapped_types.size() > 1 ? ">" : "");
     return out;
 }
+
+std::string ov::pass::pattern::op::WrapType::type_description_str() const {
+    bool first = true;
+    std::string res = (m_wrapped_types.size() > 1 ? "<" : "");
+    for (const auto& type : m_wrapped_types) {
+        auto version = type.version_id;
+        if (version)
+            res += std::string(first ? "" : ", ") + version + std::string("::") + type.name;
+        else
+            res += std::string(first ? "" : ", ") + type.name;
+        first = false;
+    }
+    res += (m_wrapped_types.size() > 1 ? ">" : "");
+    return res;
+}

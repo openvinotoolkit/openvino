@@ -10,6 +10,7 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/log.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 bool is_used(Node* node);
@@ -126,6 +127,9 @@ bool Matcher::is_contained_match(const NodeVector& exclusions, bool ignore_unuse
 bool Matcher::match_value(const ov::Output<Node>& pattern_value, const ov::Output<Node>& graph_value) {
     std::shared_ptr<Node> pattern_node = pattern_value.get_node_shared_ptr();
     std::shared_ptr<Node> graph_node = graph_value.get_node_shared_ptr();
+    OPENVINO_DEBUG_EMPTY("[", this->get_name(), "]");
+    OPENVINO_DEBUG_EMPTY("[", this->get_name(), "]     MATCHING PATTERN NODE: ", node_with_arguments(pattern_value.get_node_shared_ptr()));
+    OPENVINO_DEBUG_EMPTY("[", this->get_name(), "]     AGAINST  GRAPH   NODE: ", node_with_arguments(graph_value.get_node_shared_ptr()));
 
     return pattern_node->match_value(this, pattern_value, graph_value);
 }
@@ -133,11 +137,10 @@ bool Matcher::match_value(const ov::Output<Node>& pattern_value, const ov::Outpu
 bool Matcher::match_permutation(const OutputVector& pattern_args, const OutputVector& args) {
     for (size_t i = 0; i < args.size(); i++) {
         if (!match_value(pattern_args.at(i), args.at(i))) {
-            OPENVINO_DEBUG("[MATCHER] Aborting. Argument ",
-                           i,
-                           " (",
-                           args.at(i).get_node()->get_friendly_name(),
-                           ") mismatch");
+            OPENVINO_DEBUG_EMPTY("[", this->get_name(), "]        ABORTING: Argument ", i,
+                                 " mismatch. Expected in pattern: ",
+                                 node_version_type_name_str(pattern_args.at(i).get_node_shared_ptr()),
+                                 ". Found in graph: ", node_version_type_name_str(args.at(i).get_node_shared_ptr()));
             return false;
         }
     }
@@ -145,19 +148,20 @@ bool Matcher::match_permutation(const OutputVector& pattern_args, const OutputVe
 }
 
 bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& graph_node) {
-    OPENVINO_DEBUG("[MATCHER] Match arguments at");
-    OPENVINO_DEBUG("\t", *graph_node);
-    OPENVINO_DEBUG("for pattern");
-    OPENVINO_DEBUG("\t", *pattern_node);
+    // OPENVINO_DEBUG_EMPTY("[MATCHER] Match arguments at");
+    // OPENVINO_DEBUG_EMPTY("\t", *graph_node);
+    // OPENVINO_DEBUG_EMPTY("for pattern");
+    // OPENVINO_DEBUG_EMPTY("\t", *pattern_node);
+    // OPENVINO_DEBUG_EMPTY("[", this->get_name(), "]     MATCHING PATTERN NODE: ", node_with_arguments(pattern_node->shared_from_this()));
+    // OPENVINO_DEBUG_EMPTY("[", this->get_name(), "]     AGAINST    GRAPH NODE: ", node_with_arguments(graph_node));
 
     auto args = graph_node->input_values();
     auto pattern_args = pattern_node->input_values();
 
     if (args.size() != pattern_args.size()) {
-        OPENVINO_DEBUG("[MATCHER] Aborting. Args count mismatch: candidate: ",
-                       args.size(),
-                       ";  pattern: ",
-                       pattern_args.size());
+        OPENVINO_DEBUG_EMPTY("[", this->get_name(), "]       ABORTING: Arguments count mismatch. Expected ",
+                             pattern_args.size(), " arguments in pattern node. Found", 
+                             args.size(), " arguments in graph node.");
         return false;
     }
 
@@ -172,6 +176,7 @@ bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& g
         do {
             auto saved = start_match();
             if (match_permutation(pattern_args, args)) {
+                OPENVINO_DEBUG_EMPTY("[", this->get_name(), "]", " EXIT 1");
                 return saved.finish(true);
             }
         } while (std::next_permutation(begin(pattern_args),
@@ -183,7 +188,8 @@ bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& g
         return match_permutation(pattern_args, args);
     }
 
-    OPENVINO_DEBUG("[MATCHER] Aborting");
+    // OPENVINO_DEBUG("[MATCHER] Aborting");
+    OPENVINO_DEBUG("[", this->get_name(), "]", "       ABORTING");
     return false;
 }
 

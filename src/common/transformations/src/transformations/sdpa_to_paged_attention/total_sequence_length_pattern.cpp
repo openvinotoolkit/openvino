@@ -16,6 +16,7 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/abs.hpp"
 
 using namespace ov::op;
 using namespace ov::pass::pattern;
@@ -40,6 +41,7 @@ ov::pass::TotalSequenceLengthPattern::TotalSequenceLengthPattern(
     const std::shared_ptr<ov::op::v0::Parameter>& max_context_len) {
     MATCHER_SCOPE(TotalSequenceLengthPattern);
 
+<<<<<<< HEAD
     auto kv_past = wrap_type<v6::ReadValue>({any_input()});
     auto kv_gather = wrap_type<v8::Gather>({kv_past, any_input(), any_input()});
     auto kv_current = any_input();
@@ -47,6 +49,15 @@ ov::pass::TotalSequenceLengthPattern::TotalSequenceLengthPattern(
     auto kv_shape = wrap_type<v3::ShapeOf>({kv_concat});
     auto gather_idx_label = wrap_type<v0::Constant>();
     auto seq = wrap_type<v8::Gather>({kv_shape, gather_idx_label, any_input()});
+=======
+    auto kv_past = pattern::wrap_type<v6::ReadValue, v0::Abs>({pattern::any_input()});
+    auto kv_gather = pattern::wrap_type<v8::Gather>({kv_past, pattern::any_input(), pattern::any_input()});
+    auto kv_current = pattern::any_input();
+    auto kv_concat = pattern::wrap_type<v0::Concat>({kv_gather, kv_current});
+    auto kv_shape = pattern::wrap_type<v3::ShapeOf>({kv_concat});
+    auto gather_idx_label = pattern::wrap_type<v0::Constant>();
+    auto seq = pattern::wrap_type<v8::Gather>({kv_shape, gather_idx_label, pattern::any_input()});
+>>>>>>> c38e8d5eed (wip)
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         // TODO: Check that seq has axis that really takes sequence len but not any other dimension --

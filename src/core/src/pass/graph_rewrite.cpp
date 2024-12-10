@@ -18,6 +18,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
 #include "perf_counters.hpp"
+#include "transformations/utils/utils.hpp"
 
 /* GraphRewrite algorithm:
  * GraphRewrite processes an input graph in an topological order(i.e. args before users)
@@ -282,21 +283,24 @@ void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pat
     set_property(property, true);
     m_matcher = m;
     m_handler = [m, callback](const std::shared_ptr<Node>& node) -> bool {
-        OPENVINO_DEBUG("[MATCHER] ", m->get_name(), " trying to match ", node);
+        // OPENVINO_DEBUG("[MATCHER] ", m->get_name(), " trying to match ", node);
+        OPENVINO_DEBUG_EMPTY("[", m->get_name(), "] START: trying to start matching with ", node_version_type_name_str(node));
         if (m->match(node->output(0))) {
-            OPENVINO_DEBUG("[MATCHER] ", m->get_name(), " matched ", node);
+            // OPENVINO_DEBUG("[MATCHER] ", m->get_name(), " matched ", node);
             OV_PASS_CALLBACK(m);
 
             try {
                 const bool status = callback(*m.get());
-                OPENVINO_DEBUG("[MATCHER] ", m->get_name(), " callback ", (status ? "succeded" : "failed"));
+                OPENVINO_DEBUG_EMPTY("[", m->get_name(), "] callback ", (status ? "succeded" : "failed"));
                 // explicitly clear Matcher state because it holds pointers to matched nodes
+                OPENVINO_DEBUG_EMPTY("[", m->get_name(), "] END\n");
                 m->clear_state();
                 return status;
             } catch (const std::exception& exp) {
-                OPENVINO_THROW("[MATCHER] ", m->get_name(), "node: ", node, " callback has thrown: ", exp.what());
+                OPENVINO_THROW("[", m->get_name(), "] node: ", node_version_type_name_str(node), " callback has thrown: ", exp.what());
             }
         }
+        OPENVINO_DEBUG_EMPTY("[", m->get_name(), "] END\n");
         m->clear_state();
         return false;
     };
