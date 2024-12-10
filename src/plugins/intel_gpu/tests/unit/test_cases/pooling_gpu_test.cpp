@@ -1244,7 +1244,7 @@ static void generic_average_wo_padding_test(format fmt, tensor output, tensor in
         tpl.add(reorder("reorder", input_info("in"), input_mem->get_layout().with_padding((padding) off.sizes())));
         pool_in = "reorder";
     }
-    tpl.add(pooling("pool", input_info(pool_in), pooling_mode::average_no_padding, window, stride, offset));
+    tpl.add(pooling("pool", input_info(pool_in), pooling_mode::average_no_padding, window, stride, offset, offset));
 
     auto cfg = get_test_default_config(get_test_engine());
     cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"pool", {format::any, "", impl_types::ocl}}}));
