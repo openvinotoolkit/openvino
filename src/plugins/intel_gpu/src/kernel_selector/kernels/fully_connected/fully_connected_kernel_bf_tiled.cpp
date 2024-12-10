@@ -193,18 +193,6 @@ static bool should_dynamic_quantize(const fully_connected_params& params, bool p
     return false;
 }
 
-static size_t get_match_vector_size(const fully_connected_params& params) {
-    auto block_sizes = { 8, 4, 2 };
-
-    for (auto block_size : block_sizes) {
-        if (((params.inputs[0].X().v * params.inputs[0].Y().v) / simd) % block_size == 0) {
-            return block_size;
-        }
-    }
-
-    return 1;
-}
-
 static bool is_weight_vertical(const fully_connected_params& params, size_t output_f) {
     size_t min_num_threads = params.engineInfo.computeUnitsCount * simd;
     GPU_DEBUG_TRACE_DETAIL << "out_ofm (== weight N dim) size " << output_f << " is small compared to the available threads. "
