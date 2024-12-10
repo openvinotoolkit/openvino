@@ -9,10 +9,7 @@ KernelsData FullyConnected_cm_example::GetKernelsData(const Params& params) cons
     if (!Validate(params)) {
         return {};
     }
-    auto options = std::string(" -Qxcm_jit_option=-DPASTokenReduction "
-                               " -mllvm --vc-disable-indvars-opt=true "
-                               " /Qxcm_jit_option=-enableBCR "
-                               " /Qxcm_doubleGRF ");
+    auto options = std::string(" -Qxcm_jit_option=-DPASTokenReduction ");
 
     KernelData kd = KernelData::Default<fully_connected_params>(params, 1);
     auto& kernel = kd.kernels[0];
