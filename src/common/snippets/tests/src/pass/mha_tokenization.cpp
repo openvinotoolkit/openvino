@@ -204,7 +204,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA4D_SplitM_withMul) {
 TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHAWOTranspose_SplitM) {
     const auto& f = MHAWOTransposeSplitMFunction(std::vector<PartialShape>{{10, 9216, 128}, {10, 128, 9216}, {10, 9216, 128}},
                                                  std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32}),
-                                                 std::vector<Shape>{{10, 3, 3072, 128}, {10, 1, 128, 9216}, {10, 1, 9216, 128}, {10, 9216, 128}});
+                                                 std::vector<Shape>{{10, 18, 512, 128}, {10, 1, 128, 9216}, {10, 1, 9216, 128}, {10, 9216, 128}});
     model = f.getOriginal();
     model_ref = f.getReference();
     config.set_concurrency(18);

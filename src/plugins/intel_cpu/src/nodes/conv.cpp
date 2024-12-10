@@ -240,7 +240,7 @@ bool Convolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
 }
 
 Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-        : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)), withBiases(false), withSum(false), withDWConv(false),
+        : Node(op, context, NgraphShapeInferFactory(op)), withBiases(false), withSum(false), withDWConv(false),
           isGrouped(false), dw_conv_oc(0), dw_conv_ih(0), dw_conv_iw(0), dw_conv_in_dt(memory::data_type::undef),
           groupNum(1lu), IC(1), groupIC(1), groupOC(1), eltwisePrecision(ov::element::f32) {
     std::string errorMessage;
@@ -343,6 +343,7 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
             impl_desc_type::winograd_acl,
             impl_desc_type::gemm_acl,
             impl_desc_type::acl,
+            impl_desc_type::brgconv_avx512_dw,
             impl_desc_type::brgconv_avx512_amx_1x1,
             impl_desc_type::brgconv_avx512_amx,
             impl_desc_type::jit_avx512_amx_dw,
@@ -353,6 +354,7 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
             impl_desc_type::jit_avx512_dw,
             impl_desc_type::jit_avx512_1x1,
             impl_desc_type::jit_avx512,
+            impl_desc_type::brgconv_avx2_dw,
             impl_desc_type::brgconv_avx2_1x1,
             impl_desc_type::brgconv_avx2,
             impl_desc_type::jit_uni_dw,
@@ -815,7 +817,11 @@ void Convolution::initSupportedPrimitiveDescriptors() {
 #endif
     for (size_t dIdx = 0; dIdx < descs.size(); dIdx++) {
         auto& desc = descs[dIdx];
-        auto first_desc = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get()));
+        auto primitive_desc = desc.get(true); //true mean allow empty
+        if (primitive_desc == nullptr) {
+            continue;
+        }
+        auto first_desc = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(primitive_desc));
 
         auto add_supported_desc = [&](dnnl::primitive_desc& desc) {
             addSupportedPrimitiveDescriptor(desc);
@@ -823,7 +829,7 @@ void Convolution::initSupportedPrimitiveDescriptors() {
         };
 
         const bool first_match = customImplPriorities.empty();
-        DEBUG_LOG("#", getName(),
+        DEBUG_LOG("#", getName(), ",descIndex:", dIdx + 1, "/", descs.size(),
                        ", itpd.impl_info_str(): ", desc.impl_info_str(),
                     ", parsed imp_type: ", impl_type_to_string(parse_impl_name(desc.impl_info_str())),
                     ", first_match: ", first_match ? "true" : "false");
@@ -944,8 +950,7 @@ void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
             const auto desc = createDescriptorInternal(getEngine(),
                                                        inDnnlDesc, weightDnnlDesc, biasDnnlDesc, outDnnlDesc, withBiases,
                                                        stride, dilation, paddingL, paddingR, alg, attr);
-            if (desc)
-                descs.emplace_back(desc);
+            descs.emplace_back(desc);
         }
     }
 }

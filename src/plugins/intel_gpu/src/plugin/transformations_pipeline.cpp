@@ -72,7 +72,6 @@
 #include "plugin/transformations/bcast_and_pad_zp_buffers.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
 #include "plugin/transformations/fc_per_layer_scaling.hpp"
-#include "plugin/transformations/swiglu_fusion.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/kv_cache_compression.hpp"
@@ -94,6 +93,7 @@
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
 #include "transformations/common_optimizations/softmax_fusion.hpp"
+#include "transformations/common_optimizations/glu_fusion.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
@@ -113,6 +113,7 @@
 #include "transformations/op_conversions/convert_broadcast3.hpp"
 #include "transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp"
 #include "transformations/op_conversions/convert_depth_to_space.hpp"
+#include "transformations/op_conversions/convert_divide.hpp"
 #include "transformations/op_conversions/convert_gather_0d.hpp"
 #include "transformations/op_conversions/convert_gather_downgrade.hpp"
 #include "transformations/op_conversions/convert_gelu.hpp"
@@ -377,6 +378,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             return !is_decompression_multiply(node, device_info.supports_immad);
         });
 
+        pass_config->set_callback<ov::pass::RMSFusion>([=](const_node_ptr& root) -> bool {
+            if (!root->get_input_partial_shape(0).is_static()) {
+                return false;
+            }
+            const auto& gamma_shape = root->get_input_partial_shape(0).to_shape();
+            const int32_t vec_size = 8;
+            return static_cast<int32_t>((gamma_shape.back() / vec_size)) > static_cast<int32_t>(device_info.max_work_group_size);
+        });
+        manager.register_pass<ov::pass::RMSFusion>(false);
+
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
         const bool store_original_precision_as_rt_attribute = true;
@@ -550,7 +561,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             } else if (std::dynamic_pointer_cast<const ov::op::v3::GRUCell>(node)) {
                 return false;
             } else if (const auto &lstm_cell = std::dynamic_pointer_cast<const ov::op::v4::LSTMCell>(node)) {
-                return lstm_cell->get_clip() == 0.0f && lstm_cell->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+                return false;
             } else if (const auto &lstm_cell_v1 = std::dynamic_pointer_cast<const ov::op::v0::LSTMCell>(node)) {
                 return lstm_cell_v1->get_clip() == 0.0f && lstm_cell_v1->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
             }
@@ -565,9 +576,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         auto isSequencePrimitiveSupported = [](const_node_ptr &node) -> bool {
             const auto& data = node->input(0);
             const auto& data_pshape = data.get_partial_shape();
+            auto max_seq_len = data_pshape[1];
             if (data_pshape.rank().is_static() && data_pshape.rank().get_length() > 1 && !data_pshape[1].is_static())
                 return false;
-            auto max_seq_len = data.get_shape().at(1);
             if (std::dynamic_pointer_cast<const ov::op::v5::RNNSequence>(node)) {
                 return false;
             } else if (std::dynamic_pointer_cast<const ov::op::v5::GRUSequence>(node)) {
@@ -575,7 +586,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             } else if (const auto &lstm_seq = std::dynamic_pointer_cast<const ov::op::v5::LSTMSequence>(node)) {
                 return lstm_seq->get_clip() == 0.0f &&
                        lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
-                       max_seq_len < 16 &&
+                       max_seq_len != 1 &&
                        !ov::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(0),
                                                           lstm_seq->get_input_node_shared_ptr(3));
             }
@@ -593,7 +604,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
                 return !isCellPrimitiveSupported(node);
             });
-
         if (unroll_loop) {
             pass_config->set_callback<ov::pass::ConvertRNNSequenceToTensorIterator,
                     ov::pass::ConvertGRUSequenceToTensorIterator,
@@ -903,12 +913,18 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
 
         bool disable_horizontal_fc_fusion = false;
+        bool disable_fc_swiglu_fusion = false;
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->disable_horizontal_fc_fusion == 1)
             disable_horizontal_fc_fusion = true;
-
+        GPU_DEBUG_IF(debug_config->disable_fc_swiglu_fusion == 1)
+            disable_fc_swiglu_fusion = true;
+        // mlp fusion is only supported for cldnn on high performant GPUis
+        bool fuse_mlp_swiglu = !device_info.supports_immad &&
+                               device_info.execution_units_count >= 128 &&
+                               !disable_fc_swiglu_fusion;
         if (!disable_horizontal_fc_fusion)
-            manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>();
+            manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>(fuse_mlp_swiglu);
 
         // ZP should not be folded for FC. But still, ZP should be folded for Gather.
         // Therefore, run MarkDequantizationSubgraph again to fold ZP constant.
@@ -922,16 +938,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::ConvertGatherToGatherCompressed>();
         auto pass_config = manager.get_pass_config();
-        pass_config->set_callback<ov::pass::RMSFusion>([=](const_node_ptr& root) -> bool {
-            if (!root->get_input_node_ptr(0)->get_input_partial_shape(0).is_static()) {
-                return false;
-            }
-            const auto& gamma_shape = root->get_input_node_ptr(0)->get_input_partial_shape(0).to_shape();
-            const int32_t vec_size = 8;
-            return static_cast<int32_t>((gamma_shape.back() / vec_size)) > static_cast<int32_t>(device_info.max_work_group_size);
-        });
-
-        manager.register_pass<ov::pass::RMSFusion>();
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
         manager.register_pass<ov::intel_gpu::TransposeFusion>(device_info.supports_immad);
@@ -942,7 +948,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
         manager.register_pass<ov::intel_gpu::UnsqueezeBroadcastReshapeSDPAFusion>();
 
-        manager.register_pass<ov::intel_gpu::SwiGLUFusion>();
+        manager.register_pass<ov::pass::GLUFusion>();
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
 
         auto kv_cache_compression_dt = config.get_property(ov::hint::kv_cache_precision);
@@ -969,18 +975,34 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
         manager.register_pass<ov::pass::Validate>();
 
-        auto dynamic_quantization_group_size = config.get_property(ov::hint::dynamic_quantization_group_size);
         if (device_info.supports_immad) {
+            auto dynamic_quantization_group_size = config.get_property(ov::hint::dynamic_quantization_group_size);
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
                 if (root->get_input_node_shared_ptr(0)->get_element_type() == ov::element::Type_t::f32) {
-                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  Dynamic quantization is turned off because input type is not supported" << std::endl;
+                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: input type is not supported" << std::endl;
                     return true;
                 }
 
                 auto weight_shape = root->get_input_partial_shape(1);
                 const size_t innermost_size = weight_shape[weight_shape.size() - 1].get_length();
                 if (innermost_size < 32) {
-                    GPU_DEBUG_TRACE << "Dynamic quantization: shape is too small " << innermost_size << " / " << dynamic_quantization_group_size << std::endl;
+                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: shape is too small - " << innermost_size << std::endl;
+                    return true;
+                }
+
+                // AZP does not support 8bit weight
+                if (debug_config->dynamic_quantize_asym
+                    && (root->get_input_element_type(1) == ov::element::i8 || root->get_input_element_type(1) == ov::element::u8)) {
+                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: asym quantization does not support 8bit weight" << std::endl;
+                    return true;
+                }
+
+                bool has_wzp = root->get_input_size() > 4;
+                if ((root->get_input_element_type(1) == ov::element::i8 || root->get_input_element_type(1) == ov::element::u8)
+                    && has_wzp
+                    && dynamic_quantization_group_size != UINT64_MAX) {
+                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off:"
+                                                                    " asym 8bit weight does not support grouped quantization" << std::endl;
                     return true;
                 }
                 return false;
@@ -997,7 +1019,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         GPU_DEBUG_IF(cldnn::debug_configuration::get_instance()->verbose >= 1) {
             manager.register_pass<ov::intel_gpu::PrintModelStatistics>();
         }
-
         manager.run_passes(func);
     }
 }

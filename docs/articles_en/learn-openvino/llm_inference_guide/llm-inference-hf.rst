@@ -1,4 +1,4 @@
-Run LLMs with Hugging Face and Optimum Intel
+Inference with Optimum Intel
 ===============================================================================================
 
 .. meta::
@@ -276,9 +276,10 @@ includes **Dynamic quantization** of activations of 4/8-bit quantized MatMuls an
          ov_config={"KV_CACHE_PRECISION": "u8", "DYNAMIC_QUANTIZATION_GROUP_SIZE": "32", "PERFORMANCE_HINT": "LATENCY"}
      )
 
-.. note::
+  .. note::
+     Currently, for KV-cache quantization, GPU ignores the DYNAMIC_QUANTIZATION_GROUP_SIZE property, using ``group_size = head_size``. Additionally, it does not support the ``get_state()`` and ``set_state()`` APIs when KV-cache quantization is enabled.
 
-   Currently, both Dynamic quantization and KV-cache quantization are available for CPU device.
+     For GPU, KV-cache quantization is enabled by default on platforms without XMX support, and can be disabled by setting KV_CACHE_PRECISION to ``undefined``.
 
 
 Working with Models Tuned with LoRA
