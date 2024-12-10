@@ -510,8 +510,8 @@ ov::pass::activations_scaling::EliminateMultiplyX1::EliminateMultiplyX1() {
             return false;
         }
 
-        auto mul_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(
-            pattern_map.at(mul_const_m).get_node_shared_ptr());
+        auto mul_const =
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(mul_const_m).get_node_shared_ptr());
 
         float const_value = 0.f;
         if (mul_const->get_element_type() == ov::element::f16) {
