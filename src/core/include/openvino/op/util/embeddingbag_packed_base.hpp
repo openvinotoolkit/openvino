@@ -14,7 +14,7 @@ namespace util {
 class OPENVINO_API EmbeddingBagPackedBase : public Op {
 public:
     enum class Reduction { SUM, MEAN };
-    OPENVINO_OP("EmbeddingBagPackedBase", "util", Op);
+    OPENVINO_OP("EmbeddingBagPackedBase", "util");
     /// \brief Constructs a EmbeddingBagPackedBase operation.
     EmbeddingBagPackedBase() = default;
     /// \brief Constructs a EmbeddingBagPackedBase operation.

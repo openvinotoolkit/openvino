@@ -11,7 +11,7 @@ namespace op {
 namespace util {
 class OPENVINO_API ShapeOfBase : public Op {
 public:
-    OPENVINO_OP("ShapeOfBase", "util", Op);
+    OPENVINO_OP("ShapeOfBase", "util");
 
     ShapeOfBase() = default;
 

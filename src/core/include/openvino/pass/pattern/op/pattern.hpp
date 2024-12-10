@@ -83,7 +83,7 @@ ValuePredicate as_value_predicate(NodePredicate pred);
 
 class OPENVINO_API Pattern : public Node {
 public:
-    OPENVINO_RTTI("pattern");
+    OPENVINO_RTTI("Pattern");
     /// \brief \p a base class for \sa Skip and \sa Label
     ///
     Pattern(const OutputVector& patterns, ValuePredicate pred);

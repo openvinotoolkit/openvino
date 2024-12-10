@@ -15,7 +15,7 @@ namespace v0 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API PriorBoxClustered : public Op {
 public:
-    OPENVINO_OP("PriorBoxClustered", "opset1", Op);
+    OPENVINO_OP("PriorBoxClustered", "opset1");
     struct Attributes {
         // widths         Desired widths of prior boxes
         // heights        Desired heights of prior boxes

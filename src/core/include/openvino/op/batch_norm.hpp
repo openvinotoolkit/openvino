@@ -16,7 +16,7 @@ namespace v0 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API BatchNormInference : public Op {
 public:
-    OPENVINO_OP("BatchNormInference", "opset1", Op);
+    OPENVINO_OP("BatchNormInference", "opset1");
     BatchNormInference() = default;
     /// \param input [., C, ...]
     /// \param gamma gamma scaling for normalized value. [C]

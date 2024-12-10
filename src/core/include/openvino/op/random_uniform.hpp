@@ -14,7 +14,7 @@ namespace v8 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API RandomUniform : public Op {
 public:
-    OPENVINO_OP("RandomUniform", "opset8", Op);
+    OPENVINO_OP("RandomUniform", "opset8");
 
     RandomUniform() = default;
 

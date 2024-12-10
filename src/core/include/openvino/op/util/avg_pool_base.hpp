@@ -12,7 +12,7 @@ namespace op {
 namespace util {
 class OPENVINO_API AvgPoolBase : public Op {
 public:
-    OPENVINO_OP("AvgPool", "util", Op);
+    OPENVINO_OP("AvgPool", "util");
     AvgPoolBase() = default;
 
     /// \brief      Constructs a batched average pooling operation.

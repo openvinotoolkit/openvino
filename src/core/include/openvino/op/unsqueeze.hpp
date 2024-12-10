@@ -16,7 +16,7 @@ namespace v0 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Unsqueeze : public Op {
 public:
-    OPENVINO_OP("Unsqueeze", "opset1", Op);
+    OPENVINO_OP("Unsqueeze", "opset1");
 
     Unsqueeze() = default;
     Unsqueeze(const Output<Node>& data, const Output<Node>& axes);

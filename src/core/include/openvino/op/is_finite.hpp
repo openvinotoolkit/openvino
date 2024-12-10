@@ -13,7 +13,7 @@ namespace v10 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API IsFinite : public Op {
 public:
-    OPENVINO_OP("IsFinite", "opset10", Op);
+    OPENVINO_OP("IsFinite", "opset10");
     IsFinite() = default;
     /// \brief Constructs a IsFinite operation.
     ///

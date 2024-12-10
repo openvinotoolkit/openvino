@@ -16,7 +16,7 @@ namespace v9 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API GridSample : public Op {
 public:
-    OPENVINO_OP("GridSample", "opset9", Op);
+    OPENVINO_OP("GridSample", "opset9");
 
     enum class InterpolationMode { BILINEAR, BICUBIC, NEAREST };
     enum class PaddingMode { ZEROS, BORDER, REFLECTION };

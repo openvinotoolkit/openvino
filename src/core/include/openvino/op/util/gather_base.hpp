@@ -12,7 +12,7 @@ namespace util {
 /// \brief GatherBase basic class for Gather v1 and v7
 class OPENVINO_API GatherBase : public Op {
 public:
-    OPENVINO_OP("GatherBase", "util", Op);
+    OPENVINO_OP("GatherBase", "util");
     GatherBase() = default;
 
     /// \param data The tensor from which slices are gathered

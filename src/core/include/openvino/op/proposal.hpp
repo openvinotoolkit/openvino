@@ -15,7 +15,7 @@ namespace v0 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Proposal : public Op {
 public:
-    OPENVINO_OP("Proposal", "opset1", Op);
+    OPENVINO_OP("Proposal", "opset1");
     // base_size       Anchor sizes
     // pre_nms_topn    Number of boxes before nms
     // post_nms_topn   Number of boxes after nms

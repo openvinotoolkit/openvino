@@ -14,7 +14,7 @@ namespace v0 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API PriorBox : public Op {
 public:
-    OPENVINO_OP("PriorBox", "opset1", Op);
+    OPENVINO_OP("PriorBox", "opset1");
     struct Attributes {
         // min_size         Desired min_size of prior boxes
         // max_size         Desired max_size of prior boxes
@@ -73,7 +73,7 @@ namespace v8 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API PriorBox : public Op {
 public:
-    OPENVINO_OP("PriorBox", "opset8", Op);
+    OPENVINO_OP("PriorBox", "opset8");
     struct Attributes {
         // min_size                    Desired min_size of prior boxes
         // max_size                    Desired max_size of prior boxes

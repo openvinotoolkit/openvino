@@ -16,7 +16,7 @@ namespace op {
 /// This is needed to have ReadValue-KVCache pair instead of ReadValue-Assign
 class ReadValue : public ov::op::Op, public ov::op::util::VariableExtension {
 public:
-    OPENVINO_OP("ReadValue", "gpu_opset", ov::op::Op);
+    OPENVINO_OP("ReadValue", "gpu_opset");
 
     ReadValue() = default;
 

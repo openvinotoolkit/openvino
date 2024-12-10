@@ -14,7 +14,7 @@ namespace v14 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Inverse : public Op {
 public:
-    OPENVINO_OP("Inverse", "opset14", Op);
+    OPENVINO_OP("Inverse", "opset14");
     Inverse() = default;
     /**
      * @brief Inverse operation computes the inverse of the input matrices. The inverse is computed for each MxM matrix

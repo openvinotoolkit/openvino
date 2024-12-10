@@ -14,7 +14,7 @@ namespace v0 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ReverseSequence : public Op {
 public:
-    OPENVINO_OP("ReverseSequence", "opset1", Op);
+    OPENVINO_OP("ReverseSequence", "opset1");
 
     ReverseSequence() = default;
     /// \brief Constructs a ReverseSequence operation.

@@ -15,7 +15,7 @@ namespace v0 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Result : public Op {
 public:
-    OPENVINO_OP("Result", "opset1", Op);
+    OPENVINO_OP("Result", "opset1");
 
     /// \brief Allows a value to be used as a function result.
     Result() = default;

@@ -14,7 +14,7 @@ namespace v0 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Tile : public Op {
 public:
-    OPENVINO_OP("Tile", "opset1", Op);
+    OPENVINO_OP("Tile", "opset1");
 
     Tile() = default;
     /// \brief Perform dynamic padding of a tensor

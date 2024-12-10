@@ -117,7 +117,7 @@ public:
 
 class MyOpNew : public ov::op::Op {
 public:
-    OPENVINO_OP("MyOpNew", "custom_opset", MyOpOld);
+    OPENVINO_OP("MyOpNew", "custom_opset");
     MyOpNew() = default;
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override {

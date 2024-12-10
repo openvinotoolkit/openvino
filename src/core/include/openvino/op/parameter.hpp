@@ -18,7 +18,7 @@ namespace v0 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Parameter : public op::Op {
 public:
-    OPENVINO_OP("Parameter", "opset1", op::Op);
+    OPENVINO_OP("Parameter", "opset1");
     /// \brief Constructions a tensor-typed parameter node.
     Parameter() = default;
     /// \brief Constructions a tensor-typed parameter node.

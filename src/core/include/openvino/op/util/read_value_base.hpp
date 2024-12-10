@@ -12,7 +12,7 @@ namespace op {
 namespace util {
 class OPENVINO_API ReadValueBase : public Op, public VariableExtension {
 public:
-    OPENVINO_OP("ReadValueBase", "util", Op);
+    OPENVINO_OP("ReadValueBase", "util");
 
     ReadValueBase() = default;
 

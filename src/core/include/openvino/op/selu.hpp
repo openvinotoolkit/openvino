@@ -13,7 +13,7 @@ namespace v0 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Selu : public Op {
 public:
-    OPENVINO_OP("Selu", "opset1", Op);
+    OPENVINO_OP("Selu", "opset1");
 
     Selu() = default;
     /// \brief Constructs a Selu node.
