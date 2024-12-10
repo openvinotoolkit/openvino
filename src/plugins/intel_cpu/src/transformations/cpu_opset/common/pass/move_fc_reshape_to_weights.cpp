@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/cpu_opset/common/op/fully_connected.hpp"
+#include "ov_ops/fully_connected.hpp"
 #include "move_fc_reshape_to_weights.hpp"
 #include <transformations/utils/utils.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
@@ -48,7 +48,8 @@ ov::intel_cpu::MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
     auto weights_input_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{reshape_m, transpose_m});
 
     auto data_m = any_input();
-    auto fully_connected_m = wrap_type<ov::intel_cpu::FullyConnectedNode>({data_m, weights_input_m});
+    auto bias_m = any_input();
+    auto fully_connected_m = wrap_type<ov::op::internal::FullyConnected>({data_m, weights_input_m, bias_m});
 
     ov::matcher_pass_callback callback = [&](ov::pass::pattern::Matcher& m) {
         const auto fully_connected = m.get_match_root();
