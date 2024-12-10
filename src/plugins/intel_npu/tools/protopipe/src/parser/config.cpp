@@ -173,7 +173,6 @@ constexpr std::array<T, N1 + N2> concat(std::array<T, N1> lhs, std::array<T, N2>
 
     return result;
 }
-}
 
 template <typename T, std::size_t N1, std::size_t N2, std::size_t N3>
 constexpr std::array<T, N1 + N2 + N3> concat(std::array<T, N1> a1, std::array<T, N2> a2, std::array<T, N3> a3) {
@@ -183,6 +182,7 @@ constexpr std::array<T, N1 + N2 + N3> concat(std::array<T, N1> a1, std::array<T,
 template <typename T, std::size_t N1, std::size_t N2, std::size_t N3, std::size_t N4>
 constexpr std::array<T, N1 + N2 + N3 + N4> concat(std::array<T, N1> a1, std::array<T, N2> a2, std::array<T, N3> a3, std::array<T, N4> a4) {
     return concat(concat(a1, a2, a3), a4);
+}
 }
 
 namespace YAML {
