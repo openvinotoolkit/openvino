@@ -453,7 +453,8 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
 #endif
             ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
             ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
-        };
+            ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(),
+                             ov::PropertyMutability::RO}};
     } else if (name == ov::device::full_name) {
         return decltype(ov::device::full_name)::value_type(deviceFullName);
     } else if (name == ov::available_devices) {

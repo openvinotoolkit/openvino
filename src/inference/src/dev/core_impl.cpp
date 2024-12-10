@@ -714,6 +714,8 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                         }
                     }
                 }
+
+                // set global device-id independent settings to plugin
                 plugin.set_property(desc.defaultConfig);
             });
         }
@@ -980,6 +982,7 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
         if (device_priorities_it != return_properties.end()) {
             return_properties.erase(device_priorities_it);
         }
+
         return return_properties;
     }
 
@@ -998,7 +1001,7 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
 
     // try to search against OV API 2.0' mutable supported_properties
     try {
-        for (auto&& property : ICore::get_property(device_name, ov::supported_properties)) {
+        for (auto&& property : ICore::get_property(device_name, ov::supported_properties, {})) {
             if (property.is_mutable()) {
                 supported_config_keys.emplace_back(std::move(property));
             }
@@ -1008,7 +1011,7 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
 
     // try to search against internal supported_properties
     try {
-        for (auto&& property : ICore::get_property(device_name, ov::internal::supported_properties)) {
+        for (auto&& property : ICore::get_property(device_name, ov::internal::supported_properties, {})) {
             if (property.is_mutable()) {
                 supported_config_keys.emplace_back(std::move(property));
             }

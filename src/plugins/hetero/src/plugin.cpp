@@ -283,8 +283,7 @@ ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyM
         return decltype(ov::supported_properties)::value_type(std::move(supported_properties));
     } else if (ov::internal::supported_properties == name) {
         return decltype(ov::internal::supported_properties)::value_type{
-            ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
-        };
+            ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO}};
     } else if (ov::device::full_name == name) {
         return decltype(ov::device::full_name)::value_type{get_device_name()};
     } else if (ov::internal::caching_properties == name) {
