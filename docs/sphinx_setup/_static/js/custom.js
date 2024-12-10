@@ -189,7 +189,7 @@ function getCurrentVersion() {
     if (wordAfterDomain === 'cn') {
         wordAfterDomain = link[2];
     }
-    if (["index.html", "404.html", "", "latest"].indexOf(wordAfterDomain) >= 0) {
+    if (["index.html", "404.html", ""].indexOf(wordAfterDomain) >= 0) {
         /*
         * If this landing page, 404 or domain.com we should get first version
         * */
@@ -426,7 +426,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const searchInterfaceSa = document.querySelector("#sa-search");
         const searchInterface = document.querySelector("#search");
         const currentVersion = getCurrentVersion();
-    
+        
         await initializeSearchInterface(searchInterfaceSa, currentVersion);
         await initializeSearchInterface(searchInterface);
     
