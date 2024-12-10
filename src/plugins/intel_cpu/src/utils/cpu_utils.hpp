@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "general_utils.h"
+#include "openvino/core/except.hpp"
 #include "precision_support.h"
 
 namespace ov {
@@ -156,5 +157,35 @@ inline std::vector<float> makeAlignedBuffer(size_t targetSize, const std::vector
     }
     return alignedBuffer;
 }
+
+/**
+* @brief Reshape a tensor down to a specific rank
+*
+* Examples:
+* - reshapeToRank<2>({1, 2, 3, 4, 5}) == {1*2*3*4, 5}   == {24, 5}
+* - reshapeToRank<4>({1, 2, 3, 4, 5}) == {1*2, 3, 4, 5} == {2, 3, 4, 5}
+*/
+template <typename T>
+std::vector<T> reshapeDownToRank(const std::vector<T>& dims, size_t rank) {
+    OPENVINO_ASSERT(rank > 0, "Rank greater than zero is expected");
+
+    if (dims.size() <= rank) {
+        return dims;
+    }
+
+    const auto accEnd = dims.begin() + (dims.size() - rank + 1);
+    const auto acc = std::accumulate(dims.begin(), accEnd, (T)1, std::multiplies<T>());
+
+    std::vector<T> result{acc};
+    result.insert(result.end(), accEnd, dims.end());
+
+    return result;
+}
+
+template <size_t rank, typename T>
+std::vector<T> reshapeDownToRank(const std::vector<T>& dims) {
+    return reshapeDownToRank(dims, rank);
+}
+
 }   // namespace intel_cpu
 }   // namespace ov
