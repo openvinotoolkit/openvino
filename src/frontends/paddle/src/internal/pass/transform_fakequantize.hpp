@@ -14,7 +14,7 @@ namespace pass {
 
 class TransformFakeQuantize : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::paddle::pass::TransformFakeQuantize");
+    OPENVINO_RTTI("ov::frontend::paddle::pass::TransformFakeQuantize", "0", ov::pass::MatcherPass);
     TransformFakeQuantize();
 
 private:
