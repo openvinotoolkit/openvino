@@ -21,6 +21,7 @@
 #include "utils/precision_support.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/transpose_list.hpp"
+#include "nodes/common/subnormals_to_zero.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -432,7 +433,7 @@ std::string Reorder::getReorderArgs(const MemoryDesc &parentDesc, const MemoryDe
     return inArgs + "_" + outArgs;
 }
 
-void Reorder::reorderData(const IMemory &input, const IMemory &output, MultiCachePtr cache) {
+void Reorder::reorderData(const IMemory &input, const IMemory &output, MultiCachePtr cache, bool ftz) {
     if (!input.getDesc().isDefined() || !output.getDesc().isDefined())
         OPENVINO_THROW("Can't reorder data with dynamic shapes");
 
@@ -509,6 +510,32 @@ void Reorder::reorderData(const IMemory &input, const IMemory &output, MultiCach
             OPENVINO_THROW("Could not make onednn reorder.");
         }
     }
+
+    if (!ftz) {
+        return;
+    }
+
+    if (input.getDesc().getPrecision() != ov::element::f32 || output.getDesc().getPrecision() == ov::element::bf16) {
+        return;
+    }
+
+    size_t offset = 0;
+    if (output.getDesc().getType() & MemoryDescType::Dnnl) {
+        // here we can safely cast to DnnlMemoryDesc
+        auto dnnl_desc = output.getDescWithType<DnnlMemoryDesc>();
+        auto desc = dnnl_desc->getDnnlDesc();
+        dnnl::impl::memory_desc_wrapper wrapper(desc.get());
+        offset = wrapper.offset0();
+        if (wrapper.is_wino_desc() || wrapper.is_rnn_packed_desc()) {
+            return;
+        }
+    }
+    // actual FTZ
+    auto* memData = static_cast<float*>(output.getData());
+    memData += offset;
+
+    // @todo can we ommit flushing subnormals in case of down convertion, i.e. FP32 -> FP16?
+    setSubnormalsToZero(memData, output.getSize() / sizeof(float));
 }
 
 }   // namespace node

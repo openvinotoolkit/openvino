@@ -9,6 +9,7 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <tuple>
 #include <unordered_map>
@@ -16,7 +17,9 @@
 #include <utility>
 #include <vector>
 
+#include "cpu_types.h"
 #include "edge.h"
+#include "graph_context.h"
 #include "graph_dumper.h"
 #include "graph_optimizer.h"
 #include "infer_request.h"
@@ -34,12 +37,14 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "ov_optional.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 #include "utils/node_dumper.h"
 #include "utils/verbose.h"
 #include "utils/precision_support.h"
+#include "utils/clone_original_blob.h"
 
 #include <oneapi/dnnl/dnnl.hpp>
 #include "common/primitive_desc_iface.hpp"
@@ -416,6 +421,8 @@ void Graph::Configure(bool optimize) {
     SortTopologically();
 
     ResolveComplexInplaceConflicts();
+
+    PreProcessConstantInputs();
 
     SortTopologically();
 
@@ -972,6 +979,99 @@ bool Graph::ProcessDynNodes() {
     });
 
     return containsDynamicNodes;
+}
+
+// @todo add ascii diagram
+void Graph::PreProcessConstantInputs() {
+    std::vector<bool> visited(graphNodes.size());
+
+    std::function<ov::optional<InputPrepType>(NodePtr, bool, bool)> visitConstantPath;
+    visitConstantPath = [this, &visitConstantPath, &visited](NodePtr node,
+                                                             int inPlaceOutPort,
+                                                             bool oneShotCopyPossible) -> ov::optional<InputPrepType> {
+        if (visited[node->getExecIndex()])
+            return {};
+
+        visited[node->getExecIndex()] = true;
+
+        if (!node->getParentEdges().empty()) {
+            const int inputPort = inPlaceOutPort >= 0 ? node->inPlaceOutPort(inPlaceOutPort) : inPlaceOutPort;
+
+            for (size_t i = 0; i < node->getParentEdges().size(); i++) {
+                const auto edge = node->getParentEdgeAt(i);
+                // keep track of inplace up by inplace output ports
+                inPlaceOutPort = (static_cast<int>(i) == inputPort) ? edge->getInputNum() : -1;
+
+                return visitConstantPath(edge->getParent(), inPlaceOutPort, oneShotCopyPossible);
+            }
+        }
+
+        // that means this is an input node
+        auto input = std::dynamic_pointer_cast<node::Input>(node);
+        OPENVINO_ASSERT(input && input->getType() == Type::Input, "Only Input node is expected to have no parent edges");
+
+        MemoryCPtr inputMemory = input->getMemoryPtr();
+
+        InputPrepType prepType = requiresPreProcessing(*inputMemory, m_context, getEngine());
+
+        if (prepType == InputPrepType::None) {
+            return {};
+        }
+
+        const bool isInPlace = inPlaceOutPort >= 0;
+
+        if (isInPlace && oneShotCopyPossible) {
+            // clone will be done by a node
+            return ov::optional<InputPrepType>(prepType);
+        }
+
+        if (!isInPlace && prepType == InputPrepType::PutToNumaLocalCache) {
+            // no need for numa local copy, since current constant path is not inplace, so it will produce a new blob anyway
+            return {};
+        }
+
+        auto blobKey = [](std::shared_ptr<node::Input> input) {
+            const auto memory = input->getMemoryPtr();
+            return input->getName()
+                + "_" + std::to_string(memory->getSize() * memory->getPrecision().size())
+                + "_" + std::to_string(reinterpret_cast<uint64_t>(memory->getData()));
+        };
+
+        auto create = [&]() {
+            return cloneBlob(*inputMemory, getEngine(), prepType == InputPrepType::FTZ);
+        };
+
+        auto weightCache = m_context->getWeightsCache();
+        auto clone = weightCache ? *weightCache->findOrCreate(blobKey(input), create)
+        : create();
+
+        input->setMemoryPtr(clone);
+
+        return {};
+    };
+
+    for (auto& node : graphNodes) {
+        if (node->isConstant())
+            continue; // constant nodes will be visited in scope of 'visitConstantPath'
+
+        for (size_t i = 0; i < node->getParentEdges().size(); i++) {
+            const auto parentEdge = node->getParentEdgeAt(i);
+            const auto parent = parentEdge->getParent();
+
+            if (!parent->isConstant())
+                continue;
+
+            bool oneShotCopyPossible = node->canPrepInput(i);
+            const auto inputNum = parentEdge->getInputNum();
+
+            if (auto postponePreProcessing = visitConstantPath(parent, inputNum, oneShotCopyPossible)) {
+                const auto preprocessing = *postponePreProcessing;
+                node->prepInput(i, preprocessing);
+            }
+        }
+    }
+
+    return;
 }
 
 void Graph::PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& input) {

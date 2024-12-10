@@ -10,6 +10,7 @@
 #include "cpu_memory.h"
 #include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/executors/executor.hpp"
+#include "utils/clone_original_blob.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -18,7 +19,8 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
                                const DnnlMemoryDescPtr dstWeightDesc,
                                const MemoryCPtr weightsMem,
                                const ExecutorContext::CPtr context,
-                               const bool needShiftSignedToUnsigned = false);
+                               const bool needShiftSignedToUnsigned = false,
+                               const InputPrepType preprocessing = InputPrepType::None);
 }  // namespace utils
 }  // namespace intel_cpu
 }  // namespace ov

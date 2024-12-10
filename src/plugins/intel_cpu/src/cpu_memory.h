@@ -177,6 +177,12 @@ public:
         return static_cast<T*>(getData());
     }
 
+    template <element::Type_t ET>
+    const typename element_type_traits<ET>::value_type* getDataAs() const {
+        OPENVINO_ASSERT(ET == getPrecision(), "get_data_ptr() called for incorrect element type.");
+        return static_cast<const typename element_type_traits<ET>::value_type*>(getData());
+    }
+
     virtual size_t getSize() const = 0; // in bytes
     virtual const Shape& getShape() const = 0;
     virtual const VectorDims& getStaticDims() const = 0;

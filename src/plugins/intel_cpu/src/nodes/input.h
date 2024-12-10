@@ -56,8 +56,12 @@ public:
     void selectOptimalPrimitiveDescriptor() override;
     void createPrimitive() override;
     bool created() const override;
-
     void withMeanImage();
+
+    void setMemoryPtr(MemoryCPtr memory) {
+        memoryPtr = memory;
+    }
+
     MemoryCPtr getMemoryPtr() const;
 
     void execute(dnnl::stream strm) override {}

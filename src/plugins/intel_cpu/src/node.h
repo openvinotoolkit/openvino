@@ -5,12 +5,14 @@
 #pragma once
 
 #include <common/utils.hpp>
+#include <cstddef>
 #include <oneapi/dnnl/dnnl.hpp>
 #include "cpu_memory.h"
 #include "cpu_shape.h"
 #include "cpu_types.h"
 #include "edge.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "openvino/core/except.hpp"
 #include "selective_build.h"
 #include "memory_desc/dnnl_memory_desc.h"
 #include "onednn/dnnl.h"
@@ -25,6 +27,7 @@
 #include "utils/debug_capabilities.h"
 #include "utils/bit_util.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/clone_original_blob.h"
 
 #include "graph_context.h"
 #include "nodes/executors/executor.hpp"
@@ -268,6 +271,20 @@ public:
     // must be called only after Graph::ResolveEdgeConflicts()
     virtual bool isExecutable() const {
         return !hasEmptyInputTensors();
+    }
+
+    /**
+     * Return true if a node can perform preprocessing for an input \idx
+     */
+    virtual bool canPrepInput(size_t /*idx*/) const {
+        return false;
+    }
+
+    /**
+     * Require a node to perform \type preprocessing for an input \idx
+     */
+    virtual void prepInput(size_t /*idx*/, InputPrepType /*type*/) {
+        OPENVINO_THROW_NOT_IMPLEMENTED("Input preprocessing is not implemented for node: ", *this);
     }
 
     enum class ConstantType {
@@ -751,7 +768,9 @@ protected:
     virtual void prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx);
     void prepareMemory(dnnl::primitive_desc_iterator& itpd);
 
-    MemoryPtr prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryDescPtr srcWeightDesc = nullptr);
+    MemoryPtr prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc,
+                                  DnnlMemoryDescPtr srcWeightDesc = nullptr,
+                                  InputPrepType preprocessing = InputPrepType::None);
 
     bool isDynamic = false;
 
