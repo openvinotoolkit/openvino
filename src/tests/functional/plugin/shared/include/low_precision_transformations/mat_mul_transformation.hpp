@@ -19,8 +19,10 @@ public:
     ov::builder::subgraph::FakeQuantizeOnData fqOnData1;
     ov::Shape inputShape2;
     ov::builder::subgraph::FakeQuantizeOnData fqOnData2;
+    // TODO: remove, not used
     std::string expectedKernelName;
     std::string expectedRuntimePrecision;
+    bool requantization;
 };
 
 typedef std::tuple<

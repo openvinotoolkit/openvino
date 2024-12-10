@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "transformations/snippets/common/pass/snippets_mark_skipped_base.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -14,10 +14,9 @@ namespace intel_cpu {
  * @brief Mark operations that should be ignored by snippets on tokenization stage. A typical example is eltwise operations
  * that will be fused into convolutions on plugin side.
  */
-class SnippetsMarkSkipped : public ov::pass::ModelPass {
+class SnippetsMarkSkipped : public SnippetsMarkSkippedBase {
 public:
     OPENVINO_RTTI("SnippetsMarkSkipped", "0");
-    SnippetsMarkSkipped() : ModelPass() {}
     bool run_on_model(const std::shared_ptr<ov::Model> &) override;
 };
 
@@ -34,7 +33,7 @@ enum class NodeFusingType : int64_t {
     NotSet,
     FusedTerminator,
     FusedWithConvolution,  FusedWithBinaryConvolution,
-    FusedWithMatMul, FusedWithFC, FusedWithMisc};
+    FusedWithMatMul, FusedWithFC, FusedWithFCI8, FusedWithMisc};
 
 }   // namespace intel_cpu
 }   // namespace ov

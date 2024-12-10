@@ -7,6 +7,7 @@
 
 #include <ostream>
 #include "executor_config.hpp"
+#include "gemm_attrs.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -18,6 +19,7 @@ template<typename Attrs> struct Config;
 struct FCAttrs;
 
 std::ostream & operator<<(std::ostream & os, const FCAttrs& attrs);
+std::ostream & operator<<(std::ostream & os, const GEMMAttrs& attrs);
 std::ostream & operator<<(std::ostream & os, const PostOps& postOps);
 
 template<typename Attrs>

@@ -20,7 +20,9 @@
 #include "common/pass/rnn_sequences_optimization.hpp"
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
 #include "transformations/defs.hpp"
-
+#if defined(OPENVINO_ARCH_ARM64)
+#include "transformations/cpu_opset/arm/pass/mat_mul_decomposition.hpp"
+#endif
 #include "itt.hpp"
 
 namespace ov {
@@ -40,6 +42,8 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model> &model) {
     CPU_REGISTER_PASS_COMMON(manager, ConvertToLeakyRelu);
     CPU_REGISTER_PASS_COMMON(manager, ConvertToSwishCPU);
     CPU_REGISTER_PASS_COMMON(manager, OptimizeSequenceTransposes);
+    //TODO: MatMulDecomposition transformation has been moved from PostLpt to ConvertToCPUSpecificOpset
+    CPU_REGISTER_PASS_ARM64(manager, MatMulDecomposition);
     // after transformation "MoveEltwiseUpThroughDataMov" there can be reshaped sequences that should be eliminated or fused
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ReshapeSequenceFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
