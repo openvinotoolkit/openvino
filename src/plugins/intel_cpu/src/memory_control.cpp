@@ -222,17 +222,18 @@ public:
 
 private:
     void solve() {
+        auto boxes_to_process = m_boxes;
         constexpr size_t alignment = 32;
-        std::for_each(m_boxes.begin(), m_boxes.end(), [=](MemorySolver::Box& box) {
+        std::for_each(boxes_to_process.begin(), boxes_to_process.end(), [=](MemorySolver::Box& box) {
             box.size = div_up(box.size, alignment);
         });
 
-        ov::MemorySolver staticMemSolver(m_boxes);
+        ov::MemorySolver staticMemSolver(boxes_to_process);
         m_totalSize = static_cast<size_t>(staticMemSolver.solve()) * alignment;
 
         m_workspace = std::make_shared<MemoryBlockWithRelease>();
 
-        for (const auto& box : m_boxes) {
+        for (const auto& box : boxes_to_process) {
             int64_t offset = staticMemSolver.get_offset(box.id);
             auto memoryBlock = std::make_shared<StaticPartitionMemoryBlock>(m_workspace, offset * alignment);
             m_blocks[box.id] = std::move(memoryBlock);
@@ -258,7 +259,7 @@ private:
     bool reset_flag = true;
 };
 
-class MemoryManageNonOverlappingSets : public IMemoryManager {
+class MemoryManagerNonOverlappingSets : public IMemoryManager {
 public:
     void insert(const MemoryRegion& reg, const std::vector<size_t>& syncInds) override {
         MemorySolver::Box box = {reg.start, reg.finish, reg.size, reg.id};
@@ -352,7 +353,7 @@ private:
     }
 
     static const char* getClassName() {
-        return "MemoryManageNonOverlappingSets";
+        return "MemoryManagerNonOverlappingSets";
     }
 
 private:
@@ -435,7 +436,7 @@ MemoryControl::MemoryControl(std::string id) : m_id(std::move(id)) {
     }));
 
     // handler for static tensors
-    m_handlers.emplace_back(buildHandler<MemoryManageNonOverlappingSets>([](const MemoryRegion& reg) {
+    m_handlers.emplace_back(buildHandler<MemoryManagerNonOverlappingSets>([](const MemoryRegion& reg) {
         if (reg.size >= 0 || MemoryRegion::RegionType::VARIABLE != reg.type ||
             MemoryRegion::AllocType::POD != reg.alloc_type) {
             return false;
