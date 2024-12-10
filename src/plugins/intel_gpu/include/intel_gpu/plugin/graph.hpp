@@ -13,6 +13,7 @@
 #include "intel_gpu/plugin/custom_layer.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 
 #include <vector>
 #include <map>
@@ -42,7 +43,11 @@ public:
     };
 
     Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id = 0);
-    Graph(cldnn::BinaryInputBuffer& ib, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id = 0);
+    Graph(cldnn::BinaryInputBuffer& ib,
+          std::shared_ptr<ov::AlignedBuffer> mmap_buffer,
+          const RemoteContextImpl::Ptr& context,
+          const ExecutionConfig& config,
+          uint16_t stream_id = 0);
     Graph(std::shared_ptr<Graph> graph, uint16_t stream_id = 0);
     ~Graph();
 

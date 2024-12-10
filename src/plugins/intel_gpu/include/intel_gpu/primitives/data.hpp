@@ -173,5 +173,51 @@ struct data : public primitive_base<data> {
             }
         }
     }
+
+    std::vector<event::ptr> load_weights(BinaryInputBuffer& ib, std::istream& stream, std::shared_ptr<ov::AlignedBuffer> buffer) {
+        OPENVINO_ASSERT(buffer);
+        layout output_layout = layout();
+        ib >> output_layout;
+
+        allocation_type _allocation_type = allocation_type::unknown;
+        ib >> make_data(&_allocation_type, sizeof(_allocation_type));
+
+        size_t data_size = 0;
+        ib >> make_data(&data_size, sizeof(size_t));
+
+        mem = ib.get_engine().allocate_memory(output_layout, _allocation_type, false);
+
+        bool is_cache_without_weights;
+        ib >> is_cache_without_weights;
+        if (is_cache_without_weights) {
+            OPENVINO_THROW("mmap object is null");
+        }
+
+        size_t offset = stream.tellg();
+        std::vector<event::ptr> events;
+
+        if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
+                ib >> make_data(mem->buffer_ptr(), data_size);
+        } else {
+            stream.seekg(data_size, std::ios_base::cur);
+
+            const size_t DATA_BLOCK_SIZE = 2 * 1024 * 1024;
+            auto& strm = ib.get_engine().get_service_stream();
+            if (data_size < DATA_BLOCK_SIZE || output_layout.format.is_image_2d()) {
+                mem->copy_from(strm, buffer->get_ptr(offset));
+            } else {
+                size_t dst_offset = 0;
+                const size_t src_offset = 0;
+                size_t copy_size = 0;
+                while (dst_offset < data_size) {
+                    copy_size = (data_size > (dst_offset + DATA_BLOCK_SIZE)) ? DATA_BLOCK_SIZE : (data_size - dst_offset);
+                    auto ev = mem->copy_from(strm, buffer->get_ptr(offset + dst_offset), src_offset, dst_offset, copy_size, false);
+                    events.push_back(ev);
+                    dst_offset += DATA_BLOCK_SIZE;
+                }
+            }
+        }
+        return events;
+    }
 };
 }  // namespace cldnn

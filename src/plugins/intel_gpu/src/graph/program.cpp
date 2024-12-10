@@ -8,6 +8,7 @@
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/util/weights_path.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -1848,6 +1849,10 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
 }
 
 void program::load(cldnn::BinaryInputBuffer& ib) {
+    load(ib, nullptr);
+}
+
+void program::load(cldnn::BinaryInputBuffer& ib, std::shared_ptr<ov::AlignedBuffer> mmap_buffer) {
     init_program();
 
     std::shared_ptr<ov::MappedMemory> mapped_memory = nullptr;
@@ -1860,17 +1865,39 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
     size_t num_nodes;
     ib >> num_nodes;
     bool is_valid_data_node;
-    for (size_t i = 0; i < num_nodes; ++i) {
-        ib >> is_valid_data_node;
-        if (!is_valid_data_node)
-            continue;
+    if (mmap_buffer && !mapped_memory) {
+        auto& stream = ib.get_stream();
+        std::vector<event::ptr> copy_events;
+        for (size_t i = 0; i < num_nodes; ++i) {
+            ib >> is_valid_data_node;
+            if (!is_valid_data_node)
+                continue;
 
-        std::shared_ptr<cldnn::primitive> prim;
-        ib >> prim;
-        if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
-            data_prim->load_weights(ib, mapped_memory);
+            std::shared_ptr<cldnn::primitive> prim;
+            ib >> prim;
+            if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
+                auto new_events = data_prim->load_weights(ib, stream, mmap_buffer);
+                copy_events.insert(copy_events.end(), std::make_move_iterator(new_events.begin()), std::make_move_iterator(new_events.end()));
+            }
+            get_or_create(prim);
         }
-        get_or_create(prim);
+        for (auto& event : copy_events) {
+            if (event)
+                event->wait();
+        }
+    } else {
+        for (size_t i = 0; i < num_nodes; ++i) {
+            ib >> is_valid_data_node;
+            if (!is_valid_data_node)
+                continue;
+
+            std::shared_ptr<cldnn::primitive> prim;
+            ib >> prim;
+            if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
+                data_prim->load_weights(ib, mapped_memory);
+            }
+            get_or_create(prim);
+        }
     }
 
     size_t num_output_sharing_mutable_datas;

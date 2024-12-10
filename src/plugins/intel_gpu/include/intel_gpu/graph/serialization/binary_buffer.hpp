@@ -53,7 +53,7 @@ public:
 
     std::streampos tellg() { return _stream.tellg(); }
     void seekg(std::streampos pos) { _stream.seekg(pos); }
-
+    std::istream& get_stream() {return _stream;}
 private:
     std::istream& _stream;
     void* _impl_params;

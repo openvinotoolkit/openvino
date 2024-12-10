@@ -30,8 +30,12 @@ void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
 
 ////////// ModelDeserializer //////////
 
-ModelDeserializer::ModelDeserializer(std::istream& model_stream, ModelBuilder fn, const CacheDecrypt& decrypt_fn, bool decript_from_string)
-    : m_istream(model_stream), m_model_builder(std::move(fn)), m_decript_from_string(decript_from_string) {
+ModelDeserializer::ModelDeserializer(std::istream& model_stream,
+                                     std::shared_ptr<ov::AlignedBuffer> model_buffer,
+                                     ModelBuilder fn,
+                                     const CacheDecrypt& decrypt_fn,
+                                     bool decript_from_string)
+    : m_istream(model_stream), m_model_builder(std::move(fn)), m_decript_from_string(decript_from_string), m_model_buffer(model_buffer) {
         if (m_decript_from_string) {
             m_cache_decrypt.m_decrypt_str = decrypt_fn.m_decrypt_str;
         } else {
@@ -42,9 +46,8 @@ ModelDeserializer::ModelDeserializer(std::istream& model_stream, ModelBuilder fn
     void ModelDeserializer::set_info(pugi::xml_node& root, std::shared_ptr<ov::Model>& model) {}
 
     void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
-        if (auto mmap_buffer = dynamic_cast<OwningSharedStreamBuffer*>(m_istream.rdbuf())) {
-            auto buffer = mmap_buffer->get_buffer();
-            process_mmap(model, buffer);
+        if (m_model_buffer) {
+            process_mmap(model, m_model_buffer);
         } else {
             process_stream(model);
         }

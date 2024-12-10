@@ -52,7 +52,11 @@ Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& con
     m_input_layouts = program_builder->get_input_layouts();
 }
 
-Graph::Graph(cldnn::BinaryInputBuffer &ib, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id)
+Graph::Graph(cldnn::BinaryInputBuffer &ib,
+             std::shared_ptr<ov::AlignedBuffer> mmap_buffer,
+             const RemoteContextImpl::Ptr& context,
+             const ExecutionConfig& config,
+             uint16_t stream_id)
     : m_context(context)
     , m_config(config)
     , m_stream_id(stream_id) {
@@ -97,7 +101,7 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, const RemoteContextImpl::Ptr& context
     }
 
     auto imported_prog = std::make_shared<cldnn::program>(get_engine(), m_config);
-    imported_prog->load(ib);
+    imported_prog->load(ib, mmap_buffer);
     build(imported_prog);
 }
 

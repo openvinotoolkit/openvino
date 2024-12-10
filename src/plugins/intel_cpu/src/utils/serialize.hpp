@@ -31,7 +31,11 @@ class ModelDeserializer {
 public:
     typedef std::function<std::shared_ptr<ov::Model>(const std::shared_ptr<ov::AlignedBuffer>&, const std::shared_ptr<ov::AlignedBuffer>&)> ModelBuilder;
 
-    ModelDeserializer(std::istream& model, ModelBuilder fn, const CacheDecrypt& encrypt_fn, bool decript_from_string);
+    ModelDeserializer(std::istream& model,
+                      std::shared_ptr<ov::AlignedBuffer> model_buffer,
+                      ModelBuilder fn,
+                      const CacheDecrypt& encrypt_fn,
+                      bool decript_from_string);
 
     virtual ~ModelDeserializer() = default;
 
@@ -48,6 +52,7 @@ protected:
     ModelBuilder m_model_builder;
     CacheDecrypt m_cache_decrypt;
     bool m_decript_from_string;
+    std::shared_ptr<ov::AlignedBuffer> m_model_buffer;
 };
 
 }   // namespace intel_cpu
