@@ -35,13 +35,17 @@ public:
     bool is_remote(const LazyTensor& tensor) const;
 
 private:
-    ov::Tensor unsafe_eval_and_alloc(const LazyTensor& tensor, const std::string& device);
     // Bank for specified device and their allocated memory
-    std::unordered_map<std::string, std::unordered_map<LazyTensor, ov::Tensor, LazyTensor::Hash>> m_device_bank;
-    std::mutex m_mutex;
-    std::mutex m_alloc_mutex;
+    struct DeviceBank {
+        std::unordered_map<LazyTensor, ov::Tensor, LazyTensor::Hash> storage;
+        mutable std::mutex mutex;
+    };
+    std::unordered_map<std::string, DeviceBank> m_device_banks;
+
+    ov::Tensor eval_and_alloc(const LazyTensor& tensor, DeviceBank& dbank, const std::string& device);
+
+    mutable std::mutex m_mutex;
     std::shared_ptr<const ov::ICore> m_core = nullptr;
-    std::shared_ptr<ov::IRemoteContext> m_remote_ctx = nullptr;
     std::string m_alloc_device;
 };
 

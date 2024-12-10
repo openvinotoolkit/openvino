@@ -60,9 +60,12 @@ Config::Config() {
  * configuration properties
  */
 void Config::applyDebugCapsProperties() {
-    // always enable perf counters for verbose mode and performance summary
-    if (!debugCaps.verbose.empty() || !debugCaps.summaryPerf.empty())
+    // always enable perf counters for verbose, performance summary and average counters
+    if (!debugCaps.verbose.empty() ||
+        !debugCaps.summaryPerf.empty() ||
+        !debugCaps.averageCountersPath.empty()) {
         collectPerfCounters = true;
+    }
 }
 #endif
 
@@ -455,6 +458,17 @@ void Config::updateProperties() {
 
     _config.insert({ov::hint::performance_mode.name(), ov::util::to_string(hintPerfMode)});
     _config.insert({ov::hint::num_requests.name(), std::to_string(hintNumRequests)});
+}
+
+void Config::applyRtInfo(const std::shared_ptr<const ov::Model>& model) {
+    // if user sets explicitly, it will be higher priority than rt_info
+    if (!kvCachePrecisionSetExplicitly && model->has_rt_info({"runtime_options", ov::hint::kv_cache_precision.name()})) {
+        this->kvCachePrecision = model->get_rt_info<ov::element::Type>({"runtime_options", ov::hint::kv_cache_precision.name()});
+    }
+    if (!fcDynamicQuantizationGroupSizeSetExplicitly && model->has_rt_info({"runtime_options", ov::hint::dynamic_quantization_group_size.name()})) {
+        this->fcDynamicQuantizationGroupSize =
+            model->get_rt_info<uint64_t>({"runtime_options", ov::hint::dynamic_quantization_group_size.name()});
+    }
 }
 
 }  // namespace intel_cpu

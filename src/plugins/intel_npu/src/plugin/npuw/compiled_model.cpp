@@ -28,6 +28,7 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
+#include "llm_compiled_model.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -85,10 +86,33 @@ ov::npuw::DeviceProperties get_properties_per_device(const std::shared_ptr<const
 }  // namespace npuw
 }  // namespace ov
 
+std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
+    const std::shared_ptr<ov::Model>& model,
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    const ov::AnyMap& properties) {
+    LOG_INFO("Choosing which NPUW CompiledModel to create");
+    LOG_BLOCK();
+    std::shared_ptr<ov::npuw::ICompiledModel> compiled_model;
+    auto use_llm_key = ov::intel_npu::npuw::llm::enabled.name();
+    if (properties.count(use_llm_key) && properties.at(use_llm_key).as<bool>() == true) {
+        LOG_INFO("ov::npuw::LLMCompiledModel will be created.");
+        compiled_model = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, properties);
+    } else {
+        LOG_INFO("ov::npuw::CompiledModel will be created.");
+        compiled_model = std::make_shared<ov::npuw::CompiledModel>(model, plugin, properties);
+    }
+    LOG_INFO("Done");
+    return compiled_model;
+}
+
+ov::npuw::ICompiledModel::ICompiledModel(const std::shared_ptr<ov::Model>& model,
+                                         const std::shared_ptr<const ov::IPlugin>& plugin)
+    : ov::ICompiledModel(model, plugin) {}
+
 ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                        const std::shared_ptr<const ov::IPlugin>& plugin,
                                        const ov::AnyMap& properties)
-    : ov::ICompiledModel(model, plugin),
+    : ov::npuw::ICompiledModel(model, plugin),
       m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
       m_cfg(m_options_desc),
       m_name(model->get_friendly_name()),
@@ -434,6 +458,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
     // Finalize memory in closures and weight banks
     finalize_weights_bank();
+    detach_memory();
 
     // Print stats report when possible
     {
@@ -497,6 +522,23 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
     }
 
     LOG_INFO("Done.");
+}
+
+void ov::npuw::CompiledModel::detach_memory() {
+    LOG_INFO("Detaching model & weight memory...");
+    LOG_BLOCK();
+    for (size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
+        auto& comp_model_desc = m_compiled_submodels[idx];
+        auto& proto_comp_model_desc = m_compiled_submodels[comp_model_desc.replaced_by.value_or(idx)];
+        if (!proto_comp_model_desc.model || !proto_comp_model_desc.compiled_model) {
+            continue;  // optimized-out OR already cleared - skip
+        }
+        if (proto_comp_model_desc.device_it + 1 == m_dev_list.end()) {
+            LOG_INFO("No fallback expected - clear the OV model for Subgraph[" << idx << "]");
+            proto_comp_model_desc.model.reset();
+        }
+    }
+    LOG_INFO("Done");
 }
 
 std::string ov::npuw::CompiledModel::global_mem_device() const {
@@ -668,6 +710,10 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
     // NOTE(dm): Not sure if it is required for the NPUW plugin, but likely it is
     auto& device_config = m_meta_devices[device];
 
+    if (ov::npuw::util::starts_with(device, "NPU") && m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>()) {
+        device_config["NPU_RUN_INFERENCES_SEQUENTIALLY"] = "YES";
+    }
+
     const auto& cache_dir = m_cfg.get<::intel_npu::NPUW_CACHE_DIR>();
     if (!cache_dir.empty()) {
         LOG_INFO("NPUW will try to utilize CACHE_DIR for " << submodel->get_friendly_name() << " submodel.");
@@ -705,8 +751,9 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::CompiledModel::create_sync_infe
         const auto num_submodels = m_compiled_submodels.size();
         for (std::size_t idx = 0u; idx < num_submodels; idx++) {
             const auto& comp_model_desc = m_compiled_submodels[idx];
-            if (!comp_model_desc.replaced_by.has_value()) {
-                // not a funcall, do nothing
+            if (!comp_model_desc.replaced_by.has_value() || comp_model_desc.forced_to_fcall) {
+                // not a funcall, do nothing, or a subgraph that was forced to funcall
+                // (a 1-call function) - skip
                 continue;
             }
             const auto real_idx = comp_model_desc.replaced_by.value();
@@ -975,6 +1022,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::fold, NPUW_FOLD),
                           BIND(npuw::partitioning::cwai, NPUW_CWAI),
                           BIND(npuw::partitioning::dyn_quant, NPUW_DQ),
+                          BIND(npuw::partitioning::dyn_quant_full, NPUW_DQ_FULL),
                           BIND(npuw::partitioning::par_matmul_merge_dims, NPUW_PMM),
                           BIND(npuw::partitioning::slice_out, NPUW_SLICE_OUT),
                           BIND(npuw::partitioning::spatial, NPUW_SPATIAL),
