@@ -256,6 +256,8 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
             RO_property(ov::hint::dynamic_quantization_group_size.name()),
             RO_property(ov::hint::kv_cache_precision.name()),
+            RO_property(ov::hint::key_cache_group_size.name()),
+            RO_property(ov::hint::value_cache_group_size.name()),
         };
 
         OPENVINO_SUPPRESS_DEPRECATED_START
@@ -333,6 +335,10 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             config.fcDynamicQuantizationGroupSize);
     } else if (name == ov::hint::kv_cache_precision) {
         return decltype(ov::hint::kv_cache_precision)::value_type(config.kvCachePrecision);
+    } else if (name == ov::hint::key_cache_group_size) {
+        return decltype(ov::hint::key_cache_group_size)::value_type(config.keyCacheGroupSize);
+    } else if (name == ov::hint::value_cache_group_size) {
+        return decltype(ov::hint::value_cache_group_size)::value_type(config.valueCacheGroupSize);
     }
     OPENVINO_THROW("Unsupported property: ", name);
 }

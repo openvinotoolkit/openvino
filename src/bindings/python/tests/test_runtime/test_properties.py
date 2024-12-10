@@ -334,6 +334,16 @@ def test_properties_ro(ov_property_ro, expected_value):
             "DYNAMIC_QUANTIZATION_GROUP_SIZE",
             ((64, 64),),
         ),
+        (
+            hints.key_cache_group_size,
+            "KEY_CACHE_GROUP_SIZE",
+            ((64, 64),),
+        ),
+        (
+            hints.value_cache_group_size,
+            "VALUE_CACHE_GROUP_SIZE",
+            ((64, 64),),
+        ),
         (hints.kv_cache_precision, "KV_CACHE_PRECISION", ((Type.f32, Type.f32),)),
         (
             hints.activations_scale_factor,

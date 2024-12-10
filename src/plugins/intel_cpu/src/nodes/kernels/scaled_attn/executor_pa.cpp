@@ -2137,8 +2137,8 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         // u4 needs scale + zp. s4 needs scale.
         const size_t param_size = one_of(v_cache.get_precision(), ov::element::u4, ov::element::u8) ? sizeof(float) * 2 : sizeof(float);
         const size_t value_params_size = param_size * value_sub_byte_multiplyer;
-        size_t key_group_num = _key_group_size ? k_cache.size(3) / (_key_group_size + key_params_size) : _key_group_size;
-        size_t value_group_num = _value_group_size ? v_cache.size(3) / (_value_group_size + value_params_size) : _value_group_size;
+        size_t key_group_num = _key_group_size ? k_cache.size(3) / (_key_group_size + key_params_size) : 1;
+        size_t value_group_num = _value_group_size ? v_cache.size(3) / (_value_group_size + value_params_size) : 1;
         auto S = k_cache.size(3) - (k_cache.get_precision().is_real() ? 0 : key_params_size * key_group_num);
         auto SV = v_cache.size(3) - (v_cache.get_precision().is_real() ? 0 : value_params_size * value_group_num);
         auto block_size = k_cache.size(2);

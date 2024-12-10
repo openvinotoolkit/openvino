@@ -23,4 +23,6 @@ from openvino._pyopenvino.properties.hint import model
 from openvino._pyopenvino.properties.hint import allow_auto_batching
 from openvino._pyopenvino.properties.hint import dynamic_quantization_group_size
 from openvino._pyopenvino.properties.hint import kv_cache_precision
+from openvino._pyopenvino.properties.hint import key_cache_group_size
+from openvino._pyopenvino.properties.hint import value_cache_group_size
 from openvino._pyopenvino.properties.hint import activations_scale_factor

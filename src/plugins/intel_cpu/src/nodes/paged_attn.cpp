@@ -132,16 +132,10 @@ void PagedAttention::createPrimitive() {
         // Since we are quantize only last dim it's safe to use the last dim of KV.
         auto kCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
         auto vCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
-        const auto keyDims = getInputShapeAtPort(PagedAttentionExecutor::ID_KCACHE).getDims();
-        const auto valueDims = getInputShapeAtPort(PagedAttentionExecutor::ID_VCACHE).getDims();
-        const auto keyS = *(keyDims.end() - 1);
-        const auto valueS = *(valueDims.end() - 1);
+        const auto cpuConfig = context->getConfig();
 
-        size_t group_size = keyS;
-        if (getenv("GROUP_SIZE"))
-            group_size = std::stoi(std::string(getenv("GROUP_SIZE")));
-        size_t key_group_size = group_size;
-        size_t value_group_size = group_size; 
+        size_t key_group_size = cpuConfig.keyCacheGroupSize;
+        size_t value_group_size = cpuConfig.valueCacheGroupSize; 
         std::cout << "PagedAttn|Kcache|" << kCachePrecision << "|Vcache|" << vCachePrecision << "|key_group_size|" << key_group_size << "|value_group_size|" << value_group_size << std::endl;
         return make_pa_executor(rtPrecision, kCachePrecision, vCachePrecision, key_group_size, value_group_size);
 #else

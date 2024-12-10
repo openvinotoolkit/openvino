@@ -375,6 +375,21 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ov::hint::kv_cache_precision.name(),
                                ". Supported values: u8, bf16, f16, f32");
             }
+        } else if (key == ov::hint::key_cache_group_size.name() || key == ov::hint::value_cache_group_size.name()) {
+            try {
+                auto const groupSize = val.as<uint64_t>();
+                if (key == ov::hint::key_cache_group_size.name()) {
+                    keyCacheGroupSize = groupSize;
+                } else {
+                    valueCacheGroupSize = groupSize;
+                }
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               " for property key ",
+                               key,
+                               ". Expected only unsinged integer numbers");
+            } 
         } else if (key == ov::cache_encryption_callbacks.name()) {
             try {
                 auto encryption_callbacks = val.as<EncryptionCallbacks>();
