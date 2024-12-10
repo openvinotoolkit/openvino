@@ -325,7 +325,6 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     read(stream, vmajor);
     read(stream, vminor);
     read(stream, vpatch);
-    stream >> vmajor >> vminor >> vpatch;
 
     NPUW_ASSERT(vmajor == OPENVINO_VERSION_MAJOR && vminor == OPENVINO_VERSION_MINOR &&
                 vpatch == OPENVINO_VERSION_PATCH && "Only blobs serialized with the same OV version are supported!");
@@ -354,9 +353,11 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     // compiled->m_kvcache_compiled->m_weights_bank = bank;
     // compiled->m_prefill_compiled->m_weights_bank = bank;
 
+    // FIXME: is it required for LLMCompiledModel or CompiledModel ???
     // compiled->implement_properties();
 
     LOG_INFO("Done.");
+    return compiled;
 }
 
 template <typename T>
