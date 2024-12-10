@@ -268,7 +268,7 @@ Each file contains a single buffer in a common planar format (`bfyx`, `bfzyx`, o
 shape: [b:1, f:1280, x:1, y:1, z:1, w:1, g:1] (count: 1280, original format: b_fs_yx_fsv16)
 ```
 
-For troubleshooting the accuracy, you may want to compare the results of GPU plugin and CPU plugin. For CPU dump, see [Blob dumping](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/src/docs/blob_dumping.md)
+For troubleshooting the accuracy, you may want to compare the results of GPU plugin and CPU plugin. For CPU dump, see [Blob dumping](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/docs/debug_capabilities/blob_dumping.md)
 
 
 ## Run int8 model on Gen9 HW
