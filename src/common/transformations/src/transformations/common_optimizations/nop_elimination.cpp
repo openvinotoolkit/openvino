@@ -134,7 +134,7 @@ static bool eliminate_nop(const shared_ptr<Node>& node) {
 
 // Check if first dim is dynamic, other dims are static
 static bool only_first_dim_dynamic(const PartialShape& pshape) {
-    if (pshape.rank().is_static() && pshape.size() > 0) { 
+    if (pshape.rank().is_static() && pshape.size() > 0) {
         if (pshape[0].is_dynamic()) {
             for (size_t i = 1; i < pshape.size(); ++i) {
                 if (pshape[i].is_dynamic()) {
@@ -158,12 +158,13 @@ static bool eliminate_reshape_v1(const shared_ptr<Node>& node) {
     }
     // check if reshape is not identity op
     if (input.get_partial_shape().is_dynamic() || node->get_output_partial_shape(0).is_dynamic()) {
-        if (!only_first_dim_dynamic(input.get_partial_shape()) || !only_first_dim_dynamic(node->get_output_partial_shape(0))) {
-            OPENVINO_DEBUG(node, " has dynamic shapes.");
+        if (!only_first_dim_dynamic(input.get_partial_shape()) ||
+            !only_first_dim_dynamic(node->get_output_partial_shape(0))) {
+            OPENVINO_DEBUG(node, " has dynamic shapes with not only 0th dimension dynamic.");
             return false;
         }
     }
-    
+
     // remove identity op
     if (input.get_partial_shape() == node->get_output_partial_shape(0)) {
         return replace_output_update_name(node->output(0), input);
@@ -178,7 +179,8 @@ static bool eliminate_reshape_v1(const shared_ptr<Node>& node) {
         auto shape = node->get_output_partial_shape(0);
 
         // remove interchangeable nodes
-        if (input_node->get_input_partial_shape(0).is_static() && input_node->get_input_shape(0) == node->get_output_shape(0)) {
+        if (input_node->get_input_partial_shape(0).is_static() &&
+            input_node->get_input_partial_shape(0) == node->get_output_partial_shape(0)) {
             return replace_output_update_name(node->output(0), input_node->input_value(0));
         } else {
             vector<int64_t> vi;

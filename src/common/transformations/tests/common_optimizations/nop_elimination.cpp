@@ -257,7 +257,7 @@ TEST_F(TransformationTestsF, reshape_reshape_elimination_v1_dynamic) {
         auto add = std::make_shared<op::v1::Add>(bottom_reshape, add_param);
         model_ref = std::make_shared<ov::Model>(NodeVector{add}, ParameterVector{input, add_param});
     }
-    
+
     manager.register_pass<ov::pass::NopElimination>();
     manager.run_passes(model);
 
