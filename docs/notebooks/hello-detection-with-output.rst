@@ -102,13 +102,13 @@ Download model weights
 
 .. parsed-literal::
 
-    model/horizontal-text-detection-0001.xml:   0%|          | 0.00/680k [00:00<?, ?B/s]
+    horizontal-text-detection-0001.xml:   0%|          | 0.00/680k [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    model/horizontal-text-detection-0001.bin:   0%|          | 0.00/7.39M [00:00<?, ?B/s]
+    horizontal-text-detection-0001.bin:   0%|          | 0.00/7.39M [00:00<?, ?B/s]
 
 
 Select inference device
@@ -178,7 +178,7 @@ Load an Image
 
 .. parsed-literal::
 
-    data/intel_rnb.jpg:   0%|          | 0.00/288k [00:00<?, ?B/s]
+    intel_rnb.jpg:   0%|          | 0.00/288k [00:00<?, ?B/s]
 
 
 

@@ -50,6 +50,7 @@ additional part demonstrates how to run optimization with
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ to speed up
 pipeline.
 
+
 **Table of contents:**
 
 - `Prerequisites <#prerequisites>`__
@@ -81,7 +82,6 @@ pipeline.
 - `Compare inference time of the FP16 and INT8
   pipelines <#compare-inference-time-of-the-fp16-and-int8-pipelines>`__
 - `Interactive demo <#interactive-demo>`__
-
 
 Installation Instructions
 ~~~~~~~~~~~~~~~~~~~~~~~~~

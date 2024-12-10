@@ -147,7 +147,7 @@ Setup image and device
 
 .. parsed-literal::
 
-    data/coco.jpg:   0%|          | 0.00/202k [00:00<?, ?B/s]
+    coco.jpg:   0%|          | 0.00/202k [00:00<?, ?B/s]
 
 
 .. code:: ipython3
@@ -344,7 +344,7 @@ for mean/scale normalization.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7fe3ec331c70>
+    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7f69f01394b0>
 
 
 
@@ -375,7 +375,7 @@ may be specified is input data
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7fe3ec2aef70>
+    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7f687432f330>
 
 
 
@@ -413,7 +413,7 @@ then such conversion will be added explicitly.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7fe3ec2aef30>
+    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7f69131f9670>
 
 
 
@@ -575,7 +575,7 @@ Compare results on one image
 
 .. parsed-literal::
 
-    data/imagenet_2012.txt:   0%|          | 0.00/30.9k [00:00<?, ?B/s]
+    imagenet_2012.txt:   0%|          | 0.00/30.9k [00:00<?, ?B/s]
 
 
 .. parsed-literal::
@@ -627,6 +627,6 @@ Compare performance
 
 .. parsed-literal::
 
-    IR model in OpenVINO Runtime/CPU with manual image preprocessing: 0.0153 seconds per image, FPS: 65.56
-    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0143 seconds per image, FPS: 70.14
+    IR model in OpenVINO Runtime/CPU with manual image preprocessing: 0.0150 seconds per image, FPS: 66.66
+    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0141 seconds per image, FPS: 71.16
 

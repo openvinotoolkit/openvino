@@ -146,11 +146,8 @@ format.
     ir_model_name_xml = "MiDaS_small.xml"
     ir_model_name_bin = "MiDaS_small.bin"
     
-    
-    if not (model_folder / ir_model_name_xml).exists():
-        download_file(ir_model_url + ir_model_name_xml, filename=ir_model_name_xml, directory=model_folder)
-    if not (model_folder / ir_model_name_bin).exists():
-        download_file(ir_model_url + ir_model_name_bin, filename=ir_model_name_bin, directory=model_folder)
+    download_file(ir_model_url + ir_model_name_xml, filename=ir_model_name_xml, directory=model_folder)
+    download_file(ir_model_url + ir_model_name_bin, filename=ir_model_name_bin, directory=model_folder)
     
     model_xml_path = model_folder / ir_model_name_xml
 
@@ -158,13 +155,13 @@ format.
 
 .. parsed-literal::
 
-    model/MiDaS_small.xml:   0%|          | 0.00/268k [00:00<?, ?B/s]
+    MiDaS_small.xml:   0%|          | 0.00/268k [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    model/MiDaS_small.bin:   0%|          | 0.00/31.6M [00:00<?, ?B/s]
+    MiDaS_small.bin:   0%|          | 0.00/31.6M [00:00<?, ?B/s]
 
 
 Functions
@@ -270,12 +267,10 @@ H=height, W=width).
 .. code:: ipython3
 
     IMAGE_URL = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg"
-    IMAGE_PATH = "coco_bike.jpg"
+    IMAGE_NAME = "coco_bike.jpg"
     
-    if not Path(IMAGE_PATH).exists():
-        download_file(IMAGE_URL, IMAGE_PATH)
     
-    image = load_image(IMAGE_PATH)
+    image = load_image(IMAGE_NAME, IMAGE_URL)
     
     
     # Resize to input shape for network.
@@ -283,13 +278,6 @@ H=height, W=width).
     
     # Reshape the image to network input shape NCHW.
     input_image = np.expand_dims(np.transpose(resized_image, (2, 0, 1)), 0)
-
-
-
-.. parsed-literal::
-
-    coco_bike.jpg:   0%|          | 0.00/182k [00:00<?, ?B/s]
-
 
 Do inference on the image
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -314,7 +302,7 @@ original image shape.
 
 .. parsed-literal::
 
-    /tmp/ipykernel_3590807/2076527990.py:15: MatplotlibDeprecationWarning: The get_cmap function was deprecated in Matplotlib 3.7 and will be removed two minor releases later. Use ``matplotlib.colormaps[name]`` or ``matplotlib.colormaps.get_cmap(obj)`` instead.
+    /tmp/ipykernel_2254280/2076527990.py:15: MatplotlibDeprecationWarning: The get_cmap function was deprecated in Matplotlib 3.7 and will be removed two minor releases later. Use ``matplotlib.colormaps[name]`` or ``matplotlib.colormaps.get_cmap(obj)`` instead.
       cmap = matplotlib.cm.get_cmap(colormap)
 
 
@@ -352,11 +340,10 @@ Video Settings
 
     # Video source: https://www.youtube.com/watch?v=fu1xcQdJRws (Public Domain)
     VIDEO_FILE = "Coco-Walking-in-Berkeley.mp4"
-    if not Path(VIDEO_FILE).exists():
-        download_file(
-            "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Coco%20Walking%20in%20Berkeley.mp4",
-            VIDEO_FILE,
-        )
+    download_file(
+        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Coco%20Walking%20in%20Berkeley.mp4",
+        VIDEO_FILE,
+    )
     
     # Number of seconds of input video to process. Set `NUM_SECONDS` to 0 to process
     # the full video.
@@ -526,7 +513,7 @@ Do Inference on a Video and Create Monodepth Video
 
 .. parsed-literal::
 
-    Processed 60 frames in 8.99 seconds. Total FPS (including video processing): 6.67.Inference FPS: 58.38 
+    Processed 60 frames in 8.94 seconds. Total FPS (including video processing): 6.71.Inference FPS: 57.76 
     Monodepth Video saved to 'output/Coco-Walking-in-Berkeley_monodepth.mp4'.
 
 
@@ -553,7 +540,7 @@ Display Monodepth Video
 .. parsed-literal::
 
     Showing monodepth video saved at
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/vision-monodepth/output/Coco-Walking-in-Berkeley_monodepth.mp4
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/vision-monodepth/output/Coco-Walking-in-Berkeley_monodepth.mp4
     If you cannot see the video in your browser, please click on the following link to download the video 
 
 

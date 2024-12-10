@@ -101,8 +101,8 @@ Imports
 
 .. parsed-literal::
 
-    2024-11-22 01:57:57 INFO: Loading faiss with AVX512 support.
-    2024-11-22 01:57:57 INFO: Successfully loaded faiss with AVX512 support.
+    2024-12-10 02:42:23 INFO: Loading faiss with AVX512 support.
+    2024-12-10 02:42:23 INFO: Successfully loaded faiss with AVX512 support.
 
 
 Settings
@@ -150,13 +150,13 @@ PaddleHub. This may take a while.
 
 .. parsed-literal::
 
-    data/coco_close.png:   0%|          | 0.00/133k [00:00<?, ?B/s]
+    coco_close.png:   0%|          | 0.00/133k [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    model/MobileNetV3_large_x1_0_infer.tar:   0%|          | 0.00/19.5M [00:00<?, ?B/s]
+    MobileNetV3_large_x1_0_infer.tar:   0%|          | 0.00/19.5M [00:00<?, ?B/s]
 
 
 .. parsed-literal::
@@ -186,7 +186,7 @@ inference on that image, and then show the top three prediction results.
 
 .. parsed-literal::
 
-    [2024/11/22 01:58:21] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
+    [2024/12/10 02:42:46] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
     Labrador retriever, 0.75138
     German short-haired pointer, 0.02373
     Great Dane, 0.01848
@@ -252,7 +252,7 @@ clipping values.
 
 .. parsed-literal::
 
-    2024-11-22 01:58:22 WARNING: Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
+    2024-12-10 02:42:46 WARNING: Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
 
 
 .. parsed-literal::
@@ -264,7 +264,7 @@ clipping values.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f6e805fa9d0>
+    <matplotlib.image.AxesImage at 0x7fe3805ac910>
 
 
 
@@ -439,7 +439,7 @@ Note that many optimizations are possible to improve the performance.
 
 .. parsed-literal::
 
-    PaddlePaddle model on CPU: 0.0069 seconds per image, FPS: 144.32
+    PaddlePaddle model on CPU: 0.0071 seconds per image, FPS: 141.67
     
     PaddlePaddle result:
     Labrador retriever, 0.75138
@@ -500,7 +500,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    OpenVINO IR model in OpenVINO Runtime (AUTO): 0.0026 seconds per image, FPS: 380.57
+    OpenVINO IR model in OpenVINO Runtime (AUTO): 0.0027 seconds per image, FPS: 376.00
     
     OpenVINO result:
     Labrador retriever, 0.74909

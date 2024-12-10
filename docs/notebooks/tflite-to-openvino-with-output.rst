@@ -79,7 +79,7 @@ Install requirements
 
 .. parsed-literal::
 
-    24717
+    24624
 
 
 
@@ -174,7 +174,7 @@ on `TensorFlow Hub <https://tfhub.dev/>`__.
 
 .. code:: ipython3
 
-    image = load_image("https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bricks.png")
+    image = load_image("coco_bricks.png", "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bricks.png")
     # load_image reads the image in BGR format, [:,:,::-1] reshape transfroms it to RGB
     image = Image.fromarray(image[:, :, ::-1])
     resized_image = image.resize((224, 224))
@@ -274,7 +274,7 @@ GPU.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 9.66 ms
+    [ INFO ] Read model took 9.35 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : f32 / [...] / [1,224,224,3]
@@ -288,7 +288,7 @@ GPU.
     [ INFO ] Model outputs:
     [ INFO ]     Softmax (node: 61) : f32 / [...] / [1,1000]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 147.18 ms
+    [ INFO ] Compile model took 166.78 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: TensorFlow_Lite_Frontend_IR
@@ -325,15 +325,15 @@ GPU.
     [ INFO ] Fill input 'images' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 7.26 ms
+    [ INFO ] First inference took 7.31 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            16578 iterations
-    [ INFO ] Duration:         15004.17 ms
+    [ INFO ] Count:            17460 iterations
+    [ INFO ] Duration:         15005.01 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        5.30 ms
-    [ INFO ]    Average:       5.29 ms
-    [ INFO ]    Min:           2.92 ms
-    [ INFO ]    Max:           17.62 ms
-    [ INFO ] Throughput:   1104.89 FPS
+    [ INFO ]    Median:        4.99 ms
+    [ INFO ]    Average:       5.02 ms
+    [ INFO ]    Min:           2.99 ms
+    [ INFO ]    Max:           17.05 ms
+    [ INFO ] Throughput:   1163.61 FPS
 

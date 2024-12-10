@@ -79,15 +79,27 @@ Install dependencies.
 .. code:: ipython3
 
     import platform
+    import importlib.metadata
+    import importlib.util
     
     %pip install -q "nncf>=2.14.0"
     %pip install -q -U "openvino>=2024.5.0" "openvino-tokenizers>=2024.5.0" "openvino-genai>=2024.5.0"
     %pip install -q "python-ffmpeg<=1.0.16" "ffmpeg" "moviepy" "transformers>=4.45" "git+https://github.com/huggingface/optimum-intel.git" "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q -U "yt_dlp>=2024.8.6" soundfile librosa jiwer
+    %pip install -q -U "yt_dlp>=2024.8.6" soundfile librosa jiwer packaging
     %pip install -q  "gradio>=4.19" "typing_extensions>=4.9"
     
     if platform.system() == "Darwin":
         %pip install -q "numpy<2.0"
+    
+    
+    from packaging import version
+    
+    if (
+        importlib.util.find_spec("tensorflow") is not None
+        and version.parse(importlib.metadata.version("tensorflow")) < version.parse("2.18.0")
+        and version.parse(importlib.metadata.version("numpy")) >= version.parse("2.0.0")
+    ):
+        %pip uninstall -q -y tensorflow
 
 .. code:: ipython3
 
@@ -312,7 +324,10 @@ Select the task for the model:
 
 .. code:: ipython3
 
-    from moviepy.editor import VideoFileClip
+    try:
+        from moviepy import VideoFileClip
+    except ImportError:
+        from moviepy.editor import VideoFileClip
     from transformers.pipelines.audio_utils import ffmpeg_read
     
     

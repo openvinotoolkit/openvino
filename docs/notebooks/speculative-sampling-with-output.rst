@@ -214,7 +214,23 @@ generation is finished, we will write streamer function.
     pipe = ov_genai.LLMPipeline(target_model_path, device.value)
 
     config = ov_genai.GenerationConfig()
-    config.max_new_tokens = 100
+    config.max_new_tokens = 330
+    prompt = '''<s>
+
+    def prime_fib(n: int):
+        """
+        prime_fib returns n-th number that is a Fibonacci number and it's also prime.
+        >>> prime_fib(1)
+        2
+        >>> prime_fib(2)
+        3
+        >>> prime_fib(3)
+        5
+        >>> prime_fib(4)
+        13
+        >>> prime_fib(5)
+        89
+        """'''
 
 
     def streamer(subword):
@@ -225,7 +241,7 @@ generation is finished, we will write streamer function.
 
 
     start_time = time.perf_counter()
-    pipe.generate(["Sun is yellow because"], config, streamer=streamer)
+    pipe.generate(prompt, config, streamer=streamer)
     end_time = time.perf_counter()
 
 
@@ -239,7 +255,7 @@ generation is finished, we will write streamer function.
 
     print(f"Generation time: {end_time - start_time:.2f}s")
     del pipe
-    gc.collect();
+    gc.collect()
 
 
 .. parsed-literal::
@@ -282,17 +298,19 @@ stops the current token generation iteration is not yet reached.
 
     scheduler_config = ov_genai.SchedulerConfig()
     # cache params
-    scheduler_config.cache_size = 2
+    scheduler_config.cache_size = 0
+    scheduler_config.num_kv_blocks = 2048 // 8
+    scheduler_config.max_num_batched_tokens = 2048
 
     draft_model = ov_genai.draft_model(draft_model_path, device.value)
 
     pipe = ov_genai.LLMPipeline(target_model_path, device.value, draft_model=draft_model, scheduler_config=scheduler_config)
 
     config = ov_genai.GenerationConfig()
-    config.max_new_tokens = 100
-    config.num_assistant_tokens = 3
+    config.max_new_tokens = 330
+    config.num_assistant_tokens = 5
     start_time = time.perf_counter()
-    result = pipe.generate(["Sun is yellow because"], config, streamer=streamer)
+    result = pipe.generate(prompt, config, streamer=streamer)
     end_time = time.perf_counter()
 
 

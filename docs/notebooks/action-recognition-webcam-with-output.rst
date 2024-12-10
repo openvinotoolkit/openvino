@@ -153,13 +153,13 @@ and the system automatically downloads the two models
 
 .. parsed-literal::
 
-    model/intel/action-recognition-0001/action-recognition-0001-decoder/FP16/action-recognition-0001-decoder.bin: …
+    action-recognition-0001-decoder.bin:   0%|          | 0.00/14.4M [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    model/intel/action-recognition-0001/action-recognition-0001-encoder/FP16/action-recognition-0001-encoder.bin: …
+    action-recognition-0001-encoder.bin:   0%|          | 0.00/40.6M [00:00<?, ?B/s]
 
 
 Load your labels
@@ -192,7 +192,7 @@ also provides the text file embedded into this notebook.
 
 .. parsed-literal::
 
-    data/kinetics.txt:   0%|          | 0.00/5.82k [00:00<?, ?B/s]
+    kinetics.txt:   0%|          | 0.00/5.82k [00:00<?, ?B/s]
 
 
 .. parsed-literal::
