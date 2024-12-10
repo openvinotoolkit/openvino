@@ -9,6 +9,7 @@ Generative AI workflow
    :maxdepth: 1
    :hidden:
 
+   Generative Model Preparation <llm_inference_guide/genai-model-preparation>
    Inference with OpenVINO GenAI <llm_inference_guide/genai-guide>
    Inference with Optimum Intel <llm_inference_guide/llm-inference-hf>
    Generative AI with Base OpenVINO (not recommended) <llm_inference_guide/llm-inference-native-ov>
