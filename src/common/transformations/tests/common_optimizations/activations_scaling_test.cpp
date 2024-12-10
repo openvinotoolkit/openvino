@@ -113,7 +113,7 @@ TEST_F(TransformationTestsF, ScaleDownFusionTest) {
     }
 }
 
-TEST_F(TransformationTestsF, MulNormTransformationTest) {
+TEST_F(TransformationTestsF, EliminateMultiplyNormTest) {
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 16, 16});
         auto scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {10});
@@ -126,7 +126,7 @@ TEST_F(TransformationTestsF, MulNormTransformationTest) {
         auto result = std::make_shared<ov::op::v0::Result>(convert);
 
         model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
-        manager.register_pass<ov::pass::activations_scaling::MulNormTransformation>();
+        manager.register_pass<ov::pass::activations_scaling::EliminateMultiplyNorm>();
     }
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 16, 16});

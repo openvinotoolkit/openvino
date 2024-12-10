@@ -31,9 +31,10 @@ public:
 
 class TRANSFORMATIONS_API ScaleDownSingleLayer;
 class TRANSFORMATIONS_API ScaleDownFusion;
-class TRANSFORMATIONS_API MulNormTransformation;
+class TRANSFORMATIONS_API EliminateMultiplyNorm;
 class TRANSFORMATIONS_API MulConcatTransformation;
 class TRANSFORMATIONS_API NormMulTransformation;
+class TRANSFORMATIONS_API EliminateMultiplyX1;
 
 }  // namespace activations_scaling
 }  // namespace pass
@@ -56,10 +57,10 @@ public:
     ScaleDownFusion();
 };
 
-class ov::pass::activations_scaling::MulNormTransformation : public ov::pass::MatcherPass {
+class ov::pass::activations_scaling::EliminateMultiplyNorm : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MulNormTransformation", "0");
-    MulNormTransformation();
+    OPENVINO_RTTI("EliminateMultiplyNorm", "0");
+    EliminateMultiplyNorm();
 };
 
 class ov::pass::activations_scaling::MulConcatTransformation : public ov::pass::MatcherPass {
@@ -72,4 +73,10 @@ class ov::pass::activations_scaling::NormMulTransformation : public ov::pass::Ma
 public:
     OPENVINO_RTTI("NormMulTransformation", "0");
     NormMulTransformation();
+};
+
+class ov::pass::activations_scaling::EliminateMultiplyX1 : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("EliminateMultiplyX1", "0");
+    EliminateMultiplyX1();
 };

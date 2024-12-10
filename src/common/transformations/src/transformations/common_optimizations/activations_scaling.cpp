@@ -267,8 +267,8 @@ ov::pass::activations_scaling::ScaleDownFusion::ScaleDownFusion() {
 // input --> Multiply --> Normalization
 //   ==>
 // input --> Normalization
-ov::pass::activations_scaling::MulNormTransformation::MulNormTransformation() {
-    MATCHER_SCOPE(MulNormTransformation);
+ov::pass::activations_scaling::EliminateMultiplyNorm::EliminateMultiplyNorm() {
+    MATCHER_SCOPE(EliminateMultiplyNorm);
 
     auto activation_m = any_input(is_non_const_node);
     auto convert_m = ov::pass::pattern::optional<ov::op::v0::Convert>(activation_m);
@@ -331,7 +331,7 @@ ov::pass::activations_scaling::MulNormTransformation::MulNormTransformation() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(norm_m, "MulNormTransformation");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(norm_m, "EliminateMultiplyNorm");
     this->register_matcher(m, callback);
 }
 
@@ -441,18 +441,19 @@ ov::pass::activations_scaling::MulConcatTransformation::MulConcatTransformation(
 
 //         input             input
 //         /   \               |
-//       RMS   Mul    ==>     Mul (expect to be fused into the input layer)
+//      Norm   Mul    ==>     Mul (expect to be fused into the input layer)
 //        |     |            /   \_
-//      op_a   op_b        RMS   op_b
+//      op_a   op_b       Norm   op_b
 //                          |
-//                         op_a
+//                        op_a
 ov::pass::activations_scaling::NormMulTransformation::NormMulTransformation() {
     MATCHER_SCOPE(NormMulTransformation);
 
     auto mvn_m = wrap_type<ov::op::v6::MVN>({any_input(), any_input()});
     auto rms_m = wrap_type<ov::op::internal::RMS>({any_input(), any_input()});
     auto group_norm_m = wrap_type<ov::op::v12::GroupNormalization>({any_input(), any_input(), any_input()});
-    auto norm_m = std::make_shared<Or>(OutputVector{mvn_m, rms_m, group_norm_m});
+    auto shape_of_m = wrap_type<ov::op::v3::ShapeOf>({any_input()});
+    auto norm_m = std::make_shared<Or>(OutputVector{mvn_m, rms_m, group_norm_m, shape_of_m});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -492,5 +493,50 @@ ov::pass::activations_scaling::NormMulTransformation::NormMulTransformation() {
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(norm_m, "NormMulTransformation");
+    this->register_matcher(m, callback);
+}
+
+ov::pass::activations_scaling::EliminateMultiplyX1::EliminateMultiplyX1() {
+    MATCHER_SCOPE(EliminateMultiplyX1);
+
+    auto activation_m = any_input(is_non_const_node);
+    auto mul_const_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(is_scalar_node);
+    auto mul_m = wrap_type<ov::op::v1::Multiply>({activation_m, mul_const_m});
+
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+
+        if (transformation_callback(m.get_match_root())) {
+            return false;
+        }
+
+        auto mul_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(
+            pattern_map.at(mul_const_m).get_node_shared_ptr());
+
+        float const_value = 0.f;
+        if (mul_const->get_element_type() == ov::element::f16) {
+            const_value = std::stof(mul_const->get_data_ptr<ov::float16>()->to_string());
+        } else if (mul_const->get_element_type() == ov::element::f32) {
+            const_value = *mul_const->get_data_ptr<float>();
+        } else {
+            return false;
+        }
+
+        if (const_value != 1.f)
+            return false;
+
+        auto activation = m.get_match_root()->get_input_source_output(0);
+        if (ov::is_type<ov::op::v0::Constant>(m.get_match_root()->get_input_source_output(0).get_node()))
+            activation = m.get_match_root()->get_input_source_output(1);
+
+        auto target_inputs = m.get_match_root()->get_output_target_inputs(0);
+        for (auto& in : target_inputs) {
+            in.replace_source_output(activation);
+        }
+
+        return true;
+    };
+
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(mul_m, "EliminateMultiplyX1");
     this->register_matcher(m, callback);
 }

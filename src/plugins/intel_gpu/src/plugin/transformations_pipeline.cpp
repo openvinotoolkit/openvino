@@ -958,9 +958,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::pass::activations_scaling::ScaleDownFusion>();
             auto params = LayerTransformation::Params(false, scaled_precision, {scaled_precision}, true, false);
             auto lpt_pass = manager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization, params);
-            lpt_pass->add_main<ov::pass::activations_scaling::MulNormTransformation>();
+            lpt_pass->add_main<ov::pass::activations_scaling::EliminateMultiplyNorm>();
             lpt_pass->add_main<ov::pass::activations_scaling::MulConcatTransformation>();
             manager.register_pass<ov::pass::activations_scaling::NormMulTransformation>();
+            manager.register_pass<ov::pass::activations_scaling::EliminateMultiplyX1>();
         }
 
         manager.run_passes(func);
