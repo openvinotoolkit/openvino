@@ -1368,7 +1368,7 @@ void jit_logical_or_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, co
     const TReg dst = TReg(out_vec_idxs[0]);
     const TReg aux = TReg(aux_vec_idxs[0]);
 
-    h->or_(dst.b16, src1.b16, src2.b16);
+    h->orr(dst.b16, src1.b16, src2.b16);
     h->ld1r(aux.s, table_val2("one"));
     h->and_(dst.b16, dst.b16, aux.b16);
 }
