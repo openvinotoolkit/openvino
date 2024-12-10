@@ -82,8 +82,8 @@ Imports
 
 .. parsed-literal::
 
-    2024-11-22 05:06:26.947305: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-11-22 05:06:26.972806: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-12-10 05:31:08.167081: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-12-10 05:31:08.192294: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
@@ -202,7 +202,7 @@ as an example. It is recommended to tune based on your applications.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 68.94 ms
+    [ INFO ] Read model took 72.79 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [?,?]
@@ -213,7 +213,7 @@ as an example. It is recommended to tune based on your applications.
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'input_ids': [1,64], 'attention_mask': [1,64], 'token_type_ids': [1,64]
-    [ INFO ] Reshape model took 28.06 ms
+    [ INFO ] Reshape model took 27.96 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [1,64]
@@ -222,7 +222,7 @@ as an example. It is recommended to tune based on your applications.
     [ INFO ] Model outputs:
     [ INFO ]     logits (node: logits) : f32 / [...] / [1,2]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 999.63 ms
+    [ INFO ] Compile model took 1082.12 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: torch_jit
@@ -254,17 +254,17 @@ as an example. It is recommended to tune based on your applications.
     [ INFO ] Fill input 'token_type_ids' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 27.20 ms
+    [ INFO ] First inference took 28.08 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
     [ INFO ] Count:            9176 iterations
-    [ INFO ] Duration:         60047.45 ms
+    [ INFO ] Duration:         60033.51 ms
     [ INFO ] Latency:
     [ INFO ]    Median:        25.83 ms
-    [ INFO ]    Average:       25.91 ms
-    [ INFO ]    Min:           24.30 ms
-    [ INFO ]    Max:           37.67 ms
-    [ INFO ] Throughput:   152.81 FPS
+    [ INFO ]    Average:       25.92 ms
+    [ INFO ]    Min:           23.43 ms
+    [ INFO ]    Max:           42.58 ms
+    [ INFO ] Throughput:   152.85 FPS
 
 
 Benchmark quantized sparse inference performance
@@ -321,7 +321,7 @@ for which a layer will be enabled.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 71.97 ms
+    [ INFO ] Read model took 75.90 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [?,?]
@@ -332,7 +332,7 @@ for which a layer will be enabled.
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'input_ids': [1,64], 'attention_mask': [1,64], 'token_type_ids': [1,64]
-    [ INFO ] Reshape model took 28.33 ms
+    [ INFO ] Reshape model took 28.30 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [1,64]
@@ -341,7 +341,7 @@ for which a layer will be enabled.
     [ INFO ] Model outputs:
     [ INFO ]     logits (node: logits) : f32 / [...] / [1,2]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 1001.30 ms
+    [ INFO ] Compile model took 1011.04 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: torch_jit
@@ -373,17 +373,17 @@ for which a layer will be enabled.
     [ INFO ] Fill input 'token_type_ids' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 28.02 ms
+    [ INFO ] First inference took 27.34 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            9216 iterations
-    [ INFO ] Duration:         60030.33 ms
+    [ INFO ] Count:            9152 iterations
+    [ INFO ] Duration:         60027.24 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        25.92 ms
-    [ INFO ]    Average:       25.94 ms
-    [ INFO ]    Min:           23.04 ms
-    [ INFO ]    Max:           31.17 ms
-    [ INFO ] Throughput:   153.52 FPS
+    [ INFO ]    Median:        25.91 ms
+    [ INFO ]    Average:       25.97 ms
+    [ INFO ]    Min:           23.89 ms
+    [ INFO ]    Max:           41.37 ms
+    [ INFO ] Throughput:   152.46 FPS
 
 
 When this might be helpful
