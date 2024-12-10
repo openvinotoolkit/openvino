@@ -9,7 +9,7 @@ import numpy as np
 from functools import partial
 
 from openvino.runtime import Node, PartialShape, Type
-from openvino.runtime.op import Constant, Parameter, tensor_iterator
+from openvino.op import Constant, Parameter, tensor_iterator
 from openvino.runtime.opset_utils import _get_node_factory
 from openvino.runtime.utils.decorators import binary_op, nameable_op, unary_op
 from openvino.runtime.utils.input_validation import (
