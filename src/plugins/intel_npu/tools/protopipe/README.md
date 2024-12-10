@@ -564,13 +564,7 @@ Iteration <number>:
     cmake --build . --target protopipe --parallel --config Release
     ```
 ### Standalone build
-1. Build `yaml-cpp`
-   ```
-   mkdir "yaml-cpp_build" && cd "yaml-cpp_build"
-   cmake <OpenVINO-dir>/src/plugins/intel_npu/thirdparty/yaml-cpp -DCMAKE_INSTALL_PREFIX=install
-   cmake --build . --config Release --target install --parallel
-   ```
-2. Build `gflags`
+1. Build `gflags`
    ```
    git clone https://github.com/gflags/gflags
    cd gflags
@@ -578,7 +572,7 @@ Iteration <number>:
    cmake ../ -DCMAKE_INSTALL_PREFIX=install
    cmake --build . --config Release --target install --parallel
    ```
-3. Build `Protopipe`
+2. Build `Protopipe`
    ```
    mkdir -p "protopipe_build" && cd "protopipe_build"
    cmake <OpenVINO-dir>/src/plugins/intel_npu/tools/protopipe ^
