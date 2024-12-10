@@ -48,7 +48,7 @@ void CompareTypedBuffers(const memory::ptr& output, const memory::ptr& expectedO
     ASSERT_EQ(output->get_layout(), expectedOutput->get_layout());
     ASSERT_EQ(output_ptr.size(), wanted_output_ptr.size());
     for (size_t i = 0; i < output_ptr.size(); ++i)
-        ASSERT_TRUE(are_equal(wanted_output_ptr[i], output_ptr[i], EPS));
+        ASSERT_TRUE(are_equal(wanted_output_ptr[i], output_ptr[i], EPS)) << "at index " << i;
 }
 
 void CompareBuffers(const memory::ptr& output, const memory::ptr& expectedOutput, cldnn::stream& stream) {
