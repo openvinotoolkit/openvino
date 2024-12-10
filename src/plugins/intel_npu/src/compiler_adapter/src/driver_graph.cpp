@@ -90,10 +90,10 @@ void DriverGraph::custom_export(std::ostream& stream,
     manager.run_passes(initModel);
 
     xmlContent.seekg(0, std::ios::end);
-    uint32_t xmlSize = xmlContent.tellp();
+    uint32_t xmlSize = static_cast<uint32_t>(xmlContent.tellp());
     xmlContent.seekg(0, std::ios::beg);
     binContent.seekg(0, std::ios::end);
-    uint32_t binSize = binContent.tellp();
+    uint32_t binSize = static_cast<uint32_t>(binContent.tellp());
     binContent.seekg(0, std::ios::beg);
 
     stream << xmlSize;
@@ -102,10 +102,10 @@ void DriverGraph::custom_export(std::ostream& stream,
     stream << binSize;
     stream << binContent.rdbuf();
 
-    stream << mainBlobSize;
+    stream << static_cast<uint32_t>(mainBlobSize);
     stream.write(reinterpret_cast<const char*>(mainBlobPtr), mainBlobSize);
 
-    stream << initBlobSize;
+    stream << static_cast<uint32_t>(initBlobSize);
     stream.write(reinterpret_cast<const char*>(initBlobPtr), initBlobSize);
 
     if (!stream) {

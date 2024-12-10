@@ -43,10 +43,10 @@ void PluginGraph::custom_export(std::ostream& stream,
     manager.run_passes(initModel);
 
     xmlContent.seekg(0, std::ios::end);
-    uint32_t xmlSize = xmlContent.tellp();
+    uint32_t xmlSize = static_cast<uint32_t>(xmlContent.tellp());
     xmlContent.seekg(0, std::ios::beg);
     binContent.seekg(0, std::ios::end);
-    uint32_t binSize = binContent.tellp();
+    uint32_t binSize = static_cast<uint32_t>(binContent.tellp());
     binContent.seekg(0, std::ios::beg);
 
     stream << xmlSize;
@@ -55,12 +55,12 @@ void PluginGraph::custom_export(std::ostream& stream,
     stream << binSize;
     stream << binContent.rdbuf();
 
-    uint32_t mainBlobSize = _blob.size();
+    uint32_t mainBlobSize = static_cast<uint32_t>(_blob.size());
     stream << mainBlobSize;
     stream.write(reinterpret_cast<const char*>(_blob.data()), _blob.size());
 
     const auto& initBlob = initGraph->_blob;
-    uint32_t initBlobSize = initBlob.size();
+    uint32_t initBlobSize = static_cast<uint32_t>(initBlob.size());
     stream << initBlobSize;
     stream.write(reinterpret_cast<const char*>(initBlob.data()), initBlob.size());
 

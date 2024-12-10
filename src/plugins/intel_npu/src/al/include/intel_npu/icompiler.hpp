@@ -78,13 +78,14 @@ public:
      * Allocate W1 -> Init1
      *             Allocate W2 -> Init2
      *                          Allocate W3 -> Init2
-     * 
+     *
      * This is why there is an additional parameter callNumber:
      * Compiler should somehow understand wich Init(or Main) to return
      * Plugin does not know total numbers og Init schedules
      */
     virtual std::shared_ptr<NetworkDescription> compileWS_v3(const std::shared_ptr<ov::Model>& model,
-                                                             const Config& config, size_t callNumber) const = 0;
+                                                             const Config& config,
+                                                             size_t callNumber) const = 0;
 
     /**
      * @brief Returns information about supported layers of the network passed
