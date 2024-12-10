@@ -3066,8 +3066,9 @@ public:
             auto inst = network->get_primitive("fc_prim");
             auto impl = inst->get_impl();
             ASSERT_TRUE(impl != NULL);
-            auto kernel_num = (is_dynamic) ? 3 : 2;
-            kernel_num = (quantize_group_size < 32) ? ((quantize_group_size != -1) ? 2 : kernel_num) : kernel_num;
+            // For UINT8 weight, SLM kernel (no dyn-quan) would not be selected
+            auto kernel_num = (is_dynamic) ? 3 : 1;
+            kernel_num = (quantize_group_size < 32) ? ((quantize_group_size != -1) ? 1 : kernel_num) : kernel_num;
             ASSERT_EQ(impl->get_kernels().size(), size_t(kernel_num));
         }
 
