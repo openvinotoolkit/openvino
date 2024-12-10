@@ -22,7 +22,7 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
                                                          size_t key_group_size,
                                                          size_t value_group_size);
 
-}  // namespace XARCHl
+}  // namespace XARCH
 }  // namespace Cpu
 }  // namespace Extensions
 }  // namespace ov

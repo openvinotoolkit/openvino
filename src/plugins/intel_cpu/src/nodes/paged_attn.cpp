@@ -135,8 +135,7 @@ void PagedAttention::createPrimitive() {
         const auto cpuConfig = context->getConfig();
 
         size_t key_group_size = cpuConfig.keyCacheGroupSize;
-        size_t value_group_size = cpuConfig.valueCacheGroupSize; 
-        std::cout << "PagedAttn|Kcache|" << kCachePrecision << "|Vcache|" << vCachePrecision << "|key_group_size|" << key_group_size << "|value_group_size|" << value_group_size << std::endl;
+        size_t value_group_size = cpuConfig.valueCacheGroupSize;
         return make_pa_executor(rtPrecision, kCachePrecision, vCachePrecision, key_group_size, value_group_size);
 #else
         return nullptr;

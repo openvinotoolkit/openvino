@@ -82,7 +82,6 @@ void attn_dequant_u4_kernel(const uint8_t* src, TDST* dst, size_t n, float scale
         // (q - zp) * scale
         v_f32_low_half = _mm512_mul_ps(v_f32_low_half, v_scale);
         v_f32_high_half = _mm512_mul_ps(v_f32_high_half, v_scale);
-    
         __m512i idx1 = _mm512_set_epi32(23, 7, 22, 6, 21, 5, 20, 4, 19, 3, 18, 2, 17, 1, 16, 0);
         __m512i idx2 = _mm512_set_epi32(31, 15, 30, 14, 29, 13, 28, 12, 27, 11, 26, 10, 25, 9, 24, 8);
         __m512 first_half = _mm512_permutex2var_ps(v_f32_low_half, idx1, v_f32_high_half);
@@ -106,7 +105,7 @@ void attn_dequant_u4_kernel(const uint8_t* src, TDST* dst, size_t n, float scale
         // q - zp
         v_f32_low_half = _mm256_sub_ps(v_f32_low_half, v256_zp);
         v_f32_high_half = _mm256_sub_ps(v_f32_high_half, v256_zp);
-    
+
         v_f32_low_half = _mm256_mul_ps(v_f32_low_half, v256_scale);
         v_f32_high_half = _mm256_mul_ps(v_f32_high_half, v256_scale);
 
@@ -206,7 +205,7 @@ void attn_dequant_s4_kernel(const uint8_t* src, TDST* dst, size_t n, float scale
 #endif
     auto extract_half_byte = [&](uint8_t val, bool high_half) -> int8_t {
         uint8_t shift = high_half ? 0 : 4;
-        return float((val >> shift) & 0x000F);
+        return static_cast<float>((val >> shift) & 0x000F);
     };
     for (; i < n; ++i) {
         float tmp = extract_half_byte(src_nc[i / 2], (uint8_t)(i % 2));

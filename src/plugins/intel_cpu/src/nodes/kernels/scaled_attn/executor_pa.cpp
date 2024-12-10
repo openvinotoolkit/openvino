@@ -234,15 +234,23 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
             size_t i = 0;
             for (; i + vec_len_f32_avx512 <= _group_size; i += vec_len_f32_avx512) {
                 auto v_out = mm512_uni_loadu_ps(out + dst_offset + i);
-                auto v0 = _mm512_sub_ps(_mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(_mm_loadu_si128(reinterpret_cast<__m128i*>(v_data_ptr + i)))), zp0);
-                auto v1 = _mm512_sub_ps(_mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(_mm_loadu_si128(reinterpret_cast<__m128i*>(v_data_ptr + i + src_stride)))), zp1);
-                auto v2 = _mm512_sub_ps(_mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(_mm_loadu_si128(reinterpret_cast<__m128i*>(v_data_ptr + i + 2 * src_stride)))), zp2);
-                auto v3 = _mm512_sub_ps(_mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(_mm_loadu_si128(reinterpret_cast<__m128i*>(v_data_ptr + i + 3 * src_stride)))), zp3);
+                auto v0 = _mm512_sub_ps(_mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(
+                                            _mm_loadu_si128(reinterpret_cast<__m128i*>(v_data_ptr + i)))),
+                                        zp0);
+                auto v1 = _mm512_sub_ps(_mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(
+                                            _mm_loadu_si128(reinterpret_cast<__m128i*>(v_data_ptr + i + src_stride)))),
+                                        zp1);
+                auto v2 = _mm512_sub_ps(_mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(_mm_loadu_si128(
+                                            reinterpret_cast<__m128i*>(v_data_ptr + i + 2 * src_stride)))),
+                                        zp2);
+                auto v3 = _mm512_sub_ps(_mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(_mm_loadu_si128(
+                                            reinterpret_cast<__m128i*>(v_data_ptr + i + 3 * src_stride)))),
+                                        zp3);
                 v_out = _mm512_fmadd_ps(attn_w_vec0, v0, v_out);
                 v_out = _mm512_fmadd_ps(attn_w_vec1, v1, v_out);
                 v_out = _mm512_fmadd_ps(attn_w_vec2, v2, v_out);
                 v_out = _mm512_fmadd_ps(attn_w_vec3, v3, v_out);
-                _mm512_storeu_ps(out + dst_offset + i, v_out); 
+                _mm512_storeu_ps(out + dst_offset + i, v_out);
             }
             for (; i < _group_size; i++) {
                 out[i] += weight[0] * (v_data_ptr[i] - v_f0[1]) * v_f0[0];
@@ -275,7 +283,7 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
             }
             for (; i < _group_size; i++) {
                 out[dst_offset + i] += weight[0] * (v_data_ptr[i] - v_f0[1]) * v_f0[0];
-            }   
+            }
             dst_offset += _group_size;
             src_offset += _group_size + params_offset;
         }
@@ -305,7 +313,7 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
             }
             for (; i < _group_size; i++) {
                 out[dst_offset + i] += weight[0] * (v_data_ptr[i] - v_f0[1]) * v_f0[0];
-            }   
+            }
             dst_offset += _group_size;
             src_offset += _group_size + params_offset;
         }
@@ -411,8 +419,8 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
 #endif
             for (; i < _group_size; i += 2) {
                 uint8_t data = v[i/2 + src_offset + params_offset];
-                float tmp0 = extract_half_byte(data, (bool)(i % 2));
-                float tmp1 = extract_half_byte(data, (bool)((i + 1) % 2));
+                float tmp0 = extract_half_byte(data, static_cast<bool>(i % 2));
+                float tmp1 = extract_half_byte(data, static_cast<bool>((i + 1) % 2));
                 out[dst_offset + i] += weight[j] * (tmp0 - v0[1]) * v0[0];
                 out[dst_offset + i + 1] += weight[j] * (tmp1 - v0[1]) * v0[0];
             }
@@ -495,9 +503,9 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
 #endif
             for (; i < _group_size; i += 2) {
                 uint8_t data = v[i/2 + src_offset + params_offset];
-                float tmp0 = extract_half_byte(data, (bool)(i % 2));
+                float tmp0 = extract_half_byte(data, static_cast<bool>(i % 2));
                 tmp0 = tmp0 > 8 ? (tmp0 - 16) : tmp0;
-                float tmp1 = extract_half_byte(data, (bool)((i + 1) % 2));
+                float tmp1 = extract_half_byte(data, static_cast<bool>((i + 1) % 2));
                 tmp1 = tmp1 > 8 ? (tmp1 - 16) : tmp1;
                 out[dst_offset + i] += weight[j] * (tmp0) * v0[0];
                 out[dst_offset + i + 1] += weight[j] * (tmp1) * v0[0];
@@ -640,7 +648,7 @@ static void dot_product_block(TA* a, uint8_t* b, float* c, size_t n, size_t bloc
         float sum1 = 0.0f;
         float sum2 = 0.0f;
         float sum3 = 0.0f;
-        while (dst_offset < n) {    
+        while (dst_offset < n) {
             auto vsum0 = _mm512_setzero_ps();
             auto vsum1 = _mm512_setzero_ps();
             auto vsum2 = _mm512_setzero_ps();
@@ -657,10 +665,18 @@ static void dot_product_block(TA* a, uint8_t* b, float* c, size_t n, size_t bloc
             uint8_t* b_data_ptr = b + src_offset + params_offset;
             for (; i + vec_len_f32_avx512 <= _group_size; i += vec_len_f32_avx512) {
                 auto va = mm512_uni_loadu_ps(a + dst_offset + i);
-                auto vb0 = _mm512_sub_ps(_mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(_mm_loadu_si128(reinterpret_cast<__m128i*>(b_data_ptr + i)))), v_zp0);
-                auto vb1 = _mm512_sub_ps(_mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(_mm_loadu_si128(reinterpret_cast<__m128i*>(b_data_ptr + i + src_stride)))), v_zp1);
-                auto vb2 = _mm512_sub_ps(_mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(_mm_loadu_si128(reinterpret_cast<__m128i*>(b_data_ptr + i + 2 * src_stride)))), v_zp2);
-                auto vb3 = _mm512_sub_ps(_mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(_mm_loadu_si128(reinterpret_cast<__m128i*>(b_data_ptr + i + 3 * src_stride)))), v_zp3);
+                auto vb0 = _mm512_sub_ps(_mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(
+                                             _mm_loadu_si128(reinterpret_cast<__m128i*>(b_data_ptr + i)))),
+                                         v_zp0);
+                auto vb1 = _mm512_sub_ps(_mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(
+                                             _mm_loadu_si128(reinterpret_cast<__m128i*>(b_data_ptr + i + src_stride)))),
+                                         v_zp1);
+                auto vb2 = _mm512_sub_ps(_mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(_mm_loadu_si128(
+                                             reinterpret_cast<__m128i*>(b_data_ptr + i + 2 * src_stride)))),
+                                         v_zp2);
+                auto vb3 = _mm512_sub_ps(_mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(_mm_loadu_si128(
+                                             reinterpret_cast<__m128i*>(b_data_ptr + i + 3 * src_stride)))),
+                                         v_zp3);
 
                 vsum0 = _mm512_fmadd_ps(va, vb0, vsum0);
                 vsum1 = _mm512_fmadd_ps(va, vb1, vsum1);
@@ -744,10 +760,18 @@ static void dot_product_block(TA* a, uint8_t* b, float* c, size_t n, size_t bloc
             uint8_t* b_data_ptr = b + src_offset + params_offset;
             for (; i + vec_len_f32_avx2 <= _group_size; i += vec_len_f32_avx2) {
                 auto va = mm256_uni_loadu_ps(a + dst_offset + i);
-                auto vb0 = _mm256_sub_ps(_mm256_cvtepi32_ps(_mm256_cvtepu8_epi32(_mm_loadl_epi64(reinterpret_cast<__m128i*>(b_data_ptr + i)))), v_zp0);
-                auto vb1 = _mm256_sub_ps(_mm256_cvtepi32_ps(_mm256_cvtepu8_epi32(_mm_loadl_epi64(reinterpret_cast<__m128i*>(b_data_ptr + i + src_stride)))), v_zp1);
-                auto vb2 = _mm256_sub_ps(_mm256_cvtepi32_ps(_mm256_cvtepu8_epi32(_mm_loadl_epi64(reinterpret_cast<__m128i*>(b_data_ptr + i + 2 * src_stride)))), v_zp2);
-                auto vb3 = _mm256_sub_ps(_mm256_cvtepi32_ps(_mm256_cvtepu8_epi32(_mm_loadl_epi64(reinterpret_cast<__m128i*>(b_data_ptr + i + 3 * src_stride)))), v_zp3);
+                auto vb0 = _mm256_sub_ps(_mm256_cvtepi32_ps(_mm256_cvtepu8_epi32(
+                                             _mm_loadl_epi64(reinterpret_cast<__m128i*>(b_data_ptr + i)))),
+                                         v_zp0);
+                auto vb1 = _mm256_sub_ps(_mm256_cvtepi32_ps(_mm256_cvtepu8_epi32(
+                                             _mm_loadl_epi64(reinterpret_cast<__m128i*>(b_data_ptr + i + src_stride)))),
+                                         v_zp1);
+                auto vb2 = _mm256_sub_ps(_mm256_cvtepi32_ps(_mm256_cvtepu8_epi32(_mm_loadl_epi64(
+                                             reinterpret_cast<__m128i*>(b_data_ptr + i + 2 * src_stride)))),
+                                         v_zp2);
+                auto vb3 = _mm256_sub_ps(_mm256_cvtepi32_ps(_mm256_cvtepu8_epi32(_mm_loadl_epi64(
+                                             reinterpret_cast<__m128i*>(b_data_ptr + i + 3 * src_stride)))),
+                                         v_zp3);
 
                 vsum0 = _mm256_fmadd_ps(va, vb0, vsum0);
                 vsum1 = _mm256_fmadd_ps(va, vb1, vsum1);
@@ -775,7 +799,6 @@ static void dot_product_block(TA* a, uint8_t* b, float* c, size_t n, size_t bloc
             dst_offset += _group_size;
             src_offset += _group_size + params_offset;
         }
-        
         c[0] = sum0;
         c[1] = sum1;
         c[2] = sum2;
@@ -890,14 +913,31 @@ void transpose_16NxK(TDST* dst, void* src, TDST* tmp, size_t N, size_t K, size_t
     }
 }
 #if defined(HAVE_AVX512F)
-template<typename T, ov::element::Type_t SRC_PREC, typename std::enable_if<(SRC_PREC == ov::element::bf16 || SRC_PREC == ov::element::f16) && (SRC_PREC == precision_of<T>::value), bool>::type = true>
-static void transpose_16NxK(T* dst, T* src, T* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride, size_t group_size = 0) {
+template <typename T,
+          ov::element::Type_t SRC_PREC,
+          typename std::enable_if<(SRC_PREC == ov::element::bf16 || SRC_PREC == ov::element::f16) &&
+                                      (SRC_PREC == precision_of<T>::value),
+                                  bool>::type = true>
+static void transpose_16NxK(T* dst,
+                            T* src,
+                            T* tmp,
+                            size_t N,
+                            size_t K,
+                            size_t dst_stride,
+                            size_t src_stride,
+                            size_t group_size = 0) {
     // will treat as uint32_t transpose
     auto s = reinterpret_cast<uint32_t*>(src);
     auto d = reinterpret_cast<uint32_t*>(dst);
-    transpose_16NxK<uint32_t, ov::element::u32>(d, s, reinterpret_cast<uint32_t*>(0), N, K >> 1, dst_stride, src_stride >> 1);
+    transpose_16NxK<uint32_t, ov::element::u32>(d,
+                                                s,
+                                                reinterpret_cast<uint32_t*>(0),
+                                                N,
+                                                K >> 1,
+                                                dst_stride,
+                                                src_stride >> 1);
 }
-#endif
+#    endif
 
 template<typename TDST, ov::element::Type_t SRC_PREC, typename std::enable_if<SRC_PREC == ov::element::u8, bool>::type = true>
 void transpose_16NxK(TDST* dst, void* src, TDST* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride, size_t group_size = 0) {
@@ -1062,8 +1102,19 @@ static void pack_32xK_kernel(T* dst, T* src, size_t dst_stride, size_t src_strid
     }
 }
 
-template<typename TDST, ov::element::Type_t SRC_PREC, typename std::enable_if<precision_of<TDST>::value != ov::element::f32 && (SRC_PREC == ov::element::bf16 || SRC_PREC == ov::element::f16), bool>::type = true>
-static void pack_32NxK(TDST* dst, void* src, TDST* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride, size_t group_size = 0) {
+template <typename TDST,
+          ov::element::Type_t SRC_PREC,
+          typename std::enable_if<precision_of<TDST>::value != ov::element::f32 &&
+                                      (SRC_PREC == ov::element::bf16 || SRC_PREC == ov::element::f16),
+                                  bool>::type = true>
+static void pack_32NxK(TDST* dst,
+                       void* src,
+                       TDST* tmp,
+                       size_t N,
+                       size_t K,
+                       size_t dst_stride,
+                       size_t src_stride,
+                       size_t group_size = 0) {
     auto src_ptr = reinterpret_cast<typename ov::element_type_traits<SRC_PREC>::value_type*>(src);
     for (size_t n = 0; n < N; n += 32) {
         size_t k = 0;
@@ -1083,16 +1134,26 @@ static void pack_32NxK(TDST* dst, void* src, TDST* tmp, size_t N, size_t K, size
     }
 }
 
-template<typename TDST, ov::element::Type_t SRC_PREC, typename std::enable_if<precision_of<TDST>::value != ov::element::f32 && SRC_PREC == ov::element::u8, bool>::type = true>
-static void pack_32NxK(TDST* dst, void* src, TDST* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride, size_t group_size = 0) {
+template <typename TDST,
+          ov::element::Type_t SRC_PREC,
+          typename std::enable_if<precision_of<TDST>::value != ov::element::f32 && SRC_PREC == ov::element::u8,
+                                  bool>::type = true>
+static void pack_32NxK(TDST* dst,
+                       void* src,
+                       TDST* tmp,
+                       size_t N,
+                       size_t K,
+                       size_t dst_stride,
+                       size_t src_stride,
+                       size_t group_size = 0) {
     // The layout for per token per head:
-    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
-    // The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
+    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
+    // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
     auto s = reinterpret_cast<typename ov::element_type_traits<SRC_PREC>::value_type*>(src);
     auto t = tmp;
     // if group_size not set, the whole row is used as a group
     size_t _group_size = group_size ? group_size : K;
-    for (size_t n = 0; n < N; n ++) {
+    for (size_t n = 0; n < N; n++) {
         size_t src_offset = 0;
         size_t dst_offset = 0;
         while (dst_offset < K) {
@@ -1107,17 +1168,27 @@ static void pack_32NxK(TDST* dst, void* src, TDST* tmp, size_t N, size_t K, size
     pack_32NxK<TDST, precision_of<TDST>::value>(dst, tmp, reinterpret_cast<TDST*>(0), N, K, dst_stride, src_stride);
 }
 
-template<typename TDST, ov::element::Type_t SRC_PREC, typename std::enable_if<precision_of<TDST>::value != ov::element::f32 && (SRC_PREC == ov::element::u4), bool>::type = true>
-static void pack_32NxK(TDST* dst, void* src, TDST* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride, size_t group_size = 0) {
+template <typename TDST,
+          ov::element::Type_t SRC_PREC,
+          typename std::enable_if<precision_of<TDST>::value != ov::element::f32 && (SRC_PREC == ov::element::u4),
+                                  bool>::type = true>
+static void pack_32NxK(TDST* dst,
+                       void* src,
+                       TDST* tmp,
+                       size_t N,
+                       size_t K,
+                       size_t dst_stride,
+                       size_t src_stride,
+                       size_t group_size = 0) {
     // The layout for per token per head:
-    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
-    // The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
+    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
+    // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
     auto s = reinterpret_cast<uint8_t*>(src);
     auto t = tmp;
     // if group_size not set, the whole row is used as a group
     const size_t sub_byte_mulitplier = 2;
     size_t _group_size = group_size ? group_size : K;
-    for (size_t n = 0; n < N; n ++) {
+    for (size_t n = 0; n < N; n++) {
         size_t src_offset = 0;
         size_t dst_offset = 0;
         while (dst_offset < K) {
@@ -1132,17 +1203,27 @@ static void pack_32NxK(TDST* dst, void* src, TDST* tmp, size_t N, size_t K, size
     pack_32NxK<TDST, precision_of<TDST>::value>(dst, tmp, reinterpret_cast<TDST*>(0), N, K, dst_stride, src_stride);
 }
 
-template<typename TDST, ov::element::Type_t SRC_PREC, typename std::enable_if<precision_of<TDST>::value != ov::element::f32 && (SRC_PREC == ov::element::i4), bool>::type = true>
-static void pack_32NxK(TDST* dst, void* src, TDST* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride, size_t group_size = 0) {
+template <typename TDST,
+          ov::element::Type_t SRC_PREC,
+          typename std::enable_if<precision_of<TDST>::value != ov::element::f32 && (SRC_PREC == ov::element::i4),
+                                  bool>::type = true>
+static void pack_32NxK(TDST* dst,
+                       void* src,
+                       TDST* tmp,
+                       size_t N,
+                       size_t K,
+                       size_t dst_stride,
+                       size_t src_stride,
+                       size_t group_size = 0) {
     // The layout for per token per head:
-    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
-    // The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
+    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
+    // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
     auto s = reinterpret_cast<uint8_t*>(src);
     auto t = tmp;
     // if group_size not set, the whole row is used as a group
     const size_t sub_byte_mulitplier = 2;
     size_t _group_size = group_size ? group_size : K;
-    for (size_t n = 0; n < N; n ++) {
+    for (size_t n = 0; n < N; n++) {
         size_t src_offset = 0;
         size_t dst_offset = 0;
         while (dst_offset < K) {
@@ -1156,7 +1237,7 @@ static void pack_32NxK(TDST* dst, void* src, TDST* tmp, size_t N, size_t K, size
     }
     pack_32NxK<TDST, precision_of<TDST>::value>(dst, tmp, reinterpret_cast<TDST*>(0), N, K, dst_stride, src_stride);
 }
-#endif
+#    endif
 
 template<typename TDST, ov::element::Type_t SRC_PREC, typename std::enable_if<precision_of<TDST>::value == ov::element::f32, bool>::type = true>
 static void pack_32NxK(TDST* dst, void* src, TDST* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride, size_t group_size = 0) {
@@ -1558,7 +1639,6 @@ struct MHAHelper {
                             std::min(_block_size, cur_kv_len - pv),
                             _value_group_size);
                     }
-
                 }
             }
         }
@@ -2155,8 +2235,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         q = q.reshape({B_token, H, 1, S});
         k = k.reshape({B_token, Hk, 1, S});
         v = v.reshape({B_token, Hk, 1, SV});
-        printf("k_cache prec %s shape [%ld %ld %ld %ld]\n", k_cache.get_precision().to_string().c_str(), k_cache.size(0), k_cache.size(1), k_cache.size(2), k_cache.size(3));
-        printf("v_cache prec %s shape [%ld %ld %ld %ld]\n", v_cache.get_precision().to_string().c_str(), v_cache.size(0), v_cache.size(1), v_cache.size(2), v_cache.size(3));
 
         if (k_cache.m_dt == ov::element::Type_t::u8) {
             k_cache.assert_dims({0, Hk, block_size, S + key_params_size * key_group_num}, true);
@@ -2237,27 +2315,27 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
 
 #ifdef OPENVINO_ARCH_X86_64
     if (data_type == ov::element::bf16) {
-#    if defined(HAVE_AVX512F)
+#if defined(HAVE_AVX512F)
         if (key_cache_type == ov::element::u8) {
             executor = std::make_shared<AttentionExecutor<ov::bfloat16, uint8_t, uint8_t>>(key_group_size, value_group_size);
         } else {
             OPENVINO_ASSERT(key_cache_type == ov::element::bf16, "expect kvcache type bf16, current: ", key_cache_type);
             executor = std::make_shared<AttentionExecutor<ov::bfloat16, ov::bfloat16, ov::bfloat16>>();
         }
-#    else
+#else
         OPENVINO_THROW("make_pa_executor: bf16 needs avx512+ hardware.");
-#    endif
+#endif
     } else if (data_type == ov::element::f16) {
-#    if defined(HAVE_AVX512F)
+#if defined(HAVE_AVX512F)
         if (key_cache_type == ov::element::u8) {
             executor = std::make_shared<AttentionExecutor<ov::float16, uint8_t, uint8_t>>(key_group_size, value_group_size);
         } else {
             OPENVINO_ASSERT(key_cache_type == ov::element::f16, "expect kvcache type f16, current: ", key_cache_type);
             executor = std::make_shared<AttentionExecutor<ov::float16, ov::float16, ov::float16>>();
         }
-#    else
+#else
         OPENVINO_THROW("make_pa_executor: f16 needs avx512+ hardware.");
-#    endif
+#endif
     } else if (data_type == ov::element::f32) {
         if (key_cache_type == ov::element::u8) {
             executor = std::make_shared<AttentionExecutor<float, uint8_t, uint8_t>>(key_group_size, value_group_size);

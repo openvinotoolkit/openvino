@@ -389,7 +389,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                " for property key ",
                                key,
                                ". Expected only unsinged integer numbers");
-            } 
+            }
         } else if (key == ov::cache_encryption_callbacks.name()) {
             try {
                 auto encryption_callbacks = val.as<EncryptionCallbacks>();

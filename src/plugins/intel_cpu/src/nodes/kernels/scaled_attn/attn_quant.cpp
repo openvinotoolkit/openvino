@@ -131,7 +131,6 @@ static void find_minmax(const T* src, size_t n, float& min, float& max) {
         max = std::max(max, tmp);
         min = std::min(min, tmp);
     }
-
 }
 
 template<typename T>
@@ -398,7 +397,10 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
     });
 }
 
-template <typename T, ov::element::Type_t KEY_DST_PREC, ov::element::Type_t VALUE_DST_PREC, typename std::enable_if<VALUE_DST_PREC == ov::element::u8, bool>::type = true>
+template <typename T,
+          ov::element::Type_t KEY_DST_PREC,
+          ov::element::Type_t VALUE_DST_PREC,
+          typename std::enable_if<VALUE_DST_PREC == ov::element::u8, bool>::type = true>
 static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                                 const ov::intel_cpu::PlainTensor& v_src,
                                 const ov::intel_cpu::PlainTensor& k_dst,
@@ -417,27 +419,48 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
         auto block_offset = slot % block_size;
         // The layout for per token per head:
         // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
-        for (size_t src_offset = 0, dst_offset = 0; src_offset < S; src_offset += _key_group_size, dst_offset += _key_group_size + sizeof(float) + sizeof(float)) {
-            auto p_k = reinterpret_cast<float*>(k_dst.ptr<typename ov::element_type_traits<KEY_DST_PREC>::value_type>(block_number, h, block_offset, dst_offset));
+        for (size_t src_offset = 0, dst_offset = 0; src_offset < S;
+             src_offset += _key_group_size, dst_offset += _key_group_size + sizeof(float) + sizeof(float)) {
+            auto p_k = reinterpret_cast<float*>(
+                k_dst.ptr<typename ov::element_type_traits<KEY_DST_PREC>::value_type>(block_number,
+                                                                                      h,
+                                                                                      block_offset,
+                                                                                      dst_offset));
             quant_u8(k_src.ptr<T>(b, h, m, src_offset),
-                    k_dst.ptr<typename ov::element_type_traits<KEY_DST_PREC>::value_type>(block_number, h, block_offset, dst_offset) + sizeof(float) + sizeof(float),
-                    _key_group_size,
-                    p_k[0],
-                    p_k[1]);
+                     k_dst.ptr<typename ov::element_type_traits<KEY_DST_PREC>::value_type>(block_number,
+                                                                                           h,
+                                                                                           block_offset,
+                                                                                           dst_offset) +
+                         sizeof(float) + sizeof(float),
+                     _key_group_size,
+                     p_k[0],
+                     p_k[1]);
         }
-        
-        for (size_t src_offset = 0, dst_offset = 0; src_offset < SV; src_offset += _value_group_size, dst_offset += _value_group_size + sizeof(float) + sizeof(float)) {
-            auto p_v = reinterpret_cast<float*>(v_dst.ptr<typename ov::element_type_traits<VALUE_DST_PREC>::value_type>(block_number, h, block_offset, dst_offset));
+
+        for (size_t src_offset = 0, dst_offset = 0; src_offset < SV;
+             src_offset += _value_group_size, dst_offset += _value_group_size + sizeof(float) + sizeof(float)) {
+            auto p_v = reinterpret_cast<float*>(
+                v_dst.ptr<typename ov::element_type_traits<VALUE_DST_PREC>::value_type>(block_number,
+                                                                                        h,
+                                                                                        block_offset,
+                                                                                        dst_offset));
             quant_u8(v_src.ptr<T>(b, h, m, src_offset),
-                    v_dst.ptr<typename ov::element_type_traits<VALUE_DST_PREC>::value_type>(block_number, h, block_offset, dst_offset) + sizeof(float) + sizeof(float),
-                    _value_group_size,
-                    p_v[0],
-                    p_v[1]);
+                     v_dst.ptr<typename ov::element_type_traits<VALUE_DST_PREC>::value_type>(block_number,
+                                                                                             h,
+                                                                                             block_offset,
+                                                                                             dst_offset) +
+                         sizeof(float) + sizeof(float),
+                     _value_group_size,
+                     p_v[0],
+                     p_v[1]);
         }
     });
 }
 
-template <typename T, ov::element::Type_t KEY_DST_PREC, ov::element::Type_t VALUE_DST_PREC, typename std::enable_if<VALUE_DST_PREC == ov::element::u4, bool>::type = true>
+template <typename T,
+          ov::element::Type_t KEY_DST_PREC,
+          ov::element::Type_t VALUE_DST_PREC,
+          typename std::enable_if<VALUE_DST_PREC == ov::element::u4, bool>::type = true>
 static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                                 const ov::intel_cpu::PlainTensor& v_src,
                                 const ov::intel_cpu::PlainTensor& k_dst,
@@ -457,13 +480,22 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
         auto block_offset = slot % block_size;
         // The layout for per token per head:
         // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
-        for (size_t src_offset = 0, dst_offset = 0; src_offset < S; src_offset += _key_group_size, dst_offset += _key_group_size + sizeof(float) + sizeof(float)) {
-            auto p_k = reinterpret_cast<float*>(k_dst.ptr<typename ov::element_type_traits<KEY_DST_PREC>::value_type>(block_number, h, block_offset, dst_offset));
+        for (size_t src_offset = 0, dst_offset = 0; src_offset < S;
+             src_offset += _key_group_size, dst_offset += _key_group_size + sizeof(float) + sizeof(float)) {
+            auto p_k = reinterpret_cast<float*>(
+                k_dst.ptr<typename ov::element_type_traits<KEY_DST_PREC>::value_type>(block_number,
+                                                                                      h,
+                                                                                      block_offset,
+                                                                                      dst_offset));
             quant_u8(k_src.ptr<T>(b, h, m, src_offset),
-                    k_dst.ptr<typename ov::element_type_traits<KEY_DST_PREC>::value_type>(block_number, h, block_offset, dst_offset) + sizeof(float) + sizeof(float),
-                    _key_group_size,
-                    p_k[0],
-                    p_k[1]);
+                     k_dst.ptr<typename ov::element_type_traits<KEY_DST_PREC>::value_type>(block_number,
+                                                                                           h,
+                                                                                           block_offset,
+                                                                                           dst_offset) +
+                         sizeof(float) + sizeof(float),
+                     _key_group_size,
+                     p_k[0],
+                     p_k[1]);
         }
 
         for (size_t src_offset = 0, dst_offset = 0; src_offset < SV; src_offset += _value_group_size,
@@ -480,7 +512,10 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
     });
 }
 
-template <typename T, ov::element::Type_t KEY_DST_PREC, ov::element::Type_t VALUE_DST_PREC, typename std::enable_if<VALUE_DST_PREC == ov::element::i4, bool>::type = true>
+template <typename T,
+          ov::element::Type_t KEY_DST_PREC,
+          ov::element::Type_t VALUE_DST_PREC,
+          typename std::enable_if<VALUE_DST_PREC == ov::element::i4, bool>::type = true>
 static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                                 const ov::intel_cpu::PlainTensor& v_src,
                                 const ov::intel_cpu::PlainTensor& k_dst,
@@ -500,13 +535,22 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
         auto block_offset = slot % block_size;
         // The layout for per token per head:
         // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
-        for (size_t src_offset = 0, dst_offset = 0; src_offset < S; src_offset += _key_group_size, dst_offset += _key_group_size + sizeof(float) + sizeof(float)) {
-            auto p_k = reinterpret_cast<float*>(k_dst.ptr<typename ov::element_type_traits<KEY_DST_PREC>::value_type>(block_number, h, block_offset, dst_offset));
+        for (size_t src_offset = 0, dst_offset = 0; src_offset < S;
+             src_offset += _key_group_size, dst_offset += _key_group_size + sizeof(float) + sizeof(float)) {
+            auto p_k = reinterpret_cast<float*>(
+                k_dst.ptr<typename ov::element_type_traits<KEY_DST_PREC>::value_type>(block_number,
+                                                                                      h,
+                                                                                      block_offset,
+                                                                                      dst_offset));
             quant_u8(k_src.ptr<T>(b, h, m, src_offset),
-                    k_dst.ptr<typename ov::element_type_traits<KEY_DST_PREC>::value_type>(block_number, h, block_offset, dst_offset) + sizeof(float) + sizeof(float),
-                    _key_group_size,
-                    p_k[0],
-                    p_k[1]);
+                     k_dst.ptr<typename ov::element_type_traits<KEY_DST_PREC>::value_type>(block_number,
+                                                                                           h,
+                                                                                           block_offset,
+                                                                                           dst_offset) +
+                         sizeof(float) + sizeof(float),
+                     _key_group_size,
+                     p_k[0],
+                     p_k[1]);
         }
 
         for (size_t src_offset = 0, dst_offset = 0; src_offset < SV; src_offset += _value_group_size,
