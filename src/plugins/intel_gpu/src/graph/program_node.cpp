@@ -10,6 +10,7 @@
 #include "activation_inst.h"
 #include "reorder_inst.h"
 #include "quantize_inst.h"
+#include "swiglu_inst.h"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "convolution_inst.h"
@@ -770,6 +771,15 @@ void program_node::save(cldnn::BinaryOutputBuffer& ob) const {
                 ob << casted->_out_hi;
                 ob << casted->_out_scale;
                 ob << casted->_out_shift;
+            } else if (f_desc.f_param->type() == swiglu::type_id()) {
+                auto casted = std::dynamic_pointer_cast<SwigluFuseParams>(f_desc.f_param);
+                if (get_program().has_node(casted->_desc->id)) {
+                    ob << true;
+                    ob << casted->_desc->id;
+                } else {
+                    ob << false;
+                    ob << casted->_desc;
+                }
             }
 
             ob << f_desc.deps.size();
@@ -975,6 +985,18 @@ void program_node::load(cldnn::BinaryInputBuffer& ib) {
                                     need_pre_shift, need_clamp, need_min_clamp, need_max_clamp, per_tensor_input_range,
                                     per_tensor_input_scale, per_tensor_input_shift, per_tensor_output_range, per_tensor_output_scale,
                                     per_tensor_output_shift, in_lo, in_hi, in_scale, in_shift, out_lo, out_hi, out_scale, out_shift);
+            } else if (f_param_type == swiglu::type_id()) {
+                ib >> exist_prim;
+                std::shared_ptr<swiglu> param_desc;
+                if (exist_prim) {
+                    primitive_id desc_id;
+                    ib >> desc_id;
+                    param_desc = std::dynamic_pointer_cast<swiglu>(get_program().get_node_ptr(desc_id)->desc);
+                } else {
+                    ib >> param_desc;
+                }
+                f_desc.f_param = std::make_shared<SwigluFuseParams>(param_desc);
+
             } else {
                 f_desc.f_param = std::make_shared<NodeFuseParams>(f_param_type);
             }
