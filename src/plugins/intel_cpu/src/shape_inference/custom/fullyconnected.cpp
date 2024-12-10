@@ -15,7 +15,7 @@ Result FCShapeInfer::infer(
     const VectorDims& activationShape = input_shapes[0].get();
     const VectorDims& weightShape = input_shapes[1].get();
     size_t activationRank = activationShape.size();
-    size_t channelRank = weightShape.size() - 1;
+    size_t channelRank = 1;
 
     // activation   weight    output_shape
     // NCHW         CoCHW     NCo
@@ -23,7 +23,7 @@ Result FCShapeInfer::infer(
     // NC           CoC       NCo
     VectorDims outputShape(out_rank, 1);
     // set Co
-    outputShape.back() = weightShape[0];
+    outputShape.back() = std::accumulate(weightShape.begin(), weightShape.end() - 1, 1, std::multiplies<Dim>());
     // set batch dims
     size_t batchRank = activationRank - channelRank;
     size_t startIdx = out_rank - batchRank - 1;
