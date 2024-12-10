@@ -276,7 +276,7 @@ def test_fail_create_op_ext():
     core = Core()
     with pytest.raises(RuntimeError) as e:
         core.add_extension(CustomOp)
-    assert "CustomOp.__init__() missing 1 required positional argument: 'inputs'" in str(e.value)
+    assert "__init__() missing 1 required positional argument: 'inputs'" in str(e.value)
 
     with pytest.raises(RuntimeError) as e:
         core.add_extension(OpExtension(bool))
