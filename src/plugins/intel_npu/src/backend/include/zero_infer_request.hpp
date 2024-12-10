@@ -75,6 +75,9 @@ private:
     mutable std::vector<std::optional<bool>> _inputLevelZeroTensorCreatedLocally;
     mutable std::vector<std::optional<bool>> _outputLevelZeroTensorCreatedLocally;
 
+    mutable std::vector<uint64_t> _originalMemoryIdInputLevelZeroTensor;
+    mutable std::vector<uint64_t> _originalMemoryIdOutputLevelZeroTensor;
+
     ze_device_properties_t _properties = {};
     std::shared_ptr<const zeroMemory::HostMemAllocator> _inputAllocator;
     std::shared_ptr<const zeroMemory::HostMemAllocator> _outputAllocator;

@@ -13,6 +13,22 @@
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
+#include "zero_remote_tensor.hpp"
+
+namespace {
+
+template <typename Type>
+Type extract_object(const ov::AnyMap& params, const ov::Property<Type>& p) {
+    auto itrHandle = params.find(p.name());
+    ov::Any res = nullptr;
+    if (itrHandle == params.end()) {
+        OPENVINO_THROW("No parameter ", p.name(), " found in parameters map");
+    }
+    res = itrHandle->second;
+    return res.as<Type>();
+}
+
+}  // namespace
 
 namespace intel_npu {
 
@@ -59,15 +75,33 @@ Pipeline::Pipeline(const Config& config,
         size_t ioIndex = 0;
         for (const auto& desc : graph->get_input_descriptors()) {
             if (inputTensorsData.at(ioIndex).size() > 1) {
-                graph->set_argument_value(desc.idx, inputTensorsData.at(ioIndex).at(i)->data());
+                void* data = nullptr;
+                auto remoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(inputTensorsData.at(ioIndex).at(i));
+                if (remoteTensor == nullptr) {
+                    data = inputTensorsData.at(ioIndex).at(i)->data();
+
+                } else {
+                    data = extract_object(remoteTensor->get_properties(), ov::intel_npu::mem_handle);
+                }
+
+                graph->set_argument_value(desc.idx, data);
 
                 ++ioIndex;
                 continue;
             }
 
+            void* data = nullptr;
+            auto remoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(inputTensorsData.at(ioIndex).at(0));
+            if (remoteTensor == nullptr) {
+                data = inputTensorsData.at(ioIndex).at(0)->data();
+
+            } else {
+                data = extract_object(remoteTensor->get_properties(), ov::intel_npu::mem_handle);
+            }
+
             graph->set_argument_value(
                 desc.idx,
-                static_cast<unsigned char*>(inputTensorsData.at(ioIndex).at(0)->data()) +
+                static_cast<unsigned char*>(data) +
                     (i * inputTensorsData.at(ioIndex).at(0)->get_byte_size()) / _number_of_command_lists);
 
             ++ioIndex;
@@ -75,9 +109,18 @@ Pipeline::Pipeline(const Config& config,
 
         ioIndex = 0;
         for (const auto& desc : graph->get_output_descriptors()) {
+            void* data = nullptr;
+            auto remoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(outputTensorsData.at(ioIndex));
+            if (remoteTensor == nullptr) {
+                data = outputTensorsData.at(ioIndex)->data();
+
+            } else {
+                data = extract_object(remoteTensor->get_properties(), ov::intel_npu::mem_handle);
+            }
+
             graph->set_argument_value(
                 desc.idx,
-                static_cast<unsigned char*>(outputTensorsData.at(ioIndex)->data()) +
+                static_cast<unsigned char*>(data) +
                     (i * outputTensorsData.at(ioIndex)->get_byte_size()) / _number_of_command_lists);
             ++ioIndex;
         }

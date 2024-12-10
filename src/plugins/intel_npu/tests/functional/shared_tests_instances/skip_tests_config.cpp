@@ -295,6 +295,15 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*CompilationForSpecificPlatform.*(3800|3900).*",
         });
 
+#ifdef __linux__
+        // [Track number: E#67741]
+        _skipRegistry.addPatterns(
+                "Cannot call setShape for Linux driver", {
+                R"(.*(smoke_Behavior|smoke_Auto_Behavior|smoke_Multi_Behavior).*OVInferRequestIOTensorTest.*canInferAfterIOBlobReallocation.*)",
+                ".*SetShapeInferRunTests.*"
+        });
+#endif
+
         // [Track number: E#67749]
         _skipRegistry.addPatterns(
                 "Can't loadNetwork without cache for ReadConcatSplitAssign with precision f32", {

@@ -40,12 +40,17 @@ const ov::AnyMap& RemoteTensor::get_properties() const {
 }
 
 void RemoteTensor::set_shape(ov::Shape new_shape) {
+    if (_shape == new_shape)
+        return;
+
     _shape = std::move(new_shape);
 
     if (ov::shape_size(_shape) > ov::shape_size(_capacity)) {
         if (!deallocate()) {
             OPENVINO_THROW("Cannot deallocate tensor while an attempt to enlarge tensor area in set_shape.");
         }
+
+        _capacity = _shape;
 
         const auto byte_size = ov::element::get_memory_size(_element_type, shape_size(_shape));
         allocate(byte_size);

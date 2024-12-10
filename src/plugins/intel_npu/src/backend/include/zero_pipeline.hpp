@@ -14,12 +14,6 @@
 
 namespace intel_npu {
 
-struct TensorData {
-    void* mem;
-    size_t size;
-    bool levelZeroTensorCreatedLocally = true;
-};
-
 struct Pipeline {
 public:
     Pipeline(const Config& config,
