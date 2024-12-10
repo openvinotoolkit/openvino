@@ -213,6 +213,12 @@ enum class Algorithm {
     EltwiseBitwiseLeftShift,
     EltwiseBitwiseRightShift,
 
+    // FullyConnected algorithms
+    FullyConnectedCommon,
+    FullyConnectedCompressed,
+    FullyConnectedQuantized,
+    FullyConnectedQuantizedLegacy,
+
     // FakeQuantize algorithms
     FQCommon,
     FQQuantization,

@@ -2,6 +2,7 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "openvino/core/type/element_type.hpp"
 #ifdef CPU_DEBUG_CAPS
 
 #include "cpu_memory.h"
@@ -310,7 +311,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
             void * data = pmem->getData();
             auto shape = pmem->getDesc().getShape().getDims();
 
-            if (shape_size(shape) <= 8) {
+            if (shape_size(shape) <= 8 && pmem->getDesc().getPrecision() != ov::element::undefined) {
                 auto type = pmem->getDesc().getPrecision();
                 auto tensor = ov::Tensor(type, shape, data);
                 auto constop = std::make_shared<ov::op::v0::Constant>(tensor);
@@ -663,7 +664,7 @@ std::ostream& operator<<(std::ostream& os, const IMemory& mem) {
     }
     return os;
 }
-// @todo remove
+
 void print_dnnl_memory(const dnnl::memory& memory, const size_t size, const int id, const char* message) {
     const size_t s = memory.get_desc().get_size() / sizeof(float);
     std::cout << message << " " << id << " size: " << s << ", values: ";
