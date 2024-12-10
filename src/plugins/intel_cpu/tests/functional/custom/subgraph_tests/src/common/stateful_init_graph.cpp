@@ -227,18 +227,18 @@ public:
         input_params[0]->set_friendly_name("input");
 
         // init_graph
-        auto convert = std::make_shared<ov::op::v0::Convert>(input_params[0], ov::element::f16);
+        auto convert = std::make_shared<ov::op::v0::Convert>(input_params[0], exePrc);
         convert->set_friendly_name("init_graph/convert");
 
         const std::string variable_name("var_diff_precison");
-        statePrc = ov::element::f16;
+        statePrc = exePrc;
         auto variable = std::make_shared<ov::op::util::Variable>(
             ov::op::util::VariableInfo{{inputDynamicShapes[0]}, statePrc, variable_name});
 
         auto readvalue = std::make_shared<ov::op::v6::ReadValue>(convert, variable);
 
         std::shared_ptr<ov::Node> add =
-            std::make_shared<ov::op::v1::Add>(readvalue, ov::op::v0::Constant::create(ov::element::f16, {1}, {1.0f}));
+            std::make_shared<ov::op::v1::Add>(readvalue, ov::op::v0::Constant::create(exePrc, {1}, {1.0f}));
 
         auto assign = std::make_shared<ov::op::v6::Assign>(directPair ? readvalue : add, variable);
 
@@ -248,12 +248,15 @@ public:
     }
 
     void check_init_graph_node() override {
-        CheckNumberOfNodesWithType(compiledModel, "Convert", function->is_dynamic() ? 1 : 0);
+        CheckNumberOfNodesWithType(compiledModel, "Convert", 0);
     }
 
     ov::Shape get_state_shape(size_t i) override {
         return inputShapes[0].second[i];
     }
+
+private:
+    const ov::element::Type exePrc = ElementType::i8;
 };
 
 TEST_P(InitGraphStatefulDiffPrimitiveModel, CompareWithRefs) {
