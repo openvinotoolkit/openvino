@@ -41,6 +41,9 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"GroupConvolution", Type::Convolution},
         {"MatMul", Type::MatMul},
         {"FullyConnected", Type::FullyConnected},
+        {"FullyConnectedCompressed", Type::FullyConnected},
+        {"FullyConnectedQuantizedLegacy", Type::FullyConnected},
+        {"FullyConnectedQuantized", Type::FullyConnected},
         {"MaxPool", Type::Pooling},
         {"AvgPool", Type::Pooling},
         {"AdaptiveMaxPool", Type::AdaptivePooling},
@@ -469,6 +472,10 @@ std::string algToString(const Algorithm alg) {
         CASE(FQCommon);
         CASE(FQQuantization);
         CASE(FQBinarization);
+        CASE(FullyConnectedCommon);
+        CASE(FullyConnectedCompressed);
+        CASE(FullyConnectedQuantized);
+        CASE(FullyConnectedQuantizedLegacy);
         CASE(ROIPoolingMax);
         CASE(ROIPoolingBilinear);
         CASE(ROIAlignMax);

@@ -6,7 +6,6 @@
 
 #include "post_ops.hpp"
 #include "memory_arguments.hpp"
-#include "printers.hpp"
 
 namespace ov {
 namespace intel_cpu {
