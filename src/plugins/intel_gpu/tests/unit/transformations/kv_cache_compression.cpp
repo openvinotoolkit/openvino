@@ -93,7 +93,7 @@ TEST_F(TransformationTestsF, KVCacheCompression) {
         ov::ResultVector results{ result };
 
         model = std::make_shared<ov::Model>(results, params);
-        manager.register_pass<KVCacheCompression>(ov::element::i8);
+        manager.register_pass<KVCacheCompression>(ov::element::i8, false);
     }
     {
         ov::op::internal::DynamicQuantize::Attributes dq_config;
@@ -244,7 +244,7 @@ TEST_F(TransformationTestsF, KVCacheCompressionWithInitializers) {
         ov::ResultVector results{ result };
 
         model = std::make_shared<ov::Model>(results, params);
-        manager.register_pass<KVCacheCompression>(ov::element::i8);
+        manager.register_pass<KVCacheCompression>(ov::element::i8, false);
     }
     {
         ov::op::internal::DynamicQuantize::Attributes dq_config;

@@ -103,7 +103,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
 #   if UNSIGNED_OUTPUT
     OUTPUT1_TYPE zp = (OUTPUT1_TYPE)(-min_val * scale);
 #   else // !UNSIGNED_OUTPUT
-    OUTPUT1_TYPE zp = (OUTPUT1_TYPE)(-min_val * scale) - CHAR_MAX;
+    OUTPUT1_TYPE zp = (OUTPUT1_TYPE)(-min_val * scale) + CHAR_MIN;
 #   endif
 #else  // !ASYMMETRIC_QUANTIZATION
     max_val = work_group_reduce_max(max_val);
@@ -153,6 +153,12 @@ KERNEL(dynamic_quantize_gpu_ref)(
 #if ASYMMETRIC_QUANTIZATION && GROUP_SCALES_WITH_ZP
     output_scale[scale_idx + 1] = zp;
 #elif ASYMMETRIC_QUANTIZATION
-    output_zp[scale_idx] = convert_uchar_rte(zp);
+    #if OUTPUT2_IS_FP
+        output_zp[scale_idx] = zp;
+    #elif UNSIGNED_OUTPUT
+        output_zp[scale_idx] = convert_uchar_rte(zp);
+    #else
+        output_zp[scale_idx] = convert_char_rte(zp);
+    #endif
 #endif
 }

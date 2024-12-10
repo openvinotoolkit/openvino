@@ -84,7 +84,7 @@ KERNEL(dynamic_quantize_gpu_kv_cache)(
     min_value = work_group_reduce_min(min_value);
     max_value = work_group_reduce_max(max_value);
     ACCUMULATOR_TYPE scale = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / (max_value - min_value));
-    ACCUMULATOR_TYPE zp = (ACCUMULATOR_TYPE)(-min_value * scale) - CHAR_MAX;
+    ACCUMULATOR_TYPE zp = (ACCUMULATOR_TYPE)(-min_value * scale) + CHAR_MIN;
 #else
     max_value = work_group_reduce_max(max_value);
     ACCUMULATOR_TYPE scale = 127.0h / max_value;
@@ -112,7 +112,11 @@ KERNEL(dynamic_quantize_gpu_kv_cache)(
 #if GROUP_SCALES_WITH_ZP
         output_scale[scale_idx + 1] = zp;
 #else
+    #if OUTPUT2_IS_FP
         output_zp[scale_idx] = zp;
+    #else
+        output_zp[scale_idx] = convert_char_rte(zp);
+    #endif
 #endif
 #else
         output_scale[scale_idx] = 1.0h / scale;

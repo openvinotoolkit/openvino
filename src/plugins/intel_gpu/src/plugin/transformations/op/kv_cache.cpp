@@ -191,7 +191,8 @@ std::vector<ov::PartialShape> shape_infer(const KVCacheCompressed* op,
         auto quantized_data_shapes =
             ov::op::internal::DynamicQuantize::shape_infer(&dq_op, { input_shapes[1] });
 
-        const auto scales_concat_axis = 2;
+        const auto concat_axis = ov::util::normalize(op->get_concat_axis(), input_shapes[0].size());
+        const auto scales_concat_axis = op->get_quantization_attrs().scales_zp_output_order[concat_axis];
         ov::PartialShape compression_scale_shape = input_shapes[3];
         compression_scale_shape[scales_concat_axis] += quantized_data_shapes[1][scales_concat_axis];
         out_shapes[2] = compression_scale_shape;

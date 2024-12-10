@@ -26,6 +26,7 @@ namespace micro {
 using Package = dnnl::impl::gpu::intel::micro::Package;
 using HWInformation = dnnl::impl::gpu::intel::jit::HWInformation;
 using GEMMProblem = dnnl::impl::gpu::intel::jit::GEMMProblem;
+using ABOffset = dnnl::impl::gpu::intel::jit::ABOffset;
 using GEMMStrategy = dnnl::impl::gpu::intel::jit::GEMMStrategy;
 using GEMMProtocol = dnnl::impl::gpu::intel::micro::GEMMProtocol;
 using MatrixLayout = dnnl::impl::gpu::intel::jit::MatrixLayout;
@@ -75,6 +76,10 @@ inline Package select_gemm_microkernel(GEMMProtocol protocol, HWInformation hw_i
 
 static inline int alignment_for_ld(int ld) {
     return  dnnl::impl::gpu::intel::jit::alignmentForLD(ld);
+}
+
+static inline uint8_t data_type_size(micro::Type dt) {
+    return uint8_t(dnnl::impl::types::data_type_size(micro::Type(dt).get_dnnl_type()));
 }
 
 }  // namespace micro

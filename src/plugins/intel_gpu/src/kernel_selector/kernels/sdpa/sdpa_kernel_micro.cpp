@@ -47,6 +47,8 @@ micro::Type convert_type(Datatype t) {
     switch (t) {
         case Datatype::F32: return micro::Type::f32;
         case Datatype::F16: return micro::Type::f16;
+        case Datatype::INT8: return micro::Type::s8;
+        case Datatype::UINT8: return micro::Type::u8;
         default: break;
     }
     OPENVINO_THROW("Unsupported dt: ", toString(t));
@@ -179,6 +181,11 @@ sdpa_config_t *choose_config_xehpc(int head_size, int seq, bool thin_q) {
 
 }  // namespace
 
+const bool kq_common_scales = false;
+const bool kq_common_zp = false;
+const bool vs_common_scales = false;
+const bool vs_common_zp = false;
+
 std::mutex SDPAKernelMicro::m;
 
 void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Package& gemm_kq, micro::Package& gemm_vs, bool is_prefill) const {
@@ -224,13 +231,47 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
 
     /* Set up GEMMProblem structure for first GEMM: K^T * Q */
     micro::GEMMProblem problem;
-    problem.Ta = problem.Ta_ext = convert_type(K.GetDType());
-    problem.Tb = problem.Tb_ext = convert_type(Q.GetDType());
+    problem.Ta_ext = convert_type(K.GetDType());
+    problem.Tb_ext = convert_type(Q.GetDType());
+
+    problem.Ta = problem.Tb = micro::Type::f16;
     problem.Tc = problem.Tc_ext = micro::Type::f32;
     problem.Ts = problem.Tc;
 
     auto problem_kq = problem;
     problem_kq.A.layout = micro::MatrixLayout::T;
+
+    /* Set up microkernel options */
+    micro::GEMMProtocol::Options opts_kq;
+    opts_kq.localB = true;
+    opts_kq.slmPtr = true;
+
+    if (params.conf.is_kv_compressed && !kq_common_scales) {
+        const auto scale_dt = convert_type(params.key_cache_comp_scale.GetDType());
+        problem_kq.Ta_scale = scale_dt;
+        problem_kq.A_scale.alignment = micro::data_type_size(scale_dt);
+
+        problem_kq.A_scale.layout = micro::MatrixLayout::T;
+        problem_kq.aScale2D = true;
+    }
+
+    if (params.conf.is_kv_compressed && params.conf.use_asymmetric_quantization) {
+        const auto zp_dt = convert_type(params.key_cache_comp_zp.GetDType());
+        problem_kq.Tao = zp_dt;
+        problem_kq.AO.alignment = micro::data_type_size(zp_dt);
+        problem_kq.AO.layout = micro::MatrixLayout::T;
+        problem_kq.aoPtrDims = kq_common_zp ? 0 : 2;
+        problem_kq.aOffset = micro::ABOffset::Calc;
+    }
+
+    if (params.conf.is_kv_compressed) {
+        problem_kq.aqGroupM = 1;
+        problem_kq.aqGroupK = (kq_common_scales || kq_common_zp) ? 1 : params.conf.head_size;
+    }
+
+    opts_kq.scaleA = params.conf.is_kv_compressed && !kq_common_scales;
+    opts_kq.offsetA = params.conf.is_kv_compressed && params.conf.use_asymmetric_quantization;
+
     problem_kq.B.layout = micro::MatrixLayout::Pr;
     problem_kq.C.layout = micro::MatrixLayout::T;
     problem_kq.A.setAlignment(micro::alignment_for_ld(head_size * problem.Ta));
@@ -253,18 +294,49 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
     reqs_kq.push_back(micro::StrategyRequirement::WGM == config->wg_m_kq);
     reqs_kq.push_back(micro::StrategyRequirement::WGN == config->wg_n_kq);
 
-    /* Set up microkernel options */
-    micro::GEMMProtocol::Options opts_kq;
-    opts_kq.localB = true;
-    opts_kq.slmPtr = true;
-
     /* Ask microkernel provider for microkernel */
-    gemm_kq = micro::select_gemm_microkernel(opts_kq, hw_info, sizes, problem_kq, reqs_kq);
+    try {
+        gemm_kq = micro::select_gemm_microkernel(opts_kq, hw_info, sizes, problem_kq, reqs_kq);
+    } catch (const std::runtime_error &ex) {
+        GPU_DEBUG_TRACE_DETAIL << "Can't create KQ sdpa_micro kernel: " << ex.what() << "\n";
+        throw;
+    }
+
+    /* Set up microkernel options */
+    micro::GEMMProtocol::Options opts_vs;
+    opts_vs.localB = true;
+    opts_vs.slmPtr = true;
 
     /* Update for second GEMM: V*S */
     auto problem_vs = problem;
-    problem_vs.Ta = problem_vs.Ta_ext = convert_type(V.GetDType());
+    problem_vs.Ta_ext = convert_type(V.GetDType());
     problem_vs.A.layout = micro::MatrixLayout::N;
+
+    if (params.conf.is_kv_compressed && !vs_common_scales) {
+        auto scale_dt = convert_type(params.value_cache_comp_scale.GetDType());
+        problem_vs.Ta_scale = scale_dt;
+        problem_vs.A_scale.alignment = micro::data_type_size(scale_dt);
+        problem_vs.A_scale.layout = micro::MatrixLayout::N;
+        problem_vs.aScale2D = true;
+    }
+
+    if (params.conf.is_kv_compressed && params.conf.use_asymmetric_quantization) {
+        auto zp_dt = convert_type(params.value_cache_comp_zp.GetDType());
+        problem_vs.Tao = zp_dt;
+        problem_vs.AO.alignment = micro::data_type_size(zp_dt);
+        problem_vs.AO.layout = micro::MatrixLayout::N;
+        problem_vs.aoPtrDims = vs_common_zp ? 0 : 2;
+        problem_vs.aOffset = micro::ABOffset::Calc;
+    }
+
+    if (params.conf.is_kv_compressed) {
+        problem_vs.aqGroupM = (vs_common_scales || vs_common_zp) ? 1 : params.conf.head_size;
+        problem_vs.aqGroupK = 1;
+    }
+
+    opts_vs.scaleA = params.conf.is_kv_compressed && !vs_common_scales;
+    opts_vs.offsetA = params.conf.is_kv_compressed && params.conf.use_asymmetric_quantization;
+
     problem_vs.B.layout = micro::MatrixLayout::Pr;
     problem_vs.C.layout = micro::MatrixLayout::N;
     problem_vs.A.setAlignment(micro::alignment_for_ld(head_size * problem.Ta));
@@ -281,20 +353,23 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
     reqs_vs.push_back(micro::StrategyRequirement::WGM == config->wg_m_vs);
     reqs_vs.push_back(micro::StrategyRequirement::WGN == config->wg_n_vs);
 
-    micro::GEMMProtocol::Options opts_vs;
-    opts_vs.localB = true;
-    opts_vs.slmPtr = true;
-
     auto adjust_vs = [](micro::GEMMStrategy &strategy) {
         /* Enable dpasw */
         strategy.dpasw |= strategy.fused;
     };
     /* Ask microkernel provider for microkernel */
-    gemm_vs = micro::select_gemm_microkernel(opts_vs, hw_info, sizes, problem_vs, reqs_vs, adjust_vs);
+    try {
+        gemm_vs = micro::select_gemm_microkernel(opts_vs, hw_info, sizes, problem_vs, reqs_vs, adjust_vs);
+    } catch (const std::runtime_error &ex) {
+        GPU_DEBUG_TRACE_DETAIL << "Can't create VS sdpa_micro kernel: " << ex.what() << "\n";
+        throw;
+    }
 }
 
 ParamsKey SDPAKernelMicro::GetSupportedKey() const {
     ParamsKey k;
+    k.EnableInputDataType(Datatype::INT8);
+    k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F16);
 
@@ -344,7 +419,13 @@ bool SDPAKernelMicro::Validate(const Params& p) const {
     if (params.conf.head_size > 256)
         return false;
 
-    if (params.conf.is_kv_compressed)
+    int DISABLE_MICRO = 0;
+    if (const auto env_var = std::getenv("DISABLE_MICRO")) {
+        std::istringstream ss(env_var);
+        ss >> DISABLE_MICRO;
+    }
+
+    if (DISABLE_MICRO)
         return false;
 
     // Do not use sdpa_micro kernel with a scalar-value mask
@@ -387,6 +468,52 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
     jit.AddConstant(MakeJitConstant("A_ALIGN", micro::alignment_for_ld(lda)));
 
     jit.AddConstant(MakeJitConstant("TRANSPOSE_K", false));
+
+    jit.AddConstant(MakeJitConstant("QRY_DATA_T", toCLType(Q.GetDType())));
+    jit.AddConstant(MakeJitConstant("KEY_DATA_T", toCLType(K.GetDType())));
+    jit.AddConstant(MakeJitConstant("VAL_DATA_T", toCLType(V.GetDType())));
+
+    if (params.conf.is_kv_compressed) {
+        jit.AddConstant(MakeJitConstant("KV_COMPRESSED", 1));
+        jit.AddConstant(MakeJitConstant("KEY_ATTR_SCALES_DATA_T", toCLType(params.key_cache_comp_scale.GetDType())));
+        jit.AddConstant(MakeJitConstant("VAL_ATTR_SCALES_DATA_T", toCLType(params.value_cache_comp_scale.GetDType())));
+
+        if (params.conf.use_asymmetric_quantization) {
+            jit.AddConstant(MakeJitConstant("KEY_ATTR_ZP_DATA_T", toCLType(params.key_cache_comp_zp.GetDType())));
+            jit.AddConstant(MakeJitConstant("VAL_ATTR_ZP_DATA_T", toCLType(params.value_cache_comp_zp.GetDType())));
+        }
+    }
+
+    auto elems_per_byte = [](Datatype dt) {
+        switch (dt) {
+            case Datatype::UINT4:
+            case Datatype::INT4:
+                return 2;
+            default:
+                return 1;
+        }
+    };
+
+    jit.AddConstant(MakeJitConstant("KEY_ELEMENTS_PER_BYTE", elems_per_byte(params.inputs[1].GetDType())));
+    jit.AddConstant(MakeJitConstant("VAL_ELEMENTS_PER_BYTE", elems_per_byte(params.inputs[2].GetDType())));
+
+    if (params.conf.is_kv_compressed) {
+        int kq_scale_mask = (static_cast<int>(params.conf.is_kv_compressed) << 1) | static_cast<int>(kq_common_scales);
+        int vs_scale_mask = (static_cast<int>(params.conf.is_kv_compressed) << 1) | static_cast<int>(vs_common_scales);
+        jit.AddConstant(MakeJitConstant("KEY_SCALES", kq_scale_mask));
+        jit.AddConstant(MakeJitConstant("VAL_SCALES", vs_scale_mask));
+        jit.AddConstant(MakeJitConstant("KEY_GROUP_SIZE", params.conf.head_size));
+        jit.AddConstant(MakeJitConstant("VAL_GROUP_SIZE", params.conf.head_size));
+
+        if (params.conf.use_asymmetric_quantization) {
+            int kq_zp_mask = (static_cast<int>(params.conf.use_asymmetric_quantization) << 1) | static_cast<int>(kq_common_zp);
+            int vs_zp_mask = (static_cast<int>(params.conf.use_asymmetric_quantization) << 1) | static_cast<int>(vs_common_zp);
+            jit.AddConstant(MakeJitConstant("KEY_ZERO_POINTS", kq_zp_mask));
+            jit.AddConstant(MakeJitConstant("VAL_ZERO_POINTS", vs_zp_mask));
+            jit.AddConstant(MakeJitConstant("KEY_ZP_ELEMENTS_PER_BYTE", elems_per_byte(params.key_cache_comp_zp.GetDType())));
+            jit.AddConstant(MakeJitConstant("VAL_ZP_ELEMENTS_PER_BYTE", elems_per_byte(params.value_cache_comp_zp.GetDType())));
+        }
+    }
 
     int tile_k = gemm_kq.getSetting("wg_tile_m");
     int tile_q = gemm_kq.getSetting("wg_tile_n");
@@ -470,6 +597,18 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
     jit.Merge(unit_parameters("VAL"));
     jit.Merge(unit_parameters("DST"));
 
+    if (params.conf.is_kv_compressed) {
+        jit.AddConstant(MakeJitConstant("KEY_SCALE", params.key_cache_comp_scale));
+        jit.AddConstant(MakeJitConstant("VAL_SCALE", params.value_cache_comp_scale));
+
+        const std::vector<int64_t> default_order = { 0, 1, 2, 3 };
+        jit.Merge(convert_strides("KEY_COMP", "KEY_SCALE", default_order));
+        jit.Merge(convert_strides("VAL_COMP", "VAL_SCALE", default_order));
+
+        jit.Merge(unit_parameters("KEY_COMP"));
+        jit.Merge(unit_parameters("VAL_COMP"));
+    }
+
     return jit;
 }
 
@@ -520,6 +659,17 @@ clKernelData SDPAKernelMicro::get_kernel_data(const sdpa_params& params, bool is
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0}); // D
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 1}); // K
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 2}); // Q
+
+    if (params.conf.is_kv_compressed) {
+        uint32_t input_idx = params.inputs.size();
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, input_idx + 0});     // K scales
+        if (params.conf.use_asymmetric_quantization)
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, input_idx + 2}); // K zp
+
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, input_idx + 1});     // V scales
+        if (params.conf.use_asymmetric_quantization)
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, input_idx + 3}); // V zp
+    }
 
     const auto& Q = params.inputs[0];
     const auto& K = params.inputs[1];

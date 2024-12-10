@@ -338,13 +338,13 @@ void primitive_inst::update_shape() {
                 _impl_params->state_layouts.resize(compressed_cache_variable->has_zp_state() ? 3 : 2);
 
                 auto scales_state = compressed_cache_variable->get_compression_scale_state();
-                auto new_scales_layout = compressed_cache_variable->get_compression_scale_state()->get_layout();
+                auto new_scales_layout = scales_state->get_layout();
                 update_state_layout(*scales_state, new_scales_layout, 1);
 
                 if (compressed_cache_variable->has_zp_state()) {
-                    auto scales_state = compressed_cache_variable->get_compression_zp_state();
-                    auto new_zp_layout = compressed_cache_variable->get_compression_zp_state()->get_layout();
-                    update_state_layout(*scales_state, new_zp_layout, 2);
+                    auto zp_state = compressed_cache_variable->get_compression_zp_state();
+                    auto new_zp_layout = zp_state->get_layout();
+                    update_state_layout(*zp_state, new_zp_layout, 2);
                 }
             }
         }
@@ -843,7 +843,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
             auto prealloc_shape = updated_layouts[i].get_shape();
             const auto shape_rank = prealloc_shape.size();
             const auto seq_axis = i == 0 ? kv_cache_inst::get_sequence_axis(desc->concat_axis, shape_rank)
-                                         : kv_cache_inst::get_scale_zp_sequence_axis();
+                                         : kv_cache_inst::get_scale_zp_sequence_axis(desc->concat_axis, desc->quantization_attributes);
 
             prealloc_shape[seq_axis] += tmp_prealloc_count;
             required_buffer_size = std::accumulate(prealloc_shape.begin(), prealloc_shape.end(), size_t(1), std::multiplies<size_t>());
@@ -875,7 +875,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
             const auto& desc = _node->as<kv_cache>().get_primitive();
             const auto shape_rank = updated_layouts[i].get_shape().size();
             const auto seq_axis = i == 0 ? kv_cache_inst::get_sequence_axis(desc->concat_axis, shape_rank)
-                                         : kv_cache_inst::get_scale_zp_sequence_axis();
+                                         : kv_cache_inst::get_scale_zp_sequence_axis(desc->concat_axis, desc->quantization_attributes);
 
             prealloc_info = sp.predict_preallocation_shape(id(), updated_layouts[i], false, i, tmp_prealloc_count, seq_axis);
         } else {
@@ -899,7 +899,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                 auto& present_layout = _impl_params->output_layouts[i];
                 const auto present_layout_rank = present_layout.get_partial_shape().size();
                 const auto sequence_axis = i == 0 ? kv_cache_inst::get_sequence_axis(desc->concat_axis, present_layout_rank)
-                                                  : kv_cache_inst::get_scale_zp_sequence_axis();;
+                                                  : kv_cache_inst::get_scale_zp_sequence_axis(desc->concat_axis, desc->quantization_attributes);
 
                 auto max_pad = kv_cache_inst::get_max_pad(present_layout,
                                                           _max_output_layout_count[i],
@@ -970,7 +970,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
             if (max_pad > 0) {
                 if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
                     auto present_scales_layout = _impl_params->output_layouts[2];
-                    const auto sequence_axis = kv_cache_inst::get_scale_zp_sequence_axis();;
+                    const auto sequence_axis = kv_cache_inst::get_scale_zp_sequence_axis(desc->concat_axis, desc->quantization_attributes);
 
                     // In case of compressed KV-cache, calling update_impl for each iteration
                     // because of scales layout [batch, num_heads, seq_len, head_size], which requires proper
@@ -982,8 +982,9 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                     compressed_cache_variable->get_compression_scale_state()->set_memory(_outputs[2], present_scales_layout);
                     if (compressed_cache_variable->has_zp_state()) {
                         auto present_zp_layout = present_scales_layout;
+                        present_zp_layout.data_type = _impl_params->output_layouts[3].data_type;
 
-                        _impl_params->output_layouts[3] = present_scales_layout;
+                        _impl_params->output_layouts[3] = present_zp_layout;
                         compressed_cache_variable->get_compression_zp_state()->set_memory(_outputs[3], present_zp_layout);
                     }
                 }
@@ -1361,7 +1362,7 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
         if (desc->compressed) {
             auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable);
             auto& present_scales_layout = _impl_params->output_layouts[2];
-            const auto sequence_axis = kv_cache_inst::get_scale_zp_sequence_axis();
+            const auto sequence_axis = kv_cache_inst::get_scale_zp_sequence_axis(desc->concat_axis, desc->quantization_attributes);
             kv_cache_inst::update_pad(present_scales_layout, max_pad - new_seq_len, sequence_axis);
             GPU_DEBUG_TRACE_DETAIL << "[do runtime_in_place_kv_cache] " << id()
                                    << " Updated present_scale_layout's pad : " << present_scales_layout.to_string() << std::endl;
@@ -1373,7 +1374,7 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
                 GPU_DEBUG_TRACE_DETAIL << "[do runtime_in_place_kv_cache] " << id()
                                        << " Updated present_zp_layout's pad : " << present_scales_layout.to_string() << std::endl;
 
-                compressed_cache_variable->get_compression_zp_state()->set_layout(present_scales_layout);
+                compressed_cache_variable->get_compression_zp_state()->set_layout(present_zp_layout);
             }
         }
 
@@ -1385,7 +1386,7 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
 
             if (desc->compressed) {
                 auto& past_scale_layout = _impl_params->input_layouts[3];
-                const auto sequence_axis = kv_cache_inst::get_scale_zp_sequence_axis();
+                const auto sequence_axis = kv_cache_inst::get_scale_zp_sequence_axis(desc->concat_axis, desc->quantization_attributes);
                 kv_cache_inst::update_pad(past_scale_layout, max_pad, sequence_axis);
 
                 if (desc->get_compression_zp_inputs_num() > 0) {
@@ -2091,6 +2092,9 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
         } else {
             _outputs = allocate_outputs();
         }
+    }
+    if (_node) {
+        GPU_DEBUG_TRACE_DETAIL << _node->type()->to_string(*_node) << "\n";
     }
     _impls_factory = std::make_shared<ImplementationsFactory>(_node);
     _impl_params->strm = _network.get_stream_ptr();
