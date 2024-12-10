@@ -11,12 +11,61 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 
+#include "cpu_types.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "nodes/executors/memory_arguments.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 
 namespace ov {
 namespace intel_cpu {
+
+static std::vector<float> getDeQuantizedScales(const MemoryArgs& memory) {
+    if (!memory.count(ARG_DST_DEQ_SCALE))
+        return {};
+
+    auto scalesMemory = memory.at(ARG_DST_DEQ_SCALE);
+
+    auto scalesData = static_cast<const float*>(scalesMemory->getData());
+
+    if (!scalesData)
+        return {};
+
+    auto dstShape = memory.at(ARG_DST)->getShape();
+    auto dqScalesShape = scalesMemory->getShape();
+
+    auto scalesDims = getNormalizedDimsBySize(dqScalesShape.getDims(), dstShape.getDims().size());
+
+    auto scaleSize = std::accumulate(scalesDims.begin(), scalesDims.end(), std::size_t(1), std::multiplies<size_t>());
+
+    std::vector<float> DQScales(scaleSize, 1.0);
+
+    OPENVINO_ASSERT(scaleSize == 1 || DQScales.size() == 1 || DQScales.size() == scaleSize,
+                    "set invalid scales size , DQScales vector size: ",
+                    DQScales.size(),
+                    ", scale data size: ",
+                    scaleSize);
+
+    // @todo do we really need to broadcast dq scales and then resize them back?
+    if (scaleSize > DQScales.size())
+        DQScales.resize(scaleSize, DQScales[0]);
+    if (1 == scaleSize) {
+        std::transform(DQScales.begin(), DQScales.end(), DQScales.begin(), [=](float val) {
+            return (scalesData[0] * val);
+        });
+    } else {
+        for (size_t i = 0; i < DQScales.size(); i++) {
+            DQScales[i] *= scalesData[i];
+        }
+    }
+    if (std::all_of(DQScales.begin(), DQScales.end(), [&](float val) {
+            return (val == DQScales[0]);
+        }))
+        DQScales.resize(1);
+
+    return DQScales;
+}
 
 DnnlPostOpsComposer::DnnlPostOpsComposer(const PostOps& postOps,
                                          const dnnl::engine& engine,
@@ -24,8 +73,7 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const PostOps& postOps,
                                          const size_t indexOfOutputChannelDim,
                                          const bool isInt8,
                                          const int weiScaleMaskPerChannel,
-                                         const std::vector<float>& DQScales,
-                                         const bool hasBias,
+                                         const MemoryArgs& memory,
                                          const dnnl::memory::data_type outDataType)
     : engine(engine),
       postOps(postOps),
@@ -39,6 +87,7 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const PostOps& postOps,
     dimsPerOC = dimsPerTensor = VectorDims(outputDims.size(), 1);
     dimsPerOC[idxOC] = OC;
 
+    const auto& DQScales = getDeQuantizedScales(memory);
     // generalise dq scales, so extra logic is necessary here.
     if (isINT8) {
         wei_scale_values = DQScales.empty() ? std::vector<float>{1.0} : DQScales;
@@ -49,6 +98,7 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const PostOps& postOps,
         updateWeiScales();
         // If having the bias, attr weight scale can't be updated for further ops-ops optimization.
         // ONEDNN 3.x quantization for scheme: QuantizedInput * QuantizedWeight * DQScale + Bias.
+        const bool hasBias = !memory.at(ARG_BIAS)->getDesc().empty();
         weightScaleAvailable = !hasBias;
     } else if (!DQScales.empty()) {
         // DQ scale is fused but swiching back to non-INT8 for execution in some cases.
@@ -325,9 +375,9 @@ static OptimizedFormula updateOptimizedFormula(const FakeQuantizePostOp& postOp,
 }
 
 bool DnnlPostOpsComposer::appendAttrPostOps(const FakeQuantizePostOp& postOp,
-                                               bool isLastPostOp,
-                                               bool doRounding,
-                                               bool allowBinary) {
+                                            bool isLastPostOp,
+                                            bool doRounding,
+                                            bool allowBinary) {
     DEBUG_LOG("isLastPostOp=",
               isLastPostOp,
               ", outDataType=",
@@ -541,9 +591,9 @@ bool DnnlPostOpsComposer::appendShift(const std::vector<float>& shift, bool allo
 }
 
 bool DnnlPostOpsComposer::appendLinear(const std::vector<float>& scale,
-                                          const std::vector<float>& shift,
-                                          bool isLastPostOp,
-                                          bool allowBinary) {
+                                       const std::vector<float>& shift,
+                                       bool isLastPostOp,
+                                       bool allowBinary) {
     if (scale.size() == 1 && shift.size() == 1) {
         if (shift[0] == 0.0f)
             return appendScale(scale, isLastPostOp, allowBinary);
@@ -599,15 +649,27 @@ static MemoryPtr prepackDecompressionParams(const MemoryCPtr& paramsPtr,
     if (shape.size() == 1 && shape[0] == 1) {
         shape.push_back(1);
     }
+
     if (shape.size() != 2 && shape.size() != 3)
-         OPENVINO_THROW("DnnlPostOpsComposer cannot prepack decompression params with invalid shape");
+        OPENVINO_THROW("DnnlPostOpsComposer cannot prepack decompression params with invalid shape");
 
-    Shape dstShape = needTranspose ? Shape({shape[0], shape[1]}) : Shape({shape[shape.size() - 1], shape[0]});
-    DnnlBlockedMemoryDesc dstMemoryDesc(dstShape, DnnlExtensionUtils::ElementTypeToDataType(dstPrc), dnnl::memory::format_tag::io);
+    // weights without batch: (OC, G)
+    // weights with batch: (B, OC, G)
+    const size_t OC = shape[shape.size() - 2];
+    const size_t G =  shape[shape.size() - 1];
+
+    Shape dstShape = Shape({OC, G});
+
+    DnnlBlockedMemoryDesc dstMemoryDesc(dstShape,
+                                        DnnlExtensionUtils::ElementTypeToDataType(dstPrc),
+                                        dnnl::memory::format_tag::io);
     auto dstMem = std::make_shared<Memory>(engine, dstMemoryDesc);
-
     auto srcFormat = needTranspose ? dnnl::memory::format_tag::oi : dnnl::memory::format_tag::io;
-    DnnlBlockedMemoryDesc srcMemoryDesc(dstShape, DnnlExtensionUtils::ElementTypeToDataType(paramsPtr->getDescPtr()->getPrecision()), srcFormat);
+
+    DnnlBlockedMemoryDesc srcMemoryDesc(
+        dstShape,
+        DnnlExtensionUtils::ElementTypeToDataType(paramsPtr->getDescPtr()->getPrecision()),
+        srcFormat);
     auto srcMem = std::make_shared<Memory>(engine, srcMemoryDesc, paramsPtr->getData());
 
     dstMem->load(*srcMem);
@@ -615,25 +677,32 @@ static MemoryPtr prepackDecompressionParams(const MemoryCPtr& paramsPtr,
     return dstMem;
 }
 
-void DnnlPostOpsComposer::appendDecompressionScales(const MemoryCPtr& scales_ptr, bool needTranspose, ov::element::Type dstPrecision) {
+void DnnlPostOpsComposer::appendDecompressionScales(const MemoryCPtr& scales_ptr,
+                                                    bool needTranspose,
+                                                    ov::element::Type dstPrecision) {
     if (scales_ptr == nullptr)
         return;
 
     auto scalesMem = prepackDecompressionParams(scales_ptr, needTranspose, dstPrecision, engine);
     attr.set_scales_dims(DNNL_ARG_WEIGHTS,
-        DnnlExtensionUtils::convertToDnnlDims(scalesMem->getStaticDims()), DnnlExtensionUtils::ElementTypeToDataType(dstPrecision));
+                         DnnlExtensionUtils::convertToDnnlDims(scalesMem->getStaticDims()),
+                         DnnlExtensionUtils::ElementTypeToDataType(dstPrecision));
     cpuArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS] = std::move(scalesMem);
     dnnlArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS] =
         cpuArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS]->getPrimitive();
 }
 
-void DnnlPostOpsComposer::appendDecompressionZeroPoints(const MemoryCPtr& zero_points_ptr, bool needTranspose, ov::element::Type dstPrecision) {
+void DnnlPostOpsComposer::appendDecompressionZeroPoints(const MemoryCPtr& zero_points_ptr,
+                                                        bool needTranspose,
+                                                        ov::element::Type dstPrecision) {
     if (zero_points_ptr == nullptr)
         return;
 
-    auto zeroPointsMem = prepackDecompressionParams(zero_points_ptr, needTranspose, dstPrecision, engine);
+    auto zeroPointsMem =
+        prepackDecompressionParams(zero_points_ptr, needTranspose, dstPrecision, engine);
     attr.set_zero_points_dims(DNNL_ARG_WEIGHTS,
-        DnnlExtensionUtils::convertToDnnlDims(zeroPointsMem->getStaticDims()), DnnlExtensionUtils::ElementTypeToDataType(dstPrecision));
+                              DnnlExtensionUtils::convertToDnnlDims(zeroPointsMem->getStaticDims()),
+                              DnnlExtensionUtils::ElementTypeToDataType(dstPrecision));
     cpuArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS] = zeroPointsMem;
     dnnlArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS] = zeroPointsMem->getPrimitive();
 }
