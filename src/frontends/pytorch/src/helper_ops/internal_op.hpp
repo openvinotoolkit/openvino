@@ -41,6 +41,9 @@ private:
 };
 
 class InternalOperation : public PtFrameworkNode {
+public:
+    OPENVINO_OP("InternalOperation", "internal", PtFrameworkNode);
+
 protected:
     InternalOperation(const std::string& op_type,
                       const OutputVector& inputs,

@@ -45,7 +45,7 @@ protected:
  */
 class DummyOperation1 : public BaseDummyOperation {
 public:
-    OPENVINO_OP("DummyOperation1", "test::snippets");
+    OPENVINO_OP("DummyOperation1", "test::snippets", BaseDummyOperation);
 
     DummyOperation1(
         const Output<Node>& arg0,
@@ -69,7 +69,7 @@ public:
  */
 class DummyOperation2 : public BaseDummyOperation {
 public:
-    OPENVINO_OP("DummyOperation2", "test::snippets");
+    OPENVINO_OP("DummyOperation2", "test::snippets", BaseDummyOperation);
 
     DummyOperation2(
         const Output<Node>& arg0,

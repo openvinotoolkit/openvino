@@ -21,7 +21,7 @@ namespace snippets {
  */
 class DummyAdd : public ov::opset1::Add {
 public:
-    OPENVINO_OP("DummyAdd", "test::snippets");
+    OPENVINO_OP("DummyAdd", "test::snippets", ov::opset1::Add);
 
     DummyAdd(const Output<Node>& arg0,
         const Output<Node>& arg1,
