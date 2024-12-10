@@ -10,9 +10,7 @@ namespace kernel_selector {
 class RoPEKernelOpt : public RoPEKernelBase {
 public:
     using Parent = RoPEKernelBase;
-    RoPEKernelOpt() : RoPEKernelBase("rope_opt") {
-        vec_size = 1;
-    }
+    RoPEKernelOpt() : RoPEKernelBase("rope_opt") {}
     virtual ~RoPEKernelOpt() {}
 
     KernelsData GetKernelsData(const Params& params) const override;
@@ -22,6 +20,6 @@ protected:
     JitConstants GetJitConstants(const rope_params& params, DispatchData dispatchData) const override;
     DispatchData SetDefault(const rope_params& params) const override;
 private:
-    mutable size_t vec_size;
+    size_t GetVecSize(const rope_params& params) const;
 };
 }  // namespace kernel_selector

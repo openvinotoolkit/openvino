@@ -35,24 +35,9 @@ RoPEKernelBase::DispatchData RoPEKernelOpt::SetDefault(const rope_params& params
         {Tensor::DataChannelName::FEATURE},
         {Tensor::DataChannelName::Y, Tensor::DataChannelName::X}};
 
-    switch (input.GetDType()) {
-    case Datatype::F16:
-        vec_size = 16;
-        break;
-    case Datatype::F32:
-        vec_size = 8;
-        break;
-    default:
-        vec_size = 1;
-        break;
-    }
-
-    if (params.rotary_ndims % (2 * vec_size) != 0)
-        vec_size = 1;
+    size_t vec_size = GetVecSize(params);
     if (params.is_qwen) {
         auto count = params.head_cnt * std::max(params.rotary_ndims / 2ul, params.head_size - params.rotary_ndims);
-        if (count % vec_size != 0)
-            vec_size = 1;
         dispatchData.gws = {input.Batch().v, input.Feature().v, count / vec_size};
     } else if (params.is_chatglm) {
         if (params.support_2d_rope) {
@@ -82,8 +67,34 @@ RoPEKernelBase::DispatchData RoPEKernelOpt::SetDefault(const rope_params& params
 JitConstants RoPEKernelOpt::GetJitConstants(const rope_params& params, RoPEKernelBase::DispatchData dispatchData) const {
     JitConstants jit = RoPEKernelBase::GetJitConstants(params, dispatchData);
 
-    jit.AddConstant(MakeJitConstant("VEC_SIZE", vec_size));
+    jit.AddConstant(MakeJitConstant("VEC_SIZE", GetVecSize(params)));
     return jit;
+}
+
+size_t RoPEKernelOpt::GetVecSize(const rope_params& params) const {
+    const auto& input = params.inputs[0];
+    size_t vec_size = 1;
+    switch (input.GetDType()) {
+    case Datatype::F16:
+        vec_size = 16;
+        break;
+    case Datatype::F32:
+        vec_size = 8;
+        break;
+    default:
+        vec_size = 1;
+        break;
+    }
+    if (params.rotary_ndims % (2 * vec_size) != 0)
+        vec_size = 1;
+
+    if (params.is_qwen) {
+        auto count = params.head_cnt * std::max(params.rotary_ndims / 2ul, params.head_size - params.rotary_ndims);
+        if (count % vec_size != 0)
+            vec_size = 1;
+    }
+
+    return vec_size;
 }
 
 KernelsData RoPEKernelOpt::GetKernelsData(const Params& params) const {
