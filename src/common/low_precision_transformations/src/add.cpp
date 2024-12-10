@@ -214,14 +214,15 @@ bool AddTransformation::transform(TransformationContext& context, ov::pass::patt
                     newSubtractFullPathValues),
             newMultiplyFullPathValues);
 
+        auto output_type = useDefaultTransformation ? element::f32 : add->get_output_element_type(0);
         newAddOrSubtract = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Add>>(
-            std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ element::f32 },
-            ov::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
-            ov::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());
+            std::vector<element::Type>{output_type, output_type}, std::vector<element::Type>{ output_type },
+            ov::op::TemporaryReplaceOutputType(inputs[0], output_type).get(),
+            ov::op::TemporaryReplaceOutputType(inputs[1], output_type).get());
         newMultiply = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
-            std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ add->get_output_element_type(0) },
-            ov::op::TemporaryReplaceOutputType(newAddOrSubtract, element::f32).get(),
-            ov::op::TemporaryReplaceOutputType(multiplyEmptyPathValues, element::f32).get());
+            std::vector<element::Type>{output_type, output_type}, std::vector<element::Type>{ add->get_output_element_type(0) },
+            ov::op::TemporaryReplaceOutputType(newAddOrSubtract, output_type).get(),
+            ov::op::TemporaryReplaceOutputType(multiplyEmptyPathValues, output_type).get());
 
         NetworkHelper::insertDequantizationAfter(add, newMultiply, newAddOrSubtract);
         NetworkHelper::copyInfo(add, newAddOrSubtract);
