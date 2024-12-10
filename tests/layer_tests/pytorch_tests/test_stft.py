@@ -138,10 +138,6 @@ class TestSTFTAttrs(PytorchLayerTest):
             pytest.xfail(
                 reason="torch stft uses list() for `center` subgrpah before aten::stft, that leads to error: No conversion rule found for operations: aten::list")
 
-        if normalized is True:
-            pytest.xfail(
-                reason="aten::stft conversion is currently supported with normalized=False only")
-
         if onesided is False:
             pytest.xfail(
                 reason="aten::stft conversion is currently supported with onesided=True only")
