@@ -6,6 +6,7 @@
 #include "cpu_types.h"
 #include "edge.h"
 #include "partitioned_mem_blk.h"
+#include "openvino/core/type/element_type.hpp"
 
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
@@ -1106,7 +1107,7 @@ void Node::toNumaNodeImpl(int numaNodeID) {
 
     // create scratch pad from specified numa node
     if (scratchpadMem) {
-        scratchpadMem = context->getScratchPad(numaNodeID)->createScratchPadMem(scratchpadMem->getDescPtr());
+        scratchpadMem = context->getScratchPad()->createScratchPadMem(scratchpadMem->getDescPtr());
         primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
     }
 
@@ -1673,7 +1674,7 @@ bool Node::isInputTensorAtPortEmpty(size_t port) const {
     auto edge = getParentEdgeAt(port);
     if (one_of(edge->getStatus(), Edge::Status::Allocated, Edge::Status::Validated)) {
         auto&& mem = edge->getMemory();
-        if (mem.isDefined()) {
+        if (mem.isDefined() && !mem.getDesc().empty()) {
             return mem.getShape().hasZeroDims();
         }
     }

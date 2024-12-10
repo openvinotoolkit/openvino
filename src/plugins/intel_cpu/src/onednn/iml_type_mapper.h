@@ -98,6 +98,9 @@ enum impl_desc_type : int64_t {
     brgconv_uni_1x1         = brgconv  | uni | _1x1,
     brgconv_avx512_amx_1x1  = brgconv  | avx512 | amx | _1x1,
 
+    brgconv_avx2_dw    = brgconv_avx2 | _dw,
+    brgconv_avx512_dw    = brgconv_avx512 | _dw,
+
     brgemm_avx512      = brgemm  | avx512,
     brgemm_avx2        = brgemm  | avx2,
     brgemm_avx         = brgemm  | avx,

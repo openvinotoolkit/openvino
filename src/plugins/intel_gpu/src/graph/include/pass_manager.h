@@ -140,6 +140,7 @@ public:
 private:
     void run(program& p) override;
     void fuse_bias(program &p);
+    void fuse_swiglu(program &p);
     void fuse_reorders(program& p);
     void fuse_simple_primitives(program &p);
     void fuse_constant_transposes(program &p);
@@ -307,13 +308,8 @@ public:
         if ((node->can_be_optimized() && !node->is_runtime_skippable()) || !dep->can_be_optimized()) {
             node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
         } else {
-            if (node->is_runtime_skippable() || dep->is_runtime_skippable()) {
+            if (node->is_runtime_skippable() || dep->is_runtime_skippable() || dep->can_be_optimized()) {
                 node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
-                for (const auto& subdep : dep->get_dependencies()) {
-                    add_memory_dependency(node, subdep.first);
-                    add_memory_dependency(subdep.first, node);
-                }
-                return;
             }
 
             for (const auto& subdep : dep->get_dependencies()) {
