@@ -2,9 +2,6 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino._ov_api import Tensor
-from openvino._ov_api import Node
-from openvino._ov_api import OVDict
 from openvino._ov_api import tensor_from_file
 
 from openvino._ov_api import Core

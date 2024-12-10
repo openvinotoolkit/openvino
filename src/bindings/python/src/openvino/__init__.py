@@ -57,7 +57,7 @@ from openvino._pyopenvino import RemoteTensor
 from openvino._pyopenvino import Op
 
 # Helper functions for openvino module
-from openvino._ov_api import tensor_from_file
+from openvino.runtime.utils.data_helpers import tensor_from_file
 from openvino._ov_api import compile_model
 
 # libva related:
