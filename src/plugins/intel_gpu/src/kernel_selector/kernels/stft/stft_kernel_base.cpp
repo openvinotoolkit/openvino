@@ -29,11 +29,29 @@ void STFTKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
 }
 
 STFTKernelBase::DispatchData STFTKernelBase::SetDefault(const STFT_params& params) {
-    DispatchData dispatchData;
-    dispatchData.gws[0] = params.outputs[0].LogicalSize();
-    dispatchData.gws[1] = 1;
-    dispatchData.gws[2] = 1;
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    CommonDispatchData dispatchData;
+    const auto inLayout = params.inputs.front().GetLayout();
+    const auto& output = params.outputs.front();
+    const auto outLayout = output.GetLayout();
+
+    OPENVINO_ASSERT(output.Dimentions() == 4);
+    OPENVINO_ASSERT(output.X().v == 2);
+
+    std::vector<std::vector<Tensor::DataChannelName>> dimsByGws;
+
+    if (params.transpose_frames) {
+        dispatchData.gws = {output.Feature().v, output.Y().v, output.Batch().v};
+        dimsByGws = {{Tensor::DataChannelName::FEATURE},
+                     {Tensor::DataChannelName::Y},
+                     {Tensor::DataChannelName::BATCH}};
+    } else {
+        dispatchData.gws = {output.Y().v, output.Feature().v, output.Batch().v};
+        dimsByGws = {{Tensor::DataChannelName::Y},
+                     {Tensor::DataChannelName::FEATURE},
+                     {Tensor::DataChannelName::BATCH}};
+    }
+    dispatchData.lws =
+        GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, inLayout, outLayout, dimsByGws);
 
     return dispatchData;
 }
