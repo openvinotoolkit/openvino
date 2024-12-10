@@ -8,8 +8,8 @@ from typing import List, Literal, Optional
 
 import numpy as np
 from openvino.runtime import Node, Type
-from openvino.runtime.opset1 import convert_like
-from openvino.runtime.opset14 import constant
+from openvino.opset1 import convert_like
+from openvino.opset14 import constant
 from openvino.runtime.opset_utils import _get_node_factory
 from openvino.runtime.utils.decorators import binary_op, nameable_op
 from openvino.runtime.utils.types import NodeInput, as_nodes
