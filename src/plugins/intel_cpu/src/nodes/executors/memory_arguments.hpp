@@ -14,7 +14,7 @@ namespace intel_cpu {
 using MemoryDescArgs = std::unordered_map<int, MemoryDescPtr>;
 using MemoryArgs     = std::unordered_map<int, MemoryPtr>;
 
-// @todo add more options
+// basic inputs
 #define ARG_SRC_0 1
 #define ARG_SRC   ARG_SRC_0
 #define ARG_SRC_1 2
@@ -24,6 +24,12 @@ using MemoryArgs     = std::unordered_map<int, MemoryPtr>;
 #define ARG_WEI_0 33
 #define ARG_WEI   ARG_WEI_0
 #define ARG_BIAS  41
+// legacy dequantization scale
+#define ARG_DST_DEQ_SCALE 53
+// scaling factors provided at execution time
+#define ARG_ATTR_SCALES 4096
+// zero points provided at execution time
+#define ARG_ATTR_ZERO_POINTS 8192
 
 }  // namespace intel_cpu
 }  // namespace ov

@@ -11,6 +11,7 @@
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/cpu_utils.hpp"
 #include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/implementation_utils.hpp"
 #include "nodes/convert.h"
@@ -201,9 +202,22 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
     MemoryArgs memoryArgs;
     memoryArgs[ARG_BIAS]  = memory.at(ARG_BIAS);
     memoryArgs[ARG_WEI]   = memory.at(ARG_WEI);
+
+    auto originalWeightsDesc = memory.at(ARG_WEI)->getDescPtr();
+
+    // normalize weights to 2D
+    const auto& wgtDims = originalWeightsDesc->getShape().getStaticDims();
+    const VectorDims wgtDims2D = reshapeDownToRank<2>(wgtDims);
+
+    originalWeightsDesc = std::make_shared<CpuBlockedMemoryDesc>(originalWeightsDesc->getPrecision(), Shape{wgtDims2D});
+
+    auto dnnlSrcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(originalWeightsDesc);
+    auto dstDesc = originalWeightsDesc->cloneWithNewPrecision(aclfcAttrs.inputPrecision);
+    auto dnnlDstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc);
+
     if (memory.at(ARG_SRC_0)->getShape().isDynamic()) {
         const auto& inShape = memory.at(ARG_SRC_0)->getShape();
-        const auto& wShape = memory.at(ARG_WEI)->getShape();
+        const auto& wShape = originalWeightsDesc->getShape();
         const auto& inDymmyDims = makeDummyInputDims(inShape, wShape);
         const auto& outDymmyDims = makeDummyOutputDims(inDymmyDims, wShape.getStaticDims(), memory.at(ARG_DST)->getShape().getRank());
         memoryArgs[ARG_SRC_0] = std::make_shared<Memory>(context->getEngine(),
@@ -214,19 +228,13 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
         memoryArgs[ARG_SRC_0] = memory.at(ARG_SRC_0);
         memoryArgs[ARG_DST]   = memory.at(ARG_DST);
     }
+
     // TODO: ACLWeightFormatGenerator should be replaced with Reorder executor
     // that calls ACL NEReorder + NETranspose or dnnl::reorder depending on backend availability
     auto aclWeightsRepack = std::make_shared<acl_fc_executor::ACLWeightFormatGenerator>(attrs, postOps, memoryArgs);
     bool isNeededReorder = aclWeightsRepack->update(memoryArgs);
     expectedWeightFormat = isNeededReorder ? aclWeightsRepack->getOptImplWeightFormat() : arm_compute::WeightFormat::UNSPECIFIED;
     weiTensorInfo = aclWeightsRepack->getTensorInfo(ACLArgs::ACL_WEI);
-
-    MemoryPtr dstMemPtr = std::make_shared<Memory>(context->getEngine(),
-                                                   memory.at(ARG_WEI)->getDescPtr()->cloneWithNewPrecision(aclfcAttrs.inputPrecision));
-    auto dstDesc = dstMemPtr->getDescPtr();
-    auto dnnlDstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc);
-    auto weiDesc = memory.at(ARG_WEI)->getDescPtr();
-    auto dnnlSrcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDesc);
 
     if (isNeededReorder) {
         dnnl::impl::dim_t o_dim = 0;

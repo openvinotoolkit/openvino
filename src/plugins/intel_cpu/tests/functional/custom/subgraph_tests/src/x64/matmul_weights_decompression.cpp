@@ -87,7 +87,7 @@ public:
 
         result << "config=(";
         for (const auto& configEntry : additional_config) {
-            result << configEntry.first << ", " << configEntry.second.as<std::string>() << ":";
+            result << configEntry.first << ", " << configEntry.second.as<std::string>() << "_";
         }
         result << ")";
         result << CpuTestWithFusing::getTestCaseName(fusing_params);

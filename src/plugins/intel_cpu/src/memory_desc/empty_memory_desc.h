@@ -59,7 +59,9 @@ public:
     }
 
     MemoryDescPtr cloneWithNewPrecision(const ov::element::Type prec) const override {
-        OPENVINO_THROW("Clone an empty memory desc with any precision (", prec, ") is prohibited");
+        OPENVINO_ASSERT(prec == ov::element::undefined,
+                        "Clone an empty memory desc with defined precision: ", prec, " is prohibited");
+        return clone();
     }
 
 private:

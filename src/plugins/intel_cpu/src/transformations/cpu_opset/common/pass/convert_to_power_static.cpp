@@ -12,7 +12,7 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
 #include "transformations/cpu_opset/common/op/power_static.hpp"
-#include "transformations/cpu_opset/common/op/fully_connected.hpp"
+#include "ov_ops/fully_connected.hpp"
 #include "utils/general_utils.h"
 
 #include "itt.hpp"
@@ -47,16 +47,16 @@ bool isConvertableToPowerStatic(const std::shared_ptr<BaseOp> &node) {
     return ov::shape_size(const_shape) == 1 &&
            input_rank.get_length() >= static_cast<int64_t>(const_shape.size()) &&
            !ov::intel_cpu::one_of(node->get_input_node_shared_ptr(nonConstPort)->get_type_info(),
-                                 ov::opset1::NormalizeL2::get_type_info_static(),
-                                 ov::opset4::Interpolate::get_type_info_static(),
-                                 ov::opset1::Convolution::get_type_info_static(),
-                                 ov::opset1::GroupConvolution::get_type_info_static(),
-                                 ov::opset1::ConvolutionBackpropData::get_type_info_static(),
-                                 ov::opset1::GroupConvolutionBackpropData::get_type_info_static(),
-                                 ov::opset1::MatMul::get_type_info_static(),
-                                 ov::intel_cpu::FullyConnectedNode::get_type_info_static(),
-                                 ov::op::v0::MVN::get_type_info_static(),
-                                 ov::opset6::MVN::get_type_info_static());
+                                  ov::opset1::NormalizeL2::get_type_info_static(),
+                                  ov::opset4::Interpolate::get_type_info_static(),
+                                  ov::opset1::Convolution::get_type_info_static(),
+                                  ov::opset1::GroupConvolution::get_type_info_static(),
+                                  ov::opset1::ConvolutionBackpropData::get_type_info_static(),
+                                  ov::opset1::GroupConvolutionBackpropData::get_type_info_static(),
+                                  ov::opset1::MatMul::get_type_info_static(),
+                                  ov::op::internal::FullyConnected::get_type_info_static(),
+                                  ov::op::v0::MVN::get_type_info_static(),
+                                  ov::opset6::MVN::get_type_info_static());
 }
 
 template <>

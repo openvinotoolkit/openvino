@@ -23,6 +23,10 @@ using namespace executor;
 using namespace dnnl;
 using namespace ov::element;
 
+static Dim batchDim(const VectorDims& dims) {
+    return std::accumulate(dims.begin(), dims.end() - 1, 1, std::multiplies<Dim>());
+}
+
 static MemoryPtr prepareWeightMemory(const MemoryPtr weightsMemory,
                                      const ExecutorContext::CPtr context,
                                      const bool weightsTransposed) {
@@ -31,14 +35,15 @@ static MemoryPtr prepareWeightMemory(const MemoryPtr weightsMemory,
     // Weights are transposed by MatMulConstTransposesExtraction
     // K is the IC of weight
     // the weight is reshaped to [-1, K] in ConvertMatMulToFC
-    const auto K = wgtDims[1];
-    const auto N = wgtDims[0];
+    Dim K = wgtDims.back();
+    Dim N = batchDim(wgtDims);
 
     auto packedBsize = mlas_sgemm_pack_get_size(N, K);
 
     auto create = [&]() {
         float* weightPtr = weightsMemory->getDataAs<float>();
         size_t ldb = weightsTransposed ? K : N;
+
         MemoryPtr _ptr = std::make_shared<Memory>(context->getEngine(),
                                                   intel_cpu::CpuBlockedMemoryDesc(i8, intel_cpu::Shape{packedBsize}));
         float* prepackedDst = _ptr->getDataAs<float>();
@@ -66,21 +71,10 @@ bool MlasGemmExecutor::supports(const FCConfig& config) {
         DEBUG_LOG("MlasGemmExecutor: PostOps are not supported");
         return false;
     }
-    const auto& weiDesc = config.descs.at(ARG_WEI);
+
     const auto& dstDesc = config.descs.at(ARG_DST);
 
-    // MLAS cannot support weight dims > 2, e.g. [1,64,9,9] * [10,64,9,9]
-    const auto& weightsDims = weiDesc->getShape().getStaticDims();
-    if (weightsDims.size() > 2) {
-        if (!std::all_of(weightsDims.begin() + 2, weightsDims.end(), [](const Dim dim) {
-                return dim == 1;
-            })) {
-            DEBUG_LOG("MlasGemmExecutor: weights dims > 2 are not supported");
-            return false;
-        }
-    }
-
-    if (config.attrs.withBias) {
+    if (!config.descs.at(ARG_BIAS)->empty()) {
         const auto& biaDesc = config.descs.at(ARG_BIAS);
         const auto& biasDims = biaDesc->getShape().getStaticDims();
         const auto& outDims = dstDesc->getShape().getDims();
@@ -108,24 +102,17 @@ MlasGemmExecutor::MlasGemmExecutor(const FCAttrs& attrs,
                                    const ExecutorContext::CPtr context)
     : m_attrs(attrs),
       m_memoryArgs(memory),
-      packedWeights(prepareWeightMemory(memory.at(ARG_WEI), context, !attrs.weightsNonTransposed)) {}
+      packedWeights(prepareWeightMemory(memory.at(ARG_WEI), context, !attrs.weightsNonTransposed)),
+      N(batchDim(memory.at(ARG_WEI)->getStaticDims())),
+      K(memory.at(ARG_WEI)->getStaticDims().back())
+{}
 
 bool MlasGemmExecutor::update(const MemoryArgs& memory) {
-    const auto& weiDesc = memory.at(ARG_WEI)->getDescPtr();
     const auto& dstDesc = memory.at(ARG_DST)->getDescPtr();
-    const auto& wgtDims = weiDesc->getShape().getStaticDims();
-    // Weights are transposed by MatMulConstTransposesExtraction
-    // K is the IC of weight
-    // the weight is reshaped to [-1, K] in ConvertMatMulToFC
-    K = wgtDims[1];
-    N = wgtDims[0];
 
     const auto& outDims = dstDesc->getShape().getStaticDims();
-    if (outDims.size() > 2) {
-        M = std::accumulate(outDims.begin(), outDims.end() - 1, 1, std::multiplies<size_t>());
-    } else {
-        M = outDims[0];
-    }
+    M = outDims.size() > 2 ? batchDim(outDims) : outDims[0];
+
     return true;
 }
 

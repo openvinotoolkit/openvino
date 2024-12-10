@@ -5,6 +5,7 @@
 #include "edge.h"
 #include "node.h"
 #include "dnnl_extension_utils.h"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/util/pp.hpp"
 
 using namespace dnnl;
@@ -212,6 +213,10 @@ Edge::ReorderStatus Edge::needReorder() {
     bool optimized = false;
     auto inputPortDesc = getInputPortDesc();
     auto outPortDesc = getOutputPortDesc();
+
+    if (inputPortDesc->getMemDesc()->getPrecision() == element::undefined)
+        return ReorderStatus::No;
+
     // Check whether the child node may accept the parent produced tensor
     if (!outPortDesc->isCompatible(*inputPortDesc)) {
         // Performance optimization which exploit the fact that some tensors do not need actual data reordering to be read using different descriptors
@@ -410,6 +415,9 @@ const MemoryDesc& Edge::getOutputDesc() const {
 }
 
 const MemoryDesc& Edge::getDesc() const {
+    if (getInputDesc().getPrecision() == element::undefined)
+        return getInputDesc();
+
     if (!getInputDesc().isCompatible(getOutputDesc()))
         OPENVINO_THROW("Cannot get descriptor for edge: ", getParent()->getName(), "->", getChild()->getName());
 

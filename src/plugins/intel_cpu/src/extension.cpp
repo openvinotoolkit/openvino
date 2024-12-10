@@ -7,6 +7,10 @@
 #include "openvino/core/op_extension.hpp"
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
+#include "ov_ops/fully_connected.hpp"
+#include "ov_ops/fully_connected_compressed.hpp"
+#include "ov_ops/fully_connected_quantized_legacy.hpp"
+#include "ov_ops/fully_connected_quantized.hpp"
 #include "ov_ops/gather_compressed.hpp"
 #include "ov_ops/multiclass_nms_ie_internal.hpp"
 #include "ov_ops/nms_ie_internal.hpp"
@@ -16,7 +20,6 @@
 #include "ov_ops/type_relaxed.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "transformations/cpu_opset/common/op/causal_mask_preprocess.hpp"
-#include "transformations/cpu_opset/common/op/fully_connected.hpp"
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
 #include "transformations/cpu_opset/common/op/ngram.hpp"
 #include "transformations/cpu_opset/common/op/power_static.hpp"
@@ -70,7 +73,6 @@ private:
 #endif
 
 #define CPU_EXTENSIONS                                                      \
-    OP_EXTENSION(ov::intel_cpu::FullyConnectedNode)                         \
     OP_EXTENSION(ov::intel_cpu::LeakyReluNode)                              \
     OP_EXTENSION(ov::intel_cpu::PowerStaticNode)                            \
     OP_EXTENSION(ov::intel_cpu::CausalMaskPreprocessNode)                   \
@@ -85,6 +87,10 @@ private:
     OP_EXTENSION(ov::op::internal::NmsStaticShapeIE<ov::op::v8::MatrixNms>) \
     OP_EXTENSION(ov::op::internal::RMS)                                     \
     OP_EXTENSION(ov::op::internal::RoPE)                                    \
+    OP_EXTENSION(ov::op::internal::FullyConnected)                          \
+    OP_EXTENSION(ov::op::internal::FullyConnectedCompressed)                \
+    OP_EXTENSION(ov::op::internal::FullyConnectedQuantizedLegacy)           \
+    OP_EXTENSION(ov::op::internal::FullyConnectedQuantized)                 \
     OP_EXTENSION_X64(ov::intel_cpu::MHANode)                                \
     OP_EXTENSION_X64(ov::intel_cpu::InteractionNode)                        \
     OP_EXTENSION_X64(ov::intel_cpu::LLMMLPNode)                             \

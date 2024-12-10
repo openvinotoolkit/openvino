@@ -19,13 +19,8 @@ struct FCAttrs {
     bool withBias = false;
     bool weightsNonTransposed = false;
     bool sparseWeights = false;
-    // @todo only memory descriptors should be a part of attributes
-    // actual memory should be passed into "execute" or "prepareMemory" calls
-    std::vector<float> dequantizationScales;
-    // @todo should be passed as an additional memory input?
-    MemoryCPtr decompressionSubtractPtr;
-    MemoryCPtr decompressionMultiplyPtr;
     uint64_t dynamicQuantizationGroupSize;
+
     ov::intel_cpu::Config::ModelType modelType = ov::intel_cpu::Config::ModelType::Unknown;
 };
 
