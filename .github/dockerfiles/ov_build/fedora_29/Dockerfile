@@ -24,7 +24,9 @@ RUN dnf update -y && dnf install -y \
     gcc-c++ \
     # parallel gzip
     pigz \
-    xz
+    xz \
+    # rpmlint dependency
+    rpm-python
 
 # Install build dependencies
 ADD install_build_dependencies.sh /install_build_dependencies.sh
