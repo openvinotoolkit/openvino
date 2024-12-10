@@ -552,8 +552,6 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
     stream.read(reinterpret_cast<char*>(&m_name_size), sizeof m_name_size);
     stream.read(compiled->m_name.data(), m_name_size);
 
-    // FIXME: bad_alloc below
-
     // m_inputs_to_submodels_inputs
     std::size_t m_inputs_to_submodels_inputs_size = 0;
     stream.read(reinterpret_cast<char*>(&m_inputs_to_submodels_inputs_size), sizeof m_inputs_to_submodels_inputs_size);
@@ -580,7 +578,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
     // m_param_subscribers
     std::size_t m_param_subscribers_size = 0;
     stream.read(reinterpret_cast<char*>(&m_param_subscribers_size), sizeof m_param_subscribers_size);
-    for (std::size_t i = 0; i < m_outputs_to_submodels_outputs_size; ++i) {
+    for (std::size_t i = 0; i < m_param_subscribers_size; ++i) {
         std::size_t key = 0;
         stream.read(reinterpret_cast<char*>(&key), sizeof key);
         std::vector<ToSubmodel> value;
