@@ -3,13 +3,14 @@
 //
 #pragma once
 
-#include <array>
+#include "nodes/kernels/scaled_attn/common.hpp"
+
+#if defined(HAVE_SSE) || defined(HAVE_AVX2) || defined(HAVE_AVX512F)
+#    include <immintrin.h>
+#endif
+
 #include <cstddef>
 #include <cstdint>
-#include <vector>
-
-#include "openvino/core/type/element_type.hpp"
-#include "utils/plain_tensor.hpp"
 
 namespace ov {
 namespace Extensions {
