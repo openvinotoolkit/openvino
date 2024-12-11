@@ -52,6 +52,7 @@ OP_CONVERTER(translate_reduce_window_max);
 OP_CONVERTER(translate_reduce_window_sum);
 OP_CONVERTER(translate_reshape);
 OP_CONVERTER(translate_rsqrt);
+OP_CONVERTER(translate_select_n);
 OP_CONVERTER(translate_slice);
 OP_CONVERTER(translate_squeeze);
 OP_CONVERTER(translate_transpose);
@@ -91,6 +92,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_jaxpr() {
             {"transpose", op::translate_transpose},
             {"rsqrt", op::translate_rsqrt},
             {"reshape", op::translate_reshape},
+            {"select_n", op::translate_select_n},
             {"slice", op::translate_slice},
             {"sqrt", op::translate_1to1_match_1_input<v0::Sqrt>},
             {"squeeze", op::translate_squeeze},
