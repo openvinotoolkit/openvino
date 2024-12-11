@@ -36,6 +36,7 @@ ov::pass::ConvertU4WeightsZeroPointToScalar::ConvertU4WeightsZeroPointToScalar()
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
         auto weights = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(weights_m).get_node_shared_ptr());
+        OPENVINO_ASSERT(weights, "Weights constant is not found");
         std::shared_ptr<ov::op::v0::Constant> zero_point;
         if (pattern_map.count(float_zero_point_m)) {
             const auto& float_zp = pattern_map.at(float_zero_point_m);
@@ -44,6 +45,7 @@ ov::pass::ConvertU4WeightsZeroPointToScalar::ConvertU4WeightsZeroPointToScalar()
             const auto& u4_zp = pattern_map.at(u4_zero_point_m);
             zero_point = ov::as_type_ptr<ov::op::v0::Constant>(u4_zp.get_node_shared_ptr());
         }
+        OPENVINO_ASSERT(zero_point, "zero_point constant is not found");
         if (!weights || !zero_point)
             return false;
         // Due to the matcher specific and Subtract branches similarity,
@@ -66,7 +68,9 @@ ov::pass::ConvertU4WeightsZeroPointToScalar::ConvertU4WeightsZeroPointToScalar()
         if (!ov::op::util::get_single_value(zero_point, zp_value))
             return false;
         const auto new_zp = ov::op::v0::Constant::create(zero_point->get_element_type(), {}, {zp_value});
-        return ov::replace_node_update_name(zero_point, new_zp);
+        bool res = ov::replace_node_update_name(zero_point, new_zp);
+        std::cerr << "[ INFO ] Transformation completed, status = " << res << std::endl;
+        return res;
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(subtract_m, matcher_name);
