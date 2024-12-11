@@ -229,7 +229,41 @@ void remove_core_properties(ov::AnyMap& properties) {
         properties.erase(name);
     }
 }
+}  // namespace
 
+bool ov::is_config_applicable(const std::string& user_device_name, const std::string& subprop_device_name) {
+    // full match
+    if (user_device_name == subprop_device_name)
+        return true;
+
+    auto parsed_user_device_name = ov::parseDeviceNameIntoConfig(user_device_name);
+    auto parsed_subprop_device_name = ov::parseDeviceNameIntoConfig(subprop_device_name);
+
+    // if device name is matched, check additional condition
+    auto is_matched = [&](const std::string& key, MatchType match_type) -> bool {
+        const auto& user_value =
+            parsed_user_device_name._config.count(key) ? parsed_user_device_name._config.at(key).as<std::string>() : "";
+        const auto& subprop_value = parsed_subprop_device_name._config.count(key)
+                                        ? parsed_subprop_device_name._config.at(key).as<std::string>()
+                                        : "";
+
+        if (!user_value.empty() && subprop_value.empty()) {
+            // property without additional limitation can be applied
+            return true;
+        }
+        return match_type == MatchType::EXACT ? (user_value == subprop_value) : (user_value.find(subprop_value) == 0);
+        return false;
+    };
+
+    if (parsed_user_device_name._deviceName == parsed_subprop_device_name._deviceName) {
+        auto device_priority = get_device_priority_property(parsed_user_device_name._deviceName);
+        return is_matched(device_priority.prop_name, device_priority.match_type);
+    }
+
+    return false;
+}
+
+namespace {
 ov::Parsed parse_device_config(const std::string& device_name,
                                const ov::CoreConfig& core_config,
                                const ov::AnyMap& properties,
@@ -303,38 +337,6 @@ ov::Parsed parse_device_config(const std::string& device_name,
     return parsed;
 }
 }  // namespace
-
-bool ov::is_config_applicable(const std::string& user_device_name, const std::string& subprop_device_name) {
-    // full match
-    if (user_device_name == subprop_device_name)
-        return true;
-
-    auto parsed_user_device_name = ov::parseDeviceNameIntoConfig(user_device_name);
-    auto parsed_subprop_device_name = ov::parseDeviceNameIntoConfig(subprop_device_name);
-
-    // if device name is matched, check additional condition
-    auto is_matched = [&](const std::string& key, MatchType match_type) -> bool {
-        const auto& user_value =
-            parsed_user_device_name._config.count(key) ? parsed_user_device_name._config.at(key).as<std::string>() : "";
-        const auto& subprop_value = parsed_subprop_device_name._config.count(key)
-                                        ? parsed_subprop_device_name._config.at(key).as<std::string>()
-                                        : "";
-
-        if (!user_value.empty() && subprop_value.empty()) {
-            // property without additional limitation can be applied
-            return true;
-        }
-        return match_type == MatchType::EXACT ? (user_value == subprop_value) : (user_value.find(subprop_value) == 0);
-        return false;
-    };
-
-    if (parsed_user_device_name._deviceName == parsed_subprop_device_name._deviceName) {
-        auto device_priority = get_device_priority_property(parsed_user_device_name._deviceName);
-        return is_matched(device_priority.prop_name, device_priority.match_type);
-    }
-
-    return false;
-}
 
 ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName,
                                          const AnyMap& config,
