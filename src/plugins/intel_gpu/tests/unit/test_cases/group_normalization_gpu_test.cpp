@@ -8,9 +8,7 @@
 #include "pass_manager.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
-#include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/group_normalization.hpp>
-#include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/permute.hpp>
 #include "openvino/reference/group_normalization.hpp"
@@ -183,11 +181,22 @@ TEST(group_normalization, input_bfyx_output_fsv16) {
     set_values(scale_mem, { 0.125 });
     set_values(bias_mem, { 0.75 });
 
-    topology topology(
+    topology topology_g(
         input_layout("input", in_layout),
         input_layout("scale", scale_layout),
         input_layout("bias", bias_layout),
-        group_normalization("group_normalization", input_info("input"), input_info("scale"), input_info("bias"), static_cast<std::int64_t>(1), 0.0025)
+        group_normalization("group_normalization", input_info("input"), input_info("scale"), input_info("bias"), static_cast<std::int64_t>(1), 0.0025),
+        permute("output", input_info("group_normalization"), {0, 1, 2, 3})
+    );
+
+    topology topology_t(
+        input_layout("input", in_layout),
+        input_layout("scale", scale_layout),
+        input_layout("bias", bias_layout),
+        reorder("reorder1", input_info("input"), format::b_fs_yx_fsv16, data_types::f32),
+        group_normalization("group_normalization", input_info("reorder1"), input_info("scale"), input_info("bias"), static_cast<std::int64_t>(1), 0.0025),
+        reorder("reorder2", input_info("group_normalization"), format::b_fs_yx_fsv16, data_types::f32),
+        permute("output", input_info("reorder2"), {0, 1, 2, 3})
     );
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -196,28 +205,35 @@ TEST(group_normalization, input_bfyx_output_fsv16) {
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
 
-    auto network = std::make_shared<cldnn::network>(engine, topology, config);
-    network->set_input_data("input", input_mem);
-    network->set_input_data("scale", scale_mem);
-    network->set_input_data("bias", bias_mem);
+    network network_g(engine, topology_g, config);
+    network_g.set_input_data("input", input_mem);
+    network_g.set_input_data("scale", scale_mem);
+    network_g.set_input_data("bias", bias_mem);
 
-    auto outputs_gold = network->execute();
-    auto output_gold = outputs_gold.at("group_normalization").get_memory();
-    cldnn::mem_lock<float> output_mem_gold(output_gold, get_test_stream());
+    auto outputs_g = network_g.execute();
+    auto output_g = outputs_g.at("output").get_memory();
+    cldnn::mem_lock<float> output_mem_g(output_g, get_test_stream());
 
-    auto& gn_node = network->get_program()->get_node("group_normalization");
-    std::vector<layout> layouts = {layout { in_layout.get_shape(), data_types::f32, format::b_fs_yx_fsv16 }};
-    gn_node.set_output_layouts(layouts, false);
+    auto program = program::build_program(engine, topology_t, config, false, true);
+    auto& reorder_node = program->get_node("reorder1");
+    std::vector<layout> layouts = {in_layout};
+    reorder_node.set_output_layouts(layouts, false);
+    program_wrapper::build(*program);
 
-    auto outputs_target = network->execute();
-    auto output_target = outputs_target.at("group_normalization").get_memory();
-    cldnn::mem_lock<float> output_mem_target(output_target, get_test_stream());
+    network network_t(program);
+    network_t.set_input_data("input", input_mem);
+    network_t.set_input_data("scale", scale_mem);
+    network_t.set_input_data("bias", bias_mem);
 
-    ASSERT_EQ(output_mem_gold.size(), output_mem_target.size());
-    ASSERT_EQ(outputs_gold.begin()->first, outputs_target.begin()->first);
+    auto outputs_t = network_t.execute();
+    auto output_t = outputs_g.at("output").get_memory();
+    cldnn::mem_lock<float> output_mem_t(output_t, get_test_stream());
 
-    for (std::size_t i = 0; i < output_mem_target.size(); i++) {
-        ASSERT_NEAR(output_mem_target[i], output_mem_gold[i], 0.0001);
+    ASSERT_EQ(output_mem_g.size(), output_mem_t.size());
+    ASSERT_EQ(outputs_g.begin()->first, outputs_t.begin()->first);
+
+    for (std::size_t i = 0; i < output_mem_t.size(); i++) {
+        ASSERT_NEAR(output_mem_t[i], output_mem_g[i], 0.0001);
     }
 }
 #endif // ENABLE_ONEDNN_FOR_GPU
