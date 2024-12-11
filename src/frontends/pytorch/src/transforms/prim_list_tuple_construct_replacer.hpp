@@ -14,7 +14,7 @@ namespace pass {
 
 class DecomposeListTupleResults : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("ov::frontend::pytorch::pass::DecomposeListTupleResults");
+    OPENVINO_RTTI("ov::frontend::pytorch::pass::DecomposeListTupleResults", "util", ov::pass::ModelPass);
     bool run_on_model(const std::shared_ptr<Model>& model) override;
 };
 

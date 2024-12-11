@@ -14,13 +14,13 @@ namespace pass {
 
 class PrimTupleUnpackReplacer : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::pytorch::pass::PrimTupleUnpackReplacer");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::pytorch::pass::PrimTupleUnpackReplacer");
     PrimTupleUnpackReplacer();
 };
 
 class TupleUnpackInBodyReplacer : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("ov::frontend::pytorch::pass::TupleUnpackInBodyReplacer");
+    OPENVINO_RTTI("ov::frontend::pytorch::pass::TupleUnpackInBodyReplacer", "util", ov::pass::ModelPass);
     bool run_on_model(const std::shared_ptr<Model>& model) override;
 };
 
