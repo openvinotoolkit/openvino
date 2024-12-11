@@ -6,9 +6,11 @@
 
 #include <node.h>
 
+#include <cstddef>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "cpu_memory.h"
@@ -16,7 +18,6 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "post_ops.hpp"
-#include "openvino/runtime/threading/cpu_message.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -66,6 +67,15 @@ public:
     bool canFuse(const NodePtr& node) const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedCompressedOperation(const std::shared_ptr<ov::Node>& op,
+                                               size_t IC,
+                                               size_t OC,
+                                               size_t G,
+                                               ov::element::Type inferencePrecision) noexcept;
+
+    bool isExecutable() const override {
+        return !isInputTensorAtPortEmpty(0);
+    }
 
     void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override;
@@ -81,11 +91,22 @@ protected:
     void toNumaNodeImpl(int numaID) override;
 
 private:
-    static const size_t DATA_ID = 0;
-    static const size_t WEIGHTS_ID = 1;
-    static const size_t BIAS_ID = 2;
+    enum InputId : size_t {
+        DATA = 0,
+        WEIGHTS,
+        BIAS,
+        WEIGHT_SCALES,
+        WEIGHT_ZERO_POINTS,
+        INPUT_SCALES,
+        INPUT_ZERO_POINTS,
+        OUTPUT_SCALES,
+        OUTPUT_ZERO_POINTS,
+    };
 
-    ExecutorPtr createExecutor();
+    static bool isConstantInput(const std::shared_ptr<const ov::Node>& op, InputId port);
+
+    std::unordered_map<size_t, size_t> m_atoi; // memory argument id to input id
+
     void fuseDecompressionConstant(const MemoryCPtr& memory, MemoryCPtr& decompressionValuesPtr);
 
     void initTensorParallelConfig(const GraphContext::CPtr context);
@@ -94,16 +115,11 @@ private:
     void initTensorParallelSync();
     void execTensorParallelSync();
     void needSplitMemoryForTensorParallel();
-    void needSplitScaleForTensorParallel(const MemoryCPtr& memory);
-    void needUpdateScaleForTensorParallel();
-    void needSplitZeroPointForTensorParallel(const MemoryCPtr& memory);
-    void needUpdateZeroPointForTensorParallel();
-    void needUpdateDQScaleForTensorParallel(std::vector<float>& dequantizationScales);
 
     FCAttrs attrs;
     PostOps postOps;
     MemoryArgs memory;
-    ExecutorFactoryPtr<FCAttrs, node::FullyConnected> factory;
+    ExecutorFactoryPtr<FCAttrs> factory;
     ExecutorPtr executor = nullptr;
     std::string errorPrefix;
 

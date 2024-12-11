@@ -55,7 +55,8 @@ Hardware-based protection such as Intel Software Guard Extensions (Intel SGX) ca
 decryption operation secrets and bind them to a device. For more information, see
 the `Intel Software Guard Extensions <https://software.intel.com/en-us/sgx>`__.
 
-Use the ``ov::Core::read_model`` to set model representations and weights respectively.
+Use the `ov::Core::read_model <../api/c_cpp_api/group__ov__dev__exec__model.html#classov_1_1_core_1ae0576a95f841c3a6f5e46e4802716981>`__
+to set model representations and weights respectively.
 
 Currently there is no way to read external weights from memory for ONNX models.
 The ``ov::Core::read_model(const std::string& model, const Tensor& weights)`` method
@@ -64,6 +65,20 @@ should be called with ``weights`` passed as an empty ``ov::Tensor``.
 .. doxygensnippet:: docs/articles_en/assets/snippets/protecting_model_guide.cpp
     :language: cpp
     :fragment: part1
+
+
+Encrypted models that have already been compiled, in the form of blob files,
+can be loaded using the
+`ov::Core::import_model <../api/c_cpp_api/group__ov__runtime__cpp__api.html#_CPPv4N2ov4Core12import_modelERNSt7istreamERKNSt6stringERK6AnyMap>`__
+method, as shown in the code sample below:
+
+.. code-block:: cpp
+
+   ov::Core core;
+   // Import a model from a blob.
+   std::ifstream compiled_blob(blob, std::ios_base::in | std::ios_base::binary);
+   auto compiled_model = core.import_model(compiled_blob, "CPU");
+
 
 Additional Resources
 ####################
