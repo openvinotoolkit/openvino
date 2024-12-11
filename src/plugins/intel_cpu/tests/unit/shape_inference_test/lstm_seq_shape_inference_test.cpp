@@ -9,12 +9,7 @@
 using namespace ov;
 using namespace ov::intel_cpu;
 
-class LSTMSequenceV5StaticShapeInferenceTest : public OpStaticShapeInferenceTest<op::v5::LSTMSequence> {
-protected:
-    void SetUp() override {
-        this->output_shapes = ShapeVector(3);
-    }
-};
+class LSTMSequenceV5StaticShapeInferenceTest : public OpStaticShapeInferenceTest<op::v5::LSTMSequence> {};
 
 TEST_F(LSTMSequenceV5StaticShapeInferenceTest, default_ctor) {
     constexpr size_t batch_size = 2;

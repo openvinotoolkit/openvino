@@ -247,6 +247,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // update the props after the perf mode translated to configs
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
+    conf.applyRtInfo(cloned_model);
     conf.readProperties(config, modelType);
 
     Transformations transformations(cloned_model, conf);
@@ -520,6 +521,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
     Config conf = engConfig;
     Config::ModelType modelType = getModelType(model);
+    conf.applyRtInfo(model);
     conf.readProperties(config, modelType);
 
     auto context = std::make_shared<GraphContext>(conf, fake_w_cache, false);
@@ -563,8 +565,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
         decript_from_string = true;
     }
 
+    auto _config = config;
+    std::shared_ptr<ov::AlignedBuffer> model_buffer;
+    if (_config.count(ov::internal::cached_model_buffer.name())) {
+        model_buffer = _config.at(ov::internal::cached_model_buffer.name()).as<std::shared_ptr<ov::AlignedBuffer>>();
+        _config.erase(ov::internal::cached_model_buffer.name());
+    }
+
     ModelDeserializer deserializer(
         model_stream,
+        model_buffer,
         [this](const std::shared_ptr<ov::AlignedBuffer>& model, const std::shared_ptr<ov::AlignedBuffer>& weights) {
             return get_core()->read_model(model, weights);
         },
@@ -575,9 +585,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
 
     Config conf = engConfig;
     Config::ModelType modelType = getModelType(model);
-
+    conf.applyRtInfo(model);
     // check ov::loaded_from_cache property and erase it to avoid exception in readProperties.
-    auto _config = config;
     const auto& it = _config.find(ov::loaded_from_cache.name());
     bool loaded_from_cache = false;
     if (it != _config.end()) {

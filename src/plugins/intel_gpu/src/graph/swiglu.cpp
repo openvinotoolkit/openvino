@@ -3,6 +3,7 @@
 //
 
 #include "ov_ops/glu.hpp"
+#include "glu_shape_inference.hpp"
 #include "swiglu_inst.h"
 
 #include "primitive_type_base.h"
@@ -32,11 +33,7 @@ std::vector<layout> swiglu_inst::calc_output_layouts(swiglu_node const& /*node*/
     op.set_axis(desc->axis);
     op.set_split_lengths(desc->split_lengths);
 
-    std::vector<ShapeType> input_shapes = {
-        impl_param.get_input_layout(0).get<ShapeType>(),
-        ShapeType(ov::Shape({})),
-        ShapeType(ov::Shape{2})
-    };
+    std::vector<ShapeType> input_shapes = {impl_param.get_input_layout(0).get<ShapeType>()};
 
     std::vector<ShapeType> output_shapes = shape_infer(&op, input_shapes);
 
