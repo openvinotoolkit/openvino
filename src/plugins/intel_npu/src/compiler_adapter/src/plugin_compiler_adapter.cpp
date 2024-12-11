@@ -95,6 +95,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
                          "allowed. Only exports are available");
         }
     }
+
     return std::make_shared<PluginGraph>(_zeGraphExt,
                                          _compiler,
                                          _zeroInitStruct,

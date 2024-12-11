@@ -1452,7 +1452,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                              ov::itt::domains::LoadTime,
                              "Core::load_model_from_cache::ReadStreamAndImport");
                 try {
-                    ov::CompiledBlobHeader header(model_buffer);
+                    ov::CompiledBlobHeader header;
                     networkStream >> header;
                     if (header.get_file_info() != ov::ModelCache::calculate_file_info(cacheContent.modelPath)) {
                         // Original file is changed, don't use cache

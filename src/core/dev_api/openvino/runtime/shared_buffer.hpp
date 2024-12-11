@@ -16,7 +16,6 @@ public:
         m_allocated_buffer = data;
         m_aligned_buffer = data;
         m_byte_size = size;
-        m_offset = 0;
     }
 
     virtual ~SharedBuffer() {
@@ -80,26 +79,6 @@ public:
 
     std::shared_ptr<ov::AlignedBuffer> get_buffer() {
         return m_shared_obj;
-    }
-
-    std::streamsize xsgetn(char* s, std::streamsize count) override {
-        auto streamSize = SharedStreamBuffer::xsgetn(s, count);
-        m_shared_obj->updateOffset(m_offset);
-        return streamSize;
-    }
-
-    int_type uflow() override {
-        auto val = SharedStreamBuffer::uflow();
-        m_shared_obj->updateOffset(m_offset);
-        return val;
-    }
-
-    pos_type seekoff(off_type off,
-                     std::ios_base::seekdir dir,
-                     std::ios_base::openmode which = std::ios_base::in) override {
-        auto pos = SharedStreamBuffer::seekoff(off, dir, which);
-        m_shared_obj->updateOffset(m_offset);
-        return pos;
     }
 
 protected:

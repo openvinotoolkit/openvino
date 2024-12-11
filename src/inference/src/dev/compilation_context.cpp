@@ -156,8 +156,7 @@ std::string ModelCache::compute_hash(const std::string& modelStr,
 
 //////////////////////////////////////////////////
 
-CompiledBlobHeader::CompiledBlobHeader(std::shared_ptr<ov::AlignedBuffer> model_buffer)
-    : m_model_buffer(model_buffer) {}
+CompiledBlobHeader::CompiledBlobHeader() {}
 
 CompiledBlobHeader::CompiledBlobHeader(const std::string& ieVersion,
                                        const std::string& fileInfo,
@@ -169,10 +168,6 @@ CompiledBlobHeader::CompiledBlobHeader(const std::string& ieVersion,
 std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header) {
     std::string xmlStr;
     std::getline(stream, xmlStr);
-    auto model_buffer = header.get_model_buffer();
-    if (model_buffer != nullptr) {
-        model_buffer->updateOffset(stream.tellg());
-    }
 
     pugi::xml_document document;
     pugi::xml_parse_result res = document.load_string(xmlStr.c_str());

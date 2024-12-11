@@ -32,10 +32,9 @@ class CompiledBlobHeader final {
     std::string m_ieVersion;
     std::string m_fileInfo;
     std::string m_runtimeInfo;
-    std::shared_ptr<ov::AlignedBuffer> m_model_buffer;
 
 public:
-    CompiledBlobHeader(std::shared_ptr<ov::AlignedBuffer> model_buffer);
+    CompiledBlobHeader();
     CompiledBlobHeader(const std::string& ieVersion, const std::string& fileInfo, const std::string& runtimeInfo);
 
     const std::string& get_openvino_version() const {
@@ -48,10 +47,6 @@ public:
 
     const std::string& get_runtime_info() const {
         return m_runtimeInfo;
-    }
-
-    const std::shared_ptr<ov::AlignedBuffer> get_model_buffer() const {
-        return m_model_buffer;
     }
 
     friend std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header);

@@ -58,10 +58,12 @@ private:
 
 class BlobContainerAlignedBuffer : public BlobContainer {
 public:
-    BlobContainerAlignedBuffer(const std::shared_ptr<ov::AlignedBuffer>& blobSO) : _ownershipBlob(blobSO) {}
+    BlobContainerAlignedBuffer(const std::shared_ptr<ov::AlignedBuffer>& blobSO, size_t offset)
+        : _ownershipBlob(blobSO),
+          _offset(offset) {}
 
     void* get_ptr() override {
-        return _ownershipBlob->get_ptr();
+        return _ownershipBlob->get_ptr(_offset);
     }
 
     size_t size() const override {
@@ -74,6 +76,7 @@ public:
 
 private:
     std::shared_ptr<ov::AlignedBuffer> _ownershipBlob;
+    size_t _offset;
 };
 
 class IGraph : public std::enable_shared_from_this<IGraph> {
@@ -149,7 +152,7 @@ protected:
     // first inference starts running
     std::mutex _mutex;
 
-    std::unique_ptr<BlobContainer> _blob;
+    std::unique_ptr<BlobContainer> _blobPtr;
 
     uint32_t _unique_id = 0;
     uint32_t _last_submitted_id;

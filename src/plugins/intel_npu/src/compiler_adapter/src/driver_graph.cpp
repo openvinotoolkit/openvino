@@ -34,13 +34,16 @@ DriverGraph::DriverGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
 
 size_t DriverGraph::export_blob(std::ostream& stream) const {
     const uint8_t* blobPtr = nullptr;
-    size_t blobSize;
+    size_t blobSize = -1;
     std::vector<uint8_t> blob;
 
-    _zeGraphExt->getGraphBinary(_handle, *blob, blobPtr, blobSize);
-    _blob = std::make_shared<ov::SharedBuffer<std::shared_ptr<std::vector<uint8_t>>>>(reinterpret_cast<char*>(const_cast<uint8_t*>(blobPtr)), blobSize, blob);
+    if (_blobIsReleased) {
+        OPENVINO_THROW("Model was imported (not compiled) by the plugin. Model export is forbidden in this case!");
+    }
 
-    stream.write(reinterpret_cast<const char*>(_blob->get_ptr()), _blob->size());
+    _zeGraphExt->getGraphBinary(_handle, blob, blobPtr, blobSize);
+
+    stream.write(reinterpret_cast<const char*>(blobPtr), blobSize);
 
     if (!stream) {
         _logger.error("Write blob to stream failed. Blob is broken!");
@@ -49,12 +52,12 @@ size_t DriverGraph::export_blob(std::ostream& stream) const {
 
     if (_logger.level() >= ov::log::Level::INFO) {
         std::uint32_t result = 1171117u;
-        for (const uint8_t* it = reinterpret_cast<const uint8_t*>(_blob->get_ptr()); it !=  reinterpret_cast<const uint8_t*>(_blob->get_ptr()) + _blob->size(); ++it) {
+        for (const uint8_t* it = blobPtr; it !=  blobPtr + blobSize; ++it) {
             result = ((result << 7) + result) + static_cast<uint32_t>(*it);
         }
 
         std::stringstream str;
-        str << "Blob size: " << _blob->size() << ", hash: " << std::hex << result;
+        str << "Blob size: " << blobSize << ", hash: " << std::hex << result;
         _logger.info(str.str().c_str());
     }
     _logger.info("Write blob to stream successfully.");
@@ -137,7 +140,7 @@ void DriverGraph::initialize(const Config& config) {
 }
 
 bool DriverGraph::release_blob(const Config& config) {
-    if (_blob == nullptr || _zeroInitStruct->getGraphDdiTable().version() < ZE_GRAPH_EXT_VERSION_1_8 ||
+    if (_blobPtr == nullptr || _zeroInitStruct->getGraphDdiTable().version() < ZE_GRAPH_EXT_VERSION_1_8 ||
         config.get<PERF_COUNT>()) {
         return false;
     }
@@ -150,7 +153,7 @@ bool DriverGraph::release_blob(const Config& config) {
         return false;
     }
 
-    if (!_blob->release_from_memory()) {
+    if (!_blobPtr->release_from_memory()) {
         return false;
     }
 

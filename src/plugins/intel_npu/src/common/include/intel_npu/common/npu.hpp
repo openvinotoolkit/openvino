@@ -57,16 +57,6 @@ protected:
 
 //------------------------------------------------------------------------------
 
-class ICompilerAdapter {
-public:
-    virtual std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
-                                            const Config& config) const = 0;
-    virtual std::shared_ptr<IGraph> parse(std::unique_ptr<BlobContainer> blobPtr, const Config& config) const = 0;
-    virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const = 0;
-
-    virtual ~ICompilerAdapter() = default;
-};
-
 //------------------------------------------------------------------------------
 
 class IDevice : public std::enable_shared_from_this<IDevice> {
