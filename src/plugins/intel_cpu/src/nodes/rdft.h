@@ -5,6 +5,8 @@
 #pragma once
 
 #include "kernels/x64/rdft_kernel.hpp"
+#include "common/primitive_hashing_utils.hpp"
+
 #include "node.h"
 
 namespace ov {
@@ -154,6 +156,20 @@ private:
     std::shared_ptr<RDFTExecutor> executor;
     bool isAxesConstant = false;
     bool isSignalSizesConstant = false;
+};
+
+struct RDFTKey {
+    bool isInverse;
+
+    size_t hash() const {
+        size_t seed = 0;
+        seed =  dnnl::impl::hash_combine(seed, isInverse);
+        return seed;
+    }
+
+    bool operator==(const RDFTKey& rhs) const {
+        return isInverse == rhs.isInverse;
+    }
 };
 
 }   // namespace node

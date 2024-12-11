@@ -9,7 +9,6 @@
 #include "onednn/dnnl.h"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu/x64/jit_generator.hpp"
-#include "common/primitive_hashing_utils.hpp"
 
 #include "rdft.h"
 #include "openvino/core/parallel.hpp"
@@ -952,22 +951,6 @@ void RDFTRefExecutor::dft(float* inputPtr, const float* twiddlesPtr, float* outp
         dftComplexToReal(inputPtr, twiddlesPtr, outputPtr, inputSize, signalSize, outputSize, parallelize);
     }
 }
-
-struct RDFTKey {
-    bool isInverse;
-
-    size_t hash() const {
-        using namespace dnnl::impl::primitive_hashing;
-
-        size_t seed = 0;
-        seed = hash_combine(seed, isInverse);
-        return seed;
-    }
-
-    bool operator==(const RDFTKey& rhs) const {
-        return isInverse == rhs.isInverse;
-    }
-};
 
 void RDFT::createPrimitive() {
     RDFTKey key{};
