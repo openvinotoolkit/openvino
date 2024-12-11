@@ -31,6 +31,6 @@ class LP_TRANSFORMATIONS_API ConvertSubtractConstant;
  */
 class ov::pass::low_precision::ConvertSubtractConstant : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertSubtractConstant", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("ConvertSubtractConstant");
     ConvertSubtractConstant(const std::vector<ov::element::Type>& constantPrecisions = {});
 };

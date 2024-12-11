@@ -14,7 +14,7 @@ namespace pass {
 
 class TransformIf : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::paddle::pass::TransformIf", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::paddle::pass::TransformIf");
     TransformIf(std::vector<std::shared_ptr<Model>> functions);
 
 private:

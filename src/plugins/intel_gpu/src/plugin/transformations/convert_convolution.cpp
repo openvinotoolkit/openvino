@@ -102,13 +102,13 @@ ov::Tensor get_compensation(std::shared_ptr<ov::Node> w, std::shared_ptr<ov::Nod
 
 class ConvolutionMatcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvolutionMatcher", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("ConvolutionMatcher");
     ConvolutionMatcher();
 };
 
 class AsymmetricConvolutionMatcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("AsymmetricConvolutionMatcher", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("AsymmetricConvolutionMatcher");
     AsymmetricConvolutionMatcher();
 };
 

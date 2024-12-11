@@ -17,19 +17,19 @@ public:
 
 class TransposeMatMulMatcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TransposeMatMulMatcher", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("TransposeMatMulMatcher");
     TransposeMatMulMatcher(bool supports_immad);
 };
 
 class TransposeMatMulTransposeMatcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TransposeMatMulTransposeMatcher", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("TransposeMatMulTransposeMatcher");
     TransposeMatMulTransposeMatcher(bool supports_immad);
 };
 
 class TransposeSDPAMatcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TransposeSDPAMatcher", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("TransposeSDPAMatcher");
     TransposeSDPAMatcher();
 };
 

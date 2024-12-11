@@ -602,7 +602,7 @@ public:
     AttributeAdapter(TestDummyDataTypeTransformationTests_NO_OV_NAME_COLISION& value)
         : DirectValueAccessor<TestDummyDataTypeTransformationTests_NO_OV_NAME_COLISION>(value) {}
 
-    OPENVINO_RTTI("TestDummyDataTypeTransformationTests_NO_OV_NAME_COLISION", "0", pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("TestDummyDataTypeTransformationTests_NO_OV_NAME_COLISION");
 };
 }  // namespace ov
 

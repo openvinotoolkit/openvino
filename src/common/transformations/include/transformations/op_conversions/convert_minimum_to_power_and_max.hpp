@@ -20,6 +20,6 @@ class TRANSFORMATIONS_API ConvertMinimum;
 
 class ov::pass::ConvertMinimum : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertMinimum", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("ConvertMinimum");
     ConvertMinimum();
 };

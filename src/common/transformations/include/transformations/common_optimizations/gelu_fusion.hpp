@@ -31,7 +31,7 @@ class TRANSFORMATIONS_API GeluFusionWithTanhNoPower;
  */
 class ov::pass::GeluFusionWithErfOne : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("GeluFusionWithErfOne", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("GeluFusionWithErfOne");
     GeluFusionWithErfOne();
 };
 
@@ -42,7 +42,7 @@ public:
  */
 class ov::pass::GeluFusionWithErfTwo : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("GeluFusionWithErfTwo", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("GeluFusionWithErfTwo");
     GeluFusionWithErfTwo();
 };
 
@@ -53,7 +53,7 @@ public:
  */
 class ov::pass::GeluFusionWithErfThree : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("GeluFusionWithErfThree", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("GeluFusionWithErfThree");
     GeluFusionWithErfThree();
 };
 
@@ -64,7 +64,7 @@ public:
  */
 class ov::pass::GeluFusionWithErfFour : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("GeluFusionWithErfFour", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("GeluFusionWithErfFour");
     GeluFusionWithErfFour();
 };
 
@@ -75,7 +75,7 @@ public:
  */
 class ov::pass::GeluFusionWithTanh : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("GeluFusionWithTanh", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("GeluFusionWithTanh");
     GeluFusionWithTanh();
 };
 
@@ -86,7 +86,7 @@ public:
  */
 class ov::pass::GeluFusionWithTanhNoPower : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("GeluFusionWithTanhNoPower", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("GeluFusionWithTanhNoPower");
     GeluFusionWithTanhNoPower();
 };
 

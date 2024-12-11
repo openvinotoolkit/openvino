@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API HSwishDecomposition;
  */
 class ov::pass::HSwishDecomposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("HSwishDecomposition", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("HSwishDecomposition");
     HSwishDecomposition();
 };

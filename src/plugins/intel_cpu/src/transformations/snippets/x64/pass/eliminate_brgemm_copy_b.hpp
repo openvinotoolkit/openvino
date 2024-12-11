@@ -19,7 +19,7 @@ namespace pass {
  */
 class EliminateBrgemmCopyB: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("EliminateBrgemmCopyB", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("EliminateBrgemmCopyB");
     EliminateBrgemmCopyB();
 };
 

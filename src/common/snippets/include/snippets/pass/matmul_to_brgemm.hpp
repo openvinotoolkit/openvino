@@ -19,7 +19,7 @@ namespace pass {
  */
 class MatMulToBrgemm: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MatMulToBrgemm", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("MatMulToBrgemm");
     MatMulToBrgemm();
 };
 

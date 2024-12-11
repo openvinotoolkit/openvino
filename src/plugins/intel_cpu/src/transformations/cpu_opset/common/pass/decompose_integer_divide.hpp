@@ -11,7 +11,7 @@ namespace intel_cpu {
 
 class DecomposeIntegerDivide: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("DecomposeIntegerDivide", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("DecomposeIntegerDivide");
     DecomposeIntegerDivide();
 };
 

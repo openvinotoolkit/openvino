@@ -36,7 +36,7 @@ class TRANSFORMATIONS_API FuseLSTMSequencesToBidirectionalLSTMSequence;
 
 class ov::pass::ConvertTensorIteratorToLSTMSequence : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertTensorIteratorToLSTMSequence", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("ConvertTensorIteratorToLSTMSequence");
     ConvertTensorIteratorToLSTMSequence();
 };
 
@@ -48,7 +48,7 @@ public:
 
 class ov::pass::ConvertTensorIteratorToRNNSequence : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertTensorIteratorToRNNSequence", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("ConvertTensorIteratorToRNNSequence");
     ConvertTensorIteratorToRNNSequence();
 };
 
@@ -60,7 +60,7 @@ public:
 
 class ov::pass::ConvertTensorIteratorToGRUSequence : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertTensorIteratorToGRUSequence", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("ConvertTensorIteratorToGRUSequence");
     ConvertTensorIteratorToGRUSequence();
 };
 
@@ -72,13 +72,13 @@ public:
 
 class ov::pass::ConvertLoopWithSlicedInputConcatOutputToLSTMSequence : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertLoopWithSlicedInputConcatOutputToLSTMSequence", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("ConvertLoopWithSlicedInputConcatOutputToLSTMSequence");
     ConvertLoopWithSlicedInputConcatOutputToLSTMSequence();
 };
 
 class ov::pass::ConvertLoopWithScatterUpdateToLSTMSequence : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertLoopWithScatterUpdateToLSTMSequence", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("ConvertLoopWithScatterUpdateToLSTMSequence");
     ConvertLoopWithScatterUpdateToLSTMSequence();
 };
 
@@ -101,7 +101,7 @@ public:
  */
 class ov::pass::FuseReverseLSTMSequence : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("FuseReverseLSTMSequence", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("FuseReverseLSTMSequence");
     FuseReverseLSTMSequence();
 };
 
@@ -111,6 +111,6 @@ public:
  */
 class ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("FuseLSTMSequencesToBidirectionalLSTMSequence", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("FuseLSTMSequencesToBidirectionalLSTMSequence");
     FuseLSTMSequencesToBidirectionalLSTMSequence();
 };

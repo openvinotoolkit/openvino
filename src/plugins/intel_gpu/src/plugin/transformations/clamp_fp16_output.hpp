@@ -18,7 +18,7 @@ namespace intel_gpu {
  */
 class ClampFP16Output: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::intel_gpu::ClampFP16Output", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("ov::intel_gpu::ClampFP16Output");
 
     ClampFP16Output();
 };

@@ -23,19 +23,19 @@ class TRANSFORMATIONS_API MultiplyMultiplyFusion;
 
 class ov::pass::AddMultiplyFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("AddMultiplyFusion", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("AddMultiplyFusion");
     AddMultiplyFusion();
 };
 
 class ov::pass::AddAddFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("AddAddFusion", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("AddAddFusion");
     AddAddFusion();
 };
 
 class ov::pass::MultiplyMultiplyFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MultiplyMultiplyFusion", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("MultiplyMultiplyFusion");
     MultiplyMultiplyFusion();
 };
 

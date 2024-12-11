@@ -51,7 +51,7 @@ namespace intel_cpu {
 
 class ConvertReduceMultiAxisBase: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertReduceMultiAxisBase", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("ConvertReduceMultiAxisBase");
     template <class T>
     ov::matcher_pass_callback convert_reduce();
 };

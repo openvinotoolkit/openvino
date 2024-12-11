@@ -26,6 +26,6 @@ class TRANSFORMATIONS_API TransposeReshapeEliminationForMatmul;
  */
 class ov::pass::TransposeReshapeEliminationForMatmul : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TransposeReshapeEliminationForMatmul", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("TransposeReshapeEliminationForMatmul");
     TransposeReshapeEliminationForMatmul();
 };

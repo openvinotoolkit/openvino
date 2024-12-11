@@ -58,6 +58,6 @@ class TRANSFORMATIONS_API MatMulMultiplyFusion;
  */
 class ov::pass::MatMulMultiplyFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MatMulMultiplyFusion", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("MatMulMultiplyFusion");
     MatMulMultiplyFusion();
 };

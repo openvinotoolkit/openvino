@@ -18,14 +18,14 @@ namespace pass {
 // Fuses Convert into TFLQuantize operation
 class TFLQuantizeConvert : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::tensorflow_lite::pass::TFLQuantizeConvert", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::tensorflow_lite::pass::TFLQuantizeConvert");
     TFLQuantizeConvert();
 };
 
 // Replaces TFLQuantize operation with FQ or sub-mul pattern if necessary
 class TFLQuantizeReplacer : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::tensorflow_lite::pass::TFLQuantizeReplacer", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::tensorflow_lite::pass::TFLQuantizeReplacer");
     TFLQuantizeReplacer();
 };
 

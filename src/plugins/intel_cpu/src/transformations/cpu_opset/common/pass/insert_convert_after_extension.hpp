@@ -14,7 +14,7 @@ namespace pass {
 
 class InsertConvertAfterExtension: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("InsertConvertAfterExtension", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("InsertConvertAfterExtension");
     InsertConvertAfterExtension(bool convert_output_precision = true);
 };
 

@@ -22,6 +22,6 @@ class TRANSFORMATIONS_API ReduceReshapeFusion;
  */
 class ov::pass::ReduceReshapeFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ReduceReshapeFusion", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("ReduceReshapeFusion");
     ReduceReshapeFusion();
 };

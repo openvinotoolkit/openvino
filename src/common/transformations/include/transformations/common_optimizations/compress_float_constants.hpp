@@ -25,7 +25,7 @@ bool TRANSFORMATIONS_API is_model_optimized(const std::shared_ptr<ov::Model>& mo
  */
 class ov::pass::CompressFloatConstantsImpl : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("CompressFloatConstantsImpl", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("CompressFloatConstantsImpl");
     /// @brief Transformation constructor
     /// @param postponed If true then the transformation won't compress the constants
     ///                  keeping them in the original type but still will insert Converts. This is

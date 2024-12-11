@@ -11,7 +11,7 @@ namespace intel_cpu {
 
 class ConvertToLeakyRelu: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertToLeakyRelu", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("ConvertToLeakyRelu");
     ConvertToLeakyRelu();
 };
 

@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API EyeDecomposition;
  */
 class ov::pass::EyeDecomposition : public MatcherPass {
 public:
-    OPENVINO_RTTI("EyeDecomposition", "0", MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("EyeDecomposition");
     EyeDecomposition();
 };

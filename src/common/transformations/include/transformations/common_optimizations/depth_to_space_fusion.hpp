@@ -42,6 +42,6 @@ class TRANSFORMATIONS_API DepthToSpaceFusion;
 
 class ov::pass::DepthToSpaceFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("DepthToSpaceFusion", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("DepthToSpaceFusion");
     DepthToSpaceFusion();
 };

@@ -76,7 +76,7 @@ namespace intel_cpu {
 
 class ConvertFqRnnToQuantizedRnn: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertFqRnnToQuantizedRnn", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("ConvertFqRnnToQuantizedRnn");
     ConvertFqRnnToQuantizedRnn();
 };
 

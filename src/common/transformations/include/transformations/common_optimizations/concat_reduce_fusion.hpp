@@ -24,7 +24,7 @@ class TRANSFORMATIONS_API ConcatReduceFusion;
  */
 class ov::pass::ReplaceConcatReduceByMinOrMax : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ReplaceConcatReduceByMinOrMax", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("ReplaceConcatReduceByMinOrMax");
     ReplaceConcatReduceByMinOrMax();
 };
 
@@ -34,7 +34,7 @@ public:
  */
 class ov::pass::PullSqueezeThroughEltwise : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("PullSqueezeThroughEltwise", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("PullSqueezeThroughEltwise");
     PullSqueezeThroughEltwise();
 };
 

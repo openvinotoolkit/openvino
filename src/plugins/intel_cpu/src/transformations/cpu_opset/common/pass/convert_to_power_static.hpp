@@ -11,7 +11,7 @@ namespace intel_cpu {
 
 class ConvertToPowerStatic: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertToPowerStatic", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("ConvertToPowerStatic");
     ConvertToPowerStatic();
 };
 

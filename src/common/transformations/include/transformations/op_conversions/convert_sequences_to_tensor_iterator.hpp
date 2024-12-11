@@ -29,7 +29,7 @@ class TRANSFORMATIONS_API ConvertSequenceToTensorIterator;
 
 class ov::pass::ConvertRNNSequenceToTensorIterator : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertRNNSequenceToTensorIterator", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("ConvertRNNSequenceToTensorIterator");
     ConvertRNNSequenceToTensorIterator();
 };
 
@@ -41,7 +41,7 @@ public:
 
 class ov::pass::ConvertGRUSequenceToTensorIterator : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertGRUSequenceToTensorIterator", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("ConvertGRUSequenceToTensorIterator");
     ConvertGRUSequenceToTensorIterator();
 };
 
@@ -53,7 +53,7 @@ public:
 
 class ov::pass::ConvertLSTMSequenceToTensorIterator : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertLSTMSequenceToTensorIterator", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("ConvertLSTMSequenceToTensorIterator");
     ConvertLSTMSequenceToTensorIterator();
 };
 

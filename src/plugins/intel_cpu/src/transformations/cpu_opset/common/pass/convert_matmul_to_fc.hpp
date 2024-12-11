@@ -11,7 +11,7 @@ namespace intel_cpu {
 
 class ConvertMatMulToFC: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertMatMulToFC", "0", ov::pass::MatcherPass);
+    OPENVINO_MATCHER_PASS_RTTI("ConvertMatMulToFC");
     ConvertMatMulToFC();
 };
 
