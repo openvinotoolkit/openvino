@@ -2846,7 +2846,7 @@ public:
     }
 
     void test_compressed_int4_scale_dyn_quan_weight_i4(bool is_dynamic, int batch = 1, int ifm = 512, int ofm = 2048,
-                                                        int quantize_group_size = 32, int scales_group_size = 128,
+                                                        size_t quantize_group_size = 32, int scales_group_size = 128,
                                                         bool is_wzp_test = false, bool is_wzp_scalar = false) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
@@ -2940,7 +2940,7 @@ public:
             auto impl = inst->get_impl();
             ASSERT_TRUE(impl != NULL);
             auto kernel_num = (is_dynamic) ? 3 : 2;
-            kernel_num = (quantize_group_size < 32) ? ((quantize_group_size != -1) ? 2 : kernel_num) : kernel_num;
+            kernel_num = (quantize_group_size < 32) ? 2 : kernel_num;
             ASSERT_EQ(impl->get_kernels().size(), size_t(kernel_num));
         }
 
@@ -2972,7 +2972,7 @@ public:
     }
 
     void test_compressed_int8_scale_dyn_quan_weight_u8(bool is_dynamic, int batch = 1, int ifm = 512, int ofm = 2048,
-                                                        int quantize_group_size = 32, int scales_group_size = 128,
+                                                        size_t quantize_group_size = 32, int scales_group_size = 128,
                                                         bool is_wzp_test = false, bool is_wzp_scalar = false) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
@@ -3067,7 +3067,7 @@ public:
             ASSERT_TRUE(impl != NULL);
             // For UINT8 weight, SLM kernel (no dyn-quan) would not be selected
             auto kernel_num = (is_dynamic) ? 3 : 1;
-            kernel_num = (quantize_group_size < 32) ? ((quantize_group_size != -1) ? 1 : kernel_num) : kernel_num;
+            kernel_num = (quantize_group_size < 32) ? 1 : kernel_num;
             ASSERT_EQ(impl->get_kernels().size(), size_t(kernel_num));
         }
 

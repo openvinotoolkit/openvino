@@ -17,8 +17,6 @@
 // DISPATCH_FSV - output coordinates for each sub-group are calculated from linearized coordinates
 // DISPATCH_BSV   as if they laid in bs_fs_bsv_fsv format, these macros describe fsv and bsv factors;
 
-#define QUAN_BLOCK_SIZE INPUT_LOAD_SIZE
-
 #if FC_KERNEL_DYNAMIC_QUANTIZE
 KERNEL(quantize_input)(
     const __global INPUT0_TYPE* input,
@@ -28,9 +26,9 @@ KERNEL(quantize_input)(
     const uint offset = get_global_id(0);
 
     const uint input_offset = offset * QUANTIZE_GROUP_SIZE;
-    const uint quantize_block = QUANTIZE_GROUP_SIZE / QUAN_BLOCK_SIZE;
-    MAKE_VECTOR_TYPE(INPUT0_TYPE, QUAN_BLOCK_SIZE) input_0;
-    MAKE_VECTOR_TYPE(DQ_TYPE, QUAN_BLOCK_SIZE) quantized_value;
+    const uint quantize_block = QUANTIZE_GROUP_SIZE / INPUT_LOAD_SIZE;
+    MAKE_VECTOR_TYPE(INPUT0_TYPE, INPUT_LOAD_SIZE) input_0;
+    MAKE_VECTOR_TYPE(DQ_TYPE, INPUT_LOAD_SIZE) quantized_value;
     INPUT0_TYPE  max[quantize_block];
 
     unroll_for (uint i = 0 ; i < quantize_block ; ++i) {
@@ -52,7 +50,7 @@ KERNEL(quantize_input)(
     for (uint i = 0 ; i < quantize_block ; ++i) {
         input_0 = vload4(0, &input[input_offset + i * 4]);
         float4 buff = convert_float4(input_0) / quan_scale;
-        quantized_value = CAT(CAT(convert_, MAKE_VECTOR_TYPE(DQ_TYPE, QUAN_BLOCK_SIZE)), _rte)(buff);
+        quantized_value = CAT(CAT(convert_, MAKE_VECTOR_TYPE(DQ_TYPE, INPUT_LOAD_SIZE)), _rte)(buff);
         #if COMPRESSED_WEIGHTS_INT8
             quantized_sum += quantized_value[0] + quantized_value[1] + quantized_value[2] + quantized_value[3];
         #endif

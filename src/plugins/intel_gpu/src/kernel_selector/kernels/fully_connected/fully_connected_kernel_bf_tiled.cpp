@@ -11,7 +11,7 @@
 
 static constexpr size_t lws_batches = 8;
 static constexpr size_t simd = 16;
-static constexpr size_t act_load_size = 4;
+static constexpr size_t input_load_size = 4;
 static constexpr size_t min_quantize_grp_size = (simd * 2); // SIMD * (min value of tile_ifm)
 static constexpr size_t min_slm_size = 256;
 static std::vector<size_t> available_quantize_grp_size = {128, 64, 32};
@@ -85,7 +85,7 @@ static bool is_per_token_dynamic_quantize(const fully_connected_params& params) 
  }
 
 // DYNAMIC_QUANTIZE
-static size_t get_dynamic_quantize_group_size(const fully_connected_params& params, bool print_log = false) {
+static size_t get_dynamic_quantize_group_size(const fully_connected_params& params) {
     auto dynamic_quantization_group_size = params.dynamic_quantization_group_size;
 
     GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -122,7 +122,7 @@ static size_t get_dynamic_quantize_group_size(const fully_connected_params& para
 
             // For int8 ASYM model, activation_sum should fit to weight zp
             if (is_dyn_quan_8bit_asym(params) && params.has_decompression_zp == true &&
-                dynamic_quantization_group_size > zp_group_size && (zp_group_size % act_load_size) == 0) {
+                dynamic_quantization_group_size > zp_group_size && (zp_group_size % input_load_size) == 0) {
                 dynamic_quantization_group_size = zp_group_size;
             }
 
@@ -140,10 +140,8 @@ static size_t get_dynamic_quantize_group_size(const fully_connected_params& para
             dynamic_quantization_group_size = group_size;
 
             if (dynamic_quantization_group_size > scale_group_size) {
-                if (print_log) {
-                    GPU_DEBUG_TRACE_DETAIL << " Scale group size " << scale_group_size << " is smaller than FC dyn-quan group size "
-                                            << dynamic_quantization_group_size << ". Reduce FC dyn-quan group size to scale size." << std::endl;
-                }
+                GPU_DEBUG_TRACE_DETAIL << " Scale group size " << scale_group_size << " is smaller than FC dyn-quan group size "
+                                        << dynamic_quantization_group_size << ". Reduce FC dyn-quan group size to scale size." << std::endl;
                 dynamic_quantization_group_size = scale_group_size;
             }
 
@@ -154,8 +152,8 @@ static size_t get_dynamic_quantize_group_size(const fully_connected_params& para
     return 0;
 }
 
-static bool should_dynamic_quantize(const fully_connected_params& params, bool print_log = false) {
-    size_t dynamic_quantization_group_size = get_dynamic_quantize_group_size(params, print_log);
+static bool should_dynamic_quantize(const fully_connected_params& params) {
+    size_t dynamic_quantization_group_size = get_dynamic_quantize_group_size(params);
 
     if (params.inputs[0].GetFirstElementOffset() != 0)
         return false;
@@ -177,16 +175,14 @@ static bool should_dynamic_quantize(const fully_connected_params& params, bool p
     if ((scale_group_size % simd == 0) && (input_f % dynamic_quantization_group_size == 0) &&
         (params.is_shape_agnostic || (params.inputs[0].Batch().v > 1 && input_b > min_slm_size)) &&
         params.inputs[0].GetDType() == Datatype::F16 && is_weight_dyn_quantizable(params)) {
-        if (print_log) {
-            GPU_DEBUG_TRACE_DETAIL << " Dynamic quantizing for FC : scale_group_size: " << scale_group_size <<
-                ", Dyn-quan group size: " << dynamic_quantization_group_size <<
-                ", Type(I:" << kernel_selector::toString(params.inputs[0].GetDType()) <<
-                ", O:" << kernel_selector::toString(params.outputs[0].GetDType()) <<
-                ", W:" << kernel_selector::toString(params.weights.GetDType()) <<
-                "), Format(W:" << kernel_selector::toString(params.weights.GetLayout()) <<
-                ") B: " << params.inputs[0].Batch().v << ", F: " << params.inputs[0].Feature().v <<
-                ", Y: " << params.inputs[0].Y().v << std ::endl;
-        }
+        GPU_DEBUG_TRACE_DETAIL << " Dynamic quantizing for FC : scale_group_size: " << scale_group_size <<
+            ", Dyn-quan group size: " << dynamic_quantization_group_size <<
+            ", Type(I:" << kernel_selector::toString(params.inputs[0].GetDType()) <<
+            ", O:" << kernel_selector::toString(params.outputs[0].GetDType()) <<
+            ", W:" << kernel_selector::toString(params.weights.GetDType()) <<
+            "), Format(W:" << kernel_selector::toString(params.weights.GetLayout()) <<
+            ") B: " << params.inputs[0].Batch().v << ", F: " << params.inputs[0].Feature().v <<
+            ", Y: " << params.inputs[0].Y().v << std ::endl;
         return true;
     }
 
@@ -752,7 +748,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     }
 
     // Validated perf gain, Dynamic quantize force enable SCALE_POST_OP for char type multiplication
-    if (should_dynamic_quantize(params, true)) {
+    if (should_dynamic_quantize(params)) {
         jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 1));
         jit.AddConstant(MakeJitConstant("DQ_DECOMPRESSION_SCALE_POST_OP", 1));
         jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", quantize_grp_size));
@@ -763,7 +759,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", min_quantize_grp_size));
     }
 
-    jit.AddConstant(MakeJitConstant("INPUT_LOAD_SIZE", act_load_size));
+    jit.AddConstant(MakeJitConstant("INPUT_LOAD_SIZE", input_load_size));
     jit.AddConstant(MakeJitConstant("DQ_TYPE", "char"));
     jit.AddConstant(MakeJitConstant("IFM_SIZE", get_input_bf_size(params).second));
     jit.AddConstant(MakeJitConstant("SIMD", simd));
@@ -896,7 +892,7 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
                     size_t input_f = get_input_bf_size(prim_params).second;
                     size_t input_size = input_f * dispatchData.tile_m * dispatchData.gws[2];
                     OPENVINO_ASSERT(quantize_grp_size != 0, "Error: quantize_grp_size is zero.");
-                    size_t quan_var_size = (input_size / quantize_grp_size) * 4 * 2;
+                    size_t quan_var_size = (input_size / quantize_grp_size) * sizeof(float) * 2;
 
                     if (kd.internalBufferSizes[0] < input_size ||
                         kd.internalBufferSizes[1] < quan_var_size) {
@@ -907,7 +903,6 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
                         kd.internalBufferSizes.push_back(quan_var_size);
                     }
 
-                    OPENVINO_ASSERT(quantize_grp_size != 0, "Error: quantize_grp_size is zero.");
                     kd.kernels[0].params.workGroups.global = {(std::max((input_size / quantize_grp_size), (size_t)1)), 1, 1};
                     kd.kernels[0].params.workGroups.local = {1, 1, 1};
                 }
@@ -1118,7 +1113,7 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
         // char type quantized input
         kd.internalBufferSizes.push_back(input_size);
         // float type of de_quan_scale and activation sum for each quantized group
-        kd.internalBufferSizes.push_back(input_size / quantize_grp_size * 4 * 2);
+        kd.internalBufferSizes.push_back((input_size / quantize_grp_size) * sizeof(float) * 2);
         kernel_number++;
     }
     // kd.internalBufferDataType = Datatype::F16;
