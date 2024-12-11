@@ -23,6 +23,7 @@
 #include "plugin.hpp"
 #include "unfold_sync_infer_request.hpp"
 #include "util.hpp"
+#include "serialization.hpp"
 
 // required for get_properties_per_device()
 #include "intel_npu/config/config.hpp"
@@ -481,53 +482,14 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
     LOG_INFO("Serializing CompiledModel...");
     LOG_BLOCK();
 
+    using namespace ov::npuw::s11n;
+
     // Serialize meta
-    // m_name
-    auto m_name_size = m_name.size();
-    stream.write(reinterpret_cast<char*>(&m_name_size), sizeof m_name_size);
-    stream.write(m_name.c_str(), m_name.size());
-
-    // m_inputs_to_submodels_inputs
-    auto m_inputs_to_submodels_inputs_size = m_inputs_to_submodels_inputs.size();
-    stream.write(reinterpret_cast<char*>(&m_inputs_to_submodels_inputs_size), sizeof m_inputs_to_submodels_inputs_size);
-    for (const auto& el : m_inputs_to_submodels_inputs) {
-        stream.write(reinterpret_cast<const char*>(&el.first), sizeof el.first);
-        stream.write(reinterpret_cast<const char*>(&el.second), sizeof el.second);
-    }
-
-    // m_outputs_to_submodels_outputs
-    auto m_outputs_to_submodels_outputs_size = m_outputs_to_submodels_outputs.size();
-    stream.write(reinterpret_cast<char*>(&m_outputs_to_submodels_outputs_size),
-                 sizeof m_outputs_to_submodels_outputs_size);
-    for (const auto& el : m_outputs_to_submodels_outputs) {
-        stream.write(reinterpret_cast<const char*>(&el.first), sizeof el.first);
-        stream.write(reinterpret_cast<const char*>(&el.second), sizeof el.second);
-    }
-
-    // m_param_subscribers
-    auto m_param_subscribers_size = m_param_subscribers.size();
-    stream.write(reinterpret_cast<char*>(&m_param_subscribers_size), sizeof m_param_subscribers_size);
-    for (const auto& el : m_param_subscribers) {
-        stream.write(reinterpret_cast<const char*>(&el.first), sizeof el.first);
-        // std::vector<ToSubmodel>
-        auto m_param_subscribers_vec_size = el.second.size();
-        stream.write(reinterpret_cast<char*>(&m_param_subscribers_vec_size), sizeof m_param_subscribers_vec_size);
-        for (const auto& el2 : el.second) {
-            stream.write(reinterpret_cast<const char*>(&el2.first), sizeof el2.first);
-            stream.write(reinterpret_cast<const char*>(&el2.second), sizeof el2.second);
-        }
-    }
-
-    // m_submodels_input_to_prev_output
-    auto m_submodels_input_to_prev_output_size = m_submodels_input_to_prev_output.size();
-    stream.write(reinterpret_cast<char*>(&m_submodels_input_to_prev_output_size),
-                 sizeof m_submodels_input_to_prev_output_size);
-    for (const auto& el : m_submodels_input_to_prev_output) {
-        stream.write(reinterpret_cast<const char*>(&el.first.first), sizeof el.first.first);
-        stream.write(reinterpret_cast<const char*>(&el.first.second), sizeof el.first.second);
-        stream.write(reinterpret_cast<const char*>(&el.second.first), sizeof el.second.first);
-        stream.write(reinterpret_cast<const char*>(&el.second.second), sizeof el.second.second);
-    }
+    write(stream, m_name);
+    write(stream, m_inputs_to_submodels_inputs);
+    write(stream, m_outputs_to_submodels_outputs);
+    write(stream, m_param_subscribers);
+    write(stream, m_submodels_input_to_prev_output);
 
     // Serialize compiled submodels
     // FIXME: to continue with m_compiled_submodels
@@ -542,71 +504,18 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
     LOG_INFO("Deserializing CompiledModel...");
     LOG_BLOCK();
 
+    using namespace ov::npuw::s11n;
+
     // Create a dummy CompiledModel with an empty ov::Model - this will skip the constructor flow
     // to continue deserialization
     auto compiled = std::make_shared<ov::npuw::CompiledModel>(nullptr, plugin, properties);
 
     // Deserialize meta
-    // m_name
-    std::size_t m_name_size = 0;
-    stream.read(reinterpret_cast<char*>(&m_name_size), sizeof m_name_size);
-    stream.read(compiled->m_name.data(), m_name_size);
-
-    // m_inputs_to_submodels_inputs
-    std::size_t m_inputs_to_submodels_inputs_size = 0;
-    stream.read(reinterpret_cast<char*>(&m_inputs_to_submodels_inputs_size), sizeof m_inputs_to_submodels_inputs_size);
-    compiled->m_inputs_to_submodels_inputs.reserve(m_inputs_to_submodels_inputs_size);
-    for (std::size_t i = 0; i < m_inputs_to_submodels_inputs_size; ++i) {
-        ToSubmodel to_sub = NO_LINK;
-        stream.read(reinterpret_cast<char*>(&to_sub.first), sizeof to_sub.first);
-        stream.read(reinterpret_cast<char*>(&to_sub.second), sizeof to_sub.second);
-        compiled->m_inputs_to_submodels_inputs.push_back(to_sub);
-    }
-
-    // m_outputs_to_submodels_outputs
-    std::size_t m_outputs_to_submodels_outputs_size = 0;
-    stream.read(reinterpret_cast<char*>(&m_outputs_to_submodels_outputs_size),
-                sizeof m_outputs_to_submodels_outputs_size);
-    compiled->m_outputs_to_submodels_outputs.reserve(m_outputs_to_submodels_outputs_size);
-    for (std::size_t i = 0; i < m_outputs_to_submodels_outputs_size; ++i) {
-        ToSubmodel to_sub = NO_LINK;
-        stream.read(reinterpret_cast<char*>(&to_sub.first), sizeof to_sub.first);
-        stream.read(reinterpret_cast<char*>(&to_sub.second), sizeof to_sub.second);
-        compiled->m_outputs_to_submodels_outputs.push_back(to_sub);
-    }
-
-    // m_param_subscribers
-    std::size_t m_param_subscribers_size = 0;
-    stream.read(reinterpret_cast<char*>(&m_param_subscribers_size), sizeof m_param_subscribers_size);
-    for (std::size_t i = 0; i < m_param_subscribers_size; ++i) {
-        std::size_t key = 0;
-        stream.read(reinterpret_cast<char*>(&key), sizeof key);
-        std::vector<ToSubmodel> value;
-        std::size_t value_size = 0;
-        stream.read(reinterpret_cast<char*>(&value_size), sizeof value_size);
-        value.reserve(value_size);
-        for (std::size_t j = 0; j < value_size; ++j) {
-            ToSubmodel to_sub = NO_LINK;
-            stream.read(reinterpret_cast<char*>(&to_sub.first), sizeof to_sub.first);
-            stream.read(reinterpret_cast<char*>(&to_sub.second), sizeof to_sub.second);
-            value.push_back(to_sub);
-        }
-        compiled->m_param_subscribers[key] = value;
-    }
-
-    // m_submodels_input_to_prev_output
-    std::size_t m_submodels_input_to_prev_output_size = 0;
-    stream.read(reinterpret_cast<char*>(&m_submodels_input_to_prev_output_size),
-                sizeof m_submodels_input_to_prev_output_size);
-    for (std::size_t i = 0; i < m_submodels_input_to_prev_output_size; ++i) {
-        ToSubmodel to_sub1 = NO_LINK;
-        ToSubmodel to_sub2 = NO_LINK;
-        stream.read(reinterpret_cast<char*>(&to_sub1.first), sizeof to_sub1.first);
-        stream.read(reinterpret_cast<char*>(&to_sub1.second), sizeof to_sub1.second);
-        stream.read(reinterpret_cast<char*>(&to_sub2.first), sizeof to_sub2.first);
-        stream.read(reinterpret_cast<char*>(&to_sub2.second), sizeof to_sub2.second);
-        compiled->m_submodels_input_to_prev_output[to_sub1] = to_sub2;
-    }
+    read(stream, compiled->m_name);
+    read(stream, compiled->m_inputs_to_submodels_inputs);
+    read(stream, compiled->m_outputs_to_submodels_outputs);
+    read(stream, compiled->m_param_subscribers);
+    read(stream, compiled->m_submodels_input_to_prev_output);
 
     // Deserialize compiled submodels
     // FIXME: to continue with m_compiled_submodels

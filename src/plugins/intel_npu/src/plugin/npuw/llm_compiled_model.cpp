@@ -5,6 +5,7 @@
 
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
+#include "serialization.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 
@@ -303,17 +304,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("Done");
 }
 
-template <typename T>
-void read(std::istream& stream, T& var) {
-    stream.read(reinterpret_cast<char*>(&var), sizeof var);
-}
-
 std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserialize(
     std::istream& stream,
     const std::shared_ptr<const ov::IPlugin>& plugin,
     const ov::AnyMap& properties) {
     LOG_INFO("Deserializing LLMCompiledModel...");
     LOG_BLOCK();
+
+    using namespace ov::npuw::s11n;
 
     // Sanity check magic number
     uint64_t serialization_indicator = 0;
@@ -363,14 +361,11 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     return compiled;
 }
 
-template <typename T>
-void write(std::ostream& stream, const T& var) {
-    stream.write(reinterpret_cast<const char*>(&var), sizeof var);
-}
-
 void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     LOG_INFO("Serializing LLMCompiledModel...");
     LOG_BLOCK();
+
+    using namespace ov::npuw::s11n;
 
     // Serialize magic number first
     write(stream, SERIALIZATION_INDICATOR);
