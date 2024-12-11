@@ -14,6 +14,8 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "utils/debug_capabilities.h"
 
+#include "openvino/core/parallel.hpp"
+
 #define FLOAT_MAX 3.4028235e38f
 #define FLOAT_MIN -3.4028235e38f
 
@@ -61,6 +63,7 @@ bool MatMulKleidiAIExecutor::update(const MemoryArgs& memory) {
 }
 
 void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
+    size_t BLOCK_SIZE = 8;
     auto srcMem = memory.at(ARG_SRC);
     auto weiMem = memory.at(ARG_WEI);
     auto dstMem = memory.at(ARG_DST);
@@ -87,29 +90,43 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
     float* rhs = weiMem->getDataAs<float>();
     float* dst = dstMem->getDataAs<float>();
     float* bias = biasMem->getDataAs<float>();
+
     if (bias == nullptr) {
         bias = new float[N];
         memset(bias, 0, N * sizeof(float));
     }
 
     kai_run_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(
-        1, N, K, nr, kr, sr,  // Packing arguments
-        rhs_stride,           // RHS stride
-        rhs,                  // RHS
-        bias,                 // Bias
-        nullptr,        // Scale
-        rhs_packed,           // RHS packed
-        0, nullptr);
+            1, N, K, nr, kr, sr,  // Packing arguments
+            rhs_stride,           // RHS stride
+            rhs,                  // RHS
+            bias,                 // Bias
+            nullptr,              // Scale
+            rhs_packed,           // RHS packed
+            0, nullptr);
 
-    ukernel.run_matmul(
-        M, N, K,                  // Dimensions
-        lhs,                      // LHS
-        lhs_stride,               // LHS stride
-        rhs_packed,               // RHS packed
-        dst,                      // DST
-        dst_stride_row,           // DST stride (row)
-        dst_stride_col,           // DST stride (col)
-        FLOAT_MIN, FLOAT_MAX);    // Min and max for the clamp operation
+    size_t n_blocks = (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    parallel_for(n_blocks, [&](size_t n_block) {
+        size_t n_start = (n_block * BLOCK_SIZE);
+        size_t n_end = std::min(n_start + BLOCK_SIZE, N);
+        size_t n_block_size = n_end - n_start;
+        const size_t rhs_packed_offset = ukernel.get_rhs_packed_offset(n_start, K);
+        const size_t dst_offset = ukernel.get_dst_offset(0, n_start, dst_stride_row);
+        const float* rhs_ptr = (rhs_packed + rhs_packed_offset / sizeof(float));
+        float* dst_ptr = (dst + dst_offset / (sizeof(float)));
+        ukernel.run_matmul(
+                M,
+                n_block_size,
+                K,
+                lhs,
+                lhs_stride,
+                rhs_ptr,
+                dst_ptr,
+                dst_stride_row,
+                dst_stride_col,
+                FLOAT_MIN,
+                FLOAT_MAX);
+    });
 }
 
 void MatMulKleidiAIExecutor::moveMemToNumaNode(int numaNodeID) {
