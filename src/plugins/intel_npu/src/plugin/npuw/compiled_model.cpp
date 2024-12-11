@@ -500,9 +500,11 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
     write(stream, zerops);
     write(stream, is_remote);
 
-    // FIXME: continue with
-    // std::vector<ov::Tensor> closure;
-    // std::vector<weights::LazyTensor> lazy_closure;
+    // NOTE: for closure only serialize uids - full flow
+    write(stream, closure_uid);
+    // !!! FIMXE: some tensors might be present in CPU closure already - need to serialize as is
+
+    // FIXME: support weightless flow!
 }
 
 ov::npuw::CompiledModel::CompiledModelDesc ov::npuw::CompiledModel::CompiledModelDesc::deserialize(
@@ -532,9 +534,11 @@ ov::npuw::CompiledModel::CompiledModelDesc ov::npuw::CompiledModel::CompiledMode
     read(stream, desc.zerops);
     read(stream, desc.is_remote);
 
-    // FIXME: continue with
-    // std::vector<ov::Tensor> closure;
-    // std::vector<weights::LazyTensor> lazy_closure;
+    // NOTE: for closure only deserialize uids - full flow
+    read(stream, desc.closure_uid);
+    // !!! FIXME: some tensors might be present in CPU closure already - need to serialize as is
+
+    // FIXME: support weightless flow!
 
     return desc;
 }

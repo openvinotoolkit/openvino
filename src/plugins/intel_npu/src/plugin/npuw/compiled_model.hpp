@@ -145,8 +145,11 @@ private:
         // NB: closure and lazy_closure are of the same size - to preserve proper indexing.
         //     closure is responsible for host-side tensors (DCOFF, Gather, etc) while
         //     lazy_closure is used for weights sharing and allocating device memory.
-        std::vector<ov::Tensor> closure;
+        std::vector<ov::Tensor>
+            closure;  // some tensors might be present in CPU closure already - need to serialize as is
         std::vector<weights::LazyTensor> lazy_closure;
+        // NB: closure_uid is used to get closure from bank during full flow deserialization
+        std::vector<std::size_t> closure_uid;  // FIXME: fill them during registerLT()
         std::vector<ov::Tensor> scales;
         std::vector<ov::Tensor> zerops;
         std::vector<bool> is_remote;

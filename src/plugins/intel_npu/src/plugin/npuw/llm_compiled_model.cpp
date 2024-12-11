@@ -354,6 +354,8 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     // compiled->m_kvcache_compiled->m_weights_bank = bank;
     // compiled->m_prefill_compiled->m_weights_bank = bank;
 
+    // After bank deserialization - need to call smth like reconstruct_closure() and use uids there!!!
+
     // FIXME: is it required for LLMCompiledModel or CompiledModel ???
     // compiled->implement_properties();
 
