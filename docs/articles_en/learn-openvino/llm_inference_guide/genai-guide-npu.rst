@@ -18,7 +18,7 @@ Install required dependencies:
    python -m venv npu-env
    npu-env\Scripts\activate
    pip install nncf==2.12 onnx==1.16.1 optimum-intel==1.19.0
-   pip install openvino==2024.5 openvino-tokenizers==2024.5 openvino-genai==2024.5
+   pip install openvino==2024.6 openvino-tokenizers==2024.6 openvino-genai==2024.6
 
 Note that for systems based on Intel® Core™ Ultra Processors Series 2, more than 16GB of RAM
 may be required to run prompts over 1024 tokens on models exceeding 7B parameters,
