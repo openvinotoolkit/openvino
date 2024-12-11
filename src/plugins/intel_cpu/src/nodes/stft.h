@@ -21,7 +21,6 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     bool created() const override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
-    void prepareParams() override;
     bool needPrepareParams() const override;
     void createPrimitive() override;
 

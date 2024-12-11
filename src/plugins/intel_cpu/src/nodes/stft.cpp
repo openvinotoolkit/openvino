@@ -73,15 +73,6 @@ bool STFT::needPrepareParams() const {
     return false;
 }
 
-void STFT::prepareParams() {
-    const auto& input_shape = getParentEdgeAt(DATA_IDX)->getMemory().getStaticDims();
-    if (input_shape.size() < 2) {
-        THROW_CPU_NODE_ERR("has incompatible 'data' shape ",
-                           PartialShape(input_shape),
-                           ". Only tensors of rank at least 2 are allowed.");
-    }
-}
-
 bool STFT::created() const {
     return getType() == Type::STFT;
 }
