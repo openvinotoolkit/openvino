@@ -85,7 +85,6 @@ protected:
                 // Fill the slice input2~input5 with specified data.
                 auto inputValue = inputValues[i - 2];
                 if (!inputValue) {
-                    const auto param = ov::as_type_ptr<const ov::op::v0::Parameter>(funcInput.get_node_shared_ptr());
                     tensor = ov::Tensor{ov::element::i64, targetInputStaticShapes[i]};
                 } else {
                     tensor = ov::Tensor{ov::element::i64, targetInputStaticShapes[i], inputValue};
