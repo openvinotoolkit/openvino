@@ -9,8 +9,8 @@
 #include <string>
 #include <vector>
 
-#include "openvino/pass/node_registry.hpp"
 #include "openvino/core/rtti.hpp"
+#include "openvino/pass/node_registry.hpp"
 
 #define _OPENVINO_MATCHER_PASS_RTTI_WITH_TYPE(TYPE_NAME) _OPENVINO_MATCHER_PASS_RTTI_WITH_TYPE_VERSION(TYPE_NAME, "0")
 
