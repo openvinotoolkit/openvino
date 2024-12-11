@@ -60,6 +60,24 @@ from openvino._pyopenvino import Op
 from openvino.runtime.utils.data_helpers import tensor_from_file
 from openvino._ov_api import compile_model
 
+# Import opsets
+from openvino import opset1
+from openvino import opset2
+from openvino import opset3
+from openvino import opset4
+from openvino import opset5
+from openvino import opset6
+from openvino import opset7
+from openvino import opset8
+from openvino import opset9
+from openvino import opset10
+from openvino import opset11
+from openvino import opset12
+from openvino import opset13
+from openvino import opset14
+from openvino import opset15
+from openvino import opset16
+
 # libva related:
 from openvino._pyopenvino import VAContext
 from openvino._pyopenvino import VASurfaceTensor
