@@ -786,6 +786,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     auto parsed = parseDeviceNameIntoConfig(deviceName, coreConfig, config_with_batch, is_proxy_device(deviceName));
     auto plugin = get_plugin(parsed._deviceName);
     ov::SoPtr<ov::ICompiledModel> res;
+    // will consume ov::cache_dir if plugin not support it
     auto cacheManager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
     // Skip caching for proxy plugin. HW plugin will load network from the cache
     if (cacheManager && device_supports_model_caching(plugin) && !is_proxy_device(plugin)) {
@@ -819,6 +820,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     auto parsed = parseDeviceNameIntoConfig(deviceName, coreConfig, config_with_batch, is_proxy_device(deviceName));
     auto plugin = get_plugin(parsed._deviceName);
     ov::SoPtr<ov::ICompiledModel> res;
+    // will consume ov::cache_dir if plugin not support it
     auto cacheManager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
     // Skip caching for proxy plugin. HW plugin will load network from the cache
     if (cacheManager && device_supports_model_caching(plugin) && !is_proxy_device(plugin)) {
@@ -842,7 +844,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     // in case of compile_model(file_name), we need to clear-up core-level properties
     auto plugin = get_plugin(parsed._deviceName);
     ov::SoPtr<ov::ICompiledModel> compiled_model;
-
+    // will consume ov::cache_dir if plugin not support it
     auto cacheManager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
 
     if (cacheManager && device_supports_model_caching(plugin) && !is_proxy_device(plugin)) {
@@ -870,7 +872,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     auto parsed = parseDeviceNameIntoConfig(device_name, coreConfig, config);
     auto plugin = get_plugin(parsed._deviceName);
     ov::SoPtr<ov::ICompiledModel> compiled_model;
-
+    // will consume ov::cache_dir if plugin not support it
     auto cacheManager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
     // Skip caching for proxy plugin. HW plugin will load network from the cache
     if (cacheManager && device_supports_model_caching(plugin) && !is_proxy_device(plugin)) {
