@@ -63,7 +63,7 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
             return false;
 
         // TODO: Support conversion internally
-        if (concat_node->get_output_element_type(0) != past_node->get_output_element_type(0))
+        if (!concat_node || concat_node->get_output_element_type(0) != past_node->get_output_element_type(0))
             return false;
 
         auto variable = past_node->get_variable();

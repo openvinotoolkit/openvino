@@ -846,9 +846,11 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
                         // quantized input is char type
                         kd.internalBufferSizes.push_back(input_size);
                         // half type of de_quan_scale and activation sum for each quantized group
+                        OPENVINO_ASSERT(quantize_grp_size != 0, "Error: quantize_grp_size is zero.");
                         kd.internalBufferSizes.push_back((input_size / quantize_grp_size) * 2 * 2);
                     }
 
+                    OPENVINO_ASSERT(quantize_grp_size != 0, "Error: quantize_grp_size is zero.");
                     kd.kernels[0].params.workGroups.global = {std::max((input_size / quantize_grp_size), (size_t)1), 1, 1};
                     kd.kernels[0].params.workGroups.local = {16, 1, 1};
                 }
@@ -983,6 +985,7 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
     const auto& fc_params = static_cast<const fully_connected_params&>(params);
 
     size_t quantize_grp_size = get_dynamic_quantize_group_size(fc_params);
+    OPENVINO_ASSERT(quantize_grp_size != 0, "Error: quantize_grp_size is zero.");
 
     bool bProperInput = fc_params.inputs[0].GetLayout() == dl;
     if (!bProperInput && !fc_params.inputs[0].PitchesDifferFromLogicalDims()) {
