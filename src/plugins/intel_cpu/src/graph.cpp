@@ -537,7 +537,7 @@ void Graph::CreatePrimitivesAndExecConstants() const {
             node->createPrimitive();
         }
 
-        if (!node->isConstant()) {
+        if (!node->isConstant() || !node->isExecutable()) {
             continue;
         }
 
