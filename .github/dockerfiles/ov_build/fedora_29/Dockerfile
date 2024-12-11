@@ -37,7 +37,7 @@ RUN chmod +x /install_build_dependencies.sh && \
 RUN cd /usr/src && \
     wget https://www.python.org/ftp/python/3.9.9/Python-3.9.9.tar.xz && \
     tar xvf Python-3.9.9.tar.xz
-RUN cd Python-3.9.9 && \
+RUN cd /usr/src/Python-3.9.9 && \
     ./configure --enable-shared --with-system-expat --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
     make altinstall
 
