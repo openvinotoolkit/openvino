@@ -529,7 +529,7 @@ Iteration <number>:
     ```
 - Init OpenVINO enviroment
     ```
-     "<OpenVINO-install-dir>/setupvars.sh"
+     "<OpenVINO-install-dir>/setupvars.bat"
     ```
 2. Build OpenCV
 - Clone OpenCV repo:
@@ -555,13 +555,13 @@ Iteration <number>:
               -DORT_INSTALL_DIR=<onnxrt-install-dir>
     cmake --build . --config Release --target opencv_gapi --parallel
     ```
-### Build Protopipe inside OpenVino
+### Build Protopipe inside OpenVINO
 1. Build protopipe
     ```
     cd <OpenVINO-root-dir>
     mkdir "src/plugins/intel_npu/tools/protopipe/build" && cd "src/plugins/intel_npu/tools/protopipe/build"
     cmake ../ -DOpenCV_DIR=<opencv-build-dir> -DCMAKE_BUILD_TYPE=Release
-    cmake --build . --target protopipe --parallel --config Release
+    cmake --build . --config Release --target protopipe --parallel
     ```
 ### Standalone build
 1. Build `gflags`
@@ -574,7 +574,7 @@ Iteration <number>:
    ```
 2. Build `Protopipe`
    ```
-   mkdir -p "protopipe_build" && cd "protopipe_build"
+   mkdir "protopipe_build" && cd "protopipe_build"
    cmake <OpenVINO-dir>/src/plugins/intel_npu/tools/protopipe ^
          -DOpenCV_DIR=<opencv-build-dir>                      ^
          -Dgflags_DIR=<gflags-build-dir>
