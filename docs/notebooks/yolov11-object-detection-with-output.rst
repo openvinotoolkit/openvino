@@ -126,12 +126,20 @@ Import required utility functions. The lower cell will download the
     # Download a test sample
     IMAGE_PATH = Path("./data/coco_bike.jpg")
     
-    if not IMAGE_PATH.exists():
-        download_file(
-            url="https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg",
-            filename=IMAGE_PATH.name,
-            directory=IMAGE_PATH.parent,
-        )
+    download_file(
+        url="https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg",
+        filename=IMAGE_PATH.name,
+        directory=IMAGE_PATH.parent,
+    )
+
+
+
+
+.. parsed-literal::
+
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/coco_bike.jpg')
+
+
 
 Instantiate model
 -----------------
@@ -195,14 +203,14 @@ Let us consider the examples:
 
 .. parsed-literal::
 
-    100%|██████████| 5.35M/5.35M [00:00<00:00, 22.9MB/s]
+    100%|██████████| 5.35M/5.35M [00:00<00:00, 23.8MB/s]
 
 
 .. parsed-literal::
 
     
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/coco_bike.jpg: 480x640 2 bicycles, 2 cars, 2 dogs, 83.0ms
-    Speed: 2.5ms preprocess, 83.0ms inference, 0.9ms postprocess per image at shape (1, 3, 480, 640)
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/coco_bike.jpg: 480x640 2 bicycles, 2 cars, 2 dogs, 79.9ms
+    Speed: 2.5ms preprocess, 79.9ms inference, 1.0ms postprocess per image at shape (1, 3, 480, 640)
 
 
 
@@ -239,7 +247,7 @@ preserve dynamic shapes in the model.
     OpenVINO: export success ✅ 1.8s, saved as 'yolo11n_openvino_model/' (5.4 MB)
     
     Export complete (1.9s)
-    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization
+    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization
     Predict:         yolo predict task=detect model=yolo11n_openvino_model imgsz=640 half 
     Validate:        yolo val task=detect model=yolo11n_openvino_model imgsz=640 data=/usr/src/ultralytics/ultralytics/cfg/datasets/coco.yaml half 
     Visualize:       https://netron.app
@@ -318,8 +326,8 @@ ready to check model prediction for object detection.
     Loading yolo11n_openvino_model for OpenVINO inference...
     Using OpenVINO LATENCY mode for batch=1 inference...
     
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/coco_bike.jpg: 640x640 1 bicycle, 2 cars, 1 dog, 19.6ms
-    Speed: 2.5ms preprocess, 19.6ms inference, 0.9ms postprocess per image at shape (1, 3, 640, 640)
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/coco_bike.jpg: 640x640 1 bicycle, 2 cars, 1 dog, 19.3ms
+    Speed: 2.2ms preprocess, 19.3ms inference, 1.0ms postprocess per image at shape (1, 3, 640, 640)
 
 
 
@@ -426,23 +434,6 @@ Let’s load ``skip magic`` extension to skip quantization if
         det_validator.names = label_map
         det_validator.metrics.names = det_validator.names
         det_validator.nc = 80
-
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-785/.workspace/scm/datasets/val2017.zip:   0%|   …
-
-
-.. parsed-literal::
-
-    '/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-785/.workspace/scm/datasets/coco2017labels-segments.zip' already exists.
-
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-785/.workspace/scm/datasets/coco.yaml:   0%|     …
 
 
 .. parsed-literal::
@@ -633,8 +624,8 @@ on the image.
 .. parsed-literal::
 
     
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/coco_bike.jpg: 640x640 1 bicycle, 2 cars, 1 dog, 22.4ms
-    Speed: 1.8ms preprocess, 22.4ms inference, 0.9ms postprocess per image at shape (1, 3, 640, 640)
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/coco_bike.jpg: 640x640 1 bicycle, 2 cars, 1 dog, 17.6ms
+    Speed: 1.8ms preprocess, 17.6ms inference, 1.0ms postprocess per image at shape (1, 3, 640, 640)
 
 
 
@@ -675,7 +666,7 @@ models.
 
     if int8_model_det_path.exists():
         # Inference FP32 model (OpenVINO IR)
-        !benchmark_app -m $det_model_path -d $device.value -api async -shape "[1,3,640,640]"
+        !benchmark_app -m $det_model_path -d $device.value -api async -shape "[1,3,640,640]" -t 15
 
 
 .. parsed-literal::
@@ -683,7 +674,6 @@ models.
     [Step 1/11] Parsing and validating input arguments
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
-    [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.5.0-16993-9c432a3641a
     [ INFO ] 
@@ -696,7 +686,7 @@ models.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 18.56 ms
+    [ INFO ] Read model took 18.19 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [?,3,?,?]
@@ -705,14 +695,14 @@ models.
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'x': [1,3,640,640]
-    [ INFO ] Reshape model took 8.34 ms
+    [ INFO ] Reshape model took 7.88 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : u8 / [N,C,H,W] / [1,3,640,640]
     [ INFO ] Model outputs:
     [ INFO ]     ***NO_NAME*** (node: __module.model.23/aten::cat/Concat_7) : f32 / [...] / [1,84,8400]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 320.62 ms
+    [ INFO ] Compile model took 320.13 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -747,19 +737,19 @@ models.
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
     [ INFO ] Fill input 'x' with random values 
-    [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 120000 ms duration)
+    [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 30.56 ms
+    [ INFO ] First inference took 29.82 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            18618 iterations
-    [ INFO ] Duration:         120057.32 ms
+    [ INFO ] Count:            2316 iterations
+    [ INFO ] Duration:         15066.40 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        37.79 ms
-    [ INFO ]    Average:       38.55 ms
-    [ INFO ]    Min:           27.20 ms
-    [ INFO ]    Max:           98.41 ms
-    [ INFO ] Throughput:   155.08 FPS
+    [ INFO ]    Median:        37.19 ms
+    [ INFO ]    Average:       38.89 ms
+    [ INFO ]    Min:           27.84 ms
+    [ INFO ]    Max:           99.24 ms
+    [ INFO ] Throughput:   153.72 FPS
 
 
 .. code:: ipython3
@@ -786,7 +776,7 @@ models.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 27.22 ms
+    [ INFO ] Read model took 27.26 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [1,3,640,640]
@@ -802,7 +792,7 @@ models.
     [ INFO ] Model outputs:
     [ INFO ]     ***NO_NAME*** (node: __module.model.23/aten::cat/Concat_7) : f32 / [...] / [1,84,8400]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 534.79 ms
+    [ INFO ] Compile model took 521.70 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -839,17 +829,17 @@ models.
     [ INFO ] Fill input 'x' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 29.45 ms
+    [ INFO ] First inference took 24.01 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            5208 iterations
-    [ INFO ] Duration:         15057.92 ms
+    [ INFO ] Count:            5232 iterations
+    [ INFO ] Duration:         15030.50 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        33.54 ms
-    [ INFO ]    Average:       34.53 ms
-    [ INFO ]    Min:           24.62 ms
-    [ INFO ]    Max:           244.11 ms
-    [ INFO ] Throughput:   345.86 FPS
+    [ INFO ]    Median:        33.86 ms
+    [ INFO ]    Average:       34.28 ms
+    [ INFO ]    Min:           23.65 ms
+    [ INFO ]    Max:           85.39 ms
+    [ INFO ] Throughput:   348.09 FPS
 
 
 Next steps
@@ -1024,11 +1014,10 @@ Run the object detection:
     if WEBCAM_INFERENCE:
         VIDEO_SOURCE = 0  # Webcam
     else:
-        if not Path("people.mp4").exists():
-            download_file(
-                "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/people.mp4",
-                "people.mp4",
-            )
+        download_file(
+            "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/people.mp4",
+            "people.mp4",
+        )
         VIDEO_SOURCE = "people.mp4"
 
 .. code:: ipython3
