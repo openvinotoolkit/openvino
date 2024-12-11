@@ -82,5 +82,9 @@
     {
         "error_text": "Upload progress stalled",
         "ticket": 152933
+    },
+    {
+        "error_text": "because the GET request got Content-Type",
+        "ticket": 158400
     }
 ]
