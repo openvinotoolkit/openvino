@@ -1,3 +1,4 @@
+Topology,Precision,Input Size,max rss memory,1st latency (ms),2nd latency (ms),2nd tok/sec
 opt-125m-gptq,INT4-MIXED,32,1150.2,35.1,8.2,122.0
 opt-125m-gptq,INT4-MIXED,1024,1228,67,8.2,122.0
 qwen2-0.5b,INT4-MIXED,1024,1596.2,83.6,14.4,69.4
