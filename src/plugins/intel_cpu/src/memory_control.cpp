@@ -88,6 +88,46 @@ private:
     MemoryBlockWithReuse* m_pInternalMem;
 };
 
+class IndividualMemoryBlockWithRelease : public IMemoryBlockObserver {
+public:
+    IndividualMemoryBlockWithRelease(const std::shared_ptr<MemoryBlockWithRelease>& pBlock) : m_pBlock(pBlock) {}
+
+    void* getRawPtr() const noexcept override {
+        return m_pBlock->getRawPtr();
+    }
+    void setExtBuff(void* ptr, size_t size) override {
+        m_max_requested_size = std::max(m_max_requested_size, size);
+        m_pBlock->setExtBuff(ptr, size);
+    }
+    bool resize(size_t size) override {
+        m_max_requested_size = std::max(m_max_requested_size, size);
+        return m_pBlock->resize(size);
+    }
+    bool hasExtBuffer() const noexcept override {
+        return m_pBlock->hasExtBuffer();
+    }
+    void registerMemory(Memory* memPtr) override {
+        m_pBlock->registerMemory(memPtr);
+    }
+    void unregisterMemory(Memory* memPtr) override {
+        m_pBlock->unregisterMemory(memPtr);
+    }
+    void free() {
+        m_max_requested_size = 0;
+        if (m_pBlock->size() > 0) {
+            m_pBlock->free();
+        }
+    }
+
+    size_t size() const {
+        return m_max_requested_size;
+    }
+
+private:
+    std::shared_ptr<MemoryBlockWithRelease> m_pBlock;
+    size_t m_max_requested_size = 0;
+};
+
 class IMemoryManager {
 public:
     virtual ~IMemoryManager() = default;
@@ -165,6 +205,33 @@ private:
     std::vector<std::reference_wrapper<BlockType>> m_blocks;
 };
 
+static std::pair<int64_t, int64_t> calculateOptimalMemorySize(std::vector<MemorySolver::Box> boxes) {
+    ov::MemorySolver::normalize_boxes(boxes);
+
+    auto boxCmp = [](const MemorySolver::Box& l, const MemorySolver::Box& r) {
+        return l.finish > r.finish;
+    };
+    std::priority_queue<MemorySolver::Box, std::vector<MemorySolver::Box>, decltype(boxCmp)> pq(boxCmp);
+
+    ptrdiff_t current_size = 0;
+    ptrdiff_t max_current_size = 0;
+    ptrdiff_t max_box_size = 0;
+
+    for (const auto& box : boxes) {
+        max_box_size = std::max(max_box_size, box.size);
+        current_size += box.size;
+        while (!pq.empty() && pq.top().finish < box.start) {
+            auto&& retire_box = pq.top();
+            current_size -= retire_box.size;
+            pq.pop();
+        }
+        pq.push(box);
+        max_current_size = std::max(max_current_size, current_size);
+    }
+
+    return {max_current_size, max_box_size};
+}
+
 class MemoryManagerStatic : public IMemoryManager {
 public:
     void insert(const MemoryRegion& reg, const std::vector<size_t>& syncInds) override {
@@ -190,33 +257,10 @@ public:
         retVal.total_size = m_totalSize;
 
         {
-            // calculate the optimal memory size
-            auto tmp_boxes = m_boxes;
-            ov::MemorySolver::normalize_boxes(tmp_boxes);
+            auto result = calculateOptimalMemorySize(m_boxes);
 
-            auto boxCmp = [](const MemorySolver::Box& l, const MemorySolver::Box& r) {
-                return l.finish > r.finish;
-            };
-            std::priority_queue<MemorySolver::Box, std::vector<MemorySolver::Box>, decltype(boxCmp)> pq(boxCmp);
-
-            ptrdiff_t current_size = 0;
-            ptrdiff_t max_current_size = 0;
-            ptrdiff_t max_box_size = 0;
-
-            for (const auto& box : tmp_boxes) {
-                max_box_size = std::max(max_box_size, box.size);
-                current_size += box.size;
-                while (!pq.empty() && pq.top().finish < box.start) {
-                    auto&& retire_box = pq.top();
-                    current_size -= retire_box.size;
-                    pq.pop();
-                }
-                pq.push(box);
-                max_current_size = std::max(max_current_size, current_size);
-            }
-
-            retVal.optimal_total_size = max_current_size;
-            retVal.max_region_size = max_box_size;
+            retVal.optimal_total_size = result.first;
+            retVal.max_region_size = result.second;
         }
         return retVal;
     }
@@ -298,19 +342,29 @@ public:
         retVal.id = getClassName();
         retVal.total_regions = m_boxes.size();
         retVal.total_blocks = m_internalBlocks.size();
-        retVal.total_size = std::accumulate(m_internalBlocks.begin(),
-                                            m_internalBlocks.end(),
+        retVal.total_size = std::accumulate(m_unique_blocks.begin(),
+                                            m_unique_blocks.end(),
                                             0,
-                                            [](size_t acc, const decltype(m_internalBlocks)::value_type& item) {
-                                                return acc + item.second->size();
+                                            [](size_t acc, const decltype(m_unique_blocks)::value_type& item) {
+                                                return acc + item->size();
                                             });
-        retVal.optimal_total_size = 0; // it's not possible to calculate this at the moment
-        retVal.max_region_size = std::accumulate(m_internalBlocks.begin(),
-                                                m_internalBlocks.end(),
-                                                0,
-                                                [](size_t acc, const decltype(m_internalBlocks)::value_type& item) {
-                                                    return std::max(acc, item.second->size());
-                                                });
+
+        auto tmp_boxes = m_boxes;
+        for (auto&& box : tmp_boxes) {
+            auto block = m_internalBlocks[box.id];
+            box.size = block->size();
+        }
+
+        auto result = calculateOptimalMemorySize(std::move(tmp_boxes));
+        retVal.optimal_total_size = result.first;
+        retVal.max_region_size = result.second;
+
+        // retVal.max_region_size = std::accumulate(m_internalBlocks.begin(),
+        //                                         m_internalBlocks.end(),
+        //                                         0,
+        //                                         [](size_t acc, const decltype(m_internalBlocks)::value_type& item) {
+        //                                             return std::max(acc, item.second->size());
+        //                                         });
         return retVal;
     }
 
@@ -337,9 +391,9 @@ private:
             }
         }
         for (auto& group : groups) {
-            auto grpMemBlock = std::make_shared<MemoryBlockWithRelease>();
+            m_unique_blocks.push_back(std::make_shared<MemoryBlockWithRelease>());
             for (auto& box : group) {
-                m_internalBlocks[box.id] = grpMemBlock;
+                m_internalBlocks[box.id] = std::make_shared<IndividualMemoryBlockWithRelease>(m_unique_blocks.back());
             }
         }
     }
@@ -359,9 +413,10 @@ private:
 
 private:
     MemoryControl::MemorySolution m_blocks;
-    std::unordered_map<MemoryControl::MemorySolution::key_type, std::shared_ptr<MemoryBlockWithRelease>>
+    std::unordered_map<MemoryControl::MemorySolution::key_type, std::shared_ptr<IndividualMemoryBlockWithRelease>>
         m_internalBlocks;
     std::vector<MemorySolver::Box> m_boxes;
+    std::vector<std::shared_ptr<MemoryBlockWithRelease>> m_unique_blocks;
     bool reset_flag = true;
 };
 
