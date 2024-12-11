@@ -220,7 +220,11 @@ jobs:
             
             $pythonCommand = "py -$pyVersion -c `"import sys; print(f'{sys.executable}')`""
             $pythonExecutablePath = & cmd /c $pythonCommand
-          
+
+            $pipVersion = & $pythonExecutablePath -c "import pip; print(pip.__version__)"
+            Write-Host "Using pip version: $pipVersion for $pyVersion"
+            $env:PIP_CACHE_DIR="${{ env.PIP_CACHE_PATH }}/$pipVersion"
+            
             & $pythonExecutablePath -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
 
             cmake -DPython3_EXECUTABLE="$pythonExecutablePath" -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B "$pyBuildDir"
