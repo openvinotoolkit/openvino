@@ -158,7 +158,7 @@ private:
         }
 
         manager.run_passes(model);
-        const auto ops = model->get_ops();
+        const auto& ops = model->get_ops();
         auto it = std::find_if(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& node) {
             return ov::op::util::is_constant(node);
         });
