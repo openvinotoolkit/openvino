@@ -48,6 +48,7 @@ struct Spatial {
     std::size_t nway_iters = 0u;
     std::size_t tail_size = 0u;
 
+    Spatial() = default;
     Spatial(const function::Spatial& s, const std::shared_ptr<ov::Model>& m)
         : range(s._range),
           nway(s._slice),

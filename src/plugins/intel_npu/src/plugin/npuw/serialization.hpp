@@ -5,21 +5,35 @@
 #pragma once
 
 #include <iostream>
-#include <memory>
-#include <string>
-#include <vector>
-#include <tuple>
 #include <map>
+#include <memory>
+#include <optional>
+#include <string>
+#include <tuple>
+#include <vector>
 
 #include "logging.hpp"
 
 namespace ov {
 namespace npuw {
+
+// Forward declaration
+namespace compiled {
+struct Spatial;
+}  // namespace compiled
+
 namespace s11n {
 
 // Specific type overloads
 void write(std::ostream& stream, const std::string& var);
+void write(std::ostream& stream, const bool& var);
+void write(std::ostream& stream, const ov::npuw::compiled::Spatial& var);
+void write(std::ostream& stream, const ov::Tensor& var);
+
 void read(std::istream& stream, std::string& var);
+void read(std::istream& stream, bool& var);
+void read(std::istream& stream, ov::npuw::compiled::Spatial& var);
+void read(std::istream& stream, ov::Tensor& var);
 
 // Forward declaration
 template <typename T1, typename T2>
@@ -59,6 +73,15 @@ void write(std::ostream& stream, const std::map<K, V>& var) {
     }
 }
 
+template <typename T>
+void write(std::ostream& stream, const std::optional<T>& var) {
+    if (var) {
+        write(stream, true);
+        write(stream, var.value());
+    }
+    write(stream, false);
+}
+
 // Deserialization
 template <typename T, std::enable_if_t<std::is_integral<T>::value, bool> = true>
 void read(std::istream& stream, T& var) {
@@ -96,6 +119,17 @@ void read(std::istream& stream, std::map<K, V>& var) {
     }
 }
 
-} // namespace s11n
-} // namespace npuw
-} // namespace ov
+template <typename T>
+void read(std::istream& stream, std::optional<T>& var) {
+    bool has_value = false;
+    read(stream, has_value);
+    if (has_value) {
+        T val;
+        read(stream, val);
+        var = val;
+    }
+}
+
+}  // namespace s11n
+}  // namespace npuw
+}  // namespace ov

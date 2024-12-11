@@ -119,9 +119,9 @@ private:
              std::pair<size_t /*submodel_idx*/, size_t /*node_idx*/>>  // output ("from")
         m_submodels_input_to_prev_output;
 
-    DeviceProperties m_meta_devices;  // no ser
+    DeviceProperties m_meta_devices;
 
-    DevList m_dev_list;  // no ser
+    DevList m_dev_list;
 
     struct execution_stats {
         float gflops{};
@@ -129,38 +129,43 @@ private:
     };
 
     struct CompiledModelDesc {
-        DevList::const_iterator device_it;             // yes ser
-        std::set<std::string> devices_to_avoid;        // no ser
-        std::shared_ptr<ov::Model> model;              // no ser
-        ov::SoPtr<ov::ICompiledModel> compiled_model;  // yes ser
+        DevList::const_iterator device_it;
+        std::set<std::string> devices_to_avoid;
+        std::shared_ptr<ov::Model> model;
+        ov::SoPtr<ov::ICompiledModel> compiled_model;
 
-        std::optional<std::size_t> replaced_by;  // yes ser
+        std::optional<std::size_t> replaced_by;
 
-        Subgraph::Gather host_gather;                        // yes ser
-        std::optional<ov::npuw::compiled::Spatial> spatial;  // yes ser
+        Subgraph::Gather host_gather;
+        std::optional<ov::npuw::compiled::Spatial> spatial;
 
         // FIXME: This is a 1:1 copy of the ov::npuw::Subgraph structure
         // w.r.t. function calls
-        std::size_t param_base = 0;  // yes ser
+        std::size_t param_base = 0;
         // NB: closure and lazy_closure are of the same size - to preserve proper indexing.
         //     closure is responsible for host-side tensors (DCOFF, Gather, etc) while
         //     lazy_closure is used for weights sharing and allocating device memory.
-        std::vector<ov::Tensor> closure;                // yes ser
-        std::vector<weights::LazyTensor> lazy_closure;  // yes ser, weightless
-        std::vector<ov::Tensor> scales;                 // yes ser
-        std::vector<ov::Tensor> zerops;                 // yes ser
-        std::vector<bool> is_remote;                    // yes ser
+        std::vector<ov::Tensor> closure;
+        std::vector<weights::LazyTensor> lazy_closure;
+        std::vector<ov::Tensor> scales;
+        std::vector<ov::Tensor> zerops;
+        std::vector<bool> is_remote;
 
-        bool forced_to_fcall = false;  // yes ser
+        bool forced_to_fcall = false;
 
         // FIXME: Take it out of structure
-        ov::SoPtr<ov::ICompiledModel> ref_compiled_model;  // no ser
-        bool switched_to_ref = false;                      // no ser
+        ov::SoPtr<ov::ICompiledModel> ref_compiled_model;
+        bool switched_to_ref = false;
 
         // Metrics
-        execution_stats stat;  // no ser
+        execution_stats stat;
+
+        void serialize(std::ostream& stream) const;
+        static CompiledModelDesc deserialize(std::istream& stream,
+                                             const std::shared_ptr<const ov::IPlugin>& plugin,
+                                             const ov::AnyMap& properties);
     };
-    std::vector<CompiledModelDesc> m_compiled_submodels;  // yes ser
+    std::vector<CompiledModelDesc> m_compiled_submodels;
 
     std::function<bool(const ov::SoPtr<ov::ITensor>&, const ov::SoPtr<ov::ITensor>&)> m_acc_check;
     std::string m_ref_device;

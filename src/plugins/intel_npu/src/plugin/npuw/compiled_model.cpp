@@ -21,9 +21,9 @@
 #include "openvino/util/common_util.hpp"
 #include "partitioning/patterns/opt.hpp"
 #include "plugin.hpp"
+#include "serialization.hpp"
 #include "unfold_sync_infer_request.hpp"
 #include "util.hpp"
-#include "serialization.hpp"
 
 // required for get_properties_per_device()
 #include "intel_npu/config/config.hpp"
@@ -478,6 +478,60 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     report_io();
 }
 
+void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream) const {
+    using namespace ov::npuw::s11n;
+
+    compiled_model->export_model(stream);
+    write(stream, replaced_by);
+    write(stream, param_base);
+    write(stream, forced_to_fcall);
+
+    write(stream, host_gather.dst_idx);
+    write(stream, host_gather.src_idx);
+    write(stream, host_gather.idx_idx);
+
+    write(stream, spatial);
+
+    write(stream, scales);
+    write(stream, zerops);
+    write(stream, is_remote);
+
+    // FIXME: continue with
+    // std::vector<ov::Tensor> closure;
+    // std::vector<weights::LazyTensor> lazy_closure;
+}
+
+ov::npuw::CompiledModel::CompiledModelDesc ov::npuw::CompiledModel::CompiledModelDesc::deserialize(
+    std::istream& stream,
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    const ov::AnyMap& properties) {
+    using namespace ov::npuw::s11n;
+
+    CompiledModelDesc desc;
+
+    // FIXME: only works with NPU plugin
+    desc.compiled_model = plugin->import_model(stream, properties);
+    read(stream, desc.replaced_by);
+    read(stream, desc.param_base);
+    read(stream, desc.forced_to_fcall);
+
+    read(stream, desc.host_gather.dst_idx);
+    read(stream, desc.host_gather.src_idx);
+    read(stream, desc.host_gather.idx_idx);
+
+    read(stream, desc.spatial);
+
+    read(stream, desc.scales);
+    read(stream, desc.zerops);
+    read(stream, desc.is_remote);
+
+    // FIXME: continue with
+    // std::vector<ov::Tensor> closure;
+    // std::vector<weights::LazyTensor> lazy_closure;
+
+    return desc;
+}
+
 void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
     LOG_INFO("Serializing CompiledModel...");
     LOG_BLOCK();
@@ -491,8 +545,17 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
     write(stream, m_param_subscribers);
     write(stream, m_submodels_input_to_prev_output);
 
+    // Check compiled submodels' devices
+    for (const auto& subm : m_compiled_submodels) {
+        NPUW_ASSERT(*subm.device_it == "NPU" && "Not all submodels are compied for NPU device!");
+    }
+
     // Serialize compiled submodels
-    // FIXME: to continue with m_compiled_submodels
+    // FIXME: add to overloads
+    write(stream, m_compiled_submodels.size());
+    for (const auto& subm : m_compiled_submodels) {
+        subm.serialize(stream);
+    }
 
     LOG_INFO("Done.");
 }
@@ -517,8 +580,26 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
     read(stream, compiled->m_param_subscribers);
     read(stream, compiled->m_submodels_input_to_prev_output);
 
+    // NOTE: In serialize() we checked that device for all submodels is set to NPU
+    compiled->m_dev_list = {"NPU"};
+
     // Deserialize compiled submodels
-    // FIXME: to continue with m_compiled_submodels
+    // Drop NPUW-related properties from the config for submodels import
+    std::map<std::string, ov::Any> non_npuw_props;
+    for (auto it = properties.begin(); it != properties.end(); ++it) {
+        if (it->first.find("NPUW_LLM") == it->first.npos && it->first.find("NPUW") == it->first.npos) {
+            non_npuw_props.insert(*it);
+        }
+    }
+    // FIXME: add to overloads
+    std::size_t subm_size = 0;
+    read(stream, subm_size);
+    compiled->m_compiled_submodels.reserve(subm_size);
+    for (std::size_t i = 0; i < subm_size; ++i) {
+        auto desc = CompiledModelDesc::deserialize(stream, plugin, non_npuw_props);
+        desc.device_it = compiled->m_dev_list.cbegin();  // FIXME: only NPU device is supported for now
+        compiled->m_compiled_submodels.push_back(desc);
+    }
 
     LOG_INFO("Done.");
 

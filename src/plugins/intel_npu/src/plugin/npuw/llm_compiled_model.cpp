@@ -5,9 +5,9 @@
 
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
-#include "serialization.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "serialization.hpp"
 
 const constexpr uint64_t SERIALIZATION_INDICATOR = 0x0123456789abcdef;
 
