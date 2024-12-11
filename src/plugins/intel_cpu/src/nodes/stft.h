@@ -23,6 +23,7 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void prepareParams() override;
     bool needPrepareParams() const override;
+    void createPrimitive() override;
 
     void execute(dnnl::stream strm) override;
     void executeDynamicImpl(dnnl::stream strm) override;
