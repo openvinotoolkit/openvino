@@ -155,36 +155,6 @@ namespace {
     }
 }
 
-namespace {
-template <typename T, std::size_t N1, std::size_t N2>
-constexpr std::array<T, N1 + N2> concat(std::array<T, N1> lhs, std::array<T, N2> rhs)
-{
-    std::array<T, N1 + N2> result{};
-    std::size_t index = 0;
-
-    for (auto& el : lhs) {
-        result[index] = std::move(el);
-        ++index;
-    }
-    for (auto& el : rhs) {
-        result[index] = std::move(el);
-        ++index;
-    }
-
-    return result;
-}
-
-template <typename T, std::size_t N1, std::size_t N2, std::size_t N3>
-constexpr std::array<T, N1 + N2 + N3> concat(std::array<T, N1> a1, std::array<T, N2> a2, std::array<T, N3> a3) {
-    return concat(concat(a1, a2), a3);
-}
-
-template <typename T, std::size_t N1, std::size_t N2, std::size_t N3, std::size_t N4>
-constexpr std::array<T, N1 + N2 + N3 + N4> concat(std::array<T, N1> a1, std::array<T, N2> a2, std::array<T, N3> a3, std::array<T, N4> a4) {
-    return concat(concat(a1, a2, a3), a4);
-}
-}
-
 namespace YAML {
 
 template <typename T>
@@ -226,9 +196,6 @@ struct convert<LayerVariantAttr<T>> {
     }
 };
 
-namespace {
-    constexpr auto uniform_generator_keys = std::array{"low", "high"};
-}
 template <>
 struct convert<UniformGenerator::Ptr> {
     static bool decode(const Node& node, UniformGenerator::Ptr& generator) {
@@ -245,10 +212,6 @@ struct convert<UniformGenerator::Ptr> {
         return true;
     }
 };
-
-namespace {
-    constexpr auto random_generator_keys = concat(std::array {"dist", "uniform"}, uniform_generator_keys);
-}
 
 template <>
 struct convert<IRandomGenerator::Ptr> {
@@ -269,9 +232,6 @@ struct convert<IRandomGenerator::Ptr> {
     }
 };
 
-namespace {
-    constexpr auto norm_keys = std::array{"tolerance"};
-}
 template <>
 struct convert<Norm::Ptr> {
     static bool decode(const Node& node, Norm::Ptr& metric) {
@@ -288,9 +248,6 @@ struct convert<Norm::Ptr> {
     }
 };
 
-namespace {
-    constexpr auto cosine_keys = std::array{"threshold"};
-}
 template <>
 struct convert<Cosine::Ptr> {
     static bool decode(const Node& node, Cosine::Ptr& metric) {
@@ -307,10 +264,6 @@ struct convert<Cosine::Ptr> {
     }
 };
 
-namespace {
-    constexpr auto nrmse_keys = std::array{"tolerance"};
-}
-
 template <>
 struct convert<NRMSE::Ptr> {
     static bool decode(const Node& node, NRMSE::Ptr& metric) {
@@ -326,10 +279,6 @@ struct convert<NRMSE::Ptr> {
         return true;
     }
 };
-
-namespace {
-    constexpr auto accuracy_metric_keys = concat(std::array{"name"}, norm_keys, cosine_keys, nrmse_keys);
-}
 
 template <>
 struct convert<IAccuracyMetric::Ptr> {
@@ -351,19 +300,13 @@ struct convert<IAccuracyMetric::Ptr> {
     }
 };
 
-namespace {
-    constexpr auto parse_config_raw_keys = std::array{"multi_inference", "metric", "random", "disable_high_resolution_waitable_timer"};
-    constexpr auto global_options_raw_keys = std::array{"model_dir", "blob_dir", "device_name", "log_level", "compiler_type", "save_validation_outputs"};
-
-    constexpr auto global_options_keys = concat(global_options_raw_keys, parse_config_raw_keys);
-}
-
 template <>
 struct convert<GlobalOptions> {
     static bool decode(const Node& node, GlobalOptions& opts) {
         std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        const std::unordered_set<std::string> parameters = 
-            {"blob_dir", "compiler_type", "device_name", "disable_high_resolution_waitable_timer", "log_level", "metric", "model_dir", "multi_inference", "random", "save_validation_outputs"};
+        const std::unordered_set<std::string> parameters = {
+            "blob_dir", "compiler_type", "device_name", "disable_high_resolution_waitable_timer", 
+            "log_level", "metric", "model_dir", "multi_inference", "random", "save_validation_outputs"};
         validateNodeKeys(node, parameters);
         if (node["model_dir"]) {
             if (!node["model_dir"]["local"]) {
@@ -400,20 +343,14 @@ struct convert<GlobalOptions> {
     }
 };
 
-namespace {
-    constexpr auto opDesc_raw_keys = std::array{"tag", "type", "repeat_count", "connections", "op_desc"};
-    constexpr auto openVINO_raw_keys = std::array{"name", "path", "device", "ip", "op", "il", "ol", "iml", "oml", "reshape", "config", "priority", "nireq"};
-
-    constexpr auto openVINO_keys = concat(openVINO_raw_keys, opDesc_raw_keys);
-}
-
 template <>
 struct convert<OpenVINOParams> {
     static bool decode(const Node& node, OpenVINOParams& params) {
         std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
 
-        const std::unordered_set<std::string> parameters = 
-        {"config", "connections", "device", "il", "iml", "ip", "name", "nireq", "ol", "oml", "op", "op_desc", "path", "priority", "repeat_count", "reshape", "tag", "type"};
+        const std::unordered_set<std::string> parameters = {
+            "config", "connections", "device", "il", "iml", "ip", "name", "nireq", "ol", 
+            "oml", "op", "op_desc", "path", "priority", "repeat_count", "reshape", "tag", "type"};
         validateNodeKeys(node, parameters);
         // FIXME: Worth to separate these two
         const auto name = node["name"] ? node["name"].as<std::string>() : node["path"].as<std::string>();
@@ -474,9 +411,6 @@ struct convert<OpenVINOParams> {
     }
 };
 
-namespace {
-    constexpr auto onnxRTParams_OpenVINO_keys = std::array{"params", "device_type"};
-}
 template <>
 struct convert<ONNXRTParams::OpenVINO> {
     static bool decode(const Node& node, ONNXRTParams::OpenVINO& ov_ep) {
@@ -499,10 +433,6 @@ struct convert<ONNXRTParams::OpenVINO> {
     }
 };
 
-namespace {
-    constexpr auto onnx_runtime_ep_keys = concat(std::array{"params", "device_type"}, onnxRTParams_OpenVINO_keys);
-}
-
 template <>
 struct convert<ONNXRTParams::EP> {
     static bool decode(const Node& node, ONNXRTParams::EP& ep) {
@@ -519,19 +449,14 @@ struct convert<ONNXRTParams::EP> {
     }
 };
 
-namespace {
-    constexpr auto infer_operation_raw_keys = std::array{"framework", "random", "metric", "input_data", "output_data"};
-    constexpr auto onnx_runtime_raw_keys = std::array{"name", "session_options", "ep", "opt_level"};
-
-    constexpr auto onnx_runtime_keys = concat(onnx_runtime_raw_keys, opDesc_raw_keys, infer_operation_raw_keys);
-}
-
 template <>
 struct convert<ONNXRTParams> {
     static bool decode(const Node& node, ONNXRTParams& params) {
         std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
 
-        const std::unordered_set<std::string> parameters = {"connections", "ep", "framework", "input_data", "metric", "name", "op_desc", "opt_level", "output_data", "random", "repeat_count", "session_options", "tag", "type"};
+        const std::unordered_set<std::string> parameters = {
+            "connections", "ep", "framework", "input_data", "metric", "name", "op_desc", 
+            "opt_level","output_data", "random", "repeat_count", "session_options", "tag", "type"};
         validateNodeKeys(node, parameters);
         // FIXME: Worth to separate these two
         params.model_path = node["name"] ? node["name"].as<std::string>() : node["path"].as<std::string>();
@@ -548,16 +473,12 @@ struct convert<ONNXRTParams> {
     }
 };
 
-namespace {
-    constexpr auto network_raw_keys = std::array{"name", "framework", "random", "metric", "input_data", "output_data"};
-    constexpr auto network_keys = network_raw_keys;
-}
-
 template <>
 struct convert<Network> {
     static bool decode(const Node& node, Network& network) {
         std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        const std::unordered_set<std::string> parameters = {"framework", "input_data", "metric", "name", "output_data", "random"};
+        const std::unordered_set<std::string> parameters = {
+            "framework", "input_data", "metric", "name", "output_data", "random"};
         validateNodeKeys(node, parameters);
         // NB: Take path stem as network tag
         // Note that at this point, it's fine if names aren't unique
@@ -591,9 +512,6 @@ struct convert<Network> {
     }
 };
 
-namespace {
-    constexpr auto cpu_operation_keys = std::array{"time_in_us"};
-}
 template <>
 struct convert<CPUOp> {
     static bool decode(const Node& node, CPUOp& op) {
@@ -606,16 +524,15 @@ struct convert<CPUOp> {
     }
 };
 
-namespace {
-    constexpr auto parse_advanced_stream_raw_keys = std::array{"name", "frames_interval_in_ms", "target_fps", "target_latency_in_ms", "exec_time_in_secs", "iteration_count", "op_desc", "connections"};
-    constexpr auto infer_operation_keys = concat(infer_operation_raw_keys, opDesc_raw_keys, parse_advanced_stream_raw_keys, openVINO_raw_keys);
-}
-
 template <>
 struct convert<InferOp> {
     static bool decode(const Node& node, InferOp& op) {
         std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        const std::unordered_set<std::string> parameters = {"config", "connections", "device", "exec_time_in_secs", "frames_interval_in_ms", "framework", "il", "iml", "input_data", "ip", "iteration_count", "metric", "name", "nireq", "ol", "oml", "op", "op_desc", "output_data", "path", "priority", "random", "repeat_count", "reshape", "tag", "target_fps", "target_latency_in_ms", "type"};
+        const std::unordered_set<std::string> parameters = {
+            "config", "connections", "device", "exec_time_in_secs", "frames_interval_in_ms", 
+            "framework", "il", "iml", "input_data", "ip", "iteration_count", "metric", "name", 
+            "nireq", "ol", "oml", "op", "op_desc", "output_data", "path", "priority", "random", 
+            "repeat_count", "reshape", "tag", "target_fps", "target_latency_in_ms", "type"};
         validateNodeKeys(node, parameters);
         const auto framework = node["framework"] ? node["framework"].as<std::string>() : "openvino";
         if (framework == "openvino") {
@@ -644,15 +561,15 @@ struct convert<InferOp> {
     }
 };
 
-namespace {
-    constexpr auto opDesc_keys = concat(opDesc_raw_keys, parse_advanced_stream_raw_keys, openVINO_raw_keys, network_raw_keys);
-}
-
 template <>
 struct convert<OpDesc> {
     static bool decode(const Node& node, OpDesc& opdesc) {
         std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        const std::unordered_set<std::string> parameters = {"config", "connections", "device", "exec_time_in_secs", "frames_interval_in_ms", "framework", "il", "iml", "input_data", "ip", "iteration_count", "metric", "name", "nireq", "ol", "oml", "op", "op_desc", "output_data", "path", "priority", "random", "repeat_count", "reshape", "tag", "target_fps", "target_latency_in_ms", "type"};
+        const std::unordered_set<std::string> parameters = {
+            "config", "connections", "device", "exec_time_in_secs", "frames_interval_in_ms", 
+            "framework", "il", "iml", "input_data", "ip", "iteration_count", "metric", "name",
+            "nireq", "ol", "oml", "op", "op_desc", "output_data", "path", "priority", "random",
+            "repeat_count", "reshape", "tag", "target_fps", "target_latency_in_ms", "type"};
         validateNodeKeys(node, parameters);
         opdesc.tag = node["tag"].as<std::string>();
         auto type = node["type"] ? node["type"].as<std::string>() : "Infer";
@@ -919,15 +836,13 @@ static ScenarioGraph buildGraph(const std::vector<OpDesc>& op_descs,
     return graph;
 }
 
-namespace {
-    constexpr auto parse_advanced_stream_keys = YAML::parse_advanced_stream_raw_keys;
-}
-
 static StreamDesc parseAdvancedStream(const YAML::Node& node, const GlobalOptions& opts,
                                       const std::string& default_name, const ReplaceBy& replace_by) {
     StreamDesc stream;
     std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-    const std::unordered_set<std::string> parameters = {"connections", "exec_time_in_secs", "frames_interval_in_ms", "iteration_count", "name", "op_desc", "target_fps", "target_latency_in_ms"};
+    const std::unordered_set<std::string> parameters = {
+        "connections", "exec_time_in_secs", "frames_interval_in_ms", "iteration_count", "name",
+        "op_desc", "target_fps", "target_latency_in_ms"};
     validateNodeKeys(node, parameters);
     // FIXME: Create a function for the duplicate code below
     stream.name = node["name"] ? node["name"].as<std::string>() : default_name;
@@ -1000,10 +915,6 @@ static std::vector<StreamDesc> parseStreams(const YAML::Node& node, const Global
     return streams;
 }
 
-namespace {
-    constexpr auto parse_scenarios_keys = std::array{"name", "input_stream_list"};
-}
-
 static std::vector<ScenarioDesc> parseScenarios(const YAML::Node& node, const GlobalOptions& opts,
                                                 const ReplaceBy& replace_by) {
     std::vector<ScenarioDesc> scenarios;
@@ -1029,14 +940,12 @@ static std::vector<ScenarioDesc> parseScenarios(const YAML::Node& node, const Gl
     return scenarios;
 }
 
-namespace {
-    constexpr auto parse_config_keys = concat(YAML::parse_config_raw_keys, YAML::global_options_keys);
-}
-
 Config parseConfig(const YAML::Node& node, const ReplaceBy& replace_by) {
     std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
 
-    const std::unordered_set<std::string> parameters = {"blob_dir", "compiler_type", "device_name", "disable_high_resolution_waitable_timer", "log_level", "metric", "model_dir", "multi_inference", "random", "save_validation_outputs"};
+    const std::unordered_set<std::string> parameters = {
+        "blob_dir", "compiler_type", "device_name", "disable_high_resolution_waitable_timer",
+        "log_level", "metric", "model_dir", "multi_inference", "random", "save_validation_outputs"};
     validateNodeKeys(node, parameters);
     const auto global_opts = node.as<GlobalOptions>();
 
