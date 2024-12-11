@@ -165,7 +165,7 @@ class BenchmarkAppPerformanceMode(Mode):
         if cfg["preliminaryCheckCfg"]["checkBenchmarkModelPath"]:
             cmdStr = cfg["appCmd"]
             matcher = re.search(
-                "benchmark.*-m[\s*]([^\S]*)",
+                r"benchmark.*-m[\s*]([^\S]*)",
                 cmdStr,
                 flags=re.MULTILINE
                 )
@@ -287,7 +287,7 @@ class BenchmarkAppPerformanceMode(Mode):
 class AccuracyCheckerMode(Mode):
     def __init__(self, cfg):
         super().__init__(cfg)
-        self.thresholdPattern = ":\s([0-9]*[.][0-9]*)%.*abs error"
+        self.thresholdPattern = r":\s([0-9]*[.][0-9]*)%.*abs error"
         self.curMetric = None
         self.createCash()
 
