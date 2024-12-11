@@ -43,22 +43,19 @@ from openvino.runtime import Type
 from openvino.runtime import Tensor
 from openvino.runtime import OVAny
 
-from openvino.runtime import compile_model
+# Helper functions for openvino module
+from openvino.runtime.utils.data_helpers import tensor_from_file
+from openvino._ov_api import compile_model
 from openvino.runtime import get_batch
 from openvino.runtime import set_batch
 from openvino.runtime import serialize
 from openvino.runtime import shutdown
-from openvino.runtime import tensor_from_file
 from openvino.runtime import save_model
 from openvino.runtime import layout_helpers
 
 from openvino._pyopenvino import RemoteContext
 from openvino._pyopenvino import RemoteTensor
 from openvino._pyopenvino import Op
-
-# Helper functions for openvino module
-from openvino.runtime.utils.data_helpers import tensor_from_file
-from openvino._ov_api import compile_model
 
 # Import opsets
 from openvino import opset1
