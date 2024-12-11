@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
 #include "base/ov_behavior_test_utils.hpp"
 #include "openvino/runtime/core.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
@@ -43,11 +45,17 @@ TEST_F(TestPropertiesGPU, RTInfoPropertiesWithDefault) {
     model->set_rt_info("8.0", "runtime_options", ov::hint::activations_scale_factor.name());
 
     OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU));
-    OV_ASSERT_NO_THROW(type = compiled_model.get_property(ov::hint::kv_cache_precision));
     OV_ASSERT_NO_THROW(size = compiled_model.get_property(ov::hint::dynamic_quantization_group_size));
+    ASSERT_EQ(size.as<uint64_t>(), 0);
+
+    // GPU with systolic does not support some of rt_info
+    auto capabilities = core.get_property(ov::test::utils::DEVICE_GPU, ov::device::capabilities);
+    if (find(capabilities.cbegin(), capabilities.cend(), ov::intel_gpu::capability::HW_MATMUL) != capabilities.cend())
+        return;
+
+    OV_ASSERT_NO_THROW(type = compiled_model.get_property(ov::hint::kv_cache_precision));
     OV_ASSERT_NO_THROW(scale = compiled_model.get_property(ov::hint::activations_scale_factor));
     ASSERT_EQ(type.as<ov::element::Type>(), ov::element::f16);
-    ASSERT_EQ(size.as<uint64_t>(), 0);
     ASSERT_EQ(scale.as<float>(), 8.0f);
 }
 
