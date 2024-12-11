@@ -140,7 +140,7 @@ public:
 
     // Note that RT info property value has lower priority than values set by user via core.set_property or passed to compile_model call
     // So this method should be called after setting all user properties, but before apply_user_properties() call.
-    void apply_rt_info(const ov::RTMap& rt_info);
+    void apply_rt_info(const cldnn::device_info& info, const ov::RTMap& rt_info);
 
     std::string to_string() const;
 
