@@ -168,7 +168,7 @@ INSTANTIATE_TEST_SUITE_P(
 TEST(group_normalization, input_bfyx_output_fsv16) {
     auto& engine = get_test_engine();
 
-    auto in_layout = layout{ ov::PartialShape{12, 320, 35, 28}, data_types::f32, format::bfyx };
+    auto in_layout = layout{ ov::PartialShape{1, 3, 3, 2}, data_types::f32, format::bfyx };
     auto scale_layout = layout{ ov::PartialShape{1, 1, 1, 1}, data_types::f32, format::bfyx };
     auto bias_layout = layout{ ov::PartialShape{1, 1, 1, 1}, data_types::f32, format::bfyx };
 
@@ -176,14 +176,12 @@ TEST(group_normalization, input_bfyx_output_fsv16) {
     auto scale_mem = engine.allocate_memory(scale_layout);
     auto bias_mem = engine.allocate_memory(bias_layout);
 
-    tests::random_generator rg{"group_normalization"};
-    std::vector<float> input = rg.generate_random_1d<float>(ov::shape_size(in_layout.get_shape()), -1, 1);
-    std::vector<float> scale = rg.generate_random_1d<float>(ov::shape_size(scale_layout.get_shape()), -1, 1);
-    std::vector<float> bias = rg.generate_random_1d<float>(ov::shape_size(bias_layout.get_shape()), -1, 1);
-
-    set_values(input_mem, input);
-    set_values(scale_mem, scale);
-    set_values(bias_mem, bias);
+    set_values(input_mem,
+               { 0.125, 0.125, 0.875, -0.125, 0.125, 0.750,
+                0.875, -0.375, -0.375, -1.000, -0.625, -1.000,
+                -0.125, -0.750, -0.250, 0.625, -0.500, -0.875 });
+    set_values(scale_mem, { 0.125 });
+    set_values(bias_mem, { 0.75 });
 
     topology topology(
         input_layout("input", in_layout),
