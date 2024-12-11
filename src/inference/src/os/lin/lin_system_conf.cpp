@@ -23,6 +23,9 @@ CPU::CPU() {
     std::vector<std::vector<std::string>> system_info_table;
     std::vector<std::string> node_info_table;
 
+    constexpr int cache_info_mode = 1;
+    constexpr int freq_info_mode = 2;
+
     auto get_info_linux = [&](int mode) {
         int cpu_index = 0;
         int cache_index = 0;
@@ -81,7 +84,7 @@ CPU::CPU() {
                 core_2 = std::stoi(sub_str);
 
                 for (cpu_index = core_1; cpu_index <= core_2; cpu_index++) {
-                    if (mode == 1) {
+                    if (mode == cache_info_mode) {
                         for (int n = 0; n < cache_files; n++) {
                             cache_index = (n == 0) ? n : n + 1;
                             one_info.clear();
@@ -230,7 +233,7 @@ CPU::CPU() {
 
     get_node_info_linux();
 
-    if (!get_info_linux(1)) {
+    if (!get_info_linux(cache_info_mode)) {
         parse_cache_info_linux(system_info_table,
                                node_info_table,
                                _processors,
@@ -244,7 +247,7 @@ CPU::CPU() {
     if ((_proc_type_table.size() == 0) ||
         ((_proc_type_table[0][MAIN_CORE_PROC] == 0) && (_proc_type_table[0][ALL_PROC] > 0) &&
          (_proc_type_table[0][ALL_PROC] != _proc_type_table[0][EFFICIENT_CORE_PROC]))) {
-        if (!get_info_linux(2)) {
+        if (!get_info_linux(freq_info_mode)) {
             parse_freq_info_linux(system_info_table,
                                   node_info_table,
                                   _processors,
