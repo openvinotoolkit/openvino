@@ -17,7 +17,7 @@ namespace pass {
 // We need to remove them because separate sub-graphs can solidly affect performance
 class ConstToResultRemover : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("ov::frontend::tensorflow::pass::UnsupportedConstToResultRemover");
+    OPENVINO_RTTI("ov::frontend::tensorflow::pass::UnsupportedConstToResultRemover", "util", ov::pass::ModelPass);
     ConstToResultRemover() {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;

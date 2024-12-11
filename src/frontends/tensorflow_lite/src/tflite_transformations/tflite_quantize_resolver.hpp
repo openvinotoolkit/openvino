@@ -32,7 +32,7 @@ public:
 // This transformation simplifies type manipulations in the graph
 class TFLQuantizeResolver : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("ov::frontend::tensorflow_lite::pass::TFLQuantizeResolver", "0", ov::pass::ModelPass);
+    OPENVINO_RTTI("ov::frontend::tensorflow_lite::pass::TFLQuantizeResolver", "util", ov::pass::ModelPass);
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
