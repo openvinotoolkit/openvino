@@ -171,6 +171,10 @@ void prepare_primitive_fusing::fuse_swiglu(program &p) {
     // Apply only for high performant GPU
     if (disable_fc_swiglu_fusion || p.get_engine().get_device_info().execution_units_count < 128)
         return;
+
+    if (p.get_engine().get_device_info().supports_immad)
+        return;
+
     // TODO: to support other glu types && other weight data types
     auto itr = p.get_processing_order().begin();
     std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>> fusing_history;
