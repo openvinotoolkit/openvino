@@ -375,6 +375,26 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ov::hint::kv_cache_precision.name(),
                                ". Supported values: u8, bf16, f16, f32");
             }
+        } else if (key == ov::hint::key_cache_precision.name() || key == ov::hint::value_cache_precision.name()) {
+            try {
+                kvCachePrecisionSetExplicitly = true;
+                auto const prec = val.as<ov::element::Type>();
+                if (key == ov::hint::key_cache_precision.name()) {
+                    if (one_of(prec, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8)) {
+                        keyCachePrecision = prec;
+                    } else {
+                        OPENVINO_THROW("keyCachePrecision doesn't support value ", prec);
+                    }
+                } else {
+                    if (one_of(prec, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8, ov::element::u4, ov::element::i4)) {
+                        valueCachePrecision = prec;
+                    } else {
+                        OPENVINO_THROW("valueCachePrecision doesn't support value ", prec);
+                    }
+                }
+            } catch (ov::Exception&) {
+
+            }
         } else if (key == ov::hint::key_cache_group_size.name() || key == ov::hint::value_cache_group_size.name()) {
             try {
                 auto const groupSize = val.as<uint64_t>();
@@ -432,6 +452,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         }
         if (!kvCachePrecisionSetExplicitly) {
             kvCachePrecision = ov::element::f32;
+            valueCachePrecision = ov::element::f32;
+            keyCachePrecision = ov::element::f32;
         }
     }
 

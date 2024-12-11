@@ -345,6 +345,8 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((64, 64),),
         ),
         (hints.kv_cache_precision, "KV_CACHE_PRECISION", ((Type.f32, Type.f32),)),
+        (hints.key_cache_precision, "KEY_CACHE_PRECISION", ((Type.f32, Type.f32),)),
+        (hints.value_cache_precision, "VALUE_CACHE_PRECISION", ((Type.f32, Type.f32),)),
         (
             hints.activations_scale_factor,
             "ACTIVATIONS_SCALE_FACTOR",

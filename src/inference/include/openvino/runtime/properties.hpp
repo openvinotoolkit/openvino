@@ -581,6 +581,18 @@ static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization
 static constexpr Property<element::Type, PropertyMutability::RW> kv_cache_precision{"KV_CACHE_PRECISION"};
 
 /**
+ * @brief Hint for device to use specified precision for key cache compression
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<element::Type, PropertyMutability::RW> key_cache_precision{"KEY_CACHE_PRECISION"};
+
+/**
+ * @brief Hint for device to use specified precision for value cache compression
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<element::Type, PropertyMutability::RW> value_cache_precision{"VALUE_CACHE_PRECISION"};
+
+/**
  * @brief Hint for device to use group_size for key cache compression
  * @ingroup ov_runtime_cpp_prop_api
  */

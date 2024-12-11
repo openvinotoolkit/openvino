@@ -58,9 +58,13 @@ struct Config {
 #endif
 #if defined(OPENVINO_ARCH_X86_64)
     ov::element::Type kvCachePrecision = ov::element::u8;
+    ov::element::Type keyCachePrecision = ov::element::u8;
+    ov::element::Type valueCachePrecision = ov::element::u8;
     size_t rtCacheCapacity = 5000ul;
 #else
     ov::element::Type kvCachePrecision = ov::element::f16;
+    ov::element::Type keyCachePrecision = ov::element::f16;
+    ov::element::Type valueCachePrecision = ov::element::f16;
     // TODO: Executor cache may leads to incorrect behavior on oneDNN ACL primitives
     size_t rtCacheCapacity = 0ul;
 #endif
