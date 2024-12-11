@@ -27,7 +27,7 @@ struct MemoryStatisticsRecord {
     size_t total_blocks; // bytes
     size_t total_size; // bytes
     size_t optimal_total_size; // bytes
-    size_t max_block_size;  // bytes
+    size_t max_region_size;  // bytes
 };
 
 std::ostream& operator<<(std::ostream& os, const MemoryStatisticsRecord& record);

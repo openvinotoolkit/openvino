@@ -10,6 +10,8 @@
 #include "openvino/runtime/memory_solver.hpp"
 #include "utils/general_utils.h"
 
+#include <queue>
+
 namespace ov {
 namespace intel_cpu {
 
@@ -144,7 +146,7 @@ public:
                                             });
         retVal.optimal_total_size = retVal.total_size;
         // find max size memory block in m_blocks
-        retVal.max_block_size = std::accumulate(m_blocks.begin(),
+        retVal.max_region_size = std::accumulate(m_blocks.begin(),
                                                 m_blocks.end(),
                                                 0,
                                                 [](size_t acc, const BlockType& item) {
@@ -192,30 +194,29 @@ public:
             auto tmp_boxes = m_boxes;
             ov::MemorySolver::normalize_boxes(tmp_boxes);
 
-            retVal.max_block_size = 0;
-            std::vector<std::pair<int, int64_t>> start_events;
-            std::vector<std::pair<int, int64_t>> finish_events;
-            for (auto&& box : tmp_boxes) {
-                retVal.max_block_size = std::max(retVal.max_block_size, static_cast<size_t>(box.size));
-                start_events.emplace_back(box.start, box.size);
-                finish_events.emplace_back(box.finish, -box.size);
-            }
+            auto boxCmp = [](const MemorySolver::Box& l, const MemorySolver::Box& r) {
+                return l.finish > r.finish;
+            };
+            std::priority_queue<MemorySolver::Box, std::vector<MemorySolver::Box>, decltype(boxCmp)> pq(boxCmp);
 
-            size_t i = 0, j = 0;
             ptrdiff_t current_size = 0;
-            ptrdiff_t max_size = 0;
+            ptrdiff_t max_current_size = 0;
+            ptrdiff_t max_box_size = 0;
 
-            while (i < start_events.size() || j < finish_events.size()) {
-                if (i < start_events.size() && (start_events[i].first <= finish_events[j].first || j >= finish_events.size())) {
-                    current_size += start_events[i].second;
-                    max_size = std::max(max_size, current_size);
-                    i++;
-                } else {
-                    current_size += finish_events[j].second;
-                    j++;
+            for (const auto& box : tmp_boxes) {
+                max_box_size = std::max(max_box_size, box.size);
+                current_size += box.size;
+                while (!pq.empty() && pq.top().finish < box.start) {
+                    auto&& retire_box = pq.top();
+                    current_size -= retire_box.size;
+                    pq.pop();
                 }
+                pq.push(box);
+                max_current_size = std::max(max_current_size, current_size);
             }
-            retVal.optimal_total_size = max_size;
+
+            retVal.optimal_total_size = max_current_size;
+            retVal.max_region_size = max_box_size;
         }
         return retVal;
     }
@@ -304,7 +305,7 @@ public:
                                                 return acc + item.second->size();
                                             });
         retVal.optimal_total_size = 0; // it's not possible to calculate this at the moment
-        retVal.max_block_size = std::accumulate(m_internalBlocks.begin(),
+        retVal.max_region_size = std::accumulate(m_internalBlocks.begin(),
                                                 m_internalBlocks.end(),
                                                 0,
                                                 [](size_t acc, const decltype(m_internalBlocks)::value_type& item) {
@@ -372,7 +373,7 @@ std::ostream& operator<<(std::ostream& os, const MemoryStatisticsRecord& record)
     os << "Total blocks: " << record.total_blocks << std::endl;
     os << "Total size: " << record.total_size << " bytes" << std::endl;
     os << "Optimal total size: " << record.optimal_total_size << " bytes" << std::endl;
-    os << "Max block size: " << record.max_block_size << " bytes" << std::endl;
+    os << "Max region size: " << record.max_region_size << " bytes" << std::endl;
     return os;
 }
 
