@@ -229,6 +229,79 @@ void remove_core_properties(ov::AnyMap& properties) {
         properties.erase(name);
     }
 }
+
+ov::Parsed parse_device_config(const std::string& device_name,
+                               const ov::CoreConfig& core_config,
+                               const ov::AnyMap& properties,
+                               const bool keep_auto_batch_property) {
+    // check to the validity of device name
+    auto bracket_pos = device_name.find(")");
+    while (bracket_pos != std::string::npos) {
+        if (bracket_pos < device_name.length() - 1 &&
+            (device_name[bracket_pos + 1] != ',' || bracket_pos + 1 == device_name.length() - 1)) {
+            OPENVINO_THROW("Device with \"", device_name, "\" name is illegal in the OpenVINO Runtime");
+        }
+        bracket_pos = device_name.find(")", bracket_pos + 1);
+    }
+
+    /** Note: auto-batching is already applied by this time, so the call:
+     * core.compile_model("GPU", ov::device::properties("BATCH", ov::auto_batch_timeout(400)));
+     * is transformed and we have here:
+     * ov::parseDeviceNameIntoConfig("BATCH", ov::device::priorities("GPU"),
+     *                                        ov::device::properties("BATCH",
+     *                                        ov::auto_batch_timeout(400)));
+     * so, after 'flatten_sub_properties' we will have:
+     * core.compile_model("BATCH", ov::auto_batch_timeout(400),
+     *                             ov::device::priorities("GPU"));
+     *
+     * So, if one day, we want to add more options in form of ov::allow_<hetero, etc>, we need to apply it before
+     * 'flatten_sub_properties' call to have proper behavior
+     */
+    ov::Parsed parsed{device_name, flatten_sub_properties(device_name, properties), core_config};
+    auto& updated_device_name = parsed._deviceName;
+    auto& updated_config = parsed._config;
+
+    std::string parsed_device_priority;
+
+    // try to find ':' to extract name of virtual device
+    auto pos = device_name.find_first_of(':');
+    if (pos != std::string::npos) {
+        updated_device_name = device_name.substr(0, pos);
+        parsed_device_priority = device_name.substr(pos + 1);
+    } else {
+        ov::DeviceIDParser parser(device_name);
+        updated_device_name = parser.get_device_name();
+        parsed_device_priority = parser.get_device_id();
+    }
+
+    // checks and updates device priority
+    if (!parsed_device_priority.empty()) {
+        const auto priority_prop_name = get_device_priority_property(updated_device_name).prop_name;
+        const auto it = updated_config.find(priority_prop_name);
+        if (it == updated_config.end())
+            updated_config[priority_prop_name] = parsed_device_priority;
+        else if (it->second == parsed_device_priority) {
+            // do nothing
+        } else {
+            OPENVINO_THROW("Device priority / ID mismatch: ",
+                           parsed_device_priority,
+                           " (from ",
+                           device_name,
+                           ") vs ",
+                           it->second.as<std::string>(),
+                           " (from config)");
+        }
+    };
+
+    parsed._core_config.set(updated_config);
+    // keep batch property only when called from query_supported_property
+    if (!keep_auto_batch_property) {
+        for (const auto& name : auto_batch_properties_names) {
+            clean_batch_properties(updated_device_name, updated_config, name);
+        }
+    }
+    return parsed;
+}
 }  // namespace
 
 bool ov::is_config_applicable(const std::string& user_device_name, const std::string& subprop_device_name) {
@@ -265,81 +338,21 @@ bool ov::is_config_applicable(const std::string& user_device_name, const std::st
 
 ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName,
                                          const AnyMap& config,
-                                         const bool keep_core_property) {
-    return parseDeviceNameIntoConfig(deviceName, CoreConfig{}, config, keep_core_property);
+                                         const bool keep_auto_batch_property) {
+    return parseDeviceNameIntoConfig(deviceName, CoreConfig{}, config, keep_auto_batch_property);
 }
 
 ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName,
                                          const CoreConfig& coreConfig,
                                          const AnyMap& config,
-                                         const bool keep_core_property) {
-    // check to the validity of device name
-    auto bracket_pos = deviceName.find(")");
-    while (bracket_pos != std::string::npos) {
-        if (bracket_pos < deviceName.length() - 1 &&
-            (deviceName[bracket_pos + 1] != ',' || bracket_pos + 1 == deviceName.length() - 1)) {
-            OPENVINO_THROW("Device with \"", deviceName, "\" name is illegal in the OpenVINO Runtime");
-        }
-        bracket_pos = deviceName.find(")", bracket_pos + 1);
-    }
+                                         const bool keep_auto_batch_property) {
+    auto parsed = parse_device_config(deviceName, coreConfig, config, keep_auto_batch_property);
 
-    /** Note: auto-batching is already applied by this time, so the call:
-     * core.compile_model("GPU", ov::device::properties("BATCH", ov::auto_batch_timeout(400)));
-     * is transformed and we have here:
-     * ov::parseDeviceNameIntoConfig("BATCH", ov::device::priorities("GPU"),
-     *                                        ov::device::properties("BATCH",
-     *                                        ov::auto_batch_timeout(400)));
-     * so, after 'flatten_sub_properties' we will have:
-     * core.compile_model("BATCH", ov::auto_batch_timeout(400),
-     *                             ov::device::priorities("GPU"));
-     *
-     * So, if one day, we want to add more options in form of ov::allow_<hetero, etc>, we need to apply it before
-     * 'flatten_sub_properties' call to have proper behavior
-     */
-    ov::Parsed parsed{deviceName, flatten_sub_properties(deviceName, config), coreConfig};
-    auto& updated_device_name = parsed._deviceName;
-    auto& updated_config = parsed._config;
-
-    std::string parsed_device_priority;
-
-    // try to find ':' to extract name of virtual device
-    auto pos = deviceName.find_first_of(':');
-    if (pos != std::string::npos) {
-        updated_device_name = deviceName.substr(0, pos);
-        parsed_device_priority = deviceName.substr(pos + 1);
-    } else {
-        ov::DeviceIDParser parser(deviceName);
-        updated_device_name = parser.get_device_name();
-        parsed_device_priority = parser.get_device_id();
-    }
-
-    // checks and updates device priority
-    if (!parsed_device_priority.empty()) {
-        const auto priority_prop_name = get_device_priority_property(updated_device_name).prop_name;
-        const auto it = updated_config.find(priority_prop_name);
-        if (it == updated_config.end())
-            updated_config[priority_prop_name] = parsed_device_priority;
-        else if (it->second == parsed_device_priority) {
-            // do nothing
-        } else {
-            OPENVINO_THROW("Device priority / ID mismatch: ",
-                           parsed_device_priority,
-                           " (from ",
-                           deviceName,
-                           ") vs ",
-                           it->second.as<std::string>(),
-                           " (from config)");
-        }
-    };
-
-    parsed._core_config.set(updated_config);
-    // keep batch property only when called from query_supported_property
-    if (!keep_core_property) {
-        for (const auto& name : auto_batch_properties_names) {
-            clean_batch_properties(updated_device_name, updated_config, name);
-        }
+    // remove core properties for HW devices
+    if (!is_virtual_device(parsed._deviceName)) {
         for (const auto& name : {ov::enable_mmap.name(), ov::force_tbb_terminate.name()}) {
-            updated_config.erase(name);
+            // note: ov::cache_dir kept as plugin may require it
+            parsed._config.erase(name);
         }
     }
     return parsed;
@@ -990,7 +1003,7 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
         return return_properties;
     }
 
-    const auto flattened = parseDeviceNameIntoConfig(full_device_name, user_properties, keep_core_property);
+    const auto flattened = parse_device_config(full_device_name, {}, user_properties, keep_core_property);
     const auto& flattened_config = flattened._config;
     const auto& device_name = flattened._deviceName;
 

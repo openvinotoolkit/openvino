@@ -71,11 +71,12 @@ struct Parsed {
  * @brief Provides Parsed device name and configuration.
  *
  * Uses default core configuration updated with user properties from config.
+ * The core properties are removed from user configuration for HW devices only.
  * @note The `CACHE_DIR` is not removed from compiled configuration.
  *
- * @param deviceName          Device name to be parsed
- * @param config              User configuration to be parsed.
- * @param keep_core_property  If set keep core properties in compile properties.
+ * @param deviceName                Device name to be parsed
+ * @param config                    User configuration to be parsed.
+ * @param keep_auto_batch_property  If set keep auto batch properties in compile properties.
  * @return Parsed:
  * - device name
  * - compile properties
@@ -83,18 +84,19 @@ struct Parsed {
  */
 Parsed parseDeviceNameIntoConfig(const std::string& deviceName,
                                  const AnyMap& config = {},
-                                 const bool keep_core_property = false);
+                                 const bool keep_auto_batch_property = false);
 
 /**
  * @brief Provides Parsed device name and configuration.
  *
  * Uses user core configuration which is updated with user properties from config.
+ * The core properties are removed from user configuration for HW devices only.
  * @note The `CACHE_DIR` is not removed from compiled configuration.
  *
- * @param deviceName          Device name to be parsed
- * @param coreConfig          Core configuration used as base for parsed output.
- * @param config              User configuration to be parsed.
- * @param keep_core_property  If set keep core properties in compile properties.
+ * @param deviceName                Device name to be parsed
+ * @param coreConfig                Core configuration used as base for parsed output.
+ * @param config                    User configuration to be parsed.
+ * @param keep_auto_batch_property  If set keep auto batch properties in compile properties.
  * @return Parsed:
  * - device name
  * - compile properties
@@ -103,7 +105,7 @@ Parsed parseDeviceNameIntoConfig(const std::string& deviceName,
 Parsed parseDeviceNameIntoConfig(const std::string& deviceName,
                                  const CoreConfig& coreConfig,
                                  const AnyMap& config = {},
-                                 const bool keep_core_property = false);
+                                 const bool keep_auto_batch_property = false);
 
 /**
  * @brief Checks whether config is applicable for device with 'device_name'
