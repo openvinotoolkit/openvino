@@ -18,7 +18,9 @@ public:
         prepare_table();
     }
 
-    size_t get_inputs_num() const override { return 1; }
+    size_t get_inputs_num() const override {
+        return 1;
+    }
 
 private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override {
@@ -33,71 +35,63 @@ private:
         }
     }
 
-    template <typename Vmm>
-    void saturate_input(Vmm& clamped,
-                        const Vmm& in,
-                        const std::string& bf16_min_key,
-                        const std::string& bf16_max_key) const {
-        Vmm vmm_temp = Vmm(aux_vec_idxs[1]);
-        h->uni_vmovups(vmm_temp, table_val(bf16_min_key));
-        h->uni_vmaxps(clamped, in, vmm_temp);
-        h->uni_vmovups(vmm_temp, table_val(bf16_max_key));
-        h->uni_vminps(clamped, clamped, vmm_temp);
-
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
-            h->uni_vmovups(vmm_temp, table_val("selector"));
-            h->vfixupimmps(clamped, in, vmm_temp, 0);
-        } else {
-            Vmm mask = Vmm(aux_vec_idxs[2]);
-            h->uni_vcmpps(mask, in, in, 0x03);  // _CMP_UNORD_Q
-            h->uni_vblendvps(clamped, clamped, table_val("nan"), mask);
-            h->uni_vcmpps(mask, in, table_val("inf"), 0x00);  // _CMP_EQ_OQ
-            h->uni_vblendvps(clamped, clamped, table_val("inf"), mask);
-            h->uni_vcmpps(mask, in, table_val("neg_inf"), 0x00);  // _CMP_EQ_OQ
-            h->uni_vblendvps(clamped, clamped, table_val("neg_inf"), mask);
-        }
-    }
-
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
         using namespace Xbyak;
-        using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41, Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
+        using Vmm = typename dnnl::impl::utils::
+            conditional3<isa == dnnl::impl::cpu::x64::sse41, Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
 
         Vmm in = Vmm(in_vec_idxs[0]);
-        Vmm clamped = Vmm(aux_vec_idxs[0]);
-        saturate_input(clamped, in, "bf16_min", "bf16_max");
+        Vmm vmm_temp = Vmm(out_vec_idxs[0]);
+
+        h->uni_vmaxps(vmm_temp, in, table_val("bf16_min"));
+        h->uni_vminps(vmm_temp, vmm_temp, table_val("bf16_max"));
+
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
+            h->vfixupimmps(vmm_temp, in, table_val("selector"), 0);
+        } else {
+            Vmm mask = Vmm(aux_vec_idxs[0]);
+            h->uni_vcmpps(mask, in, in, 0x03);  // _CMP_UNORD_Q
+            h->uni_vblendvps(vmm_temp, vmm_temp, table_val("nan"), mask);
+            h->uni_vcmpps(mask, in, table_val("inf"), 0x00);  // _CMP_EQ_OQ
+            h->uni_vblendvps(vmm_temp, vmm_temp, table_val("inf"), mask);
+            h->uni_vcmpps(mask, in, table_val("neg_inf"), 0x00);  // _CMP_EQ_OQ
+            h->uni_vblendvps(vmm_temp, vmm_temp, table_val("neg_inf"), mask);
+        }
+        h->uni_vmovups(in, vmm_temp);
 
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
             Ymm out = Ymm(out_vec_idxs[0]);
-            h->vcvtneps2bf16(out, clamped);
+            h->vcvtneps2bf16(out, in);
         } else if (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::avx512_core) {
-            Zmm aux = Zmm(aux_vec_idxs[1]);
-            Zmm aux1 = Zmm(aux_vec_idxs[2]);
+            Zmm aux = Zmm(aux_vec_idxs[0]);
+            Zmm aux1 = Zmm(aux_vec_idxs[1]);
             Ymm out = Ymm(out_vec_idxs[0]);
 
-            h->uni_vpsrld(aux, clamped, 16);
+            h->uni_vpsrld(aux, in, 16);
             h->vpandd(aux, aux, table_val("one"));
             h->uni_vmovups(aux1, table_val("even"));
             h->uni_vpaddd(aux, aux1, aux);
-            h->uni_vpaddd(aux, clamped, aux);
+            h->uni_vpaddd(aux, in, aux);
+            h->vfixupimmps(aux, in, table_val("selector"), 0);
             h->vpsrad(aux, aux, 16);
             h->vpmovdw(out, aux);
         } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::cpu_isa_t::avx2_vnni_2)) {
             Xmm out = Xmm(out_vec_idxs[0]);
-            h->vcvtneps2bf16(out, clamped, PreferredEncoding::VexEncoding);
+            h->vcvtneps2bf16(out, in, PreferredEncoding::VexEncoding);
         } else {  // round_to_nearest_even emulation
-            Vmm aux = Vmm(aux_vec_idxs[1]);
+            Vmm aux = Vmm(aux_vec_idxs[0]);
             Xmm out = Xmm(out_vec_idxs[0]);
 
             if (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::avx2) {
-                h->uni_vandps(aux, clamped, table_val("rounding"));
+                h->uni_vandps(aux, in, table_val("rounding"));
             } else {
-                h->uni_vmovups(aux, clamped);
+                h->uni_vmovups(aux, in);
                 h->uni_vandps(aux, aux, table_val("rounding"));
             }
 
             h->uni_vpsrld(aux, aux, 1);
-            h->uni_vpaddd(aux, aux, clamped);
+            h->uni_vpaddd(aux, aux, in);
             h->uni_vpsrld(aux, aux, 16);
 
             // dword to word using truncation
@@ -105,7 +99,7 @@ private:
             h->uni_vpackusdw(aux, aux, aux);
 
             if (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::avx2) {
-                h->vpermq(Ymm(aux.getIdx()), Ymm(aux.getIdx()), 0xD8); //11 01 10 00
+                h->vpermq(Ymm(aux.getIdx()), Ymm(aux.getIdx()), 0xD8);  // 11 01 10 00
                 h->vextracti128(out, Ymm(aux.getIdx()), 0);
             } else {
                 h->uni_vmovups(out, aux);
@@ -148,9 +142,11 @@ private:
     }
 
     size_t aux_vecs_count() const override {
-        return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) ? 2 : 3;
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
+            return 0;
+        return host_isa_ == dnnl::impl::cpu::x64::avx512_core ? 2 : 1;
     }
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov
