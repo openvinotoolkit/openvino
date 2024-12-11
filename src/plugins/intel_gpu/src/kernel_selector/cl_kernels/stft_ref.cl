@@ -41,9 +41,7 @@ KERNEL(stft_ref)(
     const float PI2 = M_PI_F * 2;
 
     // ay = 2*PI*(k/N) from dft def.
-    const float ay = PI2 * freq_id / frame_size;
-
-    
+    const float ay = PI2 * (float)freq_id / (float)frame_size;
 
     for(int i = 0; i < frame_size; ++i) {
         const float signal_val = (float)signal_for_this_frame[i];

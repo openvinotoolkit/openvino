@@ -14,7 +14,8 @@ using namespace ::tests;
 
 namespace {
 
-constexpr float EPS = 2e-3f;
+constexpr float REL_EPS = 2e-3f;
+constexpr float ABS_EPS = 1e-5f;
 
 namespace helpers {
 // TODO: Move to common place.
@@ -48,7 +49,7 @@ void CompareTypedBuffers(const memory::ptr& output, const memory::ptr& expectedO
     ASSERT_EQ(output->get_layout(), expectedOutput->get_layout());
     ASSERT_EQ(output_ptr.size(), wanted_output_ptr.size());
     for (size_t i = 0; i < output_ptr.size(); ++i)
-        ASSERT_TRUE(are_equal(wanted_output_ptr[i], output_ptr[i], EPS)) << "at index " << i;
+        ASSERT_TRUE(are_equal(wanted_output_ptr[i], output_ptr[i], REL_EPS, ABS_EPS)) << "at index " << i;
 }
 
 void CompareBuffers(const memory::ptr& output, const memory::ptr& expectedOutput, cldnn::stream& stream) {
