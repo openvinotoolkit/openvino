@@ -1437,7 +1437,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
             cacheContent.blobId,
             cacheContent.mmap_enabled && ov::util::contains(plugin.get_property(ov::internal::supported_properties),
                                                             ov::internal::caching_with_mmap),
-            [&](std::istream& networkStream, , std::shared_ptr<ov::AlignedBuffer> model_buffer) {
+            [&](std::istream& networkStream, std::shared_ptr<ov::AlignedBuffer> model_buffer) {
                 OV_ITT_SCOPE(FIRST_INFERENCE,
                              ov::itt::domains::LoadTime,
                              "Core::load_model_from_cache::ReadStreamAndImport");
