@@ -13,6 +13,7 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/implementation_utils.hpp"
+#include "nodes/executors/common/common_utils.hpp"
 #include "utils/debug_capabilities.h"
 
 namespace ov {
@@ -56,7 +57,8 @@ static void initFCAttrs(const FCAttrs &attrs,
 ACLLowpFullyConnectedExecutor::ACLLowpFullyConnectedExecutor(const FCAttrs &attrs,
                                                              const PostOps &postOps,
                                                              const MemoryArgs &memory,
-                                                             const ExecutorContext::CPtr& context) : dequantizationScales(attrs.dequantizationScales) {
+                                                             const ExecutorContext::CPtr& context) {
+    dequantizationScales = getDeQuantizedScales(memory);
     initFCAttrs(attrs, aclTensorAttrs, aclfcAttrs, memory, gemmInfo, postOps);
     packedWeights = acl_fc_executor::prepareWeightMemory(memory, context, attrs, aclfcAttrs, postOps, expectedWeightFormat, weiTensorInfo);
 }
@@ -72,7 +74,7 @@ bool ACLLowpFullyConnectedExecutor::supports(const FCConfig &config) {
     VERIFY(checkPostOps(config.postOps), UNSUPPORTED_TYPE_OF_POSTOPS);
     VERIFY(one_of(srcRank(config), 2U, 3U, 4U), UNSUPPORTED_SRC_RANK);
     VERIFY(one_of(weiRank(config), 2U, 3U, 4U), UNSUPPORTED_WEI_RANK);
-    VERIFY(static_cast<FCAttrs>(config.attrs).dequantizationScales.size() <= 1, UNSUPPORTED_PER_CHANNEL_QUANTIZATION);
+    //VERIFY(static_cast<FCAttrs>(config.attrs).dequantizationScales.size() <= 1, UNSUPPORTED_PER_CHANNEL_QUANTIZATION);
     return true;
 }
 

@@ -237,7 +237,7 @@ jobs:
           Compress-Archive @compress
 
           $compress = @{
-            Path = "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_cpu_func_tests.exe", "${{ env.BUILD_DIR }}/bin/${{ env.CMAKE_BUILD_TYPE }}/ze_loader.dll", "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/openvino_template_extension.dll", "${{ env.OPENVINO_REPO }}/src/tests/test_utils/functional_test_utils/layer_tests_summary", "${{ env.INSTALL_DIR }}/runtime/3rdparty/tbb"
+            Path = "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_cpu_func_tests.exe", "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/openvino_template_extension.dll", "${{ env.OPENVINO_REPO }}/src/tests/test_utils/functional_test_utils/layer_tests_summary", "${{ env.INSTALL_DIR }}/runtime/3rdparty/tbb"
             CompressionLevel = "Optimal"
             DestinationPath = "${{ env.BUILD_DIR }}/openvino_tests.zip"
           }

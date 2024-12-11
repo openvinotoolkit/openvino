@@ -120,7 +120,7 @@ Install required dependencies
     from pathlib import Path
     import requests
     
-    %pip install -q "torch>=2.1.0" "torchvision" "torchaudio" --index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "torch>=2.3.0" "torchvision" "torchaudio" --index-url https://download.pytorch.org/whl/cpu
     %pip install -q "git+https://github.com/huggingface/optimum-intel.git"  --index-url https://download.pytorch.org/whl/cpu
     %pip install -q  "nncf>=2.14.0"  "sentencepiece" "tokenizers>=0.12.1" "transformers>=4.45.0" "gradio>=4.36"
     %pip install -q -U  "openvino-tokenizers>=2024.5.0" "openvino>=2024.5.0" "openvino-genai>=2024.5.0"|

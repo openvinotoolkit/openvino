@@ -3,6 +3,7 @@
 //
 #pragma once
 
+#include "cpu_types.h"
 #include "openvino/util/env_util.hpp"
 #ifdef CPU_DEBUG_CAPS
 
@@ -94,6 +95,12 @@ public:
     }
 };
 
+template<typename T>
+std::ostream & operator<<(std::ostream & os, const std::vector<T> vec) {
+    for (const auto& element : vec)
+        os << element << "x";
+    return os;
+}
 std::ostream & operator<<(std::ostream & os, const PortConfig& desc);
 std::ostream & operator<<(std::ostream & os, const NodeConfig& desc);
 std::ostream & operator<<(std::ostream & os, const NodeDesc& desc);
