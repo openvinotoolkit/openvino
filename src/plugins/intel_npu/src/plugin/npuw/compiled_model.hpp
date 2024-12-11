@@ -160,8 +160,9 @@ private:
         // Metrics
         execution_stats stat;
 
-        void serialize(std::ostream& stream) const;
+        void serialize(std::ostream& stream, const std::size_t& idx) const;
         static CompiledModelDesc deserialize(std::istream& stream,
+                                             const std::size_t idx,
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
                                              const ov::AnyMap& properties);
     };
