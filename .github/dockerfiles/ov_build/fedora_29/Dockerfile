@@ -38,7 +38,7 @@ RUN cd /usr/src && \
     wget https://www.python.org/ftp/python/3.9.9/Python-3.9.9.tar.xz && \
     tar xvf Python-3.9.9.tar.xz && \
     cd Python-3.9.9 && \
-    ./configure --enable-shared --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
+    ./configure --enable-shared --with-system-expat --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
     make altinstall
 
 # Install sscache
@@ -54,8 +54,6 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 ENV PATH="$SCCACHE_HOME:$PATH"
 
 # Use Python 3.9 as default
-RUN python3.9 -m venv venv
-ENV PATH="/venv/bin:$PATH"
 RUN alternatives --install /usr/bin/python python /usr/bin/python3.9 10 && \
     alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 10
     
