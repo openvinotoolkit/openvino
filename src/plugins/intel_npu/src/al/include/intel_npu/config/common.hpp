@@ -271,7 +271,7 @@ struct SEPARATE_WEIGHTS_VERSION final : OptionBase<SEPARATE_WEIGHTS_VERSION, uin
     }
 
     static uint32_t defaultValue() {
-        return 2;
+        return 3;
     }
 
     static uint32_t parse(std::string_view val) {
