@@ -218,6 +218,19 @@ std::vector<ov::PropertyName> OptionsDesc::getSupportedOptions(bool includePriva
     return res;
 }
 
+std::string OptionsDesc::getSupportedAsString(bool includePrivate) const {
+    std::string res;
+
+    for (const auto& p : _impl) {
+        if (p.second.isPublic() || includePrivate) {
+            res += p.first;
+            res += " ";
+        }
+    }
+
+    return res;
+}
+
 void OptionsDesc::walk(std::function<void(const details::OptionConcept&)> cb) const {
     for (const auto& itr : _impl) {
         cb(itr.second);

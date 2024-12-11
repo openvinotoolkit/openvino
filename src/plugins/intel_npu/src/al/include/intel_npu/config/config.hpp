@@ -394,6 +394,7 @@ public:
 
     std::vector<std::string> getSupported(bool includePrivate = false) const;
     std::vector<ov::PropertyName> getSupportedOptions(bool includePrivate = false) const;
+    std::string getSupportedAsString(bool includePrivate = false) const;
 
     details::OptionConcept get(std::string_view key, OptionMode mode = OptionMode::Both) const;
     void walk(std::function<void(const details::OptionConcept&)> cb) const;
