@@ -55,6 +55,10 @@ void STFTLayerTest::SetUp() {
     ElementType step_size_type;  // size/step type
     utils::InputLayerType param_type;
 
+    // With usage of RDFT executor, in favour of performance,
+    // the results are slightly different than reference impl
+    abs_threshold = 1e-1;
+
     std::tie(data_shapes,
              frame_size,
              frame_step,
