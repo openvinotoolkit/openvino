@@ -73,11 +73,11 @@ struct STFTTestParams {
     ov::PartialShape signalShape;
     ov::PartialShape windowShape;
     ov::PartialShape outputShape;
+    int64_t frameSize;
+    int64_t frameStep;
     bool transposedFrames;
     std::vector<float> signalData;
     std::vector<float> windowData;
-    int64_t frameSize;
-    int64_t frameStep;
     std::vector<float> expectedOutput;
     std::string testcaseName;
 };
@@ -166,49 +166,30 @@ private:
 
 std::vector<STFTTestParams> generateTestParams() {
     std::vector<STFTTestParams> params;
+#define TEST_DATA(signalShape,                        \
+                  windowShape,                        \
+                  outputShape,                        \
+                  frameSize,                          \
+                  frameStep,                          \
+                  transposedFrames,                   \
+                  signalData,                         \
+                  windowData,                         \
+                  expectedOutput,                     \
+                  testcaseName)                       \
+    params.push_back(STFTTestParams{signalShape,      \
+                                    windowShape,      \
+                                    outputShape,      \
+                                    frameSize,        \
+                                    frameStep,        \
+                                    transposedFrames, \
+                                    signalData,       \
+                                    windowData,       \
+                                    expectedOutput,   \
+                                    testcaseName});
 
-    // params.emplace_back(signal_48,
-    //                 hann_window_16,
-    //                 frame_size_16,
-    //                 frame_step_16,
-    //                 transpose_frames_true,
-    //                 output_9_3_2_transp,
-    //                 "basic_1D_transp");
+#include "unit_test_utils/tests_data/stft_data.h"
+#undef TEST_DATA
 
-    params.push_back(STFTTestParams{
-        {48},
-        {16},
-        {9, 3, 2},
-        true,
-        {-0.41676, -0.05627, -2.1362,  1.64027,  -1.79344, -0.84175, 0.50288,  -1.24529, -1.05795, -0.90901,
-         0.55145,  2.29221,  0.04154,  -1.11793, 0.53906,  -0.59616, -0.01913, 1.175,    -0.74787, 0.00903,
-         -0.87811, -0.15643, 0.25657,  -0.98878, -0.33882, -0.23618, -0.63766, -1.18761, -1.42122, -0.1535,
-         -0.26906, 2.23137,  -2.43477, 0.11273,  0.37044,  1.35963,  0.50186,  -0.84421, 0.00001,  0.54235,
-         -0.31351, 0.77101,  -1.86809, 1.73118,  1.46768,  -0.33568, 0.61134,  0.04797},
-        {0.,
-         0.04323,
-         0.16543,
-         0.34549,
-         0.55226,
-         0.75,
-         0.90451,
-         0.98907,
-         0.98907,
-         0.90451,
-         0.75,
-         0.55226,
-         0.34549,
-         0.16543,
-         0.04323,
-         0.},
-        16,
-        16,
-        {-2.52411, 0.,       -3.6289,  0.,      1.1366,   0.,       1.99743,  2.45799,  1.84867,  -0.67991, 0.26235,
-         0.25725,  -2.243,   -1.74288, 0.39666, 0.60667,  -0.73965, -0.24622, 2.91255,  -0.82545, 0.03844,  0.45931,
-         -1.29728, -1.50822, -2.56084, 2.24181, -0.92956, -1.32518, 1.78749,  1.94867,  0.87525,  0.70978,  0.47508,
-         1.29318,  -0.18799, 0.98232,  2.10241, -2.57882, 0.88504,  -1.03814, -1.44897, -2.97866, -1.59965, -0.02599,
-         -1.02171, 0.17824,  2.46326,  1.82815, -0.44417, 0.,       0.24368,  0.,       -2.81501, 0.},
-        "basic_1D_transp"});
     return params;
 }
 
