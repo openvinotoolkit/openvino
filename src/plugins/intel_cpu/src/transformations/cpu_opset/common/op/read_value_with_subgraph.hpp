@@ -33,5 +33,5 @@ public:
     void validate_and_infer_types() override;
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

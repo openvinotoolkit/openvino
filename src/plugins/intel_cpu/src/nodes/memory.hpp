@@ -6,6 +6,8 @@
 
 #include <graph.h>
 
+#include <map>
+
 #include "input.h"
 #include "memory_state_base.h"
 #include "ov_optional.hpp"
@@ -25,8 +27,8 @@ public:
     using OutputNodesMap = std::unordered_map<std::string, MemoryNode*>;
 
 public:
-    void registerOutput(MemoryOutputBase * node);
-    void registerInput(MemoryInputBase * node);
+    void registerOutput(MemoryOutputBase* node);
+    void registerInput(MemoryInputBase* node);
     void remove(MemoryNode* node);
 
     const InputNodesMap& getMemoryStates() const {
@@ -62,15 +64,19 @@ public:
         return getType() == Type::MemoryOutput;
     }
 
-    void execute(dnnl::stream strm) override final; // NOLINT
-    void executeDynamicImpl(dnnl::stream strm) override final; // NOLINT
-    bool isExecutable() const override final; // NOLINT
+    void execute(dnnl::stream strm) override final;             // NOLINT
+    void executeDynamicImpl(dnnl::stream strm) override final;  // NOLINT
+    bool isExecutable() const override final;                   // NOLINT
 
     void registerInputNode(MemoryInputBase* node);
     void deregisterSibling(MemoryInputBase* node);
 
-    bool needShapeInfer() const override { return false; }
-    bool needPrepareParams() const override { return false; }
+    bool needShapeInfer() const override {
+        return false;
+    }
+    bool needPrepareParams() const override {
+        return false;
+    }
 
     void assignState(MemStatePtr newState);
 
@@ -85,7 +91,7 @@ private:
      * @brief keeps reference to input sibling node
      */
     MemoryInputBase* inputNode = nullptr;
-    MemStatePtr state = nullptr; //keep reference to call commit()
+    MemStatePtr state = nullptr;  // keep reference to call commit()
 };
 
 class MemoryOutput : public MemoryOutputBase {
@@ -102,7 +108,7 @@ protected:
 
 private:
     MemoryPtr assignedMem = nullptr;
-    MemoryDescPtr extMemDesc = nullptr; // used for resize
+    MemoryDescPtr extMemDesc = nullptr;  // used for resize
     ProxyMemoryBlockPtr memBlock = nullptr;
 };
 
@@ -121,10 +127,7 @@ protected:
 
 class MemoryInputBase : public Input, public MemoryStateNode {
 public:
-    enum class mode {
-        read_value_assign,
-        single_read_value
-    };
+    enum class mode { read_value_assign, single_read_value };
 
 public:
     MemoryInputBase(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
@@ -138,17 +141,21 @@ public:
 
     void initSupportedPrimitiveDescriptors() override;
 
-    void execute(dnnl::stream strm) override final; // NOLINT
-    void executeDynamicImpl(dnnl::stream strm) override final; // NOLINT
-    bool needShapeInfer() const override { return false; }
-    bool needPrepareParams() const override { return false; }
-    bool isExecutable() const override final; // NOLINT
+    void execute(dnnl::stream strm) override final;             // NOLINT
+    void executeDynamicImpl(dnnl::stream strm) override final;  // NOLINT
+    bool needShapeInfer() const override {
+        return false;
+    }
+    bool needPrepareParams() const override {
+        return false;
+    }
+    bool isExecutable() const override final;  // NOLINT
 
     void registerOutputNode(MemoryOutputBase* node);
     void deregisterSibling(MemoryOutputBase* node);
 
     MemoryOutputBase& getOutputNode();
-    void assignState(MemStatePtr newState) override final; // NOLINT
+    void assignState(MemStatePtr newState) override final;  // NOLINT
 
 protected:
     MemoryInputBase(const std::string id,
@@ -217,7 +224,8 @@ protected:
     void runDynamic(dnnl::stream strm) override;
 
 private:
-    void assignStateHook() override {/*pass*/}
+    void assignStateHook() override { /*pass*/
+    }
 
     bool haveSubgraph() const {
         return body != nullptr;
@@ -280,7 +288,6 @@ private:
     std::weak_ptr<ScaledDotProductAttention> m_sdpaNode;
     int m_child_port_idx = -1;
 };
-
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

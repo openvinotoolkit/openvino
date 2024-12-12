@@ -49,7 +49,8 @@ std::shared_ptr<ov::Node> ov::intel_cpu::ReadValueWithSubgraph::clone_with_new_i
     INTERNAL_OP_SCOPE(intel_cpu_ReadValueWithSubgraphNode_clone_with_new_inputs);
 
     check_new_args_count(this, new_args);
-    auto op = std::make_shared<ov::intel_cpu::ReadValueWithSubgraph>(this->get_variable(), get_function()->clone(), new_args);
+    auto op =
+        std::make_shared<ov::intel_cpu::ReadValueWithSubgraph>(this->get_variable(), get_function()->clone(), new_args);
     OPENVINO_ASSERT(op.get(),
                     op != nullptr,
                     "Cannot clone ",

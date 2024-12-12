@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/cpu_opset/common/op/read_value_with_subgraph.hpp"
-#include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "move_readvalue_inputs_to_subgraph.hpp"
 
 #include <unordered_set>
@@ -13,10 +11,12 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
+#include "transformations/cpu_opset/common/op/read_value_with_subgraph.hpp"
+#include "transformations/cpu_opset/common/op/sdpa.hpp"
+#include "transformations/cpu_opset/common/op/submodel.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 #include "transformations/utils/utils.hpp"
-#include "transformations/cpu_opset/common/op/submodel.hpp"
 
 ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
     MATCHER_SCOPE(MoveReadValueInputsToSubgraph);
@@ -43,7 +43,8 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
         OutputVector outputs = {};
 
         // DFS, Check if current node's final successor is only ReadValue.
-        std::function<void(std::shared_ptr<ov::Node>, bool&)> dfs = [&](std::shared_ptr<ov::Node> node, bool& found_output) {
+        std::function<void(std::shared_ptr<ov::Node>, bool&)> dfs = [&](std::shared_ptr<ov::Node> node,
+                                                                        bool& found_output) {
             if (found_output) {
                 return;
             }
@@ -128,7 +129,8 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
         // Subgraph's input
         auto params = ParameterVector{};
         for (auto inp : inputs) {
-            auto param = std::make_shared<ov::op::v0::Parameter>(inp->get_element_type(), inp->get_output_partial_shape(0));
+            auto param =
+                std::make_shared<ov::op::v0::Parameter>(inp->get_element_type(), inp->get_output_partial_shape(0));
             params.push_back(param);
             for (const auto& child : inp->get_output_target_inputs(0)) {
                 auto it = std::find(subgraph_nodes.begin(), subgraph_nodes.end(), child.get_node()->shared_from_this());
