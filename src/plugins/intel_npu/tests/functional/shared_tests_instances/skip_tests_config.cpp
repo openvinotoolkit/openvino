@@ -828,8 +828,9 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*OVExecGraphSerializationTest.ExecutionGraph.*"
         });
 
-        _skipRegistry.addPatterns("Disabling test - it will set the default supported properties value which is an invalid value", {
-                 ".*OVCompiledModelPropertiesDefaultSupportedTests.CanCompileWithDefaultValueFromPlugin.*"
+        // get_runtime_model method is not supported on NPU
+        _skipRegistry.addPatterns("get_runtime_model method is not supported on NPU", {
+                ".*OVClassModelOptionalTestP.CompileModelCreateDefaultExecGraphResult.*",
         });
 
         return _skipRegistry;

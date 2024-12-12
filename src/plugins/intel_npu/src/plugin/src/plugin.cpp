@@ -528,6 +528,12 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.get<BYPASS_UMD_CACHING>();
           }}},
+        {ov::intel_npu::defer_weights_load.name(),
+         {true,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<DEFER_WEIGHTS_LOAD>();
+          }}},
         // NPU Private
         // =========
         {ov::intel_npu::dma_engines.name(),
@@ -583,12 +589,6 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.get<CREATE_EXECUTOR>();
           }}},
-        {ov::intel_npu::defer_weights_load.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<DEFER_WEIGHTS_LOAD>();
-          }}},
         {ov::intel_npu::dynamic_shape_to_static.name(),
          {false,
           ov::PropertyMutability::RW,
@@ -613,6 +613,12 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.getString<BATCH_MODE>();
           }}},
+        {ov::intel_npu::run_inferences_sequentially.name(),
+         {false,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<RUN_INFERENCES_SEQUENTIALLY>();
+          }}},
         {ov::intel_npu::separate_weights_version.name(),
          {false,
           ov::PropertyMutability::RW,
@@ -625,6 +631,7 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.getString<BENCHMARK_INIT>();
           }}},
+
     };
 
     for (auto& property : _properties) {
@@ -686,7 +693,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             if (localProperties.count(ov::cache_dir.name()) || !_globalConfig.get<CACHE_DIR>().empty()) {
                 OPENVINO_THROW("Option 'CACHE_DIR' is not supported with NPU_USE_NPUW!");
             }
-            return std::make_shared<ov::npuw::CompiledModel>(model->clone(), shared_from_this(), localProperties);
+            return ov::npuw::ICompiledModel::create(model->clone(), shared_from_this(), localProperties);
         } else {
             // NPUW is disabled, remove the key from the properties
             localProperties.erase(useNpuwKey);

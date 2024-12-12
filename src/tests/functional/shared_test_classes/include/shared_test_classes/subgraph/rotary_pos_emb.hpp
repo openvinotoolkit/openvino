@@ -9,6 +9,20 @@
 namespace ov {
 namespace test {
 
+class RoPETestFlux : public SubgraphBaseTest, public testing::WithParamInterface<std::string> {
+private:
+    std::shared_ptr<ov::Model> build_rope_flux(int batch,
+                                               int seq_length,
+                                               int num_head,
+                                               int ndims);
+protected:
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+    void SetUp() override;
+
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<std::string>& obj);
+};
+
 class RoPETestLlama2StridedSlice : public SubgraphBaseTest, public testing::WithParamInterface<std::string> {
 private:
     std::shared_ptr<ov::Model> buildROPE_Llama2(int batch,
