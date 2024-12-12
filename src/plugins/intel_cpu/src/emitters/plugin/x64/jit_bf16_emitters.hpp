@@ -13,9 +13,11 @@ class jit_uni_vcvtneps2bf16 : public jit_emitter {
 public:
     jit_uni_vcvtneps2bf16(dnnl::impl::cpu::x64::jit_generator* host,
                           dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                          ov::element::Type exec_prc = ov::element::bf16)
+                          ov::element::Type exec_prc = ov::element::bf16,
+                          arithmetic_mode mode = arithmetic_mode::none)
         : jit_emitter(host, host_isa, exec_prc) {
         prepare_table();
+        mode_ = mode;
     }
 
     size_t get_inputs_num() const override {
@@ -23,6 +25,7 @@ public:
     }
 
 private:
+    arithmetic_mode mode_ = arithmetic_mode::none;
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override {
         if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
             emit_isa<dnnl::impl::cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
@@ -42,23 +45,25 @@ private:
             conditional3<isa == dnnl::impl::cpu::x64::sse41, Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
 
         Vmm in = Vmm(in_vec_idxs[0]);
-        Vmm vmm_temp = Vmm(out_vec_idxs[0]);
+        if (mode_ == arithmetic_mode::constant_saturation) {
+            Vmm vmm_temp = Vmm(out_vec_idxs[0]);
 
-        h->uni_vmaxps(vmm_temp, in, table_val("bf16_min"));
-        h->uni_vminps(vmm_temp, vmm_temp, table_val("bf16_max"));
+            h->uni_vmaxps(vmm_temp, in, table_val("bf16_min"));
+            h->uni_vminps(vmm_temp, vmm_temp, table_val("bf16_max"));
 
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
-            h->vfixupimmps(vmm_temp, in, table_val("selector"), 0);
-        } else {
-            Vmm mask = Vmm(aux_vec_idxs[0]);
-            h->uni_vcmpps(mask, in, in, 0x03);  // _CMP_UNORD_Q
-            h->uni_vblendvps(vmm_temp, vmm_temp, table_val("nan"), mask);
-            h->uni_vcmpps(mask, in, table_val("inf"), 0x00);  // _CMP_EQ_OQ
-            h->uni_vblendvps(vmm_temp, vmm_temp, table_val("inf"), mask);
-            h->uni_vcmpps(mask, in, table_val("neg_inf"), 0x00);  // _CMP_EQ_OQ
-            h->uni_vblendvps(vmm_temp, vmm_temp, table_val("neg_inf"), mask);
+            if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
+                h->vfixupimmps(vmm_temp, in, table_val("selector"), 0);
+            } else {
+                Vmm mask = Vmm(aux_vec_idxs[0]);
+                h->uni_vcmpps(mask, in, in, 0x03);  // _CMP_UNORD_Q
+                h->uni_vblendvps(vmm_temp, vmm_temp, table_val("nan"), mask);
+                h->uni_vcmpps(mask, in, table_val("inf"), 0x00);  // _CMP_EQ_OQ
+                h->uni_vblendvps(vmm_temp, vmm_temp, table_val("inf"), mask);
+                h->uni_vcmpps(mask, in, table_val("neg_inf"), 0x00);  // _CMP_EQ_OQ
+                h->uni_vblendvps(vmm_temp, vmm_temp, table_val("neg_inf"), mask);
+            }
+            h->uni_vmovups(in, vmm_temp);
         }
-        h->uni_vmovups(in, vmm_temp);
 
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
             Ymm out = Ymm(out_vec_idxs[0]);

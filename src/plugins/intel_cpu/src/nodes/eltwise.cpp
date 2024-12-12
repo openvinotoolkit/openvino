@@ -341,8 +341,11 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
                                                                                                       reg_d_bias));
         }
 
-        if (mayiuse(avx512_core) || mayiuse(avx2_vnni_2))
-            uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(this, isa));
+        if (mayiuse(avx512_core) || mayiuse(avx2_vnni_2)) {
+            auto const mode =
+                jep_.do_constant_saturation ? arithmetic_mode::constant_saturation : arithmetic_mode::none;
+            uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(this, isa, element::bf16, mode));
+        }
 
         const auto& jep = jep_;
 
@@ -1355,6 +1358,7 @@ struct EltwiseKey {
     ov::element::Type outPrc;
     dnnl::post_ops postOps;
     EltwiseImplType implType;
+    bool doConstantSaturation;
 
     size_t hash() const {
         using namespace dnnl::impl;
@@ -1390,6 +1394,10 @@ struct EltwiseKey {
         seed = hash_combine(seed, outPrc.hash());
         seed = get_post_op_hash(seed, *postOps.get());
         seed = hash_combine(seed, implType);
+
+        if (outPrc == ov::element::bf16) {
+            seed = hash_combine(seed, doConstantSaturation);
+        }
         return seed;
     }
 
@@ -1416,6 +1424,8 @@ struct EltwiseKey {
                     result = result && (inpDims[i] == rhs.inpDims[i]);
                 }
             }
+            if ((outPrc == ov::element::bf16) && (doConstantSaturation != rhs.doConstantSaturation))
+                return false;
         }
 
         return result;
@@ -1448,7 +1458,8 @@ public:
                        const std::vector<ov::element::Type>& inpPrc,
                        const ov::element::Type& outPrc,
                        const dnnl::post_ops& post_ops,
-                       bool useRuntimePtrs) {
+                       bool useRuntimePtrs,
+                       bool doConstantSaturation) {
         auto collapseLastDims = [](std::vector<size_t>& dims, int dimsToCollapse) {
             for (size_t i = dims.size() - 2; i > dims.size() - dimsToCollapse - 2; i--) {
                 dims[dims.size() - 1] *= dims[i];
@@ -1639,6 +1650,7 @@ public:
         jep.dst_prc = outPrc;
         jep.work_amount = jep.dst_size = jep.dims.back();
         jep.oc_size = oc_size;
+        jep.do_constant_saturation = doConstantSaturation;
 
         std::transform(jep.oc_offsets.begin(), jep.oc_offsets.end(), jep.oc_offsets.begin(), [](size_t& offset) {
             return offset * sizeof(float);
@@ -2160,7 +2172,8 @@ static Eltwise::executorPtr buildExecutor(const EltwiseKey& key) {
                                                 key.inpPrc,
                                                 key.outPrc,
                                                 key.postOps,
-                                                key.implType == EltwiseImplType::optimizedShapeAgnostic);
+                                                key.implType == EltwiseImplType::optimizedShapeAgnostic,
+                                                key.doConstantSaturation);
 }
 
 bool Eltwise::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
@@ -2859,6 +2872,13 @@ void Eltwise::prepareParams() {
                                "' has unexpected fused op of type '",
                                node->getTypeStr(),
                                "'");
+            }
+        }
+        key.doConstantSaturation = false;
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
+            if (getParentEdgeAt(i)->getParent()->isConstant()) {
+                key.doConstantSaturation = true;
+                break;
             }
         }
 
