@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import jax
 import numpy as np
 import pytest
@@ -15,7 +18,8 @@ class TestSelectN(JaxLayerTest):
         which = np.array(which)
         
         cases = []
-        for i in range(self.input_shape):
+        cases_len = 2 if (self.input_type == np.bool or self.input_type == bool) else self.input_shape
+        for i in range(cases_len):
             cases.append(jnp.array(rng.uniform(i*10, (i+1)*10, self.input_shape).astype(self.input_type)))
         cases = np.array(cases)
         return (which, cases)
@@ -31,7 +35,7 @@ class TestSelectN(JaxLayerTest):
         
 
     @pytest.mark.parametrize("input_shape", [1,2,3,4,5,6,7,8,9,10])
-    @pytest.mark.parametrize("input_type", [np.int32, np.int64])
+    @pytest.mark.parametrize("input_type", [np.int32, np.int64, np.bool, bool])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_jax_fe
