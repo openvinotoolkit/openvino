@@ -10,6 +10,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/mvn.hpp"
 #include "openvino/op/power.hpp"
@@ -48,7 +49,8 @@ ov::pass::MVN6Decomposition::MVN6Decomposition() {
         } else {
             // (x - ReduceMean(x, axes)) ^ 2
             auto sqr_const = ov::op::v0::Constant::create(data.get_element_type(), ov::Shape{1}, {2});
-            auto sqr = std::make_shared<ov::op::v1::Power>(mean_normalization, sqr_const);
+            auto sqr_const_conv_like = std::make_shared<ov::op::v1::ConvertLike>(sqr_const, mean_normalization);
+            auto sqr = std::make_shared<ov::op::v1::Power>(mean_normalization, sqr_const_conv_like);
             // ReduceMean((x - ReduceMean(x, axes)) ^ 2)
             auto mean2 = std::make_shared<ov::op::v1::ReduceMean>(sqr, axes, true);
 
@@ -59,17 +61,20 @@ ov::pass::MVN6Decomposition::MVN6Decomposition() {
             std::shared_ptr<ov::op::v1::Add> eps_add;
             std::shared_ptr<ov::op::v0::Sqrt> sqrt;
             std::shared_ptr<ov::op::v1::Divide> div;
+            std::shared_ptr<ov::op::v1::ConvertLike> eps_node_conv_like;
 
             if (eps_mode == op::MVNEpsMode::INSIDE_SQRT) {
                 // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2) + eps)
-                eps_add = std::make_shared<ov::op::v1::Add>(mean2, eps_node);
+                eps_node_conv_like = std::make_shared<ov::op::v1::ConvertLike>(eps_node, mean2);
+                eps_add = std::make_shared<ov::op::v1::Add>(mean2, eps_node_conv_like);
                 sqrt = std::make_shared<ov::op::v0::Sqrt>(eps_add);
                 // (x - ReduceMean(x, axes)) / Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2) + eps)
                 div = std::make_shared<ov::op::v1::Divide>(mean_normalization, sqrt);
             } else if (eps_mode == op::MVNEpsMode::OUTSIDE_SQRT) {
                 // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2)) + eps
                 sqrt = std::make_shared<ov::op::v0::Sqrt>(mean2);
-                eps_add = std::make_shared<ov::op::v1::Add>(sqrt, eps_node);
+                eps_node_conv_like = std::make_shared<ov::op::v1::ConvertLike>(eps_node, mean2);
+                eps_add = std::make_shared<ov::op::v1::Add>(sqrt, eps_node_conv_like);
                 // (x - ReduceMean(x, axes)) / (Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2)) + eps)
                 div = std::make_shared<ov::op::v1::Divide>(mean_normalization, eps_add);
             } else {
@@ -77,8 +82,10 @@ ov::pass::MVN6Decomposition::MVN6Decomposition() {
             }
 
             div->set_friendly_name(mvn_node->get_friendly_name());
-            ov::copy_runtime_info(mvn_node, {mean, mean_normalization, sqr, mean2, eps_node, eps_add, sqrt, div});
+            ov::copy_runtime_info(mvn_node, {mean, mean_normalization, sqr, mean2, eps_node, eps_add, sqrt, div, sqr_const_conv_like, eps_node_conv_like});
             ov::replace_node(mvn_node, div);
+
+            std::cout << "MVN6Decomposition: Power node: " << sqr->get_name() << std::endl;
         }
         return true;
     };
