@@ -539,7 +539,7 @@ Iteration <number>:
     ```
 - Build OpenCV G-API:
     ```
-    mkdir -p "build" && cd "build"
+    mkdir "build" && cd "build"
     cmake ..  -DBUILD_LIST=gapi          ^
               -DCMAKE_BUILD_TYPE=Release ^
               -DWITH_OPENVINO=ON
@@ -547,7 +547,7 @@ Iteration <number>:
     ```
     If ONNX support is needed build OpenCV G-API with ONNX support:
     ```
-    mkdir -p "build" && cd "build"
+    mkdir "build" && cd "build"
     cmake ..  -DBUILD_LIST=gapi                             ^
               -DCMAKE_BUILD_TYPE=Release                    ^
               -DWITH_OPENVINO=ON                            ^
