@@ -4,11 +4,10 @@
 
 #include "convert_broadcast_to_tiles.hpp"
 
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/core/rt_info.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-
 #include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::intel_cpu::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
     MATCHER_SCOPE(ConvertBroadcastToTiles);
@@ -25,9 +24,12 @@ ov::intel_cpu::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
             return false;
         }
 
-        auto shape_node = std::dynamic_pointer_cast<ov::opset1::Constant>(broadcast->input_value(1).get_node_shared_ptr());
-        auto axes_node = std::dynamic_pointer_cast<ov::opset1::Constant>(broadcast->input_value(2).get_node_shared_ptr());
-        if (!shape_node || !axes_node) return false;
+        auto shape_node =
+            std::dynamic_pointer_cast<ov::opset1::Constant>(broadcast->input_value(1).get_node_shared_ptr());
+        auto axes_node =
+            std::dynamic_pointer_cast<ov::opset1::Constant>(broadcast->input_value(2).get_node_shared_ptr());
+        if (!shape_node || !axes_node)
+            return false;
 
         auto output_shape = shape_node->cast_vector<int64_t>();
         auto input_shape = data_node.get_shape();
