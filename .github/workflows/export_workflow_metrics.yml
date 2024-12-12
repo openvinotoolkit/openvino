@@ -15,7 +15,7 @@ on:
       - "Linux ARM64 (Ubuntu 20.04, Python 3.11)"
       - "Linux Static CC (Ubuntu 22.04, Python 3.11, Clang)"
       - "Linux RISC-V with Conan (Ubuntu 22.04, Python 3.10)"
-      - "Linux (Ubuntu 22.04, Python 3.11, Intel DPC++ Compiler)"
+      - "Linux (Ubuntu 22.04, Python 3.11, Intel DPC\\+\\+ Compiler)"
       - "Linux CPU Plugin Snippets with LIBXSMM (Ubuntu 20.04)"
       - "Linux Sanitizers (Ubuntu 20.04, Python 3.9)"
       - "macOS (Python 3.11)"
