@@ -3,10 +3,12 @@
 //
 
 #include "swish_cpu.hpp"
+
 #include "transformations/itt.hpp"
 
-ov::intel_cpu::SwishNode::SwishNode(const ov::Output<ov::Node> & input, const float alpha)
-        : Op({input}), m_alpha(alpha) {
+ov::intel_cpu::SwishNode::SwishNode(const ov::Output<ov::Node>& input, const float alpha)
+    : Op({input}),
+      m_alpha(alpha) {
     validate_and_infer_types();
 }
 
@@ -30,4 +32,3 @@ void ov::intel_cpu::SwishNode::validate_and_infer_types() {
 float ov::intel_cpu::SwishNode::get_alpha() const {
     return m_alpha;
 }
-

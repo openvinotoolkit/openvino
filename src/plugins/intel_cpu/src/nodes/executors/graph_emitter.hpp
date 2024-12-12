@@ -82,9 +82,7 @@ public:
         return memoryDescs;
     }
 
-    static executor::Config<Attrs> createConfig(const MemoryArgs& memory,
-                                                const Attrs& attrs,
-                                                const PostOps& postOps) {
+    static executor::Config<Attrs> createConfig(const MemoryArgs& memory, const Attrs& attrs, const PostOps& postOps) {
         return executor::Config<Attrs>{memoryDescsFromMemory(memory), attrs, postOps};
     }
 
@@ -104,11 +102,11 @@ public:
 
         const auto& graphExecutor =
             graphEmitter.createGraph(fallbackConfig.descs, fallbackConfig.attrs, fallbackConfig.postOps, context)
-            .ensureAttrsMatch()
-            .ensureSrcDescsMatch()
-            .ensureDstDescsMatch()
-            .ensurePostOpsMatch()
-            .emit();
+                .ensureAttrsMatch()
+                .ensureSrcDescsMatch()
+                .ensureDstDescsMatch()
+                .ensurePostOpsMatch()
+                .emit();
         (void)graphExecutor;
 
         OPENVINO_THROW("Fallback logic is not implemented yet");  // return graphExecutor;

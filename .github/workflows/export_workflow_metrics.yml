@@ -1,38 +1,38 @@
-name: Export workflow metrics (BETA)
+name: Export workflow metrics
 
 on:
   workflow_run:
     workflows:
-      - Android ARM64 with vcpkg
-      - Android x64
-      - Cleanup caches
-      - Coverity (Ubuntu 20.04, Python 3.11)
-      - Debian 10 ARM
-      - Fedora 29 (RHEL 8.4), Python 3.9
-      - Linux (Ubuntu 20.04, Python 3.9)
-      - Linux (Ubuntu 22.04, Python 3.11)
-      - Linux (Ubuntu 24.04, Python 3.12)
-      - Linux ARM64 (Ubuntu 20.04, Python 3.11)
-      - Linux Static CC (Ubuntu 22.04, Python 3.11, Clang)
-      - Linux RISC-V with Conan (Ubuntu 22.04, Python 3.10)
-      - Linux (Ubuntu 22.04, Python 3.11, Intel DPC++ Compiler)
-      - Linux CPU Plugin Snippets with LIBXSMM (Ubuntu 20.04)
-      - Linux Sanitizers (Ubuntu 20.04, Python 3.9)
-      - macOS (Python 3.11)
-      - macOS ARM64 (Python 3.11)
-      - Manylinux 2014
-      - Webassembly
-      - Windows (VS 2019, Python 3.11, Release)
-      - Windows (VS 2019, Python 3.11, Debug)
-      - Windows Conditional Compilation (VS 2022, Python 3.11)
-      - Rerun Workflow with Known Errors
+      - "Android ARM64 with vcpkg"
+      - "Android x64"
+      - "Cleanup caches"
+      - "Coverity (Ubuntu 20.04, Python 3.11)"
+      - "Debian 10 ARM"
+      - "Fedora 29 (RHEL 8.4), Python 3.9"
+      - "Linux (Ubuntu 20.04, Python 3.9)"
+      - "Linux (Ubuntu 22.04, Python 3.11)"
+      - "Linux (Ubuntu 24.04, Python 3.12)"
+      - "Linux ARM64 (Ubuntu 20.04, Python 3.11)"
+      - "Linux Static CC (Ubuntu 22.04, Python 3.11, Clang)"
+      - "Linux RISC-V with Conan (Ubuntu 22.04, Python 3.10)"
+      - "Linux (Ubuntu 22.04, Python 3.11, Intel DPC\\+\\+ Compiler)"
+      - "Linux CPU Plugin Snippets with LIBXSMM (Ubuntu 20.04)"
+      - "Linux Sanitizers (Ubuntu 20.04, Python 3.9)"
+      - "macOS (Python 3.11)"
+      - "macOS ARM64 (Python 3.11)"
+      - "Manylinux 2014"
+      - "Webassembly"
+      - "Windows (VS 2019, Python 3.11, Release)"
+      - "Windows (VS 2019, Python 3.11, Debug)"
+      - "Windows Conditional Compilation (VS 2022, Python 3.11)"
+      - "Rerun Workflow with Known Errors"
     types:
       - completed
 
 permissions: read-all
 
 jobs:
-  otel-export-trace:
+  export-workflow-metrics:
     name: Export finished workflow metrics
     runs-on: aks-linux-2-cores-8gb
     if: ${{ github.repository_owner == 'openvinotoolkit' }}

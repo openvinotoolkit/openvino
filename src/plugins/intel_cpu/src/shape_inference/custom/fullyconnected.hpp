@@ -3,6 +3,7 @@
 //
 
 #include <node.h>
+
 #include "shape_inference/shape_inference_cpu.hpp"
 
 #pragma once
@@ -14,9 +15,8 @@ using Result = IShapeInfer::Result;
 class FCShapeInfer : public ShapeInferEmptyPads {
 public:
     FCShapeInfer(size_t outPut_rank) : out_rank(outPut_rank) {}
-    Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
+    Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                 const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
 
     port_mask_t get_port_mask() const override {
         return EMPTY_PORT_MASK;
@@ -36,7 +36,6 @@ public:
 private:
     std::shared_ptr<const ov::Node> m_op;
 };
-} // namespace node
-} // namespace intel_cpu
-} // namespace ov
-
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov
