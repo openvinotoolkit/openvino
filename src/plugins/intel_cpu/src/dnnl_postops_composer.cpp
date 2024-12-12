@@ -13,8 +13,8 @@
 
 #include "cpu_types.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/common/common_utils.hpp"
+#include "nodes/executors/memory_arguments.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"

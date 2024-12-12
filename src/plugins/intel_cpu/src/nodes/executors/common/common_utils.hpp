@@ -61,5 +61,5 @@ static std::vector<float> getDeQuantizedScales(const MemoryArgs& memory) {
     return DQScales;
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov
