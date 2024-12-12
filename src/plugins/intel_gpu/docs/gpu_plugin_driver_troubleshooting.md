@@ -33,10 +33,12 @@ To get the support of Intel® Iris® Xe MAX Graphics with Linux, follow the [dri
 
 ## 3. Make sure that user has all required permissions to work with GPU device
 
-Add the current Linux user to the `video` group:
+Add the current Linux user to the `video` and `render` group:
 ```
 sudo usermod -a -G video "$(whoami)"
+sudo usermod -a -G render "$(whoami)"
 ```
+Note: The required group depends on the Linux distribution. Adding to both `video` and `render` is a safe option.
 
 ## 4. Make sure that iGPU is enabled
 
