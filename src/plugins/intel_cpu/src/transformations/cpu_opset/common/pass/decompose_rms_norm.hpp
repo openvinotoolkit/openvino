@@ -3,17 +3,17 @@
 
 #pragma once
 
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-class DecomposeRMSNorm: public ov::pass::MatcherPass {
+class DecomposeRMSNorm : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("DecomposeRMSNorm", "0");
     DecomposeRMSNorm();
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

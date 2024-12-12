@@ -189,6 +189,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config);
+    if (model->has_rt_info("runtime_options"))
+        config.apply_rt_info(context->get_engine().get_device_info(), model->get_rt_info<ov::AnyMap>("runtime_options"));
     config.apply_user_properties(context->get_engine().get_device_info());
 
     set_cache_info(model, config);
@@ -278,6 +280,8 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config);
+    if (model->has_rt_info("runtime_options"))
+        config.apply_rt_info(ctx->get_engine().get_device_info(), model->get_rt_info<ov::AnyMap>("runtime_options"));
     config.apply_user_properties(ctx->get_engine().get_device_info());
 
     ProgramBuilder prog(ctx->get_engine(), config);
@@ -325,13 +329,19 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
         _orig_config.erase(it);
     }
 
+    std::shared_ptr<ov::AlignedBuffer> model_buffer;
+    if (_orig_config.count(ov::internal::cached_model_buffer.name())) {
+        model_buffer = _orig_config.at(ov::internal::cached_model_buffer.name()).as<std::shared_ptr<ov::AlignedBuffer>>();
+        _orig_config.erase(ov::internal::cached_model_buffer.name());
+    }
+
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(_orig_config);
     config.apply_user_properties(context_impl->get_engine().get_device_info());
 
     cldnn::BinaryInputBuffer ib(model, context_impl->get_engine());
 
-    ov::CacheMode cache_mode;
+    ov::CacheMode cache_mode = ov::CacheMode::OPTIMIZE_SPEED;
     ib >> cldnn::make_data(&cache_mode, sizeof(ov::CacheMode));
 
     if (cache_mode != config.get_property(ov::cache_mode)) {
@@ -597,7 +607,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::device::id.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::dynamic_quantization_group_size.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::activations_scale_factor.name(), PropertyMutability::RW},
-        ov::PropertyName{ov::weights_path.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::weights_path.name(), PropertyMutability::RW},
     };
 
     return supported_properties;
