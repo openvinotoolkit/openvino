@@ -27,7 +27,10 @@ KERNEL(stft_ref)(
     const int frame_step = (int)frame_step_buff[0];
     const int window_size = INPUT1_SIZE_X;
 
-    const INPUT0_TYPE* restrict signal_for_this_frame = signal + batch*INPUT0_SIZE_X + frame_id*frame_step;
+    // Handling case where window size is smaller than frame size.
+    const int start_offset = (frame_size - window_size) / 2;
+
+    const INPUT0_TYPE* restrict signal_for_this_frame = signal + batch*INPUT0_SIZE_X + frame_id*frame_step + start_offset;
 
     // FT from def for single freq for given frame:
     cfloat freq_val = czero();
@@ -35,11 +38,11 @@ KERNEL(stft_ref)(
     // dft_power = 2*PI*(k/N) from dft def.
     const float dft_power = 2.0f * M_PI_F * (float)freq_id / (float)frame_size;
 
-    for(int i = 0; i < frame_size; ++i) {
+    for(int i = 0; i < window_size; ++i) {
         const float signal_val = (float)signal_for_this_frame[i];
         const float window_val = (float)window[i];
         const float x_i = signal_val*window_val;
-        const cfloat e_i = expmi(dft_power*(float)i);
+        const cfloat e_i = expmi(dft_power*(float)(i+start_offset));
         freq_val = cadd(freq_val, crmult(e_i, x_i));
     }
 
