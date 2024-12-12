@@ -19,6 +19,7 @@
 #include "openvino/op/bitwise_or.hpp"
 #include "openvino/op/bitwise_right_shift.hpp"
 #include "openvino/op/bitwise_xor.hpp"
+#include "case.hpp"
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/cosh.hpp"
@@ -87,6 +88,7 @@ TF_OP_CONVERTER(translate_assignvariable_op);
 TF_OP_CONVERTER(translate_add_variable_op);
 TF_OP_CONVERTER(translate_sub_variable_op);
 TF_OP_CONVERTER(translate_block_lstm_op);
+TF_OP_CONVERTER(translate_case_op);
 TF_OP_CONVERTER(translate_enter_op);
 TF_OP_CONVERTER(translate_exit_op);
 TF_OP_CONVERTER(translate_fifo_queue_op);
@@ -140,6 +142,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Asinh", CreatorFunction(translate_unary_op<v3::Asinh>)},
         {"Atan", CreatorFunction(translate_unary_op<v0::Atan>)},
         {"Atanh", CreatorFunction(translate_unary_op<v3::Atanh>)},
+        {"Case", CreatorFunction(translate_case_op)},
         {"Ceil", CreatorFunction(translate_unary_op<v0::Ceiling>)},
         {"Cos", CreatorFunction(translate_unary_op<v0::Cos>)},
         {"Cosh", CreatorFunction(translate_unary_op<v0::Cosh>)},
