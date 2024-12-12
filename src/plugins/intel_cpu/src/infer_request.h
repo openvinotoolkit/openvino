@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include "graph.h"
 #include "cpu_tensor.h"
+#include "graph.h"
+#include "memory_state.h"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
-#include "memory_state.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -29,7 +29,8 @@ public:
 
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
 
-    void set_tensors_impl(const ov::Output<const ov::Node> port, const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
+    void set_tensors_impl(const ov::Output<const ov::Node> port,
+                          const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
 
     ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
     std::vector<ov::SoPtr<ov::ITensor>> get_tensors(const ov::Output<const ov::Node>& _port) const override;

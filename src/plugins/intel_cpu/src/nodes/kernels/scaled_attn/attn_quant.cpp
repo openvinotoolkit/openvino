@@ -13,11 +13,11 @@
 #    include <immintrin.h>
 #endif
 
-#include "openvino/core/type/bfloat16.hpp"
-#include "openvino/core/parallel.hpp"
-#include "common.hpp"
 #include "attn_quant.hpp"
 #include "attn_quant_kernel.hpp"
+#include "common.hpp"
+#include "openvino/core/parallel.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 
 namespace ov {
 namespace Extensions {
@@ -26,7 +26,7 @@ namespace XARCH {
 
 using namespace ov;
 
-template<typename T>
+template <typename T>
 static void find_minmax(const T* src, size_t n, float& min, float& max) {
     max = -FLT_MAX;
     min = FLT_MAX;
@@ -133,7 +133,7 @@ static void find_minmax(const T* src, size_t n, float& min, float& max) {
     }
 }
 
-template<typename T>
+template <typename T>
 static void quant_u8(const T* src, uint8_t* dst, size_t n, float& scale, float& zp) {
     size_t i = 0;
     float max = -FLT_MAX;
@@ -176,7 +176,7 @@ static void quant_u8(const T* src, uint8_t* dst, size_t n, float& scale, float& 
     }
 }
 
-template<typename T>
+template <typename T>
 static void quant_u4(const T* src, void* dst, size_t n, float& scale, float& zp) {
     size_t i = 0;
     float max = -FLT_MAX;
@@ -184,7 +184,7 @@ static void quant_u4(const T* src, void* dst, size_t n, float& scale, float& zp)
     find_minmax(src, n, min, max);
     auto insert_half_byte = [](uint8_t dst, uint8_t val, bool high_half) -> uint8_t {
         uint8_t shift = high_half ? 0 : 4;
-        return dst | (uint8_t) (val << shift);
+        return dst | (uint8_t)(val << shift);
     };
     auto dst_ptr = reinterpret_cast<uint8_t*>(dst);
     scale = (max - min) / ((1 << 4) - 1);
@@ -209,17 +209,17 @@ static void quant_u4(const T* src, void* dst, size_t n, float& scale, float& zp)
         v1_i32 = _mm512_min_epi32(v1_i32, v_upper);
         __m512i idx1 = _mm512_set_epi32(30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
         __m512i idx2 = _mm512_set_epi32(31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1);
-        auto first_half =  _mm512_permutex2var_epi32(v0_i32, idx1, v1_i32);
-        auto second_half =  _mm512_permutex2var_epi32(v0_i32, idx2, v1_i32);
+        auto first_half = _mm512_permutex2var_epi32(v0_i32, idx1, v1_i32);
+        auto second_half = _mm512_permutex2var_epi32(v0_i32, idx2, v1_i32);
         first_half = _mm512_slli_epi32(first_half, 4);
         auto mask = _mm512_set1_epi32(0x0F);
         second_half = _mm512_and_epi32(second_half, mask);
-        auto combined =  _mm512_or_epi32(first_half, second_half);
+        auto combined = _mm512_or_epi32(first_half, second_half);
         _mm512_mask_cvtepi32_storeu_epi8(dst_ptr + i / 2, 0xffff, combined);
     }
 #endif
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
-    auto v256_zero =  _mm256_set1_epi32(0);
+    auto v256_zero = _mm256_set1_epi32(0);
     auto v256_upper = _mm256_set1_epi32(15);
     auto v256_scale = _mm256_set1_ps(1 / scale);
     auto v256_zp = _mm256_set1_ps(zp);
@@ -264,7 +264,7 @@ static void quant_u4(const T* src, void* dst, size_t n, float& scale, float& zp)
 #endif
     for (; i < n; i++) {
         float tmp = src[i];
-        #define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
         uint8_t src_val = MIN(15, (uint8_t)(std::round(tmp / scale + zp)));
         uint8_t dst_val = i % 2 == 0 ? 0 : dst_ptr[i / 2];
         dst_val = insert_half_byte(dst_val, src_val, (uint8_t)(i % 2));
@@ -272,13 +272,13 @@ static void quant_u4(const T* src, void* dst, size_t n, float& scale, float& zp)
     }
 }
 
-template<typename T>
+template <typename T>
 static void quant_s4(const T* src, void* dst, size_t n, float& scale) {
     auto insert_half_byte = [](uint8_t dst, uint8_t val, bool high_half) -> uint8_t {
         uint8_t shift = high_half ? 0 : 4;
         if (high_half)
             val &= 0x0F;
-        return dst | (uint8_t) (val << shift);
+        return dst | (uint8_t)(val << shift);
     };
     auto dst_ptr = reinterpret_cast<uint8_t*>(dst);
     size_t i = 0;
@@ -308,18 +308,18 @@ static void quant_s4(const T* src, void* dst, size_t n, float& scale) {
 
         __m512i idx1 = _mm512_set_epi32(30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
         __m512i idx2 = _mm512_set_epi32(31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1);
-        auto first_half =  _mm512_permutex2var_epi32(v0_i32, idx1, v1_i32);
-        auto second_half =  _mm512_permutex2var_epi32(v0_i32, idx2, v1_i32);
+        auto first_half = _mm512_permutex2var_epi32(v0_i32, idx1, v1_i32);
+        auto second_half = _mm512_permutex2var_epi32(v0_i32, idx2, v1_i32);
 
         auto mask = _mm512_set1_epi32(0x0F);
         second_half = _mm512_and_epi32(second_half, mask);
         first_half = _mm512_slli_epi32(first_half, 4);
-        auto combined =  _mm512_or_epi32(first_half, second_half);
+        auto combined = _mm512_or_epi32(first_half, second_half);
         _mm512_mask_cvtepi32_storeu_epi8(dst_ptr + i / 2, 0xffff, combined);
     }
 #endif
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
-    auto v256_lower =  _mm256_set1_epi32(-8);
+    auto v256_lower = _mm256_set1_epi32(-8);
     auto v256_upper = _mm256_set1_epi32(7);
     auto v256_scale = _mm256_set1_ps(1 / scale);
     for (; i + vec_len_f32_avx2 * 2 <= n; i += vec_len_f32_avx2 * 2) {
@@ -384,16 +384,8 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
     parallel_for3d(L1, B, H, [&](size_t m, size_t b, size_t h) {
         auto p_k = k_scale_zp.ptr<float>(m, b, h);
         auto p_v = v_scale_zp.ptr<float>(m, b, h);
-        quant_u8(k_src.ptr<T>(b, h, m),
-                 k_dst.ptr<T2>(b, h, m),
-                 S,
-                 p_k[0],
-                 p_k[1]);
-        quant_u8(v_src.ptr<T>(b, h, m),
-                 v_dst.ptr<T2>(b, h, m),
-                 SV,
-                 p_v[0],
-                 p_v[1]);
+        quant_u8(k_src.ptr<T>(b, h, m), k_dst.ptr<T2>(b, h, m), S, p_k[0], p_k[1]);
+        quant_u8(v_src.ptr<T>(b, h, m), v_dst.ptr<T2>(b, h, m), SV, p_v[0], p_v[1]);
     });
 }
 
@@ -414,11 +406,13 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
     size_t _value_group_size = value_group_size == 0 ? SV : value_group_size;
     parallel_for3d(B, L1, H, [&](size_t b, size_t m, size_t h) {
         auto slot = slot_mapping.ptr<int32_t>(b)[m];
-        if (slot < 0) return;
+        if (slot < 0)
+            return;
         auto block_number = slot / block_size;
         auto block_offset = slot % block_size;
         // The layout for per token per head:
-        // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
+        // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
+        // feature(u8,idx_S)|
         for (size_t src_offset = 0, dst_offset = 0; src_offset < S;
              src_offset += _key_group_size, dst_offset += _key_group_size + sizeof(float) + sizeof(float)) {
             auto p_k = reinterpret_cast<float*>(
@@ -475,11 +469,13 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
     size_t sub_byte_multiplier = 8 / v_dst.get_precision().bitwidth();
     parallel_for3d(B, L1, H, [&](size_t b, size_t m, size_t h) {
         auto slot = slot_mapping.ptr<int32_t>(b)[m];
-        if (slot < 0) return;
+        if (slot < 0)
+            return;
         auto block_number = slot / block_size;
         auto block_offset = slot % block_size;
         // The layout for per token per head:
-        // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
+        // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
+        // feature(u8,idx_S)|
         for (size_t src_offset = 0, dst_offset = 0; src_offset < S;
              src_offset += _key_group_size, dst_offset += _key_group_size + sizeof(float) + sizeof(float)) {
             auto p_k = reinterpret_cast<float*>(
@@ -530,11 +526,13 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
     size_t sub_byte_multiplier = 8 / v_dst.get_precision().bitwidth();
     parallel_for3d(B, L1, H, [&](size_t b, size_t m, size_t h) {
         auto slot = slot_mapping.ptr<int32_t>(b)[m];
-        if (slot < 0) return;
+        if (slot < 0)
+            return;
         auto block_number = slot / block_size;
         auto block_offset = slot % block_size;
         // The layout for per token per head:
-        // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
+        // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
+        // feature(u8,idx_S)|
         for (size_t src_offset = 0, dst_offset = 0; src_offset < S;
              src_offset += _key_group_size, dst_offset += _key_group_size + sizeof(float) + sizeof(float)) {
             auto p_k = reinterpret_cast<float*>(
@@ -553,8 +551,8 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                      p_k[1]);
         }
 
-        for (size_t src_offset = 0, dst_offset = 0; src_offset < SV; src_offset += _value_group_size,
-                    dst_offset += _value_group_size / sub_byte_multiplier + sizeof(float)) {
+        for (size_t src_offset = 0, dst_offset = 0; src_offset < SV;
+             src_offset += _value_group_size, dst_offset += _value_group_size / sub_byte_multiplier + sizeof(float)) {
             uint8_t* v_base = reinterpret_cast<uint8_t*>(
                 v_dst.m_ptr.get() +
                 (block_number * v_dst.m_strides[0] + h * v_dst.m_strides[1] + block_offset * v_dst.m_strides[2]) /
@@ -580,7 +578,11 @@ void attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
     } else if (k_src.get_precision() == ov::element::f16 && k_dst.get_precision() == ov::element::u8) {
         attn_quant_mt<ov::float16, uint8_t>(k_src, v_src, k_dst, v_dst, k_scale_zp, v_scale_zp);
     } else {
-        OPENVINO_THROW("unsupport src type: ", k_src.get_precision(), ", dst type: ", k_dst.get_precision(), " in attn_quantkv");
+        OPENVINO_THROW("unsupport src type: ",
+                       k_src.get_precision(),
+                       ", dst type: ",
+                       k_dst.get_precision(),
+                       " in attn_quantkv");
     }
 }
 
@@ -592,29 +594,33 @@ void paged_attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
                         const size_t key_group_size,
                         const size_t value_group_size) {
     using function_type = void (*)(const ov::intel_cpu::PlainTensor&,
-                                    const ov::intel_cpu::PlainTensor&,
-                                    const ov::intel_cpu::PlainTensor&,
-                                    const ov::intel_cpu::PlainTensor&,
-                                    const ov::intel_cpu::PlainTensor&,
-                                    const size_t,
-                                    const size_t);
+                                   const ov::intel_cpu::PlainTensor&,
+                                   const ov::intel_cpu::PlainTensor&,
+                                   const ov::intel_cpu::PlainTensor&,
+                                   const ov::intel_cpu::PlainTensor&,
+                                   const size_t,
+                                   const size_t);
     static constexpr function_type funcs_fp32[] = {
-            paged_attn_quant_mt<float, ov::element::u8, ov::element::u8>,
-            paged_attn_quant_mt<float, ov::element::u8, ov::element::u4>,
-            paged_attn_quant_mt<float, ov::element::u8, ov::element::i4>,
+        paged_attn_quant_mt<float, ov::element::u8, ov::element::u8>,
+        paged_attn_quant_mt<float, ov::element::u8, ov::element::u4>,
+        paged_attn_quant_mt<float, ov::element::u8, ov::element::i4>,
     };
     static constexpr function_type funcs_bf16[] = {
-            paged_attn_quant_mt<ov::bfloat16, ov::element::u8, ov::element::u8>,
-            paged_attn_quant_mt<ov::bfloat16, ov::element::u8, ov::element::u4>,
-            paged_attn_quant_mt<ov::bfloat16, ov::element::u8, ov::element::i4>,
+        paged_attn_quant_mt<ov::bfloat16, ov::element::u8, ov::element::u8>,
+        paged_attn_quant_mt<ov::bfloat16, ov::element::u8, ov::element::u4>,
+        paged_attn_quant_mt<ov::bfloat16, ov::element::u8, ov::element::i4>,
     };
     static constexpr function_type funcs_f16[] = {
-            paged_attn_quant_mt<ov::float16, ov::element::u8, ov::element::u8>,
-            paged_attn_quant_mt<ov::float16, ov::element::u8, ov::element::u4>,
-            paged_attn_quant_mt<ov::float16, ov::element::u8, ov::element::i4>,
+        paged_attn_quant_mt<ov::float16, ov::element::u8, ov::element::u8>,
+        paged_attn_quant_mt<ov::float16, ov::element::u8, ov::element::u4>,
+        paged_attn_quant_mt<ov::float16, ov::element::u8, ov::element::i4>,
     };
     if (k_dst.get_precision() != ov::element::u8) {
-        OPENVINO_THROW("unsupport src type: ", k_src.get_precision(), ", dst type: ", k_dst.get_precision(), " in paged_attn_quantkv");
+        OPENVINO_THROW("unsupport src type: ",
+                       k_src.get_precision(),
+                       ", dst type: ",
+                       k_dst.get_precision(),
+                       " in paged_attn_quantkv");
     }
     std::map<ov::element::Type, size_t> dispatch_table = {
         {ov::element::u8, 0},

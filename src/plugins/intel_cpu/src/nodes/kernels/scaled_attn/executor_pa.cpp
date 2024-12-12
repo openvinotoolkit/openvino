@@ -13,19 +13,19 @@
 #    include <immintrin.h>
 #endif
 
-#include "openvino/core/type/bfloat16.hpp"
-#include "openvino/core/type/float16.hpp"
-#include "openvino/core/parallel.hpp"
+#include "attn_memcpy.hpp"
+#include "attn_quant.hpp"
+#include "attn_quant_kernel.hpp"
+#include "common.hpp"
 #include "executor_pa.hpp"
 #include "executor_pa_common.hpp"
-#include "common.hpp"
-#include "attn_quant_kernel.hpp"
+#include "nodes/kernels/x64/brgemm_kernel.hpp"
+#include "openvino/core/parallel.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "softmax_kernel.hpp"
 #include "transpose_kernel.hpp"
 #include "utils/plain_tensor.hpp"
-#include "attn_memcpy.hpp"
-#include "attn_quant.hpp"
-#include "nodes/kernels/x64/brgemm_kernel.hpp"
 
 namespace ov {
 namespace Extensions {
@@ -38,42 +38,45 @@ using namespace ov::intel_cpu;
 // currently depends on brgemm which only support x64
 #ifdef OPENVINO_ARCH_X86_64
 
-#if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
+#    if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 
-#define prefetch_bytes(bytes, sel, advance, src) {  \
-    auto *p = reinterpret_cast<char *>(src);        \
-    for (size_t i = 0; i < bytes; i += 64)          \
-        _mm_prefetch(p + i + advance, sel);         \
-}
+#        define prefetch_bytes(bytes, sel, advance, src) \
+            {                                            \
+                auto* p = reinterpret_cast<char*>(src);  \
+                for (size_t i = 0; i < bytes; i += 64)   \
+                    _mm_prefetch(p + i + advance, sel);  \
+            }
 
-#else
+#    else
 
-#define prefetch_bytes(bytes, sel, advance, src)
+#        define prefetch_bytes(bytes, sel, advance, src)
 
-#endif
+#    endif
 
-template<typename TA, typename TB>
+template <typename TA, typename TB>
 void cvt_copy(TA* dst, TB* src, size_t n) {
     size_t i = 0;
-#if defined(HAVE_AVX512F)
+#    if defined(HAVE_AVX512F)
     for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {
         auto vb = mm512_uni_loadu_ps(src + i);
         mm512_uni_storeu_ps(dst + i, vb);
     }
-#elif defined(HAVE_AVX2)
+#    elif defined(HAVE_AVX2)
     for (; i + vec_len_f32_avx2 <= n; i += vec_len_f32_avx2) {
         auto vb = mm256_uni_loadu_ps(src + i);
         mm256_uni_storeu_ps(dst + i, vb);
     }
-#endif
+#    endif
     for (; i < n; i++) {
         dst[i] = src[i];
     }
 }
 
-template<typename T, ov::element::Type_t SRC_PREC, typename std::enable_if<SRC_PREC != ov::element::u8 || SRC_PREC != ov::element::u4, bool>::type = true>
+template <typename T,
+          ov::element::Type_t SRC_PREC,
+          typename std::enable_if<SRC_PREC != ov::element::u8 || SRC_PREC != ov::element::u4, bool>::type = true>
 static void attn_acc_value_block(float* out, float* weight, T* v, size_t S, size_t block_size, size_t group_size = 0) {
-#if defined(HAVE_AVX512F)
+#    if defined(HAVE_AVX512F)
     size_t j = 0;
     for (; j + 4 <= block_size; j += 4) {
         auto attn_w_vec0 = _mm512_set1_ps(weight[0]);
@@ -132,7 +135,7 @@ static void attn_acc_value_block(float* out, float* weight, T* v, size_t S, size
         }
     }
     return;
-#elif defined(HAVE_AVX2)
+#    elif defined(HAVE_AVX2)
     size_t j = 0;
     for (; j + 4 <= block_size; j += 4) {
         auto attn_w_vec0 = _mm256_set1_ps(weight[0]);
@@ -191,7 +194,7 @@ static void attn_acc_value_block(float* out, float* weight, T* v, size_t S, size
         }
     }
     return;
-#endif
+#    endif
     for (size_t j = 0; j < block_size; j++) {
         for (size_t i = 0; i < S; i++) {
             out[i] += weight[j] * v[i];
@@ -199,18 +202,25 @@ static void attn_acc_value_block(float* out, float* weight, T* v, size_t S, size
         v += S;
     }
 }
-template<typename T, ov::element::Type_t SRC_PREC, typename std::enable_if<SRC_PREC == ov::element::u8, bool>::type = true>
-static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S, size_t block_size, size_t group_size = 0) {
+template <typename T,
+          ov::element::Type_t SRC_PREC,
+          typename std::enable_if<SRC_PREC == ov::element::u8, bool>::type = true>
+static void attn_acc_value_block(float* out,
+                                 float* weight,
+                                 uint8_t* v,
+                                 size_t S,
+                                 size_t block_size,
+                                 size_t group_size = 0) {
     // The layout for per token per head:
-    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
-    // The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
+    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
+    // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
     size_t src_offset = 0;
     size_t dst_offset = 0;
     const size_t _group_size = group_size ? group_size : S;
     const size_t params_offset = sizeof(float) * 2;
     const size_t src_stride = S / _group_size * (_group_size + params_offset);
 
-#if defined(HAVE_AVX512F)
+#    if defined(HAVE_AVX512F)
     size_t j = 0;
     for (; j + 4 <= block_size; j += 4) {
         dst_offset = 0;
@@ -276,7 +286,9 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
             size_t i = 0;
             for (; i + vec_len_f32_avx512 <= _group_size; i += vec_len_f32_avx512) {
                 auto v_out = mm512_uni_loadu_ps((out + dst_offset + i));
-                auto v0 = _mm512_sub_ps(_mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(_mm_loadu_si128(reinterpret_cast<__m128i*>(v_data_ptr + i)))), zp0);
+                auto v0 = _mm512_sub_ps(_mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(
+                                            _mm_loadu_si128(reinterpret_cast<__m128i*>(v_data_ptr + i)))),
+                                        zp0);
                 v_out = _mm512_fmadd_ps(attn_w_vec0, v0, v_out);
 
                 _mm512_storeu_ps((out + dst_offset + i), v_out);
@@ -291,7 +303,7 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
         weight++;
     }
     return;
-#elif defined(HAVE_AVX2)
+#    elif defined(HAVE_AVX2)
     size_t j = 0;
     for (; j < block_size; j++) {
         dst_offset = 0;
@@ -306,7 +318,9 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
             v += 8;
             for (; i + vec_len_f32_avx2 <= _group_size; i += vec_len_f32_avx2) {
                 auto v_out = mm256_uni_loadu_ps(out + dst_offset + i);
-                auto v0 = _mm256_sub_ps(_mm256_cvtepi32_ps(_mm256_cvtepu8_epi32(_mm_loadl_epi64(reinterpret_cast<__m128i*>(v_data_ptr + i)))), zp0);
+                auto v0 = _mm256_sub_ps(_mm256_cvtepi32_ps(_mm256_cvtepu8_epi32(
+                                            _mm_loadl_epi64(reinterpret_cast<__m128i*>(v_data_ptr + i)))),
+                                        zp0);
                 v_out = _mm256_fmadd_ps(attn_w_vec0, v0, v_out);
 
                 mm256_uni_storeu_ps(out + dst_offset + i, v_out);
@@ -321,7 +335,7 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
         weight++;
     }
     return;
-#endif
+#    endif
     for (size_t j = 0; j < block_size; j++) {
         dst_offset = 0;
         src_offset = 0;
@@ -337,8 +351,15 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
     }
 }
 
-template<typename T, ov::element::Type_t SRC_PREC, typename std::enable_if<SRC_PREC == ov::element::u4, bool>::type = true>
-static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S, size_t block_size, size_t group_size = 0) {
+template <typename T,
+          ov::element::Type_t SRC_PREC,
+          typename std::enable_if<SRC_PREC == ov::element::u4, bool>::type = true>
+static void attn_acc_value_block(float* out,
+                                 float* weight,
+                                 uint8_t* v,
+                                 size_t S,
+                                 size_t block_size,
+                                 size_t group_size = 0) {
     size_t src_offset = 0;
     size_t dst_offset = 0;
     const size_t _group_size = group_size ? group_size : S;
@@ -348,7 +369,7 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
     auto extract_half_byte = [](uint8_t val, bool high_half) -> uint8_t {
         uint8_t shift = high_half ? 0 : 4;
 
-        return (uint8_t) ((val >> shift) & 0x000F);
+        return (uint8_t)((val >> shift) & 0x000F);
     };
     for (size_t j = 0; j < block_size; j++) {
         dst_offset = 0;
@@ -356,11 +377,11 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
         while (dst_offset < S) {
             auto v0 = reinterpret_cast<float*>(v + src_offset);
             size_t i = 0;
-#if defined(HAVE_AVX512F)
+#    if defined(HAVE_AVX512F)
             auto attn_w_vec0 = _mm512_set1_ps(weight[j] * v0[0]);
             auto v_zp = _mm512_set1_ps(v0[1]);
             for (; i + vec_len_f32_avx512 * 2 <= _group_size; i += vec_len_f32_avx512 * 2) {
-                auto data = _mm_loadu_si128(reinterpret_cast<__m128i*>(v + i/2 + src_offset + params_offset));
+                auto data = _mm_loadu_si128(reinterpret_cast<__m128i*>(v + i / 2 + src_offset + params_offset));
                 auto v_i32 = _mm512_cvtepu8_epi32(data);
 
                 auto v_512_low_half = _mm512_srli_epi32(v_i32, 4);
@@ -385,11 +406,11 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
                 mm512_uni_storeu_ps(out + dst_offset + i, v_out0);
                 mm512_uni_storeu_ps(out + dst_offset + i + vec_len_f32_avx512, v_out1);
             }
-#elif defined(HAVE_AVX2) || defined(HAVE_AVX512F)
+#    elif defined(HAVE_AVX2) || defined(HAVE_AVX512F)
             auto v256_attn_w_vec0 = _mm256_set1_ps(weight[j] * v0[0]);
             auto v256_zp = _mm256_set1_ps(v0[1]);
             for (; i + vec_len_f32_avx2 * 2 <= _group_size; i += vec_len_f32_avx2 * 2) {
-                auto data = _mm_loadl_epi64(reinterpret_cast<__m128i*>(v + i/2 + src_offset + params_offset));
+                auto data = _mm_loadl_epi64(reinterpret_cast<__m128i*>(v + i / 2 + src_offset + params_offset));
 
                 auto v_i32 = _mm256_cvtepu8_epi32(data);
                 auto v_256_low_half = _mm256_srli_epi32(v_i32, 4);
@@ -416,9 +437,9 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
                 mm256_uni_storeu_ps(out + dst_offset + i, v_out0);
                 mm256_uni_storeu_ps(out + dst_offset + i + vec_len_f32_avx2, v_out1);
             }
-#endif
+#    endif
             for (; i < _group_size; i += 2) {
-                uint8_t data = v[i/2 + src_offset + params_offset];
+                uint8_t data = v[i / 2 + src_offset + params_offset];
                 float tmp0 = extract_half_byte(data, static_cast<bool>(i % 2));
                 float tmp1 = extract_half_byte(data, static_cast<bool>((i + 1) % 2));
                 out[dst_offset + i] += weight[j] * (tmp0 - v0[1]) * v0[0];
@@ -431,8 +452,15 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
     }
 }
 
-template<typename T, ov::element::Type_t SRC_PREC, typename std::enable_if<SRC_PREC == ov::element::i4, bool>::type = true>
-static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S, size_t block_size, size_t group_size = 0) {
+template <typename T,
+          ov::element::Type_t SRC_PREC,
+          typename std::enable_if<SRC_PREC == ov::element::i4, bool>::type = true>
+static void attn_acc_value_block(float* out,
+                                 float* weight,
+                                 uint8_t* v,
+                                 size_t S,
+                                 size_t block_size,
+                                 size_t group_size = 0) {
     size_t src_offset = 0;
     size_t dst_offset = 0;
     const size_t _group_size = group_size ? group_size : S;
@@ -442,7 +470,7 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
     auto extract_half_byte = [](uint8_t val, bool high_half) -> uint8_t {
         uint8_t shift = high_half ? 0 : 4;
 
-        return (uint8_t) ((val >> shift) & 0x000F);
+        return (uint8_t)((val >> shift) & 0x000F);
     };
 
     for (size_t j = 0; j < block_size; j++) {
@@ -451,12 +479,12 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
         while (dst_offset < S) {
             auto v0 = reinterpret_cast<float*>(v + src_offset);
             size_t i = 0;
-#if defined(HAVE_AVX512F)
+#    if defined(HAVE_AVX512F)
             auto attn_w_vec0 = _mm512_set1_ps(weight[j] * v0[0]);
             for (; i + vec_len_f32_avx512 * 2 <= _group_size; i += vec_len_f32_avx512 * 2) {
-                auto data = _mm_loadu_si128(reinterpret_cast<__m128i*>(v + i/2 + src_offset + params_offset));
+                auto data = _mm_loadu_si128(reinterpret_cast<__m128i*>(v + i / 2 + src_offset + params_offset));
                 auto v_i32 = _mm512_cvtepi8_epi32(data);
-                //cvt to f32
+                // cvt to f32
                 auto v_256_low_half = _mm512_srai_epi32(v_i32, 4);
                 auto v_256_high_half = _mm512_slli_epi32(v_i32, 28);
                 v_256_high_half = _mm512_srai_epi32(v_256_high_half, 28);
@@ -475,10 +503,10 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
                 mm512_uni_storeu_ps(out + dst_offset + i, v_out0);
                 mm512_uni_storeu_ps(out + dst_offset + i + vec_len_f32_avx512, v_out1);
             }
-#elif defined(HAVE_AVX2) || defined(HAVE_AVX512F)
+#    elif defined(HAVE_AVX2) || defined(HAVE_AVX512F)
             auto v256_attn_w_vec0 = _mm256_set1_ps(weight[j] * v0[0]);
             for (; i + vec_len_f32_avx2 * 2 <= _group_size; i += vec_len_f32_avx2 * 2) {
-                auto data = _mm_loadl_epi64(reinterpret_cast<__m128i*>(v + i/2 + src_offset + params_offset));
+                auto data = _mm_loadl_epi64(reinterpret_cast<__m128i*>(v + i / 2 + src_offset + params_offset));
 
                 auto v_i32 = _mm256_cvtepi8_epi32(data);
                 auto v_256_low_half = _mm256_srai_epi32(v_i32, 4);
@@ -500,15 +528,15 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
                 mm256_uni_storeu_ps(out + dst_offset + i, v_out0);
                 mm256_uni_storeu_ps(out + dst_offset + i + vec_len_f32_avx2, v_out1);
             }
-#endif
+#    endif
             for (; i < _group_size; i += 2) {
-                uint8_t data = v[i/2 + src_offset + params_offset];
+                uint8_t data = v[i / 2 + src_offset + params_offset];
                 float tmp0 = extract_half_byte(data, static_cast<bool>(i % 2));
                 tmp0 = tmp0 > 8 ? (tmp0 - 16) : tmp0;
                 float tmp1 = extract_half_byte(data, static_cast<bool>((i + 1) % 2));
                 tmp1 = tmp1 > 8 ? (tmp1 - 16) : tmp1;
-                out[dst_offset + i] += weight[j] * (tmp0) * v0[0];
-                out[dst_offset + i + 1] += weight[j] * (tmp1) * v0[0];
+                out[dst_offset + i] += weight[j] * (tmp0)*v0[0];
+                out[dst_offset + i + 1] += weight[j] * (tmp1)*v0[0];
             }
             dst_offset += _group_size;
             src_offset += _group_size / sub_byte_multiplyer + params_offset;
@@ -517,9 +545,9 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
     }
 }
 
-template<typename TA, typename TB>
+template <typename TA, typename TB>
 static void dot_product_block(TA* a, TB* b, float* c, size_t n, size_t block_size, size_t group_size = 0) {
-#if defined(HAVE_AVX512F)
+#    if defined(HAVE_AVX512F)
     size_t j = 0;
     for (; j + 4 <= block_size; j += 4) {
         auto vsum0 = _mm512_setzero_ps();
@@ -549,7 +577,7 @@ static void dot_product_block(TA* a, TB* b, float* c, size_t n, size_t block_siz
         c[2] = sum2;
         c[3] = sum3;
         c += 4;
-        b +=  4 * n;
+        b += 4 * n;
     }
     for (; j < block_size; j++) {
         auto vsum = _mm512_setzero_ps();
@@ -566,7 +594,7 @@ static void dot_product_block(TA* a, TB* b, float* c, size_t n, size_t block_siz
         *c++ = sum;
     }
     return;
-#elif defined(HAVE_AVX2)
+#    elif defined(HAVE_AVX2)
     size_t j = 0;
     for (; j + 4 <= block_size; j += 4) {
         auto vsum0 = _mm256_set1_ps(0.0f);
@@ -600,7 +628,7 @@ static void dot_product_block(TA* a, TB* b, float* c, size_t n, size_t block_siz
         c[2] = sum2;
         c[3] = sum3;
         c += 4;
-        b +=  4 * n;
+        b += 4 * n;
     }
     for (; j < block_size; j++) {
         auto vsum = _mm256_set1_ps(0.0f);
@@ -618,7 +646,7 @@ static void dot_product_block(TA* a, TB* b, float* c, size_t n, size_t block_siz
         *c++ = sum;
     }
     return;
-#endif
+#    endif
     for (size_t j = 0; j < block_size; j++) {
         float sum = 0;
         for (size_t i = 0; i < n; i++) {
@@ -629,17 +657,17 @@ static void dot_product_block(TA* a, TB* b, float* c, size_t n, size_t block_siz
     }
 }
 
-template<typename TA>
+template <typename TA>
 static void dot_product_block(TA* a, uint8_t* b, float* c, size_t n, size_t block_size, size_t group_size = 0) {
     // The layout for per token per head:
-    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
-    // The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
+    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
+    // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
     size_t src_offset = 0;
     size_t dst_offset = 0;
     const size_t _group_size = group_size ? group_size : n;
     const size_t params_offset = sizeof(float) * 2;
     const size_t src_stride = n / _group_size * (_group_size + params_offset);
-#if defined(HAVE_AVX512F)
+#    if defined(HAVE_AVX512F)
     size_t j = 0;
     for (; j + 4 <= block_size; j += 4) {
         src_offset = 0;
@@ -719,7 +747,9 @@ static void dot_product_block(TA* a, uint8_t* b, float* c, size_t n, size_t bloc
             uint8_t* b_data_ptr = b + src_offset + params_offset;
             for (; i + vec_len_f32_avx512 <= _group_size; i += vec_len_f32_avx512) {
                 auto va = mm512_uni_loadu_ps(a + dst_offset + i);
-                auto vb = _mm512_sub_ps(_mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(_mm_loadu_si128(reinterpret_cast<__m128i*>(b_data_ptr + i)))), v_zp);
+                auto vb = _mm512_sub_ps(_mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(
+                                            _mm_loadu_si128(reinterpret_cast<__m128i*>(b_data_ptr + i)))),
+                                        v_zp);
                 vsum = _mm512_fmadd_ps(va, vb, vsum);
             }
             float group_sum = _mm512_reduce_add_ps(vsum);
@@ -734,7 +764,7 @@ static void dot_product_block(TA* a, uint8_t* b, float* c, size_t n, size_t bloc
         *c++ = sum;
     }
     return;
-#elif defined(HAVE_AVX2)
+#    elif defined(HAVE_AVX2)
     size_t j = 0;
     for (; j + 4 <= block_size; j += 4) {
         src_offset = 0;
@@ -788,7 +818,7 @@ static void dot_product_block(TA* a, uint8_t* b, float* c, size_t n, size_t bloc
             float group_sum3 = _mm256_cvtss_f32(vsum3);
             for (; i < _group_size; i++) {
                 group_sum0 += a[dst_offset + i] * (b[i] - b0[1]);
-                group_sum1 += a[dst_offset + i] * (b[i +src_stride] - b1[1]);
+                group_sum1 += a[dst_offset + i] * (b[i + src_stride] - b1[1]);
                 group_sum2 += a[dst_offset + i] * (b[i + 2 * src_stride] - b2[1]);
                 group_sum3 += a[dst_offset + i] * (b[i + 3 * src_stride] - b3[1]);
             }
@@ -804,7 +834,7 @@ static void dot_product_block(TA* a, uint8_t* b, float* c, size_t n, size_t bloc
         c[2] = sum2;
         c[3] = sum3;
         c += 4;
-        b +=  4 * src_stride;
+        b += 4 * src_stride;
     }
     for (; j < block_size; j++) {
         src_offset = 0;
@@ -818,7 +848,9 @@ static void dot_product_block(TA* a, uint8_t* b, float* c, size_t n, size_t bloc
             uint8_t* b_data_ptr = b + src_offset + params_offset;
             for (; i + vec_len_f32_avx2 <= _group_size; i += vec_len_f32_avx2) {
                 auto va = mm256_uni_loadu_ps(a + dst_offset + i);
-                auto vb = _mm256_sub_ps(_mm256_cvtepi32_ps(_mm256_cvtepu8_epi32(_mm_loadl_epi64(reinterpret_cast<__m128i*>(b_data_ptr + i)))), v_zp);
+                auto vb = _mm256_sub_ps(_mm256_cvtepi32_ps(_mm256_cvtepu8_epi32(
+                                            _mm_loadl_epi64(reinterpret_cast<__m128i*>(b_data_ptr + i)))),
+                                        v_zp);
                 vsum = _mm256_fmadd_ps(va, vb, vsum);
             }
             hsum(vsum);
@@ -834,7 +866,7 @@ static void dot_product_block(TA* a, uint8_t* b, float* c, size_t n, size_t bloc
         *c++ = sum;
     }
     return;
-#endif
+#    endif
     for (size_t j = 0; j < block_size; j++) {
         float sum = 0;
         dst_offset = 0;
@@ -854,11 +886,11 @@ static void dot_product_block(TA* a, uint8_t* b, float* c, size_t n, size_t bloc
     }
 }
 
-template<typename T>
+template <typename T>
 static void attn_reduce(T* dst, float* temp, size_t M, size_t S, size_t temp_stride) {
     size_t i = 0;
-#if defined(HAVE_AVX512F)
-    for (; i + vec_len_f32_avx512 <= S; i+= vec_len_f32_avx512) {
+#    if defined(HAVE_AVX512F)
+    for (; i + vec_len_f32_avx512 <= S; i += vec_len_f32_avx512) {
         auto* src = temp + i;
         auto result_vec_fp32 = _mm512_setzero_ps();
         for (size_t m = 0; m < M; m++) {
@@ -869,7 +901,7 @@ static void attn_reduce(T* dst, float* temp, size_t M, size_t S, size_t temp_str
         // save to bf16
         mm512_uni_storeu_ps(dst + i, result_vec_fp32);
     }
-#elif defined(HAVE_AVX2)
+#    elif defined(HAVE_AVX2)
     for (; i + vec_len_f32_avx2 <= S; i += vec_len_f32_avx2) {
         auto* src = temp + i;
         auto result_vec_fp32 = _mm256_set1_ps(0.0f);
@@ -880,7 +912,7 @@ static void attn_reduce(T* dst, float* temp, size_t M, size_t S, size_t temp_str
         }
         mm256_uni_storeu_ps(dst + i, result_vec_fp32);
     }
-#endif
+#    endif
     for (; i < S; i++) {
         auto* src = temp + i;
         float sum = 0.0f;
@@ -894,8 +926,17 @@ static void attn_reduce(T* dst, float* temp, size_t M, size_t S, size_t temp_str
 }
 
 // N must be multiple of 16
-template<typename TDST, ov::element::Type_t SRC_PREC, typename std::enable_if<(SRC_PREC != ov::element::u8 && SRC_PREC != ov::element::u4), bool>::type = true>
-void transpose_16NxK(TDST* dst, void* src, TDST* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride, size_t group_size = 0) {
+template <typename TDST,
+          ov::element::Type_t SRC_PREC,
+          typename std::enable_if<(SRC_PREC != ov::element::u8 && SRC_PREC != ov::element::u4), bool>::type = true>
+void transpose_16NxK(TDST* dst,
+                     void* src,
+                     TDST* tmp,
+                     size_t N,
+                     size_t K,
+                     size_t dst_stride,
+                     size_t src_stride,
+                     size_t group_size = 0) {
     size_t k = 0;
     auto* src_ptr = reinterpret_cast<typename ov::element_type_traits<SRC_PREC>::value_type*>(src);
     for (; k + 16 <= K; k += 16) {
@@ -912,7 +953,7 @@ void transpose_16NxK(TDST* dst, void* src, TDST* tmp, size_t N, size_t K, size_t
         }
     }
 }
-#if defined(HAVE_AVX512F)
+#    if defined(HAVE_AVX512F)
 template <typename T,
           ov::element::Type_t SRC_PREC,
           typename std::enable_if<(SRC_PREC == ov::element::bf16 || SRC_PREC == ov::element::f16) &&
@@ -939,16 +980,25 @@ static void transpose_16NxK(T* dst,
 }
 #    endif
 
-template<typename TDST, ov::element::Type_t SRC_PREC, typename std::enable_if<SRC_PREC == ov::element::u8, bool>::type = true>
-void transpose_16NxK(TDST* dst, void* src, TDST* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride, size_t group_size = 0) {
+template <typename TDST,
+          ov::element::Type_t SRC_PREC,
+          typename std::enable_if<SRC_PREC == ov::element::u8, bool>::type = true>
+void transpose_16NxK(TDST* dst,
+                     void* src,
+                     TDST* tmp,
+                     size_t N,
+                     size_t K,
+                     size_t dst_stride,
+                     size_t src_stride,
+                     size_t group_size = 0) {
     // The layout for per token per head:
-    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
-    // The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
+    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
+    // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
     auto s = reinterpret_cast<typename ov::element_type_traits<SRC_PREC>::value_type*>(src);
     auto t = tmp;
     // if group_size not set, the whole row is used as a group
     size_t _group_size = group_size ? group_size : K;
-    for (size_t n = 0; n < N; n ++) {
+    for (size_t n = 0; n < N; n++) {
         size_t src_offset = 0;
         size_t dst_offset = 0;
         while (dst_offset < K) {
@@ -960,31 +1010,43 @@ void transpose_16NxK(TDST* dst, void* src, TDST* tmp, size_t N, size_t K, size_t
         s += src_offset;
         t += src_stride;
     }
-    transpose_16NxK<TDST, precision_of<TDST>::value>(dst, tmp, reinterpret_cast<TDST*>(0), N, K, dst_stride, src_stride);
+    transpose_16NxK<TDST, precision_of<TDST>::value>(dst,
+                                                     tmp,
+                                                     reinterpret_cast<TDST*>(0),
+                                                     N,
+                                                     K,
+                                                     dst_stride,
+                                                     src_stride);
 }
 
 // dequant f16/u8 to float
-template<typename T, ov::element::Type_t SRC_PREC, typename std::enable_if<SRC_PREC != ov::element::u8, bool>::type = true>
+template <typename T,
+          ov::element::Type_t SRC_PREC,
+          typename std::enable_if<SRC_PREC != ov::element::u8, bool>::type = true>
 static inline void dequant(T* dst, void* src, size_t N, size_t K, size_t group_size = 0) {
     // never called
     OPENVINO_THROW("dequant: should not be called.");
 }
-template<typename T, ov::element::Type_t SRC_PREC, typename std::enable_if<SRC_PREC == ov::element::f16, bool>::type = true>
+template <typename T,
+          ov::element::Type_t SRC_PREC,
+          typename std::enable_if<SRC_PREC == ov::element::f16, bool>::type = true>
 static inline void dequant(float* dst, ov::float16* src, size_t N, size_t K, size_t group_size = 0) {
     cvt_copy(dst, src, K * N);
 }
 
-template<typename TDST, ov::element::Type_t SRC_PREC, typename std::enable_if<SRC_PREC == ov::element::u8, bool>::type = true>
+template <typename TDST,
+          ov::element::Type_t SRC_PREC,
+          typename std::enable_if<SRC_PREC == ov::element::u8, bool>::type = true>
 void dequant(TDST* dst, uint8_t* src, size_t N, size_t K, size_t group_size = 0) {
     // The layout for per token per head:
-    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
-    // The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
+    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
+    // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
     auto s = src;
     const size_t params_offset = sizeof(float) * 2;
     const size_t _group_size = group_size ? group_size : K;
     const size_t src_stride = K / _group_size * (_group_size + params_offset);
 
-    for (size_t n = 0; n < N; n ++) {
+    for (size_t n = 0; n < N; n++) {
         size_t group_offset = 0;
         size_t dst_offset = 0;
         while (dst_offset < K) {
@@ -998,17 +1060,19 @@ void dequant(TDST* dst, uint8_t* src, size_t N, size_t K, size_t group_size = 0)
     }
 }
 
-template<typename TDST, ov::element::Type_t SRC_PREC, typename std::enable_if<SRC_PREC == ov::element::u4, bool>::type = true>
+template <typename TDST,
+          ov::element::Type_t SRC_PREC,
+          typename std::enable_if<SRC_PREC == ov::element::u4, bool>::type = true>
 void dequant(TDST* dst, uint8_t* src, size_t N, size_t K, size_t group_size = 0) {
     // The layout for per token per head:
-    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
-    // The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
+    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
+    // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
     auto s = src;
     const size_t params_offset = sizeof(float) * 2;
     const size_t _group_size = group_size ? group_size : K;
     const size_t sub_byte_mulitplier = 2;
 
-    for (size_t n = 0; n < N; n ++) {
+    for (size_t n = 0; n < N; n++) {
         size_t src_offset = 0;
         size_t dst_offset = 0;
         while (dst_offset < K) {
@@ -1022,17 +1086,19 @@ void dequant(TDST* dst, uint8_t* src, size_t N, size_t K, size_t group_size = 0)
     }
 }
 
-template<typename TDST, ov::element::Type_t SRC_PREC, typename std::enable_if<SRC_PREC == ov::element::i4, bool>::type = true>
+template <typename TDST,
+          ov::element::Type_t SRC_PREC,
+          typename std::enable_if<SRC_PREC == ov::element::i4, bool>::type = true>
 void dequant(TDST* dst, uint8_t* src, size_t N, size_t K, size_t group_size = 0) {
     // The layout for per token per head:
-    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
-    // The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
+    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
+    // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
     auto s = src;
     const size_t params_offset = sizeof(float);
     const size_t _group_size = group_size ? group_size : K;
     const size_t sub_byte_mulitplier = 2;
 
-    for (size_t n = 0; n < N; n ++) {
+    for (size_t n = 0; n < N; n++) {
         size_t src_offset = 0;
         size_t dst_offset = 0;
         while (dst_offset < K) {
@@ -1046,18 +1112,24 @@ void dequant(TDST* dst, uint8_t* src, size_t N, size_t K, size_t group_size = 0)
     }
 }
 
-#if defined(HAVE_AVX512F)
-template<typename T, typename = typename std::enable_if<(std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value), bool>::type>
+#    if defined(HAVE_AVX512F)
+template <typename T,
+          typename = typename std::
+              enable_if<(std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value), bool>::type>
 static void pack_32x32_kernel(T* dst, T* src, size_t dst_stride, size_t src_stride) {
     static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
     auto midx = _mm512_loadu_si512(idx);
     for (size_t i = 0; i < 16; i++) {
-        auto a = _mm512_loadu_si512(src);               // [a1  a2  a3 a4 | a5  a6  a7 a8]   total 512-bits in 8 64bits unit
+        auto a = _mm512_loadu_si512(src);  // [a1  a2  a3 a4 | a5  a6  a7 a8]   total 512-bits in 8 64bits unit
         auto b = _mm512_loadu_si512(src + src_stride);  // [b1  b2  b3 b4 | b5  b6  b7 b8]   total 512-bits
         a = _mm512_permutexvar_epi64(midx, a);          // [a1 a5 | a2 a6 | a3 a7 | a4 a8]
         b = _mm512_permutexvar_epi64(midx, b);          // [b1 b5 | b2 b6 | b3 b7 | b4 b8]
-        auto B0 = _mm512_unpacklo_epi16(a, b);          // [ a1&b1  a2&b2   a3&b3   a4&b4] for each 128-bits lane, interleave word in low 64 bits
-        auto B1 = _mm512_unpackhi_epi16(a, b);          // [ a5&b5  a6&b6   a7&b7   a8&b8] for each 128-bits lane, interleave word in high 64 bits
+        auto B0 = _mm512_unpacklo_epi16(
+            a,
+            b);  // [ a1&b1  a2&b2   a3&b3   a4&b4] for each 128-bits lane, interleave word in low 64 bits
+        auto B1 = _mm512_unpackhi_epi16(
+            a,
+            b);  // [ a5&b5  a6&b6   a7&b7   a8&b8] for each 128-bits lane, interleave word in high 64 bits
         _mm512_storeu_si512(dst, B0);
         _mm512_storeu_si512(dst + 32, B1);
         src += 2 * src_stride;
@@ -1065,17 +1137,20 @@ static void pack_32x32_kernel(T* dst, T* src, size_t dst_stride, size_t src_stri
     }
 }
 
-template<typename T, typename = typename std::enable_if<(std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value), bool>::type>
+template <typename T,
+          typename = typename std::
+              enable_if<(std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value), bool>::type>
 static void pack_32x16_kernel(T* dst, T* src, size_t dst_stride, size_t src_stride) {
     static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
     auto midx = _mm512_loadu_si512(idx);
     for (size_t i = 0; i < 16; i++) {
-        auto x = _mm256_loadu_si256(reinterpret_cast<__m256i*>(src));               // [a1  a2  a3 a4]   total 256-bits in 4 64bits unit
+        auto x =
+            _mm256_loadu_si256(reinterpret_cast<__m256i*>(src));  // [a1  a2  a3 a4]   total 256-bits in 4 64bits unit
         auto y = _mm256_loadu_si256(reinterpret_cast<__m256i*>(src + src_stride));  // [b1  b2  b3 b4]   total 256-bits
         auto a = _mm512_castsi256_si512(x);
         auto b = _mm512_castsi256_si512(y);
-        a = _mm512_permutexvar_epi64(midx, a);                                      // [a1 x | a2 x | a3 x | a4 x]
-        b = _mm512_permutexvar_epi64(midx, b);                                      // [b1 x | b2 x | b3 x | b4 x]
+        a = _mm512_permutexvar_epi64(midx, a);  // [a1 x | a2 x | a3 x | a4 x]
+        b = _mm512_permutexvar_epi64(midx, b);  // [b1 x | b2 x | b3 x | b4 x]
         auto B0 = _mm512_unpacklo_epi16(a, b);
         _mm512_storeu_si512(dst, B0);
         src += 2 * src_stride;
@@ -1083,18 +1158,20 @@ static void pack_32x16_kernel(T* dst, T* src, size_t dst_stride, size_t src_stri
     }
 }
 
-template<typename T, typename = typename std::enable_if<(std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value), bool>::type>
+template <typename T,
+          typename = typename std::
+              enable_if<(std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value), bool>::type>
 static void pack_32xK_kernel(T* dst, T* src, size_t dst_stride, size_t src_stride, size_t K) {
     static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
     auto midx = _mm512_loadu_si512(idx);
     __mmask16 mask = (1 << K) - 1;
     for (size_t i = 0; i < K; i++) {
-        auto x = _mm256_maskz_loadu_epi16(mask, src);                              // [a1  a2  a3 a4]   total 256-bits in 4 64bits unit
-        auto y = _mm256_maskz_loadu_epi16(mask, src + src_stride);                 // [b1  b2  b3 b4]   total 256-bits
+        auto x = _mm256_maskz_loadu_epi16(mask, src);               // [a1  a2  a3 a4]   total 256-bits in 4 64bits unit
+        auto y = _mm256_maskz_loadu_epi16(mask, src + src_stride);  // [b1  b2  b3 b4]   total 256-bits
         auto a = _mm512_castsi256_si512(x);
         auto b = _mm512_castsi256_si512(y);
-        a = _mm512_permutexvar_epi64(midx, a);                                      // [a1 x | a2 x | a3 x | a4 x]
-        b = _mm512_permutexvar_epi64(midx, b);                                      // [b1 x | b2 x | b3 x | b4 x]
+        a = _mm512_permutexvar_epi64(midx, a);  // [a1 x | a2 x | a3 x | a4 x]
+        b = _mm512_permutexvar_epi64(midx, b);  // [b1 x | b2 x | b3 x | b4 x]
         auto B0 = _mm512_unpacklo_epi16(a, b);
         _mm512_mask_storeu_epi32(dst, mask, B0);
         src += 2 * src_stride;
@@ -1239,8 +1316,17 @@ static void pack_32NxK(TDST* dst,
 }
 #    endif
 
-template<typename TDST, ov::element::Type_t SRC_PREC, typename std::enable_if<precision_of<TDST>::value == ov::element::f32, bool>::type = true>
-static void pack_32NxK(TDST* dst, void* src, TDST* tmp, size_t N, size_t K, size_t dst_stride, size_t src_stride, size_t group_size = 0) {
+template <typename TDST,
+          ov::element::Type_t SRC_PREC,
+          typename std::enable_if<precision_of<TDST>::value == ov::element::f32, bool>::type = true>
+static void pack_32NxK(TDST* dst,
+                       void* src,
+                       TDST* tmp,
+                       size_t N,
+                       size_t K,
+                       size_t dst_stride,
+                       size_t src_stride,
+                       size_t group_size = 0) {
     // never called
     OPENVINO_THROW("pack_32NxK: should not be called.");
 }
@@ -1260,10 +1346,10 @@ struct MHAHelper {
     size_t _key_group_size = 0;
     size_t _value_group_size = 0;
 
-    PlainTensor _weight;            // [nthr, H, 32, rnd_up(kv_len, block_size)], shared by first and second loop along bh
-    PlainTensor _output;            // [nthr, 32, H, S], shared by first and second loop along bh
-    PlainTensor _qk_scratch_a;      // [nthr, scratch_a_size]
-    PlainTensor _qk_scratch_b;      // [B, rnd_up(kv_len, block_size), Hk, scratch_b_size]
+    PlainTensor _weight;        // [nthr, H, 32, rnd_up(kv_len, block_size)], shared by first and second loop along bh
+    PlainTensor _output;        // [nthr, 32, H, S], shared by first and second loop along bh
+    PlainTensor _qk_scratch_a;  // [nthr, scratch_a_size]
+    PlainTensor _qk_scratch_b;  // [B, rnd_up(kv_len, block_size), Hk, scratch_b_size]
     PlainTensor _wv_scratch_a;
     PlainTensor _wv_scratch_b;
     PlainTensor _alibi_lookup;
@@ -1288,12 +1374,22 @@ struct MHAHelper {
         _weight.resize<float>({size_t{1}, size_t{1}, size_t{1}, size_t{1}});
     }
 
-    explicit MHAHelper(size_t key_group_size, size_t value_group_size) : _key_group_size(key_group_size), _value_group_size(value_group_size) {
+    explicit MHAHelper(size_t key_group_size, size_t value_group_size)
+        : _key_group_size(key_group_size),
+          _value_group_size(value_group_size) {
         _weight.resize<float>({size_t{1}, size_t{1}, size_t{1}, size_t{1}});
     }
 
-    void init(size_t H, size_t S, size_t SV, size_t Hk, size_t h_each_group_len, size_t block_size, size_t sliding_window,
-              float d_scale, size_t kv_len, bool init_alibi_lookup) {
+    void init(size_t H,
+              size_t S,
+              size_t SV,
+              size_t Hk,
+              size_t h_each_group_len,
+              size_t block_size,
+              size_t sliding_window,
+              float d_scale,
+              size_t kv_len,
+              bool init_alibi_lookup) {
         // query shape: [B, H, L, S]
         // present_key shape: [block, H, 32, S]
         // Q*K': [M1, S] * [M2, S]'
@@ -1335,25 +1431,27 @@ struct MHAHelper {
                                                              _weight.stride(2),
                                                              false,
                                                              in_type);
-                _wv_gemm[i] = std::make_shared<BrgemmKernel>(i + 1,
-                                                             _SV,
-                                                             _block_size,
-                                                             // if it's bf16, the stride needs double due to reuse float buffer
-                                                             (in_type == ov::element::Type_t::f32 ? 1 : 2) * _weight.stride(2),
-                                                             _SV,
-                                                             _output.stride(1),
-                                                             false,
-                                                             in_type);
-                _wv_gemm_acc[i] = std::make_shared<BrgemmKernel>(i + 1,
-                                                                 _SV,
-                                                                 _block_size,
-                                                                 // if it's bf16, the stride needs double due to reuse float buffer
-                                                                 (in_type == ov::element::Type_t::f32 ? 1 : 2) * _weight.stride(2),
-                                                                 _SV,
-                                                                 _output.stride(1),
-                                                                 false,
-                                                                 in_type,
-                                                                 true);
+                _wv_gemm[i] =
+                    std::make_shared<BrgemmKernel>(i + 1,
+                                                   _SV,
+                                                   _block_size,
+                                                   // if it's bf16, the stride needs double due to reuse float buffer
+                                                   (in_type == ov::element::Type_t::f32 ? 1 : 2) * _weight.stride(2),
+                                                   _SV,
+                                                   _output.stride(1),
+                                                   false,
+                                                   in_type);
+                _wv_gemm_acc[i] =
+                    std::make_shared<BrgemmKernel>(i + 1,
+                                                   _SV,
+                                                   _block_size,
+                                                   // if it's bf16, the stride needs double due to reuse float buffer
+                                                   (in_type == ov::element::Type_t::f32 ? 1 : 2) * _weight.stride(2),
+                                                   _SV,
+                                                   _output.stride(1),
+                                                   false,
+                                                   in_type,
+                                                   true);
             }
 
             // wsp is used to compute beta when K is blocked
@@ -1361,8 +1459,10 @@ struct MHAHelper {
             _wsp.resize(_nthr * _wsp_size_per_thread);
 
             // allocate scratch a/b, notice get_scratch_a_size/get_scratch_b_size returns in bytes
-            _qk_scratch_a.resize<DATA_TYPE>({_nthr, _qk_gemm[_block_size - 1]->get_scratch_a_size() / sizeof(DATA_TYPE)});
-            _wv_scratch_a.resize<DATA_TYPE>({_nthr, _wv_gemm[_block_size - 1]->get_scratch_a_size() / sizeof(DATA_TYPE)});
+            _qk_scratch_a.resize<DATA_TYPE>(
+                {_nthr, _qk_gemm[_block_size - 1]->get_scratch_a_size() / sizeof(DATA_TYPE)});
+            _wv_scratch_a.resize<DATA_TYPE>(
+                {_nthr, _wv_gemm[_block_size - 1]->get_scratch_a_size() / sizeof(DATA_TYPE)});
 
             if ((S % 32 == 0) && (block_size % 16 == 0) && (S <= 32 * 6)) {
                 if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_bf16) &&
@@ -1378,14 +1478,16 @@ struct MHAHelper {
                 }
             }
             if (one_of(_fastpath_valid_prec, ov::element::bf16, ov::element::f16) && !_gemv) {
-                _gemv = std::make_shared<JitMatMulVecAMX>(static_cast<int>(S), static_cast<int>(block_size), _fastpath_valid_prec);
+                _gemv = std::make_shared<JitMatMulVecAMX>(static_cast<int>(S),
+                                                          static_cast<int>(block_size),
+                                                          _fastpath_valid_prec);
             }
         }
 
         if (init_alibi_lookup && (!_alibi_lookup || _alibi_lookup.m_dims[0] < kv_len)) {
             _alibi_lookup.resize<float>({kv_len * 2});
             for (size_t i = 0; i < _alibi_lookup.m_dims[0]; i++)
-                _alibi_lookup.ptr<float>()[i] = - static_cast<int>((_alibi_lookup.m_dims[0] - 1 - i));
+                _alibi_lookup.ptr<float>()[i] = -static_cast<int>((_alibi_lookup.m_dims[0] - 1 - i));
         }
     }
 
@@ -1421,9 +1523,21 @@ struct MHAHelper {
     //  output_emb: [L, H * S]
     //  qk_scratch_b: [rnd_up(kv_len, block_size), Hk, scratch_b_size]
     //  wv_scratch_b: [rnd_up(kv_len, block_size), Hk, scratch_b_size]
-    void exec_kernel_multiple(const PlainTensor& query, const PlainTensor& present_value, const PlainTensor& output_emb,
-        const PlainTensor& qk_scratch_b, const PlainTensor& wv_scratch_b, const int32_t* block_table, size_t ithr, size_t q_blk,
-        size_t hq_beg, size_t hq_end, size_t hk, size_t q_len, size_t cur_kv_len, const PlainTensor& alibi_slopes, float* score_output) {
+    void exec_kernel_multiple(const PlainTensor& query,
+                              const PlainTensor& present_value,
+                              const PlainTensor& output_emb,
+                              const PlainTensor& qk_scratch_b,
+                              const PlainTensor& wv_scratch_b,
+                              const int32_t* block_table,
+                              size_t ithr,
+                              size_t q_blk,
+                              size_t hq_beg,
+                              size_t hq_end,
+                              size_t hk,
+                              size_t q_len,
+                              size_t cur_kv_len,
+                              const PlainTensor& alibi_slopes,
+                              float* score_output) {
         auto q_start = q_blk * _block_size;
         auto q_end = std::min(q_start + _block_size, q_len);
         auto q_cnt = q_end - q_start;
@@ -1496,13 +1610,16 @@ struct MHAHelper {
                                                alibi_slope);
                 }
                 if (score_output) {
-                    cvt_copy(score_output + h * rnd_up(cur_kv_len, 16), reinterpret_cast<DATA_TYPE*>(score), cur_kv_len);
+                    cvt_copy(score_output + h * rnd_up(cur_kv_len, 16),
+                             reinterpret_cast<DATA_TYPE*>(score),
+                             cur_kv_len);
                 }
             }
 
             // reuse float buffer, need to use float to compute offset
             auto* w_ptr = reinterpret_cast<DATA_TYPE*>(_weight.ptr<float>(ithr, h, 0, 0));
-            float* fp32_out_ptr = q_is_xf16 ? _output.ptr<float>(ithr, 0, h, 0) : output_emb.ptr<float>(q_start, h * _SV);
+            float* fp32_out_ptr =
+                q_is_xf16 ? _output.ptr<float>(ithr, 0, h, 0) : output_emb.ptr<float>(q_start, h * _SV);
 
             // for each weight block, loop through all value block
             for (size_t v_blk = 0; v_blk < cur_kv_len_blocks; v_blk++) {
@@ -1520,12 +1637,13 @@ struct MHAHelper {
                                                      _wsp.data() + ithr * _wsp_size_per_thread,
                                                      _wv_scratch_a ? _wv_scratch_a.ptr<DATA_TYPE>(ithr, 0) : nullptr);
                 } else {
-                    _wv_gemm_acc[q_cnt - 1]->executeGemm(q_cnt < _block_size,
-                                                         w_ptr + v_blk * _block_size,
-                                                         v_ptr,
-                                                         fp32_out_ptr,
-                                                         _wsp.data() + ithr * _wsp_size_per_thread,
-                                                         _wv_scratch_a ? _wv_scratch_a.ptr<DATA_TYPE>(ithr, 0) : nullptr);
+                    _wv_gemm_acc[q_cnt - 1]->executeGemm(
+                        q_cnt < _block_size,
+                        w_ptr + v_blk * _block_size,
+                        v_ptr,
+                        fp32_out_ptr,
+                        _wsp.data() + ithr * _wsp_size_per_thread,
+                        _wv_scratch_a ? _wv_scratch_a.ptr<DATA_TYPE>(ithr, 0) : nullptr);
                 }
             }
             if (q_is_xf16) {
@@ -1548,17 +1666,28 @@ struct MHAHelper {
     //  output_emb: [L, H * S]
     //  weight: [nthr, H, 32, rnd_up(kv_len, block_size)]
     //  output: [nthr, 32, H, S]
-    void exec_kernel_one_bh(const PlainTensor& query, const PlainTensor& present_key, const PlainTensor& present_value, const PlainTensor& output_emb,
-        const int32_t* block_table, size_t ithr, size_t hq_beg, size_t hq_end, size_t hk,
-        size_t q_len, size_t cur_kv_len, const PlainTensor& alibi_slopes, float* score_output) {
+    void exec_kernel_one_bh(const PlainTensor& query,
+                            const PlainTensor& present_key,
+                            const PlainTensor& present_value,
+                            const PlainTensor& output_emb,
+                            const int32_t* block_table,
+                            size_t ithr,
+                            size_t hq_beg,
+                            size_t hq_end,
+                            size_t hk,
+                            size_t q_len,
+                            size_t cur_kv_len,
+                            const PlainTensor& alibi_slopes,
+                            float* score_output) {
         if (one_of(_fastpath_valid_prec, ov::element::bf16, ov::element::f16)) {
             _gemv->tile_config();
             for (size_t pk = 0, i = 0; pk < cur_kv_len; pk += _block_size, i++) {
                 auto block_number = block_table[i];
                 for (size_t pq = 0; pq < q_len; pq++) {
                     for (size_t h = hq_beg; h < hq_end; h++) {
-                        (*_gemv)(query.ptr<DATA_TYPE>(h, pq), present_key.ptr<KEY_CACHE_TYPE>(block_number, hk),
-                            _weight.ptr<float>(ithr, h, pq) + pk);
+                        (*_gemv)(query.ptr<DATA_TYPE>(h, pq),
+                                 present_key.ptr<KEY_CACHE_TYPE>(block_number, hk),
+                                 _weight.ptr<float>(ithr, h, pq) + pk);
                     }
                 }
             }
@@ -1568,8 +1697,12 @@ struct MHAHelper {
                 auto block_number = block_table[i];
                 for (size_t pq = 0; pq < q_len; pq++) {
                     for (size_t h = hq_beg; h < hq_end; h++) {
-                        dot_product_block(query.ptr<DATA_TYPE>(h, pq), present_key.ptr<KEY_CACHE_TYPE>(block_number, hk),
-                            _weight.ptr<float>(ithr, h, pq) + pk, _S, std::min(_block_size, cur_kv_len - pk), _key_group_size);
+                        dot_product_block(query.ptr<DATA_TYPE>(h, pq),
+                                          present_key.ptr<KEY_CACHE_TYPE>(block_number, hk),
+                                          _weight.ptr<float>(ithr, h, pq) + pk,
+                                          _S,
+                                          std::min(_block_size, cur_kv_len - pk),
+                                          _key_group_size);
                     }
                 }
             }
@@ -1597,7 +1730,9 @@ struct MHAHelper {
                                            ov::element::f32,
                                            alibi_slope);
                 if (score_output) {
-                    memcpy(score_output + h * rnd_up(cur_kv_len, 16), _weight.ptr<float>(ithr, h, pq), cur_kv_len * sizeof(float));
+                    memcpy(score_output + h * rnd_up(cur_kv_len, 16),
+                           _weight.ptr<float>(ithr, h, pq),
+                           cur_kv_len * sizeof(float));
                 }
             }
         }
@@ -1610,26 +1745,28 @@ struct MHAHelper {
                 for (size_t h = hq_beg; h < hq_end; h++) {
                     if (present_value.get_precision() == ov::element::u4) {
                         auto sub_byte_multiplyer = 8 / present_value.get_precision().bitwidth();
-                        size_t v_stride = (block_number * present_value.m_strides[0] + hk * present_value.m_strides[1]) / sub_byte_multiplyer;
+                        size_t v_stride =
+                            (block_number * present_value.m_strides[0] + hk * present_value.m_strides[1]) /
+                            sub_byte_multiplyer;
                         auto* v_ptr = present_value.m_ptr.get() + v_stride;
-                        attn_acc_value_block<VALUE_CACHE_TYPE, ov::element::u4>(
-                            _output.ptr<float>(ithr, pq, h),
-                            _weight.ptr<float>(ithr, h, pq) + pv,
-                            v_ptr,
-                            _SV,
-                            std::min(_block_size, cur_kv_len - pv),
-                            _value_group_size);
+                        attn_acc_value_block<VALUE_CACHE_TYPE, ov::element::u4>(_output.ptr<float>(ithr, pq, h),
+                                                                                _weight.ptr<float>(ithr, h, pq) + pv,
+                                                                                v_ptr,
+                                                                                _SV,
+                                                                                std::min(_block_size, cur_kv_len - pv),
+                                                                                _value_group_size);
                     } else if (present_value.get_precision() == ov::element::i4) {
                         auto sub_byte_multiplyer = 8 / present_value.get_precision().bitwidth();
-                        size_t v_stride = (block_number * present_value.m_strides[0] + hk * present_value.m_strides[1]) / sub_byte_multiplyer;
+                        size_t v_stride =
+                            (block_number * present_value.m_strides[0] + hk * present_value.m_strides[1]) /
+                            sub_byte_multiplyer;
                         auto* v_ptr = present_value.m_ptr.get() + v_stride;
-                        attn_acc_value_block<VALUE_CACHE_TYPE, ov::element::i4>(
-                            _output.ptr<float>(ithr, pq, h),
-                            _weight.ptr<float>(ithr, h, pq) + pv,
-                            v_ptr,
-                            _SV,
-                            std::min(_block_size, cur_kv_len - pv),
-                            _value_group_size);
+                        attn_acc_value_block<VALUE_CACHE_TYPE, ov::element::i4>(_output.ptr<float>(ithr, pq, h),
+                                                                                _weight.ptr<float>(ithr, h, pq) + pv,
+                                                                                v_ptr,
+                                                                                _SV,
+                                                                                std::min(_block_size, cur_kv_len - pv),
+                                                                                _value_group_size);
                     } else {
                         attn_acc_value_block<VALUE_CACHE_TYPE, precision_of<VALUE_CACHE_TYPE>::value>(
                             _output.ptr<float>(ithr, pq, h),
@@ -1648,9 +1785,9 @@ struct MHAHelper {
                 cvt_copy(output_emb.ptr<DATA_TYPE>(pq, h * _SV), _output.ptr<float>(ithr, pq, h), _SV);
     }
 
-    // compute one token, loop along batch, head dimensions and kv_len, it's special for very long kv_len with small batch tokens.
-    // It will assume NO mixture execution of first and second token.
-    // all tensors such as query... have batch dimension which is DIFFERENT from above
+    // compute one token, loop along batch, head dimensions and kv_len, it's special for very long kv_len with small
+    // batch tokens. It will assume NO mixture execution of first and second token. all tensors such as query... have
+    // batch dimension which is DIFFERENT from above
     //  query: [B, H, L, S]
     //  present_*: [block_number, H, 32, S]
     //  output_emb: [B, L, H * S]
@@ -1689,17 +1826,18 @@ struct MHAHelper {
             // for bigger batch skip the test to save the cost
             prefer_static_loop = false;
         }
-        auto get_h_params = [] (bool loop_hk, size_t hx, size_t h_each_group_len, size_t& hq_beg, size_t& hq_end, size_t& hk) {
-            if (loop_hk) {
-                hk = hx;
-                hq_beg = hk * h_each_group_len;
-                hq_end = (hk + 1) * h_each_group_len;
-            } else {
-                hq_beg = hx;
-                hq_end = hx + 1;
-                hk = hx / h_each_group_len;
-            }
-        };
+        auto get_h_params =
+            [](bool loop_hk, size_t hx, size_t h_each_group_len, size_t& hq_beg, size_t& hq_end, size_t& hk) {
+                if (loop_hk) {
+                    hk = hx;
+                    hq_beg = hk * h_each_group_len;
+                    hq_end = (hk + 1) * h_each_group_len;
+                } else {
+                    hq_beg = hx;
+                    hq_end = hx + 1;
+                    hk = hx / h_each_group_len;
+                }
+            };
         auto loop_qk = [&](size_t b, size_t pk_in_blocks, size_t hx) {
             auto context_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
             size_t hk, hq_beg, hq_end;
@@ -1713,16 +1851,21 @@ struct MHAHelper {
                     _gemv->tile_config();
                     for (size_t pq = 0; pq < q_len; pq++) {
                         for (size_t h = hq_beg; h < hq_end; h++) {
-                            (*_gemv)(query.ptr<DATA_TYPE>(b, h, pq), present_key.ptr<KEY_CACHE_TYPE>(block_number, hk),
-                                _weight_bhl.ptr<float>(b, h, pq) + pk);
+                            (*_gemv)(query.ptr<DATA_TYPE>(b, h, pq),
+                                     present_key.ptr<KEY_CACHE_TYPE>(block_number, hk),
+                                     _weight_bhl.ptr<float>(b, h, pq) + pk);
                         }
                     }
                     _gemv->tile_release();
                 } else {
                     for (size_t pq = 0; pq < q_len; pq++) {
                         for (size_t h = hq_beg; h < hq_end; h++) {
-                            dot_product_block(query.ptr<DATA_TYPE>(b, h, pq), present_key.ptr<KEY_CACHE_TYPE>(block_number, hk),
-                                _weight_bhl.ptr<float>(b, h, pq) + pk, _S, std::min(_block_size, context_len - pk), _key_group_size);
+                            dot_product_block(query.ptr<DATA_TYPE>(b, h, pq),
+                                              present_key.ptr<KEY_CACHE_TYPE>(block_number, hk),
+                                              _weight_bhl.ptr<float>(b, h, pq) + pk,
+                                              _S,
+                                              std::min(_block_size, context_len - pk),
+                                              _key_group_size);
                         }
                     }
                 }
@@ -1794,7 +1937,9 @@ struct MHAHelper {
                     for (size_t h = hq_beg; h < hq_end; h++) {
                         if (present_value.get_precision() == ov::element::u4) {
                             auto sub_byte_multiplyer = 8 / present_value.get_precision().bitwidth();
-                            size_t v_stride = (block_number * present_value.m_strides[0] + hk * present_value.m_strides[1]) / sub_byte_multiplyer;
+                            size_t v_stride =
+                                (block_number * present_value.m_strides[0] + hk * present_value.m_strides[1]) /
+                                sub_byte_multiplyer;
                             auto* v_ptr = present_value.m_ptr.get() + v_stride;
                             attn_acc_value_block<VALUE_CACHE_TYPE, ov::element::u4>(
                                 _output_bhl.ptr<float>(ithr, b, pq, h),
@@ -1805,7 +1950,9 @@ struct MHAHelper {
                                 _value_group_size);
                         } else if (present_value.get_precision() == ov::element::i4) {
                             auto sub_byte_multiplyer = 8 / present_value.get_precision().bitwidth();
-                            size_t v_stride = (block_number * present_value.m_strides[0] + hk * present_value.m_strides[1]) / sub_byte_multiplyer;
+                            size_t v_stride =
+                                (block_number * present_value.m_strides[0] + hk * present_value.m_strides[1]) /
+                                sub_byte_multiplyer;
                             auto* v_ptr = present_value.m_ptr.get() + v_stride;
                             attn_acc_value_block<VALUE_CACHE_TYPE, ov::element::i4>(
                                 _output_bhl.ptr<float>(ithr, b, pq, h),
@@ -1847,26 +1994,29 @@ template <typename DATA_TYPE, typename KEY_CACHE_TYPE, typename VALUE_CACHE_TYPE
 struct MHA {
     MHAHelper<DATA_TYPE, KEY_CACHE_TYPE, VALUE_CACHE_TYPE>& _helper;
     struct AttnWorkItem {
-        int32_t batch_in_reorder;                   // which batch in reorder buffer will be used
-        int32_t batch_in_seq;                       // batch idx in sequence
-        int32_t q_len;                              // current sequence length, 1 for second token, 2+ for first token
-        int32_t q_block_id;                         // block id in this seq, valid at first token
+        int32_t batch_in_reorder;  // which batch in reorder buffer will be used
+        int32_t batch_in_seq;      // batch idx in sequence
+        int32_t q_len;             // current sequence length, 1 for second token, 2+ for first token
+        int32_t q_block_id;        // block id in this seq, valid at first token
     };
     struct ReorderWorkItem {
-        int32_t batch_in_seq;                       // batch idx in sequence
-        int32_t batch_in_reorder;                   // which batch in reorder buffer will be used
-        int32_t kv_block_id;                        // block id in this kv cache seq
+        int32_t batch_in_seq;      // batch idx in sequence
+        int32_t batch_in_reorder;  // which batch in reorder buffer will be used
+        int32_t kv_block_id;       // block id in this kv cache seq
     };
     struct WorkItems {
     private:
         std::vector<AttnWorkItem> attn_items;
         std::vector<ReorderWorkItem> reorder_items;
-        int32_t max_kv_len_in_reorder;              // max kv len between first tokens
+        int32_t max_kv_len_in_reorder;  // max kv len between first tokens
         int32_t max_batch_in_reorder;
         int32_t total_kv_len;
 
     public:
-        void reset(const PlainTensor& query, const PlainTensor& past_lens, const PlainTensor& subsequence_begins, size_t block_size) {
+        void reset(const PlainTensor& query,
+                   const PlainTensor& past_lens,
+                   const PlainTensor& subsequence_begins,
+                   size_t block_size) {
             attn_items.clear();
             reorder_items.clear();
             max_kv_len_in_reorder = 0;
@@ -1879,21 +2029,19 @@ struct MHA {
                 auto kv_len = past_lens.ptr<int32_t>()[i] + q_len;
                 auto kv_len_in_block = static_cast<int32_t>(div_up(kv_len, block_size));
                 if (q_len == 1) {
-                    attn_items.emplace_back(AttnWorkItem{
-                        0,                          // batch_in_reorder
-                        i,                          // batch_in_seq
-                        1ull,                       // q_len
-                        // kv_len in blocks, used in the sort function
-                        kv_len_in_block - 1
-                    });
+                    attn_items.emplace_back(AttnWorkItem{0,     // batch_in_reorder
+                                                         i,     // batch_in_seq
+                                                         1ull,  // q_len
+                                                         // kv_len in blocks, used in the sort function
+                                                         kv_len_in_block - 1});
                 } else {
                     auto reorder_sub_work_count = kv_len_in_block;
                     max_kv_len_in_reorder = std::max(max_kv_len_in_reorder, kv_len);
                     for (int32_t block_id = 0; block_id < reorder_sub_work_count; block_id++) {
                         reorder_items.emplace_back(ReorderWorkItem{
-                            i,                       // batch_in_seq
-                            max_batch_in_reorder,    // batch_in_reorder
-                            block_id                 // kv_block_id
+                            i,                     // batch_in_seq
+                            max_batch_in_reorder,  // batch_in_reorder
+                            block_id               // kv_block_id
                         });
                     }
 
@@ -1901,17 +2049,18 @@ struct MHA {
                     auto attn_sub_work_count = static_cast<int32_t>(div_up(q_len, block_size));
                     for (int32_t block_id = 0; block_id < attn_sub_work_count; block_id++) {
                         attn_items.emplace_back(AttnWorkItem{
-                            max_batch_in_reorder,    // batch_in_reorder
-                            i,                       // batch_in_seq
-                            q_len,                   // q_len
-                            block_id                 // q_block_id
+                            max_batch_in_reorder,  // batch_in_reorder
+                            i,                     // batch_in_seq
+                            q_len,                 // q_len
+                            block_id               // q_block_id
                         });
                     }
                     max_batch_in_reorder++;
                 }
                 total_kv_len += kv_len;
             }
-            // std::sort(attn_items.begin(), attn_items.end(), [] (const AttnWorkItem& left, const AttnWorkItem& right) {
+            // std::sort(attn_items.begin(), attn_items.end(), [] (const AttnWorkItem& left, const AttnWorkItem& right)
+            // {
             //     // kv block number which will be acessed later
             //     auto left_kv_blocks = left.q_block_id;
             //     auto right_kv_blocks = right.q_block_id;
@@ -1965,7 +2114,8 @@ struct MHA {
         auto reorder_work_count = _workitems.reorder_work_size();
 
         // buffer for transpose and repack
-        _helper.init_reorder_buffers(_workitems.get_reorder_max_batch_size(), div_up(_workitems.get_reorder_max_kv_len(), _helper._block_size));
+        _helper.init_reorder_buffers(_workitems.get_reorder_max_batch_size(),
+                                     div_up(_workitems.get_reorder_max_kv_len(), _helper._block_size));
 
         // packed k, v
         parallel_for2d_dynamic(reorder_work_count, Hk, [&](size_t w, size_t hk) {
@@ -1973,7 +2123,8 @@ struct MHA {
             const auto batch_in_seq = item.batch_in_seq;
             const auto batch_in_reorder = item.batch_in_reorder;
             const auto kv_block = item.kv_block_id;
-            auto block_number = block_indices.ptr<int32_t>()[block_indices_begins.ptr<int32_t>()[batch_in_seq] + kv_block];
+            auto block_number =
+                block_indices.ptr<int32_t>()[block_indices_begins.ptr<int32_t>()[batch_in_seq] + kv_block];
             if (block_number < 0)
                 return;
 
@@ -1981,46 +2132,55 @@ struct MHA {
             auto* k_ptr = k_cache.ptr<KEY_CACHE_TYPE>(block_number, hk);
             auto* v_ptr = v_cache.ptr<VALUE_CACHE_TYPE>(block_number, hk);
 
-            transpose_16NxK<DATA_TYPE, precision_of<KEY_CACHE_TYPE>::value>(_helper._qk_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
-            k_ptr,
-            _helper._output.template ptr<DATA_TYPE>(ithr),
-            _helper._block_size,
-            _helper._S, _helper._block_size, _helper._S, _helper._key_group_size);
+            transpose_16NxK<DATA_TYPE, precision_of<KEY_CACHE_TYPE>::value>(
+                _helper._qk_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
+                k_ptr,
+                _helper._output.template ptr<DATA_TYPE>(ithr),
+                _helper._block_size,
+                _helper._S,
+                _helper._block_size,
+                _helper._S,
+                _helper._key_group_size);
 
             if (q_is_xf16) {
                 if (v_cache.get_precision() == ov::element::u4) {
                     auto sub_byte_multiplyer = 8 / v_cache.get_precision().bitwidth();
-                    size_t v_stride = (block_number * v_cache.m_strides[0] + hk * v_cache.m_strides[1]) / sub_byte_multiplyer;
+                    size_t v_stride =
+                        (block_number * v_cache.m_strides[0] + hk * v_cache.m_strides[1]) / sub_byte_multiplyer;
                     auto* v_ptr = v_cache.m_ptr.get() + v_stride;
-                    pack_32NxK<DATA_TYPE, ov::element::u4>(_helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
-                                v_ptr,
-                                _helper._output.template ptr<DATA_TYPE>(ithr),
-                                _helper._block_size,
-                                _helper._SV,
-                                rnd_up(_helper._SV, _helper._block_size),
-                                _helper._SV,
-                                _helper._value_group_size);
+                    pack_32NxK<DATA_TYPE, ov::element::u4>(
+                        _helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
+                        v_ptr,
+                        _helper._output.template ptr<DATA_TYPE>(ithr),
+                        _helper._block_size,
+                        _helper._SV,
+                        rnd_up(_helper._SV, _helper._block_size),
+                        _helper._SV,
+                        _helper._value_group_size);
                 } else if (v_cache.get_precision() == ov::element::i4) {
                     auto sub_byte_multiplyer = 8 / v_cache.get_precision().bitwidth();
-                    size_t v_stride = (block_number * v_cache.m_strides[0] + hk * v_cache.m_strides[1]) / sub_byte_multiplyer;
+                    size_t v_stride =
+                        (block_number * v_cache.m_strides[0] + hk * v_cache.m_strides[1]) / sub_byte_multiplyer;
                     auto* v_ptr = v_cache.m_ptr.get() + v_stride;
-                    pack_32NxK<DATA_TYPE, ov::element::i4>(_helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
-                                v_ptr,
-                                _helper._output.template ptr<DATA_TYPE>(ithr),
-                                _helper._block_size,
-                                _helper._SV,
-                                rnd_up(_helper._SV, _helper._block_size),
-                                _helper._SV,
-                                _helper._value_group_size);
+                    pack_32NxK<DATA_TYPE, ov::element::i4>(
+                        _helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
+                        v_ptr,
+                        _helper._output.template ptr<DATA_TYPE>(ithr),
+                        _helper._block_size,
+                        _helper._SV,
+                        rnd_up(_helper._SV, _helper._block_size),
+                        _helper._SV,
+                        _helper._value_group_size);
                 } else {
-                    pack_32NxK<DATA_TYPE, precision_of<VALUE_CACHE_TYPE>::value>(_helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
-                                v_ptr,
-                                _helper._output.template ptr<DATA_TYPE>(ithr),
-                                _helper._block_size,
-                                _helper._SV,
-                                rnd_up(_helper._SV, _helper._block_size),
-                                _helper._SV,
-                                _helper._value_group_size);
+                    pack_32NxK<DATA_TYPE, precision_of<VALUE_CACHE_TYPE>::value>(
+                        _helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
+                        v_ptr,
+                        _helper._output.template ptr<DATA_TYPE>(ithr),
+                        _helper._block_size,
+                        _helper._SV,
+                        rnd_up(_helper._SV, _helper._block_size),
+                        _helper._SV,
+                        _helper._value_group_size);
                 }
             } else {
                 // need to decompress
@@ -2059,10 +2219,13 @@ struct MHA {
             }
         });
 
-        // loop along HK dimension: if mixed first/second token and elements count is enough, loop HK to reuse KV in the CPU cache
+        // loop along HK dimension: if mixed first/second token and elements count is enough, loop HK to reuse KV in the
+        // CPU cache
         //    else if elements count is small, prefer to loop H to get more work to avoid thread imbalance
-        bool loop_hk = _workitems.get_reorder_max_batch_size() == past_lens.m_dims[0] ||        // if only first token, loop H
-            attn_work_count * Hk <= 2 * _helper._nthr ? false : true;                           // or less than 2 work items per thread, loop H
+        bool loop_hk = _workitems.get_reorder_max_batch_size() == past_lens.m_dims[0] ||  // if only first token, loop H
+                               attn_work_count * Hk <= 2 * _helper._nthr
+                           ? false
+                           : true;  // or less than 2 work items per thread, loop H
 
         parallel_for2d_dynamic(attn_work_count, loop_hk ? Hk : _helper._H, [&](size_t w, size_t hx) {
             size_t hk, hq_beg, hq_end;
@@ -2090,16 +2253,26 @@ struct MHA {
                     score_output = _helper._score_output.template ptr<float>() + score_offset * _helper._H;
                 }
 
-                _helper.exec_kernel_one_bh(q.slice(0, batch_in_token, batch_in_token), k_cache, v_cache,
+                _helper.exec_kernel_one_bh(
+                    q.slice(0, batch_in_token, batch_in_token),
+                    k_cache,
+                    v_cache,
                     output_emb.slice(0, batch_in_token, batch_in_token),
                     block_indices.ptr<int32_t>() + block_indices_begins.ptr<int32_t>()[batch_in_seq],
-                    ithr, hq_beg, hq_end, hk, 1ul, cur_kv_len, alibi_slopes,
+                    ithr,
+                    hq_beg,
+                    hq_end,
+                    hk,
+                    1ul,
+                    cur_kv_len,
+                    alibi_slopes,
                     score_output);
             } else {
                 const auto batch_in_reorder = item.batch_in_reorder;
                 const auto q_blk = item.q_block_id;
                 const auto q_cnt = std::min(_helper._block_size, q_len - q_blk * _helper._block_size);
-                const auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[batch_in_seq]) + q_blk * _helper._block_size + q_cnt;
+                const auto cur_kv_len =
+                    static_cast<size_t>(past_lens.ptr<int32_t>()[batch_in_seq]) + q_blk * _helper._block_size + q_cnt;
                 float* score_output = nullptr;
                 if (output_score) {
                     // last block
@@ -2112,9 +2285,11 @@ struct MHA {
                 PlainTensor sub_query;
                 sub_query.resize({q_len, _helper._H, _helper._S}, q.ptr<DATA_TYPE>(batch_in_token));
                 sub_query = sub_query.permute({1, 0, 2});
-                _helper.exec_kernel_multiple(sub_query,
+                _helper.exec_kernel_multiple(
+                    sub_query,
                     v_cache,
-                    output_emb.slice(0, batch_in_token, batch_in_token + q_len).reshape({q_len, _helper._H * _helper._SV}),
+                    output_emb.slice(0, batch_in_token, batch_in_token + q_len)
+                        .reshape({q_len, _helper._H * _helper._SV}),
                     _helper._qk_scratch_b.slice(0, batch_in_reorder, batch_in_reorder),
                     _helper._wv_scratch_b.slice(0, batch_in_reorder, batch_in_reorder),
                     block_indices.ptr<int32_t>() + block_indices_begins.ptr<int32_t>()[batch_in_seq],
@@ -2131,7 +2306,8 @@ struct MHA {
         });
         if (output_score) {
             parallel_for2d_dynamic(past_lens.m_dims[0], 1, [&](size_t b, size_t pq) {
-                auto seq_len = static_cast<size_t>(subsequence_begins.ptr<int32_t>()[b + 1] - subsequence_begins.ptr<int32_t>()[b]);
+                auto seq_len = static_cast<size_t>(subsequence_begins.ptr<int32_t>()[b + 1] -
+                                                   subsequence_begins.ptr<int32_t>()[b]);
                 auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + seq_len;
                 auto src_offset = _helper._score_offsets_aligned.template ptr<int32_t>()[b];
                 auto* src = _helper._score_output.template ptr<float>() + src_offset * _helper._H;
@@ -2162,11 +2338,29 @@ struct MHA {
         auto nthr = static_cast<size_t>(parallel_get_max_threads());
 
         if (past_lens.m_dims[0] >= nthr || _workitems.get_reorder_max_batch_size() > 0) {
-            exec_loop_mixed(query, present_key, present_value, output_emb, output_score, max_context_len, past_lens, subsequence_begins,
-                block_indices, block_indices_begins, alibi_slopes);
+            exec_loop_mixed(query,
+                            present_key,
+                            present_value,
+                            output_emb,
+                            output_score,
+                            max_context_len,
+                            past_lens,
+                            subsequence_begins,
+                            block_indices,
+                            block_indices_begins,
+                            alibi_slopes);
         } else {
-            _helper.exec_loop_bhl(query, present_key, present_value, output_emb, output_score, max_context_len, past_lens, subsequence_begins,
-                block_indices, block_indices_begins, alibi_slopes);
+            _helper.exec_loop_bhl(query,
+                                  present_key,
+                                  present_value,
+                                  output_emb,
+                                  output_score,
+                                  max_context_len,
+                                  past_lens,
+                                  subsequence_begins,
+                                  block_indices,
+                                  block_indices_begins,
+                                  alibi_slopes);
         }
     }
 };
@@ -2183,18 +2377,32 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         : _helper(MHAHelper<DATA_TYPE, KEY_CACHE_TYPE, VALUE_CACHE_TYPE>(key_group_size, value_group_size)),
           _kernel(_helper) {}
 
-    void init(const std::vector<MemoryPtr>& inputs, const std::vector<MemoryPtr>& outputs, PlainTensor& q, PlainTensor& k, PlainTensor& v, PlainTensor& k_cache,
-        PlainTensor& v_cache, PlainTensor& past_lens, PlainTensor& subsequence_begins, PlainTensor& block_indices, PlainTensor& block_indices_begins,
-        float& scale, size_t& sliding_window, PlainTensor& alibi_slopes, size_t& max_context_len, PlainTensor& output_emb, PlainTensor& output_score) {
-        q.reset(inputs[ID_Q]);                                      // [B_token, H * S]
+    void init(const std::vector<MemoryPtr>& inputs,
+              const std::vector<MemoryPtr>& outputs,
+              PlainTensor& q,
+              PlainTensor& k,
+              PlainTensor& v,
+              PlainTensor& k_cache,
+              PlainTensor& v_cache,
+              PlainTensor& past_lens,
+              PlainTensor& subsequence_begins,
+              PlainTensor& block_indices,
+              PlainTensor& block_indices_begins,
+              float& scale,
+              size_t& sliding_window,
+              PlainTensor& alibi_slopes,
+              size_t& max_context_len,
+              PlainTensor& output_emb,
+              PlainTensor& output_score) {
+        q.reset(inputs[ID_Q]);  // [B_token, H * S]
         k.reset(inputs[ID_K]);
         v.reset(inputs[ID_V]);
-        k_cache.reset(inputs[ID_KCACHE]);                           // [NUM_BLOCKS, H, 32, S]
-        v_cache.reset(inputs[ID_VCACHE]);                           // [NUM_BLOCKS, H, 32, S]
-        past_lens.reset(inputs[ID_PAST_LENS]);                      // [B_seq]
-        subsequence_begins.reset(inputs[ID_SUBSEQUENCE_BEGINS]);    // [B_seq+1]
-        block_indices.reset(inputs[ID_BLOCK_INDICES]);              // [num_blocks]
-        block_indices_begins.reset(inputs[ID_BLOCK_INDICES_BEGINS]);// [B_seq+1]
+        k_cache.reset(inputs[ID_KCACHE]);                             // [NUM_BLOCKS, H, 32, S]
+        v_cache.reset(inputs[ID_VCACHE]);                             // [NUM_BLOCKS, H, 32, S]
+        past_lens.reset(inputs[ID_PAST_LENS]);                        // [B_seq]
+        subsequence_begins.reset(inputs[ID_SUBSEQUENCE_BEGINS]);      // [B_seq+1]
+        block_indices.reset(inputs[ID_BLOCK_INDICES]);                // [num_blocks]
+        block_indices_begins.reset(inputs[ID_BLOCK_INDICES_BEGINS]);  // [B_seq+1]
         scale = *inputs[ID_SCALE]->getDataAs<float>();
         sliding_window = static_cast<size_t>(*inputs[ID_SLIDING_WINDOW]->getDataAs<int32_t>());
         if (!inputs[ID_ALIBI_SLOPES]->getShape().hasZeroDims())
@@ -2209,13 +2417,14 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         auto _key_group_size = _helper._key_group_size;
         auto _value_group_size = _helper._key_group_size;
         // The layout for per token per head for u8 kv cache:
-        // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
-        // The actual size needs to deduct scale and zeropoint.
+        // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
+        // feature(u8,idx_S)| The actual size needs to deduct scale and zeropoint.
         const size_t key_sub_byte_multiplyer = 8 / k_cache.get_precision().bitwidth();
         const size_t value_sub_byte_multiplyer = 8 / v_cache.get_precision().bitwidth();
         const size_t key_params_size = sizeof(float) * 2 * key_sub_byte_multiplyer;
         // u4 needs scale + zp. s4 needs scale.
-        const size_t param_size = one_of(v_cache.get_precision(), ov::element::u4, ov::element::u8) ? sizeof(float) * 2 : sizeof(float);
+        const size_t param_size =
+            one_of(v_cache.get_precision(), ov::element::u4, ov::element::u8) ? sizeof(float) * 2 : sizeof(float);
         const size_t value_params_size = param_size * value_sub_byte_multiplyer;
         size_t key_group_num = _key_group_size ? k_cache.size(3) / (_key_group_size + key_params_size) : 1;
         size_t value_group_num = _value_group_size ? v_cache.size(3) / (_value_group_size + value_params_size) : 1;
@@ -2261,8 +2470,14 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         _helper.init(H, S, SV, Hk, h_each_group_len, block_size, sliding_window, scale, max_context_len, alibi_slopes);
     }
 
-    void concat_pastkv(const PlainTensor& k, const PlainTensor& v, const PlainTensor& k_cache, const PlainTensor& v_cache,
-        const PlainTensor& past_lens, const PlainTensor& subsequence_begins, const PlainTensor& block_indices, const PlainTensor& block_indices_begins) {
+    void concat_pastkv(const PlainTensor& k,
+                       const PlainTensor& v,
+                       const PlainTensor& k_cache,
+                       const PlainTensor& v_cache,
+                       const PlainTensor& past_lens,
+                       const PlainTensor& subsequence_begins,
+                       const PlainTensor& block_indices,
+                       const PlainTensor& block_indices_begins) {
         auto B_token = k.size(0);
         _slot_mapping.resize<int32_t>({B_token});
 
@@ -2274,13 +2489,21 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             auto block_offset_start = kv_len - q_len;
             for (int32_t j = 0; j < q_len; j++) {
                 auto block_offset = block_offset_start + j;
-                auto block_number = block_indices.ptr<int32_t>()[block_number_start + block_offset / _helper._block_size];
-                _slot_mapping.ptr<int32_t>()[idx++] = block_number * _helper._block_size + block_offset % _helper._block_size;
+                auto block_number =
+                    block_indices.ptr<int32_t>()[block_number_start + block_offset / _helper._block_size];
+                _slot_mapping.ptr<int32_t>()[idx++] =
+                    block_number * _helper._block_size + block_offset % _helper._block_size;
             }
         }
 
         if (k_cache.m_dt == ov::element::Type_t::u8) {
-            paged_attn_quantkv(k, v, k_cache, v_cache, _slot_mapping, _helper._key_group_size, _helper._value_group_size);
+            paged_attn_quantkv(k,
+                               v,
+                               k_cache,
+                               v_cache,
+                               _slot_mapping,
+                               _helper._key_group_size,
+                               _helper._value_group_size);
         } else {
             paged_attn_memcpy(k, v, k_cache, v_cache, _slot_mapping);
         }
@@ -2296,12 +2519,36 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         PlainTensor output_emb;
         PlainTensor output_score;
 
-        init(inputs, outputs, q, k, v, k_cache, v_cache, past_lens, subsequence_begins, block_indices, block_indices_begins,
-            scale, sliding_window, alibi_slopes, max_context_len, output_emb, output_score);
+        init(inputs,
+             outputs,
+             q,
+             k,
+             v,
+             k_cache,
+             v_cache,
+             past_lens,
+             subsequence_begins,
+             block_indices,
+             block_indices_begins,
+             scale,
+             sliding_window,
+             alibi_slopes,
+             max_context_len,
+             output_emb,
+             output_score);
         concat_pastkv(k, v, k_cache, v_cache, past_lens, subsequence_begins, block_indices, block_indices_begins);
 
-        _kernel(q, k_cache, v_cache, output_emb, output_score, max_context_len, past_lens, subsequence_begins, block_indices,
-            block_indices_begins, alibi_slopes);
+        _kernel(q,
+                k_cache,
+                v_cache,
+                output_emb,
+                output_score,
+                max_context_len,
+                past_lens,
+                subsequence_begins,
+                block_indices,
+                block_indices_begins,
+                alibi_slopes);
     }
 };
 #endif
@@ -2315,32 +2562,35 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
 
 #ifdef OPENVINO_ARCH_X86_64
     if (data_type == ov::element::bf16) {
-#if defined(HAVE_AVX512F)
+#    if defined(HAVE_AVX512F)
         if (key_cache_type == ov::element::u8) {
-            executor = std::make_shared<AttentionExecutor<ov::bfloat16, uint8_t, uint8_t>>(key_group_size, value_group_size);
+            executor =
+                std::make_shared<AttentionExecutor<ov::bfloat16, uint8_t, uint8_t>>(key_group_size, value_group_size);
         } else {
             OPENVINO_ASSERT(key_cache_type == ov::element::bf16, "expect kvcache type bf16, current: ", key_cache_type);
             executor = std::make_shared<AttentionExecutor<ov::bfloat16, ov::bfloat16, ov::bfloat16>>();
         }
-#else
+#    else
         OPENVINO_THROW("make_pa_executor: bf16 needs avx512+ hardware.");
-#endif
+#    endif
     } else if (data_type == ov::element::f16) {
-#if defined(HAVE_AVX512F)
+#    if defined(HAVE_AVX512F)
         if (key_cache_type == ov::element::u8) {
-            executor = std::make_shared<AttentionExecutor<ov::float16, uint8_t, uint8_t>>(key_group_size, value_group_size);
+            executor =
+                std::make_shared<AttentionExecutor<ov::float16, uint8_t, uint8_t>>(key_group_size, value_group_size);
         } else {
             OPENVINO_ASSERT(key_cache_type == ov::element::f16, "expect kvcache type f16, current: ", key_cache_type);
             executor = std::make_shared<AttentionExecutor<ov::float16, ov::float16, ov::float16>>();
         }
-#else
+#    else
         OPENVINO_THROW("make_pa_executor: f16 needs avx512+ hardware.");
-#endif
+#    endif
     } else if (data_type == ov::element::f32) {
         if (key_cache_type == ov::element::u8) {
             executor = std::make_shared<AttentionExecutor<float, uint8_t, uint8_t>>(key_group_size, value_group_size);
         } else if (key_cache_type == ov::element::f16) {
-            executor = std::make_shared<AttentionExecutor<float, ov::float16, ov::float16>>(key_group_size, value_group_size);
+            executor =
+                std::make_shared<AttentionExecutor<float, ov::float16, ov::float16>>(key_group_size, value_group_size);
         } else {
             OPENVINO_ASSERT(key_cache_type == ov::element::f32, "expect kvcache type f32, current: ", key_cache_type);
             executor = std::make_shared<AttentionExecutor<float, float, float>>(key_group_size, value_group_size);

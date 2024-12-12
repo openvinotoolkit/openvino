@@ -9,11 +9,11 @@
 namespace ov {
 namespace intel_cpu {
 
-class ConvertMatMulToFC: public ov::pass::MatcherPass {
+class ConvertMatMulToFC : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertMatMulToFC", "0");
     ConvertMatMulToFC();
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov
