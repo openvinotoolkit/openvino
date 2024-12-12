@@ -1,4 +1,4 @@
-name: Export workflow metrics (BETA)
+name: Export workflow metrics
 
 on:
   workflow_run:
