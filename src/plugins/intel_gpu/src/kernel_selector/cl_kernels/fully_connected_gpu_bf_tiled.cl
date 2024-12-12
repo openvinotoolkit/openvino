@@ -21,7 +21,7 @@
 KERNEL(quantize_input)(
     const __global INPUT0_TYPE* input,
     __global DQ_TYPE* quantized_input,
-    __global float* quan_var
+    __global INPUT0_TYPE* quan_var
 ) {
     const uint offset = get_global_id(0);
 
@@ -58,9 +58,9 @@ KERNEL(quantize_input)(
     }
 
     // Pair of quantizing_scale and quantized activation_sum for each group
-    quan_var[offset * 2] = quan_scale;
+    quan_var[offset * 2] = CAT(CAT(convert_, INPUT0_TYPE), _rte)(quan_scale);
     #if COMPRESSED_WEIGHTS_INT8
-        quan_var[(offset * 2) + 1] = CAT(CAT(convert_, float), _rte)(quantized_sum);
+        quan_var[(offset * 2) + 1] = CAT(CAT(convert_, INPUT0_TYPE), _rte)(quantized_sum);
     #endif
 }
 #else  // !FC_KERNEL_DYNAMIC_QUANTIZE
@@ -838,7 +838,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
     __global DQ_TYPE* quantized_input,
-    __global float* quan_var,  // pair of params for each quantizing group : scale, activation_sum
+    __global INPUT0_TYPE* quan_var,  // pair of params for each quantizing group : scale, activation_sum
 #if DECOMPRESSION_SCALE_TERM
     const __global DECOMPRESSION_SCALE_TYPE* decompression_scale,
 #endif
@@ -915,7 +915,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
     INPUT0_TYPE                                     de_quantize_scale[TILE_B];
 
     #if COMPRESSED_WEIGHTS_INT8
-        float activation_sum[TILE_B] = { };
+        INPUT0_TYPE activation_sum[TILE_B] = { };
     #endif
 
     #if COMPRESSED_WEIGHTS && DECOMPRESSION_SCALE_GROUPS_NUM == 1
@@ -995,8 +995,8 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
                 #if COMPRESSED_WEIGHTS_INT8
                     // Need additional accumulation of quantized activation along the dyn-quan group
                     //  to use i8 multiplier for int8 weight
-                    activation_sum[bi * 2] = quan_var[scale_offset * 2 + 1];
-                    activation_sum[bi * 2 + 1] = quan_var[scale_offset * 2 + 1 + scale_pitch * 2];
+                    activation_sum[bi * 2] = TO_INPUT0_TYPE(quan_var[scale_offset * 2 + 1]);
+                    activation_sum[bi * 2 + 1] = TO_INPUT0_TYPE(quan_var[scale_offset * 2 + 1 + scale_pitch * 2]);
                 #endif
                 scale_offset += (scale_pitch * 2);
             #endif
@@ -1366,7 +1366,7 @@ KERNEL(fc)(
 #endif
 #if DYNAMIC_QUANTIZE
     , __global DQ_TYPE* quantized_input
-    , __global float* quan_var
+    , __global INPUT0_TYPE* quan_var
 #endif
 ) {
 #if USE_SLM

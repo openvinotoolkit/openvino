@@ -126,9 +126,9 @@ static size_t get_dynamic_quantize_group_size(const fully_connected_params& para
                 dynamic_quantization_group_size = zp_group_size;
             }
 
-            GPU_DEBUG_TRACE_DETAIL << "FC dyn-quantize by per-token. Actual dyn_quan_group_size(" << dynamic_quantization_group_size
-                                    << ") : From scale_group_size (" << scale_group_size << ", zp_group_size("  << zp_group_size
-                                    << "), zp_group_num(" << zp_group_num << "), ifm_size (" << get_input_bf_size(params).second << ")" << std::endl;
+            GPU_DEBUG_LOG << "FC dyn-quantize by per-token. Actual dyn_quan_group_size(" << dynamic_quantization_group_size
+                            << ") : From scale_group_size (" << scale_group_size << ", zp_group_size("  << zp_group_size
+                            << "), zp_group_num(" << zp_group_num << "), ifm_size (" << get_input_bf_size(params).second << ")" << std::endl;
             return (size_t)dynamic_quantization_group_size;
         }
     }
@@ -1116,8 +1116,7 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
         kd.internalBufferSizes.push_back((input_size / quantize_grp_size) * sizeof(float) * 2);
         kernel_number++;
     }
-    // kd.internalBufferDataType = Datatype::F16;
-    kd.internalBufferDataType = Datatype::F32;
+    kd.internalBufferDataType = Datatype::F16;
 
     // FC kernel for dynamic quantized input with KernelType::DEFAULT
     {
