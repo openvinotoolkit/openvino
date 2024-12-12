@@ -258,7 +258,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             const int estimated_batch = static_cast<int>((total_mem - batch1_footprint) / batch1_footprint);
             int closest = static_cast<int>(pow(2, floor(std::log(estimated_batch) / std::log(2))));
             closest = std::max(1, closest);
-            meta_device.device_batch_size = std::min(static_cast<int>(meta_device.device_batch_size), closest);
+	    meta_device.device_batch_size = std::min(256, std::max(static_cast<int>(meta_device.device_batch_size), closest));
         }
     }
 
