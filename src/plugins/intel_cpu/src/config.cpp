@@ -393,7 +393,19 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                     }
                 }
             } catch (ov::Exception&) {
-
+                if (key == ov::hint::key_cache_precision.name()) {
+                    OPENVINO_THROW("Wrong value ",
+                                   val.as<std::string>(),
+                                   " for property key ",
+                                   ov::hint::key_cache_precision.name(),
+                                   ". Supported values: u8, bf16, f16, f32");
+                } else {
+                    OPENVINO_THROW("Wrong value ",
+                                   val.as<std::string>(),
+                                   " for property key ",
+                                   ov::hint::value_cache_precision.name(),
+                                   ". Supported values: u4, s4, u8, bf16, f16, f32");
+                }
             }
         } else if (key == ov::hint::key_cache_group_size.name() || key == ov::hint::value_cache_group_size.name()) {
             try {
