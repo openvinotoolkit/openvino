@@ -90,15 +90,12 @@ auto compiled = core.compile_model(model, device, config);            // Step 5:
     }
 }
 
-
 void part5() {
     std::string modelPath = "/tmp/myModel.xml";
     std::string device = "GPU";
     ov::Core core;                                           // Step 1: create ov::Core object
     core.set_property(ov::cache_dir("/path/to/cache/dir"));  // Step 1b: Enable caching
 //! [ov:caching:part5]
-ov::AnyMap config;
-ov::EncryptionCallbacks encryption_callbacks;
 static const char codec_key[] = {0x30, 0x60, 0x70, 0x02, 0x04, 0x08, 0x3F, 0x6F, 0x72, 0x74, 0x78, 0x7F};
 auto codec_xor = [&](const std::string& source_str) {
     auto key_size = sizeof(codec_key);
@@ -110,11 +107,10 @@ auto codec_xor = [&](const std::string& source_str) {
     }
     return dst_str;
 };
-encryption_callbacks.encrypt = codec_xor;
-encryption_callbacks.decrypt = codec_xor;
-config.insert(ov::cache_encryption_callbacks(encryption_callbacks));  // Step 4: Set device configuration
-config.insert(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
-auto compiled = core.compile_model(modelPath, device, config);       // Step 5: LoadNetwork
+auto compiled = core.compile_model(modelPath,
+                                   device,
+                                   ov::cache_encryption_callbacks(ov::EncryptionCallbacks{codec_xor, codec_xor}),
+                                   ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));  // Step 5: Compile model
 //! [ov:caching:part5]
     if (!compiled) {
         throw std::runtime_error("error");

@@ -157,7 +157,7 @@ If model caching is enabled in CPU Plugin, the model topology can be encrypted w
          :language: cpp
          :fragment: [ov:caching:part4]
 
-If model caching is enabled in GPU Plugin, everything can be encrypted when saving to the cache and decrypted when loading from the cache. This property only works when ``CacheMode`` property is set to ``OPTIMIZE_SIZE``.
+If model caching is enabled in GPU Plugin, everything can be encrypted when saving to the cache and decrypted when loading from the cache. Full encryption only works when ``CacheMode`` property is set to ``OPTIMIZE_SIZE``.
 
 .. tab-set::
 
