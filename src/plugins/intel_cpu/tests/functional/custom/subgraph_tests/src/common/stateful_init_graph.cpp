@@ -215,6 +215,8 @@ public:
     void SetUp() override {
         targetDevice = utils::DEVICE_CPU;
 
+        configuration.insert({ov::hint::inference_precision(ov::element::f32)});
+
         bool directPair;
         std::tie(inputShapes, directPair) = this->GetParam();
 
