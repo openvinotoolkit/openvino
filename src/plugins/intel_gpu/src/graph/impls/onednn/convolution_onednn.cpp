@@ -121,7 +121,7 @@ struct convolution_onednn : typed_primitive_onednn_impl<convolution> {
 
 private:
     int _zero_point_mask;
-    dnnl::memory::data_type _wzp_data_type;
+    dnnl::memory::data_type _wzp_data_type = dnnl::memory::data_type::undef;
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
