@@ -4,8 +4,9 @@
 
 #include "space_to_batch.h"
 
-#include "openvino/core/parallel.hpp"
 #include <openvino/op/space_to_batch.hpp>
+
+#include "openvino/core/parallel.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -48,7 +49,7 @@ void SpaceToBatch::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    const auto &inDims = getInputShapeAtPort(0).getDims();
+    const auto& inDims = getInputShapeAtPort(0).getDims();
     const auto precision = getOriginalInputPrecisionAtPort(0);
     const std::set<size_t> supported_precision_sizes = {1, 2, 4, 8};
     if (supported_precision_sizes.find(precision.size()) == supported_precision_sizes.end())
@@ -84,7 +85,7 @@ void SpaceToBatch::initSupportedPrimitiveDescriptors() {
     }
 }
 
-static std::vector<int64_t> getShape5D(const VectorDims &shape) {
+static std::vector<int64_t> getShape5D(const VectorDims& shape) {
     std::vector<int64_t> shape5D(5, 1);
     for (int i = 0; i < 2; i++) {
         shape5D[i] = shape[i];
@@ -94,38 +95,38 @@ static std::vector<int64_t> getShape5D(const VectorDims &shape) {
     return shape5D;
 }
 
-template<typename T>
+template <typename T>
 void SpaceToBatch::SpaceToBatchKernel() {
     const auto& srcMem = getSrcMemoryAtPort(0);
     const auto& dstMem = getDstMemoryAtPort(0);
 
-    const auto *blockShapesPtr = getSrcDataAtPortAs<int>(1);
+    const auto* blockShapesPtr = getSrcDataAtPortAs<int>(1);
     size_t dataRank = srcMem->getShape().getRank();
     blockShapeIn.clear();
     for (size_t i = 0; i < dataRank; i++) {
         blockShapeIn.push_back(*(blockShapesPtr + i));
     }
 
-    const auto *padsBeginPtr = getSrcDataAtPortAs<int>(2);
+    const auto* padsBeginPtr = getSrcDataAtPortAs<int>(2);
     padsBeginIn.clear();
     for (size_t i = 0; i < dataRank; i++) {
         padsBeginIn.push_back(*(padsBeginPtr + i));
     }
 
-    const auto *srcData = srcMem->getDataAs<const T>();
-    auto *dstData = dstMem->getDataAs<T>();
+    const auto* srcData = srcMem->getDataAs<const T>();
+    auto* dstData = dstMem->getDataAs<T>();
 
     const int64_t srcLen = srcMem->getSize() / sizeof(T);
     const int64_t dstLen = dstMem->getSize() / sizeof(T);
 
-    const auto &inDims = srcMem->getStaticDims();
-    const auto &outDims = dstMem->getStaticDims();
+    const auto& inDims = srcMem->getStaticDims();
+    const auto& outDims = dstMem->getStaticDims();
 
-    const bool blocked = srcMem->getDesc().hasLayoutType(LayoutType::nCsp16c) ||
-                         srcMem->getDesc().hasLayoutType(LayoutType::nCsp8c);
+    const bool blocked =
+        srcMem->getDesc().hasLayoutType(LayoutType::nCsp16c) || srcMem->getDesc().hasLayoutType(LayoutType::nCsp8c);
     const auto dimsSize = inDims.size();
 
-    auto inShape5D  = getShape5D(outDims);
+    auto inShape5D = getShape5D(outDims);
     auto outShape5D = getShape5D(inDims);
     auto blockShape = getShape5D(blockShapeIn);
 
@@ -216,11 +217,14 @@ void SpaceToBatch::SpaceToBatchKernel() {
                             const int64_t srcIdx4 = srcIdx3 + tmpOw * blockSize;
                             const int64_t dstIdx4 = dstIdx3 + i4 * blockSize;
                             for (int64_t it = 0; it < itEnd + 1; ++it) {
-                                const int64_t i5Begin = it == 0 ? 0 : (it * blockSize - 1 - oAdd[1]) / blockShape[1] + 1;
-                                const int64_t i5End = it == itEnd ? (block - 1) : ((it + 1) * blockSize - 1 - oAdd[1]) / blockShape[1];
+                                const int64_t i5Begin =
+                                    it == 0 ? 0 : (it * blockSize - 1 - oAdd[1]) / blockShape[1] + 1;
+                                const int64_t i5End =
+                                    it == itEnd ? (block - 1) : ((it + 1) * blockSize - 1 - oAdd[1]) / blockShape[1];
                                 for (int64_t i5 = i5Begin; i5 < i5End + 1; ++i5) {
                                     const int64_t tmpOc = i5 * blockShape[1] + addTmpOc;
-                                    const int64_t srcIdx5 = srcIdx4 + it * outSpatialStep * blockSize + (tmpOc - it * blockSize);
+                                    const int64_t srcIdx5 =
+                                        srcIdx4 + it * outSpatialStep * blockSize + (tmpOc - it * blockSize);
                                     const int64_t dstIdx5 = dstIdx4 + i5;
                                     if (srcIdx5 >= srcLen || dstIdx5 >= dstLen) {
                                         continue;
@@ -254,7 +258,7 @@ void SpaceToBatch::execute(dnnl::stream strm) {
         break;
     default:
         OPENVINO_THROW("SpaceToBatch layer does not support precision '" +
-                           std::string(getParentEdgeAt(0)->getMemory().getDesc().getPrecision().get_type_name()) + "'");
+                       std::string(getParentEdgeAt(0)->getMemory().getDesc().getPrecision().get_type_name()) + "'");
     }
 }
 
@@ -262,6 +266,6 @@ bool SpaceToBatch::created() const {
     return getType() == Type::SpaceToBatch;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

@@ -8,17 +8,17 @@
 #include "compiled_model.h"
 #include "dnnl_extension_utils.h"
 #include "itt.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_state.h"
 #include "nodes/common/cpu_convert.h"
-#include "memory_desc/cpu_memory_desc_utils.h"
 #include "nodes/memory_state_base.h"
 #include "openvino/core/shape.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "openvino/runtime/threading/cpu_message.hpp"
 #include "proxy_mem_blk.h"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
-#include "openvino/runtime/threading/cpu_message.hpp"
 
 using OvString = ov::element_type_traits<ov::element::string>::value_type;
 
@@ -56,7 +56,7 @@ void SyncInferRequest::create_infer_request() {
         init_tensor(it.first, ov::ISyncInferRequest::FoundPort::Type::OUTPUT);
     }
 
-    //create states according to the list of the MemoryStateNodes
+    // create states according to the list of the MemoryStateNodes
     for (auto&& node : m_graph->getInternalStateNodes()) {
         m_memory_states.emplace_back(node.second->makeState());
     }
@@ -162,7 +162,7 @@ static inline void change_edge_ptr(const EdgePtr& edge, ov::SoPtr<ov::ITensor>& 
     OPENVINO_ASSERT(mem != nullptr, "Edge with name '", *edge, "' doesn't have allocated memory object.");
 
     if (tensor->get_element_type() == element::string) {
-        auto memBlock = dynamic_cast<StringMemory *>(mem.get())->getStringMemoryBlockPtr();
+        auto memBlock = dynamic_cast<StringMemory*>(mem.get())->getStringMemoryBlockPtr();
         OPENVINO_ASSERT(memBlock);
         memBlock->setExtBuff(tensor->data<StringMemory::OvString>(), tensor->get_size());
     } else {
@@ -177,14 +177,14 @@ void SyncInferRequest::change_default_ptr() {
     const auto& outputNodesMap = m_graph->GetOutputNodesMap();
 
     std::unordered_set<const void*> inputPtrs;
-    std::function<void(const EdgePtr &edge, ov::SoPtr<ov::ITensor>& tensor)> changeInpPtr;
+    std::function<void(const EdgePtr& edge, ov::SoPtr<ov::ITensor>& tensor)> changeInpPtr;
     if (m_graph->IsDynamic()) {
-        changeInpPtr = [&inputPtrs](const EdgePtr &edge, ov::SoPtr<ov::ITensor>& tensor) {
+        changeInpPtr = [&inputPtrs](const EdgePtr& edge, ov::SoPtr<ov::ITensor>& tensor) {
             change_edge_ptr(edge, tensor);
             inputPtrs.insert(tensor->data());
         };
     } else {
-        changeInpPtr = [](const EdgePtr &edge, ov::SoPtr<ov::ITensor>& tensor) {
+        changeInpPtr = [](const EdgePtr& edge, ov::SoPtr<ov::ITensor>& tensor) {
             change_edge_ptr(edge, tensor);
         };
     }
@@ -279,7 +279,7 @@ void SyncInferRequest::change_default_ptr() {
     }
 
     if (m_graph->IsDynamic()) {
-        const auto &outMemBlocksMap = m_graph->getOutputNodesMemBlocksMap();
+        const auto& outMemBlocksMap = m_graph->getOutputNodesMemBlocksMap();
         for (auto&& item : outMemBlocksMap) {
             const auto& name = item.first;
 
@@ -291,20 +291,32 @@ void SyncInferRequest::change_default_ptr() {
 
             if (controlBlockItr != m_outputControlBlocks.end()) {
                 auto output = outputNodesMap.find(name);
-                OPENVINO_ASSERT(outputNodesMap.end() != output, "Node with name: ", name, " is absent in the outputNodesMap");
+                OPENVINO_ASSERT(outputNodesMap.end() != output,
+                                "Node with name: ",
+                                name,
+                                " is absent in the outputNodesMap");
                 auto parentEdge = output->second->getParentEdgeAt(0);
-                //avoid cyclic memory use
+                // avoid cyclic memory use
                 auto&& controlBlock = controlBlockItr->second;
 
-                std::shared_ptr<IMemoryBlock> memBlock = inputPtrs.count(controlBlock.rawPtr()) ? // same memory is used on the input and output
-                    controlBlock.nextMemBlock() : // then swap internal buffer to avoid data corruption
-                    controlBlock.currentMemBlock(); // else reuse the existing buffer
+                std::shared_ptr<IMemoryBlock> memBlock =
+                    inputPtrs.count(controlBlock.rawPtr()) ?  // same memory is used on the input and output
+                        controlBlock.nextMemBlock()
+                                                           :  // then swap internal buffer to avoid data corruption
+                        controlBlock.currentMemBlock();       // else reuse the existing buffer
 
                 outputMemBlock->setMemBlockResize(memBlock);
-                DEBUG_LOG("reset proxy ", outputMemBlock, ", actual ", controlBlock.currentMemBlock(), " graph ", m_graph, " inferrequest ", this);
+                DEBUG_LOG("reset proxy ",
+                          outputMemBlock,
+                          ", actual ",
+                          controlBlock.currentMemBlock(),
+                          " graph ",
+                          m_graph,
+                          " inferrequest ",
+                          this);
                 DEBUG_LOG(name, ", tensor ", controlBlock.tensor());
             } else {
-                outputMemBlock->reset(); // switch to the internal memory since memory sharing is no longer possible
+                outputMemBlock->reset();  // switch to the internal memory since memory sharing is no longer possible
             }
         }
     }
@@ -456,12 +468,13 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
         }
 
         m_outputs[output_index] = tensor;
-        m_outputControlBlocks.erase(output_index); // now the memory is under user's control
+        m_outputControlBlocks.erase(output_index);  // now the memory is under user's control
     }
     ov::ISyncInferRequest::set_tensor(port, tensor);
 }
 
-void SyncInferRequest::set_tensors_impl(const ov::Output<const ov::Node> port, const std::vector<ov::SoPtr<ITensor>>& tensors) {
+void SyncInferRequest::set_tensors_impl(const ov::Output<const ov::Node> port,
+                                        const std::vector<ov::SoPtr<ITensor>>& tensors) {
     if (find_port(port).is_input()) {
         m_batched_tensors[port.get_tensor_ptr()] = tensors;
         return;
@@ -541,7 +554,8 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
                         }
 
                         dnnl::engine eng(dnnl::engine::kind::cpu, 0);
-                        CpuBlockedMemoryDescPtr desc = std::make_shared<CpuBlockedMemoryDesc>(model_prec, Shape{memDims});
+                        CpuBlockedMemoryDescPtr desc =
+                            std::make_shared<CpuBlockedMemoryDesc>(model_prec, Shape{memDims});
                         auto memory = std::make_shared<StringMemory>(eng, desc);
 
                         tensor = std::make_shared<Tensor>(memory);
@@ -551,12 +565,12 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
                         OutputControlBlock control_block{model_prec, Shape{shape}};
 
                         DEBUG_LOG(port_index,
-                                ", tensor ",
-                                control_block.tensor(),
-                                ", memBlock ",
-                                control_block.tensor()->get_memory()->getMemoryBlock(),
-                                "memory object ",
-                                control_block.tensor()->get_memory().get());
+                                  ", tensor ",
+                                  control_block.tensor(),
+                                  ", memBlock ",
+                                  control_block.tensor()->get_memory()->getMemoryBlock(),
+                                  "memory object ",
+                                  control_block.tensor()->get_memory().get());
 
                         tensor = control_block.tensor();
                         if (model_prec == graph_prec)
@@ -602,7 +616,7 @@ SyncInferRequest::OutputControlBlock::OutputControlBlock(const ov::element::Type
     m_proxyMemBlock = std::make_shared<ProxyMemoryBlock>(m_buffers[m_buffIndx]);
 
     VectorDims memDims;
-    if (shape.isDynamic()) { // this is a WA since the ITensor doesn't allow dyn shapes
+    if (shape.isDynamic()) {  // this is a WA since the ITensor doesn't allow dyn shapes
         for (auto&& item : shape.getDims()) {
             memDims.push_back(item != Shape::UNDEFINED_DIM ? item : 0);
         }
@@ -610,8 +624,7 @@ SyncInferRequest::OutputControlBlock::OutputControlBlock(const ov::element::Type
         memDims = shape.getStaticDims();
     }
 
-    CpuBlockedMemoryDescPtr desc =
-        std::make_shared<CpuBlockedMemoryDesc>(precision, Shape{memDims});
+    CpuBlockedMemoryDescPtr desc = std::make_shared<CpuBlockedMemoryDesc>(precision, Shape{memDims});
 
     auto memory = std::make_shared<Memory>(eng, desc, m_proxyMemBlock);
     m_tensor = std::make_shared<Tensor>(memory);
@@ -649,6 +662,5 @@ void SyncInferRequest::sub_streams_infer() {
     }
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
-
+}  // namespace intel_cpu
+}  // namespace ov

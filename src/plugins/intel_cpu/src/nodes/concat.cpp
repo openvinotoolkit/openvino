@@ -4,29 +4,29 @@
 
 #include "concat.h"
 
-#include "openvino/op/concat.hpp"
+#include <cpu_memory.h>
+#include <edge.h>
+#include <memory_desc/cpu_memory_desc_utils.h>
+#include <onednn/iml_type_mapper.h>
+#include <partitioned_mem_blk.h>
 
 #include <map>
 #include <utility>
 #include <vector>
-#include "dnnl_extension_utils.h"
 
-#include "onednn/dnnl.h"
-#include <onednn/iml_type_mapper.h>
-#include <edge.h>
-#include <cpu_memory.h>
-#include "openvino/core/parallel.hpp"
-#include "common/cpu_memcpy.h"
 #include "common/blocked_desc_creator.h"
-#include <memory_desc/cpu_memory_desc_utils.h>
-#include <partitioned_mem_blk.h>
+#include "common/cpu_memcpy.h"
+#include "dnnl_extension_utils.h"
+#include "onednn/dnnl.h"
+#include "openvino/core/parallel.hpp"
+#include "openvino/op/concat.hpp"
 using namespace dnnl;
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 namespace {
-    constexpr size_t channelAxis = 1lu;
+constexpr size_t channelAxis = 1lu;
 }
 
 bool Concat::isExecutable() const {
@@ -86,11 +86,14 @@ void Concat::getSupportedDescriptors() {
         }
     }
 
-    // we need the first dims before axis to be 1 to avoid the reorder in the edge between the first parent and this concat
+    // we need the first dims before axis to be 1 to avoid the reorder in the edge between the first parent and this
+    // concat
 
     const auto& childDims = outputShapes[0].getDims();
     if (childDims[axis] != Shape::UNDEFINED_DIM &&
-        std::all_of(childDims.begin(), childDims.begin() + axis, [](size_t dim) { return  dim == 1; }))
+        std::all_of(childDims.begin(), childDims.begin() + axis, [](size_t dim) {
+            return dim == 1;
+        }))
         canBeInPlace = true;
 }
 
@@ -118,11 +121,11 @@ void Concat::initSupportedPrimitiveDescriptors() {
     const auto& dstShape = getOutputShapeAtPort(0);
     std::vector<LayoutType> tdCreatorTypes = {LayoutType::ncsp, LayoutType::nspc};
 
-    // check if blocked layouts are available the channels size should be evenly divided by the block size to avoid slow oneDNN ref implementation and allow
-    // inPlace memory usage if possible
+    // check if blocked layouts are available the channels size should be evenly divided by the block size to avoid slow
+    // oneDNN ref implementation and allow inPlace memory usage if possible
     if (dstShape.getRank() > channelAxis) {
-        for (auto& item : { std::make_pair(8lu, LayoutType::nCsp8c), std::make_pair(16lu, LayoutType::nCsp16c)}) {
-            const VectorDims &blkDims = dstShape.getDims();
+        for (auto& item : {std::make_pair(8lu, LayoutType::nCsp8c), std::make_pair(16lu, LayoutType::nCsp16c)}) {
+            const VectorDims& blkDims = dstShape.getDims();
             if (blkDims[channelAxis] == Shape::UNDEFINED_DIM || blkDims[channelAxis] % item.first != 0)
                 continue;
 
@@ -144,7 +147,8 @@ void Concat::initSupportedPrimitiveDescriptors() {
 
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
 
-    auto itrRange = BlockedDescCreator::makeFilteredRange(creatorsMap, static_cast<unsigned>(dstShape.getRank()), tdCreatorTypes);
+    auto itrRange =
+        BlockedDescCreator::makeFilteredRange(creatorsMap, static_cast<unsigned>(dstShape.getRank()), tdCreatorTypes);
     for (auto itr = itrRange.first; itr != itrRange.second; ++itr) {
         NodeConfig config;
 
@@ -183,12 +187,15 @@ void Concat::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    if (!canBeInPlace || std::any_of(inputShapes.begin(), inputShapes.end(), [](const Shape& shape) { return shape.hasZeroDims(); }))
+    if (!canBeInPlace || std::any_of(inputShapes.begin(), inputShapes.end(), [](const Shape& shape) {
+            return shape.hasZeroDims();
+        }))
         return;
 
     // Optimized inplace case
     for (auto refPdIndex : pdIndexesToReuse) {
-        auto config = supportedPrimitiveDescriptors[refPdIndex].getConfig();;
+        auto config = supportedPrimitiveDescriptors[refPdIndex].getConfig();
+        ;
         for (size_t i = 0; i < config.inConfs.size(); i++) {
             config.inConfs[i].inPlace(0);
         }
@@ -204,12 +211,16 @@ void Concat::selectOptimalPrimitiveDescriptor() {
     // for that case.
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         for (size_t j = i + 1; j < getParentEdges().size(); j++) {
-            if (getParentEdgeAt(i) == getParentEdgeAt(j)) canBeInPlace = false;
+            if (getParentEdgeAt(i) == getParentEdgeAt(j))
+                canBeInPlace = false;
         }
     }
 
     std::map<LayoutType, size_t> formatFrequency;
-    std::vector<LayoutType> supportedLayouts = {LayoutType::ncsp, LayoutType::nspc, LayoutType::nCsp8c, LayoutType::nCsp16c};
+    std::vector<LayoutType> supportedLayouts = {LayoutType::ncsp,
+                                                LayoutType::nspc,
+                                                LayoutType::nCsp8c,
+                                                LayoutType::nCsp16c};
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto parentEdge = getParentEdgeAt(i);
         auto parent = parentEdge->getParent();
@@ -218,11 +229,11 @@ void Concat::selectOptimalPrimitiveDescriptor() {
         if (parent_pdesc == nullptr)
             continue;
 
-        const auto &parent_config = parent_pdesc->getConfig();
+        const auto& parent_config = parent_pdesc->getConfig();
         int outputIndex = parentEdge->getInputNum();
         if (outputIndex < 0 || outputIndex >= static_cast<int>(parent_config.outConfs.size()))
             OPENVINO_THROW("Cannot find index of output node");
-        const auto &port_desc = parent_config.outConfs[outputIndex].getMemDesc();
+        const auto& port_desc = parent_config.outConfs[outputIndex].getMemDesc();
         for (auto& item : supportedLayouts) {
             if (port_desc->hasLayoutType(item)) {
                 formatFrequency[item] += 1;
@@ -232,15 +243,15 @@ void Concat::selectOptimalPrimitiveDescriptor() {
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto childEdge = getChildEdgeAt(i);
         auto child = childEdge->getChild();
-        const auto *prim_desc = child->getSelectedPrimitiveDescriptor();
+        const auto* prim_desc = child->getSelectedPrimitiveDescriptor();
         if (prim_desc == nullptr)
             continue;
 
-        const auto &config = prim_desc->getConfig();
+        const auto& config = prim_desc->getConfig();
         int inputIndex = childEdge->getOutputNum();
         if (inputIndex < 0 || inputIndex >= static_cast<int>(config.inConfs.size()))
             OPENVINO_THROW("Cannot find index of output node");
-        const auto &port_desc = config.inConfs[inputIndex].getMemDesc();
+        const auto& port_desc = config.inConfs[inputIndex].getMemDesc();
         for (auto& item : supportedLayouts) {
             if (port_desc->hasLayoutType(item)) {
                 formatFrequency[item] += 1;
@@ -249,9 +260,9 @@ void Concat::selectOptimalPrimitiveDescriptor() {
     }
 
     size_t maxCount = 0;
-    const auto &outDims = getOutputShapeAtPort(0).getDims();
+    const auto& outDims = getOutputShapeAtPort(0).getDims();
     LayoutType convertTo = LayoutType::ncsp;
-    for (auto &it : formatFrequency) {
+    for (auto& it : formatFrequency) {
         if (it.second > maxCount) {
             maxCount = it.second;
             convertTo = it.first;
@@ -264,7 +275,7 @@ void Concat::selectOptimalPrimitiveDescriptor() {
         }
     }
 
-    for (auto& item : { std::make_pair(8lu, LayoutType::nCsp8c), std::make_pair(16lu, LayoutType::nCsp16c) }) {
+    for (auto& item : {std::make_pair(8lu, LayoutType::nCsp8c), std::make_pair(16lu, LayoutType::nCsp16c)}) {
         if (convertTo == item.second) {
             if (outDims[channelAxis] == Shape::UNDEFINED_DIM || outDims[1] % item.first != 0) {
                 convertTo = LayoutType::ncsp;
@@ -282,7 +293,8 @@ void Concat::selectOptimalPrimitiveDescriptor() {
 
     for (size_t i = 0; i < supportedPrimitiveDescriptors.size(); ++i) {
         if (supportedPrimitiveDescriptors[i].getConfig().outConfs[0].getMemDesc()->hasLayoutType(convertTo)) {
-            if (IMPLICATION(supportedPrimitiveDescriptors[i].getImplementationType() == impl_desc_type::unknown, canBeInPlace)) {
+            if (IMPLICATION(supportedPrimitiveDescriptors[i].getImplementationType() == impl_desc_type::unknown,
+                            canBeInPlace)) {
                 canSelectPrimitive.push_back(i);
             }
         }
@@ -444,24 +456,26 @@ void Concat::initOptimalPrimitiveDescriptor() {
     if (selected_pd == nullptr)
         OPENVINO_THROW("Preferable primitive descriptor is not set.");
 
-   if (!isInPlace()) {
-       Node::initOptimalPrimitiveDescriptor();
+    if (!isInPlace()) {
+        Node::initOptimalPrimitiveDescriptor();
         auto config = selected_pd->getConfig();
         if (!isConfigDefined(config)) {
             for (size_t i = 0; i < config.inConfs.size(); i++) {
                 // Concat doesn't support different precision on inputs
-                config.inConfs[i].setMemDesc(getConsistentInputDesc(config, i)->getMemDesc()->cloneWithNewPrecision(inputPrecision));
+                config.inConfs[i].setMemDesc(
+                    getConsistentInputDesc(config, i)->getMemDesc()->cloneWithNewPrecision(inputPrecision));
             }
 
             for (size_t i = 0; i < config.outConfs.size(); i++) {
-                config.outConfs[i].setMemDesc(getConsistentOutputDesc(config, i)->getMemDesc()->cloneWithNewPrecision(outputPrecision));
+                config.outConfs[i].setMemDesc(
+                    getConsistentOutputDesc(config, i)->getMemDesc()->cloneWithNewPrecision(outputPrecision));
             }
 
             initDescriptor(config);
         }
     }
 
-    //block layout may have axis greater than rank, disable ref_concat
+    // block layout may have axis greater than rank, disable ref_concat
     auto primDesc = getSelectedPrimitiveDescriptor();
     auto memDesc = primDesc->getConfig().outConfs[0].getMemDesc()->as<BlockedMemoryDesc>();
     auto rank = memDesc->getShape().getRank();
@@ -474,7 +488,9 @@ void Concat::initOptimalPrimitiveDescriptor() {
         srcPtrs.resize(getParentEdges().size());
     }
     // check if selected Tensor descriptor has nspc layout and concat axis is C
-    canOptimizeNspc = axis == channelAxis && getSelectedPrimitiveDescriptor()->getConfig().outConfs.front().getMemDesc()->hasLayoutType(LayoutType::nspc);
+    canOptimizeNspc =
+        axis == channelAxis &&
+        getSelectedPrimitiveDescriptor()->getConfig().outConfs.front().getMemDesc()->hasLayoutType(LayoutType::nspc);
 }
 
 void Concat::execute(dnnl::stream strm) {
@@ -497,7 +513,7 @@ void Concat::execute(dnnl::stream strm) {
     } else {
         const auto& dst_memory = getChildEdgeAt(0)->getMemory();
         const size_t num_src = getParentEdges().size();
-        std::unordered_map<int, memory> mem_ags {{DNNL_ARG_DST, dst_memory.getPrimitive()}};
+        std::unordered_map<int, memory> mem_ags{{DNNL_ARG_DST, dst_memory.getPrimitive()}};
         size_t nonZeroInShapes = 0;
         for (size_t i = 0; i < num_src; i++) {
             const auto& srcMem = getParentEdgeAt(i)->getMemory();
@@ -580,7 +596,7 @@ void Concat::execRef() {
     }
 
     if (!hasOuterLoop) {
-        if (nelemTotal < 64*1024 || parallel_get_max_threads() == 1) {
+        if (nelemTotal < 64 * 1024 || parallel_get_max_threads() == 1) {
             for (size_t a = 0; a < srcPtrs.size(); ++a) {
                 const auto inData = srcPtrs[a];
                 auto outputData = &dstPtr[dstOffset[a]];
@@ -612,63 +628,65 @@ void Concat::execRef() {
             physDims[i] = outputShape[i];
         }
         const auto L1Size = dnnl::utils::get_cache_size(1, true);
-        UNUSED(L1Size); // for Windows
-        parallel_for6d(physDims[0], physDims[1], physDims[2], physDims[3], physDims[4], numSrc,
-                                [&](size_t n0, size_t n1, size_t n2, size_t n3, size_t n4, size_t a) {
-            // check if zero memory
-            if (srcPtrs[a] == nullptr) return;
+        UNUSED(L1Size);  // for Windows
+        parallel_for6d(physDims[0],
+                       physDims[1],
+                       physDims[2],
+                       physDims[3],
+                       physDims[4],
+                       numSrc,
+                       [&](size_t n0, size_t n1, size_t n2, size_t n3, size_t n4, size_t a) {
+                           // check if zero memory
+                           if (srcPtrs[a] == nullptr)
+                               return;
 
-            size_t inOff = inputStrides[a][0] * n0 + inputStrides[a][1] * n1 + inputStrides[a][2] * n2
-                            + inputStrides[a][3] * n3 + inputStrides[a][4] * n4;
-            size_t outOff = outputStrides[0] * n0 + outputStrides[1] * n1 + outputStrides[2] * n2
-                             + outputStrides[3] * n3 + outputStrides[4] * n4;
-            const uint8_t *i = &srcPtrs[a][inOff];
-            uint8_t *o = &dstPtr[dstOffset[a] + outOff];
+                           size_t inOff = inputStrides[a][0] * n0 + inputStrides[a][1] * n1 + inputStrides[a][2] * n2 +
+                                          inputStrides[a][3] * n3 + inputStrides[a][4] * n4;
+                           size_t outOff = outputStrides[0] * n0 + outputStrides[1] * n1 + outputStrides[2] * n2 +
+                                           outputStrides[3] * n3 + outputStrides[4] * n4;
+                           const uint8_t* i = &srcPtrs[a][inOff];
+                           uint8_t* o = &dstPtr[dstOffset[a] + outOff];
 
 #if defined(__GNUC__)
-            // Heuristic:
-            // memcpy works generally faster for data sizes not
-            // exceeding L1 cache.
-            if (nelemToCopy[a] > L1Size) {
-                // The code below performs data copying: o[e] = i[e]
-                // and uses a workaround to make GNU compilers optimize it
-                uint8_t *ptro = o;
-                const uint8_t *ptri = i;
-                // head part: bytes before 4 byte-align's address
-                const size_t headPart = sizeof(uint32_t)
-                                         - reinterpret_cast<uint64_t>(ptro)
-                                           % sizeof(uint32_t);
+                           // Heuristic:
+                           // memcpy works generally faster for data sizes not
+                           // exceeding L1 cache.
+                           if (nelemToCopy[a] > L1Size) {
+                               // The code below performs data copying: o[e] = i[e]
+                               // and uses a workaround to make GNU compilers optimize it
+                               uint8_t* ptro = o;
+                               const uint8_t* ptri = i;
+                               // head part: bytes before 4 byte-align's address
+                               const size_t headPart =
+                                   sizeof(uint32_t) - reinterpret_cast<uint64_t>(ptro) % sizeof(uint32_t);
 
-                // main part: bytes in 4 byte-align
-                const size_t mainPart
-                        = (nelemToCopy[a] - headPart) / sizeof(uint32_t);
-                // tail part: bytes after 4 byte-align
-                const size_t tailPart
-                        = (nelemToCopy[a]) - headPart
-                          - (mainPart * sizeof(uint32_t));
-                // copy head part
-                for (size_t e = 0; e < headPart; ++e) {
-                    *ptro = *ptri;
-                    ++ptro;
-                    ++ptri;
-                }
-                // copy main part
-                std::memcpy(ptro, ptri, mainPart * sizeof(uint32_t));
-                ptro += mainPart * sizeof(uint32_t);
-                ptri += mainPart * sizeof(uint32_t);
-                // copy tail part
-                for (size_t e = 0; e < tailPart; ++e) {
-                    *ptro = *ptri;
-                    ++ptro;
-                    ++ptri;
-                }
-            } else {
-                std::memcpy(o, i, nelemToCopy[a]);
-            }
+                               // main part: bytes in 4 byte-align
+                               const size_t mainPart = (nelemToCopy[a] - headPart) / sizeof(uint32_t);
+                               // tail part: bytes after 4 byte-align
+                               const size_t tailPart = (nelemToCopy[a]) - headPart - (mainPart * sizeof(uint32_t));
+                               // copy head part
+                               for (size_t e = 0; e < headPart; ++e) {
+                                   *ptro = *ptri;
+                                   ++ptro;
+                                   ++ptri;
+                               }
+                               // copy main part
+                               std::memcpy(ptro, ptri, mainPart * sizeof(uint32_t));
+                               ptro += mainPart * sizeof(uint32_t);
+                               ptri += mainPart * sizeof(uint32_t);
+                               // copy tail part
+                               for (size_t e = 0; e < tailPart; ++e) {
+                                   *ptro = *ptri;
+                                   ++ptro;
+                                   ++ptri;
+                               }
+                           } else {
+                               std::memcpy(o, i, nelemToCopy[a]);
+                           }
 #else
             std::memcpy(o, i, nelemToCopy[a]);
 #endif
-        });
+                       });
     }
 }
 
@@ -691,8 +709,10 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
                     " can't use inPlace memory with concatenation on dynamic dimension");
 
     auto edges = getChildEdgesAtPort(inplaceOutIndx);
-    auto itr = std::find_if(edges.begin(), edges.end(), [](const EdgePtr& edge) { return edge->getStatus() == Edge::Status::Allocated; });
-    OPENVINO_ASSERT(itr != edges.end(), " Could not find allocated child edge for concat node: " , getName());
+    auto itr = std::find_if(edges.begin(), edges.end(), [](const EdgePtr& edge) {
+        return edge->getStatus() == Edge::Status::Allocated;
+    });
+    OPENVINO_ASSERT(itr != edges.end(), " Could not find allocated child edge for concat node: ", getName());
 
     auto baseMemBlock = (*itr)->getMemory().getMemoryBlock();
     OPENVINO_ASSERT(baseMemBlock != nullptr, " NULL base memory block in concat node: ", getName());
@@ -726,6 +746,6 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
     }
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

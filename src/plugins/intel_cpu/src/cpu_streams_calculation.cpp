@@ -4,6 +4,11 @@
 
 #include "cpu_streams_calculation.hpp"
 
+#include <algorithm>
+#include <cstdio>
+#include <numeric>
+#include <unordered_set>
+
 #include "cpu_map_scheduling.hpp"
 #include "graph.h"
 #include "openvino/op/fake_quantize.hpp"
@@ -13,29 +18,25 @@
 #include "transformations/utils.hpp"
 #include "transformations/utils/utils.hpp"
 
-#include <algorithm>
-#include <cstdio>
-#include <numeric>
-#include <unordered_set>
-
 using namespace ov;
 using namespace ov::threading;
 
-#define INIT_VAL -100
+#define INIT_VAL     -100
 #define TP_CPU_LIMIT 32
 
 namespace ov {
 namespace intel_cpu {
 
-std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
-                                                     const bool input_streams_changed,
-                                                     const int input_threads,
-                                                     const int input_infer_requests,
-                                                     const int model_prefer_threads,
-                                                     const int input_current_socket_id,
-                                                     const std::string input_perf_hint,
-                                                     const std::set<ov::hint::ModelDistributionPolicy> hint_model_distribution_policy,
-                                                     const std::vector<std::vector<int>>& proc_type_table) {
+std::vector<std::vector<int>> get_streams_info_table(
+    const int input_streams,
+    const bool input_streams_changed,
+    const int input_threads,
+    const int input_infer_requests,
+    const int model_prefer_threads,
+    const int input_current_socket_id,
+    const std::string input_perf_hint,
+    const std::set<ov::hint::ModelDistributionPolicy> hint_model_distribution_policy,
+    const std::vector<std::vector<int>>& proc_type_table) {
     std::vector<int> stream_info(CPU_STREAMS_TABLE_SIZE, INIT_VAL);
     std::vector<std::vector<int>> streams_info_table;
     std::vector<std::vector<int>> proc_socket_table;
@@ -339,8 +340,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                     n_threads_per_stream = static_cast<int>(n_threads / n_streams);
                     check_threads_per_stream();
                 } else {
-                    n_threads_per_stream =
-                        model_threads > 0 ? model_threads : static_cast<int>(n_threads / n_streams);
+                    n_threads_per_stream = model_threads > 0 ? model_threads : static_cast<int>(n_threads / n_streams);
                 }
             }
         }
@@ -590,7 +590,7 @@ int get_model_prefer_threads(const int num_streams,
                     (networkToleranceForLowCache.ratio_mem_limited_gemms > ov::MemBandwidthPressure::LIMITED))) {
             config.modelPreferThreads = 8;
         }
-#elif((defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__))
+#elif ((defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__))
         config.modelPreferThreads = 1;
         if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
             if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) ||

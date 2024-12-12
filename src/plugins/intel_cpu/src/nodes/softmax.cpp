@@ -4,14 +4,16 @@
 
 #include "softmax.h"
 
-#include <string>
-#include "dnnl_types.h"
-#include "dnnl_extension_utils.h"
 #include <memory_desc/cpu_memory_desc_utils.h>
-#include "openvino/opsets/opset1.hpp"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "common/primitive_hashing_utils.hpp"
+
 #include <shape_inference/shape_inference_pass_through.hpp>
+#include <string>
+
+#include "common/primitive_hashing_utils.hpp"
+#include "dnnl_extension_utils.h"
+#include "dnnl_types.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "openvino/opsets/opset1.hpp"
 
 using namespace dnnl;
 
@@ -66,8 +68,8 @@ bool SoftMax::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
     return true;
 }
 
-SoftMax::SoftMax(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
-        Node(op, context, PassThroughShapeInferFactory()) {
+SoftMax::SoftMax(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -80,10 +82,7 @@ void SoftMax::getSupportedDescriptors() {
         return;
 
     ov::element::Type precision = getOriginalInputPrecisionAtPort(0);
-    if (!one_of(precision,
-                ov::element::f32,
-                ov::element::bf16,
-                ov::element::f16))
+    if (!one_of(precision, ov::element::f32, ov::element::bf16, ov::element::f16))
         precision = ov::element::f32;
     auto inputDataType = DnnlExtensionUtils::ElementTypeToDataType(precision);
 
@@ -92,7 +91,7 @@ void SoftMax::getSupportedDescriptors() {
     if (!getChildEdges().size())
         OPENVINO_THROW("Incorrect number of output edges for layer ", getName());
 
-    const auto &inShape = getInputShapeAtPort(0);
+    const auto& inShape = getInputShapeAtPort(0);
     if (inShape.getRank() == 3) {
         auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inShape, inputDataType, memory::format_tag::abc);
         createDescriptor({in_candidate}, {});
@@ -126,11 +125,12 @@ void SoftMax::initOptimalPrimitiveDescriptor() {
     auto config = selected_pd->getConfig();
     if (isDynamicNode()) {
         auto outMemDesc = config.outConfs[0].getMemDesc();
-        config.outConfs[0].setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(outMemDesc), BlockedMemoryDesc::FULL_MASK);
+        config.outConfs[0].setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(outMemDesc),
+                                      BlockedMemoryDesc::FULL_MASK);
     } else {
         if (config.inConfs.size() != 1 || config.outConfs.size() != 1 ||
-            (config.inConfs[0].getMemDesc()->isDefined() &&
-             config.outConfs[0].getMemDesc()->isDefined() && !config.outConfs[0].getPortDesc()->isCompatible(*config.inConfs[0].getPortDesc())))
+            (config.inConfs[0].getMemDesc()->isDefined() && config.outConfs[0].getMemDesc()->isDefined() &&
+             !config.outConfs[0].getPortDesc()->isCompatible(*config.inConfs[0].getPortDesc())))
             OPENVINO_THROW("Layer ", getName(), " has incorrect selected config!");
 
         config.inConfs[0].setMemDesc(getConsistentInputDesc(config, 0)->getMemDesc());
@@ -139,23 +139,22 @@ void SoftMax::initOptimalPrimitiveDescriptor() {
     initDescriptor(config);
 }
 
-void SoftMax::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
-                               const std::vector<MemoryDescPtr> &outputDesc) {
+void SoftMax::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
+                               const std::vector<MemoryDescPtr>& outputDesc) {
     auto inpDesc = inputDesc[0]->isDefined() ? inputDesc[0] : MemoryDescUtils::makeDummyDesc(*inputDesc[0]);
     DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
     auto in_candidate = definedInpMemDesc->getDnnlDesc();
 
     auto attr = initPrimitiveAttr();
 
-    auto desc = softmax_forward::primitive_desc(
-        getEngine(),
-        prop_kind::forward_inference,
-        algorithm::softmax_accurate,
-        in_candidate,
-        in_candidate,
-        axis,
-        *attr,
-        true);
+    auto desc = softmax_forward::primitive_desc(getEngine(),
+                                                prop_kind::forward_inference,
+                                                algorithm::softmax_accurate,
+                                                in_candidate,
+                                                in_candidate,
+                                                axis,
+                                                *attr,
+                                                true);
 
     if (desc)
         descs.emplace_back(desc);
@@ -174,15 +173,14 @@ void SoftMax::prepareParams() {
     auto engine = getEngine();
 
     auto builder = [&engine](const SoftmaxKey& key) -> executorPtr {
-        auto prim_desc = softmax_forward::primitive_desc(
-            engine,
-            prop_kind::forward_inference,
-            algorithm::softmax_accurate,
-            key.inp0->getDnnlDesc(),
-            key.inp0->getDnnlDesc(),
-            key.axis,
-            key.attr,
-            true);
+        auto prim_desc = softmax_forward::primitive_desc(engine,
+                                                         prop_kind::forward_inference,
+                                                         algorithm::softmax_accurate,
+                                                         key.inp0->getDnnlDesc(),
+                                                         key.inp0->getDnnlDesc(),
+                                                         key.axis,
+                                                         key.attr,
+                                                         true);
 
         primitive_desc_iterator itpd = prim_desc;
 
@@ -237,6 +235,6 @@ void SoftMax::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

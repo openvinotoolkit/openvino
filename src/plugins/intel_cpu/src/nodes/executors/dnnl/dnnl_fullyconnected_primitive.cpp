@@ -74,9 +74,8 @@ bool DnnlFCPrimitive::Key::operator==(const Key& rhs) const {
         result = result && dst && rhs.dst && dst->getDnnlDesc() == rhs.dst->getDnnlDesc();
     }
 
-    result = result && *attr.get() == *rhs.attr.get() &&
-        sparseWeights == rhs.sparseWeights &&
-        modelType == rhs.modelType;
+    result =
+        result && *attr.get() == *rhs.attr.get() && sparseWeights == rhs.sparseWeights && modelType == rhs.modelType;
 
     return result;
 }
@@ -158,7 +157,8 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
     if (srcDesc->getPrecision() != ov::element::f32)
         return false;
 
-    MemoryCPtr zpPtr = memory.count(ARG_WEI | ARG_ATTR_ZERO_POINTS) ? memory.at(ARG_WEI | ARG_ATTR_ZERO_POINTS) : nullptr;
+    MemoryCPtr zpPtr =
+        memory.count(ARG_WEI | ARG_ATTR_ZERO_POINTS) ? memory.at(ARG_WEI | ARG_ATTR_ZERO_POINTS) : nullptr;
     // For dynamic quantization, VNNI accumulation requires weight to be unsigned.
     // To support dynamic quantization with weights symmetrically quantized as i8/i4
     // w/o zero-point, we will transform weight to u8/u4 weight with zp 128/8.
@@ -220,14 +220,8 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
         one_of(srcDesc->getPrecision(), ov::element::u8, ov::element::i8) && weiDesc->getPrecision() == ov::element::i8;
     auto outputDataType = DnnlExtensionUtils::ElementTypeToDataType(dstDesc->getPrecision());
 
-    DnnlPostOpsComposer dnnlpoc(postOps,
-                                context->getEngine(),
-                                dims,
-                                dims.size() - 1,
-                                isINT8,
-                                1 << 0,
-                                memory,
-                                outputDataType);
+    DnnlPostOpsComposer
+        dnnlpoc(postOps, context->getEngine(), dims, dims.size() - 1, isINT8, 1 << 0, memory, outputDataType);
 
     if (memory.count(ARG_WEI | ARG_ATTR_SCALES)) {
         auto dstPrc = memory.at(ARG_WEI | ARG_ATTR_SCALES)->getPrecision();
@@ -239,7 +233,9 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
 
     if (memory.count(ARG_WEI | ARG_ATTR_ZERO_POINTS)) {
         auto dstPrc = useDynamicQuantization ? ov::element::u8 : ov::element::f32;
-        dnnlpoc.appendDecompressionZeroPoints(memory.at(ARG_WEI | ARG_ATTR_ZERO_POINTS), !attrs.weightsNonTransposed, dstPrc);
+        dnnlpoc.appendDecompressionZeroPoints(memory.at(ARG_WEI | ARG_ATTR_ZERO_POINTS),
+                                              !attrs.weightsNonTransposed,
+                                              dstPrc);
     }
 
     if (useDynamicQuantization) {

@@ -4,10 +4,10 @@
 
 #pragma once
 
-#if defined (HAVE_SSE) || defined (HAVE_AVX2)
-# if defined (_WIN32)
-#  include <emmintrin.h>
-# else
-#  include <x86intrin.h>
-# endif
+#if defined(HAVE_SSE) || defined(HAVE_AVX2)
+#    if defined(_WIN32)
+#        include <emmintrin.h>
+#    else
+#        include <x86intrin.h>
+#    endif
 #endif

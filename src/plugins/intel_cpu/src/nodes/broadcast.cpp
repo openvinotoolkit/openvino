@@ -2,15 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-#include <string>
-#include "dnnl_types.h"
-#include "openvino/core/parallel.hpp"
-#include <selective_build.h>
 #include "broadcast.h"
-#include "nodes/common/blocked_desc_creator.h"
-#include "openvino/opsets/opset1.hpp"
+
+#include <selective_build.h>
+
+#include <string>
+#include <vector>
+
 #include "common/cpu_memcpy.h"
+#include "dnnl_types.h"
+#include "nodes/common/blocked_desc_creator.h"
+#include "openvino/core/parallel.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "utils/ngraph_utils.hpp"
 
 namespace ov {
@@ -24,19 +27,20 @@ bool Broadcast::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
             return false;
         }
         if (!one_of(ov::as_type_ptr<const ov::op::v1::Broadcast>(op)->get_broadcast_spec().m_type,
-                ov::op::AutoBroadcastType::NUMPY, ov::op::AutoBroadcastType::EXPLICIT)) {
+                    ov::op::AutoBroadcastType::NUMPY,
+                    ov::op::AutoBroadcastType::EXPLICIT)) {
             errorMessage = "Only NUMPY and EXPLICIT broadcast types are supported.";
             return false;
         }
         if (op->get_input_partial_shape(TARGET_SHAPE_IDX).is_dynamic() ||
-                (op->get_input_size() > AXES_MAPPING_IDX && op->get_input_partial_shape(AXES_MAPPING_IDX).is_dynamic())) {
+            (op->get_input_size() > AXES_MAPPING_IDX && op->get_input_partial_shape(AXES_MAPPING_IDX).is_dynamic())) {
             errorMessage = "Only static shapes are supported for target shape and axes mapping inputs.";
             return false;
         }
         if (!isDynamicNgraphNode(op) &&
-                (!ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(TARGET_SHAPE_IDX)) ||
-                 (op->get_input_size() > AXES_MAPPING_IDX &&
-                 !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(AXES_MAPPING_IDX))))) {
+            (!ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(TARGET_SHAPE_IDX)) ||
+             (op->get_input_size() > AXES_MAPPING_IDX &&
+              !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(AXES_MAPPING_IDX))))) {
             errorMessage = "Only constant target shapes and axis mapping inputs are supported for static shapes.";
             return false;
         }
@@ -72,12 +76,13 @@ Broadcast::Broadcast(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
 
     if (ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(TARGET_SHAPE_IDX))) {
         constMap[TARGET_SHAPE_IDX] = true;
-        targetShape = (ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(TARGET_SHAPE_IDX)))->get_vector<int32_t>();
+        targetShape =
+            (ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(TARGET_SHAPE_IDX)))->get_vector<int32_t>();
     }
-    if (broadcastType == EXPLICIT &&
-                ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(AXES_MAPPING_IDX))) {
+    if (broadcastType == EXPLICIT && ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(AXES_MAPPING_IDX))) {
         constMap[AXES_MAPPING_IDX] = true;
-        axesMapping = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(AXES_MAPPING_IDX))->get_vector<int32_t>();
+        axesMapping =
+            ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(AXES_MAPPING_IDX))->get_vector<int32_t>();
     }
 }
 
@@ -126,7 +131,8 @@ void Broadcast::prepareParams() {
     repeats.assign(targetShape.begin(), targetShape.end());
     const auto ndims = repeats.size();
 
-    auto srcBlockedDims = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getDescWithType<BlockedMemoryDesc>()->getBlockDims();
+    auto srcBlockedDims =
+        getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getDescWithType<BlockedMemoryDesc>()->getBlockDims();
     auto dstBlockedDims = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>()->getBlockDims();
 
     if (broadcastType == NUMPY) {
@@ -227,8 +233,8 @@ void Broadcast::plainExecute(dnnl::stream strm) {
     }
 
     const size_t workAmountDst = dstStrides[0] * dstDims[0];
-    const auto *srcData = getSrcDataAtPortAs<const uint8_t>(INPUT_DATA_IDX);
-    auto *dstData = getDstDataAtPortAs<uint8_t>(0);
+    const auto* srcData = getSrcDataAtPortAs<const uint8_t>(INPUT_DATA_IDX);
+    auto* dstData = getDstDataAtPortAs<uint8_t>(0);
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t i = 0lu, srcIdx = 0lu, start = 0lu, end = 0lu;
@@ -246,7 +252,8 @@ void Broadcast::plainExecute(dnnl::stream strm) {
 
             for (int j = dataDstRank - 1; j >= 0; j--) {
                 counters[j] = (counters[j] + 1) % dstDims[j];
-                if (counters[j] != 0) break;
+                if (counters[j] != 0)
+                    break;
             }
         }
     });
@@ -256,6 +263,6 @@ bool Broadcast::created() const {
     return getType() == Type::Broadcast;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

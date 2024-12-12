@@ -2,23 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cmath>
-#include <vector>
-#include <string>
-#include "openvino/core/parallel.hpp"
 #include "gather_elements.h"
+
+#include <cmath>
+#include <string>
+#include <vector>
+
+#include "common/cpu_memcpy.h"
+#include "openvino/core/parallel.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "utils/general_utils.h"
-#include "common/cpu_memcpy.h"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool GatherElements::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+bool GatherElements::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
+                                          std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
-                ov::op::v6::GatherElements::get_type_info_static())) {
+        if (!one_of(op->get_type_info(), ov::op::v6::GatherElements::get_type_info_static())) {
             errorMessage = "Node is not an instance of the GatherElements operation from operation set v6.";
             return false;
         }
@@ -88,8 +90,7 @@ void GatherElements::initSupportedPrimitiveDescriptors() {
 
     dataTypeSize_ = inDataPrecision.size();
 
-    addSupportedPrimDesc({{LayoutType::ncsp, inDataPrecision},
-                          {LayoutType::ncsp, ov::element::i32}},
+    addSupportedPrimDesc({{LayoutType::ncsp, inDataPrecision}, {LayoutType::ncsp, ov::element::i32}},
                          {{LayoutType::ncsp, inDataPrecision}},
                          impl_desc_type::ref_any);
 }
@@ -100,9 +101,9 @@ void GatherElements::executeDynamicImpl(dnnl::stream strm) {
 
 template <typename dataType>
 void GatherElements::directExecution() {
-    const auto *srcData = getSrcDataAtPortAs<const dataType>(dataIndex_);
-    const auto *indices = getSrcDataAtPortAs<const int>(indicesIndex_);
-    auto *dstData = getDstDataAtPortAs<dataType>(0);
+    const auto* srcData = getSrcDataAtPortAs<const dataType>(dataIndex_);
+    const auto* indices = getSrcDataAtPortAs<const int>(indicesIndex_);
+    auto* dstData = getDstDataAtPortAs<dataType>(0);
 
     const int outSize = getChildEdgeAt(0)->getMemory().getShape().getElementsCount();
     auto threadBody = [&](const int ithr, const int nthr) {
@@ -133,14 +134,14 @@ void GatherElements::directExecution() {
 
 void GatherElements::execute(dnnl::stream strm) {
     switch (dataTypeSize_) {
-        case sizeof(element_type_traits<ov::element::i32>::value_type):
-            return directExecution<element_type_traits<ov::element::i32>::value_type>();
-        case sizeof(element_type_traits<ov::element::i16>::value_type):
-            return directExecution<element_type_traits<ov::element::i16>::value_type>();
-        case sizeof(element_type_traits<ov::element::i8>::value_type):
-            return directExecution<element_type_traits<ov::element::i8>::value_type>();
-        default:
-            OPENVINO_THROW("Unsupported data type size");
+    case sizeof(element_type_traits<ov::element::i32>::value_type):
+        return directExecution<element_type_traits<ov::element::i32>::value_type>();
+    case sizeof(element_type_traits<ov::element::i16>::value_type):
+        return directExecution<element_type_traits<ov::element::i16>::value_type>();
+    case sizeof(element_type_traits<ov::element::i8>::value_type):
+        return directExecution<element_type_traits<ov::element::i8>::value_type>();
+    default:
+        OPENVINO_THROW("Unsupported data type size");
     }
 }
 
@@ -148,6 +149,6 @@ bool GatherElements::created() const {
     return getType() == Type::GatherElements;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

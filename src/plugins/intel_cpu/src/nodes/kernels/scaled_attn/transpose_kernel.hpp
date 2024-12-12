@@ -3,13 +3,13 @@
 //
 #pragma once
 
-#include "common.hpp"
-#include "openvino/core/type/element_type.hpp"
-
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <vector>
+
+#include "common.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace Extensions {
@@ -17,82 +17,94 @@ namespace Cpu {
 namespace XARCH {
 
 #if defined(HAVE_AVX512F)
-inline void transpose_m512i_16x16(__m512i& r0, __m512i& r1, __m512i& r2, __m512i& r3,
-    __m512i& r4, __m512i& r5, __m512i& r6, __m512i& r7,
-    __m512i& r8, __m512i& r9, __m512i& ra, __m512i& rb,
-    __m512i& rc, __m512i& rd, __m512i& re, __m512i& rf) {
+inline void transpose_m512i_16x16(__m512i& r0,
+                                  __m512i& r1,
+                                  __m512i& r2,
+                                  __m512i& r3,
+                                  __m512i& r4,
+                                  __m512i& r5,
+                                  __m512i& r6,
+                                  __m512i& r7,
+                                  __m512i& r8,
+                                  __m512i& r9,
+                                  __m512i& ra,
+                                  __m512i& rb,
+                                  __m512i& rc,
+                                  __m512i& rd,
+                                  __m512i& re,
+                                  __m512i& rf) {
     __m512i t0, t1, t2, t3, t4, t5, t6, t7, t8, t9, ta, tb, tc, td, te, tf;
 
-    t0 = _mm512_unpacklo_epi32(r0, r1); //   0  16   1  17   4  20   5  21   8  24   9  25  12  28  13  29
-    t1 = _mm512_unpackhi_epi32(r0, r1); //   2  18   3  19   6  22   7  23  10  26  11  27  14  30  15  31
-    t2 = _mm512_unpacklo_epi32(r2, r3); //  32  48  33  49 ...
-    t3 = _mm512_unpackhi_epi32(r2, r3); //  34  50  35  51 ...
-    t4 = _mm512_unpacklo_epi32(r4, r5); //  64  80  65  81 ...
-    t5 = _mm512_unpackhi_epi32(r4, r5); //  66  82  67  83 ...
-    t6 = _mm512_unpacklo_epi32(r6, r7); //  96 112  97 113 ...
-    t7 = _mm512_unpackhi_epi32(r6, r7); //  98 114  99 115 ...
-    t8 = _mm512_unpacklo_epi32(r8, r9); // 128 ...
-    t9 = _mm512_unpackhi_epi32(r8, r9); // 130 ...
-    ta = _mm512_unpacklo_epi32(ra, rb); // 160 ...
-    tb = _mm512_unpackhi_epi32(ra, rb); // 162 ...
-    tc = _mm512_unpacklo_epi32(rc, rd); // 196 ...
-    td = _mm512_unpackhi_epi32(rc, rd); // 198 ...
-    te = _mm512_unpacklo_epi32(re, rf); // 228 ...
-    tf = _mm512_unpackhi_epi32(re, rf); // 230 ...
+    t0 = _mm512_unpacklo_epi32(r0, r1);  //   0  16   1  17   4  20   5  21   8  24   9  25  12  28  13  29
+    t1 = _mm512_unpackhi_epi32(r0, r1);  //   2  18   3  19   6  22   7  23  10  26  11  27  14  30  15  31
+    t2 = _mm512_unpacklo_epi32(r2, r3);  //  32  48  33  49 ...
+    t3 = _mm512_unpackhi_epi32(r2, r3);  //  34  50  35  51 ...
+    t4 = _mm512_unpacklo_epi32(r4, r5);  //  64  80  65  81 ...
+    t5 = _mm512_unpackhi_epi32(r4, r5);  //  66  82  67  83 ...
+    t6 = _mm512_unpacklo_epi32(r6, r7);  //  96 112  97 113 ...
+    t7 = _mm512_unpackhi_epi32(r6, r7);  //  98 114  99 115 ...
+    t8 = _mm512_unpacklo_epi32(r8, r9);  // 128 ...
+    t9 = _mm512_unpackhi_epi32(r8, r9);  // 130 ...
+    ta = _mm512_unpacklo_epi32(ra, rb);  // 160 ...
+    tb = _mm512_unpackhi_epi32(ra, rb);  // 162 ...
+    tc = _mm512_unpacklo_epi32(rc, rd);  // 196 ...
+    td = _mm512_unpackhi_epi32(rc, rd);  // 198 ...
+    te = _mm512_unpacklo_epi32(re, rf);  // 228 ...
+    tf = _mm512_unpackhi_epi32(re, rf);  // 230 ...
 
-    r0 = _mm512_unpacklo_epi64(t0, t2); //   0  16  32  48 ...
-    r1 = _mm512_unpackhi_epi64(t0, t2); //   1  17  33  49 ...
-    r2 = _mm512_unpacklo_epi64(t1, t3); //   2  18  34  49 ...
-    r3 = _mm512_unpackhi_epi64(t1, t3); //   3  19  35  51 ...
-    r4 = _mm512_unpacklo_epi64(t4, t6); //  64  80  96 112 ...
-    r5 = _mm512_unpackhi_epi64(t4, t6); //  65  81  97 114 ...
-    r6 = _mm512_unpacklo_epi64(t5, t7); //  66  82  98 113 ...
-    r7 = _mm512_unpackhi_epi64(t5, t7); //  67  83  99 115 ...
-    r8 = _mm512_unpacklo_epi64(t8, ta); // 128 144 160 176 ...
-    r9 = _mm512_unpackhi_epi64(t8, ta); // 129 145 161 178 ...
-    ra = _mm512_unpacklo_epi64(t9, tb); // 130 146 162 177 ...
-    rb = _mm512_unpackhi_epi64(t9, tb); // 131 147 163 179 ...
-    rc = _mm512_unpacklo_epi64(tc, te); // 192 208 228 240 ...
-    rd = _mm512_unpackhi_epi64(tc, te); // 193 209 229 241 ...
-    re = _mm512_unpacklo_epi64(td, tf); // 194 210 230 242 ...
-    rf = _mm512_unpackhi_epi64(td, tf); // 195 211 231 243 ...
+    r0 = _mm512_unpacklo_epi64(t0, t2);  //   0  16  32  48 ...
+    r1 = _mm512_unpackhi_epi64(t0, t2);  //   1  17  33  49 ...
+    r2 = _mm512_unpacklo_epi64(t1, t3);  //   2  18  34  49 ...
+    r3 = _mm512_unpackhi_epi64(t1, t3);  //   3  19  35  51 ...
+    r4 = _mm512_unpacklo_epi64(t4, t6);  //  64  80  96 112 ...
+    r5 = _mm512_unpackhi_epi64(t4, t6);  //  65  81  97 114 ...
+    r6 = _mm512_unpacklo_epi64(t5, t7);  //  66  82  98 113 ...
+    r7 = _mm512_unpackhi_epi64(t5, t7);  //  67  83  99 115 ...
+    r8 = _mm512_unpacklo_epi64(t8, ta);  // 128 144 160 176 ...
+    r9 = _mm512_unpackhi_epi64(t8, ta);  // 129 145 161 178 ...
+    ra = _mm512_unpacklo_epi64(t9, tb);  // 130 146 162 177 ...
+    rb = _mm512_unpackhi_epi64(t9, tb);  // 131 147 163 179 ...
+    rc = _mm512_unpacklo_epi64(tc, te);  // 192 208 228 240 ...
+    rd = _mm512_unpackhi_epi64(tc, te);  // 193 209 229 241 ...
+    re = _mm512_unpacklo_epi64(td, tf);  // 194 210 230 242 ...
+    rf = _mm512_unpackhi_epi64(td, tf);  // 195 211 231 243 ...
 
-    t0 = _mm512_shuffle_i32x4(r0, r4, 0x88); //   0  16  32  48   8  24  40  56  64  80  96  112 ...
-    t1 = _mm512_shuffle_i32x4(r1, r5, 0x88); //   1  17  33  49 ...
-    t2 = _mm512_shuffle_i32x4(r2, r6, 0x88); //   2  18  34  50 ...
-    t3 = _mm512_shuffle_i32x4(r3, r7, 0x88); //   3  19  35  51 ...
-    t4 = _mm512_shuffle_i32x4(r0, r4, 0xdd); //   4  20  36  52 ...
-    t5 = _mm512_shuffle_i32x4(r1, r5, 0xdd); //   5  21  37  53 ...
-    t6 = _mm512_shuffle_i32x4(r2, r6, 0xdd); //   6  22  38  54 ...
-    t7 = _mm512_shuffle_i32x4(r3, r7, 0xdd); //   7  23  39  55 ...
-    t8 = _mm512_shuffle_i32x4(r8, rc, 0x88); // 128 144 160 176 ...
-    t9 = _mm512_shuffle_i32x4(r9, rd, 0x88); // 129 145 161 177 ...
-    ta = _mm512_shuffle_i32x4(ra, re, 0x88); // 130 146 162 178 ...
-    tb = _mm512_shuffle_i32x4(rb, rf, 0x88); // 131 147 163 179 ...
-    tc = _mm512_shuffle_i32x4(r8, rc, 0xdd); // 132 148 164 180 ...
-    td = _mm512_shuffle_i32x4(r9, rd, 0xdd); // 133 149 165 181 ...
-    te = _mm512_shuffle_i32x4(ra, re, 0xdd); // 134 150 166 182 ...
-    tf = _mm512_shuffle_i32x4(rb, rf, 0xdd); // 135 151 167 183 ...
+    t0 = _mm512_shuffle_i32x4(r0, r4, 0x88);  //   0  16  32  48   8  24  40  56  64  80  96  112 ...
+    t1 = _mm512_shuffle_i32x4(r1, r5, 0x88);  //   1  17  33  49 ...
+    t2 = _mm512_shuffle_i32x4(r2, r6, 0x88);  //   2  18  34  50 ...
+    t3 = _mm512_shuffle_i32x4(r3, r7, 0x88);  //   3  19  35  51 ...
+    t4 = _mm512_shuffle_i32x4(r0, r4, 0xdd);  //   4  20  36  52 ...
+    t5 = _mm512_shuffle_i32x4(r1, r5, 0xdd);  //   5  21  37  53 ...
+    t6 = _mm512_shuffle_i32x4(r2, r6, 0xdd);  //   6  22  38  54 ...
+    t7 = _mm512_shuffle_i32x4(r3, r7, 0xdd);  //   7  23  39  55 ...
+    t8 = _mm512_shuffle_i32x4(r8, rc, 0x88);  // 128 144 160 176 ...
+    t9 = _mm512_shuffle_i32x4(r9, rd, 0x88);  // 129 145 161 177 ...
+    ta = _mm512_shuffle_i32x4(ra, re, 0x88);  // 130 146 162 178 ...
+    tb = _mm512_shuffle_i32x4(rb, rf, 0x88);  // 131 147 163 179 ...
+    tc = _mm512_shuffle_i32x4(r8, rc, 0xdd);  // 132 148 164 180 ...
+    td = _mm512_shuffle_i32x4(r9, rd, 0xdd);  // 133 149 165 181 ...
+    te = _mm512_shuffle_i32x4(ra, re, 0xdd);  // 134 150 166 182 ...
+    tf = _mm512_shuffle_i32x4(rb, rf, 0xdd);  // 135 151 167 183 ...
 
-    r0 = _mm512_shuffle_i32x4(t0, t8, 0x88); //   0  16  32  48  64  80  96 112 ... 240
-    r1 = _mm512_shuffle_i32x4(t1, t9, 0x88); //   1  17  33  49  66  81  97 113 ... 241
-    r2 = _mm512_shuffle_i32x4(t2, ta, 0x88); //   2  18  34  50  67  82  98 114 ... 242
-    r3 = _mm512_shuffle_i32x4(t3, tb, 0x88); //   3  19  35  51  68  83  99 115 ... 243
-    r4 = _mm512_shuffle_i32x4(t4, tc, 0x88); //   4 ...
-    r5 = _mm512_shuffle_i32x4(t5, td, 0x88); //   5 ...
-    r6 = _mm512_shuffle_i32x4(t6, te, 0x88); //   6 ...
-    r7 = _mm512_shuffle_i32x4(t7, tf, 0x88); //   7 ...
-    r8 = _mm512_shuffle_i32x4(t0, t8, 0xdd); //   8 ...
-    r9 = _mm512_shuffle_i32x4(t1, t9, 0xdd); //   9 ...
-    ra = _mm512_shuffle_i32x4(t2, ta, 0xdd); //  10 ...
-    rb = _mm512_shuffle_i32x4(t3, tb, 0xdd); //  11 ...
-    rc = _mm512_shuffle_i32x4(t4, tc, 0xdd); //  12 ...
-    rd = _mm512_shuffle_i32x4(t5, td, 0xdd); //  13 ...
-    re = _mm512_shuffle_i32x4(t6, te, 0xdd); //  14 ...
-    rf = _mm512_shuffle_i32x4(t7, tf, 0xdd); //  15  31  47  63  79  96 111 127 ... 255
+    r0 = _mm512_shuffle_i32x4(t0, t8, 0x88);  //   0  16  32  48  64  80  96 112 ... 240
+    r1 = _mm512_shuffle_i32x4(t1, t9, 0x88);  //   1  17  33  49  66  81  97 113 ... 241
+    r2 = _mm512_shuffle_i32x4(t2, ta, 0x88);  //   2  18  34  50  67  82  98 114 ... 242
+    r3 = _mm512_shuffle_i32x4(t3, tb, 0x88);  //   3  19  35  51  68  83  99 115 ... 243
+    r4 = _mm512_shuffle_i32x4(t4, tc, 0x88);  //   4 ...
+    r5 = _mm512_shuffle_i32x4(t5, td, 0x88);  //   5 ...
+    r6 = _mm512_shuffle_i32x4(t6, te, 0x88);  //   6 ...
+    r7 = _mm512_shuffle_i32x4(t7, tf, 0x88);  //   7 ...
+    r8 = _mm512_shuffle_i32x4(t0, t8, 0xdd);  //   8 ...
+    r9 = _mm512_shuffle_i32x4(t1, t9, 0xdd);  //   9 ...
+    ra = _mm512_shuffle_i32x4(t2, ta, 0xdd);  //  10 ...
+    rb = _mm512_shuffle_i32x4(t3, tb, 0xdd);  //  11 ...
+    rc = _mm512_shuffle_i32x4(t4, tc, 0xdd);  //  12 ...
+    rd = _mm512_shuffle_i32x4(t5, td, 0xdd);  //  13 ...
+    re = _mm512_shuffle_i32x4(t6, te, 0xdd);  //  14 ...
+    rf = _mm512_shuffle_i32x4(t7, tf, 0xdd);  //  15  31  47  63  79  96 111 127 ... 255
 }
 
-template<typename T>
+template <typename T>
 inline void transpose_16x16_kernel(float* _dst, T* src, size_t dst_stride, size_t src_stride) {
     auto* dst = reinterpret_cast<uint32_t*>(_dst);
     __m512i r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, ra, rb, rc, rd, re, rf;
@@ -133,7 +145,7 @@ inline void transpose_16x16_kernel(float* _dst, T* src, size_t dst_stride, size_
     _mm512_storeu_si512(dst + 15 * dst_stride, rf);
 }
 
-template<typename T>
+template <typename T>
 inline void transpose_16xK_kernel(float* _dst, T* src, size_t K, size_t dst_stride, size_t src_stride) {
     auto* dst = reinterpret_cast<uint32_t*>(_dst);
     __m512i r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, ra, rb, rc, rd, re, rf;
@@ -156,24 +168,110 @@ inline void transpose_16xK_kernel(float* _dst, T* src, size_t K, size_t dst_stri
 
     transpose_m512i_16x16(r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, ra, rb, rc, rd, re, rf);
 
-#define S(m) _mm512_storeu_si512(dst + 0x##m * dst_stride, r##m)
-#define S8() S(0); S(1); S(2); S(3); S(4); S(5); S(6); S(7);
+#    define S(m) _mm512_storeu_si512(dst + 0x##m * dst_stride, r##m)
+#    define S8() \
+        S(0);    \
+        S(1);    \
+        S(2);    \
+        S(3);    \
+        S(4);    \
+        S(5);    \
+        S(6);    \
+        S(7);
     switch (K) {
-        case 8: S8(); break;
-        case 9: S8() S(8); break;
-        case 10: S8(); S(8); S(9); break;
-        case 11: S8(); S(8); S(9); S(a); break;
-        case 12: S8(); S(8); S(9); S(a); S(b); break;
-        case 13: S8(); S(8); S(9); S(a); S(b); S(c); break;
-        case 14: S8(); S(8); S(9); S(a); S(b); S(c); S(d); break;
-        case 15: S8(); S(8); S(9); S(a); S(b); S(c); S(d); S(e); break;
-        case 1: S(0); break;
-        case 2: S(0); S(1); break;
-        case 3: S(0); S(1); S(2); break;
-        case 4: S(0); S(1); S(2); S(3); break;
-        case 5: S(0); S(1); S(2); S(3); S(4); break;
-        case 6: S(0); S(1); S(2); S(3); S(4); S(5); break;
-        case 7: S(0); S(1); S(2); S(3); S(4); S(5); S(6); break;
+    case 8:
+        S8();
+        break;
+    case 9:
+        S8() S(8);
+        break;
+    case 10:
+        S8();
+        S(8);
+        S(9);
+        break;
+    case 11:
+        S8();
+        S(8);
+        S(9);
+        S(a);
+        break;
+    case 12:
+        S8();
+        S(8);
+        S(9);
+        S(a);
+        S(b);
+        break;
+    case 13:
+        S8();
+        S(8);
+        S(9);
+        S(a);
+        S(b);
+        S(c);
+        break;
+    case 14:
+        S8();
+        S(8);
+        S(9);
+        S(a);
+        S(b);
+        S(c);
+        S(d);
+        break;
+    case 15:
+        S8();
+        S(8);
+        S(9);
+        S(a);
+        S(b);
+        S(c);
+        S(d);
+        S(e);
+        break;
+    case 1:
+        S(0);
+        break;
+    case 2:
+        S(0);
+        S(1);
+        break;
+    case 3:
+        S(0);
+        S(1);
+        S(2);
+        break;
+    case 4:
+        S(0);
+        S(1);
+        S(2);
+        S(3);
+        break;
+    case 5:
+        S(0);
+        S(1);
+        S(2);
+        S(3);
+        S(4);
+        break;
+    case 6:
+        S(0);
+        S(1);
+        S(2);
+        S(3);
+        S(4);
+        S(5);
+        break;
+    case 7:
+        S(0);
+        S(1);
+        S(2);
+        S(3);
+        S(4);
+        S(5);
+        S(6);
+        break;
     }
 }
 
@@ -240,30 +338,109 @@ inline void transpose_16xK_kernel(uint32_t* dst, uint32_t* src, size_t K, size_t
     transpose_m512i_16x16(r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, ra, rb, rc, rd, re, rf);
 
     switch (K) {
-        case 8: S8(); break;
-        case 9: S8() S(8); break;
-        case 10: S8(); S(8); S(9); break;
-        case 11: S8(); S(8); S(9); S(a); break;
-        case 12: S8(); S(8); S(9); S(a); S(b); break;
-        case 13: S8(); S(8); S(9); S(a); S(b); S(c); break;
-        case 14: S8(); S(8); S(9); S(a); S(b); S(c); S(d); break;
-        case 15: S8(); S(8); S(9); S(a); S(b); S(c); S(d); S(e); break;
-        case 1: S(0); break;
-        case 2: S(0); S(1); break;
-        case 3: S(0); S(1); S(2); break;
-        case 4: S(0); S(1); S(2); S(3); break;
-        case 5: S(0); S(1); S(2); S(3); S(4); break;
-        case 6: S(0); S(1); S(2); S(3); S(4); S(5); break;
-        case 7: S(0); S(1); S(2); S(3); S(4); S(5); S(6); break;
+    case 8:
+        S8();
+        break;
+    case 9:
+        S8() S(8);
+        break;
+    case 10:
+        S8();
+        S(8);
+        S(9);
+        break;
+    case 11:
+        S8();
+        S(8);
+        S(9);
+        S(a);
+        break;
+    case 12:
+        S8();
+        S(8);
+        S(9);
+        S(a);
+        S(b);
+        break;
+    case 13:
+        S8();
+        S(8);
+        S(9);
+        S(a);
+        S(b);
+        S(c);
+        break;
+    case 14:
+        S8();
+        S(8);
+        S(9);
+        S(a);
+        S(b);
+        S(c);
+        S(d);
+        break;
+    case 15:
+        S8();
+        S(8);
+        S(9);
+        S(a);
+        S(b);
+        S(c);
+        S(d);
+        S(e);
+        break;
+    case 1:
+        S(0);
+        break;
+    case 2:
+        S(0);
+        S(1);
+        break;
+    case 3:
+        S(0);
+        S(1);
+        S(2);
+        break;
+    case 4:
+        S(0);
+        S(1);
+        S(2);
+        S(3);
+        break;
+    case 5:
+        S(0);
+        S(1);
+        S(2);
+        S(3);
+        S(4);
+        break;
+    case 6:
+        S(0);
+        S(1);
+        S(2);
+        S(3);
+        S(4);
+        S(5);
+        break;
+    case 7:
+        S(0);
+        S(1);
+        S(2);
+        S(3);
+        S(4);
+        S(5);
+        S(6);
+        break;
     }
-#undef S
-#undef S8
+#    undef S
+#    undef S8
 }
 
 #elif defined(HAVE_AVX2)
 
 // https://stackoverflow.com/questions/25622745/transpose-an-8x8-float-using-avx-avx2
-inline void transpose_8x8(__m256& r0, __m256& r1, __m256& r2, __m256& r3, __m256& r4, __m256& r5, __m256& r6, __m256& r7) {
+inline void
+transpose_8x8(__m256& r0, __m256& r1, __m256& r2, __m256& r3, __m256& r4, __m256& r5, __m256& r6, __m256& r7) {
     __m256 t0, t1, t2, t3, t4, t5, t6, t7;
     __m256 tt0, tt1, tt2, tt3, tt4, tt5, tt6, tt7;
     t0 = _mm256_unpacklo_ps(r0, r1);
@@ -292,7 +469,7 @@ inline void transpose_8x8(__m256& r0, __m256& r1, __m256& r2, __m256& r3, __m256
     r7 = _mm256_permute2f128_ps(tt3, tt7, 0x31);
 }
 
-template<typename T>
+template <typename T>
 inline void transpose_16x16_kernel(float* dst, T* src, size_t dst_stride, size_t src_stride) {
     __m256 r0, r1, r2, r3, r4, r5, r6, r7;
 
@@ -323,7 +500,7 @@ inline void transpose_16x16_kernel(float* dst, T* src, size_t dst_stride, size_t
     }
 }
 
-template<typename T>
+template <typename T>
 inline void transpose_16xK_kernel(float* dst, T* src, size_t K, size_t dst_stride, size_t src_stride) {
     __m256 r0, r1, r2, r3, r4, r5, r6, r7;
 
@@ -366,24 +543,59 @@ inline void transpose_16xK_kernel(float* dst, T* src, size_t K, size_t dst_strid
 
             transpose_8x8(r0, r1, r2, r3, r4, r5, r6, r7);
 
-#define S(m) _mm256_storeu_ps(dst + j + m * dst_stride, r##m)
+#    define S(m) _mm256_storeu_ps(dst + j + m * dst_stride, r##m)
             switch (K) {
-                case 1: S(0); break;
-                case 2: S(0); S(1); break;
-                case 3: S(0); S(1); S(2); break;
-                case 4: S(0); S(1); S(2); S(3); break;
-                case 5: S(0); S(1); S(2); S(3); S(4); break;
-                case 6: S(0); S(1); S(2); S(3); S(4); S(5); break;
-                case 7: S(0); S(1); S(2); S(3); S(4); S(5); S(6); break;
+            case 1:
+                S(0);
+                break;
+            case 2:
+                S(0);
+                S(1);
+                break;
+            case 3:
+                S(0);
+                S(1);
+                S(2);
+                break;
+            case 4:
+                S(0);
+                S(1);
+                S(2);
+                S(3);
+                break;
+            case 5:
+                S(0);
+                S(1);
+                S(2);
+                S(3);
+                S(4);
+                break;
+            case 6:
+                S(0);
+                S(1);
+                S(2);
+                S(3);
+                S(4);
+                S(5);
+                break;
+            case 7:
+                S(0);
+                S(1);
+                S(2);
+                S(3);
+                S(4);
+                S(5);
+                S(6);
+                break;
             }
-#undef S
+#    undef S
         }
     }
 }
 
 #else
 
-template<typename TSRC, typename TDST>
+template <typename TSRC, typename TDST>
 inline void transpose_16x16_kernel(TDST* dst, TSRC* src, size_t dst_stride, size_t src_stride) {
     for (size_t i = 0; i < 16; i++) {
         for (size_t j = 0; j < 16; j++) {
@@ -392,7 +604,7 @@ inline void transpose_16x16_kernel(TDST* dst, TSRC* src, size_t dst_stride, size
     }
 }
 
-template<typename TSRC, typename TDST>
+template <typename TSRC, typename TDST>
 inline void transpose_16xK_kernel(TDST* dst, TSRC* src, size_t K, size_t dst_stride, size_t src_stride) {
     for (size_t i = 0; i < K; i++) {
         for (size_t j = 0; j < 16; j++) {

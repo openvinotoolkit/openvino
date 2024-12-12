@@ -6,8 +6,8 @@
 
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/op/rank_normalization.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
@@ -42,5 +42,5 @@ pass::EliminateBrgemmCopyB::EliminateBrgemmCopyB() {
     auto m = std::make_shared<ov::pass::pattern::Matcher>(m_copy_b, matcher_name);
     register_matcher(m, callback);
 }
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

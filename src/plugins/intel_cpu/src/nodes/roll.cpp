@@ -2,17 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "roll.h"
+
+#include <cmath>
+#include <openvino/opsets/opset7.hpp>
 #include <string>
 #include <vector>
-#include <cmath>
-#include "dnnl_extension_utils.h"
 
-#include "roll.h"
-#include "openvino/core/parallel.hpp"
-#include "onednn/dnnl.h"
-#include "utils/general_utils.h"
 #include "common/cpu_memcpy.h"
-#include <openvino/opsets/opset7.hpp>
+#include "dnnl_extension_utils.h"
+#include "onednn/dnnl.h"
+#include "openvino/core/parallel.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl;
 
@@ -42,9 +43,10 @@ Roll::Roll(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context
             OPENVINO_THROW(layerErrorPrefix, " has incorrect number of input/output edges!");
         }
 
-        const auto &dataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
+        const auto& dataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
 
-        if (std::find(supportedPrecisionSizes.begin(), supportedPrecisionSizes.end(), dataPrecision.size()) == supportedPrecisionSizes.end())
+        if (std::find(supportedPrecisionSizes.begin(), supportedPrecisionSizes.end(), dataPrecision.size()) ==
+            supportedPrecisionSizes.end())
             OPENVINO_THROW(layerErrorPrefix, "has unsupported precision: ", dataPrecision.get_type_name());
 
         const auto dataRank = getInputShapeAtPort(DATA_INDEX).getRank();
@@ -58,7 +60,9 @@ Roll::Roll(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context
         /* Axes */
         const auto& axesTensorPrec = getOriginalInputPrecisionAtPort(AXES_INDEX);
         if (axesTensorPrec != ov::element::i32 && axesTensorPrec != ov::element::i64) {
-            OPENVINO_THROW(layerErrorPrefix, " has unsupported 'axes' input precision: ", axesTensorPrec.get_type_name());
+            OPENVINO_THROW(layerErrorPrefix,
+                           " has unsupported 'axes' input precision: ",
+                           axesTensorPrec.get_type_name());
         }
 
         const auto axesTensorRank = getInputShapeAtPort(AXES_INDEX).getRank();
@@ -69,7 +73,9 @@ Roll::Roll(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context
         /* Shift */
         const auto& shiftTensorPrec = getOriginalInputPrecisionAtPort(SHIFT_INDEX);
         if (shiftTensorPrec != ov::element::i32 && shiftTensorPrec != ov::element::i64) {
-            OPENVINO_THROW(layerErrorPrefix, " has unsupported 'shift' input precision: ", shiftTensorPrec.get_type_name());
+            OPENVINO_THROW(layerErrorPrefix,
+                           " has unsupported 'shift' input precision: ",
+                           shiftTensorPrec.get_type_name());
         }
 
         const auto shiftTensorRank = getInputShapeAtPort(SHIFT_INDEX).getRank();
@@ -89,11 +95,10 @@ void Roll::initSupportedPrimitiveDescriptors() {
 
     ov::element::Type precision = getOriginalInputPrecisionAtPort(0);
 
-    addSupportedPrimDesc({{LayoutType::ncsp, precision},
-                          {LayoutType::ncsp, ov::element::i32},
-                          {LayoutType::ncsp, ov::element::i32}},
-                         {{LayoutType::ncsp, precision}},
-                         impl_desc_type::ref);
+    addSupportedPrimDesc(
+        {{LayoutType::ncsp, precision}, {LayoutType::ncsp, ov::element::i32}, {LayoutType::ncsp, ov::element::i32}},
+        {{LayoutType::ncsp, precision}},
+        impl_desc_type::ref);
 }
 
 void Roll::prepareParams() {
@@ -132,38 +137,40 @@ void Roll::execute(dnnl::stream strm) {
     const auto dataPrecision = getParentEdgeAt(DATA_INDEX)->getMemory().getDesc().getPrecision();
     const auto& dataTypeSize = dataPrecision.size();
     switch (dataTypeSize) {
-        case sizeof(element_type_traits<ov::element::i8>::value_type): {
-            execPtr->exec<element_type_traits<ov::element::i8>::value_type>(getSrcMemoryAtPort(DATA_INDEX),
-                                                                     getSrcMemoryAtPort(SHIFT_INDEX),
-                                                                     getSrcMemoryAtPort(AXES_INDEX),
-                                                                     getDstMemoryAtPort(0));
-            break;
-        }
-        case sizeof(element_type_traits<ov::element::i16>::value_type): {
-            execPtr->exec<element_type_traits<ov::element::i16>::value_type>(getSrcMemoryAtPort(DATA_INDEX),
-                                                                     getSrcMemoryAtPort(SHIFT_INDEX),
-                                                                     getSrcMemoryAtPort(AXES_INDEX),
-                                                                     getDstMemoryAtPort(0));
-            break;
-        }
-        case sizeof(element_type_traits<ov::element::i32>::value_type): {
-            execPtr->exec<element_type_traits<ov::element::i32>::value_type>(getSrcMemoryAtPort(DATA_INDEX),
-                                                                     getSrcMemoryAtPort(SHIFT_INDEX),
-                                                                     getSrcMemoryAtPort(AXES_INDEX),
-                                                                     getDstMemoryAtPort(0));
-            break;
-        }
-        default:
-            OPENVINO_THROW(layerErrorPrefix,  "has unsupported 'data' input precision: ", dataPrecision.get_type_name());
+    case sizeof(element_type_traits<ov::element::i8>::value_type): {
+        execPtr->exec<element_type_traits<ov::element::i8>::value_type>(getSrcMemoryAtPort(DATA_INDEX),
+                                                                        getSrcMemoryAtPort(SHIFT_INDEX),
+                                                                        getSrcMemoryAtPort(AXES_INDEX),
+                                                                        getDstMemoryAtPort(0));
+        break;
+    }
+    case sizeof(element_type_traits<ov::element::i16>::value_type): {
+        execPtr->exec<element_type_traits<ov::element::i16>::value_type>(getSrcMemoryAtPort(DATA_INDEX),
+                                                                         getSrcMemoryAtPort(SHIFT_INDEX),
+                                                                         getSrcMemoryAtPort(AXES_INDEX),
+                                                                         getDstMemoryAtPort(0));
+        break;
+    }
+    case sizeof(element_type_traits<ov::element::i32>::value_type): {
+        execPtr->exec<element_type_traits<ov::element::i32>::value_type>(getSrcMemoryAtPort(DATA_INDEX),
+                                                                         getSrcMemoryAtPort(SHIFT_INDEX),
+                                                                         getSrcMemoryAtPort(AXES_INDEX),
+                                                                         getDstMemoryAtPort(0));
+        break;
+    }
+    default:
+        OPENVINO_THROW(layerErrorPrefix, "has unsupported 'data' input precision: ", dataPrecision.get_type_name());
     }
 }
 
-Roll::RollExecutor::RollExecutor(const VectorDims& dataDims, const VectorDims& shiftDims, const VectorDims& axesDims,
-    const VectorDims& dstDims)
-        : numOfDims{dataDims.size()}
-        , blockSize{dataDims.back()}
-        , numOfIterations{std::accumulate(dataDims.cbegin(), dataDims.cend(), 1ul, std::multiplies<size_t>()) / blockSize}
-        , axesLength{axesDims[0]} {
+Roll::RollExecutor::RollExecutor(const VectorDims& dataDims,
+                                 const VectorDims& shiftDims,
+                                 const VectorDims& axesDims,
+                                 const VectorDims& dstDims)
+    : numOfDims{dataDims.size()},
+      blockSize{dataDims.back()},
+      numOfIterations{std::accumulate(dataDims.cbegin(), dataDims.cend(), 1ul, std::multiplies<size_t>()) / blockSize},
+      axesLength{axesDims[0]} {
     for (size_t i = 0; i < dataDims.size(); ++i) {
         if (dataDims[i] != dstDims[i])
             OPENVINO_THROW("Input/output tensors dimensions mismatch");
@@ -173,18 +180,20 @@ Roll::RollExecutor::RollExecutor(const VectorDims& dataDims, const VectorDims& s
         OPENVINO_THROW("'shift' and 'axes' dimensions mismatch");
 }
 
-template<typename T>
-void Roll::RollExecutor::exec(const MemoryPtr& dataMemPtr, const MemoryPtr& shiftMemPtr, const MemoryPtr& axesMemPtr,
-    const MemoryPtr& dstMemPtr) {
-    const auto *data = dataMemPtr->getDataAs<const T>();
-    const auto *shift = shiftMemPtr->getDataAs<const int32_t>();
-    const auto *axes = axesMemPtr->getDataAs<const int32_t>();
-    auto *dst = dstMemPtr->getDataAs<T>();
+template <typename T>
+void Roll::RollExecutor::exec(const MemoryPtr& dataMemPtr,
+                              const MemoryPtr& shiftMemPtr,
+                              const MemoryPtr& axesMemPtr,
+                              const MemoryPtr& dstMemPtr) {
+    const auto* data = dataMemPtr->getDataAs<const T>();
+    const auto* shift = shiftMemPtr->getDataAs<const int32_t>();
+    const auto* axes = axesMemPtr->getDataAs<const int32_t>();
+    auto* dst = dstMemPtr->getDataAs<T>();
 
     std::vector<size_t> shiftsVector(numOfDims, 0ul);
     const VectorDims& dataDims = dataMemPtr->getStaticDims();
 
-    for (size_t dim = 0; dim < axesLength ; ++dim) {
+    for (size_t dim = 0; dim < axesLength; ++dim) {
         int32_t currentAxis = axes[dim] < 0 ? axes[dim] + numOfDims : axes[dim];
         int32_t shiftSum = shiftsVector[currentAxis] + shift[dim];
         int32_t dimSize = dataDims[currentAxis];
@@ -196,7 +205,7 @@ void Roll::RollExecutor::exec(const MemoryPtr& dataMemPtr, const MemoryPtr& shif
     const size_t elementSize = sizeof(T);
 
     const auto strides = dataMemPtr->getDescWithType<BlockedMemoryDesc>()->getStrides();
-    const auto calculateShiftOffset = [](size_t dataOffset, size_t dimShift, size_t segmentSize, size_t dimSize){
+    const auto calculateShiftOffset = [](size_t dataOffset, size_t dimShift, size_t segmentSize, size_t dimSize) {
         size_t pos = dataOffset / segmentSize % dimSize;
         size_t shift = (pos + dimShift) % dimSize - pos;
 
@@ -209,20 +218,17 @@ void Roll::RollExecutor::exec(const MemoryPtr& dataMemPtr, const MemoryPtr& shif
         size_t rightBlockStartOffset = start + leftBlockSize;
 
         for (int dim = numOfDims - 1; dim >= 0; --dim) {
-            leftBlockStartOffset = calculateShiftOffset(leftBlockStartOffset, shiftsVector[dim], strides[dim], dataDims[dim]);
-            rightBlockStartOffset = calculateShiftOffset(rightBlockStartOffset, shiftsVector[dim], strides[dim], dataDims[dim]);
+            leftBlockStartOffset =
+                calculateShiftOffset(leftBlockStartOffset, shiftsVector[dim], strides[dim], dataDims[dim]);
+            rightBlockStartOffset =
+                calculateShiftOffset(rightBlockStartOffset, shiftsVector[dim], strides[dim], dataDims[dim]);
         }
 
         if (leftBlockSize > 0)
-            cpu_memcpy(dst + leftBlockStartOffset,
-                       data + start,
-                       leftBlockSize * elementSize);
-
+            cpu_memcpy(dst + leftBlockStartOffset, data + start, leftBlockSize * elementSize);
 
         if (rightBlockSize > 0)
-            cpu_memcpy(dst + rightBlockStartOffset,
-                       data + (start + leftBlockSize),
-                       rightBlockSize * elementSize);
+            cpu_memcpy(dst + rightBlockStartOffset, data + (start + leftBlockSize), rightBlockSize * elementSize);
     });
 }
 
@@ -232,6 +238,6 @@ bool Roll::created() const {
 
 constexpr std::array<size_t, 3> Roll::supportedPrecisionSizes;
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

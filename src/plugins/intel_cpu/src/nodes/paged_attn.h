@@ -4,11 +4,11 @@
 
 #pragma once
 
+#include "kernels/scaled_attn/executor_pa.hpp"
 #include "memory_state.h"
 #include "node.h"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "utils/plain_tensor.hpp"
-#include "kernels/scaled_attn/executor_pa.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -41,7 +41,8 @@ private:
     ov::element::Type getRuntimePrecision() const override;
 
     std::shared_ptr<ov::Extensions::Cpu::PagedAttentionExecutor> m_executor;
-    template <typename T> struct AttentionExecutor;
+    template <typename T>
+    struct AttentionExecutor;
     friend struct PagedAttentionKey;
 
     bool m_hasScore = false;

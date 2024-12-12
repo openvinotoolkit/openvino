@@ -3,9 +3,9 @@
 //
 #ifdef CPU_DEBUG_CAPS
 
-#include "debug_caps_config.h"
+#    include "debug_caps_config.h"
 
-#include <string>
+#    include <string>
 
 namespace ov {
 namespace intel_cpu {
@@ -13,7 +13,7 @@ namespace intel_cpu {
 void DebugCapsConfig::readProperties() {
     auto readEnv = [](const char* envVar) {
         const char* env = std::getenv(envVar);
-        if (env && *env) // set and non-empty
+        if (env && *env)  // set and non-empty
             return env;
 
         return (const char*)nullptr;
@@ -68,6 +68,6 @@ void DebugCapsConfig::readProperties() {
         averageCountersPath = envVarValue;
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
-#endif // CPU_DEBUG_CAPS
+}  // namespace intel_cpu
+}  // namespace ov
+#endif  // CPU_DEBUG_CAPS

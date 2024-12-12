@@ -14,12 +14,16 @@ class Range : public Node {
 public:
     Range(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;
     bool created() const override;
-    bool needPrepareParams() const override {return false;};
-    bool needShapeInfer() const override {return false;};
+    bool needPrepareParams() const override {
+        return false;
+    };
+    bool needShapeInfer() const override {
+        return false;
+    };
     void executeDynamicImpl(dnnl::stream strm) override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
@@ -41,6 +45,6 @@ private:
     std::string errorPrefix;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

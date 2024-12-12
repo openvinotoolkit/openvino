@@ -12,12 +12,12 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
+#include "openvino/opsets/opset6.hpp"
 #include "openvino/util/common_util.hpp"
 #include "ov_ops/rms.hpp"
 #include "shape_inference/custom/rms_norm.hpp"
-#include "openvino/opsets/opset6.hpp"
 #ifdef OPENVINO_ARCH_X86_64
-#include "kernels/x64/rms_kernel.hpp"
+#    include "kernels/x64/rms_kernel.hpp"
 #endif
 
 #include <algorithm>
@@ -51,10 +51,8 @@ size_t RMSNormKey::hash() const {
 }
 
 bool RMSNormKey::operator==(const RMSNormKey& rhs) const {
-    auto retVal = precision == rhs.precision &&
-                  data_size == rhs.data_size &&
-                  scale_size == rhs.scale_size &&
-                  eps == rhs.eps;
+    auto retVal =
+        precision == rhs.precision && data_size == rhs.data_size && scale_size == rhs.scale_size && eps == rhs.eps;
 
     return retVal;
 }
@@ -75,7 +73,10 @@ static std::shared_ptr<kernel::JitKernelBase> createJitKernel(const kernel::jit_
     return res;
 }
 
-static void execJitKernel(const std::shared_ptr<kernel::JitKernelBase>& ker, const uint8_t* src, uint8_t* dst, const float* scale) {
+static void execJitKernel(const std::shared_ptr<kernel::JitKernelBase>& ker,
+                          const uint8_t* src,
+                          uint8_t* dst,
+                          const float* scale) {
     kernel::jit_rms_call_args call_args;
     call_args.src = src;
     call_args.dst = dst;
@@ -84,7 +85,8 @@ static void execJitKernel(const std::shared_ptr<kernel::JitKernelBase>& ker, con
 }
 
 struct RMSNorm::RMSNormExecutor : public RMSNorm::Executor {
-    RMSNormExecutor(ov::element::Type precision, size_t data_size, size_t scale_size, float eps) : m_precision(precision) {
+    RMSNormExecutor(ov::element::Type precision, size_t data_size, size_t scale_size, float eps)
+        : m_precision(precision) {
         kernel::jit_rms_compile_params jcp;
         jcp.src_prc = precision;
         jcp.dst_prc = precision;
@@ -104,7 +106,7 @@ struct RMSNorm::RMSNormExecutor : public RMSNorm::Executor {
         const auto src_stride = src_strides[src_strides.size() - 2] * m_precision.size();
         const auto dst_stride = dst_strides[dst_strides.size() - 2] * m_precision.size();
         auto n = shape_size(shape) / shape[shape.size() - 1];
-        parallel_for(n, [&] (size_t i) {
+        parallel_for(n, [&](size_t i) {
             execJitKernel(m_kernel, src + i * src_stride, dst + i * dst_stride, scale);
         });
     }
@@ -113,7 +115,7 @@ private:
     ov::element::Type m_precision;
     std::shared_ptr<kernel::JitKernelBase> m_kernel;
 };
-#endif // OPENVINO_ARCH_X86_64
+#endif  // OPENVINO_ARCH_X86_64
 
 RMSNorm::RMSNorm(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, RMSNormShapeInferFactory(op)) {
@@ -142,8 +144,8 @@ void RMSNorm::initSupportedPrimitiveDescriptors() {
     }
 
     addSupportedPrimDesc({{LayoutType::ncsp, precision}, {LayoutType::ncsp, ov::element::f32}},
-                        {{LayoutType::ncsp, precision}},
-                        impl_type);
+                         {{LayoutType::ncsp, precision}},
+                         impl_type);
 }
 
 void RMSNorm::createPrimitive() {

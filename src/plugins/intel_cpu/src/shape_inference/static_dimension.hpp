@@ -6,8 +6,8 @@
 
 #include <cstddef>
 #include <limits>
-#include <stdexcept>
 #include <ostream>
+#include <stdexcept>
 
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/except.hpp"
@@ -35,7 +35,7 @@ public:
     /// \brief Construct a zero dimension
     StaticDimension() = default;
 
-    StaticDimension(const Dimension &) {
+    StaticDimension(const Dimension&) {
         OPENVINO_THROW("[shape infer] Shoudn't convert from Dimension to StaticDimension.");
     }
 
@@ -76,7 +76,7 @@ public:
     StaticDimension& operator*=(const StaticDimension& dim);
     StaticDimension& operator&=(const StaticDimension& dim);
     StaticDimension operator/(const value_type divisor) const;
-    StaticDimension &operator/=(const value_type divisor);
+    StaticDimension& operator/=(const value_type divisor);
 
     /// \brief Swap of dimensions
     friend void swap(StaticDimension& a, StaticDimension& b) {
@@ -90,5 +90,5 @@ private:
 
 std::ostream& operator<<(std::ostream& str, const StaticDimension& dimension);
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

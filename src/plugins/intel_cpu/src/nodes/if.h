@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <node.h>
 #include <graph.h>
+#include <node.h>
 
 #include <memory>
 #include <string>
@@ -25,12 +25,18 @@ public:
     void createPrimitive() override;
     bool created() const override;
     void execute(dnnl::stream strm) override;
-    bool isExecutable() const override { return true; }
+    bool isExecutable() const override {
+        return true;
+    }
 
 protected:
     void executeDynamicImpl(dnnl::stream strm) override;
-    bool needPrepareParams() const override { return false; };
-    bool needShapeInfer() const override { return false; }
+    bool needPrepareParams() const override {
+        return false;
+    };
+    bool needShapeInfer() const override {
+        return false;
+    }
 
 private:
     void prepareBeforeMappers(const bool isThen, const dnnl::engine& eng);
@@ -64,21 +70,14 @@ private:
     std::vector<std::deque<MemoryPtr>> inputMemThen, inputMemElse;
     std::deque<MemoryPtr> outputMemThen, outputMemElse;
 
-    std::vector<std::shared_ptr<PortMapHelper>>
-        beforeThenMappers,
-        beforeElseMappers,
-        afterThenMappers,
+    std::vector<std::shared_ptr<PortMapHelper>> beforeThenMappers, beforeElseMappers, afterThenMappers,
         afterElseMappers;
 
-    std::vector<PortMap>
-        thenInputPortMap,
-        thenOutputPortMap,
-        elseInputPortMap,
-        elseOutputPortMap;
+    std::vector<PortMap> thenInputPortMap, thenOutputPortMap, elseInputPortMap, elseOutputPortMap;
 
     const std::shared_ptr<ov::Node> ovOp;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

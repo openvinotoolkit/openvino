@@ -11,7 +11,7 @@ namespace ov {
 namespace intel_cpu {
 
 #ifndef OPENVINO_ARCH_ARM64
-#define GET_OFF(field) offsetof(jit_dft_args, field)
+#    define GET_OFF(field) offsetof(jit_dft_args, field)
 
 template <cpu_isa_t isa>
 void jit_dft_kernel_f32<isa>::generate() {
@@ -119,7 +119,7 @@ void jit_dft_kernel_f32<isa>::generate() {
             uni_vpxor(output, output, output);
         }
 
-        auto c2r_kernel = [&] (bool backwards) {
+        auto c2r_kernel = [&](bool backwards) {
             // if backwards == false:
             //     output_real += input_real * cos(..) - input_imag * sin(..)
             // else:
@@ -137,7 +137,7 @@ void jit_dft_kernel_f32<isa>::generate() {
             add(twiddles_ptr, 2 * vlen);
         };
 
-        auto c2c_kernel = [&] (bool backwards) {
+        auto c2c_kernel = [&](bool backwards) {
             // if backwards == false:
             //     output_real += input_real * cos(..) - input_imag * sin(..)
             //     output_imag += input_imag * cos(..) + input_real * sin(..)
@@ -233,7 +233,7 @@ void jit_dft_kernel_f32<isa>::generate() {
     auto nonsimd_loop = [&] {
         uni_vxorps(xmm_output, xmm_output, xmm_output);
 
-        auto c2r_kernel = [&] (bool backwards) {
+        auto c2r_kernel = [&](bool backwards) {
             // if backwards == false:
             //     output_real += input_real * cos(..) - input_imag * sin(..)
             // else:
@@ -249,7 +249,7 @@ void jit_dft_kernel_f32<isa>::generate() {
             uni_vaddss(xmm_output, xmm_output, xmm_input);
         };
 
-        auto c2c_kernel = [&] (bool backwards) {
+        auto c2c_kernel = [&](bool backwards) {
             // if backwards == false:
             //     output_real += input_real * cos(..) - input_imag * sin(..)
             //     output_imag += input_imag * cos(..) + input_real * sin(..)
@@ -377,7 +377,10 @@ void jit_dft_kernel_f32<isa>::generate() {
 // imag = [11, 12, 13, 14, 15, 16, 17, 18]
 // interleaved = [1, 11, 2, 12, 3, 13, 4, 14, 5, 15, 6, 16, 7, 17, 8, 18]
 template <>
-void jit_dft_kernel_f32<avx512_core>::interleave_and_store(const Vmm& real, const Vmm& imag, const Xbyak::RegExp& reg_exp, const Vmm& tmp) {
+void jit_dft_kernel_f32<avx512_core>::interleave_and_store(const Vmm& real,
+                                                           const Vmm& imag,
+                                                           const Xbyak::RegExp& reg_exp,
+                                                           const Vmm& tmp) {
     const Vmm& low = tmp;
     const Vmm& high = real;
     uni_vmovups(low, real);
@@ -388,7 +391,10 @@ void jit_dft_kernel_f32<avx512_core>::interleave_and_store(const Vmm& real, cons
 }
 
 template <>
-void jit_dft_kernel_f32<avx2>::interleave_and_store(const Vmm& real, const Vmm& imag, const Xbyak::RegExp& reg_exp, const Vmm& tmp) {
+void jit_dft_kernel_f32<avx2>::interleave_and_store(const Vmm& real,
+                                                    const Vmm& imag,
+                                                    const Xbyak::RegExp& reg_exp,
+                                                    const Vmm& tmp) {
     const Vmm& low = real;
     const Vmm& high = imag;
     vunpcklps(tmp, real, imag);
@@ -400,7 +406,10 @@ void jit_dft_kernel_f32<avx2>::interleave_and_store(const Vmm& real, const Vmm& 
 }
 
 template <>
-void jit_dft_kernel_f32<sse41>::interleave_and_store(const Vmm& real, const Vmm& imag, const Xbyak::RegExp& reg_exp, const Vmm& tmp) {
+void jit_dft_kernel_f32<sse41>::interleave_and_store(const Vmm& real,
+                                                     const Vmm& imag,
+                                                     const Xbyak::RegExp& reg_exp,
+                                                     const Vmm& tmp) {
     const Vmm& low = tmp;
     const Vmm& high = real;
     uni_vmovups(low, real);
@@ -415,5 +424,5 @@ template struct jit_dft_kernel_f32<cpu::x64::avx2>;
 template struct jit_dft_kernel_f32<cpu::x64::avx512_core>;
 
 #endif
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

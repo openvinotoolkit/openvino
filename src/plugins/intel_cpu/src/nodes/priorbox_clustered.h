@@ -14,7 +14,7 @@ class PriorBoxClustered : public Node {
 public:
     PriorBoxClustered(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     void execute(dnnl::stream strm) override;
@@ -23,7 +23,9 @@ public:
     bool needShapeInfer() const override;
     bool needPrepareParams() const override;
 
-    void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
+    void executeDynamicImpl(dnnl::stream strm) override {
+        execute(strm);
+    }
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
@@ -40,6 +42,6 @@ private:
     int number_of_priors;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

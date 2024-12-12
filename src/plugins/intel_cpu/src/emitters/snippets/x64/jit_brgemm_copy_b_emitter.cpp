@@ -4,17 +4,14 @@
 
 #include "jit_brgemm_copy_b_emitter.hpp"
 
-#include "emitters/plugin/x64/utils.hpp"
-#include "emitters/snippets/x64/utils.hpp"
-
-#include "snippets/utils/utils.hpp"
-#include "snippets/lowered/expression.hpp"
-
-#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-
 #include <cpu/x64/brgemm/brgemm.hpp>
 #include <cpu/x64/matmul/brgemm_matmul_utils.hpp>
 
+#include "emitters/plugin/x64/utils.hpp"
+#include "emitters/snippets/x64/utils.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/utils/utils.hpp"
+#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;
@@ -34,7 +31,9 @@ bool get_is_transposed(const ov::snippets::lowered::ExpressionPtr& expr) {
 }
 }  // namespace
 
-jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h, cpu_isa_t isa, const ov::snippets::lowered::ExpressionPtr& expr,
+jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h,
+                                                     cpu_isa_t isa,
+                                                     const ov::snippets::lowered::ExpressionPtr& expr,
                                                      const snippets::KernelExecutorTablePtr& kernel_table,
                                                      const ov::intel_cpu::MultiCacheWeakPtr& compiled_kernel_cache)
     : jit_emitter(h, isa) {
@@ -57,17 +56,20 @@ jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h, cpu_isa_t
     m_with_comp = with_compensations(brgemm_type);
 
     BrgemmCopyBKernelConfig kernel_config(src_prc, wei_prc, primitive_isa, m_with_comp, is_transposed, wei_N_blk);
-    m_kernel_executor = kernel_table->register_kernel<BrgemmCopyBKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
+    m_kernel_executor =
+        kernel_table->register_kernel<BrgemmCopyBKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
 
     m_memory_offsets = {brgemm_repack->get_offset_in(), brgemm_repack->get_offset_out()};
-    m_buffer_ids = {utils::get_buffer_cluster_id(expr->get_input_port(0)), utils::get_buffer_cluster_id(expr->get_output_port(0))};
+    m_buffer_ids = {utils::get_buffer_cluster_id(expr->get_input_port(0)),
+                    utils::get_buffer_cluster_id(expr->get_output_port(0))};
     if (m_with_comp) {
         m_memory_offsets.push_back(brgemm_repack->get_offset_compensations());
         m_buffer_ids.push_back(utils::get_buffer_cluster_id(expr->get_output_port(1)));
     }
 }
 
-void jit_brgemm_copy_b_emitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
+void jit_brgemm_copy_b_emitter::validate_arguments(const std::vector<size_t>& in,
+                                                   const std::vector<size_t>& out) const {
     OV_CPU_JIT_EMITTER_ASSERT(in.size() == 1, "expects 1 input");
     OV_CPU_JIT_EMITTER_ASSERT((m_with_comp && out.size() == 2) || (!m_with_comp && out.size() == 1),
                               "expects 2 outputs if there are compensations");
@@ -87,14 +89,20 @@ void jit_brgemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const s
     // Reserve memory on the stack
     h->sub(h->rsp, reserved_stack_size);
 
-    const bool is_dynamic_case = std::any_of(m_memory_offsets.cbegin(), m_memory_offsets.cend(), ov::snippets::utils::is_dynamic_value<size_t>);
+    const bool is_dynamic_case =
+        std::any_of(m_memory_offsets.cbegin(), m_memory_offsets.cend(), ov::snippets::utils::is_dynamic_value<size_t>);
     Xbyak::Reg64 aux_reg = is_dynamic_case ? ov::intel_cpu::utils::get_aux_gpr(mem_ptrs_idxs) : Xbyak::Reg64();
 
-    const std::vector<size_t> args_offsets {GET_OFF_BRGEMM_COPY_B_ARGS(src), GET_OFF_BRGEMM_COPY_B_ARGS(tr_src), GET_OFF_BRGEMM_COPY_B_ARGS(compensation_ptr)};
+    const std::vector<size_t> args_offsets{GET_OFF_BRGEMM_COPY_B_ARGS(src),
+                                           GET_OFF_BRGEMM_COPY_B_ARGS(tr_src),
+                                           GET_OFF_BRGEMM_COPY_B_ARGS(compensation_ptr)};
     const auto& mem_ptrs = ov::intel_cpu::utils::transform_idxs_to_regs(mem_ptrs_idxs);
     for (size_t i = 0; i < mem_ptrs.size(); i++) {
         if (ov::snippets::utils::is_dynamic_value(m_memory_offsets[i]))
-            utils::push_ptr_with_runtime_offset_on_stack(h, args_offsets[i], mem_ptrs[i], aux_reg,
+            utils::push_ptr_with_runtime_offset_on_stack(h,
+                                                         args_offsets[i],
+                                                         mem_ptrs[i],
+                                                         aux_reg,
                                                          GET_OFF(buffer_offsets) + m_buffer_ids[i] * sizeof(size_t));
         else
             utils::push_ptr_with_static_offset_on_stack(h, args_offsets[i], mem_ptrs[i], m_memory_offsets[i]);
@@ -116,5 +124,5 @@ void jit_brgemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const s
     spill.postamble();
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

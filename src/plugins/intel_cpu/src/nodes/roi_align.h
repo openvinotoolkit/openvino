@@ -11,17 +11,9 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-enum ROIAlignLayoutType {
-    ncsp,
-    blk,
-    nspc
-};
+enum ROIAlignLayoutType { ncsp, blk, nspc };
 
-enum ROIAlignedMode {
-    ra_asymmetric,
-    ra_half_pixel_for_nn,
-    ra_half_pixel
-};
+enum ROIAlignedMode { ra_asymmetric, ra_half_pixel_for_nn, ra_half_pixel };
 
 struct jit_roi_align_params {
     Algorithm alg;
@@ -35,20 +27,20 @@ struct jit_roi_align_params {
 struct jit_roi_align_call_args {
     // point to srcData for planar
     // point to srcData address list for other layouts
-    const void *src;
-    const float *weights;
-    const float *scale;
-    void *buffer;
-    void *dst;
+    const void* src;
+    const float* weights;
+    const float* scale;
+    void* buffer;
+    void* dst;
     size_t num_samples;
     size_t work_amount;
     size_t src_stride;
 };
 
 struct jit_uni_roi_align_kernel {
-    void (*ker_)(const jit_roi_align_call_args *);
+    void (*ker_)(const jit_roi_align_call_args*);
 
-    void operator()(const jit_roi_align_call_args *args) {
+    void operator()(const jit_roi_align_call_args* args) {
         assert(ker_);
         ker_(args);
     }
@@ -84,7 +76,7 @@ private:
     ROIAlignedMode alignedMode;
     template <typename inputType, typename outputType>
     void executeSpecified();
-    template<typename T>
+    template <typename T>
     struct ROIAlignExecute;
 
     void createJitKernel(const ov::element::Type& dataPrec, const ROIAlignLayoutType& selectLayout);
@@ -93,6 +85,6 @@ private:
     std::string errorPrefix;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

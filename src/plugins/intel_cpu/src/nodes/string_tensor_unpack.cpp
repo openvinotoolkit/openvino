@@ -3,8 +3,9 @@
 //
 
 #include "string_tensor_unpack.h"
-#include "openvino/reference/string_tensor_unpack.hpp"
+
 #include "openvino/op/string_tensor_unpack.hpp"
+#include "openvino/reference/string_tensor_unpack.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 
 namespace ov {
@@ -18,7 +19,8 @@ StringTensorUnpack::StringTensorUnpack(const std::shared_ptr<ov::Node>& op, cons
     }
 }
 
-bool StringTensorUnpack::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+bool StringTensorUnpack::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
+                                              std::string& errorMessage) noexcept {
     try {
         if (!ov::is_type<ov::op::v15::StringTensorUnpack>(op)) {
             errorMessage = "Only opset15 StringTensorUnpack operation is supported";
@@ -37,10 +39,11 @@ void StringTensorUnpack::getSupportedDescriptors() {
 void StringTensorUnpack::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
-    addSupportedPrimDesc(
-        {{LayoutType::ncsp, ov::element::string}},
-        {{LayoutType::ncsp, ov::element::i32}, {LayoutType::ncsp, ov::element::i32}, {LayoutType::ncsp, ov::element::u8}},
-        impl_desc_type::ref);
+    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::string}},
+                         {{LayoutType::ncsp, ov::element::i32},
+                          {LayoutType::ncsp, ov::element::i32},
+                          {LayoutType::ncsp, ov::element::u8}},
+                         impl_desc_type::ref);
 }
 
 bool StringTensorUnpack::created() const {
@@ -60,18 +63,17 @@ void StringTensorUnpack::executeDynamicImpl(dnnl::stream strm) {
     for (Dim i = 0; i < stringCount; ++i) {
         totalCharLength += srcData[i].length();
     }
-    redefineOutputMemory({ srcDataDims, srcDataDims, {totalCharLength}});
+    redefineOutputMemory({srcDataDims, srcDataDims, {totalCharLength}});
     execute(strm);
 }
 
 void StringTensorUnpack::execute(dnnl::stream strm) {
     const auto stringCount = ov::shape_size(getSrcMemoryAtPort(0)->getStaticDims());
-    ov::reference::string_tensor_unpack(
-        getSrcDataAtPortAs<const std::string>(0),
-        getDstDataAtPortAs<int32_t>(0),
-        getDstDataAtPortAs<int32_t>(1),
-        getDstDataAtPortAs<uint8_t>(2),
-        stringCount);
+    ov::reference::string_tensor_unpack(getSrcDataAtPortAs<const std::string>(0),
+                                        getDstDataAtPortAs<int32_t>(0),
+                                        getDstDataAtPortAs<int32_t>(1),
+                                        getDstDataAtPortAs<uint8_t>(2),
+                                        stringCount);
 }
 }  // namespace node
 }  // namespace intel_cpu

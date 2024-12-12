@@ -4,11 +4,11 @@
 
 #include "composite.h"
 
-#include "nodes/input.h"
 #include "cpu_memory.h"
+#include "nodes/input.h"
+#include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "transformations/cpu_opset/common/op/submodel.hpp"
 #include "utils/debug_capabilities.h"
-#include "shape_inference/shape_inference_internal_dyn.hpp"
 
 namespace ov {
 namespace intel_cpu {

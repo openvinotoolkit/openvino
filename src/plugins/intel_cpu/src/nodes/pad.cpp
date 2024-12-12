@@ -4,13 +4,14 @@
 
 #include "pad.h"
 
-#include "openvino/core/parallel.hpp"
-#include "common/cpu_memcpy.h"
-#include "utils/bfloat16.hpp"
-#include "selective_build.h"
+#include <openvino/core/type/float16.hpp>
 #include <openvino/op/constant.hpp>
 #include <openvino/op/pad.hpp>
-#include <openvino/core/type/float16.hpp>
+
+#include "common/cpu_memcpy.h"
+#include "openvino/core/parallel.hpp"
+#include "selective_build.h"
+#include "utils/bfloat16.hpp"
 
 using namespace dnnl;
 
@@ -27,11 +28,7 @@ bool Pad::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
 
         auto pad = ov::as_type<const op::util::PadBase>(op.get());
         const auto pad_mode = pad->get_pad_mode();
-        if (!one_of(pad_mode,
-                    op::PadMode::CONSTANT,
-                    op::PadMode::EDGE,
-                    op::PadMode::REFLECT,
-                    op::PadMode::SYMMETRIC)) {
+        if (!one_of(pad_mode, op::PadMode::CONSTANT, op::PadMode::EDGE, op::PadMode::REFLECT, op::PadMode::SYMMETRIC)) {
             errorMessage = "Has unsupported pad_mode: " + ov::as_string(pad_mode);
             return false;
         }
@@ -64,7 +61,7 @@ Pad::Pad(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     }
 
     shapeHasDataDependency = !ov::is_type<op::v0::Constant>(op->get_input_node_shared_ptr(PADS_BEGIN_ID)) ||
-            !ov::is_type<op::v0::Constant>(op->get_input_node_shared_ptr(PADS_END_ID));
+                             !ov::is_type<op::v0::Constant>(op->get_input_node_shared_ptr(PADS_END_ID));
 
     auto fillingInParameters = [&](VectorIdxs& parameter, const size_t type) {
         if (type < PADS_BEGIN_ID)
@@ -92,9 +89,8 @@ Pad::Pad(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
                                        ov::op::v0::Constant::get_type_info_static()) {
             if (!ov::is_scalar(pad->get_input_shape(PAD_VALUE_ID)))
                 OPENVINO_THROW(errorPrefix, "has non scalar 'pad_value' input");
-            attrs.padValue =
-                ov::as_type_ptr<const op::v0::Constant>(pad->get_input_node_shared_ptr(PAD_VALUE_ID))
-                    ->cast_vector<float>()[0];
+            attrs.padValue = ov::as_type_ptr<const op::v0::Constant>(pad->get_input_node_shared_ptr(PAD_VALUE_ID))
+                                 ->cast_vector<float>()[0];
             attrs.constPadValue = true;
         }
     } else if (pad_mode == op::PadMode::EDGE) {
@@ -129,13 +125,18 @@ void Pad::initSupportedPrimitiveDescriptors() {
 
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto pushSupportedPrimitiveDescriptor = [&](LayoutType memoryFormat) {
-        config.inConfs[0].setMemDesc(creatorsMap.at(memoryFormat)->createSharedDesc(precision, getInputShapeAtPort(DATA_ID)));
-        config.inConfs[1].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::i32, getInputShapeAtPort(PADS_BEGIN_ID)));
-        config.inConfs[2].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::i32, getInputShapeAtPort(PADS_END_ID)));
+        config.inConfs[0].setMemDesc(
+            creatorsMap.at(memoryFormat)->createSharedDesc(precision, getInputShapeAtPort(DATA_ID)));
+        config.inConfs[1].setMemDesc(
+            creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::i32, getInputShapeAtPort(PADS_BEGIN_ID)));
+        config.inConfs[2].setMemDesc(
+            creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::i32, getInputShapeAtPort(PADS_END_ID)));
         if (isPadValueSpecified)
-            config.inConfs[3].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::f32, getInputShapeAtPort(PAD_VALUE_ID)));
+            config.inConfs[3].setMemDesc(creatorsMap.at(LayoutType::ncsp)
+                                             ->createSharedDesc(ov::element::f32, getInputShapeAtPort(PAD_VALUE_ID)));
 
-        config.outConfs[0].setMemDesc(creatorsMap.at(memoryFormat)->createSharedDesc(precision, getOutputShapeAtPort(DATA_ID)));
+        config.outConfs[0].setMemDesc(
+            creatorsMap.at(memoryFormat)->createSharedDesc(precision, getOutputShapeAtPort(DATA_ID)));
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::ref});
     };
 
@@ -147,12 +148,9 @@ void Pad::initSupportedPrimitiveDescriptors() {
     auto canUseBlocked = [&](const size_t blockSize) {
         const auto& srcDims = inputDataShape.getDims();
         return srcDims[1] != Shape::UNDEFINED_DIM && srcDims[1] % blockSize == 0 &&
-               ((attrs.padMode == CONSTANT &&
-                    attrs.padsBegin[1] % static_cast<int32_t>(blockSize) == 0 &&
-                    attrs.padsEnd[1] % static_cast<int32_t>(blockSize) == 0) ||
-                (attrs.padMode != CONSTANT &&
-                    attrs.padsBegin[1] == 0 &&
-                    attrs.padsEnd[1] == 0));
+               ((attrs.padMode == CONSTANT && attrs.padsBegin[1] % static_cast<int32_t>(blockSize) == 0 &&
+                 attrs.padsEnd[1] % static_cast<int32_t>(blockSize) == 0) ||
+                (attrs.padMode != CONSTANT && attrs.padsBegin[1] == 0 && attrs.padsEnd[1] == 0));
     };
 
     if (numOfDims == 4 || numOfDims == 5) {
@@ -186,7 +184,7 @@ void Pad::createPrimitive() {
         // WA to prevent reading uninitialized data in case of the pad value is a parameter
         MemoryCPtr padValue = srcMemory.size() > PAD_VALUE_ID ? srcMemory[PAD_VALUE_ID] : nullptr;
         if (padValue && !getParentEdgeAt(PAD_VALUE_ID)->getParent()->isConstant()) {
-            //set artificial zero memory just to avoid reading garbage from the uninitilized input
+            // set artificial zero memory just to avoid reading garbage from the uninitilized input
             auto tmpPadValue = std::make_shared<Memory>(getEngine(), padValue->getDescPtr());
             tmpPadValue->nullify();
             srcMemory[PAD_VALUE_ID] = tmpPadValue;
@@ -207,11 +205,7 @@ bool Pad::isExecutable() const {
 
 void Pad::prepareParams() {
     updateLastInputDims();
-    execPtr = std::make_shared<PadExecutor>(
-        attrs,
-        srcMemory,
-        dstMemory,
-        errorPrefix);
+    execPtr = std::make_shared<PadExecutor>(attrs, srcMemory, dstMemory, errorPrefix);
 }
 
 Pad::PadExecutor::PadExecutor(const PadAttrs& attrs,
@@ -244,14 +238,13 @@ void Pad::PadExecutor::paramsInitialization(const PadAttrs& attrs,
     params.attrs.prc = srcMemPtr->getDesc().getPrecision();
     params.dataSize = params.attrs.prc.size();
 
-    auto fillingInParameters =
-        [&](VectorIdxs& parameter, const size_t type, const size_t size, const int value) {
-            const int* ptr = srcMemory[type]->getDataAs<const int32_t>();
-            parameter.resize(size);
-            for (size_t i = 0; i < size; i++) {
-                parameter[i] = static_cast<int>(ptr[i]);
-            }
-        };
+    auto fillingInParameters = [&](VectorIdxs& parameter, const size_t type, const size_t size, const int value) {
+        const int* ptr = srcMemory[type]->getDataAs<const int32_t>();
+        parameter.resize(size);
+        for (size_t i = 0; i < size; i++) {
+            parameter[i] = static_cast<int>(ptr[i]);
+        }
+    };
     // if pad begin/end/value dynamic
     if (params.attrs.padsBegin.empty())
         fillingInParameters(params.attrs.padsBegin, PADS_BEGIN_ID, srcDims.size(), 0);
@@ -272,8 +265,7 @@ void Pad::PadExecutor::paramsInitialization(const PadAttrs& attrs,
         params.attrs.padsEnd.push_back(0);
     } else {
         auto order = srcBlockMemDesc->getOrder();
-        VectorIdxs newPadsBegin(params.attrs.padsBegin.size(), 0),
-                   newPadsEnd(params.attrs.padsEnd.size(), 0);
+        VectorIdxs newPadsBegin(params.attrs.padsBegin.size(), 0), newPadsEnd(params.attrs.padsEnd.size(), 0);
         for (size_t i = 0; i < params.attrs.padsBegin.size(); ++i) {
             newPadsBegin[i] = params.attrs.padsBegin[order[i]];
             newPadsEnd[i] = params.attrs.padsEnd[order[i]];
@@ -371,9 +363,10 @@ void Pad::PadExecutor::innerParamsInitialization() {
     params.innerBeginShift = params.innerBeginPadCount * params.shift;
     params.innerEndShift = params.innerEndPadCount * params.shift;
     params.innerSrcShift = std::max(-1 * params.attrs.padsBegin[params.nDimsForWork], 0) * params.shift;
-    params.innerCopySize = (params.srcDims[params.nDimsForWork] +
-                            std::min(params.attrs.padsBegin[params.nDimsForWork], 0) +
-                            std::min(params.attrs.padsEnd[params.nDimsForWork], 0)) * params.shift;
+    params.innerCopySize =
+        (params.srcDims[params.nDimsForWork] + std::min(params.attrs.padsBegin[params.nDimsForWork], 0) +
+         std::min(params.attrs.padsEnd[params.nDimsForWork], 0)) *
+        params.shift;
 }
 
 void Pad::PadExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr) {
@@ -487,7 +480,9 @@ void Pad::PadExecutor::padConstantCommon(const MemoryPtr& srcMemPtr, const Memor
                 srcIdx += (indexes[idx] - params.attrs.padsBegin[idx]) * params.srcStrides[idx];
 
             std::fill_n(&dstData[dstIdx], params.innerBeginShift, value);
-            cpu_memcpy(&dstData[dstIdx + params.innerBeginShift], &srcData[srcIdx + params.innerSrcShift], params.innerCopySize * params.dataSize);
+            cpu_memcpy(&dstData[dstIdx + params.innerBeginShift],
+                       &srcData[srcIdx + params.innerSrcShift],
+                       params.innerCopySize * params.dataSize);
             std::fill_n(&dstData[dstIdx + params.innerBeginShift + params.innerCopySize], params.innerEndShift, value);
 
             parallel_step(params.nDimsForWork, params.dstDims, indexes);
@@ -528,7 +523,9 @@ void Pad::PadExecutor::padConstantZero(const MemoryPtr& srcMemPtr, const MemoryP
             srcIdx *= params.dataSize;
 
             memset(&dstData[dstIdx], 0, params.innerBeginShift);
-            cpu_memcpy(&dstData[dstIdx + params.innerBeginShift], &srcData[srcIdx + params.innerSrcShift], params.innerCopySize);
+            cpu_memcpy(&dstData[dstIdx + params.innerBeginShift],
+                       &srcData[srcIdx + params.innerSrcShift],
+                       params.innerCopySize);
             memset(&dstData[dstIdx + params.innerBeginShift + params.innerCopySize], 0, params.innerEndShift);
 
             parallel_step(params.nDimsForWork, params.dstDims, indexes);
@@ -565,7 +562,9 @@ void Pad::PadExecutor::padEdge(const MemoryPtr& srcMemPtr, const MemoryPtr& dstM
             for (size_t i = 0; i < params.innerBeginPadCount; ++i)
                 cpu_memcpy(&dstData[dstIdx + i * params.shift], &srcData[srcIdx], params.shift);
 
-            cpu_memcpy(&dstData[dstIdx + params.innerBeginShift], &srcData[srcIdx + params.innerSrcShift], params.innerCopySize);
+            cpu_memcpy(&dstData[dstIdx + params.innerBeginShift],
+                       &srcData[srcIdx + params.innerSrcShift],
+                       params.innerCopySize);
 
             for (size_t i = 0; i < params.innerEndPadCount; ++i)
                 cpu_memcpy(&dstData[dstIdx + params.innerBeginShift + params.innerCopySize + i * params.shift],
@@ -577,11 +576,15 @@ void Pad::PadExecutor::padEdge(const MemoryPtr& srcMemPtr, const MemoryPtr& dstM
     });
 }
 
-void Pad::PadExecutor::padReflectOrSymmetric(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, const bool isSymmetric) {
+void Pad::PadExecutor::padReflectOrSymmetric(const MemoryPtr& srcMemPtr,
+                                             const MemoryPtr& dstMemPtr,
+                                             const bool isSymmetric) {
     const uint8_t* srcData = srcMemPtr->getDataAs<const uint8_t>();
     uint8_t* dstData = dstMemPtr->getDataAs<uint8_t>();
     const size_t shift = isSymmetric ? 1 : 0;
-    const size_t endSrcShift = (params.srcDimsForReflectOrSymmetric[params.nDimsForWork] - params.srcODims[params.nDimsForWork]) * params.shift;
+    const size_t endSrcShift =
+        (params.srcDimsForReflectOrSymmetric[params.nDimsForWork] - params.srcODims[params.nDimsForWork]) *
+        params.shift;
 
     parallel_nt(params.nThreads, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
@@ -610,7 +613,9 @@ void Pad::PadExecutor::padReflectOrSymmetric(const MemoryPtr& srcMemPtr, const M
                            &srcData[srcIdx + (params.attrs.padsBegin[params.nDimsForWork] - shift - i) * params.shift],
                            params.shift);
 
-            cpu_memcpy(&dstData[dstIdx + params.innerBeginShift], &srcData[srcIdx + params.innerSrcShift], params.innerCopySize);
+            cpu_memcpy(&dstData[dstIdx + params.innerBeginShift],
+                       &srcData[srcIdx + params.innerSrcShift],
+                       params.innerCopySize);
 
             for (size_t i = 0; i < params.innerEndPadCount; ++i)
                 cpu_memcpy(&dstData[dstIdx + (params.srcODims[params.nDimsForWork] + i) * params.shift],

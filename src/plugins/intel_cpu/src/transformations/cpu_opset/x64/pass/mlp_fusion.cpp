@@ -19,8 +19,8 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
-#include "transformations/utils/utils.hpp"
 #include "transformations/utils/gen_pattern.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov::gen_pattern;
 
@@ -44,33 +44,36 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
         makeConst(ov::element::i8, ov::PartialShape({ov::Dimension(), ov::Dimension()}), nullptr);
     auto gate_proj_weight_scales_per_OC = makeConst(ov::element::f32, ov::PartialShape({ov::Dimension(), 1}), nullptr);
     auto gate_proj_weight_f32 = makePattern<opset1::Convert>({gate_proj_weight_i8}, {{"destination_type", "f32"}});
-    auto gate_proj_weight_deq =
-        makePattern<opset1::Multiply>({gate_proj_weight_f32, gate_proj_weight_scales_per_OC}, {{"auto_broadcast", "numpy"}});
+    auto gate_proj_weight_deq = makePattern<opset1::Multiply>({gate_proj_weight_f32, gate_proj_weight_scales_per_OC},
+                                                              {{"auto_broadcast", "numpy"}});
 
-    auto up_proj_weight_i8 =
-        makeConst(ov::element::i8, ov::PartialShape({ov::Dimension(), ov::Dimension()}), nullptr);
+    auto up_proj_weight_i8 = makeConst(ov::element::i8, ov::PartialShape({ov::Dimension(), ov::Dimension()}), nullptr);
     auto up_proj_weight_scales_per_OC = makeConst(ov::element::f32, ov::PartialShape({ov::Dimension(), 1}), nullptr);
     auto up_proj_weight_f32 = makePattern<opset1::Convert>({up_proj_weight_i8}, {{"destination_type", "f32"}});
-    auto up_proj_weight_deq =
-        makePattern<opset1::Multiply>({up_proj_weight_f32, up_proj_weight_scales_per_OC}, {{"auto_broadcast", "numpy"}});
+    auto up_proj_weight_deq = makePattern<opset1::Multiply>({up_proj_weight_f32, up_proj_weight_scales_per_OC},
+                                                            {{"auto_broadcast", "numpy"}});
 
     auto down_proj_weight_i8 =
         makeConst(ov::element::i8, ov::PartialShape({ov::Dimension(), ov::Dimension()}), nullptr);
     auto down_proj_weight_scales_per_OC = makeConst(ov::element::f32, ov::PartialShape({ov::Dimension(), 1}), nullptr);
     auto down_proj_weight_f32 = makePattern<opset1::Convert>({down_proj_weight_i8}, {{"destination_type", "f32"}});
-    auto down_proj_weight_deq =
-        makePattern<opset1::Multiply>({down_proj_weight_f32, down_proj_weight_scales_per_OC}, {{"auto_broadcast", "numpy"}});
+    auto down_proj_weight_deq = makePattern<opset1::Multiply>({down_proj_weight_f32, down_proj_weight_scales_per_OC},
+                                                              {{"auto_broadcast", "numpy"}});
 
     // gate-up weights are combined
-    auto gate_up_proj_weight = makeConst(ov::element::f16, ov::PartialShape({ov::Dimension(), ov::Dimension()}), nullptr);
+    auto gate_up_proj_weight =
+        makeConst(ov::element::f16, ov::PartialShape({ov::Dimension(), ov::Dimension()}), nullptr);
     auto gate_up_proj_weight_f32 = makePattern<opset1::Convert>({gate_up_proj_weight}, {{"destination_type", "f32"}});
 
     auto gate_up_proj_weight_const_i8 =
         makeConst(ov::element::i8, ov::PartialShape({ov::Dimension(), ov::Dimension()}), nullptr);
-    auto gate_up_proj_weight_cvt_f32 = makePattern<opset1::Convert>({gate_up_proj_weight_const_i8}, {{"destination_type", "f32"}});
-    auto gate_up_proj_weight_scales_per_OC = makeConst(ov::element::f32, ov::PartialShape({ov::Dimension(), 1}), nullptr);
-    auto gate_up_proj_weight_deq = makePattern<opset1::Multiply>({gate_up_proj_weight_cvt_f32, gate_up_proj_weight_scales_per_OC},
-                                                             {{"auto_broadcast", "numpy"}});
+    auto gate_up_proj_weight_cvt_f32 =
+        makePattern<opset1::Convert>({gate_up_proj_weight_const_i8}, {{"destination_type", "f32"}});
+    auto gate_up_proj_weight_scales_per_OC =
+        makeConst(ov::element::f32, ov::PartialShape({ov::Dimension(), 1}), nullptr);
+    auto gate_up_proj_weight_deq =
+        makePattern<opset1::Multiply>({gate_up_proj_weight_cvt_f32, gate_up_proj_weight_scales_per_OC},
+                                      {{"auto_broadcast", "numpy"}});
 
     auto gate_up_proj = makePattern<opset1::MatMul>({input, gate_up_proj_weight_f32 | gate_up_proj_weight_deq},
                                                     {{"transpose_a", false}, {"transpose_b", true}});
@@ -82,18 +85,21 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
     auto gate_up_proj_split = makePattern<opset1::VariadicSplit>({gate_up_proj, -1, gate_up_split_lengths});
     gate_up_proj_split->set_output_size(2);
 
-    auto mlp_gate_proj = makePattern<opset1::MatMul>({input, gate_proj_weight | gate_proj_weight_compressed | gate_proj_weight_deq},
-                                                     {{"transpose_a", false}, {"transpose_b", true}});  // [?,?,up_size]
+    auto mlp_gate_proj =
+        makePattern<opset1::MatMul>({input, gate_proj_weight | gate_proj_weight_compressed | gate_proj_weight_deq},
+                                    {{"transpose_a", false}, {"transpose_b", true}});  // [?,?,up_size]
     auto mlp_silu_gate = makePattern<opset4::Swish>({mlp_gate_proj | gate_up_proj_split->output(0)});
     auto mlp_gelu_gate = makePattern<opset7::Gelu>({mlp_gate_proj | gate_up_proj_split->output(0)});
-    auto mlp_up_proj = makePattern<opset1::MatMul>({input, up_proj_weight | up_proj_weight_compressed | up_proj_weight_deq},
-                                                   {{"transpose_a", false}, {"transpose_b", true}});
+    auto mlp_up_proj =
+        makePattern<opset1::MatMul>({input, up_proj_weight | up_proj_weight_compressed | up_proj_weight_deq},
+                                    {{"transpose_a", false}, {"transpose_b", true}});
 
     auto mlp_gated_up =
         makePattern<opset1::Multiply>({mlp_silu_gate | mlp_gelu_gate, mlp_up_proj | gate_up_proj_split->output(1)},
                                       {{"auto_broadcast", "numpy"}});
-    auto down_proj = makePattern<opset1::MatMul>({mlp_gated_up, down_proj_weight | down_proj_weight_compressed | down_proj_weight_deq},
-                                                 {{"transpose_a", false}, {"transpose_b", true}});  //  [?,?,down_size]
+    auto down_proj = makePattern<opset1::MatMul>(
+        {mlp_gated_up, down_proj_weight | down_proj_weight_compressed | down_proj_weight_deq},
+        {{"transpose_a", false}, {"transpose_b", true}});  //  [?,?,down_size]
 
     auto result = down_proj;
 
@@ -119,33 +125,36 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
         bool is_down_proj_int8 = false;
         bool is_gate_up_combined = false;
         if (pattern_map.count(gate_up_proj_weight_const_i8) > 0 && pattern_map.count(down_proj_weight_compressed) > 0) {
-            //gate-up combined & quantized
+            // gate-up combined & quantized
             is_gate_up_quantized_int8 = true;
             is_gate_up_combined = true;
             gate_proj_w = pattern_map.at(gate_up_proj_weight_const_i8);
             up_proj_w = pattern_map.at(gate_up_proj_weight_const_i8);
             down_proj_w = pattern_map.at(down_proj_weight_compressed);
         } else if (pattern_map.count(gate_up_proj_weight) > 0 && pattern_map.count(down_proj_weight_compressed) > 0) {
-            //gate-up combined
+            // gate-up combined
             is_gate_up_combined = true;
             gate_proj_w = pattern_map.at(gate_up_proj_weight);
             up_proj_w = pattern_map.at(gate_up_proj_weight);
             down_proj_w = pattern_map.at(down_proj_weight_compressed);
-        } else if (pattern_map.count(gate_proj_weight_compressed) > 0 && pattern_map.count(up_proj_weight_compressed) > 0 &&
-            pattern_map.count(down_proj_weight_compressed) > 0) {
+        } else if (pattern_map.count(gate_proj_weight_compressed) > 0 &&
+                   pattern_map.count(up_proj_weight_compressed) > 0 &&
+                   pattern_map.count(down_proj_weight_compressed) > 0) {
             is_gate_up_quantized_int8 = false;
             is_down_proj_int8 = false;
             gate_proj_w = pattern_map.at(gate_proj_weight_compressed);
             up_proj_w = pattern_map.at(up_proj_weight_compressed);
             down_proj_w = pattern_map.at(down_proj_weight_compressed);
         } else if (pattern_map.count(gate_proj_weight_i8) > 0 && pattern_map.count(up_proj_weight_i8) > 0 &&
-                   pattern_map.count(gate_proj_weight_scales_per_OC) > 0 && pattern_map.count(up_proj_weight_scales_per_OC) > 0) {
+                   pattern_map.count(gate_proj_weight_scales_per_OC) > 0 &&
+                   pattern_map.count(up_proj_weight_scales_per_OC) > 0) {
             is_gate_up_quantized_int8 = true;
             gate_proj_w = pattern_map.at(gate_proj_weight_i8);
             up_proj_w = pattern_map.at(up_proj_weight_i8);
 
             if (pattern_map.count(down_proj_weight_i8) > 0) {
-                if (pattern_map.count(down_proj_weight_scales_per_OC) == 0) return false;
+                if (pattern_map.count(down_proj_weight_scales_per_OC) == 0)
+                    return false;
                 is_down_proj_int8 = true;
                 down_proj_w = pattern_map.at(down_proj_weight_i8);
             } else {
@@ -226,14 +235,15 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
         auto old_node = root;
         auto new_node = std::make_shared<LLMMLPNode>(new_args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
-        ov::copy_runtime_info({pattern_map.at(gate_act).get_node_shared_ptr(),
-                               pattern_map.at(down_proj).get_node_shared_ptr()},
-                              new_node);
+        ov::copy_runtime_info(
+            {pattern_map.at(gate_act).get_node_shared_ptr(), pattern_map.at(down_proj).get_node_shared_ptr()},
+            new_node);
         if (is_gate_up_combined) {
             ov::copy_runtime_info({pattern_map.at(gate_up_proj).get_node_shared_ptr()}, new_node);
         } else {
             ov::copy_runtime_info({pattern_map.at(mlp_gate_proj).get_node_shared_ptr(),
-                                   pattern_map.at(mlp_up_proj).get_node_shared_ptr()}, new_node);
+                                   pattern_map.at(mlp_up_proj).get_node_shared_ptr()},
+                                  new_node);
         }
         // callback is for plugin implementation to check if it can be supported
         if (!transformation_callback(new_node)) {

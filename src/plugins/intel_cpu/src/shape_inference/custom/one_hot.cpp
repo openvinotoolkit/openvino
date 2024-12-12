@@ -3,8 +3,9 @@
 //
 
 #include "one_hot.hpp"
-#include "utils.hpp"
+
 #include "openvino/opsets/opset1.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -15,9 +16,8 @@ namespace node {
  * of size `depth` is inserted at the dimension defined by the `axis` parameter.
  *
  */
-Result OneHotShapeInfer::infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
+Result OneHotShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                               const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
     auto depth = data_dependency.at(1)->getDataAs<int32_t>()[0];
     if (depth < 0) {
         OPENVINO_THROW("OneHot depth value can't be negative.");
@@ -36,12 +36,13 @@ ShapeInferPtr OneHotShapeInferFactory::makeShapeInfer() const {
     auto axis = oneHot->get_axis();
     auto dstShape = oneHot->get_output_partial_shape(0);
     int output_dims_size = dstShape.size();
-    if (0 == output_dims_size) output_dims_size = 1;
+    if (0 == output_dims_size)
+        output_dims_size = 1;
     if (axis < 0) {
         axis += output_dims_size;
     }
     return std::make_shared<OneHotShapeInfer>(axis);
 }
-} // namespace node
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

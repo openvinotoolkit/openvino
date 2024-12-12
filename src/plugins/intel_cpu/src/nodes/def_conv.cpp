@@ -4,21 +4,20 @@
 
 #include "def_conv.h"
 
-#include <openvino/op/deformable_convolution.hpp>
-
-#include <string>
-#include <vector>
 #include <math.h>
 
-#include "openvino/core/parallel.hpp"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "common/primitive_hashing_utils.hpp"
-#include "openvino/util/pp.hpp"
-
-#include "dnnl_types.h"
-#include "dnnl_extension_utils.h"
-#include "cpu/x64/jit_generator.hpp"
 #include <common/dnnl_thread.hpp>
+#include <openvino/op/deformable_convolution.hpp>
+#include <string>
+#include <vector>
+
+#include "common/primitive_hashing_utils.hpp"
+#include "cpu/x64/jit_generator.hpp"
+#include "dnnl_extension_utils.h"
+#include "dnnl_types.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "openvino/core/parallel.hpp"
+#include "openvino/util/pp.hpp"
 
 using namespace dnnl;
 using namespace dnnl::impl;
@@ -30,7 +29,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 #if defined(OPENVINO_ARCH_X86_64)
-#define GET_OFF(field) offsetof(jit_def_conv_call_args, field)
+#    define GET_OFF(field) offsetof(jit_def_conv_call_args, field)
 
 template <cpu_isa_t isa>
 struct jit_uni_def_conv_kernel_f32 : public jit_uni_def_conv_kernel, public jit_generator {
@@ -38,7 +37,9 @@ struct jit_uni_def_conv_kernel_f32 : public jit_uni_def_conv_kernel, public jit_
 
     constexpr static int sampledPointsPerPixel = DeformableConvolution::sampledPointsPerPixel;
 
-    explicit jit_uni_def_conv_kernel_f32(const jit_def_conv_params& jcp) : jit_uni_def_conv_kernel(jcp), jit_generator(jit_name()) {}
+    explicit jit_uni_def_conv_kernel_f32(const jit_def_conv_params& jcp)
+        : jit_uni_def_conv_kernel(jcp),
+          jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -72,8 +73,8 @@ struct jit_uni_def_conv_kernel_f32 : public jit_uni_def_conv_kernel, public jit_
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
-            Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm =
+        typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
     const int vlen = cpu_isa_traits<isa>::vlen;
     using Ymm = const Xbyak::Ymm;
@@ -113,18 +114,29 @@ private:
 
     Xbyak::Opmask ktail_mask = Xbyak::Opmask(2);
 
-    inline Xbyak::Address table_val(int index)
-    { return ptr[reg_table + index * vlen]; }
+    inline Xbyak::Address table_val(int index) {
+        return ptr[reg_table + index * vlen];
+    }
 
-    inline Vmm get_vmm_ker(int idx) { return Vmm(idx + 0); }
-    inline Vmm get_vmm_src(int idx) { return Vmm(idx + 1); }
-    inline Vmm get_vmm_acc(int idx) { return Vmm(idx + jcp_.ur_w + 1); }
-    inline Ymm get_ymm_acc(int idx) { return Ymm(idx + jcp_.ur_w + 1); }
-    inline Xmm get_xmm_acc(int idx) { return Xmm(idx + jcp_.ur_w + 1); }
+    inline Vmm get_vmm_ker(int idx) {
+        return Vmm(idx + 0);
+    }
+    inline Vmm get_vmm_src(int idx) {
+        return Vmm(idx + 1);
+    }
+    inline Vmm get_vmm_acc(int idx) {
+        return Vmm(idx + jcp_.ur_w + 1);
+    }
+    inline Ymm get_ymm_acc(int idx) {
+        return Ymm(idx + jcp_.ur_w + 1);
+    }
+    inline Xmm get_xmm_acc(int idx) {
+        return Xmm(idx + jcp_.ur_w + 1);
+    }
 
     Xbyak::Label l_table;
 
-    inline void checkZeroWei(const Xbyak::Xmm &x1, Label &nullifyLabel) {
+    inline void checkZeroWei(const Xbyak::Xmm& x1, Label& nullifyLabel) {
         ptest(x1, x1);
         jz(nullifyLabel);
     }
@@ -135,13 +147,16 @@ private:
 
         mov(reg_ow_pos, 0);
 
-        L(ow_loop_main); {
+        L(ow_loop_main);
+        {
             cmp(reg_ow_pos, jcp_.ow - jcp_.ur_w);
             jg(ow_tail, T_NEAR);
 
             oc_loop(jcp_.ur_w);
-            add(reg_sampled_wei, jcp_.ur_w * jcp_.kh * jcp_.kw * sampledPointsPerPixel * jcp_.typesize_sampled_wei);  // type = float
-            add(reg_sampled_offs, jcp_.ur_w * jcp_.kh * jcp_.kw * sampledPointsPerPixel * jcp_.typesize_sampled_offsets);  // type = int
+            add(reg_sampled_wei,
+                jcp_.ur_w * jcp_.kh * jcp_.kw * sampledPointsPerPixel * jcp_.typesize_sampled_wei);  // type = float
+            add(reg_sampled_offs,
+                jcp_.ur_w * jcp_.kh * jcp_.kw * sampledPointsPerPixel * jcp_.typesize_sampled_offsets);  // type = int
 
             add(reg_output, jcp_.ur_w * jcp_.oc * jcp_.typesize_out);
 
@@ -149,7 +164,8 @@ private:
             jmp(ow_loop_main, T_NEAR);
         }
 
-        L(ow_tail); {
+        L(ow_tail);
+        {
             if (jcp_.ow % jcp_.ur_w != 0)
                 oc_loop(jcp_.ow % jcp_.ur_w);
         }
@@ -191,7 +207,8 @@ private:
                 for (int ic = 0; ic < ic_step; ic++) {
                     for (int ow = 0; ow < ow_step; ow++) {
                         Vmm vmm_src = get_vmm_src(ow);
-                        size_t inp_off = (size_t) ow * jcp_.kh * jcp_.kw * jcp_.ic + kh * jcp_.kw * jcp_.ic + kw * jcp_.ic + ic;
+                        size_t inp_off =
+                            (size_t)ow * jcp_.kh * jcp_.kw * jcp_.ic + kh * jcp_.kw * jcp_.ic + kw * jcp_.ic + ic;
 
                         uni_vbroadcastss(vmm_src, ptr[aux2_reg_input_buffer + inp_off * jcp_.typesize_in]);
                     }
@@ -199,10 +216,10 @@ private:
                     for (int r = 0; r < repeats; r++) {
                         for (int ocb = 0; ocb < oc_blocks_step; ocb++) {
                             Vmm vmm_ker = get_vmm_ker(0);
-                            size_t ker_off = (size_t) ocb * jcp_.nb_ic * jcp_.kh * jcp_.kw * jcp_.ic_block * jcp_.oc_block +
-                                             kh * jcp_.kw * jcp_.ic_block * jcp_.oc_block +
-                                             kw * jcp_.ic_block * jcp_.oc_block +
-                                             ic * jcp_.oc_block + r * jcp_.oc_block / 2;
+                            size_t ker_off =
+                                (size_t)ocb * jcp_.nb_ic * jcp_.kh * jcp_.kw * jcp_.ic_block * jcp_.oc_block +
+                                kh * jcp_.kw * jcp_.ic_block * jcp_.oc_block + kw * jcp_.ic_block * jcp_.oc_block +
+                                ic * jcp_.oc_block + r * jcp_.oc_block / 2;
 
                             uni_vmovups(vmm_ker, ptr[aux2_reg_kernel + ker_off * jcp_.typesize_in]);
                             for (int ow = 0; ow < ow_step; ow++) {
@@ -248,7 +265,8 @@ private:
 
         init_accums(ow_step, oc_blocks_step, oc_step);
 
-        L(ic_main_loop); {
+        L(ic_main_loop);
+        {
             cmp(reg_ic_iter, jcp_.ic_block);
             jl(ic_tail, T_NEAR);
 
@@ -259,7 +277,8 @@ private:
             jmp(ic_main_loop, T_NEAR);
         }
 
-        L(ic_tail); {
+        L(ic_tail);
+        {
             if (jcp_.ic % jcp_.ic_block != 0) {
                 apply_filter(ow_step, oc_blocks_step, oc_step, jcp_.ic % jcp_.ic_block);
             }
@@ -283,7 +302,8 @@ private:
         xor_(reg_dg_iter, reg_dg_iter);
 
         const int ic_per_def_group = jcp_.ic / jcp_.dg;
-        L(dg_loop); {
+        L(dg_loop);
+        {
             cmp(reg_dg_iter, jcp_.dg);
             jge(dg_loop_end, T_NEAR);
 
@@ -326,7 +346,8 @@ private:
                         Xmm xmm_w4 = Xmm(5);
 
                         Xmm xmm_v1 = Xmm(2);
-                        Xmm xmm_v2 = Xmm(3);;
+                        Xmm xmm_v2 = Xmm(3);
+                        ;
                         Xmm xmm_v3 = Xmm(6);
                         Xmm xmm_v4 = Xmm(7);
 
@@ -341,7 +362,8 @@ private:
                         Vmm vmm_v4 = Vmm(xmm_v4.getIdx());
 
                         // offsets computation
-                        size_t ind_off_hh = sampledPointsPerPixel * (((size_t) kh * jcp_.kw + kw) + ow * (jcp_.kh * jcp_.kw));
+                        size_t ind_off_hh =
+                            sampledPointsPerPixel * (((size_t)kh * jcp_.kw + kw) + ow * (jcp_.kh * jcp_.kw));
                         size_t ind_off_hl = ind_off_hh + 1;
                         size_t ind_off_lh = ind_off_hl + 1;
                         size_t ind_off_ll = ind_off_lh + 1;
@@ -366,12 +388,16 @@ private:
                             jl(ic_loop_tail, T_NEAR);
 
                             // check zero markers
-                            uni_vbroadcastss(xmm_v1, dword[aux_reg_sampled_wei + ind_off_ll * jcp_.typesize_sampled_wei]);
-                            uni_vbroadcastss(xmm_v2, dword[aux_reg_sampled_wei + ind_off_hl * jcp_.typesize_sampled_wei]);
-                            uni_vbroadcastss(xmm_v3, dword[aux_reg_sampled_wei + ind_off_lh * jcp_.typesize_sampled_wei]);
-                            uni_vbroadcastss(xmm_v4, dword[aux_reg_sampled_wei + ind_off_hh * jcp_.typesize_sampled_wei]);
+                            uni_vbroadcastss(xmm_v1,
+                                             dword[aux_reg_sampled_wei + ind_off_ll * jcp_.typesize_sampled_wei]);
+                            uni_vbroadcastss(xmm_v2,
+                                             dword[aux_reg_sampled_wei + ind_off_hl * jcp_.typesize_sampled_wei]);
+                            uni_vbroadcastss(xmm_v3,
+                                             dword[aux_reg_sampled_wei + ind_off_lh * jcp_.typesize_sampled_wei]);
+                            uni_vbroadcastss(xmm_v4,
+                                             dword[aux_reg_sampled_wei + ind_off_hh * jcp_.typesize_sampled_wei]);
 
-                            size_t input_buffer_off = (size_t) kh * jcp_.kw * jcp_.ic + kw * jcp_.ic;
+                            size_t input_buffer_off = (size_t)kh * jcp_.kw * jcp_.ic + kw * jcp_.ic;
 
                             uni_vpmovsxdq(xmm_v1_off, xmm_v1_off);
                             uni_vmovq(reg_tmp_64, xmm_v1_off);
@@ -382,9 +408,7 @@ private:
                             uni_vmulps(vmm_v1, vmm_v1, vmm_w1);
                             jmp(nullify_v1_end, T_NEAR);
                             L(nullify_v1);
-                            {
-                                uni_vpxor(vmm_v1, vmm_v1, vmm_v1);
-                            }
+                            { uni_vpxor(vmm_v1, vmm_v1, vmm_v1); }
                             L(nullify_v1_end);
 
                             uni_vpmovsxdq(xmm_v2_off, xmm_v2_off);
@@ -396,9 +420,7 @@ private:
                             uni_vmulps(vmm_v2, vmm_v2, vmm_w2);
                             jmp(nullify_v2_end, T_NEAR);
                             L(nullify_v2);
-                            {
-                                uni_vpxor(vmm_v2, vmm_v2, vmm_v2);
-                            }
+                            { uni_vpxor(vmm_v2, vmm_v2, vmm_v2); }
                             L(nullify_v2_end);
 
                             uni_vpmovsxdq(xmm_v3_off, xmm_v3_off);
@@ -410,9 +432,7 @@ private:
                             uni_vmulps(vmm_v3, vmm_v3, vmm_w3);
                             jmp(nullify_v3_end, T_NEAR);
                             L(nullify_v3);
-                            {
-                                uni_vpxor(vmm_v3, vmm_v3, vmm_v3);
-                            }
+                            { uni_vpxor(vmm_v3, vmm_v3, vmm_v3); }
                             L(nullify_v3_end);
 
                             uni_vpmovsxdq(xmm_v4_off, xmm_v4_off);
@@ -424,9 +444,7 @@ private:
                             uni_vmulps(vmm_v4, vmm_v4, vmm_w4);
                             jmp(nullify_v4_end, T_NEAR);
                             L(nullify_v4);
-                            {
-                                uni_vpxor(vmm_v4, vmm_v4, vmm_v4);
-                            }
+                            { uni_vpxor(vmm_v4, vmm_v4, vmm_v4); }
                             L(nullify_v4_end);
 
                             uni_vaddps(vmm_v1, vmm_v1, vmm_v2);
@@ -446,12 +464,16 @@ private:
                             jl(loop_end, T_NEAR);
 
                             // check zero markers
-                            uni_vbroadcastss(xmm_v1, dword[aux_reg_sampled_wei + ind_off_ll * jcp_.typesize_sampled_wei]);
-                            uni_vbroadcastss(xmm_v2, dword[aux_reg_sampled_wei + ind_off_hl * jcp_.typesize_sampled_wei]);
-                            uni_vbroadcastss(xmm_v3, dword[aux_reg_sampled_wei + ind_off_lh * jcp_.typesize_sampled_wei]);
-                            uni_vbroadcastss(xmm_v4, dword[aux_reg_sampled_wei + ind_off_hh * jcp_.typesize_sampled_wei]);
+                            uni_vbroadcastss(xmm_v1,
+                                             dword[aux_reg_sampled_wei + ind_off_ll * jcp_.typesize_sampled_wei]);
+                            uni_vbroadcastss(xmm_v2,
+                                             dword[aux_reg_sampled_wei + ind_off_hl * jcp_.typesize_sampled_wei]);
+                            uni_vbroadcastss(xmm_v3,
+                                             dword[aux_reg_sampled_wei + ind_off_lh * jcp_.typesize_sampled_wei]);
+                            uni_vbroadcastss(xmm_v4,
+                                             dword[aux_reg_sampled_wei + ind_off_hh * jcp_.typesize_sampled_wei]);
 
-                            size_t input_buffer_off = (size_t) kh * jcp_.kw * jcp_.ic + kw * jcp_.ic;
+                            size_t input_buffer_off = (size_t)kh * jcp_.kw * jcp_.ic + kw * jcp_.ic;
                             uni_vpmovsxdq(xmm_v1_off, xmm_v1_off);
                             uni_vmovq(reg_tmp_64, xmm_v1_off);
                             imul(reg_tmp_64, reg_tmp_64, jcp_.ic * jcp_.typesize_in);
@@ -461,9 +483,7 @@ private:
                             uni_vmulss(xmm_v1, xmm_v1, xmm_w1);
                             jmp(nullify_v1_end_tail, T_NEAR);
                             L(nullify_v1_tail);
-                            {
-                                uni_vpxor(xmm_v1, xmm_v1, xmm_v1);
-                            }
+                            { uni_vpxor(xmm_v1, xmm_v1, xmm_v1); }
                             L(nullify_v1_end_tail);
 
                             uni_vpmovsxdq(xmm_v2_off, xmm_v2_off);
@@ -475,9 +495,7 @@ private:
                             uni_vmulss(xmm_v2, xmm_v2, xmm_w2);
                             jmp(nullify_v2_end_tail, T_NEAR);
                             L(nullify_v2_tail);
-                            {
-                                uni_vpxor(xmm_v2, xmm_v2, xmm_v2);
-                            }
+                            { uni_vpxor(xmm_v2, xmm_v2, xmm_v2); }
                             L(nullify_v2_end_tail);
 
                             uni_vpmovsxdq(xmm_v3_off, xmm_v3_off);
@@ -489,9 +507,7 @@ private:
                             uni_vmulss(xmm_v3, xmm_v3, xmm_w3);
                             jmp(nullify_v3_end_tail, T_NEAR);
                             L(nullify_v3_tail);
-                            {
-                                uni_vpxor(xmm_v3, xmm_v3, xmm_v3);
-                            }
+                            { uni_vpxor(xmm_v3, xmm_v3, xmm_v3); }
                             L(nullify_v3_end_tail);
 
                             uni_vpmovsxdq(xmm_v4_off, xmm_v4_off);
@@ -503,9 +519,7 @@ private:
                             uni_vmulss(xmm_v4, xmm_v4, xmm_w4);
                             jmp(nullify_v4_end_tail, T_NEAR);
                             L(nullify_v4_tail);
-                            {
-                                uni_vpxor(xmm_v4, xmm_v4, xmm_v4);
-                            }
+                            { uni_vpxor(xmm_v4, xmm_v4, xmm_v4); }
                             L(nullify_v4_end_tail);
 
                             uni_vaddss(xmm_v1, xmm_v1, xmm_v2);
@@ -524,8 +538,10 @@ private:
                 }
             }
 
-            add(aux_reg_sampled_wei, sampledPointsPerPixel * jcp_.kh * jcp_.kw * jcp_.oh * jcp_.ow * jcp_.typesize_sampled_wei);
-            add(aux_reg_sampled_offs, sampledPointsPerPixel * jcp_.kh * jcp_.kw * jcp_.oh * jcp_.ow * jcp_.typesize_sampled_offsets);
+            add(aux_reg_sampled_wei,
+                sampledPointsPerPixel * jcp_.kh * jcp_.kw * jcp_.oh * jcp_.ow * jcp_.typesize_sampled_wei);
+            add(aux_reg_sampled_offs,
+                sampledPointsPerPixel * jcp_.kh * jcp_.kw * jcp_.oh * jcp_.ow * jcp_.typesize_sampled_offsets);
             add(aux_reg_input, ic_per_def_group * jcp_.typesize_in);
             add(aux2_reg_input_buffer, ic_per_def_group * jcp_.typesize_in);
             inc(reg_dg_iter);
@@ -542,7 +558,7 @@ private:
         if (jcp_.with_bias) {
             for (int r = 0; r < repeats; r++) {
                 for (int ocb = 0; ocb < oc_blocks_step; ocb++) {
-                    size_t bias_off = (size_t) ocb * jcp_.oc_block + r * jcp_.oc_block / 2;
+                    size_t bias_off = (size_t)ocb * jcp_.oc_block + r * jcp_.oc_block / 2;
                     uni_vmovups(Vmm(0), ptr[aux_reg_bias + bias_off * jcp_.typesize_bia]);
 
                     for (int ow = 0; ow < ow_step; ow++) {
@@ -560,7 +576,8 @@ private:
         }
 
         for (int r = 0; r < repeats; r++) {
-            int tail_size = isa == cpu::x64::sse41 ? std::min(jcp_.oc_block / 2, oc_step - r * jcp_.oc_block / 2) : oc_step;
+            int tail_size =
+                isa == cpu::x64::sse41 ? std::min(jcp_.oc_block / 2, oc_step - r * jcp_.oc_block / 2) : oc_step;
             bool is_scalar_store = isa == cpu::x64::sse41 ? tail_size < jcp_.oc_block / 2 : tail_size < jcp_.oc_block;
             if (is_scalar_store) {
                 for (int ow = 0; ow < ow_step; ow++) {
@@ -568,11 +585,11 @@ private:
                     Xmm xmm_dst = get_xmm_acc(r * jcp_.ur_w * jcp_.nb_oc_blocking + ow);
 
                     if (isa == avx512_core) {
-                        size_t out_off = (size_t) ow * jcp_.oc;
+                        size_t out_off = (size_t)ow * jcp_.oc;
                         uni_vmovups(ptr[aux_reg_output + out_off * jcp_.typesize_out], vmm_dst | ktail_mask);
                     } else {
                         for (int oc = 0; oc < tail_size; oc++) {
-                            size_t out_off = (size_t) ow * jcp_.oc + oc + r * (jcp_.oc_block / 2);
+                            size_t out_off = (size_t)ow * jcp_.oc + oc + r * (jcp_.oc_block / 2);
                             uni_vmovq(reg_tmp_64, xmm_dst);
                             mov(ptr[aux_reg_output + out_off * jcp_.typesize_out], reg_tmp_32);
 
@@ -593,7 +610,8 @@ private:
                 for (int ocb = 0; ocb < oc_blocks_step; ocb++) {
                     for (int ow = 0; ow < ow_step; ow++) {
                         Vmm vmm_acc = get_vmm_acc(r * jcp_.ur_w * jcp_.nb_oc_blocking + ocb * ow_step + ow);
-                        size_t out_off = (size_t) ow * jcp_.oc * jcp_.ngroups + ocb * jcp_.oc_block + r * (jcp_.oc_block / 2);
+                        size_t out_off =
+                            (size_t)ow * jcp_.oc * jcp_.ngroups + ocb * jcp_.oc_block + r * (jcp_.oc_block / 2);
                         uni_vmovups(ptr[aux_reg_output + out_off * jcp_.typesize_out], vmm_acc);
                     }
                 }
@@ -629,14 +647,17 @@ private:
         mov(aux_reg_bias, reg_bias);
         mov(reg_oc_work, jcp_.oc);
 
-        L(oc_unrolled_loop); {
+        L(oc_unrolled_loop);
+        {
             cmp(reg_oc_work, jcp_.nb_oc_blocking * jcp_.oc_block);
             jl(oc_main_loop, T_NEAR);
 
             ic_loop(ow_step, jcp_.nb_oc_blocking, jcp_.oc_block);
             store_output(ow_step, jcp_.nb_oc_blocking, jcp_.oc_block);
 
-            add(aux_reg_kernel, jcp_.nb_oc_blocking * jcp_.nb_ic * jcp_.kh * jcp_.kw * jcp_.ic_block * jcp_.oc_block * jcp_.typesize_in);
+            add(aux_reg_kernel,
+                jcp_.nb_oc_blocking * jcp_.nb_ic * jcp_.kh * jcp_.kw * jcp_.ic_block * jcp_.oc_block *
+                    jcp_.typesize_in);
             add(aux_reg_output, jcp_.nb_oc_blocking * jcp_.oc_block * jcp_.typesize_out);
             add(aux_reg_bias, jcp_.nb_oc_blocking * jcp_.oc_block * jcp_.typesize_bia);
             sub(reg_oc_work, jcp_.nb_oc_blocking * jcp_.oc_block);
@@ -644,7 +665,8 @@ private:
             jmp(oc_unrolled_loop, T_NEAR);
         }
 
-        L(oc_main_loop); {
+        L(oc_main_loop);
+        {
             cmp(reg_oc_work, jcp_.oc_block);
             jl(oc_tail, T_NEAR);
 
@@ -659,7 +681,8 @@ private:
             jmp(oc_main_loop, T_NEAR);
         }
 
-        L(oc_tail); {
+        L(oc_tail);
+        {
             if (jcp_.oc % jcp_.oc_block != 0) {
                 ic_loop(ow_step, 1, jcp_.oc % jcp_.oc_block);
                 store_output(ow_step, 1, jcp_.oc % jcp_.oc_block);
@@ -672,11 +695,12 @@ private:
     }
 };
 #endif
-bool DeformableConvolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+bool DeformableConvolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
+                                                 std::string& errorMessage) noexcept {
     try {
         if (!one_of(op->get_type_info(),
-                ov::op::v1::DeformableConvolution::get_type_info_static(),
-                ov::op::v8::DeformableConvolution::get_type_info_static())) {
+                    ov::op::v1::DeformableConvolution::get_type_info_static(),
+                    ov::op::v8::DeformableConvolution::get_type_info_static())) {
             errorMessage = "Node is not an instance of DeformableConvolution form the operation set v1 or v8.";
             return false;
         }
@@ -721,16 +745,16 @@ size_t DefConvKey::hash() const {
     return seed;
 }
 
-bool DefConvKey::operator==(const DefConvKey &rhs) const {
+bool DefConvKey::operator==(const DefConvKey& rhs) const {
     bool retVal = true;
     for (size_t i = 0; i < descVector.size(); i++) {
         if (descVector[i] != rhs.descVector[i]) {
             retVal = retVal && descVector[i] && rhs.descVector[i] &&
-            descVector[i]->getBlockDims() == rhs.descVector[i]->getBlockDims() &&
-            descVector[i]->getStrides() == rhs.descVector[i]->getStrides() &&
-            descVector[i]->getOrder() == rhs.descVector[i]->getOrder() &&
-            descVector[i]->getOffsetPaddingToData() == rhs.descVector[i]->getOffsetPaddingToData() &&
-            descVector[i]->getOffsetPadding() == rhs.descVector[i]->getOffsetPadding();
+                     descVector[i]->getBlockDims() == rhs.descVector[i]->getBlockDims() &&
+                     descVector[i]->getStrides() == rhs.descVector[i]->getStrides() &&
+                     descVector[i]->getOrder() == rhs.descVector[i]->getOrder() &&
+                     descVector[i]->getOffsetPaddingToData() == rhs.descVector[i]->getOffsetPaddingToData() &&
+                     descVector[i]->getOffsetPadding() == rhs.descVector[i]->getOffsetPadding();
         }
     }
 
@@ -742,7 +766,7 @@ bool DefConvKey::operator==(const DefConvKey &rhs) const {
     return retVal;
 }
 
-} // namespace
+}  // namespace
 
 DeformableConvolution::DeformableConvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
@@ -825,13 +849,14 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
     impl_desc_type impl_type;
     const int simd_w = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
 
-    auto &weiDims = getInputShapeAtPort(WEI_ID).getDims();
+    auto& weiDims = getInputShapeAtPort(WEI_ID).getDims();
     if (weiDims[1] == Shape::UNDEFINED_DIM || weiDims[0] == Shape::UNDEFINED_DIM ||
         // 1. strict fallback, until devising of multigroup handling in common case
         defConvAttr.group != 1 ||
         // 2. common fallback, except specific n_group / n_channel combinations
-        (defConvAttr.group != 1 && ((weiDims[1] % simd_w != 0)  // in_channels_per_gr !% simd_w
-        || ((weiDims[0] / defConvAttr.group) % simd_w != 0)))) {  // out_channels_per_gr !% simd_w
+        (defConvAttr.group != 1 &&
+         ((weiDims[1] % simd_w != 0)                                // in_channels_per_gr !% simd_w
+          || ((weiDims[0] / defConvAttr.group) % simd_w != 0)))) {  // out_channels_per_gr !% simd_w
         enforceRef = true;
     } else {
         enforceRef = false;
@@ -854,41 +879,48 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
         auto dataFormat = memory::format_tag::nhwc;
         auto offFormat = memory::format_tag::nchw;
         auto weiFormat = mayiuse(avx512_core) ? memory::format_tag::OIhw16i16o : memory::format_tag::OIhw8i8o;
-        config.inConfs[DATA_ID].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(DATA_ID),
-                                                                                   memory::data_type::f32, dataFormat));
-        config.inConfs[OFF_ID].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(OFF_ID),
-                                                                                  memory::data_type::f32, offFormat));
+        config.inConfs[DATA_ID].setMemDesc(
+            std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(DATA_ID), memory::data_type::f32, dataFormat));
+        config.inConfs[OFF_ID].setMemDesc(
+            std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(OFF_ID), memory::data_type::f32, offFormat));
 
-        config.inConfs[WEI_ID].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(WEI_ID),
-                                                                                  memory::data_type::f32, weiFormat));
+        config.inConfs[WEI_ID].setMemDesc(
+            std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(WEI_ID), memory::data_type::f32, weiFormat));
 
         if (inputsNumber > 3) {
             config.inConfs[MOD_ID].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(MOD_ID),
-                                                                                      memory::data_type::f32, memory::format_tag::nchw));
+                                                                                      memory::data_type::f32,
+                                                                                      memory::format_tag::nchw));
         }
-        config.outConfs[0].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(DATA_ID),
-                                                                              memory::data_type::f32, dataFormat));
+        config.outConfs[0].setMemDesc(
+            std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(DATA_ID), memory::data_type::f32, dataFormat));
         supportedPrimitiveDescriptors.push_back({config, impl_type});
     } else {
         // reference implementation
-        config.inConfs[DATA_ID].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(DATA_ID), memory::data_type::f32,
+        config.inConfs[DATA_ID].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(DATA_ID),
+                                                                                   memory::data_type::f32,
                                                                                    memory::format_tag::nchw));
-        config.inConfs[OFF_ID].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(OFF_ID), memory::data_type::f32,
+        config.inConfs[OFF_ID].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(OFF_ID),
+                                                                                  memory::data_type::f32,
                                                                                   memory::format_tag::nchw));
-        config.inConfs[WEI_ID].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(WEI_ID), memory::data_type::f32,
+        config.inConfs[WEI_ID].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(WEI_ID),
+                                                                                  memory::data_type::f32,
                                                                                   memory::format_tag::oihw));
         if (inputsNumber > 3) {
-            config.inConfs[MOD_ID].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(MOD_ID), memory::data_type::f32,
+            config.inConfs[MOD_ID].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(MOD_ID),
+                                                                                      memory::data_type::f32,
                                                                                       memory::format_tag::nchw));
         }
-        config.outConfs[0].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(DATA_ID), memory::data_type::f32,
+        config.outConfs[0].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(DATA_ID),
+                                                                              memory::data_type::f32,
                                                                               memory::format_tag::nchw));
         supportedPrimitiveDescriptors.push_back({config, impl_type});
     }
 }
 
-void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(
-        const float* offsets, const float* modulation, bool enforceRef) {
+void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float* offsets,
+                                                                    const float* modulation,
+                                                                    bool enforceRef) {
     const int MB = jcp.mb;
     const int OH = jcp.oh;
     const int OW = jcp.ow;
@@ -918,45 +950,45 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(
         const int h_in = oh * KSH - padT;
         const int w_in = ow * KSW - padL;
 
-        const float *data_offset_ptr = offsets + mb * offStrides[0] + (dg * 2 * KH * KW) * offStrides[1];
-        const float *modulation_offset_ptr = nullptr;
+        const float* data_offset_ptr = offsets + mb * offStrides[0] + (dg * 2 * KH * KW) * offStrides[1];
+        const float* modulation_offset_ptr = nullptr;
         if (modulation != nullptr) {
             modulation_offset_ptr = modulation + mb * modStrides[0] + (dg * ker_size) * modStrides[1];
         }
 
         for (int kh = 0; kh < KH; kh++) {
             for (int kw = 0; kw < KW; kw++) {
-                const size_t data_offset_h_index = 2 * ((size_t) kh * KW + kw) * offStrides[1] + oh * offStrides[2] + ow * offStrides[3];
-                const size_t data_offset_w_index = (2 * ((size_t) kh * KW + kw) + 1) * offStrides[1] + oh * offStrides[2] + ow * offStrides[3];
+                const size_t data_offset_h_index =
+                    2 * ((size_t)kh * KW + kw) * offStrides[1] + oh * offStrides[2] + ow * offStrides[3];
+                const size_t data_offset_w_index =
+                    (2 * ((size_t)kh * KW + kw) + 1) * offStrides[1] + oh * offStrides[2] + ow * offStrides[3];
                 const float offset_h = data_offset_ptr[data_offset_h_index];
                 const float offset_w = data_offset_ptr[data_offset_w_index];
                 float map_h = h_in + kh * (KDH + 1) + offset_h;
                 float map_w = w_in + kw * (KDW + 1) + offset_w;
                 bool skip_compute;
                 if (with_bi_pad) {
-                    skip_compute = !(static_cast<int>(map_w) > -1 &&
-                                     static_cast<int>(map_w) < IW &&
-                                     static_cast<int>(map_h) > -1 &&
-                                     static_cast<int>(map_h) < IH);
+                    skip_compute = !(static_cast<int>(map_w) > -1 && static_cast<int>(map_w) < IW &&
+                                     static_cast<int>(map_h) > -1 && static_cast<int>(map_h) < IH);
                 } else {
-                    skip_compute = !(map_w >= 0 && map_w < IW &&
-                                     map_h >= 0 && map_h < IH);
+                    skip_compute = !(map_w >= 0 && map_w < IW && map_h >= 0 && map_h < IH);
                 }
                 if (!skip_compute) {
                     // modulations precomp.
                     float modulation_scalar = 1.0f;
 
                     if (modulation_offset_ptr != nullptr) {
-                        size_t modulation_index = (kh * KW + kw) * modStrides[1] + oh * modStrides[2] + ow * modStrides[3];
+                        size_t modulation_index =
+                            (kh * KW + kw) * modStrides[1] + oh * modStrides[2] + ow * modStrides[3];
                         modulation_scalar = modulation_offset_ptr[modulation_index];
                     }
                     // interpolation precomp.
                     const int cur_h_end = IH;
                     const int cur_w_end = IW;
-                    int h_low = with_bi_pad ? static_cast<int>(floorf(map_h)) :
-                                std::max(static_cast<int>(floorf(map_h)), 0);
-                    int w_low = with_bi_pad ? static_cast<int>(floorf(map_w)) :
-                                std::max(static_cast<int>(floorf(map_w)), 0);
+                    int h_low =
+                        with_bi_pad ? static_cast<int>(floorf(map_h)) : std::max(static_cast<int>(floorf(map_h)), 0);
+                    int w_low =
+                        with_bi_pad ? static_cast<int>(floorf(map_w)) : std::max(static_cast<int>(floorf(map_w)), 0);
                     int h_high = with_bi_pad ? h_low + 1 : std::min(static_cast<int>(ceilf(map_h)), cur_h_end - 1);
                     int w_high = with_bi_pad ? w_low + 1 : std::min(static_cast<int>(ceilf(map_w)), cur_w_end - 1);
 
@@ -976,7 +1008,7 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(
 
                     const int h_off_low = h_ind_low * (srcStrides[2] / srcStrides[3]);
                     const int h_off_high = h_ind_high * (srcStrides[2] / srcStrides[3]);
-                    const int w_off_low  = w_ind_low;
+                    const int w_off_low = w_ind_low;
                     const int w_off_high = w_ind_high;
                     pSampledCoordsVector[sampledCoordIndex] = h_off_high + w_off_high;
                     pSampledCoordsVector[sampledCoordIndex + 1] = h_off_high + w_off_low;
@@ -984,7 +1016,7 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(
                     pSampledCoordsVector[sampledCoordIndex + 3] = h_off_low + w_off_low;
 
                     float w22 = hh * hw * modulation_scalar, w21 = hh * lw * modulation_scalar,
-                            w12 = lh * hw * modulation_scalar, w11 = lh * lw * modulation_scalar;
+                          w12 = lh * hw * modulation_scalar, w11 = lh * lw * modulation_scalar;
 
                     pInterpWeightsVector[sampledCoordIndex] = w11;
                     pInterpWeightsVector[sampledCoordIndex + 1] = w12;
@@ -1007,15 +1039,16 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(
     });
 }
 
-DeformableConvolution::DefConvExecutor::DefConvExecutor(const DefConvAttr &defConvAttr,
-                                const std::vector<std::shared_ptr<BlockedMemoryDesc>> &descVector) {
+DeformableConvolution::DefConvExecutor::DefConvExecutor(
+    const DefConvAttr& defConvAttr,
+    const std::vector<std::shared_ptr<BlockedMemoryDesc>>& descVector) {
     if (descVector.size() != 4 && descVector.size() != 5) {
         OPENVINO_THROW("Deformable Convolution executor got incorrect desc's count (", descVector.size(), ")");
     }
     bool withModulation = descVector.size() == 5;
 
-    auto &srcDesc = descVector[DATA_ID];
-    auto &dstDesc = descVector[descVector.size() - 1];
+    auto& srcDesc = descVector[DATA_ID];
+    auto& dstDesc = descVector[descVector.size() - 1];
     srcStrides = std::vector<size_t>(srcDesc->getStrides().size());
     offStrides = descVector[OFF_ID]->getStrides();
     weiStrides = descVector[WEI_ID]->getStrides();
@@ -1085,9 +1118,10 @@ DeformableConvolution::DefConvExecutor::DefConvExecutor(const DefConvAttr &defCo
     jcp.nthr = dnnl_get_max_threads();
 }
 
-DeformableConvolution::DefConvJitExecutor::DefConvJitExecutor(const DefConvAttr &defConvAttr,
-                            const std::vector<std::shared_ptr<BlockedMemoryDesc>> &descVector) :
-                DefConvExecutor(defConvAttr, descVector) {
+DeformableConvolution::DefConvJitExecutor::DefConvJitExecutor(
+    const DefConvAttr& defConvAttr,
+    const std::vector<std::shared_ptr<BlockedMemoryDesc>>& descVector)
+    : DefConvExecutor(defConvAttr, descVector) {
 #if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::avx512_core)) {
         def_conv_kernel.reset(new jit_uni_def_conv_kernel_f32<cpu::x64::avx512_core>(jcp));
@@ -1106,9 +1140,13 @@ DeformableConvolution::DefConvJitExecutor::DefConvJitExecutor(const DefConvAttr 
 #endif
 }
 
-void DeformableConvolution::DefConvRefExecutor::exec(const float* src, const float* offsets,
-        const float* weights, const float* modulation, float* dst,
-        int *pSampledCoordsVector, float *pInterpWeightsVector) {
+void DeformableConvolution::DefConvRefExecutor::exec(const float* src,
+                                                     const float* offsets,
+                                                     const float* weights,
+                                                     const float* modulation,
+                                                     float* dst,
+                                                     int* pSampledCoordsVector,
+                                                     float* pInterpWeightsVector) {
     this->pSampledCoordsVector = pSampledCoordsVector;
     this->pInterpWeightsVector = pInterpWeightsVector;
     prepareSamplingWeights(offsets, modulation, true);
@@ -1133,17 +1171,18 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src, const flo
     auto compKer = [OV_CAPTURE_CPY_AND_THIS](int g, int mb, int oc, int oh, int ow) {
         float d = 0;
         for (int ic = 0; ic < IC; ic++) {
-            const float *data_im_ptr = src + mb * srcStrides[0] + (g * IC + ic) * srcStrides[1];
+            const float* data_im_ptr = src + mb * srcStrides[0] + (g * IC + ic) * srcStrides[1];
             const int deformable_group_index = (IC * g + ic) / channel_per_deformable_group;
-            int sampledCoordIndex = (mb * DGHW + deformable_group_index * HW + oh * OW + ow) * ker_size * sampledPointsPerPixel;
-            size_t weiIndex = (size_t) g * group_wei_stride + oc * weiStrides[0] + ic * weiStrides[1];
+            int sampledCoordIndex =
+                (mb * DGHW + deformable_group_index * HW + oh * OW + ow) * ker_size * sampledPointsPerPixel;
+            size_t weiIndex = (size_t)g * group_wei_stride + oc * weiStrides[0] + ic * weiStrides[1];
             for (size_t kh_off = 0; kh_off < KH * weiStrides[2]; kh_off += weiStrides[2]) {
                 for (size_t kw_off = 0; kw_off < KW * weiStrides[3]; kw_off += weiStrides[3]) {
                     // check if current addendum marked as equal zero
                     if (pSampledCoordsVector[sampledCoordIndex] != -1) {
                         const int v11 = pSampledCoordsVector[sampledCoordIndex];
                         const int v12 = pSampledCoordsVector[sampledCoordIndex + 1];
-                        const int v21  = pSampledCoordsVector[sampledCoordIndex + 2];
+                        const int v21 = pSampledCoordsVector[sampledCoordIndex + 2];
                         const int v22 = pSampledCoordsVector[sampledCoordIndex + 3];
 
                         float val = 0;
@@ -1174,8 +1213,9 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src, const flo
     };
 
     parallel_nd(G, MB, OC, OH, OW, [&](dnnl_dim_t g, dnnl_dim_t mb, dnnl_dim_t oc, dnnl_dim_t oh, dnnl_dim_t ow) {
-                    dst[mb * dstStrides[0] + (g * OC + oc) * dstStrides[1] + oh * dstStrides[2] + ow * dstStrides[3]] = compKer(g, mb, oc, oh, ow);
-                });
+        dst[mb * dstStrides[0] + (g * OC + oc) * dstStrides[1] + oh * dstStrides[2] + ow * dstStrides[3]] =
+            compKer(g, mb, oc, oh, ow);
+    });
 }
 
 void DeformableConvolution::prepareParams() {
@@ -1208,22 +1248,17 @@ void DeformableConvolution::prepareParams() {
 
     updatePadding();
 
-    std::vector<std::shared_ptr<BlockedMemoryDesc>> descVector {
+    std::vector<std::shared_ptr<BlockedMemoryDesc>> descVector{
         getParentEdgeAt(DATA_ID)->getMemory().getDescWithType<BlockedMemoryDesc>(),
         getParentEdgeAt(OFF_ID)->getMemory().getDescWithType<BlockedMemoryDesc>(),
-        getParentEdgeAt(WEI_ID)->getMemory().getDescWithType<BlockedMemoryDesc>()
-    };
+        getParentEdgeAt(WEI_ID)->getMemory().getDescWithType<BlockedMemoryDesc>()};
 
     if (withModulation) {
         descVector.push_back(getParentEdgeAt(MOD_ID)->getMemory().getDescWithType<BlockedMemoryDesc>());
     }
     descVector.push_back(getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>());
 
-    DefConvKey key = {
-        descVector,
-        defConvAttr,
-        getSelectedPrimitiveDescriptor()->getImplementationType()
-    };
+    DefConvKey key = {descVector, defConvAttr, getSelectedPrimitiveDescriptor()->getImplementationType()};
 
     const int MB = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims()[0];
     const int OH = getChildEdgeAt(0)->getMemory().getStaticDims()[2];
@@ -1241,7 +1276,7 @@ void DeformableConvolution::prepareParams() {
     execPtr = nullptr;
 
     auto cache = context->getParamsCache();
-    auto result = cache->getOrCreate(key, [] (const DefConvKey& key) -> std::shared_ptr<DefConvExecutor> {
+    auto result = cache->getOrCreate(key, [](const DefConvKey& key) -> std::shared_ptr<DefConvExecutor> {
         if (key.implType == impl_desc_type::ref) {
             return std::make_shared<DefConvRefExecutor>(key.defConvAttr, key.descVector);
         }
@@ -1258,9 +1293,13 @@ void DeformableConvolution::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void DeformableConvolution::DefConvJitExecutor::exec(const float* src, const float* offsets,
-        const float* weights, const float* modulation, float* dst,
-        int *pSampledCoordsVector, float *pInterpWeightsVector) {
+void DeformableConvolution::DefConvJitExecutor::exec(const float* src,
+                                                     const float* offsets,
+                                                     const float* weights,
+                                                     const float* modulation,
+                                                     float* dst,
+                                                     int* pSampledCoordsVector,
+                                                     float* pInterpWeightsVector) {
     this->pSampledCoordsVector = pSampledCoordsVector;
     this->pInterpWeightsVector = pInterpWeightsVector;
     prepareSamplingWeights(offsets, modulation, false);
@@ -1276,9 +1315,11 @@ void DeformableConvolution::DefConvJitExecutor::exec(const float* src, const flo
         const size_t _oc = g * jcp.nb_oc;
         const size_t _ic = g * jcp.nb_ic;
 
-        par_conv.src = &src[n * srcStrides[0] + _ic*jcp.ic_block * srcStrides[1]];
-        par_conv.sampledWei = &(pInterpWeightsVector[(n * jcp.dg * jcp.oh + oh) * jcp.kh * jcp.kw * jcp.ow * sampledPointsPerPixel]);
-        par_conv.sampledCoords = &(pSampledCoordsVector[(n * jcp.dg * jcp.oh + oh) * jcp.kh * jcp.kw * jcp.ow * sampledPointsPerPixel]);
+        par_conv.src = &src[n * srcStrides[0] + _ic * jcp.ic_block * srcStrides[1]];
+        par_conv.sampledWei =
+            &(pInterpWeightsVector[(n * jcp.dg * jcp.oh + oh) * jcp.kh * jcp.kw * jcp.ow * sampledPointsPerPixel]);
+        par_conv.sampledCoords =
+            &(pSampledCoordsVector[(n * jcp.dg * jcp.oh + oh) * jcp.kh * jcp.kw * jcp.ow * sampledPointsPerPixel]);
         par_conv.filt = &weights[g * jcp.nb_oc * jcp.nb_ic * jcp.kh * jcp.kw * jcp.ic_block * jcp.oc_block];
         par_conv.dst = &dst[n * dstStrides[0] + _oc * jcp.oc_block * dstStrides[1] + oh * dstStrides[2]];
         par_conv.buf = input_buffer_ptr + ithr * jcp.ur_w * jcp.kh * jcp.kw * jcp.ic;
@@ -1292,20 +1333,20 @@ void DeformableConvolution::DefConvJitExecutor::exec(const float* src, const flo
 void DeformableConvolution::execute(dnnl::stream strm) {
     const size_t inputsNumber = getOriginalInputsNumber();
 
-    auto &srcMemory0 = getParentEdgeAt(0)->getMemory();
-    auto &srcMemory1 = getParentEdgeAt(1)->getMemory();
-    auto &srcMemory2 = getParentEdgeAt(2)->getMemory();
-    auto &dstMemory = getChildEdgeAt(0)->getMemory();
+    auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
+    auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
+    auto& srcMemory2 = getParentEdgeAt(2)->getMemory();
+    auto& dstMemory = getChildEdgeAt(0)->getMemory();
 
-    const auto *src = srcMemory0.getDataAs<const float>();
-    const auto *offsets = srcMemory1.getDataAs<const float>();
-    const auto *weights = srcMemory2.getDataAs<const float>();
+    const auto* src = srcMemory0.getDataAs<const float>();
+    const auto* offsets = srcMemory1.getDataAs<const float>();
+    const auto* weights = srcMemory2.getDataAs<const float>();
     float* modulation = nullptr;
     if (inputsNumber > 3) {
         modulation = getSrcDataAtPortAs<float>(3);
     }
 
-    float *dst = dstMemory.getDataAs<float>();
+    float* dst = dstMemory.getDataAs<float>();
 
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
@@ -1333,6 +1374,6 @@ ov::element::Type DeformableConvolution::getRuntimePrecision() const {
     return getMaxPrecision(getInputPrecisions());
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

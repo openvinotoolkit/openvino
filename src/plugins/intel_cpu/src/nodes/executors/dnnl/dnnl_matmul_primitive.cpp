@@ -129,14 +129,8 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const MatMulAttrs& attrs,
         one_of(srcDesc->getPrecision(), ov::element::u8, ov::element::i8) && weiDesc->getPrecision() == ov::element::i8;
     auto outputDataType = DnnlExtensionUtils::ElementTypeToDataType(dstDesc->getPrecision());
 
-    DnnlPostOpsComposer dnnlpoc(postOps,
-                                context->getEngine(),
-                                dims,
-                                dims.size() - 1,
-                                isINT8,
-                                1 << 0,
-                                memory,
-                                outputDataType);
+    DnnlPostOpsComposer
+        dnnlpoc(postOps, context->getEngine(), dims, dims.size() - 1, isINT8, 1 << 0, memory, outputDataType);
 
     return dnnlpoc.compose();
 }
@@ -185,8 +179,7 @@ static dnnl::matmul::primitive_desc createDescriptorInternal(const dnnl::memory:
         wdt = memory::data_type::s8;
     }
 
-    const dnnl::memory::desc weightsDesc =
-        dnnl::memory::desc(weiDims, wdt, memory::format_tag::any);
+    const dnnl::memory::desc weightsDesc = dnnl::memory::desc(weiDims, wdt, memory::format_tag::any);
 
     return dnnl::matmul::primitive_desc(engine, inputsDesc, weightsDesc, newBiasDesc, outputsDesc, attr);
 }
@@ -335,7 +328,8 @@ DnnlMatMulPrimitive::DnnlMatMulPrimitive(const Key& key,
       m_prim(primitive(m_primDesc)) {}
 
 void DnnlMatMulPrimitive::execute(const dnnl_primitive_args& primArgs) const {
-    std::cout << "Executing MM primitive" << "\n";
+    std::cout << "Executing MM primitive"
+              << "\n";
     m_prim.execute(m_stream, primArgs);
 }
 

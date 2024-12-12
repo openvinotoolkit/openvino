@@ -16,9 +16,12 @@ public:
     bool init(const TransposeParams& transposeParams,
               const std::vector<MemoryDescPtr>& srcDescs,
               const std::vector<MemoryDescPtr>& dstDescs,
-              const dnnl::primitive_attr &attr) override;
+              const dnnl::primitive_attr& attr) override;
     void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) override;
-    impl_desc_type implType() const override { return impl_desc_type::jit; }
+    impl_desc_type implType() const override {
+        return impl_desc_type::jit;
+    }
+
 private:
     std::shared_ptr<PermuteKernel> pKernel;
 };
@@ -33,5 +36,5 @@ public:
     }
 };
 
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

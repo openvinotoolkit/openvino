@@ -37,9 +37,8 @@ public:
      * @return ShapeInferResult which contains resulting array of calculated shapes (per each output port) plus status
      * of the shape infer call
      */
-    virtual Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) = 0;
+    virtual Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                         const std::unordered_map<size_t, MemoryPtr>& data_dependency) = 0;
 
     /**
      * @brief Shape inference implementation may generate padding as by-product, these APIs is designed to retrieve them
@@ -67,12 +66,13 @@ public:
  */
 class ShapeInferEmptyPads : public IShapeInfer {
 public:
-    const ov::CoordinateDiff& get_pads_begin() override final { // NOLINT
+    const ov::CoordinateDiff& get_pads_begin() override final {  // NOLINT
         return m_emptyVec;
     }
-    const ov::CoordinateDiff& get_pads_end() override final { // NOLINT
+    const ov::CoordinateDiff& get_pads_end() override final {  // NOLINT
         return m_emptyVec;
     }
+
 private:
     static const ov::CoordinateDiff m_emptyVec;
 };
@@ -107,5 +107,5 @@ public:
 private:
     std::shared_ptr<ov::Node> m_op;
 };
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

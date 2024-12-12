@@ -21,8 +21,21 @@ EmitABIRegSpills::~EmitABIRegSpills() {
 
 void EmitABIRegSpills::preamble() {
     // gprs
-    Xbyak::Operand gprs_to_save[] = {h->r8, h->r9, h->r10, h->r11, h->r12, h->r13, h->r14, h->r15,
-                                     h->rax, h->rbx, h->rcx, h->rdx, h->rdi, h->rsi, h->rbp};
+    Xbyak::Operand gprs_to_save[] = {h->r8,
+                                     h->r9,
+                                     h->r10,
+                                     h->r11,
+                                     h->r12,
+                                     h->r13,
+                                     h->r14,
+                                     h->r15,
+                                     h->rax,
+                                     h->rbx,
+                                     h->rcx,
+                                     h->rdx,
+                                     h->rdi,
+                                     h->rsi,
+                                     h->rbp};
     size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
 
     h->sub(h->rsp, n_gprs_to_save * gpr_size);
@@ -75,8 +88,21 @@ void EmitABIRegSpills::postamble() {
     }
 
     // restore gpr registers
-    Xbyak::Operand gprs_to_save[] = {h->r8, h->r9, h->r10, h->r11, h->r12, h->r13, h->r14, h->r15,
-                                     h->rax, h->rbx, h->rcx, h->rdx, h->rdi, h->rsi, h->rbp};
+    Xbyak::Operand gprs_to_save[] = {h->r8,
+                                     h->r9,
+                                     h->r10,
+                                     h->r11,
+                                     h->r12,
+                                     h->r13,
+                                     h->r14,
+                                     h->r15,
+                                     h->rax,
+                                     h->rbx,
+                                     h->rcx,
+                                     h->rdx,
+                                     h->rdi,
+                                     h->rsi,
+                                     h->rbp};
     size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
     for (int i = n_gprs_to_save - 1; i >= 0; --i)
         h->mov(gprs_to_save[i], h->ptr[h->rsp + i * gpr_size]);
@@ -113,13 +139,17 @@ void EmitABIRegSpills::rsp_restore() {
 cpu_isa_t EmitABIRegSpills::get_isa() {
     // need preserve based on cpu capability, instead of host isa.
     // in case there are possibilty that different isa emitters exist in one kernel from perf standpoint in the future.
-    // e.g. other emitters isa is avx512, while this emitter isa is avx2, and internal call is used. Internal call may use avx512 and spoil k-reg, ZMM.
-    // do not care about platform w/ avx512_common but w/o avx512_core(knight landing), which is obsoleted.
-    if (mayiuse(avx512_core)) return avx512_core;
-    if (mayiuse(avx2)) return avx2;
-    if (mayiuse(sse41)) return sse41;
+    // e.g. other emitters isa is avx512, while this emitter isa is avx2, and internal call is used. Internal call may
+    // use avx512 and spoil k-reg, ZMM. do not care about platform w/ avx512_common but w/o avx512_core(knight landing),
+    // which is obsoleted.
+    if (mayiuse(avx512_core))
+        return avx512_core;
+    if (mayiuse(avx2))
+        return avx2;
+    if (mayiuse(sse41))
+        return sse41;
     OV_CPU_JIT_EMITTER_THROW("unsupported isa");
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

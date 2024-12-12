@@ -6,8 +6,9 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <vector>
 #include <openvino/core/type/element_type.hpp>
+#include <vector>
+
 #include "cpu_memory.h"
 #include "executor_pa_common.hpp"
 

@@ -4,6 +4,11 @@
 
 #include "topk.h"
 
+#include <algorithm>
+#include <set>
+#include <string>
+#include <vector>
+
 #include "common/cpu_memcpy.h"
 #include "cpu/x64/jit_generator.hpp"
 #include "cpu/x64/jit_uni_eltwise.hpp"
@@ -13,11 +18,6 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/topk.hpp"
 #include "utils/ngraph_utils.hpp"
-
-#include <algorithm>
-#include <set>
-#include <string>
-#include <vector>
 
 using namespace dnnl;
 using namespace dnnl::impl;
@@ -30,38 +30,38 @@ namespace intel_cpu {
 namespace node {
 
 #if defined(OPENVINO_ARCH_X86_64)
-#define GET_OFF(field) offsetof(jit_topk_call_args, field)
+#    define GET_OFF(field) offsetof(jit_topk_call_args, field)
 
-#define vmm_mask    Vmm(0)
-#define vmm_tmp     Vmm(1)
-#define vmm_val(i)  Vmm(2 * (i) + 2)
-#define vmm_idx(i)  Vmm(2 * (i) + 3)
-#define vmm_val_l   Vmm(2)
-#define vmm_idx_l   Vmm(3)
-#define vmm_val_r   Vmm(4)
-#define vmm_idx_r   Vmm(5)
+#    define vmm_mask   Vmm(0)
+#    define vmm_tmp    Vmm(1)
+#    define vmm_val(i) Vmm(2 * (i) + 2)
+#    define vmm_idx(i) Vmm(2 * (i) + 3)
+#    define vmm_val_l  Vmm(2)
+#    define vmm_idx_l  Vmm(3)
+#    define vmm_val_r  Vmm(4)
+#    define vmm_idx_r  Vmm(5)
 
-#define xmm_mask    Xmm(0)
-#define xmm_tmp     Xmm(1)
-#define xmm_val(i)  Xmm(2 * (i) + 2)
-#define xmm_idx(i)  Xmm(2 * (i) + 3)
-#define xmm_val_l   Xmm(2)
-#define xmm_idx_l   Xmm(3)
-#define xmm_val_r   Xmm(4)
-#define xmm_idx_r   Xmm(5)
+#    define xmm_mask   Xmm(0)
+#    define xmm_tmp    Xmm(1)
+#    define xmm_val(i) Xmm(2 * (i) + 2)
+#    define xmm_idx(i) Xmm(2 * (i) + 3)
+#    define xmm_val_l  Xmm(2)
+#    define xmm_idx_l  Xmm(3)
+#    define xmm_val_r  Xmm(4)
+#    define xmm_idx_r  Xmm(5)
 
-#define xmm_val_p   Xmm(6)
-#define xmm_idx_p   Xmm(7)
+#    define xmm_val_p Xmm(6)
+#    define xmm_idx_p Xmm(7)
 
-#define JMP_TO_LABEL(label)                  \
-    if (isa == cpu::x64::avx512_core) {    \
-        kmovw(reg_tmp_32, k_mask);           \
-    } else {                                 \
-        uni_vmovmskps(reg_tmp_32, xmm_mask); \
-    }                                        \
-    and_(reg_tmp_32, 0x1);                   \
-    cmp(reg_tmp_32, 0x0);                    \
-    je(label, T_NEAR);
+#    define JMP_TO_LABEL(label)                  \
+        if (isa == cpu::x64::avx512_core) {      \
+            kmovw(reg_tmp_32, k_mask);           \
+        } else {                                 \
+            uni_vmovmskps(reg_tmp_32, xmm_mask); \
+        }                                        \
+        and_(reg_tmp_32, 0x1);                   \
+        cmp(reg_tmp_32, 0x0);                    \
+        je(label, T_NEAR);
 
 static inline bool isFloatCompatible(memory::data_type type) {
     return memory::data_type::f32 == type || memory::data_type::bf16 == type;
@@ -72,7 +72,8 @@ struct jit_uni_topk_kernel_f32 : public jit_uni_topk_kernel, public jit_generato
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_topk_kernel_f32)
 
     explicit jit_uni_topk_kernel_f32(jit_topk_config_params jcp)
-        : jit_uni_topk_kernel(jcp), jit_generator(jit_name()) {}
+        : jit_uni_topk_kernel(jcp),
+          jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -90,7 +91,7 @@ struct jit_uni_topk_kernel_f32 : public jit_uni_topk_kernel, public jit_generato
         mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
 
         bool shape_agnostic_alg = jcp_.algorithm == TopKAlgorithm::topk_heap_sort ||
-                                 (jcp_.algorithm == TopKAlgorithm::topk_bubble_sort && !jcp_.bubble_inplace);
+                                  (jcp_.algorithm == TopKAlgorithm::topk_bubble_sort && !jcp_.bubble_inplace);
 
         if (!shape_agnostic_alg)
             mov(reg_table, l_table);
@@ -101,8 +102,8 @@ struct jit_uni_topk_kernel_f32 : public jit_uni_topk_kernel, public jit_generato
             blk_stride = jcp_.sort_stride * jcp_.blk_size;
 
         if (jcp_.mode_max) {
-            cmp_flg = _cmp_lt_os;       // if val[left] < val[right], set mask 1, swap
-            heap_cmp_flg = _cmp_nle_us; // min heap is used for max topk, if a > b, set mask 1, swap
+            cmp_flg = _cmp_lt_os;        // if val[left] < val[right], set mask 1, swap
+            heap_cmp_flg = _cmp_nle_us;  // min heap is used for max topk, if a > b, set mask 1, swap
         } else {
             cmp_flg = _cmp_nle_us;      // if val[left] > val[right], set mask 1, swap
             heap_cmp_flg = _cmp_lt_os;  // max heap is used for min topk, if a < b, set mask 1, swap
@@ -111,7 +112,8 @@ struct jit_uni_topk_kernel_f32 : public jit_uni_topk_kernel, public jit_generato
         if (isa == cpu::x64::avx512_core)
             uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
-        load_pool_gpr_idxs = {static_cast<size_t>(reg_load_store_mask.getIdx()), static_cast<size_t>(reg_load_table.getIdx())};
+        load_pool_gpr_idxs = {static_cast<size_t>(reg_load_store_mask.getIdx()),
+                              static_cast<size_t>(reg_load_table.getIdx())};
         store_pool_gpr_idxs = {static_cast<size_t>(reg_load_store_mask.getIdx())};
         store_pool_vec_idxs = {static_cast<size_t>(vmm_zero.getIdx())};
 
@@ -126,16 +128,24 @@ struct jit_uni_topk_kernel_f32 : public jit_uni_topk_kernel, public jit_generato
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
-            Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm =
+        typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     size_t vlen = cpu_isa_traits<isa>::vlen;
     dnnl::memory::data_type data_type;
     ov::element::Type precision_in_reg;
 
-    Xbyak::Address table_val(int index) { return ptr[reg_table + index * vlen]; }
-    Xbyak::Address table_bubble_block_idx(int index) { return ptr[reg_bubble_block_idx + index * vlen]; }
-    Xbyak::Address table_bubble_seq_idx(int index) { return ptr[reg_bubble_seq_idx + index * sizeof(int)]; }
-    Xbyak::Address table_heap_seq_idx(int index) { return ptr[reg_heap_seq_idx + index * sizeof(int)]; }
+    Xbyak::Address table_val(int index) {
+        return ptr[reg_table + index * vlen];
+    }
+    Xbyak::Address table_bubble_block_idx(int index) {
+        return ptr[reg_bubble_block_idx + index * vlen];
+    }
+    Xbyak::Address table_bubble_seq_idx(int index) {
+        return ptr[reg_bubble_seq_idx + index * sizeof(int)];
+    }
+    Xbyak::Address table_heap_seq_idx(int index) {
+        return ptr[reg_heap_seq_idx + index * sizeof(int)];
+    }
 
     Xbyak::Reg64 reg_src = r8;
     Xbyak::Reg64 reg_dst = r9;
@@ -156,57 +166,61 @@ private:
     Xbyak::Reg64 reg_load_table = rbp;
     Xbyak::Reg64 reg_load_store_mask = rsi;
 
-    // ================================================ for shape_agnostic_alg ================================================
+    // ================================================ for shape_agnostic_alg
+    // ================================================
     // *** for both heap sort and bubble sort ***
     Xbyak::Reg64 reg_tmp = reg_aux_idx;
 
     // *** for heap sort only ***
-    Xbyak::Reg64 reg_j = reg_i;                        // save reg_i by rsp before using reg_j
-    Xbyak::Reg64 reg_offset = reg_load_table;          // reuse reg_load_table after finish using load/store_emiter
-    Xbyak::Reg64 reg_offset_idx = reg_load_store_mask; // reuse reg_load_store_mask after finish using load/store_emiter
+    Xbyak::Reg64 reg_j = reg_i;                // save reg_i by rsp before using reg_j
+    Xbyak::Reg64 reg_offset = reg_load_table;  // reuse reg_load_table after finish using load/store_emiter
+    Xbyak::Reg64 reg_offset_idx =
+        reg_load_store_mask;  // reuse reg_load_store_mask after finish using load/store_emiter
     Xbyak::Reg64 reg_heap_seq_idx = reg_table;
     Xbyak::Reg64 reg_heap_axis_dim = reg_work_amount;
-    Xbyak::Reg64 reg_heap_top_k = reg_prc;             // save reg_top_k by rsp before using reg_prc
+    Xbyak::Reg64 reg_heap_top_k = reg_prc;  // save reg_top_k by rsp before using reg_prc
     Xbyak::Reg64 reg_heap_k_sub_step = reg_heap_top_k;
-    Xbyak::Reg64 reg_zero = reg_offset;                // save reg_zero by rsp before using reg_offset, also refer to reg_offset
-    Xbyak::Reg64 reg_end = reg_prc_idx;                // save reg_heap_outer_aux by rsp before using reg_prc_idx
+    Xbyak::Reg64 reg_zero = reg_offset;  // save reg_zero by rsp before using reg_offset, also refer to reg_offset
+    Xbyak::Reg64 reg_end = reg_prc_idx;  // save reg_heap_outer_aux by rsp before using reg_prc_idx
     Xbyak::Reg64 reg_heap_outer_aux = reg_prc_idx;
-    Xbyak::Reg64 reg_i_sub_1 = reg_i;                  // denotes i-1
-    Xbyak::Reg64 reg_heap_k_sub_1 = reg_heap_top_k;    // denotes k-1
-    Xbyak::Reg64 reg_heapify_end = reg_heap_axis_dim;  // save reg_heap_axis_dim by rsp before using reg_inner_end
-    Xbyak::Reg64 reg_heapify_i = reg_src;              // save reg_src by rsp before using reg_heapify_i
-    Xbyak::Reg64 reg_heapify_valid = reg_heap_seq_idx; // save reg_heap_seq_idx by rsp before using reg_heapify_valid
-    Xbyak::Reg64 reg_heapify_tmp = reg_params;         // save reg_params by rsp before using reg_heapify_tmp
+    Xbyak::Reg64 reg_i_sub_1 = reg_i;                   // denotes i-1
+    Xbyak::Reg64 reg_heap_k_sub_1 = reg_heap_top_k;     // denotes k-1
+    Xbyak::Reg64 reg_heapify_end = reg_heap_axis_dim;   // save reg_heap_axis_dim by rsp before using reg_inner_end
+    Xbyak::Reg64 reg_heapify_i = reg_src;               // save reg_src by rsp before using reg_heapify_i
+    Xbyak::Reg64 reg_heapify_valid = reg_heap_seq_idx;  // save reg_heap_seq_idx by rsp before using reg_heapify_valid
+    Xbyak::Reg64 reg_heapify_tmp = reg_params;          // save reg_params by rsp before using reg_heapify_tmp
 
     // *** for bubble sort only ***
     Xbyak::Reg64 reg_bubble_seq_idx = reg_table;
     Xbyak::Reg64 reg_bubble_block_idx = reg_prc;
     Xbyak::Reg64 reg_bubble_axis_dim = reg_prc_idx;
-    Xbyak::Reg64 reg_block_l = reg_bubble_block_idx;   // save reg_bubble_block_idx by rsp before using reg_l
-    Xbyak::Reg64 reg_block_r = reg_bubble_axis_dim;    // save reg_bubble_axis_dim by rsp before using reg_r
-    Xbyak::Reg64 reg_seq_l = reg_load_table;           // blocked layout on channel
-    Xbyak::Reg64 reg_seq_r = reg_prc;                  // blocked layout on channel
-    Xbyak::Reg64 reg_offset_l = reg_i;                 // save reg_i by rsp before using reg_offset_l
-    Xbyak::Reg64 reg_offset_r = reg_prc_idx;           // save reg_prc_idx by rsp before using reg_offset_r
+    Xbyak::Reg64 reg_block_l = reg_bubble_block_idx;  // save reg_bubble_block_idx by rsp before using reg_l
+    Xbyak::Reg64 reg_block_r = reg_bubble_axis_dim;   // save reg_bubble_axis_dim by rsp before using reg_r
+    Xbyak::Reg64 reg_seq_l = reg_load_table;          // blocked layout on channel
+    Xbyak::Reg64 reg_seq_r = reg_prc;                 // blocked layout on channel
+    Xbyak::Reg64 reg_offset_l = reg_i;                // save reg_i by rsp before using reg_offset_l
+    Xbyak::Reg64 reg_offset_r = reg_prc_idx;          // save reg_prc_idx by rsp before using reg_offset_r
     Xbyak::Reg64 reg_bubble_block_top_k = reg_bubble_seq_idx;
     Xbyak::Reg64 reg_bubble_block_k_sub_1 = reg_bubble_block_top_k;
     Xbyak::Reg64 reg_bubble_seq_top_k = reg_load_store_mask;
     Xbyak::Reg64 reg_bubble_seq_k_sub_1 = reg_bubble_seq_top_k;
-    Xbyak::Reg64 reg_block_sort_stride = reg_aux;      // by vector
-    Xbyak::Reg64 reg_block_sort_stride_byte = reg_block_sort_stride; // by vector
-    Xbyak::Reg64 reg_seq_tmp = reg_seq_l;              // blocked layout on channel
-    Xbyak::Reg64 reg_seq_sort_stride = reg_work_amount;// blocked layout on channel
-    Xbyak::Reg64 reg_blk_stride = reg_seq_sort_stride; // blocked layout on channel, denotes reg_seq_sort_stride * jcp_.blk_size
-    Xbyak::Reg64 reg_sub_idx = reg_bubble_block_idx;   // blocked layout on channel
+    Xbyak::Reg64 reg_block_sort_stride = reg_aux;                     // by vector
+    Xbyak::Reg64 reg_block_sort_stride_byte = reg_block_sort_stride;  // by vector
+    Xbyak::Reg64 reg_seq_tmp = reg_seq_l;                             // blocked layout on channel
+    Xbyak::Reg64 reg_seq_sort_stride = reg_work_amount;               // blocked layout on channel
+    Xbyak::Reg64 reg_blk_stride =
+        reg_seq_sort_stride;  // blocked layout on channel, denotes reg_seq_sort_stride * jcp_.blk_size
+    Xbyak::Reg64 reg_sub_idx = reg_bubble_block_idx;  // blocked layout on channel
     // ========================================================================================================================
 
-    Vmm vmm_zero = Vmm(0); // vmm_zero represents Vmm(0) when isa is avx512_core, otherwise vmm_mask represents Vmm(0)
+    Vmm vmm_zero = Vmm(0);  // vmm_zero represents Vmm(0) when isa is avx512_core, otherwise vmm_mask represents Vmm(0)
 
     const Xbyak::Opmask k_mask = Xbyak::Opmask(1);
     const int vector_step = vlen / sizeof(float);
     const int tail_step = jcp_.work_amount % vector_step;
 
-    int blk_stride = 0;    // stride of channel blocks at the same space coordinate, only used in blocked layout with topk on channel
+    int blk_stride =
+        0;  // stride of channel blocks at the same space coordinate, only used in blocked layout with topk on channel
     unsigned char cmp_flg;
     unsigned char heap_cmp_flg;
 
@@ -240,29 +254,44 @@ private:
         emit_store(vmm_dst, reg_dst, ov::element::i32, ov::element::i32, elt_num, offset);
     }
 
-    inline void emit_load(Xbyak::Reg64 reg_src, Vmm vmm_src, ov::element::Type src_prc, ov::element::Type dst_prc, const int elt_num, const int offset = 0) {
+    inline void emit_load(Xbyak::Reg64 reg_src,
+                          Vmm vmm_src,
+                          ov::element::Type src_prc,
+                          ov::element::Type dst_prc,
+                          const int elt_num,
+                          const int offset = 0) {
         const auto seed = load_emitter_params(src_prc, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
             emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, dst_prc, elt_num));
         }
 
         emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), static_cast<size_t>(offset)},
-                                  {static_cast<size_t>(vmm_src.getIdx())}, {}, {load_pool_gpr_idxs});
+                                  {static_cast<size_t>(vmm_src.getIdx())},
+                                  {},
+                                  {load_pool_gpr_idxs});
     }
 
-    inline void emit_store(Vmm vmm_dst, Xbyak::Reg64 reg_dst, ov::element::Type src_prc, ov::element::Type dst_prc, const int elt_num, const int offset = 0) {
+    inline void emit_store(Vmm vmm_dst,
+                           Xbyak::Reg64 reg_dst,
+                           ov::element::Type src_prc,
+                           ov::element::Type dst_prc,
+                           const int elt_num,
+                           const int offset = 0) {
         const auto seed = store_emitter_params(src_prc, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
             emitters[seed].reset(new jit_store_emitter(this, isa, src_prc, dst_prc, elt_num));
         }
 
         // for cases when Store emitter need 2 aux vmm we can use vmm_dst as second aux vmm
-        std::vector<size_t> local_store_pool_vec_idxs = { static_cast<size_t>(vmm_dst.getIdx()) };
-        local_store_pool_vec_idxs.insert(local_store_pool_vec_idxs.begin(), store_pool_vec_idxs.begin(), store_pool_vec_idxs.end());
+        std::vector<size_t> local_store_pool_vec_idxs = {static_cast<size_t>(vmm_dst.getIdx())};
+        local_store_pool_vec_idxs.insert(local_store_pool_vec_idxs.begin(),
+                                         store_pool_vec_idxs.begin(),
+                                         store_pool_vec_idxs.end());
 
         emitters[seed]->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
                                   {static_cast<size_t>(reg_dst.getIdx()), static_cast<size_t>(offset)},
-                                  {local_store_pool_vec_idxs}, {store_pool_gpr_idxs});
+                                  {local_store_pool_vec_idxs},
+                                  {store_pool_gpr_idxs});
     }
 
     inline void topk_loop() {
@@ -435,7 +464,9 @@ private:
                 store_scalar(ptr[reg_prc + (i * jcp_.sort_stride + j) * jcp_.data_size], xmm_tmp, data_type);
 
                 uni_vmovdqu(xmm_tmp, table_val(i));
-                store_scalar(ptr[reg_prc_idx + (i * jcp_.sort_stride + j) * sizeof(int)], xmm_tmp, memory::data_type::s32);
+                store_scalar(ptr[reg_prc_idx + (i * jcp_.sort_stride + j) * sizeof(int)],
+                             xmm_tmp,
+                             memory::data_type::s32);
             }
         }
     }
@@ -448,7 +479,9 @@ private:
                 load_scalar(xmm_tmp, ptr[reg_prc + (i * jcp_.sort_stride + j) * jcp_.data_size], data_type);
                 store_scalar(ptr[reg_dst + offset * jcp_.data_size], xmm_tmp, data_type);
 
-                load_scalar(xmm_tmp, ptr[reg_prc_idx + (i * jcp_.sort_stride + j) * sizeof(int)], memory::data_type::s32);
+                load_scalar(xmm_tmp,
+                            ptr[reg_prc_idx + (i * jcp_.sort_stride + j) * sizeof(int)],
+                            memory::data_type::s32);
                 store_scalar(ptr[reg_dst_idx + offset * sizeof(int)], xmm_tmp, memory::data_type::s32);
             }
         }
@@ -589,7 +622,7 @@ private:
         }
     }
 
-    inline void topk_heap_load(Xbyak::Reg64 &reg_end, int s) {
+    inline void topk_heap_load(Xbyak::Reg64& reg_end, int s) {
         Xbyak::Label topk_init_loop_label;
         Xbyak::Label topk_init_loop_end_label;
         L(topk_init_loop_label);
@@ -640,7 +673,7 @@ private:
         L(topk_extract_end_label);
     }
 
-    inline void heapify_sub_tree(const Xbyak::Reg64 &reg_idx, const Xbyak::Reg64 &reg_valid, bool cmp_val = true) {
+    inline void heapify_sub_tree(const Xbyak::Reg64& reg_idx, const Xbyak::Reg64& reg_valid, bool cmp_val = true) {
         Xbyak::Label topk_heapify_loop_label;
         Xbyak::Label topk_heapify_loop_end_label;
         Xbyak::Label topk_lchild_loop_label;
@@ -680,7 +713,7 @@ private:
         mul_by_const(reg_offset, reg_heapify_tmp, jcp_.data_size);
         if (jcp_.data_size != sizeof(int)) {
             reg_mul_add(reg_offset_idx, reg_heapify_i, 2, 1);
-            mul_by_const(reg_offset_idx, reg_heapify_tmp,  sizeof(int));
+            mul_by_const(reg_offset_idx, reg_heapify_tmp, sizeof(int));
         }
 
         L(topk_heapify_loop_label);
@@ -784,8 +817,7 @@ private:
         return mayiuse(cpu_isa);
     }
 
-    inline void uni_vpcmpgtd(const Xbyak::Xmm &x1, const Xbyak::Xmm &x2,
-            const Xbyak::Operand &op) {
+    inline void uni_vpcmpgtd(const Xbyak::Xmm& x1, const Xbyak::Xmm& x2, const Xbyak::Operand& op) {
         if (is_valid_isa(cpu::x64::avx)) {
             vpcmpgtd(x1, x2, op);
         } else {
@@ -795,13 +827,18 @@ private:
         }
     }
 
-    inline void uni_vpcmpgtd(const Xbyak::Ymm &x1, const Xbyak::Ymm &x2,
-            const Xbyak::Operand &op) {
+    inline void uni_vpcmpgtd(const Xbyak::Ymm& x1, const Xbyak::Ymm& x2, const Xbyak::Operand& op) {
         vpcmpgtd(x1, x2, op);
     }
 
-    inline void compare_node_xmm(Xmm xmm_val_a, Xmm xmm_idx_a, Xmm xmm_val_b, Xmm xmm_idx_b, Xmm mask,
-                                 unsigned char val_cmp_flg, unsigned char idx_cmp_flg, bool cmp_val) {
+    inline void compare_node_xmm(Xmm xmm_val_a,
+                                 Xmm xmm_idx_a,
+                                 Xmm xmm_val_b,
+                                 Xmm xmm_idx_b,
+                                 Xmm mask,
+                                 unsigned char val_cmp_flg,
+                                 unsigned char idx_cmp_flg,
+                                 bool cmp_val) {
         if (isa == cpu::x64::avx512_core) {
             if (cmp_val) {
                 if (isFloatCompatible(data_type)) {
@@ -846,7 +883,7 @@ private:
         store_scalar(ptr[reg_prc_idx], xmm_idx_n, memory::data_type::s32);
     }
 
-    inline void heap_swap_root(const Xbyak::Reg64 &reg_idx) {
+    inline void heap_swap_root(const Xbyak::Reg64& reg_idx) {
         get_addr_by_reg_idx(reg_aux, reg_dst, reg_idx, jcp_.data_size);
         get_addr_by_reg_idx(reg_aux_idx, reg_dst_idx, reg_idx, sizeof(int));
 
@@ -923,140 +960,164 @@ private:
         }
     }
 
-    inline void reg_add(const Xbyak::Reg64 &reg_sum, const Xbyak::Reg64 &reg_a, const Xbyak::Reg64 &reg_b) {
+    inline void reg_add(const Xbyak::Reg64& reg_sum, const Xbyak::Reg64& reg_a, const Xbyak::Reg64& reg_b) {
         mov(reg_sum, reg_a);
         add(reg_sum, reg_b);
     }
 
-    inline void query_table_by_reg_idx(const Xbyak::Reg64 &reg_table, const Xbyak::Reg64 &reg_idx, int offset, size_t size) {
+    inline void query_table_by_reg_idx(const Xbyak::Reg64& reg_table,
+                                       const Xbyak::Reg64& reg_idx,
+                                       int offset,
+                                       size_t size) {
         mov(reg_tmp, reg_idx);
         add(reg_tmp, offset);
         mul_by_const(reg_tmp, reg_tmp_64, size);
         add(reg_tmp, reg_table);
     }
 
-    inline void table_to_vmm(Vmm vmm_src, const Xbyak::Reg64 &reg_table, const Xbyak::Reg64 &reg_idx, int offset, size_t size) {
+    inline void table_to_vmm(Vmm vmm_src,
+                             const Xbyak::Reg64& reg_table,
+                             const Xbyak::Reg64& reg_idx,
+                             int offset,
+                             size_t size) {
         query_table_by_reg_idx(reg_table, reg_idx, offset, size);
         uni_vmovdqu(vmm_src, ptr[reg_tmp]);
     }
 
-    inline void table_to_xmm(Xmm xmm_src, const Xbyak::Reg64 &reg_table, const Xbyak::Reg64 &reg_idx, int offset, size_t size) {
+    inline void table_to_xmm(Xmm xmm_src,
+                             const Xbyak::Reg64& reg_table,
+                             const Xbyak::Reg64& reg_idx,
+                             int offset,
+                             size_t size) {
         query_table_by_reg_idx(reg_table, reg_idx, offset, size);
         uni_vmovss(xmm_src, ptr[reg_tmp]);
     }
 
-    inline void get_addr_by_reg_idx(const Xbyak::Reg &reg_out, const Xbyak::Reg &reg_base, const Xbyak::Reg64 &reg_in, int value) {
+    inline void get_addr_by_reg_idx(const Xbyak::Reg& reg_out,
+                                    const Xbyak::Reg& reg_base,
+                                    const Xbyak::Reg64& reg_in,
+                                    int value) {
         mov(reg_out, reg_in);
         mul_by_const(reg_out, reg_tmp_64, value);
         add(reg_out, reg_base);
     }
 
-    inline void get_addr_by_reg_idx(const Xbyak::Reg &reg_out, const Xbyak::Reg &reg_base, const Xbyak::Reg64 &reg_in, int value,
-                             const Xbyak::Reg64 &reg_value) {
+    inline void get_addr_by_reg_idx(const Xbyak::Reg& reg_out,
+                                    const Xbyak::Reg& reg_base,
+                                    const Xbyak::Reg64& reg_in,
+                                    int value,
+                                    const Xbyak::Reg64& reg_value) {
         mov(reg_out, reg_in);
         imul(reg_out, reg_value);
         mul_by_const(reg_out, reg_tmp_64, value);
         add(reg_out, reg_base);
     }
 
-    inline void get_addr_by_reg_idx(const Xbyak::Reg &reg_out, const Xbyak::Reg &reg_base, const Xbyak::Reg64 &reg_in,
-                                    const Xbyak::Reg64 &reg_value) {
+    inline void get_addr_by_reg_idx(const Xbyak::Reg& reg_out,
+                                    const Xbyak::Reg& reg_base,
+                                    const Xbyak::Reg64& reg_in,
+                                    const Xbyak::Reg64& reg_value) {
         mov(reg_out, reg_in);
         imul(reg_out, reg_value);
         add(reg_out, reg_base);
     }
 
-    inline void reg_mul_add(const Xbyak::Reg &reg_out, const Xbyak::Reg64 &reg_in, int mul_val, int add_val) {
+    inline void reg_mul_add(const Xbyak::Reg& reg_out, const Xbyak::Reg64& reg_in, int mul_val, int add_val) {
         mov(reg_out, reg_in);
         mul_by_const(reg_out, reg_tmp_64, mul_val);
         add(reg_out, add_val);
     }
 
-    inline void reg_mul_add(const Xbyak::Reg &reg_out, const Xbyak::Reg &reg_tmp, const Xbyak::Reg64 &reg_in, int mul_val) {
+    inline void reg_mul_add(const Xbyak::Reg& reg_out,
+                            const Xbyak::Reg& reg_tmp,
+                            const Xbyak::Reg64& reg_in,
+                            int mul_val) {
         mov(reg_tmp, reg_in);
         mul_by_const(reg_tmp, reg_tmp_64, mul_val);
         add(reg_out, reg_tmp);
     }
 
-    inline void reg_mul_add(const Xbyak::Reg &reg_out, int mul_val, const Xbyak::Reg64 &reg_base) {
+    inline void reg_mul_add(const Xbyak::Reg& reg_out, int mul_val, const Xbyak::Reg64& reg_base) {
         mul_by_const(reg_out, reg_tmp_64, mul_val);
         add(reg_out, reg_base);
     }
 
-    inline void reg_sub_shr(const Xbyak::Reg &reg_out, const Xbyak::Reg64 &reg_in, int sub_val, int shr_val) {
+    inline void reg_sub_shr(const Xbyak::Reg& reg_out, const Xbyak::Reg64& reg_in, int sub_val, int shr_val) {
         mov(reg_out, reg_in);
         sub(reg_out, sub_val);
         shr(reg_out, shr_val);
     }
 
-    inline void reg_sub_mul(const Xbyak::Reg &reg_out, const Xbyak::Reg64 &reg_in, int sub_val, int mul_val) {
+    inline void reg_sub_mul(const Xbyak::Reg& reg_out, const Xbyak::Reg64& reg_in, int sub_val, int mul_val) {
         mov(reg_out, reg_in);
         sub(reg_out, sub_val);
         mul_by_const(reg_out, reg_tmp_64, mul_val);
     }
 
-    inline void reg_shl(const Xbyak::Reg &reg_out, int rate) {
+    inline void reg_shl(const Xbyak::Reg& reg_out, int rate) {
         switch (rate) {
-            case 1:
-                break;
-            case 2:
-                shl(reg_out, 1);
-                break;
-            case 4:
-                shl(reg_out, 2);
-                break;
-            default:
-                assert(!"incorrect data size rate");
+        case 1:
+            break;
+        case 2:
+            shl(reg_out, 1);
+            break;
+        case 4:
+            shl(reg_out, 2);
+            break;
+        default:
+            assert(!"incorrect data size rate");
         }
     }
 
-    inline void reg_shr(const Xbyak::Reg &reg_out, int rate) {
+    inline void reg_shr(const Xbyak::Reg& reg_out, int rate) {
         switch (rate) {
-            case 1:
-                break;
-            case 2:
-                shr(reg_out, 1);
-                break;
-            case 4:
-                shr(reg_out, 2);
-                break;
-            default:
-                assert(!"incorrect data size rate");
+        case 1:
+            break;
+        case 2:
+            shr(reg_out, 1);
+            break;
+        case 4:
+            shr(reg_out, 2);
+            break;
+        default:
+            assert(!"incorrect data size rate");
         }
     }
 
-    inline void reg_div_blk_size(const Xbyak::Reg &reg_out, const Xbyak::Reg64 &reg_in, int blk_size) {
+    inline void reg_div_blk_size(const Xbyak::Reg& reg_out, const Xbyak::Reg64& reg_in, int blk_size) {
         mov(reg_out, reg_in);
         switch (blk_size) {
-            case 8:
-                shr(reg_out, 3);
-                break;
-            case 16:
-                shr(reg_out, 4);
-                break;
-            default:
-                assert(!"incorrect blk_size");
+        case 8:
+            shr(reg_out, 3);
+            break;
+        case 16:
+            shr(reg_out, 4);
+            break;
+        default:
+            assert(!"incorrect blk_size");
         }
     }
 
-    inline void reg_mod_blk_size(const Xbyak::Reg &reg_out, const Xbyak::Reg64 &reg_in, int blk_size) {
+    inline void reg_mod_blk_size(const Xbyak::Reg& reg_out, const Xbyak::Reg64& reg_in, int blk_size) {
         mov(reg_out, reg_in);
         reg_div_blk_size(reg_tmp_64, reg_in, blk_size);
         switch (blk_size) {
-            case 8:
-                shl(reg_tmp_64, 3);
-                break;
-            case 16:
-                shl(reg_tmp_64, 4);
-                break;
-            default:
-                assert(!"incorrect blk_size");
+        case 8:
+            shl(reg_tmp_64, 3);
+            break;
+        case 16:
+            shl(reg_tmp_64, 4);
+            break;
+        default:
+            assert(!"incorrect blk_size");
         }
         sub(reg_out, reg_tmp_64);
     }
 
-    inline void reg_calc_offset_by_channel_idx(const Xbyak::Reg &reg_out, const Xbyak::Reg64 &reg_stride,
-                                               const Xbyak::Reg64 &reg_channel_idx, int blk_size) {
+    inline void reg_calc_offset_by_channel_idx(const Xbyak::Reg& reg_out,
+                                               const Xbyak::Reg64& reg_stride,
+                                               const Xbyak::Reg64& reg_channel_idx,
+                                               int blk_size) {
         reg_div_blk_size(reg_out, reg_channel_idx, blk_size);
         imul(reg_out, reg_stride);
         reg_mod_blk_size(reg_tmp, reg_channel_idx, blk_size);
@@ -1342,12 +1403,12 @@ private:
     // dst: xmm_val(0) and xmm_idx(0)
     // aux: xmm_val(3) and xmm_idx(3)
     inline void horize_top1() {
-        uni_vmovshdup(xmm_val(3), xmm_val(0));                           // dst:1,2,3,4; aux:2,2,4,4
+        uni_vmovshdup(xmm_val(3), xmm_val(0));  // dst:1,2,3,4; aux:2,2,4,4
         uni_vmovshdup(xmm_idx(3), xmm_idx(0));
-        bubble_swap_xmm(xmm_val(0), xmm_idx(0), xmm_val(3), xmm_idx(3)); // dst:f(1,2),f(2,2),f(3,4),f(4,4)
-        uni_vmovhlps(xmm_val(3), xmm_val(3), xmm_val(0));                // aux:f(3,4),f(4,4),4,4
+        bubble_swap_xmm(xmm_val(0), xmm_idx(0), xmm_val(3), xmm_idx(3));  // dst:f(1,2),f(2,2),f(3,4),f(4,4)
+        uni_vmovhlps(xmm_val(3), xmm_val(3), xmm_val(0));                 // aux:f(3,4),f(4,4),4,4
         uni_vmovhlps(xmm_idx(3), xmm_idx(3), xmm_idx(0));
-        bubble_swap_xmm(xmm_val(0), xmm_idx(0), xmm_val(3), xmm_idx(3)); // dst:f(1,2,3,4),...
+        bubble_swap_xmm(xmm_val(0), xmm_idx(0), xmm_val(3), xmm_idx(3));  // dst:f(1,2,3,4),...
     }
 
     inline void topk_bubble_BLK_on_channel_verti() {
@@ -1546,7 +1607,10 @@ private:
         }
     }
 
-    inline void bubble_swap_vector(const Xbyak::Reg64 &reg_l, const Xbyak::Reg64 &reg_r, int elt_num, bool cmp_val = true) {
+    inline void bubble_swap_vector(const Xbyak::Reg64& reg_l,
+                                   const Xbyak::Reg64& reg_r,
+                                   int elt_num,
+                                   bool cmp_val = true) {
         mov(reg_tmp_64, reg_block_sort_stride_byte);
         imul(reg_tmp_64, reg_l);
 
@@ -1635,7 +1699,7 @@ private:
         }
     }
 
-    inline void bubble_swap_by_index(const Xbyak::Reg64 &reg_l, const Xbyak::Reg64 &reg_r, bool cmp_val = true) {
+    inline void bubble_swap_by_index(const Xbyak::Reg64& reg_l, const Xbyak::Reg64& reg_r, bool cmp_val = true) {
         sub(rsp, sizeof(int));
         mov(ptr[rsp], reg_i.cvt32());
         sub(rsp, sizeof(int));
@@ -1711,26 +1775,26 @@ private:
         }
     }
 
-    inline void load_scalar(Xmm xmm_src, const Xbyak::Address &op, memory::data_type src_dt, bool cvt_dt = false) {
+    inline void load_scalar(Xmm xmm_src, const Xbyak::Address& op, memory::data_type src_dt, bool cvt_dt = false) {
         switch (src_dt) {
-            case memory::data_type::f32:
-            case memory::data_type::s32:
-                uni_vmovss(xmm_src, op);
-                break;
-            case memory::data_type::bf16:
-                uni_vpinsrw(xmm_src, xmm_src, op, 0x0);
-                uni_vpslld(xmm_src, xmm_src, 16);
-                break;
-            case memory::data_type::s8:
-                movsx(reg_tmp_32, op);
-                uni_vmovq(xmm_src, reg_tmp_64);
-                break;
-            case memory::data_type::u8:
-                movzx(reg_tmp_32, op);
-                uni_vmovq(xmm_src, reg_tmp_64);
-                break;
-            default:
-                assert(!"unknown src_dt");
+        case memory::data_type::f32:
+        case memory::data_type::s32:
+            uni_vmovss(xmm_src, op);
+            break;
+        case memory::data_type::bf16:
+            uni_vpinsrw(xmm_src, xmm_src, op, 0x0);
+            uni_vpslld(xmm_src, xmm_src, 16);
+            break;
+        case memory::data_type::s8:
+            movsx(reg_tmp_32, op);
+            uni_vmovq(xmm_src, reg_tmp_64);
+            break;
+        case memory::data_type::u8:
+            movzx(reg_tmp_32, op);
+            uni_vmovq(xmm_src, reg_tmp_64);
+            break;
+        default:
+            assert(!"unknown src_dt");
         }
 
         if (cvt_dt && !isFloatCompatible(src_dt)) {
@@ -1738,34 +1802,34 @@ private:
         }
     }
 
-    inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, memory::data_type dst_dt, bool cvt_dt = false) {
+    inline void store_scalar(const Xbyak::Address& op, Xmm xmm_dst, memory::data_type dst_dt, bool cvt_dt = false) {
         if (cvt_dt && !isFloatCompatible(dst_dt)) {
             uni_vcvtps2dq(xmm_dst, xmm_dst);
         }
 
         switch (dst_dt) {
-            case memory::data_type::f32:
-            case memory::data_type::s32:
-                uni_vmovss(op, xmm_dst);
-                break;
-            case memory::data_type::bf16:
-                uni_vpsrld(xmm_dst, xmm_dst, 16);
-                uni_vpextrw(op, xmm_dst, 0x0);
-                break;
-            case memory::data_type::s8:
-                uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
-                uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
-                uni_vmovq(reg_tmp_64, xmm_dst);
-                mov(op, reg_tmp_8);
-                break;
-            case memory::data_type::u8:
-                uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
-                uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
-                uni_vmovq(reg_tmp_64, xmm_dst);
-                mov(op, reg_tmp_8);
-                break;
-            default:
-                assert(!"unknown dst_dt");
+        case memory::data_type::f32:
+        case memory::data_type::s32:
+            uni_vmovss(op, xmm_dst);
+            break;
+        case memory::data_type::bf16:
+            uni_vpsrld(xmm_dst, xmm_dst, 16);
+            uni_vpextrw(op, xmm_dst, 0x0);
+            break;
+        case memory::data_type::s8:
+            uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
+            uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
+            uni_vmovq(reg_tmp_64, xmm_dst);
+            mov(op, reg_tmp_8);
+            break;
+        case memory::data_type::u8:
+            uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
+            uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
+            uni_vmovq(reg_tmp_64, xmm_dst);
+            mov(op, reg_tmp_8);
+            break;
+        default:
+            assert(!"unknown dst_dt");
         }
     }
 
@@ -1789,30 +1853,32 @@ private:
 
 bool TopK::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(), ov::op::v1::TopK::get_type_info_static(),
-                                         ov::op::v3::TopK::get_type_info_static(),
-                                         ov::op::v11::TopK::get_type_info_static())) {
+        if (!one_of(op->get_type_info(),
+                    ov::op::v1::TopK::get_type_info_static(),
+                    ov::op::v3::TopK::get_type_info_static(),
+                    ov::op::v11::TopK::get_type_info_static())) {
             errorMessage = "Node is not an instance of the TopK from the operation sets v1, v3 or v11";
             return false;
         }
 
         auto topKOp = ov::as_type_ptr<const ov::op::util::TopKBase>(op);
         if (!isDynamicNgraphNode(op)) {
-            auto topKConst = std::dynamic_pointer_cast<const ov::op::v0::Constant>(topKOp->get_input_node_shared_ptr(TOPK_K));
+            auto topKConst =
+                std::dynamic_pointer_cast<const ov::op::v0::Constant>(topKOp->get_input_node_shared_ptr(TOPK_K));
             if (!topKConst) {
                 errorMessage = "Second tensor is not constant in static shape mode";
                 return false;
             }
         }
 
-        if (topKOp->get_mode() != ov::op::TopKMode::MAX &&
-            topKOp->get_mode() != ov::op::TopKMode::MIN) {
+        if (topKOp->get_mode() != ov::op::TopKMode::MAX && topKOp->get_mode() != ov::op::TopKMode::MIN) {
             errorMessage = "Unsupported mode.";
             return false;
         }
-        if (!one_of(topKOp->get_sort_type(), ov::op::TopKSortType::NONE,
-                                             ov::op::TopKSortType::SORT_VALUES,
-                                             ov::op::TopKSortType::SORT_INDICES)) {
+        if (!one_of(topKOp->get_sort_type(),
+                    ov::op::TopKSortType::NONE,
+                    ov::op::TopKSortType::SORT_VALUES,
+                    ov::op::TopKSortType::SORT_INDICES)) {
             errorMessage = "Unsupported sort type.";
             return false;
         }
@@ -1836,9 +1902,10 @@ TopK::TopK(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context
         auto in_dims_size = in_dims.size();
 
         if (!isDynamicNgraphNode(op)) {
-            auto topKConst = std::dynamic_pointer_cast<const ov::op::v0::Constant>(topKOp->get_input_node_shared_ptr(TOPK_K));
+            auto topKConst =
+                std::dynamic_pointer_cast<const ov::op::v0::Constant>(topKOp->get_input_node_shared_ptr(TOPK_K));
             if (!topKConst) {
-                OPENVINO_THROW(errorPrefix,  "gets non-constant second tensor in static shape mode!");
+                OPENVINO_THROW(errorPrefix, "gets non-constant second tensor in static shape mode!");
             }
         }
 
@@ -1903,19 +1970,17 @@ void TopK::initSupportedPrimitiveDescriptors() {
     jit_mode = false;
 #endif
 
-    static const ov::element::Type supportedPrecision[] = {
-        ov::element::f32,
-        ov::element::bf16,
-        ov::element::i32,
-        ov::element::i8,
-        ov::element::u8
-    };
+    static const ov::element::Type supportedPrecision[] = {ov::element::f32,
+                                                           ov::element::bf16,
+                                                           ov::element::i32,
+                                                           ov::element::i8,
+                                                           ov::element::u8};
 
     ov::element::Type dataPrecision = getOriginalOutputPrecisionAtPort(TOPK_DATA);
     if (dataPrecision == ov::element::bf16 && !mayiuse(avx512_core))
         OPENVINO_THROW(errorPrefix, " gets incorrect isa for BF16! AVX512 must be supported!");
-    bool precisionSupported = std::find(std::begin(supportedPrecision), std::end(supportedPrecision), dataPrecision)
-                                     != std::end(supportedPrecision);
+    bool precisionSupported = std::find(std::begin(supportedPrecision), std::end(supportedPrecision), dataPrecision) !=
+                              std::end(supportedPrecision);
     if (!precisionSupported) {
         if (dataPrecision.is_real()) {
             dataPrecision = ov::element::f32;
@@ -1924,16 +1989,16 @@ void TopK::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    std::vector<std::pair<LayoutType, LayoutType>> dataFomats{
+    std::vector<std::pair<LayoutType, LayoutType>> dataFomats {
         {LayoutType::ncsp, LayoutType::ncsp},
 #if defined(OPENVINO_ARCH_X86_64)
-        {LayoutType::nspc, LayoutType::nspc},
-        {LayoutType::nCsp16c, LayoutType::nCsp16c},
-        {LayoutType::nCsp8c, LayoutType::nCsp8c}
+            {LayoutType::nspc, LayoutType::nspc}, {LayoutType::nCsp16c, LayoutType::nCsp16c}, {
+            LayoutType::nCsp8c, LayoutType::nCsp8c
+        }
 #endif
     };
 
-    for (const auto &df : dataFomats) {
+    for (const auto& df : dataFomats) {
         addSupportedPrimDesc({{df.first, dataPrecision}, {LayoutType::ncsp, ov::element::i32}},
                              {{df.second, dataPrecision}, {df.second, ov::element::i32}},
                              impl_type);
@@ -1952,11 +2017,13 @@ bool TopK::needPrepareParams() const {
 
 void TopK::preset_params() {
     auto selectedPD = getSelectedPrimitiveDescriptor();
-    auto data_type = DnnlExtensionUtils::ElementTypeToDataType(selectedPD->getConfig().inConfs[TOPK_DATA].getMemDesc()->getPrecision());
+    auto data_type = DnnlExtensionUtils::ElementTypeToDataType(
+        selectedPD->getConfig().inConfs[TOPK_DATA].getMemDesc()->getPrecision());
     data_size = DnnlExtensionUtils::sizeOfDataType(data_type);
 
-    topk_innermost = (layout == TopKLayoutType::topk_ncsp && axis == static_cast<int>(getOutputShapeAtPort(TOPK_DATA).getRank() - 1)) ||
-                    ((layout == TopKLayoutType::topk_nspc || layout == TopKLayoutType::topk_blocked) && axis == 1);
+    topk_innermost = (layout == TopKLayoutType::topk_ncsp &&
+                      axis == static_cast<int>(getOutputShapeAtPort(TOPK_DATA).getRank() - 1)) ||
+                     ((layout == TopKLayoutType::topk_nspc || layout == TopKLayoutType::topk_blocked) && axis == 1);
 
     if (mayiuse(cpu::x64::avx512_core)) {
         blk_size = 16;
@@ -2012,21 +2079,24 @@ void TopK::prepareParams() {
 
         axis_dim = src_dims[axis];
 
-        // [case 1]: if 2 * (top_k + 1) + 2 <= count_xmm, thus top_k is small enough that the vector registers are sufficient
-        //           to keep all necessary data for sorting, no need to load and store frequently, use inplace bubble sort;
-        //           (horizotal sorting cases not included)
-        // [case 2]: if stable sorting is required, bubble sort(topk_bubble_vector/topk_bubble_BLK_on_channel_verti) will be
-        //           applied currently, because among the implemented sorting algorithms, these bubble sort implementations
-        //           are the only stable ones;
-        // [case 3]: only when topk is imposed on innermost dimsension of planar(ncsp/nspc) layout, should heap sort be used;
-        // [case 4]: by default, use bitonic sort when alg_cost_bitonic < alg_cost_bubble, otherwise use bubble sort.
+        // [case 1]: if 2 * (top_k + 1) + 2 <= count_xmm, thus top_k is small enough that the vector registers are
+        // sufficient
+        //           to keep all necessary data for sorting, no need to load and store frequently, use inplace bubble
+        //           sort; (horizotal sorting cases not included)
+        // [case 2]: if stable sorting is required, bubble sort(topk_bubble_vector/topk_bubble_BLK_on_channel_verti)
+        // will be
+        //           applied currently, because among the implemented sorting algorithms, these bubble sort
+        //           implementations are the only stable ones;
+        // [case 3]: only when topk is imposed on innermost dimsension of planar(ncsp/nspc) layout, should heap sort be
+        // used; [case 4]: by default, use bitonic sort when alg_cost_bitonic < alg_cost_bubble, otherwise use bubble
+        // sort.
         //           alg_cost_bitonic = (N / 4) * logN * (logN + 1)
         //           alg_cost_bubble = K * (K - 1) / 2 + (N - K) * K
         //           where, N = axis_dim, K = topk_k
-        //           the above two alg_costs are not the exact implementation costs, yet it's proper to use them to decide
-        //           which algorithm should be used for specific N and K.
+        //           the above two alg_costs are not the exact implementation costs, yet it's proper to use them to
+        //           decide which algorithm should be used for specific N and K.
         if (!isDynamicNode()) {
-            const size_t count_xmm = 16; // only 16 vector registers are valid in sse instructions even for avx512_core
+            const size_t count_xmm = 16;  // only 16 vector registers are valid in sse instructions even for avx512_core
             if (static_cast<size_t>(top_k) <= count_xmm / 2 - 2) {
                 algorithm = TopKAlgorithm::topk_bubble_sort;
                 bubble_inplace = topk_innermost && top_k == 1 ? false : true;
@@ -2049,7 +2119,7 @@ void TopK::prepareParams() {
         }
 
         prepare_original_idx();
-    } else { //reference mode
+    } else {  // reference mode
         int j;
         for (j = src_dims.size() - 1; j >= 0; j--) {
             if (src_dims[j] != 1)
@@ -2138,27 +2208,27 @@ void TopK::execute(dnnl::stream strm) {
     auto dstMemPtr = getDstMemoryAtPort(TOPK_DATA);
     auto dstIndexesMemPtr = getDstMemoryAtPort(TOPK_INDEX);
 
-    const uint8_t *src_data = srcMemPtr->getDataAs<const uint8_t>();
-    uint8_t *dst_data = dstMemPtr->getDataAs<uint8_t>();
-    uint8_t *dst_idx = dstIndexesMemPtr->getDataAs<uint8_t>();
+    const uint8_t* src_data = srcMemPtr->getDataAs<const uint8_t>();
+    uint8_t* dst_data = dstMemPtr->getDataAs<uint8_t>();
+    uint8_t* dst_idx = dstIndexesMemPtr->getDataAs<uint8_t>();
 
     if (jit_mode) {
         topk_process(src_data, dst_data, dst_idx);
     } else {
         if (layout == TopKLayoutType::topk_ncsp) {
-            auto in_ptr = reinterpret_cast<const float *>(src_data);
-            auto out_ptr = reinterpret_cast<float *>(dst_data);
-            auto out_idx_ptr = reinterpret_cast<int32_t *>(dst_idx);
+            auto in_ptr = reinterpret_cast<const float*>(src_data);
+            auto out_ptr = reinterpret_cast<float*>(dst_data);
+            auto out_idx_ptr = reinterpret_cast<int32_t*>(dst_idx);
             topk_ref(in_ptr, out_ptr, out_idx_ptr);
         } else {
-            OPENVINO_THROW(errorPrefix,  "only support plain layout on machine w/o sse42.");
+            OPENVINO_THROW(errorPrefix, "only support plain layout on machine w/o sse42.");
         }
     }
 }
 
-void TopK::topk_process(const uint8_t *in_ptr, uint8_t *out_ptr, uint8_t *out_idx_ptr) {
-    uint8_t *process_ptr = vec_process_ptr.data();
-    uint8_t *process_idx_ptr = vec_process_idx_ptr.data();
+void TopK::topk_process(const uint8_t* in_ptr, uint8_t* out_ptr, uint8_t* out_idx_ptr) {
+    uint8_t* process_ptr = vec_process_ptr.data();
+    uint8_t* process_idx_ptr = vec_process_idx_ptr.data();
 
     // [blocked layout with topk on C]
     if (layout == TopKLayoutType::topk_blocked && topk_innermost) {
@@ -2166,30 +2236,30 @@ void TopK::topk_process(const uint8_t *in_ptr, uint8_t *out_ptr, uint8_t *out_id
         size_t OA = div_up(dst_dims[1], blk_size);
         if (algorithm == TopKAlgorithm::topk_bubble_sort) {
             parallel_for2d(O, I, [&](size_t o, size_t i) {
-                const uint8_t *in_ptr_a = in_ptr + (o * IA * I + i) * blk_size * data_size;
-                uint8_t *out_ptr_a = out_ptr + (o * OA * I + i) * blk_size * data_size;
-                uint8_t *out_idx_ptr_a = out_idx_ptr + (o * OA * I + i) * blk_size * sizeof(int32_t);
+                const uint8_t* in_ptr_a = in_ptr + (o * IA * I + i) * blk_size * data_size;
+                uint8_t* out_ptr_a = out_ptr + (o * OA * I + i) * blk_size * data_size;
+                uint8_t* out_idx_ptr_a = out_idx_ptr + (o * OA * I + i) * blk_size * sizeof(int32_t);
                 size_t work_amount = 1;
                 topk_kernel_process(in_ptr_a, out_ptr_a, out_idx_ptr_a, NULL, NULL, work_amount);
             });
         } else if (algorithm == TopKAlgorithm::topk_bitonic_sort) {
             parallel_for(O, [&](size_t o) {
-                const uint8_t *in_ptr_a = in_ptr + o * IA * I * blk_size * data_size;
-                uint8_t *process_ptr_a = process_ptr + o * IA * I * blk_size * data_size;
-                uint8_t *process_idx_ptr_a = process_idx_ptr + o * IA * I * blk_size * sizeof(int32_t);
-                uint8_t *out_ptr_a = out_ptr + o * OA * I * blk_size * data_size;
-                uint8_t *out_idx_ptr_a = out_idx_ptr + o * OA * I * blk_size * sizeof(int32_t);
+                const uint8_t* in_ptr_a = in_ptr + o * IA * I * blk_size * data_size;
+                uint8_t* process_ptr_a = process_ptr + o * IA * I * blk_size * data_size;
+                uint8_t* process_idx_ptr_a = process_idx_ptr + o * IA * I * blk_size * sizeof(int32_t);
+                uint8_t* out_ptr_a = out_ptr + o * OA * I * blk_size * data_size;
+                uint8_t* out_idx_ptr_a = out_idx_ptr + o * OA * I * blk_size * sizeof(int32_t);
                 size_t work_amount = I;
                 topk_kernel_process(in_ptr_a, out_ptr_a, out_idx_ptr_a, process_ptr_a, process_idx_ptr_a, work_amount);
             });
         }
-    } else { // [planar layout] [blocked layout with topk on non-C]
+    } else {  // [planar layout] [blocked layout with topk on non-C]
         parallel_for2d(O, I / blk_size, [&](size_t o, size_t k) {
-            const uint8_t *in_ptr_a = in_ptr + (o * A * I + k * blk_size) * data_size;
-            uint8_t *process_ptr_a = process_ptr + (o * A * I + k * blk_size) * data_size;
-            uint8_t *process_idx_ptr_a = process_idx_ptr + (o * A * I + k * blk_size) * sizeof(int32_t);
-            uint8_t *out_ptr_a = out_ptr + (o * top_k * I + k * blk_size) * data_size;
-            uint8_t *out_idx_ptr_a = out_idx_ptr + (o * top_k * I + k * blk_size) * sizeof(int32_t);
+            const uint8_t* in_ptr_a = in_ptr + (o * A * I + k * blk_size) * data_size;
+            uint8_t* process_ptr_a = process_ptr + (o * A * I + k * blk_size) * data_size;
+            uint8_t* process_idx_ptr_a = process_idx_ptr + (o * A * I + k * blk_size) * sizeof(int32_t);
+            uint8_t* out_ptr_a = out_ptr + (o * top_k * I + k * blk_size) * data_size;
+            uint8_t* out_idx_ptr_a = out_idx_ptr + (o * top_k * I + k * blk_size) * sizeof(int32_t);
             size_t work_amount = blk_size;
             topk_kernel_process(in_ptr_a, out_ptr_a, out_idx_ptr_a, process_ptr_a, process_idx_ptr_a, work_amount);
         });
@@ -2198,25 +2268,29 @@ void TopK::topk_process(const uint8_t *in_ptr, uint8_t *out_ptr, uint8_t *out_id
         size_t work_amount = I - tail_start;
         if (work_amount) {
             parallel_for(O, [&](size_t o) {
-                const uint8_t *in_ptr_a = in_ptr + (o * A * I + tail_start) * data_size;
-                uint8_t *process_ptr_a = process_ptr + (o * A * I + tail_start) * data_size;
-                uint8_t *process_idx_ptr_a = process_idx_ptr + (o * A * I + tail_start) * sizeof(int32_t);
-                uint8_t *out_ptr_a = out_ptr + (o * top_k * I + tail_start) * data_size;
-                uint8_t *out_idx_ptr_a = out_idx_ptr + (o * top_k * I + tail_start) * sizeof(int32_t);
+                const uint8_t* in_ptr_a = in_ptr + (o * A * I + tail_start) * data_size;
+                uint8_t* process_ptr_a = process_ptr + (o * A * I + tail_start) * data_size;
+                uint8_t* process_idx_ptr_a = process_idx_ptr + (o * A * I + tail_start) * sizeof(int32_t);
+                uint8_t* out_ptr_a = out_ptr + (o * top_k * I + tail_start) * data_size;
+                uint8_t* out_idx_ptr_a = out_idx_ptr + (o * top_k * I + tail_start) * sizeof(int32_t);
                 topk_kernel_process(in_ptr_a, out_ptr_a, out_idx_ptr_a, process_ptr_a, process_idx_ptr_a, work_amount);
             });
         }
     }
 }
 
-inline void TopK::topk_kernel_process(const uint8_t *in_p, uint8_t *out_p, uint8_t *out_idx_p,
-                                                uint8_t *process_p, uint8_t *process_idx_p, size_t work_amount) {
+inline void TopK::topk_kernel_process(const uint8_t* in_p,
+                                      uint8_t* out_p,
+                                      uint8_t* out_idx_p,
+                                      uint8_t* process_p,
+                                      uint8_t* process_idx_p,
+                                      size_t work_amount) {
     auto arg = jit_topk_call_args();
-    arg.src = static_cast<const void *>(in_p);
-    arg.process = static_cast<void *>(process_p);
-    arg.process_index = static_cast<void *>(process_idx_p);
-    arg.dst = static_cast<void *>(out_p);
-    arg.index = static_cast<void *>(out_idx_p);
+    arg.src = static_cast<const void*>(in_p);
+    arg.process = static_cast<void*>(process_p);
+    arg.process_index = static_cast<void*>(process_idx_p);
+    arg.dst = static_cast<void*>(out_p);
+    arg.index = static_cast<void*>(out_idx_p);
     arg.work_amount = work_amount;
     arg.bitonic_idx_buf = vec_bitonic_idx.data();
     arg.bitonic_k_idx_buf = vec_bitonic_k_idx.data();
@@ -2229,11 +2303,12 @@ inline void TopK::topk_kernel_process(const uint8_t *in_p, uint8_t *out_p, uint8
 }
 
 inline void TopK::prepare_original_idx() {
-    bool shape_agnostic_alg = algorithm == TopKAlgorithm::topk_heap_sort ||
-                             (algorithm == TopKAlgorithm::topk_bubble_sort && !bubble_inplace);
+    bool shape_agnostic_alg =
+        algorithm == TopKAlgorithm::topk_heap_sort || (algorithm == TopKAlgorithm::topk_bubble_sort && !bubble_inplace);
     if (shape_agnostic_alg) {
-        bool use_idx_seq = stable ? topk_innermost && (layout == TopKLayoutType::topk_blocked || (top_k == 1 && !stable))
-                                  : topk_innermost;
+        bool use_idx_seq = stable
+                               ? topk_innermost && (layout == TopKLayoutType::topk_blocked || (top_k == 1 && !stable))
+                               : topk_innermost;
         if (use_idx_seq) {
             if (vec_idx_seq.empty()) {
                 vec_idx_seq.resize(axis_dim);
@@ -2280,7 +2355,7 @@ inline void TopK::prepare_original_idx() {
 //            n: number of valid elements in bitonic sort
 //            p: pow of 2 number, so that p/2 < n <= p
 //   empty tail: p-n elements in the rear don't need sorting,
-inline void TopK::bitonic_push_idx(int p, int n, std::vector<int> &vec, int &cnt, bool cmp_val) {
+inline void TopK::bitonic_push_idx(int p, int n, std::vector<int>& vec, int& cnt, bool cmp_val) {
     // memory stride of adjacent elements in sorting
     int sort_stride = static_cast<int>(I);
     cnt = 0;
@@ -2313,8 +2388,7 @@ inline void TopK::bitonic_push_idx(int p, int n, std::vector<int> &vec, int &cnt
     }
     for (; sub_p > 0; sub_p >>= 1) {
         // support partial sort as well as full sort
-        for (int sub_start = 0; (!cmp_val || (cmp_val && sub_start < n)) && sub_start < p;
-             sub_start += sub_p) {
+        for (int sub_start = 0; (!cmp_val || (cmp_val && sub_start < n)) && sub_start < p; sub_start += sub_p) {
             int minor_p = sub_p >> 1;
             for (int j = 0; sub_start + j + minor_p < n && j < minor_p; j++) {
                 vec[cnt++] = (sub_start + j) * sort_stride;
@@ -2324,7 +2398,7 @@ inline void TopK::bitonic_push_idx(int p, int n, std::vector<int> &vec, int &cnt
     }
 }
 
-void TopK::calc_bitonic_idx(size_t n, int &cnt, bool cmp_val) {
+void TopK::calc_bitonic_idx(size_t n, int& cnt, bool cmp_val) {
     int m = n - 1;
     int log_p = 0;
     int p = 1;
@@ -2349,7 +2423,7 @@ void TopK::calc_bitonic_idx(size_t n, int &cnt, bool cmp_val) {
 // O: total size of the outer dimensions
 // A: size of the topk imposed dimension
 // I: total size of the inner dimensions
-void TopK::calc_dims_size(const VectorDims &layout_dims) {
+void TopK::calc_dims_size(const VectorDims& layout_dims) {
     O = 1, I = 1;
     A = src_dims[axis];
     int layout_axis = axis;
@@ -2366,15 +2440,22 @@ void TopK::calc_dims_size(const VectorDims &layout_dims) {
     }
 }
 
-void TopK::topk_ref(const float *in_ptr, float *out_ptr, int32_t *dst_idx) {
+void TopK::topk_ref(const float* in_ptr, float* out_ptr, int32_t* dst_idx) {
     if (mode_max)
-        topk_ref_process(in_ptr, out_ptr, dst_idx, src_dims, [](float x, float y)->float { return x > y; });
+        topk_ref_process(in_ptr, out_ptr, dst_idx, src_dims, [](float x, float y) -> float {
+            return x > y;
+        });
     else
-        topk_ref_process(in_ptr, out_ptr, dst_idx, src_dims, [](float x, float y)->float { return x < y; });
+        topk_ref_process(in_ptr, out_ptr, dst_idx, src_dims, [](float x, float y) -> float {
+            return x < y;
+        });
 }
 
-void TopK::topk_ref_process(const float* src_data, float* dst_data, int32_t* dst_idx, const VectorDims &in_dims,
-                               std::function<float(float, float)> compare) const {
+void TopK::topk_ref_process(const float* src_data,
+                            float* dst_data,
+                            int32_t* dst_idx,
+                            const VectorDims& in_dims,
+                            std::function<float(float, float)> compare) const {
     int after_num = count(in_dims, axis + 1, in_dims.size());
 
     parallel_for2d(before_num, after_num, [&](int i0, int i1) {
@@ -2452,6 +2533,6 @@ bool TopK::created() const {
     return getType() == Type::TopK;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

@@ -2,24 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cmath>
-#include <vector>
-#include <string>
 #include "embedding_bag_offsets.h"
-#include "openvino/op/embeddingbag_offsets_sum.hpp"
-#include "openvino/op/embeddingbag_offsets.hpp"
 
+#include <cmath>
+#include <string>
+#include <vector>
+
+#include "openvino/op/embeddingbag_offsets.hpp"
+#include "openvino/op/embeddingbag_offsets_sum.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool EmbeddingBagOffset::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+bool EmbeddingBagOffset::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
+                                              std::string& errorMessage) noexcept {
     try {
         const auto embBagOffsetSumOp = ov::as_type_ptr<const ov::op::v3::EmbeddingBagOffsetsSum>(op);
         const auto embBagOffsetOp = ov::as_type_ptr<const ov::op::v15::EmbeddingBagOffsets>(op);
         if (!embBagOffsetSumOp && !embBagOffsetOp) {
-            errorMessage = "Node is not an instance of the v3::EmbeddingBagOffsetsSum or v15::EmbeddingBagOffsets operation.";
+            errorMessage =
+                "Node is not an instance of the v3::EmbeddingBagOffsetsSum or v15::EmbeddingBagOffsets operation.";
             return false;
         }
     } catch (...) {
@@ -46,7 +49,8 @@ EmbeddingBagOffset::EmbeddingBagOffset(const std::shared_ptr<ov::Node>& op, cons
             _reduction = Reduction::MEAN;
             break;
         default:
-            THROW_CPU_NODE_ERR("EmbeddingBagOffsets does not support reduction mode: ", ov::as_string(offsets_op->get_reduction()));
+            THROW_CPU_NODE_ERR("EmbeddingBagOffsets does not support reduction mode: ",
+                               ov::as_string(offsets_op->get_reduction()));
         }
     }
     if (getInputShapeAtPort(INDICES_IDX).getRank() != 1ul)
@@ -61,8 +65,10 @@ void EmbeddingBagOffset::initSupportedPrimitiveDescriptors() {
         return;
 
     std::string logPrefix = std::string("Layer EmbeddingBag with name '") + _layerName + "' ";
-    static const std::set<ov::element::Type > supportedPrecisions =
-            {ov::element::f32, ov::element::i8, ov::element::u8, ov::element::i32};
+    static const std::set<ov::element::Type> supportedPrecisions = {ov::element::f32,
+                                                                    ov::element::i8,
+                                                                    ov::element::u8,
+                                                                    ov::element::i32};
 
     auto inDataPrecision = getOriginalInputPrecisionAtPort(EMB_TABLE_IDX);
     if (one_of(inDataPrecision, ov::element::bf16, ov::element::f16))
@@ -71,8 +77,10 @@ void EmbeddingBagOffset::initSupportedPrimitiveDescriptors() {
         if (supportedPrecisions.find(inDataPrecision) == supportedPrecisions.end())
             OPENVINO_THROW(logPrefix, "has unsupported precision: ", inDataPrecision.get_type_name());
     } else {
-        static const std::set<ov::element::Type> defaultSupportedPrecisions =
-                {ov::element::f32, ov::element::i8, ov::element::u8, ov::element::i32};
+        static const std::set<ov::element::Type> defaultSupportedPrecisions = {ov::element::f32,
+                                                                               ov::element::i8,
+                                                                               ov::element::u8,
+                                                                               ov::element::i32};
         if (defaultSupportedPrecisions.find(inDataPrecision) == defaultSupportedPrecisions.end())
             OPENVINO_THROW(logPrefix, "has unsupported precision: ", inDataPrecision.get_type_name());
     }
@@ -103,7 +111,11 @@ void EmbeddingBagOffset::initFromInputs() {
     }
 }
 
-void EmbeddingBagOffset::getIndices(size_t embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) {
+void EmbeddingBagOffset::getIndices(size_t embIndex,
+                                    const int*& indices,
+                                    size_t& size,
+                                    int& weightsIdx,
+                                    bool& withWeight) {
     if (static_cast<size_t>(embIndex) >= _offsetsLen) {
         OPENVINO_THROW("Invalid embedding bag index.");
     }
@@ -145,20 +157,23 @@ bool EmbeddingBagOffset::isExecutable() const {
 }
 
 void EmbeddingBagOffset::execute(dnnl::stream strm) {
-    const auto *srcData = getSrcDataAtPortAs<const uint8_t>(0);
+    const auto* srcData = getSrcDataAtPortAs<const uint8_t>(0);
     const uint8_t* weightsData = nullptr;
     if (_withWeights)
         weightsData = getSrcDataAtPortAs<const uint8_t>(PER_SAMPLE_WEIGHTS_IDX);
 
-    const auto &inputMem  = getParentEdgeAt(0)->getMemory();
-    EmbeddingBag::execute(srcData, weightsData, inputMem.getDesc().getPrecision(),
-                                       inputMem.getStaticDims(), getDstMemoryAtPort(0));
+    const auto& inputMem = getParentEdgeAt(0)->getMemory();
+    EmbeddingBag::execute(srcData,
+                          weightsData,
+                          inputMem.getDesc().getPrecision(),
+                          inputMem.getStaticDims(),
+                          getDstMemoryAtPort(0));
 }
 
 bool EmbeddingBagOffset::created() const {
     return getType() == Type::EmbeddingBagOffsets;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

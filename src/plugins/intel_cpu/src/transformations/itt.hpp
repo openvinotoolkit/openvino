@@ -15,11 +15,11 @@ namespace ov {
 namespace intel_cpu {
 namespace itt {
 namespace domains {
-    OV_ITT_DOMAIN(CPUSpecificTransform);
-}   // namespace domains
-}   // namespace itt
-}   // namespace intel_cpu
-}   // namespace ov
+OV_ITT_DOMAIN(CPUSpecificTransform);
+}  // namespace domains
+}  // namespace itt
+}  // namespace intel_cpu
+}  // namespace ov
 
 OV_CC_DOMAINS(internal_op);
 
@@ -30,14 +30,14 @@ OV_CC_DOMAINS(internal_op);
  */
 #if defined(SELECTIVE_BUILD_ANALYZER)
 
-#define INTERNAL_OP_SCOPE(region) OV_SCOPE(internal_op, region)
+#    define INTERNAL_OP_SCOPE(region) OV_SCOPE(internal_op, region)
 
 #elif defined(SELECTIVE_BUILD)
 
-#define INTERNAL_OP_SCOPE(region) MATCHER_SCOPE_(internal_op, region)
+#    define INTERNAL_OP_SCOPE(region) MATCHER_SCOPE_(internal_op, region)
 
 #else
 
-#define INTERNAL_OP_SCOPE(region)
+#    define INTERNAL_OP_SCOPE(region)
 
 #endif

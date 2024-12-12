@@ -656,7 +656,7 @@ static MemoryPtr prepackDecompressionParams(const MemoryCPtr& paramsPtr,
     // weights without batch: (OC, G)
     // weights with batch: (B, OC, G)
     const size_t OC = shape[shape.size() - 2];
-    const size_t G =  shape[shape.size() - 1];
+    const size_t G = shape[shape.size() - 1];
 
     Shape dstShape = Shape({OC, G});
 
@@ -698,8 +698,7 @@ void DnnlPostOpsComposer::appendDecompressionZeroPoints(const MemoryCPtr& zero_p
     if (zero_points_ptr == nullptr)
         return;
 
-    auto zeroPointsMem =
-        prepackDecompressionParams(zero_points_ptr, needTranspose, dstPrecision, engine);
+    auto zeroPointsMem = prepackDecompressionParams(zero_points_ptr, needTranspose, dstPrecision, engine);
     attr.set_zero_points_dims(DNNL_ARG_WEIGHTS,
                               DnnlExtensionUtils::convertToDnnlDims(zeroPointsMem->getStaticDims()),
                               DnnlExtensionUtils::ElementTypeToDataType(dstPrecision));

@@ -18,10 +18,10 @@ namespace intel_cpu {
 namespace node {
 
 EmbeddingBag::EmbeddingBag(const std::shared_ptr<ov::Node>& op,
-                                 size_t requiredInputNum,
-                                 size_t indicesIdx,
-                                 size_t perSampleWeightsIdx,
-                                 size_t defaultIndexIdx)
+                           size_t requiredInputNum,
+                           size_t indicesIdx,
+                           size_t perSampleWeightsIdx,
+                           size_t defaultIndexIdx)
     : INDICES_IDX(indicesIdx),
       PER_SAMPLE_WEIGHTS_IDX(perSampleWeightsIdx),
       DEFAULT_INDEX_IDX(defaultIndexIdx) {
@@ -47,9 +47,9 @@ void EmbeddingBag::prepareParams(const VectorDims& indexStaticShape) {
 
 template <typename T>
 void EmbeddingBag::processData(const T* srcData,
-                                  const T* weightsData,
-                                  const VectorDims& inDataDims,
-                                  const MemoryPtr& outMemory) {
+                               const T* weightsData,
+                               const VectorDims& inDataDims,
+                               const MemoryPtr& outMemory) {
     std::string msgPrefix = std::string("Node EmbeddingBag with name '") + _layerName + "' ";
 
     initFromInputs();
@@ -127,10 +127,10 @@ void EmbeddingBag::processData(const T* srcData,
 }
 
 void EmbeddingBag::execute(const uint8_t* srcData,
-                              const uint8_t* weightsData,
-                              const ov::element::Type& srcPrc,
-                              const VectorDims& inDims,
-                              const MemoryPtr& outMemory) {
+                           const uint8_t* weightsData,
+                           const ov::element::Type& srcPrc,
+                           const VectorDims& inDims,
+                           const MemoryPtr& outMemory) {
     switch (srcPrc) {
     case ov::element::f32: {
         return processData<element_type_traits<ov::element::f32>::value_type>(
@@ -157,8 +157,7 @@ void EmbeddingBag::execute(const uint8_t* srcData,
             outMemory);
     }
     default: {
-        OPENVINO_THROW("EmbeddingBag layer does not support precision '" + std::string(srcPrc.get_type_name()) +
-                       "'");
+        OPENVINO_THROW("EmbeddingBag layer does not support precision '" + std::string(srcPrc.get_type_name()) + "'");
     }
     }
 }

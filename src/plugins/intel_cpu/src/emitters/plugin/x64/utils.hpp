@@ -30,11 +30,15 @@ private:
 
     static dnnl::impl::cpu::x64::cpu_isa_t get_isa();
 
-    inline size_t get_max_vecs_count() const { return dnnl::impl::cpu::x64::isa_num_vregs(isa); }
-    inline size_t get_vec_length() const { return dnnl::impl::cpu::x64::isa_max_vlen(isa); }
+    inline size_t get_max_vecs_count() const {
+        return dnnl::impl::cpu::x64::isa_num_vregs(isa);
+    }
+    inline size_t get_vec_length() const {
+        return dnnl::impl::cpu::x64::isa_max_vlen(isa);
+    }
 
-    dnnl::impl::cpu::x64::jit_generator* h {nullptr};
-    const dnnl::impl::cpu::x64::cpu_isa_t isa {dnnl::impl::cpu::x64::cpu_isa_t::isa_undef};
+    dnnl::impl::cpu::x64::jit_generator* h{nullptr};
+    const dnnl::impl::cpu::x64::cpu_isa_t isa{dnnl::impl::cpu::x64::cpu_isa_t::isa_undef};
 
     static constexpr int k_mask_size = 8;
     static constexpr int k_mask_num = 8;
@@ -44,5 +48,5 @@ private:
     bool rsp_status = true;
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

@@ -9,8 +9,8 @@
 #include "ov_ops/augru_sequence.hpp"
 #include "ov_ops/fully_connected.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"
-#include "ov_ops/fully_connected_quantized_legacy.hpp"
 #include "ov_ops/fully_connected_quantized.hpp"
+#include "ov_ops/fully_connected_quantized_legacy.hpp"
 #include "ov_ops/gather_compressed.hpp"
 #include "ov_ops/multiclass_nms_ie_internal.hpp"
 #include "ov_ops/nms_ie_internal.hpp"
@@ -26,8 +26,8 @@
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/cpu_opset/x64/op/interaction.hpp"
-#include "transformations/cpu_opset/x64/op/mha.hpp"
 #include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
+#include "transformations/cpu_opset/x64/op/mha.hpp"
 #include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
@@ -40,8 +40,7 @@ namespace {
 template <typename Op>
 class TypeRelaxedExtension : public ov::OpExtension<ov::op::TypeRelaxed<Op>> {
 public:
-    TypeRelaxedExtension()
-        : m_ext_type(Op::get_type_info_static().name, "type_relaxed_opset") {}
+    TypeRelaxedExtension() : m_ext_type(Op::get_type_info_static().name, "type_relaxed_opset") {}
     ~TypeRelaxedExtension() override = default;
 
     const ov::DiscreteTypeInfo& get_type_info() const override {
@@ -159,31 +158,31 @@ private:
 #    define SNIPPETS_DEBUG_CAPS_EXTENSIONS
 #endif
 
-#define SNIPPETS_EXTENSIONS                                  \
-    OP_EXTENSION(ov::snippets::op::Brgemm)                   \
-    OP_EXTENSION(ov::snippets::op::BroadcastLoad)            \
-    OP_EXTENSION(ov::snippets::op::BroadcastMove)            \
-    OP_EXTENSION(ov::snippets::op::ConvertSaturation)        \
-    OP_EXTENSION(ov::snippets::op::ConvertTruncation)        \
-    OP_EXTENSION(ov::snippets::op::Fill)                     \
-    OP_EXTENSION(ov::snippets::op::HorizonMax)               \
-    OP_EXTENSION(ov::snippets::op::HorizonSum)               \
-    OP_EXTENSION(ov::snippets::op::KernelStatic)             \
-    OP_EXTENSION(ov::snippets::op::KernelDynamic)            \
-    OP_EXTENSION(ov::snippets::op::Load)                     \
-    OP_EXTENSION(ov::snippets::op::LoadReshape)              \
-    OP_EXTENSION(ov::snippets::op::LoopBegin)                \
-    OP_EXTENSION(ov::snippets::op::LoopEnd)                  \
-    OP_EXTENSION(ov::snippets::op::Buffer)                   \
-    OP_EXTENSION(ov::snippets::op::Nop)                      \
-    OP_EXTENSION(ov::snippets::op::PowerStatic)              \
-    OP_EXTENSION(ov::snippets::op::Scalar)                   \
-    OP_EXTENSION(ov::snippets::op::Store)                    \
-    OP_EXTENSION(ov::snippets::op::Subgraph)                 \
-    OP_EXTENSION(ov::snippets::op::VectorBuffer)             \
-    OP_EXTENSION(ov::snippets::op::RankNormalization)        \
-    OP_EXTENSION(ov::snippets::op::ReduceMax)                \
-    OP_EXTENSION(ov::snippets::op::ReduceSum)                \
+#define SNIPPETS_EXTENSIONS                           \
+    OP_EXTENSION(ov::snippets::op::Brgemm)            \
+    OP_EXTENSION(ov::snippets::op::BroadcastLoad)     \
+    OP_EXTENSION(ov::snippets::op::BroadcastMove)     \
+    OP_EXTENSION(ov::snippets::op::ConvertSaturation) \
+    OP_EXTENSION(ov::snippets::op::ConvertTruncation) \
+    OP_EXTENSION(ov::snippets::op::Fill)              \
+    OP_EXTENSION(ov::snippets::op::HorizonMax)        \
+    OP_EXTENSION(ov::snippets::op::HorizonSum)        \
+    OP_EXTENSION(ov::snippets::op::KernelStatic)      \
+    OP_EXTENSION(ov::snippets::op::KernelDynamic)     \
+    OP_EXTENSION(ov::snippets::op::Load)              \
+    OP_EXTENSION(ov::snippets::op::LoadReshape)       \
+    OP_EXTENSION(ov::snippets::op::LoopBegin)         \
+    OP_EXTENSION(ov::snippets::op::LoopEnd)           \
+    OP_EXTENSION(ov::snippets::op::Buffer)            \
+    OP_EXTENSION(ov::snippets::op::Nop)               \
+    OP_EXTENSION(ov::snippets::op::PowerStatic)       \
+    OP_EXTENSION(ov::snippets::op::Scalar)            \
+    OP_EXTENSION(ov::snippets::op::Store)             \
+    OP_EXTENSION(ov::snippets::op::Subgraph)          \
+    OP_EXTENSION(ov::snippets::op::VectorBuffer)      \
+    OP_EXTENSION(ov::snippets::op::RankNormalization) \
+    OP_EXTENSION(ov::snippets::op::ReduceMax)         \
+    OP_EXTENSION(ov::snippets::op::ReduceSum)         \
     OP_EXTENSION(ov::snippets::op::Reshape)
 
 OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>(

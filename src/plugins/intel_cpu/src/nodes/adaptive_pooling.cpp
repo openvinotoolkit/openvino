@@ -3,18 +3,21 @@
 //
 
 #include "adaptive_pooling.h"
-#include "openvino/core/parallel.hpp"
-#include "cpu/x64/cpu_isa_traits.hpp"
+
 #include <math.h>
-#include "onednn/dnnl.h"
-#include "dnnl_extension_utils.h"
-#include "selective_build.h"
+
 #include <openvino/opsets/opset8.hpp>
 #include <string>
 #include <utils/bfloat16.hpp>
-#include "utils/general_utils.h"
 #include <vector>
+
+#include "cpu/x64/cpu_isa_traits.hpp"
+#include "dnnl_extension_utils.h"
+#include "onednn/dnnl.h"
+#include "openvino/core/parallel.hpp"
+#include "selective_build.h"
 #include "shape_inference/custom/adaptive_pooling.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl;
 using namespace dnnl::impl::cpu::x64;
@@ -23,7 +26,8 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool AdaptivePooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+bool AdaptivePooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
+                                           std::string& errorMessage) noexcept {
     try {
         if (one_of(op->get_type_info(), ov::op::v8::AdaptiveAvgPool::get_type_info_static())) {
             auto adaPool = std::dynamic_pointer_cast<const ov::opset8::AdaptiveAvgPool>(op);
@@ -51,9 +55,9 @@ AdaptivePooling::AdaptivePooling(const std::shared_ptr<ov::Node>& op, const Grap
     : Node(op, context, AdaptivePoolingShapeInferFactory(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
-      errorPrefix = "Adaptive Pooling layer with name '" + getName() + "' ";
+        errorPrefix = "Adaptive Pooling layer with name '" + getName() + "' ";
     } else {
-      OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     if (one_of(op->get_type_info(), ov::op::v8::AdaptiveAvgPool::get_type_info_static())) {
         algorithm = Algorithm::AdaptivePoolingAvg;
@@ -104,14 +108,14 @@ void AdaptivePooling::initSupportedPrimitiveDescriptors() {
     // we supports only fp32 currently
     precision = ov::element::f32;
 
-    std::vector<LayoutType> dataFormats{ LayoutType::ncsp };
-    const auto &inDims = getInputShapeAtPort(0).getDims();
+    std::vector<LayoutType> dataFormats{LayoutType::ncsp};
+    const auto& inDims = getInputShapeAtPort(0).getDims();
     if (inDims[1] != Shape::UNDEFINED_DIM && inDims[1] != 1) {
         dataFormats.push_back(LayoutType::nspc);
         dataFormats.push_back(LayoutType::nCsp16c);
         dataFormats.push_back(LayoutType::nCsp8c);
     }
-    for (const auto &df : dataFormats) {
+    for (const auto& df : dataFormats) {
         if (algorithm == Algorithm::AdaptivePoolingAvg) {
             addSupportedPrimDesc({{df, precision}, {LayoutType::ncsp, ov::element::i32}},
                                  {{df, precision}},
@@ -134,9 +138,9 @@ void AdaptivePooling::execute(dnnl::stream strm) {
     if (!(inputPrec == dnnl_f32 && outputPrec == dnnl_f32))
         OPENVINO_THROW(errorPrefix, "doesn't support demanded precisions");
 
-    auto &srcMemory0 = getParentEdgeAt(0)->getMemory();
-    auto &srcMemory1 = getParentEdgeAt(1)->getMemory();
-    int *indexDst = nullptr;
+    auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
+    auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
+    int* indexDst = nullptr;
 
     if (algorithm == Algorithm::AdaptivePoolingMax) {
         indexDst = getDstDataAtPortAs<int>(1);
@@ -144,14 +148,15 @@ void AdaptivePooling::execute(dnnl::stream strm) {
 
     auto isPlainFmt = srcMemory0.getDesc().hasLayoutType(LayoutType::ncsp);
     auto isTailCFmt = srcMemory0.getDesc().hasLayoutType(LayoutType::nspc);
-    auto isBlkFmt = srcMemory0.getDesc().hasLayoutType(LayoutType::nCsp16c) || srcMemory0.getDesc().hasLayoutType(LayoutType::nCsp8c);
+    auto isBlkFmt = srcMemory0.getDesc().hasLayoutType(LayoutType::nCsp16c) ||
+                    srcMemory0.getDesc().hasLayoutType(LayoutType::nCsp8c);
 
     auto srcBlockDesc = srcMemory0.getDescWithType<BlockedMemoryDesc>();
     int blockSize = isBlkFmt ? srcBlockDesc->getBlockDims().back() : 1;
 
-    const auto *src = getSrcDataAtPortAs<const float>(0);
-    const auto *srcPooledSpatialShapes = getSrcDataAtPortAs<const int>(1);
-    auto *dst = getDstDataAtPortAs<float>(0);
+    const auto* src = getSrcDataAtPortAs<const float>(0);
+    const auto* srcPooledSpatialShapes = getSrcDataAtPortAs<const int>(1);
+    auto* dst = getDstDataAtPortAs<float>(0);
 
     if (static_cast<int>(srcMemory1.getShape().getElementsCount()) != spatialDimsCount)
         OPENVINO_THROW(errorPrefix,
@@ -175,8 +180,9 @@ void AdaptivePooling::execute(dnnl::stream strm) {
     const int iHW = IH * IW;
     const int oDHW = OD * OH * OW, oHW = OH * OW;
 
-    const int chPadding = blockSize * (isBlkFmt ? srcBlockDesc->getBlockDims()[1] : srcMemory0.getShape().getStaticDims()[1]);
-    const int blockCount = (isTailCFmt ? 1 :  chPadding / blockSize);
+    const int chPadding =
+        blockSize * (isBlkFmt ? srcBlockDesc->getBlockDims()[1] : srcMemory0.getShape().getStaticDims()[1]);
+    const int blockCount = (isTailCFmt ? 1 : chPadding / blockSize);
     auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
     if (!selectedPrimitiveDescriptor)
         OPENVINO_THROW(errorPrefix, "doesn't have primitive descriptors.");
@@ -186,27 +192,26 @@ void AdaptivePooling::execute(dnnl::stream strm) {
 
     // unified strides array
     const size_t tailDimsOffset = (isTailCFmt ? -1 : 0);
-    const size_t inStrides[5] = {
-            srcStrides[0],
-            (isTailCFmt ? 1 : srcStrides[1]),
-            (spatialDimsCount == 3 ? srcStrides[2 + tailDimsOffset] : 0),
-            (spatialDimsCount >= 2 ? srcStrides[spatialDimsCount + tailDimsOffset] : 0),
-            srcStrides[spatialDimsCount + 1 + tailDimsOffset] };
-    const size_t outStrides[5] = {
-            dstStrides[0],
-            (isTailCFmt ? 1 : dstStrides[1]),
-            (spatialDimsCount == 3 ? dstStrides[2 + tailDimsOffset] : 0),
-            (spatialDimsCount >= 2 ? dstStrides[spatialDimsCount + tailDimsOffset] : 0),
-            dstStrides[spatialDimsCount + 1 + tailDimsOffset] };
+    const size_t inStrides[5] = {srcStrides[0],
+                                 (isTailCFmt ? 1 : srcStrides[1]),
+                                 (spatialDimsCount == 3 ? srcStrides[2 + tailDimsOffset] : 0),
+                                 (spatialDimsCount >= 2 ? srcStrides[spatialDimsCount + tailDimsOffset] : 0),
+                                 srcStrides[spatialDimsCount + 1 + tailDimsOffset]};
+    const size_t outStrides[5] = {dstStrides[0],
+                                  (isTailCFmt ? 1 : dstStrides[1]),
+                                  (spatialDimsCount == 3 ? dstStrides[2 + tailDimsOffset] : 0),
+                                  (spatialDimsCount >= 2 ? dstStrides[spatialDimsCount + tailDimsOffset] : 0),
+                                  dstStrides[spatialDimsCount + 1 + tailDimsOffset]};
 
-    std::function<void(const float *, float *, int, int, int, size_t)> pool;
-    auto poolMax = [&] (const float *srcData, float *dstData, int od, int oh, int ow, size_t spatIndOff) {
+    std::function<void(const float*, float*, int, int, int, size_t)> pool;
+    auto poolMax = [&](const float* srcData, float* dstData, int od, int oh, int ow, size_t spatIndOff) {
         size_t dStart, dEnd, hStart, hEnd, wStart, wEnd;
         setBinBorders(&dStart, &dEnd, od, ID, OD);
         setBinBorders(&hStart, &hEnd, oh, IH, OH);
         setBinBorders(&wStart, &wEnd, ow, IW, OW);
-        float res = srcData[dStart * inStrides[2] + hStart * inStrides[3] + wStart * inStrides[4]];  // initial max value
-        int resIndex = dStart * iHW + hStart * IW + wStart;  // initial max index
+        float res =
+            srcData[dStart * inStrides[2] + hStart * inStrides[3] + wStart * inStrides[4]];  // initial max value
+        int resIndex = dStart * iHW + hStart * IW + wStart;                                  // initial max index
         for (size_t pixD = dStart; pixD < dEnd; pixD++) {
             for (size_t pixH = hStart; pixH < hEnd; pixH++) {
                 for (size_t pixW = wStart; pixW < wEnd; pixW++) {
@@ -219,7 +224,7 @@ void AdaptivePooling::execute(dnnl::stream strm) {
         *dstData = res;
         indexDst[spatIndOff * oDHW + od * oHW + oh * OW + ow] = resIndex;
     };
-    auto poolAvg = [&] (const float *srcData, float *dstData, int od, int oh, int ow, size_t spatIndOff) {
+    auto poolAvg = [&](const float* srcData, float* dstData, int od, int oh, int ow, size_t spatIndOff) {
         size_t dStart, dEnd, hStart, hEnd, wStart, wEnd;
         setBinBorders(&dStart, &dEnd, od, ID, OD);
         setBinBorders(&hStart, &hEnd, oh, IH, OH);
@@ -245,11 +250,10 @@ void AdaptivePooling::execute(dnnl::stream strm) {
         pool = poolAvg;
     }
 
-    parallel_for5d(N, blockCount, OD, OH, OW,
-        [&](int n, int blkIdx, int od, int oh, int ow) {
+    parallel_for5d(N, blockCount, OD, OH, OW, [&](int n, int blkIdx, int od, int oh, int ow) {
         auto srcData = src + n * inStrides[0] + blkIdx * inStrides[1];
-        auto dstData = dst + n * outStrides[0] + blkIdx * outStrides[1] +
-                       od * outStrides[2] + oh * outStrides[3] + ow * outStrides[4];
+        auto dstData = dst + n * outStrides[0] + blkIdx * outStrides[1] + od * outStrides[2] + oh * outStrides[3] +
+                       ow * outStrides[4];
         int cStart = 0, cEnd = C, inResidual = 0, outResidual = 0;
         if (!isTailCFmt) {
             cStart = blkIdx * blockSize;
@@ -263,18 +267,23 @@ void AdaptivePooling::execute(dnnl::stream strm) {
                 inResidual = outResidual = c % blockSize;
             }
             pool(srcData + inResidual, dstData + outResidual, od, oh, ow, n * C + c);
-        }});
+        }
+    });
 }
 
 bool AdaptivePooling::created() const {
     return getType() == Type::AdaptivePooling;
 }
 
-inline void AdaptivePooling::setBinBorders(size_t *startPtr, size_t *endPtr, size_t idx, size_t inputLength, size_t outputLength) {
+inline void AdaptivePooling::setBinBorders(size_t* startPtr,
+                                           size_t* endPtr,
+                                           size_t idx,
+                                           size_t inputLength,
+                                           size_t outputLength) {
     *(startPtr) = idx * inputLength / outputLength;
     *(endPtr) = ceil(static_cast<float>((idx + 1) * inputLength) / outputLength);
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

@@ -4,14 +4,14 @@
 
 #include "strided_slice.h"
 
-#include "openvino/core/parallel.hpp"
+#include <string>
+
 #include "common/cpu_memcpy.h"
 #include "input.h"
+#include "openvino/core/parallel.hpp"
 #include "openvino/opsets/opset1.hpp"
-#include "slice_shape_inference_utils.hpp"
 #include "shape_inference/custom/strided_slice.hpp"
-
-#include <string>
+#include "slice_shape_inference_utils.hpp"
 
 using namespace dnnl;
 
@@ -21,10 +21,10 @@ namespace node {
 
 bool StridedSlice::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!ov::is_type<ov::op::v1::StridedSlice>(op) &&
-            !ov::is_type<ov::op::v8::Slice>(op) &&
+        if (!ov::is_type<ov::op::v1::StridedSlice>(op) && !ov::is_type<ov::op::v8::Slice>(op) &&
             !ov::is_type<ov::op::v15::SliceScatter>(op)) {
-            errorMessage = "Only StridedSlice from opset1, Slice from opset8 and SliceScatter from opset15 operations are supported.";
+            errorMessage = "Only StridedSlice from opset1, Slice from opset8 and SliceScatter from opset15 operations "
+                           "are supported.";
             return false;
         }
     } catch (...) {
@@ -33,8 +33,8 @@ bool StridedSlice::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
     return true;
 }
 
-StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
-        Node(op, context, StridedSliceShapeInferFactory(op)) {
+StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, StridedSliceShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -56,7 +56,8 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
     }
 
     if ((attrs.isStridedSliceOp && (inputShapes.size() < 3 || inputShapes.size() > 4)) ||
-            (!attrs.isStridedSliceOp && (inputShapes.size() < (attrs.STRIDE_ID + 1) || inputShapes.size() > (attrs.AXES_ID + 1)))) {
+        (!attrs.isStridedSliceOp &&
+         (inputShapes.size() < (attrs.STRIDE_ID + 1) || inputShapes.size() > (attrs.AXES_ID + 1)))) {
         OPENVINO_THROW(errorPrefix, "has incorrect number of input edges");
     }
     if (outputShapes.size() != 1) {
@@ -73,7 +74,8 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
 
     for (size_t i = 0lu; i < op->get_input_size(); i++) {
         isConstantInput[i] = ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
-        if (!isConstantInput[i] && one_of(i, attrs.BEGIN_ID, attrs.END_ID, attrs.STRIDE_ID) && !attrs.isSliceScatterOp) {
+        if (!isConstantInput[i] && one_of(i, attrs.BEGIN_ID, attrs.END_ID, attrs.STRIDE_ID) &&
+            !attrs.isSliceScatterOp) {
             shapeHasDataDependency = true;
         }
     }
@@ -88,7 +90,7 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
     if (attrs.isStridedSliceOp) {
         auto ss = ov::as_type_ptr<const ov::op::v1::StridedSlice>(op);
 
-        auto createMask = [&](const std::vector<int64_t> &origMask, const int bit = 0, bool needReverse = false) {
+        auto createMask = [&](const std::vector<int64_t>& origMask, const int bit = 0, bool needReverse = false) {
             std::vector<int> mask(origMask.size());
             for (size_t i = 0; i < mask.size(); i++) {
                 mask[i] = static_cast<int>(origMask[i]);
@@ -96,7 +98,8 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
                     mask[i] = 1 - mask[i];
                 }
             }
-            for (size_t i = mask.size(); i < nDims; ++i) mask.push_back(bit);
+            for (size_t i = mask.size(); i < nDims; ++i)
+                mask.push_back(bit);
             return mask;
         };
 
@@ -134,7 +137,7 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
         attrs.equalDims = true;
     }
 
-    auto fillingInParameters = [&](std::vector<int> &parameter, const size_t type, const int value) {
+    auto fillingInParameters = [&](std::vector<int>& parameter, const size_t type, const int value) {
         if (!isConstantInput[type])
             return;
 
@@ -143,7 +146,8 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
 
         auto size = constNode->get_shape()[0];
         if (type != attrs.AXES_ID && attrs.ellipsisMaskCounter == 0 && size < nDims) {
-            for (size_t i = size; i < nDims; i++) parameter.push_back(value);
+            for (size_t i = size; i < nDims; i++)
+                parameter.push_back(value);
         }
     };
 
@@ -155,10 +159,12 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
         fillingInParameters(attrs.axes, attrs.AXES_ID, 0);
 }
 
-void StridedSlice::getSupportedDescriptors() {
-}
+void StridedSlice::getSupportedDescriptors() {}
 
-static void addHiddenDims(StridedSlice::StridedSliceAttributes& attrs, const size_t inputRank, const size_t outputRank, bool withAxis) {
+static void addHiddenDims(StridedSlice::StridedSliceAttributes& attrs,
+                          const size_t inputRank,
+                          const size_t outputRank,
+                          bool withAxis) {
     if (withAxis) {
         std::vector<int> beginTmp(outputRank, 0);
         std::vector<int> endTmp(outputRank, -1);
@@ -180,8 +186,9 @@ static void addHiddenDims(StridedSlice::StridedSliceAttributes& attrs, const siz
 
     if (inputRank > 3 && attrs.equalDims && attrs.ellipsisMaskCounter == 1) {
         // all masks and input parameters are for planar layouts. So if we use blocked or per channel layout and
-        // there is ellipsis should to add default values in hidden dimensions to know real order of mask or parameter values
-        size_t afterDims =  attrs.begin.size() - attrs.ellipsisPos1 - 1;
+        // there is ellipsis should to add default values in hidden dimensions to know real order of mask or parameter
+        // values
+        size_t afterDims = attrs.begin.size() - attrs.ellipsisPos1 - 1;
         size_t ellipsisPos2 = inputRank - afterDims - 1;
 
         auto addHiddenDims = [&](std::vector<int>& data, const int bit = 0) {
@@ -248,7 +255,8 @@ void StridedSlice::initSupportedPrimitiveDescriptors() {
             const auto& srcDims = getInputShapeAtPort(attrs.DATA_ID).getDims();
             if (srcDims[1] == Shape::UNDEFINED_DIM)
                 return false;
-            auto channelBeginNormalized = tmpAttrs.begin[1] > 0 ? tmpAttrs.begin[1] : tmpAttrs.begin[1] + static_cast<std::int64_t>(srcDims[1]);
+            auto channelBeginNormalized =
+                tmpAttrs.begin[1] > 0 ? tmpAttrs.begin[1] : tmpAttrs.begin[1] + static_cast<std::int64_t>(srcDims[1]);
             return srcDims[1] % blockSize == 0 && abs(tmpAttrs.stride[1]) == 1 &&
                    (channelBeginNormalized > static_cast<long>(srcDims[1]) || channelBeginNormalized % blockSize == 0 ||
                     channelBeginNormalized < 0 || tmpAttrs.beginMask[1] == 0);
@@ -258,7 +266,10 @@ void StridedSlice::initSupportedPrimitiveDescriptors() {
 
         if (hasConstAttrInputs) {
             auto tmpAttrs = attrs;
-            addHiddenDims(tmpAttrs, getInputShapeAtPort(attrs.DATA_ID).getRank(), getOutputShapeAtPort(0).getRank(), isAxesSpecified);
+            addHiddenDims(tmpAttrs,
+                          getInputShapeAtPort(attrs.DATA_ID).getRank(),
+                          getOutputShapeAtPort(0).getRank(),
+                          isAxesSpecified);
             if (canUseBlocked(tmpAttrs, 8lu))
                 supportedTypes.push_back(LayoutType::nCsp8c);
             if (canUseBlocked(tmpAttrs, 16lu))
@@ -270,18 +281,25 @@ void StridedSlice::initSupportedPrimitiveDescriptors() {
     auto range = BlockedDescCreator::makeFilteredRange(creators, nDims, supportedTypes);
 
     for (auto itr = range.first; itr != range.second; ++itr) {
-        config.inConfs[attrs.DATA_ID].setMemDesc(itr->second->createSharedDesc(dataPrecision, getInputShapeAtPort(attrs.DATA_ID)));
-        config.inConfs[attrs.BEGIN_ID].setMemDesc(creators.at(LayoutType::ncsp)->createSharedDesc(iPrecision, getInputShapeAtPort(attrs.BEGIN_ID)));
-        config.inConfs[attrs.END_ID].setMemDesc(creators.at(LayoutType::ncsp)->createSharedDesc(iPrecision, getInputShapeAtPort(attrs.END_ID)));
+        config.inConfs[attrs.DATA_ID].setMemDesc(
+            itr->second->createSharedDesc(dataPrecision, getInputShapeAtPort(attrs.DATA_ID)));
+        config.inConfs[attrs.BEGIN_ID].setMemDesc(
+            creators.at(LayoutType::ncsp)->createSharedDesc(iPrecision, getInputShapeAtPort(attrs.BEGIN_ID)));
+        config.inConfs[attrs.END_ID].setMemDesc(
+            creators.at(LayoutType::ncsp)->createSharedDesc(iPrecision, getInputShapeAtPort(attrs.END_ID)));
         if (isStrideSpecified)
-            config.inConfs[attrs.STRIDE_ID].setMemDesc(creators.at(LayoutType::ncsp)->createSharedDesc(iPrecision, getInputShapeAtPort(attrs.STRIDE_ID)));
+            config.inConfs[attrs.STRIDE_ID].setMemDesc(
+                creators.at(LayoutType::ncsp)->createSharedDesc(iPrecision, getInputShapeAtPort(attrs.STRIDE_ID)));
         if (isAxesSpecified)
-            config.inConfs[attrs.AXES_ID].setMemDesc(creators.at(LayoutType::ncsp)->createSharedDesc(iPrecision, getInputShapeAtPort(attrs.AXES_ID)));
+            config.inConfs[attrs.AXES_ID].setMemDesc(
+                creators.at(LayoutType::ncsp)->createSharedDesc(iPrecision, getInputShapeAtPort(attrs.AXES_ID)));
         if (attrs.isSliceScatterOp) {
-            config.inConfs[attrs.UPDATES_ID].setMemDesc(itr->second->createSharedDesc(dataPrecision, getInputShapeAtPort(attrs.UPDATES_ID)));
+            config.inConfs[attrs.UPDATES_ID].setMemDesc(
+                itr->second->createSharedDesc(dataPrecision, getInputShapeAtPort(attrs.UPDATES_ID)));
         }
 
-        config.outConfs[0].setMemDesc(itr->second->createSharedDesc(dataPrecision, getOutputShapeAtPort(attrs.DATA_ID)));
+        config.outConfs[0].setMemDesc(
+            itr->second->createSharedDesc(dataPrecision, getOutputShapeAtPort(attrs.DATA_ID)));
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
     }
 }
@@ -342,7 +360,7 @@ StridedSlice::StridedSliceCommonExecutor::StridedSliceCommonExecutor(const Strid
                                                                      const std::vector<MemoryCPtr>& srcMemory,
                                                                      const std::vector<MemoryCPtr>& dstMemory,
                                                                      const std::string& errorPrefix)
-                                                                    : StridedSliceExecutor(attrs, srcMemory, dstMemory, errorPrefix) {
+    : StridedSliceExecutor(attrs, srcMemory, dstMemory, errorPrefix) {
     paramsInitialization(attrs, srcMemory, dstMemory);
     dimsNormalization();
     dimsGluing();
@@ -350,7 +368,8 @@ StridedSlice::StridedSliceCommonExecutor::StridedSliceCommonExecutor(const Strid
     m_threads_num = parallel_get_max_threads();
 }
 
-void StridedSlice::StridedSliceCommonExecutor::orderParametersByLayouts(const BlockedMemoryDescCPtr& blockedMemoryDesc) {
+void StridedSlice::StridedSliceCommonExecutor::orderParametersByLayouts(
+    const BlockedMemoryDescCPtr& blockedMemoryDesc) {
     size_t blk = 1;
     bool isBlockedLayout = false;
     if (blockedMemoryDesc->hasLayoutType(LayoutType::nCsp16c)) {
@@ -410,12 +429,13 @@ void StridedSlice::StridedSliceCommonExecutor::paramsInitialization(const Stride
     const size_t outputRank = dstMemory[0]->getShape().getRank();
     const size_t nDims = std::max(inputRank, outputRank);
 
-    auto fillingInParameters = [&](std::vector<int> &parameter, const size_t type, const size_t size, const int value) {
-        const int *ptr = srcMemory[type]->getDataAs<const int32_t>();
+    auto fillingInParameters = [&](std::vector<int>& parameter, const size_t type, const size_t size, const int value) {
+        const int* ptr = srcMemory[type]->getDataAs<const int32_t>();
         parameter.assign(ptr, ptr + size);
 
         if (type != attrs.AXES_ID && params.attrs.ellipsisMaskCounter == 0 && size < nDims) {
-            for (size_t i = size; i < nDims; i++) parameter.push_back(value);
+            for (size_t i = size; i < nDims; i++)
+                parameter.push_back(value);
         }
     };
 
@@ -465,18 +485,20 @@ void StridedSlice::StridedSliceCommonExecutor::dimsNormalization() {
     // creating new src and dst dimensions and parameters of the same size using masks
     //
     // example 1: before srcDims = [5, 6, 8, 3, 2], begin = [1, 0], end = [4, 0], stride = [1, 1]
-    //            beginMask = [0, 1], endMask = [0, 1], ellipsisMask = [1, 0], newAxisMas = [0, 0], shrinkAxisMask = [0, 0]
-    //            after srcDims = [5, 6, 8, 3, 2], begin = [1, 0, 0, 0, 0], end = [4, 5, 7, 2, 1], stride = [1, 1, 1, 1, 1], dstDims = [4, 6, 8, 3, 2]
+    //            beginMask = [0, 1], endMask = [0, 1], ellipsisMask = [1, 0], newAxisMas = [0, 0], shrinkAxisMask = [0,
+    //            0] after srcDims = [5, 6, 8, 3, 2], begin = [1, 0, 0, 0, 0], end = [4, 5, 7, 2, 1], stride = [1, 1, 1,
+    //            1, 1], dstDims = [4, 6, 8, 3, 2]
     //
-    // example 2: before srcDims = [5, 6, 8, 3, 2], begin = [0, 3, 0, 0, 0], end = [0, 3, 0, 0, 0], stride = [1, 1, 1, 1, 1]
-    //            beginMask = [1, 0, 1, 1, 1], endMask = [1, 0, 1, 1, 1], ellipsisMask = [0, 0, 0, 0, 0], newAxisMask = [0, 0, 0, 0, 0],
-    //            shrinkAxisMask = [0, 1, 0, 0, 0]
-    //            after srcDims = [5, 6, 8, 3, 2], begin = [0, 3, 0, 0, 0], end = [4, 3, 7, 2, 1], stride = [1, 1, 1, 1, 1], dstDims = [5, 1, 8, 3, 2]
+    // example 2: before srcDims = [5, 6, 8, 3, 2], begin = [0, 3, 0, 0, 0], end = [0, 3, 0, 0, 0], stride = [1, 1, 1,
+    // 1, 1]
+    //            beginMask = [1, 0, 1, 1, 1], endMask = [1, 0, 1, 1, 1], ellipsisMask = [0, 0, 0, 0, 0], newAxisMask =
+    //            [0, 0, 0, 0, 0], shrinkAxisMask = [0, 1, 0, 0, 0] after srcDims = [5, 6, 8, 3, 2], begin = [0, 3, 0,
+    //            0, 0], end = [4, 3, 7, 2, 1], stride = [1, 1, 1, 1, 1], dstDims = [5, 1, 8, 3, 2]
     //
     // example 3: before srcDims = [5, 8, 3, 2], begin = [0, 0, 0, 0], end = [0, 0, 0, 0], stride = [1, 1, 1, 1]
-    //            beginMask = [1, 0, 1, 1, 1], endMask = [1, 0, 1, 1, 1], ellipsisMask = [0, 0, 0, 0, 0], newAxisMask = [0, 1, 0, 0, 0],
-    //            shrinkAxisMask = [0, 0, 0, 0, 0]
-    //            after srcDims = [5, 1, 8, 3, 2], begin = [0, 0, 0, 0, 0], end = [4, 0, 7, 2, 1], stride = [1, 1, 1, 1, 1], dstDims = [5, 1, 8, 3, 2]
+    //            beginMask = [1, 0, 1, 1, 1], endMask = [1, 0, 1, 1, 1], ellipsisMask = [0, 0, 0, 0, 0], newAxisMask =
+    //            [0, 1, 0, 0, 0], shrinkAxisMask = [0, 0, 0, 0, 0] after srcDims = [5, 1, 8, 3, 2], begin = [0, 0, 0,
+    //            0, 0], end = [4, 0, 7, 2, 1], stride = [1, 1, 1, 1, 1], dstDims = [5, 1, 8, 3, 2]
 
     auto clipping = [](int& idx, const int min, const int max) {
         idx = (idx > min) ? idx : min;
@@ -535,12 +557,14 @@ void StridedSlice::StridedSliceCommonExecutor::dimsNormalization() {
 
                 srcIdx++;
             } else {
-                int b = params.attrs.beginMask[axis] == 1 ? params.attrs.begin[axis] : (params.attrs.stride[axis] > 0 ? 0 : -1);
+                int b = params.attrs.beginMask[axis] == 1 ? params.attrs.begin[axis]
+                                                          : (params.attrs.stride[axis] > 0 ? 0 : -1);
                 correcting(b, params.srcBlockedDims[srcIdx]);
                 clipping(b, 0, params.srcBlockedDims[srcIdx]);
 
-                int e = params.attrs.endMask[axis] == 1 ? (params.attrs.stride[axis] > 0 ? params.attrs.end[axis] - 1 : params.attrs.end[axis] + 1) :
-                        (params.attrs.stride[axis] > 0 ? -1 : 0);
+                int e = params.attrs.endMask[axis] == 1
+                            ? (params.attrs.stride[axis] > 0 ? params.attrs.end[axis] - 1 : params.attrs.end[axis] + 1)
+                            : (params.attrs.stride[axis] > 0 ? -1 : 0);
                 correcting(e, params.srcBlockedDims[srcIdx]);
                 clipping(e, 0, params.srcBlockedDims[srcIdx]);
 
@@ -548,7 +572,8 @@ void StridedSlice::StridedSliceCommonExecutor::dimsNormalization() {
                 endTemp.push_back(e);
                 strideTemp.push_back(params.attrs.stride[axis]);
                 newSrcDims.push_back(params.srcBlockedDims[srcIdx]);
-                newDstDims.push_back(ceil(static_cast<float>(abs(e - b) + 1) / static_cast<float>(abs(strideTemp.back()))));
+                newDstDims.push_back(
+                    ceil(static_cast<float>(abs(e - b) + 1) / static_cast<float>(abs(strideTemp.back()))));
 
                 srcIdx++;
             }
@@ -572,12 +597,14 @@ void StridedSlice::StridedSliceCommonExecutor::dimsNormalization() {
 
 void StridedSlice::StridedSliceCommonExecutor::dimsGluing() {
     // gluing of dimensions if there aren't begin, end and stride != 1 on this axis
-    // example: before gluing srcDims = [5, 6, 8, 3, 2], begin = [1, 0, 0, 0, 0], stride = [1, 1, 2, 1, 1], dstDims = [4, 6, 4, 3, 2]
-    //          after gluing  srcDims = [30, 8, 6],      begin = [6, 0, 0],       stride = [1, 2, 1],       dstDims = [24, 4, 6]
+    // example: before gluing srcDims = [5, 6, 8, 3, 2], begin = [1, 0, 0, 0, 0], stride = [1, 1, 2, 1, 1], dstDims =
+    // [4, 6, 4, 3, 2]
+    //          after gluing  srcDims = [30, 8, 6],      begin = [6, 0, 0],       stride = [1, 2, 1],       dstDims =
+    //          [24, 4, 6]
 
     size_t realNDims = params.dstBlockedDims.size();
 
-    std::pair<size_t, size_t> secondDim = { 0, params.attrs.begin.size() };
+    std::pair<size_t, size_t> secondDim = {0, params.attrs.begin.size()};
     VectorDims indexes(1, 0);
     for (size_t idx = 0; idx < params.attrs.begin.size(); idx++) {
         if (params.attrs.begin[idx] != 0 ||
@@ -618,8 +645,10 @@ void StridedSlice::StridedSliceCommonExecutor::dimsGluing() {
             const size_t beginShift = indexes[idx - 1] + 1;
             const size_t endShift = indexes[idx] + 1;
 
-            params.dstBlockedDims.erase(params.dstBlockedDims.begin() + beginShift, params.dstBlockedDims.begin() + endShift);
-            params.srcBlockedDims.erase(params.srcBlockedDims.begin() + beginShift, params.srcBlockedDims.begin() + endShift);
+            params.dstBlockedDims.erase(params.dstBlockedDims.begin() + beginShift,
+                                        params.dstBlockedDims.begin() + endShift);
+            params.srcBlockedDims.erase(params.srcBlockedDims.begin() + beginShift,
+                                        params.srcBlockedDims.begin() + endShift);
             params.dstStrides.erase(params.dstStrides.begin() + beginShift, params.dstStrides.begin() + endShift);
             params.srcStrides.erase(params.srcStrides.begin() + beginShift, params.srcStrides.begin() + endShift);
 
@@ -660,10 +689,13 @@ void StridedSlice::StridedSliceCommonExecutor::dimsGluing() {
             params.dstBlockedDims[1] = 1;
 
         workAmount = params.dstBlockedDims[0] * params.dstBlockedDims[1];
-        srcShift = (params.attrs.begin[0] * params.srcStrides[0] + params.attrs.begin[1] * params.srcStrides[1]) * params.attrs.dataSize;
+        srcShift = (params.attrs.begin[0] * params.srcStrides[0] + params.attrs.begin[1] * params.srcStrides[1]) *
+                   params.attrs.dataSize;
     } else {
-        srcShift = params.attrs.stride.back() == 1 && params.attrs.stride.size() > 1 ?
-                          params.attrs.begin[params.nDimsForWork] * params.srcStrides[params.nDimsForWork] * params.attrs.dataSize : 0;
+        srcShift = params.attrs.stride.back() == 1 && params.attrs.stride.size() > 1
+                       ? params.attrs.begin[params.nDimsForWork] * params.srcStrides[params.nDimsForWork] *
+                             params.attrs.dataSize
+                       : 0;
     }
 }
 
@@ -688,7 +720,7 @@ void StridedSlice::StridedSliceCommonExecutor::indicesCalculation() {
         return;
     }
 
-    auto getSrcIdx = [&](const VectorDims& indexes){
+    auto getSrcIdx = [&](const VectorDims& indexes) {
         size_t srcIdx = 0;
         for (size_t i = 0; i < params.nDimsForWork; ++i)
             srcIdx += (params.attrs.begin[i] + indexes[i] * params.attrs.stride[i]) * params.srcStrides[i];
@@ -743,7 +775,8 @@ void StridedSlice::StridedSliceCommonExecutor::indicesCalculationForOptimized() 
     }
 }
 
-void StridedSlice::StridedSliceCommonExecutor::execStridedSlice(const std::vector<MemoryCPtr>& srcMemory, const std::vector<MemoryCPtr>& dstMemory) {
+void StridedSlice::StridedSliceCommonExecutor::execStridedSlice(const std::vector<MemoryCPtr>& srcMemory,
+                                                                const std::vector<MemoryCPtr>& dstMemory) {
     const uint8_t* srcData = srcMemory[0]->getDataAs<const uint8_t>();
     uint8_t* dstData = dstMemory[0]->getDataAs<uint8_t>();
     const uint8_t* srcShiftedData = srcData + srcShift;
@@ -756,7 +789,8 @@ void StridedSlice::StridedSliceCommonExecutor::execStridedSlice(const std::vecto
     });
 }
 
-void StridedSlice::StridedSliceCommonExecutor::execSliceScatter(const std::vector<MemoryCPtr>& srcMemory, const std::vector<MemoryCPtr>& dstMemory) {
+void StridedSlice::StridedSliceCommonExecutor::execSliceScatter(const std::vector<MemoryCPtr>& srcMemory,
+                                                                const std::vector<MemoryCPtr>& dstMemory) {
     const uint8_t* srcData = srcMemory[0]->getDataAs<const uint8_t>();
     const uint8_t* srcUpdates = srcMemory[1]->getDataAs<const uint8_t>();
     uint8_t* dstData = dstMemory[0]->getDataAs<uint8_t>();
@@ -775,7 +809,8 @@ void StridedSlice::StridedSliceCommonExecutor::execSliceScatter(const std::vecto
     });
 }
 
-void StridedSlice::StridedSliceCommonExecutor::exec(const std::vector<MemoryCPtr>& srcMemory, const std::vector<MemoryCPtr>& dstMemory) {
+void StridedSlice::StridedSliceCommonExecutor::exec(const std::vector<MemoryCPtr>& srcMemory,
+                                                    const std::vector<MemoryCPtr>& dstMemory) {
     if (params.attrs.isSliceScatterOp) {
         execSliceScatter(srcMemory, dstMemory);
     } else {
@@ -783,6 +818,6 @@ void StridedSlice::StridedSliceCommonExecutor::exec(const std::vector<MemoryCPtr
     }
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

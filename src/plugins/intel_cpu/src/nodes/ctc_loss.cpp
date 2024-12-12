@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/ctc_loss.hpp"
+
 #include <cmath>
 
-#include "openvino/op/ctc_loss.hpp"
-#include "openvino/core/parallel.hpp"
 #include "ctc_loss.h"
+#include "openvino/core/parallel.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -53,9 +54,7 @@ void CTCLoss::initSupportedPrimitiveDescriptors() {
     for (size_t i = 1; i < inputShapes.size(); ++i)
         inDataConf.emplace_back(LayoutType::ncsp, ov::element::i32);
 
-    addSupportedPrimDesc(inDataConf,
-                         {{LayoutType::ncsp, ov::element::f32}},
-                         impl_desc_type::ref_any);
+    addSupportedPrimDesc(inDataConf, {{LayoutType::ncsp, ov::element::f32}}, impl_desc_type::ref_any);
 }
 
 void CTCLoss::executeDynamicImpl(dnnl::stream strm) {
@@ -71,7 +70,7 @@ void CTCLoss::execute(dnnl::stream strm) {
     const int* labelsLength = getSrcDataAtPortAs<const int>(3);
     float* dstData = getDstDataAtPortAs<float>(0);
 
-    const auto &inDims = getParentEdgeAt(0)->getMemory().getStaticDims();
+    const auto& inDims = getParentEdgeAt(0)->getMemory().getStaticDims();
     const size_t batchNum = inDims[0];
     const size_t maxTime = inDims[1];
     const size_t classesNum = inDims[2];
@@ -96,11 +95,11 @@ void CTCLoss::execute(dnnl::stream strm) {
         for (size_t b = start; b < end; b++) {
             if (logitsLength[b] < 0 || labelsLength[b] < 0 || logitsLength[b] > static_cast<int>(maxTime) ||
                 labelsLength[b] > logitsLength[b]) {
-                errorMsgB[ithr] = errorPrefix + ". Logit length cannot be greater than max sequence length. "
-                                  + "Label length cannot be greater than a logit length"
-                                  + " and both cannot be negative.\nMaxSeqLen: "
-                                  + std::to_string(maxTime) + "; Logit len: " + std::to_string(logitsLength[b])
-                                  + "; Label len: " + std::to_string(labelsLength[b]);
+                errorMsgB[ithr] = errorPrefix + ". Logit length cannot be greater than max sequence length. " +
+                                  "Label length cannot be greater than a logit length" +
+                                  " and both cannot be negative.\nMaxSeqLen: " + std::to_string(maxTime) +
+                                  "; Logit len: " + std::to_string(logitsLength[b]) +
+                                  "; Label len: " + std::to_string(labelsLength[b]);
                 returnCode = -1;
                 return;
             }
@@ -151,8 +150,8 @@ void CTCLoss::execute(dnnl::stream strm) {
             for (size_t ll = 0; ll < actualLogitLen; ll++) {
                 logProbabilities[ll].resize(decodedTargetLen);
             }
-        } // for batch
-    }; // threadBody_1
+        }  // for batch
+    };     // threadBody_1
 
     parallel_nt(threads_num, threadBody_1);
     if (returnCode != 0) {
@@ -211,7 +210,7 @@ void CTCLoss::execute(dnnl::stream strm) {
             }
             sT = 0lu;
         }  // for batch
-    }; // threadBody_2
+    };     // threadBody_2
 
     parallel_nt(0, threadBody_2);
 
@@ -236,8 +235,8 @@ void CTCLoss::execute(dnnl::stream strm) {
         if (start >= end)
             return;
 
-        // As per Connectionist Temporal Classification - Labeling Unsegmented Sequence Data with Recurrent Neural Networks:
-        // Graves et al., 2016, paragraph 4.1 (10)
+        // As per Connectionist Temporal Classification - Labeling Unsegmented Sequence Data with Recurrent Neural
+        // Networks: Graves et al., 2016, paragraph 4.1 (10)
         for (size_t b = start; b < end; b++) {
             auto& targetD = targetDB[b];
             auto& logProbabilities = logProbabilitiesB[b];
@@ -250,21 +249,19 @@ void CTCLoss::execute(dnnl::stream strm) {
             for (int t = actualLogitLen - 2; t >= 0; t--) {
                 const int t_1 = t + 1;
                 for (int s = std::max(0, decodedTargetLen - (2 * (actualLogitLen - t)));
-                     s < std::min(decodedTargetLen, 2 * (t_1)); s++) {
+                     s < std::min(decodedTargetLen, 2 * (t_1));
+                     s++) {
                     if (ctcMergeRepeated || targetD[s] == blankIndex) {
-                        logBwd[s][t] = sumLogs(logBwd[s][t],
-                                               logBwd[s][t_1] + logProbabilities[t_1][s]);
+                        logBwd[s][t] = sumLogs(logBwd[s][t], logBwd[s][t_1] + logProbabilities[t_1][s]);
                     }
 
                     if (s + 1 < decodedTargetLen) {
-                        logBwd[s][t] = sumLogs(logBwd[s][t],
-                                               logBwd[s + 1][t_1] + logProbabilities[t_1][s + 1]);
+                        logBwd[s][t] = sumLogs(logBwd[s][t], logBwd[s + 1][t_1] + logProbabilities[t_1][s + 1]);
                     }
 
                     if (s + 2 < decodedTargetLen) {
                         if (targetD[s] != blankIndex && (!ctcMergeRepeated || (targetD[s] != targetD[s + 2]))) {
-                            logBwd[s][t] = sumLogs(logBwd[s][t],
-                                                   logBwd[s + 2][t_1] + logProbabilities[t_1][s + 2]);
+                            logBwd[s][t] = sumLogs(logBwd[s][t], logBwd[s + 2][t_1] + logProbabilities[t_1][s + 2]);
                         }
                     }
                 }
@@ -274,8 +271,8 @@ void CTCLoss::execute(dnnl::stream strm) {
             logBwd[1][0] += logProbabilities[0][(decodedTargetLen > 1) ? 1 : 0];
 
             dstData[b] = -sumLogs(logBwd[0][0], logBwd[1][0]);
-        } // for batch
-    }; // threadBody_3
+        }  // for batch
+    };     // threadBody_3
 
     parallel_nt(0, threadBody_3);
 }
@@ -284,6 +281,6 @@ bool CTCLoss::created() const {
     return getType() == Type::CTCLoss;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

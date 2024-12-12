@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "gather_nd.h"
+
 #include <cmath>
-#include <vector>
+#include <openvino/opsets/opset8.hpp>
 #include <string>
+#include <vector>
+
+#include "common/cpu_memcpy.h"
 #include "dnnl_types.h"
 #include "openvino/core/parallel.hpp"
-#include "gather_nd.h"
-#include <openvino/opsets/opset8.hpp>
 #include "utils/general_utils.h"
-#include "common/cpu_memcpy.h"
 
 #define THROW_ERROR(...) OPENVINO_THROW("GatherND layer with name '", getName(), "' ", __VA_ARGS__)
 
@@ -20,7 +22,9 @@ namespace node {
 
 bool GatherND::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(), ov::op::v5::GatherND::get_type_info_static(), ov::op::v8::GatherND::get_type_info_static())) {
+        if (!one_of(op->get_type_info(),
+                    ov::op::v5::GatherND::get_type_info_static(),
+                    ov::op::v8::GatherND::get_type_info_static())) {
             errorMessage = "Node is not an instance of the GatherND operation from operation set v5 and v8.";
             return false;
         }
@@ -70,12 +74,16 @@ void GatherND::initSupportedPrimitiveDescriptors() {
 
     ov::element::Type indicesPrecision = getOriginalInputPrecisionAtPort(GATHERND_INDEXES);
     if (!one_of(indicesPrecision,
-                ov::element::i32, ov::element::i64, ov::element::i16, ov::element::u16, ov::element::i8, ov::element::u8)) {
+                ov::element::i32,
+                ov::element::i64,
+                ov::element::i16,
+                ov::element::u16,
+                ov::element::i8,
+                ov::element::u8)) {
         THROW_ERROR("has unsupported 'indices' input precision: ", indicesPrecision);
     }
 
-    addSupportedPrimDesc({{LayoutType::ncsp, inDataPrecision},
-                          {LayoutType::ncsp, ov::element::i32}},
+    addSupportedPrimDesc({{LayoutType::ncsp, inDataPrecision}, {LayoutType::ncsp, ov::element::i32}},
                          {{LayoutType::ncsp, inDataPrecision}},
                          impl_desc_type::ref_any);
 }
@@ -96,24 +104,33 @@ void GatherND::prepareParams() {
     attrs.srcDims = srcMemPtr->getStaticDims();
     attrs.srcStrides = srcMemPtr->getDescWithType<BlockedMemoryDesc>()->getStrides();
     attrs.dstElementCount = dstMemPtr->getShape().getElementsCount();
-    attrs.sliceRank =  idxMemPtr->getStaticDims().back();
+    attrs.sliceRank = idxMemPtr->getStaticDims().back();
     execPtr = std::make_shared<GatherNDExecutor>(attrs);
 }
 
-GatherND::GatherNDExecutor::GatherNDExecutor(const GatherNDAttributes& attrs) : sliceRank(attrs.sliceRank), dataSize(attrs.dataSize) {
-    batchSize = std::accumulate(attrs.srcDims.begin(), attrs.srcDims.begin() + attrs.batchDims, size_t(1), std::multiplies<size_t>());
-    dataLength = std::accumulate(attrs.srcDims.begin() + sliceRank + attrs.batchDims, attrs.srcDims.end(), size_t(1),
+GatherND::GatherNDExecutor::GatherNDExecutor(const GatherNDAttributes& attrs)
+    : sliceRank(attrs.sliceRank),
+      dataSize(attrs.dataSize) {
+    batchSize = std::accumulate(attrs.srcDims.begin(),
+                                attrs.srcDims.begin() + attrs.batchDims,
+                                size_t(1),
+                                std::multiplies<size_t>());
+    dataLength = std::accumulate(attrs.srcDims.begin() + sliceRank + attrs.batchDims,
+                                 attrs.srcDims.end(),
+                                 size_t(1),
                                  std::multiplies<size_t>());
     cycles = attrs.dstElementCount / (dataLength * batchSize);
     workAmount = batchSize * cycles;
 
-    srcBatchStride = std::accumulate(attrs.srcDims.begin() + attrs.batchDims, attrs.srcDims.end(), size_t(1),
+    srcBatchStride = std::accumulate(attrs.srcDims.begin() + attrs.batchDims,
+                                     attrs.srcDims.end(),
+                                     size_t(1),
                                      std::multiplies<size_t>());
     idxBatchStride = cycles * sliceRank;
     dstBatchStride = cycles * dataLength;
 
     srcShifts.resize(attrs.sliceRank, 0);
-    for (size_t i = 0; i < attrs.sliceRank ; i++)
+    for (size_t i = 0; i < attrs.sliceRank; i++)
         srcShifts[i] = attrs.srcStrides[i + attrs.batchDims] * (dataLength > 1 ? dataSize : 1);
 
     // optimized implementation 'blocks' via memcpy
@@ -128,25 +145,33 @@ void GatherND::execute(dnnl::stream strm) {
     if (!execPtr)
         THROW_ERROR("has not compiled executor.");
 
-    execPtr->exec(getSrcMemoryAtPort(GATHERND_DATA),
-                  getSrcMemoryAtPort(GATHERND_INDEXES),
-                  getDstMemoryAtPort(0));
+    execPtr->exec(getSrcMemoryAtPort(GATHERND_DATA), getSrcMemoryAtPort(GATHERND_INDEXES), getDstMemoryAtPort(0));
 }
 
-void GatherND::GatherNDExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, const MemoryPtr& dstMemPtr) {
+void GatherND::GatherNDExecutor::exec(const MemoryPtr& srcMemPtr,
+                                      const MemoryPtr& idxMemPtr,
+                                      const MemoryPtr& dstMemPtr) {
     if (dataLength > 1) {
         gatherBlocks(srcMemPtr, idxMemPtr, dstMemPtr);
         return;
     }
 
-    GatherNDContext ctx { this, srcMemPtr, idxMemPtr, dstMemPtr };
-    OV_SWITCH(intel_cpu, GatherNDEmitter, ctx, dataSize,
-              OV_CASE(sizeof(element_type_traits<ov::element::i32>::value_type), element_type_traits<ov::element::i32>::value_type),
-              OV_CASE(sizeof(element_type_traits<ov::element::i16>::value_type), element_type_traits<ov::element::i16>::value_type),
-              OV_CASE(sizeof(element_type_traits<ov::element::i8>::value_type), element_type_traits<ov::element::i8>::value_type));
+    GatherNDContext ctx{this, srcMemPtr, idxMemPtr, dstMemPtr};
+    OV_SWITCH(intel_cpu,
+              GatherNDEmitter,
+              ctx,
+              dataSize,
+              OV_CASE(sizeof(element_type_traits<ov::element::i32>::value_type),
+                      element_type_traits<ov::element::i32>::value_type),
+              OV_CASE(sizeof(element_type_traits<ov::element::i16>::value_type),
+                      element_type_traits<ov::element::i16>::value_type),
+              OV_CASE(sizeof(element_type_traits<ov::element::i8>::value_type),
+                      element_type_traits<ov::element::i8>::value_type));
 }
 
-void GatherND::GatherNDExecutor::gatherBlocks(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, const MemoryPtr& dstMemPtr) {
+void GatherND::GatherNDExecutor::gatherBlocks(const MemoryPtr& srcMemPtr,
+                                              const MemoryPtr& idxMemPtr,
+                                              const MemoryPtr& dstMemPtr) {
     const uint8_t* srcData = srcMemPtr->getDataAs<const uint8_t>();
     const int32_t* indices = idxMemPtr->getDataAs<const int32_t>();
     uint8_t* dstData = dstMemPtr->getDataAs<uint8_t>();
@@ -183,7 +208,9 @@ void GatherND::GatherNDExecutor::gatherBlocks(const MemoryPtr& srcMemPtr, const 
 }
 
 template <typename dataType>
-void GatherND::GatherNDExecutor::gatherElementwise(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, const MemoryPtr& dstMemPtr) {
+void GatherND::GatherNDExecutor::gatherElementwise(const MemoryPtr& srcMemPtr,
+                                                   const MemoryPtr& idxMemPtr,
+                                                   const MemoryPtr& dstMemPtr) {
     const dataType* srcData = srcMemPtr->getDataAs<const dataType>();
     const int32_t* indices = idxMemPtr->getDataAs<const int32_t>();
     dataType* dstData = dstMemPtr->getDataAs<dataType>();
@@ -227,6 +254,6 @@ bool GatherND::created() const {
     return getType() == Type::GatherND;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

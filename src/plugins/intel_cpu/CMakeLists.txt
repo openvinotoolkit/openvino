@@ -242,7 +242,8 @@ ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "CPU"
               AS_EXTENSION
               VERSION_DEFINES_FOR src/plugin.cpp
-              SOURCES ${SOURCES} ${HEADERS})
+              SOURCES ${SOURCES} ${HEADERS}
+              ADD_CLANG_FORMAT)
 
 # give a different file name depending on target platform architecture
 if(ARM OR AARCH64)

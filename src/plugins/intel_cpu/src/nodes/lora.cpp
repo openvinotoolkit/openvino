@@ -4,11 +4,11 @@
 
 #include "lora.h"
 
-#include "nodes/input.h"
 #include "cpu_memory.h"
+#include "nodes/input.h"
 #include "ov_ops/lora_subgraph.hpp"
-#include "utils/debug_capabilities.h"
 #include "shape_inference/shape_inference_pass_through.hpp"
+#include "utils/debug_capabilities.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -48,7 +48,7 @@ void LoRA::selectOptimalPrimitiveDescriptor() {
     std::vector<Input::InputConfig> graphInputConfig;
 
     auto mainInputDesc = getParentOutputMemDesc(getParentEdgeAt(0));
-    auto mainInputPrc = mainInputDesc->getPrecision(); // we have to align precision across all the inputs
+    auto mainInputPrc = mainInputDesc->getPrecision();  // we have to align precision across all the inputs
 
     inConfs.emplace_back(mainInputDesc);
     graphInputConfig.emplace_back(node::Input::InputConfig{mainInputDesc, true});
@@ -76,7 +76,7 @@ void LoRA::selectOptimalPrimitiveDescriptor() {
 
     std::vector<PortConfig> outConfs;
 
-    outConfs.emplace_back(desc, BlockedMemoryDesc::FULL_MASK, 0); // use the memory from the first input inPlace
+    outConfs.emplace_back(desc, BlockedMemoryDesc::FULL_MASK, 0);  // use the memory from the first input inPlace
 
     const NodeConfig config(inConfs, outConfs);
 

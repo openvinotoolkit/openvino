@@ -9,11 +9,10 @@ namespace intel_cpu {
 
 const std::vector<DeconvExecutorDesc>& getDeconvExecutorsList() {
     static std::vector<DeconvExecutorDesc> descs = {
-            OV_CPU_INSTANCE_ACL(ExecutorType::Acl, std::make_shared<AclDeconvExecutorBuilder>())
-    };
+        OV_CPU_INSTANCE_ACL(ExecutorType::Acl, std::make_shared<AclDeconvExecutorBuilder>())};
 
     return descs;
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

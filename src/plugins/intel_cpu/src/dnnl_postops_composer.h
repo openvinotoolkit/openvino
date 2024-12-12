@@ -12,8 +12,8 @@
 
 #include "cpu_memory.h"
 #include "nodes/executors/dnnl/dnnl_aliases.hpp"
-#include "post_ops.hpp"
 #include "nodes/executors/dnnl/dnnl_post_op_data.hpp"
+#include "post_ops.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -31,7 +31,9 @@ public:
                         const dnnl::memory::data_type outDataType);
     DnnlPrimitiveAttrs compose();
     void appendDecompressionScales(const MemoryCPtr& scales_ptr, bool needTranspose, ov::element::Type dstPrecision);
-    void appendDecompressionZeroPoints(const MemoryCPtr& zero_points_ptr, bool needTranspose, ov::element::Type dstPrecision);
+    void appendDecompressionZeroPoints(const MemoryCPtr& zero_points_ptr,
+                                       bool needTranspose,
+                                       ov::element::Type dstPrecision);
     void setDynamicQuantizationParams(uint64_t groupSize);
 
 private:

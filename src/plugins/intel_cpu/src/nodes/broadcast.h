@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include "common/tile_broadcast_utils.h"
-
 #include <memory>
 #include <string>
 #include <vector>
+
+#include "common/tile_broadcast_utils.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -35,10 +35,7 @@ protected:
 private:
     void plainExecute(dnnl::stream strm);
 
-    enum AutoBroadcastType {
-        NUMPY,
-        EXPLICIT
-    };
+    enum AutoBroadcastType { NUMPY, EXPLICIT };
     AutoBroadcastType broadcastType = NUMPY;
 
     static constexpr size_t INPUT_DATA_IDX = 0;
@@ -51,6 +48,6 @@ private:
     std::string errorPrefix;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

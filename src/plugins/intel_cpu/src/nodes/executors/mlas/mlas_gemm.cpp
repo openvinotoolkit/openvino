@@ -104,8 +104,7 @@ MlasGemmExecutor::MlasGemmExecutor(const FCAttrs& attrs,
       m_memoryArgs(memory),
       packedWeights(prepareWeightMemory(memory.at(ARG_WEI), context, !attrs.weightsNonTransposed)),
       N(batchDim(memory.at(ARG_WEI)->getStaticDims())),
-      K(memory.at(ARG_WEI)->getStaticDims().back())
-{}
+      K(memory.at(ARG_WEI)->getStaticDims().back()) {}
 
 bool MlasGemmExecutor::update(const MemoryArgs& memory) {
     const auto& dstDesc = memory.at(ARG_DST)->getDescPtr();

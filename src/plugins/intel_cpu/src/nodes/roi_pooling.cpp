@@ -4,24 +4,21 @@
 
 #include "roi_pooling.h"
 
-#include "onednn/dnnl.h"
-#include "dnnl_extension_utils.h"
-#include "selective_build.h"
-
-#include <openvino/opsets/opset2.hpp>
-
-#include "openvino/core/parallel.hpp"
-#include "utils/bfloat16.hpp"
-#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
-
-#include "cpu/x64/jit_generator.hpp"
-#include "common/primitive_hashing_utils.hpp"
-
-#include <string>
-#include <vector>
-#include <memory>
 #include <algorithm>
 #include <cmath>
+#include <memory>
+#include <openvino/opsets/opset2.hpp>
+#include <string>
+#include <vector>
+
+#include "common/primitive_hashing_utils.hpp"
+#include "cpu/x64/jit_generator.hpp"
+#include "dnnl_extension_utils.h"
+#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#include "onednn/dnnl.h"
+#include "openvino/core/parallel.hpp"
+#include "selective_build.h"
+#include "utils/bfloat16.hpp"
 
 using namespace dnnl;
 using namespace dnnl::impl;
@@ -40,7 +37,9 @@ template <cpu_isa_t isa>
 struct jit_uni_roi_pooling_kernel_f32 : public jit_uni_roi_pooling_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_roi_pooling_kernel_f32);
 
-    explicit jit_uni_roi_pooling_kernel_f32(jit_roi_pooling_params jcp) : jit_uni_roi_pooling_kernel(jcp), jit_generator(jit_name()) {}
+    explicit jit_uni_roi_pooling_kernel_f32(jit_roi_pooling_params jcp)
+        : jit_uni_roi_pooling_kernel(jcp),
+          jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -72,7 +71,8 @@ struct jit_uni_roi_pooling_kernel_f32 : public jit_uni_roi_pooling_kernel, publi
             mov(reg_xoff, ptr[this->param1 + GET_OFF(xoff)]);
         }
 
-        load_pool_gpr_idxs = {static_cast<size_t>(reg_load_store_mask.getIdx()), static_cast<size_t>(reg_load_table.getIdx())};
+        load_pool_gpr_idxs = {static_cast<size_t>(reg_load_store_mask.getIdx()),
+                              static_cast<size_t>(reg_load_table.getIdx())};
         store_pool_gpr_idxs = {static_cast<size_t>(reg_load_store_mask.getIdx())};
         store_pool_vec_idxs = {static_cast<size_t>(vmm_zero.getIdx())};
 
@@ -98,14 +98,14 @@ struct jit_uni_roi_pooling_kernel_f32 : public jit_uni_roi_pooling_kernel, publi
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
-            Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm =
+        typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
     const int vlen = cpu_isa_traits<isa>::vlen;
     const int step = vlen / sizeof(float);
 
     Vmm vmm_mask = Vmm(0);
-    Vmm vmm_zero = Vmm(2); // avoid using xmm0 (reserved as mask reg in sse41-instruction blendvps)
+    Vmm vmm_zero = Vmm(2);  // avoid using xmm0 (reserved as mask reg in sse41-instruction blendvps)
 
     Xmm xmm_yf = Xmm(0);
     Vmm vmm_yf = Vmm(0);
@@ -120,20 +120,24 @@ private:
     std::vector<size_t> store_pool_gpr_idxs;
     std::vector<size_t> store_pool_vec_idxs;
 
-    Vmm get_acc_reg(int idx) { return Vmm(2*idx + 1); }
-    Vmm get_src_reg(int idx) { return Vmm(2*idx + 2); }
+    Vmm get_acc_reg(int idx) {
+        return Vmm(2 * idx + 1);
+    }
+    Vmm get_src_reg(int idx) {
+        return Vmm(2 * idx + 2);
+    }
 
     Opmask k_store_mask = Opmask(7);
 
     const unsigned char _cmp_lt_os = 1;
 
     using reg64_t = const Xbyak::Reg64;
-    reg64_t reg_input     = r8;
+    reg64_t reg_input = r8;
     reg64_t aux_reg_input = rax;
     reg64_t aux_reg_input1 = rdx;
-    reg64_t reg_output    = r9;
-    reg64_t reg_kh    = r10;
-    reg64_t reg_kw    = r11;
+    reg64_t reg_output = r9;
+    reg64_t reg_kh = r10;
+    reg64_t reg_kw = r11;
 
     reg64_t h_iter = r13;
     reg64_t w_iter = r14;
@@ -151,8 +155,10 @@ private:
     Xbyak::Reg64 reg_load_store_mask = abi_param1;
 
     std::vector<size_t> get_local_store_pool_vec_idxs(Vmm vmm) const {
-        std::vector<size_t> local_store_pool_vec_idxs = { static_cast<size_t>(vmm.getIdx()) };
-        local_store_pool_vec_idxs.insert(local_store_pool_vec_idxs.begin(), store_pool_vec_idxs.begin(), store_pool_vec_idxs.end());
+        std::vector<size_t> local_store_pool_vec_idxs = {static_cast<size_t>(vmm.getIdx())};
+        local_store_pool_vec_idxs.insert(local_store_pool_vec_idxs.begin(),
+                                         store_pool_vec_idxs.begin(),
+                                         store_pool_vec_idxs.end());
         return local_store_pool_vec_idxs;
     }
 
@@ -166,21 +172,28 @@ private:
         for (int i = 0; i < c_blocks; i++) {
             Vmm vmm_max = get_acc_reg(i);
 
-            load_emitter->emit_code({static_cast<size_t>(reg_input.getIdx()), static_cast<size_t>(i * src_c_off)}, {static_cast<size_t>(vmm_max.getIdx())},
-                                    {}, load_pool_gpr_idxs);
+            load_emitter->emit_code({static_cast<size_t>(reg_input.getIdx()), static_cast<size_t>(i * src_c_off)},
+                                    {static_cast<size_t>(vmm_max.getIdx())},
+                                    {},
+                                    load_pool_gpr_idxs);
         }
 
         xor_(h_iter, h_iter);
-        L(h_loop_label); {
+        L(h_loop_label);
+        {
             xor_(w_iter, w_iter);
             mov(aux_reg_input1, aux_reg_input);
-            L(w_loop_label); {
+            L(w_loop_label);
+            {
                 for (int i = 0; i < c_blocks; i++) {
                     Vmm vmm_max = get_acc_reg(i);
                     Vmm vmm_src = get_src_reg(i);
 
-                    load_emitter->emit_code({static_cast<size_t>(aux_reg_input1.getIdx()), static_cast<size_t>(i * src_c_off)},
-                                            {static_cast<size_t>(vmm_src.getIdx())}, {}, load_pool_gpr_idxs);
+                    load_emitter->emit_code(
+                        {static_cast<size_t>(aux_reg_input1.getIdx()), static_cast<size_t>(i * src_c_off)},
+                        {static_cast<size_t>(vmm_src.getIdx())},
+                        {},
+                        load_pool_gpr_idxs);
 
                     if (isa == cpu::x64::sse41) {
                         movups(vmm_mask, vmm_max);
@@ -190,8 +203,8 @@ private:
                         vcmpps(vmm_mask, vmm_max, vmm_src, _cmp_lt_os);
                         vblendvps(vmm_max, vmm_max, vmm_src, vmm_mask);
                     } else if (isa == cpu::x64::avx512_core) {
-                        vcmpps(k_store_mask,  vmm_max,  vmm_src, _cmp_lt_os);
-                        vblendmps(vmm_max| k_store_mask, vmm_max, vmm_src);
+                        vcmpps(k_store_mask, vmm_max, vmm_src, _cmp_lt_os);
+                        vblendmps(vmm_max | k_store_mask, vmm_max, vmm_src);
                     }
                 }
 
@@ -215,7 +228,8 @@ private:
 
             store_emitter->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
                                      {static_cast<size_t>(reg_output.getIdx()), static_cast<size_t>(i * dst_c_off)},
-                                     get_local_store_pool_vec_idxs(vmm_dst), store_pool_gpr_idxs);
+                                     get_local_store_pool_vec_idxs(vmm_dst),
+                                     store_pool_gpr_idxs);
         }
     }
 
@@ -235,20 +249,28 @@ private:
 
             mov(aux_reg_input, reg_input);
 
-            load_emitter->emit_code({static_cast<size_t>(aux_reg_input.getIdx()), static_cast<size_t>(src_c_off)}, {static_cast<size_t>(vmm_src00.getIdx())},
-                                    {}, load_pool_gpr_idxs);
+            load_emitter->emit_code({static_cast<size_t>(aux_reg_input.getIdx()), static_cast<size_t>(src_c_off)},
+                                    {static_cast<size_t>(vmm_src00.getIdx())},
+                                    {},
+                                    load_pool_gpr_idxs);
             add(aux_reg_input, reg_xoff);
 
-            load_emitter->emit_code({static_cast<size_t>(aux_reg_input.getIdx()), static_cast<size_t>(src_c_off)}, {static_cast<size_t>(vmm_src01.getIdx())},
-                                    {}, load_pool_gpr_idxs);
+            load_emitter->emit_code({static_cast<size_t>(aux_reg_input.getIdx()), static_cast<size_t>(src_c_off)},
+                                    {static_cast<size_t>(vmm_src01.getIdx())},
+                                    {},
+                                    load_pool_gpr_idxs);
 
             add(aux_reg_input, reg_yoff);
-            load_emitter->emit_code({static_cast<size_t>(aux_reg_input.getIdx()), static_cast<size_t>(src_c_off)}, {static_cast<size_t>(vmm_src11.getIdx())},
-                                    {}, load_pool_gpr_idxs);
+            load_emitter->emit_code({static_cast<size_t>(aux_reg_input.getIdx()), static_cast<size_t>(src_c_off)},
+                                    {static_cast<size_t>(vmm_src11.getIdx())},
+                                    {},
+                                    load_pool_gpr_idxs);
             sub(aux_reg_input, reg_xoff);
 
-            load_emitter->emit_code({static_cast<size_t>(aux_reg_input.getIdx()), static_cast<size_t>(src_c_off)}, {static_cast<size_t>(vmm_src10.getIdx())},
-                                    {}, load_pool_gpr_idxs);
+            load_emitter->emit_code({static_cast<size_t>(aux_reg_input.getIdx()), static_cast<size_t>(src_c_off)},
+                                    {static_cast<size_t>(vmm_src10.getIdx())},
+                                    {},
+                                    load_pool_gpr_idxs);
 
             uni_vsubps(vmm_src01, vmm_src01, vmm_src00);
             uni_vfmadd213ps(vmm_src01, vmm_xf, vmm_src00);
@@ -263,7 +285,8 @@ private:
 
             store_emitter->emit_code({static_cast<size_t>(vmm_src11.getIdx())},
                                      {static_cast<size_t>(reg_output.getIdx()), static_cast<size_t>(dst_c_off)},
-                                     get_local_store_pool_vec_idxs(vmm_src11), store_pool_gpr_idxs);
+                                     get_local_store_pool_vec_idxs(vmm_src11),
+                                     store_pool_gpr_idxs);
         }
     }
 
@@ -272,9 +295,11 @@ private:
 
         const int dst_c_off = jpp_.oh * jpp_.ow * jpp_.c_block * jpp_.dst_prc.size();
         for (int i = 0; i < c_blocks; i++) {
-            store_empty_roi_emitter->emit_code({static_cast<size_t>(vmm_zero.getIdx())},
-                                               {static_cast<size_t>(reg_output.getIdx()), static_cast<size_t>(i * dst_c_off)},
-                                               store_pool_vec_idxs, store_pool_gpr_idxs);
+            store_empty_roi_emitter->emit_code(
+                {static_cast<size_t>(vmm_zero.getIdx())},
+                {static_cast<size_t>(reg_output.getIdx()), static_cast<size_t>(i * dst_c_off)},
+                store_pool_vec_idxs,
+                store_pool_gpr_idxs);
         }
     }
 
@@ -346,27 +371,16 @@ size_t RoiPoolingKey::hash() const {
     return seed;
 }
 
-bool RoiPoolingKey::operator==(const RoiPoolingKey &rhs) const {
+bool RoiPoolingKey::operator==(const RoiPoolingKey& rhs) const {
     return refParams == rhs.refParams;
 }
-} // namespace
+}  // namespace
 
-bool jit_roi_pooling_params::operator==(const jit_roi_pooling_params &rhs) const noexcept {
-    return mb == rhs.mb &&
-           c == rhs.c &&
-           ih == rhs.ih &&
-           iw == rhs.iw &&
-           oh == rhs.oh &&
-           ow == rhs.ow &&
-           c_block == rhs.c_block &&
-           nb_c == rhs.nb_c &&
-           nb_c_blocking == rhs.nb_c_blocking &&
-           spatial_scale == rhs.spatial_scale &&
-           pooled_h == rhs.pooled_h &&
-           pooled_w == rhs.pooled_w &&
-           src_prc == rhs.src_prc &&
-           dst_prc == rhs.dst_prc &&
-           alg == rhs.alg;
+bool jit_roi_pooling_params::operator==(const jit_roi_pooling_params& rhs) const noexcept {
+    return mb == rhs.mb && c == rhs.c && ih == rhs.ih && iw == rhs.iw && oh == rhs.oh && ow == rhs.ow &&
+           c_block == rhs.c_block && nb_c == rhs.nb_c && nb_c_blocking == rhs.nb_c_blocking &&
+           spatial_scale == rhs.spatial_scale && pooled_h == rhs.pooled_h && pooled_w == rhs.pooled_w &&
+           src_prc == rhs.src_prc && dst_prc == rhs.dst_prc && alg == rhs.alg;
 }
 
 bool ROIPooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
@@ -459,10 +473,9 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
         refParams.src_prc = ov::element::f32;
     }
 
-    addSupportedPrimDesc({{format, refParams.src_prc},
-                          {LayoutType::ncsp, refParams.src_prc}},
+    addSupportedPrimDesc({{format, refParams.src_prc}, {LayoutType::ncsp, refParams.src_prc}},
                          {{format, refParams.src_prc}},
-                          impl_type);
+                         impl_type);
 }
 
 void ROIPooling::createPrimitive() {
@@ -470,7 +483,8 @@ void ROIPooling::createPrimitive() {
     if (!selectedPD)
         OPENVINO_THROW("CPU ROI Pooling node with name '", getName(), "' doesn't have primitive descriptors.");
 
-    refParams.c_block = mayiuse(cpu::x64::avx512_core) ? 16 : 8;;
+    refParams.c_block = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
+    ;
     refParams.nb_c_blocking = mayiuse(cpu::x64::avx512_core) ? 15 : 7;
     refParams.alg = getAlgorithm();
 
@@ -487,9 +501,9 @@ void ROIPooling::createPrimitive() {
 
 void ROIPooling::execute(dnnl::stream strm) {
     if (execPtr) {
-        const auto &srcMemory0 = getParentEdgeAt(0)->getMemory();
-        const auto &srcMemory1 = getParentEdgeAt(1)->getMemory();
-        const auto &dstMemory = getChildEdgeAt(0)->getMemory();
+        const auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
+        const auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
+        const auto& dstMemory = getChildEdgeAt(0)->getMemory();
         execPtr->exec(srcMemory0, srcMemory1, dstMemory);
     } else {
         OPENVINO_THROW("Can't execute ROI Pooling node. Primitive wasn't created");
@@ -536,7 +550,7 @@ void ROIPooling::prepareParams() {
 template <typename T>
 class ROIPooling::ROIPoolingJitExecutor : public ROIPooling::ROIPoolingExecutor {
 public:
-    ROIPoolingJitExecutor(const jit_roi_pooling_params &jpp) {
+    ROIPoolingJitExecutor(const jit_roi_pooling_params& jpp) {
 #if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu::x64::avx512_core)) {
             roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::avx512_core>(jpp));
@@ -553,10 +567,7 @@ public:
 #endif
     }
 
-    void exec(
-        const IMemory& srcData,
-        const IMemory& srcRoi,
-        const IMemory& dst) override {
+    void exec(const IMemory& srcData, const IMemory& srcRoi, const IMemory& dst) override {
         if (!roi_pooling_kernel)
             OPENVINO_THROW("Could not execute. Kernel for RoiPooling node was not compiled.");
 
@@ -570,13 +581,12 @@ public:
     }
 
 private:
-    void executeOptimizedGeneric(
-        const T* src_data,
-        const T* src_roi,
-        T* dst,
-        const VectorDims& src_strides,
-        const VectorDims& dst_strides,
-        const size_t src_roi_step) {
+    void executeOptimizedGeneric(const T* src_data,
+                                 const T* src_roi,
+                                 T* dst,
+                                 const VectorDims& src_strides,
+                                 const VectorDims& dst_strides,
+                                 const size_t src_roi_step) {
         const auto& jpp = roi_pooling_kernel->jpp_;
         int cb_work = impl::utils::div_up(jpp.nb_c, jpp.nb_c_blocking);
         int MB = jpp.mb;
@@ -585,7 +595,7 @@ private:
         for (; real_rois < MB; real_rois++) {
             size_t roi_off = real_rois * src_roi_step;
 
-            const auto *src_roi_ptr = &src_roi[roi_off];
+            const auto* src_roi_ptr = &src_roi[roi_off];
             int roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
             if (roi_batch_ind == -1) {
                 break;
@@ -604,7 +614,7 @@ private:
                 (*roi_pooling_kernel)(&arg);
             } else {
                 size_t roi_off = n * src_roi_step;
-                const auto *src_roi_ptr = &src_roi[roi_off];
+                const auto* src_roi_ptr = &src_roi[roi_off];
 
                 int roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
 
@@ -615,11 +625,21 @@ private:
                     int roi_end_h = static_cast<int>(round(src_roi_ptr[4] * jpp.spatial_scale));
 
                     int hstart, hend, wstart, wend;
-                    std::tie(hstart, hend, wstart, wend) = getBordersForMaxMode(
-                        roi_start_h, roi_end_h, roi_start_w, roi_end_w, jpp.ih, oh, jpp.iw, ow, jpp.pooled_h, jpp.pooled_w);
+                    std::tie(hstart, hend, wstart, wend) = getBordersForMaxMode(roi_start_h,
+                                                                                roi_end_h,
+                                                                                roi_start_w,
+                                                                                roi_end_w,
+                                                                                jpp.ih,
+                                                                                oh,
+                                                                                jpp.iw,
+                                                                                ow,
+                                                                                jpp.pooled_h,
+                                                                                jpp.pooled_w);
 
-                    arg.src = &src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] + hstart * src_strides[2] + wstart * src_strides[3]];
-                    arg.dst = &dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3]];
+                    arg.src = &src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] + hstart * src_strides[2] +
+                                        wstart * src_strides[3]];
+                    arg.dst =
+                        &dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3]];
 
                     arg.bin_area = (hend - hstart) * (wend - wstart);
                     arg.kh = hend - hstart;
@@ -627,21 +647,30 @@ private:
                 } else {
                     float roi_start_w_ = src_roi_ptr[1];
                     float roi_start_h_ = src_roi_ptr[2];
-                    float roi_end_w_   = src_roi_ptr[3];
-                    float roi_end_h_   = src_roi_ptr[4];
+                    float roi_end_w_ = src_roi_ptr[3];
+                    float roi_end_h_ = src_roi_ptr[4];
 
                     float in_x, in_y;
-                    std::tie(in_x, in_y) = getXYForBilinearMode(
-                        roi_start_h_, roi_end_h_, roi_start_w_, roi_end_w_, jpp.ih, oh, jpp.iw, ow, jpp.pooled_h, jpp.pooled_w);
+                    std::tie(in_x, in_y) = getXYForBilinearMode(roi_start_h_,
+                                                                roi_end_h_,
+                                                                roi_start_w_,
+                                                                roi_end_w_,
+                                                                jpp.ih,
+                                                                oh,
+                                                                jpp.iw,
+                                                                ow,
+                                                                jpp.pooled_h,
+                                                                jpp.pooled_w);
 
                     if (in_y < 0 || in_y > jpp.ih - 1 || in_x < 0 || in_x > jpp.iw - 1) {
                         arg.bin_area = 0;
-                        arg.dst = &dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3]];
+                        arg.dst =
+                            &dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3]];
                     } else {
-                        int top_y_index    = static_cast<int>(floorf(in_y));
+                        int top_y_index = static_cast<int>(floorf(in_y));
                         int bottom_y_index = static_cast<int>(ceilf(in_y));
-                        int left_x_index   = static_cast<int>(floorf(in_x));
-                        int right_x_index  = static_cast<int>(ceilf(in_x));
+                        int left_x_index = static_cast<int>(floorf(in_x));
+                        int right_x_index = static_cast<int>(ceilf(in_x));
 
                         if (right_x_index > jpp.iw - 1)
                             right_x_index = jpp.iw - 1;
@@ -649,7 +678,8 @@ private:
                         if (bottom_y_index > jpp.ih - 1)
                             bottom_y_index = jpp.ih - 1;
 
-                        arg.dst = &dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3]];
+                        arg.dst =
+                            &dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3]];
 
                         arg.xf = in_x - left_x_index;
                         arg.yf = in_y - top_y_index;
@@ -675,11 +705,8 @@ private:
 template <typename T>
 class ROIPooling::ROIPoolingRefExecutor : public ROIPooling::ROIPoolingExecutor {
 public:
-    ROIPoolingRefExecutor(const jit_roi_pooling_params &_jpp) : jpp(_jpp) {}
-    void exec(
-        const IMemory& srcData,
-        const IMemory& srcRoi,
-        const IMemory& dst) override {
+    ROIPoolingRefExecutor(const jit_roi_pooling_params& _jpp) : jpp(_jpp) {}
+    void exec(const IMemory& srcData, const IMemory& srcRoi, const IMemory& dst) override {
         auto src_strides = srcData.getDescWithType<BlockedMemoryDesc>()->getStrides();
         auto src_roi_step = srcRoi.getDescWithType<BlockedMemoryDesc>()->getStrides()[0];
         auto dst_strides = dst.getDescWithType<BlockedMemoryDesc>()->getStrides();
@@ -689,13 +716,12 @@ public:
         executeReference(src_ptr, roi_ptr, dst_ptr, src_strides, dst_strides, src_roi_step);
     }
 
-    void executeReference(
-        const T* src_data,
-        const T* src_roi,
-        T* dst,
-        const VectorDims& src_strides,
-        const VectorDims& dst_strides,
-        const size_t src_roi_step) {
+    void executeReference(const T* src_data,
+                          const T* src_roi,
+                          T* dst,
+                          const VectorDims& src_strides,
+                          const VectorDims& dst_strides,
+                          const size_t src_roi_step) {
         int cb_work = impl::utils::div_up(jpp.nb_c, jpp.nb_c_blocking);
         int MB = jpp.mb;
 
@@ -703,7 +729,7 @@ public:
         for (; real_rois < MB; real_rois++) {
             size_t roi_off = real_rois * src_roi_step;
 
-            const auto *src_roi_ptr = &src_roi[roi_off];
+            const auto* src_roi_ptr = &src_roi[roi_off];
             int roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
             if (roi_batch_ind == -1) {
                 break;
@@ -718,15 +744,16 @@ public:
                 for (int cbb_cur = 0; cbb_cur < cb_num; cbb_cur++) {
                     int ch_blk_cur = cbb * cb_num + cbb_cur;
                     if (ch_blk_cur >= jpp.nb_c) {
-                        break; // current block work is done
+                        break;  // current block work is done
                     }
                     for (int c = 0; c < c_block; c++) {
-                        dst[n * dst_strides[0] + ch_blk_cur * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c] = 0;
+                        dst[n * dst_strides[0] + ch_blk_cur * dst_strides[1] + oh * dst_strides[2] +
+                            ow * dst_strides[3] + c] = 0;
                     }
                 }
             } else {
                 size_t roi_off = n * src_roi_step;
-                const auto *src_roi_ptr = &src_roi[roi_off];
+                const auto* src_roi_ptr = &src_roi[roi_off];
 
                 int roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
 
@@ -737,8 +764,16 @@ public:
                     int roi_end_h = static_cast<int>(round(src_roi_ptr[4] * jpp.spatial_scale));
 
                     int hstart, hend, wstart, wend;
-                    std::tie(hstart, hend, wstart, wend) = getBordersForMaxMode(
-                        roi_start_h, roi_end_h, roi_start_w, roi_end_w, jpp.ih, oh, jpp.iw, ow, jpp.pooled_h, jpp.pooled_w);
+                    std::tie(hstart, hend, wstart, wend) = getBordersForMaxMode(roi_start_h,
+                                                                                roi_end_h,
+                                                                                roi_start_w,
+                                                                                roi_end_w,
+                                                                                jpp.ih,
+                                                                                oh,
+                                                                                jpp.iw,
+                                                                                ow,
+                                                                                jpp.pooled_h,
+                                                                                jpp.pooled_w);
 
                     for (int cbb_cur = 0; cbb_cur < cb_num; cbb_cur++) {
                         int ch_blk_cur = cbb * cb_num + cbb_cur;
@@ -746,16 +781,19 @@ public:
                             break;  // current block work is done
                         }
                         for (int c = 0; c < c_block; c++) {
-                            const size_t pool_index = n * dst_strides[0] + ch_blk_cur * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c;
+                            const size_t pool_index = n * dst_strides[0] + ch_blk_cur * dst_strides[1] +
+                                                      oh * dst_strides[2] + ow * dst_strides[3] + c;
                             if ((hend <= hstart) || (wend <= wstart)) {
                                 dst[pool_index] = 0;
                             } else {
-                                dst[pool_index] =  src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
-                                                            hstart * src_strides[2] + wstart * src_strides[3] + c];
+                                dst[pool_index] =
+                                    src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
+                                             hstart * src_strides[2] + wstart * src_strides[3] + c];
                                 for (int h = hstart; h < hend; ++h) {
                                     for (int w = wstart; w < wend; ++w) {
-                                        float batch_data = src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
-                                                                    h * src_strides[2] + w * src_strides[3] + c];
+                                        float batch_data =
+                                            src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
+                                                     h * src_strides[2] + w * src_strides[3] + c];
                                         dst[pool_index] = std::fmax(batch_data, dst[pool_index]);
                                     }
                                 }
@@ -765,12 +803,20 @@ public:
                 } else {
                     float roi_start_w_ = src_roi_ptr[1];
                     float roi_start_h_ = src_roi_ptr[2];
-                    float roi_end_w_   = src_roi_ptr[3];
-                    float roi_end_h_   = src_roi_ptr[4];
+                    float roi_end_w_ = src_roi_ptr[3];
+                    float roi_end_h_ = src_roi_ptr[4];
 
                     float in_x, in_y;
-                    std::tie(in_x, in_y) = getXYForBilinearMode(
-                        roi_start_h_, roi_end_h_, roi_start_w_, roi_end_w_, jpp.ih, oh, jpp.iw, ow, jpp.pooled_h, jpp.pooled_w);
+                    std::tie(in_x, in_y) = getXYForBilinearMode(roi_start_h_,
+                                                                roi_end_h_,
+                                                                roi_start_w_,
+                                                                roi_end_w_,
+                                                                jpp.ih,
+                                                                oh,
+                                                                jpp.iw,
+                                                                ow,
+                                                                jpp.pooled_h,
+                                                                jpp.pooled_w);
 
                     if (in_y < 0 || in_y > jpp.ih - 1 || in_x < 0 || in_x > jpp.iw - 1) {
                         for (int cbb_cur = 0; cbb_cur < cb_num; cbb_cur++) {
@@ -779,14 +825,15 @@ public:
                                 break;  // current block work is done
                             }
                             for (int c = 0; c < c_block; c++) {
-                                dst[n * dst_strides[0] + ch_blk_cur * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c] = 0;
+                                dst[n * dst_strides[0] + ch_blk_cur * dst_strides[1] + oh * dst_strides[2] +
+                                    ow * dst_strides[3] + c] = 0;
                             }
                         }
                     } else {
-                        int top_y_index    = static_cast<int>(floorf(in_y));
+                        int top_y_index = static_cast<int>(floorf(in_y));
                         int bottom_y_index = static_cast<int>(ceilf(in_y));
-                        int left_x_index   = static_cast<int>(floorf(in_x));
-                        int right_x_index  = static_cast<int>(ceilf(in_x));
+                        int left_x_index = static_cast<int>(floorf(in_x));
+                        int right_x_index = static_cast<int>(ceilf(in_x));
 
                         if (right_x_index > jpp.iw - 1)
                             right_x_index = jpp.iw - 1;
@@ -800,20 +847,24 @@ public:
                                 break;  // current block work is done
                             }
                             for (int c = 0; c < c_block; c++) {
-                                const float top_left     = src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
-                                                                    top_y_index * src_strides[2] + left_x_index * src_strides[3] + c];
-                                const float top_right    = src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
-                                                                    top_y_index * src_strides[2] + right_x_index * src_strides[3] + c];
-                                const float bottom_left  = src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
-                                                                    bottom_y_index * src_strides[2] + left_x_index * src_strides[3] + c];
-                                const float bottom_right = src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
-                                                                    bottom_y_index * src_strides[2] + right_x_index * src_strides[3] + c];
+                                const float top_left =
+                                    src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
+                                             top_y_index * src_strides[2] + left_x_index * src_strides[3] + c];
+                                const float top_right =
+                                    src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
+                                             top_y_index * src_strides[2] + right_x_index * src_strides[3] + c];
+                                const float bottom_left =
+                                    src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
+                                             bottom_y_index * src_strides[2] + left_x_index * src_strides[3] + c];
+                                const float bottom_right =
+                                    src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
+                                             bottom_y_index * src_strides[2] + right_x_index * src_strides[3] + c];
 
-                                const float top    = top_left + (top_right - top_left) * (in_x - left_x_index);
+                                const float top = top_left + (top_right - top_left) * (in_x - left_x_index);
                                 const float bottom = bottom_left + (bottom_right - bottom_left) * (in_x - left_x_index);
 
-                                dst[n * dst_strides[0] + ch_blk_cur * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c] =
-                                        top + (bottom - top) * (in_y - top_y_index);
+                                dst[n * dst_strides[0] + ch_blk_cur * dst_strides[1] + oh * dst_strides[2] +
+                                    ow * dst_strides[3] + c] = top + (bottom - top) * (in_y - top_y_index);
                             }
                         }
                     }
@@ -828,9 +879,12 @@ private:
 
 std::shared_ptr<ROIPooling::ROIPoolingExecutor> ROIPooling::ROIPoolingExecutor::createROIPoolingNewExecutor(
     const jit_roi_pooling_params& jpp) {
-    ROIPoolingContext ctx = { nullptr, jpp };
+    ROIPoolingContext ctx = {nullptr, jpp};
 
-    OV_SWITCH(intel_cpu, ROIPoolingExecutorCreation, ctx, jpp.src_prc,
+    OV_SWITCH(intel_cpu,
+              ROIPoolingExecutorCreation,
+              ctx,
+              jpp.src_prc,
               OV_CASE(ov::element::f32, float),
               OV_CASE(ov::element::bf16, bfloat16_t),
               OV_CASE(ov::element::f16, dnnl::impl::float16_t))
@@ -838,9 +892,16 @@ std::shared_ptr<ROIPooling::ROIPoolingExecutor> ROIPooling::ROIPoolingExecutor::
     return ctx.executor;
 }
 
-std::tuple<int, int, int, int> ROIPooling::ROIPoolingExecutor::getBordersForMaxMode(
-    const int roi_start_h, const int roi_end_h, const int roi_start_w, const int roi_end_w,
-    const int ih, const int oh, const int iw, const int ow, const int pooled_h, const int pooled_w) {
+std::tuple<int, int, int, int> ROIPooling::ROIPoolingExecutor::getBordersForMaxMode(const int roi_start_h,
+                                                                                    const int roi_end_h,
+                                                                                    const int roi_start_w,
+                                                                                    const int roi_end_w,
+                                                                                    const int ih,
+                                                                                    const int oh,
+                                                                                    const int iw,
+                                                                                    const int ow,
+                                                                                    const int pooled_h,
+                                                                                    const int pooled_w) {
     int roi_height = std::max(roi_end_h - roi_start_h + 1, 1);
     int roi_width = std::max(roi_end_w - roi_start_w + 1, 1);
 
@@ -871,11 +932,18 @@ std::tuple<int, int, int, int> ROIPooling::ROIPoolingExecutor::getBordersForMaxM
     return std::make_tuple(hstart, hend, wstart, wend);
 }
 
-std::pair<float, float> ROIPooling::ROIPoolingExecutor::getXYForBilinearMode(
-    const float roi_start_h, const float roi_end_h, const float roi_start_w, const float roi_end_w,
-    const int ih, const int oh, const int iw, const int ow, const int pooled_h, const int pooled_w) {
+std::pair<float, float> ROIPooling::ROIPoolingExecutor::getXYForBilinearMode(const float roi_start_h,
+                                                                             const float roi_end_h,
+                                                                             const float roi_start_w,
+                                                                             const float roi_end_w,
+                                                                             const int ih,
+                                                                             const int oh,
+                                                                             const int iw,
+                                                                             const int ow,
+                                                                             const int pooled_h,
+                                                                             const int pooled_w) {
     float height_scale = (pooled_h > 1 ? ((roi_end_h - roi_start_h) * (ih - 1)) / (pooled_h - 1) : 0);
-    float width_scale  = (pooled_w > 1 ? ((roi_end_w - roi_start_w) * (iw - 1)) / (pooled_w - 1) : 0);
+    float width_scale = (pooled_w > 1 ? ((roi_end_w - roi_start_w) * (iw - 1)) / (pooled_w - 1) : 0);
 
     float in_y, in_x;
     // because of nonalgebraic character of floating point operation, some proposals can cause violation of inequality:
@@ -888,7 +956,7 @@ std::pair<float, float> ROIPooling::ROIPoolingExecutor::getXYForBilinearMode(
         in_y = 0.5 * (roi_start_h + roi_end_h) * (ih - 1);
     }
     if (pooled_w > 1) {
-        in_x = (ow == pooled_w - 1 ? roi_end_w * (iw - 1) : (ow * width_scale  + roi_start_w * (iw - 1)));
+        in_x = (ow == pooled_w - 1 ? roi_end_w * (iw - 1) : (ow * width_scale + roi_start_w * (iw - 1)));
     } else {
         in_x = 0.5 * (roi_start_w + roi_end_w) * (iw - 1);
     }
@@ -911,6 +979,6 @@ bool ROIPooling::created() const {
     return getType() == Type::ROIPooling;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

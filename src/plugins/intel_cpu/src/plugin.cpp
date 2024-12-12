@@ -7,6 +7,7 @@
 #include "cpu_streams_calculation.hpp"
 #include "internal_properties.hpp"
 #include "itt.h"
+#include "openvino/op/paged_attention.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -19,7 +20,6 @@
 #include "utils/precision_support.h"
 #include "utils/serialize.hpp"
 #include "weights_cache.hpp"
-#include "openvino/op/paged_attention.hpp"
 
 #if defined(__linux__)
 #    include <signal.h>
@@ -200,7 +200,7 @@ static Config::ModelType getModelType(const std::shared_ptr<const Model>& model)
         return Config::ModelType::CNN;
 
     if ((op::util::has_op_with_type<op::v13::ScaledDotProductAttention>(model) && model->get_variables().size() > 0) ||
-         op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model))
+        op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model))
         return Config::ModelType::LLM;
 
     return Config::ModelType::Unknown;
@@ -446,15 +446,17 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
 
         return decltype(ov::supported_properties)::value_type(std::move(supportedProperties));
     } else if (ov::internal::supported_properties == name) {
-        return decltype(ov::internal::supported_properties)::value_type{
+        return decltype(ov::internal::supported_properties)::value_type {
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
 #if !defined(OPENVINO_ARCH_ARM) && !(defined(__APPLE__) || defined(__MACOSX))
-            ov::PropertyName{ov::internal::caching_with_mmap.name(), ov::PropertyMutability::RO},
+                ov::PropertyName{ov::internal::caching_with_mmap.name(), ov::PropertyMutability::RO},
 #endif
-            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
-            ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(),
-                             ov::PropertyMutability::RO}};
+                ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
+                ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
+                ov::PropertyName {
+                ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO
+            }
+        };
     } else if (name == ov::device::full_name) {
         return decltype(ov::device::full_name)::value_type(deviceFullName);
     } else if (name == ov::available_devices) {
@@ -553,11 +555,10 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return res;
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_stream,
-                                                         const ov::AnyMap& config) const {
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_stream, const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
 
-    CacheDecrypt decrypt{ codec_xor };
+    CacheDecrypt decrypt{codec_xor};
     bool decript_from_string = false;
     if (config.count(ov::cache_encryption_callbacks.name())) {
         auto encryption_callbacks = config.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>();
@@ -578,7 +579,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
         [this](const std::shared_ptr<ov::AlignedBuffer>& model, const std::shared_ptr<ov::AlignedBuffer>& weights) {
             return get_core()->read_model(model, weights);
         },
-        decrypt, decript_from_string);
+        decrypt,
+        decript_from_string);
 
     std::shared_ptr<ov::Model> model;
     deserializer >> model;

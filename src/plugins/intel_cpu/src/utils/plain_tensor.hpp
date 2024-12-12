@@ -5,8 +5,8 @@
 #pragma once
 
 #include <node.h>
-
 #include <stdlib.h>
+
 #include <cassert>
 #include <climits>
 #include <cstdint>
@@ -16,7 +16,7 @@
 #include <vector>
 
 #ifdef _WIN32
-#include <cstdlib>
+#    include <cstdlib>
 #endif
 
 namespace ov {
@@ -98,7 +98,7 @@ struct PlainTensor {
     size_t m_element_size = 0;
     size_t m_offset = 0;
     ov::element::Type_t m_dt = ov::element::Type_t::undefined;
-    MemoryPtr m_mem;        // hold memory ptr reference
+    MemoryPtr m_mem;  // hold memory ptr reference
 
     operator bool() const {
         return m_ptr != nullptr;
@@ -123,7 +123,7 @@ struct PlainTensor {
         return stride(i) * m_element_size;
     }
 
-    template<typename T>
+    template <typename T>
     std::vector<T> get_strides() const {
         std::vector<T> strides(m_rank);
         for (size_t i = 0; i < m_rank; i++)
@@ -160,7 +160,11 @@ struct PlainTensor {
             strides[orders[i]] = mem_desc->getStrides()[i];
         }
         // this reshape_to() can do reshape w/o additional cost
-        resize(mem->getStaticDims(), mem_desc->getPrecision().size(), mem_desc->getPrecision(), mem->getData(), strides.data());
+        resize(mem->getStaticDims(),
+               mem_desc->getPrecision().size(),
+               mem_desc->getPrecision(),
+               mem->getData(),
+               strides.data());
     }
 
     ov::element::Type get_precision() const {
@@ -298,7 +302,10 @@ struct PlainTensor {
         // only valid for dense memory
         PlainTensor new_tensor_view;
         assert(is_dense());
-        new_tensor_view.resize(target_shape, m_element_size, m_dt, static_cast<void*>(m_ptr.get() + m_element_size * m_offset));
+        new_tensor_view.resize(target_shape,
+                               m_element_size,
+                               m_dt,
+                               static_cast<void*>(m_ptr.get() + m_element_size * m_offset));
         return new_tensor_view;
     }
 
@@ -323,7 +330,11 @@ struct PlainTensor {
         return new_tensor_view;
     }
 
-    void resize(const VectorDims& new_dims, size_t element_size, ov::element::Type_t dt, void* data = nullptr, const size_t* strides = nullptr) {
+    void resize(const VectorDims& new_dims,
+                size_t element_size,
+                ov::element::Type_t dt,
+                void* data = nullptr,
+                const size_t* strides = nullptr) {
         m_element_size = element_size;
         m_dt = dt;
         // initialize strides for compact/dense tensor
@@ -340,20 +351,20 @@ struct PlainTensor {
             auto capacity_new = m_strides[0] * m_dims[0] * m_element_size;
             if (capacity_new > m_capacity) {
                 void* ptr;
-                #ifdef _WIN32
-                    ptr = _aligned_malloc(capacity_new, 64);
-                #else
-                    int rc = ::posix_memalign(&ptr, 64, capacity_new);
-                    if (rc) {
-                        OPENVINO_ASSERT(false, "PlainTensor call posix_memalign failed: ", rc);
-                    }
-                #endif
+#ifdef _WIN32
+                ptr = _aligned_malloc(capacity_new, 64);
+#else
+                int rc = ::posix_memalign(&ptr, 64, capacity_new);
+                if (rc) {
+                    OPENVINO_ASSERT(false, "PlainTensor call posix_memalign failed: ", rc);
+                }
+#endif
                 m_ptr = std::shared_ptr<uint8_t>(static_cast<uint8_t*>(ptr), [](uint8_t* ptr) {
-                    #ifdef _WIN32
-                        _aligned_free(ptr);
-                    #else
+#ifdef _WIN32
+                    _aligned_free(ptr);
+#else
                         ::free(ptr);
-                    #endif
+#endif
                 });
                 m_capacity = capacity_new;
                 m_offset = 0;
@@ -365,7 +376,7 @@ struct PlainTensor {
         }
     }
 
-    template<typename DT>
+    template <typename DT>
     void resize(const VectorDims& new_dims, DT* data = nullptr, const size_t* strides = nullptr) {
         resize(new_dims, sizeof(DT), precision_of<DT>::value, data, strides);
     }

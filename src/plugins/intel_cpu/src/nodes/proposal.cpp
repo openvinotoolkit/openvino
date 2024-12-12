@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/proposal.hpp"
+
 #include <string>
 #include <vector>
 
-#include "openvino/op/proposal.hpp"
 #include "openvino/core/parallel.hpp"
 #include "proposal.h"
 
@@ -13,7 +14,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-static std::vector<float> generate_anchors(proposal_conf &conf) {
+static std::vector<float> generate_anchors(proposal_conf& conf) {
     auto base_size = conf.base_size_;
     auto coordinates_offset = conf.coordinates_offset;
     auto round_ratios = conf.round_ratios;
@@ -45,10 +46,10 @@ static std::vector<float> generate_anchors(proposal_conf &conf) {
             ratio_h = ratio_w * ratios[ratio];
         }
 
-        float * const p_anchors_wm = anchors_ptr + 0 * num_ratios * num_scales + ratio * num_scales;
-        float * const p_anchors_hm = anchors_ptr + 1 * num_ratios * num_scales + ratio * num_scales;
-        float * const p_anchors_wp = anchors_ptr + 2 * num_ratios * num_scales + ratio * num_scales;
-        float * const p_anchors_hp = anchors_ptr + 3 * num_ratios * num_scales + ratio * num_scales;
+        float* const p_anchors_wm = anchors_ptr + 0 * num_ratios * num_scales + ratio * num_scales;
+        float* const p_anchors_hm = anchors_ptr + 1 * num_ratios * num_scales + ratio * num_scales;
+        float* const p_anchors_wp = anchors_ptr + 2 * num_ratios * num_scales + ratio * num_scales;
+        float* const p_anchors_hp = anchors_ptr + 3 * num_ratios * num_scales + ratio * num_scales;
 
         for (size_t scale = 0; scale < num_scales; ++scale) {
             // transformed width & height for given scale factors
@@ -144,8 +145,7 @@ void Proposal::initSupportedPrimitiveDescriptors() {
         addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
                               {LayoutType::ncsp, ov::element::f32},
                               {LayoutType::ncsp, ov::element::f32}},
-                             {{LayoutType::ncsp, ov::element::f32},
-                              {LayoutType::ncsp, ov::element::f32}},
+                             {{LayoutType::ncsp, ov::element::f32}, {LayoutType::ncsp, ov::element::f32}},
                              impl_desc_type::ref_any);
     } else {
         addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
@@ -165,10 +165,10 @@ void Proposal::execute(dnnl::stream strm) {
         const float* probabilitiesData = getSrcDataAtPortAs<const float>(PROBABILITIES_IN_IDX);
         const float* anchorsData = getSrcDataAtPortAs<const float>(ANCHORS_IN_IDX);
         const float* imgInfoData = getSrcDataAtPortAs<const float>(IMG_INFO_IN_IDX);
-        float* outRoiData = reinterpret_cast <float *>(getDstDataAtPort(ROI_OUT_IDX));
+        float* outRoiData = reinterpret_cast<float*>(getDstDataAtPort(ROI_OUT_IDX));
         float* outProbData = nullptr;
         if (store_prob)
-            outProbData = reinterpret_cast <float *>(getDstDataAtPort(PROBABILITIES_OUT_IDX));
+            outProbData = reinterpret_cast<float*>(getDstDataAtPort(PROBABILITIES_OUT_IDX));
 
         auto inProbDims = getParentEdgeAt(0)->getMemory().getStaticDims();
         const size_t imgInfoSize = getParentEdgeAt(2)->getMemory().getStaticDims()[0];
@@ -187,8 +187,15 @@ void Proposal::execute(dnnl::stream strm) {
             OPENVINO_THROW("Proposal operation image info input must have non negative scales.");
         }
 
-        ov::Extensions::Cpu::XARCH::proposal_exec(probabilitiesData, anchorsData, inProbDims,
-                {imgHeight, imgWidth, scaleHeight, scaleWidth}, anchors.data(), roi_indices.data(), outRoiData, outProbData, conf);
+        ov::Extensions::Cpu::XARCH::proposal_exec(probabilitiesData,
+                                                  anchorsData,
+                                                  inProbDims,
+                                                  {imgHeight, imgWidth, scaleHeight, scaleWidth},
+                                                  anchors.data(),
+                                                  roi_indices.data(),
+                                                  outRoiData,
+                                                  outProbData,
+                                                  conf);
     } catch (const ov::Exception& e) {
         std::string errorMsg = e.what();
         OPENVINO_THROW(errorMsg);
@@ -199,6 +206,6 @@ bool Proposal::created() const {
     return getType() == Type::Proposal;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov
