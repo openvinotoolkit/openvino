@@ -811,7 +811,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 
     std::shared_ptr<ov::AlignedBuffer> modelBuffer;
     if (npu_plugin_properties.count(ov::internal::cached_model_buffer.name())) {
-        modelBuffer = npu_plugin_properties.at(ov::internal::cached_model_buffer.name()).as<std::shared_ptr<ov::AlignedBuffer>>();
+        modelBuffer =
+            npu_plugin_properties.at(ov::internal::cached_model_buffer.name()).as<std::shared_ptr<ov::AlignedBuffer>>();
         npu_plugin_properties.erase(ov::internal::cached_model_buffer.name());
     }
 
@@ -839,11 +840,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         CompilerAdapterFactory compilerAdapterFactory;
         auto compiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), localConfig);
 
+        auto storedMeta = read_metadata_from(stream);
+        if (!storedMeta->is_compatible()) {
+            OPENVINO_THROW("Incompatible blob version!");
+        }
+
         std::unique_ptr<BlobContainer> blobPtr;
+        auto graphSize = storedMeta->get_blob_size();
 
         if (modelBuffer == nullptr) {
-            auto graphSize = getFileSize(stream);
-
             std::vector<uint8_t> blob(graphSize);
             stream.read(reinterpret_cast<char*>(blob.data()), graphSize);
             if (!stream) {
@@ -853,7 +858,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 
             blobPtr = std::make_unique<BlobContainerVector>(std::move(blob));
         } else {
-            blobPtr = std::make_unique<BlobContainerAlignedBuffer>(modelBuffer, stream.tellg());
+            blobPtr = std::make_unique<BlobContainerAlignedBuffer>(modelBuffer, stream.tellg(), graphSize);
         }
 
         auto graph = compiler->parse(std::move(blobPtr), localConfig);

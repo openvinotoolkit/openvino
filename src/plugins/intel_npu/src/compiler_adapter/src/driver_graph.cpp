@@ -52,7 +52,7 @@ size_t DriverGraph::export_blob(std::ostream& stream) const {
 
     if (_logger.level() >= ov::log::Level::INFO) {
         std::uint32_t result = 1171117u;
-        for (const uint8_t* it = blobPtr; it !=  blobPtr + blobSize; ++it) {
+        for (const uint8_t* it = blobPtr; it != blobPtr + blobSize; ++it) {
             result = ((result << 7) + result) + static_cast<uint32_t>(*it);
         }
 
