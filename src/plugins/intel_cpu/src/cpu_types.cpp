@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "cpu_types.h"
-#include "cpu_shape.h"
 
-#include <string>
 #include <sstream>
+#include <string>
+
+#include "cpu_shape.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -260,8 +261,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"QKVProjection", Type::QKVProjection},
         {"RMS", Type::RMS},
         {"SearchSorted", Type::SearchSorted},
-        {"LoraSubgraph", Type::LoRA}
-    };
+        {"LoraSubgraph", Type::LoRA}};
     return type_to_name_tbl;
 }
 
