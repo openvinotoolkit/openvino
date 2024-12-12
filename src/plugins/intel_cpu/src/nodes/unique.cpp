@@ -4,11 +4,11 @@
 
 #include "unique.hpp"
 
-#include <openvino/op/unique.hpp>
 #include <openvino/op/constant.hpp>
+#include <openvino/op/unique.hpp>
 
-#include "openvino/core/parallel.hpp"
 #include "common/cpu_memcpy.h"
+#include "openvino/core/parallel.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 
 using namespace ov::intel_cpu;
@@ -33,8 +33,8 @@ bool Unique::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
     return true;
 }
 
-Unique::Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
-        Node(op, context, InternalDynShapeInferFactory()) {
+Unique::Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -73,7 +73,7 @@ void Unique::initSupportedPrimitiveDescriptors() {
 
     impl_desc_type implType = ref;
 
-    std::vector<PortConfigurator> inPortConfigs = { {LayoutType::ncsp, dataPrecision} };
+    std::vector<PortConfigurator> inPortConfigs = {{LayoutType::ncsp, dataPrecision}};
     if (!flattened) {
         inPortConfigs.push_back({LayoutType::ncsp, axisPrecision});
     }
@@ -118,33 +118,39 @@ void Unique::prepareParams() {
     occurTmp.resize(srcLen);
 }
 
-template<typename T>
+template <typename T>
 struct Unique::flattenExec {
-    void operator()(Unique *node) {
+    void operator()(Unique* node) {
         node->flattenTensorExec<T>();
     }
 };
 
-template<typename T>
+template <typename T>
 struct Unique::slicedExec {
-    void operator()(Unique *node) {
+    void operator()(Unique* node) {
         node->slicedTensorExec<T>();
     }
 };
 
 void Unique::execute(dnnl::stream strm) {
     if (flattened) {
-        OV_SWITCH(intel_cpu, flattenExec, this, dataPrecision,
-              OV_CASE(ov::element::f32, float),
-              OV_CASE(ov::element::i32, int32_t),
-              OV_CASE(ov::element::i8, int8_t),
-              OV_CASE(ov::element::u8, uint8_t))
+        OV_SWITCH(intel_cpu,
+                  flattenExec,
+                  this,
+                  dataPrecision,
+                  OV_CASE(ov::element::f32, float),
+                  OV_CASE(ov::element::i32, int32_t),
+                  OV_CASE(ov::element::i8, int8_t),
+                  OV_CASE(ov::element::u8, uint8_t))
     } else {
-        OV_SWITCH(intel_cpu, slicedExec, this, dataPrecision,
-              OV_CASE(ov::element::f32, float),
-              OV_CASE(ov::element::i32, int32_t),
-              OV_CASE(ov::element::i8, int8_t),
-              OV_CASE(ov::element::u8, uint8_t))
+        OV_SWITCH(intel_cpu,
+                  slicedExec,
+                  this,
+                  dataPrecision,
+                  OV_CASE(ov::element::f32, float),
+                  OV_CASE(ov::element::i32, int32_t),
+                  OV_CASE(ov::element::i8, int8_t),
+                  OV_CASE(ov::element::u8, uint8_t))
     }
 }
 
@@ -154,12 +160,12 @@ void Unique::executeDynamicImpl(dnnl::stream strm) {
     Dim uniqLen = 1;
     if (flattened) {
         uniqLen = std::accumulate(srcDataDims.begin(), srcDataDims.end(), 1, std::multiplies<Dim>());
-        dstDataDims = { uniqLen };
+        dstDataDims = {uniqLen};
     } else {
         uniqLen = srcDataDims[axis];
         dstDataDims = srcDataDims;
     }
-    redefineOutputMemory({ dstDataDims, {uniqLen}, {uniqLen}, {uniqLen}});
+    redefineOutputMemory({dstDataDims, {uniqLen}, {uniqLen}, {uniqLen}});
 
     execute(strm);
 }
@@ -253,12 +259,12 @@ void Unique::flattenTensorExec() {
         }
     }
 
-    redefineOutputMemory({ {uniqueLen}, {uniqueLen}, {inputLen}, {uniqueLen}});
+    redefineOutputMemory({{uniqueLen}, {uniqueLen}, {inputLen}, {uniqueLen}});
 
     T* uniDataPtr = getDstDataAtPortAs<T>(UNIQUE_DATA);
     cpu_parallel_memcpy(uniDataPtr, uniDataTmpPtr, uniqueLen * sizeof(T));
     if (definedOutputs[FIRST_UNIQUE_IDX]) {
-        int *firstPtr = getDstDataAtPortAs<int>(FIRST_UNIQUE_IDX);
+        int* firstPtr = getDstDataAtPortAs<int>(FIRST_UNIQUE_IDX);
         cpu_parallel_memcpy(firstPtr, firstUniTmp.data(), uniqueLen * sizeof(int));
     }
     if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
@@ -329,7 +335,7 @@ void Unique::slicedTensorExec() {
                     break;
                 }
                 first1 += srcOuterStep;
-                last1  += srcOuterStep;
+                last1 += srcOuterStep;
                 first2 += srcOuterStep;
             }
             if (equal) {
@@ -355,7 +361,7 @@ void Unique::slicedTensorExec() {
     // Redefinition of output shapes.
     auto dstDataShape = srcDataShape;
     dstDataShape[axis] = uniqueLen;
-    redefineOutputMemory({ dstDataShape, {uniqueLen}, {axisDim}, {uniqueLen}});
+    redefineOutputMemory({dstDataShape, {uniqueLen}, {axisDim}, {uniqueLen}});
 
     int *firstPtr = nullptr, *inToOutPtr = nullptr, *occurNPtr = nullptr;
     if (definedOutputs[FIRST_UNIQUE_IDX]) {
@@ -401,17 +407,20 @@ void Unique::slicedTensorExec() {
         int *occurN1 = occurNPtr, *occurN2 = occurTmpPtr;
         int *inToOut1 = inToOutPtr, *inToOut2 = inToOutTmpPtr;
 
-        const bool defined3outputs = definedOutputs[FIRST_UNIQUE_IDX] || definedOutputs[OCCURRENCES_NUM] || definedOutputs[INPUT_TO_UNIQ_IDX];
+        const bool defined3outputs =
+            definedOutputs[FIRST_UNIQUE_IDX] || definedOutputs[OCCURRENCES_NUM] || definedOutputs[INPUT_TO_UNIQ_IDX];
 
-        for (int64_t o = outerLen - 1; o >= 0; o--) { // Backward loop through the outer block.
+        for (int64_t o = outerLen - 1; o >= 0; o--) {  // Backward loop through the outer block.
             const int64_t pos1Lim = o * dstOuterStep;
             int64_t pos1 = pos1Lim + innerLen - 1;
-            for (; pos1 >= pos1Lim ; pos1--) { // Backward loop through the inner block.
+            for (; pos1 >= pos1Lim; pos1--) {  // Backward loop through the inner block.
                 int64_t pos2 = pos1;
                 for (int64_t k = 0; k < static_cast<int64_t>(uniqueLen); k++, pos2 += innerLen) {
-                    colToSort[k] = { dst1[pos2], k };
+                    colToSort[k] = {dst1[pos2], k};
                 }
-                std::stable_sort(colToSort.begin(), colToSort.end(), [](const OrdEl &el1, const OrdEl &el2) { return el1.val < el2.val; });
+                std::stable_sort(colToSort.begin(), colToSort.end(), [](const OrdEl& el1, const OrdEl& el2) {
+                    return el1.val < el2.val;
+                });
 
                 // Permutation
                 parallel_for2d(outerLen, uniqueLen, [&](int64_t ot, size_t u) {

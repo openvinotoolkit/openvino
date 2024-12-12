@@ -13,6 +13,7 @@
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "executors/memory_arguments.hpp"
+#include "fake_quantize.h"
 #include "graph_context.h"
 #include "input.h"
 #include "memory_desc/blocked_memory_desc.h"
@@ -24,16 +25,14 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
 #include "ov_ops/fully_connected.hpp"
+#include "ov_ops/fully_connected_compressed.hpp"
 #include "ov_ops/fully_connected_quantized.hpp"
 #include "ov_ops/fully_connected_quantized_legacy.hpp"
-#include "ov_ops/fully_connected_compressed.hpp"
 #include "post_ops.hpp"
 #include "shape_inference/custom/fullyconnected.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
-
-#include "fake_quantize.h"
 
 using namespace dnnl;
 using namespace ov::element;
@@ -61,7 +60,8 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ov::Node>&
         if (ov::is_type<const ov::op::internal::FullyConnectedCompressed>(op)) {
             if (!ov::op::util::is_on_constant_path(op->input_value(WEIGHT_SCALES)) ||
                 !ov::op::util::is_on_constant_path(op->input_value(WEIGHT_ZERO_POINTS))) {
-                errorMessage = "Only Constant operation on 'weight scales', and 'weight zero points' inputs is supported";
+                errorMessage =
+                    "Only Constant operation on 'weight scales', and 'weight zero points' inputs is supported";
                 return false;
             }
         }
@@ -137,19 +137,18 @@ FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphC
     if (!isSupportedOperation(op, errorMessage))
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
 
-    m_atoi[ARG_SRC]  = DATA;
-    m_atoi[ARG_WEI]  = WEIGHTS;
+    m_atoi[ARG_SRC] = DATA;
+    m_atoi[ARG_WEI] = WEIGHTS;
     m_atoi[ARG_BIAS] = BIAS;
 
     auto mapArgToInput = [&op](std::unordered_map<size_t, size_t>& argToInput, size_t argId, size_t inputId) {
-        if (op->get_input_size() > inputId &&
-            op->input(inputId).get_element_type() != ov::element::undefined) {
+        if (op->get_input_size() > inputId && op->input(inputId).get_element_type() != ov::element::undefined) {
             argToInput[argId] = inputId;
         }
     };
 
     if (ov::is_type<const ov::op::internal::FullyConnectedCompressed>(op)) {
-        mapArgToInput(m_atoi, ARG_WEI | ARG_ATTR_SCALES,      WEIGHT_SCALES);
+        mapArgToInput(m_atoi, ARG_WEI | ARG_ATTR_SCALES, WEIGHT_SCALES);
         mapArgToInput(m_atoi, ARG_WEI | ARG_ATTR_ZERO_POINTS, WEIGHT_ZERO_POINTS);
         algorithm = Algorithm::FullyConnectedCompressed;
     } else if (ov::is_type<const ov::op::internal::FullyConnectedQuantizedLegacy>(op)) {
@@ -190,7 +189,8 @@ void FullyConnected::needPrepareParamsForTensorParallel() {
             dim += dims.size();
         }
         OPENVINO_ASSERT(static_cast<int>(dims[dim]) >= tp_cfg.w_size,
-            getName() + " dim[" + std::to_string(dim) + "] is " + std::to_string(dims[dim]) + ", which is larger than w_size " + std::to_string(tp_cfg.w_size));
+                        getName() + " dim[" + std::to_string(dim) + "] is " + std::to_string(dims[dim]) +
+                            ", which is larger than w_size " + std::to_string(tp_cfg.w_size));
         auto splited_dim_vec = split_parts(dims[dim], tp_cfg.w_size);
 
         VectorDims new_dims = std::move(dims);
@@ -269,18 +269,34 @@ void FullyConnected::execTensorParallelSync() {
             for (int idx = 0; idx < tp_cfg.w_size; idx++) {
                 if (wait_list[idx] > 0 && tp_cfg.sub_memory->_memorys_table[tp_cfg.id][idx].flag) {
                     auto new_ptr = static_cast<uint8_t*>(tp_cfg.sub_memory->_memorys_table[tp_cfg.id][idx].send_buf);
-                    const auto copySize = splited_dim_vec[idx] * prec.size();    // bytes of half selected dim.
+                    const auto copySize = splited_dim_vec[idx] * prec.size();  // bytes of half selected dim.
                     const size_t unloop = 8;
                     size_t step = count / unloop;
-                    parallel_for(step, [&](size_t i){
-                        cpu_memcpy(dst_ptr + idx * strideSize + (i * unloop) * channel_size, new_ptr + (i * unloop) * copySize, copySize);
-                        cpu_memcpy(dst_ptr + idx * strideSize + (i * unloop + 1) * channel_size, new_ptr + (i * unloop + 1) * copySize, copySize);
-                        cpu_memcpy(dst_ptr + idx * strideSize + (i * unloop + 2) * channel_size, new_ptr + (i * unloop + 2) * copySize, copySize);
-                        cpu_memcpy(dst_ptr + idx * strideSize + (i * unloop + 3) * channel_size, new_ptr + (i * unloop + 3) * copySize, copySize);
-                        cpu_memcpy(dst_ptr + idx * strideSize + (i * unloop + 4) * channel_size, new_ptr + (i * unloop + 4) * copySize, copySize);
-                        cpu_memcpy(dst_ptr + idx * strideSize + (i * unloop + 5) * channel_size, new_ptr + (i * unloop + 5) * copySize, copySize);
-                        cpu_memcpy(dst_ptr + idx * strideSize + (i * unloop + 6) * channel_size, new_ptr + (i * unloop + 6) * copySize, copySize);
-                        cpu_memcpy(dst_ptr + idx * strideSize + (i * unloop + 7) * channel_size, new_ptr + (i * unloop + 7) * copySize, copySize);
+                    parallel_for(step, [&](size_t i) {
+                        cpu_memcpy(dst_ptr + idx * strideSize + (i * unloop) * channel_size,
+                                   new_ptr + (i * unloop) * copySize,
+                                   copySize);
+                        cpu_memcpy(dst_ptr + idx * strideSize + (i * unloop + 1) * channel_size,
+                                   new_ptr + (i * unloop + 1) * copySize,
+                                   copySize);
+                        cpu_memcpy(dst_ptr + idx * strideSize + (i * unloop + 2) * channel_size,
+                                   new_ptr + (i * unloop + 2) * copySize,
+                                   copySize);
+                        cpu_memcpy(dst_ptr + idx * strideSize + (i * unloop + 3) * channel_size,
+                                   new_ptr + (i * unloop + 3) * copySize,
+                                   copySize);
+                        cpu_memcpy(dst_ptr + idx * strideSize + (i * unloop + 4) * channel_size,
+                                   new_ptr + (i * unloop + 4) * copySize,
+                                   copySize);
+                        cpu_memcpy(dst_ptr + idx * strideSize + (i * unloop + 5) * channel_size,
+                                   new_ptr + (i * unloop + 5) * copySize,
+                                   copySize);
+                        cpu_memcpy(dst_ptr + idx * strideSize + (i * unloop + 6) * channel_size,
+                                   new_ptr + (i * unloop + 6) * copySize,
+                                   copySize);
+                        cpu_memcpy(dst_ptr + idx * strideSize + (i * unloop + 7) * channel_size,
+                                   new_ptr + (i * unloop + 7) * copySize,
+                                   copySize);
                     });
                     size_t tail = count & ~(unloop - 1);
                     for (size_t i = tail; i < count; ++i) {
@@ -525,8 +541,10 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
         memory[ARG_SRC] = getSrcMemoryAtPort(DATA);
         // wgt
         // split N direction
-        tp_cfg.cached_splited_weight = attrs.weightsNonTransposed ? split_vertical(context->getEngine(), std::move(wgt), 0, tp_cfg.w_rank, tp_cfg.w_size)
-                    : split_horizontal(context->getEngine(), std::move(wgt), 0, tp_cfg.w_rank, tp_cfg.w_size);
+        tp_cfg.cached_splited_weight =
+            attrs.weightsNonTransposed
+                ? split_vertical(context->getEngine(), std::move(wgt), 0, tp_cfg.w_rank, tp_cfg.w_size)
+                : split_horizontal(context->getEngine(), std::move(wgt), 0, tp_cfg.w_rank, tp_cfg.w_size);
         memory[ARG_WEI] = tp_cfg.cached_splited_weight;
         // bias
         if (attrs.withBias) {
@@ -539,21 +557,27 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
         memory[ARG_BIAS] = tp_cfg.cached_splited_bias;
         // dst
         memory[ARG_DST] = getDstMemoryAtPort(0);
-        tp_cfg.cached_dst = split_horizontal(context->getEngine(), std::move(dst), -1, tp_cfg.w_rank, tp_cfg.w_size, false);
+        tp_cfg.cached_dst =
+            split_horizontal(context->getEngine(), std::move(dst), -1, tp_cfg.w_rank, tp_cfg.w_size, false);
 
-        memory[ARG_DST | ARG_ATTR_SCALES] = split_horizontal(context->getEngine(), memory[ARG_DST | ARG_ATTR_SCALES], 0, tp_cfg.w_rank, tp_cfg.w_size);
+        memory[ARG_DST | ARG_ATTR_SCALES] =
+            split_horizontal(context->getEngine(), memory[ARG_DST | ARG_ATTR_SCALES], 0, tp_cfg.w_rank, tp_cfg.w_size);
 
         auto scale_mem = std::const_pointer_cast<IMemory>(memory[ARG_WEI | ARG_ATTR_SCALES]);
-        memory[ARG_WEI | ARG_ATTR_SCALES] = attrs.weightsNonTransposed ? split_vertical(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
-            : split_horizontal(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
+        memory[ARG_WEI | ARG_ATTR_SCALES] =
+            attrs.weightsNonTransposed
+                ? split_vertical(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
+                : split_horizontal(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
 
         auto zeropoint_mem = std::const_pointer_cast<IMemory>(memory[ARG_WEI | ARG_ATTR_ZERO_POINTS]);
         auto element_num = zeropoint_mem->getSize() / zeropoint_mem->getPrecision().size();
         if (element_num == 1) {
             tp_cfg.cached_zeropoint = zeropoint_mem;
         } else {
-            tp_cfg.cached_zeropoint = attrs.weightsNonTransposed ? split_vertical(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
-                                : split_horizontal(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
+            tp_cfg.cached_zeropoint =
+                attrs.weightsNonTransposed
+                    ? split_vertical(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
+                    : split_horizontal(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
         }
     }
 }

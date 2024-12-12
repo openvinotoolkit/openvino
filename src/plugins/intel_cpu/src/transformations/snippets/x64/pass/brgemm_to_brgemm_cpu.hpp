@@ -32,12 +32,11 @@ namespace pass {
  *                               BrgemmCPU
  * @ingroup snippets
  */
-class BrgemmToBrgemmCPU: public ov::pass::MatcherPass {
+class BrgemmToBrgemmCPU : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("BrgemmToBrgemmCPU");
     BrgemmToBrgemmCPU();
 };
-
 
 }  // namespace pass
 }  // namespace intel_cpu
