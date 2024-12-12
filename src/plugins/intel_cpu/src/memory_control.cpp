@@ -19,8 +19,7 @@ namespace {
 
 class StaticPartitionMemoryBlock : public IMemoryBlockObserver {
 public:
-    StaticPartitionMemoryBlock(MemoryBlockPtr pBlock, ptrdiff_t offset)
-        : m_pBlock(pBlock), m_offset(offset) {
+    StaticPartitionMemoryBlock(MemoryBlockPtr pBlock, ptrdiff_t offset) : m_pBlock(pBlock), m_offset(offset) {
         OPENVINO_ASSERT(m_pBlock, "Memory block is uninitialized");
     }
 
@@ -140,7 +139,7 @@ public:
 
 using MemoryManagerPtr = std::shared_ptr<IMemoryManager>;
 
-template<typename T, typename... Args>
+template <typename T, typename... Args>
 std::shared_ptr<DnnlMemoryBlock> makeDnnlMemoryBlock(Args&&... args) {
     return std::make_shared<DnnlMemoryBlock>(make_unique<T>(std::forward<Args>(args)...));
 }
@@ -286,10 +285,12 @@ private:
     }
 
     void allocate() override {
-        if (m_workspace) m_workspace->resize(m_totalSize);
+        if (m_workspace)
+            m_workspace->resize(m_totalSize);
     }
     void release() override {
-        if (m_workspace) m_workspace->free();
+        if (m_workspace)
+            m_workspace->free();
     }
 
     static const char* getClassName() {
@@ -372,7 +373,7 @@ private:
     void solve() {
         ov::MemorySolver::normalize_boxes(m_boxes);
 
-        std::vector<std::vector<ov::MemorySolver::Box>> groups; //groups of nonoverlapping boxes
+        std::vector<std::vector<ov::MemorySolver::Box>> groups;  // groups of nonoverlapping boxes
         groups.push_back({m_boxes.front()});
         for (size_t i = 1; i < m_boxes.size(); ++i) {
             const auto& box = m_boxes[i];
@@ -399,7 +400,7 @@ private:
     }
 
     void allocate() override {
-        //nothing to do
+        // nothing to do
     }
     void release() override {
         for (auto&& item : m_internalBlocks) {
@@ -500,7 +501,7 @@ MemoryControl::MemoryControl(std::string id) : m_id(std::move(id)) {
         return true;
     }));
 
-    //handler for I/O tensors, so far simply individual blocks
+    // handler for I/O tensors, so far simply individual blocks
     m_handlers.emplace_back(buildHandler<MemoryManagerIO>([](const MemoryRegion& reg) {
         if (MemoryRegion::RegionType::VARIABLE == reg.type || reg.alloc_type != MemoryRegion::AllocType::POD) {
             return false;
