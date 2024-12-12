@@ -168,13 +168,13 @@ model file.
 
 .. parsed-literal::
 
-    models/handwritten-simplified-chinese-recognition-0001.xml:   0%|          | 0.00/108k [00:00<?, ?B/s]
+    handwritten-simplified-chinese-recognition-0001.xml:   0%|          | 0.00/108k [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    models/handwritten-simplified-chinese-recognition-0001.bin:   0%|          | 0.00/32.9M [00:00<?, ?B/s]
+    handwritten-simplified-chinese-recognition-0001.bin:   0%|          | 0.00/32.9M [00:00<?, ?B/s]
 
 
 Load the Model and Execute
@@ -278,7 +278,7 @@ keep letters proportional and meet input shape.
 
 .. parsed-literal::
 
-    data/handwritten_chinese_test.jpg:   0%|          | 0.00/42.1k [00:00<?, ?B/s]
+    handwritten_chinese_test.jpg:   0%|          | 0.00/42.1k [00:00<?, ?B/s]
 
 
 Visualize Input Image
@@ -321,7 +321,7 @@ Chinese and Japanese models.
 
 .. parsed-literal::
 
-    data/text/chinese_charlist.txt:   0%|          | 0.00/15.8k [00:00<?, ?B/s]
+    chinese_charlist.txt:   0%|          | 0.00/15.8k [00:00<?, ?B/s]
 
 
 .. code:: ipython3

@@ -2,20 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/cpu_opset/common/op/fully_connected.hpp"
 #include "move_fc_reshape_to_weights.hpp"
-#include <transformations/utils/utils.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
 
 #include <openvino/op/constant.hpp>
 #include <openvino/op/convert.hpp>
-#include <openvino/op/subtract.hpp>
 #include <openvino/op/multiply.hpp>
-#include <openvino/op/transpose.hpp>
 #include <openvino/op/reshape.hpp>
+#include <openvino/op/subtract.hpp>
+#include <openvino/op/transpose.hpp>
+#include <openvino/pass/pattern/op/or.hpp>
+#include <openvino/pass/pattern/op/wrap_type.hpp>
+#include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
+#include "ov_ops/fully_connected.hpp"
 
 ov::intel_cpu::MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
     MATCHER_SCOPE(MoveFCReshapeToWeights);
@@ -33,7 +33,8 @@ ov::intel_cpu::MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
     auto subtract_wo_convert_m = wrap_type<ov::op::v1::Subtract>({convert_m, sub_const_m}, consumers_count(1));
     auto sub_convert = wrap_type<ov::op::v0::Convert>({sub_const_m}, consumers_count(1));
     auto subtract_w_convert_m = wrap_type<ov::op::v1::Subtract>({convert_m, sub_convert}, consumers_count(1));
-    auto subtract_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{subtract_wo_convert_m, subtract_w_convert_m});
+    auto subtract_m =
+        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{subtract_wo_convert_m, subtract_w_convert_m});
 
     auto mul_const_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
     auto mul_with_sub_m = wrap_type<ov::op::v1::Multiply>({subtract_m, mul_const_m}, one_consumer_rank_equals(3));
@@ -48,14 +49,16 @@ ov::intel_cpu::MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
     auto weights_input_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{reshape_m, transpose_m});
 
     auto data_m = any_input();
-    auto fully_connected_m = wrap_type<ov::intel_cpu::FullyConnectedNode>({data_m, weights_input_m});
+    auto bias_m = any_input();
+    auto fully_connected_m = wrap_type<ov::op::internal::FullyConnected>({data_m, weights_input_m, bias_m});
 
     ov::matcher_pass_callback callback = [&](ov::pass::pattern::Matcher& m) {
         const auto fully_connected = m.get_match_root();
         const auto weights_path = fully_connected->get_input_node_shared_ptr(1);
         const bool with_transpose = ov::is_type<ov::op::v1::Transpose>(weights_path);
         if (with_transpose) {
-            const auto transpose_const = ov::as_type_ptr<ov::op::v0::Constant>(weights_path->get_input_node_shared_ptr(1));
+            const auto transpose_const =
+                ov::as_type_ptr<ov::op::v0::Constant>(weights_path->get_input_node_shared_ptr(1));
             if (transpose_const->cast_vector<int>() != std::vector<int>{1, 0}) {
                 return false;
             }
@@ -74,7 +77,9 @@ ov::intel_cpu::MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
 
             const auto comparison_start_pos = expected_shape.size() - node_shape.size();
             return std::equal(node_shape.begin(), node_shape.end(), expected_shape.begin() + comparison_start_pos) ||
-                   std::all_of(node_shape.cbegin(), node_shape.cend(), [](int dim) { return dim == 1; });
+                   std::all_of(node_shape.cbegin(), node_shape.cend(), [](int dim) {
+                       return dim == 1;
+                   });
         };
 
         const auto mul = reshape->get_input_node_shared_ptr(0);
