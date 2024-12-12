@@ -110,10 +110,10 @@ inline static void rotate_kv_cache_chunk_avx2(CT* current_x_values_ptr,
 
 template <class CT>
 inline static void rotate_kv_cache_block_opt(CT* cache_block_ptr,
-                                            float* block_rotation_coefficients_ptr,
-                                            size_t num_heads,
-                                            size_t block_size,
-                                            size_t embedding_size) {
+                                             float* block_rotation_coefficients_ptr,
+                                             size_t num_heads,
+                                             size_t block_size,
+                                             size_t embedding_size) {
 #if !defined(HAVE_AVX2) && !defined(HAVE_AVX512F)
     OPENVINO_THROW("host CPU must support either AVX2 or AVX512 instructions");
 #else
@@ -180,10 +180,10 @@ inline static void rotate_kv_cache_block_opt(CT* cache_block_ptr,
 
 template <class CT>
 inline static void rotate_kv_cache_block_ref(CT* cache_block_ptr,
-                                            float* block_rotation_coefficients_ptr,
-                                            size_t num_heads,
-                                            size_t block_size,
-                                            size_t embedding_size) {
+                                             float* block_rotation_coefficients_ptr,
+                                             size_t num_heads,
+                                             size_t block_size,
+                                             size_t embedding_size) {
     for (size_t head_idx = 0; head_idx < num_heads; head_idx++) {
         for (size_t tok_idx = 0; tok_idx < block_size; tok_idx++) {
             size_t token_offset = embedding_size * tok_idx;

@@ -1151,14 +1151,19 @@ static void pack_32NxK(TDST* dst,
     OPENVINO_THROW("pack_32NxK: should not be called.");
 }
 
-template<class T>
-void fill_rotation_coefficients_from_lut(T* rotation_coefficients_block_data, const int32_t* rotation_deltas_block_data,
-        const T* rotation_trig_lut, size_t block_size, size_t embedding_size) {
+template <class T>
+void fill_rotation_coefficients_from_lut(T* rotation_coefficients_block_data,
+                                         const int32_t* rotation_deltas_block_data,
+                                         const T* rotation_trig_lut,
+                                         size_t block_size,
+                                         size_t embedding_size) {
     size_t dst_offset = 0;
     for (size_t tok_idx = 0; tok_idx < block_size; tok_idx++) {
         size_t gather_idx = rotation_deltas_block_data[tok_idx];
         size_t src_offset = gather_idx * embedding_size;
-        std::memcpy(rotation_coefficients_block_data + dst_offset, rotation_trig_lut + src_offset, embedding_size * sizeof(T));
+        std::memcpy(rotation_coefficients_block_data + dst_offset,
+                    rotation_trig_lut + src_offset,
+                    embedding_size * sizeof(T));
         dst_offset += embedding_size;
     }
 }
@@ -1170,7 +1175,7 @@ void rotate_kv_cache(PlainTensor& key_cache,
                      const PlainTensor& rotation_trig_lut,
                      PlainTensor& rotation_coefficients_scratch) {
     size_t num_blocks_in_total = key_cache.size(0);
-    size_t num_heads = key_cache.size(1);       // H;
+    size_t num_heads = key_cache.size(1);  // H;
     size_t block_size = key_cache.size(2);
     size_t embedding_size = key_cache.size(3);  // S;
 
@@ -1178,13 +1183,16 @@ void rotate_kv_cache(PlainTensor& key_cache,
     int32_t* rotated_block_indices_data = rotated_block_indices.ptr<int32_t>();
     float* rotation_trig_lut_data = rotation_trig_lut.ptr<float>();
 
-
     for (size_t i = 0; i < num_rotated_blocks; i++) {
         size_t rotated_block_index = *(rotated_block_indices_data + i);
         OPENVINO_ASSERT(rotated_block_index < num_blocks_in_total);
         int32_t* rotation_deltas_block_data = rotation_deltas.ptr<int32_t>() + i * block_size;
         float* rotation_coefficients_block_data = rotation_coefficients_scratch.ptr<float>();
-        fill_rotation_coefficients_from_lut(rotation_coefficients_block_data, rotation_deltas_block_data, rotation_trig_lut_data, block_size, embedding_size);
+        fill_rotation_coefficients_from_lut(rotation_coefficients_block_data,
+                                            rotation_deltas_block_data,
+                                            rotation_trig_lut_data,
+                                            block_size,
+                                            embedding_size);
         KVCACHE_TYPE* cache_block_ptr = key_cache.ptr<KVCACHE_TYPE>(rotated_block_index);
         rotate_kv_cache_block(cache_block_ptr, rotation_coefficients_block_data, num_heads, block_size, embedding_size);
     }
@@ -1933,7 +1941,6 @@ struct MHA {
         auto attn_work_count = _workitems.attn_work_size();
         auto reorder_work_count = _workitems.reorder_work_size();
 
-
         // buffer for transpose and repack
         _helper.init_reorder_buffers(_workitems.get_reorder_max_batch_size(),
                                      div_up(_workitems.get_reorder_max_kv_len(), _helper._block_size));
@@ -2171,7 +2178,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
               PlainTensor& rotation_trig_lut,
               PlainTensor& output_emb,
               PlainTensor& output_score) {
-        q.reset(inputs[ID_Q]);                                      // [B_token, H * S]
+        q.reset(inputs[ID_Q]);  // [B_token, H * S]
         k.reset(inputs[ID_K]);
         v.reset(inputs[ID_V]);
         k_cache.reset(inputs[ID_KCACHE]);                             // [NUM_BLOCKS, H, 32, S]
@@ -2190,11 +2197,12 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         if (inputs_size > ID_ROTATED_BLOCK_INDICES) {
             OPENVINO_ASSERT(inputs_size >= ID_ROTATION_TRIG_LUT);
             if (!inputs[ID_ROTATED_BLOCK_INDICES]->getShape().hasZeroDims())
-                rotated_block_indices.reset(inputs[ID_ROTATED_BLOCK_INDICES]); // [num_blocks]
+                rotated_block_indices.reset(inputs[ID_ROTATED_BLOCK_INDICES]);  // [num_blocks]
             if (!inputs[ID_ROTATION_DELTAS]->getShape().hasZeroDims())
-                rotation_deltas.reset(inputs[ID_ROTATION_DELTAS]); // [num_blocks * block_size (32)], row-major layout
+                rotation_deltas.reset(inputs[ID_ROTATION_DELTAS]);  // [num_blocks * block_size (32)], row-major layout
             if (!inputs[ID_ROTATION_TRIG_LUT]->getShape().hasZeroDims())
-                rotation_trig_lut.reset(inputs[ID_ROTATION_TRIG_LUT]); // [max_context_len * embedding_size], row-major layout
+                rotation_trig_lut.reset(
+                    inputs[ID_ROTATION_TRIG_LUT]);  // [max_context_len * embedding_size], row-major layout
         }
 
         output_emb.reset(outputs[0]);
@@ -2268,7 +2276,16 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         // TODO: enable block_size to be multiple of 32
         OPENVINO_ASSERT(block_size == 32, "CPU: block size must be 32, current: ", block_size);
 
-        _helper.init(H, S, SV, Hk, h_each_group_len, block_size, sliding_window, scale, max_context_len, alibi_slopes,
+        _helper.init(H,
+                     S,
+                     SV,
+                     Hk,
+                     h_each_group_len,
+                     block_size,
+                     sliding_window,
+                     scale,
+                     max_context_len,
+                     alibi_slopes,
                      init_rotation_coefficient_scratch);
     }
 
@@ -2347,7 +2364,11 @@ struct AttentionExecutor : public PagedAttentionExecutor {
              output_score);
 
         if (rotated_block_indices) {
-            rotate_kv_cache<KVCACHE_TYPE>(k_cache, rotated_block_indices, rotation_deltas, rotation_trig_lut, _helper._block_rotation_coefficient_scratch);
+            rotate_kv_cache<KVCACHE_TYPE>(k_cache,
+                                          rotated_block_indices,
+                                          rotation_deltas,
+                                          rotation_trig_lut,
+                                          _helper._block_rotation_coefficient_scratch);
         }
 
         concat_pastkv(k, v, k_cache, v_cache, past_lens, subsequence_begins, block_indices, block_indices_begins);

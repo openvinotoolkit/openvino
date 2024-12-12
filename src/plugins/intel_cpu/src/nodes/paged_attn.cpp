@@ -135,8 +135,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         // rotation_deltas, int, [num_rotated_blocks * block_size || 0]
         config.inConfs[PagedAttentionExecutor::ID_ROTATION_DELTAS].setMemDesc(
             creatorsMap.at(LayoutType::ncsp)
-                ->createSharedDesc(ov::element::i32,
-                                   getInputShapeAtPort(PagedAttentionExecutor::ID_ROTATION_DELTAS)));
+                ->createSharedDesc(ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_ROTATION_DELTAS)));
         // rotation_trig_lut, float, [max_context_len, embedding_size (aka S) || 0]
         config.inConfs[PagedAttentionExecutor::ID_ROTATION_TRIG_LUT].setMemDesc(
             creatorsMap.at(LayoutType::ncsp)

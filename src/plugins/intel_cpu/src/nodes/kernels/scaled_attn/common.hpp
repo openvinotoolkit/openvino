@@ -154,31 +154,31 @@ inline void mm512_uni_storeu_tail_ps(ov::float16* addr, __m512 v, size_t count) 
 #endif
 
 #ifdef HAVE_AVX2
-    inline __m128i get_8bit_tail_mask_for_16bit_elts(size_t num_16bit_tail_elts) {
-        // num_tail_elts may take from 0 to 8
-        static int8_t masks[9][16] = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-                                      {-1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-                                      {-1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-                                      {-1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-                                      {-1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0},
-                                      {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0},
-                                      {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0},
-                                      {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0},
-                                      {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1}};
-        return _mm_loadu_si128(reinterpret_cast<__m128i*>(masks[num_16bit_tail_elts]));
-    }
-    inline __m256i get_mask(int N7) {
-        static int32_t masks[9][8] = {{0, 0, 0, 0, 0, 0, 0, 0},
-                                      {-1, 0, 0, 0, 0, 0, 0, 0},
-                                      {-1, -1, 0, 0, 0, 0, 0, 0},
-                                      {-1, -1, -1, 0, 0, 0, 0, 0},
-                                      {-1, -1, -1, -1, 0, 0, 0, 0},
-                                      {-1, -1, -1, -1, -1, 0, 0, 0},
-                                      {-1, -1, -1, -1, -1, -1, 0, 0},
-                                      {-1, -1, -1, -1, -1, -1, -1, 0},
-                                      {-1, -1, -1, -1, -1, -1, -1, -1}};
-        return _mm256_loadu_si256(reinterpret_cast<__m256i*>(masks[N7]));
-    }
+inline __m128i get_8bit_tail_mask_for_16bit_elts(size_t num_16bit_tail_elts) {
+    // num_tail_elts may take from 0 to 8
+    static int8_t masks[9][16] = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+                                  {-1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+                                  {-1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+                                  {-1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+                                  {-1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0},
+                                  {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0},
+                                  {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0},
+                                  {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0},
+                                  {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1}};
+    return _mm_loadu_si128(reinterpret_cast<__m128i*>(masks[num_16bit_tail_elts]));
+}
+inline __m256i get_mask(int N7) {
+    static int32_t masks[9][8] = {{0, 0, 0, 0, 0, 0, 0, 0},
+                                  {-1, 0, 0, 0, 0, 0, 0, 0},
+                                  {-1, -1, 0, 0, 0, 0, 0, 0},
+                                  {-1, -1, -1, 0, 0, 0, 0, 0},
+                                  {-1, -1, -1, -1, 0, 0, 0, 0},
+                                  {-1, -1, -1, -1, -1, 0, 0, 0},
+                                  {-1, -1, -1, -1, -1, -1, 0, 0},
+                                  {-1, -1, -1, -1, -1, -1, -1, 0},
+                                  {-1, -1, -1, -1, -1, -1, -1, -1}};
+    return _mm256_loadu_si256(reinterpret_cast<__m256i*>(masks[N7]));
+}
 
 // load addr to __m256 reg
 inline __m256 mm256_uni_loadu_ps(const float* a) {
@@ -227,10 +227,10 @@ inline __m128i __convert_avx2_packed_float_to_packed_ov_bfloat16(__m256 xps) {
     __m256i mask = _mm256_castps_si256(_mm256_cmp_ps(xps, xps, _CMP_ORD_Q));
     __m256i ones = _mm256_set1_epi32(0x1);
     __m256i vec_bias = _mm256_set1_epi32(0x7fff);
-    auto x = _mm256_and_si256(_mm256_srli_epi32(xpi32, 16), ones); // LSB = x[16]
-    x = _mm256_add_epi32(x, vec_bias);                             // rounding_bias = 0x7fff + LSB
-    x = _mm256_srli_epi32(_mm256_add_epi32(x, xpi32), 16);         // x = (x + rounding_bias) >> 16;
-    x = _mm256_blendv_epi8(nan, x, mask);                          // Check NaN before converting back to bf16
+    auto x = _mm256_and_si256(_mm256_srli_epi32(xpi32, 16), ones);  // LSB = x[16]
+    x = _mm256_add_epi32(x, vec_bias);                              // rounding_bias = 0x7fff + LSB
+    x = _mm256_srli_epi32(_mm256_add_epi32(x, xpi32), 16);          // x = (x + rounding_bias) >> 16;
+    x = _mm256_blendv_epi8(nan, x, mask);                           // Check NaN before converting back to bf16
     x = _mm256_packus_epi32(x, x);
     x = _mm256_permute4x64_epi64(x, 0xd8);
     __m128i bf16_o = _mm256_extractf128_si256(x, 0);
@@ -239,7 +239,7 @@ inline __m128i __convert_avx2_packed_float_to_packed_ov_bfloat16(__m256 xps) {
 
 inline void mm256_uni_storeu_ps(ov::bfloat16* addr, __m256 xps) {
     __m128i bf16_o = __convert_avx2_packed_float_to_packed_ov_bfloat16(xps);
-    _mm_storeu_si128(reinterpret_cast<__m128i *>(addr), bf16_o);
+    _mm_storeu_si128(reinterpret_cast<__m128i*>(addr), bf16_o);
 }
 
 inline void mm256_uni_storeu_ps(ov::float16* a, __m256 v) {
@@ -248,7 +248,7 @@ inline void mm256_uni_storeu_ps(ov::float16* a, __m256 v) {
 }
 
 // store __m256 to addr
-inline void mm256_uni_storeu_tail_ps(float *addr, __m256 v, size_t count) {
+inline void mm256_uni_storeu_tail_ps(float* addr, __m256 v, size_t count) {
     auto mask = get_mask(count);
     return _mm256_maskstore_ps(addr, mask, v);
 }
