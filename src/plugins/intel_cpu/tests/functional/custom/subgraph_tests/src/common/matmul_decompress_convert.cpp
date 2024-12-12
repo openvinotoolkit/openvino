@@ -278,7 +278,7 @@ std::vector<ov::AnyMap> filter_additional_config_bf16() {
 std::vector<CPUSpecificParams> filter_specific_params(bool trySetMlas) {
     std::vector<CPUSpecificParams> specificParams;
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    specificParams.push_back(CPUSpecificParams{{}, {}, {"acl"}, "acl"});
+    specificParams.push_back(CPUSpecificParams{{}, {}, {"undef"}, "undef"});
 #else
     if (trySetMlas) {
 #ifdef OV_CPU_WITH_MLAS

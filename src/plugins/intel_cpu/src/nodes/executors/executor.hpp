@@ -51,6 +51,12 @@ namespace intel_cpu {
 #    define OV_CPU_INSTANCE_DNNL(...)
 #endif
 
+#if defined(OV_CPU_WITH_KLEIDIAI)
+#    define OV_CPU_INSTANCE_KLEIDIAI(...) {__VA_ARGS__},
+#else
+#    define OV_CPU_INSTANCE_KLEIDIAI(...)
+#endif
+
 #if defined(OPENVINO_ARCH_X86_64)
 #    define OV_CPU_INSTANCE_X64(...) {__VA_ARGS__},
 #else
@@ -86,7 +92,8 @@ enum class ExecutorType {
     Acl,
     Mlas,
     jit_aarch64,
-    Shl
+    Shl,
+    Kleidiai
 };
 
 enum class OperationType {

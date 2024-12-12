@@ -1,0 +1,41 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index b6dc841..a8065c5 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -161,7 +161,7 @@ if((CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL
+ endif()
+ 
+ target_include_directories(kleidiai
+-    PUBLIC  .
++    PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
+ )
+ 
+ target_compile_options(kleidiai
+diff --git a/kai/kai_common.h b/kai/kai_common.h
+index 944f4d0..2238081 100644
+--- a/kai/kai_common.h
++++ b/kai/kai_common.h
+@@ -84,6 +84,10 @@ inline static float kai_cast_f32_f16(uint16_t f16) {
+     memcpy(&f32, &f16, sizeof(uint16_t));
+     return (float)f32;
+ }
++#else
++inline static float kai_cast_f32_f16(uint16_t f16) {
++    return (float)f16;
++}
+ #endif
+ 
+ /// Converts a scalar bf16 value to f32
+@@ -123,6 +127,12 @@ inline static uint16_t kai_cast_f16_f32(float f32) {
+     memcpy(&f16, &tmp, sizeof(uint16_t));
+     return f16;
+ }
++#else
++inline static uint16_t kai_cast_f16_f32(float f32) {
++    if (f32 < 0) return 0;
++    if (f32 > UINT16_MAX) return UINT16_MAX;
++    return (uint16_t)f32;
++}
+ #endif
+ 
+ inline static size_t kai_roundup(size_t a, size_t b) {
