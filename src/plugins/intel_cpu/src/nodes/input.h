@@ -75,7 +75,7 @@ private:
     void initSupportedPdFromMemDesc();
 
 private:
-    std::shared_ptr<ov::op::v0::Constant> constOp;
+    std::shared_ptr<ov::op::v0::Constant> m_constOp;
     MemoryCPtr memoryPtr;
     bool isMeanImage = false;
     MemoryDescPtr extMemDesc = nullptr;
