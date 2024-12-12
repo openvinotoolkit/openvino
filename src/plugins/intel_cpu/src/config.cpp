@@ -4,19 +4,19 @@
 
 #include "config.h"
 
+#include <algorithm>
+#include <map>
+#include <string>
+
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/precision_support.h"
-#include "utils/cpu_utils.hpp"
-
-#include <algorithm>
-#include <map>
-#include <string>
 
 namespace ov {
 namespace intel_cpu {
@@ -61,9 +61,7 @@ Config::Config() {
  */
 void Config::applyDebugCapsProperties() {
     // always enable perf counters for verbose, performance summary and average counters
-    if (!debugCaps.verbose.empty() ||
-        !debugCaps.summaryPerf.empty() ||
-        !debugCaps.averageCountersPath.empty()) {
+    if (!debugCaps.verbose.empty() || !debugCaps.summaryPerf.empty() || !debugCaps.averageCountersPath.empty()) {
         collectPerfCounters = true;
     }
 }
@@ -151,10 +149,10 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 logLevel = val.as<ov::log::Level>();
             } catch (const ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
-                        val.as<std::string>(),
-                        " for property key ",
-                        key,
-                        ". Expected only ov::log::Level::NO/ERR/WARNING/INFO/DEBUG/TRACE.");
+                               val.as<std::string>(),
+                               " for property key ",
+                               key,
+                               ". Expected only ov::log::Level::NO/ERR/WARNING/INFO/DEBUG/TRACE.");
             }
         } else if (key == ov::hint::num_requests.name()) {
             try {
@@ -243,8 +241,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 fcDynamicQuantizationGroupSize = val.as<uint64_t>();
             } catch (const ov::Exception&) {
                 OPENVINO_THROW("Wrong value for property key ",
-                                ov::hint::dynamic_quantization_group_size.name(),
-                                ". Expected only unsinged integer numbers");
+                               ov::hint::dynamic_quantization_group_size.name(),
+                               ". Expected only unsinged integer numbers");
             }
         } else if (key == ov::enable_profiling.name()) {
             try {
@@ -366,7 +364,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 if (one_of(prec, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8)) {
                     kvCachePrecision = prec;
                 } else {
-                     OPENVINO_THROW("invalid value");
+                    OPENVINO_THROW("invalid value");
                 }
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
@@ -462,10 +460,13 @@ void Config::updateProperties() {
 
 void Config::applyRtInfo(const std::shared_ptr<const ov::Model>& model) {
     // if user sets explicitly, it will be higher priority than rt_info
-    if (!kvCachePrecisionSetExplicitly && model->has_rt_info({"runtime_options", ov::hint::kv_cache_precision.name()})) {
-        this->kvCachePrecision = model->get_rt_info<ov::element::Type>({"runtime_options", ov::hint::kv_cache_precision.name()});
+    if (!kvCachePrecisionSetExplicitly &&
+        model->has_rt_info({"runtime_options", ov::hint::kv_cache_precision.name()})) {
+        this->kvCachePrecision =
+            model->get_rt_info<ov::element::Type>({"runtime_options", ov::hint::kv_cache_precision.name()});
     }
-    if (!fcDynamicQuantizationGroupSizeSetExplicitly && model->has_rt_info({"runtime_options", ov::hint::dynamic_quantization_group_size.name()})) {
+    if (!fcDynamicQuantizationGroupSizeSetExplicitly &&
+        model->has_rt_info({"runtime_options", ov::hint::dynamic_quantization_group_size.name()})) {
         this->fcDynamicQuantizationGroupSize =
             model->get_rt_info<uint64_t>({"runtime_options", ov::hint::dynamic_quantization_group_size.name()});
     }
