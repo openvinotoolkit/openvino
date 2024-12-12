@@ -96,7 +96,7 @@ Install requirements
 
 .. parsed-literal::
 
-    24717
+    24624
 
 
 
@@ -186,14 +186,14 @@ OpenVINO Intermediate Representation (IR) with ``FP16`` precision.
 
 .. parsed-literal::
 
-    model/mosaic-9.onnx:   0%|          | 0.00/6.42M [00:00<?, ?B/s]
+    mosaic-9.onnx:   0%|          | 0.00/6.42M [00:00<?, ?B/s]
 
 
 
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/notebooks/style-transfer-webcam/model/mosaic-9.onnx')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/style-transfer-webcam/model/mosaic-9.onnx')
 
 
 

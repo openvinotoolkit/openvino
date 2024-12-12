@@ -39,7 +39,8 @@ private:
         virtual ~ExecutorBase() = default;
     };
     std::shared_ptr<ExecutorBase> m_executor;
-    template <typename T> struct Executor;
+    template <typename T>
+    struct Executor;
     LLMMLPNode::Config m_mlp_config;
 };
 
