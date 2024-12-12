@@ -798,7 +798,8 @@ DQParMMGQ::DQParMMGQ(Context::Ref ctx) {
     auto qreshp = opp::wrap_type<ov::op::v1::Reshape>({qmuls, opp::any_input()});
     auto qmmi = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
     auto qcvtr = opp::optional<ov::op::v0::Convert>({qreshp->output(0)});
-    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qcvtr});
+    auto qcvtm = opp::optional<ov::op::v0::Convert>({qmmi->output(0)});
+    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qcvtm, qcvtr});
 
     // Note: Use [=] to make sure the above objects stay alive in the callback
     auto callback = [=](ov::pass::pattern::Matcher& m) {
