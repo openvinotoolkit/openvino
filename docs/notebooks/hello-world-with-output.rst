@@ -98,13 +98,13 @@ Download the Model and data samples
 
 .. parsed-literal::
 
-    artifacts/v3-small_224_1.0_float.xml:   0%|          | 0.00/294k [00:00<?, ?B/s]
+    v3-small_224_1.0_float.xml:   0%|          | 0.00/294k [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    artifacts/v3-small_224_1.0_float.bin:   0%|          | 0.00/4.84M [00:00<?, ?B/s]
+    v3-small_224_1.0_float.bin:   0%|          | 0.00/4.84M [00:00<?, ?B/s]
 
 
 Select inference device
@@ -169,7 +169,7 @@ Load an Image
 
 .. parsed-literal::
 
-    data/coco.jpg:   0%|          | 0.00/202k [00:00<?, ?B/s]
+    coco.jpg:   0%|          | 0.00/202k [00:00<?, ?B/s]
 
 
 
@@ -199,7 +199,7 @@ Do Inference
 
 .. parsed-literal::
 
-    data/imagenet_2012.txt:   0%|          | 0.00/30.9k [00:00<?, ?B/s]
+    imagenet_2012.txt:   0%|          | 0.00/30.9k [00:00<?, ?B/s]
 
 
 .. code:: ipython3
