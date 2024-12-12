@@ -200,7 +200,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                          graphHandle,
                                          std::move(networkMeta),
                                          config,
-                                         std::nullopt);
+                                         nullptr);
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::parse(std::unique_ptr<BlobContainer> blobPtr,
@@ -209,7 +209,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(std::unique_ptr<BlobContain
 
     _logger.debug("parse start");
     ze_graph_handle_t graphHandle =
-        _zeGraphExt->getGraphHandle(reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()), blobPtr->size());
+        _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()), blobPtr->size());
     _logger.debug("parse end");
 
     OV_ITT_TASK_NEXT(PARSE_BLOB, "getNetworkMeta");
@@ -220,7 +220,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(std::unique_ptr<BlobContain
                                          graphHandle,
                                          std::move(networkMeta),
                                          config,
-                                         std::optional<std::unique_ptr<BlobContainer>>(std::move(blobPtr)));
+                                         std::move(blobPtr));
 }
 
 ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,

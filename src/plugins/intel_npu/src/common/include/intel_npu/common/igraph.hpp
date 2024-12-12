@@ -8,83 +8,21 @@
 #include <mutex>
 #include <vector>
 
+#include "intel_npu/common/blob_container.hpp"
 #include "intel_npu/network_metadata.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "openvino/runtime/profiling_info.hpp"
-#include "openvino/runtime/shared_buffer.hpp"
 
 namespace intel_npu {
-
-class BlobContainer {
-public:
-    virtual void* get_ptr() {
-        OPENVINO_THROW("const BlobContainer::get_ptr() method is not implemented!");
-    }
-
-    virtual size_t size() const {
-        OPENVINO_THROW("BlobContainer::size() method is not implemented!");
-    }
-
-    virtual bool release_from_memory() {
-        OPENVINO_THROW("BlobContainer::release_from_memory() method is not implemented!");
-    }
-
-    virtual ~BlobContainer() = default;
-};
-
-class BlobContainerVector : public BlobContainer {
-public:
-    BlobContainerVector(std::vector<uint8_t> blob) : _ownershipBlob(std::move(blob)) {}
-
-    void* get_ptr() override {
-        return reinterpret_cast<void*>(_ownershipBlob.data());
-    }
-
-    size_t size() const override {
-        return _ownershipBlob.size();
-    }
-
-    bool release_from_memory() override {
-        _ownershipBlob.clear();
-        _ownershipBlob.shrink_to_fit();
-        return true;
-    }
-
-private:
-    std::vector<uint8_t> _ownershipBlob;
-};
-
-class BlobContainerAlignedBuffer : public BlobContainer {
-public:
-    BlobContainerAlignedBuffer(const std::shared_ptr<ov::AlignedBuffer>& blobSO, size_t offset)
-        : _ownershipBlob(blobSO),
-          _offset(offset) {}
-
-    void* get_ptr() override {
-        return _ownershipBlob->get_ptr(_offset);
-    }
-
-    size_t size() const override {
-        return _ownershipBlob->size();
-    }
-
-    bool release_from_memory() override {
-        return false;
-    }
-
-private:
-    std::shared_ptr<ov::AlignedBuffer> _ownershipBlob;
-    size_t _offset;
-};
 
 class IGraph : public std::enable_shared_from_this<IGraph> {
 public:
     IGraph(ze_graph_handle_t handle,
            NetworkMetadata metadata,
            const Config& config,
-           std::optional<std::unique_ptr<BlobContainer>> blobPtr);
+           std::unique_ptr<BlobContainer> blobPtr);
 
     virtual size_t export_blob(std::ostream& stream) const = 0;
 

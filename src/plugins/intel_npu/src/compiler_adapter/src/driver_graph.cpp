@@ -15,8 +15,8 @@ DriverGraph::DriverGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
                          ze_graph_handle_t graphHandle,
                          NetworkMetadata metadata,
                          const Config& config,
-                         std::optional<std::unique_ptr<BlobContainer>> blob)
-    : IGraph(graphHandle, std::move(metadata), config, std::move(blob)),
+                         std::unique_ptr<BlobContainer> blobPtr)
+    : IGraph(graphHandle, std::move(metadata), config, std::move(blobPtr)),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
       _logger("DriverGraph", config.get<LOG_LEVEL>()) {

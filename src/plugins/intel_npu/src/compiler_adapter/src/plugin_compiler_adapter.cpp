@@ -89,7 +89,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         // Depending on the config, we may get an error when trying to get the graph handle from the compiled network
         try {
             graphHandle =
-                _zeGraphExt->getGraphHandle(reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()), blobPtr->size());
+                _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()), blobPtr->size());
         } catch (...) {
             _logger.info("Failed to obtain the level zero graph handle. Inference requests for this model are not "
                          "allowed. Only exports are available");
@@ -122,7 +122,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(std::unique_ptr<BlobContain
 
     if (_zeGraphExt) {
         graphHandle =
-            _zeGraphExt->getGraphHandle(reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()), blobPtr->size());
+            _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()), blobPtr->size());
     }
 
     return std::make_shared<PluginGraph>(_zeGraphExt,

@@ -35,7 +35,7 @@ public:
                                      const std::string& buildFlags,
                                      const uint32_t& flags) const;
 
-    ze_graph_handle_t getGraphHandle(const uint8_t* data, size_t size) const;
+    ze_graph_handle_t getGraphHandle(const uint8_t& data, size_t size) const;
 
     NetworkMetadata getNetworkMeta(ze_graph_handle_t graphHandle) const;
 
