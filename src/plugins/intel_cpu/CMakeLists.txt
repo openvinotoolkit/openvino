@@ -280,8 +280,8 @@ target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:openvino::re
 
 # ARCH lists for softmax.cpp and mha_single_token.cpp
 # Based on result of above calls, decide whether to add SVE
-set(SOFTMAX_ARCH_LIST           AVX512F AVX2 ANY)
-set(MHA_SINGLE_TOKEN_ARCH_LIST  AVX512F AVX2 ANY)
+set(SOFTMAX_ARCH_LIST           AVX512F AVX2)
+set(MHA_SINGLE_TOKEN_ARCH_LIST  AVX512F AVX2)
 
 if(ENABLE_NEON_FP16)
     list(APPEND SOFTMAX_ARCH_LIST NEON_FP16)
@@ -292,6 +292,9 @@ if(ENABLE_SVE)
     list(APPEND SOFTMAX_ARCH_LIST SVE)
     list(APPEND MHA_SINGLE_TOKEN_ARCH_LIST SVE)
 endif()
+
+list(APPEND SOFTMAX_ARCH_LIST ANY)
+list(APPEND MHA_SINGLE_TOKEN_ARCH_LIST ANY)
 
 # Cross compiled function
 # TODO: The same for proposal, proposalONNX, topk
