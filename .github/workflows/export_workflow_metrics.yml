@@ -32,7 +32,7 @@ on:
 permissions: read-all
 
 jobs:
-  otel-export-trace:
+  export-workflow-metrics:
     name: Export finished workflow metrics
     runs-on: aks-linux-2-cores-8gb
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
