@@ -29,7 +29,7 @@
     #include "nodes/kernels/x64/brgemm_kernel.hpp"
 #elif defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE)
     #include "nodes/kernels/aarch64/brgemm_kernel.hpp"
-    #include "nodes/kernels/aarch64/sve_utils.hpp"
+    #include "nodes/kernels/aarch64/pa_kernels.hpp"
 #endif
 
 namespace ov {

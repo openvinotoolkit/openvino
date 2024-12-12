@@ -35,15 +35,15 @@ BrgemmKernel::BrgemmKernel(size_t M,
       b_transposed(b_transposed),
       inType(inType) {
     // blocking M
-    bool is_bf16 = inType == ov::element::bf16;
+    bool is_f16 = inType == ov::element::f16;
     M_blk = matmulOptimalM;
     M_tail = M % M_blk;
-    brgVnniFactor = 4 / inType.size();
+    kBlkStep = 4 / inType.size();
     size_t vlen;
     vlen = mayiuse(sve_512) ? cpu_isa_traits<sve_512>::vlen :
            mayiuse(sve_256) ? cpu_isa_traits<sve_256>::vlen : cpu_isa_traits<sve_128>::vlen;
     // blocking N
-    N_blk = is_bf16 ? 32 : std::max(N, vlen / inType.size());
+    N_blk = is_f16 ? 32 : std::max(N, vlen / inType.size());
     N_tail = N % N_blk;
 
     // blocking K
@@ -66,7 +66,7 @@ BrgemmKernel::BrgemmKernel(size_t M,
                 brgemmCtx.N = N_;
                 brgemmCtx.K = K_;
                 brgemmCtx.LDA = k ? K_blk : lda;
-                brgemmCtx.LDB = (is_bf16 || b_transposed) ? rnd_up(N, N_blk) : ldb;  // bf16/b_transposed needs copy
+                brgemmCtx.LDB = (is_f16 || b_transposed) ? rnd_up(N, N_blk) : ldb;  // f16/b_transposed needs copy
                 brgemmCtx.LDC = ldc;
                 brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(inType));
                 brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(inType));
@@ -134,7 +134,6 @@ void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
     if (status != dnnl_success) {
         THROW_ERROR("cannot be executed due to invalid brgconv params");
     }
-    ctx.is_with_comp = ctx.dt_in0 == dnnl_data_type_t::dnnl_s8;
 
     brgemm_kernel_t* brgKernel_ = nullptr;
     status = brgemm_kernel_create(&brgKernel_, brgDesc);
@@ -226,7 +225,7 @@ void BrgemmKernel::copy_buffer_b(void* b, void* scratch_b) {
         for (size_t nb = 0; nb < div_up(N, N_blk); nb++) {
             auto N_stride = b_transposed ? ldb : 1;
             auto pCopyKernel0In = ptr_b + nb * N_blk * inType.size() * N_stride;
-            auto pCopyKernel0Out = ptr_scartch_b + nb * N_blk * brgVnniFactor * inType.size();
+            auto pCopyKernel0Out = ptr_scartch_b + nb * N_blk * kBlkStep * inType.size();
 
             auto ctx = jit_brgemm_matmul_copy_b_t::ctx_t();
 
@@ -285,7 +284,7 @@ void BrgemmKernel::executeGemm(bool is_M_tail, void* a, void* b, void* c, void* 
             auto& brgemmCtx = brgCtxs[getBrgIdx(mIdx, k, n)];
             if (brgemmCtx.K != 0 && brgemmCtx.N != 0 && brgemmCtx.M != 0) {
                 auto local_a_ptr = k > 0 ? ptr_a_tail : ptr_A;
-                auto B_stride = (k * count_K + n * count_N * brgVnniFactor) * inType.size();
+                auto B_stride = (k * count_K + n * count_N * kBlkStep) * inType.size();
                 auto weight_ptr = ptr_scartch_b + B_stride;
                 auto C_stride = n * count_N * ov::element::f32.size();
                 auto out_ptr = ptr_C + C_stride;
@@ -327,15 +326,10 @@ void BrgemmKernel::callBrgemm(brgemmCtx& ctx,
                                 const void* pin1,
                                 void* pout,
                                 void* wsp) {
-    if (ctx.is_with_comp) {
-        brgemm_post_ops_data_t post_ops_data;
-        brgemm_kernel_execute_postops(brgKernel.get(), 1, pin0, pin1, nullptr, pout, pout, post_ops_data, wsp);
-    } else {
         brgemm_batch_element_t addr_batch;
         addr_batch.ptr.A = pin0;
         addr_batch.ptr.B = pin1;
         brgemm_kernel_execute(brgKernel.get(), 1, &addr_batch, pout, wsp);
-    }
 }
 
 }  // namespace intel_cpu

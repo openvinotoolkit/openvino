@@ -11,7 +11,7 @@ namespace Extensions {
 namespace Cpu {
 namespace XARCH {
 
-#define prefetch_bytes(bytes, sel, advance, src)
+// #define prefetch_bytes(bytes, sel, advance, src)
 
 template<typename TA, typename TB>
 void cvt_copy(TA* dst, TB* src, size_t n) {

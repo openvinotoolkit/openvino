@@ -41,12 +41,6 @@ public:
     const size_t get_scratch_a_size() const;
     // bytes needed to place scratch buffer b
     const size_t get_scratch_b_size() const;
-    const size_t get_mblk_size() const {
-        return matmulOptimalM;
-    }
-    const size_t get_k_blk() const {
-        return K_blk;
-    }
     const size_t get_wsp_size() const {
         return 4 * 1024;
     }
@@ -56,7 +50,7 @@ private:
     size_t K = 0, K_blk = 0, K_tail = 0, N = 0, N_blk = 0, N_tail = 0;
     size_t lda = 0, ldb = 0, ldc = 0;
     bool b_transposed = false;
-    size_t brgVnniFactor = 0;
+    size_t kBlkStep = 0;
     size_t packedBSize = 0;
     size_t packedASize = 0;
     ov::element::Type inType;
@@ -66,8 +60,6 @@ private:
         size_t M = 0, N = 0, K = 0, LDA = 0, LDB = 0, LDC = 0;
         dnnl_data_type_t dt_in0 = dnnl_data_type_undef;
         dnnl_data_type_t dt_in1 = dnnl_data_type_undef;
-        char palette[64];
-        bool is_with_comp = false;
         bool transpose_a = false;
         bool transpose_b = false;
         float beta = 0.0f;
