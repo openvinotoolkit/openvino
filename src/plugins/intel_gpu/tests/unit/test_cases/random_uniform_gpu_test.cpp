@@ -37,7 +37,7 @@ public:
 
         auto format = format::get_default_format(params.output_shape.size());
         auto shape = engine.allocate_memory(
-                {{1, 1, 1, static_cast<long int>(params.output_shape.size())}, data_type, format});
+                {{1, 1, 1, static_cast<long int>(params.output_shape.size())}, ov::element::Type_t::u64, format});
         auto min_val = engine.allocate_memory(layout(data_type, format::bfyx, {1, 1, 1, 1}));
         auto max_val = engine.allocate_memory(layout(data_type, format::bfyx, {1, 1, 1, 1}));
 
