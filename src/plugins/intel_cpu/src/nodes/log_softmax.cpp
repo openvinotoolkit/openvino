@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cmath>
-
-#include <openvino/opsets/opset5.hpp>
-#include "openvino/core/parallel.hpp"
 #include "log_softmax.h"
+
+#include <cmath>
+#include <openvino/opsets/opset5.hpp>
+
+#include "openvino/core/parallel.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -63,16 +64,18 @@ void LogSoftmax::initSupportedPrimitiveDescriptors() {
 }
 
 void LogSoftmax::prepareParams() {
-    const auto &dims = getParentEdgeAt(0)->getMemory().getStaticDims();
+    const auto& dims = getParentEdgeAt(0)->getMemory().getStaticDims();
     reducedAxisStride = 1;
     axisStep = 1;
     isLastDim = false;
 
     int j = static_cast<int>(dims.size()) - 1;
     for (; j >= 0; j--) {
-        if (dims[j] != 1) break;
+        if (dims[j] != 1)
+            break;
     }
-    if (j == axis) isLastDim = true;
+    if (j == axis)
+        isLastDim = true;
 
     for (int i = 0; i < axis; i++)
         axisStep *= dims[i];
@@ -86,13 +89,13 @@ void LogSoftmax::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void LogSoftmax::execute(dnnl::stream strm) {
-    const float *srcData = getSrcDataAtPortAs<const float>(0);
+    const float* srcData = getSrcDataAtPortAs<const float>(0);
     float* dstData = getDstDataAtPortAs<float>(0);
 
     if (isLastDim) {
         parallel_for(axisStep, [&](size_t i) {
-            const float *srcDataPtr = &srcData[i * reducedAxisSize];
-            float *dstDataPtr = &dstData[i * reducedAxisSize];
+            const float* srcDataPtr = &srcData[i * reducedAxisSize];
+            float* dstDataPtr = &dstData[i * reducedAxisSize];
 
             float reduceProd = 0.0f;
             const float max = *std::max_element(srcDataPtr, srcDataPtr + reducedAxisSize);
@@ -105,8 +108,8 @@ void LogSoftmax::execute(dnnl::stream strm) {
         });
     } else {
         parallel_for2d(axisStep, reducedAxisStride, [&](size_t k, size_t i) {
-            const float *srcDataPtr = &srcData[k * reducedAxisStride * reducedAxisSize + i];
-            float *dstDataPtr = &dstData[k * reducedAxisStride * reducedAxisSize + i];
+            const float* srcDataPtr = &srcData[k * reducedAxisStride * reducedAxisSize + i];
+            float* dstDataPtr = &dstData[k * reducedAxisStride * reducedAxisSize + i];
 
             float reduceProd = 0.0f;
             float max = std::numeric_limits<float>::min();
@@ -129,6 +132,6 @@ bool LogSoftmax::created() const {
     return getType() == Type::LogSoftmax;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov
