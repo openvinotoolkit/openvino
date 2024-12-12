@@ -11,6 +11,7 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "utils/debug_capabilities.h"
+#include "utils/cpu_utils.hpp"
 
 #include <cpu/acl/acl_utils.hpp>
 #include <common/primitive_desc_iface.hpp>
@@ -52,7 +53,8 @@ VectorDims acl_fc_executor::makeDummyOutputDims(const VectorDims& inShape, const
 DnnlMemoryDescPtr acl_fc_executor::makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc,
                                                         const DnnlMemoryDescPtr dstDesc) {
     const auto& weiDesc = srcDesc->getDnnlDesc();
-    const auto reorderedWeiDesc = dnnl::memory::desc{weiDesc.get_dims(), weiDesc.get_data_type(), dnnl::memory::format_tag::ba};
+    dnnl::memory::dims wgtDims2D = reshapeDownToRank<2>(weiDesc.get_dims());
+    const auto reorderedWeiDesc = dnnl::memory::desc{wgtDims2D, weiDesc.get_data_type(), dnnl::memory::format_tag::ba};
     const auto transposedWeiDesc = reorderedWeiDesc.reshape(dstDesc->getDnnlDesc().get_dims());
 
     return DnnlExtensionUtils::makeDescriptor(transposedWeiDesc);

@@ -18,6 +18,7 @@ enum ACLArgs {
     ACL_BIAS,
     ACL_WEI,
     ACL_DST,
+    ACL_DST_DEQ_SCALE,
     COUNT_OF_ARGS
 };
 
