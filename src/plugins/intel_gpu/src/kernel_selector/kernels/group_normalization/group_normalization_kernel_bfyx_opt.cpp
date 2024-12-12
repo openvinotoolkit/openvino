@@ -20,6 +20,7 @@ ParamsKey GroupNormalizationKernelBfyx::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::bfzyx);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfzyx);
+    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableBatching();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
