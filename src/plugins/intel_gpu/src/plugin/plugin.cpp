@@ -811,6 +811,7 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
             {{12, 1, 0}, 2048}, // DG1
             {{12, 5, 0}, 320},
             {{12, 7, 0}, 512},
+            {{12, 55, 0}, 2048}, // DG2
     };
     size_t L3_cache_size = device_info.gfx_ver.major && (device_info.gfx_ver.major <= 9)
             ? 768 * 1024 // Gen9
