@@ -13,6 +13,51 @@ namespace v0 {
 /// \brief Result operation.
 ///
 /// \ingroup ov_ops_cpp_api
+///
+/// The Result output tensor is special, it shares tensor with Result's input but requires to have dedicated properties
+/// like:
+/// - tensor names.
+///
+/// Setting/adding Result's output names modify this specific tensor names.
+/// Result's specific tensor names are added to input descriptor and transferred to new descriptor if Result's input
+/// has been replaced.
+///
+/// Examples 1: No specific names on Result's output
+///
+///  set output names:
+///        [N1]
+///         ↓
+/// |----------------|        [names: N1]         |-----------------|
+/// |      Node      |--------------------------->|     Result      |   -> Model output names: N1
+/// |----------------|                            |-----------------|
+///
+///
+/// Examples 2: Result's has got specific names
+///
+///  set output names:                             set output names:
+///        [N1]                                         [R1, R2]
+///         ↓                                              ↓
+/// |----------------|    [names: N1, R1, R2]     |-----------------|
+/// |      Node      |--------------------------->|     Result      |   -> Model output names: R1, R2
+/// |----------------|                            |-----------------|
+///
+///
+/// Examples 3: Result from example 2 connected to new node
+///
+///  set output names:                             set output names:
+///        [N2]                                         [R1, R2]
+///         ↓                                              ↓
+/// |----------------|    [names: N2, R1, R2]     |-----------------|
+/// |      Node      |--------------------------->|     Result      |   -> Model output names: R1, R2
+/// |----------------|                            |-----------------|
+///
+///  set output names:
+///        [N1]
+///         ↓
+/// |----------------|    [names: N1]
+/// |      Node      |----------------->
+/// |----------------|
+///
 class OPENVINO_API Result : public Op {
 public:
     OPENVINO_OP("Result", "opset1");
