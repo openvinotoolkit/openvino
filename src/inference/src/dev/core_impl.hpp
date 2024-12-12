@@ -26,6 +26,7 @@ class CoreConfig final {
 public:
     CoreConfig() = default;
     CoreConfig(const CoreConfig& other);
+    CoreConfig& operator=(const CoreConfig&) = delete;
 
     struct CacheConfig {
         std::string _cacheDir;
