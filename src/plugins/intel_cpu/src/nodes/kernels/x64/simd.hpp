@@ -21,6 +21,9 @@ inline SIMD_F32 simd_cvtepi32_ps(SIMD_I32 v) {
 inline void simd_storeu_ps(float* ptr, __m512 v) {
     _mm512_storeu_ps(ptr, v);
 }
+inline void simd_storeu_si(void* ptr, SIMD_I32 v) {
+    _mm512_storeu_si512(reinterpret_cast<void *>(ptr), v);
+}
 inline SIMD_F32 simd_broadcast_ss(float const * mem_addr) {
     return _mm512_set1_ps(*mem_addr);
 }
@@ -29,6 +32,9 @@ inline SIMD_F32 simd_loadu_ps(float const * mem_addr) {
 }
 static SIMD_F32 simd_loadu_ps(ov::float16* p) {
     return _mm512_cvtph_ps(_mm256_loadu_si256(reinterpret_cast<__m256i const*>(p)));
+}
+static SIMD_I32 simd_loadu_i32(const void * p) {
+    return _mm512_loadu_si512(p);
 }
 inline SIMD_F32 simd_add_ps(SIMD_F32 a, SIMD_F32 b) {
     return _mm512_add_ps(a, b);
@@ -48,11 +54,23 @@ inline SIMD_F32 simd_setzero_ps(void) {
 inline SIMD_I32 simd_set1_epi32(int a) {
     return _mm512_set1_epi32(a);
 }
+inline SIMD_I32 simd_set1_epi8(int a) {
+    return _mm512_set1_epi8(a);
+}
 inline SIMD_I32 simd_and_si(SIMD_I32 a, SIMD_I32 b) {
     return _mm512_and_si512(a, b);
 }
+inline SIMD_I32 simd_or_si(SIMD_I32 a, SIMD_I32 b) {
+    return _mm512_or_si512(a, b);
+}
 inline SIMD_I32 simd_srli_epi32(SIMD_I32 a, unsigned int imm8) {
     return _mm512_srli_epi32(a, imm8);
+}
+inline SIMD_I32 simd_srli_epi16(SIMD_I32 a, int imm8) {
+    return _mm512_srli_epi16(a, imm8);
+}
+inline SIMD_I32 simd_slli_epi16(SIMD_I32 a, int imm8) {
+    return _mm512_slli_epi16(a, imm8);
 }
 inline void simd_prefetch(void const* p, int i) {
     _mm_prefetch(p, static_cast<_mm_hint>(i));
@@ -90,6 +108,9 @@ inline SIMD_F32 simd_cvtepi32_ps(SIMD_I32 v) {
 inline void simd_storeu_ps(float* ptr, SIMD_F32 v) {
     _mm256_storeu_ps(ptr, v);
 }
+inline void simd_storeu_si(void* ptr, SIMD_I32 v) {
+    _mm256_storeu_si256(reinterpret_cast<__m256i *>(ptr), v);
+}
 inline SIMD_F32 simd_broadcast_ss(float const * mem_addr) {
     return _mm256_broadcast_ss(mem_addr);
 }
@@ -98,6 +119,9 @@ inline SIMD_F32 simd_loadu_ps(float const * mem_addr) {
 }
 static SIMD_F32 simd_loadu_ps(ov::float16* p) {
     return _mm256_cvtph_ps(_mm_loadu_si128(reinterpret_cast<__m128i const*>(p)));
+}
+static SIMD_I32 simd_loadu_i32(const void * p) {
+    return _mm256_loadu_si256(reinterpret_cast<__m256i const *>(p));
 }
 inline SIMD_F32 simd_add_ps(SIMD_F32 a, SIMD_F32 b) {
     return _mm256_add_ps(a, b);
@@ -117,11 +141,23 @@ inline SIMD_F32 simd_setzero_ps(void) {
 inline SIMD_I32 simd_set1_epi32(int a) {
     return _mm256_set1_epi32(a);
 }
+inline SIMD_I32 simd_set1_epi8(int a) {
+    return _mm256_set1_epi8(a);
+}
 inline SIMD_I32 simd_and_si(SIMD_I32 a, SIMD_I32 b) {
     return _mm256_and_si256(a, b);
 }
+inline SIMD_I32 simd_or_si(SIMD_I32 a, SIMD_I32 b) {
+    return _mm256_or_si256(a, b);
+}
 inline SIMD_I32 simd_srli_epi32(SIMD_I32 a, int imm8) {
     return _mm256_srli_epi32(a, imm8);
+}
+inline SIMD_I32 simd_srli_epi16(SIMD_I32 a, int imm8) {
+    return _mm256_srli_epi16(a, imm8);
+}
+inline SIMD_I32 simd_slli_epi16(SIMD_I32 a, int imm8) {
+    return _mm256_slli_epi16(a, imm8);
 }
 inline void simd_prefetch(void const* p, int i) {
     _mm_prefetch(p, static_cast<_mm_hint>(i));
@@ -158,6 +194,9 @@ float inline simd_cvtepi32_ps(SIMD_I32 v) {
 inline void simd_storeu_ps(float* ptr, SIMD_F32 v) {
     *ptr = v;
 }
+inline void simd_storeu_si(void* ptr, SIMD_I32 v) {
+    *reinterpret_cast<SIMD_I32*>(ptr) = v;
+}
 inline SIMD_F32 simd_broadcast_ss(float const * mem_addr) {
     return *(mem_addr);
 }
@@ -166,6 +205,9 @@ inline SIMD_F32 simd_loadu_ps(float const * mem_addr) {
 }
 static SIMD_F32 simd_loadu_ps(ov::float16* p) {
     return static_cast<float>(*p);
+}
+static SIMD_I32 simd_loadu_i32(const void * p) {
+    return *reinterpret_cast<const SIMD_I32*>(p);
 }
 inline SIMD_F32 simd_add_ps(SIMD_F32 a, SIMD_F32 b) {
     return a + b;
@@ -185,11 +227,23 @@ inline SIMD_F32 simd_setzero_ps(void) {
 inline SIMD_I32 simd_set1_epi32(int a) {
     return a;
 }
+inline SIMD_I32 simd_set1_epi8(int a) {
+    return a;
+}
 inline SIMD_I32 simd_and_si(SIMD_I32 a, SIMD_I32 b) {
     return a & b;
 }
+inline SIMD_I32 simd_or_si(SIMD_I32 a, SIMD_I32 b) {
+    return a | b;
+}
 inline SIMD_I32 simd_srli_epi32(SIMD_I32 a, unsigned int imm8) {
     return a >> imm8;
+}
+inline SIMD_I32 simd_srli_epi16(SIMD_I32 a, int imm8) {
+    return ((a >> imm8) & 0xFFFF0000) | ((a & 0xFFFF) >> imm8);
+}
+inline SIMD_I32 simd_slli_epi16(SIMD_I32 a, int imm8) {
+    return ((a & 0xFFFF0000) << imm8) | ((a << imm8) & 0xFFFF);
 }
 inline void simd_prefetch(void const* p, int i) {
     //_mm_prefetch(p, i);
