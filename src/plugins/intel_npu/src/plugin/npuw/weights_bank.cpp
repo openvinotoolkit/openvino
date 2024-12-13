@@ -153,6 +153,9 @@ bool Bank::is_remote(const LazyTensor& tensor) const {
 void Bank::serialize(std::ostream& stream) const {
     using namespace ov::npuw::s11n;
 
+    LOG_INFO("Serializing weights bank...");
+    LOG_BLOCK();
+
     std::lock_guard<std::mutex> guard(m_mutex);
 
     // For now only a singular NPU or CPU device is supported
@@ -174,10 +177,15 @@ void Bank::serialize(std::ostream& stream) const {
     for (const auto& t_pair : device_bank.storage) {
         write(stream, t_pair.second);
     }
+
+    LOG_INFO("DONE.");
 }
 
 std::shared_ptr<Bank> Bank::deserialize(std::istream& stream, const std::shared_ptr<const ov::ICore>& core) {
     using namespace ov::npuw::s11n;
+
+    LOG_INFO("Deserializing weights bank...");
+    LOG_BLOCK();
 
     // For now only a singular NPU or CPU device is supported
     std::string device;
@@ -194,6 +202,8 @@ std::shared_ptr<Bank> Bank::deserialize(std::istream& stream, const std::shared_
         read(stream, p);
         bank->add_element(p.first, p.second, device);
     }
+
+    LOG_INFO("DONE.");
 
     return bank;
 }

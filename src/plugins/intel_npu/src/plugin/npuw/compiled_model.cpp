@@ -4,6 +4,7 @@
 #include "compiled_model.hpp"
 
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <string>
 
@@ -479,11 +480,16 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     report_io();
 }
 
-void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream, const std::size_t& idx) const {
+void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
+                                                           const std::size_t& idx,
+                                                           const std::string& device) const {
     using namespace ov::npuw::s11n;
 
-    NPUW_ASSERT(*device_it == "CPU" || *device_it == "NPU");
-    write(stream, *device_it);
+    LOG_DEBUG("Serializing CompiledModelDesc...");
+    LOG_BLOCK();
+
+    NPUW_ASSERT(device == "CPU" || device == "NPU");
+    write(stream, device);
 
     write(stream, replaced_by);
     if (replaced_by == idx) {
@@ -510,18 +516,19 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
     write(stream, closure.size());
     std::vector<ov::Tensor> cpu_closures;
     std::vector<std::size_t> cpu_closure_ids;
-    std::size_t cidx = 0;
-    for (const auto& t : closure) {
-        if (t) {
+    for (std::size_t cidx = 0; cidx < closure.size(); ++cidx) {
+        if (closure_uid[cidx] == std::numeric_limits<std::size_t>::max()) {  // CPU closure, not in the bank
             cpu_closure_ids.push_back(cidx);
-            cpu_closures.push_back(t);
+            cpu_closures.push_back(closure[cidx]);
         }
-        ++cidx;
     }
+
     write(stream, cpu_closure_ids);
     write(stream, cpu_closures);
 
     // FIXME: support weightless flow!
+
+    LOG_DEBUG("DONE.");
 }
 
 ov::npuw::CompiledModel::CompiledModelDesc ov::npuw::CompiledModel::CompiledModelDesc::deserialize(
@@ -530,6 +537,9 @@ ov::npuw::CompiledModel::CompiledModelDesc ov::npuw::CompiledModel::CompiledMode
     const std::shared_ptr<const ov::IPlugin>& plugin,
     const ov::AnyMap& properties) {
     using namespace ov::npuw::s11n;
+
+    LOG_DEBUG("Deserializing CompiledModelDesc...");
+    LOG_BLOCK();
 
     CompiledModelDesc desc;
 
@@ -574,6 +584,8 @@ ov::npuw::CompiledModel::CompiledModelDesc ov::npuw::CompiledModel::CompiledMode
 
     // FIXME: support weightless flow!
 
+    LOG_DEBUG("DONE.");
+
     return desc;
 }
 
@@ -609,9 +621,15 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
 
     // Check compiled submodels' devices
     std::unordered_set<std::string> device_list;
-    for (const auto& subm : m_compiled_submodels) {
-        device_list.insert(*subm.device_it);
+    for (std::size_t i = 0; i < m_compiled_submodels.size(); ++i) {
+        auto& comp_model_desc = m_compiled_submodels[i];
+        if (comp_model_desc.compiled_model || comp_model_desc.replaced_by) {
+            const auto real_idx = comp_model_desc.replaced_by.value_or(i);
+            auto& func_desc = m_compiled_submodels[real_idx];
+            device_list.insert(*func_desc.device_it);
+        }
     }
+
     // FIXME: should we support heterogeneous structure?
     if (device_list.size() != 1 || (*device_list.begin() != "NPU" && *device_list.begin() != "CPU")) {
         NPUW_ASSERT(false && "Not all submodels are compied for a singular NPU or CPU device!");
@@ -623,7 +641,7 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
     write(stream, m_compiled_submodels.size());
     std::size_t idx = 0;
     for (const auto& subm : m_compiled_submodels) {
-        subm.serialize(stream, idx++);
+        subm.serialize(stream, idx++, *device_list.begin());
     }
 
     LOG_INFO("Done.");
@@ -730,6 +748,8 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             continue;
         }
 
+        comp_model_desc.closure_uid.resize(comp_model_desc.closure.size(), std::numeric_limits<std::size_t>::max());
+
         const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
         auto& func_desc = m_compiled_submodels[real_idx];
 
@@ -795,6 +815,7 @@ void ov::npuw::CompiledModel::reconstruct_closure() {
                 continue;
             }
             NPUW_ASSERT(comp_model_desc.is_remote[cidx]);
+            NPUW_ASSERT(comp_model_desc.closure_uid[cidx] != std::numeric_limits<std::size_t>::max());
             comp_model_desc.closure[cidx] =
                 m_weights_bank->get(comp_model_desc.closure_uid[cidx], *func_desc.device_it);
         }

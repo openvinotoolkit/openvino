@@ -114,8 +114,8 @@ struct NPUDesc {
 };
 
 std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin) {
-    const auto& device = plugin->get_device_name();
-    if (device != "NPU") {
+    const auto& devices = plugin->get_core()->get_available_devices();
+    if (std::find(devices.begin(), devices.end(), "NPU") == devices.end()) {
         // Properties below require NPU device
         return std::nullopt;
     }

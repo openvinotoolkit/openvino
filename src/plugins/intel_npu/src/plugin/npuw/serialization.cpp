@@ -35,9 +35,12 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::Tensor& var) {
     using ov::npuw::s11n::write;
 
     NPUW_ASSERT(var.is_continuous());
-    write(stream, var.get_element_type().to_string());
+    auto type_str = var.get_element_type().to_string();
+    write(stream, type_str);
     write(stream, var.get_shape());
-    write(stream, var.get_strides());
+    if (type_str != "i4" && type_str != "u4") {
+        write(stream, var.get_strides());
+    }
     write(stream, var.get_byte_size());
     stream.write(reinterpret_cast<const char*>(var.data()), var.get_byte_size());
 }
@@ -80,7 +83,9 @@ void ov::npuw::s11n::read(std::istream& stream, ov::Tensor& var) {
     read(stream, shape);
 
     ov::Strides strides;
-    read(stream, strides);
+    if (type_str != "i4" && type_str != "u4") {
+        read(stream, strides);
+    }
 
     std::size_t byte_size = 0;
     read(stream, byte_size);
