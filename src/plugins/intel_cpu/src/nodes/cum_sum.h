@@ -14,7 +14,7 @@ class CumSum : public Node {
 public:
     CumSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;
     bool created() const override;
@@ -29,13 +29,13 @@ private:
     void exec();
 
     template <bool reverse, bool exclusive, typename dataType>
-    void cumSum(const dataType *input, dataType *output, const std::vector<size_t> &strides);
+    void cumSum(const dataType* input, dataType* output, const std::vector<size_t>& strides);
 
     void parallelItInit(size_t start, std::vector<size_t>& counters, const std::vector<size_t>& iterationRange);
 
     inline void parallelItStep(std::vector<size_t>& counters, const std::vector<size_t>& iterationRange);
 
-    inline size_t getStartOffset(const std::vector<size_t> &forStartOffset, const std::vector<size_t>& strides) const;
+    inline size_t getStartOffset(const std::vector<size_t>& forStartOffset, const std::vector<size_t>& strides) const;
 
     size_t getAxis(const IMemory& _axis, const IMemory& _data) const;
 
@@ -48,7 +48,7 @@ private:
     ov::element::Type dataPrecision;
     std::string errorPrefix;
 
-    template<typename T>
+    template <typename T>
     struct CumSumExecute {
         void operator()(CumSum* node) {
             node->exec<T>();
@@ -56,6 +56,6 @@ private:
     };
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

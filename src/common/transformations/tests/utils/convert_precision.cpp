@@ -13,6 +13,7 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset15.hpp"
@@ -2701,4 +2702,39 @@ TEST(TransformationTests, ConvertPrecision_assign_read_value_preserve_orig_types
     const FunctionsComparator func_comparator = FunctionsComparator::with_default();
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, ConvertPrecision_assign_read_value_preserve_weightless_cache_info_as_rt_attribute) {
+    pass::Manager manager;
+
+    auto some_value = opset10::Constant::create(element::f32, Shape{1}, {2});
+    auto& node_rt_info = some_value->get_rt_info();
+    ov::WeightlessCacheAttribute attr(element::f32.size(), 0, element::f32);
+    node_rt_info[ov::WeightlessCacheAttribute::get_type_info_static()] = attr;
+
+    ov::ParameterVector inputParams;
+    ov::ResultVector results;
+    results.push_back(std::make_shared<ov::op::v0::Result>(some_value->output(0)));
+    auto model = std::make_shared<ov::Model>(results, inputParams);
+
+    type_to_fuse_map empty_type_to_fuse_map = {};
+    bool keep_precision_sensitive_in_fp32 = false;
+    bool convert_input_output_precision = false;
+    bool store_original_precision_as_rt_attribute = true;
+    manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                  empty_type_to_fuse_map,
+                                                  keep_precision_sensitive_in_fp32,
+                                                  convert_input_output_precision,
+                                                  store_original_precision_as_rt_attribute);
+    manager.run_passes(model);
+
+    const auto& ops = model->get_ops();
+    auto it = std::find_if(ops.begin(), ops.end(), [](const std::shared_ptr<Node>& node) {
+        return ov::op::util::is_constant(node);
+    });
+
+    ASSERT_TRUE(it != ops.end());
+    const auto& new_rt_info = (*it)->get_rt_info();
+    auto weightless_caching_attr_it = new_rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
+    ASSERT_TRUE(weightless_caching_attr_it != new_rt_info.end());
 }

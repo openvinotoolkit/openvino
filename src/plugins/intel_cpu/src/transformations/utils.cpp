@@ -3,6 +3,7 @@
 //
 
 #include "utils.hpp"
+
 #include "openvino/opsets/opset1.hpp"
 #include "ov_ops/fully_connected.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
@@ -40,5 +41,5 @@ bool has_matmul_with_compressed_weights(const std::shared_ptr<const ov::Model>& 
     return false;
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

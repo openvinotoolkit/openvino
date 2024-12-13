@@ -14,7 +14,9 @@
 namespace ov {
 namespace intel_cpu {
 
-InOutTypes getTypeConfiguration(const MemoryDescArgs& descriptors, const TypeMapping& mapping, const MappingNotation& notation) {
+InOutTypes getTypeConfiguration(const MemoryDescArgs& descriptors,
+                                const TypeMapping& mapping,
+                                const MappingNotation& notation) {
     InOutTypes types;
     std::transform(notation.begin(), notation.end(), std::back_inserter(types), [&descriptors](int id) {
         return descriptors.at(id)->getPrecision();

@@ -20,5 +20,5 @@ private:
     VectorDims m_order;
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov
