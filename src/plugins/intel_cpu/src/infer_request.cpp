@@ -69,14 +69,12 @@ void SyncInferRequest::assign_states(Graph& graph) {
 }
 
 void SyncInferRequest::redefine_memory_for_input_nodes(Graph& graph) {
-    const auto cpuInputNodes = graph.GetInputNodesMap();
     for (const auto& input_port : m_input_ports_map) {
-        const auto inputNode = cpuInputNodes.find(input_port.first);
-        if (inputNode == cpuInputNodes.end())
-            OPENVINO_THROW("CPU execution graph doesn't contain input node with index: ", input_port.first);
-        if (inputNode->second->isDynamicNode()) {
+        auto inputNode = graph.getInputNodeByIndex(input_port.first);
+        OPENVINO_ASSERT(inputNode, "CPU execution graph doesn't contain output node with index: ", input_port.first);;
+        if (inputNode->isDynamicNode()) {
             auto tensor = get_tensor(input_port.second);
-            inputNode->second->redefineOutputMemory({tensor->get_shape()});
+            inputNode->redefineOutputMemory({tensor->get_shape()});
         }
     }
 }
@@ -165,9 +163,6 @@ static inline void change_edge_ptr(const EdgePtr& edge, ov::SoPtr<ov::ITensor>& 
 }
 
 void SyncInferRequest::change_default_ptr(Graph& graph) {
-    const auto& inputNodesMap = graph.GetInputNodesMap();
-    const auto& outputNodesMap = graph.GetOutputNodesMap();
-
     std::unordered_set<const void*> inputPtrs;
     std::function<void(const EdgePtr& edge, ov::SoPtr<ov::ITensor>& tensor)> changeInpPtr;
     if (graph.IsDynamic()) {
@@ -182,9 +177,8 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
     }
 
     for (auto& it : m_input_external_ptr) {
-        auto input = inputNodesMap.find(it.first);
-        OPENVINO_ASSERT(inputNodesMap.end() != input, "Cannot find input tensor with index: ", it.first);
-        NodePtr inputNodePtr = input->second;
+        auto inputNodePtr = graph.getInputNodeByIndex(it.first);
+        OPENVINO_ASSERT(inputNodePtr, "Cannot find input tensor with index: ", it.first);
         if (inputNodePtr->getDstDataAtPort(0) == static_cast<void*>(it.second->data()))
             continue;
         auto& childEdges = inputNodePtr->getChildEdges();
@@ -230,9 +224,9 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
     }
 
     for (auto& it : m_output_external_ptr) {
-        auto output = outputNodesMap.find(it.first);
-        OPENVINO_ASSERT(outputNodesMap.end() != output, "Cannot find output tensor with index: ", it.first);
-        auto parentEdge = output->second->getParentEdgeAt(0);
+        auto output = graph.getOutputNodeByIndex(it.first);
+        OPENVINO_ASSERT(output, "Cannot find output tensor with index: ", it.first);
+        auto parentEdge = output->getParentEdgeAt(0);
         void* const outputRawPtr = parentEdge->getMemory().getData();
         if (outputRawPtr == static_cast<void*>(it.second->data()))
             continue;
@@ -273,21 +267,21 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
     if (graph.IsDynamic()) {
         const auto& outMemBlocksMap = graph.getOutputNodesMemBlocksMap();
         for (auto&& item : outMemBlocksMap) {
-            const auto& name = item.first;
+            const auto index = item.first;
 
             // share intel_cpu::Tensor to Graph by injecting to corresponding ProxyMemoryBlock instance.
             auto outputMemBlock = item.second;
-            OPENVINO_ASSERT(outputMemBlock, "proxy mem block for output ", name, " is empty.");
+            OPENVINO_ASSERT(outputMemBlock, "proxy mem block for output ", index, " is empty.");
 
-            auto controlBlockItr = m_outputControlBlocks.find(name);
+            auto controlBlockItr = m_outputControlBlocks.find(index);
 
             if (controlBlockItr != m_outputControlBlocks.end()) {
-                auto output = outputNodesMap.find(name);
-                OPENVINO_ASSERT(outputNodesMap.end() != output,
-                                "Node with name: ",
-                                name,
+                auto output = graph.getOutputNodeByIndex(index);
+                OPENVINO_ASSERT(output,
+                                "Output with index: ",
+                                index,
                                 " is absent in the outputNodesMap");
-                auto parentEdge = output->second->getParentEdgeAt(0);
+                auto parentEdge = output->getParentEdgeAt(0);
                 // avoid cyclic memory use
                 auto&& controlBlock = controlBlockItr->second;
 
@@ -306,7 +300,7 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
                           &graph,
                           " infer request ",
                           this);
-                DEBUG_LOG(name, ", tensor ", controlBlock.tensor());
+                DEBUG_LOG(index, ", tensor ", controlBlock.tensor());
             } else {
                 outputMemBlock->reset();  // switch to the internal memory since memory sharing is no longer possible
             }
@@ -407,7 +401,10 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
 
         auto&& graph = m_compiled_model.graph();
 
-        MemoryDescPtr actualDesc = graph.getInputNodeByIndex(input_index)->getBaseMemDescAtOutputPort(0);
+        auto inputNode = graph.getInputNodeByIndex(input_index);
+        OPENVINO_ASSERT(inputNode, "CPU execution graph doesn't contain input node with index: ", input_index);
+
+        MemoryDescPtr actualDesc = inputNode->getBaseMemDescAtOutputPort(0);
         if (!actualDesc->isDefined()) {
             // we must define desc for dynamic case
             // otherwise we got incorrect check on shape compatibility inside isCompatible
@@ -456,7 +453,9 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
 
         auto&& graph = m_compiled_model.graph();
 
-        const auto& desc = graph.getOutputNodeByIndex(output_index)->getParentEdgeAt(0)->getMemory().getDesc();
+        auto outputNode = graph.getOutputNodeByIndex(output_index);
+        OPENVINO_ASSERT(outputNode, "CPU execution graph doesn't contain output node with index: ", output_index);
+        const auto& desc = outputNode->getParentEdgeAt(0)->getMemory().getDesc();
         if (!isDynamic && mem_desc_ptr->isCompatible(desc)) {
             m_output_external_ptr[output_index] = tensor;
         } else if (m_output_external_ptr.find(output_index) != m_output_external_ptr.end()) {
@@ -485,7 +484,7 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
 
     ov::SoPtr<ITensor> tensor;
     if (type == ov::ISyncInferRequest::FoundPort::Type::INPUT) {
-        OPENVINO_ASSERT(graph.GetInputNodesMap().find(port_index) != graph.GetInputNodesMap().end(),
+        OPENVINO_ASSERT(graph.getInputNodeByIndex(port_index) == nullptr,
                         "Tensor with index: ",
                         port_index,
                         " exists in CPU plugin graph, but absents in model inputs");
@@ -509,8 +508,9 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
 
             if (!isDynamic) {
                 auto mem_desc_ptr = MemoryDescUtils::generateCpuBlockedMemoryDesc(tensor);
-                if (mem_desc_ptr->isCompatible(
-                        graph.getInputNodeByIndex(port_index)->getChildEdgeAt(0)->getMemory().getDesc())) {
+                auto inputNode = graph.getInputNodeByIndex(port_index);
+                OPENVINO_ASSERT(inputNode, "CPU execution graph doesn't contain input node with index: ", port_index);
+                if (mem_desc_ptr->isCompatible(inputNode->getChildEdgeAt(0)->getMemory().getDesc())) {
                     m_input_external_ptr[port_index] = tensor;
                 }
             }
@@ -518,16 +518,15 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
     }
 
     if (type == ov::ISyncInferRequest::FoundPort::Type::OUTPUT) {
-        const auto& outMap = graph.GetOutputNodesMap();
-        auto output = outMap.find(port_index);
-        OPENVINO_ASSERT(output != outMap.end(),
+        auto output = graph.getOutputNodeByIndex(port_index);
+        OPENVINO_ASSERT(output,
                         "Tensor with index: ",
                         port_index,
                         " exists in CPU plugin graph, but absents in model outputs");
         if (m_outputs.find(port_index) == m_outputs.end()) {
             const auto& port = m_output_ports_map[port_index];
             const auto& port_shape = port.get_partial_shape();
-            const auto& graph_shape = output->second->getInputShapeAtPort(0);
+            const auto& graph_shape = output->getInputShapeAtPort(0);
 
             // WA, due to the transformations and constant folding, shape inference of the resulting model may
             // have static shapes, while they are dynamic in the initial representation
@@ -557,7 +556,7 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
                         tensor = std::make_shared<Tensor>(memory);
                     } else {
                         const auto graph_prec =
-                            output->second->getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
+                            output->getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
                         OutputControlBlock control_block{model_prec, Shape{shape}};
 
                         DEBUG_LOG(port_index,
@@ -581,7 +580,7 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
             m_outputs[port_index] = tensor;
             if (!port_shape.is_dynamic() && !m_output_external_ptr.count(port_index)) {
                 auto desc = MemoryDescUtils::generateCpuBlockedMemoryDesc(tensor);
-                if (desc->isCompatible(output->second->getParentEdgeAt(0)->getMemory().getDesc())) {
+                if (desc->isCompatible(output->getParentEdgeAt(0)->getMemory().getDesc())) {
                     m_output_external_ptr[port_index] = tensor;
                 }
             }

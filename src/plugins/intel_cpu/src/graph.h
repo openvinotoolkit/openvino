@@ -87,26 +87,40 @@ public:
         return _name;
     }
 
-    const std::map<std::size_t, NodePtr>& GetInputNodesMap() const {
-        return inputNodesMap;
-    }
-
-    const std::map<std::size_t, NodePtr>& GetOutputNodesMap() const {
-        return outputNodesMap;
-    }
-
-    NodeConstPtr getInputNodeByIndex(const std::size_t& index) const {
+    NodePtr getInputNodeByIndex(std::size_t index) {
         auto input = inputNodesMap.find(index);
         if (input == inputNodesMap.end())
-            OPENVINO_THROW("CPU execution graph doesn't contain input node with index: ", index);
+           return nullptr;
         return input->second;
     }
 
-    NodeConstPtr getOutputNodeByIndex(const std::size_t& index) const {
+    NodePtr getOutputNodeByIndex(std::size_t index) {
         auto output = outputNodesMap.find(index);
         if (output == outputNodesMap.end())
-            OPENVINO_THROW("CPU execution graph doesn't contain output node with index: ", index);
+            return nullptr;
         return output->second;
+    }
+
+    NodeConstPtr getInputNodeByIndex(std::size_t index) const {
+        auto input = inputNodesMap.find(index);
+        if (input == inputNodesMap.end())
+            return nullptr;
+        return input->second;
+    }
+
+    NodeConstPtr getOutputNodeByIndex(std::size_t index) const {
+        auto output = outputNodesMap.find(index);
+        if (output == outputNodesMap.end())
+            return nullptr;
+        return output->second;
+    }
+
+    size_t inputsNumber() const {
+        return inputNodesMap.size();
+    }
+    
+    size_t outputsNumber() const {
+        return outputNodesMap.size();
     }
 
     dnnl::engine getEngine() const {
