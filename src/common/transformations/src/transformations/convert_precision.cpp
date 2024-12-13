@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
@@ -1405,6 +1406,13 @@ bool fuse_type_to_constant(const std::shared_ptr<ov::Node>& node,
         new_const->validate_and_infer_types();
         new_const->set_friendly_name(constant->get_friendly_name());
         ov::copy_runtime_info(constant, new_const);
+
+        const auto& rt_info = node->get_rt_info();
+        auto weightless_caching_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
+        if (weightless_caching_attr != rt_info.end()) {
+            new_const->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
+                weightless_caching_attr->second;
+        }
         return true;
     }
     return false;
