@@ -234,7 +234,7 @@ public:
     void Activate(const std::vector<MemoryPtr>& externalInputMemory = {},
                   const std::vector<MemoryPtr>& externalOutputMemory = {});
 
-    const std::unordered_map<std::size_t, ProxyMemoryBlockPtr>& getOutputNodesMemBlocksMap() const {
+    const std::unordered_map<std::size_t, ProxyMemoryBlockPtr>& getOutputNodesMemBlocksMap() {
         return outputNodesMemBlocksMap;
     }
 
