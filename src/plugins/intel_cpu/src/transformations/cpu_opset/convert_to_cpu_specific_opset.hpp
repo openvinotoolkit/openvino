@@ -64,7 +64,7 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
                                                                                        config.inferencePrecision);
         });
 
-    CPU_REGISTER_PASS_COMMON(manager, pass::ConvertFCToFCQuantizedLegacy);
+    CPU_REGISTER_PASS_X64(manager, pass::ConvertFCToFCQuantizedLegacy);
     CPU_REGISTER_PASS_X64(manager, MoveFCReshapeToWeights);
     CPU_REGISTER_PASS_X64(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_COMMON(manager, AlignMatMulInputRanks);

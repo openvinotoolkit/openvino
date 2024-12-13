@@ -7,7 +7,6 @@
 #include "snippets/op/subgraph.hpp"
 #include "snippets/utils/utils.hpp"
 
-#include "low_precision/rt_info/bias_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 #include "transformations/utils.hpp"
 #include "utils/general_utils.h"
@@ -73,48 +72,7 @@ bool isFullyConnected(const std::shared_ptr<const ov::Node>& node) {
            ov::op::util::is_on_constant_path(out_weights);
 }
 
-bool canBePerformedAsScaleShift(const std::shared_ptr<const Node> &node, const int channelAxis) {
-    size_t fusingPort = 0;
-    size_t numNonConstInputs = 0;
-    ov::PartialShape dataShape;
-    for (size_t i = 0; i < node->get_input_size(); i++) {
-        const auto parent = node->get_input_node_shared_ptr(i);
-        if (!ov::is_type<ov::op::v0::Constant>(parent)) {
-            fusingPort = i;
-            dataShape = node->get_input_partial_shape(i);
-            // only one non-const parent is allowed
-            if (++numNonConstInputs != 1)
-                return false;
-        } else {
-            // every const parent must have exactly one child
-            const auto out = parent->outputs();
-            const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
-            if (!has_only_child)
-                return false;
-        }
-    }
-
-    const auto isBroadcastableToDataInput = [&]() {
-        for (size_t i = 0; i < node->get_input_size(); i++) {
-            if (i == fusingPort)
-                continue;
-            const ov::PartialShape weightShape = node->get_input_partial_shape(i);
-            if (!isPerTensorOrPerChannelBroadcastable(dataShape.get_max_shape(), weightShape.get_max_shape(), channelAxis, true))
-                return false;
-        }
-        return true;
-    };
-
-    // Prelu and MulAdd are still ignored
-    // isConvertablePowerStatic() is ignored
-    return (ov::is_type<ov::opset1::Add>(node) ||
-            ov::is_type<ov::opset1::Multiply>(node) ||
-            ov::is_type<ov::opset1::Subtract>(node) ||
-            ov::is_type<ov::opset1::Divide>(node)) &&
-           isBroadcastableToDataInput();
-}
-
-bool SupportsFusingWithConvolution_Simple(const std::shared_ptr<const Node> &node, const int channelAxis = DEFAULT_AXIS) {
+bool SupportsFusingWithConvolution_Simple(const std::shared_ptr<const Node> &node) {
     // Note: some other operations support this fusing (SoftPlus, Sqrt).
     // Skip them here, when they are supported by Snippets ARM. Ticket: 141170.
     return ov::is_type<ov::op::v0::Abs>(node) ||
@@ -122,8 +80,7 @@ bool SupportsFusingWithConvolution_Simple(const std::shared_ptr<const Node> &nod
            ov::is_type<ov::op::v0::Elu>(node) ||
            ov::is_type<ov::op::v0::Relu>(node) ||
            ov::is_type<ov::op::v0::Sigmoid>(node) ||
-           ov::is_type<ov::op::v0::Tanh>(node) ||
-           canBePerformedAsScaleShift(node, channelAxis);
+           ov::is_type<ov::op::v0::Tanh>(node);
 }
 // Convolution is a special case, since it supports peculiar fusings
 bool isSuitableConvolutionParent(const std::shared_ptr<const Node> &node) {
@@ -262,27 +219,6 @@ auto is_skipped_op(const std::shared_ptr<ov::Node>& op) -> bool {
            ov::is_type<ov::op::v0::Parameter>(op) ||
            ov::is_type<ov::op::v0::Result>(op);
 }
-
-bool isSuitableChildForFC(const std::shared_ptr<const Node> &node, const bool canMatMulBeExecutedInI8, int& fusingAxis) {
-    // Invoke SupportsFusingWithConvolution_Simple directly instead of isSuitableChildForFusingSimple to
-    // eliminate getNumNonConstInputs() check
-    if (SupportsFusingWithConvolution_Simple(node, fusingAxis)) {
-        size_t num_non_const_inputs = 0;
-        size_t num_mm_inputs = 0;
-        for (const auto &parent_out : node->input_values()) {
-            if (one_of(GetNodeFusingType(parent_out.get_node_shared_ptr()), NodeFusingType::FusedWithFC, NodeFusingType::FusedWithFCI8))
-                num_mm_inputs++;
-            else if (!ov::op::util::is_on_constant_path(parent_out))
-                num_non_const_inputs++;
-        }
-        return (num_non_const_inputs + num_mm_inputs == 1);
-    }
-    return false;
-}
-
-inline bool canBeMatMulExecutedInInt8(const ov::element::Type& firstType, const ov::element::Type& secondType) {
-    return one_of(firstType, ov::element::i8, ov::element::u8) && secondType == ov::element::i8;
-}
 } // namespace
 
 bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
@@ -291,7 +227,6 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
     for (auto &node : m->get_ordered_ops()) {
         if (is_skipped_op(node))
             continue;
-
         if (isSuitableConvolutionParent(node)) {
             // Initiate fusing chain
             SetNodeFusingType(node, NodeFusingType::FusedWithConvolution);
@@ -304,10 +239,9 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
             SetNodeFusingType(node, NodeFusingType::FusedWithMisc);
         } else if (isSuitableMatMulParent(node)) {
             const bool is_fc = isFullyConnected(node);
-            const bool is_i8 = canBeMatMulExecutedInInt8(node->get_input_element_type(0), node->get_input_element_type(1));
             const auto out_rank = node->get_output_partial_shape(0).rank();
             if (is_fc) {
-                SetNodeFusingType(node, is_i8 ? NodeFusingType::FusedWithFCI8 : NodeFusingType::FusedWithFC);
+                SetNodeFusingType(node, NodeFusingType::FusedWithFC);
                 channelAxis = out_rank.is_static() ? (out_rank.get_length() == 3 ? 2 : 1) : DEFAULT_AXIS;
             } else {
                 SetNodeFusingType(node, NodeFusingType::FusedWithMatMul);
@@ -332,10 +266,6 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
                     if (isSuitablePoolChild(node)) {
                         PropagateIfHasOnlyChild(node, fusingChainType);
                     }
-                } else if (one_of(fusingChainType, NodeFusingType::FusedWithFC, NodeFusingType::FusedWithFCI8)) {
-                    const bool isExecutedInINT8 = fusingChainType == NodeFusingType::FusedWithFCI8;
-                    if (isSuitableChildForFC(node, isExecutedInINT8, channelAxis))
-                        PropagateIfHasOnlyChild(node, fusingChainType);
                 }
             }
         }
