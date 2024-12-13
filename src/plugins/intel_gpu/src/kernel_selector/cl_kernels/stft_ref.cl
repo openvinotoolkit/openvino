@@ -8,6 +8,7 @@ typedef float2 cfloat;
 #define imag(a)      ((a).s1)
 #define crmult(a, b) ((cfloat)(real(a) * (b), imag(a) * (b)))
 #define cadd(a, b)   ((cfloat)(real(a) + real(b), imag(a) + imag(b)))
+#define csub(a, b)   ((cfloat)(real(a) - real(b), imag(a) - imag(b)))
 #define expmi(x)     ((cfloat)(cos(x), -sin(x)))
 #define czero()      ((cfloat)(0))
 
@@ -38,12 +39,20 @@ KERNEL(stft_ref)(
     // dft_power = 2*PI*(k/N) from dft def.
     const float dft_power = 2.0f * M_PI_F * (float)freq_id / (float)frame_size;
 
+    cfloat err = czero();
     for(int i = 0; i < window_size; ++i) {
         const float signal_val = (float)signal_for_this_frame[i];
         const float window_val = (float)window[i];
         const float x_i = signal_val*window_val;
         const cfloat e_i = expmi(dft_power*(float)(i+start_offset));
-        freq_val = cadd(freq_val, crmult(e_i, x_i));
+        const cfloat val_i = crmult(e_i, x_i);
+
+        //Kahan sum algo:
+        const cfloat y = csub(val_i, err);
+        const cfloat newSum = cadd(freq_val, y);
+        err = csub(newSum, freq_val);
+        err = csub(err, y);
+        freq_val = newSum;
     }
 
 #if TRANSPOSE_FRAMES
