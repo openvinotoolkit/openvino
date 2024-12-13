@@ -142,8 +142,7 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
 
     void generate() override {
         if (jcp_.reduce_mode == Algorithm::ReduceLogSumExp) {
-            exp_injector =
-                std::make_shared<jit_uni_eltwise_injector<isa>>(this, alg_kind::eltwise_exp, 0.f, 0.f, 1.f);
+            exp_injector = std::make_shared<jit_uni_eltwise_injector<isa>>(this, alg_kind::eltwise_exp, 0.f, 0.f, 1.f);
         }
 
         if (mayiuse(avx512_core))
@@ -1224,8 +1223,7 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
         }
 
         if (jcp_.reduce_mode == Algorithm::ReduceLogSum || jcp_.reduce_mode == Algorithm::ReduceLogSumExp) {
-            log_injector =
-                std::make_shared<jit_uni_eltwise_injector<isa>>(this, alg_kind::eltwise_log, 0.f, 0.f, 1.f);
+            log_injector = std::make_shared<jit_uni_eltwise_injector<isa>>(this, alg_kind::eltwise_log, 0.f, 0.f, 1.f);
         }
 
         if (mayiuse(avx512_core))
