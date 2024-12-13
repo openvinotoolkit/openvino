@@ -45,7 +45,7 @@ The first part is required for inference. The second part is required for succes
 Definition of Operation Semantics
 #################################
 
-If the custom operation can be mathematically represented as a combination of exiting OpenVINO operations and such decomposition gives desired performance, then low-level operation implementation is not required. Refer to the latest OpenVINO operation set, when deciding feasibility of such decomposition. You can use any valid combination of exiting operations. The next section of this document describes the way to map a custom operation.
+If the custom operation can be mathematically represented as a combination of existing OpenVINO operations and such decomposition gives desired performance, then low-level operation implementation is not required. Refer to the latest OpenVINO operation set, when deciding feasibility of such decomposition. You can use any valid combination of existing operations. The next section of this document describes the way to map a custom operation.
 
 If such decomposition is not possible or appears too bulky with a large number of constituent operations that do not perform well, then a new class for the custom operation should be implemented, as described in the :doc:`Custom Operation Guide <openvino-extensibility/custom-openvino-operations>`.
 
