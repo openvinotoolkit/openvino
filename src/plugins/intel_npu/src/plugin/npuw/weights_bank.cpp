@@ -6,6 +6,7 @@
 
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
+#include "serialization.hpp"
 #include "util.hpp"
 
 using ov::npuw::weights::Bank;
@@ -45,12 +46,12 @@ ov::Tensor Bank::get(const LazyTensor& tensor, const std::string& device) {
     std::unique_lock<std::mutex> dev_guard(device_bank.mutex);
     auto iter_device = device_bank.storage.find(tensor);
 
-    if (iter_device != device_bank.storage.end() && iter_device->second) {
+    if (iter_device != device_bank.storage.end() && iter_device->second.first) {
         // Already allocated
         // tensor (the key) may be coming from a 2nd (3rd, ...) model
         // detach it here just in case
         const_cast<LazyTensor&>(tensor).detach();
-        return iter_device->second;
+        return iter_device->second.first;
     }
     dev_guard.unlock();
 
@@ -58,14 +59,19 @@ ov::Tensor Bank::get(const LazyTensor& tensor, const std::string& device) {
     return eval_and_alloc(tensor, device_bank, device_for_alloc);
 }
 
-void Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
+std::size_t Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
     const std::string& device_for_alloc = m_alloc_device.empty() ? device : m_alloc_device;
 
     std::lock_guard<std::mutex> guard(m_mutex);
 
     auto& device_bank = m_device_banks[device_for_alloc];
-    if (device_bank.storage.find(tensor) == device_bank.storage.end()) {
-        device_bank.storage[tensor] = ov::Tensor();
+    auto it = device_bank.storage.find(tensor);
+    if (it == device_bank.storage.end()) {
+        auto uid = uid_count++;
+        device_bank.storage[tensor] = {ov::Tensor(), uid};
+        return uid;
+    } else {
+        return it->second.second;
     }
 }
 
@@ -85,7 +91,7 @@ void Bank::evaluate_and_allocate() {
             const auto& lt = vec[idx];
             std::unique_lock dev_guard(device_bank.mutex);
             auto iter_device = device_bank.storage.find(lt);
-            if (iter_device != device_bank.storage.end() && iter_device->second) {
+            if (iter_device != device_bank.storage.end() && iter_device->second.first) {
                 // Already allocated
                 return;
             }
@@ -106,7 +112,7 @@ ov::Tensor Bank::eval_and_alloc(const LazyTensor& tensor,
 
     std::unique_lock<std::mutex> guard(dbank.mutex);
     if (device_for_alloc == "CPU") {
-        dbank.storage[tensor] = transformed_tensor;
+        dbank.storage[tensor] = {transformed_tensor, uid_count++};
         return transformed_tensor;
     }
 
@@ -117,7 +123,11 @@ ov::Tensor Bank::eval_and_alloc(const LazyTensor& tensor,
     remote_tensor =
         remote_ctx->create_host_tensor(transformed_tensor.get_element_type(), transformed_tensor.get_shape());
     allocated_tensor = ov::make_tensor(remote_tensor);
-    dbank.storage[tensor] = allocated_tensor;
+    auto& tensor_and_uid = dbank.storage[tensor];
+    // FIXME: this assert prevents calling get() before registerLT()
+    // But it's a required check for serialization
+    NPUW_ASSERT(tensor_and_uid.second != 0 && "Unregistered LazyTensor in weights bank!");
+    tensor_and_uid = {allocated_tensor, tensor_and_uid.second};
     guard.unlock();  // Unlock the guard, map update is done - copy can continue in parallel
 
     transformed_tensor.copy_to(allocated_tensor);
@@ -140,9 +150,91 @@ bool Bank::is_remote(const LazyTensor& tensor) const {
     return false;
 }
 
-void Bank::serialize(std::ostream& stream) const {}
+void Bank::serialize(std::ostream& stream) const {
+    using namespace ov::npuw::s11n;
 
-std::shared_ptr<Bank> Bank::deserialize(std::istream& stream) {}
+    std::lock_guard<std::mutex> guard(m_mutex);
+
+    // For now only NPU device is supported
+    // Sanity check
+    NPUW_ASSERT(m_device_banks.size() == 1 && "Only NPU bank can be serialized");
+    auto it = m_device_banks.find("NPU");
+    NPUW_ASSERT(it != m_device_banks.end() && "Only NPU bank can be serialized");
+
+    const auto& device_bank = it->second;
+    std::lock_guard<std::mutex> dev_guard(device_bank.mutex);
+    write(stream, device_bank.storage.size());
+    for (const auto& t_pair : device_bank.storage) {
+        write(stream, t_pair.second);
+    }
+}
+
+std::shared_ptr<Bank> Bank::deserialize(std::istream& stream, const std::shared_ptr<const ov::ICore>& core) {
+    using namespace ov::npuw::s11n;
+
+    // For now only NPU device is supported
+    std::string device = "NPU";
+    // Bank is assumed to be shared - thus no need for a unique name. FIXME: is that right?
+    auto bank = ov::npuw::weights::bank("shared_serialized", core, device);
+    std::size_t bank_size = 0;
+    read(stream, bank_size);
+
+    for (std::size_t i = 0; i < bank_size; ++i) {
+        std::pair<std::size_t, ov::Tensor> p;
+        read(stream, p);
+        bank->add_element(p.first, p.second, device);
+    }
+
+    return bank;
+}
+
+void Bank::add_element(std::size_t uid, const ov::Tensor& tensor, const std::string& device) {
+    // This method is supposed to be used only during deserialization
+    // For now only NPU device is supported
+    NPUW_ASSERT(device == "NPU");
+    std::lock_guard<std::mutex> guard(m_mutex);
+
+    auto it = m_device_banks.find(device);
+    auto& device_bank = it->second;
+    std::lock_guard<std::mutex> dev_guard(device_bank.mutex);
+
+    device_bank.deserialized_storage[uid] = {ov::Tensor(tensor.get_element_type(), tensor.get_shape()), false};
+    tensor.copy_to(device_bank.deserialized_storage[uid].first);  // preserve data ownership
+}
+
+ov::Tensor Bank::get(std::size_t uid, const std::string& device) {
+    // This method is supposed to be used only during deserialization
+    // For now only NPU device is supported
+    NPUW_ASSERT(device == "NPU");
+    std::lock_guard<std::mutex> guard(m_mutex);
+
+    auto it = m_device_banks.find(device);
+    auto& device_bank = it->second;
+    std::lock_guard<std::mutex> dev_guard(device_bank.mutex);
+
+    auto it_tensor_and_allocated = device_bank.deserialized_storage.find(uid);
+
+    NPUW_ASSERT(it_tensor_and_allocated != device_bank.deserialized_storage.end() && "Can't find deserialized tensor!");
+
+    if (it_tensor_and_allocated->second.second) {
+        // Already allocated
+        return it_tensor_and_allocated->second.first;
+    }
+
+    // Allocate on device
+    auto tensor = it_tensor_and_allocated->second.first;
+
+    ov::SoPtr<ov::ITensor> remote_tensor;
+    ov::Tensor allocated_tensor;
+
+    auto remote_ctx = m_core->get_default_context(device)._ptr;
+    remote_tensor = remote_ctx->create_host_tensor(tensor.get_element_type(), tensor.get_shape());
+    allocated_tensor = ov::make_tensor(remote_tensor);
+    tensor.copy_to(allocated_tensor);
+    it_tensor_and_allocated->second = {allocated_tensor, true};
+
+    return allocated_tensor;
+}
 
 std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name,
                                            const std::shared_ptr<const ov::ICore>& core,

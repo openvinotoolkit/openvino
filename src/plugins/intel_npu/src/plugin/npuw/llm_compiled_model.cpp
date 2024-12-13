@@ -344,17 +344,15 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin, other_props);
     compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin, other_props);
 
-    // // Deserialize weights bank (if required)
-    // const std::string weights_bank_opt = compiled->m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK>();
-    // // NPU device assumed by default
-    // std::shared_ptr<ov::npuw::weights::Bank> bank =
-    //     ov::npuw::weights::bank(weights_bank_opt, compiled->get_plugin()->get_core(), "NPU");
-    // // FIXME: support weightless option
-    // bank->deserialize(stream);
-    // compiled->m_kvcache_compiled->m_weights_bank = bank;
-    // compiled->m_prefill_compiled->m_weights_bank = bank;
+    // Deserialize weights bank (if required)
+    auto bank = ov::npuw::weights::Bank::deserialize(stream, compiled->get_plugin()->get_core());
+    // FIXME: support weightless option
+    compiled->m_kvcache_compiled->m_weights_bank = bank;
+    compiled->m_prefill_compiled->m_weights_bank = bank;
 
-    // After bank deserialization - need to call smth like reconstruct_closure() and use uids there!!!
+    // After bank deserialization - reconstruct NPU closures from the bank
+    compiled->m_kvcache_compiled->reconstruct_closure();
+    compiled->m_prefill_compiled->reconstruct_closure();
 
     // FIXME: is it required for LLMCompiledModel or CompiledModel ???
     // compiled->implement_properties();
@@ -388,12 +386,11 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     m_prefill_compiled->serialize(stream);
 
     // Serialize weights bank (if required)
-    // const auto& kv_bank = m_kvcache_compiled->m_weights_bank;
-    // const auto& p_bank = m_prefill_compiled->m_weights_bank;
-    // NPUW_ASSERT(kv_bank && p_bank && kv_bank == p_bank && "Prefill and KVCache models' weight bank should be
-    // shared!");
-    // // FIXME: support weightless option
-    // kv_bank->serialize(stream);
+    const auto& kv_bank = m_kvcache_compiled->m_weights_bank;
+    const auto& p_bank = m_prefill_compiled->m_weights_bank;
+    NPUW_ASSERT(kv_bank && p_bank && kv_bank == p_bank && "Prefill and KVCache models' weight bank should be shared!");
+    // FIXME: support weightless flow
+    kv_bank->serialize(stream);
 
     LOG_INFO("Done.");
 }

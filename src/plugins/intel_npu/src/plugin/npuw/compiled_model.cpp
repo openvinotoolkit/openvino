@@ -502,7 +502,21 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
 
     // NOTE: for closure only serialize uids - full flow
     write(stream, closure_uid);
-    // !!! FIMXE: some tensors might be present in CPU closure already - need to serialize as is
+
+    // Some tensors might be present in CPU closure already - need to serialize as is
+    write(stream, closure.size());
+    std::vector<ov::Tensor> cpu_closures;
+    std::vector<std::size_t> cpu_closure_ids;
+    std::size_t cidx = 0;
+    for (const auto& t : closure) {
+        if (t) {
+            cpu_closure_ids.push_back(cidx);
+            cpu_closures.push_back(t);
+        }
+        ++cidx;
+    }
+    write(stream, cpu_closure_ids);
+    write(stream, cpu_closures);
 
     // FIXME: support weightless flow!
 }
@@ -536,7 +550,21 @@ ov::npuw::CompiledModel::CompiledModelDesc ov::npuw::CompiledModel::CompiledMode
 
     // NOTE: for closure only deserialize uids - full flow
     read(stream, desc.closure_uid);
-    // !!! FIXME: some tensors might be present in CPU closure already - need to serialize as is
+
+    // Some tensors might be present in CPU closure already - need to deserialize as is
+    std::size_t closure_size = 0;
+    read(stream, closure_size);
+    std::vector<ov::Tensor> cpu_closures;
+    std::vector<std::size_t> cpu_closure_ids;
+    read(stream, cpu_closure_ids);
+    read(stream, cpu_closures);
+    desc.closure.resize(closure_size);
+    std::size_t cpu_cidx = 0;
+    for (const auto& cidx : cpu_closure_ids) {
+        const auto& t = cpu_closures[cpu_cidx++];
+        desc.closure[cidx] = ov::Tensor(t.get_element_type(), t.get_shape());
+        t.copy_to(desc.closure[cidx]);  // get data ownership
+    }
 
     // FIXME: support weightless flow!
 
@@ -695,7 +723,9 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             if (comp_model_desc.closure[tidx]) {
                 continue;  // host-side closure
             }
-            m_weights_bank->registerLT(comp_model_desc.lazy_closure[tidx], *func_desc.device_it);
+            comp_model_desc.closure_uid[tidx] =
+                m_weights_bank->registerLT(comp_model_desc.lazy_closure[tidx], *func_desc.device_it);
+            ;
         }
     }
 
@@ -728,6 +758,33 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
     }
 
     LOG_INFO("Done.");
+}
+
+void ov::npuw::CompiledModel::reconstruct_closure() {
+    for (size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
+        auto& comp_model_desc = m_compiled_submodels[idx];
+
+        // Skip optimized out and non-functions
+        if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
+            continue;
+        }
+
+        const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
+        auto& func_desc = m_compiled_submodels[real_idx];
+
+        // At this point closure size should have already been deserialized
+        NPUW_ASSERT(!comp_model_desc.closure.empty() && "Closure shouldn't be empty at this point!");
+        for (std::size_t cidx = 0; cidx < comp_model_desc.closure.size(); ++cidx) {
+            if (comp_model_desc.closure[cidx]) {
+                // host-side closure - already set, do nothing
+                NPUW_ASSERT(!comp_model_desc.is_remote[cidx]);
+                continue;
+            }
+            NPUW_ASSERT(comp_model_desc.is_remote[cidx]);
+            comp_model_desc.closure[cidx] =
+                m_weights_bank->get(comp_model_desc.closure_uid[cidx], *func_desc.device_it);
+        }
+    }
 }
 
 void ov::npuw::CompiledModel::detach_memory() {

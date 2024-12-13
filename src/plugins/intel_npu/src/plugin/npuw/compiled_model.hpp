@@ -89,6 +89,9 @@ private:
     void log_device_dist() const;
     void implement_properties();
 
+    // For full deserialization flow with weights
+    void reconstruct_closure();
+
     void finalize_weights_bank();
     void detach_memory();
     std::string global_mem_device() const;
