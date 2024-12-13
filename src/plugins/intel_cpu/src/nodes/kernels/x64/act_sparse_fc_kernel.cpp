@@ -253,26 +253,29 @@ float dynPruneLinear(float* x, float* W2, float threshold, float zero_point, flo
     return gate_cnt * 1.0f / IC;
 }
 
-static inline void accumulate_w8_peroc(int N,
-                                    float* base_dst, int64_t OC,
-                                    int* ic_ids, int ic_cnt,
-                                    const uint8_t* Wu8,
-                                    const uint8_t* zp,
-                                    const float* scales,
-                                    float* dense_x, int64_t IC) {
+template<bool with_zp>
+void accumulate_w8_peroc(int N,
+                        float* base_dst, int64_t OC,
+                        int* ic_ids, int ic_cnt,
+                        const uint8_t* Wu8,
+                        const uint8_t* zp,
+                        const float* scales,
+                        float* dense_x, int64_t IC) {
     // decompress zero-point
     thread_local std::vector<float> zpbuff;
     zpbuff.resize(OC);
     auto* dst_zp = zpbuff.data();
 
-    int oc = 0;
-    for (; oc + SIMDW <= OC; oc += SIMDW) {
-        auto zpu32 = simd_load_epu8_epi32(static_cast<void const*>(zp + oc));
-        auto zpf32 = simd_cvtepi32_ps(zpu32);
-        simd_storeu_ps(dst_zp + oc, zpf32);
-    }
-    for (; oc < OC; oc ++) {
-        dst_zp[oc] = zp[oc];
+    if (with_zp) {
+        int oc = 0;
+        for (; oc + SIMDW <= OC; oc += SIMDW) {
+            auto zpu32 = simd_load_epu8_epi32(static_cast<void const*>(zp + oc));
+            auto zpf32 = simd_cvtepi32_ps(zpu32);
+            simd_storeu_ps(dst_zp + oc, zpf32);
+        }
+        for (; oc < OC; oc ++) {
+            dst_zp[oc] = zp[oc];
+        }
     }
 
     // vector x weights
@@ -287,31 +290,51 @@ static inline void accumulate_w8_peroc(int N,
         const auto* p_w2 = Wu8 + ic2 * OC;
         const auto* p_w3 = Wu8 + ic3 * OC;
 
-        oc = 0;
+        int oc = 0;
 
         auto vx0 = simd_broadcast_ss(dense_x + g + 0);
         auto vx1 = simd_broadcast_ss(dense_x + g + 1);
         auto vx2 = simd_broadcast_ss(dense_x + g + 2);
         auto vx3 = simd_broadcast_ss(dense_x + g + 3);
         for (; oc + SIMDW <= OC; oc += SIMDW) {
-            auto vscales = simd_loadu_ps(scales + oc);
-            auto vzp = simd_loadu_ps(dst_zp + oc);
-            auto vdst = simd_loadu_ps(base_dst + oc);
+            if (with_zp) {
+                auto vscales = simd_loadu_ps(scales + oc);
+                auto vzp = simd_loadu_ps(dst_zp + oc);
+                auto vdst = simd_loadu_ps(base_dst + oc);
 
-            auto wdw0 = simd_load_epu8_epi32(static_cast<void const*>(p_w0 + oc));
-            auto wdw1 = simd_load_epu8_epi32(static_cast<void const*>(p_w1 + oc));
-            auto wdw2 = simd_load_epu8_epi32(static_cast<void const*>(p_w2 + oc));
-            auto wdw3 = simd_load_epu8_epi32(static_cast<void const*>(p_w3 + oc));
+                auto wdw0 = simd_load_epu8_epi32(static_cast<void const*>(p_w0 + oc));
+                auto wdw1 = simd_load_epu8_epi32(static_cast<void const*>(p_w1 + oc));
+                auto wdw2 = simd_load_epu8_epi32(static_cast<void const*>(p_w2 + oc));
+                auto wdw3 = simd_load_epu8_epi32(static_cast<void const*>(p_w3 + oc));
 
-            auto vsum = simd_setzero_ps();
+                auto vsum = simd_setzero_ps();
 
-            vsum = simd_fmadd_ps(simd_sub_ps(simd_cvtepi32_ps(wdw0), vzp), vx0, vsum);
-            vsum = simd_fmadd_ps(simd_sub_ps(simd_cvtepi32_ps(wdw1), vzp), vx1, vsum);
-            vsum = simd_fmadd_ps(simd_sub_ps(simd_cvtepi32_ps(wdw2), vzp), vx2, vsum);
-            vsum = simd_fmadd_ps(simd_sub_ps(simd_cvtepi32_ps(wdw3), vzp), vx3, vsum);
+                vsum = simd_fmadd_ps(simd_sub_ps(simd_cvtepi32_ps(wdw0), vzp), vx0, vsum);
+                vsum = simd_fmadd_ps(simd_sub_ps(simd_cvtepi32_ps(wdw1), vzp), vx1, vsum);
+                vsum = simd_fmadd_ps(simd_sub_ps(simd_cvtepi32_ps(wdw2), vzp), vx2, vsum);
+                vsum = simd_fmadd_ps(simd_sub_ps(simd_cvtepi32_ps(wdw3), vzp), vx3, vsum);
 
-            vdst = simd_fmadd_ps(vsum, vscales, vdst);
-            simd_storeu_ps(base_dst + oc, vdst);
+                vdst = simd_fmadd_ps(vsum, vscales, vdst);
+                simd_storeu_ps(base_dst + oc, vdst);
+            } else {
+                auto vscales = simd_loadu_ps(scales + oc);
+                auto vdst = simd_loadu_ps(base_dst + oc);
+
+                auto wdw0 = simd_load_epi8_epi32(static_cast<void const*>(p_w0 + oc));
+                auto wdw1 = simd_load_epi8_epi32(static_cast<void const*>(p_w1 + oc));
+                auto wdw2 = simd_load_epi8_epi32(static_cast<void const*>(p_w2 + oc));
+                auto wdw3 = simd_load_epi8_epi32(static_cast<void const*>(p_w3 + oc));
+
+                auto vsum = simd_setzero_ps();
+
+                vsum = simd_fmadd_ps(simd_cvtepi32_ps(wdw0), vx0, vsum);
+                vsum = simd_fmadd_ps(simd_cvtepi32_ps(wdw1), vx1, vsum);
+                vsum = simd_fmadd_ps(simd_cvtepi32_ps(wdw2), vx2, vsum);
+                vsum = simd_fmadd_ps(simd_cvtepi32_ps(wdw3), vx3, vsum);
+
+                vdst = simd_fmadd_ps(vsum, vscales, vdst);
+                simd_storeu_ps(base_dst + oc, vdst);
+            }
         }
 
         if (oc < OC) {
@@ -320,23 +343,33 @@ static inline void accumulate_w8_peroc(int N,
             auto x2 = dense_x[g + 2];
             auto x3 = dense_x[g + 3];
             for (; oc < OC; oc ++) {
-                auto weight0 = (p_w0[oc] - dst_zp[oc])*scales[oc];
-                auto weight1 = (p_w1[oc] - dst_zp[oc])*scales[oc];
-                auto weight2 = (p_w2[oc] - dst_zp[oc])*scales[oc];
-                auto weight3 = (p_w3[oc] - dst_zp[oc])*scales[oc];
+                auto weight0 = p_w0[oc];
+                auto weight1 = p_w1[oc];
+                auto weight2 = p_w2[oc];
+                auto weight3 = p_w3[oc];
+                if (with_zp) {
+                    weight0 -= dst_zp[oc];
+                    weight1 -= dst_zp[oc];
+                    weight2 -= dst_zp[oc];
+                    weight3 -= dst_zp[oc];
+                }
+                weight0 *= scales[oc];
+                weight1 *= scales[oc];
+                weight2 *= scales[oc];
+                weight3 *= scales[oc];
                 base_dst[oc] += x0 * weight0 + x1 * weight1 + x2 * weight2 + x3 * weight3;
             }
         }
     }
 }
 
-
-static inline void accumulate_w4_peroc(float* base_dst, int OC,
-                                       int* ic_ids, int ic_cnt,
-                                       const uint8_t* W,
-                                       const uint8_t* zp,
-                                       const float* scales,
-                                       float* dense_x, int IC, int IC_group_size) {
+template<bool with_zp>
+void accumulate_w4_peroc(float* base_dst, int OC,
+                        int* ic_ids, int ic_cnt,
+                        const uint8_t* W,
+                        const uint8_t* zp,
+                        const float* scales,
+                        float* dense_x, int IC, int IC_group_size) {
     // decompress zero-point
     thread_local std::vector<float> zpbuff;
     zpbuff.resize(OC);
@@ -352,22 +385,24 @@ static inline void accumulate_w4_peroc(float* base_dst, int OC,
 
         // entering a new group, decompress zero-points
         if (last_gid != gid) {
-            auto* dst_zp = zpbuff.data();
-            auto* src_zp = zp + gid * (OC/2);
-            int oc = 0;
-            auto vmask_u4 = simd_set1_epi32(0xF);
-            for (; oc + SIMDW*2 <= OC; oc += SIMDW*2, src_zp += SIMDW) {
-                auto vzp16xu4_i32 = simd_load_epu8_epi32(static_cast<void const*>(src_zp));
-                auto vzp16xu4_i32_low = simd_and_si(vzp16xu4_i32, vmask_u4);
-                auto vzp16xu4_i32_high = simd_srli_epi32(vzp16xu4_i32, 4);
-                auto vzpf32_low = simd_cvtepi32_ps(vzp16xu4_i32_low);
-                auto vzpf32_high = simd_cvtepi32_ps(vzp16xu4_i32_high);
-                simd_storeu_ps(dst_zp + oc, vzpf32_low);
-                simd_storeu_ps(dst_zp + oc + SIMDW, vzpf32_high);
-            }
-            for (; oc < OC; oc +=2, src_zp++) {
-                dst_zp[oc] = src_zp[0] & 0xF;
-                dst_zp[oc + 1] = src_zp[0] >> 4;
+            if (with_zp) {
+                auto* dst_zp = zpbuff.data();
+                auto* src_zp = zp + gid * (OC/2);
+                int oc = 0;
+                auto vmask_u4 = simd_set1_epi32(0xF);
+                for (; oc + SIMDW*2 <= OC; oc += SIMDW*2, src_zp += SIMDW) {
+                    auto vzp16xu4_i32 = simd_load_epu8_epi32(static_cast<void const*>(src_zp));
+                    auto vzp16xu4_i32_low = simd_and_si(vzp16xu4_i32, vmask_u4);
+                    auto vzp16xu4_i32_high = simd_srli_epi32(vzp16xu4_i32, 4);
+                    auto vzpf32_low = simd_cvtepi32_ps(vzp16xu4_i32_low);
+                    auto vzpf32_high = simd_cvtepi32_ps(vzp16xu4_i32_high);
+                    simd_storeu_ps(dst_zp + oc, vzpf32_low);
+                    simd_storeu_ps(dst_zp + oc + SIMDW, vzpf32_high);
+                }
+                for (; oc < OC; oc +=2, src_zp++) {
+                    dst_zp[oc] = src_zp[0] & 0xF;
+                    dst_zp[oc + 1] = src_zp[0] >> 4;
+                }
             }
             last_gid = gid;
         }
@@ -385,47 +420,90 @@ static inline void accumulate_w4_peroc(float* base_dst, int OC,
         auto vx1 = simd_broadcast_ss(dense_x + g + 1);
         auto vx2 = simd_broadcast_ss(dense_x + g + 2);
         auto vx3 = simd_broadcast_ss(dense_x + g + 3);
-        for (; oc + SIMDW*2 <= OC; oc += SIMDW*2) {
-            auto vzp0 = simd_loadu_ps(dst_zp + oc);
-            auto vzp1 = simd_loadu_ps(dst_zp + oc + SIMDW);
+        if (with_zp) {
+            for (; oc + SIMDW*2 <= OC; oc += SIMDW*2) {
+                auto vzp0 = simd_loadu_ps(dst_zp + oc);
+                auto vzp1 = simd_loadu_ps(dst_zp + oc + SIMDW);
 
-            auto vdst0 = simd_loadu_ps(base_dst + oc);
-            auto vdst1 = simd_loadu_ps(base_dst + oc + SIMDW);
+                auto vdst0 = simd_loadu_ps(base_dst + oc);
+                auto vdst1 = simd_loadu_ps(base_dst + oc + SIMDW);
 
-            auto wdw_i32 = simd_load_epu8_epi32(static_cast<void const*>(p_w0)); p_w0 += SIMDW;
-            auto vsum0 = simd_setzero_ps();
-            auto vsum1 = simd_setzero_ps();
+                auto wdw_i32 = simd_load_epu8_epi32(static_cast<void const*>(p_w0)); p_w0 += SIMDW;
+                auto vsum0 = simd_setzero_ps();
+                auto vsum1 = simd_setzero_ps();
 
-            auto wdw0 = simd_cvtepi32_ps(simd_and_si(wdw_i32, vmask_u4));
-            auto wdw1 = simd_cvtepi32_ps(simd_srli_epi32(wdw_i32, 4));
-            vsum0 = simd_fmadd_ps(simd_sub_ps(wdw0, vzp0), vx0, vsum0);
-            vsum1 = simd_fmadd_ps(simd_sub_ps(wdw1, vzp1), vx0, vsum1);
+                auto wdw0 = simd_cvtepi32_ps(simd_and_si(wdw_i32, vmask_u4));
+                auto wdw1 = simd_cvtepi32_ps(simd_srli_epi32(wdw_i32, 4));
+                vsum0 = simd_fmadd_ps(simd_sub_ps(wdw0, vzp0), vx0, vsum0);
+                vsum1 = simd_fmadd_ps(simd_sub_ps(wdw1, vzp1), vx0, vsum1);
 
-            wdw_i32 = simd_load_epu8_epi32(static_cast<void const*>(p_w1)); p_w1 += SIMDW;
-            wdw0 = simd_cvtepi32_ps(simd_and_si(wdw_i32, vmask_u4));
-            wdw1 = simd_cvtepi32_ps(simd_srli_epi32(wdw_i32, 4));
-            vsum0 = simd_fmadd_ps(simd_sub_ps(wdw0, vzp0), vx1, vsum0);
-            vsum1 = simd_fmadd_ps(simd_sub_ps(wdw1, vzp1), vx1, vsum1);
+                wdw_i32 = simd_load_epu8_epi32(static_cast<void const*>(p_w1)); p_w1 += SIMDW;
+                wdw0 = simd_cvtepi32_ps(simd_and_si(wdw_i32, vmask_u4));
+                wdw1 = simd_cvtepi32_ps(simd_srli_epi32(wdw_i32, 4));
+                vsum0 = simd_fmadd_ps(simd_sub_ps(wdw0, vzp0), vx1, vsum0);
+                vsum1 = simd_fmadd_ps(simd_sub_ps(wdw1, vzp1), vx1, vsum1);
 
-            wdw_i32 = simd_load_epu8_epi32(static_cast<void const*>(p_w2)); p_w2 += SIMDW;
-            wdw0 = simd_cvtepi32_ps(simd_and_si(wdw_i32, vmask_u4));
-            wdw1 = simd_cvtepi32_ps(simd_srli_epi32(wdw_i32, 4));
-            vsum0 = simd_fmadd_ps(simd_sub_ps(wdw0, vzp0), vx2, vsum0);
-            vsum1 = simd_fmadd_ps(simd_sub_ps(wdw1, vzp1), vx2, vsum1);
+                wdw_i32 = simd_load_epu8_epi32(static_cast<void const*>(p_w2)); p_w2 += SIMDW;
+                wdw0 = simd_cvtepi32_ps(simd_and_si(wdw_i32, vmask_u4));
+                wdw1 = simd_cvtepi32_ps(simd_srli_epi32(wdw_i32, 4));
+                vsum0 = simd_fmadd_ps(simd_sub_ps(wdw0, vzp0), vx2, vsum0);
+                vsum1 = simd_fmadd_ps(simd_sub_ps(wdw1, vzp1), vx2, vsum1);
 
-            wdw_i32 = simd_load_epu8_epi32(static_cast<void const*>(p_w3)); p_w3 += SIMDW;
-            wdw0 = simd_cvtepi32_ps(simd_and_si(wdw_i32, vmask_u4));
-            wdw1 = simd_cvtepi32_ps(simd_srli_epi32(wdw_i32, 4));
-            vsum0 = simd_fmadd_ps(simd_sub_ps(wdw0, vzp0), vx3, vsum0);
-            vsum1 = simd_fmadd_ps(simd_sub_ps(wdw1, vzp1), vx3, vsum1);
+                wdw_i32 = simd_load_epu8_epi32(static_cast<void const*>(p_w3)); p_w3 += SIMDW;
+                wdw0 = simd_cvtepi32_ps(simd_and_si(wdw_i32, vmask_u4));
+                wdw1 = simd_cvtepi32_ps(simd_srli_epi32(wdw_i32, 4));
+                vsum0 = simd_fmadd_ps(simd_sub_ps(wdw0, vzp0), vx3, vsum0);
+                vsum1 = simd_fmadd_ps(simd_sub_ps(wdw1, vzp1), vx3, vsum1);
 
-            auto vscales0 = simd_loadu_ps(p_scales + oc);
-            auto vscales1 = simd_loadu_ps(p_scales + oc + SIMDW);
+                auto vscales0 = simd_loadu_ps(p_scales + oc);
+                auto vscales1 = simd_loadu_ps(p_scales + oc + SIMDW);
 
-            vdst0 = simd_fmadd_ps(vsum0, vscales0, vdst0);
-            vdst1 = simd_fmadd_ps(vsum1, vscales1, vdst1);
-            simd_storeu_ps(base_dst + oc, vdst0);
-            simd_storeu_ps(base_dst + oc + SIMDW, vdst1);
+                vdst0 = simd_fmadd_ps(vsum0, vscales0, vdst0);
+                vdst1 = simd_fmadd_ps(vsum1, vscales1, vdst1);
+                simd_storeu_ps(base_dst + oc, vdst0);
+                simd_storeu_ps(base_dst + oc + SIMDW, vdst1);
+            }
+        } else {
+            for (; oc + SIMDW*2 <= OC; oc += SIMDW*2) {
+                auto vdst0 = simd_loadu_ps(base_dst + oc);
+                auto vdst1 = simd_loadu_ps(base_dst + oc + SIMDW);
+
+                auto wdw_i32 = simd_load_epu8_epi32(static_cast<void const*>(p_w0)); p_w0 += SIMDW;
+                auto vsum0 = simd_setzero_ps();
+                auto vsum1 = simd_setzero_ps();
+
+                auto wdw0 = simd_cvtepi32_ps(simd_srai_epi32(simd_slli_epi32(wdw_i32, 32-4), 32-4));
+                auto wdw1 = simd_cvtepi32_ps(simd_srai_epi32(simd_slli_epi32(wdw_i32, 32-8), 32-4));
+                vsum0 = simd_fmadd_ps(wdw0, vx0, vsum0);
+                vsum1 = simd_fmadd_ps(wdw1, vx0, vsum1);
+
+                wdw_i32 = simd_load_epu8_epi32(static_cast<void const*>(p_w1)); p_w1 += SIMDW;
+
+                wdw0 = simd_cvtepi32_ps(simd_srai_epi32(simd_slli_epi32(wdw_i32, 32-4), 32-4));
+                wdw1 = simd_cvtepi32_ps(simd_srai_epi32(simd_slli_epi32(wdw_i32, 32-8), 32-4));
+                vsum0 = simd_fmadd_ps(wdw0, vx1, vsum0);
+                vsum1 = simd_fmadd_ps(wdw1, vx1, vsum1);
+
+                wdw_i32 = simd_load_epu8_epi32(static_cast<void const*>(p_w2)); p_w2 += SIMDW;
+                wdw0 = simd_cvtepi32_ps(simd_srai_epi32(simd_slli_epi32(wdw_i32, 32-4), 32-4));
+                wdw1 = simd_cvtepi32_ps(simd_srai_epi32(simd_slli_epi32(wdw_i32, 32-8), 32-4));
+                vsum0 = simd_fmadd_ps(wdw0, vx2, vsum0);
+                vsum1 = simd_fmadd_ps(wdw1, vx2, vsum1);
+
+                wdw_i32 = simd_load_epu8_epi32(static_cast<void const*>(p_w3)); p_w3 += SIMDW;
+                wdw0 = simd_cvtepi32_ps(simd_srai_epi32(simd_slli_epi32(wdw_i32, 32-4), 32-4));
+                wdw1 = simd_cvtepi32_ps(simd_srai_epi32(simd_slli_epi32(wdw_i32, 32-8), 32-4));
+                vsum0 = simd_fmadd_ps(wdw0, vx3, vsum0);
+                vsum1 = simd_fmadd_ps(wdw1, vx3, vsum1);
+
+                auto vscales0 = simd_loadu_ps(p_scales + oc);
+                auto vscales1 = simd_loadu_ps(p_scales + oc + SIMDW);
+
+                vdst0 = simd_fmadd_ps(vsum0, vscales0, vdst0);
+                vdst1 = simd_fmadd_ps(vsum1, vscales1, vdst1);
+                simd_storeu_ps(base_dst + oc, vdst0);
+                simd_storeu_ps(base_dst + oc + SIMDW, vdst1);
+            }
         }
 
         if (oc < OC) {
@@ -435,21 +513,43 @@ static inline void accumulate_w4_peroc(float* base_dst, int OC,
             auto x3 = dense_x[g + 3];
             for (; oc < OC; oc += SIMDW*2, p_w0 += SIMDW, p_w1 += SIMDW, p_w2 += SIMDW, p_w3 += SIMDW) {
                 for (int i = 0; i < SIMDW; i++) {
-                    auto zero_point = dst_zp[oc + i];
                     auto scale = p_scales[oc + i];
-                    auto weight0 = (p_w0[i] & 0xF) - zero_point;
-                    auto weight1 = (p_w1[i] & 0xF) - zero_point;
-                    auto weight2 = (p_w2[i] & 0xF) - zero_point;
-                    auto weight3 = (p_w3[i] & 0xF) - zero_point;
+                    float weight0;
+                    float weight1;
+                    float weight2;
+                    float weight3;
+                    if (with_zp) {
+                        auto zero_point = dst_zp[oc + i];
+                        weight0 = (p_w0[i] & 0xF) - zero_point;
+                        weight1 = (p_w1[i] & 0xF) - zero_point;
+                        weight2 = (p_w2[i] & 0xF) - zero_point;
+                        weight3 = (p_w3[i] & 0xF) - zero_point;
+                    } else {
+                        weight0 = (reinterpret_cast<const int8_t*>(p_w0)[i] << 4) >> 4;
+                        weight1 = (reinterpret_cast<const int8_t*>(p_w1)[i] << 4) >> 4;
+                        weight2 = (reinterpret_cast<const int8_t*>(p_w2)[i] << 4) >> 4;
+                        weight3 = (reinterpret_cast<const int8_t*>(p_w3)[i] << 4) >> 4;
+                    }
                     base_dst[oc + i] += (x0 * weight0 + x1 * weight1 + x2 * weight2 + x3 * weight3) * scale;
                 }
                 for (int i = 0; i < SIMDW; i++) {
-                    auto zero_point = dst_zp[oc + i + SIMDW];
                     auto scale = p_scales[oc + i + SIMDW];
-                    auto weight0 = (p_w0[i] >> 4) - zero_point;
-                    auto weight1 = (p_w1[i] >> 4) - zero_point;
-                    auto weight2 = (p_w2[i] >> 4) - zero_point;
-                    auto weight3 = (p_w3[i] >> 4) - zero_point;
+                    float weight0;
+                    float weight1;
+                    float weight2;
+                    float weight3;
+                    if (with_zp) {
+                        auto zero_point = dst_zp[oc + i + SIMDW];
+                        weight0 = (p_w0[i] >> 4) - zero_point;
+                        weight1 = (p_w1[i] >> 4) - zero_point;
+                        weight2 = (p_w2[i] >> 4) - zero_point;
+                        weight3 = (p_w3[i] >> 4) - zero_point;
+                    } else {
+                        weight0 = (reinterpret_cast<const int8_t*>(p_w0)[i] >> 4);
+                        weight1 = (reinterpret_cast<const int8_t*>(p_w1)[i] >> 4);
+                        weight2 = (reinterpret_cast<const int8_t*>(p_w2)[i] >> 4);
+                        weight3 = (reinterpret_cast<const int8_t*>(p_w3)[i] >> 4);
+                    }
                     base_dst[oc + i + SIMDW] += (x0 * weight0 + x1 * weight1 + x2 * weight2 + x3 * weight3) * scale;
                 }
             }
@@ -783,7 +883,7 @@ void brgemm_4x1(const float* A,
         simd_storeu_ps(C + 3 * C_stride + SIMDW * 0, c30);
     }
 }
-
+template<bool with_zp>
 void repack_weight_for_4x3(const uint8_t* W, int strideW, const float* scales, const float* zp, int K, int N, float* repacked_B_nx3, float* repacked_B_nx1) {
     //assert((N % 8) == 0);
 #if 1
@@ -793,15 +893,27 @@ void repack_weight_for_4x3(const uint8_t* W, int strideW, const float* scales, c
         auto* dst = repacked_B_nx3 + k*SIMDW*3;
         auto dst_stride = K*SIMDW*3;
         for (n0 = 0; n0 + SIMDW*3 <= N; n0 += SIMDW*3, dst += dst_stride) {
-            auto wi0 = simd_load_epu8_epi32(static_cast<void const*>(src + n0 + SIMDW * 0));
-            auto wi1 = simd_load_epu8_epi32(static_cast<void const*>(src + n0 + SIMDW * 1));
-            auto wi2 = simd_load_epu8_epi32(static_cast<void const*>(src + n0 + SIMDW * 2));
-            auto zp0 = simd_loadu_ps(zp + n0 + SIMDW * 0);
-            auto zp1 = simd_loadu_ps(zp + n0 + SIMDW * 1);
-            auto zp2 = simd_loadu_ps(zp + n0 + SIMDW * 2);
-            auto wf0 = simd_sub_ps(simd_cvtepi32_ps(wi0), (zp0));
-            auto wf1 = simd_sub_ps(simd_cvtepi32_ps(wi1), (zp1));
-            auto wf2 = simd_sub_ps(simd_cvtepi32_ps(wi2), (zp2));
+            SIMD_F32 wf0;
+            SIMD_F32 wf1;
+            SIMD_F32 wf2;
+            if (with_zp) {
+                auto wi0 = simd_load_epu8_epi32(static_cast<void const*>(src + n0 + SIMDW * 0));
+                auto wi1 = simd_load_epu8_epi32(static_cast<void const*>(src + n0 + SIMDW * 1));
+                auto wi2 = simd_load_epu8_epi32(static_cast<void const*>(src + n0 + SIMDW * 2));
+                auto zp0 = simd_loadu_ps(zp + n0 + SIMDW * 0);
+                auto zp1 = simd_loadu_ps(zp + n0 + SIMDW * 1);
+                auto zp2 = simd_loadu_ps(zp + n0 + SIMDW * 2);
+                wf0 = simd_sub_ps(simd_cvtepi32_ps(wi0), (zp0));
+                wf1 = simd_sub_ps(simd_cvtepi32_ps(wi1), (zp1));
+                wf2 = simd_sub_ps(simd_cvtepi32_ps(wi2), (zp2));
+            } else {
+                auto wi0 = simd_load_epi8_epi32(static_cast<void const*>(src + n0 + SIMDW * 0));
+                auto wi1 = simd_load_epi8_epi32(static_cast<void const*>(src + n0 + SIMDW * 1));
+                auto wi2 = simd_load_epi8_epi32(static_cast<void const*>(src + n0 + SIMDW * 2));
+                wf0 = simd_cvtepi32_ps(wi0);
+                wf1 = simd_cvtepi32_ps(wi1);
+                wf2 = simd_cvtepi32_ps(wi2);
+            }
             wf0 = simd_mul_ps(wf0, simd_loadu_ps(scales + n0 + SIMDW*0));
             wf1 = simd_mul_ps(wf1, simd_loadu_ps(scales + n0 + SIMDW*1));
             wf2 = simd_mul_ps(wf2, simd_loadu_ps(scales + n0 + SIMDW*2));
@@ -814,9 +926,15 @@ void repack_weight_for_4x3(const uint8_t* W, int strideW, const float* scales, c
         dst_stride = K*SIMDW;
         for (; n0 < N; n0 += SIMDW, dst += dst_stride) {
             for (int n = n0; n < n0+SIMDW; n++) {
-                auto wi0 = simd_load_epu8_epi32(static_cast<void const*>(src + n0 + SIMDW * 0));
-                auto zp0 = simd_loadu_ps(zp + n0 + SIMDW * 0);
-                auto wf0 = simd_sub_ps(simd_cvtepi32_ps(wi0), (zp0));
+                SIMD_F32 wf0;
+                if (with_zp) {
+                    auto wi0 = simd_load_epu8_epi32(static_cast<void const*>(src + n0 + SIMDW * 0));
+                    auto zp0 = simd_loadu_ps(zp + n0 + SIMDW * 0);
+                    wf0 = simd_sub_ps(simd_cvtepi32_ps(wi0), (zp0));
+                } else {
+                    auto wi0 = simd_load_epi8_epi32(static_cast<void const*>(src + n0 + SIMDW * 0));
+                    wf0 = simd_cvtepi32_ps(wi0);
+                }
                 wf0 = simd_mul_ps(wf0, simd_loadu_ps(scales + n0 + SIMDW*0));
                 simd_storeu_ps(dst + SIMDW*0, wf0);
             }
@@ -873,7 +991,7 @@ void MM_ComputeBounded_reuseB_i8(const float * A,
         const auto* pW = W + cur_n;
 
         // decompress zero-point
-        {
+        if (zp) {
             for (int n = 0; n < bN; n += SIMDW) {
                 auto zp0 = simd_load_epu8_epi32(static_cast<void const*>(zp + cur_n + n));
                 auto zpf32 = simd_cvtepi32_ps(zp0);
@@ -883,12 +1001,22 @@ void MM_ComputeBounded_reuseB_i8(const float * A,
 
         for (int k0 = 0; k0 < IC; k0 += BK, pW += BK * B_stride) {
             int bK = std::min(IC - k0, BK);
-            repack_weight_for_4x3(pW, B_stride,
-                                  scales + cur_n,
-                                  zero_points,
-                                  bK, bN,
-                                  repacked_B_n24,
-                                  repacked_B_n8);
+            if (zp) {
+                repack_weight_for_4x3<true>(pW, B_stride,
+                                    scales + cur_n,
+                                    zero_points,
+                                    bK, bN,
+                                    repacked_B_n24,
+                                    repacked_B_n8);
+            } else {
+                repack_weight_for_4x3<false>(pW, B_stride,
+                                    scales + cur_n,
+                                    zero_points,
+                                    bK, bN,
+                                    repacked_B_n24,
+                                    repacked_B_n8);
+            }
+
             bool is_accumulate_C = (k0 > 0);
             auto* pC = C + cur_n;
             int m;
@@ -959,14 +1087,16 @@ void MM_ComputeBounded_reuseA_i8(
     float* zero_points = scratch + BK * (SIMDW*2);
 
     // deocompress zero-point into scratch
-    int n = 0;
-    for (n = n0; n + SIMDW <= n1; n += SIMDW) {
-        auto vzpi32 = simd_load_epu8_epi32(static_cast<void const*>(zp + n));
-        auto vzpf32 = simd_cvtepi32_ps(vzpi32);
-        simd_storeu_ps(zero_points + n - n0, vzpf32);
-    }
-    for (; n < n1; n ++) {
-        zero_points[n - n0] = zp[n];
+    if (zp) {
+        int n = 0;
+        for (n = n0; n + SIMDW <= n1; n += SIMDW) {
+            auto vzpi32 = simd_load_epu8_epi32(static_cast<void const*>(zp + n));
+            auto vzpf32 = simd_cvtepi32_ps(vzpi32);
+            simd_storeu_ps(zero_points + n - n0, vzpf32);
+        }
+        for (; n < n1; n ++) {
+            zero_points[n - n0] = zp[n];
+        }
     }
 
     for (int k = 0; k < K; k += BK, A += BK, W += BK * W_stride) {
@@ -975,10 +1105,12 @@ void MM_ComputeBounded_reuseA_i8(
 
         for (int n = n0; n + 2 * SIMDW <= n1; n += 2 * SIMDW) {
             // prepack [BK, 16] into scratch
-            {
+            if (zp) {
                 auto* dst = repacked_B;
-                auto vzp0 = simd_loadu_ps(zero_points + (n - n0));
-                auto vzp1 = simd_loadu_ps(zero_points + (n - n0) + SIMDW);
+                SIMD_F32 vzp0;
+                SIMD_F32 vzp1;
+                vzp0 = simd_loadu_ps(zero_points + (n - n0));
+                vzp1 = simd_loadu_ps(zero_points + (n - n0) + SIMDW);
                 auto vscale0 = simd_loadu_ps(scales + n);
                 auto vscale1 = simd_loadu_ps(scales + n + SIMDW);
                 const auto* srcW = W + n;
@@ -987,6 +1119,25 @@ void MM_ComputeBounded_reuseA_i8(
                     auto wb1 = simd_load_epu8_epi32(static_cast<void const*>(srcW + SIMDW * 1));
                     auto wf0 = simd_sub_ps(simd_cvtepi32_ps(wb0), vzp0);
                     auto wf1 = simd_sub_ps(simd_cvtepi32_ps(wb1), vzp1);
+                    wf0 = simd_mul_ps(wf0, vscale0);
+                    wf1 = simd_mul_ps(wf1, vscale1);
+
+                    // prefetch right
+                    simd_prefetch(srcW + 64, _MM_HINT_T0);
+
+                    simd_storeu_ps(dst + SIMDW * 0, wf0);
+                    simd_storeu_ps(dst + SIMDW * 1, wf1);
+                }
+            } else {
+                auto* dst = repacked_B;
+                auto vscale0 = simd_loadu_ps(scales + n);
+                auto vscale1 = simd_loadu_ps(scales + n + SIMDW);
+                const auto* srcW = W + n;
+                for (int k = 0; k < bK; k++, dst += 2 * SIMDW, srcW += W_stride) {
+                    auto wb0 = simd_load_epi8_epi32(static_cast<void const*>(srcW + SIMDW * 0));
+                    auto wb1 = simd_load_epi8_epi32(static_cast<void const*>(srcW + SIMDW * 1));
+                    auto wf0 = simd_cvtepi32_ps(wb0);
+                    auto wf1 = simd_cvtepi32_ps(wb1);
                     wf0 = simd_mul_ps(wf0, vscale0);
                     wf1 = simd_mul_ps(wf1, vscale1);
 
@@ -1048,13 +1199,14 @@ void MM_ComputeBounded_reuseA_i4(
 
     float* repacked_B = scratch;
     float* zero_points = scratch + BK*(SIMDW*2);
+    auto Z_stride = zp ? W_stride : 0;
 
-    for (int k = 0; k < K; k += BK, A += BK, W += BK * W_stride, zp += W_stride, scales += OC) {
+    for (int k = 0; k < K; k += BK, A += BK, W += BK * W_stride, zp += Z_stride, scales += OC) {
         int bK = std::min(K - k, BK);
         auto is_accumulate_C = (k > 0);
 
         // deocompress zero-point into scratch buffer
-        {
+        if (zp) {
             const auto* pzp = zp + n0/2;
             int n = 0;
             auto vmask_u4 = simd_set1_epi32(0xF);
@@ -1080,7 +1232,7 @@ void MM_ComputeBounded_reuseA_i4(
         for (int n = n0; n + 2 * SIMDW <= n1; n += 2 * SIMDW) {
             // prepack subB [BK, 16] into scratch
             // because BK is fully contained within IC-group (BK == n*IC_group_size), it can share same zp & scales
-            {
+            if (zp) {
                 auto* dst = repacked_B;
                 auto vzp0 = simd_loadu_ps(zero_points + (n - n0));
                 auto vzp1 = simd_loadu_ps(zero_points + (n - n0) + SIMDW);
@@ -1097,6 +1249,29 @@ void MM_ComputeBounded_reuseA_i4(
 
                     auto wf0 = simd_sub_ps(simd_cvtepi32_ps(wdw_low), vzp0);
                     auto wf1 = simd_sub_ps(simd_cvtepi32_ps(wdw_high), vzp1);
+                    wf0 = simd_mul_ps(wf0, vscale0);
+                    wf1 = simd_mul_ps(wf1, vscale1);
+
+                    // prefetch right
+                    simd_prefetch(srcW + 64, _MM_HINT_T0);
+
+                    simd_storeu_ps(dst + SIMDW * 0, wf0);
+                    simd_storeu_ps(dst + SIMDW * 1, wf1);
+                }
+            } else {
+                auto* dst = repacked_B;
+                auto vscale0 = simd_loadu_ps(scales + n);
+                auto vscale1 = simd_loadu_ps(scales + n + SIMDW);
+                const auto* srcW = W + n/2;
+                for (int k = 0; k < bK; k++, dst += 2 * SIMDW, srcW += W_stride) {
+                    // 16 x i4
+                    auto wdw = simd_load_epu8_epi32(static_cast<void const*>(srcW + SIMDW * 0));
+
+                    auto wdw_low = simd_srai_epi32(simd_slli_epi32(wdw, 32-4), 32-4);
+                    auto wdw_high = simd_srai_epi32(simd_slli_epi32(wdw, 32-8), 32-4);
+
+                    auto wf0 = simd_cvtepi32_ps(wdw_low);
+                    auto wf1 = simd_cvtepi32_ps(wdw_high);
                     wf0 = simd_mul_ps(wf0, vscale0);
                     wf1 = simd_mul_ps(wf1, vscale1);
 
@@ -1197,7 +1372,10 @@ void dynPruneLinear_i8(const float* input,      // [M, IC]
         g1 *= 4;
         auto* pdst = &output_temp[ithr * M * OC];
         memset(pdst, 0, M * OC * sizeof(output_temp[0]));
-        accumulate_w8_peroc(1, pdst, OC, &gate_ids[g0], g1 - g0, W, zp, scales, &gate_val[g0], IC);
+        if (zp)
+            accumulate_w8_peroc<true>(1, pdst, OC, &gate_ids[g0], g1 - g0, W, zp, scales, &gate_val[g0], IC);
+        else
+            accumulate_w8_peroc<false>(1, pdst, OC, &gate_ids[g0], g1 - g0, W, zp, scales, &gate_val[g0], IC);
     });
 
     prof = PROFILE("reduce");
@@ -1275,7 +1453,10 @@ void dynPruneLinear_i4(const float* input,      // [M, IC]
         g1 *= 4;
         auto* pdst = &output_temp[ithr * M * OC];
         memset(pdst, 0, M * OC * sizeof(output_temp[0]));
-        accumulate_w4_peroc(pdst, OC, &gate_ids[g0], g1 - g0, W, zp, scales, &gate_val[g0], IC, IC_group_size);
+        if (zp)
+            accumulate_w4_peroc<true>(pdst, OC, &gate_ids[g0], g1 - g0, W, zp, scales, &gate_val[g0], IC, IC_group_size);
+        else
+            accumulate_w4_peroc<false>(pdst, OC, &gate_ids[g0], g1 - g0, W, zp, scales, &gate_val[g0], IC, IC_group_size);
     });
 
     prof = PROFILE("reduce");

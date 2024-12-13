@@ -15,6 +15,9 @@ using SIMD_I32 = __m512i;
 inline SIMD_I32 simd_load_epu8_epi32(void const* ptr) {
     return _mm512_cvtepu8_epi32(_mm_loadu_si128(reinterpret_cast<__m128i const*>(ptr)));
 }
+inline SIMD_I32 simd_load_epi8_epi32(void const* ptr) {
+    return _mm512_cvtepi8_epi32(_mm_loadu_si128(reinterpret_cast<__m128i const*>(ptr)));
+}
 inline SIMD_F32 simd_cvtepi32_ps(SIMD_I32 v) {
     return _mm512_cvtepi32_ps(v);
 }
@@ -66,6 +69,12 @@ inline SIMD_I32 simd_or_si(SIMD_I32 a, SIMD_I32 b) {
 inline SIMD_I32 simd_srli_epi32(SIMD_I32 a, unsigned int imm8) {
     return _mm512_srli_epi32(a, imm8);
 }
+inline SIMD_I32 simd_slli_epi32(SIMD_I32 a, unsigned int imm8) {
+    return _mm512_slli_epi32(a, imm8);
+}
+inline SIMD_I32 simd_srai_epi32(SIMD_I32 a, unsigned int imm8) {
+    return _mm512_srai_epi32(a, imm8);
+}
 inline SIMD_I32 simd_srli_epi16(SIMD_I32 a, int imm8) {
     return _mm512_srli_epi16(a, imm8);
 }
@@ -101,6 +110,9 @@ using SIMD_F32 = __m256;
 using SIMD_I32 = __m256i;
 inline SIMD_I32 simd_load_epu8_epi32(void const* ptr) {
     return _mm256_cvtepu8_epi32(_mm_loadu_si64(ptr));
+}
+inline SIMD_I32 simd_load_epi8_epi32(void const* ptr) {
+    return _mm256_cvtepi8_epi32(_mm_loadu_si64(ptr));
 }
 inline SIMD_F32 simd_cvtepi32_ps(SIMD_I32 v) {
     return _mm256_cvtepi32_ps(v);
@@ -153,6 +165,12 @@ inline SIMD_I32 simd_or_si(SIMD_I32 a, SIMD_I32 b) {
 inline SIMD_I32 simd_srli_epi32(SIMD_I32 a, int imm8) {
     return _mm256_srli_epi32(a, imm8);
 }
+inline SIMD_I32 simd_slli_epi32(SIMD_I32 a, unsigned int imm8) {
+    return _mm256_slli_epi32(a, imm8);
+}
+inline SIMD_I32 simd_srai_epi32(SIMD_I32 a, unsigned int imm8) {
+    return _mm256_srai_epi32(a, imm8);
+}
 inline SIMD_I32 simd_srli_epi16(SIMD_I32 a, int imm8) {
     return _mm256_srli_epi16(a, imm8);
 }
@@ -187,6 +205,9 @@ using SIMD_F32 = float;
 using SIMD_I32 = int32_t;
 inline SIMD_I32 simd_load_epu8_epi32(void const* ptr) {
     return *reinterpret_cast<const uint8_t*>(ptr);
+}
+inline SIMD_I32 simd_load_epi8_epi32(void const* ptr) {
+    return *reinterpret_cast<const int8_t*>(ptr);
 }
 float inline simd_cvtepi32_ps(SIMD_I32 v) {
     return v;
@@ -237,6 +258,12 @@ inline SIMD_I32 simd_or_si(SIMD_I32 a, SIMD_I32 b) {
     return a | b;
 }
 inline SIMD_I32 simd_srli_epi32(SIMD_I32 a, unsigned int imm8) {
+    return *(reinterpret_cast<uint32_t*>(&a)) >> imm8;
+}
+inline SIMD_I32 simd_slli_epi32(SIMD_I32 a, unsigned int imm8) {
+    return a << imm8;
+}
+inline SIMD_I32 simd_srai_epi32(SIMD_I32 a, unsigned int imm8) {
     return a >> imm8;
 }
 inline SIMD_I32 simd_srli_epi16(SIMD_I32 a, int imm8) {

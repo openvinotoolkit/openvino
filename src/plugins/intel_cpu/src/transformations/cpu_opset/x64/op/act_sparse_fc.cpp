@@ -16,6 +16,7 @@ bool ActSparseFCNode::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("ic_q_group_size", m_config.ic_q_group_size);
     visitor.on_attribute("is_int4", m_config.is_int4);
     visitor.on_attribute("threshold", m_config.threshold);
+    visitor.on_attribute("with_zero_point", m_config.with_zero_point);
     visitor.finish_structure();
     return true;
 }

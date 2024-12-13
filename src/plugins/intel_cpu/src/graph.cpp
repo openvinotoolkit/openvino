@@ -48,7 +48,9 @@
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "openvino/core/parallel.hpp"
 
-#include "/home/tingqian/aboutSHW/include/linux_perf.hpp"
+//#include "/home/tingqian/aboutSHW/include/linux_perf.hpp"
+#define PROFILE(...) LinuxPerf::Profile(__VA_ARGS__)
+#define PROFILE(...) 1
 
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
 #    include <tbb/task.h>
@@ -1325,7 +1327,7 @@ inline void Graph::ExecuteNode(const NodePtr& node, SyncInferRequest* request, i
     if (request)
         request->throw_if_canceled();
 
-    auto prof = LinuxPerf::Profile(node->getTypeStr(), node->getOriginalLayers());
+    auto prof = PROFILE(node->getTypeStr(), node->getOriginalLayers());
 
     node->execute(m_stream, numaId);
 }

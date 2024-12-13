@@ -42,27 +42,25 @@ ov::intel_cpu::ActivationSparsityFusion::ActivationSparsityFusion() {
     auto sparse_input =
         makePattern<ov::op::TypeRelaxed<opset1::Select>>({LessEqual, 0.000000f, input}, {{"auto_broadcast", "numpy"}});
 
-    auto fc_weight_compressed = makePattern<opset1::Constant>({});
-    auto fc_weight = makePattern<opset1::Convert>({fc_weight_compressed}, {{"destination_type", "f32"}});
-
     // symmetrically INT8 quantized version
     // all 3 layers must be quantized at the same time (checked in callback)
-    auto fc_weight_i8 = makeConst(ov::element::i8, ov::PartialShape({ov::Dimension(), ov::Dimension()}), nullptr);
     auto fc_weight_u8 = makeConst(ov::element::u8, ov::PartialShape({ov::Dimension(), ov::Dimension()}), nullptr);
-    auto fc_weight_f32 = makePattern<opset1::Convert>({fc_weight_i8 | fc_weight_u8}, {{"destination_type", "f32"}});
+    auto fc_weight_f32 = makePattern<opset1::Convert>({fc_weight_u8}, {{"destination_type", "f32"}});
 
     auto fc_weight_zero_point_u8 =
         makeConst(ov::element::u8, ov::PartialShape({ov::Dimension(), ov::Dimension()}), nullptr);
     auto fc_weight_zero_point_f32 =
         makePattern<opset1::Convert>({fc_weight_zero_point_u8}, {{"destination_type", "f32"}});
 
-    auto fc_weight_zp =
+    auto fc_weight_asym =
         makePattern<opset1::Subtract>({fc_weight_f32, fc_weight_zero_point_f32}, {{"auto_broadcast", "numpy"}});
 
-    auto fc_weight_scales_per_OC = makeConst(ov::element::f32, ov::PartialShape({ov::Dimension(), 1}), nullptr);
-    auto fc_weight_deq =
-        makePattern<opset1::Multiply>({fc_weight_zp, fc_weight_scales_per_OC}, {{"auto_broadcast", "numpy"}});
+    auto fc_weight_i8 = makeConst(ov::element::i8, ov::PartialShape({ov::Dimension(), ov::Dimension()}), nullptr);
+    auto fc_weight_sym = makePattern<opset1::Convert>({fc_weight_i8}, {{"destination_type", "f32"}});
 
+    auto fc_weight_scales_per_OC = makeConst(ov::element::f32, ov::PartialShape({ov::Dimension(), 1}), nullptr);
+    auto fc_weight_deq_i8_u8 =
+        makePattern<opset1::Multiply>({fc_weight_asym | fc_weight_sym, fc_weight_scales_per_OC}, {{"auto_broadcast", "numpy"}});
 
     // INT4 groupped quantization would have a reshape
     //      weight const  u4  [OC, IC//group_size, group_size]
@@ -77,6 +75,11 @@ ov::intel_cpu::ActivationSparsityFusion::ActivationSparsityFusion() {
     auto fc_weight_u4 =
         makeConst(ov::element::u4, ov::PartialShape({ov::Dimension(), ov::Dimension(), ov::Dimension()}), nullptr);
     auto fc_weight_u4f32 = makePattern<opset1::Convert>({fc_weight_u4}, {{"destination_type", "f32"}});
+
+    auto fc_weight_i4 =
+        makeConst(ov::element::i4, ov::PartialShape({ov::Dimension(), ov::Dimension(), ov::Dimension()}), nullptr);
+    auto fc_weight_i4f32 = makePattern<opset1::Convert>({fc_weight_i4}, {{"destination_type", "f32"}});
+
     auto fc_weight_zero_point_u4 =
         makeConst(ov::element::u4, ov::PartialShape({ov::Dimension(), ov::Dimension(), ov::Dimension(1)}), nullptr);
     auto fc_weight_zero_point_u4f32 =
@@ -86,13 +89,13 @@ ov::intel_cpu::ActivationSparsityFusion::ActivationSparsityFusion() {
     auto fc_weight_scales_gr =
         makeConst(ov::element::f32, ov::PartialShape({ov::Dimension(), ov::Dimension(), ov::Dimension(1)}), nullptr);
     auto fc_weight_u4_deq =
-        makePattern<opset1::Multiply>({fc_weight_sub_zp, fc_weight_scales_gr}, {{"auto_broadcast", "numpy"}});
+        makePattern<opset1::Multiply>({fc_weight_sub_zp | fc_weight_i4f32, fc_weight_scales_gr}, {{"auto_broadcast", "numpy"}});
     auto fc_weight_shape = makePattern("[?]");
     auto fc_weight_u4_deq_reshape =
         makePattern<opset1::Reshape>({fc_weight_u4_deq, fc_weight_shape}, {{"special_zero", false}});
 
     auto fc_result = makePattern<opset1::MatMul>(
-        {sparse_input, fc_weight | fc_weight_compressed | fc_weight_deq | fc_weight_u4_deq_reshape},
+        {sparse_input, fc_weight_deq_i8_u8 | fc_weight_u4_deq_reshape},
         {{"transpose_a", false}, {"transpose_b", true}});  // [?,?,up_size]
 
     auto result = fc_result;
@@ -111,6 +114,8 @@ ov::intel_cpu::ActivationSparsityFusion::ActivationSparsityFusion() {
             return false;
         }
 
+        //std::cout << m.get_match_root() << std::endl;
+
         OutputVector new_args;
 
         new_args.push_back(pattern_map.at(input));
@@ -121,22 +126,39 @@ ov::intel_cpu::ActivationSparsityFusion::ActivationSparsityFusion() {
         config.ic_q_group_size = 0; // per-OC by default
         config.is_int4 = false;
 
-        if (pattern_map.count(fc_weight_u8) > 0) {
-            new_args.push_back(pattern_map.at(fc_weight_u8));
-            new_args.push_back(pattern_map.at(fc_weight_zero_point_u8));
-            new_args.push_back(pattern_map.at(fc_weight_scales_per_OC));
-            auto const_weight = ov::as_type_ptr<opset1::Constant>(pattern_map.at(fc_weight_u8).get_node_shared_ptr());
+        if (pattern_map.count(fc_weight_u8) > 0 ||
+            pattern_map.count(fc_weight_i8) > 0) {
+            if (pattern_map.count(fc_weight_u8)) {
+                new_args.push_back(pattern_map.at(fc_weight_u8));
+                new_args.push_back(pattern_map.at(fc_weight_scales_per_OC));
+                new_args.push_back(pattern_map.at(fc_weight_zero_point_u8));
+                config.with_zero_point = true;
+            } else {
+                new_args.push_back(pattern_map.at(fc_weight_i8));
+                new_args.push_back(pattern_map.at(fc_weight_scales_per_OC));
+                config.with_zero_point = false;
+            }
+
+            auto const_weight = ov::as_type_ptr<opset1::Constant>(new_args[1].get_node_shared_ptr());
             if (!const_weight)
                 return false;
             const auto& w_shape = const_weight->get_shape();
             config.oc = w_shape[0];
             config.ic = w_shape[1];
-        } else if (pattern_map.count(fc_weight_u4) > 0) {
-            new_args.push_back(pattern_map.at(fc_weight_u4));
-            new_args.push_back(pattern_map.at(fc_weight_zero_point_u4));
-            new_args.push_back(pattern_map.at(fc_weight_scales_gr));
+        } else if (pattern_map.count(fc_weight_u4) > 0 ||
+                   pattern_map.count(fc_weight_i4) > 0) {
+            if (pattern_map.count(fc_weight_u4)) {
+                new_args.push_back(pattern_map.at(fc_weight_u4));
+                new_args.push_back(pattern_map.at(fc_weight_scales_gr));
+                new_args.push_back(pattern_map.at(fc_weight_zero_point_u4));
+                config.with_zero_point = true;
+            } else {
+                new_args.push_back(pattern_map.at(fc_weight_i4));
+                new_args.push_back(pattern_map.at(fc_weight_scales_gr));
+                config.with_zero_point = false;
+            }
 
-            auto const_weight = ov::as_type_ptr<opset1::Constant>(pattern_map.at(fc_weight_u4).get_node_shared_ptr());
+            auto const_weight = ov::as_type_ptr<opset1::Constant>(new_args[1].get_node_shared_ptr());
             if (!const_weight)
                 return false;
 

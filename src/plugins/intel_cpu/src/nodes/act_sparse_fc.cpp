@@ -88,7 +88,7 @@ struct ActSparseFC::Executor : public ActSparseFC::ExecutorBase {
 
         auto create_zp_i4 = [&]() {
             // [OC, IC/group_size, 1] => [IC/group_size, OC]
-            auto raw_zp_mem = m_node->getSrcMemoryAtPort(2);
+            auto raw_zp_mem = m_node->getSrcMemoryAtPort(3);
             auto zp_mem = std::make_shared<Memory>(engine, raw_zp_mem->getDescPtr());
 
             auto* src = raw_zp_mem->getDataAs<uint8_t>();
@@ -100,7 +100,7 @@ struct ActSparseFC::Executor : public ActSparseFC::ExecutorBase {
 
         auto create_scales_i4 = [&]() {
             // [OC, IC/group_size, 1] => [IC/group_size, OC]
-            auto raw_scales_mem = m_node->getSrcMemoryAtPort(3);
+            auto raw_scales_mem = m_node->getSrcMemoryAtPort(2);
             ArbitraryOrderDescCreator descCreator({2, 1, 0});
             auto dst_mem_desc =
                 descCreator.createSharedDesc(raw_scales_mem->getPrecision(), raw_scales_mem->getShape());
@@ -112,8 +112,9 @@ struct ActSparseFC::Executor : public ActSparseFC::ExecutorBase {
 
         if (!m_config.is_int4) {
             // int8 is perOC, no need for reorder
-            m_zp = m_node->getSrcMemoryAtPort(2);
-            m_scales = m_node->getSrcMemoryAtPort(3);
+            m_scales = m_node->getSrcMemoryAtPort(2);
+            if (m_config.with_zero_point)
+                m_zp = m_node->getSrcMemoryAtPort(3);
         }
 
         auto weightCache = context->getWeightsCache();
@@ -121,13 +122,15 @@ struct ActSparseFC::Executor : public ActSparseFC::ExecutorBase {
             const auto string_hash = m_node->getOriginalLayers() + std::to_string(m_config.is_int4);
             m_weight = *weightCache->findOrCreate(string_hash + "_weight", create_weight);
             if (m_config.is_int4) {
-                m_zp = *weightCache->findOrCreate(string_hash + "_zp_i4", create_zp_i4);
+                if (m_config.with_zero_point)
+                    m_zp = *weightCache->findOrCreate(string_hash + "_zp_i4", create_zp_i4);
                 m_scales = *weightCache->findOrCreate(string_hash + "_scales_i4", create_scales_i4);
             }
         } else {
             m_weight = create_weight();
             if (m_config.is_int4) {
-                m_zp = create_zp_i4();
+                if (m_config.with_zero_point)
+                    m_zp = create_zp_i4();
                 m_scales = create_scales_i4();
             }
         }
@@ -136,7 +139,7 @@ struct ActSparseFC::Executor : public ActSparseFC::ExecutorBase {
     void execute() override {
         const auto* input = m_node->getSrcDataAtPortAs<float>(0);
         const auto* weight = m_weight->getDataAs<uint8_t>();
-        const auto* zp = m_zp->getDataAs<uint8_t>();
+        const auto* zp = m_config.with_zero_point ?  m_zp->getDataAs<uint8_t>() : nullptr;
         const auto* scales = m_scales->getDataAs<float>();
         auto* output = m_node->getDstDataAtPortAs<float>(0);
 
@@ -218,8 +221,9 @@ void ActSparseFC::initSupportedPrimitiveDescriptors() {
 
     inPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getInputShapeAtPort(0), false, -1);      // input
     inPortConfigs.emplace_back(LayoutType::ncsp, getOriginalInputPrecisionAtPort(1), getInputShapeAtPort(1), false, -1);  // weight
-    inPortConfigs.emplace_back(LayoutType::ncsp, getOriginalInputPrecisionAtPort(2), getInputShapeAtPort(2), false, -1);  // zero-pt
-    inPortConfigs.emplace_back(LayoutType::ncsp, ov::element::f32, getInputShapeAtPort(3), false, -1);  // scales
+    inPortConfigs.emplace_back(LayoutType::ncsp, ov::element::f32, getInputShapeAtPort(2), false, -1);  // scales
+    if (m_config.with_zero_point)
+        inPortConfigs.emplace_back(LayoutType::ncsp, getOriginalInputPrecisionAtPort(3), getInputShapeAtPort(3), false, -1);  // zero-pt
 
     outPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getOutputShapeAtPort(0), false, -1);
 
