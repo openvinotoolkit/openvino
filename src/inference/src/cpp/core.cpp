@@ -82,12 +82,14 @@ std::map<std::string, Version> Core::get_versions(const std::string& device_name
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 std::shared_ptr<ov::Model> Core::read_model(const std::wstring& model_path, const std::wstring& bin_path) const {
     OV_CORE_CALL_STATEMENT(
-        return _impl->read_model(ov::util::wstring_to_string(model_path), ov::util::wstring_to_string(bin_path)););
+        return _impl->read_model(ov::util::wstring_to_string(model_path), ov::util::wstring_to_string(bin_path), {}););
 }
 #endif
 
-std::shared_ptr<ov::Model> Core::read_model(const std::string& model_path, const std::string& bin_path) const {
-    OV_CORE_CALL_STATEMENT(return _impl->read_model(model_path, bin_path););
+std::shared_ptr<ov::Model> Core::read_model(const std::string& model_path,
+                                            const std::string& bin_path,
+                                            const AnyMap& properties) const {
+    OV_CORE_CALL_STATEMENT(return _impl->read_model(model_path, bin_path, properties););
 }
 
 std::shared_ptr<ov::Model> Core::read_model(const std::string& model, const ov::Tensor& weights) const {

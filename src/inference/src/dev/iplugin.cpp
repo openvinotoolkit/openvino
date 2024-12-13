@@ -75,7 +75,7 @@ std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::string
                                                                const ov::AnyMap& properties) const {
     auto core = get_core();
     OPENVINO_ASSERT(core);
-    auto model = core->read_model(model_path, std::string());
+    auto model = core->read_model(model_path, std::string(), properties);
     return compile_model(model, properties);
 }
 

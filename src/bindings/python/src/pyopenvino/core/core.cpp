@@ -393,10 +393,17 @@ void regclass_Core(py::module m) {
 
     cls.def(
         "read_model",
-        (std::shared_ptr<ov::Model>(ov::Core::*)(const std::string&, const std::string&) const) & ov::Core::read_model,
-        py::call_guard<py::gil_scoped_release>(),
+        [](ov::Core& self,
+           const std::string& model_path,
+           const std::string& weight_path,
+           const std::map<std::string, py::object>& properties) {
+            const auto any_map = Common::utils::properties_to_any_map(properties);
+            py::gil_scoped_release release;
+            return self.read_model(model_path, weight_path, any_map);
+        },
         py::arg("model"),
         py::arg("weights") = "",
+        py::arg("properties") = py::dict(),
         R"(
             Reads models from IR / ONNX / PDPD / TF and TFLite formats.
 
@@ -412,6 +419,8 @@ void regclass_Core(py::module m) {
                             For TF format (*.pb) weights parameter is not used.
                             For TFLite format (*.tflite) weights parameter is not used.
             :type weights: str
+            :param properties: Optional map of pairs: (property name, property value) relevant only for this read operation.
+            :type properties: dict, optional
             :return: A model.
             :rtype: openvino.runtime.Model
         )");
@@ -653,7 +662,7 @@ void regclass_Core(py::module m) {
             :param properties: Optional dict of pairs: (property name, property value)
             :type properties: dict
             :return: Pairs a operation name -> a device name supporting this operation.
-            :rtype: dict                
+            :rtype: dict
         )");
 
     cls.def("add_extension",
@@ -671,7 +680,7 @@ void regclass_Core(py::module m) {
             py::arg("extension"),
             R"(
                 Registers an extension to a Core object.
-                
+
                 :param extension: Extension object.
                 :type extension: openvino.runtime.Extension
             )");

@@ -856,12 +856,12 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         compiled_model =
             load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
-                auto model =
-                    ov::util::read_model(model_path, std::string{}, extensions, parsed._core_config.get_enable_mmap());
+                const auto model = util::read_model(model_path, "", extensions, parsed._core_config.get_enable_mmap());
                 return compile_model_and_cache(plugin, model, parsed._config, {}, cacheContent);
             });
     } else {
-        compiled_model = plugin.compile_model(model_path, parsed._config);
+        const auto model = util::read_model(model_path, "", extensions, parsed._core_config.get_enable_mmap());
+        compiled_model = plugin.compile_model(model, parsed._config);
     }
     return compiled_model;
 }
@@ -1664,9 +1664,13 @@ void ov::CoreImpl::add_mutex(const std::string& dev_name) {
     dev_mutexes[dev_name];
 }
 
-std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& modelPath, const std::string& binPath) const {
+std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& modelPath,
+                                                    const std::string& binPath,
+                                                    const AnyMap& properties) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::read_model from file");
-    return ov::util::read_model(modelPath, binPath, extensions, coreConfig.get_enable_mmap());
+    auto local_core_config = coreConfig;
+    local_core_config.set(properties);
+    return ov::util::read_model(modelPath, binPath, extensions, local_core_config.get_enable_mmap());
 }
 
 std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& model,
