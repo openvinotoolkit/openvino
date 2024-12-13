@@ -1940,12 +1940,6 @@ TEST(TransformationTests, ConvertPrecision_DivisionByZeroMinimalPattern) {
                                                       empty_type_to_fuse_map,
                                                       keep_precision_sensitive_in_fp32);
         manager.run_passes(model);
-
-        std::cout << "MODEL AFTER TRANSFORMATIONS" << std::endl;
-        for (auto op : model->get_ordered_ops()) {
-            std::cout << op << std::endl;
-        }
-        std::cout << "---" << std::endl;
     }
 
     {
