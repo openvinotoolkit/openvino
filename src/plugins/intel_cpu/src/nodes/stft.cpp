@@ -78,11 +78,11 @@ bool STFT::created() const {
 }
 
 namespace {
-static void transpose_out(const uint8_t* in,
-                          uint8_t* out,
-                          const VectorDims& in_shape,
-                          const VectorDims& out_shape,
-                          size_t elem_size) {
+static void transpose_out4d(const uint8_t* in,
+                            uint8_t* out,
+                            const VectorDims& in_shape,
+                            const VectorDims& out_shape,
+                            size_t elem_size) {
     const std::vector<size_t> axes_order{0, 2, 1, 3};
     parallel_for4d(out_shape[0],
                    out_shape[1],
@@ -156,11 +156,11 @@ static void stft_impl(const float* signal,
         const auto stft_shape = VectorDims{batch_size, num_frames, fft_out_shape[0], fft_out_shape[1]};
         const auto stft_transp_out_shape = VectorDims{batch_size, fft_out_shape[0], num_frames, fft_out_shape[1]};
         std::vector<float> signal_t(rdft_result, rdft_result + shape_size(stft_transp_out_shape));
-        transpose_out(reinterpret_cast<const uint8_t*>(signal_t.data()),
-                      reinterpret_cast<uint8_t*>(rdft_result),
-                      stft_shape,
-                      stft_transp_out_shape,
-                      sizeof(float));
+        transpose_out4d(reinterpret_cast<const uint8_t*>(signal_t.data()),
+                        reinterpret_cast<uint8_t*>(rdft_result),
+                        stft_shape,
+                        stft_transp_out_shape,
+                        sizeof(float));
     }
 }
 }  // namespace
