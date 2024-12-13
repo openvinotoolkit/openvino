@@ -12,7 +12,7 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateSTFTOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v15::STFT>& op) {
-    validate_inputs_count(op, {2});
+    validate_inputs_count(op, {4});
     auto inputs = p.GetInputInfo(op);
     auto prim =
         cldnn::STFT(layer_type_name_ID(op), inputs[0], inputs[1], inputs[2], inputs[3], op->get_transpose_frames());
