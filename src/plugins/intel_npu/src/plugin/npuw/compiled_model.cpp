@@ -492,6 +492,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
     write(stream, device);
 
     write(stream, replaced_by);
+    // FIXME: is this check enough? E.g. what about FUNCALL_FOR_ALL?
     if (replaced_by == idx) {
         NPUW_ASSERT(compiled_model);
         compiled_model->export_model(stream);
@@ -547,9 +548,9 @@ ov::npuw::CompiledModel::CompiledModelDesc ov::npuw::CompiledModel::CompiledMode
     read(stream, device);
     NPUW_ASSERT(device == "CPU" || device == "NPU");
     read(stream, desc.replaced_by);
+    // FIXME: will this check work w/o FUNCALL_FORALL?
     if (desc.replaced_by == idx) {
         // Import model from either NPU or CPU plugin
-        std::cout << "trying to import model..." << std::endl;
         desc.compiled_model = plugin->get_core()->import_model(stream, device, properties);
     }
     read(stream, desc.param_base);
@@ -816,7 +817,6 @@ void ov::npuw::CompiledModel::reconstruct_closure() {
                 NPUW_ASSERT(!comp_model_desc.is_remote[cidx]);
                 continue;
             }
-            NPUW_ASSERT(comp_model_desc.is_remote[cidx]);
             NPUW_ASSERT(comp_model_desc.closure_uid[cidx] != std::numeric_limits<std::size_t>::max());
             comp_model_desc.closure[cidx] =
                 m_weights_bank->get(comp_model_desc.closure_uid[cidx], *func_desc.device_it);

@@ -78,8 +78,9 @@ void write(std::ostream& stream, const std::optional<T>& var) {
     if (var) {
         write(stream, true);
         write(stream, var.value());
+    } else {
+        write(stream, false);
     }
-    write(stream, false);
 }
 
 // Deserialization

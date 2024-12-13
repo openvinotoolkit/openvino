@@ -64,7 +64,7 @@ private:
     mutable std::mutex m_mutex;
     std::shared_ptr<const ov::ICore> m_core = nullptr;
     std::string m_alloc_device;
-    std::size_t uid_count = 1;  // 0 is preserved for uninitialized uids
+    std::size_t uid_count = 0;
 };
 
 std::shared_ptr<Bank> bank(const std::string& bank_name,

@@ -112,7 +112,11 @@ ov::Tensor Bank::eval_and_alloc(const LazyTensor& tensor,
 
     std::unique_lock<std::mutex> guard(dbank.mutex);
     if (device_for_alloc == "CPU") {
-        dbank.storage[tensor] = {transformed_tensor, uid_count++};
+        auto& tensor_and_uid = dbank.storage[tensor];
+        // In most cases should already be initialized
+        auto uid =
+            tensor_and_uid.second == std::numeric_limits<std::size_t>::max() ? uid_count++ : tensor_and_uid.second;
+        tensor_and_uid = {transformed_tensor, uid};
         return transformed_tensor;
     }
 
@@ -198,9 +202,9 @@ std::shared_ptr<Bank> Bank::deserialize(std::istream& stream, const std::shared_
     read(stream, bank_size);
 
     for (std::size_t i = 0; i < bank_size; ++i) {
-        std::pair<std::size_t, ov::Tensor> p;
+        std::pair<ov::Tensor, std::size_t> p;
         read(stream, p);
-        bank->add_element(p.first, p.second, device);
+        bank->add_element(p.second, p.first, device);
     }
 
     LOG_INFO("DONE.");
@@ -214,8 +218,7 @@ void Bank::add_element(std::size_t uid, const ov::Tensor& tensor, const std::str
     NPUW_ASSERT(device == "NPU" || device == "CPU");
     std::lock_guard<std::mutex> guard(m_mutex);
 
-    auto it = m_device_banks.find(device);
-    auto& device_bank = it->second;
+    auto& device_bank = m_device_banks[device];
     std::lock_guard<std::mutex> dev_guard(device_bank.mutex);
 
     device_bank.deserialized_storage[uid] = {ov::Tensor(tensor.get_element_type(), tensor.get_shape()), false};
