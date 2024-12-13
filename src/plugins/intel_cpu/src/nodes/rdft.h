@@ -147,6 +147,7 @@ struct RDFTJitExecutor : public RDFTExecutor {
              enum dft_type type,
              bool parallelize) override;
 
+private:
     std::unique_ptr<jit_dft_kernel> rdftKernel = nullptr;
     std::unique_ptr<jit_dft_kernel> dftKernel = nullptr;
 
