@@ -23,6 +23,65 @@ OpenVINO Release Notes
 
 
 
+What's new
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+* OpenVINO 2024.6 LTS release includes updates for enhanced stability and improved LLM performance.
+* Introduced support for Intel® Arc™ B-Series Graphics (formerly known as Battlemage)
+* Memory optimizations implemented to improve the inference time memory and LLM performance on NPUs.
+* Improved LLM performance with GenAI API optimizations and bug fixes.
+
+
+
+OpenVINO™ Runtime
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+CPU Device Plugin
+-----------------------------------------------------------------------------------------------
+
+* KV cache now uses asymmetric U8 as the default precision, reducing memory stress for LLMs and
+  increasing their performance. This option can be controlled by model meta data.
+* Quality and accuracy has been improved for selected models with several bug fixes.
+
+GPU Device Plugin
+-----------------------------------------------------------------------------------------------
+
+* Device memory copy optimizations have been introduced for inference with **Intel® Arc™ B-Series
+  Graphics** (formerly known as Battlemage). Since it does not utilize L2 cache for copying memory
+  between the device and host, a dedicated `copy` operation is used, if inputs or results are
+  not expected in the device memory.
+* ChatGLM4 inference on GPU has been optimized.
+
+NPU Device Plugin
+-----------------------------------------------------------------------------------------------
+
+* LLM performance and inference time has been improved with memory optimizations.
+
+
+
+
+
+OpenVINO.GenAI
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+* The encrypted_model_causal_lm sample is now available, showing how to decrypt a model.
+
+
+
+
+Other Changes and Known Issues
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+Jupyter Notebooks
+-----------------------------
+
+* `Visual-language assistant with GLM-Edge-V and OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/glm-edge-v/glm-edge-v.ipynb>`__
+* `Local AI and OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/localai/localai.ipynb>`__
+* `Multimodal understanding and generation with Janus and OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/janus-multimodal-generation/janus-multimodal-generation.ipynb>`__
+
+
+
+
 
 
 
