@@ -80,7 +80,7 @@ public:
     ///
     ///    class ov::pass::LinFusions: public ov::pass::GraphRewrite {
     ///    public:
-    ///         OPENVINO_RTTI("LinFusion");
+    ///         OPENVINO_RTTI("LinFusion", "0", ov::pass::GraphRewrite);
     ///         Fusions() {
     ///             add_matcher<ov::pass::AddFusion>();
     ///             add_matcher<ov::pass::MulFusion>();
