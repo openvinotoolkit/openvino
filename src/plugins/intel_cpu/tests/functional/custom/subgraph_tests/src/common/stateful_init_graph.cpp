@@ -215,7 +215,7 @@ public:
     void SetUp() override {
         targetDevice = utils::DEVICE_CPU;
 
-        configuration.insert({ov::hint::inference_precision(ov::element::f32)});
+        configuration.insert({"SNIPPETS_MODE", "DISABLE"});
 
         bool directPair;
         std::tie(inputShapes, directPair) = this->GetParam();
@@ -250,7 +250,7 @@ public:
     }
 
     void check_init_graph_node() override {
-        CheckNumberOfNodesWithType(compiledModel, "Convert", function->is_dynamic() ? 1 : 0);
+        CheckNumberOfNodesWithType(compiledModel, "Convert", 1);
     }
 
     ov::Shape get_state_shape(size_t i) override {
