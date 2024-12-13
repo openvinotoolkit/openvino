@@ -1451,7 +1451,17 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
 std::string ov::CoreImpl::compute_hash(const std::shared_ptr<const ov::Model>& model,
                                        const std::string& deviceName,
                                        const ov::AnyMap& compileOptions) {
-    auto properties = create_compile_config(get_plugin(deviceName), compileOptions);
+    std::string actualDeviceName = deviceName;
+    if (deviceName.find("AUTO") != std::string::npos) {
+        auto pos = deviceName.find_first_of(":");
+        if (pos != std::string::npos) {
+            auto deviceNames = ov::DeviceIDParser::get_multi_devices(deviceName.substr(pos + 1));
+            actualDeviceName = deviceNames.size() > 0 ? deviceNames.back() : deviceName;
+        } else {
+            return "Cannot compute hash for AUTO device without actual device name";
+        }
+    }
+    auto properties = create_compile_config(get_plugin(actualDeviceName), compileOptions);
     return ov::ModelCache::compute_hash(model, properties);
 }
 
