@@ -1940,6 +1940,12 @@ TEST(TransformationTests, ConvertPrecision_DivisionByZeroMinimalPattern) {
                                                       empty_type_to_fuse_map,
                                                       keep_precision_sensitive_in_fp32);
         manager.run_passes(model);
+
+        std::cout << "MODEL AFTER TRANSFORMATIONS" << std::endl;
+        for (auto op : model->get_ordered_ops()) {
+            std::cout << op << std::endl;
+        }
+        std::cout << "---" << std::endl;
     }
 
     {
@@ -1951,8 +1957,9 @@ TEST(TransformationTests, ConvertPrecision_DivisionByZeroMinimalPattern) {
         auto eps_const = opset10::Constant::create(element::f32, Shape{1}, {eps_value});
         auto add = std::make_shared<opset10::Add>(input_2_decompressed, eps_const);
         auto divide = std::make_shared<opset10::Divide>(input_1_decompressed, add);
+        auto conv = std::make_shared<opset10::Convert>(divide, element::f16);
 
-        model_ref = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input_1, input_2});
+        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input_1, input_2});
     }
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default();
@@ -1994,8 +2001,9 @@ TEST(TransformationTests, ConvertPrecision_PowWithNegativeExponent) {
         auto pow_exp_const = opset10::Constant::create(element::f32, Shape{1}, {-1.77});
         auto pow = std::make_shared<opset10::Power>(add, pow_exp_const);
         auto mul = std::make_shared<opset10::Multiply>(input_1_decompressed, pow);
+        auto conv = std::make_shared<opset10::Convert>(mul, element::f16);
 
-        model_ref = std::make_shared<Model>(NodeVector{mul}, ParameterVector{input_1, input_2});
+        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input_1, input_2});
     }
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default();
