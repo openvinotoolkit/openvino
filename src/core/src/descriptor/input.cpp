@@ -48,7 +48,7 @@ void ov::descriptor::Input::replace_output(Output& new_output) {
 }
 
 void ov::descriptor::Input::replace_output(const std::shared_ptr<ov::Node>& node, size_t i) {
-    replace_output(node->get_output_descriptor(i));
+    replace_output(node->m_outputs.at(i));
 }
 
 void ov::descriptor::Input::remove_output() {

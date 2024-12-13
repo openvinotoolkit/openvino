@@ -2289,6 +2289,8 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsMultiParam) {
     ASSERT_TRUE(result.valid) << result.message;
 
     const auto& results = model->get_results();
+    ASSERT_EQ("add.0", results[0]->get_input_node_ptr(0)->get_friendly_name());
+    ASSERT_EQ("mul.0", results[1]->get_input_node_ptr(0)->get_friendly_name());
     ASSERT_EQ("sine", results[2]->get_input_node_ptr(0)->get_friendly_name());
 }
 
