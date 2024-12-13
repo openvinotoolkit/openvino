@@ -7,7 +7,7 @@ __path__ = __import__("pkgutil").extend_path(__path__, __name__)
 # Required for Windows OS platforms
 # Note: always top-level
 try:
-    from openvino.utils import _add_openvino_libs_to_search_path
+    from openvino.package_utils import _add_openvino_libs_to_search_path
     _add_openvino_libs_to_search_path()
 except ImportError:
     pass
