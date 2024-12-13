@@ -56,7 +56,8 @@ implemented in your solutions. Click the buttons below to see the chosen benchma
 
          :material-regular:`table_view;1.4em` LLM performance for AI PC
 
-   .. grid-item::
+.. uncomment under 
+   .. .. grid-item::
 
       .. button-link:: #
          :class: ovms-toolkit-benchmark-llm-result
@@ -163,7 +164,7 @@ For a listing of all platforms and configurations used for testing, refer to the
   2024.5, as of November 20, 2024.
 
 * OpenVINO Model Server performance results are based on release
-  2024.4, as of Sept. 30, 2024.
+  2024.5, as of November 20, 2024.
 
 The results may not reflect all publicly available updates. Intel technologies' features and
 benefits depend on system configuration and may require enabled hardware, software, or service
