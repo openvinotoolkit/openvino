@@ -38,7 +38,7 @@ private:
     bool m_transpose_frames = false;
 
     // RDFT executor
-    std::shared_ptr<RDFTExecutor> rdft_executor;
+    std::shared_ptr<RDFTExecutor> rdft_executor = nullptr;
     bool m_is_frame_size_const = false;
     bool m_is_frame_step_const = false;
 
