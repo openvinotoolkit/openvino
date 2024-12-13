@@ -7,8 +7,8 @@ Generative Model Preparation
 
 
 
-Since generative AI models tend to be big and resource-heavy, it is advisable to store them
-locally and optimize for efficient inference. This article will show how to prepare
+Since generative AI models tend to be big and resource-heavy, it is advisable to
+optimize them for efficient inference. This article will show how to prepare
 LLM models for inference with OpenVINO by:
 
 * `Downloading Models from Hugging Face <#download-generative-models-from-hugging-face-hub>`__
