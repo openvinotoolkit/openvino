@@ -10,6 +10,7 @@
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/search_sorted.hpp"
+#include "openvino/op/stft.hpp"
 
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
@@ -354,7 +355,8 @@ bool ProgramBuilder::requires_new_shape_infer(const std::shared_ptr<ov::Node>& o
     // HACK: SearchSorted has specific shape requirements.
     // E.g. static input shapes: sorted:[8], values:[2,3,4] are prefectly fine,
     // but sorted:[8,1,1,1], values:[2,3,4,1] is not valid.
-    if (ov::is_type<ov::op::v15::SearchSorted>(op))
+    // Similar case for STFT.
+    if (ov::is_type<ov::op::v15::SearchSorted>(op) || ov::is_type<ov::op::v15::STFT>(op))
         return true;
 
     if (ov::is_type<ov::op::v5::Loop>(op)) {
