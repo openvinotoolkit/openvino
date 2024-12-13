@@ -9,7 +9,7 @@
 void ov::npuw::s11n::write(std::ostream& stream, const std::string& var) {
     auto var_size = var.size();
     stream.write(reinterpret_cast<const char*>(&var_size), sizeof var_size);
-    stream.write(var.c_str(), var.size());
+    stream.write(&var[0], var.size());
 }
 
 void ov::npuw::s11n::write(std::ostream& stream, const bool& var) {
@@ -48,7 +48,8 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::Tensor& var) {
 void ov::npuw::s11n::read(std::istream& stream, std::string& var) {
     std::size_t var_size = 0;
     stream.read(reinterpret_cast<char*>(&var_size), sizeof var_size);
-    stream.read(var.data(), var_size);
+    var.resize(var_size);
+    stream.read(&var[0], var_size);
 }
 
 void ov::npuw::s11n::read(std::istream& stream, bool& var) {
@@ -77,7 +78,7 @@ void ov::npuw::s11n::read(std::istream& stream, ov::npuw::compiled::Spatial& var
 void ov::npuw::s11n::read(std::istream& stream, ov::Tensor& var) {
     std::string type_str;
     read(stream, type_str);
-    ov::element::Type type{type_str};
+    ov::element::Type type(type_str);
 
     ov::Shape shape;
     read(stream, shape);
@@ -91,7 +92,7 @@ void ov::npuw::s11n::read(std::istream& stream, ov::Tensor& var) {
     read(stream, byte_size);
 
     std::vector<char> vec(byte_size, 0);
-    stream.read(reinterpret_cast<char*>(vec.data()), byte_size);
+    stream.read(reinterpret_cast<char*>(&vec[0]), byte_size);
 
     // Need to get ownership over data, thus creating a temporary tensor over temporary data first
     auto tmp = ov::Tensor(type, shape, vec.data(), strides);

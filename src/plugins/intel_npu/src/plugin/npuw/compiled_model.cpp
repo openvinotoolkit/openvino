@@ -549,6 +549,7 @@ ov::npuw::CompiledModel::CompiledModelDesc ov::npuw::CompiledModel::CompiledMode
     read(stream, desc.replaced_by);
     if (desc.replaced_by == idx) {
         // Import model from either NPU or CPU plugin
+        std::cout << "trying to import model..." << std::endl;
         desc.compiled_model = plugin->get_core()->import_model(stream, device, properties);
     }
     read(stream, desc.param_base);
@@ -597,7 +598,8 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
 
     // Serialize name first + NPUW identifier for deserialization
     // FIXME: consider a better approach then using name there
-    write(stream, npuw_name_identifier + m_name);
+    std::string name = std::string(npuw_name_identifier) + m_name;
+    write(stream, name);
 
     // Serialize inputs and outputs
     // FIXME: make a separate function
@@ -676,7 +678,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
         read(stream, elem_type_str);
         read(stream, part_shape_str);
         auto param =
-            std::make_shared<op::v0::Parameter>(ov::element::Type{elem_type_str}, ov::PartialShape{part_shape_str});
+            std::make_shared<op::v0::Parameter>(ov::element::Type(elem_type_str), ov::PartialShape(part_shape_str));
         parameters.push_back(param);
     }
 
@@ -688,10 +690,10 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
         read(stream, part_shape_str);
         // NOTE: the code below is taken from NPU plugin's create_dummy_model()
         std::shared_ptr<ov::Node> res =
-            std::make_shared<ov::op::v0::Constant>(ov::element::Type{elem_type_str}, std::vector<size_t>{1});
+            std::make_shared<ov::op::v0::Constant>(ov::element::Type(elem_type_str), std::vector<size_t>{1});
         const std::shared_ptr<ov::descriptor::Tensor>& tensor_dummy =
-            std::make_shared<ov::descriptor::Tensor>(ov::element::Type{elem_type_str},
-                                                     ov::PartialShape{part_shape_str});
+            std::make_shared<ov::descriptor::Tensor>(ov::element::Type(elem_type_str),
+                                                     ov::PartialShape(part_shape_str));
         std::shared_ptr<ov::Node> result = std::make_shared<ov::op::v0::Result>(res);
         result->output(0).set_tensor_ptr(tensor_dummy);
         results.push_back(result);
