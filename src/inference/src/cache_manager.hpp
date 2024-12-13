@@ -69,7 +69,7 @@ public:
     /**
      * @brief Function passing created input stream
      */
-    using StreamReader = std::function<void(std::istream&)>;
+    using StreamReader = std::function<void(std::istream&, std::shared_ptr<ov::AlignedBuffer>)>;
 
     /**
      * @brief Callback when OpenVINO intends to read model from cache
@@ -143,10 +143,10 @@ private:
                     std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mmap->data(), mmap->size(), mmap);
                 OwningSharedStreamBuffer buf(shared_buffer);
                 std::istream stream(&buf);
-                reader(stream);
+                reader(stream, shared_buffer);
             } else {
                 std::ifstream stream(blob_file_name, std::ios_base::binary);
-                reader(stream);
+                reader(stream, nullptr);
             }
         }
     }

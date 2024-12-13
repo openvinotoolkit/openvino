@@ -124,11 +124,15 @@ intel_cpu::SDPAFuseTransposeReshape::SDPAFuseTransposeReshape() {
         qkv_transpose[0] = as_type_ptr<op::v1::Transpose>(pattern_map.at(q_transpose_node).get_node_shared_ptr());
         qkv_transpose[1] = as_type_ptr<op::v1::Transpose>(pattern_map.at(k_transpose_node).get_node_shared_ptr());
         qkv_transpose[2] = as_type_ptr<op::v1::Transpose>(pattern_map.at(v_transpose_node).get_node_shared_ptr());
-        qkv_transpose_order[0] = as_type_ptr<op::v0::Constant>(pattern_map.at(q_transpose_order_node).get_node_shared_ptr());
-        qkv_transpose_order[1] = as_type_ptr<op::v0::Constant>(pattern_map.at(k_transpose_order_node).get_node_shared_ptr());
-        qkv_transpose_order[2] = as_type_ptr<op::v0::Constant>(pattern_map.at(v_transpose_order_node).get_node_shared_ptr());
+        qkv_transpose_order[0] =
+            as_type_ptr<op::v0::Constant>(pattern_map.at(q_transpose_order_node).get_node_shared_ptr());
+        qkv_transpose_order[1] =
+            as_type_ptr<op::v0::Constant>(pattern_map.at(k_transpose_order_node).get_node_shared_ptr());
+        qkv_transpose_order[2] =
+            as_type_ptr<op::v0::Constant>(pattern_map.at(v_transpose_order_node).get_node_shared_ptr());
         auto out_tranpose = as_type_ptr<op::v1::Transpose>(pattern_map.at(out_transpose_node).get_node_shared_ptr());
-        auto out_transpose_order = as_type_ptr<op::v0::Constant>(pattern_map.at(out_transpose_order_node).get_node_shared_ptr());
+        auto out_transpose_order =
+            as_type_ptr<op::v0::Constant>(pattern_map.at(out_transpose_order_node).get_node_shared_ptr());
 
         if (!(is_expected_transpose(qkv_transpose[0]) && is_expected_transpose(qkv_transpose[1]) &&
               is_expected_transpose(qkv_transpose[2]))) {
