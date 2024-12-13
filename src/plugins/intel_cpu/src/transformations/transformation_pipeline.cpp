@@ -344,10 +344,17 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                                                      ov::element::nf4,
                                                      ov::element::f4e2m1};
 
-    CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::MarkDequantization, decompression_precisions, false, true);
-    CPU_SET_CALLBACK_X64(decompression_handling_manager, [&](const_node_ptr &node) -> bool {
-        return !is_decompression_multiply(node);
-    }, ov::pass::MarkDequantization);
+    CPU_REGISTER_PASS_X64(decompression_handling_manager,
+                          ov::pass::MarkDequantization,
+                          decompression_precisions,
+                          false,
+                          true);
+    CPU_SET_CALLBACK_X64(
+        decompression_handling_manager,
+        [&](const_node_ptr& node) -> bool {
+            return !is_decompression_multiply(node);
+        },
+        ov::pass::MarkDequantization);
 
     CPU_SET_CALLBACK_COMMON(
         decompression_handling_manager,
@@ -429,9 +436,12 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_X64(manager, ov::pass::KeepConstsPrecision, decompression_precisions, false, true);
-    CPU_SET_CALLBACK_X64(manager, [&](const_node_ptr &node) -> bool {
-        return !is_decompression_multiply(node);
-    }, ov::pass::KeepConstsPrecision);
+    CPU_SET_CALLBACK_X64(
+        manager,
+        [&](const_node_ptr& node) -> bool {
+            return !is_decompression_multiply(node);
+        },
+        ov::pass::KeepConstsPrecision);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::WrapInterpolateIntoTransposes);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeSinking);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertSequenceToTensorIterator);
