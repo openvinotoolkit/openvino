@@ -74,6 +74,23 @@ TEST_P(SerializationTest, SaveModel) {
     });
 }
 
+#ifdef OPENVINO_CPP_VER_17
+TEST_P(SerializationTest, CompareFunctionsByPath) {
+    const auto out_xml_path = std::filesystem::path(m_out_xml_path);
+    const auto out_bin_path = std::filesystem::path(m_out_bin_path);
+    CompareSerialized([&out_xml_path, &out_bin_path](const auto& m) {
+        ov::pass::Serialize(out_xml_path, out_bin_path).run_on_model(m);
+    });
+}
+
+TEST_P(SerializationTest, SaveModelByPath) {
+    const auto out_xml_path = std::filesystem::path(m_out_xml_path);
+    CompareSerialized([&out_xml_path](const auto& m) {
+        ov::save_model(m, out_xml_path, false);
+    });
+}
+#endif
+
 INSTANTIATE_TEST_SUITE_P(
     IRSerialization,
     SerializationTest,
