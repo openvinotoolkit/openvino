@@ -14,6 +14,7 @@
 #include "edge.h"
 #include "graph_context.h"
 #include "memory_control.hpp"
+#include "memory_state.h"
 #include "node.h"
 #include "nodes/input.h"
 #include "openvino/core/node_vector.hpp"
@@ -131,6 +132,9 @@ public:
         return m_context;
     }
 
+    std::vector<MemStatePtr> memoryStates() const;
+    void assignStates(const std::vector<MemStatePtr>& state);
+
     void GetPerfData(std::vector<ov::ProfilingInfo>& perfMap) const;
 
     void CreateEdge(const NodePtr& parent, const NodePtr& child, int parentPort = 0, int childPort = 0);
@@ -215,8 +219,6 @@ public:
     bool hasDynamicInput() const {
         return graphHasDynamicInput;
     }
-
-    const std::unordered_map<std::string, node::MemoryStateNode*>& getInternalStateNodes() const;
 
     /**
      * Init graph using \p model, \p context, \p inputConfigs and \p outputConfigs

@@ -8,7 +8,6 @@
 #include "dnnl_extension_utils.h"
 #include "itt.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
-#include "memory_state.h"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/memory_state_base.h"
 #include "openvino/core/shape.hpp"
@@ -51,21 +50,7 @@ void SyncInferRequest::create_infer_request() {
     }
 
     // create states according to the list of the MemoryStateNodes
-    auto&& graph = m_compiled_model.graph();
-    for (auto&& node : graph.getInternalStateNodes()) {
-        m_memory_states.emplace_back(node.second->makeState());
-    }
-}
-
-// state -> storage
-void SyncInferRequest::assign_states(Graph& graph) {
-    auto&& graph_internal_state_nodes = graph.getInternalStateNodes();
-    for (const auto& state : m_memory_states) {
-        auto itr = graph_internal_state_nodes.find(state->get_name());
-        if (itr != graph_internal_state_nodes.end()) {
-            itr->second->assignState(state);
-        }
-    }
+    m_memory_states = m_compiled_model.graph().memoryStates();
 }
 
 void SyncInferRequest::redefine_memory_for_input_nodes(Graph& graph) {
@@ -119,7 +104,7 @@ void SyncInferRequest::infer() {
 
     // state -> node
     if (!m_memory_states.empty()) {
-        assign_states(graph);
+        graph.assignStates(m_memory_states);
     }
 
     push_input_data(graph);

@@ -98,7 +98,6 @@ private:
 
     void push_input_data(Graph& graph);
     void redefine_memory_for_input_nodes(Graph& graph);
-    void assign_states(Graph& graph);
     void update_external_tensor_ptrs();
     void change_default_ptr(Graph& graph);
 
