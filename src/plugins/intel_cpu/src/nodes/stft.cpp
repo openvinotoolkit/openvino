@@ -84,21 +84,18 @@ static void transpose_out4d(const uint8_t* in,
                             const VectorDims& out_shape,
                             size_t elem_size) {
     const std::vector<size_t> axes_order{0, 2, 1, 3};
-    parallel_for4d(out_shape[0],
+    parallel_for3d(out_shape[0],
                    out_shape[1],
                    out_shape[2],
-                   out_shape[3],
-                   [in, out, axes_order, &in_shape, &out_shape, elem_size](size_t i, size_t j, size_t k, size_t l) {
+                   [in, out, axes_order, &in_shape, &out_shape, elem_size](size_t i, size_t j, size_t k) {
                        size_t in_indexes[4];
                        in_indexes[axes_order[0]] = i;
                        in_indexes[axes_order[1]] = j;
                        in_indexes[axes_order[2]] = k;
-                       in_indexes[axes_order[3]] = l;
                        size_t in_off =
-                           ((in_indexes[0] * in_shape[1] + in_indexes[1]) * in_shape[2] + in_indexes[2]) * in_shape[3] +
-                           in_indexes[3];
-                       size_t out_off = ((i * out_shape[1] + j) * out_shape[2] + k) * out_shape[3] + l;
-                       cpu_memcpy(out + out_off * elem_size, in + in_off * elem_size, elem_size);
+                           ((in_indexes[0] * in_shape[1] + in_indexes[1]) * in_shape[2] + in_indexes[2]) * in_shape[3];
+                       size_t out_off = ((i * out_shape[1] + j) * out_shape[2] + k) * out_shape[3];
+                       cpu_memcpy(out + out_off * elem_size, in + in_off * elem_size, out_shape[3] * elem_size);
                    });
 }
 
