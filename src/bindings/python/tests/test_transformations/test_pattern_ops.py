@@ -6,8 +6,8 @@ import pytest
 
 from openvino import PartialShape
 from openvino.runtime import opset13 as ops
-from openvino.runtime.passes import Matcher, WrapType, Or, AnyInput, Optional
-from openvino.runtime.passes import (
+from openvino.passes import Matcher, WrapType, Or, AnyInput, Optional
+from openvino.passes import (
     consumers_count,
     has_static_dim,
     has_static_dims,
@@ -189,7 +189,7 @@ def test_pattern_optional_root():
 
 
 def test_wrap_type_pattern_type():
-    last_opset_number = 15
+    last_opset_number = 16
     for i in range(1, last_opset_number + 1):
         WrapType(f"opset{i}.Parameter")
         WrapType(f"opset{i}::Parameter")

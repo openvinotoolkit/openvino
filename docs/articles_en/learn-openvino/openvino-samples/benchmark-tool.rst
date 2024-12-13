@@ -245,6 +245,13 @@ There are several options for setting the number of inference iterations:
 The more iterations a model runs, the better the statistics will be for determining
 average latency and throughput.
 
+Maximum inference rate
+++++++++++++++++++++++
+
+By default, the benchmarking app will run inference at maximum rate based on device capabilities.
+The maximum inferance rate can be configured by ``-max_irate <MAXIMUM_INFERENCE_RATE>`` option.
+Tweaking this value allow better accuracy in power usage measurement by limiting the number of executions.
+
 Inputs
 ++++++++++++++++++++
 
@@ -337,7 +344,7 @@ following usage message:
             [Step 1/11] Parsing and validating input arguments
             [ INFO ] Parsing input parameters
             usage: benchmark_app.py [-h [HELP]] [-i PATHS_TO_INPUT [PATHS_TO_INPUT ...]] -m PATH_TO_MODEL [-d TARGET_DEVICE]
-                                    [-hint {throughput,cumulative_throughput,latency,none}] [-niter NUMBER_ITERATIONS] [-t TIME] [-b BATCH_SIZE] [-shape SHAPE]
+                                    [-hint {throughput,cumulative_throughput,latency,none}] [-niter NUMBER_ITERATIONS] [-max_irate MAXIMUM_INFERENCE_RATE] [-t TIME] [-b BATCH_SIZE] [-shape SHAPE]
                                     [-data_shape DATA_SHAPE] [-layout LAYOUT] [-extensions EXTENSIONS] [-c PATH_TO_CLDNN_CONFIG] [-cdir CACHE_DIR] [-lfile [LOAD_FROM_FILE]]
                                     [-api {sync,async}] [-nireq NUMBER_INFER_REQUESTS] [-nstreams NUMBER_STREAMS] [-inference_only [INFERENCE_ONLY]]
                                     [-infer_precision INFER_PRECISION] [-ip {bool,f16,f32,f64,i8,i16,i32,i64,u8,u16,u32,u64}]
@@ -536,6 +543,9 @@ following usage message:
                                            'none': no device performance mode will be set.
                                           Using explicit 'nstreams' or other device-specific options, please set hint to 'none'
                 -niter  <integer>             Optional. Number of iterations. If not specified, the number of iterations is calculated depending on a device.
+                -max_irate <float>            Optional. Maximum inference rate by frame per second.
+                                          If not specified, default value is 0, the inference will run at maximium rate depending on a device capabilities.
+                                          Tweaking this value allow better accuracy in power usage measurement by limiting the execution.
                 -t                            Optional. Time in seconds to execute topology.
 
             Input shapes

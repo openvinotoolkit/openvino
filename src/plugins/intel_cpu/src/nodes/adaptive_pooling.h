@@ -5,9 +5,11 @@
 #pragma once
 
 #include <node.h>
-#include <string>
+
 #include <memory>
+#include <string>
 #include <vector>
+
 #include "dnnl_extension_utils.h"
 
 namespace ov {
@@ -29,16 +31,18 @@ private:
     int spatialDimsCount;
     mutable std::vector<Dim> spatialDimsValue = {};
     ov::element::Type precision = ov::element::f32;
-    inline void setBinBorders(size_t *startPtr, size_t *endPtr, size_t idx, size_t inputLength, size_t outputLength);
+    inline void setBinBorders(size_t* startPtr, size_t* endPtr, size_t idx, size_t inputLength, size_t outputLength);
 
     std::string errorPrefix;
 
 protected:
     bool needShapeInfer() const override;
-    bool needPrepareParams() const override { return false; };
+    bool needPrepareParams() const override {
+        return false;
+    };
     void executeDynamicImpl(dnnl::stream strm) override;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

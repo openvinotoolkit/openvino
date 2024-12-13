@@ -53,12 +53,16 @@ public:
     void generate() override;
 
 private:
-    using Vmm   = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::avx512_core, Xbyak::Zmm,
-                                                           isa == dnnl::impl::cpu::x64::sse41,       Xbyak::Xmm,
-                                                                                                     Xbyak::Ymm>::type;
-    using Vmask = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::avx512_core, Xbyak::Opmask,
-                                                           isa == dnnl::impl::cpu::x64::sse41,       Xbyak::Xmm,
-                                                                                                     Xbyak::Ymm>::type;
+    using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::avx512_core,
+                                                         Xbyak::Zmm,
+                                                         isa == dnnl::impl::cpu::x64::sse41,
+                                                         Xbyak::Xmm,
+                                                         Xbyak::Ymm>::type;
+    using Vmask = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::avx512_core,
+                                                           Xbyak::Opmask,
+                                                           isa == dnnl::impl::cpu::x64::sse41,
+                                                           Xbyak::Xmm,
+                                                           Xbyak::Ymm>::type;
 
     RegistersPool::Reg<Xbyak::Reg64> r64_dst;
     RegistersPool::Reg<Xbyak::Reg64> r64_work_amount;
@@ -93,8 +97,14 @@ private:
 
     void runPhilox(const std::vector<Vmm>& vmm_res, const Vmm& vmm_key, const Vmm& vmm_counter, const Vmm& vmm_n);
 
-    void calculateRound(const Vmm& vmm_k_0, const Vmm& vmm_k_1, const Vmm& vmm_c_0, const Vmm& vmm_c_1,
-                        const Vmm& vmm_n_0, const Vmm& vmm_n_1, const Vmm& vmm_aux_0, const Vmm& vmm_aux_1);
+    void calculateRound(const Vmm& vmm_k_0,
+                        const Vmm& vmm_k_1,
+                        const Vmm& vmm_c_0,
+                        const Vmm& vmm_c_1,
+                        const Vmm& vmm_n_0,
+                        const Vmm& vmm_n_1,
+                        const Vmm& vmm_aux_0,
+                        const Vmm& vmm_aux_1);
 
     void raiseKey(const Vmm& vmm_k_0, const Vmm& vmm_k_1);
 
@@ -109,68 +119,8 @@ private:
     static constexpr uint64_t STATISTIC_MAXIMIZING_MULTIPLIER_COUNTER = 0xCD9E8D57;
 };
 
-template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-class MersenneTwisterGenerator : public JitKernel<MersenneTwisterGeneratorCompileParams, MersenneTwisterGeneratorCallArgs> {
-public:
-    DECLARE_CPU_JIT_AUX_FUNCTIONS(MersenneTwisterGenerator)
+}  // namespace kernel
+}  // namespace intel_cpu
+}  // namespace ov
 
-    explicit MersenneTwisterGenerator(const MersenneTwisterGeneratorCompileParams& jcp);
-
-    void generate() override;
-
-private:
-    using Vmm   = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::avx512_core, Xbyak::Zmm,
-                                                           isa == dnnl::impl::cpu::x64::sse41,       Xbyak::Xmm,
-                                                                                                     Xbyak::Ymm>::type;
-    using Vmask = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::avx512_core, Xbyak::Opmask,
-                                                           isa == dnnl::impl::cpu::x64::sse41,       Xbyak::Xmm,
-                                                                                                     Xbyak::Ymm>::type;
-
-    RegistersPool::Reg<Xbyak::Reg64> r64_dst;
-    RegistersPool::Reg<Xbyak::Reg64> r64_state;
-    RegistersPool::Reg<Xbyak::Reg64> r64_state_accesses_count;
-    RegistersPool::Reg<Xbyak::Reg64> r64_elements_to_generate;
-    RegistersPool::Reg<Xbyak::Reg64> r64_storage_capacity;
-    RegistersPool::Reg<Xbyak::Reg64> r64_output_idx;
-    RegistersPool::Reg<Xbyak::Reg64> r64_max_output_idx;
-
-    const Xbyak::Reg64 r64_params = Xbyak::Reg64(dnnl::impl::cpu::x64::abi_param_regs[0]);
-
-    // Vector registers for input storage.
-    RegistersPool::Reg<Vmm> v_dst;
-    RegistersPool::Reg<Vmm> v_state;
-    RegistersPool::Reg<Vmm> v_min;
-    RegistersPool::Reg<Vmm> v_range;
-
-    // Vector registers for generation.
-    RegistersPool::Reg<Vmm> v_const_1; // for MT_CONST_1
-    RegistersPool::Reg<Vmm> v_const_2; // for MT_CONST_2
-
-    //Vector registers for conversion.
-    RegistersPool::Reg<Vmm> v_mask;
-    RegistersPool::Reg<Vmm> v_divisor;
-
-    // Output vector register
-    RegistersPool::Reg<Vmm> v_result;
-
-    void initVectors();
-
-    void process();
-
-    void generateRandomNumbers();
-
-    void convertToOutputTypeMersenne();
-
-    void storeResults();
-
-    // Mersenne Twister constants
-    static constexpr uint32_t MT_CONST_1 = 0x9D2C5680;
-    static constexpr uint32_t MT_CONST_2 = 0xEFC60000;
-};
-
-}   // namespace random_uniform
-}   // namespace kernel
-}   // namespace intel_cpu
-}   // namespace ov
-
-#endif // OPENVINO_ARCH_X86_64
+#endif  // OPENVINO_ARCH_X86_64

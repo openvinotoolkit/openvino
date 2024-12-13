@@ -1413,7 +1413,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
             cacheContent.blobId,
             coreConfig.get_enable_mmap() && ov::util::contains(plugin.get_property(ov::internal::supported_properties),
                                                                ov::internal::caching_with_mmap),
-            [&](std::istream& networkStream) {
+            [&](std::istream& networkStream, std::shared_ptr<ov::AlignedBuffer> model_buffer) {
                 OV_ITT_SCOPE(FIRST_INFERENCE,
                              ov::itt::domains::LoadTime,
                              "Core::load_model_from_cache::ReadStreamAndImport");
@@ -1447,6 +1447,21 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
 
                 ov::AnyMap update_config = config;
                 update_config[ov::loaded_from_cache.name()] = true;
+
+                if (util::contains(plugin.get_property(ov::supported_properties), ov::weights_path)) {
+                    std::string weights_path = cacheContent.modelPath;
+                    auto pos = weights_path.rfind('.');
+                    if (pos != weights_path.npos && weights_path.substr(pos) == ".xml") {
+                        weights_path = weights_path.substr(0, pos);
+                        weights_path += ".bin";
+                    }
+                    if (ov::util::file_exists(weights_path)) {
+                        update_config[ov::weights_path.name()] = weights_path;
+                    }
+                }
+                if (model_buffer) {
+                    update_config[ov::internal::cached_model_buffer.name()] = model_buffer;
+                }
                 compiled_model = context ? plugin.import_model(networkStream, context, update_config)
                                          : plugin.import_model(networkStream, update_config);
             });

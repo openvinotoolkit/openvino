@@ -1,5 +1,5 @@
 ============================
-OpenVINO 2024.4
+OpenVINO 2024.5
 ============================
 
 .. meta::
@@ -11,8 +11,8 @@ generative AI, video, audio, and language with models from popular frameworks li
 TensorFlow, ONNX, and more. Convert and optimize models, and deploy across a mix of Intel®
 hardware and environments, on-premises and on-device, in the browser or in the cloud.
 
-Check out the `OpenVINO Cheat Sheet. <https://docs.openvino.ai/2024/_static/download/OpenVINO_Quick_Start_Guide.pdf>`__
-
+| Check out the `OpenVINO Cheat Sheet [PDF] <https://docs.openvino.ai/2024/_static/download/OpenVINO_Quick_Start_Guide.pdf>`__
+| Check out the `GenAI Quick-start Guide [PDF] <https://docs.openvino.ai/2024/_static/download/GenAI_Quick_Start_Guide.pdf>`__
 
 
 .. container::
@@ -124,7 +124,7 @@ Places to Begin
 
       Cloud-ready deployments for microservice applications.
 
-      .. button-link:: openvino-workflow/openvino-workflow/model-server/ovms_what_is_openvino_model_server.html
+      .. button-link:: openvino-workflow/model-server/ovms_what_is_openvino_model_server.html
          :color: primary
          :outline:
 
