@@ -1891,8 +1891,6 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, 
     }
 }
 
-
-
 /// PRELU ///
 jit_prelu_emitter::jit_prelu_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                    dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -2359,14 +2357,6 @@ jit_squared_difference_emitter::jit_squared_difference_emitter(dnnl::impl::cpu::
 
 size_t jit_squared_difference_emitter::get_inputs_count() const { 
     return 2; 
-}
-
-size_t jit_squared_difference_emitter::get_aux_vecs_count() const { 
-    return 0; 
-}
-
-size_t jit_squared_difference_emitter::get_aux_gprs_count() const { 
-    return 0; 
 }
 
 void jit_squared_difference_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
