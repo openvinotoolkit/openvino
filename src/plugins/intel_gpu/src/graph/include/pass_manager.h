@@ -211,9 +211,10 @@ public:
 
 private:
     void run(program& p) override;
-    std::list<std::pair<primitive_id, memory::ptr>> calculate(engine& engine,
-                                                              const ExecutionConfig& config,
-                                                              std::shared_ptr<ov::threading::IStreamsExecutor> task_executor);
+    std::list<std::tuple<primitive_id, memory::ptr, std::shared_ptr<weightless_cache_manager>, std::shared_ptr<layout>>>
+    calculate(engine& engine,
+              const ExecutionConfig& config,
+              std::shared_ptr<ov::threading::IStreamsExecutor> task_executor);
     bool has_non_const_user(program_node& node) const;
     void handle_constant(program& prog, program_node& node);
     void add_constant(program& prog, program_node& node);
