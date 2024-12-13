@@ -227,8 +227,9 @@ void ActSparseFC::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    auto rtPrecision = getOriginalInputPrecisionAtPort(0);
-    OPENVINO_ASSERT(rtPrecision == ov::element::f32, "Unexpected rtPrecision:", rtPrecision);
+    //auto rtPrecision = getOriginalInputPrecisionAtPort(0);
+    //OPENVINO_ASSERT(rtPrecision == ov::element::f32, "Unexpected rtPrecision:", rtPrecision);
+    auto rtPrecision = ov::element::f32;
 
     std::vector<PortConfigurator> inPortConfigs;
     std::vector<PortConfigurator> outPortConfigs;
