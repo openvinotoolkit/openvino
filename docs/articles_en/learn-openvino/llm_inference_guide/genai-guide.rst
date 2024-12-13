@@ -130,7 +130,7 @@ make sure to :doc:`install OpenVINO with GenAI <../../get-started/install-openvi
                       image_write("baseline.bmp", image)
 
          For more information, refer to the
-         `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/text2image/>`__
+         `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/image_generation>`__
 
       .. tab-item:: C++
          :sync: cpp
