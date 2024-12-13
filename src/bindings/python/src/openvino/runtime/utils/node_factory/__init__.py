@@ -5,4 +5,4 @@
 from openvino._pyopenvino import NodeFactory as _NodeFactory
 
 from openvino.runtime import Node, Output, Extension
-from openvino.utils.node_factory import NodeFactory 
+from openvino.utils.node_factory import NodeFactory
