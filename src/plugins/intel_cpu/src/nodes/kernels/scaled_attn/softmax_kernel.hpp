@@ -12,10 +12,10 @@
 #include "openvino/core/type/element_type.hpp"
 
 #if defined(OPENVINO_ARCH_ARM64)
-#if defined(HAVE_SVE)
-#include "arm_sve.h"
-#endif
-#include "arm_neon.h"
+#    if defined(HAVE_SVE)
+#        include "arm_sve.h"
+#    endif
+#    include "arm_neon.h"
 #endif
 
 namespace ov {
@@ -660,7 +660,7 @@ inline void exp_reduce_sum(float* a, const float max, const size_t size, float& 
     hsum(v_sum);
     sum = _mm256_cvtss_f32(v_sum);
 #elif defined(OPENVINO_ARCH_ARM64)
-#if defined(HAVE_SVE)
+#    if defined(HAVE_SVE)
     svfloat32_t v_a;
     svfloat32_t v_max = svdup_n_f32(max);
     svfloat32_t v_sum = svdup_n_f32(0.0f);
@@ -681,7 +681,7 @@ inline void exp_reduce_sum(float* a, const float max, const size_t size, float& 
         i += inc;
     }
     sum = svaddv_f32(svptrue_b32(), v_sum);
-#else
+#    else
     float32x4_t v_a;
     float32x4_t v_max = vdupq_n_f32(max);
     float32x4_t v_sum = vdupq_n_f32(0.0f);
@@ -695,7 +695,7 @@ inline void exp_reduce_sum(float* a, const float max, const size_t size, float& 
         i += vec_len_f32_neon;
     }
     sum = vaddvq_f32(v_sum);
-#endif
+#    endif
 #endif
     for (; i < size; i++) {
         a[i] = exp(a[i] - max);
@@ -806,7 +806,7 @@ inline void multiply_scalar(float* a, float* a_dst, const float val, const size_
         i += (size - i);
     }
 #elif defined(OPENVINO_ARCH_ARM64)
-#if defined(HAVE_SVE)
+#    if defined(HAVE_SVE)
     svfloat32_t v_scale = svdup_n_f32(val);
     size_t inc = vec_len_f32_sve;
     svbool_t pg = svptrue_b32();
@@ -821,7 +821,7 @@ inline void multiply_scalar(float* a, float* a_dst, const float val, const size_
         svst1_f32(pg, a_dst + i, v_a);
         i += inc;
     }
-#else
+#    else
     float32x4_t v_scale = vdupq_n_f32(val);
     while (i + vec_len_f32_neon <= size) {
         float32x4_t v_a = vld1q_f32(a + i);
@@ -829,7 +829,7 @@ inline void multiply_scalar(float* a, float* a_dst, const float val, const size_
         vst1q_f32(a_dst + i, v_a);
         i += vec_len_f32_neon;
     }
-#endif
+#    endif
 #endif
     for (; i < size; i++) {
         a_dst[i] = a[i] * val;
