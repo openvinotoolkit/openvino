@@ -1010,10 +1010,8 @@ void loop_inst::set_memory_in_body_network(cldnn::network::ptr body_network,
                         ") should not exceed memory size(", updated_mem->get_layout().to_short_string(), ")");
         // Set need_to_check_memory_to_set to false to set output memory even if the input node has static shape,
         if (impl_layout.bytes_count() < updated_mem->get_layout().bytes_count()) {
-            inst->set_output_layout(updated_mem->get_layout(), 0);
             auto& inst_engine = body_network->get_engine();
             auto new_mem = inst_engine.allocate_memory(updated_mem->get_layout(), updated_mem->get_allocation_type(), true);
-            inst->set_output_memory(new_mem, false, 0);
             new_mem->copy_from(body_network->get_stream(), *updated_mem);
             updated_mem = new_mem;
         }
