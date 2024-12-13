@@ -81,9 +81,9 @@ namespace {
 static void transpose_out(const char* in,
                           char* out,
                           const VectorDims& in_shape,
-                          const std::vector<size_t>& axes_order,
                           const VectorDims& out_shape,
                           size_t elem_size) {
+    const std::vector<size_t> axes_order{0, 2, 1, 3};
     parallel_for4d(out_shape[0],
                    out_shape[1],
                    out_shape[2],
@@ -159,7 +159,6 @@ static void stft_impl(const float* signal,
         transpose_out(reinterpret_cast<const char*>(signal_t.data()),
                       reinterpret_cast<char*>(rdft_result),
                       stft_shape,
-                      {0, 2, 1, 3},
                       stft_transp_out_shape,
                       sizeof(float));
     }
