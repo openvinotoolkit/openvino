@@ -56,15 +56,13 @@ TEST_F(TransformationTestsF, MVN6Decomposition_Inside_Sqrt) {
         auto mean = std::make_shared<opset6::ReduceMean>(input0, axes_const, true);
         auto mean_normalization = std::make_shared<opset6::Subtract>(input0, mean);
 
-        std::shared_ptr<ov::Node> sqr_const = opset6::Constant::create(element::f32, Shape{1}, {2});
-        auto sqr_const_conv_like = std::make_shared<opset6::ConvertLike>(sqr_const, mean_normalization);
-        auto sqr = std::make_shared<opset6::Power>(mean_normalization, sqr_const_conv_like);
+        auto sqr_const = opset6::Constant::create(element::f32, Shape{1}, {2});
+        auto sqr = std::make_shared<opset6::Power>(mean_normalization, sqr_const);
         auto mean2 = std::make_shared<opset6::ReduceMean>(sqr, axes_const, true);
 
-        std::shared_ptr<ov::Node> eps_node = opset6::Constant::create(element::f32, Shape{1}, {1e-5});
-        auto eps_node_conv_like = std::make_shared<opset6::ConvertLike>(eps_node, mean2);
+        auto eps_node = opset6::Constant::create(element::f32, Shape{1}, {1e-5});
 
-        auto eps_add = std::make_shared<opset6::Add>(mean2, eps_node_conv_like);
+        auto eps_add = std::make_shared<opset6::Add>(mean2, eps_node);
         auto sqrt = std::make_shared<opset6::Sqrt>(eps_add);
         auto div = std::make_shared<opset6::Divide>(mean_normalization, sqrt);
 
@@ -89,16 +87,14 @@ TEST_F(TransformationTestsF, MVN6Decomposition_Outside_Sqrt) {
         auto mean = std::make_shared<opset6::ReduceMean>(input0, axes_const, true);
         auto mean_normalization = std::make_shared<opset6::Subtract>(input0, mean);
 
-        std::shared_ptr<ov::Node> sqr_const = opset6::Constant::create(element::f32, Shape{1}, {2});
-        auto sqr_const_conv_like = std::make_shared<opset6::ConvertLike>(sqr_const, mean_normalization);
-        auto sqr = std::make_shared<opset6::Power>(mean_normalization, sqr_const_conv_like);
+        auto sqr_const = opset6::Constant::create(element::f32, Shape{1}, {2});
+        auto sqr = std::make_shared<opset6::Power>(mean_normalization, sqr_const);
         auto mean2 = std::make_shared<opset6::ReduceMean>(sqr, axes_const, true);
 
-        std::shared_ptr<ov::Node> eps_node = opset6::Constant::create(element::f32, Shape{1}, {1e-5});
-        auto eps_node_conv_like = std::make_shared<ov::op::v1::ConvertLike>(eps_node, mean2);
+        auto eps_node = opset6::Constant::create(element::f32, Shape{1}, {1e-5});
 
         auto sqrt = std::make_shared<opset6::Sqrt>(mean2);
-        auto eps_add = std::make_shared<opset6::Add>(sqrt, eps_node_conv_like);
+        auto eps_add = std::make_shared<opset6::Add>(sqrt, eps_node);
         auto div = std::make_shared<opset6::Divide>(mean_normalization, eps_add);
 
         model_ref = std::make_shared<ov::Model>(NodeVector{div}, ParameterVector{input0});
