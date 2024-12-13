@@ -21,6 +21,12 @@ struct ExampleImplementationManager : public ImplementationManager {
     bool validate_impl(const program_node& node) const override {
         assert(node.is_type<fully_connected>());
 
+        auto &engine = node.get_program().get_engine();
+        auto &config = node.get_program().get_config();
+        if (!check_cm_jit_support(engine, config)) {
+            return false;
+        }
+
         // Example impl should not be chosen unless forced
         return false;
     }

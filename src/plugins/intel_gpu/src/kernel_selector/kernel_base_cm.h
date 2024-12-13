@@ -27,9 +27,10 @@ protected:
 
         if (codes.size()) {
             kernel_string->str = codes[0];
-            kernel_string->jit = jit.first;
+            kernel_string->jit = "#include <cm/cm.h>\n#include <cm/cmtl.h>\n";
+            kernel_string->jit += jit.first;
             kernel_string->undefs = jit.second;
-            kernel_string->options = " -cmc -include cm/cm.h -include cm/cmtl.h";
+            kernel_string->options = " -cmc ";
 
             kernel_string->entry_point = entry_point;
             kernel_string->batch_compilation = true;

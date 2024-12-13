@@ -4831,6 +4831,11 @@ TEST_F(fully_connected_gpu_tests, weights_reorder_shapes_update_cached) {
 TEST(fully_connected_gpu, cm) {
     int min_random = -2, max_random = 2;
     auto& engine = get_test_engine();
+    ExecutionConfig config = get_test_default_config(engine);
+
+    if (!cldnn::check_cm_jit_support(engine, config)) {
+        GTEST_SKIP();
+    }
 
     // Test parameters
     const int batch_num = 2;
@@ -4861,7 +4866,6 @@ TEST(fully_connected_gpu, cm) {
         data("bias", bias_prim),
         fully_connected("fc_prim", input_info("input"), "weights", "bias")
     );
-    ExecutionConfig config = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "", impl_types::cm };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", fc_impl_desc} }));
     network network(engine, topology, config);
