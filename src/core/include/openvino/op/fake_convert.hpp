@@ -70,6 +70,10 @@ public:
     std::string get_destination_type() const;
     const ov::element::Type& get_destination_element_type() const;
 
+    void set_destination_type(ov::element::Type destination_type) {
+        m_destination_type = destination_type;
+    }
+
 private:
     void validate_destination_type() const;
 
