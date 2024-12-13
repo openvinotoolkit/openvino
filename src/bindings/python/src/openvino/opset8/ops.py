@@ -7,7 +7,7 @@ from functools import partial
 from typing import List, Optional, Tuple
 
 import numpy as np
-from openvino.runtime.exceptions import UserInputError
+from openvino.exceptions import UserInputError
 from openvino.op import Constant, Parameter, if_op
 from openvino.runtime import Node
 from openvino.runtime.opset_utils import _get_node_factory
