@@ -10,7 +10,13 @@ RUN echo "timeout=60" >> /etc/dnf/dnf.conf && \
 RUN dnf update -y && dnf install -y \
     git \
     curl \
-    python3
+    python3 \
+    findutils \
+    ocl-icd \
+    ocl-icd-devel \
+    # parallel gzip
+    pigz \
+    xz
 
 # Install Node
 ENV NODE_VERSION=21.7.3

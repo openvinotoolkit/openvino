@@ -18,8 +18,7 @@ make sure to :doc:`install OpenVINO with GenAI <../../get-started/install-openvi
 
 .. image:: ../../assets/images/genai_main_diagram.svg
    :align: center
-   :width: 500
-   :alt: OpenVINO workflow diagram for convenience
+   :alt: OpenVINO GenAI workflow diagram
 
 
 | Here is sample code for several Generative AI use case scenarios. Note that these are very basic
@@ -131,7 +130,7 @@ make sure to :doc:`install OpenVINO with GenAI <../../get-started/install-openvi
                       image_write("baseline.bmp", image)
 
          For more information, refer to the
-         `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/text2image/>`__
+         `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/image_generation>`__
 
       .. tab-item:: C++
          :sync: cpp
