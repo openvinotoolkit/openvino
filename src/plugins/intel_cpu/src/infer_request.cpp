@@ -56,7 +56,7 @@ void SyncInferRequest::create_infer_request() {
 void SyncInferRequest::redefine_memory_for_input_nodes(Graph& graph) {
     for (const auto& input_port : m_input_ports_map) {
         auto inputNode = graph.getInputNodeByIndex(input_port.first);
-        OPENVINO_ASSERT(inputNode, "CPU execution graph doesn't contain output node with index: ", input_port.first);;
+        OPENVINO_ASSERT(inputNode, "CPU execution graph doesn't contain output node with index: ", input_port.first);
         if (inputNode->isDynamicNode()) {
             auto tensor = get_tensor(input_port.second);
             inputNode->redefineOutputMemory({tensor->get_shape()});
@@ -262,10 +262,7 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
 
             if (controlBlockItr != m_outputControlBlocks.end()) {
                 auto output = graph.getOutputNodeByIndex(index);
-                OPENVINO_ASSERT(output,
-                                "Output with index: ",
-                                index,
-                                " is absent in the outputNodesMap");
+                OPENVINO_ASSERT(output, "Output with index: ", index, " is absent in the outputNodesMap");
                 auto parentEdge = output->getParentEdgeAt(0);
                 // avoid cyclic memory use
                 auto&& controlBlock = controlBlockItr->second;
@@ -540,8 +537,7 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
 
                         tensor = std::make_shared<Tensor>(memory);
                     } else {
-                        const auto graph_prec =
-                            output->getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
+                        const auto graph_prec = output->getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
                         OutputControlBlock control_block{model_prec, Shape{shape}};
 
                         DEBUG_LOG(port_index,

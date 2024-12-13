@@ -91,7 +91,7 @@ public:
     NodePtr getInputNodeByIndex(std::size_t index) {
         auto input = inputNodesMap.find(index);
         if (input == inputNodesMap.end())
-           return nullptr;
+            return nullptr;
         return input->second;
     }
 
@@ -119,7 +119,7 @@ public:
     size_t inputsNumber() const {
         return inputNodesMap.size();
     }
-    
+
     size_t outputsNumber() const {
         return outputNodesMap.size();
     }
