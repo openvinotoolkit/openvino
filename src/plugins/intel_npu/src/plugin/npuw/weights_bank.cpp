@@ -155,14 +155,21 @@ void Bank::serialize(std::ostream& stream) const {
 
     std::lock_guard<std::mutex> guard(m_mutex);
 
-    // For now only NPU device is supported
+    // For now only a singular NPU or CPU device is supported
     // Sanity check
-    NPUW_ASSERT(m_device_banks.size() == 1 && "Only NPU bank can be serialized");
+    NPUW_ASSERT(m_device_banks.size() == 1 && "Bank containing several devices can't be serialized");
     auto it = m_device_banks.find("NPU");
-    NPUW_ASSERT(it != m_device_banks.end() && "Only NPU bank can be serialized");
+    auto it_cpu = m_device_banks.find("CPU");
+    NPUW_ASSERT((it != m_device_banks.end() || it_cpu != m_device_banks.end()) &&
+                "Only a singular NPU or CPU bank can be serialized");
+
+    if (it_cpu != m_device_banks.end()) {
+        it = it_cpu;
+    }
 
     const auto& device_bank = it->second;
     std::lock_guard<std::mutex> dev_guard(device_bank.mutex);
+    write(stream, it->first);
     write(stream, device_bank.storage.size());
     for (const auto& t_pair : device_bank.storage) {
         write(stream, t_pair.second);
@@ -172,9 +179,12 @@ void Bank::serialize(std::ostream& stream) const {
 std::shared_ptr<Bank> Bank::deserialize(std::istream& stream, const std::shared_ptr<const ov::ICore>& core) {
     using namespace ov::npuw::s11n;
 
-    // For now only NPU device is supported
-    std::string device = "NPU";
-    // Bank is assumed to be shared - thus no need for a unique name. FIXME: is that right?
+    // For now only a singular NPU or CPU device is supported
+    std::string device;
+    read(stream, device);
+    NPUW_ASSERT((device == "NPU" || device == "CPU") && "Only a singular NPU or CPU bank can be serialized");
+    // Bank is assumed to be shared - thus no need for a unique name.
+    // FIXME: is that right? What about multi-model pipeline or several pipelines?
     auto bank = ov::npuw::weights::bank("shared_serialized", core, device);
     std::size_t bank_size = 0;
     read(stream, bank_size);
@@ -190,8 +200,8 @@ std::shared_ptr<Bank> Bank::deserialize(std::istream& stream, const std::shared_
 
 void Bank::add_element(std::size_t uid, const ov::Tensor& tensor, const std::string& device) {
     // This method is supposed to be used only during deserialization
-    // For now only NPU device is supported
-    NPUW_ASSERT(device == "NPU");
+    // For now only a singular NPU or CPU device is supported
+    NPUW_ASSERT(device == "NPU" || device == "CPU");
     std::lock_guard<std::mutex> guard(m_mutex);
 
     auto it = m_device_banks.find(device);
@@ -204,8 +214,8 @@ void Bank::add_element(std::size_t uid, const ov::Tensor& tensor, const std::str
 
 ov::Tensor Bank::get(std::size_t uid, const std::string& device) {
     // This method is supposed to be used only during deserialization
-    // For now only NPU device is supported
-    NPUW_ASSERT(device == "NPU");
+    // For now only a singular NPU or CPU device is supported
+    NPUW_ASSERT(device == "NPU" || device == "CPU");
     std::lock_guard<std::mutex> guard(m_mutex);
 
     auto it = m_device_banks.find(device);
@@ -218,6 +228,12 @@ ov::Tensor Bank::get(std::size_t uid, const std::string& device) {
 
     if (it_tensor_and_allocated->second.second) {
         // Already allocated
+        return it_tensor_and_allocated->second.first;
+    }
+
+    // CPU case
+    if (device == "CPU") {
+        it_tensor_and_allocated->second.second = true;
         return it_tensor_and_allocated->second.first;
     }
 

@@ -114,7 +114,11 @@ struct NPUDesc {
 };
 
 std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin) {
-    return std::nullopt;  // FIXME: below upsupported on CPU!
+    const auto& device = plugin->get_device_name();
+    if (device != "NPU") {
+        // Properties below require NPU device
+        return std::nullopt;
+    }
     const ov::Any arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{});
     const ov::Any max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{});
     return std::make_optional(NPUDesc{arch.as<std::string>(), max_tiles.as<int64_t>()});

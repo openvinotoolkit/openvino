@@ -482,6 +482,9 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream, const std::size_t& idx) const {
     using namespace ov::npuw::s11n;
 
+    NPUW_ASSERT(*device_it == "CPU" || *device_it == "NPU");
+    write(stream, *device_it);
+
     write(stream, replaced_by);
     if (replaced_by == idx) {
         NPUW_ASSERT(compiled_model);
@@ -530,10 +533,13 @@ ov::npuw::CompiledModel::CompiledModelDesc ov::npuw::CompiledModel::CompiledMode
 
     CompiledModelDesc desc;
 
-    // FIXME: only works with NPU plugin
+    std::string device;
+    read(stream, device);
+    NPUW_ASSERT(device == "CPU" || device == "NPU");
     read(stream, desc.replaced_by);
     if (desc.replaced_by == idx) {
-        desc.compiled_model = plugin->import_model(stream, properties);
+        // Import model from either NPU or CPU plugin
+        desc.compiled_model = plugin->get_core()->import_model(stream, device, properties);
     }
     read(stream, desc.param_base);
     read(stream, desc.forced_to_fcall);
@@ -602,9 +608,15 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
     write(stream, m_submodels_input_to_prev_output);
 
     // Check compiled submodels' devices
+    std::unordered_set<std::string> device_list;
     for (const auto& subm : m_compiled_submodels) {
-        NPUW_ASSERT(*subm.device_it == "NPU" && "Not all submodels are compied for NPU device!");
+        device_list.insert(*subm.device_it);
     }
+    // FIXME: should we support heterogeneous structure?
+    if (device_list.size() != 1 || (*device_list.begin() != "NPU" && *device_list.begin() != "CPU")) {
+        NPUW_ASSERT(false && "Not all submodels are compied for a singular NPU or CPU device!");
+    }
+    write(stream, *device_list.begin());
 
     // Serialize compiled submodels
     // FIXME: add to overloads
@@ -679,8 +691,10 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
     read(stream, compiled->m_param_subscribers);
     read(stream, compiled->m_submodels_input_to_prev_output);
 
-    // NOTE: In serialize() we checked that device for all submodels is set to NPU
-    compiled->m_dev_list = {"NPU"};
+    // NOTE: In serialize() we checked that device for all submodels are set to a singular NPU or CPU device
+    std::string device;
+    read(stream, device);
+    compiled->m_dev_list = {device};
 
     // Deserialize compiled submodels
     // Drop NPUW-related properties from the config for submodels import
