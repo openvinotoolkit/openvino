@@ -370,30 +370,40 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
     }
 
     auto orig_parent = result->get_input_source_output(0).get_node_shared_ptr();
-    // Move result tensor names from previous input to new
-    const auto result_input_names = result->get_input_tensor(0).get_names();
-    result->get_input_tensor(0).set_names({});
-    node.get_tensor().set_names(result_input_names);
+    if (get_tensor_data()->get_names_compatibility_mode()) {
+        // Move result tensor names from previous input to new
+        const auto result_input_names = result->get_input_tensor(0).get_names();
+        result->get_input_tensor(0).set_names({});
+        node.get_tensor().set_names(result_input_names);
 
-    if (!post_processing_applied) {
-        return;
-    }
+        if (!post_processing_applied) {
+            return;
+        }
 
-    if (orig_parent->get_output_size() == 1) {
-        node.get_node_shared_ptr()->set_friendly_name(orig_parent->get_friendly_name());
+        if (orig_parent->get_output_size() == 1) {
+            node.get_node_shared_ptr()->set_friendly_name(orig_parent->get_friendly_name());
 
-        // Reset friendly name of input node to avoid names collision
-        // when there is at a new node inserted by post-processing steps
-        // If no new nodes are inserted by post-processing, then we need to preserve friendly name of input
-        // as it's required for old API correct work
-        result->get_input_source_output(0).get_node_shared_ptr()->set_friendly_name("");
+            // Reset friendly name of input node to avoid names collision
+            // when there is at a new node inserted by post-processing steps
+            // If no new nodes are inserted by post-processing, then we need to preserve friendly name of input
+            // as it's required for old API correct work
+            result->get_input_source_output(0).get_node_shared_ptr()->set_friendly_name("");
+        } else if (node.get_node_shared_ptr() != orig_parent) {
+            // Result node is changed - add ".<idx>" suffix
+            node.get_node_shared_ptr()->set_friendly_name(
+                orig_parent->get_friendly_name() + "." +
+                std::to_string(result->get_input_source_output(0).get_index()));
+        }
+        result->input(0).replace_source_output(node);
+        result->revalidate_and_infer_types();
     } else if (node.get_node_shared_ptr() != orig_parent) {
         // Result node is changed - add ".<idx>" suffix
-        node.get_node_shared_ptr()->set_friendly_name(orig_parent->get_friendly_name() + "." +
-                                                      std::to_string(result->get_input_source_output(0).get_index()));
+        const auto suffix = std::string(".") + std::to_string(result->get_input_source_output(0).get_index());
+        node.get_node_shared_ptr()->set_friendly_name(orig_parent->get_friendly_name() + suffix);
+
+        result->input(0).replace_source_output(node);
+        result->revalidate_and_infer_types();
     }
-    result->input(0).replace_source_output(node);
-    result->revalidate_and_infer_types();
 
     // Update layout
     if (!context.layout().empty()) {

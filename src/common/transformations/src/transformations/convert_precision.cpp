@@ -208,7 +208,8 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
                                 bool is_changed,
                                 bool is_subgraph,
                                 bool convert_input_output_precision,
-                                bool store_original_precision_as_rt_attribute) {
+                                bool store_original_precision_as_rt_attribute,
+                                bool names_compatibility_mode) {
     bool is_output_precision_changed = false;
 
     ov::element::TypeVector orig_result_types;
@@ -277,7 +278,8 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
                                                         is_changed || is_output_precision_changed,
                                                         true,
                                                         true,
-                                                        store_original_precision_as_rt_attribute) ||
+                                                        store_original_precision_as_rt_attribute,
+                                                        names_compatibility_mode) ||
                              is_changed;
             }
         }
@@ -325,18 +327,21 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
             if (result->get_input_element_type(0) != orig_result_types[i]) {
                 auto result_input = result->input_value(0);
                 const auto convert = std::make_shared<ov::op::v0::Convert>(result_input, orig_result_types[i]);
-                if (result_input.get_node()->get_output_size() > 1) {
-                    convert->set_friendly_name(result_input.get_node()->get_friendly_name() + "." +
-                                               std::to_string(result_input.get_index()));
+
+                auto convert_f_name = result_input.get_node()->get_friendly_name();
+                if (names_compatibility_mode) {
+                    if (result_input.get_node()->get_output_size() > 1) {
+                        convert_f_name += '.' + std::to_string(result_input.get_index());
+                    } else {
+                        result_input.get_node()->set_friendly_name("");
+                    }
+
+                    convert->get_output_tensor(0).set_names(result_input.get_names());
                 } else {
-                    convert->set_friendly_name(result_input.get_node()->get_friendly_name());
-                    result_input.get_node()->set_friendly_name("");
+                    convert_f_name += '.' + std::to_string(result_input.get_index());
                 }
+                convert->set_friendly_name(convert_f_name);
 
-                auto& convert_output_tensor = convert->get_output_tensor(0);
-                convert_output_tensor.set_names(result_input.get_names());
-
-                result_input.set_names({});
                 result->input(0).replace_source_output(convert->output(0));
                 result->revalidate_and_infer_types();
             }
@@ -359,6 +364,8 @@ bool convert_precision(ov::pass::PassBase& pass,
     // changing precision we need to understand which Constant consumers belongs
     // to the current ov::Model
     std::unordered_map<const ov::Node*, std::vector<Input<Node>>> const_to_internal_output;
+
+    const auto names_compatibility_mode = f->has_rt_info("version") && f->get_rt_info<int64_t>("version") < 11;
     return convert_function_precision(f,
                                       type_to_fuse,
                                       type_to_extend,
@@ -369,7 +376,8 @@ bool convert_precision(ov::pass::PassBase& pass,
                                       false,
                                       false,
                                       convert_input_output_precision,
-                                      store_original_precision_as_rt_attribute);
+                                      store_original_precision_as_rt_attribute,
+                                      names_compatibility_mode);
 }
 
 using precisions_set_t = std::unordered_set<ov::element::Type_t, EnumClassHash>;
