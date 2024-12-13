@@ -27,7 +27,7 @@ OpenVINO 2024.6, described here, is a Long-Term-Support version!
 All currently supported versions are:
 
 * 2025.0 (in development)
-* 2025.6 (LTS)
+* 2024.6 (LTS)
 * 2023.3 (LTS)
 
 
