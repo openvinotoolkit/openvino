@@ -15,6 +15,7 @@ namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API PositionIDsReplacer;
+class TRANSFORMATIONS_API PositionIDsReplacerQwen;
 
 }  // namespace pass
 }  // namespace ov
@@ -23,4 +24,10 @@ class ov::pass::PositionIDsReplacer : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("PositionIDsReplacer", "0");
     explicit PositionIDsReplacer(const Output<Node>& position_ids);
+};
+
+class ov::pass::PositionIDsReplacerQwen : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("PositionIDsReplacerQwen", "0");
+    explicit PositionIDsReplacerQwen(const Output<Node>& position_ids);
 };

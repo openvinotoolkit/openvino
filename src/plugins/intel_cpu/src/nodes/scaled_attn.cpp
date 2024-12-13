@@ -877,6 +877,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
     void execute(dnnl::stream strm, const Config& config, const std::vector<MemoryPtr>& inputs, const MemoryPtr output,
                  const MemoryPtr presentk_input, const MemoryPtr presentv_input, const MemoryPtr beam_input,
                  const PlainTensor& k_scale_zp, const PlainTensor& v_scale_zp) override {
+        std::cout << "XXXXXXX SDPA 1" << std::endl;
         bool has_in_reshape = config.config.input_BLHxS;
         bool has_out_transpose = config.config.output_BLHxS;
         bool fuse_causal_attn = config.config.fuse_causal_attn;
@@ -947,7 +948,11 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         SV = v_input.size(3);
         L0 = present_key.size(2) - L1;
         auto Hk = k_input.size(1);
-
+        std::cout << "B: " << B << std::endl;
+        std::cout << "Hk: " << Hk << std::endl;
+        std::cout << "S: " << S << std::endl;
+        std::cout << "L1: " << L1 << std::endl;
+        std::cout << "SV: " << SV << std::endl;
         if (fuse_concat) {
             k_input.assert_dims({B, Hk, L1, S});
             v_input.assert_dims({B, Hk, L1, SV});
@@ -1143,6 +1148,7 @@ void ScaledDotProductAttention::createPrimitive() {
 }
 
 void ScaledDotProductAttention::execute(dnnl::stream strm) {
+    std::cout << "XXXXXXX SDPA 2" << std::endl;
     auto orginSDPInputNumber = getOriginalInputsNumber() - (m_config.config.fuse_concat ? 3 : 0);
     std::vector<MemoryPtr> inputs(orginSDPInputNumber);
     auto output = getDstMemoryAtPort(0);

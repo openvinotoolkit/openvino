@@ -1617,15 +1617,26 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         auto H = q.size(1) / S;
         auto h_each_group_len = 1;
         if (Hk != H) {
-            h_each_group_len = H / Hk;
+            h_each_group_len =  H / Hk;
         }
         auto B_seq = past_lens.size(0);
-
+        std::cout << "1 assert " << std::endl;
         q.assert_dims({B_token, H * S});
-        k.assert_dims({B_token, Hk * S});
+
+        std::cout << "b token" << B_token << std::endl;
+        std::cout << "Hk " <<  Hk << std::endl;
+        std::cout << "S " << S << std::endl;
+        std::cout << "SV " << SV << std::endl;
+        std::cout << "3 assert " << std::endl;
         v.assert_dims({B_token, Hk * SV});
+        std::cout << "2 assert " << std::endl;
+        k.assert_dims({B_token, Hk * S});
+
+        std::cout << "4 assert " << std::endl;
         q = q.reshape({B_token, H, 1, S});
+        std::cout << "5 assert " << std::endl;
         k = k.reshape({B_token, Hk, 1, S});
+        std::cout << "6 assert " << std::endl;
         v = v.reshape({B_token, Hk, 1, SV});
         if (k_cache.m_dt == ov::element::Type_t::u8) {
             k_cache.assert_dims({0, Hk, block_size, S + sizeof(float) * 2}, true);
@@ -1634,15 +1645,20 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             k_cache.assert_dims({0, Hk, block_size, S}, true);
             v_cache.assert_dims({k_cache.m_dims[0], Hk, block_size, SV});
         }
+        std::cout << "7 assert " << std::endl;
         past_lens.assert_dims({B_seq});
+        std::cout << "8 assert " << std::endl;
         subsequence_begins.assert_dims({B_seq + 1});
+        std::cout << "9 assert " << std::endl;
         block_indices.assert_dims({0}, true);
+        std::cout << "10 assert " << std::endl;
         block_indices_begins.assert_dims({B_seq + 1});
         if (scale == 0.0f)
             scale = 1.0f / sqrt(S);
         if (alibi_slopes) {
             alibi_slopes.assert_dims({H});
         }
+        std::cout << "11 assert " << std::endl;
         output_emb.assert_dims({B_token, H * SV});
         output_emb = output_emb.reshape({B_token, 1, H * SV});
 

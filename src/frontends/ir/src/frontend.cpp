@@ -11,6 +11,8 @@
 #include "input_model.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/so_extension.hpp"
+#include "openvino/pass/sdpa_to_paged_attention.hpp"
+#include "openvino/pass/visualize_tree.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/file_util.hpp"
@@ -302,6 +304,8 @@ std::string FrontEnd::get_name() const {
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     ov::pass::Manager manager("Frontend:IR:normalize");
     manager.register_pass<pass::ResolveNameCollisions>();
+    // manager.register_pass<pass::VisualizeTree>("baichuan_sdpa.svg");
+    // manager.register_pass<pass::SDPAToPagedAttention>();
     manager.run_passes(model);
 }
 

@@ -905,6 +905,10 @@ void Transformations::PostLpt() {
     symbolic_pipeline->get_manager()->register_pass<NgramFusion>();
 
     postLPTPassManager.run_passes(model);
+    ov::pass::Manager manager2("SDPA to PA 2");
+    manager2.set_per_pass_validation(false);
+    manager2.register_pass<pass::VisualizeTree>("CPU_transformation_pipeline_CB_XXX.svg");
+    manager2.run_passes(model);
 }
 
 void Transformations::MainSnippets(void) {
