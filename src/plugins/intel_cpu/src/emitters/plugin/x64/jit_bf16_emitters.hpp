@@ -11,14 +11,18 @@ namespace intel_cpu {
 
 class jit_uni_vcvtneps2bf16 : public jit_emitter {
 public:
-    jit_uni_vcvtneps2bf16(dnnl::impl::cpu::x64::jit_generator* host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-        ov::element::Type exec_prc = ov::element::bf16) : jit_emitter(host, host_isa, exec_prc) {
+    jit_uni_vcvtneps2bf16(dnnl::impl::cpu::x64::jit_generator* host,
+                          dnnl::impl::cpu::x64::cpu_isa_t host_isa,
+                          ov::element::Type exec_prc = ov::element::bf16)
+        : jit_emitter(host, host_isa, exec_prc) {
         if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) &&
             !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2))
             prepare_table();
     }
 
-    size_t get_inputs_num() const override { return 1; }
+    size_t get_inputs_num() const override {
+        return 1;
+    }
 
 private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override {
@@ -36,7 +40,8 @@ private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
         using namespace Xbyak;
-        using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41, Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
+        using Vmm = typename dnnl::impl::utils::
+            conditional3<isa == dnnl::impl::cpu::x64::sse41, Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
 
         Vmm in = Vmm(in_vec_idxs[0]);
 
@@ -79,7 +84,7 @@ private:
             h->uni_vpackusdw(aux, aux, aux);
 
             if (host_isa_ == dnnl::impl::cpu::x64::cpu_isa_t::avx2) {
-                h->vpermq(Ymm(aux.getIdx()), Ymm(aux.getIdx()), 0xD8); //11 01 10 00
+                h->vpermq(Ymm(aux.getIdx()), Ymm(aux.getIdx()), 0xD8);  // 11 01 10 00
                 h->vextracti128(out, Ymm(aux.getIdx()), 0);
             } else {
                 h->uni_vmovups(out, aux);
@@ -123,5 +128,5 @@ private:
     }
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

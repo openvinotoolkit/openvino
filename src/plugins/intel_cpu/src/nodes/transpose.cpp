@@ -4,14 +4,13 @@
 
 #include "transpose.h"
 
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/constant.hpp"
-
-#include "nodes/common/reorder_prim.h"
-
 #include <string>
-#include "dnnl_extension_utils.h"
+
 #include "common/primitive_hashing_utils.hpp"
+#include "dnnl_extension_utils.h"
+#include "nodes/common/reorder_prim.h"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/transpose.hpp"
 #include "shape_inference/custom/transpose.hpp"
 using namespace dnnl;
 
@@ -21,8 +20,7 @@ namespace node {
 
 bool Transpose::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
-                ov::op::v1::Transpose::get_type_info_static())) {
+        if (!one_of(op->get_type_info(), ov::op::v1::Transpose::get_type_info_static())) {
             errorMessage = "Node is not an instance of the Transpose operation from opset1.";
             return false;
         }
@@ -39,7 +37,7 @@ bool Transpose::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
 }
 
 Transpose::Transpose(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-        : Node(op, context, TransposeShapeInferFactory(op)) {
+    : Node(op, context, TransposeShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -58,8 +56,7 @@ Transpose::Transpose(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
     }
 }
 
-void Transpose::getSupportedDescriptors() {
-}
+void Transpose::getSupportedDescriptors() {}
 
 void Transpose::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
@@ -75,8 +72,8 @@ void Transpose::initSupportedPrimitiveDescriptors() {
     config.inConfs[INPUT_DATA_IDX].inPlace(-1);
     config.inConfs[INPUT_DATA_IDX].constant(false);
     config.inConfs[INPUT_ORDER_IDX].constant(isInputOrderConst);
-    config.inConfs[INPUT_ORDER_IDX].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-            ov::element::i32, getInputShapeAtPort(INPUT_ORDER_IDX)));
+    config.inConfs[INPUT_ORDER_IDX].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::i32, getInputShapeAtPort(INPUT_ORDER_IDX)));
     config.outConfs[0].inPlace(isOptimized ? 0 : -1);
     config.outConfs[0].constant(false);
     transpose_context = std::make_shared<ExecutorContext>(context, getImplPriority());
@@ -90,7 +87,10 @@ void Transpose::initSupportedPrimitiveDescriptors() {
         for (size_t i = 0; i < config.outConfs.size(); i++) {
             dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
         }
-        auto factory = std::make_shared<TransposeExecutorFactory>(transposeParams, srcMemoryDescs, dstMemoryDescs, transpose_context);
+        auto factory = std::make_shared<TransposeExecutorFactory>(transposeParams,
+                                                                  srcMemoryDescs,
+                                                                  dstMemoryDescs,
+                                                                  transpose_context);
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, factory});
     };
 
@@ -111,8 +111,9 @@ void Transpose::initSupportedPrimitiveDescriptors() {
             config.inConfs[0].setMemDesc(creatorsMap.at(LayoutType::nCsp16c)->createSharedDesc(prec, inputDataShape));
             supportedPrimitiveDescriptorsBuilder(config, transposeParams);
         }
-#endif // OPENVINO_ARCH_X86_64
-        if (prec == ov::element::f32 || prec == ov::element::f16 || prec == ov::element::i8 || prec == ov::element::u8 || prec == ov::element::bf16) {
+#endif  // OPENVINO_ARCH_X86_64
+        if (prec == ov::element::f32 || prec == ov::element::f16 || prec == ov::element::i8 ||
+            prec == ov::element::u8 || prec == ov::element::bf16) {
             config.inConfs[0].setMemDesc(creatorsMap.at(LayoutType::nspc)->createSharedDesc(prec, inputDataShape));
             config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::nspc)->createSharedDesc(prec, outputDataShape));
             supportedPrimitiveDescriptorsBuilder(config, transposeParams);
@@ -221,7 +222,8 @@ void Transpose::createPrimitive() {
 #endif
 
     if (!performAsReorder) {
-        transposeParams.permuteParams.data_size = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc()->getPrecision().size();
+        transposeParams.permuteParams.data_size =
+            getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc()->getPrecision().size();
         if (isInputOrderConst)
             transposeParams.permuteParams.order = order;
         auto srcDesc = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getDescWithType<BlockedMemoryDesc>();
@@ -260,6 +262,6 @@ bool Transpose::created() const {
     return getType() == Type::Transpose;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov
