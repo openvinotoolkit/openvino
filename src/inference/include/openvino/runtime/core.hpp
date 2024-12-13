@@ -81,9 +81,12 @@ public:
      *  * PDPD (*.pdmodel)
      *  * TF (*.pb)
      *  * TFLite (*.tflite)
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this read operation.
      * @return A model.
      */
-    std::shared_ptr<ov::Model> read_model(const std::wstring& model_path, const std::wstring& bin_path = {}) const;
+    std::shared_ptr<ov::Model> read_model(const std::wstring& model_path,
+                                          const std::wstring& bin_path = {},
+                                          const ov::AnyMap& properties = {}) const;
 #endif
 
     /**
@@ -108,9 +111,7 @@ public:
 
 #ifdef OPENVINO_CPP_VER_17
     template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
-    std::shared_ptr<ov::Model> read_model(const Path& model_path,
-                                          const Path& bin_path = {},
-                                          const ov::AnyMap& properties = {}) const {
+    auto read_model(const Path& model_path, const Path& bin_path = {}, const ov::AnyMap& properties = {}) const {
         return read_model(model_path.string(), bin_path.string(), properties);
     }
 #endif
@@ -142,7 +143,7 @@ public:
 
 #ifdef OPENVINO_CPP_VER_17
     template <class Path, class... Properties, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
-    auto read_model(const Path& model_path, const Path& bin_path = {}, Properties&&... properties) const {
+    auto read_model(const Path& model_path, const Path& bin_path, Properties&&... properties) const {
         return read_model(model_path.string(), bin_path.string(), std::forward<Properties>(properties)...);
     }
 #endif
