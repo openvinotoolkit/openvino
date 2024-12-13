@@ -15,6 +15,10 @@
 #include "openvino/frontend/input_model.hpp"
 #include "openvino/frontend/visibility.hpp"
 
+#ifdef OPENVINO_CPP_VER_17
+#    include <filesystem>
+#endif
+
 namespace ov {
 namespace frontend {
 /// \brief An interface for identifying a frontend for a particular framework.
@@ -50,7 +54,12 @@ public:
     /// \return true if model recognized, false - otherwise.
     template <typename... Types>
     inline bool supported(const Types&... vars) const {
-        return supported_impl({ov::Any(vars)...});
+#ifdef OPENVINO_CPP_VER_17
+        if constexpr ((std::is_same_v<std::filesystem::path, Types> || ...)) {
+            return supported_impl({path_as_str_or_forward(vars)...});
+        } else
+#endif
+            return supported_impl({ov::Any(vars)...});
     }
     inline bool supported(const ov::AnyVector& vars) const {
         return supported_impl(vars);
@@ -65,7 +74,12 @@ public:
     /// \return Loaded input model.
     template <typename... Types>
     inline InputModel::Ptr load(const Types&... vars) const {
-        return load_impl({ov::Any{vars}...});
+#ifdef OPENVINO_CPP_VER_17
+        if constexpr ((std::is_same_v<std::filesystem::path, Types> || ...)) {
+            return load_impl({path_as_str_or_forward(vars)...});
+        } else
+#endif
+            return load_impl({ov::Any{vars}...});
     }
 
     inline InputModel::Ptr load(const ov::AnyVector& vars) const {
@@ -118,7 +132,15 @@ public:
 
     /// \brief Registers extension
     /// \param library_path path to library with ov::Extension
+    /// \{
     void add_extension(const std::string& library_path);
+
+#ifdef OPENVINO_CPP_VER_17
+    void add_extension(const std::filesystem::path& library_path) {
+        add_extension(library_path.string());
+    }
+#endif
+    /// \}
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
@@ -162,6 +184,17 @@ protected:
 private:
     static std::shared_ptr<ov::Model> create_copy(const std::shared_ptr<ov::Model>& ov_model,
                                                   const std::shared_ptr<void>& shared_object);
+
+#ifdef OPENVINO_CPP_VER_17
+    template <class T>
+    static constexpr auto path_as_str_or_forward(T&& p) {
+        if constexpr (std::is_same_v<std::filesystem::path, std::decay_t<T>>) {
+            return p.string();
+        } else {
+            return std::forward<T>(p);
+        }
+    }
+#endif
 };
 
 template <>
