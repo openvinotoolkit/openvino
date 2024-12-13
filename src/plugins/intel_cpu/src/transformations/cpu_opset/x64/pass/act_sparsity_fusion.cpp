@@ -94,8 +94,11 @@ ov::intel_cpu::ActivationSparsityFusion::ActivationSparsityFusion() {
     auto fc_weight_u4_deq_reshape =
         makePattern<opset1::Reshape>({fc_weight_u4_deq, fc_weight_shape}, {{"special_zero", false}});
 
+    auto fc_weight_f16 = makeConst(ov::element::f16, ov::PartialShape({ov::Dimension(), ov::Dimension()}), nullptr);
+    auto fc_weight_f16_f32 = makePattern<opset1::Convert>({fc_weight_f16}, {{"destination_type", "f32"}});
+
     auto fc_result = makePattern<opset1::MatMul>(
-        {sparse_input, fc_weight_deq_i8_u8 | fc_weight_u4_deq_reshape},
+        {sparse_input, fc_weight_f16_f32 | fc_weight_deq_i8_u8 | fc_weight_u4_deq_reshape},
         {{"transpose_a", false}, {"transpose_b", true}});  // [?,?,up_size]
 
     auto result = fc_result;
@@ -125,9 +128,21 @@ ov::intel_cpu::ActivationSparsityFusion::ActivationSparsityFusion() {
         config.oc = 0;
         config.ic_q_group_size = 0; // per-OC by default
         config.is_int4 = false;
+        config.with_zero_point = false;
+        config.is_quantized = true;
 
-        if (pattern_map.count(fc_weight_u8) > 0 ||
-            pattern_map.count(fc_weight_i8) > 0) {
+        if (pattern_map.count(fc_weight_f16) > 0) {
+            new_args.push_back(pattern_map.at(fc_weight_f16));
+            config.is_quantized = false;
+            config.with_zero_point = false;
+            auto const_weight = ov::as_type_ptr<opset1::Constant>(new_args[1].get_node_shared_ptr());
+            if (!const_weight)
+                return false;
+            const auto& w_shape = const_weight->get_shape();
+            config.oc = w_shape[0];
+            config.ic = w_shape[1];
+        } else if (pattern_map.count(fc_weight_u8) > 0 ||
+                   pattern_map.count(fc_weight_i8) > 0) {
             if (pattern_map.count(fc_weight_u8)) {
                 new_args.push_back(pattern_map.at(fc_weight_u8));
                 new_args.push_back(pattern_map.at(fc_weight_scales_per_OC));

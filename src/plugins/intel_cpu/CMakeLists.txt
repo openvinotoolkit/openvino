@@ -334,7 +334,7 @@ cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
                     src/nodes/kernels/x64/act_sparse_fc_kernel.cpp
         API         src/nodes/kernels/x64/act_sparse_fc_kernel.hpp
-        NAME        dynPruneLinear_i8  dynPruneLinear_i4 dynPruneLinear_repack_i4
+        NAME        dynPruneLinear_f16 dynPruneLinear_i8  dynPruneLinear_i4 dynPruneLinear_repack_i4
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 

@@ -112,7 +112,8 @@ struct ActSparseFC::Executor : public ActSparseFC::ExecutorBase {
 
         if (!m_config.is_int4) {
             // int8 is perOC, no need for reorder
-            m_scales = m_node->getSrcMemoryAtPort(2);
+            if (m_config.is_quantized)
+                m_scales = m_node->getSrcMemoryAtPort(2);
             if (m_config.with_zero_point)
                 m_zp = m_node->getSrcMemoryAtPort(3);
         }
@@ -124,14 +125,16 @@ struct ActSparseFC::Executor : public ActSparseFC::ExecutorBase {
             if (m_config.is_int4) {
                 if (m_config.with_zero_point)
                     m_zp = *weightCache->findOrCreate(string_hash + "_zp_i4", create_zp_i4);
-                m_scales = *weightCache->findOrCreate(string_hash + "_scales_i4", create_scales_i4);
+                if (m_config.is_quantized)
+                    m_scales = *weightCache->findOrCreate(string_hash + "_scales_i4", create_scales_i4);
             }
         } else {
             m_weight = create_weight();
             if (m_config.is_int4) {
                 if (m_config.with_zero_point)
                     m_zp = create_zp_i4();
-                m_scales = create_scales_i4();
+                if (m_config.is_quantized)
+                    m_scales = create_scales_i4();
             }
         }
     }
@@ -140,35 +143,46 @@ struct ActSparseFC::Executor : public ActSparseFC::ExecutorBase {
         const auto* input = m_node->getSrcDataAtPortAs<float>(0);
         const auto* weight = m_weight->getDataAs<uint8_t>();
         const auto* zp = m_config.with_zero_point ?  m_zp->getDataAs<uint8_t>() : nullptr;
-        const auto* scales = m_scales->getDataAs<float>();
+        const auto* scales = m_config.is_quantized ? m_scales->getDataAs<float>() : nullptr;
         auto* output = m_node->getDstDataAtPortAs<float>(0);
 
         const auto& ishape = m_node->getSrcMemoryAtPort(0)->getStaticDims();
         int M = shape_size(ishape) / ishape[ishape.size() - 1];
 
-        if (m_config.is_int4) {
-            ov::Extensions::Cpu::XARCH::dynPruneLinear_i4(input,
-                                                        m_config.threshold,
-                                                        0,
-                                                        weight,
-                                                        zp,
-                                                        scales,
-                                                        output,
-                                                        M,
-                                                        m_config.ic,
-                                                        m_config.oc,
-                                                        m_config.ic_q_group_size);
+        if (m_config.is_quantized) {
+            if (m_config.is_int4) {
+                ov::Extensions::Cpu::XARCH::dynPruneLinear_i4(input,
+                                                            m_config.threshold,
+                                                            0,
+                                                            weight,
+                                                            zp,
+                                                            scales,
+                                                            output,
+                                                            M,
+                                                            m_config.ic,
+                                                            m_config.oc,
+                                                            m_config.ic_q_group_size);
+            } else {
+                ov::Extensions::Cpu::XARCH::dynPruneLinear_i8(input,
+                                                            m_node->m_config.threshold,
+                                                            0,
+                                                            weight,
+                                                            zp,
+                                                            scales,
+                                                            output,
+                                                            M,
+                                                            m_node->m_config.ic,
+                                                            m_node->m_config.oc);
+            }
         } else {
-            ov::Extensions::Cpu::XARCH::dynPruneLinear_i8(input,
-                                                        m_node->m_config.threshold,
-                                                        0,
-                                                        weight,
-                                                        zp,
-                                                        scales,
-                                                        output,
-                                                        M,
-                                                        m_node->m_config.ic,
-                                                        m_node->m_config.oc);
+            ov::Extensions::Cpu::XARCH::dynPruneLinear_f16(input,
+                                                           m_config.threshold,
+                                                           0,
+                                                           reinterpret_cast<const ov::float16*>(weight),
+                                                           output,
+                                                           M,
+                                                           m_config.ic,
+                                                           m_config.oc);
         }
     }
 };
@@ -221,9 +235,11 @@ void ActSparseFC::initSupportedPrimitiveDescriptors() {
 
     inPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getInputShapeAtPort(0), false, -1);      // input
     inPortConfigs.emplace_back(LayoutType::ncsp, getOriginalInputPrecisionAtPort(1), getInputShapeAtPort(1), false, -1);  // weight
-    inPortConfigs.emplace_back(LayoutType::ncsp, ov::element::f32, getInputShapeAtPort(2), false, -1);  // scales
-    if (m_config.with_zero_point)
-        inPortConfigs.emplace_back(LayoutType::ncsp, getOriginalInputPrecisionAtPort(3), getInputShapeAtPort(3), false, -1);  // zero-pt
+    if (m_config.is_quantized) {
+        inPortConfigs.emplace_back(LayoutType::ncsp, ov::element::f32, getInputShapeAtPort(2), false, -1);  // scales
+        if (m_config.with_zero_point)
+            inPortConfigs.emplace_back(LayoutType::ncsp, getOriginalInputPrecisionAtPort(3), getInputShapeAtPort(3), false, -1);  // zero-pt
+    }
 
     outPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getOutputShapeAtPort(0), false, -1);
 

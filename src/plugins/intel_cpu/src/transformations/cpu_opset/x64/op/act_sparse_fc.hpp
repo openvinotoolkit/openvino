@@ -23,6 +23,7 @@ public:
         bool is_int4 = false;
         float threshold = 0;
         bool with_zero_point = false;
+        bool is_quantized = false;
     };
 
     // args:

@@ -33,7 +33,7 @@ inline SIMD_F32 simd_broadcast_ss(float const * mem_addr) {
 inline SIMD_F32 simd_loadu_ps(float const * mem_addr) {
     return _mm512_loadu_ps(mem_addr);
 }
-static SIMD_F32 simd_loadu_ps(ov::float16* p) {
+static SIMD_F32 simd_loadu_ps(const ov::float16* p) {
     return _mm512_cvtph_ps(_mm256_loadu_si256(reinterpret_cast<__m256i const*>(p)));
 }
 static SIMD_I32 simd_loadu_i32(const void * p) {
@@ -129,7 +129,7 @@ inline SIMD_F32 simd_broadcast_ss(float const * mem_addr) {
 inline SIMD_F32 simd_loadu_ps(float const * mem_addr) {
     return _mm256_loadu_ps(mem_addr);
 }
-static SIMD_F32 simd_loadu_ps(ov::float16* p) {
+static SIMD_F32 simd_loadu_ps(const ov::float16* p) {
     return _mm256_cvtph_ps(_mm_loadu_si128(reinterpret_cast<__m128i const*>(p)));
 }
 static SIMD_I32 simd_loadu_i32(const void * p) {
@@ -224,7 +224,7 @@ inline SIMD_F32 simd_broadcast_ss(float const * mem_addr) {
 inline SIMD_F32 simd_loadu_ps(float const * mem_addr) {
     return *(mem_addr);
 }
-static SIMD_F32 simd_loadu_ps(ov::float16* p) {
+static SIMD_F32 simd_loadu_ps(const ov::float16* p) {
     return static_cast<float>(*p);
 }
 static SIMD_I32 simd_loadu_i32(const void * p) {
