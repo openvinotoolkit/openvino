@@ -753,7 +753,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         jit.AddConstant(MakeJitConstant("DQ_DECOMPRESSION_SCALE_POST_OP", 1));
         jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", quantize_grp_size));
 
-        if(is_per_token_dynamic_quantize(params) && quantize_grp_size == get_input_bf_size(params).second)
+        if (is_per_token_dynamic_quantize(params) && quantize_grp_size == get_input_bf_size(params).second)
             jit.AddConstant(MakeJitConstant("PER_TOKEN_SIZE_DYN_QUANTIZE", 1));
         else
             jit.AddConstant(MakeJitConstant("PER_TOKEN_SIZE_DYN_QUANTIZE", 0));
