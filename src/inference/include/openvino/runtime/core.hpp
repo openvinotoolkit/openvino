@@ -661,6 +661,13 @@ public:
      */
     std::vector<std::string> get_available_devices() const;
 
+    std::string compute_hash(const std::shared_ptr<const ov::Model>& model,
+                             const std::string& device_name,
+                             const ov::AnyMap& properties);
+    std::string compute_hash(const std::string& model_path,
+                             const std::string& device_name,
+                             const ov::AnyMap& properties);
+
     /**
      * @brief Register a new device and plugin that enables this device inside OpenVINO Runtime.
      *

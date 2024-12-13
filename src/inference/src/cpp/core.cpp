@@ -222,6 +222,17 @@ std::vector<std::string> Core::get_available_devices() const {
     OV_CORE_CALL_STATEMENT(return _impl->get_available_devices(););
 }
 
+std::string Core::compute_hash(const std::shared_ptr<const ov::Model>& model,
+                               const std::string& device_name,
+                               const ov::AnyMap& properties) {
+    OV_CORE_CALL_STATEMENT(return _impl->compute_hash(model, device_name, properties););
+}
+std::string Core::compute_hash(const std::string& model_path,
+                               const std::string& device_name,
+                               const ov::AnyMap& properties) {
+    OV_CORE_CALL_STATEMENT(return _impl->compute_hash(model_path, device_name, properties););
+}
+
 void Core::register_plugin(const std::string& plugin, const std::string& device_name, const ov::AnyMap& properties) {
     OV_CORE_CALL_STATEMENT(_impl->register_plugin(plugin, device_name, properties););
 }

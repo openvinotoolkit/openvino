@@ -317,6 +317,13 @@ public:
     }
 
     Any get_property(const std::string& device_name, const std::string& name, const AnyMap& arguments) const override;
+
+    std::string compute_hash(const std::shared_ptr<const ov::Model>& model,
+                             const std::string& device_name,
+                             const ov::AnyMap& compileOptions);
+    std::string compute_hash(const std::string& modelName,
+                             const std::string& device_name,
+                             const ov::AnyMap& compileOptions);
 };
 
 }  // namespace ov

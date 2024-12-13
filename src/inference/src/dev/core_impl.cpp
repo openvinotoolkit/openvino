@@ -1448,6 +1448,20 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
     return compiled_model;
 }
 
+std::string ov::CoreImpl::compute_hash(const std::shared_ptr<const ov::Model>& model,
+                                       const std::string& deviceName,
+                                       const ov::AnyMap& compileOptions) {
+    auto properties = create_compile_config(get_plugin(deviceName), compileOptions);
+    return ov::ModelCache::compute_hash(model, properties);
+}
+
+std::string ov::CoreImpl::compute_hash(const std::string& modelName,
+                                       const std::string& deviceName,
+                                       const ov::AnyMap& compileOptions) {
+    auto properties = create_compile_config(get_plugin(deviceName), compileOptions);
+    return ov::ModelCache::compute_hash(modelName, properties);
+}
+
 ov::AnyMap ov::CoreImpl::create_compile_config(const ov::Plugin& plugin, const ov::AnyMap& user_config) const {
     ov::AnyMap property_config;
 
