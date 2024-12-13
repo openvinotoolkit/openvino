@@ -44,26 +44,11 @@ public:
                         "Extension type should have information about operation set and operation type.");
     }
 
-    const ov::DiscreteTypeInfo& get_type_info() const override {
-        return *m_type_info;
-    }
+    const ov::DiscreteTypeInfo& get_type_info() const override;
 
-    ov::OutputVector create(const ov::OutputVector& inputs, ov::AttributeVisitor& visitor) const override {
-        py::gil_scoped_acquire acquire;
+    ov::OutputVector create(const ov::OutputVector& inputs, ov::AttributeVisitor& visitor) const override;
 
-        const auto node = py_handle_dtype();
-
-        node.attr("set_arguments")(py::cast(inputs));
-        if (node.attr("visit_attributes")(&visitor)) {
-            node.attr("constructor_validate_and_infer_types")();
-        }
-
-        return py::cast<ov::OutputVector>(node.attr("outputs")());
-    }
-
-    std::vector<ov::Extension::Ptr> get_attached_extensions() const override {
-        return {};
-    }
+    std::vector<ov::Extension::Ptr> get_attached_extensions() const override;
 
 private:
     py::object py_handle_dtype;  // Holds the Python object to manage its lifetime

@@ -16,6 +16,27 @@
 
 namespace py = pybind11;
 
+const ov::DiscreteTypeInfo& PyOpExtension::get_type_info() const {
+    return *m_type_info;
+}
+
+ov::OutputVector PyOpExtension::create(const ov::OutputVector& inputs, ov::AttributeVisitor& visitor) const {
+    py::gil_scoped_acquire acquire;
+
+    const auto node = py_handle_dtype();
+
+    node.attr("set_arguments")(py::cast(inputs));
+    if (node.attr("visit_attributes")(&visitor)) {
+        node.attr("constructor_validate_and_infer_types")();
+    }
+
+    return py::cast<ov::OutputVector>(node.attr("outputs")());
+}
+
+std::vector<ov::Extension::Ptr> PyOpExtension::get_attached_extensions() const {
+    return {};
+}
+
 void regclass_graph_OpExtension(py::module m) {
     py::class_<PyOpExtension, std::shared_ptr<PyOpExtension>, ov::Extension> op_extension(m, "OpExtension");
     op_extension.doc() = "openvino.OpExtension provides the base interface for OpenVINO extensions.";

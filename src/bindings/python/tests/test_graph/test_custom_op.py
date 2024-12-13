@@ -261,8 +261,8 @@ def test_op_extension(prepared_paths):
 
 
 def test_fail_create_op_ext():
-    class BrokeOp(Op):
-        class_type_info = "BrokeOp"
+    class OpWithBadClassTypeInfo(Op):
+        class_type_info = "OpWithBadClassTypeInfo"
 
         def __init__(self, inputs=None):
             super().__init__(self)
@@ -271,7 +271,7 @@ def test_fail_create_op_ext():
                 self.constructor_validate_and_infer_types()
 
         def get_type_info(self):
-            return BrokeOp.class_type_info
+            return OpWithBadClassTypeInfo.class_type_info
 
     core = Core()
     with pytest.raises(RuntimeError) as e:
@@ -287,5 +287,5 @@ def test_fail_create_op_ext():
     assert "Unsupported data type : '<class 'bool'>' is passed as an argument." in str(e.value)
 
     with pytest.raises(RuntimeError) as e:
-        core.add_extension(BrokeOp)
+        core.add_extension(OpWithBadClassTypeInfo)
     assert "operation type_info must be an instance of DiscreteTypeInfo, but <class \'str\'> is passed." in str(e.value)
