@@ -4,15 +4,15 @@
 
 #pragma once
 
-#include "openvino/core/except.hpp"
-#include "openvino/core/visibility.hpp"
 #include <memory>
 
 #include "cache/multi_cache.h"
 #include "cpu_memory.h"
 #include "graph_context.h"
-#include "onednn/iml_type_mapper.h"
 #include "memory_arguments.hpp"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/visibility.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -24,25 +24,25 @@ namespace intel_cpu {
 #endif
 
 #if defined(OV_CPU_WITH_ACL)
-#   if defined(OPENVINO_ARCH_ARM)
-#       define OV_CPU_INSTANCE_ACL32(...) {__VA_ARGS__},
-#   else
-#       define OV_CPU_INSTANCE_ACL32(...)
-#   endif
-#   if defined(OPENVINO_ARCH_ARM64)
-#       define OV_CPU_INSTANCE_ACL64(...) {__VA_ARGS__},
-#   else
-#       define OV_CPU_INSTANCE_ACL64(...)
-#   endif
-#   if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-#       define OV_CPU_INSTANCE_ACL(...) {__VA_ARGS__},
-#   else
-#       define OV_CPU_INSTANCE_ACL(...)
-#   endif
+#    if defined(OPENVINO_ARCH_ARM)
+#        define OV_CPU_INSTANCE_ACL32(...) {__VA_ARGS__},
+#    else
+#        define OV_CPU_INSTANCE_ACL32(...)
+#    endif
+#    if defined(OPENVINO_ARCH_ARM64)
+#        define OV_CPU_INSTANCE_ACL64(...) {__VA_ARGS__},
+#    else
+#        define OV_CPU_INSTANCE_ACL64(...)
+#    endif
+#    if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#        define OV_CPU_INSTANCE_ACL(...) {__VA_ARGS__},
+#    else
+#        define OV_CPU_INSTANCE_ACL(...)
+#    endif
 #else
-#   define OV_CPU_INSTANCE_ACL32(...)
-#   define OV_CPU_INSTANCE_ACL64(...)
-#   define OV_CPU_INSTANCE_ACL(...)
+#    define OV_CPU_INSTANCE_ACL32(...)
+#    define OV_CPU_INSTANCE_ACL64(...)
+#    define OV_CPU_INSTANCE_ACL(...)
 #endif
 
 #if defined(OV_CPU_WITH_DNNL)
@@ -72,28 +72,11 @@ namespace intel_cpu {
 #define OV_CPU_INSTANCE_COMMON(...) {__VA_ARGS__},
 
 // @todo another option is to determine shape relation by executor type
-enum class ShapeTolerance {
-    Agnostic,
-    Dependant
-};
+enum class ShapeTolerance { Agnostic, Dependant };
 
-enum class ExecutorType {
-    Undefined,
-    Graph,
-    Common,
-    jit_x64,
-    Dnnl,
-    Acl,
-    Mlas,
-    jit_aarch64,
-    Shl
-};
+enum class ExecutorType { Undefined, Graph, Common, jit_x64, Dnnl, Acl, Mlas, jit_aarch64, Shl };
 
-enum class OperationType {
-    FullyConnected,
-    MatMul,
-    Convolution
-};
+enum class OperationType { FullyConnected, MatMul, Convolution };
 
 std::string ExecutorTypeToString(const ExecutorType type);
 ExecutorType ExecutorTypeFromString(const std::string& typeStr);
