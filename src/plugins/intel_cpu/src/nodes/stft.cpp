@@ -77,6 +77,7 @@ bool STFT::created() const {
     return getType() == Type::STFT;
 }
 
+namespace {
 static void transpose_out(const char* in,
                           char* out,
                           const VectorDims& in_shape,
@@ -163,6 +164,7 @@ static void stft_impl(const float* signal,
                       sizeof(float));
     }
 }
+}  // namespace
 
 void STFT::execute(dnnl::stream strm) {
     stft_impl(getSrcDataAtPortAs<const float>(DATA_IDX),
