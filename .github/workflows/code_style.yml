@@ -48,17 +48,17 @@ jobs:
         with:
           submodules: 'true'
 
-      - name: Install clang-format-15
+      - name: Install clang-format-15 and cross-compilation dependencies
         run: |
           sudo apt update
-          sudo apt --assume-yes install clang-format-15
+          sudo apt --assume-yes install binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu g++-aarch64-linux-gnu scons clang-format-15
 
       # Run cmake with -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT in order to enable codestyle check for ITT collector
       - name: CMake configure
-        run: cmake -DENABLE_PYTHON=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT -DCMAKE_TOOLCHAIN_FILE=cmake/clang-aarch64.toolchain.cmake -B build_aarch64
+        run: cmake -DENABLE_CLANG_FORMAT=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT -DCMAKE_TOOLCHAIN_FILE=cmake/arm64.toolchain.cmake -B build_arm64
 
       - name: Create code style diff
-        run: cmake --build build_aarch64 --target clang_format_fix_all -j8
+        run: cmake --build build_arm64 --target clang_format_fix_all -j8
 
       - name: suggester / clang-format
         if: startsWith(github.event_name, 'pull_request')

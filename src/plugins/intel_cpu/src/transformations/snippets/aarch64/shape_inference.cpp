@@ -3,9 +3,10 @@
 //
 
 #include "shape_inference.hpp"
+
 #include "snippets/shape_inference/shape_infer_instances.hpp"
-#include "transformations/snippets/common/op/fused_mul_add.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
+#include "transformations/snippets/common/op/fused_mul_add.hpp"
 
 namespace ov {
 namespace snippets {
@@ -19,19 +20,31 @@ ShapeInferPtr CPUShapeInferSnippetsFactory::get_specific_op_shape_infer(const ov
     return {};
 }
 
-#define SHAPE_INFER_PREDEFINED(OP, InferType) \
-    { OP::get_type_info_static(), [](const std::shared_ptr<ov::Node>& n) { return std::make_shared<InferType>();} }
-#define SHAPE_INFER_OP_SPECIFIC(OP) \
-    { OP::get_type_info_static(), [](const std::shared_ptr<ov::Node>& n) { return std::make_shared<OP::ShapeInfer>(n);} }
-#define SHAPE_INFER_OP_SPECIFIC_EXTERNAL(OP, InferType) \
-    { OP::get_type_info_static(), [](const std::shared_ptr<ov::Node>& n) { return std::make_shared<InferType>(n);} }
+#define SHAPE_INFER_PREDEFINED(OP, InferType)                                \
+    {                                                                        \
+        OP::get_type_info_static(), [](const std::shared_ptr<ov::Node>& n) { \
+            return std::make_shared<InferType>();                            \
+        }                                                                    \
+    }
+#define SHAPE_INFER_OP_SPECIFIC(OP)                                          \
+    {                                                                        \
+        OP::get_type_info_static(), [](const std::shared_ptr<ov::Node>& n) { \
+            return std::make_shared<OP::ShapeInfer>(n);                      \
+        }                                                                    \
+    }
+#define SHAPE_INFER_OP_SPECIFIC_EXTERNAL(OP, InferType)                      \
+    {                                                                        \
+        OP::get_type_info_static(), [](const std::shared_ptr<ov::Node>& n) { \
+            return std::make_shared<InferType>(n);                           \
+        }                                                                    \
+    }
 
-const CPUShapeInferSnippetsFactory::TRegistry CPUShapeInferSnippetsFactory::specific_ops_registry {
+const CPUShapeInferSnippetsFactory::TRegistry CPUShapeInferSnippetsFactory::specific_ops_registry{
     SHAPE_INFER_PREDEFINED(ov::intel_cpu::FusedMulAdd, NumpyBroadcastShapeInfer),
     SHAPE_INFER_PREDEFINED(ov::intel_cpu::SwishNode, PassThroughShapeInfer),
 };
 #undef SHAPE_INFER_OP_SPECIFIC
 #undef SHAPE_INFER_PREDEFINED
 
-} // namespace snippets
-} // namespace ov
+}  // namespace snippets
+}  // namespace ov
