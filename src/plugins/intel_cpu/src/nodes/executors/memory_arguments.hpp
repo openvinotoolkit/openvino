@@ -12,7 +12,7 @@ namespace ov {
 namespace intel_cpu {
 
 using MemoryDescArgs = std::unordered_map<int, MemoryDescPtr>;
-using MemoryArgs     = std::unordered_map<int, MemoryPtr>;
+using MemoryArgs = std::unordered_map<int, MemoryPtr>;
 
 // basic inputs
 #define ARG_SRC_0 1

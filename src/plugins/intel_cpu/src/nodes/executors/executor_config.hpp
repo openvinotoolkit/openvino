@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "post_ops.hpp"
 #include "memory_arguments.hpp"
+#include "post_ops.hpp"
 
 namespace ov {
 namespace intel_cpu {

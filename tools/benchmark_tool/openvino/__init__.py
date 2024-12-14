@@ -27,11 +27,11 @@ from openvino import utils as utils
 from openvino import properties as properties
 
 # Import most important classes and functions from openvino.runtime
-from openvino.runtime import Model
-from openvino.runtime import Core
-from openvino.runtime import CompiledModel
-from openvino.runtime import InferRequest
-from openvino.runtime import AsyncInferQueue
+from openvino._ov_api import Model
+from openvino._ov_api import Core
+from openvino._ov_api import CompiledModel
+from openvino._ov_api import InferRequest
+from openvino._ov_api import AsyncInferQueue
 
 from openvino.runtime import Symbol
 from openvino.runtime import Dimension
@@ -43,18 +43,37 @@ from openvino.runtime import Type
 from openvino.runtime import Tensor
 from openvino.runtime import OVAny
 
-from openvino.runtime import compile_model
+# Helper functions for openvino module
+from openvino.runtime.utils.data_helpers import tensor_from_file
+from openvino._ov_api import compile_model
 from openvino.runtime import get_batch
 from openvino.runtime import set_batch
 from openvino.runtime import serialize
 from openvino.runtime import shutdown
-from openvino.runtime import tensor_from_file
 from openvino.runtime import save_model
 from openvino.runtime import layout_helpers
 
 from openvino._pyopenvino import RemoteContext
 from openvino._pyopenvino import RemoteTensor
 from openvino._pyopenvino import Op
+
+# Import opsets
+from openvino import opset1
+from openvino import opset2
+from openvino import opset3
+from openvino import opset4
+from openvino import opset5
+from openvino import opset6
+from openvino import opset7
+from openvino import opset8
+from openvino import opset9
+from openvino import opset10
+from openvino import opset11
+from openvino import opset12
+from openvino import opset13
+from openvino import opset14
+from openvino import opset15
+from openvino import opset16
 
 # libva related:
 from openvino._pyopenvino import VAContext

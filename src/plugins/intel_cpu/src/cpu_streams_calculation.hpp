@@ -44,15 +44,16 @@ namespace intel_cpu {
  * in previous function.
  * @return     streams information table which will be used by StreamsExecutor.
  */
-std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
-                                                     const bool input_streams_changed,
-                                                     const int input_threads,
-                                                     const int input_infer_requests,
-                                                     const int model_prefer_threads,
-                                                     const int input_current_socket_id,
-                                                     const std::string input_perf_hint,
-                                                     const std::set<ov::hint::ModelDistributionPolicy> hint_llm_distribution_policy,
-                                                     const std::vector<std::vector<int>>& proc_type_table);
+std::vector<std::vector<int>> get_streams_info_table(
+    const int input_streams,
+    const bool input_streams_changed,
+    const int input_threads,
+    const int input_infer_requests,
+    const int model_prefer_threads,
+    const int input_current_socket_id,
+    const std::string input_perf_hint,
+    const std::set<ov::hint::ModelDistributionPolicy> hint_llm_distribution_policy,
+    const std::vector<std::vector<int>>& proc_type_table);
 
 /**
  * @brief      Generate streams rank table for tensor parallel according to streams info table.
@@ -106,9 +107,7 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
  * @param[in]  model graph handle
  * @param[in]  config intel cpu configuration
  */
-void get_num_streams(const int streams,
-                     const std::shared_ptr<ov::Model>& model,
-                     Config& config);
+void get_num_streams(const int streams, const std::shared_ptr<ov::Model>& model, Config& config);
 
 }  // namespace intel_cpu
 }  // namespace ov
