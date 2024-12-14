@@ -78,7 +78,7 @@ Installing Requirements
 
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "transformers>=4.33.0" "torch>=2.1.0"
     %pip install -q ipywidgets
-    %pip install -q "openvino>=2023.1.0"
+    %pip install -q "openvino>=2023.1.0" "Pillow"
 
 
 .. parsed-literal::
@@ -132,10 +132,10 @@ tutorials <https://huggingface.co/learn/nlp-course/chapter2/2?fw=pt#behind-the-p
 
 .. parsed-literal::
 
-    2024-11-22 01:14:42.174000: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-11-22 01:14:42.207829: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-12-10 01:56:55.614208: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-12-10 01:56:55.648106: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-11-22 01:14:42.868346: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-12-10 01:56:56.193856: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
     Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
     - This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
     - This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
@@ -206,7 +206,7 @@ Note how we reuse our real ``encoded_input``, passing it to the
 .. parsed-literal::
 
     [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/823/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:5006: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:5006: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
     `loss_type=None` was set in the config but it is unrecognised.Using the default loss: `ForCausalLMLoss`.
 
@@ -337,15 +337,6 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 
     from optimum.intel.openvino import OVModelForSequenceClassification
 
-
-.. parsed-literal::
-
-    huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
-    To disable this warning, you can either:
-    	- Avoid using `tokenizers` before the fork if possible
-    	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
-
-
 Initialize and Convert the Model Automatically using OVModel class
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -436,7 +427,7 @@ Full list of supported arguments available via ``--help``
 
 .. parsed-literal::
 
-    2024-11-22 01:15:03.858078: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-12-10 01:57:20.152345: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
     usage: optimum-cli export openvino [-h] -m MODEL [--task TASK]
                                        [--framework {pt,tf}] [--trust-remote-code]
                                        [--weight-format {fp32,fp16,int8,int4,mxfp4,nf4}]
@@ -445,8 +436,10 @@ Full list of supported arguments available via ``--help``
                                        [--pad-token-id PAD_TOKEN_ID]
                                        [--ratio RATIO] [--sym]
                                        [--group-size GROUP_SIZE]
+                                       [--backup-precision {none,int8_sym,int8_asym}]
                                        [--dataset DATASET] [--all-layers] [--awq]
                                        [--scale-estimation] [--gptq]
+                                       [--lora-correction]
                                        [--sensitivity-metric SENSITIVITY_METRIC]
                                        [--num-samples NUM_SAMPLES]
                                        [--disable-stateful]
@@ -467,20 +460,20 @@ Full list of supported arguments available via ``--help``
       --task TASK           The task to export the model for. If not specified,
                             the task will be auto-inferred based on the model.
                             Available tasks depend on the model, but are among:
-                            ['audio-xvector', 'image-text-to-text', 'mask-
-                            generation', 'text-generation', 'masked-im', 'image-
-                            classification', 'token-classification', 'question-
-                            answering', 'automatic-speech-recognition', 'multiple-
-                            choice', 'image-segmentation', 'semantic-
-                            segmentation', 'text2text-generation', 'feature-
-                            extraction', 'image-to-text', 'text-to-audio', 'text-
-                            to-image', 'zero-shot-object-detection', 'inpainting',
-                            'zero-shot-image-classification', 'object-detection',
-                            'text-classification', 'image-to-image', 'sentence-
-                            similarity', 'audio-frame-classification', 'depth-
-                            estimation', 'audio-classification', 'fill-mask']. For
-                            decoder models, use `xxx-with-past` to export the
-                            model using past key values in the decoder.
+                            ['zero-shot-object-detection', 'multiple-choice',
+                            'audio-xvector', 'masked-im', 'text2text-generation',
+                            'inpainting', 'image-segmentation', 'semantic-
+                            segmentation', 'question-answering', 'token-
+                            classification', 'audio-frame-classification',
+                            'feature-extraction', 'text-to-audio', 'image-to-
+                            image', 'fill-mask', 'automatic-speech-recognition',
+                            'image-classification', 'text-classification', 'zero-
+                            shot-image-classification', 'object-detection',
+                            'image-to-text', 'audio-classification', 'sentence-
+                            similarity', 'depth-estimation', 'text-to-image',
+                            'mask-generation', 'text-generation']. For decoder
+                            models, use `xxx-with-past` to export the model using
+                            past key values in the decoder.
       --framework {pt,tf}   The framework to use for the export. If not provided,
                             will attempt to use the local checkpoint's original
                             framework or what is available in the environment.
@@ -514,12 +507,27 @@ Full list of supported arguments available via ``--help``
       --group-size GROUP_SIZE
                             The group size to use for quantization. Recommended
                             value is 128 and -1 uses per-column quantization.
+      --backup-precision {none,int8_sym,int8_asym}
+                            Defines a backup precision for mixed-precision weight
+                            compression. Only valid for int4 weight format. If not
+                            provided, backup precision is int8_asym. 'none' stands
+                            for original floating-point precision of the model
+                            weights, in this case weights are retained in their
+                            original precision without any quantization.
+                            'int8_sym' stands for 8-bit integer symmetric
+                            quantization without zero point. 'int8_asym' stands
+                            for 8-bit integer asymmetric quantization with zero
+                            points per each quantization group.
       --dataset DATASET     The dataset used for data-aware compression or
-                            quantization with NNCF. You can use the one from the
-                            list ['wikitext2','c4','c4-new'] for language models
-                            or ['conceptual_captions','laion/220k-GPT4Vision-
-                            captions-from-LIVIS','laion/filtered-wit'] for
-                            diffusion models.
+                            quantization with NNCF. For language models you can
+                            use the one from the list
+                            ['auto','wikitext2','c4','c4-new']. With 'auto' the
+                            dataset will be collected from model's generations.
+                            For diffusion models it should be on of
+                            ['conceptual_captions','laion/220k-GPT4Vision-
+                            captions-from-LIVIS','laion/filtered-wit']. For visual
+                            language models the dataset must be set to
+                            'contextual'.
       --all-layers          Whether embeddings and last MatMul layers should be
                             compressed to INT4. If not provided an weight
                             compression is applied, they are compressed to INT8.
@@ -527,7 +535,7 @@ Full list of supported arguments available via ``--help``
                             generation quality of INT4-compressed LLMs, but
                             requires additional time for tuning weights on a
                             calibration dataset. To run AWQ, please also provide a
-                            dataset argument. Note: it's possible that there will
+                            dataset argument. Note: it is possible that there will
                             be no matching patterns in the model to apply AWQ, in
                             such case it will be skipped.
       --scale-estimation    Indicates whether to apply a scale estimation
@@ -541,9 +549,15 @@ Full list of supported arguments available via ``--help``
                             to minimize the difference between activations of a
                             compressed and original layer. Please note, that
                             applying GPTQ takes additional memory and time.
+      --lora-correction     Indicates whether to apply LoRA Correction algorithm.
+                            When enabled, this algorithm introduces low-rank
+                            adaptation layers in the model that can recover
+                            accuracy after weight compression at some cost of
+                            inference latency. Please note, that applying LoRA
+                            Correction algorithm takes additional memory and time.
       --sensitivity-metric SENSITIVITY_METRIC
                             The sensitivity metric for assigning quantization
-                            precision to layers. Can be one of the following:
+                            precision to layers. It can be one of the following:
                             ['weight_quantization_error',
                             'hessian_input_activation',
                             'mean_activation_variance', 'max_activation_variance',
@@ -561,7 +575,7 @@ Full list of supported arguments available via ``--help``
                             performance. Use it when you intentionally want to use
                             a stateless model, for example, to be compatible with
                             existing OpenVINO native inference code that expects
-                            kv-cache inputs and outputs in the model.
+                            KV-cache inputs and outputs in the model.
       --disable-convert-tokenizer
                             Do not add converted tokenizer and detokenizer
                             OpenVINO models.
@@ -585,7 +599,7 @@ compression:
 
 .. parsed-literal::
 
-    2024-11-22 01:15:09.417610: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-12-10 01:57:25.755800: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
     Some weights of the model checkpoint at cardiffnlp/twitter-roberta-base-sentiment-latest were not used when initializing RobertaForSequenceClassification: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
     - This IS expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
     - This IS NOT expected if you are initializing RobertaForSequenceClassification from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
@@ -636,9 +650,8 @@ OpenVINO <grammar-correction-with-output.html>`__ 3. `Stable
 Diffusion v2.1 using Optimum-Intel
 OpenVINO <stable-diffusion-v2-with-output.html>`__
 4. `Image generation with Stable Diffusion
-XL <stable-diffusion-xl-with-output.html>`__ 5. `Instruction following using
-Databricks Dolly 2.0 <dolly-2-instruction-following-with-output.html>`__ 6. `Create
-LLM-powered Chatbot using OpenVINO <llm-chatbot-with-output.html>`__ 7. `Document
-Visual Question Answering Using Pix2Struct and
-OpenVINO <pix2struct-docvqa-with-output.html>`__ 8. `Automatic speech recognition
-using Distil-Whisper and OpenVINO <distil-whisper-asr-with-output.html>`__
+XL <stable-diffusion-xl-with-output.html>`__ 5. `Create LLM-powered Chatbot using
+OpenVINO <llm-chatbot-with-output.html>`__ 6. `Document Visual Question Answering
+Using Pix2Struct and OpenVINO <pix2struct-docvqa-with-output.html>`__ 7. `Automatic
+speech recognition using Distil-Whisper and
+OpenVINO <distil-whisper-asr-with-output.html>`__
