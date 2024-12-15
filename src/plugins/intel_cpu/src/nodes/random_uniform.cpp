@@ -12,7 +12,8 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool RandomUniform::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+bool RandomUniform::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
+                                         std::string& errorMessage) noexcept {
     try {
         if (op->get_type_info() != op::v8::RandomUniform::get_type_info_static()) {
             errorMessage = "Only RandomUniform operation from the opset8 is supported by the CPU plugin.";
@@ -35,9 +36,9 @@ RandomUniform::RandomUniform(const std::shared_ptr<ov::Node>& op, const GraphCon
         THROW_CPU_NODE_ERR(errorMessage);
     }
 
-    // RandomUniform should generate new sequence each run even if all inputs are constants. So that method Node::IsConstant()
-    // doesn't return 'True' for RandomUniform with all constant inputs and the node generates new values for each inference,
-    // we set 'StrictNoConst' value for 'ConstantType' in ctor.
+    // RandomUniform should generate new sequence each run even if all inputs are constants. So that method
+    // Node::IsConstant() doesn't return 'True' for RandomUniform with all constant inputs and the node generates new
+    // values for each inference, we set 'StrictNoConst' value for 'ConstantType' in ctor.
     constant = ConstantType::StrictNoConst;
 
     auto rnd_op = as_type_ptr<op::v8::RandomUniform>(op);
@@ -72,9 +73,9 @@ void RandomUniform::initSupportedPrimitiveDescriptors() {
     }
 
     auto out_prc = getOriginalOutputPrecisionAtPort(0);
-    if (out_prc.is_real() && ((m_algo == PHILOX &&
-            !one_of(out_prc, ov::element::f32, ov::element::f16, ov::element::bf16)) ||
-            (m_algo == STL && !one_of(out_prc, ov::element::f32)))) {
+    if (out_prc.is_real() &&
+        ((m_algo == PHILOX && !one_of(out_prc, ov::element::f32, ov::element::f16, ov::element::bf16)) ||
+         (m_algo == STL && !one_of(out_prc, ov::element::f32)))) {
         out_prc = ov::element::f32;
     }
     if (!out_prc.is_real() && !one_of(out_prc, ov::element::i32, ov::element::i64)) {
@@ -104,7 +105,8 @@ void RandomUniform::createPrimitive() {
 
         jcp.out_data_type = m_output_prc;
 
-        m_jit_kernel = kernel::JitKernel<kernel::RandomUniformCompileParams, kernel::RandomUniformCallArgs>::createInstance<kernel::RandomUniform>(jcp);
+        m_jit_kernel = kernel::JitKernel<kernel::RandomUniformCompileParams,
+                                         kernel::RandomUniformCallArgs>::createInstance<kernel::RandomUniform>(jcp);
 
         if (m_jit_kernel) {
             if (auto selected_pd = getSelectedPrimitiveDescriptor()) {
@@ -118,7 +120,7 @@ void RandomUniform::createPrimitive() {
                 }
             }
         }
-#endif // OPENVINO_ARCH_X86_64
+#endif  // OPENVINO_ARCH_X86_64
     }
 
     if (m_const_inputs[SHAPE]) {
@@ -159,7 +161,7 @@ void RandomUniform::prepareParams() {
 
                 start = ithr * blocks_per_thr * block_size;
                 end = (ithr + 1) * blocks_per_thr * block_size;
-#endif // OPENVINO_ARCH_X86_64
+#endif  // OPENVINO_ARCH_X86_64
             } else {
                 const auto groups_num = (m_out_el_num + PHILOX_GROUP_SIZE - 1) / PHILOX_GROUP_SIZE;
                 const auto groups_per_thr = (groups_num + nthr - 1) / nthr;
@@ -252,11 +254,7 @@ inline void runPhilox(uint64_t key, uint64_t counter, uint64_t n, uint32_t* res)
     res[3] = counter_32[1];
 }
 
-inline void convertToOutputType(const uint32_t* in,
-                                float min,
-                                float range,
-                                float* out,
-                                size_t el_to_copy) {
+inline void convertToOutputType(const uint32_t* in, float min, float range, float* out, size_t el_to_copy) {
     RandomUniform::OutputType out_val;
 
     for (size_t i = 0lu; i < el_to_copy; i++) {
@@ -265,11 +263,7 @@ inline void convertToOutputType(const uint32_t* in,
     }
 }
 
-inline void convertToOutputType(const uint32_t* in,
-                                float16 min,
-                                float16 range,
-                                float16* out,
-                                size_t el_to_copy) {
+inline void convertToOutputType(const uint32_t* in, float16 min, float16 range, float16* out, size_t el_to_copy) {
     RandomUniform::OutputType out_val;
 
     for (size_t i = 0lu; i < el_to_copy; i++) {
@@ -279,11 +273,7 @@ inline void convertToOutputType(const uint32_t* in,
     }
 }
 
-inline void convertToOutputType(const uint32_t* in,
-                                bfloat16 min,
-                                bfloat16 range,
-                                bfloat16* out,
-                                size_t el_to_copy) {
+inline void convertToOutputType(const uint32_t* in, bfloat16 min, bfloat16 range, bfloat16* out, size_t el_to_copy) {
     RandomUniform::OutputType out_val;
 
     for (size_t i = 0lu; i < el_to_copy; i++) {
@@ -293,21 +283,13 @@ inline void convertToOutputType(const uint32_t* in,
     }
 }
 
-inline void convertToOutputType(const uint32_t* in,
-                                int32_t min,
-                                int32_t range,
-                                int32_t* out,
-                                size_t el_to_copy) {
+inline void convertToOutputType(const uint32_t* in, int32_t min, int32_t range, int32_t* out, size_t el_to_copy) {
     for (size_t i = 0lu; i < el_to_copy; i++) {
         out[i] = static_cast<int32_t>(in[i] % range + min);
     }
 }
 
-inline void convertToOutputType(const uint32_t* in,
-                                int64_t min,
-                                int64_t range,
-                                int64_t* out,
-                                size_t el_to_copy) {
+inline void convertToOutputType(const uint32_t* in, int64_t min, int64_t range, int64_t* out, size_t el_to_copy) {
     for (size_t i = 0lu; i < el_to_copy; i++) {
         out[i] = static_cast<int64_t>(((static_cast<uint64_t>(in[i * 2]) << 32) + in[i * 2 + 1]) % range + min);
     }
@@ -315,7 +297,9 @@ inline void convertToOutputType(const uint32_t* in,
 
 }  // namespace
 
-std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out, size_t out_el_num, const std::pair<uint64_t, uint64_t>& prev_state) {
+std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out,
+                                                           size_t out_el_num,
+                                                           const std::pair<uint64_t, uint64_t>& prev_state) {
     // When both seed values are equal to zero RandomUniform should generate non-deterministic sequence.
     if (m_global_seed == 0lu && m_op_seed == 0lu) {
         std::srand(static_cast<unsigned int>(std::time(nullptr)));
@@ -332,25 +316,25 @@ std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out, size_t out
     if (m_jit_kernel) {
 #if defined(OPENVINO_ARCH_X86_64)
         parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
-                auto& p = m_thread_params[ithr];
-                if (p.work_amount == 0lu) {
-                    return;
-                }
-                auto n = n_state + p.n_shift;
+            auto& p = m_thread_params[ithr];
+            if (p.work_amount == 0lu) {
+                return;
+            }
+            auto n = n_state + p.n_shift;
 
-                kernel::RandomUniformCallArgs args;
+            kernel::RandomUniformCallArgs args;
 
-                args.dst_ptr     = (out_u8 + p.dst_shift);
-                args.key_ptr     = &m_global_seed;
-                args.counter_ptr = &counter;
-                args.n_ptr       = &n;
-                args.min_ptr     = &m_min_val;
-                args.range_ptr   = &m_range_val;
-                args.work_amount = p.work_amount;
+            args.dst_ptr = (out_u8 + p.dst_shift);
+            args.key_ptr = &m_global_seed;
+            args.counter_ptr = &counter;
+            args.n_ptr = &n;
+            args.min_ptr = &m_min_val;
+            args.range_ptr = &m_range_val;
+            args.work_amount = p.work_amount;
 
-                (*m_jit_kernel)(&args);
-            });
-#endif // OPENVINO_ARCH_X86_64
+            (*m_jit_kernel)(&args);
+        });
+#endif  // OPENVINO_ARCH_X86_64
     } else {
         auto threadBody = [&](const int ithr, const int nthr) {
             auto& p = m_thread_params[ithr];
@@ -362,18 +346,18 @@ std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out, size_t out
             auto work_rest = static_cast<int64_t>(p.work_amount);
             uint32_t res[4];
 
-#define EXEC_CASE(P)                                                                                    \
-            case element::P: {                                                                          \
-                auto out_t = reinterpret_cast<element_type_traits<element::P>::value_type *>(out_cur);  \
-                for (; work_rest > 0l; work_rest -= p.step, out_t += p.step) {                          \
-                    runPhilox(m_global_seed, counter, n, res);                                          \
-                    auto el_to_copy = std::min(p.step, static_cast<uint64_t>(work_rest));               \
-                    convertToOutputType(res, m_min_val.P, m_range_val.P, out_t, el_to_copy);            \
-                    if (++n == 0) {                                                                     \
-                        counter++;                                                                      \
-                    }                                                                                   \
-                }                                                                                       \
-            } break;
+#define EXEC_CASE(P)                                                                          \
+    case element::P: {                                                                        \
+        auto out_t = reinterpret_cast<element_type_traits<element::P>::value_type*>(out_cur); \
+        for (; work_rest > 0l; work_rest -= p.step, out_t += p.step) {                        \
+            runPhilox(m_global_seed, counter, n, res);                                        \
+            auto el_to_copy = std::min(p.step, static_cast<uint64_t>(work_rest));             \
+            convertToOutputType(res, m_min_val.P, m_range_val.P, out_t, el_to_copy);          \
+            if (++n == 0) {                                                                   \
+                counter++;                                                                    \
+            }                                                                                 \
+        }                                                                                     \
+    } break;
 
             switch (m_output_prc) {
                 EXEC_CASE(f32)
@@ -381,7 +365,8 @@ std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out, size_t out
                 EXEC_CASE(bf16)
                 EXEC_CASE(i32)
                 EXEC_CASE(i64)
-                default: THROW_CPU_NODE_ERR("Unsupported type of RandomUniform: ", m_output_prc.to_string());
+            default:
+                THROW_CPU_NODE_ERR("Unsupported type of RandomUniform: ", m_output_prc.to_string());
             }
 
 #undef EXEC_CASE
@@ -396,26 +381,32 @@ std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out, size_t out
         counter_state++;
     }
 
-    return { n_state, counter_state };
+    return {n_state, counter_state};
 }
 
 ////////////// STL algo ///////////////
 void RandomUniform::computeStl(void* out, size_t work_amount) {
     switch (m_output_prc) {
-        case element::f32: {
-            generateData<float, std::uniform_real_distribution<float>>(
-                    std::uniform_real_distribution<float>{m_min_val.f32, m_max_val.f32}, out, work_amount);
-        } break;
-        case element::i32: {
-            generateData<int32_t, std::uniform_int_distribution<int32_t>>(
-                    std::uniform_int_distribution<int32_t>{m_min_val.i32, m_max_val.i32}, out, work_amount);
-        } break;
-        case element::i64: {
-            generateData<int64_t, std::uniform_int_distribution<int64_t>>(
-                    std::uniform_int_distribution<int64_t>{m_min_val.i64, m_max_val.i64}, out, work_amount);
-        } break;
-        default:
-            THROW_CPU_NODE_ERR("has unsupported output type: ", m_output_prc);
+    case element::f32: {
+        generateData<float, std::uniform_real_distribution<float>>(
+            std::uniform_real_distribution<float>{m_min_val.f32, m_max_val.f32},
+            out,
+            work_amount);
+    } break;
+    case element::i32: {
+        generateData<int32_t, std::uniform_int_distribution<int32_t>>(
+            std::uniform_int_distribution<int32_t>{m_min_val.i32, m_max_val.i32},
+            out,
+            work_amount);
+    } break;
+    case element::i64: {
+        generateData<int64_t, std::uniform_int_distribution<int64_t>>(
+            std::uniform_int_distribution<int64_t>{m_min_val.i64, m_max_val.i64},
+            out,
+            work_amount);
+    } break;
+    default:
+        THROW_CPU_NODE_ERR("has unsupported output type: ", m_output_prc);
     }
 }
 
@@ -430,9 +421,9 @@ void RandomUniform::generateData(DISTR_TYPE distribution, void* out, size_t work
 //////////////////////////////////
 
 void RandomUniform::initEdgeValues(OutputType& dst, const void* src, const element::Type& output_type) {
-#define EL_CASE(E) \
-    case element::E: \
-        dst.E = *reinterpret_cast<const element_type_traits<element::E>::value_type *>(src); \
+#define EL_CASE(E)                                                                          \
+    case element::E:                                                                        \
+        dst.E = *reinterpret_cast<const element_type_traits<element::E>::value_type*>(src); \
         break;
 
     switch (output_type) {
@@ -442,16 +433,16 @@ void RandomUniform::initEdgeValues(OutputType& dst, const void* src, const eleme
         EL_CASE(i32)
         EL_CASE(i64)
         EL_CASE(f64)
-        default:
-            THROW_CPU_NODE_ERR("has unsupported output precision: ", output_type);
+    default:
+        THROW_CPU_NODE_ERR("has unsupported output precision: ", output_type);
     }
 
 #undef EL_CASE
 }
 
 void RandomUniform::evalRange() {
-#define EL_CASE(E) \
-    case element::E: \
+#define EL_CASE(E)                                 \
+    case element::E:                               \
         m_range_val.E = m_max_val.E - m_min_val.E; \
         break;
 
@@ -462,8 +453,8 @@ void RandomUniform::evalRange() {
         EL_CASE(i32)
         EL_CASE(i64)
         EL_CASE(f64)
-        default:
-            THROW_CPU_NODE_ERR("has unsupported output precision: ", m_output_prc);
+    default:
+        THROW_CPU_NODE_ERR("has unsupported output precision: ", m_output_prc);
     }
 
 #undef EL_CASE
@@ -485,9 +476,9 @@ std::string RandomUniform::getPrimitiveDescriptorType() const {
         str_type += t;
     };
 
-#define SEARCH_TYPE(_type)                                          \
-    if ((type & impl_desc_type::_type) == impl_desc_type::_type)    \
-        add_type(#_type)
+#define SEARCH_TYPE(_type)                                       \
+    if ((type & impl_desc_type::_type) == impl_desc_type::_type) \
+    add_type(#_type)
 
     SEARCH_TYPE(undef);
     SEARCH_TYPE(jit);
@@ -507,7 +498,9 @@ std::string RandomUniform::getPrimitiveDescriptorType() const {
 
     if (selectedPrimitiveDesc) {
         if (selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision() != ov::element::u8) {
-            str_type += "_" + std::string(selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision().get_type_name());
+            str_type +=
+                "_" + std::string(
+                          selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision().get_type_name());
         } else {
             str_type += "_I8";
         }
@@ -528,6 +521,6 @@ bool RandomUniform::created() const {
     return getType() == Type::RandomUniform;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

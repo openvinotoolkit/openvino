@@ -131,13 +131,13 @@ again.
 
 .. parsed-literal::
 
-    model/horizontal-text-detection-0001/FP16/horizontal-text-detection-0001.bin:   0%|          | 0.00/3.70M [00:…
+    horizontal-text-detection-0001.bin:   0%|          | 0.00/3.70M [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    model/text-recognition-0014/FP16/text-recognition-0014.bin:   0%|          | 0.00/17.4M [00:00<?, ?B/s]
+    text-recognition-0014.bin:   0%|          | 0.00/17.4M [00:00<?, ?B/s]
 
 
 Select inference device
@@ -192,7 +192,7 @@ Load an Image
     # The `image_file` variable can point to a URL or a local image.
     image_file = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/intel_rnb.jpg"
     
-    image = load_image(image_file)
+    image = load_image("intel_rnb.jpg", image_file)
     
     # N,C,H,W = batch size, number of channels, height, width.
     N, C, H, W = detection_input_layer.shape

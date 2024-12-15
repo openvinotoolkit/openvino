@@ -101,10 +101,10 @@ jobs:
             --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
             --ignore=${INSTALL_TEST_DIR}/tests/pyopenvino/tests/test_utils/test_utils.py
 
-      - name: Python API Tests -- numpy>=2.0.0
+      - name: Python API Tests -- numpy<2.0.0
         run: |
           python3 -m pip uninstall -y numpy
-          python3 -m pip install "numpy~=2.0.0"
+          python3 -m pip install "numpy~=1.26.0"
           python3 -m pip install -r ${INSTALL_TEST_DIR}/tests/bindings/python/requirements_test.txt
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}/tests/:$LD_LIBRARY_PATH
