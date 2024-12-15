@@ -1039,12 +1039,12 @@ void Transformations::MainSnippets(void) {
 #if defined(OPENVINO_ARCH_ARM64)
         false;
 #else
-            (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
-             one_of(config.inferencePrecision, ov::element::f32, element::undefined)) ||
-            (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
-             one_of(config.inferencePrecision, ov::element::bf16, ov::element::f32, element::undefined)) ||
-            (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16) &&
-             one_of(config.inferencePrecision, ov::element::f16));
+        (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
+         one_of(config.inferencePrecision, ov::element::f32, element::undefined)) ||
+        (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
+         one_of(config.inferencePrecision, ov::element::bf16, ov::element::f32, element::undefined)) ||
+        (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16) &&
+         one_of(config.inferencePrecision, ov::element::f16));
 #endif
     if (!isMHASupported) {
         CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeMHASnippets);
@@ -1060,8 +1060,9 @@ void Transformations::MainSnippets(void) {
         const auto in_type1 = matmul->get_input_element_type(1);
         const auto is_fp32 = (in_type0 == ov::element::f32 && in_type1 == ov::element::f32 &&
                               one_of(config.inferencePrecision, element::f32, element::undefined));
-        const auto is_fp16 = (in_type0 == ov::element::f16 || in_type1 == ov::element::f16) ||
-                             (in_type0 == element::f32 && in_type1 == ov::element::f32 && config.inferencePrecision == ov::element::f16);
+        const auto is_fp16 =
+            (in_type0 == ov::element::f16 || in_type1 == ov::element::f16) ||
+            (in_type0 == element::f32 && in_type1 == ov::element::f32 && config.inferencePrecision == ov::element::f16);
         const auto is_bf16 = (in_type0 == ov::element::bf16 && in_type1 == ov::element::bf16) ||
                              ((in_type0 == element::f32 && in_type1 == ov::element::f32 &&
                                config.inferencePrecision == ov::element::bf16));
@@ -1082,8 +1083,10 @@ void Transformations::MainSnippets(void) {
             const auto& b_shape = matmul->get_input_partial_shape(1);
             const auto K = matmul->get_transpose_b() ? *b_shape.rbegin() : *++b_shape.rbegin();
             const size_t brgemm_vnni_factor_for_real16 = 2;  // 4/2(size in term of byte for bf16/fp16)
-            if (is_bf16 || is_fp16) return K.is_static() && (K.get_length() % brgemm_vnni_factor_for_real16 == 0);
-            if (is_int8) return K.is_static();
+            if (is_bf16 || is_fp16)
+                return K.is_static() && (K.get_length() % brgemm_vnni_factor_for_real16 == 0);
+            if (is_int8)
+                return K.is_static();
         }
         if (is_int8)
             return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni) ||

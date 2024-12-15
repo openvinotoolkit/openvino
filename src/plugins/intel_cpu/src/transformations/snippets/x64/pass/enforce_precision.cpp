@@ -120,7 +120,7 @@ bool EnforcePrecision::run_on_model(const std::shared_ptr<ov::Model>& f) {
 }
 
 std::set<std::vector<ov::element::Type>> EnforcePrecision::get_supported_precisions_default(
-    const std::shared_ptr<ov::Node>&op) noexcept {
+    const std::shared_ptr<ov::Node>& op) noexcept {
     std::set<std::vector<ov::element::Type>> types;
     if (ov::is_type<snippets::op::Brgemm>(op)) {
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16))
