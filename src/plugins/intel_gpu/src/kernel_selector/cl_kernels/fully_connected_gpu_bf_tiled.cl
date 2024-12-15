@@ -987,6 +987,21 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
         }
     #endif
 
+    #if COMPRESSED_WEIGHTS_INT8
+        ACCUMULATOR_TYPE wei_zp[TILE_OFM] = { };
+        unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
+            #if DECOMPRESSION_ZP_TERM
+                #if DECOMPRESSION_ZP_SCALAR
+                    wei_zp[fi] = (TO_ACCUMULATOR_TYPE)(DECOMPRESSION_ZP_VALUE);
+                #elif DECOMPRESSION_ZP_GROUPS_NUM == 1
+                    wei_zp[fi] = TO_ACCUMULATOR_TYPE(d_zps[fi % DECOMPRESSION_ZP_LENGTH]);
+                #endif
+            #else
+                wei_zp[fi] = ACCUMULATOR_VAL_ZERO;
+            #endif
+        }
+    #endif
+
     MAKE_VECTOR_TYPE(int, TILE_B) acc_tmp[TILE_OFM] = { };
     __attribute__((opencl_unroll_hint(1)))
     for (uint ni = 0; ni < iterations; ++ni) {
@@ -1052,21 +1067,6 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
             uint weights_idx = weights_offset + local_id * SIMD * FILTER_LOAD_ITERS * TILE_K_OFM_PACKED;
         #endif
         uint wei_local_idx = local_id * SIMD * FILTER_LOAD_ITERS * (FILTER_LOAD_BLOCK_SIZE/2) + sglid * 2;
-
-        #if COMPRESSED_WEIGHTS_INT8
-            ACCUMULATOR_TYPE wei_zp[TILE_OFM] = { };
-            unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
-                #if DECOMPRESSION_ZP_TERM
-                    #if DECOMPRESSION_ZP_SCALAR
-                        wei_zp[fi] = (TO_ACCUMULATOR_TYPE)(DECOMPRESSION_ZP_VALUE);
-                    #elif DECOMPRESSION_ZP_GROUPS_NUM == 1
-                        wei_zp[fi] = TO_ACCUMULATOR_TYPE(d_zps[fi % DECOMPRESSION_ZP_LENGTH]);
-                    #endif
-                #else
-                    wei_zp[fi] = ACCUMULATOR_VAL_ZERO;
-                #endif
-            }
-        #endif
 
         // DQ_DECOMPRESSION_SCALE_POST_OP SHOULD be enabled for dynamic quantize FC : scale is ACCUMULATOR_VAL_ONE
         unroll_for(uint load_iter = 0; load_iter < FILTER_LOAD_ITERS; ++load_iter) {
