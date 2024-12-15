@@ -341,32 +341,6 @@ class LLMBenchMode(Mode):
 
     def preliminaryCheck(self, list, cfg):
         # # model path checking - todo is necessary ?
-        # if cfg["preliminaryCheckCfg"]["checkBenchmarkModelPath"]:
-        #     cmdStr = cfg["appCmd"]
-        #     matcher = re.search(
-        #         "benchmark.*-m[\s*]([^\S]*)",
-        #         cmdStr,
-        #         flags=re.MULTILINE
-        #         )
-        #     if matcher is not None:
-        #         # pass if app is not openvino benchmark_app
-        #         try:
-        #             modelPath = extractModelPath(cmdStr)
-        #             if not os.path.isfile(modelPath):
-        #                 raise PreliminaryAnalysisError(
-        #                     "path {modelPath} does not exist, check config".format(
-        #                         modelPath=modelPath
-        #                     ),
-        #                     PreliminaryAnalysisError.PreliminaryErrType.WRONG_COMMANDLINE
-        #                 )
-        #         except (IndexError, ValueError):
-        #             raise PreliminaryAnalysisError(
-        #                 "commandline '{cmdStr}' is not correct, check config".format(
-        #                     cmdStr=cmdStr
-        #                 ),
-        #                 PreliminaryAnalysisError.PreliminaryErrType.WRONG_COMMANDLINE
-        #             )
-
         # common if-degradation-exists check
         super().preliminaryCheck(list, cfg)
 
