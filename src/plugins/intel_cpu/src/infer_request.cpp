@@ -501,10 +501,7 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
 
     if (type == ov::ISyncInferRequest::FoundPort::Type::OUTPUT) {
         auto output = graph.getOutputNodeByIndex(port_index);
-        OPENVINO_ASSERT(output,
-                        "Tensor with index: ",
-                        port_index,
-                        " absent in the plugin's graph outputs");
+        OPENVINO_ASSERT(output, "Tensor with index: ", port_index, " absent in the plugin's graph outputs");
         if (m_outputs.find(port_index) == m_outputs.end()) {
             const auto& port = m_output_ports_map[port_index];
             const auto& port_shape = port.get_partial_shape();
