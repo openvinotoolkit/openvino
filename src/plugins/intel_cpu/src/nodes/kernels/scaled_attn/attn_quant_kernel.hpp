@@ -12,7 +12,7 @@
 #include <cstddef>
 #include <cstdint>
 #if defined(HAVE_SVE)
-    #include "arm_sve.h"
+#    include "arm_sve.h"
 #endif
 
 namespace ov {
@@ -142,7 +142,7 @@ void attn_dequant_kernel(const uint8_t* src, TDST* dst, size_t n, float scale, f
 }
 
 #if defined(HAVE_SVE)
-template<>
+template <>
 void inline attn_dequant_u8_kernel<float>(const uint8_t* src, float* dst, size_t n, float scale, float zp) {
     size_t i = 0;
     uint8_t* src_nc = const_cast<uint8_t*>(src);

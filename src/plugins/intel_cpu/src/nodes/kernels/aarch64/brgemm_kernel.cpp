@@ -4,10 +4,12 @@
 //
 
 #include "brgemm_kernel.hpp"
-#include "dnnl_extension_utils.h"
-#include "utils/cpu_utils.hpp"
+
 #include <cpu/aarch64/cpu_isa_traits.hpp>
 #include <openvino/core/except.hpp>
+
+#include "dnnl_extension_utils.h"
+#include "utils/cpu_utils.hpp"
 
 using namespace dnnl::impl::cpu::aarch64;
 using namespace dnnl::impl;
@@ -35,15 +37,15 @@ BrgemmKernel::BrgemmKernel(size_t M,
       b_transposed(b_transposed),
       inType(inType) {
     // blocking M
-    bool is_f16 = inType == ov::element::f16;
     M_blk = matmulOptimalM;
     M_tail = M % M_blk;
     kBlkStep = 4 / inType.size();
     size_t vlen;
-    vlen = mayiuse(sve_512) ? cpu_isa_traits<sve_512>::vlen :
-           mayiuse(sve_256) ? cpu_isa_traits<sve_256>::vlen : cpu_isa_traits<sve_128>::vlen;
+    vlen = mayiuse(sve_512)   ? cpu_isa_traits<sve_512>::vlen
+           : mayiuse(sve_256) ? cpu_isa_traits<sve_256>::vlen
+                              : cpu_isa_traits<sve_128>::vlen;
     // blocking N
-    N_blk = is_f16 ? 32 : std::max(N, vlen / inType.size());
+    N_blk = std::max(N, vlen / inType.size());
     N_tail = N % N_blk;
 
     // blocking K
@@ -66,7 +68,7 @@ BrgemmKernel::BrgemmKernel(size_t M,
                 brgemmCtx.N = N_;
                 brgemmCtx.K = K_;
                 brgemmCtx.LDA = k ? K_blk : lda;
-                brgemmCtx.LDB = (is_f16 || b_transposed) ? rnd_up(N, N_blk) : ldb;  // f16/b_transposed needs copy
+                brgemmCtx.LDB = b_transposed ? rnd_up(N, N_blk) : ldb;  // b_transposed needs copy
                 brgemmCtx.LDC = ldc;
                 brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(inType));
                 brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(inType));
@@ -83,7 +85,7 @@ BrgemmKernel::BrgemmKernel(size_t M,
     }
 
     auto& brgemmCtx0 = brgCtxs[brg0BaseIdx];
-    if (inType == ov::element::bf16 || b_transposed) {
+    if (b_transposed) {
         size_t b_stride = 0;
         b_stride = ldb * inType.size();
         // K should use the original K
@@ -108,12 +110,10 @@ const size_t BrgemmKernel::get_scratch_b_size() const {
     return packedBSize;
 }
 
-void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
-                                 std::unique_ptr<dnnl::impl::cpu::aarch64::brgemm_kernel_t>& brgKernel) {
+void BrgemmKernel::init_brgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::aarch64::brgemm_kernel_t>& brgKernel) {
     brgemm_t brgDesc;
     cpu_isa_t isa;
-    isa = mayiuse(sve_512) ? cpu_isa_t::sve_512 :
-          mayiuse(sve_256) ? cpu_isa_t::sve_256 : cpu_isa_t::sve_128;
+    isa = mayiuse(sve_512) ? cpu_isa_t::sve_512 : mayiuse(sve_256) ? cpu_isa_t::sve_256 : cpu_isa_t::sve_128;
     auto status = brgemm_desc_init(&brgDesc,
                                    isa,
                                    brgemm_addr,
@@ -157,7 +157,7 @@ void BrgemmKernel::init_brgemm_copy_a(
     brgCopyKernelConf.K_tail = K_tail;
     brgCopyKernelConf.K_blk = K_blk;
     brgCopyKernelConf.use_buffer_a_tail_only = false;
-    //padding K tail to K_blk, LDA is the stride for target tensor
+    // padding K tail to K_blk, LDA is the stride for target tensor
     brgCopyKernelConf.LDA = LDA;
     brgCopyKernelConf.has_zero_point_b = false;
     brgCopyKernelConf.s8s8_compensation_required = false;
@@ -169,8 +169,9 @@ void BrgemmKernel::init_brgemm_copy_a(
     // copied A has the same precision of original
     brgCopyKernelConf.tr_a_dt_sz = DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0));
     brgCopyKernelConf.transposed_A = transpose;
-    brgCopyKernelConf.isa = mayiuse(sve_512) ? cpu_isa_t::sve_512 :
-                            mayiuse(sve_256) ? cpu_isa_t::sve_256 : cpu_isa_t::sve_128;
+    brgCopyKernelConf.isa = mayiuse(sve_512)   ? cpu_isa_t::sve_512
+                            : mayiuse(sve_256) ? cpu_isa_t::sve_256
+                                               : cpu_isa_t::sve_128;
 
     create_brgemm_matmul_copy_a(brgCopyKernel, &brgCopyKernelConf);
 }
@@ -190,7 +191,7 @@ void BrgemmKernel::init_brgemm_copy_b(
     brgCopyKernelConf.src_dt = dt_in0;
     brgCopyKernelConf.wei_dt = dt_in1;
     brgCopyKernelConf.wei_n_blk = N_blk;
-    brgCopyKernelConf.wei_tag =  transpose ? dnnl_ba : dnnl_ab;
+    brgCopyKernelConf.wei_tag = transpose ? dnnl_ba : dnnl_ab;
     brgCopyKernelConf.copy_B_wei_stride = copy_B_wei_stride;
 
     // LDB here is for the target tensor, not source tensor
@@ -207,8 +208,9 @@ void BrgemmKernel::init_brgemm_copy_b(
     brgCopyKernelConf.tr_b_dt_sz =
         DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt));
     brgCopyKernelConf.req_wei_vnni_downconvert = false;
-    brgCopyKernelConf.isa = mayiuse(sve_512) ? cpu_isa_t::sve_512 :
-                            mayiuse(sve_256) ? cpu_isa_t::sve_256 : cpu_isa_t::sve_128;
+    brgCopyKernelConf.isa = mayiuse(sve_512)   ? cpu_isa_t::sve_512
+                            : mayiuse(sve_256) ? cpu_isa_t::sve_256
+                                               : cpu_isa_t::sve_128;
 
     brgCopyKernelConf.has_zero_point_a = false;
     brgCopyKernelConf.has_zero_point_b = false;
@@ -288,12 +290,7 @@ void BrgemmKernel::executeGemm(bool is_M_tail, void* a, void* b, void* c, void* 
                 auto weight_ptr = ptr_scartch_b + B_stride;
                 auto C_stride = n * count_N * ov::element::f32.size();
                 auto out_ptr = ptr_C + C_stride;
-                callBrgemm(brgemmCtx,
-                        brgKernels[getBrgIdx(mIdx, k, n)],
-                        local_a_ptr,
-                        weight_ptr,
-                        out_ptr,
-                        wsp);
+                callBrgemm(brgemmCtx, brgKernels[getBrgIdx(mIdx, k, n)], local_a_ptr, weight_ptr, out_ptr, wsp);
                 // stride K, N if body kernel is executed.
                 if (k == 0) {
                     count_K = brgemmCtx.K * brgemmCtx.LDB;
@@ -321,15 +318,15 @@ void BrgemmKernel::executeGemm(void* a, void* b, void* c, void* wsp, void* scrat
     }
 }
 void BrgemmKernel::callBrgemm(brgemmCtx& ctx,
-                                std::unique_ptr<dnnl::impl::cpu::aarch64::brgemm_kernel_t>& brgKernel,
-                                const void* pin0,
-                                const void* pin1,
-                                void* pout,
-                                void* wsp) {
-        brgemm_batch_element_t addr_batch;
-        addr_batch.ptr.A = pin0;
-        addr_batch.ptr.B = pin1;
-        brgemm_kernel_execute(brgKernel.get(), 1, &addr_batch, pout, wsp);
+                              std::unique_ptr<dnnl::impl::cpu::aarch64::brgemm_kernel_t>& brgKernel,
+                              const void* pin0,
+                              const void* pin1,
+                              void* pout,
+                              void* wsp) {
+    brgemm_batch_element_t addr_batch;
+    addr_batch.ptr.A = pin0;
+    addr_batch.ptr.B = pin1;
+    brgemm_kernel_execute(brgKernel.get(), 1, &addr_batch, pout, wsp);
 }
 
 }  // namespace intel_cpu

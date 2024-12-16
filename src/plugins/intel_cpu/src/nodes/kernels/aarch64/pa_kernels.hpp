@@ -4,30 +4,28 @@
 #include <cstddef>
 
 #if defined(HAVE_SVE)
-#include "arm_sve.h"
+#    include "arm_sve.h"
 
 namespace ov {
 namespace Extensions {
 namespace Cpu {
 namespace XARCH {
 
-// #define prefetch_bytes(bytes, sel, advance, src)
-
-template<typename TA, typename TB>
+template <typename TA, typename TB>
 void cvt_copy(TA* dst, TB* src, size_t n) {
     size_t i = 0;
-    for ( ; i < n; i++) {
+    for (; i < n; i++) {
         dst[i] = src[i];
     }
 }
 
-template<>
+template <>
 void cvt_copy<float, float>(float* dst, float* src, size_t n) {
     size_t i = 0;
     dst = reinterpret_cast<float32_t*>(dst);
     src = reinterpret_cast<float32_t*>(src);
     auto sve_pg = svptrue_b32();
-    for ( ; i + svcntw() <= n; i += svcntw()) {
+    for (; i + svcntw() <= n; i += svcntw()) {
         svfloat32_t vb = svld1_f32(sve_pg, src + i);
         svst1_f32(sve_pg, dst + i, vb);
     }
@@ -36,7 +34,7 @@ void cvt_copy<float, float>(float* dst, float* src, size_t n) {
     }
 }
 
-template<typename T>
+template <typename T>
 static void attn_acc_value_block(float* out, float* weight, T* v, size_t S, size_t block_size) {
     for (size_t j = 0; j < block_size; j++) {
         for (size_t i = 0; i < S; i++) {
@@ -48,8 +46,8 @@ static void attn_acc_value_block(float* out, float* weight, T* v, size_t S, size
 
 static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S, size_t block_size) {
     // The layout for per token per head:
-    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
-    // The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
+    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
+    // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
     auto sve_pg = svptrue_b32();
     size_t j = 0;
     for (; j < block_size; ++j) {
@@ -59,9 +57,9 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
         svfloat32_t zp = svdup_n_f32(v0[1]);
         svfloat32_t sc = svdup_n_f32(v0[0]);
         size_t i = 0;
-        for (; i + svcntw() < S; i+=svcntw()) {
+        for (; i + svcntw() < S; i += svcntw()) {
             auto v_out = svld1_f32(sve_pg, out + i);
-            svuint32_t reg1  = svld1ub_u32(sve_pg, v + i);
+            svuint32_t reg1 = svld1ub_u32(sve_pg, v + i);
             svfloat32_t reg2 = svcvt_f32_u32_z(sve_pg, reg1);
             svfloat32_t reg3 = svsub_f32_z(sve_pg, reg2, zp);
             svfloat32_t reg4 = svmul_f32_z(sve_pg, reg3, sc);
@@ -77,7 +75,7 @@ static void attn_acc_value_block(float* out, float* weight, uint8_t* v, size_t S
     return;
 }
 
-template<typename TA, typename TB>
+template <typename TA, typename TB>
 static void dot_product_block(TA* a, TB* b, float* c, size_t n, size_t block_size) {
     for (size_t j = 0; j < block_size; j++) {
         float sum = 0;
@@ -89,11 +87,11 @@ static void dot_product_block(TA* a, TB* b, float* c, size_t n, size_t block_siz
     }
 }
 
-template<typename TA>
+template <typename TA>
 static void dot_product_block(TA* a, uint8_t* b, float* c, size_t n, size_t block_size) {
     // The layout for per token per head:
-    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
-    // The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
+    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
+    // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
     for (size_t j = 0; j < block_size; j++) {
         float sum = 0;
         auto b0 = reinterpret_cast<float*>(b);
@@ -108,8 +106,8 @@ static void dot_product_block(TA* a, uint8_t* b, float* c, size_t n, size_t bloc
 
 static void dot_product_block(float* a, uint8_t* b, float* c, size_t n, size_t block_size) {
     // The layout for per token per head:
-    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
-    // The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
+    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
+    // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
     auto sve_pg = svptrue_b32();
     size_t j = 0;
     a = reinterpret_cast<float*>(a);
@@ -119,9 +117,9 @@ static void dot_product_block(float* a, uint8_t* b, float* c, size_t n, size_t b
         auto v_zp = svdup_n_f32(b0[1]);
         size_t i = 0;
         b += 8;
-        for (; i + svcntw() < n; i+=svcntw()) {
+        for (; i + svcntw() < n; i += svcntw()) {
             auto va = svld1_f32(sve_pg, a + i);
-            svuint32_t reg1  = svld1ub_u32(sve_pg, b + i);
+            svuint32_t reg1 = svld1ub_u32(sve_pg, b + i);
             svfloat32_t reg2 = svcvt_f32_u32_z(sve_pg, reg1);
             svfloat32_t vb = svsub_f32_z(sve_pg, reg2, v_zp);
             vsum = svmla_f32_m(sve_pg, vsum, va, vb);
@@ -136,10 +134,10 @@ static void dot_product_block(float* a, uint8_t* b, float* c, size_t n, size_t b
     return;
 }
 
-template<typename T>
+template <typename T>
 static void attn_reduce(T* dst, float* temp, size_t M, size_t S, size_t temp_stride) {
     size_t i = 0;
-    for ( ; i < S; i++) {
+    for (; i < S; i++) {
         auto* src = temp + i;
         float sum = 0.0f;
         // sum result from all threads partition
@@ -154,7 +152,7 @@ static void attn_reduce(T* dst, float* temp, size_t M, size_t S, size_t temp_str
 static void attn_reduce(float* dst, float* temp, size_t M, size_t S, size_t temp_stride) {
     size_t i = 0;
     auto sve_pg = svptrue_b32();
-    for ( ; i + svcntw() < S; i+=svcntw()) {
+    for (; i + svcntw() < S; i += svcntw()) {
         auto* src = temp + i;
         auto result_vec_fp32 = svdup_n_f32(0.0f);
         for (size_t m = 0; m < M; m++) {
@@ -164,7 +162,7 @@ static void attn_reduce(float* dst, float* temp, size_t M, size_t S, size_t temp
         }
         svst1_f32(sve_pg, dst + i, result_vec_fp32);
     }
-    for ( ; i < S; i++) {
+    for (; i < S; i++) {
         auto* src = temp + i;
         float sum = 0.0f;
         // sum result from all threads partition
@@ -175,7 +173,6 @@ static void attn_reduce(float* dst, float* temp, size_t M, size_t S, size_t temp
         dst[i] = sum;
     }
 }
-
 
 }  // namespace XARCH
 }  // namespace Cpu

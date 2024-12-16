@@ -4,7 +4,6 @@
 //
 #pragma once
 
-
 #include <cpu/aarch64/brgemm/brgemm.hpp>
 #include <cpu/aarch64/matmul/brgemm_matmul_copy_utils.hpp>
 #include <cpu/aarch64/matmul/brgemm_matmul_utils.hpp>
@@ -17,7 +16,7 @@ namespace intel_cpu {
 class BrgemmKernel {
 public:
     // Construct brgemm kernel for matmul (M, K) * (K, N)/(N, K)^T
-    // BF16 * BF16 -> FP32
+    // FP32 * FP32 -> FP32
     // lda is the leading dimension for A matrix
     // ldb is the leading dimension for B matrix
     // ldc is the leading dimension for C matrix
@@ -29,7 +28,7 @@ public:
                  size_t ldb,
                  size_t ldc,
                  bool b_transposed = false,
-                 ov::element::Type inType = ov::element::bf16,
+                 ov::element::Type inType = ov::element::f32,
                  bool b_accumulate = false);
     // execute all M
     void executeGemm(void* a, void* b, void* c, void* wsp, void* scratch_a, void* scratch_b);
@@ -73,25 +72,27 @@ private:
     }
     void init_brgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::aarch64::brgemm_kernel_t>& brgKernel);
     // LDA, LDB is used for stride of target memory
-    void init_brgemm_copy_a(std::unique_ptr<dnnl::impl::cpu::aarch64::matmul::jit_brgemm_matmul_copy_a_t>& brgCopyKernel,
-                            size_t K,
-                            size_t K_blk,
-                            size_t K_tail,
-                            size_t LDA,
-                            dnnl_data_type_t dt_in0,
-                            bool transpose = false,
-                            size_t copy_A_src_stride = 0);
+    void init_brgemm_copy_a(
+        std::unique_ptr<dnnl::impl::cpu::aarch64::matmul::jit_brgemm_matmul_copy_a_t>& brgCopyKernel,
+        size_t K,
+        size_t K_blk,
+        size_t K_tail,
+        size_t LDA,
+        dnnl_data_type_t dt_in0,
+        bool transpose = false,
+        size_t copy_A_src_stride = 0);
 
-    void init_brgemm_copy_b(std::unique_ptr<dnnl::impl::cpu::aarch64::matmul::jit_brgemm_matmul_copy_b_t>& brgCopyKernel,
-                            size_t N,
-                            size_t N_blk,
-                            size_t N_tail,
-                            size_t LDB,
-                            size_t K,
-                            dnnl_data_type_t dt_in0,
-                            dnnl_data_type_t dt_in1,
-                            bool transpose = false,
-                            size_t copy_B_wei_stride = 0);
+    void init_brgemm_copy_b(
+        std::unique_ptr<dnnl::impl::cpu::aarch64::matmul::jit_brgemm_matmul_copy_b_t>& brgCopyKernel,
+        size_t N,
+        size_t N_blk,
+        size_t N_tail,
+        size_t LDB,
+        size_t K,
+        dnnl_data_type_t dt_in0,
+        dnnl_data_type_t dt_in1,
+        bool transpose = false,
+        size_t copy_B_wei_stride = 0);
 
     void callBrgemm(brgemmCtx& ctx,
                     std::unique_ptr<dnnl::impl::cpu::aarch64::brgemm_kernel_t>& brgKernel,

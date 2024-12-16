@@ -26,10 +26,10 @@
 #include "transpose_kernel.hpp"
 #include "utils/plain_tensor.hpp"
 #if defined(OPENVINO_ARCH_X86_64)
-    #include "nodes/kernels/x64/brgemm_kernel.hpp"
+#    include "nodes/kernels/x64/brgemm_kernel.hpp"
 #elif defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE)
-    #include "nodes/kernels/aarch64/brgemm_kernel.hpp"
-    #include "nodes/kernels/aarch64/pa_kernels.hpp"
+#    include "nodes/kernels/aarch64/brgemm_kernel.hpp"
+#    include "nodes/kernels/aarch64/pa_kernels.hpp"
 #endif
 
 namespace ov {
@@ -1188,10 +1188,10 @@ struct MHAHelper {
     std::vector<std::shared_ptr<BrgemmKernel>> _wv_gemm;
     // will accumulate C buffer
     std::vector<std::shared_ptr<BrgemmKernel>> _wv_gemm_acc;
-    // second token
-    #if defined(OPENVINO_ARCH_X86_64)
+// second token
+#    if defined(OPENVINO_ARCH_X86_64)
     std::shared_ptr<JitMatMulVecAMX> _gemv;
-    #endif
+#    endif
     ov::element::Type _fastpath_valid_prec = ov::element::undefined;
     // second token for bhl loop
     PlainTensor _weight_bhl;
@@ -1293,7 +1293,7 @@ struct MHAHelper {
             _wv_scratch_a.resize<DATA_TYPE>(
                 {_nthr, _wv_gemm[_block_size - 1]->get_scratch_a_size() / sizeof(DATA_TYPE)});
 
-            #if defined(OPENVINO_ARCH_X86_64)
+#    if defined(OPENVINO_ARCH_X86_64)
             if ((S % 32 == 0) && (block_size % 16 == 0) && (S <= 32 * 6)) {
                 if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_bf16) &&
                     precision_of<DATA_TYPE>::value == ov::element::bf16 &&
@@ -1310,7 +1310,7 @@ struct MHAHelper {
                                                           static_cast<int>(block_size),
                                                           _fastpath_valid_prec);
             }
-            #endif
+#    endif
         }
 
         if (init_alibi_lookup && (!_alibi_lookup || _alibi_lookup.m_dims[0] < kv_len)) {
@@ -1508,7 +1508,7 @@ struct MHAHelper {
                             size_t cur_kv_len,
                             const PlainTensor& alibi_slopes,
                             float* score_output) {
-        #if defined(OPENVINO_ARCH_X86_64)
+#    if defined(OPENVINO_ARCH_X86_64)
         if (one_of(_fastpath_valid_prec, ov::element::bf16, ov::element::f16)) {
             _gemv->tile_config();
             for (size_t pk = 0, i = 0; pk < cur_kv_len; pk += _block_size, i++) {
@@ -1523,7 +1523,7 @@ struct MHAHelper {
             }
             _gemv->tile_release();
         } else {
-        #endif
+#    endif
             for (size_t pk = 0, i = 0; pk < cur_kv_len; pk += _block_size, i++) {
                 auto block_number = block_table[i];
                 for (size_t pq = 0; pq < q_len; pq++) {
@@ -1537,9 +1537,9 @@ struct MHAHelper {
                     }
                 }
             }
-        #if defined(OPENVINO_ARCH_X86_64)
+#    if defined(OPENVINO_ARCH_X86_64)
         }
-        #endif
+#    endif
 
         for (size_t pq = 0; pq < q_len; pq++) {
             for (size_t h = hq_beg; h < hq_end; h++) {
@@ -1658,7 +1658,7 @@ struct MHAHelper {
             auto pk = pk_in_blocks * _block_size;
             if (pk < context_len) {
                 auto block_number = block_indices.ptr<int32_t>()[block_indices_begins.ptr<int32_t>()[b] + pk_in_blocks];
-                #if defined(OPENVINO_ARCH_X86_64)
+#    if defined(OPENVINO_ARCH_X86_64)
                 if (one_of(_fastpath_valid_prec, ov::element::bf16, ov::element::f16)) {
                     _gemv->tile_config();
                     for (size_t pq = 0; pq < q_len; pq++) {
@@ -1670,7 +1670,7 @@ struct MHAHelper {
                     }
                     _gemv->tile_release();
                 } else {
-                #endif
+#    endif
                     for (size_t pq = 0; pq < q_len; pq++) {
                         for (size_t h = hq_beg; h < hq_end; h++) {
                             dot_product_block(query.ptr<DATA_TYPE>(b, h, pq),
@@ -1681,9 +1681,9 @@ struct MHAHelper {
                                               _key_group_size);
                         }
                     }
-                #if defined(OPENVINO_ARCH_X86_64)
+#    if defined(OPENVINO_ARCH_X86_64)
                 }
-                #endif
+#    endif
             }
         };
 
