@@ -4,15 +4,14 @@
 
 #pragma once
 
-#include "executor.hpp"
-
 #include "deconv.hpp"
+#include "executor.hpp"
 #if defined(OV_CPU_WITH_ACL)
-#include "acl/acl_deconv.hpp"
+#    include "acl/acl_deconv.hpp"
 #endif
 
-#include "onednn/iml_type_mapper.h"
 #include "common/primitive_cache.hpp"
+#include "onednn/iml_type_mapper.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -29,7 +28,8 @@ public:
     DeconvExecutorFactory(const DeconvAttrs& deconvAttrs,
                           const std::vector<MemoryDescPtr>& srcDescs,
                           const std::vector<MemoryDescPtr>& dstDescs,
-                          const ExecutorContext::CPtr context) : ExecutorFactoryLegacy(context) {
+                          const ExecutorContext::CPtr context)
+        : ExecutorFactoryLegacy(context) {
         for (auto& desc : getDeconvExecutorsList()) {
             if (desc.builder->isSupported(deconvAttrs, srcDescs, dstDescs)) {
                 supportedDescs.push_back(desc);
@@ -41,7 +41,7 @@ public:
     virtual DeconvExecutorPtr makeExecutor(const DeconvAttrs& deconvAttrs,
                                            const std::vector<MemoryDescPtr>& srcDescs,
                                            const std::vector<MemoryDescPtr>& dstDescs,
-                                           const dnnl::primitive_attr &attr) {
+                                           const dnnl::primitive_attr& attr) {
         auto build = [&](const DeconvExecutorDesc* desc) {
             auto executor = desc->builder->makeExecutor(context);
             if (executor->init(deconvAttrs, srcDescs, dstDescs, attr)) {
@@ -75,5 +75,5 @@ private:
 using DeconvExecutorFactoryPtr = std::shared_ptr<DeconvExecutorFactory>;
 using DeconvExecutorFactoryCPtr = std::shared_ptr<const DeconvExecutorFactory>;
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

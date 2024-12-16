@@ -4,16 +4,15 @@
 
 #pragma once
 
-#include "node.h"
-
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "node.h"
 #include "snippets/op/subgraph.hpp"
 
 #if defined(OPENVINO_ARCH_ARM64)
-#include "cpu/aarch64/cpu_isa_traits.hpp"
+#    include "cpu/aarch64/cpu_isa_traits.hpp"
 #else
-#include "cpu/x64/cpu_isa_traits.hpp"
+#    include "cpu/x64/cpu_isa_traits.hpp"
 #endif
 
 #include <array>
@@ -27,7 +26,7 @@ public:
     Subgraph(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
     ~Subgraph() override = default;
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
     ov::element::Type getRuntimePrecision() const override;
@@ -109,9 +108,12 @@ private:
 
 class Subgraph::SubgraphCodeGenerator {
 public:
-    SubgraphCodeGenerator(const std::shared_ptr<Subgraph::SubgraphAttrs>& snippet_attrs, const std::shared_ptr<CPURuntimeConfig>& config);
+    SubgraphCodeGenerator(const std::shared_ptr<Subgraph::SubgraphAttrs>& snippet_attrs,
+                          const std::shared_ptr<CPURuntimeConfig>& config);
 
-    const std::shared_ptr<snippets::Schedule>& get() const { return schedule; }
+    const std::shared_ptr<snippets::Schedule>& get() const {
+        return schedule;
+    }
 
 private:
     std::shared_ptr<snippets::Schedule> schedule;
@@ -129,7 +131,9 @@ public:
                      const BufferScratchpadAllocator& allocator);
     virtual ~SubgraphExecutor() = default;
 
-    void execute(const dnnl::stream& strm, const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs);
+    void execute(const dnnl::stream& strm,
+                 const std::vector<MemoryPtr>& inMemPtrs,
+                 const std::vector<MemoryPtr>& outMemPtrs);
 
 protected:
     virtual void exec_impl(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) = 0;
@@ -174,6 +178,6 @@ private:
     std::unordered_map<size_t, CpuBlockedMemoryDescPtr> m_in_requested_descs = {};
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov
