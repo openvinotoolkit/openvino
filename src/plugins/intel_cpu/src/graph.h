@@ -4,22 +4,20 @@
 
 #pragma once
 
-#include "config.h"
-#include "cpu_memory.h"
-#include "nodes/input.h"
-#include "openvino/core/node_vector.hpp"
-#include "openvino/runtime/profiling_info.hpp"
-#include "node.h"
-#include "edge.h"
-#include "graph_context.h"
-#include "memory_control.hpp"
-#include "openvino/runtime/profiling_info.hpp"
-
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include "config.h"
+#include "cpu_memory.h"
+#include "edge.h"
+#include "graph_context.h"
+#include "memory_control.hpp"
+#include "node.h"
+#include "nodes/input.h"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "proxy_mem_blk.h"
 
@@ -29,7 +27,7 @@ namespace intel_cpu {
 class SyncInferRequest;
 namespace node {
 class MemoryStateNode;
-} // namespace node
+}  // namespace node
 
 class Graph {
 public:
@@ -61,15 +59,15 @@ public:
         return IsStatic() || IsDynamic();
     }
 
-    const Config & getConfig() const {
+    const Config& getConfig() const {
         return m_context->getConfig();
     }
 
-    template<typename NET>
-    void CreateGraph(NET &model, const GraphContext::CPtr context);
+    template <typename NET>
+    void CreateGraph(NET& model, const GraphContext::CPtr context);
 
-    void CreateGraph(const std::vector<NodePtr> &graphNodes,
-                     const std::vector<EdgePtr> &graphEdges,
+    void CreateGraph(const std::vector<NodePtr>& graphNodes,
+                     const std::vector<EdgePtr>& graphEdges,
                      const GraphContext::CPtr context,
                      std::string name);
 
@@ -97,14 +95,14 @@ public:
         return outputNodesMap;
     }
 
-    NodePtr getInputNodeByIndex(const std::size_t &index) {
+    NodePtr getInputNodeByIndex(const std::size_t& index) {
         auto input = inputNodesMap.find(index);
         if (input == inputNodesMap.end())
             OPENVINO_THROW("CPU execution graph doesn't contain input node with index: ", index);
         return input->second;
     }
 
-    NodePtr getOutputNodeByIndex(const std::size_t &index) {
+    NodePtr getOutputNodeByIndex(const std::size_t& index) {
         auto output = outputNodesMap.find(index);
         if (output == outputNodesMap.end())
             OPENVINO_THROW("CPU execution graph doesn't contain output node with index: ", index);
@@ -119,12 +117,9 @@ public:
         return m_context;
     }
 
-    void GetPerfData(std::vector<ov::ProfilingInfo> &perfMap) const;
+    void GetPerfData(std::vector<ov::ProfilingInfo>& perfMap) const;
 
-    void CreateEdge(const NodePtr& parent,
-                 const NodePtr& child,
-                 int parentPort = 0,
-                 int childPort = 0);
+    void CreateEdge(const NodePtr& parent, const NodePtr& child, int parentPort = 0, int childPort = 0);
     void RemoveEdge(const EdgePtr& edge);
     void RemoveDroppedNodes();
     void RemoveDroppedEdges();
@@ -134,9 +129,9 @@ public:
 
     /**
      * @brief Insert Reorder node at the edge-specified location.
-     * The Reorder node must be inserted in case when there are inplace conflicts or the input and output tensor descriptors do not match.
-     * The Reorder node rearranges the elements in memory according to inDesc and outDesc, or reinterprets memory descriptor without
-     * rearrangement of elements if isOptimized is true.
+     * The Reorder node must be inserted in case when there are inplace conflicts or the input and output tensor
+     * descriptors do not match. The Reorder node rearranges the elements in memory according to inDesc and outDesc, or
+     * reinterprets memory descriptor without rearrangement of elements if isOptimized is true.
      * @param edge
      * pointer to the edge in the graph where Reorder node will be inserted
      * @param layerName
@@ -153,14 +148,18 @@ public:
      * pointer to the blob containing scales
      * @return pointer to the new Reorder node.
      */
-    NodePtr InsertReorder(EdgePtr edge, std::string layerName, const MemoryDesc& inDesc,
-            const MemoryDesc& outDesc, bool isOptimized = false, const std::vector<int> & src_perm = {});
+    NodePtr InsertReorder(EdgePtr edge,
+                          std::string layerName,
+                          const MemoryDesc& inDesc,
+                          const MemoryDesc& outDesc,
+                          bool isOptimized = false,
+                          const std::vector<int>& src_perm = {});
 
     /**
      * @brief Insert Node at the edge-specified location.
-     * This method supports two regimes. First, the node is inserted without initialization (i.e. supported descriptors initialization,
-     * supported primitive descriptors selection, etc.), which can be useful after the ResolveEdgeConflicts() completes. The second is just inserting the
-     * node without initialization.
+     * This method supports two regimes. First, the node is inserted without initialization (i.e. supported descriptors
+     * initialization, supported primitive descriptors selection, etc.), which can be useful after the
+     * ResolveEdgeConflicts() completes. The second is just inserting the node without initialization.
      * @param edge
      * pointer to the edge in the graph where the node will be inserted
      * @param node
@@ -173,10 +172,10 @@ public:
 
     /**
      * @brief Insert Node between two specified nodes.
-     * This procedure creates two edges that link the parent and child nodes to the inserted one and adds all created objects to the graph.
-     * This method supports two regimes. First, the node is inserted without initialization (i.e. supported descriptors initialization,
-     * supported primitive descriptors selection, etc.), which can be useful after the ResolveEdgeConflicts() completes. The second is just inserting the
-     * node without initialization.
+     * This procedure creates two edges that link the parent and child nodes to the inserted one and adds all created
+     * objects to the graph. This method supports two regimes. First, the node is inserted without initialization (i.e.
+     * supported descriptors initialization, supported primitive descriptors selection, etc.), which can be useful after
+     * the ResolveEdgeConflicts() completes. The second is just inserting the node without initialization.
      * @param parent
      * pointer to the parent node
      * @param child
@@ -193,7 +192,9 @@ public:
 
     std::shared_ptr<ov::Model> dump() const;
 
-    void ResetInferCount() { infer_count = 0; }
+    void ResetInferCount() {
+        infer_count = 0;
+    }
 
     void SortTopologically();
 
@@ -215,7 +216,7 @@ public:
      * Activate execution graph using \p externalInputMemory and \p externalOutputMemory
      */
     void Activate(const std::vector<MemoryPtr>& externalInputMemory = {},
-                            const std::vector<MemoryPtr>& externalOutputMemory = {});
+                  const std::vector<MemoryPtr>& externalOutputMemory = {});
 
     const std::unordered_map<std::size_t, ProxyMemoryBlockPtr>& getOutputNodesMemBlocksMap() const {
         return outputNodesMemBlocksMap;
@@ -231,7 +232,7 @@ protected:
         graphEdges.clear();
         m_executableSyncNodesInds.clear();
     }
-    Status status { Status::NotReady };
+    Status status{Status::NotReady};
 
     // For dumping purposes. -1 - no counting, all other positive
     // values mean increment it within each Infer() call
@@ -244,7 +245,7 @@ protected:
 
     bool graphHasDynamicInput = false;
 
-    void Replicate(const std::shared_ptr<const ov::Model> &subgraph,
+    void Replicate(const std::shared_ptr<const ov::Model>& subgraph,
                    const std::vector<node::Input::InputConfig>& inputConfigs = {},
                    const std::vector<node::Input::OutputConfig>& outputConfigs = {});
 
@@ -281,10 +282,10 @@ protected:
     void ExecuteNode(const NodePtr& node, SyncInferRequest* request = nullptr, int numaId = -1) const;
 
     void InferStatic(SyncInferRequest* request, int numaId);
-    template<typename UpdateStrategy>
+    template <typename UpdateStrategy>
     void InferDynamic(SyncInferRequest* request, int numaId, UpdateStrategy&& update);
 
-    friend std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph &graph);
+    friend std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph);
 
 private:
     using event_t = void (Graph::*)(void);

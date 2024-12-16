@@ -3,35 +3,35 @@
 //
 
 #include "strided_slice.hpp"
-#include "utils.hpp"
-#include "slice_shape_inference.hpp"
+
 #include "shape_inference/shape_inference.hpp"
+#include "slice_shape_inference.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
 StridedSliceShapeInfer::StridedSliceShapeInfer(size_t output_size,
-        std::unordered_set<int64_t> begin_mask,
-        std::unordered_set<int64_t> end_mask,
-        std::unordered_set<int64_t> new_axis_mask,
-        std::unordered_set<int64_t> shrink_axis_mask)
+                                               std::unordered_set<int64_t> begin_mask,
+                                               std::unordered_set<int64_t> end_mask,
+                                               std::unordered_set<int64_t> new_axis_mask,
+                                               std::unordered_set<int64_t> shrink_axis_mask)
     : m_outputShape(output_size, 1),
-    m_begin_mask_set(std::move(begin_mask)),
-    m_end_mask_set(std::move(end_mask)),
-    m_new_axis_mask_set(std::move(new_axis_mask)),
-    m_shrink_axis_mask_set(std::move(shrink_axis_mask)) {}
+      m_begin_mask_set(std::move(begin_mask)),
+      m_end_mask_set(std::move(end_mask)),
+      m_new_axis_mask_set(std::move(new_axis_mask)),
+      m_shrink_axis_mask_set(std::move(shrink_axis_mask)) {}
 
-Result StridedSliceShapeInfer::infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
+Result StridedSliceShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                                     const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
     // align with intel_cpu::node::StridedSlice
     static constexpr size_t DATA_ID = 0, BEGIN_ID = 1, END_ID = 2, STRIDE_ID = 3;
     const VectorDims& shapeIn = input_shapes[DATA_ID].get();
     const VectorDims& shapeBegin = input_shapes[BEGIN_ID].get();
     if (data_dependency.at(BEGIN_ID)->getDesc().getPrecision() != ov::element::i32 ||
-            data_dependency.at(END_ID)->getDesc().getPrecision() != ov::element::i32 ||
-            data_dependency.at(STRIDE_ID)->getDesc().getPrecision() != ov::element::i32) {
+        data_dependency.at(END_ID)->getDesc().getPrecision() != ov::element::i32 ||
+        data_dependency.at(STRIDE_ID)->getDesc().getPrecision() != ov::element::i32) {
         OPENVINO_THROW("The data type of begin/end/stride is NOT I32, which is unexpected!");
     }
     auto beginPtr = data_dependency.at(BEGIN_ID)->getDataAs<int32_t>();
@@ -47,10 +47,10 @@ Result StridedSliceShapeInfer::infer(
             int32_t begin = 0, end = 0;
             if (stridePtr[cur_idx] < 0) {
                 begin = m_begin_mask_set.count(cur_idx) ? shapeIn[in_idx] : beginPtr[cur_idx];
-                end  = m_end_mask_set.count(cur_idx) ? (-1 - shapeIn[in_idx]) : endPtr[cur_idx];
+                end = m_end_mask_set.count(cur_idx) ? (-1 - shapeIn[in_idx]) : endPtr[cur_idx];
             } else {
                 begin = m_begin_mask_set.count(cur_idx) ? 0 : beginPtr[cur_idx];
-                end  = m_end_mask_set.count(cur_idx) ? shapeIn[in_idx] : endPtr[cur_idx];
+                end = m_end_mask_set.count(cur_idx) ? shapeIn[in_idx] : endPtr[cur_idx];
             }
             return ov::op::slice::get_sliced_value(shapeIn[in_idx], begin, end, stridePtr[cur_idx]);
         }
@@ -80,10 +80,12 @@ ShapeInferPtr StridedSliceShapeInferFactory::makeShapeInfer() const {
         return make_shape_inference(m_op);
     } else if (const auto StridedSlice_op = ov::as_type_ptr<const ov::op::v1::StridedSlice>(m_op)) {
         const auto& ellipsis_mask = StridedSlice_op->get_ellipsis_mask();
-        if (std::any_of(ellipsis_mask.begin(), ellipsis_mask.end(), [](int64_t x){ return x == 1; })) {
+        if (std::any_of(ellipsis_mask.begin(), ellipsis_mask.end(), [](int64_t x) {
+                return x == 1;
+            })) {
             return make_shape_inference(m_op);
         } else {
-            auto vec_to_set = [](const std::vector<int64_t>& vec){
+            auto vec_to_set = [](const std::vector<int64_t>& vec) {
                 std::unordered_set<int64_t> to_set;
                 for (size_t i = 0; i < vec.size(); ++i) {
                     if (vec[i] == 1) {
@@ -92,18 +94,17 @@ ShapeInferPtr StridedSliceShapeInferFactory::makeShapeInfer() const {
                 }
                 return to_set;
             };
-            return std::make_shared<StridedSliceShapeInfer>(
-                    m_op->get_output_partial_shape(0).rank().get_length(),
-                    vec_to_set(StridedSlice_op->get_begin_mask()),
-                    vec_to_set(StridedSlice_op->get_end_mask()),
-                    vec_to_set(StridedSlice_op->get_new_axis_mask()),
-                    vec_to_set(StridedSlice_op->get_shrink_axis_mask()));
+            return std::make_shared<StridedSliceShapeInfer>(m_op->get_output_partial_shape(0).rank().get_length(),
+                                                            vec_to_set(StridedSlice_op->get_begin_mask()),
+                                                            vec_to_set(StridedSlice_op->get_end_mask()),
+                                                            vec_to_set(StridedSlice_op->get_new_axis_mask()),
+                                                            vec_to_set(StridedSlice_op->get_shrink_axis_mask()));
         }
     } else {
         OPENVINO_THROW("not Slice or StridedSlice");
     }
 }
 
-} // namespace node
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

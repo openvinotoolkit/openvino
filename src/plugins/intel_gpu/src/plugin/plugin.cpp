@@ -190,7 +190,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config);
     if (model->has_rt_info("runtime_options"))
-        config.apply_rt_info(model->get_rt_info<ov::AnyMap>("runtime_options"));
+        config.apply_rt_info(context->get_engine().get_device_info(), model->get_rt_info<ov::AnyMap>("runtime_options"));
     config.apply_user_properties(context->get_engine().get_device_info());
 
     set_cache_info(model, config);
@@ -281,7 +281,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config);
     if (model->has_rt_info("runtime_options"))
-        config.apply_rt_info(model->get_rt_info<ov::AnyMap>("runtime_options"));
+        config.apply_rt_info(ctx->get_engine().get_device_info(), model->get_rt_info<ov::AnyMap>("runtime_options"));
     config.apply_user_properties(ctx->get_engine().get_device_info());
 
     ProgramBuilder prog(ctx->get_engine(), config);
@@ -339,12 +339,21 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     config.set_user_property(_orig_config);
     config.apply_user_properties(context_impl->get_engine().get_device_info());
 
-    cldnn::BinaryInputBuffer ib(model, context_impl->get_engine());
+    ov::CacheMode cache_mode = config.get_property(ov::cache_mode);
+    ov::EncryptionCallbacks encryption_callbacks = config.get_property(ov::cache_encryption_callbacks);
+    const bool encryption_enabled = encryption_callbacks.decrypt && cache_mode == ov::CacheMode::OPTIMIZE_SIZE;
 
-    ov::CacheMode cache_mode = ov::CacheMode::OPTIMIZE_SPEED;
-    ib >> cldnn::make_data(&cache_mode, sizeof(ov::CacheMode));
+    std::unique_ptr<cldnn::BinaryInputBuffer> ib_ptr =
+        encryption_enabled ? cldnn::make_unique<cldnn::EncryptedBinaryInputBuffer>(model,
+                                                                                   context_impl->get_engine(),
+                                                                                   encryption_callbacks.decrypt)
+                           : cldnn::make_unique<cldnn::BinaryInputBuffer>(model, context_impl->get_engine());
+    auto& ib = *ib_ptr;
 
-    if (cache_mode != config.get_property(ov::cache_mode)) {
+    ov::CacheMode loaded_cache_mode = ov::CacheMode::OPTIMIZE_SPEED;
+    ib >> cldnn::make_data(&loaded_cache_mode, sizeof(ov::CacheMode));
+
+    if (loaded_cache_mode != cache_mode) {
         return nullptr;
     }
 
@@ -608,6 +617,8 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::hint::dynamic_quantization_group_size.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::activations_scale_factor.name(), PropertyMutability::RW},
         ov::PropertyName{ov::weights_path.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::cache_encryption_callbacks.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::hint::kv_cache_precision.name(), PropertyMutability::RW},
     };
 
     return supported_properties;
