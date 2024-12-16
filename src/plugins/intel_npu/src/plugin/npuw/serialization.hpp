@@ -10,6 +10,7 @@
 #include <optional>
 #include <string>
 #include <tuple>
+#include <unordered_set>
 #include <vector>
 
 #include "logging.hpp"
@@ -65,6 +66,14 @@ void write(std::ostream& stream, const std::vector<T>& var) {
     }
 }
 
+template <typename T>
+void write(std::ostream& stream, const std::unordered_set<T>& var) {
+    write(stream, var.size());
+    for (const auto& el : var) {
+        write(stream, el);
+    }
+}
+
 template <typename K, typename V>
 void write(std::ostream& stream, const std::map<K, V>& var) {
     write(stream, var.size());
@@ -105,6 +114,18 @@ void read(std::istream& stream, std::vector<T>& var) {
         T elem;
         read(stream, elem);
         var.push_back(elem);
+    }
+}
+
+template <typename T>
+void read(std::istream& stream, std::unordered_set<T>& var) {
+    NPUW_ASSERT(var.empty() && "Can't deserialize into non-empty unordered_set!");
+    std::size_t var_size = 0;
+    stream.read(reinterpret_cast<char*>(&var_size), sizeof var_size);
+    for (std::size_t i = 0; i < var_size; ++i) {
+        T elem;
+        read(stream, elem);
+        var.insert(elem);
     }
 }
 

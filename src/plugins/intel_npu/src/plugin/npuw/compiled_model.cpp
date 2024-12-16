@@ -623,12 +623,14 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
     for (const auto& in : inputs()) {
         write(stream, in.get_element_type().to_string());
         write(stream, in.get_partial_shape().to_string());
+        write(stream, in.get_names());
     }
 
     write(stream, outputs().size());
     for (const auto& out : outputs()) {
         write(stream, out.get_element_type().to_string());
         write(stream, out.get_partial_shape().to_string());
+        write(stream, out.get_names());
     }
 
     // Serialize meta
@@ -691,11 +693,15 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
     for (std::size_t i = 0; i < params_size; ++i) {
         std::string elem_type_str;
         std::string part_shape_str;
+        std::unordered_set<std::string> names;
         read(stream, elem_type_str);
         read(stream, part_shape_str);
+        read(stream, names);
+        // NOTE: the code below is taken from NPU plugin's create_dummy_model()
         auto param =
             std::make_shared<op::v0::Parameter>(ov::element::Type(elem_type_str), ov::PartialShape(part_shape_str));
-        param->set_friendly_name("serialized_param_" + std::to_string(i));
+        param->set_friendly_name(*names.begin());  // FIXME: any_name ?
+        param->output(0).get_tensor().set_names(names);
         parameters.push_back(param);
     }
 
@@ -703,17 +709,21 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
     for (std::size_t i = 0; i < results_size; ++i) {
         std::string elem_type_str;
         std::string part_shape_str;
+        std::unordered_set<std::string> names;
         read(stream, elem_type_str);
         read(stream, part_shape_str);
+        read(stream, names);
         // NOTE: the code below is taken from NPU plugin's create_dummy_model()
         std::shared_ptr<ov::Node> res =
             std::make_shared<ov::op::v0::Constant>(ov::element::Type(elem_type_str), std::vector<size_t>{1});
+        // FIXME: serialize names as well?
         const std::shared_ptr<ov::descriptor::Tensor>& tensor_dummy =
             std::make_shared<ov::descriptor::Tensor>(ov::element::Type(elem_type_str),
-                                                     ov::PartialShape(part_shape_str));
+                                                     ov::PartialShape(part_shape_str),
+                                                     names);
         std::shared_ptr<ov::Node> result = std::make_shared<ov::op::v0::Result>(res);
         result->output(0).set_tensor_ptr(tensor_dummy);
-        result->set_friendly_name("serialized_result_" + std::to_string(i));
+        result->set_friendly_name(*names.begin());  // any_name ?
         results.push_back(result);
     }
 
