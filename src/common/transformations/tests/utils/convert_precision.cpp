@@ -1965,33 +1965,39 @@ static std::shared_ptr<ov::Model> make_then_body(bool ref) {
     auto el_type = ref ? element::f16 : element::f32;
 
     auto then_param = std::make_shared<opset10::Parameter>(el_type, PartialShape{1, 112, 112, 24});
-    auto opt_conv = ref ? std::make_shared<opset10::Convert>(then_param, element::f32)->output(0) : then_param->output(0);
+    auto opt_conv =
+        ref ? std::make_shared<opset10::Convert>(then_param, element::f32)->output(0) : then_param->output(0);
     auto red_mean_const = opset10::Constant::create(element::i32, Shape{3}, {0, 1, 2});
     auto red_mean = std::make_shared<opset10::ReduceMean>(opt_conv, red_mean_const);
 
-    auto opt_conv_sub = ref ? std::make_shared<opset10::Convert>(then_param, element::f32)->output(0) : then_param->output(0);
+    auto opt_conv_sub =
+        ref ? std::make_shared<opset10::Convert>(then_param, element::f32)->output(0) : then_param->output(0);
     auto subtract = std::make_shared<opset10::Subtract>(opt_conv_sub, red_mean);
 
     auto power_const = opset10::Constant::create(el_type, Shape{1}, {2});
-    auto opt_conv_1 = ref ? std::make_shared<opset10::Convert>(power_const, element::f32)->output(0) : power_const->output(0);
+    auto opt_conv_1 =
+        ref ? std::make_shared<opset10::Convert>(power_const, element::f32)->output(0) : power_const->output(0);
     auto power = std::make_shared<opset10::Power>(subtract, opt_conv_1);
 
     auto red_mean_const_1 = opset10::Constant::create(element::i32, Shape{3}, {0, 1, 2});
     auto reduce_mean_1 = std::make_shared<opset10::ReduceMean>(power, red_mean_const_1);
 
     auto add_const = opset10::Constant::create(el_type, Shape{1}, {1.001e-05});
-    auto opt_conv_2 = ref ? std::make_shared<opset10::Convert>(add_const, element::f32)->output(0) : add_const->output(0);
+    auto opt_conv_2 =
+        ref ? std::make_shared<opset10::Convert>(add_const, element::f32)->output(0) : add_const->output(0);
     auto add = std::make_shared<opset10::Add>(reduce_mean_1, opt_conv_2);
 
     auto sqrt = std::make_shared<opset10::Sqrt>(add);
 
     auto divide = std::make_shared<opset10::Divide>(subtract, sqrt);
 
-    auto mul_const = opset10::Constant::create(element::f16, Shape{1, 1, 1, 24}, std::vector<float16>(24, 1)); //stub values
+    auto mul_const =
+        opset10::Constant::create(element::f16, Shape{1, 1, 1, 24}, std::vector<float16>(24, 1)); //stub values
     auto mul_conv = std::make_shared<opset10::Convert>(mul_const, element::f32);
     auto mul = std::make_shared<opset10::Multiply>(divide, mul_conv);
 
-    auto add_const_1 = opset10::Constant::create(element::f16, Shape{1, 1, 1, 24}, std::vector<float16>(24, 1)); //stub values
+    auto add_const_1 =
+        opset10::Constant::create(element::f16, Shape{1, 1, 1, 24}, std::vector<float16>(24, 1)); //stub values
     auto add_conv = std::make_shared<opset10::Convert>(add_const_1, element::f32);
     auto add_1 = std::make_shared<opset10::Multiply>(mul, add_conv);
 
