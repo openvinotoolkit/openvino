@@ -1992,12 +1992,12 @@ static std::shared_ptr<ov::Model> make_then_body(bool ref) {
     auto divide = std::make_shared<opset10::Divide>(subtract, sqrt);
 
     auto mul_const =
-        opset10::Constant::create(element::f16, Shape{1, 1, 1, 24}, std::vector<float16>(24, 1)); //stub values
+        opset10::Constant::create(element::f16, Shape{1, 1, 1, 24}, std::vector<float16>(24, 1));  // stub values
     auto mul_conv = std::make_shared<opset10::Convert>(mul_const, element::f32);
     auto mul = std::make_shared<opset10::Multiply>(divide, mul_conv);
 
     auto add_const_1 =
-        opset10::Constant::create(element::f16, Shape{1, 1, 1, 24}, std::vector<float16>(24, 1)); //stub values
+        opset10::Constant::create(element::f16, Shape{1, 1, 1, 24}, std::vector<float16>(24, 1));  // stub values
     auto add_conv = std::make_shared<opset10::Convert>(add_const_1, element::f32);
     auto add_1 = std::make_shared<opset10::Multiply>(mul, add_conv);
 
