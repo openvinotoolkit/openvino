@@ -466,10 +466,10 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
 
     ov::SoPtr<ITensor> tensor;
     if (type == ov::ISyncInferRequest::FoundPort::Type::INPUT) {
-        OPENVINO_ASSERT(graph.getInputNodeByIndex(port_index) == nullptr,
+        OPENVINO_ASSERT(graph.getInputNodeByIndex(port_index),
                         "Tensor with index: ",
                         port_index,
-                        " exists in CPU plugin graph, but absents in model inputs");
+                        " absent in the plugin's graph inputs");
         const auto& port = m_input_ports_map[port_index];
         tensor = ov::ISyncInferRequest::get_tensor(port);
 
@@ -504,7 +504,7 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
         OPENVINO_ASSERT(output,
                         "Tensor with index: ",
                         port_index,
-                        " exists in CPU plugin graph, but absents in model outputs");
+                        " absent in the plugin's graph outputs");
         if (m_outputs.find(port_index) == m_outputs.end()) {
             const auto& port = m_output_ports_map[port_index];
             const auto& port_shape = port.get_partial_shape();
