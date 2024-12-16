@@ -3,11 +3,11 @@
 //
 
 #include "rope_kernel_selector.h"
-#include "rope_kernel_ref.h"
+#include "rope_kernel_opt.h"
 
 namespace kernel_selector {
 rope_kernel_selector::rope_kernel_selector() {
-    Attach<RoPEKernelRef>();
+    Attach<RoPEKernelOpt>();
 }
 
 KernelsData rope_kernel_selector::GetBestKernels(const Params& params) const {

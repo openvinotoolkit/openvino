@@ -6,7 +6,7 @@
 
 #include "rope_inst.h"
 #include "rope/rope_kernel_selector.h"
-#include "rope/rope_kernel_ref.h"
+#include "rope/rope_kernel_opt.h"
 
 namespace cldnn {
 namespace ocl {
