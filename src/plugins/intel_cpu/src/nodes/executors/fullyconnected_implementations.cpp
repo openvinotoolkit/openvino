@@ -9,6 +9,7 @@
 #include "debug_messages.hpp"
 #include "implementation_utils.hpp"
 #include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/common/common_utils.hpp"
 #include "nodes/executors/convolution_config.hpp"
 #include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
 #include "nodes/executors/dnnl/dnnl_fullyconnected.hpp"
@@ -400,7 +401,10 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             },
             // acceptsShapes
             [](const MemoryArgs& memory) -> bool {
-                return true;
+                const auto dequantizationScales = getDeQuantizedScales(memory);
+                bool isPerChannelQuantization = dequantizationScales.size() > 1;
+                // per-channel quantization is not unsupported by ACL
+                return !isPerChannelQuantization;
             },
             // create
             [](const FCAttrs& attrs,
