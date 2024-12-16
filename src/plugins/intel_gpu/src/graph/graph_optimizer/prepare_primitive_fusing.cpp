@@ -165,7 +165,7 @@ void prepare_primitive_fusing::fuse_reorders(program &p) {
 
 void prepare_primitive_fusing::fuse_swiglu(program &p) {
     GPU_DEBUG_GET_INSTANCE(debug_config);
-    bool disable_fc_swiglu_fusion = false;
+    bool disable_fc_swiglu_fusion = true;
     GPU_DEBUG_IF(debug_config->disable_fc_swiglu_fusion == 1)
         disable_fc_swiglu_fusion = true;
     // Apply only for high performant GPU

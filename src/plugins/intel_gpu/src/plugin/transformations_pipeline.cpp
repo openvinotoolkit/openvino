@@ -913,7 +913,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
 
         bool disable_horizontal_fc_fusion = false;
-        bool disable_fc_swiglu_fusion = false;
+        bool disable_fc_swiglu_fusion = true;
         GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->disable_horizontal_fc_fusion == 1)
             disable_horizontal_fc_fusion = true;
