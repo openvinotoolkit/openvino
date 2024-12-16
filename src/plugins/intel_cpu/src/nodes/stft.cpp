@@ -98,16 +98,17 @@ static void transpose_out4d(const uint8_t* in,
                        cpu_memcpy(out + out_off * elem_size, in + in_off * elem_size, out_shape[3] * elem_size);
                    });
 }
+}  // namespace
 
-static void stft_impl(const float* signal,
-                      const float* window,
-                      float* rdft_result,
-                      const VectorDims& signal_shape,
-                      const VectorDims& window_shape,
-                      const int64_t frame_size,
-                      const int64_t frame_step,
-                      const bool transpose_frames,
-                      std::shared_ptr<RDFTExecutor> rdft_executor) {
+void STFT::execute(dnnl::stream strm) {
+    const float* signal = getSrcDataAtPortAs<const float>(DATA_IDX);
+    const float* window = getSrcDataAtPortAs<const float>(WINDOW_IDX);
+    float* rdft_result = getDstDataAtPortAs<float>(0);
+    const VectorDims& signal_shape = getSrcMemoryAtPort(DATA_IDX)->getStaticDims();
+    const VectorDims& window_shape = getSrcMemoryAtPort(WINDOW_IDX)->getStaticDims();
+    const int64_t frame_size = (getSrcDataAtPortAs<const int32_t>(FRAME_SIZE_IDX))[0];
+    const int64_t frame_step = (getSrcDataAtPortAs<const int32_t>(FRAME_STEP_IDX))[0];
+
     const auto is_signal_1D = signal_shape.size() == 1;
     const size_t batch_size = is_signal_1D ? 1 : signal_shape[0];
     const size_t signal_axis = is_signal_1D ? 0 : 1;
@@ -122,6 +123,14 @@ static void stft_impl(const float* signal,
     cpu_parallel_memcpy(pad_window.data() + (frame_size_dim - window_length) / 2,
                         window,
                         sizeof(float) * window_shape[0]);
+
+    float* dst = rdft_result;
+    const auto stft_shape = VectorDims{batch_size, num_frames, fft_out_shape[0], fft_out_shape[1]};
+    if (m_transpose_frames) {  // Store intermediate results
+        MemoryPtr dst_mem =
+            getScratchPadMem(std::make_shared<CpuBlockedMemoryDesc>(ov::element::f32, Shape{stft_shape}));
+        dst = dst_mem->getDataAs<float>();
+    }
 
     parallel_for2d(batch_size, num_frames, [&](size_t batch, size_t frame_idx) {
         size_t batch_in_start = batch * signal_length;
@@ -139,7 +148,7 @@ static void stft_impl(const float* signal,
         const auto result_idx = (batch_frames_out + frame_idx) * fft_out_shape_size;
         auto twiddles = rdft_executor->generateTwiddles({static_cast<int>(signal_slice.size())}, fft_out_shape, {0});
         rdft_executor->execute(signal_slice.data(),
-                               rdft_result + result_idx,
+                               dst + result_idx,
                                twiddles,
                                1,
                                {0},
@@ -149,29 +158,14 @@ static void stft_impl(const float* signal,
                                {1},
                                {2, 1});
     });
-    if (transpose_frames) {
-        const auto stft_shape = VectorDims{batch_size, num_frames, fft_out_shape[0], fft_out_shape[1]};
+    if (m_transpose_frames) {
         const auto stft_transp_out_shape = VectorDims{batch_size, fft_out_shape[0], num_frames, fft_out_shape[1]};
-        std::vector<float> signal_t(rdft_result, rdft_result + shape_size(stft_transp_out_shape));
-        transpose_out4d(reinterpret_cast<const uint8_t*>(signal_t.data()),
+        transpose_out4d(reinterpret_cast<const uint8_t*>(dst),
                         reinterpret_cast<uint8_t*>(rdft_result),
                         stft_shape,
                         stft_transp_out_shape,
                         sizeof(float));
     }
-}
-}  // namespace
-
-void STFT::execute(dnnl::stream strm) {
-    stft_impl(getSrcDataAtPortAs<const float>(DATA_IDX),
-              getSrcDataAtPortAs<const float>(WINDOW_IDX),
-              getDstDataAtPortAs<float>(0),
-              getSrcMemoryAtPort(DATA_IDX)->getStaticDims(),
-              getSrcMemoryAtPort(WINDOW_IDX)->getStaticDims(),
-              (getSrcDataAtPortAs<const int32_t>(FRAME_SIZE_IDX))[0],
-              (getSrcDataAtPortAs<const int32_t>(FRAME_STEP_IDX))[0],
-              m_transpose_frames,
-              rdft_executor);
 }
 
 void STFT::executeDynamicImpl(dnnl::stream strm) {
