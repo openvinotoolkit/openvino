@@ -56,7 +56,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         config.scale_dt = element::f16;
         config.group_sizes = shape_group_size;
 
-        if (debug_config->dynamic_quantize_asym) {
+        GPU_DEBUG_IF(debug_config->dynamic_quantize_asym) {
             config.quantization_type = QuantizationType::Asymmetric;
             config.quantization_dt = element::u8;
             config.zp_dt = element::u8; // it supports u8 only now
