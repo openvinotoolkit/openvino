@@ -838,17 +838,20 @@ struct RDFTJitExecutor : public RDFTExecutor {
             rdftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx512_core>(isInverse, rdftType));
             dftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx512_core>(isInverse, complex_to_complex));
             vlen = cpu_isa_traits<cpu::x64::avx512_core>::vlen;
-            primDesc->setImplementationType(jit_avx512);
+            if (primDesc)
+                primDesc->setImplementationType(jit_avx512);
         } else if (mayiuse(cpu::x64::avx2)) {
             rdftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx2>(isInverse, rdftType));
             dftKernel.reset(new jit_dft_kernel_f32<cpu::x64::avx2>(isInverse, complex_to_complex));
             vlen = cpu_isa_traits<cpu::x64::avx2>::vlen;
-            primDesc->setImplementationType(jit_avx2);
+            if (primDesc)
+                primDesc->setImplementationType(jit_avx2);
         } else if (mayiuse(cpu::x64::sse41)) {
             rdftKernel.reset(new jit_dft_kernel_f32<cpu::x64::sse41>(isInverse, rdftType));
             dftKernel.reset(new jit_dft_kernel_f32<cpu::x64::sse41>(isInverse, complex_to_complex));
             vlen = cpu_isa_traits<cpu::x64::sse41>::vlen;
-            primDesc->setImplementationType(jit_sse42);
+            if (primDesc)
+                primDesc->setImplementationType(jit_sse42);
         } else {
             OPENVINO_THROW("Can't create RDFT kernel");
         }
