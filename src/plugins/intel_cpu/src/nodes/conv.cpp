@@ -980,6 +980,10 @@ void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
         memory::data_type bdt = outDnnlDesc.get_data_type();
 #else
         memory::data_type bdt = memory::data_type::f32;
+        // brdgmm_dw_conv supports only bia_type the same as src_type or dst_type
+        auto out_dt = outDnnlDesc.get_data_type();
+        if (!canBeExecutedInInt8() && isDepthWise() && out_dt != memory::data_type::f32)
+            bdt = out_dt;
 #endif
         biasDnnlDesc =
             dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(expectedBiasDims), bdt, memory::format_tag::any);
