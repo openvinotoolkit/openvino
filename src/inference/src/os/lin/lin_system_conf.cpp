@@ -115,7 +115,7 @@ CPU::CPU() {
                                     return -1;
                                 }
                             }
-                            system_info_table[cpu_index][n] = one_info;
+                            system_info_table[cpu_index][n] = std::move(one_info);
                         }
                     }
                 }
