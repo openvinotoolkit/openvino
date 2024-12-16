@@ -10,12 +10,13 @@
 #include <vector>
 
 #include "nodes/executors/memory_arguments.hpp"
+#include "utils/cpp/maybe_unused.hpp"
 #include "utils/cpu_utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-static std::vector<float> getDeQuantizedScales(const MemoryArgs& memory) {
+OV_CPU_MAYBE_UNUSED_FUNCTION static std::vector<float> getDeQuantizedScales(const MemoryArgs& memory) {
     if (!memory.count(ARG_DST_DEQ_SCALE))
         return {};
 
