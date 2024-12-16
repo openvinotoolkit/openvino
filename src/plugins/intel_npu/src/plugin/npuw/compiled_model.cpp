@@ -485,6 +485,9 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
                                                            const std::string& device) const {
     using namespace ov::npuw::s11n;
 
+    static std::string filename = "/home/alexeysm/npuw/tmp_subs/";
+    static std::size_t fid = 0;
+
     LOG_DEBUG("Serializing CompiledModelDesc...");
     LOG_BLOCK();
 
@@ -495,7 +498,11 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
     // FIXME: is this check enough? E.g. what about FUNCALL_FOR_ALL?
     if (replaced_by == idx) {
         NPUW_ASSERT(compiled_model);
-        compiled_model->export_model(stream);
+        // !!! FIXME: for some reason cannot import anything after the first submodel
+        // if it's in the same stream
+        std::ofstream fout(filename + "openvino_model" + std::to_string(fid++) + ".blob",
+                           std::ios::out | std::ios::binary);
+        compiled_model->export_model(fout);
     }
     write(stream, param_base);
     write(stream, forced_to_fcall);
@@ -539,6 +546,9 @@ ov::npuw::CompiledModel::CompiledModelDesc ov::npuw::CompiledModel::CompiledMode
     const ov::AnyMap& properties) {
     using namespace ov::npuw::s11n;
 
+    static std::string filename = "/home/alexeysm/npuw/tmp_subs/";
+    static std::size_t fid = 0;
+
     LOG_DEBUG("Deserializing CompiledModelDesc...");
     LOG_BLOCK();
 
@@ -551,7 +561,12 @@ ov::npuw::CompiledModel::CompiledModelDesc ov::npuw::CompiledModel::CompiledMode
     // FIXME: will this check work w/o FUNCALL_FORALL?
     if (desc.replaced_by == idx) {
         // Import model from either NPU or CPU plugin
-        desc.compiled_model = plugin->get_core()->import_model(stream, device, properties);
+        // !!! FIXME: for some reason cannot import anything after the first submodel
+        // if it's in the same stream
+        std::ifstream fin(filename + "openvino_model" + std::to_string(fid++) + ".blob",
+                          std::ios::in | std::ios::binary);
+        // No NPUW properties are present in this config
+        desc.compiled_model = plugin->get_core()->import_model(fin, device, properties);
     }
     read(stream, desc.param_base);
     read(stream, desc.forced_to_fcall);
@@ -680,6 +695,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
         read(stream, part_shape_str);
         auto param =
             std::make_shared<op::v0::Parameter>(ov::element::Type(elem_type_str), ov::PartialShape(part_shape_str));
+        param->set_friendly_name("serialized_param_" + std::to_string(i));
         parameters.push_back(param);
     }
 
@@ -697,6 +713,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
                                                      ov::PartialShape(part_shape_str));
         std::shared_ptr<ov::Node> result = std::make_shared<ov::op::v0::Result>(res);
         result->output(0).set_tensor_ptr(tensor_dummy);
+        result->set_friendly_name("serialized_result_" + std::to_string(i));
         results.push_back(result);
     }
 
