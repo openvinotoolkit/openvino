@@ -15,9 +15,9 @@ namespace intel_cpu {
 constexpr BlockedMemoryDesc::CmpMask BlockedMemoryDesc::FULL_MASK;
 constexpr BlockedMemoryDesc::CmpMask BlockedMemoryDesc::EMPTY_MASK;
 constexpr BlockedMemoryDesc::CmpMask BlockedMemoryDesc::SKIP_OFFSET_MASK;
-constexpr size_t                     BlockedMemoryDesc::OFFSET_MASK_POS;
+constexpr size_t BlockedMemoryDesc::OFFSET_MASK_POS;
 
-bool BlockedMemoryDesc::isCompatibleInternal(const BlockedMemoryDesc &rhs, CmpMask cmpMask) const {
+bool BlockedMemoryDesc::isCompatibleInternal(const BlockedMemoryDesc& rhs, CmpMask cmpMask) const {
     if (this->getShape() != rhs.getShape() || this->getPrecision() != rhs.getPrecision())
         return false;
 
@@ -77,5 +77,5 @@ std::string BlockedMemoryDesc::serializeFormat() const {
     return result.str();
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

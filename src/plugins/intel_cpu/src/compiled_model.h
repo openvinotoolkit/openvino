@@ -94,5 +94,5 @@ private:
     bool m_has_sub_compiled_models = false;
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

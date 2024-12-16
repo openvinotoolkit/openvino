@@ -171,6 +171,10 @@ void prepare_primitive_fusing::fuse_swiglu(program &p) {
     // Apply only for high performant GPU
     if (disable_fc_swiglu_fusion || p.get_engine().get_device_info().execution_units_count < 128)
         return;
+
+    if (p.get_engine().get_device_info().supports_immad)
+        return;
+
     // TODO: to support other glu types && other weight data types
     auto itr = p.get_processing_order().begin();
     std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>> fusing_history;
@@ -463,7 +467,9 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                 if (desc->decompression_zero_point_scalar.has_value())
                     fc_with_bias_prim->decompression_zero_point_scalar = desc->decompression_zero_point_scalar.value();
                 fc_with_bias_prim->activation_scale = desc->activation_scale;
+                fc_with_bias_prim->activation_zero_point = desc->activation_zero_point;
                 fc_with_bias_prim->dynamic_quantized_activation = desc->dynamic_quantized_activation;
+                fc_with_bias_prim->dynamic_quantized_activation_zp = desc->dynamic_quantized_activation_zp;
             }
             auto& new_fc_node = p.get_or_create(fc_with_bias_prim);
             fuse_bias_f(fc, new_fc_node, bias_node, eltw_node);

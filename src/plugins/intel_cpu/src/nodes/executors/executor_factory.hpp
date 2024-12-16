@@ -19,7 +19,6 @@
 
 namespace ov {
 namespace intel_cpu {
-using namespace executor;
 
 template <typename Attrs>
 class ExecutorFactory {
