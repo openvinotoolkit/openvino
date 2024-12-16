@@ -10,6 +10,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/meta_data.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/loop.hpp"
@@ -831,7 +832,9 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
                            " has incorrect input with index ",
                            i,
                            "!");
-        if (ov::element::Type_t::undefined == inputs[i].get_element_type())
+
+        if (is_type<op::v0::Parameter>(inputs[i].get_node_shared_ptr()) &&
+            ov::element::Type_t::undefined == inputs[i].get_element_type())
             OPENVINO_THROW(params.type,
                            " layer ",
                            params.name,
@@ -947,10 +950,12 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
         }
         const auto size = dn.attribute("size");
         const auto offset = dn.attribute("offset");
-        if (size && offset) {
+        const auto element_type = dn.attribute("element_type");
+        if (size && offset && element_type) {
             rtInfo[ov::WeightlessCacheAttribute::get_type_info_static()] =
                 ov::WeightlessCacheAttribute(static_cast<size_t>(pugixml::get_uint64_attr(dn, "size")),
-                                             static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset")));
+                                             static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset")),
+                                             ov::element::Type(pugixml::get_str_attr(dn, "element_type")));
         }
     }
 
