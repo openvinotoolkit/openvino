@@ -29,7 +29,9 @@ private:
 
 class ModelDeserializer {
 public:
-    typedef std::function<std::shared_ptr<ov::Model>(const std::shared_ptr<ov::AlignedBuffer>&, const std::shared_ptr<ov::AlignedBuffer>&)> ModelBuilder;
+    typedef std::function<std::shared_ptr<ov::Model>(const std::shared_ptr<ov::AlignedBuffer>&,
+                                                     const std::shared_ptr<ov::AlignedBuffer>&)>
+        ModelBuilder;
 
     ModelDeserializer(std::istream& model,
                       std::shared_ptr<ov::AlignedBuffer> model_buffer,
@@ -55,5 +57,5 @@ protected:
     std::shared_ptr<ov::AlignedBuffer> m_model_buffer;
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

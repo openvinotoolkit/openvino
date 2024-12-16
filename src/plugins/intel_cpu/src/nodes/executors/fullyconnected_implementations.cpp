@@ -11,14 +11,14 @@
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/convolution_config.hpp"
 #include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
-#include "nodes/executors/dnnl/dnnl_fullyconnected_primitive.hpp"
 #include "nodes/executors/dnnl/dnnl_fullyconnected.hpp"
+#include "nodes/executors/dnnl/dnnl_fullyconnected_primitive.hpp"
 #include "nodes/executors/dnnl/dnnl_matmul_primitive.hpp"
 #include "nodes/executors/dnnl/dnnl_shape_agnostic_data.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_implementation.hpp"
-#include "nodes/executors/implementations.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
+#include "nodes/executors/implementations.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/mlas/mlas_gemm.hpp"
 #include "nodes/executors/precision_matcher.hpp"
@@ -30,7 +30,7 @@
 #include "utils/debug_capabilities.h"
 
 #if defined(OV_CPU_WITH_ACL)
-#include "nodes/executors/acl/acl_fullyconnected.hpp"
+#    include "nodes/executors/acl/acl_fullyconnected.hpp"
 #endif
 
 #if defined(OV_CPU_WITH_SHL)
@@ -50,7 +50,7 @@ using LayoutConfig = std::vector<LayoutType>;
 static const LayoutConfig dnnlFCLayoutConfig{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp};
 static const LayoutConfig aclFCLayoutConfig{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp};
 
-template<dnnl::impl::cpu::x64::cpu_isa_t ISA>
+template <dnnl::impl::cpu::x64::cpu_isa_t ISA>
 struct Require {
     bool operator()() {
         return dnnl::impl::cpu::x64::mayiuse(ISA);
@@ -144,10 +144,10 @@ static bool fullyMatchConfiguration(const MemoryDescArgs& currentDescriptors,
             continue;
 
         if (desc->getPrecision() != type)
-            return false; // type mismatch
+            return false;  // type mismatch
 
         if (!desc->hasLayoutType(layoutConfig[i]))
-            return false; // layout mismatch
+            return false;  // layout mismatch
     }
 
     return true;
@@ -207,6 +207,8 @@ OV_CPU_MAYBE_UNUSED_FUNCTION static inline bool noPostOps(const FCConfig& config
     return config.postOps.empty();
 }
 
+// to keep OV_CPU_INSTANCE macros aligned
+// clang-format off
 template <>
 const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
     static const std::vector<ExecutorImplementation<FCAttrs>> fullyconnectedImplementations {
@@ -492,5 +494,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
 
     return fullyconnectedImplementations;
 }
+// clang-format on
+
 }  // namespace intel_cpu
 }  // namespace ov
