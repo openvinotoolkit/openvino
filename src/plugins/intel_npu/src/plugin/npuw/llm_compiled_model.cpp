@@ -11,6 +11,8 @@
 
 const constexpr uint64_t SERIALIZATION_INDICATOR = 0x0123456789abcdef;
 
+const constexpr char* npuw_name_identifier = "NPUW_serialized_";
+
 namespace {
 uint32_t align_to(uint32_t value, uint32_t alignment) {
     return (value + alignment - 1) & ~(alignment - 1);
@@ -243,6 +245,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
                                              const ov::AnyMap& properties)
     : ov::npuw::ICompiledModel(model, plugin),
+      m_name(model->get_friendly_name()),
       m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
       m_cfg(m_options_desc) {
     LOG_DEBUG("Creating LLMCompiledModel");
@@ -256,6 +259,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     m_cfg.update(any_copy(npuw_llm_props));
 
     if (!model) {
+        LOG_DEBUG("LLMCompiledModel is being deserialized, skipping the full constructor flow...");
+        return;
+    }
+
+    if (m_name.find(npuw_name_identifier) != m_name.npos) {
         LOG_DEBUG("LLMCompiledModel is being deserialized, skipping the full constructor flow...");
         return;
     }
@@ -331,9 +339,60 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     NPUW_ASSERT(vmajor == OPENVINO_VERSION_MAJOR && vminor == OPENVINO_VERSION_MINOR &&
                 vpatch == OPENVINO_VERSION_PATCH && "Only blobs serialized with the same OV version are supported!");
 
-    // Create a dummy LLMCompiledModel with an empty ov::Model - this will skip the constructor flow
+    // Deserialize model name first
+    std::string model_name;
+    read(stream, model_name);
+
+    NPUW_ASSERT(model_name.find(npuw_name_identifier) != model_name.npos && "Model wasn't serialized via NPUW!");
+
+    // Create a dummy CompiledModel with an empty ov::Model - this will skip the constructor flow
     // to continue deserialization
-    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(nullptr, plugin, properties);
+    // FIXME: make a separate function
+    ov::ParameterVector parameters;
+    ov::NodeVector results;
+
+    std::size_t params_size = 0, results_size = 0;
+    read(stream, params_size);
+    for (std::size_t i = 0; i < params_size; ++i) {
+        std::string elem_type_str;
+        std::string part_shape_str;
+        std::unordered_set<std::string> names;
+        read(stream, elem_type_str);
+        read(stream, part_shape_str);
+        read(stream, names);
+        // NOTE: the code below is taken from NPU plugin's create_dummy_model()
+        auto param =
+            std::make_shared<op::v0::Parameter>(ov::element::Type(elem_type_str), ov::PartialShape(part_shape_str));
+        param->set_friendly_name(*names.begin());  // FIXME: any_name ?
+        param->output(0).get_tensor().set_names(names);
+        parameters.push_back(param);
+    }
+
+    read(stream, results_size);
+    for (std::size_t i = 0; i < results_size; ++i) {
+        std::string elem_type_str;
+        std::string part_shape_str;
+        std::unordered_set<std::string> names;
+        read(stream, elem_type_str);
+        read(stream, part_shape_str);
+        read(stream, names);
+        // NOTE: the code below is taken from NPU plugin's create_dummy_model()
+        std::shared_ptr<ov::Node> res =
+            std::make_shared<ov::op::v0::Constant>(ov::element::Type(elem_type_str), std::vector<size_t>{1});
+        // FIXME: serialize names as well?
+        const std::shared_ptr<ov::descriptor::Tensor>& tensor_dummy =
+            std::make_shared<ov::descriptor::Tensor>(ov::element::Type(elem_type_str),
+                                                     ov::PartialShape(part_shape_str),
+                                                     names);
+        std::shared_ptr<ov::Node> result = std::make_shared<ov::op::v0::Result>(res);
+        result->output(0).set_tensor_ptr(tensor_dummy);
+        result->set_friendly_name(*names.begin());  // any_name ?
+        results.push_back(result);
+    }
+
+    auto ov_model = std::make_shared<ov::Model>(results, parameters, model_name);
+
+    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(ov_model, plugin, properties);
 
     // Deserialize LLMCompiledModel-specific data
     read(stream, compiled->m_kvcache_desc.max_prompt_size);
@@ -378,6 +437,27 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     write(stream, OPENVINO_VERSION_MAJOR);
     write(stream, OPENVINO_VERSION_MINOR);
     write(stream, OPENVINO_VERSION_PATCH);
+
+    // Serialize name first + NPUW identifier for deserialization
+    // FIXME: consider a better approach then using name there
+    std::string name = std::string(npuw_name_identifier) + m_name;
+    write(stream, name);
+
+    // Serialize inputs and outputs
+    // FIXME: make a separate function
+    write(stream, inputs().size());
+    for (const auto& in : inputs()) {
+        write(stream, in.get_element_type().to_string());
+        write(stream, in.get_partial_shape().to_string());
+        write(stream, in.get_names());
+    }
+
+    write(stream, outputs().size());
+    for (const auto& out : outputs()) {
+        write(stream, out.get_element_type().to_string());
+        write(stream, out.get_partial_shape().to_string());
+        write(stream, out.get_names());
+    }
 
     // Serialize LLMCompiledModel-specific data
     write(stream, m_kvcache_desc.max_prompt_size);
