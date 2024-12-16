@@ -4,17 +4,16 @@
 
 #pragma once
 
+#include <bitset>
+#include <map>
+#include <mutex>
+
+#include "internal_properties.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "openvino/util/common_util.hpp"
-
-#include "internal_properties.hpp"
 #include "utils/debug_caps_config.h"
-
-#include <bitset>
-#include <map>
-#include <mutex>
 
 namespace ov {
 namespace intel_cpu {
@@ -38,11 +37,7 @@ struct Config {
         Disable,
     };
 
-    enum class ModelType {
-        CNN,
-        LLM,
-        Unknown
-    };
+    enum class ModelType { CNN, LLM, Unknown };
 
     bool collectPerfCounters = false;
     bool exclusiveAsyncRequests = false;
@@ -69,7 +64,8 @@ struct Config {
     bool streamsChanged = false;
     int threads = 0;
     int threadsPerStream = 0;
-    ov::threading::IStreamsExecutor::ThreadBindingType threadBindingType = ov::threading::IStreamsExecutor::ThreadBindingType::NONE;
+    ov::threading::IStreamsExecutor::ThreadBindingType threadBindingType =
+        ov::threading::IStreamsExecutor::ThreadBindingType::NONE;
     ov::hint::PerformanceMode hintPerfMode = ov::hint::PerformanceMode::LATENCY;
     std::vector<std::vector<int>> streamsRankTable;
     bool changedHintPerfMode = false;
@@ -122,4 +118,4 @@ struct Config {
 };
 
 }  // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov

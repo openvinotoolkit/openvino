@@ -33,16 +33,20 @@ public:
         bool run(snippets::lowered::LinearIR& linear_ir,
                  snippets::lowered::LinearIR::constExprIt begin,
                  snippets::lowered::LinearIR::constExprIt end) override;
-        std::shared_ptr<snippets::lowered::pass::PassBase> merge(const std::shared_ptr<snippets::lowered::pass::PassBase>& other) override;
+        std::shared_ptr<snippets::lowered::pass::PassBase> merge(
+            const std::shared_ptr<snippets::lowered::pass::PassBase>& other) override;
     };
 
 private:
-    static snippets::lowered::LinearIR::constExprIt move_new_memory_buffer(snippets::lowered::LinearIR& linear_ir,
-                                                                           const snippets::lowered::LinearIR::constExprIt& brgemm_it);
+    static snippets::lowered::LinearIR::constExprIt move_new_memory_buffer(
+        snippets::lowered::LinearIR& linear_ir,
+        const snippets::lowered::LinearIR::constExprIt& brgemm_it);
 
-    snippets::lowered::SpecificIterationHandlers get_k_loop_handlers(size_t work_amount, size_t block_size) const override;
+    snippets::lowered::SpecificIterationHandlers get_k_loop_handlers(size_t work_amount,
+                                                                     size_t block_size) const override;
 
-    std::tuple<size_t, size_t, size_t> get_blocking_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const override;
+    std::tuple<size_t, size_t, size_t> get_blocking_params(
+        const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const override;
     bool mark_blocking_loops(snippets::lowered::LinearIR& linear_ir,
                              const snippets::lowered::LinearIR::constExprIt& brgemm_it,
                              size_t m_block,
