@@ -190,6 +190,7 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
             ss << ptr->getData();
             ret = ss.str();
         } catch (const std::exception& e) {
+            std::cout << e.what() << std::endl;
             ret = "?";
         }
         return ret;
