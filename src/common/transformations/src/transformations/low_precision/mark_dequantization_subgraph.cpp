@@ -11,9 +11,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
@@ -82,14 +80,14 @@ ov::pass::MarkDequantization::MarkDequantization(const element::TypeVector& prec
 
     // zero points:
     auto zp_pattern = any_input();
-    auto zp_convert_pattern = optional<v0::Convert>(zp_pattern);
-    auto zp_reshape_pattern = optional<v1::Reshape, v0::Unsqueeze>({zp_convert_pattern, any_input()});
-    auto subtract_pattern = optional<v1::Subtract>({convert_pattern, zp_reshape_pattern});
+    auto zp_convert_pattern = pattern::optional<v0::Convert>(zp_pattern);
+    auto zp_reshape_pattern = pattern::optional<v1::Reshape, v0::Unsqueeze>({zp_convert_pattern, any_input()});
+    auto subtract_pattern = pattern::optional<v1::Subtract>({convert_pattern, zp_reshape_pattern});
 
     // scale:
     auto scale_pattern = any_input();
-    auto scale_convert_pattern = optional<v0::Convert>(scale_pattern);
-    auto scale_reshape_pattern = optional<v1::Reshape, v0::Unsqueeze>({scale_convert_pattern, any_input()});
+    auto scale_convert_pattern = pattern::optional<v0::Convert>(scale_pattern);
+    auto scale_reshape_pattern = pattern::optional<v1::Reshape, v0::Unsqueeze>({scale_convert_pattern, any_input()});
     auto multiply_pattern = wrap_type<v1::Multiply>({subtract_pattern, scale_reshape_pattern});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) -> bool {
@@ -146,12 +144,12 @@ ov::pass::KeepConstsPrecision::KeepConstsPrecision(const element::TypeVector& pr
 
     // zero points:
     auto zp_pattern = any_input();
-    auto zp_convert_pattern = optional<v0::Convert>(zp_pattern);
-    auto subtract_pattern = optional<v1::Subtract>({convert_pattern, zp_convert_pattern});
+    auto zp_convert_pattern = pattern::optional<v0::Convert>(zp_pattern);
+    auto subtract_pattern = pattern::optional<v1::Subtract>({convert_pattern, zp_convert_pattern});
 
     // scale:
     auto scale_pattern = any_input();
-    auto scale_convert_pattern = optional<v0::Convert>(scale_pattern);
+    auto scale_convert_pattern = pattern::optional<v0::Convert>(scale_pattern);
     auto multiply_pattern = wrap_type<v1::Multiply>({subtract_pattern, scale_convert_pattern});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) -> bool {
