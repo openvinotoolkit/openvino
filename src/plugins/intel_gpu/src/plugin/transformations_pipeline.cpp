@@ -16,6 +16,7 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "low_precision/add.hpp"
+#include "low_precision/clamp.hpp"
 #include "low_precision/concat.hpp"
 #include "low_precision/convolution.hpp"
 #include "low_precision/convolution_backprop_data.hpp"
@@ -30,9 +31,12 @@
 #include "low_precision/pull_reshape_through_dequantization.hpp"
 #include "low_precision/pull_transpose_through_dequantization.hpp"
 #include "low_precision/recurrent_cell.hpp"
+#include "low_precision/reshape.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
 #include "low_precision/strided_slice.hpp"
 #include "low_precision/transpose.hpp"
+#include "low_precision/unsqueeze.hpp"
+#include "low_precision/variadic_split.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -943,6 +947,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             pass_config->disable<MatMulTransformation>();
             pass_config->disable<MVNTransformation>();
             pass_config->disable<ConcatTransformation>();
+            pass_config->disable<ClampTransformation>();
+            pass_config->disable<UnsqueezeTransformation>();
+            pass_config->disable<VariadicSplitTransformation>();
+            pass_config->disable<ReshapeTransformation>();
+            pass_config->disable<TransposeTransformation>();
 
             pass_config->set_callback<FoldConvertTransformation>(
                 [](const std::shared_ptr<const ov::Node> &node) -> bool {
@@ -960,6 +969,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             auto lpt_pass = manager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization, params);
             lpt_pass->add_main<ov::pass::activations_scaling::EliminateMultiplyNorm>();
             lpt_pass->add_main<ov::pass::activations_scaling::MulConcatTransformation>();
+            lpt_pass->add_main<ov::pass::activations_scaling::MulMulTransformation>();
             manager.register_pass<ov::pass::activations_scaling::NormMulTransformation>();
             manager.register_pass<ov::pass::activations_scaling::EliminateMultiplyX1>();
         }

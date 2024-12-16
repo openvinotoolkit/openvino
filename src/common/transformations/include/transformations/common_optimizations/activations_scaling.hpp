@@ -35,6 +35,7 @@ class TRANSFORMATIONS_API EliminateMultiplyNorm;
 class TRANSFORMATIONS_API MulConcatTransformation;
 class TRANSFORMATIONS_API NormMulTransformation;
 class TRANSFORMATIONS_API EliminateMultiplyX1;
+class TRANSFORMATIONS_API MulMulTransformation;
 
 }  // namespace activations_scaling
 }  // namespace pass
@@ -79,4 +80,10 @@ class ov::pass::activations_scaling::EliminateMultiplyX1 : public ov::pass::Matc
 public:
     OPENVINO_RTTI("EliminateMultiplyX1", "0");
     EliminateMultiplyX1();
+};
+
+class ov::pass::activations_scaling::MulMulTransformation : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("MulMulTransformation", "0");
+    MulMulTransformation();
 };
