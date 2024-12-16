@@ -34,6 +34,7 @@ public:
      * @param linear_ir LinearIR
      */
     void update_loop_args(const ov::snippets::lowered::LinearIRCPtr& linear_ir) const;
+
 protected:
     void update(const ov::snippets::lowered::LinearIRCPtr& linear_ir) override;
     void update_tensor_rank(const ov::snippets::VectorDims& master_shape) const override;
@@ -43,5 +44,5 @@ protected:
     static const size_t rank6D;
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

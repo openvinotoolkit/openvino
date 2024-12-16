@@ -205,7 +205,7 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
     model_dir = Path(model_id.split("/")[-1] + "-ov")
     
     if not model_dir.exists():
-        optimum_cli(model_id, model_dir, additional_args={"trust-remote-code": "", "weight-format": "fp16"})
+        optimum_cli(model_id, model_dir, additional_args={"trust-remote-code": "", "weight-format": "fp16", "task": "image-text-to-text"})
         compress_lm_weights(model_dir)
 
 

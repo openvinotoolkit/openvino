@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/opsets/opset4.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -25,25 +25,25 @@ protected:
     }
 };
 
-class MHAFloatFusion: public MHAFusionBase {
+class MHAFloatFusion : public MHAFusionBase {
 public:
     OPENVINO_RTTI("MHAFloatFusion", "0");
     MHAFloatFusion();
 };
 
-class MHAFloatFusion2: public MHAFusionBase {
+class MHAFloatFusion2 : public MHAFusionBase {
 public:
     OPENVINO_RTTI("MHAFloatFusion2", "0");
     MHAFloatFusion2();
 };
 
-class MHAQuantFusion: public MHAFusionBase {
+class MHAQuantFusion : public MHAFusionBase {
 public:
     OPENVINO_RTTI("MHAQuantFusion", "0");
     MHAQuantFusion();
 };
 
-class MHAQuantFusion2: public MHAFusionBase {
+class MHAQuantFusion2 : public MHAFusionBase {
 public:
     OPENVINO_RTTI("MHAQuantFusion2", "0");
     MHAQuantFusion2();
@@ -60,5 +60,5 @@ public:
     }
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

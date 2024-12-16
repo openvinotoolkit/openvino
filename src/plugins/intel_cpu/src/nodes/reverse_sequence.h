@@ -14,7 +14,7 @@ class ReverseSequence : public Node {
 public:
     ReverseSequence(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;
     bool created() const override;
@@ -29,10 +29,11 @@ private:
         ReverseSequenceExecutor(const VectorDims& dataDims,
                                 const VectorDims& seqLengthsDims,
                                 const VectorDims& dstDims,
-                                int batchAxis, int seqAxis);
+                                int batchAxis,
+                                int seqAxis);
         ~ReverseSequenceExecutor() = default;
 
-        template<typename T>
+        template <typename T>
         void exec(const MemoryPtr& dataMemPtr, const MemoryPtr& seqLengthsMemPtr, const MemoryPtr& dstMemPtr);
 
     private:
@@ -55,6 +56,6 @@ private:
     std::string errorPrefix;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov
