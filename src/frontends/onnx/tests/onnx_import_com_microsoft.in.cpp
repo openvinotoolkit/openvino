@@ -1373,7 +1373,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_dynamic_quantize_matmul) {
     test_case.add_input<float>(Shape{3,2}, input_A);
     test_case.add_input<int8_t>(Shape{2,3}, input_B);
     test_case.add_input<int8_t>(Shape{1}, b_zero_point);
-    test_case.add_input<int8_t>(Shape{1}, b_scale);
+    test_case.add_input<float>(Shape{1}, b_scale);
 
     test_case.add_expected_output<float>(Shape{3,3}, expected);
 
