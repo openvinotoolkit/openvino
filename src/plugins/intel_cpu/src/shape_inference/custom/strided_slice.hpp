@@ -3,6 +3,7 @@
 //
 
 #include <node.h>
+
 #include "shape_inference/shape_inference_cpu.hpp"
 
 #pragma once
@@ -11,7 +12,7 @@ namespace intel_cpu {
 namespace node {
 using Result = IShapeInfer::Result;
 
-constexpr IShapeInfer::port_mask_t port_mask = PortMask(/*BEGIN_ID*/1, /*END_ID*/2, /*STRIDE_ID*/3, /*AXES_ID*/4);
+constexpr IShapeInfer::port_mask_t port_mask = PortMask(/*BEGIN_ID*/ 1, /*END_ID*/ 2, /*STRIDE_ID*/ 3, /*AXES_ID*/ 4);
 
 class StridedSliceShapeInfer : public ShapeInferEmptyPads {
 public:
@@ -21,9 +22,8 @@ public:
                            std::unordered_set<int64_t> new_axis_mask,
                            std::unordered_set<int64_t> shrink_axis_mask);
 
-    Result infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
+    Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                 const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
 
     port_mask_t get_port_mask() const override {
         return port_mask;
@@ -39,15 +39,13 @@ private:
 
 class StridedSliceShapeInferFactory : public ShapeInferFactory {
 public:
-    StridedSliceShapeInferFactory(const std::shared_ptr<ov::Node>& op)
-    : m_op(op) {}
+    StridedSliceShapeInferFactory(const std::shared_ptr<ov::Node>& op) : m_op(op) {}
     ShapeInferPtr makeShapeInfer() const override;
 
 private:
     const std::shared_ptr<ov::Node> m_op;
 };
 
-} // namespace node
-} // namespace intel_cpu
-} // namespace ov
-
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov
