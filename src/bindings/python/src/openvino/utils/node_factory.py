@@ -4,7 +4,7 @@
 
 import logging as log
 
-from functools import partial, singledispatchmethod
+from functools import singledispatchmethod
 from typing import Any, Dict, List, Optional, Union
 from pathlib import Path
 
