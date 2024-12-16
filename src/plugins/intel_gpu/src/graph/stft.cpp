@@ -61,8 +61,10 @@ std::vector<layout> STFT_inst::calc_output_layouts(STFT_node const& node, kernel
 std::string STFT_inst::to_string(STFT_node const& node) {
     auto node_info = node.desc_to_json();
     json_composite STFT_info;
-    STFT_info.add("signal id", node.input(0).id());
-    STFT_info.add("window id", node.input(1).id());
+    STFT_info.add("signal", node.input(0).id());
+    STFT_info.add("window", node.input(1).id());
+    STFT_info.add("framesize", node.input(2).id());
+    STFT_info.add("framestep", node.input(3).id());
     STFT_info.add("transpose_frames", node.get_primitive()->transpose_frames);
     node_info->add("STFT info", STFT_info);
     std::stringstream primitive_description;

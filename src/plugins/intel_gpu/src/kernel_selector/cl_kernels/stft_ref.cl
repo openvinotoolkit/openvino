@@ -47,7 +47,7 @@ KERNEL(stft_ref)(
         const cfloat e_i = expmi(dft_power*(float)(i+start_offset));
         const cfloat val_i = crmult(e_i, x_i);
 
-        //Kahan sum algo:
+        // Kahan sum algo:
         const cfloat y = csub(val_i, err);
         const cfloat newSum = cadd(freq_val, y);
         err = csub(newSum, freq_val);

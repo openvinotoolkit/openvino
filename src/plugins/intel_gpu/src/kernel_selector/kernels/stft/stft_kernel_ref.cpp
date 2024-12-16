@@ -19,10 +19,8 @@ ParamsKey STFTKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::BF16);
 
     k.EnableInputLayout(DataLayout::bfyx);
-    k.EnableInputLayout(DataLayout::bfzyx);
 
     k.EnableOutputLayout(DataLayout::bfyx);
-    k.EnableOutputLayout(DataLayout::bfzyx);
 
     k.EnableTensorOffset();
     k.EnableTensorPitches();
