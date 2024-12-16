@@ -451,8 +451,8 @@ NetworkDebugHelper::~NetworkDebugHelper() {
         };
         std::string path = get_dir_path(m_network.get_config());
         if (!path.empty()) {
-            std::ofstream ofs(path + "cldnn_program_exec_p" + get_fixed_str(prog->get_id()) + "_n" + get_fixed_str(net_id)
-                              + "_" + get_fixed_str(m_iter, 5) + ".graph");
+            std::ofstream ofs(path + "cldnn_program_exec_p" + get_fixed_str(static_cast<int>(prog->get_id())) + "_n" + get_fixed_str(static_cast<int>(net_id))
+                              + "_" + get_fixed_str(static_cast<int>(m_iter), 5) + ".graph");
             dump_graph_init(ofs, *prog, [this](const primitive_id& id) -> std::shared_ptr<const primitive_inst> {
                 return m_network.get_primitive(id);
             });
