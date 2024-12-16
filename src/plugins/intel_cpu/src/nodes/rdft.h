@@ -31,6 +31,8 @@ public:
                                                      const std::vector<size_t>& outputShape,
                                                      const std::vector<int>& axes);
 
+    static std::shared_ptr<RDFTExecutor> build(bool inverse, NodeDesc* primDesc = nullptr);
+
 protected:
     bool isInverse;
 
@@ -94,66 +96,6 @@ private:
     std::vector<float> generateTwiddlesFFT(size_t N);
     std::vector<float> generateTwiddlesCommon(size_t inputSize, size_t outputSize, enum dft_type type, bool useFFT);
 };
-
-struct RDFTRefExecutor : public RDFTExecutor {
-    RDFTRefExecutor(bool inverse);
-
-private:
-    std::vector<float> generateTwiddlesDFT(size_t inputSize, size_t outputSize, enum dft_type type) override;
-    void dftRealToComplex(float* inputPtr,
-                          const float* twiddlesPtr,
-                          float* outputPtr,
-                          size_t inputSize,
-                          size_t outputSize,
-                          bool parallelize);
-
-    void dftComplexToComplex(float* inputPtr,
-                             const float* twiddlesPtr,
-                             float* outputPtr,
-                             size_t inputSize,
-                             size_t signalSize,
-                             size_t outputSize,
-                             bool parallelize);
-
-    void dftComplexToReal(float* inputPtr,
-                          const float* twiddlesPtr,
-                          float* outputPtr,
-                          size_t inputSize,
-                          size_t signalSize,
-                          size_t outputSize,
-                          bool parallelize);
-
-    void dft(float* inputPtr,
-             const float* twiddlesPtr,
-             float* outputPtr,
-             size_t inputSize,
-             size_t signalSize,
-             size_t outputSize,
-             enum dft_type type,
-             bool parallelize) override;
-};
-
-#if defined(OPENVINO_ARCH_X86_64)
-struct RDFTJitExecutor : public RDFTExecutor {
-    RDFTJitExecutor(bool inverse, NodeDesc* primDesc = nullptr);
-
-    std::vector<float> generateTwiddlesDFT(size_t inputSize, size_t outputSize, enum dft_type type) override;
-    void dft(float* inputPtr,
-             const float* twiddlesPtr,
-             float* outputPtr,
-             size_t inputSize,
-             size_t signalSize,
-             size_t outputSize,
-             enum dft_type type,
-             bool parallelize) override;
-
-private:
-    std::unique_ptr<jit_dft_kernel> rdftKernel = nullptr;
-    std::unique_ptr<jit_dft_kernel> dftKernel = nullptr;
-
-    int vlen;
-};
-#endif
 
 class RDFT : public Node {
 public:

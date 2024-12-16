@@ -88,7 +88,7 @@ static void transpose_out4d(const uint8_t* in,
                    out_shape[1],
                    out_shape[2],
                    [in, out, axes_order, &in_shape, &out_shape, elem_size](size_t i, size_t j, size_t k) {
-                       size_t in_indexes[4];
+                       size_t in_indexes[3];
                        in_indexes[axes_order[0]] = i;
                        in_indexes[axes_order[1]] = j;
                        in_indexes[axes_order[2]] = k;
@@ -185,21 +185,8 @@ bool STFT::needShapeInfer() const {
 void STFT::createPrimitive() {
     RDFTKey key{};
     key.isInverse = false;
-
     auto buildExecutor = [&](const RDFTKey& key) -> std::shared_ptr<RDFTExecutor> {
-        std::shared_ptr<RDFTExecutor> executor;
-        NodeDesc* primDesc = getSelectedPrimitiveDescriptor();
-#if defined(OPENVINO_ARCH_X86_64)
-        using namespace dnnl::impl;
-        using namespace dnnl::impl::cpu::x64;
-        if (mayiuse(cpu::x64::sse41)) {
-            executor = std::make_shared<RDFTJitExecutor>(key.isInverse, primDesc);
-            return executor;
-        }
-#endif
-        executor = std::make_shared<RDFTRefExecutor>(key.isInverse);
-        primDesc->setImplementationType(ref_any);
-        return executor;
+        return RDFTExecutor::build(key.isInverse, getSelectedPrimitiveDescriptor());
     };
 
     auto cache = context->getParamsCache();
