@@ -11,7 +11,7 @@ import numpy as np
 
 from openvino.runtime.exceptions import OVTypeError
 from openvino.runtime import Node, Shape, Output, Type
-from openvino.runtime.op import Constant
+from openvino.op import Constant
 
 log = logging.getLogger(__name__)
 
