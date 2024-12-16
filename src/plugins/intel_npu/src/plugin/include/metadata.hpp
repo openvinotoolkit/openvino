@@ -1,0 +1,160 @@
+// Copyright (C) 2018-2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include <stdint.h>
+
+#include <memory>
+#include <optional>
+#include <string>
+#include <vector>
+
+namespace intel_npu {
+
+/**
+ * @brief Magic bytes used for identifying NPU blobs.
+ */
+constexpr std::string_view MAGIC_BYTES = "OVNPU";
+
+namespace {
+/**
+ * @brief Returns a uint32_t value which represents two uint16_t values concatenated.
+ * @details Convention for bumping the metadata version:
+ *              - Increment Major in case of: removing a current field OR adding a new field in between fields.
+ *              - Increment Minor in case of: adding a new field at the end.
+ *
+ * @return Major and minor versions concatenated into a single uint32_t value.
+ */
+constexpr uint32_t make_version(uint16_t major, uint16_t minor) {
+    return major << 16 | (minor & 0x0000ffff);
+}
+
+/**
+ * @brief Gets the major version.
+ *
+ * @return Major version.
+ */
+constexpr uint16_t get_major(uint32_t version) {
+    return static_cast<uint16_t>(version >> 16);
+}
+
+/**
+ * @brief Gets the minor version.
+ *
+ * @return Minor version.
+ */
+constexpr uint16_t get_minor(uint32_t version) {
+    return static_cast<uint16_t>(version);
+}
+}  // anonymous namespace
+
+/**
+ * @brief List of supported version formats.
+ */
+constexpr uint32_t METADATA_VERSION_1_0{make_version(1, 0)};
+
+/**
+ * @brief Current metadata version.
+ */
+constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_1_0};
+
+struct OpenvinoVersion {
+private:
+    std::string _version;
+    uint32_t _size;
+
+public:
+    OpenvinoVersion();
+
+    OpenvinoVersion(std::string_view version);
+
+    /**
+     * @brief Reads version data from a stream.
+     */
+    void read(std::istream& stream);
+
+    /**
+     * @brief Writes version data to a stream.
+     */
+    void write(std::ostream& stream);
+
+    /**
+     * @brief Gets the version string.
+     */
+    std::string get_version();
+};
+
+struct MetadataBase {
+    /**
+     * @brief Reads metadata from a stream.
+     */
+    virtual void read(std::istream& stream) = 0;
+
+    /**
+     * @brief Writes metadata to a stream.
+     */
+    virtual void write(std::ostream& stream) = 0;
+
+    virtual bool is_compatible() = 0;
+
+    virtual ~MetadataBase() = default;
+};
+
+/**
+ * @brief Template for metadata class handling.
+ *
+ * @attention It's a must to have metadata version as first field in any metadata specialization.
+ */
+template <uint32_t version>
+struct Metadata : public MetadataBase {};
+
+/**
+ * @brief Template specialization for metadata version 1.0.
+ */
+template <>
+struct Metadata<METADATA_VERSION_1_0> : public MetadataBase {
+protected:
+    uint32_t _version;
+    OpenvinoVersion _ovVersion;
+
+public:
+    Metadata(std::optional<std::string_view> ovVersion = std::nullopt);
+
+    void read(std::istream& stream) override;
+
+    void write(std::ostream& stream) override;
+
+    /**
+     * @brief Checks if metadata is supported.
+     *
+     * @return Returns:
+     *              - false:
+     *                  - if blob metadata does not match current metadata.
+     *                  - if blob OpenVINO version does not match current one.
+     *
+     *              - true: if all versions match.
+     *
+     * @note The version check can be disabled if the "NPU_DISABLE_VERSION_CHECK" environment variable is set to '1'.
+     */
+    bool is_compatible() override;
+};
+
+/**
+ * @brief Creates a Metadata object.
+ *
+ * @return Unique pointer to the created MetadataBase object if the major version is supported; otherwise, returns
+ * 'nullptr'.
+ */
+std::unique_ptr<MetadataBase> create_metadata(uint32_t version);
+
+/**
+ * @brief Reads metadata from a blob.
+ *
+ * @return If the blob is versioned and its major version is supported, returns an unique pointer to the read
+ * MetadataBase object; otherwise, returns 'nullptr'.
+ */
+std::unique_ptr<MetadataBase> read_metadata_from(const std::vector<uint8_t>& blob);
+
+}  // namespace intel_npu

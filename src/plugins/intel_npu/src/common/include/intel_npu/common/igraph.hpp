@@ -23,7 +23,7 @@ public:
            const Config& config,
            std::optional<std::vector<uint8_t>> blob);
 
-    virtual void export_blob(std::ostream& stream) const = 0;
+    virtual size_t export_blob(std::ostream& stream) const = 0;
 
     virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                                     const Config& config) const = 0;
