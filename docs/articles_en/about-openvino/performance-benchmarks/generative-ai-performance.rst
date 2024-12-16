@@ -8,7 +8,6 @@ The current data is as of OpenVINO 2024.4, 20 Nov. 2024.
 The tables below list the key performance indicators for inference on built-in GPUs.
 
 
-
 .. raw:: html
 
    <label><link rel="stylesheet" type="text/css" href="../../_static/css/openVinoDataTables.css"></label>
@@ -20,7 +19,7 @@ The tables below list the key performance indicators for inference on built-in G
 
       .. csv-table::
          :class: modeldata stripe
-         :name: supportedModelsTableOv
+         :name: supportedModelsTable_V1
          :header-rows: 1
          :file:  ../../_static/benchmarks_files/llm_models_9-288V.csv
 
@@ -28,7 +27,7 @@ The tables below list the key performance indicators for inference on built-in G
 
       .. csv-table::
          :class: modeldata stripe
-         :name: supportedModelsTableOv
+         :name: supportedModelsTable_V2
          :header-rows: 1
          :file:  ../../_static/benchmarks_files/llm_models_7-258V.csv
 
@@ -36,7 +35,7 @@ The tables below list the key performance indicators for inference on built-in G
 
       .. csv-table::
          :class: modeldata stripe
-         :name: supportedModelsTableOv
+         :name: supportedModelsTable_V3
          :header-rows: 1
          :file:  ../../_static/benchmarks_files/llm_models_7-155H.csv
 
