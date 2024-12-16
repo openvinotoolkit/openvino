@@ -67,7 +67,7 @@ from openvino._ov_api import InferRequest
 from openvino._ov_api import AsyncInferQueue
 
 # Helper functions for openvino module
-from openvino.runtime.utils.data_helpers import tensor_from_file
+from openvino.utils.data_helpers import tensor_from_file
 from openvino._ov_api import compile_model
 
 
