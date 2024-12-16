@@ -23,11 +23,11 @@ struct MemoryRegion {
 
 struct MemoryStatisticsRecord {
     const char* id;
-    size_t total_regions; // number of regions
-    size_t total_blocks; // bytes
-    size_t total_size; // bytes
-    size_t optimal_total_size; // bytes
-    size_t max_region_size;  // bytes
+    size_t total_regions;        // number of regions
+    size_t total_unique_blocks;  // bytes
+    size_t total_size;           // bytes
+    size_t optimal_total_size;   // bytes
+    size_t max_region_size;      // bytes
 };
 
 std::ostream& operator<<(std::ostream& os, const MemoryStatisticsRecord& record);

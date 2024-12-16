@@ -5,12 +5,11 @@
 #include "memory_control.hpp"
 
 #include <ov_optional.hpp>
+#include <queue>
 
 #include "node.h"
 #include "openvino/runtime/memory_solver.hpp"
 #include "utils/general_utils.h"
-
-#include <queue>
 
 namespace ov {
 namespace intel_cpu {
@@ -144,7 +143,7 @@ std::shared_ptr<DnnlMemoryBlock> makeDnnlMemoryBlock(Args&&... args) {
     return std::make_shared<DnnlMemoryBlock>(make_unique<T>(std::forward<Args>(args)...));
 }
 
-template<typename T>
+template <typename T>
 std::shared_ptr<DnnlMemoryBlock> makeDnnlMemoryBlock(std::unique_ptr<T> ptr) {
     return std::make_shared<DnnlMemoryBlock>(std::move(ptr));
 }
@@ -155,7 +154,7 @@ public:
 
 public:
     void insert(const MemoryRegion& reg, const std::vector<size_t>& syncInds) override {
-        (void) syncInds;
+        (void)syncInds;
         auto block = make_unique<BlockType>();
         m_blocks.push_back(*block);
         m_solution.insert({reg.id, makeDnnlMemoryBlock(std::move(block))});
@@ -175,22 +174,17 @@ public:
     MemoryStatisticsRecord dumpStatistics() override {
         MemoryStatisticsRecord retVal;
         retVal.id = getClassName();
-        retVal.total_regions = m_blocks.size(); // as the number of blocks ie equal to regions
-        retVal.total_blocks = m_blocks.size();
-        retVal.total_size = std::accumulate(m_blocks.begin(),
-                                            m_blocks.end(),
-                                            0,
-                                            [](size_t acc, const BlockType& item) {
-                                                return acc + item.size();
-                                            });
+        retVal.total_regions = m_blocks.size();  // as the number of blocks ie equal to regions
+        retVal.total_unique_blocks = m_blocks.size();
+        retVal.total_size = std::accumulate(m_blocks.begin(), m_blocks.end(), 0, [](size_t acc, const BlockType& item) {
+            return acc + item.size();
+        });
         retVal.optimal_total_size = retVal.total_size;
         // find max size memory block in m_blocks
-        retVal.max_region_size = std::accumulate(m_blocks.begin(),
-                                                m_blocks.end(),
-                                                0,
-                                                [](size_t acc, const BlockType& item) {
-                                                    return std::max(acc, item.size());
-                                                });
+        retVal.max_region_size =
+            std::accumulate(m_blocks.begin(), m_blocks.end(), 0, [](size_t acc, const BlockType& item) {
+                return std::max(acc, item.size());
+            });
         return retVal;
     }
 
@@ -234,7 +228,7 @@ static std::pair<int64_t, int64_t> calculateOptimalMemorySize(std::vector<Memory
 class MemoryManagerStatic : public IMemoryManager {
 public:
     void insert(const MemoryRegion& reg, const std::vector<size_t>& syncInds) override {
-        (void) syncInds;
+        (void)syncInds;
         OPENVINO_ASSERT(reg.size >= 0, getClassName(), ": got undefined block size");
         m_boxes.emplace_back(MemorySolver::Box{reg.start, reg.finish, reg.size, reg.id});
         reset_flag = true;
@@ -252,7 +246,7 @@ public:
         MemoryStatisticsRecord retVal;
         retVal.id = getClassName();
         retVal.total_regions = m_boxes.size();
-        retVal.total_blocks = m_blocks.size();
+        retVal.total_unique_blocks = 1;  // in fact there is only one unique block
         retVal.total_size = m_totalSize;
 
         {
@@ -310,14 +304,13 @@ public:
     void insert(const MemoryRegion& reg, const std::vector<size_t>& syncInds) override {
         MemorySolver::Box box = {reg.start, reg.finish, reg.size, reg.id};
         if (-1 != reg.finish) {
-            //We have to extend the lifespan of tensors that are crossing a sync point border in order to save
-            //the intermediate computation results from possible loss due to the tensor resize
-            auto itr_upper =
-                std::upper_bound(syncInds.begin(), syncInds.end(), box.finish, [](int y, int x) {
-                    return y <= x;
-                });
+            // We have to extend the lifespan of tensors that are crossing a sync point border in order to save
+            // the intermediate computation results from possible loss due to the tensor resize
+            auto itr_upper = std::upper_bound(syncInds.begin(), syncInds.end(), box.finish, [](int y, int x) {
+                return y <= x;
+            });
             auto itr_lower = std::lower_bound(syncInds.begin(), syncInds.end(), box.start);
-            if (itr_lower != itr_upper) { // across sections
+            if (itr_lower != itr_upper) {  // across sections
                 if (itr_upper == syncInds.end()) {
                     box.finish = -1;
                 } else {
@@ -342,7 +335,7 @@ public:
         MemoryStatisticsRecord retVal;
         retVal.id = getClassName();
         retVal.total_regions = m_boxes.size();
-        retVal.total_blocks = m_internalBlocks.size();
+        retVal.total_unique_blocks = m_unique_blocks.size();
         retVal.total_size = std::accumulate(m_unique_blocks.begin(),
                                             m_unique_blocks.end(),
                                             0,
@@ -426,7 +419,7 @@ private:
 std::ostream& operator<<(std::ostream& os, const MemoryStatisticsRecord& record) {
     os << "Memory profile record: " << record.id << std::endl;
     os << "Total regions: " << record.total_regions << std::endl;
-    os << "Total blocks: " << record.total_blocks << std::endl;
+    os << "Total unique blocks: " << record.total_unique_blocks << std::endl;
     os << "Total size: " << record.total_size << " bytes" << std::endl;
     os << "Optimal total size: " << record.optimal_total_size << " bytes" << std::endl;
     os << "Max region size: " << record.max_region_size << " bytes" << std::endl;
