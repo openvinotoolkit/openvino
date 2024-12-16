@@ -184,7 +184,6 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
 }
 
 std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request() const {
-    m_numRequests++;
     return std::make_shared<SyncInferRequest>(std::static_pointer_cast<const CompiledModel>(shared_from_this()));
 }
 
@@ -344,8 +343,12 @@ void CompiledModel::export_model(std::ostream& modelStream) const {
 
 void CompiledModel::release_memory() {
     for (auto&& graph : m_graphs) {
-        GraphGuard::Lock graph_lock{graph};
-        auto ctx = graph_lock._graph.getGraphContext();
+        // try to lock mutex, since it may be already locked (e.g by an infer request)
+        std::unique_lock<std::mutex> lock(graph._mutex, std::try_to_lock);
+        OPENVINO_ASSERT(lock.owns_lock(),
+                        "Attempt to call release_memory() on a compiled model in a busy state. Please ensure that all "
+                        "infer requests are completed before releasing memory.");
+        auto ctx = graph.getGraphContext();
         ctx->getNetworkMemoryControl()->releaseMemory();
     }
 }
