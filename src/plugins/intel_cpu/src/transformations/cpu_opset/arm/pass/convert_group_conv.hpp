@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 /*
  * Description:
@@ -59,7 +59,7 @@
 namespace ov {
 namespace intel_cpu {
 
-class ConvertGroupConvolution: public ov::pass::MatcherPass {
+class ConvertGroupConvolution : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ConvertGroupConvolution");
     ConvertGroupConvolution();
