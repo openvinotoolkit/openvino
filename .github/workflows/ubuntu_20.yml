@@ -98,6 +98,7 @@ jobs:
             -DENABLE_SYSTEM_OPENCL=ON \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCPACK_GENERATOR=TGZ \
+            -DENABLE_WHEEL=ON \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
 
   CXX_Unit_Tests:
