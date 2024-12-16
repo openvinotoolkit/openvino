@@ -278,7 +278,11 @@ StreamsCalculationTestCase _2sockets_104cores_latency_socket_8 = {
     "LATENCY",
     {},
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
-    {{1, ALL_PROC, 104, 0, 0}, {0, MAIN_CORE_PROC, 52, 0, 0}, {0, HYPER_THREADING_PROC, 52, 0, 0}},
+    {{1, ALL_PROC, 208, -1, -1},
+     {0, MAIN_CORE_PROC, 52, 0, 0},
+     {0, HYPER_THREADING_PROC, 52, 0, 0},
+     {0, MAIN_CORE_PROC, 52, 1, 1},
+     {0, HYPER_THREADING_PROC, 52, 1, 1}},
 };
 StreamsCalculationTestCase _2sockets_104cores_latency_socket_9 = {
     1,
@@ -329,18 +333,6 @@ StreamsCalculationTestCase _2sockets_104cores_latency_2 = {
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
     {{1, MAIN_CORE_PROC, 20, 0, 0}},
 };
-StreamsCalculationTestCase _2sockets_104cores_latency_3 = {
-    1,
-    false,
-    208,
-    0,
-    0,
-    0,
-    "LATENCY",
-    {},
-    {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
-    {{1, ALL_PROC, 104, 0, 0}, {0, MAIN_CORE_PROC, 52, 0, 0}, {0, HYPER_THREADING_PROC, 52, 0, 0}},
-};
 StreamsCalculationTestCase _2sockets_104cores_latency_4 = {
     1,
     true,
@@ -375,7 +367,11 @@ StreamsCalculationTestCase _2sockets_104cores_latency_6 = {
     "LATENCY",
     {},
     {{208, 104, 0, 104, -1, -1}, {104, 52, 0, 52, 0, 0}, {104, 52, 0, 52, 1, 1}},
-    {{1, ALL_PROC, 104, 0, 0}, {0, MAIN_CORE_PROC, 52, 0, 0}, {0, HYPER_THREADING_PROC, 52, 0, 0}},
+    {{1, ALL_PROC, 208, -1, -1},
+     {0, MAIN_CORE_PROC, 52, 0, 0},
+     {0, HYPER_THREADING_PROC, 52, 0, 0},
+     {0, MAIN_CORE_PROC, 52, 1, 1},
+     {0, HYPER_THREADING_PROC, 52, 1, 1}},
 };
 StreamsCalculationTestCase _2sockets_104cores_tput_1 = {
     1,
@@ -749,7 +745,7 @@ StreamsCalculationTestCase _2sockets_48cores_latency_3 = {
     "LATENCY",
     {},
     {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
-    {{1, MAIN_CORE_PROC, 24, 0, 0}},
+    {{1, ALL_PROC, 48, -1, -1}, {0, MAIN_CORE_PROC, 24, 0, 0}, {0, MAIN_CORE_PROC, 24, 1, 1}},
 };
 StreamsCalculationTestCase _2sockets_48cores_tput_1 = {
     1,
@@ -2038,7 +2034,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_5 = {
     "LATENCY",
     {},
     {{60, 60, 0, 0, -1, -1}, {20, 20, 0, 0, 1, 1}, {40, 40, 0, 0, 0, 0}},
-    {{1, MAIN_CORE_PROC, 20, 1, 1}},
+    {{1, ALL_PROC, 50, -1, -1}, {0, MAIN_CORE_PROC, 20, 1, 1}, {0, MAIN_CORE_PROC, 30, 0, 0}},
 };
 StreamsCalculationTestCase _2sockets_mock_latency_6 = {
     1,
@@ -2086,7 +2082,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_9 = {
     "LATENCY",
     {},
     {{60, 0, 60, 0, -1, -1}, {20, 0, 20, 0, 1, 1}, {40, 0, 40, 0, 0, 0}},
-    {{1, EFFICIENT_CORE_PROC, 20, 1, 1}},
+    {{1, ALL_PROC, 50, -1, -1}, {0, EFFICIENT_CORE_PROC, 20, 1, 1}, {0, EFFICIENT_CORE_PROC, 30, 0, 0}},
 };
 StreamsCalculationTestCase _2sockets_mock_latency_10 = {
     1,
@@ -2134,7 +2130,11 @@ StreamsCalculationTestCase _2sockets_mock_latency_13 = {
     "LATENCY",
     {},
     {{60, 30, 0, 30, -1, -1}, {20, 10, 0, 10, 1, 1}, {40, 20, 0, 20, 0, 0}},
-    {{1, ALL_PROC, 20, 1, 1}, {0, MAIN_CORE_PROC, 10, 1, 1}, {0, HYPER_THREADING_PROC, 10, 1, 1}},
+    {{1, ALL_PROC, 50, -1, -1},
+     {0, MAIN_CORE_PROC, 10, 1, 1},
+     {0, HYPER_THREADING_PROC, 10, 1, 1},
+     {0, MAIN_CORE_PROC, 20, 0, 0},
+     {0, HYPER_THREADING_PROC, 10, 0, 0}},
 };
 StreamsCalculationTestCase _2sockets_mock_latency_14 = {
     1,
@@ -2198,7 +2198,10 @@ StreamsCalculationTestCase _2sockets_mock_latency_17 = {
      {80, 40, 0, 40, 0, 0},
      {60, 30, 0, 30, 1, 1},
      {40, 20, 0, 20, 2, 2}},
-    {{1, ALL_PROC, 20, 3, 3}, {0, MAIN_CORE_PROC, 10, 3, 3}, {0, HYPER_THREADING_PROC, 10, 3, 3}},
+    {{1, ALL_PROC, 50, -1, -1},
+     {0, MAIN_CORE_PROC, 10, 3, 3},
+     {0, HYPER_THREADING_PROC, 10, 3, 3},
+     {0, MAIN_CORE_PROC, 30, 0, 0}},
 };
 StreamsCalculationTestCase _2sockets_mock_latency_18 = {
     1,
@@ -2278,7 +2281,10 @@ StreamsCalculationTestCase _2sockets_mock_latency_21 = {
      {30, 15, 0, 15, 3, 3},
      {80, 40, 0, 40, 4, 4},
      {60, 30, 0, 30, 5, 5}},
-    {{1, ALL_PROC, 40, 6, 6}, {0, MAIN_CORE_PROC, 20, 6, 6}, {0, HYPER_THREADING_PROC, 20, 6, 6}},
+    {{1, ALL_PROC, 50, -1, -1},
+     {0, MAIN_CORE_PROC, 20, 6, 6},
+     {0, HYPER_THREADING_PROC, 20, 6, 6},
+     {0, MAIN_CORE_PROC, 10, 7, 7}},
 };
 StreamsCalculationTestCase _2sockets_mock_latency_22 = {
     1,
@@ -2418,31 +2424,15 @@ StreamsCalculationTestCase _2sockets_mock_latency_29 = {
      {60, 30, 0, 30, 1, 0},
      {40, 20, 0, 20, 2, 1},
      {20, 10, 0, 10, 3, 1}},
-    {{1, ALL_PROC, 140, -1, 0},
+    {{1, ALL_PROC, 200, -1, -1},
      {0, MAIN_CORE_PROC, 40, 0, 0},
      {0, MAIN_CORE_PROC, 30, 1, 0},
      {0, HYPER_THREADING_PROC, 40, 0, 0},
-     {0, HYPER_THREADING_PROC, 30, 1, 0}},
-};
-StreamsCalculationTestCase _2sockets_mock_latency_30 = {
-    1,
-    false,
-    200,
-    0,
-    0,
-    0,
-    "LATENCY",
-    {},
-    {{200, 100, 0, 100, -1, -1},
-     {80, 40, 0, 40, 0, 0},
-     {60, 30, 0, 30, 1, 0},
-     {40, 20, 0, 20, 2, 1},
-     {20, 10, 0, 10, 3, 1}},
-    {{1, ALL_PROC, 140, -1, 0},
-     {0, MAIN_CORE_PROC, 40, 0, 0},
-     {0, MAIN_CORE_PROC, 30, 1, 0},
-     {0, HYPER_THREADING_PROC, 40, 0, 0},
-     {0, HYPER_THREADING_PROC, 30, 1, 0}},
+     {0, HYPER_THREADING_PROC, 30, 1, 0},
+     {0, MAIN_CORE_PROC, 20, 2, 1},
+     {0, MAIN_CORE_PROC, 10, 3, 1},
+     {0, HYPER_THREADING_PROC, 20, 2, 1},
+     {0, HYPER_THREADING_PROC, 10, 3, 1}},
 };
 StreamsCalculationTestCase _2sockets_mock_latency_31 = {
     1,
@@ -2595,7 +2585,15 @@ StreamsCalculationTestCase _2sockets_mock_latency_35 = {
      {60, 30, 0, 30, 1, 1},
      {40, 20, 0, 20, 2, 2},
      {20, 10, 0, 10, 3, 3}},
-    {{1, ALL_PROC, 20, 3, 3}, {0, MAIN_CORE_PROC, 10, 3, 3}, {0, HYPER_THREADING_PROC, 10, 3, 3}},
+    {{1, ALL_PROC, 200, -1, -1},
+     {0, MAIN_CORE_PROC, 10, 3, 3},
+     {0, HYPER_THREADING_PROC, 10, 3, 3},
+     {0, MAIN_CORE_PROC, 40, 0, 0},
+     {0, MAIN_CORE_PROC, 30, 1, 1},
+     {0, MAIN_CORE_PROC, 20, 2, 2},
+     {0, HYPER_THREADING_PROC, 40, 0, 0},
+     {0, HYPER_THREADING_PROC, 30, 1, 1},
+     {0, HYPER_THREADING_PROC, 20, 2, 2}},
 };
 StreamsCalculationTestCase _2sockets_mock_latency_36 = {
     1,
@@ -2611,7 +2609,15 @@ StreamsCalculationTestCase _2sockets_mock_latency_36 = {
      {60, 30, 0, 30, 1, 1},
      {40, 20, 0, 20, 2, 2},
      {20, 10, 0, 10, 3, 3}},
-    {{1, ALL_PROC, 20, 3, 3}, {0, MAIN_CORE_PROC, 10, 3, 3}, {0, HYPER_THREADING_PROC, 10, 3, 3}},
+    {{1, ALL_PROC, 200, -1, -1},
+     {0, MAIN_CORE_PROC, 10, 3, 3},
+     {0, HYPER_THREADING_PROC, 10, 3, 3},
+     {0, MAIN_CORE_PROC, 40, 0, 0},
+     {0, MAIN_CORE_PROC, 30, 1, 1},
+     {0, MAIN_CORE_PROC, 20, 2, 2},
+     {0, HYPER_THREADING_PROC, 40, 0, 0},
+     {0, HYPER_THREADING_PROC, 30, 1, 1},
+     {0, HYPER_THREADING_PROC, 20, 2, 2}},
 };
 StreamsCalculationTestCase _2sockets_mock_latency_37 = {
     1,
@@ -2823,6 +2829,18 @@ StreamsCalculationTestCase _2sockets_mock_latency_50 = {
     {{208, 208, 0, 0, -1, -1}, {52, 52, 0, 0, 2, 1}, {52, 52, 0, 0, 3, 1}, {52, 52, 0, 0, 0, 0}, {52, 52, 0, 0, 1, 0}},
     {{1, ALL_PROC, 80, -1, 1}, {0, MAIN_CORE_PROC, 52, 2, 1}, {0, MAIN_CORE_PROC, 28, 3, 1}},
 };
+StreamsCalculationTestCase _2sockets_mock_latency_51 = {
+    1,
+    false,
+    16,
+    0,
+    0,
+    0,
+    "LATENCY",
+    {},
+    {{16, 16, 0, 0, -1, -1}, {8, 8, 0, 0, 0, 0}, {8, 8, 0, 0, 1, 1}},
+    {{1, ALL_PROC, 16, -1, -1}, {0, MAIN_CORE_PROC, 8, 0, 0}, {0, MAIN_CORE_PROC, 8, 1, 1}},
+};
 
 TEST_P(StreamsCalculationTests, StreamsCalculation) {}
 
@@ -2848,7 +2866,6 @@ INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
                                          _2sockets_104cores_latency_socket_10,
                                          _2sockets_104cores_latency_1,
                                          _2sockets_104cores_latency_2,
-                                         _2sockets_104cores_latency_3,
                                          _2sockets_104cores_latency_4,
                                          _2sockets_104cores_latency_5,
                                          _2sockets_104cores_latency_6,
@@ -2998,7 +3015,6 @@ INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
                                          _2sockets_mock_latency_27,
                                          _2sockets_mock_latency_28,
                                          _2sockets_mock_latency_29,
-                                         _2sockets_mock_latency_30,
                                          _2sockets_mock_latency_31,
                                          _2sockets_mock_latency_32,
                                          _2sockets_mock_latency_33,
@@ -3019,6 +3035,7 @@ INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
                                          _2sockets_mock_latency_48,
                                          _2sockets_mock_latency_49,
                                          _2sockets_mock_latency_50,
+                                         _2sockets_mock_latency_51,
                                          _1sockets_mock_latency_1,
                                          _1sockets_mock_latency_2,
                                          _1sockets_mock_latency_3,
