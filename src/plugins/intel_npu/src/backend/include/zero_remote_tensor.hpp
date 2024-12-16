@@ -14,7 +14,7 @@
 
 namespace intel_npu {
 
-class ZeroRemoteTensor : public RemoteTensor {
+class ZeroRemoteTensor final : public RemoteTensor {
 public:
     ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& context,
                      const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
@@ -24,6 +24,13 @@ public:
                      ov::intel_npu::TensorType tensor_type = ov::intel_npu::TensorType::BINDED,
                      ov::intel_npu::MemType mem_type = ov::intel_npu::MemType::L0_INTERNAL_BUF,
                      void* mem = nullptr);
+
+    /**
+     * @brief Set new shape for tensor
+     * @note Memory allocation may happen
+     * @param shape A new shape
+     */
+    void set_shape(ov::Shape shape) override;
 
     ~ZeroRemoteTensor() override;
 

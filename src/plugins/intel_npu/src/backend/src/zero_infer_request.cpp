@@ -12,8 +12,8 @@
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
-#include "openvino/runtime/make_tensor.hpp"
 #include "zero_memory.hpp"
+#include "zero_tensor.hpp"
 
 using namespace intel_npu;
 
@@ -191,7 +191,8 @@ void ZeroInferRequest::create_pipeline() {
             continue;
         }
 
-        _logger.debug("ZeroInferRequest::create_pipeline - allocate new tensor");
+        _logger.debug("ZeroInferRequest::create_pipeline - allocate new input tensor %s",
+                      _metadata.inputs.at(inputIndex).nodeFriendlyName.c_str());
         get_level_zero_input(inputIndex) = allocate_tensor(_metadata.inputs.at(inputIndex),
                                                            inputIndex,
                                                            INPUT,
@@ -206,7 +207,8 @@ void ZeroInferRequest::create_pipeline() {
                           _metadata.outputs.at(outputIndex).nodeFriendlyName.c_str());
             continue;
         }
-        _logger.debug("ZeroInferRequest::create_pipeline - allocate new tensor");
+        _logger.debug("ZeroInferRequest::create_pipeline - allocate new output tensor %s",
+                      _metadata.outputs.at(outputIndex).nodeFriendlyName.c_str());
         _levelZeroOutputTensors.at(outputIndex) = allocate_tensor(_metadata.outputs.at(outputIndex),
                                                                   outputIndex,
                                                                   OUTPUT,
@@ -221,7 +223,7 @@ void ZeroInferRequest::create_pipeline() {
                 continue;
             }
 
-            const IODescriptor inputDescriptor = _metadata.outputs.at(inputIndex);
+            const IODescriptor inputDescriptor = _metadata.inputs.at(inputIndex);
             if (inputDescriptor.isShapeTensor || inputDescriptor.isStateInput) {
                 continue;
             }
@@ -230,6 +232,7 @@ void ZeroInferRequest::create_pipeline() {
             if (levelZeroRemoteTensor == nullptr) {
                 _originalMemoryIdInputLevelZeroTensor.at(inputIndex) =
                     get_memory_id(_initStructs->getContext(), get_level_zero_input(inputIndex)->data());
+
             } else {
                 void* levelZeroBuffer =
                     extract_object(levelZeroRemoteTensor->get_properties(), ov::intel_npu::mem_handle);
@@ -509,13 +512,15 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
         return userTensors;
     }
 
-    _logger.debug("ZeroInferRequest::get_tensor - tensor is not allocated, create the tensor");
+    auto& metadata = isInput ? _metadata.inputs.at(ioIndex) : _metadata.outputs.at(ioIndex);
+    _logger.debug("ZeroInferRequest::get_tensor - tensor is not allocated, create tensor %s",
+                  metadata.nodeFriendlyName.c_str());
 
     auto& levelZeroTensors = isInput ? get_level_zero_input(ioIndex) : _levelZeroOutputTensors.at(ioIndex);
     auto& tensorCreatedLocally =
         isInput ? _inputLevelZeroTensorCreatedLocally.at(ioIndex) : _outputLevelZeroTensorCreatedLocally.at(ioIndex);
 
-    levelZeroTensors = allocate_tensor(isInput ? _metadata.inputs.at(ioIndex) : _metadata.outputs.at(ioIndex),
+    levelZeroTensors = allocate_tensor(metadata,
                                        ioIndex,
                                        isInput,
                                        isInput ? *_inputAllocator : *_outputAllocator,
@@ -845,6 +850,47 @@ std::vector<ov::ProfilingInfo> ZeroInferRequest::get_profiling_info() const {
             return _profilingQuery.getLayerStatistics();
         }
     }
+}
+
+std::shared_ptr<ov::ITensor> ZeroInferRequest::allocate_tensor(const IODescriptor& descriptor,
+                                                               const size_t index,
+                                                               const bool isInput,
+                                                               const ov::Allocator& allocator,
+                                                               const std::optional<std::size_t> batchSize) const {
+    check_network_precision(descriptor.precision);
+
+    std::shared_ptr<ov::ITensor> tensor;
+    ov::Shape allocatedTensorShape = descriptor.shapeFromCompiler.get_max_shape();
+
+    if (batchSize.has_value()) {
+        allocatedTensorShape[BATCH_AXIS] = *batchSize;
+    }
+
+    if (descriptor.isStateOutput) {
+        // Only one buffer is required for each (state input, state output) pair, acting as an input before running the
+        // inference and as an output after performing it. Thus both the "state input" and "state output" entries shall
+        // point to the same buffer.
+        OPENVINO_ASSERT(descriptor.relatedDescriptorIndex.has_value(),
+                        "The link between state descriptors is missing, state name: ",
+                        descriptor.nameFromCompiler);
+        tensor = get_user_input(*descriptor.relatedDescriptorIndex)._ptr;
+    } else {
+        tensor = std::make_shared<ZeroTensor>(_initStructs, descriptor.precision, allocatedTensorShape, allocator);
+    }
+
+    if (isInput) {
+        if (get_user_input(index) == nullptr) {
+            get_user_input(index) = tensor;
+        }
+
+        if (descriptor.isStateInput) {
+            _variableStates.push_back(std::make_shared<VariableState>(descriptor.nameFromCompiler, tensor));
+        }
+    } else if (_userOutputTensors.at(index) == nullptr) {
+        _userOutputTensors.at(index) = tensor;
+    }
+
+    return tensor;
 }
 
 std::vector<uint8_t> ZeroInferRequest::get_raw_profiling_data() const {

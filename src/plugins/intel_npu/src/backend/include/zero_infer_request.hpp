@@ -62,6 +62,13 @@ private:
     std::shared_ptr<ov::ITensor>& get_level_zero_input(size_t index, size_t tensorNo = 0) const;
     std::vector<std::shared_ptr<ov::ITensor>>& get_level_zero_inputs(size_t index) const;
 
+    std::shared_ptr<ov::ITensor> allocate_tensor(
+        const IODescriptor& descriptor,
+        const size_t index,
+        const bool isInput,
+        const ov::Allocator& allocator = {},
+        const std::optional<std::size_t> batchSize = std::nullopt) const override;
+
     const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
     const std::shared_ptr<IGraph> _graph;
     const Config _config;

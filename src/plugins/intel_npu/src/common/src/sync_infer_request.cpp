@@ -11,12 +11,6 @@
 #include "openvino/util/common_util.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace {
-
-constexpr size_t BATCH_AXIS = 0;
-
-}
-
 namespace intel_npu {
 
 SyncInferRequest::SyncInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel, const Config& config)

@@ -24,8 +24,6 @@ public:
                  const ov::element::Type& element_type,
                  const ov::Shape& shape);
 
-    ~RemoteTensor() override;
-
     /**
      * @brief Returns additional information associated with tensor
      * @return Map of property names to properties
@@ -37,13 +35,6 @@ public:
      * @return Device name
      */
     const std::string& get_device_name() const override;
-
-    /**
-     * @brief Set new shape for tensor
-     * @note Memory allocation may happen
-     * @param shape A new shape
-     */
-    void set_shape(ov::Shape shape) override;
 
     /**
      * @return A tensor element type
@@ -69,6 +60,8 @@ protected:
     virtual void allocate(const size_t bytes) = 0;
     virtual bool deallocate() noexcept = 0;
     void update_strides();
+
+    virtual ~RemoteTensor();
 
     std::shared_ptr<ov::IRemoteContext> _context;
 
