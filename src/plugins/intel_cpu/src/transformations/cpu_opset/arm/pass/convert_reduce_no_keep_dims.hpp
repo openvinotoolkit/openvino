@@ -3,10 +3,10 @@
 
 #pragma once
 
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
 #include "openvino/op/util/logical_reduction_keep_dims.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 /*
  * Description:
@@ -15,7 +15,7 @@
  *     which removes undesired dimensions.
  *
  * Before:
- * 
+ *
  *    +--------------+    +-----------------+
  *    |    Data      |    |   Axes tensor   |
  *    +-----------+--+    +-+---------------+
@@ -23,9 +23,9 @@
  *        +---------------------------+
  *        | Reduce (keepDims = false) |
  *        +---------------------------+
- * 
+ *
  * After:
- * 
+ *
  *    +--------------+    +-----------------+
  *    |    Data      |    |   Axes tensor   |
  *    +-----------+--+    +-+------------+--+
@@ -37,13 +37,13 @@
  *                       +--------v------v-+
  *                       |     Squeeze     |
  *                       +-----------------+
- * 
+ *
  */
 
 namespace ov {
 namespace intel_cpu {
 
-class ConvertReduceNoKeepDimsBase: public ov::pass::MatcherPass {
+class ConvertReduceNoKeepDimsBase : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertReduceNoKeepDims", "0");
     template <class T>
@@ -51,14 +51,13 @@ public:
 };
 
 template <typename ReductionType>
-class ConvertReduction: public ConvertReduceNoKeepDimsBase {
+class ConvertReduction : public ConvertReduceNoKeepDimsBase {
 public:
     OPENVINO_RTTI("ConvertReduction", "0");
     ConvertReduction();
 };
 
-
-class ConvertReduceNoKeepDims: public ov::pass::GraphRewrite {
+class ConvertReduceNoKeepDims : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("ConvertReduceNoKeepDims", "0");
     ConvertReduceNoKeepDims() {
@@ -67,5 +66,5 @@ public:
     }
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

@@ -3,6 +3,7 @@
 //
 
 #include "jit_fill_emitter.hpp"
+
 #include "cpu/aarch64/xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h"
 #include "emitters/utils.hpp"
 
@@ -21,7 +22,8 @@ jit_fill_emitter::jit_fill_emitter(jit_generator* h, cpu_isa_t isa, const Expres
     const auto fill = ov::as_type_ptr<snippets::op::Fill>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(fill != nullptr, "Expects Fill expression");
     OV_CPU_JIT_EMITTER_ASSERT(fill->get_element_type().size() == 4,
-                              "Supports only 4 Byte element types but gets ", fill->get_element_type());
+                              "Supports only 4 Byte element types but gets ",
+                              fill->get_element_type());
 
     offset = fill->get_offset();
     fill_value = fill->get_fill_value();
@@ -38,8 +40,7 @@ size_t jit_fill_emitter::get_aux_gprs_count() const {
     return 1;
 }
 
-void jit_fill_emitter::emit_impl(const std::vector<size_t>& in,
-                            const std::vector<size_t>& out) const {
+void jit_fill_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
         emit_isa<dnnl::impl::cpu::aarch64::asimd>(in, out);
     } else {
@@ -48,7 +49,7 @@ void jit_fill_emitter::emit_impl(const std::vector<size_t>& in,
 }
 
 template <cpu_isa_t isa>
-void jit_fill_emitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
+void jit_fill_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     if (is_full_reg())
         fill_full<isa>(out);
     else
@@ -56,7 +57,7 @@ void jit_fill_emitter::emit_isa(const std::vector<size_t> &in, const std::vector
 }
 
 template <cpu_isa_t isa>
-void jit_fill_emitter::fill_full(const std::vector<size_t> &out) const {
+void jit_fill_emitter::fill_full(const std::vector<size_t>& out) const {
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     TReg dst = TReg(out[0]);
 
@@ -71,28 +72,28 @@ void jit_fill_emitter::fill_full(const std::vector<size_t> &out) const {
 }
 
 template <cpu_isa_t isa>
-void jit_fill_emitter::fill_tail(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
+void jit_fill_emitter::fill_tail(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     TReg dst = TReg(out[0]);
 
     switch (offset) {
-        case 1:
-            h->ld1(dst.s[1], table_val2("value", sizeof(float)));
-            h->ld1(dst.d[1], table_val2("value", 2 * sizeof(float)));
-            break;
-        case 2:
-            h->ld1(dst.d[1], table_val2("value", 2 * sizeof(float)));
-            break;
-        case 3:
-            h->ld1(dst.s[3], table_val2("value", 3 * sizeof(float)));
-            break;
-        case 4:
-            break;
-        default:
-            OV_CPU_JIT_EMITTER_THROW("Fill emitter has unexpected offset ", offset);
+    case 1:
+        h->ld1(dst.s[1], table_val2("value", sizeof(float)));
+        h->ld1(dst.d[1], table_val2("value", 2 * sizeof(float)));
+        break;
+    case 2:
+        h->ld1(dst.d[1], table_val2("value", 2 * sizeof(float)));
+        break;
+    case 3:
+        h->ld1(dst.s[3], table_val2("value", 3 * sizeof(float)));
+        break;
+    case 4:
+        break;
+    default:
+        OV_CPU_JIT_EMITTER_THROW("Fill emitter has unexpected offset ", offset);
     }
 }
 
-}   // namespace aarch64
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace aarch64
+}  // namespace intel_cpu
+}  // namespace ov

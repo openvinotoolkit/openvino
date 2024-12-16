@@ -1,7 +1,6 @@
 // Copyright (C) 2020-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-
 #include "convert_reduce_no_keep_dims.hpp"
 
 #include "openvino/core/rt_info.hpp"
@@ -29,9 +28,10 @@ ov::matcher_pass_callback ov::intel_cpu::ConvertReduceNoKeepDimsBase::convert_re
 template <typename ReductionType>
 ov::intel_cpu::ConvertReduction<ReductionType>::ConvertReduction() {
     auto m = std::make_shared<ov::pass::pattern::Matcher>(
-        ov::pass::pattern::wrap_type<ReductionType>({ov::pass::pattern::any_input(),
-                                                     ov::pass::pattern::wrap_type<ov::opset8::Constant>()}), "ConvertReduction");
-     register_matcher(m, convert_reduce<ReductionType>());
+        ov::pass::pattern::wrap_type<ReductionType>(
+            {ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::opset8::Constant>()}),
+        "ConvertReduction");
+    register_matcher(m, convert_reduce<ReductionType>());
 }
 
 template class ov::intel_cpu::ConvertReduction<ov::op::util::LogicalReductionKeepDims>;
