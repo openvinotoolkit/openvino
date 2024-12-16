@@ -28,7 +28,7 @@ class ov::pass::MOCTransformations : public ov::pass::ModelPass {
     bool m_low_precision_enabled;
 
 public:
-    OPENVINO_RTTI("MOCTransformations", "0");
+    OPENVINO_RTTI("MOCTransformations", "0", ov::pass::ModelPass);
     /**
      * use_shapes = True enables transformations which are depends on shapes and also it
      * enables ConstantFolding for all ShapeOf operations.

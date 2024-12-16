@@ -19,6 +19,8 @@ namespace op {
  */
 class SerializationNode : public ov::op::Op {
 public:
+    OPENVINO_OP("SerializationNode", "SnippetsOpset");
+
     enum SerializationMode { DATA_FLOW, CONTROL_FLOW };
     SerializationNode() = default;
     SerializationNode(const ov::OutputVector& args,

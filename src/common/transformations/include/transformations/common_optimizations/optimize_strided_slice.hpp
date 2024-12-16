@@ -84,7 +84,7 @@ class ov::pass::StridedSliceOptimization : public ov::pass::ModelPass {
 public:
     StridedSliceOptimization(bool use_shapes = true);
 
-    OPENVINO_RTTI("StridedSliceOptimization", "0");
+    OPENVINO_RTTI("StridedSliceOptimization", "0", ov::pass::ModelPass);
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:

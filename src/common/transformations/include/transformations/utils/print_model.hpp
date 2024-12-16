@@ -390,7 +390,7 @@ void dump_cpp_style(std::ostream& os, const std::shared_ptr<ov::Model>& model) {
 
 class OPENVINO_API PrintModel : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("ov::pass::PrintModel");
+    OPENVINO_RTTI("ov::pass::PrintModel", "0", ov::pass::ModelPass);
 
     PrintModel(std::string file_name) {
         static int dump_index = 0;

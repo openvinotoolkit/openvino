@@ -36,6 +36,7 @@ class UpdateSharedPrecisionPreserved;
 template <typename AttributeType, typename ExpectedAttributeType = AttributeType>
 class ov::pass::low_precision::UpdateSharedPrecisionPreserved : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("low_precision::UpdateSharedPrecisionPreserved");
     UpdateSharedPrecisionPreserved(const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support()) {
         ov::graph_rewrite_callback callback = [&](ov::pass::pattern::Matcher& m) {
             auto node = m.get_match_root();
