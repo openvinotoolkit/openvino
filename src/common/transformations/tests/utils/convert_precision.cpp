@@ -2001,7 +2001,7 @@ static std::shared_ptr<ov::Model> make_then_body(bool ref) {
     auto add_conv = std::make_shared<opset10::Convert>(add_const_1, element::f32);
     auto add_1 = std::make_shared<opset10::Multiply>(mul, add_conv);
 
-    auto res_conv = ref ? std::make_shared<opset10::Convert>(add_1, element::f32)->output(0) : add_1;
+    auto res_conv = ref ? std::make_shared<opset10::Convert>(add_1, element::f16)->output(0) : add_1->output(0);
 
     auto then_res = std::make_shared<opset10::Result>(res_conv);
 
