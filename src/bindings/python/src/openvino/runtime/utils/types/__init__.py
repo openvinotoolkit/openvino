@@ -2,9 +2,6 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.runtime import Node, Shape, Output, Type
-from openvino.op import Constant
-
 from openvino.utils.types import TensorShape
 from openvino.utils.types import NumericData
 from openvino.utils.types import NumericType

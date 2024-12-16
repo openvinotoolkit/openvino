@@ -2,9 +2,6 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.runtime import Node, Output
-from openvino.runtime.utils.types import NodeInput, as_node, as_nodes
-
 from openvino.utils.decorators import _get_name
 from openvino.utils.decorators import _set_node_friendly_name
 from openvino.utils.decorators import nameable_op
