@@ -357,12 +357,16 @@ void average_counters(const Graph& graph) {
      * - <nesting-level>_<graph-name>.csv
      * For example: 0_MyModel.csv
      */
+
+    const std::string& path = graph.getConfig().debugCaps.averageCountersPath;
+
+    if (path.empty())
+        return;
+
     static int graphIndex = 0;
+    std::string fileName = path + "_" + std::to_string(graphIndex++) + ".csv";
 
     std::ofstream file;
-    std::string fileName =
-        graph.getConfig().debugCaps.averageCountersPath + "_" + std::to_string(graphIndex++) + ".csv";
-
     file.open(fileName);
 
     // table structure is identical to the benchmark_app average_counters report
