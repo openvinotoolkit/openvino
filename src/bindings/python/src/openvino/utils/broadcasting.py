@@ -3,14 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-from typing import List, Optional
+from typing import Optional
 
-from openvino.runtime import AxisSet, Node
-from openvino.runtime.utils.types import (
-    NodeInput,
+from openvino.runtime import AxisSet
+from openvino.utils.types import (
     TensorShape,
-    get_dtype,
-    make_constant_node,
 )
 
 log = logging.getLogger(__name__)
