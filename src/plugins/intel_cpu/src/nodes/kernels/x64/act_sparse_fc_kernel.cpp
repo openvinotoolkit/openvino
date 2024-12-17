@@ -361,30 +361,35 @@ static void gemm6x2_Mx2(const float * pA, int64_t A_stride,
         (*gemm6x2[M-m])(pA, A_stride, pB, B_stride, pC, C_stride, bK, is_accumulate_C);
 }
 
-static std::shared_ptr<JitKernel> jit_compile_accumulate_wf16() {
+static std::shared_ptr<JitKernel> jit_compile_accumulate_weight(
+        bool is_f16 = true,
+        bool is_int8_peroc = false,
+        bool with_zp = false) {
     auto jit = std::make_shared<JitKernel>(__func__);
     auto simd_width = jit->vmm_width<float>();
     // load all arguments into register
-    auto dst = jit->get_sreg(0, true);
+    auto dst = jit->get_sreg(0, true);      // float*
     auto OC = jit->get_sreg(1, true);
-    auto gate_ids = jit->get_sreg(2, true);
-    auto gate_cnt = jit->get_sreg(3, true);
-    auto pw0 = jit->get_sreg(4, true);
-    auto dense_x = jit->get_sreg(5, true);
-    auto IC = jit->get_sreg(6, true);
+    auto gate_ids = jit->get_sreg(2, true); // int32_t *
+    auto gate_cnt = jit->get_sreg(3, true); // int
+    auto pw0 = jit->get_sreg(4, true);      // ov::float16* / uint8_t*
+    auto dense_x = jit->get_sreg(5, true);  //
+    auto scales = jit->get_sreg(6, is_int8_peroc);  // float*
+    auto zero_points = jit->get_sreg(7, with_zp);   // float*
 
-    auto g = jit->get_sreg(7);
-    auto i = jit->get_sreg(8);
-    auto p_w0 = jit->get_sreg(9);
-    auto p_w1 = jit->get_sreg(10);
-    auto p_w2 = jit->get_sreg(11);
-    auto p_w3 = jit->get_sreg(12);
+    auto g = jit->get_sreg(8);
+    auto i = jit->get_sreg(9);
+    auto p_w0 = jit->get_sreg(10);
+    auto p_w1 = jit->get_sreg(11);
+    auto p_w2 = jit->get_sreg(12);
+    auto p_w3 = jit->get_sreg(13);
 
     jit->mov(p_w0, 0);
     jit->mov(p_w1, 0);
     jit->mov(p_w2, 0);
     jit->mov(p_w3, 0);
     jit->for_loop(g, gate_cnt, 4, [&](){
+        auto weight_element_size = is_f16 ? 2 : (is_int8_peroc ? 1 : 1);
         jit->mov(p_w0.cvt32(), jit->dword[gate_ids + g*4 + 0*4]);
         jit->mov(p_w1.cvt32(), jit->dword[gate_ids + g*4 + 1*4]);
         jit->mov(p_w2.cvt32(), jit->dword[gate_ids + g*4 + 2*4]);
@@ -393,34 +398,72 @@ static std::shared_ptr<JitKernel> jit_compile_accumulate_wf16() {
         jit->imul(p_w1, OC);
         jit->imul(p_w2, OC);
         jit->imul(p_w3, OC);
-        jit->lea(p_w0, jit->ptr[pw0 + p_w0*2]);
-        jit->lea(p_w1, jit->ptr[pw0 + p_w1*2]);
-        jit->lea(p_w2, jit->ptr[pw0 + p_w2*2]);
-        jit->lea(p_w3, jit->ptr[pw0 + p_w3*2]);
+        jit->lea(p_w0, jit->ptr[pw0 + p_w0*weight_element_size]);
+        jit->lea(p_w1, jit->ptr[pw0 + p_w1*weight_element_size]);
+        jit->lea(p_w2, jit->ptr[pw0 + p_w2*weight_element_size]);
+        jit->lea(p_w3, jit->ptr[pw0 + p_w3*weight_element_size]);
 
-        auto vscale0 = jit->Vmm(0);
-        auto vscale1 = jit->Vmm(1);
-        auto vscale2 = jit->Vmm(2);
-        auto vscale3 = jit->Vmm(3);
-        jit->simd_broadcast_ss(vscale0, jit->ptr[dense_x + g*4 + 0*4]);
-        jit->simd_broadcast_ss(vscale1, jit->ptr[dense_x + g*4 + 1*4]);
-        jit->simd_broadcast_ss(vscale2, jit->ptr[dense_x + g*4 + 2*4]);
-        jit->simd_broadcast_ss(vscale3, jit->ptr[dense_x + g*4 + 3*4]);
+        auto vx0 = jit->Vmm(0);
+        auto vx1 = jit->Vmm(1);
+        auto vx2 = jit->Vmm(2);
+        auto vx3 = jit->Vmm(3);
+        auto vscales = jit->Vmm(4);
+        auto vzp = jit->Vmm(5);
+        auto vdst = jit->Vmm(6);
+        auto vw0 = jit->Vmm(7);
+        auto vw1 = jit->Vmm(8);
+        auto vw2 = jit->Vmm(9);
+        auto vw3 = jit->Vmm(10);
+        auto vsum = jit->Vmm(11);
+        jit->simd_broadcast_ss(vx0, jit->ptr[dense_x + g*4 + 0*4]);
+        jit->simd_broadcast_ss(vx1, jit->ptr[dense_x + g*4 + 1*4]);
+        jit->simd_broadcast_ss(vx2, jit->ptr[dense_x + g*4 + 2*4]);
+        jit->simd_broadcast_ss(vx3, jit->ptr[dense_x + g*4 + 3*4]);
         jit->for_loop(i, OC, simd_width, [&](){
-            auto vdst = jit->Vmm(4);
-            auto vw0 = jit->Vmm(5);
-            auto vw1 = jit->Vmm(6);
-            auto vw2 = jit->Vmm(7);
-            auto vw3 = jit->Vmm(8);
             jit->simd_loadu_ps(vdst, jit->ptr[dst + i*4]);
-            jit->simd_loadu_phps(vw0, jit->ptr[p_w0 + i*2]);
-            jit->simd_loadu_phps(vw1, jit->ptr[p_w1 + i*2]);
-            jit->simd_loadu_phps(vw2, jit->ptr[p_w2 + i*2]);
-            jit->simd_loadu_phps(vw3, jit->ptr[p_w3 + i*2]);
-            jit->simd_fmadd_ps(vdst, vw0, vscale0);
-            jit->simd_fmadd_ps(vdst, vw1, vscale1);
-            jit->simd_fmadd_ps(vdst, vw2, vscale2);
-            jit->simd_fmadd_ps(vdst, vw3, vscale3);
+            if (is_f16) {
+                jit->simd_loadu_phps(vw0, jit->ptr[p_w0 + i*2]);
+                jit->simd_loadu_phps(vw1, jit->ptr[p_w1 + i*2]);
+                jit->simd_loadu_phps(vw2, jit->ptr[p_w2 + i*2]);
+                jit->simd_loadu_phps(vw3, jit->ptr[p_w3 + i*2]);
+                jit->simd_fmadd_ps(vdst, vw0, vx0);
+                jit->simd_fmadd_ps(vdst, vw1, vx1);
+                jit->simd_fmadd_ps(vdst, vw2, vx2);
+                jit->simd_fmadd_ps(vdst, vw3, vx3);
+            } else if (is_int8_peroc) {
+                jit->simd_setzero_ps(vsum);
+                jit->simd_loadu_ps(vscales, jit->ptr[scales + i*4]);
+                if (with_zp) {
+                    jit->simd_loadu_ps(vzp, jit->ptr[zero_points + i*4]);
+                    jit->simd_load_epu8_epi32(vw0, jit->ptr[p_w0 + i*1]);
+                    jit->simd_load_epu8_epi32(vw1, jit->ptr[p_w1 + i*1]);
+                    jit->simd_load_epu8_epi32(vw2, jit->ptr[p_w2 + i*1]);
+                    jit->simd_load_epu8_epi32(vw3, jit->ptr[p_w3 + i*1]);
+                    jit->simd_cvtepi32_ps(vw0, vw0);
+                    jit->simd_cvtepi32_ps(vw1, vw1);
+                    jit->simd_cvtepi32_ps(vw2, vw2);
+                    jit->simd_cvtepi32_ps(vw3, vw3);
+                    jit->simd_sub_ps(vw0, vw0, vzp);
+                    jit->simd_sub_ps(vw1, vw1, vzp);
+                    jit->simd_sub_ps(vw2, vw2, vzp);
+                    jit->simd_sub_ps(vw3, vw3, vzp);
+                } else {
+                    jit->simd_load_epi8_epi32(vw0, jit->ptr[p_w0 + i*1]);
+                    jit->simd_load_epi8_epi32(vw1, jit->ptr[p_w1 + i*1]);
+                    jit->simd_load_epi8_epi32(vw2, jit->ptr[p_w2 + i*1]);
+                    jit->simd_load_epi8_epi32(vw3, jit->ptr[p_w3 + i*1]);
+                    jit->simd_cvtepi32_ps(vw0, vw0);
+                    jit->simd_cvtepi32_ps(vw1, vw1);
+                    jit->simd_cvtepi32_ps(vw2, vw2);
+                    jit->simd_cvtepi32_ps(vw3, vw3);
+                }
+                jit->simd_fmadd_ps(vsum, vw0, vx0);
+                jit->simd_fmadd_ps(vsum, vw1, vx1);
+                jit->simd_fmadd_ps(vsum, vw2, vx2);
+                jit->simd_fmadd_ps(vsum, vw3, vx3);
+                jit->simd_fmadd_ps(vdst, vsum, vscales);
+            }
+
             jit->simd_storeu_ps(jit->ptr[dst + i*4], vdst);
         });
     });
@@ -692,7 +735,7 @@ void dynPruneLinear_f16(const float* input,
         });
         return;
     }
-    static auto jit_accumulate_wf16 = jit_compile_accumulate_wf16();
+    static auto jit_accumulate_wf16 = jit_compile_accumulate_weight();
 
     auto prof = PROFILE("gate_ids");
     static std::vector<int> gate_ids;
@@ -736,120 +779,11 @@ void dynPruneLinear_f16(const float* input,
         g1 *= 4;
         auto* pdst = &output_temp[ithr * M * OC];
         memset(pdst, 0, M * OC * sizeof(output_temp[0]));
-        (*jit_accumulate_wf16)(pdst, (OC), &gate_ids[g0], (g1 - g0), W, &gate_val[g0], (int64_t)(IC));
+        (*jit_accumulate_wf16)(pdst, (OC), &gate_ids[g0], (g1 - g0), W, &gate_val[g0]);
     });
 
     prof = PROFILE("reduce");
     reduce_outputs(output, output_temp.data(), nthr_max, M, OC);
-}
-
-template<bool with_zp>
-void accumulate_w8_peroc(float* base_dst, int64_t OC,
-                        int* ic_ids, int ic_cnt,
-                        const uint8_t* Wu8,
-                        const uint8_t* zp,
-                        const float* scales,
-                        float* dense_x, int64_t IC) {
-    // decompress zero-point
-    thread_local std::vector<float> zpbuff;
-    zpbuff.resize(OC);
-    auto* dst_zp = zpbuff.data();
-
-    if (with_zp) {
-        int oc = 0;
-        for (; oc + SIMDW <= OC; oc += SIMDW) {
-            auto zpu32 = simd_load_epu8_epi32(static_cast<void const*>(zp + oc));
-            auto zpf32 = simd_cvtepi32_ps(zpu32);
-            simd_storeu_ps(dst_zp + oc, zpf32);
-        }
-        for (; oc < OC; oc ++) {
-            dst_zp[oc] = zp[oc];
-        }
-    }
-
-    // vector x weights
-    for (int g = 0; g < ic_cnt; g+=4) {
-        auto ic0 = ic_ids[g];
-        auto ic1 = ic_ids[g+1];
-        auto ic2 = ic_ids[g+2];
-        auto ic3 = ic_ids[g+3];
-
-        const auto* p_w0 = Wu8 + ic0 * OC;
-        const auto* p_w1 = Wu8 + ic1 * OC;
-        const auto* p_w2 = Wu8 + ic2 * OC;
-        const auto* p_w3 = Wu8 + ic3 * OC;
-
-        int oc = 0;
-
-        auto vx0 = simd_broadcast_ss(dense_x + g + 0);
-        auto vx1 = simd_broadcast_ss(dense_x + g + 1);
-        auto vx2 = simd_broadcast_ss(dense_x + g + 2);
-        auto vx3 = simd_broadcast_ss(dense_x + g + 3);
-        for (; oc + SIMDW <= OC; oc += SIMDW) {
-            if (with_zp) {
-                auto vscales = simd_loadu_ps(scales + oc);
-                auto vzp = simd_loadu_ps(dst_zp + oc);
-                auto vdst = simd_loadu_ps(base_dst + oc);
-
-                auto wdw0 = simd_load_epu8_epi32(static_cast<void const*>(p_w0 + oc));
-                auto wdw1 = simd_load_epu8_epi32(static_cast<void const*>(p_w1 + oc));
-                auto wdw2 = simd_load_epu8_epi32(static_cast<void const*>(p_w2 + oc));
-                auto wdw3 = simd_load_epu8_epi32(static_cast<void const*>(p_w3 + oc));
-
-                auto vsum = simd_setzero_ps();
-
-                vsum = simd_fmadd_ps(simd_sub_ps(simd_cvtepi32_ps(wdw0), vzp), vx0, vsum);
-                vsum = simd_fmadd_ps(simd_sub_ps(simd_cvtepi32_ps(wdw1), vzp), vx1, vsum);
-                vsum = simd_fmadd_ps(simd_sub_ps(simd_cvtepi32_ps(wdw2), vzp), vx2, vsum);
-                vsum = simd_fmadd_ps(simd_sub_ps(simd_cvtepi32_ps(wdw3), vzp), vx3, vsum);
-
-                vdst = simd_fmadd_ps(vsum, vscales, vdst);
-                simd_storeu_ps(base_dst + oc, vdst);
-            } else {
-                auto vscales = simd_loadu_ps(scales + oc);
-                auto vdst = simd_loadu_ps(base_dst + oc);
-
-                auto wdw0 = simd_load_epi8_epi32(static_cast<void const*>(p_w0 + oc));
-                auto wdw1 = simd_load_epi8_epi32(static_cast<void const*>(p_w1 + oc));
-                auto wdw2 = simd_load_epi8_epi32(static_cast<void const*>(p_w2 + oc));
-                auto wdw3 = simd_load_epi8_epi32(static_cast<void const*>(p_w3 + oc));
-
-                auto vsum = simd_setzero_ps();
-
-                vsum = simd_fmadd_ps(simd_cvtepi32_ps(wdw0), vx0, vsum);
-                vsum = simd_fmadd_ps(simd_cvtepi32_ps(wdw1), vx1, vsum);
-                vsum = simd_fmadd_ps(simd_cvtepi32_ps(wdw2), vx2, vsum);
-                vsum = simd_fmadd_ps(simd_cvtepi32_ps(wdw3), vx3, vsum);
-
-                vdst = simd_fmadd_ps(vsum, vscales, vdst);
-                simd_storeu_ps(base_dst + oc, vdst);
-            }
-        }
-
-        if (oc < OC) {
-            auto x0 = dense_x[g + 0];
-            auto x1 = dense_x[g + 1];
-            auto x2 = dense_x[g + 2];
-            auto x3 = dense_x[g + 3];
-            for (; oc < OC; oc ++) {
-                auto weight0 = p_w0[oc];
-                auto weight1 = p_w1[oc];
-                auto weight2 = p_w2[oc];
-                auto weight3 = p_w3[oc];
-                if (with_zp) {
-                    weight0 -= dst_zp[oc];
-                    weight1 -= dst_zp[oc];
-                    weight2 -= dst_zp[oc];
-                    weight3 -= dst_zp[oc];
-                }
-                weight0 *= scales[oc];
-                weight1 *= scales[oc];
-                weight2 *= scales[oc];
-                weight3 *= scales[oc];
-                base_dst[oc] += x0 * weight0 + x1 * weight1 + x2 * weight2 + x3 * weight3;
-            }
-        }
-    }
 }
 
 template<bool with_zp>
@@ -1336,6 +1270,12 @@ void dynPruneLinear_i8(const float* input,      // [M, IC]
                         const float* scales,    // [OC]
                         float* output,          // [M, OC]
                         int M, int IC, int OC) {
+    static auto accumulate_weight_i8_nozp = jit_compile_accumulate_weight(false, true, false);
+    static auto accumulate_weight_i8_withzp = jit_compile_accumulate_weight(false, true, true);
+    static auto decompress_zp_u8 = get_decompress_zp_u8();
+
+    auto* accumulate_weight_i8 = zp ? accumulate_weight_i8_withzp.get() : accumulate_weight_i8_nozp.get();
+
     if (M > 1) {
         if (M < 32) {
             parallel_nt(0, [&](const int ithr, const int nthr) {
@@ -1395,6 +1335,8 @@ void dynPruneLinear_i8(const float* input,      // [M, IC]
     auto nthr_max = parallel_get_max_threads();
     static std::vector<float> output_temp;
     output_temp.resize(nthr_max * M * OC);
+    // decompress zero-point
+    thread_local std::vector<float> zpbuff;
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
         int g0, g1;
@@ -1403,10 +1345,12 @@ void dynPruneLinear_i8(const float* input,      // [M, IC]
         g1 *= 4;
         auto* pdst = &output_temp[ithr * M * OC];
         memset(pdst, 0, M * OC * sizeof(output_temp[0]));
-        if (zp)
-            accumulate_w8_peroc<true>(pdst, OC, &gate_ids[g0], g1 - g0, W, zp, scales, &gate_val[g0], IC);
-        else
-            accumulate_w8_peroc<false>(pdst, OC, &gate_ids[g0], g1 - g0, W, zp, scales, &gate_val[g0], IC);
+
+        if (zp) {
+            zpbuff.resize(OC);
+            (*decompress_zp_u8)(zp, zpbuff.data(), OC);
+        }
+        (*accumulate_weight_i8)(pdst, OC, &gate_ids[g0], g1 - g0, W, &gate_val[g0], scales, zpbuff.data());
     });
 
     prof = PROFILE("reduce");
