@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ static void CreateFakeConvertOp(ProgramBuilder& p, const std::shared_ptr<ov::Nod
     if (auto fake_convert_v13 = std::dynamic_pointer_cast<ov::op::v13::FakeConvert>(op)) {
         destination_type = fake_convert_v13->get_destination_element_type();
     } else {
-        OPENVINO_THROW("[GPU] Can't cast Broadcast operation to any supported version");
+        OPENVINO_THROW("[GPU] Can't cast FakeConvert operation to any supported version");
     }
     std::shared_ptr<cldnn::fake_convert> fake_convert_prim = nullptr;
     if (inputs.size() == 2) {

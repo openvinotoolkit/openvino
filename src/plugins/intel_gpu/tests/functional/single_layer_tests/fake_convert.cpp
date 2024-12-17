@@ -14,13 +14,8 @@
 namespace {
 
 namespace fp8 {
-const char TAG_F8E4M3[]     = "f8e4m3";
 constexpr float MAX_F8E4M3  = 448.f;
-constexpr float MIN_F8E4M3  = 0.001953125f;
-
-const char TAG_F8E5M2[]     = "f8e5m2";
 constexpr float MAX_F8E5M2  = 57344.f;
-constexpr float MIN_F8E5M2  = 0.0000152587890625f;
 }  // namespace fp8
 
 using namespace std;

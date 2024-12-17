@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,10 +34,9 @@ std::vector<layout> fake_convert_inst::calc_output_layouts(fake_convert_node con
     case ov::element::bf16:
     case ov::element::f16:
     case ov::element::f32:
-    case ov::element::dynamic:
         break;
     default:
-        OPENVINO_THROW("The element type of the input tensor must be a bf16, f16, f32 but got: ", output_type);
+        OPENVINO_THROW("The output data type should be a bf16, f16, f32 but got: ", output_type);
     }
 
     return { layout{input_layout.get_partial_shape(), output_type, input_layout.format} };
@@ -59,7 +58,7 @@ std::string fake_convert_inst::to_string(fake_convert_node const& node) {
     if (node.has_shift()) {
         fake_convert_info.add("shift id", node.shift().id());
     }
-    fake_convert_info.add("destination_type", node.get_destination_type());
+    fake_convert_info.add("destination_type", node.get_destination_type().get_type_name());
 
     node_info->add("fake_convert info", fake_convert_info);
     node_info->dump(primitive_description);
