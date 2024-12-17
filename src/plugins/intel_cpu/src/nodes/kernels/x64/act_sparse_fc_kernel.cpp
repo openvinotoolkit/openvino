@@ -154,17 +154,17 @@ public:
   }
 
   // for_loop() performs following:
-  //    for(int idx=0; idx + step <= cnt; idx+=step) {
+  //    for(int idx=start; idx + step <= stop; idx+=step) {
   //       loop_body();
   //    }
-  template<typename Fn, typename STEP>
-  void for_loop(Xbyak::Reg64 idx, Xbyak::Reg64 cnt, STEP step, const Fn& loop_body) {
+  template<typename Fn, typename START, typename STEP>
+  void for_loop(Xbyak::Reg64 idx, START start, Xbyak::Reg64 stop, STEP step, const Fn& loop_body) {
     Xbyak::Label loop, exit;
-    mov(idx, 0);
+    mov(idx, start);
 
     L(loop);
     add(idx, step);
-    cmp(idx, cnt);
+    cmp(idx, stop);
     jg(exit, T_NEAR);
     sub(idx, step);
 
@@ -388,7 +388,7 @@ static std::shared_ptr<JitKernel> jit_compile_accumulate_weight(
     jit->mov(p_w1, 0);
     jit->mov(p_w2, 0);
     jit->mov(p_w3, 0);
-    jit->for_loop(g, gate_cnt, 4, [&](){
+    jit->for_loop(g, 0, gate_cnt, 4, [&](){
         auto weight_element_size = is_f16 ? 2 : (is_int8_peroc ? 1 : 1);
         jit->mov(p_w0.cvt32(), jit->dword[gate_ids + g*4 + 0*4]);
         jit->mov(p_w1.cvt32(), jit->dword[gate_ids + g*4 + 1*4]);
@@ -419,7 +419,7 @@ static std::shared_ptr<JitKernel> jit_compile_accumulate_weight(
         jit->simd_broadcast_ss(vx1, jit->ptr[dense_x + g*4 + 1*4]);
         jit->simd_broadcast_ss(vx2, jit->ptr[dense_x + g*4 + 2*4]);
         jit->simd_broadcast_ss(vx3, jit->ptr[dense_x + g*4 + 3*4]);
-        jit->for_loop(i, OC, simd_width, [&](){
+        jit->for_loop(i, 0, OC, simd_width, [&](){
             jit->simd_loadu_ps(vdst, jit->ptr[dst + i*4]);
             if (is_f16) {
                 jit->simd_loadu_phps(vw0, jit->ptr[p_w0 + i*2]);
@@ -491,13 +491,13 @@ static std::shared_ptr<JitKernel> jit_compile_reduce_outputs() {
     jit->imul(src_stride, OC);
 
     auto ptemp = jit->get_sreg(8);
-    jit->for_loop(n, N, 1, [&](){
-        jit->for_loop(i, OC, simd_width, [&](){
+    jit->for_loop(n, 0, N, 1, [&](){
+        jit->for_loop(i, 0, OC, simd_width, [&](){
             jit->lea(ptemp, jit->ptr[src0 + i*sizeof(float)]);
             auto vsum = jit->Vmm(0);
             auto vw = jit->Vmm(1);
             jit->simd_setzero_ps(vsum);
-            jit->for_loop(k, num_copies, 1, [&](){
+            jit->for_loop(k, 0, num_copies, 1, [&](){
                 jit->simd_loadu_ps(vw, jit->ptr[ptemp]);
                 jit->vaddps(vsum, vsum, vw);
                 jit->lea(ptemp, jit->ptr[ptemp + src_stride*sizeof(float)]);
@@ -508,6 +508,103 @@ static std::shared_ptr<JitKernel> jit_compile_reduce_outputs() {
         jit->add(dst0, OC);
     });
 
+    jit->finalize();
+    return jit;
+}
+
+static std::shared_ptr<JitKernel> jit_compile_repack_3xsimdw_1xsimdw(bool with_zp) {
+    auto jit = std::make_shared<JitKernel>(__func__);
+    auto simd_width = jit->vmm_width<float>();
+    // load all arguments into register
+    auto src = jit->get_sreg(0, true); // uint8_t*
+    auto strideW = jit->get_sreg(1, true); // int
+    auto scales = jit->get_sreg(2, true); // float*
+    auto zero_points = jit->get_sreg(3, true); // float*
+    auto K = jit->get_sreg(4, true); // int
+    auto N = jit->get_sreg(5, true); // int
+    auto repacked_B_nx3 = jit->get_sreg(6, true); // float*
+    auto repacked_B_nx1 = jit->get_sreg(7, true); // float*
+
+    auto k = jit->get_sreg(8);
+    auto n0 = jit->get_sreg(9);
+    auto dst = jit->get_sreg(10);
+    auto dst_stride = jit->get_sreg(11);
+
+    auto wf0 = jit->Vmm(0);
+    auto wf1 = jit->Vmm(1);
+    auto wf2 = jit->Vmm(2);
+
+    auto scale0 = jit->Vmm(3);
+    auto scale1 = jit->Vmm(4);
+    auto scale2 = jit->Vmm(5);
+
+    auto zp0 = jit->Vmm(6);
+    auto zp1 = jit->Vmm(7);
+    auto zp2 = jit->Vmm(8);
+
+    jit->for_loop(k, 0, K, 1, [&](){
+        jit->lea(dst, jit->ptr[repacked_B_nx3]);
+        jit->imul(dst_stride, K, simd_width*3*sizeof(float));
+
+        jit->for_loop(n0, 0, N, simd_width*3, [&](){
+            jit->simd_loadu_ps(scale0, jit->ptr[scales + n0*sizeof(float) + 0*simd_width*sizeof(float)]);
+            jit->simd_loadu_ps(scale1, jit->ptr[scales + n0*sizeof(float) + 1*simd_width*sizeof(float)]);
+            jit->simd_loadu_ps(scale2, jit->ptr[scales + n0*sizeof(float) + 2*simd_width*sizeof(float)]);
+            if (with_zp) {
+                jit->simd_loadu_ps(zp0, jit->ptr[zero_points + n0*sizeof(float) + 0*simd_width*sizeof(float)]);
+                jit->simd_loadu_ps(zp1, jit->ptr[zero_points + n0*sizeof(float) + 1*simd_width*sizeof(float)]);
+                jit->simd_loadu_ps(zp2, jit->ptr[zero_points + n0*sizeof(float) + 2*simd_width*sizeof(float)]);
+
+                jit->simd_load_epu8_epi32(wf0, jit->ptr[src + n0*sizeof(int8_t) + 0*simd_width*sizeof(int8_t)]);
+                jit->simd_load_epu8_epi32(wf1, jit->ptr[src + n0*sizeof(int8_t) + 1*simd_width*sizeof(int8_t)]);
+                jit->simd_load_epu8_epi32(wf2, jit->ptr[src + n0*sizeof(int8_t) + 2*simd_width*sizeof(int8_t)]);
+                jit->simd_cvtepi32_ps(wf0, wf0);
+                jit->simd_cvtepi32_ps(wf1, wf1);
+                jit->simd_cvtepi32_ps(wf2, wf2);
+                jit->simd_sub_ps(wf0, wf0, zp0);
+                jit->simd_sub_ps(wf1, wf1, zp1);
+                jit->simd_sub_ps(wf2, wf2, zp2);
+            } else {
+                jit->simd_load_epi8_epi32(wf0, jit->ptr[src + n0*sizeof(int8_t) + 0*simd_width*sizeof(int8_t)]);
+                jit->simd_load_epi8_epi32(wf1, jit->ptr[src + n0*sizeof(int8_t) + 1*simd_width*sizeof(int8_t)]);
+                jit->simd_load_epi8_epi32(wf2, jit->ptr[src + n0*sizeof(int8_t) + 2*simd_width*sizeof(int8_t)]);
+                jit->simd_cvtepi32_ps(wf0, wf0);
+                jit->simd_cvtepi32_ps(wf1, wf1);
+                jit->simd_cvtepi32_ps(wf2, wf2);
+            }
+            jit->simd_mul_ps(wf0, wf0, scale0);
+            jit->simd_mul_ps(wf1, wf1, scale1);
+            jit->simd_mul_ps(wf2, wf2, scale2);
+
+            jit->simd_storeu_ps(jit->ptr[dst + 0*simd_width*sizeof(float)], wf0);
+            jit->simd_storeu_ps(jit->ptr[dst + 1*simd_width*sizeof(float)], wf1);
+            jit->simd_storeu_ps(jit->ptr[dst + 2*simd_width*sizeof(float)], wf2);
+            jit->lea(dst , jit->ptr[dst + dst_stride]);
+        });
+
+        jit->lea(dst, jit->ptr[repacked_B_nx1]);
+        jit->imul(dst_stride, K, simd_width*1*sizeof(float));
+
+        jit->for_loop(n0, n0, N, simd_width, [&](){
+            jit->simd_loadu_ps(scale0, jit->ptr[scales + n0*sizeof(float)]);
+            if (with_zp) {
+                jit->simd_loadu_ps(zp0, jit->ptr[zero_points + n0*sizeof(float)]);
+                jit->simd_load_epu8_epi32(wf0, jit->ptr[src + n0*sizeof(int8_t)]);
+                jit->simd_cvtepi32_ps(wf0, wf0);
+                jit->simd_sub_ps(wf0, wf0, zp0);
+            } else {
+                jit->simd_load_epi8_epi32(wf0, jit->ptr[src + n0*sizeof(int8_t)]);
+                jit->simd_cvtepi32_ps(wf0, wf0);
+            }
+            jit->simd_mul_ps(wf0, wf0, scale0);
+            jit->simd_storeu_ps(jit->ptr[dst], wf0);
+            jit->lea(dst , jit->ptr[dst + dst_stride]);
+        });
+        // move to next row
+        jit->lea(repacked_B_nx3, jit->ptr[repacked_B_nx3 + simd_width*3*sizeof(float)]);
+        jit->lea(repacked_B_nx1, jit->ptr[repacked_B_nx1 + simd_width*1*sizeof(float)]);
+        jit->lea(src, jit->ptr[src + strideW]);
+    });
     jit->finalize();
     return jit;
 }
@@ -568,7 +665,7 @@ static std::shared_ptr<JitKernel> jit_compile_repack_2xsimdw(
             jit->simd_loadu_ps(vzp1, jit->ptr[zero_point + 1*simd_width*sizeof(float)]);
         }
     }
-    jit->for_loop(k, bK, 1, [&](){
+    jit->for_loop(k, 0, bK, 1, [&](){
         if (is_f16) {
             jit->simd_loadu_phps(wf0, jit->ptr[src + simd_width*0*sizeof(ov::float16)]);
             jit->simd_loadu_phps(wf1, jit->ptr[src + simd_width*1*sizeof(ov::float16)]);
@@ -655,7 +752,7 @@ static std::shared_ptr<JitKernel> get_decompress_zp_u8() {
     auto n = jit->get_sreg(3);
 
     auto vzpi32 = jit->Vmm(0);
-    jit->for_loop(n, cnt, simd_width, [&]() {
+    jit->for_loop(n, 0, cnt, simd_width, [&]() {
         jit->simd_load_epu8_epi32(vzpi32, jit->ptr[zp_input_u8 + n*1]);
         jit->simd_cvtepi32_ps(vzpi32, vzpi32);
         jit->simd_storeu_ps(jit->ptr[zp_output_f32 + n*4], vzpi32);
@@ -705,6 +802,89 @@ static void MM_ComputeBounded_reuseA_i8(
             // prepack [BK, 16] into scratch
             (*repack_2xsimdw_i8)(W + n, W_stride, repacked_B, bK, scales + n, zero_points + n - n0);
             gemm6x2_Mx2(A, A_stride, repacked_B, 2 * SIMDW, C + n, C_stride, M, bK, is_accumulate_C);
+        }
+    }
+}
+
+static void MM_ComputeBounded_reuseB_i8(const float * A,
+                                 float * C,
+                                 const uint8_t* W,
+                                 const uint8_t* zp,
+                                 const float* scales,
+                                 int M, int IC, int OC,
+                                 int n0, int n1) {
+    static auto decompress_zp_u8 = get_decompress_zp_u8();
+    static std::shared_ptr<JitKernel> gemm4x3[6] = {
+        jit_compile_gemmRegBlk(4, 3),
+        jit_compile_gemmRegBlk(1, 3),
+        jit_compile_gemmRegBlk(2, 3),
+        jit_compile_gemmRegBlk(3, 3),
+    };
+    static std::shared_ptr<JitKernel> gemm4x1[6] = {
+        jit_compile_gemmRegBlk(4, 1),
+        jit_compile_gemmRegBlk(1, 1),
+        jit_compile_gemmRegBlk(2, 1),
+        jit_compile_gemmRegBlk(3, 1),
+    };
+
+    static auto repack_3xsimdw_i8_1xsimdw_nozp = jit_compile_repack_3xsimdw_1xsimdw(false);
+    static auto repack_3xsimdw_i8_1xsimdw_withzp = jit_compile_repack_3xsimdw_1xsimdw(true);
+    auto* repack_3xsimdw_i8 = zp ? repack_3xsimdw_i8_1xsimdw_withzp.get() : repack_3xsimdw_i8_1xsimdw_nozp.get();
+
+    constexpr int BK = 512;
+    constexpr int BN = 512;
+    auto bN_SIMDWx3 = BN / (SIMDW*3) * (SIMDW*3);
+    auto bN_SIMDWx1 = BN - bN_SIMDWx3;
+    float* scratch = scratch_alloc<float>(BN * BK + BN);
+    float* repacked_B_n24 = scratch;
+    float* repacked_B_n8 = repacked_B_n24 + bN_SIMDWx3 * BK;
+    float* zero_points = repacked_B_n8 + SIMDW*3 * BK;
+
+    const int64_t A_stride = IC;
+    const int64_t B_stride = OC;
+    const int64_t C_stride = OC;
+
+    for (int cur_n = n0; cur_n < n1; cur_n += BN) {
+        int bN = std::min(n1 - cur_n, BN);
+        const auto* pW = W + cur_n;
+
+        if (zp) {
+            (*decompress_zp_u8)(zp + cur_n, zero_points, bN);
+        }
+
+        for (int k0 = 0; k0 < IC; k0 += BK, pW += BK * B_stride) {
+            int64_t bK = std::min(IC - k0, BK);
+            (*repack_3xsimdw_i8)(pW, B_stride,
+                                 scales + cur_n,
+                                 zero_points,
+                                 bK, bN,
+                                 repacked_B_n24,
+                                 repacked_B_n8);
+
+            bool is_accumulate_C = (k0 > 0);
+            auto* pC = C + cur_n;
+            int m;
+            // re-use repacked B sub-matrix in L2 cache as long as we can.
+            const auto* pA = A + k0;
+            for (m = 0; m + 4 <= M; m += 4, pA += 4 * A_stride, pC += 4 * C_stride) {
+                auto* pB = repacked_B_n24;
+                int n = 0;
+                for (; n + SIMDW * 3 <= bN; n += SIMDW * 3, pB += SIMDW * 3 * bK)
+                    (*gemm4x3[0])(pA, A_stride, pB, SIMDW*3, pC + n, C_stride, bK, is_accumulate_C);
+                pB = repacked_B_n8;
+                for (; n < bN; n += SIMDW, pB += SIMDW * bK)
+                    (*gemm4x1[0])(pA, A_stride, pB, SIMDW, pC + n, C_stride, bK, is_accumulate_C);
+            }
+            // M tails
+            if (m < M) {
+                auto* pB = repacked_B_n24;
+                int n = 0;
+                for (; n + SIMDW * 3 <= bN; n += SIMDW * 3, pB += SIMDW * 3 * bK)
+                    (*gemm4x3[M - m])(pA, A_stride, pB, SIMDW*3, pC + n, C_stride, bK, is_accumulate_C);
+                pB = repacked_B_n8;
+                for (; n < bN; n += SIMDW, pB += SIMDW * bK)
+                    (*gemm4x1[M - m])(pA, A_stride, pB, SIMDW, pC + n, C_stride, bK, is_accumulate_C);
+            }
         }
     }
 }
@@ -784,6 +964,102 @@ void dynPruneLinear_f16(const float* input,
 
     prof = PROFILE("reduce");
     reduce_outputs(output, output_temp.data(), nthr_max, M, OC);
+}
+
+void dynPruneLinear_i8(const float* input,      // [M, IC]
+                        float threshold,
+                        float zero_point,
+                        const uint8_t* W,       // [IC, OC]
+                        const uint8_t* zp,      // [OC]
+                        const float* scales,    // [OC]
+                        float* output,          // [M, OC]
+                        int M, int IC, int OC) {
+    static auto accumulate_weight_i8_nozp = jit_compile_accumulate_weight(false, true, false);
+    static auto accumulate_weight_i8_withzp = jit_compile_accumulate_weight(false, true, true);
+    static auto decompress_zp_u8 = get_decompress_zp_u8();
+
+    auto* accumulate_weight_i8 = zp ? accumulate_weight_i8_withzp.get() : accumulate_weight_i8_nozp.get();
+
+    if (M > 1) {
+        if (M < 0) {
+            parallel_nt(0, [&](const int ithr, const int nthr) {
+                int n0, n1;
+                splitter(OC/(2*SIMDW), nthr, ithr, n0, n1);
+                n0 *= 2*SIMDW;
+                n1 *= 2*SIMDW;
+                MM_ComputeBounded_reuseA_i8(
+                    input, output,
+                    W, zp, scales, M, IC, OC, n0, n1);
+            });
+        } else {
+            parallel_nt(0, [&](const int ithr, const int nthr) {
+                int n0, n1;
+                splitter(OC/(SIMDW), nthr, ithr, n0, n1);
+                n0 *= SIMDW;
+                n1 *= SIMDW;
+                MM_ComputeBounded_reuseB_i8(
+                    input, output,
+                    W, zp, scales, M, IC, OC, n0, n1);
+            });
+        }
+        return;
+    }
+
+    auto prof = PROFILE("gate_ids");
+    static std::vector<int> gate_ids;
+    static std::vector<float> gate_val;
+    int gate_cnt = 0;
+    gate_ids.resize(IC);
+    gate_val.resize(IC);
+    for (int channel = 0; channel < IC; channel++) {
+        auto* src = input + channel;
+        for (int m = 0; m < M; m++, src += IC) {
+            auto& value = src[m];
+            if (std::abs(value - zero_point) >= threshold) {
+                gate_ids[gate_cnt] = channel;
+                gate_val[gate_cnt] = value;
+                gate_cnt++;
+                break;
+            }
+        }
+    }
+
+    // pad to 4
+    auto last_channel = gate_ids[gate_cnt - 1];
+    while (gate_cnt & 3) {
+        gate_ids[gate_cnt] = last_channel;
+        gate_val[gate_cnt] = 0.0f;
+        gate_cnt++;
+    }
+
+    // std::cout << M << "," << IC << "," << OC << "," << threshold << "," << zero_point << std::endl;
+    prof = PROFILE("mm");
+
+    // this mm kernel is the most time-consuming one
+    auto nthr_max = parallel_get_max_threads();
+    static std::vector<float> output_temp;
+    output_temp.resize(nthr_max * M * OC);
+    // decompress zero-point
+    thread_local std::vector<float> zpbuff;
+
+    parallel_nt(0, [&](const int ithr, const int nthr) {
+        int g0, g1;
+        splitter(gate_cnt/4, nthr, ithr, g0, g1);
+        g0 *= 4;
+        g1 *= 4;
+        auto* pdst = &output_temp[ithr * M * OC];
+        memset(pdst, 0, M * OC * sizeof(output_temp[0]));
+
+        if (zp) {
+            zpbuff.resize(OC);
+            (*decompress_zp_u8)(zp, zpbuff.data(), OC);
+        }
+        (*accumulate_weight_i8)(pdst, OC, &gate_ids[g0], g1 - g0, W, &gate_val[g0], scales, zpbuff.data());
+    });
+
+    prof = PROFILE("reduce");
+    reduce_outputs(output, output_temp.data(), nthr_max, M, OC);
+    return;
 }
 
 template<bool with_zp>
@@ -980,179 +1256,6 @@ void accumulate_w4(float* base_dst, int OC,
     }
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-template<bool with_zp>
-void repack_weight_for_4x3(const uint8_t* W, int strideW, const float* scales, const float* zp, int K, int N, float* repacked_B_nx3, float* repacked_B_nx1) {
-    //assert((N % 8) == 0);
-#if 1
-    for (int k = 0; k < K; k++) {
-        int n0 = 0;
-        auto* src = W + k*strideW;
-        auto* dst = repacked_B_nx3 + k*SIMDW*3;
-        auto dst_stride = K*SIMDW*3;
-        for (n0 = 0; n0 + SIMDW*3 <= N; n0 += SIMDW*3, dst += dst_stride) {
-            SIMD_F32 wf0;
-            SIMD_F32 wf1;
-            SIMD_F32 wf2;
-            if (with_zp) {
-                auto wi0 = simd_load_epu8_epi32(static_cast<void const*>(src + n0 + SIMDW * 0));
-                auto wi1 = simd_load_epu8_epi32(static_cast<void const*>(src + n0 + SIMDW * 1));
-                auto wi2 = simd_load_epu8_epi32(static_cast<void const*>(src + n0 + SIMDW * 2));
-                auto zp0 = simd_loadu_ps(zp + n0 + SIMDW * 0);
-                auto zp1 = simd_loadu_ps(zp + n0 + SIMDW * 1);
-                auto zp2 = simd_loadu_ps(zp + n0 + SIMDW * 2);
-                wf0 = simd_sub_ps(simd_cvtepi32_ps(wi0), (zp0));
-                wf1 = simd_sub_ps(simd_cvtepi32_ps(wi1), (zp1));
-                wf2 = simd_sub_ps(simd_cvtepi32_ps(wi2), (zp2));
-            } else {
-                auto wi0 = simd_load_epi8_epi32(static_cast<void const*>(src + n0 + SIMDW * 0));
-                auto wi1 = simd_load_epi8_epi32(static_cast<void const*>(src + n0 + SIMDW * 1));
-                auto wi2 = simd_load_epi8_epi32(static_cast<void const*>(src + n0 + SIMDW * 2));
-                wf0 = simd_cvtepi32_ps(wi0);
-                wf1 = simd_cvtepi32_ps(wi1);
-                wf2 = simd_cvtepi32_ps(wi2);
-            }
-            wf0 = simd_mul_ps(wf0, simd_loadu_ps(scales + n0 + SIMDW*0));
-            wf1 = simd_mul_ps(wf1, simd_loadu_ps(scales + n0 + SIMDW*1));
-            wf2 = simd_mul_ps(wf2, simd_loadu_ps(scales + n0 + SIMDW*2));
-            simd_storeu_ps(dst + SIMDW*0, wf0);
-            simd_storeu_ps(dst + SIMDW*1, wf1);
-            simd_storeu_ps(dst + SIMDW*2, wf2);
-        }
-
-        dst = repacked_B_nx1 + k*SIMDW;
-        dst_stride = K*SIMDW;
-        for (; n0 < N; n0 += SIMDW, dst += dst_stride) {
-            for (int n = n0; n < n0+SIMDW; n++) {
-                SIMD_F32 wf0;
-                if (with_zp) {
-                    auto wi0 = simd_load_epu8_epi32(static_cast<void const*>(src + n0 + SIMDW * 0));
-                    auto zp0 = simd_loadu_ps(zp + n0 + SIMDW * 0);
-                    wf0 = simd_sub_ps(simd_cvtepi32_ps(wi0), (zp0));
-                } else {
-                    auto wi0 = simd_load_epi8_epi32(static_cast<void const*>(src + n0 + SIMDW * 0));
-                    wf0 = simd_cvtepi32_ps(wi0);
-                }
-                wf0 = simd_mul_ps(wf0, simd_loadu_ps(scales + n0 + SIMDW*0));
-                simd_storeu_ps(dst + SIMDW*0, wf0);
-            }
-        }
-    }
-#else
-    for (int k = 0; k < K; k++) {
-        int n0 = 0;
-        auto* src = W + k*strideW;
-        auto* dst = repacked_B_nx3 + k*SIMDW*3;
-        auto dst_stride = K*SIMDW*3;
-        for (n0 = 0; n0 + SIMDW*3 <= N; n0 += SIMDW*3, dst += dst_stride) {
-            for (int n = n0; n < n0+SIMDW*3; n++) {
-                dst[n-n0] = (src[n] - zp[n]) * scales[n];
-                //printf("%d,%d,%d  %d, %f, %f, =>  %f\n", k, n0, n, src[n], zp[n], scales[n], dst[n-n0]);
-            }
-        }
-        dst = repacked_B_nx1 + k*SIMDW;
-        dst_stride = K*SIMDW;
-        for (; n0 < N; n0 += SIMDW, dst += dst_stride) {
-            for (int n = n0; n < n0+SIMDW; n++) {
-                dst[n-n0] = (src[n] - zp[n]) * scales[n];
-            }
-        }
-    }
-#endif
-}
-
-void MM_ComputeBounded_reuseB_i8(const float * A,
-                                 float * C,
-                                 const uint8_t* W,
-                                 const uint8_t* zp,
-                                 const float* scales,
-                                 int M, int IC, int OC,
-                                 int n0, int n1) {
-    static std::shared_ptr<JitKernel> gemm4x3[6] = {
-        jit_compile_gemmRegBlk(4, 3),
-        jit_compile_gemmRegBlk(1, 3),
-        jit_compile_gemmRegBlk(2, 3),
-        jit_compile_gemmRegBlk(3, 3),
-    };
-    static std::shared_ptr<JitKernel> gemm4x1[6] = {
-        jit_compile_gemmRegBlk(4, 1),
-        jit_compile_gemmRegBlk(1, 1),
-        jit_compile_gemmRegBlk(2, 1),
-        jit_compile_gemmRegBlk(3, 1),
-    };
-
-    constexpr int BK = 512;
-    constexpr int BN = 512;
-    auto bN_SIMDWx3 = BN / (SIMDW*3) * (SIMDW*3);
-    auto bN_SIMDWx1 = BN - bN_SIMDWx3;
-    float* scratch = scratch_alloc<float>(BN * BK + BN);
-    float* repacked_B_n24 = scratch;
-    float* repacked_B_n8 = repacked_B_n24 + bN_SIMDWx3 * BK;
-    float* zero_points = repacked_B_n8 + SIMDW*3 * BK;
-
-    const int64_t A_stride = IC;
-    const int64_t B_stride = OC;
-    const int64_t C_stride = OC;
-
-    for (int cur_n = n0; cur_n < n1; cur_n += BN) {
-        int bN = std::min(n1 - cur_n, BN);
-        const auto* pW = W + cur_n;
-
-        // decompress zero-point
-        if (zp) {
-            for (int n = 0; n < bN; n += SIMDW) {
-                auto zp0 = simd_load_epu8_epi32(static_cast<void const*>(zp + cur_n + n));
-                auto zpf32 = simd_cvtepi32_ps(zp0);
-                simd_storeu_ps(zero_points + n, zpf32);
-            }
-        }
-
-        for (int k0 = 0; k0 < IC; k0 += BK, pW += BK * B_stride) {
-            int64_t bK = std::min(IC - k0, BK);
-            if (zp) {
-                repack_weight_for_4x3<true>(pW, B_stride,
-                                    scales + cur_n,
-                                    zero_points,
-                                    bK, bN,
-                                    repacked_B_n24,
-                                    repacked_B_n8);
-            } else {
-                repack_weight_for_4x3<false>(pW, B_stride,
-                                    scales + cur_n,
-                                    zero_points,
-                                    bK, bN,
-                                    repacked_B_n24,
-                                    repacked_B_n8);
-            }
-
-            bool is_accumulate_C = (k0 > 0);
-            auto* pC = C + cur_n;
-            int m;
-            // re-use repacked B sub-matrix in L2 cache as long as we can.
-            const auto* pA = A + k0;
-            for (m = 0; m + 4 <= M; m += 4, pA += 4 * A_stride, pC += 4 * C_stride) {
-                auto* pB = repacked_B_n24;
-                int n = 0;
-                for (; n + SIMDW * 3 <= bN; n += SIMDW * 3, pB += SIMDW * 3 * bK)
-                    (*gemm4x3[0])(pA, A_stride, pB, SIMDW*3, pC + n, C_stride, bK, is_accumulate_C);
-                pB = repacked_B_n8;
-                for (; n < bN; n += SIMDW, pB += SIMDW * bK)
-                    (*gemm4x1[0])(pA, A_stride, pB, SIMDW, pC + n, C_stride, bK, is_accumulate_C);
-            }
-            // M tails
-            if (m < M) {
-                auto* pB = repacked_B_n24;
-                int n = 0;
-                for (; n + SIMDW * 3 <= bN; n += SIMDW * 3, pB += SIMDW * 3 * bK)
-                    (*gemm4x3[M - m])(pA, A_stride, pB, SIMDW*3, pC + n, C_stride, bK, is_accumulate_C);
-                pB = repacked_B_n8;
-                for (; n < bN; n += SIMDW, pB += SIMDW * bK)
-                    (*gemm4x1[M - m])(pA, A_stride, pB, SIMDW, pC + n, C_stride, bK, is_accumulate_C);
-            }
-        }
-    }
-}
-
 void MM_ComputeBounded_reuseA_i4(
             const float * A,
             float * C,
@@ -1261,102 +1364,6 @@ void MM_ComputeBounded_reuseA_i4(
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void dynPruneLinear_i8(const float* input,      // [M, IC]
-                        float threshold,
-                        float zero_point,
-                        const uint8_t* W,       // [IC, OC]
-                        const uint8_t* zp,      // [OC]
-                        const float* scales,    // [OC]
-                        float* output,          // [M, OC]
-                        int M, int IC, int OC) {
-    static auto accumulate_weight_i8_nozp = jit_compile_accumulate_weight(false, true, false);
-    static auto accumulate_weight_i8_withzp = jit_compile_accumulate_weight(false, true, true);
-    static auto decompress_zp_u8 = get_decompress_zp_u8();
-
-    auto* accumulate_weight_i8 = zp ? accumulate_weight_i8_withzp.get() : accumulate_weight_i8_nozp.get();
-
-    if (M > 1) {
-        if (M < 32) {
-            parallel_nt(0, [&](const int ithr, const int nthr) {
-                int n0, n1;
-                splitter(OC/(2*SIMDW), nthr, ithr, n0, n1);
-                n0 *= 2*SIMDW;
-                n1 *= 2*SIMDW;
-                MM_ComputeBounded_reuseA_i8(
-                    input, output,
-                    W, zp, scales, M, IC, OC, n0, n1);
-            });
-        } else {
-            parallel_nt(0, [&](const int ithr, const int nthr) {
-                int n0, n1;
-                splitter(OC/(SIMDW), nthr, ithr, n0, n1);
-                n0 *= SIMDW;
-                n1 *= SIMDW;
-                MM_ComputeBounded_reuseB_i8(
-                    input, output,
-                    W, zp, scales, M, IC, OC, n0, n1);
-            });
-        }
-        return;
-    }
-
-    auto prof = PROFILE("gate_ids");
-    static std::vector<int> gate_ids;
-    static std::vector<float> gate_val;
-    int gate_cnt = 0;
-    gate_ids.resize(IC);
-    gate_val.resize(IC);
-    for (int channel = 0; channel < IC; channel++) {
-        auto* src = input + channel;
-        for (int m = 0; m < M; m++, src += IC) {
-            auto& value = src[m];
-            if (std::abs(value - zero_point) >= threshold) {
-                gate_ids[gate_cnt] = channel;
-                gate_val[gate_cnt] = value;
-                gate_cnt++;
-                break;
-            }
-        }
-    }
-
-    // pad to 4
-    auto last_channel = gate_ids[gate_cnt - 1];
-    while (gate_cnt & 3) {
-        gate_ids[gate_cnt] = last_channel;
-        gate_val[gate_cnt] = 0.0f;
-        gate_cnt++;
-    }
-
-    // std::cout << M << "," << IC << "," << OC << "," << threshold << "," << zero_point << std::endl;
-    prof = PROFILE("mm");
-
-    // this mm kernel is the most time-consuming one
-    auto nthr_max = parallel_get_max_threads();
-    static std::vector<float> output_temp;
-    output_temp.resize(nthr_max * M * OC);
-    // decompress zero-point
-    thread_local std::vector<float> zpbuff;
-
-    parallel_nt(0, [&](const int ithr, const int nthr) {
-        int g0, g1;
-        splitter(gate_cnt/4, nthr, ithr, g0, g1);
-        g0 *= 4;
-        g1 *= 4;
-        auto* pdst = &output_temp[ithr * M * OC];
-        memset(pdst, 0, M * OC * sizeof(output_temp[0]));
-
-        if (zp) {
-            zpbuff.resize(OC);
-            (*decompress_zp_u8)(zp, zpbuff.data(), OC);
-        }
-        (*accumulate_weight_i8)(pdst, OC, &gate_ids[g0], g1 - g0, W, &gate_val[g0], scales, zpbuff.data());
-    });
-
-    prof = PROFILE("reduce");
-    reduce_outputs(output, output_temp.data(), nthr_max, M, OC);
-    return;
-}
 
 void dynPruneLinear_i4(const float* input,      // [M, IC]
                         float threshold,
