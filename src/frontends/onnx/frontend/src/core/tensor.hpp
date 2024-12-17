@@ -236,14 +236,13 @@ public:
     }
 
 private:
-    template <typename T,
-              typename std::enable_if<std::is_same<T, float>::value || std::is_same<T, double>::value ||
-                                          std::is_same<T, int32_t>::value || std::is_same<T, int64_t>::value ||
-                                          std::is_same<T, uint64_t>::value,
-                                      bool>::type = true>
+    template <typename T, typename std::enable_if<!std::is_same<T, std::string>::value, bool>::type = true>
     std::shared_ptr<ov::op::v0::Constant> make_ov_constant(const ov::element::Type& type) const {
         std::shared_ptr<ov::op::v0::Constant> constant{nullptr};
-        size_t data_size = get_data_size();
+        size_t element_count = get_data_size();
+        if (ov::element::is_nibble_type(type)) {
+            element_count *= 2;  // Each byte contains 2 data items
+        }
         if (has_external_data()) {
             const auto ext_data = detail::TensorExternalData(*m_tensor_proto);
             if (m_mmap_cache) {
@@ -255,14 +254,14 @@ private:
                 constant =
                     std::make_shared<ov::op::v0::Constant>(type, m_shape, ext_data.load_external_data(m_model_dir));
             }
-            if (constant->get_byte_size() != ov::shape_size(m_shape) * type.size()) {
+            if (element_count != ov::shape_size(m_shape) || constant->get_byte_size() != ext_data.size()) {
                 throw error::invalid_external_data(
                     "The size of the external data file does not match the byte size of an initializer '" + get_name() +
                     "' in the model");
             }
-        } else if (data_size == shape_size(m_shape)) {
+        } else if (element_count == shape_size(m_shape)) {
             constant = std::make_shared<ov::op::v0::Constant>(type, m_shape, get_data_ptr());
-        } else if (data_size == 0 && m_shape.size() == 0) {
+        } else if (element_count == 0 && m_shape.size() == 0) {
             constant = common::make_failsafe_constant(type);
         } else {
             FRONT_END_THROW("Tensor shape doesn't match data size");
@@ -274,11 +273,7 @@ private:
         return constant;
     }
 
-    template <typename T,
-              typename std::enable_if<!std::is_same<T, float>::value && !std::is_same<T, double>::value &&
-                                          !std::is_same<T, int32_t>::value && !std::is_same<T, int64_t>::value &&
-                                          !std::is_same<T, uint64_t>::value,
-                                      bool>::type = true>
+    template <typename T, typename std::enable_if<std::is_same<T, std::string>::value, bool>::type = true>
     std::shared_ptr<ov::op::v0::Constant> make_ov_constant(const ov::element::Type& type) const {
         std::shared_ptr<ov::op::v0::Constant> constant{nullptr};
         auto data = get_data<T>();
@@ -317,6 +312,16 @@ private:
     }
 
     const void* get_data_ptr() const {
+        if (has_external_data()) {
+            const auto ext_data = detail::TensorExternalData(*m_tensor_proto);
+            std::shared_ptr<ov::AlignedBuffer> buffer = nullptr;
+            if (m_mmap_cache) {
+                buffer = ext_data.load_external_mmap_data(m_model_dir, m_mmap_cache);
+            } else {
+                buffer = ext_data.load_external_data(m_model_dir);
+            }
+            return buffer->get_ptr();
+        }
         if (m_tensor_proto->has_raw_data()) {
             return m_tensor_proto->raw_data().data();
         }
@@ -336,6 +341,10 @@ private:
     }
 
     size_t get_data_size() const {
+        if (has_external_data()) {
+            const auto ext_data = detail::TensorExternalData(*m_tensor_proto);
+            return ext_data.size() / get_onnx_data_size(m_tensor_proto->data_type());
+        }
         if (m_tensor_proto->has_raw_data()) {
             return m_tensor_proto->raw_data().size() / get_onnx_data_size(m_tensor_proto->data_type());
         }
