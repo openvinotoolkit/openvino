@@ -4,21 +4,17 @@
 #pragma once
 #include <cstddef>
 #include <openvino/core/type/element_type.hpp>
+
+#include "arm_compute/core/Types.h"
+#include "arm_compute/runtime/NEON/NEFunctions.h"
 #include "nodes/executors/acl/acl_utils.hpp"
 #include "utils/general_utils.h"
-
-#include "arm_compute/runtime/NEON/NEFunctions.h"
-#include "arm_compute/core/Types.h"
 
 namespace ov {
 namespace intel_cpu {
 class GemmKernel {
 public:
-    GemmKernel(size_t M,
-               size_t N,
-               size_t K,
-               bool b_transposed = false,
-               ov::element::Type inType = ov::element::f32);
+    GemmKernel(size_t M, size_t N, size_t K, bool b_transposed = false, ov::element::Type inType = ov::element::f32);
 
     arm_compute::Status executeGemm(void* a,
                                     void* b,
@@ -48,5 +44,5 @@ private:
     arm_compute::GEMMInfo aclGemmInfo;
 };
 
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

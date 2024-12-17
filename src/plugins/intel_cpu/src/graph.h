@@ -14,6 +14,7 @@
 #include "edge.h"
 #include "graph_context.h"
 #include "memory_control.hpp"
+#include "memory_state.h"
 #include "node.h"
 #include "nodes/input.h"
 #include "openvino/core/node_vector.hpp"
@@ -87,26 +88,40 @@ public:
         return _name;
     }
 
-    std::map<std::size_t, NodePtr>& GetInputNodesMap() {
-        return inputNodesMap;
-    }
-
-    std::map<std::size_t, NodePtr>& GetOutputNodesMap() {
-        return outputNodesMap;
-    }
-
-    NodePtr getInputNodeByIndex(const std::size_t& index) {
+    NodePtr getInputNodeByIndex(std::size_t index) {
         auto input = inputNodesMap.find(index);
         if (input == inputNodesMap.end())
-            OPENVINO_THROW("CPU execution graph doesn't contain input node with index: ", index);
+            return nullptr;
         return input->second;
     }
 
-    NodePtr getOutputNodeByIndex(const std::size_t& index) {
+    NodePtr getOutputNodeByIndex(std::size_t index) {
         auto output = outputNodesMap.find(index);
         if (output == outputNodesMap.end())
-            OPENVINO_THROW("CPU execution graph doesn't contain output node with index: ", index);
+            return nullptr;
         return output->second;
+    }
+
+    NodeConstPtr getInputNodeByIndex(std::size_t index) const {
+        auto input = inputNodesMap.find(index);
+        if (input == inputNodesMap.end())
+            return nullptr;
+        return input->second;
+    }
+
+    NodeConstPtr getOutputNodeByIndex(std::size_t index) const {
+        auto output = outputNodesMap.find(index);
+        if (output == outputNodesMap.end())
+            return nullptr;
+        return output->second;
+    }
+
+    size_t inputsNumber() const {
+        return inputNodesMap.size();
+    }
+
+    size_t outputsNumber() const {
+        return outputNodesMap.size();
     }
 
     dnnl::engine getEngine() const {
@@ -116,6 +131,9 @@ public:
     GraphContext::CPtr getGraphContext() const {
         return m_context;
     }
+
+    std::vector<MemStatePtr> memoryStates() const;
+    void assignStates(const std::vector<MemStatePtr>& state);
 
     void GetPerfData(std::vector<ov::ProfilingInfo>& perfMap) const;
 
@@ -202,8 +220,6 @@ public:
         return graphHasDynamicInput;
     }
 
-    const std::unordered_map<std::string, node::MemoryStateNode*>& getInternalStateNodes() const;
-
     /**
      * Init graph using \p model, \p context, \p inputConfigs and \p outputConfigs
      */
@@ -218,7 +234,7 @@ public:
     void Activate(const std::vector<MemoryPtr>& externalInputMemory = {},
                   const std::vector<MemoryPtr>& externalOutputMemory = {});
 
-    const std::unordered_map<std::size_t, ProxyMemoryBlockPtr>& getOutputNodesMemBlocksMap() const {
+    const std::unordered_map<std::size_t, ProxyMemoryBlockPtr>& getOutputNodesMemBlocksMap() {
         return outputNodesMemBlocksMap;
     }
 

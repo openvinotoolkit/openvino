@@ -14,17 +14,17 @@ namespace intel_cpu {
 class ACLFullyConnectedExecutor : public ACLCommonExecutor {
 public:
     ACLFullyConnectedExecutor(const FCAttrs& attrs,
-                  const PostOps& postOps,
-                  const MemoryArgs& memory,
-                  const ExecutorContext::CPtr context);
+                              const PostOps& postOps,
+                              const MemoryArgs& memory,
+                              const ExecutorContext::CPtr context);
 
     static bool supports(const FCConfig& config);
 
     void updateTensorsShapes(ACLShapes& aclMemoryShapes) override;
 
-    arm_compute::Status validateTensorsInfo(const ACLInfos & aclMemoryInfos) override;
+    arm_compute::Status validateTensorsInfo(const ACLInfos& aclMemoryInfos) override;
 
-    ACLFunction configureFunction(const ACLTensors & aclMemoryTensors) override;
+    ACLFunction configureFunction(const ACLTensors& aclMemoryTensors) override;
 
 private:
     arm_compute::FullyConnectedLayerInfo fullyConnectedLayerInfo;
