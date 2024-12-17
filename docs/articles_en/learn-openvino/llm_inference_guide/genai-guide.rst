@@ -39,63 +39,43 @@ make sure to :doc:`install OpenVINO with GenAI <../../get-started/install-openvi
 
          .. tab-set::
 
-            .. tab-item:: main.py
-               :name: mainpy
+            .. tab-item:: text2image.py
+               :name: text2image
 
                .. code-block:: python
 
+                  import argparse
+
                   import openvino_genai
                   from PIL import Image
-                  import numpy as np
-
-                  class Generator(openvino_genai.Generator):
-                      def __init__(self, seed, mu=0.0, sigma=1.0):
-                          openvino_genai.Generator.__init__(self)
-                          np.random.seed(seed)
-                          self.mu = mu
-                          self.sigma = sigma
-
-                      def next(self):
-                          return np.random.normal(self.mu, self.sigma)
 
 
-                  def infer(model_dir: str, prompt: str):
+                  def main():
+                      parser = argparse.ArgumentParser()
+                      parser.add_argument('model_dir')
+                      parser.add_argument('prompt')
+                      args = parser.parse_args()
+
                       device = 'CPU'  # GPU can be used as well
-                      random_generator = Generator(42)
-                      pipe = openvino_genai.Text2ImagePipeline(model_dir, device)
+                      pipe = openvino_genai.Text2ImagePipeline(args.model_dir, device)
+
                       image_tensor = pipe.generate(
-                          prompt,
+                          args.prompt,
                           width=512,
                           height=512,
                           num_inference_steps=20,
-                          num_images_per_prompt=1,
-                          random_generator=random_generator
-                      )
+                          num_images_per_prompt=1)
 
                       image = Image.fromarray(image_tensor.data[0])
                       image.save("image.bmp")
 
-            .. tab-item:: LoRA.py
-               :name: lorapy
+            .. tab-item:: lora_text2image.py
+               :name: loratext2imagepy
 
                .. code-block:: python
 
                   import openvino as ov
                   import openvino_genai
-                  import numpy as np
-                  import sys
-
-
-                  class Generator(openvino_genai.Generator):
-                      def __init__(self, seed, mu=0.0, sigma=1.0):
-                          openvino_genai.Generator.__init__(self)
-                          np.random.seed(seed)
-                          self.mu = mu
-                          self.sigma = sigma
-
-                      def next(self):
-                          return np.random.normal(self.mu, self.sigma)
-
 
                   def image_write(path: str, image_tensor: ov.Tensor):
                       from PIL import Image
@@ -103,35 +83,44 @@ make sure to :doc:`install OpenVINO with GenAI <../../get-started/install-openvi
                       image.save(path)
 
 
-                  def infer(models_path: str, prompt: str):
-                      prompt = "cyberpunk cityscape like Tokyo New York with tall buildings at dusk golden hour cinematic lighting"
+                  def main():
+                      parser = argparse.ArgumentParser()
+                      parser.add_argument('models_path')
+                      parser.add_argument('prompt')
+                      args, adapters = parser.parse_known_args()
+
+                      prompt = args.prompt
 
                       device = "CPU"  # GPU, NPU can be used as well
                       adapter_config = openvino_genai.AdapterConfig()
 
+                      # Multiple LoRA adapters applied simultaneously are supported, parse them all and corresponding alphas from cmd parameters:
                       for i in range(int(len(adapters) / 2)):
                           adapter = openvino_genai.Adapter(adapters[2 * i])
                           alpha = float(adapters[2 * i + 1])
                           adapter_config.add(adapter, alpha)
 
-                      pipe = openvino_genai.Text2ImagePipeline(models_path, device, adapters=adapter_config)
+                      # LoRA adapters passed to the constructor will be activated by default in next generates
+                      pipe = openvino_genai.Text2ImagePipeline(args.models_path, device, adapters=adapter_config)
+
                       print("Generating image with LoRA adapters applied, resulting image will be in lora.bmp")
                       image = pipe.generate(prompt,
-                                            random_generator=Generator(42),
                                             width=512,
                                             height=896,
-                                            num_inference_steps=20)
+                                            num_inference_steps=20,
+                                            rng_seed=42)
 
                       image_write("lora.bmp", image)
                       print("Generating image without LoRA adapters applied, resulting image will be in baseline.bmp")
                       image = pipe.generate(prompt,
+                                            # passing adapters in generate overrides adapters set in the constructor; openvino_genai.AdapterConfig() means no adapters
                                             adapters=openvino_genai.AdapterConfig(),
-                                            random_generator=Generator(42),
                                             width=512,
                                             height=896,
-                                            num_inference_steps=20
-                                            )
+                                            num_inference_steps=20,
+                                            rng_seed=42)
                       image_write("baseline.bmp", image)
+
 
          For more information, refer to the
          `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/image_generation>`__
@@ -141,12 +130,12 @@ make sure to :doc:`install OpenVINO with GenAI <../../get-started/install-openvi
 
          .. tab-set::
 
-            .. tab-item:: main.cpp
-               :name: maincpp
+            .. tab-item:: text2image.cpp
+               :name: text2imagecpp
 
                .. code-block:: cpp
 
-                  #include "openvino/genai/text2image/pipeline.hpp"
+                  #include "openvino/genai/image_generation/text2image_pipeline.hpp"
 
                   #include "imwrite.hpp"
 
@@ -154,7 +143,7 @@ make sure to :doc:`install OpenVINO with GenAI <../../get-started/install-openvi
                       OPENVINO_ASSERT(argc == 3, "Usage: ", argv[0], " <MODEL_DIR> '<PROMPT>'");
 
                       const std::string models_path = argv[1], prompt = argv[2];
-                      const std::string device = "CPU";  // GPU, NPU can be used as well
+                      const std::string device = "CPU";  // GPU can be used as well
 
                       ov::genai::Text2ImagePipeline pipe(models_path, device);
                       ov::Tensor image = pipe.generate(prompt,
@@ -163,6 +152,7 @@ make sure to :doc:`install OpenVINO with GenAI <../../get-started/install-openvi
                           ov::genai::num_inference_steps(20),
                           ov::genai::num_images_per_prompt(1));
 
+                      // writes `num_images_per_prompt` images by pattern name
                       imwrite("image_%d.bmp", image, true);
 
                       return EXIT_SUCCESS;
@@ -178,12 +168,12 @@ make sure to :doc:`install OpenVINO with GenAI <../../get-started/install-openvi
                       return EXIT_FAILURE;
                   }
 
-            .. tab-item:: LoRA.cpp
-               :name: loracpp
+            .. tab-item:: lora_text2image.cpp
+               :name: loratext2imagecpp
 
                .. code-block:: cpp
 
-                  #include "openvino/genai/text2image/pipeline.hpp"
+                  #include "openvino/genai/image_generation/text2image_pipeline.hpp"
 
                   #include "imwrite.hpp"
 
@@ -194,29 +184,31 @@ make sure to :doc:`install OpenVINO with GenAI <../../get-started/install-openvi
                       const std::string device = "CPU";  // GPU, NPU can be used as well
 
                       ov::genai::AdapterConfig adapter_config;
+                      // Multiple LoRA adapters applied simultaneously are supported, parse them all and corresponding alphas from cmd parameters:
                       for(size_t i = 0; i < (argc - 3)/2; ++i) {
                           ov::genai::Adapter adapter(argv[3 + 2*i]);
                           float alpha = std::atof(argv[3 + 2*i + 1]);
                           adapter_config.add(adapter, alpha);
                       }
 
+                      // LoRA adapters passed to the constructor will be activated by default in next generates
                       ov::genai::Text2ImagePipeline pipe(models_path, device, ov::genai::adapters(adapter_config));
 
                       std::cout << "Generating image with LoRA adapters applied, resulting image will be in lora.bmp\n";
                       ov::Tensor image = pipe.generate(prompt,
-                          ov::genai::random_generator(std::make_shared<ov::genai::CppStdGenerator>(42)),
                           ov::genai::width(512),
                           ov::genai::height(896),
-                          ov::genai::num_inference_steps(20));
+                          ov::genai::num_inference_steps(20),
+                          ov::genai::rng_seed(42));
                       imwrite("lora.bmp", image, true);
 
                       std::cout << "Generating image without LoRA adapters applied, resulting image will be in baseline.bmp\n";
                       image = pipe.generate(prompt,
-                          ov::genai::adapters(),
-                          ov::genai::random_generator(std::make_shared<ov::genai::CppStdGenerator>(42)),
+                          ov::genai::adapters(),  // passing adapters in generate overrides adapters set in the constructor; adapters() means no adapters
                           ov::genai::width(512),
                           ov::genai::height(896),
-                          ov::genai::num_inference_steps(20));
+                          ov::genai::num_inference_steps(20),
+                          ov::genai::rng_seed(42));
                       imwrite("baseline.bmp", image, true);
 
                       return EXIT_SUCCESS;
@@ -233,7 +225,7 @@ make sure to :doc:`install OpenVINO with GenAI <../../get-started/install-openvi
                   }
 
          For more information, refer to the
-         `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/text2image/>`__
+         `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/image_generation/>`__
 
 
 .. dropdown:: Speech Recognition
