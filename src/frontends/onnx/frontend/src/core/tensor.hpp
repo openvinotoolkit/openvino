@@ -186,54 +186,7 @@ public:
         return static_cast<TensorProto_DataType>(m_tensor_proto->data_type());
     }
 
-    std::shared_ptr<ov::op::v0::Constant> get_ov_constant() const {
-        if (m_tensor_proto->has_segment()) {
-            FRONT_END_THROW("Loading segments isn't supported");
-        }
-        switch (m_tensor_proto->data_type()) {
-        case TensorProto_DataType::TensorProto_DataType_BOOL:
-            return make_ov_constant<char>(ov::element::boolean);
-        case TensorProto_DataType::TensorProto_DataType_FLOAT:
-            return make_ov_constant<float>(ov::element::f32);
-        case TensorProto_DataType::TensorProto_DataType_FLOAT16:
-            return make_ov_constant<ov::float16>(ov::element::f16);
-        case TensorProto_DataType::TensorProto_DataType_DOUBLE:
-            return make_ov_constant<double>(ov::element::f64);
-        case TensorProto_DataType::TensorProto_DataType_INT4:
-            return make_ov_constant<int8_t>(ov::element::i4);
-        case TensorProto_DataType::TensorProto_DataType_INT8:
-            return make_ov_constant<int8_t>(ov::element::i8);
-        case TensorProto_DataType::TensorProto_DataType_INT16:
-            return make_ov_constant<int16_t>(ov::element::i16);
-        case TensorProto_DataType::TensorProto_DataType_INT32:
-            return make_ov_constant<int32_t>(ov::element::i32);
-        case TensorProto_DataType::TensorProto_DataType_INT64:
-            return make_ov_constant<int64_t>(ov::element::i64);
-        case TensorProto_DataType::TensorProto_DataType_UINT4:
-            return make_ov_constant<uint8_t>(ov::element::u4);
-        case TensorProto_DataType::TensorProto_DataType_UINT8:
-            return make_ov_constant<uint8_t>(ov::element::u8);
-        case TensorProto_DataType::TensorProto_DataType_UINT16:
-            return make_ov_constant<uint16_t>(ov::element::u16);
-        case TensorProto_DataType::TensorProto_DataType_UINT32:
-            return make_ov_constant<uint32_t>(ov::element::u32);
-        case TensorProto_DataType::TensorProto_DataType_UINT64:
-            return make_ov_constant<uint64_t>(ov::element::u64);
-        case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
-            return make_ov_constant<ov::bfloat16>(ov::element::bf16);
-        case TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FN:
-            return make_ov_constant<ov::float8_e4m3>(ov::element::f8e4m3);
-        case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2:
-            return make_ov_constant<ov::float8_e5m2>(ov::element::f8e5m2);
-        case TensorProto_DataType::TensorProto_DataType_STRING:
-            return make_ov_constant<std::string>(ov::element::string);
-        default:
-            ONNX_UNSUPPORTED_DATA_TYPE(
-                m_tensor_proto->data_type(),
-                "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT4, INT8, INT16, INT32, INT64, "
-                "UINT4, UINT8, UINT16, UINT32, UINT64, STRING");
-        }
-    }
+    std::shared_ptr<ov::op::v0::Constant> get_ov_constant() const;
 
 private:
     template <typename T, typename std::enable_if<!std::is_same<T, std::string>::value, bool>::type = true>
