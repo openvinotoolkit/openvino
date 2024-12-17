@@ -208,14 +208,7 @@ private:
 
     const void* get_data_ptr() const {
         if (has_external_data()) {
-            const auto ext_data = detail::TensorExternalData(*m_tensor_proto);
-            std::shared_ptr<ov::AlignedBuffer> buffer = nullptr;
-            if (m_mmap_cache) {
-                buffer = ext_data.load_external_mmap_data(m_model_dir, m_mmap_cache);
-            } else {
-                buffer = ext_data.load_external_data(m_model_dir);
-            }
-            return buffer->get_ptr();
+            FRONT_END_THROW("Unexpected usage of method for externally stored data");
         }
         if (m_tensor_proto->has_raw_data()) {
             return m_tensor_proto->raw_data().data();
