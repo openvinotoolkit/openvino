@@ -318,3 +318,56 @@ TEST(mark_shape_of_subgraphs, gather_compressed_no_mark) {
     ASSERT_FALSE(check_subgraph(prog->get_node("shape_of"), prog->get_node("gather_compressed")));
     ASSERT_FALSE(check_subgraph(prog->get_node("shape_of"), prog->get_node("concat")));
 }
+
+TEST(mark_shape_of_subgraphs, conv_without_broadcast) {
+    auto& engine = get_test_engine();
+    auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), 4, ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+                                       data_types::f32, format::bfyx};
+    auto weights = engine.allocate_memory({ data_types::f16, format::bfyx, {1152, 4, 2, 2} });
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(data("weights", weights));
+    topology.add(convolution("convolution", input_info("input"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    auto prog = network.get_program();
+    ASSERT_NE(prog, nullptr);
+
+    ASSERT_FALSE(check_subgraph(prog->get_node("input"), prog->get_node("convolution")));
+}
+
+TEST(mark_shape_of_subgraphs, conv_with_broadcast_no_mark) {
+    auto& engine = get_test_engine();
+    auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), 4, ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+                                       data_types::f32, format::bfyx};
+    auto data_0 = engine.allocate_memory({ ov::PartialShape{1}, data_types::i32, format::bfyx });
+    set_values(data_0, {0});
+    auto weights = engine.allocate_memory({ data_types::f16, format::bfyx, {1152, 4, 2, 2} });
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(data("data_0", data_0));
+    topology.add(shape_of("shape_of", input_info("input"), data_types::i32));
+    topology.add(broadcast("broadcast", input_info("data_0"), input_info("shape_of"), {}, ov::op::BroadcastType::BIDIRECTIONAL));
+
+    topology.add(data("weights", weights));
+    topology.add(convolution("convolution", input_info("broadcast"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    auto prog = network.get_program();
+    ASSERT_NE(prog, nullptr);
+
+    ASSERT_TRUE(check_subgraph(prog->get_node("shape_of"), prog->get_node("shape_of")));
+    ASSERT_FALSE(check_subgraph(prog->get_node("shape_of"), prog->get_node("broadcast")));
+    ASSERT_FALSE(check_subgraph(prog->get_node("shape_of"), prog->get_node("convolution")));
+}
+
