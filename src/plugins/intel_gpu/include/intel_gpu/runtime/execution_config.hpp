@@ -57,12 +57,12 @@ public:
     }
 };
 
-class ExecutionConfig {
+class OldExecutionConfig {
 public:
-    ExecutionConfig();
-    ExecutionConfig(std::initializer_list<ov::AnyMap::value_type> values) : ExecutionConfig() { set_property(ov::AnyMap(values)); }
-    explicit ExecutionConfig(const ov::AnyMap& properties) : ExecutionConfig() { set_property(properties); }
-    explicit ExecutionConfig(const ov::AnyMap::value_type& property) : ExecutionConfig() { set_property(property); }
+    OldExecutionConfig();
+    OldExecutionConfig(std::initializer_list<ov::AnyMap::value_type> values) : OldExecutionConfig() { set_property(ov::AnyMap(values)); }
+    explicit OldExecutionConfig(const ov::AnyMap& properties) : OldExecutionConfig() { set_property(properties); }
+    explicit OldExecutionConfig(const ov::AnyMap::value_type& property) : OldExecutionConfig() { set_property(property); }
 
     void set_default();
     void set_property(const ov::AnyMap& properties);
@@ -169,6 +169,7 @@ private:
     std::map<std::string, BaseValidator::Ptr> property_validators;
 };
 
+using ExecutionConfig = OldExecutionConfig;
 }  // namespace intel_gpu
 }  // namespace ov
 

@@ -11,7 +11,7 @@
 namespace ov {
 namespace intel_gpu {
 
-ExecutionConfig::ExecutionConfig() {
+OldExecutionConfig::OldExecutionConfig() {
     set_default();
 }
 
@@ -33,7 +33,7 @@ public:
     }
 };
 
-void ExecutionConfig::set_default() {
+void OldExecutionConfig::set_default() {
     register_property<PropertyVisibility::PUBLIC>(
         std::make_tuple(ov::device::id, "0"),
         std::make_tuple(ov::enable_profiling, false),
@@ -85,13 +85,13 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::intel_gpu::use_onednn, false));
 }
 
-void ExecutionConfig::register_property_impl(const std::pair<std::string, ov::Any>& property, PropertyVisibility visibility, BaseValidator::Ptr validator) {
+void OldExecutionConfig::register_property_impl(const std::pair<std::string, ov::Any>& property, PropertyVisibility visibility, BaseValidator::Ptr validator) {
     property_validators[property.first] = validator;
     supported_properties[property.first] = visibility;
     internal_properties[property.first] = property.second;
 }
 
-void ExecutionConfig::set_property(const AnyMap& config) {
+void OldExecutionConfig::set_property(const AnyMap& config) {
     for (auto& kv : config) {
         auto& name = kv.first;
         auto& val = kv.second;
@@ -101,18 +101,18 @@ void ExecutionConfig::set_property(const AnyMap& config) {
     }
 }
 
-bool ExecutionConfig::is_supported(const std::string& name) const {
+bool OldExecutionConfig::is_supported(const std::string& name) const {
     bool supported = supported_properties.find(name) != supported_properties.end();
     bool has_validator = property_validators.find(name) != property_validators.end();
 
     return supported && has_validator;
 }
 
-bool ExecutionConfig::is_set_by_user(const std::string& name) const {
+bool OldExecutionConfig::is_set_by_user(const std::string& name) const {
     return user_properties.find(name) != user_properties.end();
 }
 
-void ExecutionConfig::set_user_property(const AnyMap& config) {
+void OldExecutionConfig::set_user_property(const AnyMap& config) {
     for (auto& kv : config) {
         auto& name = kv.first;
         auto& val = kv.second;
@@ -124,7 +124,7 @@ void ExecutionConfig::set_user_property(const AnyMap& config) {
     }
 }
 
-Any ExecutionConfig::get_property(const std::string& name) const {
+Any OldExecutionConfig::get_property(const std::string& name) const {
     if (user_properties.find(name) != user_properties.end()) {
         return user_properties.at(name);
     }
@@ -133,7 +133,7 @@ Any ExecutionConfig::get_property(const std::string& name) const {
     return internal_properties.at(name);
 }
 
-void ExecutionConfig::apply_execution_hints(const cldnn::device_info& info) {
+void OldExecutionConfig::apply_execution_hints(const cldnn::device_info& info) {
     if (is_set_by_user(ov::hint::execution_mode)) {
         const auto mode = get_property(ov::hint::execution_mode);
         if (!is_set_by_user(ov::hint::inference_precision)) {
@@ -149,7 +149,7 @@ void ExecutionConfig::apply_execution_hints(const cldnn::device_info& info) {
     }
 }
 
-void ExecutionConfig::apply_performance_hints(const cldnn::device_info& info) {
+void OldExecutionConfig::apply_performance_hints(const cldnn::device_info& info) {
     if (is_set_by_user(ov::hint::performance_mode)) {
         const auto mode = get_property(ov::hint::performance_mode);
         if (!is_set_by_user(ov::num_streams)) {
@@ -178,7 +178,7 @@ void ExecutionConfig::apply_performance_hints(const cldnn::device_info& info) {
     }
 }
 
-void ExecutionConfig::apply_priority_hints(const cldnn::device_info& info) {
+void OldExecutionConfig::apply_priority_hints(const cldnn::device_info& info) {
     if (is_set_by_user(ov::hint::model_priority)) {
         const auto priority = get_property(ov::hint::model_priority);
         if (!is_set_by_user(ov::intel_gpu::hint::queue_priority)) {
@@ -187,7 +187,7 @@ void ExecutionConfig::apply_priority_hints(const cldnn::device_info& info) {
     }
 }
 
-void ExecutionConfig::apply_debug_options(const cldnn::device_info& info) {
+void OldExecutionConfig::apply_debug_options(const cldnn::device_info& info) {
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
         set_property(ov::intel_gpu::dump_graphs(debug_config->dump_graphs));
@@ -222,14 +222,14 @@ void ExecutionConfig::apply_debug_options(const cldnn::device_info& info) {
     }
 }
 
-void ExecutionConfig::apply_hints(const cldnn::device_info& info) {
+void OldExecutionConfig::apply_hints(const cldnn::device_info& info) {
     apply_execution_hints(info);
     apply_performance_hints(info);
     apply_priority_hints(info);
     apply_debug_options(info);
 }
 
-void ExecutionConfig::apply_user_properties(const cldnn::device_info& info) {
+void OldExecutionConfig::apply_user_properties(const cldnn::device_info& info) {
     // Copy internal properties before applying hints to ensure that
     // a property set by hint won't be overriden by a value in user config.
     // E.g num_streams=AUTO && hint=THROUGHPUT
@@ -262,7 +262,7 @@ void ExecutionConfig::apply_user_properties(const cldnn::device_info& info) {
     user_properties.clear();
 }
 
-void ExecutionConfig::apply_rt_info(const cldnn::device_info& info, const ov::RTMap& rt_info) {
+void OldExecutionConfig::apply_rt_info(const cldnn::device_info& info, const ov::RTMap& rt_info) {
     if (!info.supports_immad) {
         apply_rt_info_property(ov::hint::kv_cache_precision, rt_info);
         apply_rt_info_property(ov::hint::activations_scale_factor, rt_info);
@@ -270,7 +270,7 @@ void ExecutionConfig::apply_rt_info(const cldnn::device_info& info, const ov::RT
     apply_rt_info_property(ov::hint::dynamic_quantization_group_size, rt_info);
 }
 
-std::string ExecutionConfig::to_string() const {
+std::string OldExecutionConfig::to_string() const {
     std::stringstream s;
     s << "internal properties:\n";
     for (auto& kv : internal_properties) {
