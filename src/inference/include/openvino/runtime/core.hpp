@@ -142,7 +142,9 @@ public:
     }
 
 #ifdef OPENVINO_CPP_VER_17
-    template <class Path, class... Properties, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
+    template <class Path,
+              class... Properties,
+              std::enable_if_t<std::is_same_v<Path, std::filesystem::path> && (sizeof...(Properties) > 0)>* = nullptr>
     auto read_model(const Path& model_path, const Path& bin_path, Properties&&... properties) const {
         return read_model(model_path.string(), bin_path.string(), std::forward<Properties>(properties)...);
     }
