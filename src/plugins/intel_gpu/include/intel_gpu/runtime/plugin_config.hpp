@@ -4,12 +4,10 @@
 
 #pragma once
 
-#include "config_common.hpp"
+#include "openvino/runtime/plugin_config.hpp"
 #include "intel_gpu/runtime/device_info.hpp"
-#include "intel_gpu/runtime/utils.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
-#include "config_gpu_debug_properties.hpp"
 #include <thread>
 
 namespace ov {
@@ -22,15 +20,14 @@ struct NewExecutionConfig : public ov::PluginConfig {
         ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type> PropertyVar = \
             ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type>(GET_EXCEPT_LAST(__VA_ARGS__));
 
-
-    #include "config_gpu_options.inl"
-    #include "config_gpu_debug_options.inl"
+    #include "options_release.inl"
+    #include "options_debug.inl"
 
     #undef OV_CONFIG_OPTION
 
     void finalize_impl(std::shared_ptr<IRemoteContext> context, const ov::RTMap& rt_info) override;
 
-protected:
+private:
     // Note that RT info property value has lower priority than values set by user via core.set_property or passed to compile_model call
     // So this method should be called after setting all user properties, but before apply_user_properties() call.
     void apply_rt_info(const cldnn::device_info& info, const ov::RTMap& rt_info);
@@ -40,7 +37,7 @@ protected:
     void apply_execution_hints(const cldnn::device_info& info);
     void apply_performance_hints(const cldnn::device_info& info);
     void apply_priority_hints(const cldnn::device_info& info);
-    void apply_debug_options(const cldnn::device_info& info);
+    void read_debug_options(const cldnn::device_info& info);
 };
 
 
