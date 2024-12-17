@@ -177,7 +177,7 @@ TEST(file_util, path_cast) {
     EXPECT_STREQ("./local/file.txt", ov::util::Path("./local/file.txt").generic_string().c_str());
     EXPECT_STREQ("~/local/file.txt", ov::util::Path("~/local/file.txt").generic_string().c_str());
     EXPECT_STREQ("/usr/local/file.txt", ov::util::Path("/usr/local/file.txt").generic_string().c_str());
-    EXPECT_STREQ("C:/Users/file.txt", ov::util::Path("C:\\Users\\file.txt").generic_string().c_str());
+    EXPECT_STREQ("C:\\Users\\file.txt", ov::util::Path("C:\\Users\\file.txt").string().c_str());
 
     // from char8_t to char
     EXPECT_STREQ("", ov::util::Path(u8"").string().c_str());
@@ -206,7 +206,7 @@ TEST(file_util, path_cast) {
     EXPECT_STREQ(L"./local/file.txt", ov::util::Path("./local/file.txt").generic_wstring().c_str());
     EXPECT_STREQ(L"~/local/file.txt", ov::util::Path("~/local/file.txt").generic_wstring().c_str());
     EXPECT_STREQ(L"/usr/local/file.txt", ov::util::Path("/usr/local/file.txt").generic_wstring().c_str());
-    EXPECT_STREQ(L"C:/Users/file.txt", ov::util::Path("C:\\Users\\file.txt").generic_wstring().c_str());
+    EXPECT_STREQ(L"C:\\Users\\file.txt", ov::util::Path("C:\\Users\\file.txt").wstring().c_str());
 
     // from char8_t to wchar_t
     EXPECT_STREQ(L"", ov::util::Path(u8"").wstring().c_str());
@@ -235,7 +235,7 @@ TEST(file_util, path_cast) {
     EXPECT_EQ(u"./local/file.txt", ov::util::Path("./local/file.txt").generic_u16string());
     EXPECT_EQ(u"~/local/file.txt", ov::util::Path("~/local/file.txt").generic_u16string());
     EXPECT_EQ(u"/usr/local/file.txt", ov::util::Path("/usr/local/file.txt").generic_u16string());
-    EXPECT_EQ(u"C:/Users/file.txt", ov::util::Path("C:\\Users\\file.txt").generic_u16string());
+    EXPECT_EQ(u"C:\\Users\\file.txt", ov::util::Path("C:\\Users\\file.txt").u16string());
 
     // from char8_t to u16string
     EXPECT_EQ(u"", ov::util::Path(u8"").u16string());
@@ -243,7 +243,7 @@ TEST(file_util, path_cast) {
     EXPECT_EQ(u"./local/file.txt", ov::util::Path(u8"./local/file.txt").generic_u16string());
     EXPECT_EQ(u"~/local/file.txt", ov::util::Path(u8"~/local/file.txt").generic_u16string());
     EXPECT_EQ(u"/usr/local/file.txt", ov::util::Path(u8"/usr/local/file.txt").generic_u16string());
-    EXPECT_EQ(u"C:/Users/file.txt", ov::util::Path(u8"C:\\Users\\file.txt").generic_u16string());
+    EXPECT_EQ(u"C:\\Users\\file.txt", ov::util::Path(u8"C:\\Users\\file.txt").u16string());
 
     // from char16_t to u16string
     EXPECT_EQ(u"", ov::util::Path(u"").u16string());
@@ -251,7 +251,7 @@ TEST(file_util, path_cast) {
     EXPECT_EQ(u"./local/file.txt", ov::util::Path(u"./local/file.txt").generic_u16string());
     EXPECT_EQ(u"~/local/file.txt", ov::util::Path(u"~/local/file.txt").generic_u16string());
     EXPECT_EQ(u"/usr/local/file.txt", ov::util::Path(u"/usr/local/file.txt").generic_u16string());
-    EXPECT_EQ(u"C:/Users/file.txt", ov::util::Path(u"C:\\Users\\file.txt").generic_u16string());
+    EXPECT_EQ(u"C:\\Users\\file.txt", ov::util::Path(u"C:\\Users\\file.txt").u16string());
 
     // from char32_t to u16string
     EXPECT_EQ(u"", ov::util::Path(U"").u16string());
@@ -259,7 +259,7 @@ TEST(file_util, path_cast) {
     EXPECT_EQ(u"./local/file.txt", ov::util::Path(U"./local/file.txt").generic_u16string());
     EXPECT_EQ(u"~/local/file.txt", ov::util::Path(U"~/local/file.txt").generic_u16string());
     EXPECT_EQ(u"/usr/local/file.txt", ov::util::Path(U"/usr/local/file.txt").generic_u16string());
-    EXPECT_EQ(u"C:/Users/file.txt", ov::util::Path(U"C:\\Users\\file.txt").generic_u16string());
+    EXPECT_EQ(u"C:\\Users\\file.txt", ov::util::Path(U"C:\\Users\\file.txt").u16string());
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
