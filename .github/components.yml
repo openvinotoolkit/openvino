@@ -243,6 +243,12 @@ tools:
 docs:
   revalidate: []
   build: []
+  
+docs_snippets:
+  revalidate:
+    - docs_snippets
+  build:
+    - Python_API
 
 licensing:
   revalidate: []

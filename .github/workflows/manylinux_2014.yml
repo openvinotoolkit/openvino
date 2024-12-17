@@ -263,8 +263,8 @@ jobs:
     with:
       runner: 'aks-linux-4-cores-16gb'
       container: '{"image": "${{ matrix.image }}", "volumes": ["/mount:/mount"]}'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: ${{ matrix.python-version }}
-    if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
 
   Overall_Status:
     name: ci/gha_overall_status_manylinux2014

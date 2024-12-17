@@ -12,6 +12,10 @@ on:
         type: string
         required: false
         default: '{"image": null}'
+      affected-components:
+        description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
+        type: string
+        required: true
       python-version:
         description: 'Python version to setup. E.g., "3.11"'
         type: string
@@ -25,6 +29,7 @@ env:
 jobs:
   Python_Unit_Tests:
     name: Python API tests
+    if: ${{ fromJSON(inputs.affected-components).Python_API.test || fromJSON(inputs.affected-components).docs_snippets.test }}
     timeout-minutes: 30
     runs-on: ${{ inputs.runner }}
     container: ${{ fromJSON(inputs.container) }}
@@ -94,6 +99,7 @@ jobs:
       #
 
       - name: Python API Tests
+        if: fromJSON(inputs.affected-components).Python_API.test
         run: |
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}/tests/:$LD_LIBRARY_PATH
@@ -102,6 +108,7 @@ jobs:
             --ignore=${INSTALL_TEST_DIR}/tests/pyopenvino/tests/test_utils/test_utils.py
 
       - name: Python API Tests -- numpy<2.0.0
+        if: fromJSON(inputs.affected-components).Python_API.test
         run: |
           python3 -m pip uninstall -y numpy
           python3 -m pip install "numpy~=1.26.0"
@@ -113,7 +120,7 @@ jobs:
             --ignore=${INSTALL_TEST_DIR}/tests/pyopenvino/tests/test_utils/test_utils.py
 
       - name: Clone API snippets
-        if: runner.os != 'macOS'
+        if: ${{ runner.os != 'macOS' && fromJSON(inputs.affected-components).docs_snippets.test }}
         uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
         with:
           sparse-checkout: docs/articles_en/assets/snippets
@@ -121,7 +128,7 @@ jobs:
           submodules: 'false'
 
       - name: Docs Python snippets
-        if: runner.os != 'macOS'
+        if: ${{ runner.os != 'macOS' && fromJSON(inputs.affected-components).docs_snippets.test }}
         run: |
           # torch, onnx
           python3 -m pip install -r ${INSTALL_TEST_DIR}/tests/python/preprocess/torchvision/requirements.txt -r ${INSTALL_TEST_DIR}/tests/requirements_onnx

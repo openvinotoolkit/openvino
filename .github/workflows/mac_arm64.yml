@@ -331,8 +331,8 @@ jobs:
         python-version: [ '3.9', '3.10', '3.11', '3.12' ]
     with:
       runner: 'macos-13-xlarge'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: ${{ matrix.python-version }}
-    if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
 
   TensorFlow_Layer_Tests:
     name: TensorFlow Layer Tests
