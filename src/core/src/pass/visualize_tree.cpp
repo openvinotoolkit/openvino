@@ -216,7 +216,7 @@ static void collect_symbol_print_values(const std::shared_ptr<ov::Model>& m,
 bool ov::pass::VisualizeTree::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_MODEL_SCOPE(VisualizeTree);
 
-    static const bool ovasp = true;
+    static const bool ovasp = ov::util::getenv_bool("OV_VISUALIZE_APPLY_SYMBOLIC_PROPAGATION");
     if (ovasp) {
         std::cerr << "Warning: OV_VISUALIZE_APPLY_SYMBOLIC_PROPAGATION enabled. ov::pass::SymbolicPropagation will be "
                      "triggered"
@@ -561,11 +561,11 @@ std::string ov::pass::VisualizeTree::get_attributes(std::shared_ptr<Node> node) 
         std::stringstream label;
         label << "label=\"" << get_node_name(node);
 
-        static const bool nvtos = true;
-        static const bool nvtot = true;
-        static const bool nvtio = true;
-        static const bool nvtrti = true;
-        static const bool ovpvl = true;
+        static const bool nvtos = ov::util::getenv_bool("OV_VISUALIZE_TREE_OUTPUT_SHAPES");
+        static const bool nvtot = ov::util::getenv_bool("OV_VISUALIZE_TREE_OUTPUT_TYPES");
+        static const bool nvtio = ov::util::getenv_bool("OV_VISUALIZE_TREE_IO");
+        static const bool nvtrti = ov::util::getenv_bool("OV_VISUALIZE_TREE_RUNTIME_INFO");
+        static const bool ovpvl = ov::util::getenv_bool("OV_VISUALIZE_PARTIAL_VALUES_AND_LABELS");
 
         if (nvtos || nvtot || nvtio) {
             if (nvtio) {
@@ -618,7 +618,7 @@ std::string ov::pass::VisualizeTree::get_attributes(std::shared_ptr<Node> node) 
 }
 
 std::string ov::pass::VisualizeTree::get_node_name(std::shared_ptr<Node> node) {
-    static const bool nvtmn = true;
+    static const bool nvtmn = ov::util::getenv_bool("OV_VISUALIZE_TREE_MEMBERS_NAME");
     std::string rc = (nvtmn ? std::string("friendly_name: ") : "") + node->get_friendly_name();
     if (node->get_friendly_name() != node->get_name()) {
         rc += "\\n" + (nvtmn ? std::string("name: ") : "") + node->get_name();
@@ -627,7 +627,7 @@ std::string ov::pass::VisualizeTree::get_node_name(std::shared_ptr<Node> node) {
     rc += "\\n" + (nvtmn ? std::string("type_name: ") : "") + std::string(type_info.version_id) +
           "::" + std::string(type_info.name);
 
-    static const bool nvttn = true;
+    static const bool nvttn = ov::util::getenv_bool("OV_VISUALIZE_TREE_TENSORS_NAME");
     if (nvttn) {
         auto to_string = [](const std::unordered_set<std::string>& names) {
             std::stringstream ss;
@@ -665,7 +665,7 @@ std::string ov::pass::VisualizeTree::get_node_name(std::shared_ptr<Node> node) {
         }
     }
 
-    static const bool nvtrti = true;
+    static const bool nvtrti = ov::util::getenv_bool("OV_VISUALIZE_TREE_RUNTIME_INFO");
     if (nvtrti) {
         const auto& rt = node->get_rt_info();
         if (!rt.empty()) {

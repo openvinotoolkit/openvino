@@ -36,7 +36,6 @@ ov::pass::PositionIDsReplacer::PositionIDsReplacer(const Output<Node>& position_
     auto add = pattern::wrap_type<v1::Add>({mul, position_embed});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
-        // std::cout << "XXXXXX PositionIDsReplacer" << std::endl;
         const auto& pattern_map = m.get_pattern_value_map();
         replace_node(pattern_map.at(position_ids_pattern).get_node_shared_ptr(), position_ids.get_node_shared_ptr());
         return true;
@@ -62,7 +61,6 @@ ov::pass::PositionIDsReplacerQwen::PositionIDsReplacerQwen(const Output<Node>& p
         const auto& pattern_map = m.get_pattern_value_map();
         auto max_context_len = pattern_map.at(max_context_len_pattern).get_node_shared_ptr();
         if (max_context_len->get_friendly_name() != "max_context_len") {
-            // std::cout << "XXXX return false;" << std::endl;
             return false;
         }
 
@@ -80,10 +78,6 @@ ov::pass::PositionIDsReplacerQwen::PositionIDsReplacerQwen(const Output<Node>& p
         replace_node(slice_2, reshape);
 
         gather->validate_and_infer_types();
-        /*        std::cout << "slice_2 in(0) " << slice_2->input(0).get_partial_shape() << std::endl;
-                std::cout << "slice_2 out " << slice_2->output(0).get_partial_shape() << std::endl;
-                std::cout << "gather in " << gather->input(0).get_partial_shape() << std::endl;
-                std::cout << "gather out " << gather->output(0).get_partial_shape() << std::endl;*/
         return true;
     };
 

@@ -35,7 +35,6 @@ ov::pass::TotalSequenceLengthPattern::TotalSequenceLengthPattern(
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         // TODO: Check that seq has axis that really takes sequence len but not any other dimension --
         //  use symbolic infra or look at the constant input
-        std::cout << "XXXXXX TotalSequenceLengthPattern" << std::endl;
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto concat = ov::as_type_ptr<v0::Concat>(pattern_map.at(kv_concat).get_node_shared_ptr());
@@ -109,24 +108,22 @@ ov::pass::TotalSequenceLengthPatternQwen::TotalSequenceLengthPatternQwen(
     const std::shared_ptr<ov::op::v0::Parameter>& max_context_len) {
     MATCHER_SCOPE(TotalSequenceLengthPatternQwen);
 
-    auto kv_past = pattern::wrap_type<v6::ReadValue>({pattern::any_input()});
-    auto kv_gather = pattern::wrap_type<v8::Gather>({kv_past, pattern::any_input(), pattern::any_input()});
-    auto kv_shape = pattern::wrap_type<v3::ShapeOf>({kv_gather});
-    auto seq_past = pattern::wrap_type<v8::Gather>({kv_shape, pattern::any_input(), pattern::any_input()});
+    auto prev_max_seq_len  = pattern::wrap_type<v0::Parameter>();
+    auto opt_convert_1 = pattern::optional<v0::Convert>(prev_max_seq_len);
+    auto opt_reshape_1 = pattern::optional<v1::Reshape>({opt_convert_1, pattern::any_input()});
 
     auto input_ids = pattern::wrap_type<v0::Parameter>();
     auto unsqueeze = pattern::wrap_type<v0::Unsqueeze>({input_ids, pattern::any_input()});
-    auto optional_reshape = pattern::optional<v1::Reshape>({unsqueeze, pattern::any_input()});
-    auto optional_convert = pattern::optional<v0::Convert>(optional_reshape);
-    auto kv_shape_current = pattern::wrap_type<v3::ShapeOf>({optional_convert});
+    auto opt_reshape_2 = pattern::optional<v1::Reshape>({unsqueeze, pattern::any_input()});
+    auto opt_convert_2 = pattern::optional<v0::Convert>(opt_reshape_2);
+    auto kv_shape_current = pattern::wrap_type<v3::ShapeOf>({opt_convert_2});
     auto seq_current = pattern::wrap_type<v8::Gather>({kv_shape_current, pattern::any_input(), pattern::any_input()});
 
-    auto pattern_total_seq = pattern::wrap_type<v1::Add>({seq_current, seq_past});
+    auto pattern_total_seq = pattern::wrap_type<v1::Add>({seq_current, opt_reshape_1});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         // TODO: Check that seq has axis that really takes sequence len but not any other dimension --
         //  use symbolic infra or look at the constant input
-        std::cout << "XXXXXX TotalSequenceLengthPatternQwen" << std::endl;
         const auto& pattern_map = m.get_pattern_value_map();
         auto total_seq = pattern_map.at(pattern_total_seq).get_node_shared_ptr();
 

@@ -973,11 +973,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         SV = v_input.size(3);
         L0 = present_key.size(2) - L1;
         auto Hk = k_input.size(1);
-        std::cout << "B: " << B << std::endl;
-        std::cout << "Hk: " << Hk << std::endl;
-        std::cout << "S: " << S << std::endl;
-        std::cout << "L1: " << L1 << std::endl;
-        std::cout << "SV: " << SV << std::endl;
+
         if (fuse_concat) {
             k_input.assert_dims({B, Hk, L1, S});
             v_input.assert_dims({B, Hk, L1, SV});
@@ -1199,7 +1195,6 @@ void ScaledDotProductAttention::createPrimitive() {
 }
 
 void ScaledDotProductAttention::execute(dnnl::stream strm) {
-    std::cout << "XXXXXXX SDPA 2" << std::endl;
     auto orginSDPInputNumber = getOriginalInputsNumber() - (m_config.config.fuse_concat ? 3 : 0);
     std::vector<MemoryPtr> inputs(orginSDPInputNumber);
     auto output = getDstMemoryAtPort(0);

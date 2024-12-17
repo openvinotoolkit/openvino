@@ -12,7 +12,6 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
-#include "openvino/pass/visualize_tree.hpp"
 #include "transformations/sdpa_to_paged_attention/position_ids_replacer.hpp"
 #include "transformations/sdpa_to_paged_attention/prev_sequence_length_pattern.hpp"
 #include "transformations/sdpa_to_paged_attention/state_management_pattern.hpp"
@@ -128,9 +127,10 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                   score_results,
                                                   m_use_block_indices_inputs,
                                                   m_use_score_outputs);
-    manager.register_pass<TotalSequenceLengthPatternQwen>(max_context_len);
+
     manager.register_pass<PrevSequenceLengthPattern>(prev_max_seq_len, batch_dim);
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
+    manager.register_pass<TotalSequenceLengthPatternQwen>(max_context_len);
     manager.register_pass<PositionIDsReplacer>(unsqueezed_position_ids->output(0));
     manager.register_pass<PositionIDsReplacerQwen>(unsqueezed_position_ids->output(0));
     manager.run_passes(model);
