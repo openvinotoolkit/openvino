@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "config_gpu.hpp"
+#include "intel_gpu/runtime/plugin_config.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
+#include "openvino/core/any.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
-#include "config_gpu_debug_properties.hpp"
 
 
 namespace ov {
@@ -16,15 +16,15 @@ NewExecutionConfig::NewExecutionConfig() : ov::PluginConfig() {
     #define OV_CONFIG_OPTION(PropertyNamespace, PropertyVar, ...) \
         m_options_map[PropertyNamespace::PropertyVar.name()] = &PropertyVar;
 
-    OV_CONFIG_OPTION(ov, enable_profiling, false, "Enable profiling for the plugin")
-    #include "config_gpu_options.inl"
-    #include "config_gpu_debug_options.inl"
+    #include "intel_gpu/runtime/options_release.inl"
+    #include "intel_gpu/runtime/options_debug.inl"
 
     #undef OV_CONFIG_OPTION
 }
 
 void NewExecutionConfig::finalize_impl(std::shared_ptr<IRemoteContext> context, const ov::RTMap& rt_info) {
     const auto& device_info = std::dynamic_pointer_cast<RemoteContextImpl>(context)->get_engine().get_device_info();
+    read_debug_options(device_info);
     apply_user_properties(device_info);
     apply_rt_info(device_info, rt_info);
 }
@@ -83,46 +83,17 @@ void NewExecutionConfig::apply_priority_hints(const cldnn::device_info& info) {
     }
 }
 
-void NewExecutionConfig::apply_debug_options(const cldnn::device_info& info) {
-    // GPU_DEBUG_GET_INSTANCE(debug_config);
-    // GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
-    //     set_property(ov::intel_gpu::dump_graphs(debug_config->dump_graphs));
-    // }
-
-    // GPU_DEBUG_IF(debug_config->serialize_compile == 1) {
-    //     set_property(ov::compilation_num_threads(1));
-    // }
-
-    // GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
-    //     GPU_DEBUG_COUT << "[WARNING] ov::enable_profiling property was forced because of enabled OV_GPU_DumpProfilingData debug option\n";
-    //     set_property(ov::enable_profiling(true));
-    // }
-
-    // GPU_DEBUG_IF(debug_config->disable_dynamic_impl == 1) {
-    //     set_property(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape(true));
-    // }
-
-    // GPU_DEBUG_IF(debug_config->dynamic_quantize_group_size != debug_config->DYNAMIC_QUANTIZE_GROUP_SIZE_NOT_SET) {
-    //     if (debug_config->dynamic_quantize_group_size == -1)
-    //         set_property(ov::hint::dynamic_quantization_group_size(UINT64_MAX));
-    //     else
-    //         set_property(ov::hint::dynamic_quantization_group_size(debug_config->dynamic_quantize_group_size));
-    // }
-
-    // GPU_DEBUG_IF(debug_config->use_kv_cache_compression != -1) {
-    //     GPU_DEBUG_IF(debug_config->use_kv_cache_compression == 1) {
-    //         set_property(ov::hint::kv_cache_precision(ov::element::i8));
-    //     } else {
-    //         set_property(ov::hint::kv_cache_precision(ov::element::undefined));
-    //     }
-    // }
+void NewExecutionConfig::read_debug_options(const cldnn::device_info& info) {
+    ov::AnyMap config_properties;
+    set_user_property(config_properties);
+    ov::AnyMap env_properties;
+    set_user_property(env_properties);
 }
 
 void NewExecutionConfig::apply_hints(const cldnn::device_info& info) {
     apply_execution_hints(info);
     apply_performance_hints(info);
     apply_priority_hints(info);
-    apply_debug_options(info);
 }
 
 void NewExecutionConfig::apply_user_properties(const cldnn::device_info& info) {

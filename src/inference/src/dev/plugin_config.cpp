@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "config_common.hpp"
+#include "openvino/runtime/plugin_config.hpp"
 #include "openvino/core/except.hpp"
 
 
@@ -55,6 +55,9 @@ void PluginConfig::finalize(std::shared_ptr<IRemoteContext> context, const ov::R
     }
 
     finalize_impl(context, rt_info);
+
+    // Clear properties after finalize_impl to be able to check if a property was set by user during plugin-side finalization
+    user_properties.clear();
 }
 
 std::string PluginConfig::to_string() const {
