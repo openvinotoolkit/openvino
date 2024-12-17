@@ -1,0 +1,50 @@
+// Copyright (C) 2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+// Namespace, property name, default value, [validator], description
+OV_CONFIG_OPTION(ov, enable_profiling, false, "Enable profiling for the plugin")
+OV_CONFIG_OPTION(ov::device, id, "0", "ID of the current device")
+OV_CONFIG_OPTION(ov, cache_dir, "", "Directory where model cache can be stored. Caching is disabled if empty")
+OV_CONFIG_OPTION(ov, num_streams, 1, "Number of streams to be used for inference")
+OV_CONFIG_OPTION(ov, compilation_num_threads, std::max(1, static_cast<int>(std::thread::hardware_concurrency())), "Max number of CPU threads used for model compilation for the stages that supports parallelism")
+OV_CONFIG_OPTION(ov::hint, inference_precision, ov::element::f16,
+                [](ov::element::Type t) { return t == ov::element::f16 || t == ov::element::f32 || t == ov::element::undefined; }, "Model floating-point inference precision")
+OV_CONFIG_OPTION(ov::hint, model_priority, ov::hint::Priority::MEDIUM, "High-level hint that defines the priority of the model. It may impact number of threads used for model compilton and inference as well as device queue settings")
+OV_CONFIG_OPTION(ov::hint, performance_mode, ov::hint::PerformanceMode::LATENCY, "High-level hint that defines target model inference mode. It may impact number of streams, auto batching, etc")
+OV_CONFIG_OPTION(ov::hint, execution_mode, ov::hint::ExecutionMode::PERFORMANCE, "High-level hint that defines the most important metric for the model. Performance mode allows unsafe optimizations that may reduce the model accuracy")
+OV_CONFIG_OPTION(ov::hint, num_requests, 0, "Hint that provides number of requests populated by the application")
+OV_CONFIG_OPTION(ov::hint, enable_cpu_pinning, false, "Controls if CPU threads are pinned to the cores or not")
+
+OV_CONFIG_OPTION(ov::intel_gpu::hint, host_task_priority, ov::hint::Priority::MEDIUM, "Low-level hint that controls core types used for host tasks")
+OV_CONFIG_OPTION(ov::intel_gpu::hint, queue_throttle, ov::intel_gpu::hint::ThrottleLevel::MEDIUM, "Low-level hint that controls the queue throttle level")
+OV_CONFIG_OPTION(ov::intel_gpu::hint, queue_priority, ov::hint::Priority::MEDIUM, "Low-level hint that controls queue priority property")
+OV_CONFIG_OPTION(ov::intel_gpu::hint, enable_sdpa_optimization, true, "Enable/Disable fused SDPA primitive execution")
+OV_CONFIG_OPTION(ov::intel_gpu, enable_loop_unrolling, true, "Enable/Disable Loop/TensorIterator operation unrolling")
+OV_CONFIG_OPTION(ov::intel_gpu, disable_winograd_convolution, false, "Enable/Disable winograd convolution implementation if available")
+OV_CONFIG_OPTION(ov::internal, exclusive_async_requests, false, "")
+OV_CONFIG_OPTION(ov::internal, query_model_ratio, 1.0f, "")
+OV_CONFIG_OPTION(ov, cache_mode, ov::CacheMode::OPTIMIZE_SPEED, "Cache mode defines the trade-off between the model compilation time and the disk space required for the cache")
+OV_CONFIG_OPTION(ov, cache_encryption_callbacks, EncryptionCallbacks{}, "Callbacks used to encrypt/decrypt the model")
+OV_CONFIG_OPTION(ov::hint, dynamic_quantization_group_size, 0, "")
+OV_CONFIG_OPTION(ov::hint, kv_cache_precision, ov::element::undefined, "")
+OV_CONFIG_OPTION(ov::intel_gpu::hint, enable_kernels_reuse, false, "")
+OV_CONFIG_OPTION(ov, weights_path, "", "Path to the model weights file used for weightless caching")
+OV_CONFIG_OPTION(ov::hint, activations_scale_factor, 0.f, "Scalar floating point value that is used for runtime activation tensor scaling with fp16 inference precision")
+
+OV_CONFIG_OPTION(ov::intel_gpu, nv12_two_inputs, false, "")
+OV_CONFIG_OPTION(ov::intel_gpu, config_file, "", "")
+OV_CONFIG_OPTION(ov::intel_gpu, enable_lp_transformations, false, "")
+
+OV_CONFIG_OPTION(ov::intel_gpu, max_dynamic_batch, 1, "")
+OV_CONFIG_OPTION(ov::intel_gpu, queue_type, QueueTypes::out_of_order, "")
+OV_CONFIG_OPTION(ov::intel_gpu, optimize_data, false, "")
+OV_CONFIG_OPTION(ov::intel_gpu, enable_memory_pool, true, "")
+OV_CONFIG_OPTION(ov::intel_gpu, allow_static_input_reorder, false, "")
+OV_CONFIG_OPTION(ov::intel_gpu, custom_outputs, std::vector<std::string>{}, "")
+OV_CONFIG_OPTION(ov::intel_gpu, force_implementations, ImplForcingMap{}, "")
+OV_CONFIG_OPTION(ov::intel_gpu, partial_build_program, false, "")
+OV_CONFIG_OPTION(ov::intel_gpu, allow_new_shape_infer, false, "")
+OV_CONFIG_OPTION(ov::intel_gpu, use_only_static_kernels_for_dynamic_shape, false, "")
+OV_CONFIG_OPTION(ov::intel_gpu, buffers_preallocation_ratio, 1.1f, "")
+OV_CONFIG_OPTION(ov::intel_gpu, use_onednn, false, "")
