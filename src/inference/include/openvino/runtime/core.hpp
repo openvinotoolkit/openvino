@@ -79,7 +79,7 @@ public:
      * For the following file formats the `bin_path` parameter is not used:
      *  * ONNX format (*.onnx)
      *  * PDPD (*.pdmodel)
-     *  * TF (*.pb)
+     *  * TF (*.pb, *.meta, SavedModel directory)
      *  * TFLite (*.tflite)
      * @param properties Optional map of pairs: (property name, property value) relevant only for this read operation.
      * @return A model.
@@ -99,7 +99,7 @@ public:
      * For the following file formats the `bin_path` parameter is not used:
      *  * ONNX format (*.onnx)
      *  * PDPD (*.pdmodel)
-     *  * TF (*.pb)
+     *  * TF (*.pb, *.meta, SavedModel directory)
      *  * TFLite (*.tflite)
      * @param properties Optional map of pairs: (property name, property value) relevant only for this read operation.
      * @return A model.
@@ -128,7 +128,7 @@ public:
      * For the following file formats the `bin_path` parameter is not used:
      *  * ONNX format (*.onnx)
      *  * PDPD (*.pdmodel)
-     *  * TF (*.pb)
+     *  * TF (*.pb, *.meta, SavedModel directory)
      *  * TFLite (*.tflite)
      * @param properties Optional pack of pairs: (property name, property value) relevant only for this read operation.
      * @return A model.
