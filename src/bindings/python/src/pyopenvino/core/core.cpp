@@ -396,14 +396,14 @@ void regclass_Core(py::module m) {
         [](ov::Core& self,
            const std::string& model_path,
            const std::string& weight_path,
-           const std::map<std::string, py::object>& properties) {
-            const auto any_map = Common::utils::properties_to_any_map(properties);
+           const std::map<std::string, py::object>& config) {
+            const auto any_map = Common::utils::properties_to_any_map(config);
             py::gil_scoped_release release;
             return self.read_model(model_path, weight_path, any_map);
         },
         py::arg("model"),
         py::arg("weights") = "",
-        py::arg("properties") = py::dict(),
+        py::arg("config") = py::dict(),
         R"(
             Reads models from IR / ONNX / PDPD / TF and TFLite formats.
 
@@ -419,8 +419,8 @@ void regclass_Core(py::module m) {
                             For TF format (*.pb) weights parameter is not used.
                             For TFLite format (*.tflite) weights parameter is not used.
             :type weights: str
-            :param properties: Optional map of pairs: (property name, property value) relevant only for this read operation.
-            :type properties: dict, optional
+            :param config: Optional map of pairs: (property name, property value) relevant only for this read operation.
+            :type config: dict, optional
             :return: A model.
             :rtype: openvino.runtime.Model
         )");
@@ -447,7 +447,10 @@ void regclass_Core(py::module m) {
 
     cls.def(
         "read_model",
-        [](ov::Core& self, py::object model_path, py::object weights_path) {
+        [](ov::Core& self,
+           py::object model_path,
+           py::object weights_path,
+           const std::map<std::string, py::object>& config) {
             if (py::isinstance(model_path, pybind11::module::import("io").attr("BytesIO"))) {
                 std::stringstream _stream;
                 model_path.attr("seek")(0);  // Always rewind stream!
@@ -475,8 +478,9 @@ void regclass_Core(py::module m) {
                 if (!py::isinstance<py::none>(weights_path)) {
                     weights_path_cpp = py::str(weights_path);
                 }
+                const auto any_map = Common::utils::properties_to_any_map(config);
                 py::gil_scoped_release release;
-                return self.read_model(model_path_cpp, weights_path_cpp);
+                return self.read_model(model_path_cpp, weights_path_cpp, any_map);
             }
 
             std::stringstream str;
@@ -486,6 +490,7 @@ void regclass_Core(py::module m) {
         },
         py::arg("model"),
         py::arg("weights") = py::none(),
+        py::arg("config") = py::dict(),
         R"(
             Reads models from IR / ONNX / PDPD / TF and TFLite formats.
 
@@ -501,6 +506,8 @@ void regclass_Core(py::module m) {
                             For TF format (*.pb): weights parameter is not used.
                             For TFLite format (*.tflite) weights parameter is not used.
             :type weights: pathlib.Path
+            :param config: Optional map of pairs: (property name, property value) relevant only for this read operation.
+            :type config: dict, optional
             :return: A model.
             :rtype: openvino.runtime.Model
         )");
