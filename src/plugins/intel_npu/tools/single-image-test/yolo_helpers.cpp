@@ -4,10 +4,11 @@
 //
 
 #include "yolo_helpers.hpp"
-#include "data_type_converters.hpp"
-#include "tensor_utils.hpp"
 
 #include <cmath>
+
+#include "data_type_converters.hpp"
+#include "tensor_utils.hpp"
 
 static int entryIndex(int lw, int lh, int lcoords, int lclasses, int lnum, int batch, int location, int entry) {
     int n = location / (lw * lh);
@@ -16,8 +17,8 @@ static int entryIndex(int lw, int lh, int lcoords, int lclasses, int lnum, int b
     return batch * loutputs + n * lw * lh * (lcoords + lclasses + 1) + entry * lw * lh + loc;
 }
 
-static utils::Box getRegionBox(float* x, const std::vector<float>& biases, int n, int index, int i, int j, int w, int h,
-                               int stride) {
+static utils::Box
+getRegionBox(float* x, const std::vector<float>& biases, int n, int index, int i, int j, int w, int h, int stride) {
     utils::Box b;
     b.x = (i + x[index + 0 * stride]) / w;
     b.y = (j + x[index + 1 * stride]) / h;
@@ -27,9 +28,17 @@ static utils::Box getRegionBox(float* x, const std::vector<float>& biases, int n
     return b;
 }
 
-static utils::Box getRegionBoxV3V4(const std::vector<float>& predictions, const std::vector<float>& anchor,
-                                   int anchor_offset, int n, int box_index, int col, int row, int imw, int imh,
-                                   int side, const std::function<float(const float)>& transformationFunc) {
+static utils::Box getRegionBoxV3V4(const std::vector<float>& predictions,
+                                   const std::vector<float>& anchor,
+                                   int anchor_offset,
+                                   int n,
+                                   int box_index,
+                                   int col,
+                                   int row,
+                                   int imw,
+                                   int imh,
+                                   int side,
+                                   const std::function<float(const float)>& transformationFunc) {
     utils::Box b;
     b.x = (col + transformationFunc(predictions[box_index + 0 * side * side])) / side;
     b.y = (row + transformationFunc(predictions[box_index + 1 * side * side])) / side;
@@ -67,10 +76,17 @@ static void correctRegionBoxes(std::vector<utils::Box>& boxes, int n, int w, int
     }
 }
 
-static void getRegionBoxesV3V4(const std::vector<std::vector<float>>& predictions, int w, int h, int lclasses,
-                               int lcoords, int lnum, const std::vector<float>& anchors,
-                               std::vector<std::vector<size_t>>& tensorWH, float thresh,
-                               std::vector<std::vector<float>>& probs, std::vector<utils::Box>& boxes,
+static void getRegionBoxesV3V4(const std::vector<std::vector<float>>& predictions,
+                               int w,
+                               int h,
+                               int lclasses,
+                               int lcoords,
+                               int lnum,
+                               const std::vector<float>& anchors,
+                               std::vector<std::vector<size_t>>& tensorWH,
+                               float thresh,
+                               std::vector<std::vector<float>>& probs,
+                               std::vector<utils::Box>& boxes,
                                const std::function<float(const float)>& transformationFunc,
                                const std::function<int(const size_t, const int)>& anchorFunc) {
     for (size_t iout = 0; iout < predictions.size(); ++iout) {
@@ -97,8 +113,17 @@ static void getRegionBoxesV3V4(const std::vector<std::vector<float>>& prediction
 
                 int box_index = entryIndex(lw, lh, lcoords, lclasses, lnum, 0, n * lw * lh + i, 0);
 
-                boxes.push_back(getRegionBoxV3V4(predictions[iout], anchors, anchorOffset, n, box_index, col, row, w, h,
-                                                 lw, transformationFunc));
+                boxes.push_back(getRegionBoxV3V4(predictions[iout],
+                                                 anchors,
+                                                 anchorOffset,
+                                                 n,
+                                                 box_index,
+                                                 col,
+                                                 row,
+                                                 w,
+                                                 h,
+                                                 lw,
+                                                 transformationFunc));
 
                 std::vector<float> prob(lclasses + 1, 0.0);
                 for (int j = 0; j < lclasses; ++j) {
@@ -113,9 +138,21 @@ static void getRegionBoxesV3V4(const std::vector<std::vector<float>>& prediction
     }
 }
 
-static void getRegionBoxes(std::vector<float>& predictions, int lw, int lh, int lcoords, int lclasses, int lnum, int w,
-                           int h, int netw, int neth, float thresh, std::vector<std::vector<float>>& probs,
-                           std::vector<utils::Box>& boxes, int relative, const std::vector<float>& anchors) {
+static void getRegionBoxes(std::vector<float>& predictions,
+                           int lw,
+                           int lh,
+                           int lcoords,
+                           int lclasses,
+                           int lnum,
+                           int w,
+                           int h,
+                           int netw,
+                           int neth,
+                           float thresh,
+                           std::vector<std::vector<float>>& probs,
+                           std::vector<utils::Box>& boxes,
+                           int relative,
+                           const std::vector<float>& anchors) {
     for (int i = 0; i < lw * lh; ++i) {
         int row = i / lw;
         int col = i % lw;
@@ -146,7 +183,9 @@ struct sortableYoloBBox {
     int cclass;
     std::vector<std::vector<float>> probs;
     sortableYoloBBox(int index, int cclass, std::vector<std::vector<float>>& probs)
-            : index(index), cclass(cclass), probs(probs){}
+        : index(index),
+          cclass(cclass),
+          probs(probs) {}
 };
 
 static float overlap(float x1, float w1, float x2, float w2) {
@@ -181,8 +220,11 @@ float utils::boxIntersectionOverUnion(const utils::Box& a, const utils::Box& b) 
     return boxIntersection(a, b) / boxUnion(a, b);
 }
 
-static void doNonMaximumSupressionSort(std::vector<utils::Box>& boxes, std::vector<std::vector<float>>& probs,
-                                       int total, int classes, float thresh) {
+static void doNonMaximumSupressionSort(std::vector<utils::Box>& boxes,
+                                       std::vector<std::vector<float>>& probs,
+                                       int total,
+                                       int classes,
+                                       float thresh) {
     std::vector<sortableYoloBBox> boxCandidates;
 
     for (int i = 0; i < total; ++i) {
@@ -238,8 +280,13 @@ static float clampToImageSize(const float& valueToClamp, const float& low, const
     return result;
 }
 
-static void getDetections(int imw, int imh, int num, float thresh, utils::Box* boxes,
-                          std::vector<std::vector<float>>& probs, int classes,
+static void getDetections(int imw,
+                          int imh,
+                          int num,
+                          float thresh,
+                          utils::Box* boxes,
+                          std::vector<std::vector<float>>& probs,
+                          int classes,
                           std::vector<utils::BoundingBox>& detect_result) {
     for (int i = 0; i < num; ++i) {
         auto idxClass = static_cast<int>(maxIndex(probs[i], classes));
@@ -263,18 +310,22 @@ static void getDetections(int imw, int imh, int num, float thresh, utils::Box* b
     }
 }
 
-static std::vector<utils::BoundingBox> yolov2BoxExtractor(float threshold, std::vector<float>& net_out, int imgWidth,
-                                                          int imgHeight, int class_num, bool isTiny) {
+static std::vector<utils::BoundingBox> yolov2BoxExtractor(float threshold,
+                                                          std::vector<float>& net_out,
+                                                          int imgWidth,
+                                                          int imgHeight,
+                                                          int class_num,
+                                                          bool isTiny) {
     int classes = class_num;
     int coords = 4;
     int num = 5;
     std::vector<utils::BoundingBox> boxes_result;
 
     std::vector<float> TINY_YOLOV2_ANCHORS = {1.08f, 1.19f, 3.42f, 4.41f, 6.63f, 11.38f, 9.42f, 5.11f, 16.62f, 10.52f};
-    std::vector<float> YOLOV2_ANCHORS = {1.3221f,  1.73145f, 3.19275f, 4.00944f, 5.05587f,
-                                         8.09892f, 9.47112f, 4.84053f, 11.2364f, 10.0071f};
-    std::vector<float> YOLOV2_ANCHORS_80_CLASSES = {0.57273f, 0.677385f, 1.87446f, 2.06253f, 3.33843f,
-                                                    5.47434f, 7.88282f,  3.52778f, 9.77052f, 9.16828f};
+    std::vector<float> YOLOV2_ANCHORS =
+        {1.3221f, 1.73145f, 3.19275f, 4.00944f, 5.05587f, 8.09892f, 9.47112f, 4.84053f, 11.2364f, 10.0071f};
+    std::vector<float> YOLOV2_ANCHORS_80_CLASSES =
+        {0.57273f, 0.677385f, 1.87446f, 2.06253f, 3.33843f, 5.47434f, 7.88282f, 3.52778f, 9.77052f, 9.16828f};
 
     int imw = 416;
     int imh = 416;
@@ -297,7 +348,20 @@ static std::vector<utils::BoundingBox> yolov2BoxExtractor(float threshold, std::
         }
     }
 
-    getRegionBoxes(net_out, lw, lh, coords, classes, num, imgWidth, imgHeight, imw, imh, threshold, probs, boxes, 1,
+    getRegionBoxes(net_out,
+                   lw,
+                   lh,
+                   coords,
+                   classes,
+                   num,
+                   imgWidth,
+                   imgHeight,
+                   imw,
+                   imh,
+                   threshold,
+                   probs,
+                   boxes,
+                   1,
                    *anchors);
 
     doNonMaximumSupressionSort(boxes, probs, lw * lh * num, classes, nms);
@@ -307,24 +371,45 @@ static std::vector<utils::BoundingBox> yolov2BoxExtractor(float threshold, std::
 }
 
 static std::vector<utils::BoundingBox> yolov3v4BoxExtractor(
-        std::vector<std::vector<float>>& net_out, int imgW, int imgH, int classes, int coords, int num,
-        const std::vector<float>& anchors, std::vector<std::vector<size_t>>& tensorWH, float threshold, float nms,
-        const std::function<float(const float)>& transformationFunc,
-        const std::function<int(const size_t, const int)>& anchorFunc) {
+    std::vector<std::vector<float>>& net_out,
+    int imgW,
+    int imgH,
+    int classes,
+    int coords,
+    int num,
+    const std::vector<float>& anchors,
+    std::vector<std::vector<size_t>>& tensorWH,
+    float threshold,
+    float nms,
+    const std::function<float(const float)>& transformationFunc,
+    const std::function<int(const size_t, const int)>& anchorFunc) {
     std::vector<utils::BoundingBox> boxes_result;
     std::vector<utils::Box> boxes;
     std::vector<std::vector<float>> probs;
 
-    getRegionBoxesV3V4(net_out, imgW, imgH, classes, coords, num, anchors, tensorWH, threshold, probs, boxes,
-                       transformationFunc, anchorFunc);
+    getRegionBoxesV3V4(net_out,
+                       imgW,
+                       imgH,
+                       classes,
+                       coords,
+                       num,
+                       anchors,
+                       tensorWH,
+                       threshold,
+                       probs,
+                       boxes,
+                       transformationFunc,
+                       anchorFunc);
     doNonMaximumSupressionSort(boxes, probs, static_cast<int>(probs.size()), classes, nms);
     getDetections(imgW, imgH, static_cast<int>(probs.size()), threshold, boxes.data(), probs, classes, boxes_result);
 
     return boxes_result;
 }
 
-static std::vector<utils::BoundingBox> SSDBoxExtractor(const float threshold, std::vector<float>& net_out,
-                                                       const size_t imgWidth, const size_t imgHeight) {
+static std::vector<utils::BoundingBox> SSDBoxExtractor(const float threshold,
+                                                       std::vector<float>& net_out,
+                                                       const size_t imgWidth,
+                                                       const size_t imgHeight) {
     std::vector<utils::BoundingBox> boxes_result;
 
     if (net_out.empty()) {
@@ -340,15 +425,18 @@ static std::vector<utils::BoundingBox> SSDBoxExtractor(const float threshold, st
                                       net_out[i * oneDetectionSize + 3] * imgWidth,
                                       net_out[i * oneDetectionSize + 4] * imgHeight,
                                       net_out[i * oneDetectionSize + 5] * imgWidth,
-                                      net_out[i * oneDetectionSize + 6] * imgHeight, net_out[i * oneDetectionSize + 2]);
+                                      net_out[i * oneDetectionSize + 6] * imgHeight,
+                                      net_out[i * oneDetectionSize + 2]);
         }
     }
 
     return boxes_result;
 }
 
-std::vector<utils::BoundingBox> utils::parseYoloOutput(const ov::Tensor& tensor, const size_t imgWidth,
-                                                       const size_t imgHeight, const float confThresh,
+std::vector<utils::BoundingBox> utils::parseYoloOutput(const ov::Tensor& tensor,
+                                                       const size_t imgWidth,
+                                                       const size_t imgHeight,
+                                                       const float confThresh,
                                                        const bool isTiny) {
     const auto dataBuffer = tensor.data<float>();
     OPENVINO_ASSERT(dataBuffer != nullptr);
@@ -360,17 +448,25 @@ std::vector<utils::BoundingBox> utils::parseYoloOutput(const ov::Tensor& tensor,
 
     std::vector<utils::BoundingBox> out;
     int classes = 20;
-    out = yolov2BoxExtractor(confThresh, results, static_cast<int>(imgWidth), static_cast<int>(imgHeight), classes,
+    out = yolov2BoxExtractor(confThresh,
+                             results,
+                             static_cast<int>(imgWidth),
+                             static_cast<int>(imgHeight),
+                             classes,
                              isTiny);
 
     return out;
 }
 
-std::vector<utils::BoundingBox> utils::parseYoloV3Output(const std::map<std::string, ov::Tensor>& tensors,
-                                                         const size_t imgWidth, const size_t imgHeight,
-                                                         const int classes, const int coords, const int num,
-                                                         const std::vector<float>& anchors, const float confThresh,
-                                                         const std::unordered_map<std::string, ov::Layout>& layouts) {
+std::vector<utils::BoundingBox> utils::parseYoloV3Output(const std::map<size_t, ov::Tensor>& tensors,
+                                                         const size_t imgWidth,
+                                                         const size_t imgHeight,
+                                                         const int classes,
+                                                         const int coords,
+                                                         const int num,
+                                                         const std::vector<float>& anchors,
+                                                         const float confThresh,
+                                                         const std::unordered_map<size_t, ov::Layout>& layouts) {
     auto funcV3 = [](const float x) -> float {
         return x;
     };
@@ -379,16 +475,29 @@ std::vector<utils::BoundingBox> utils::parseYoloV3Output(const std::map<std::str
         return static_cast<int>((tensors.size() - 1) * (lnum * (tensors.size() - 1 - iout)));
     };
 
-    auto result = parseYoloV3V4Output(tensors, imgWidth, imgHeight, classes, coords, num, anchors, confThresh, layouts,
-                                      funcV3, anchorOffsetV3);
+    auto result = parseYoloV3V4Output(tensors,
+                                      imgWidth,
+                                      imgHeight,
+                                      classes,
+                                      coords,
+                                      num,
+                                      anchors,
+                                      confThresh,
+                                      layouts,
+                                      funcV3,
+                                      anchorOffsetV3);
     return result;
 }
 
-std::vector<utils::BoundingBox> utils::parseYoloV4Output(const std::map<std::string, ov::Tensor>& tensors,
-                                                         const size_t imgWidth, const size_t imgHeight,
-                                                         const int classes, const int coords, const int num,
-                                                         const std::vector<float>& anchors, const float confThresh,
-                                                         const std::unordered_map<std::string, ov::Layout>& layouts) {
+std::vector<utils::BoundingBox> utils::parseYoloV4Output(const std::map<size_t, ov::Tensor>& tensors,
+                                                         const size_t imgWidth,
+                                                         const size_t imgHeight,
+                                                         const int classes,
+                                                         const int coords,
+                                                         const int num,
+                                                         const std::vector<float>& anchors,
+                                                         const float confThresh,
+                                                         const std::unordered_map<size_t, ov::Layout>& layouts) {
     auto funcV4 = [](const float x) -> float {
         return 1 / (1 + std::exp(-x));
     };
@@ -397,17 +506,32 @@ std::vector<utils::BoundingBox> utils::parseYoloV4Output(const std::map<std::str
         return static_cast<int>(lnum * 2 * iout);
     };
 
-    auto result = parseYoloV3V4Output(tensors, imgWidth, imgHeight, classes, coords, num, anchors, confThresh, layouts,
-                                      funcV4, anchorOffsetV4);
+    auto result = parseYoloV3V4Output(tensors,
+                                      imgWidth,
+                                      imgHeight,
+                                      classes,
+                                      coords,
+                                      num,
+                                      anchors,
+                                      confThresh,
+                                      layouts,
+                                      funcV4,
+                                      anchorOffsetV4);
     return result;
 }
 
 std::vector<utils::BoundingBox> utils::parseYoloV3V4Output(
-        const std::map<std::string, ov::Tensor>& tensors, const size_t imgWidth, const size_t imgHeight,
-        const int classes, const int coords, const int num, const std::vector<float>& anchors, const float confThresh,
-        const std::unordered_map<std::string, ov::Layout>& layouts,
-        const std::function<float(const float)>& transformationFunc,
-        const std::function<int(const size_t, const int)>& anchorFunc) {
+    const std::map<size_t, ov::Tensor>& tensors,
+    const size_t imgWidth,
+    const size_t imgHeight,
+    const int classes,
+    const int coords,
+    const int num,
+    const std::vector<float>& anchors,
+    const float confThresh,
+    const std::unordered_map<size_t, ov::Layout>& layouts,
+    const std::function<float(const float)>& transformationFunc,
+    const std::function<int(const size_t, const int)>& anchorFunc) {
     std::vector<std::vector<float>> results;
     std::vector<std::vector<size_t>> tensorWH;
 
@@ -442,12 +566,24 @@ std::vector<utils::BoundingBox> utils::parseYoloV3V4Output(
         tensorWH.push_back(std::vector<size_t>{W, H});
     }
 
-    return yolov3v4BoxExtractor(results, static_cast<int>(imgWidth), static_cast<int>(imgHeight), classes, coords, num,
-                                anchors, tensorWH, confThresh, 0.4f, transformationFunc, anchorFunc);
+    return yolov3v4BoxExtractor(results,
+                                static_cast<int>(imgWidth),
+                                static_cast<int>(imgHeight),
+                                classes,
+                                coords,
+                                num,
+                                anchors,
+                                tensorWH,
+                                confThresh,
+                                0.4f,
+                                transformationFunc,
+                                anchorFunc);
 }
 
-std::vector<utils::BoundingBox> utils::parseSSDOutput(const ov::Tensor& tensor, const size_t imgWidth,
-                                                      const size_t imgHeight, const float confThresh) {
+std::vector<utils::BoundingBox> utils::parseSSDOutput(const ov::Tensor& tensor,
+                                                      const size_t imgWidth,
+                                                      const size_t imgHeight,
+                                                      const float confThresh) {
     const ov::Tensor tensorFP32 = npu::utils::toFP32(tensor);
 
     const auto dataBuffer = tensorFP32.data<float>();
@@ -460,7 +596,8 @@ std::vector<utils::BoundingBox> utils::parseSSDOutput(const ov::Tensor& tensor, 
 }
 
 void utils::printDetectionBBoxOutputs(const std::vector<utils::BoundingBox>& actualOutput,
-                                      std::ostringstream& outputStream, const std::vector<std::string>& labels) {
+                                      std::ostringstream& outputStream,
+                                      const std::vector<std::string>& labels) {
     outputStream << "Actual top:" << std::endl;
     for (size_t i = 0; i < actualOutput.size(); ++i) {
         const auto& bb = actualOutput[i];

@@ -5,10 +5,10 @@
 
 #pragma once
 
+#include <list>
 #include <openvino/core/layout.hpp>
 #include <openvino/runtime/tensor.hpp>
 
-#include <list>
 
 namespace npu {
 namespace utils {
@@ -59,7 +59,7 @@ inline ov::Tensor toFP32(const ov::Tensor& in, void* ptr = nullptr) {
  * @param tensors The source tensors
  * @return The buffers of the tensors obtained upon precision conversion
  */
-std::vector<std::vector<float>> parseTensorsAsFP32(const std::map<std::string, ov::Tensor>& tensors);
+std::vector<std::vector<float>> parseTensorsAsFP32(const std::map<size_t, ov::Tensor>& tensors);
 
 /**
  * @brief Join several non-batched tensors having the same shapes and precisions into a batched one.
@@ -75,6 +75,6 @@ ov::Tensor joinTensors(const std::list<ov::Tensor>& tensors, const ov::Layout& l
  * @param tensors The source non-batched tensors
  * @return The merged batched tensor
  */
-std::list<ov::Tensor> splitBatchedTensor(const ov::Tensor &tensor, const ov::Layout& layout, size_t parts);
+std::list<ov::Tensor> splitBatchedTensor(const ov::Tensor& tensor, const ov::Layout& layout, size_t parts);
 }  // namespace utils
 }  // namespace npu

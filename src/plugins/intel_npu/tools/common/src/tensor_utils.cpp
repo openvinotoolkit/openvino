@@ -5,14 +5,13 @@
 
 #include "tensor_utils.hpp"
 
-#include "data_type_converters.hpp"
-
+#include <fstream>
 #include <openvino/core/except.hpp>
 #include <openvino/core/type.hpp>
 #include <openvino/core/type/element_type.hpp>
 #include <openvino/core/type/element_type_traits.hpp>
 
-#include <fstream>
+#include "data_type_converters.hpp"
 
 namespace {
 
@@ -89,7 +88,9 @@ void convertTensorPrecision(const ov::Tensor& in, const ov::Tensor& out) {
         case ov::element::Type_t::bf16:
             CASE(f64, bf16);
         default:
-            OPENVINO_THROW("Unsupported combination of precisions ", inPrecision.get_type_name(), " -> ",
+            OPENVINO_THROW("Unsupported combination of precisions ",
+                           inPrecision.get_type_name(),
+                           " -> ",
                            outPrecision.get_type_name());
         }
         break;
@@ -119,7 +120,9 @@ void convertTensorPrecision(const ov::Tensor& in, const ov::Tensor& out) {
         case ov::element::Type_t::bf16:
             CASE(f32, bf16);
         default:
-            OPENVINO_THROW("Unsupported combination of precisions ", inPrecision.get_type_name(), " -> ",
+            OPENVINO_THROW("Unsupported combination of precisions ",
+                           inPrecision.get_type_name(),
+                           " -> ",
                            outPrecision.get_type_name());
         }
         break;
@@ -149,7 +152,9 @@ void convertTensorPrecision(const ov::Tensor& in, const ov::Tensor& out) {
         case ov::element::Type_t::i8:
             CASE(f16, i8);
         default:
-            OPENVINO_THROW("Unsupported combination of precisions ", inPrecision.get_type_name(), " -> ",
+            OPENVINO_THROW("Unsupported combination of precisions ",
+                           inPrecision.get_type_name(),
+                           " -> ",
                            outPrecision.get_type_name());
         }
         break;
@@ -179,7 +184,9 @@ void convertTensorPrecision(const ov::Tensor& in, const ov::Tensor& out) {
         case ov::element::Type_t::i8:
             CASE(bf16, i8);
         default:
-            OPENVINO_THROW("Unsupported combination of precisions ", inPrecision.get_type_name(), " -> ",
+            OPENVINO_THROW("Unsupported combination of precisions ",
+                           inPrecision.get_type_name(),
+                           " -> ",
                            outPrecision.get_type_name());
         }
         break;
@@ -209,7 +216,9 @@ void convertTensorPrecision(const ov::Tensor& in, const ov::Tensor& out) {
         case ov::element::Type_t::bf16:
             CASE(u64, bf16);
         default:
-            OPENVINO_THROW("Unsupported combination of precisions ", inPrecision.get_type_name(), " -> ",
+            OPENVINO_THROW("Unsupported combination of precisions ",
+                           inPrecision.get_type_name(),
+                           " -> ",
                            outPrecision.get_type_name());
         }
         break;
@@ -239,7 +248,9 @@ void convertTensorPrecision(const ov::Tensor& in, const ov::Tensor& out) {
         case ov::element::Type_t::bf16:
             CASE(i64, bf16);
         default:
-            OPENVINO_THROW("Unsupported combination of precisions ", inPrecision.get_type_name(), " -> ",
+            OPENVINO_THROW("Unsupported combination of precisions ",
+                           inPrecision.get_type_name(),
+                           " -> ",
                            outPrecision.get_type_name());
         }
         break;
@@ -269,7 +280,9 @@ void convertTensorPrecision(const ov::Tensor& in, const ov::Tensor& out) {
         case ov::element::Type_t::bf16:
             CASE(u32, bf16);
         default:
-            OPENVINO_THROW("Unsupported combination of precisions ", inPrecision.get_type_name(), " -> ",
+            OPENVINO_THROW("Unsupported combination of precisions ",
+                           inPrecision.get_type_name(),
+                           " -> ",
                            outPrecision.get_type_name());
         }
         break;
@@ -299,7 +312,9 @@ void convertTensorPrecision(const ov::Tensor& in, const ov::Tensor& out) {
         case ov::element::Type_t::bf16:
             CASE(i32, bf16);
         default:
-            OPENVINO_THROW("Unsupported combination of precisions ", inPrecision.get_type_name(), " -> ",
+            OPENVINO_THROW("Unsupported combination of precisions ",
+                           inPrecision.get_type_name(),
+                           " -> ",
                            outPrecision.get_type_name());
         }
         break;
@@ -329,7 +344,9 @@ void convertTensorPrecision(const ov::Tensor& in, const ov::Tensor& out) {
         case ov::element::Type_t::bf16:
             CASE(u16, bf16);
         default:
-            OPENVINO_THROW("Unsupported combination of precisions ", inPrecision.get_type_name(), " -> ",
+            OPENVINO_THROW("Unsupported combination of precisions ",
+                           inPrecision.get_type_name(),
+                           " -> ",
                            outPrecision.get_type_name());
         }
         break;
@@ -359,7 +376,9 @@ void convertTensorPrecision(const ov::Tensor& in, const ov::Tensor& out) {
         case ov::element::Type_t::bf16:
             CASE(i16, bf16);
         default:
-            OPENVINO_THROW("Unsupported combination of precisions ", inPrecision.get_type_name(), " -> ",
+            OPENVINO_THROW("Unsupported combination of precisions ",
+                           inPrecision.get_type_name(),
+                           " -> ",
                            outPrecision.get_type_name());
         }
         break;
@@ -389,7 +408,9 @@ void convertTensorPrecision(const ov::Tensor& in, const ov::Tensor& out) {
         case ov::element::Type_t::bf16:
             CASE(u8, bf16);
         default:
-            OPENVINO_THROW("Unsupported combination of precisions ", inPrecision.get_type_name(), " -> ",
+            OPENVINO_THROW("Unsupported combination of precisions ",
+                           inPrecision.get_type_name(),
+                           " -> ",
                            outPrecision.get_type_name());
         }
         break;
@@ -419,13 +440,17 @@ void convertTensorPrecision(const ov::Tensor& in, const ov::Tensor& out) {
         case ov::element::Type_t::bf16:
             CASE(i8, bf16);
         default:
-            OPENVINO_THROW("Unsupported combination of precisions ", inPrecision.get_type_name(), " -> ",
+            OPENVINO_THROW("Unsupported combination of precisions ",
+                           inPrecision.get_type_name(),
+                           " -> ",
                            outPrecision.get_type_name());
         }
         break;
     }
     default:
-        OPENVINO_THROW("Unsupported combination of precisions ", inPrecision.get_type_name(), " -> ",
+        OPENVINO_THROW("Unsupported combination of precisions ",
+                       inPrecision.get_type_name(),
+                       " -> ",
                        outPrecision.get_type_name());
     }
 
@@ -450,7 +475,7 @@ ov::Tensor toPrecision(const ov::Tensor& in, const ov::element::Type& precision,
     return out;
 }
 
-std::vector<std::vector<float>> parseTensorsAsFP32(const std::map<std::string, ov::Tensor>& tensors) {
+std::vector<std::vector<float>> parseTensorsAsFP32(const std::map<size_t, ov::Tensor>& tensors) {
     std::vector<std::vector<float>> results;
 
     for (const auto& tensor : tensors) {
@@ -493,7 +518,7 @@ ov::Tensor joinTensors(const std::list<ov::Tensor>& tensors, const ov::Layout& l
     return out;
 }
 
-std::list<ov::Tensor> splitBatchedTensor(const ov::Tensor &tensor, const ov::Layout& layout, size_t parts) {
+std::list<ov::Tensor> splitBatchedTensor(const ov::Tensor& tensor, const ov::Layout& layout, size_t parts) {
     if (!parts) {
         OPENVINO_THROW("Cannot split tensor on parts: ", parts);
     }
@@ -503,12 +528,16 @@ std::list<ov::Tensor> splitBatchedTensor(const ov::Tensor &tensor, const ov::Lay
     }
     auto pivotPrecision = tensor.get_element_type();
     if (pivotShape[ov::layout::batch_idx(layout)] % parts != 0) {
-        OPENVINO_THROW("Cannot split tensor with batch size: ", pivotShape[ov::layout::batch_idx(layout)], " on: ", parts ," equal tensors");
+        OPENVINO_THROW("Cannot split tensor with batch size: ",
+                       pivotShape[ov::layout::batch_idx(layout)],
+                       " on: ",
+                       parts,
+                       " equal tensors");
     }
     pivotShape[ov::layout::batch_idx(layout)] /= parts;
     std::list<ov::Tensor> ret;
-    const auto *inputBuffer = tensor.data<unsigned char>();
-    for (size_t i = 0; i < parts; i ++) {
+    const auto* inputBuffer = tensor.data<unsigned char>();
+    for (size_t i = 0; i < parts; i++) {
         ov::Tensor out(pivotPrecision, pivotShape);
         memcpy(out.data<unsigned char>(), inputBuffer, out.get_byte_size());
         inputBuffer += out.get_byte_size();
