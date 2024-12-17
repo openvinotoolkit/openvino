@@ -90,33 +90,6 @@ auto compiled = core.compile_model(model, device, config);            // Step 5:
     }
 }
 
-void part5() {
-    std::string modelPath = "/tmp/myModel.xml";
-    std::string device = "GPU";
-    ov::Core core;                                           // Step 1: create ov::Core object
-    core.set_property(ov::cache_dir("/path/to/cache/dir"));  // Step 1b: Enable caching
-//! [ov:caching:part5]
-static const char codec_key[] = {0x30, 0x60, 0x70, 0x02, 0x04, 0x08, 0x3F, 0x6F, 0x72, 0x74, 0x78, 0x7F};
-auto codec_xor = [&](const std::string& source_str) {
-    auto key_size = sizeof(codec_key);
-    int key_idx = 0;
-    std::string dst_str = source_str;
-    for (char& c : dst_str) {
-        c ^= codec_key[key_idx % key_size];
-        key_idx++;
-    }
-    return dst_str;
-};
-auto compiled = core.compile_model(modelPath,
-                                   device,
-                                   ov::cache_encryption_callbacks(ov::EncryptionCallbacks{codec_xor, codec_xor}),
-                                   ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));  // Step 5: Compile model
-//! [ov:caching:part5]
-    if (!compiled) {
-        throw std::runtime_error("error");
-    }
-}
-
 int main() {
     try {
         part0();
@@ -124,7 +97,6 @@ int main() {
         part2();
         part3();
         part4();
-        part5();
     } catch (...) {
     }
     return 0;
