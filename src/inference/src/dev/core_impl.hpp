@@ -55,6 +55,10 @@ public:
     // Creating thread-safe copy of global config including shared_ptr to ICacheManager
     CacheConfig get_cache_config_for_device(const ov::Plugin& plugin) const;
 
+    // remove core properties
+    static void remove_core(ov::AnyMap& config);
+    static void remove_core_skip_cache_dir(ov::AnyMap& config);
+
 private:
     mutable std::mutex _cacheConfigMutex;
     CacheConfig _cacheConfig;
