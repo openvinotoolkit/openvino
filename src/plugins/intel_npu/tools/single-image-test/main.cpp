@@ -1536,6 +1536,8 @@ void nameIOTensors(std::shared_ptr<ov::Model> model) {
         auto oi = outputInfo[id];
         if (oi.get_names().empty()) {
             oi.add_names({"output_" + std::to_string(oi.get_index()) + "_" + std::to_string(id)});
+        } else {
+            oi.add_names(oi.get_names());
         }
     }
 }
