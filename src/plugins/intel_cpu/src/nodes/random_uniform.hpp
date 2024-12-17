@@ -5,9 +5,7 @@
 #pragma once
 
 #include <node.h>
-
 #include <random>
-
 #include "kernels/x64/random_uniform.hpp"
 
 namespace ov {
@@ -17,14 +15,14 @@ namespace node {
 class RandomUniform : public Node {
 public:
     union OutputType {
-        float f32;
-        float16 f16;
+        double   f64;
+        float    f32;
+        float16  f16;
         bfloat16 bf16;
-        double f64;
-        int32_t i32;
+        int64_t  i64;
+        int32_t  i32;
         uint32_t u32;
         uint16_t u16;
-        int64_t i64;
     };
 
     RandomUniform(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
@@ -47,9 +45,7 @@ public:
 
     bool created() const override;
 
-    bool canBeInPlace() const override {
-        return false;
-    }
+    bool canBeInPlace() const override { return false; }
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
@@ -59,16 +55,7 @@ protected:
     bool needShapeInfer() const override;
 
 private:
-    void computeStl(void* out, size_t work_amount);
-
-    std::pair<uint64_t, uint64_t> computePhilox(void* out,
-                                                size_t work_amount,
-                                                const std::pair<uint64_t, uint64_t>& prev_state);
-
-    template <typename T, typename DISTR_TYPE>
-    void generateData(DISTR_TYPE distribution, void* out, size_t work_amount);
-
-    void initOutShape(VectorDims& dst, const void* src, const element::Type& shape_type, size_t len);
+    void evalRange();
 
     void initEdgeValues(OutputType& dst, const void* src, const element::Type& output_type);
 
@@ -82,7 +69,7 @@ private:
     ov::element::Type m_output_prc;
     uint64_t m_global_seed = 0lu;
     uint64_t m_op_seed = 0lu;
-    std::pair<uint64_t, uint64_t> m_state{0lu, 0lu};
+    std::pair<uint64_t, uint64_t> m_state {0lu, 0lu};
 
     VectorDims m_out_shape = {};
     uint64_t m_output_elements_count = 1lu;
@@ -163,6 +150,6 @@ private:
     void computeStl(void* out, size_t work_amount);
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov
