@@ -25,21 +25,16 @@ struct NewExecutionConfig : public ov::PluginConfig {
 
     #undef OV_CONFIG_OPTION
 
-    void finalize_impl(std::shared_ptr<IRemoteContext> context, const ov::RTMap& rt_info) override;
+    void finalize_impl(std::shared_ptr<IRemoteContext> context) override;
+    void apply_rt_info(std::shared_ptr<IRemoteContext> context, const ov::RTMap& rt_info) override;
 
 private:
-    // Note that RT info property value has lower priority than values set by user via core.set_property or passed to compile_model call
-    // So this method should be called after setting all user properties, but before apply_user_properties() call.
-    void apply_rt_info(const cldnn::device_info& info, const ov::RTMap& rt_info);
-
     void apply_user_properties(const cldnn::device_info& info);
     void apply_hints(const cldnn::device_info& info);
     void apply_execution_hints(const cldnn::device_info& info);
     void apply_performance_hints(const cldnn::device_info& info);
     void apply_priority_hints(const cldnn::device_info& info);
-    void read_debug_options(const cldnn::device_info& info);
 };
-
 
 }  // namespace intel_gpu
 }  // namespace ov
