@@ -69,8 +69,13 @@ ACLFullyConnectedExecutor::ACLFullyConnectedExecutor(const FCAttrs& attrs,
                                                      const MemoryArgs& memory,
                                                      const ExecutorContext::CPtr context) {
     initFCAttrs(attrs, aclTensorAttrs, aclfcAttrs, memory, fullyConnectedLayerInfo, postOps);
-    packedWeights =
-        acl_fc_executor::prepareWeightMemory(memory, context, attrs, aclfcAttrs, postOps, expectedWeightFormat, weiTensorInfo);
+    packedWeights = acl_fc_executor::prepareWeightMemory(memory,
+                                                         context,
+                                                         attrs,
+                                                         aclfcAttrs,
+                                                         postOps,
+                                                         expectedWeightFormat,
+                                                         weiTensorInfo);
 }
 
 bool ACLFullyConnectedExecutor::supports(const FCConfig& config) {
@@ -123,5 +128,5 @@ ACLFunction ACLFullyConnectedExecutor::configureFunction(const ACLTensors& aclMe
     return neFC;
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

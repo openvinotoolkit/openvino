@@ -5,8 +5,8 @@
 #pragma once
 
 #include "acl_common_executor.hpp"
-#include "nodes/executors/fullyconnected_config.hpp"
 #include "acl_fullyconnected_utils.hpp"
+#include "nodes/executors/fullyconnected_config.hpp"
 
 namespace ov {
 namespace intel_cpu {

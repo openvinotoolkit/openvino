@@ -5,8 +5,8 @@
 #pragma once
 
 #include "acl_common_executor.hpp"
-#include "nodes/executors/fullyconnected_config.hpp"
 #include "acl_fullyconnected_utils.hpp"
+#include "nodes/executors/fullyconnected_config.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -22,9 +22,9 @@ public:
 
     void updateTensorsShapes(ACLShapes& aclMemoryShapes) override;
 
-    arm_compute::Status validateTensorsInfo(const ACLInfos & aclMemoryInfos) override;
+    arm_compute::Status validateTensorsInfo(const ACLInfos& aclMemoryInfos) override;
 
-    ACLFunction configureFunction(const ACLTensors & aclMemoryTensors) override;
+    ACLFunction configureFunction(const ACLTensors& aclMemoryTensors) override;
 
     impl_desc_type implType() const override {
         return impl_desc_type::gemm_acl;
@@ -32,8 +32,8 @@ public:
 
 protected:
     std::shared_ptr<arm_compute::TensorInfo> initTensorInfo(const arm_compute::TensorShape& tensorShape,
-                           const arm_compute::DataType& dataType,
-                           const arm_compute::DataLayout& dataLayout) override;
+                                                            const arm_compute::DataType& dataType,
+                                                            const arm_compute::DataLayout& dataLayout) override;
 
 private:
     arm_compute::GEMMInfo gemmInfo;
