@@ -171,23 +171,24 @@ TEST_P(AutoRuntimeFallback, releaseResource) {
         targetDev += deviceName;
         targetDev += ((deviceInfo == targetDevices.back()) ? "" : ",");
         if (deviceName == "CPU") {
-            mockInferrequest = std::make_shared<ov::mock_auto_plugin::MockAsyncInferRequest>(inferReqInternal,
-                                                                                             mockExecutor,
-                                                                                             nullptr,
-                                                                                             ifThrow);
-            ON_CALL(*mockIExeNet.get(), create_infer_request()).WillByDefault([this]() {
-                return mockInferrequest;
+            ON_CALL(*mockIExeNet.get(), create_infer_request()).WillByDefault([this, ifThrow]() {
+                auto inferRequest = std::make_shared<ov::mock_auto_plugin::MockAsyncInferRequest>(inferReqInternal,
+                                                                                                  mockExecutor,
+                                                                                                  nullptr,
+                                                                                                  ifThrow);
+                return inferRequest;
             });
         } else if (deviceName == "GPU.0") {
-            mockInferrequestGPU_0 =
-                std::make_shared<ov::mock_auto_plugin::MockAsyncInferRequest>(inferReqInternalActual,
-                                                                              mockExecutorGPU_0,
-                                                                              nullptr,
-                                                                              ifThrow);
-            ON_CALL(*mockIExeNetActual.get(), create_infer_request()).WillByDefault(InvokeWithoutArgs([this]() {
-                std::this_thread::sleep_for(std::chrono::milliseconds(0));
-                return mockInferrequestGPU_0;
-            }));
+            ON_CALL(*mockIExeNetActual.get(), create_infer_request())
+                .WillByDefault(InvokeWithoutArgs([this, ifThrow]() {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(0));
+                    auto inferRequest =
+                        std::make_shared<ov::mock_auto_plugin::MockAsyncInferRequest>(inferReqInternalActual,
+                                                                                      mockExecutorGPU_0,
+                                                                                      nullptr,
+                                                                                      ifThrow);
+                    return inferRequest;
+                }));
         } else if (deviceName == "GPU.1") {
             if (generateWorkersFail) {
                 mockInferrequestGPU_1 =
@@ -197,24 +198,25 @@ TEST_P(AutoRuntimeFallback, releaseResource) {
                                                                                   ifThrow);
                 ON_CALL(*mockIExeNetGPU_1.get(), create_infer_request()).WillByDefault(ov::Throw("error"));
             } else {
-                mockInferrequestGPU_1 =
-                    std::make_shared<ov::mock_auto_plugin::MockAsyncInferRequest>(inferReqInternalGPU_1,
-                                                                                  mockExecutorGPU_1,
-                                                                                  nullptr,
-                                                                                  ifThrow);
-                ON_CALL(*mockIExeNetGPU_1.get(), create_infer_request()).WillByDefault(InvokeWithoutArgs([this]() {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(0));
-                    return mockInferrequestGPU_1;
-                }));
+                ON_CALL(*mockIExeNetGPU_1.get(), create_infer_request())
+                    .WillByDefault(InvokeWithoutArgs([this, ifThrow]() {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(0));
+                        auto inferRequest =
+                            std::make_shared<ov::mock_auto_plugin::MockAsyncInferRequest>(inferReqInternalGPU_1,
+                                                                                          mockExecutorGPU_1,
+                                                                                          nullptr,
+                                                                                          ifThrow);
+                        return inferRequest;
+                    }));
             }
         } else if (deviceName == "OTHER") {
-            mockInferrequestOTHER = std::make_shared<ov::mock_auto_plugin::MockAsyncInferRequest>(inferReqInternalOTHER,
+            ON_CALL(*mockIExeNetOTHER.get(), create_infer_request()).WillByDefault(InvokeWithoutArgs([this, ifThrow]() {
+                std::this_thread::sleep_for(std::chrono::milliseconds(0));
+                auto inferRequest = std::make_shared<ov::mock_auto_plugin::MockAsyncInferRequest>(inferReqInternalOTHER,
                                                                                                   mockExecutorOTHER,
                                                                                                   nullptr,
                                                                                                   ifThrow);
-            ON_CALL(*mockIExeNetOTHER.get(), create_infer_request()).WillByDefault(InvokeWithoutArgs([this]() {
-                std::this_thread::sleep_for(std::chrono::milliseconds(0));
-                return mockInferrequestOTHER;
+                return inferRequest;
             }));
         } else {
             return;
