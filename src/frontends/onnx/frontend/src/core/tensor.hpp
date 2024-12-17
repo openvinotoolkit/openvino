@@ -189,64 +189,6 @@ public:
     std::shared_ptr<ov::op::v0::Constant> get_ov_constant() const;
 
 private:
-    template <typename T, typename std::enable_if<!std::is_same<T, std::string>::value, bool>::type = true>
-    std::shared_ptr<ov::op::v0::Constant> make_ov_constant(const ov::element::Type& type) const {
-        std::shared_ptr<ov::op::v0::Constant> constant{nullptr};
-        size_t element_count = get_data_size();
-        if (ov::element::is_nibble_type(type)) {
-            element_count *= 2;  // Each byte contains 2 data items
-        }
-        if (has_external_data()) {
-            const auto ext_data = detail::TensorExternalData(*m_tensor_proto);
-            if (m_mmap_cache) {
-                constant =
-                    std::make_shared<ov::op::v0::Constant>(type,
-                                                           m_shape,
-                                                           ext_data.load_external_mmap_data(m_model_dir, m_mmap_cache));
-            } else {
-                constant =
-                    std::make_shared<ov::op::v0::Constant>(type, m_shape, ext_data.load_external_data(m_model_dir));
-            }
-            if (element_count != ov::shape_size(m_shape) || constant->get_byte_size() != ext_data.size()) {
-                throw error::invalid_external_data(
-                    "The size of the external data file does not match the byte size of an initializer '" + get_name() +
-                    "' in the model");
-            }
-        } else if (element_count == shape_size(m_shape)) {
-            constant = std::make_shared<ov::op::v0::Constant>(type, m_shape, get_data_ptr());
-        } else if (element_count == 0 && m_shape.size() == 0) {
-            constant = common::make_failsafe_constant(type);
-        } else {
-            FRONT_END_THROW("Tensor shape doesn't match data size");
-        }
-
-        if (m_tensor_proto->has_name()) {
-            constant->set_friendly_name(get_name());
-        }
-        return constant;
-    }
-
-    template <typename T, typename std::enable_if<std::is_same<T, std::string>::value, bool>::type = true>
-    std::shared_ptr<ov::op::v0::Constant> make_ov_constant(const ov::element::Type& type) const {
-        std::shared_ptr<ov::op::v0::Constant> constant{nullptr};
-        auto data = get_data<T>();
-        auto element_count = data.size();
-        if (ov::element::is_nibble_type(type)) {
-            element_count *= 2;  // Each byte contains 2 data items
-        }
-        if (element_count == shape_size(m_shape)) {
-            constant = std::make_shared<ov::op::v0::Constant>(type, m_shape, data.data());
-        } else if (element_count == 0 && m_shape.size() == 0) {
-            constant = common::make_failsafe_constant(type);
-        } else {
-            FRONT_END_THROW("Tensor shape doesn't match data size");
-        }
-        if (m_tensor_proto->has_name()) {
-            constant->set_friendly_name(get_name());
-        }
-        return constant;
-    }
-
     bool has_external_data() const {
         return m_tensor_proto->has_data_location() &&
                m_tensor_proto->data_location() == TensorProto_DataLocation::TensorProto_DataLocation_EXTERNAL;
@@ -314,8 +256,23 @@ private:
             return m_tensor_proto->double_data_size();
         case TensorProto_DataType::TensorProto_DataType_STRING:
             return m_tensor_proto->string_data_size();
+        case TensorProto_DataType::TensorProto_DataType_INT4:
+        case TensorProto_DataType::TensorProto_DataType_INT8:
+        case TensorProto_DataType::TensorProto_DataType_INT16:
+        case TensorProto_DataType::TensorProto_DataType_UINT4:
+        case TensorProto_DataType::TensorProto_DataType_UINT8:
+        case TensorProto_DataType::TensorProto_DataType_UINT16:
+        case TensorProto_DataType::TensorProto_DataType_BOOL:
+        case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
+        case TensorProto_DataType::TensorProto_DataType_FLOAT16:
+        case TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FN:
+        case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2:
+            return m_tensor_proto->int32_data_size();
         }
-        ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "FLOAT, INT32, INT64, UINT64, DOUBLE, STRING");
+        ONNX_INVALID_DATA_TYPE(
+            m_tensor_proto->data_type(),
+            "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT4, INT8, INT16, INT32, INT64, "
+            "UINT4, UINT8, UINT16, UINT32, UINT64, STRING");
     }
 
     const TensorProto* m_tensor_proto;
