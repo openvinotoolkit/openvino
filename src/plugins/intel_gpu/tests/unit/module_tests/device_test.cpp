@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/runtime/execution_config.hpp"
-#include "module_tests/config_gpu.hpp"
-#include "openvino/runtime/properties.hpp"
 #include "test_utils.h"
 #include "intel_gpu/runtime/device.hpp"
 #include "runtime/ocl/ocl_device_detector.hpp"
@@ -103,42 +100,4 @@ TEST(devices_test, sort_order_three_vendors) {
     });
 
     ASSERT_EQ(expected_devices_order, actual_devices_order);
-}
-
-// class Test {
-// public:
-//     int i;
-//     constexpr Test(int i) : i(i) {}
-// };
-
-// constexpr const Test test1(1);
-// constexpr const Test test2(2);
-
-// template<Test t>
-// int get_prop() {
-//     static_assert(false, "FAIL");
-// }
-
-// template<template<typename, ov::PropertyMutability> class prop, typename T, ov::PropertyMutability mutability>
-// T get_prop() {
-//     static_assert(false, "FAIL");
-// }
-
-
-TEST(config_test, basic) {
-    ov::intel_gpu::NewExecutionConfig cfg;
-    std::cerr << cfg.to_string();
-
-    cfg.set_user_property(ov::hint::execution_mode(ov::hint::ExecutionMode::ACCURACY));
-    cfg.set_property(ov::hint::inference_precision(ov::element::f32));
-
-    std::cerr << "PROF: " << cfg.enable_profiling.value << std::endl;
-
-    std::cerr << cfg.to_string();
-
-    std::cerr << cfg.get_property(ov::hint::inference_precision) << std::endl;
-    std::cerr << cfg.get_property(ov::hint::execution_mode) << std::endl;
-
-//     std::cerr << get_prop<ov::hint::inference_precision>() << std::endl;
-//     std::cerr << get_prop<test1>() << std::endl;
 }
