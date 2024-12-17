@@ -31,7 +31,7 @@ public:
     void registerInput(MemoryInputBase* node);
     void remove(MemoryNode* node);
 
-    const InputNodesMap& getMemoryStates() const {
+    const InputNodesMap& getMemoryStates() {
         return memory_inputs;
     }
 

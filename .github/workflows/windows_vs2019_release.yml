@@ -63,6 +63,7 @@ jobs:
       cmake-options: |-
             -G "Ninja Multi-Config" `
             -DENABLE_PYTHON=ON `
+            -DENABLE_WHEEL=ON `
             -DENABLE_CPPLINT=OFF `
             -DBUILD_SHARED_LIBS=ON `
             -DENABLE_TESTS=ON `
