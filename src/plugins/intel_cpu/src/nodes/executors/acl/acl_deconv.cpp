@@ -91,13 +91,23 @@ bool AclDeconvExecutor::init(const DeconvAttrs& deconvAttrs,
         return false;
     }
 
+    lifetime_mgr = std::make_shared<arm_compute::BlobLifetimeManager>();
+    pool_mgr = std::make_shared<arm_compute::PoolManager>();
+    aclMemoryManager = std::make_shared<arm_compute::MemoryManagerOnDemand>(lifetime_mgr, pool_mgr);
+    aclMemoryGroup = std::make_shared<arm_compute::MemoryGroup>(aclMemoryManager);
+
+    aclMemoryGroup->manage(&srcTensor);
+    aclMemoryGroup->manage(&weiTensor);
+    aclMemoryGroup->manage(&dstTensor);
     srcTensor.allocator()->init(srcTensorInfo);
     weiTensor.allocator()->init(weiTensorInfo);
     dstTensor.allocator()->init(dstTensorInfo);
-    if (deconvAttrs.withBiasesParam)
+    if (deconvAttrs.withBiasesParam) {
+        aclMemoryGroup->manage(&biasTensor);
         biasTensor.allocator()->init(biasTensorInfo);
+    }
 
-    deconv = std::make_unique<arm_compute::NEDeconvolutionLayer>();
+    deconv = std::make_unique<arm_compute::NEDeconvolutionLayer>(aclMemoryManager);
     configureThreadSafe([&] {
         deconv->configure(&srcTensor, &weiTensor, deconvAttrs.withBiasesParam ? &biasTensor : nullptr, &dstTensor, deconv_info, deconvAttrs.aclFastMath);
     });
@@ -185,6 +195,11 @@ void AclDeconvExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vect
     dstTensor.allocator()->import_memory(dst[0]->getData());
     if (deconvAttrs.withBiasesParam)
         biasTensor.allocator()->import_memory(src[2]->getData());
+
+    arm_compute::Allocator allocator{};
+    aclMemoryManager->populate(allocator, 1);
+    aclMemoryGroup->acquire();
+
     deconv->run();
 
     srcTensor.allocator()->free();
@@ -192,6 +207,9 @@ void AclDeconvExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vect
     weiTensor.allocator()->free();
     if (deconvAttrs.withBiasesParam)
         biasTensor.allocator()->free();
+
+    aclMemoryGroup->release();
+    aclMemoryManager->clear();
 }
 
 bool AclDeconvExecutorBuilder::customIsSupported(const DeconvAttrs &deconvAttrs,

@@ -6,6 +6,10 @@
 
 #include "nodes/executors/deconv.hpp"
 #include "arm_compute/runtime/NEON/NEFunctions.h"
+#include "arm_compute/runtime/PoolManager.h"
+#include "arm_compute/runtime/MemoryManagerOnDemand.h"
+#include "arm_compute/runtime/BlobLifetimeManager.h"
+#include "arm_compute/runtime/Allocator.h"
 #include "utils/debug_capabilities.h"
 #include "acl_utils.hpp"
 #include "src/cpu/CpuTypes.h"
@@ -48,6 +52,10 @@ private:
     arm_compute::Tensor weiTensor;
     arm_compute::Tensor biasTensor;
     arm_compute::Tensor dstTensor;
+    std::shared_ptr<arm_compute::BlobLifetimeManager> lifetime_mgr = nullptr;
+    std::shared_ptr<arm_compute::PoolManager> pool_mgr = nullptr;
+    std::shared_ptr<arm_compute::MemoryManagerOnDemand> aclMemoryManager = nullptr;
+    std::shared_ptr<arm_compute::MemoryGroup> aclMemoryGroup = nullptr;
     std::unique_ptr<arm_compute::NEDeconvolutionLayer> deconv = nullptr;
 };
 
