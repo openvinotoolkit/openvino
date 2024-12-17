@@ -25,6 +25,7 @@ jobs:
     steps:
       - name: checkout action
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           sparse-checkout: .github/actions/smart-ci
 
@@ -59,6 +60,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
 
       - uses: ./.github/actions/handle_docker
         id: handle_docker
@@ -92,6 +94,7 @@ jobs:
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           path: 'openvino'
           submodules: 'true'
