@@ -22,11 +22,43 @@ NewExecutionConfig::NewExecutionConfig() : ov::PluginConfig() {
     #undef OV_CONFIG_OPTION
 }
 
-void NewExecutionConfig::finalize_impl(std::shared_ptr<IRemoteContext> context, const ov::RTMap& rt_info) {
-    const auto& device_info = std::dynamic_pointer_cast<RemoteContextImpl>(context)->get_engine().get_device_info();
-    read_debug_options(device_info);
-    apply_user_properties(device_info);
-    apply_rt_info(device_info, rt_info);
+void NewExecutionConfig::apply_rt_info(std::shared_ptr<IRemoteContext> context, const ov::RTMap& rt_info) {
+    const auto& info = std::dynamic_pointer_cast<RemoteContextImpl>(context)->get_engine().get_device_info();
+    if (!info.supports_immad) {
+        apply_rt_info_property(ov::hint::kv_cache_precision, rt_info);
+        apply_rt_info_property(ov::hint::activations_scale_factor, rt_info);
+    }
+    apply_rt_info_property(ov::hint::dynamic_quantization_group_size, rt_info);
+}
+
+void NewExecutionConfig::finalize_impl(std::shared_ptr<IRemoteContext> context) {
+    const auto& info = std::dynamic_pointer_cast<RemoteContextImpl>(context)->get_engine().get_device_info();
+    apply_hints(info);
+    if (!is_set_by_user(ov::intel_gpu::enable_lp_transformations)) {
+        set_property(ov::intel_gpu::enable_lp_transformations(info.supports_imad || info.supports_immad));
+    }
+    if (info.supports_immad) {
+        set_property(ov::intel_gpu::use_onednn(true));
+    }
+    if (get_property(ov::intel_gpu::use_onednn)) {
+        set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    }
+
+    // Enable KV-cache compression by default for non-systolic platforms
+    if (!is_set_by_user(ov::hint::kv_cache_precision) && !info.supports_immad) {
+        set_property(ov::hint::kv_cache_precision(ov::element::i8));
+    }
+
+    // Enable dynamic quantization by default for non-systolic platforms
+    if (!is_set_by_user(ov::hint::dynamic_quantization_group_size) && !info.supports_immad) {
+        set_property(ov::hint::dynamic_quantization_group_size(32));
+    }
+}
+
+void NewExecutionConfig::apply_hints(const cldnn::device_info& info) {
+    apply_execution_hints(info);
+    apply_performance_hints(info);
+    apply_priority_hints(info);
 }
 
 void NewExecutionConfig::apply_execution_hints(const cldnn::device_info& info) {
@@ -81,50 +113,6 @@ void NewExecutionConfig::apply_priority_hints(const cldnn::device_info& info) {
             set_property(ov::intel_gpu::hint::queue_priority(priority));
         }
     }
-}
-
-void NewExecutionConfig::read_debug_options(const cldnn::device_info& info) {
-    ov::AnyMap config_properties;
-    set_user_property(config_properties);
-    ov::AnyMap env_properties;
-    set_user_property(env_properties);
-}
-
-void NewExecutionConfig::apply_hints(const cldnn::device_info& info) {
-    apply_execution_hints(info);
-    apply_performance_hints(info);
-    apply_priority_hints(info);
-}
-
-void NewExecutionConfig::apply_user_properties(const cldnn::device_info& info) {
-    apply_hints(info);
-    if (!is_set_by_user(ov::intel_gpu::enable_lp_transformations)) {
-        set_property(ov::intel_gpu::enable_lp_transformations(info.supports_imad || info.supports_immad));
-    }
-    if (info.supports_immad) {
-        set_property(ov::intel_gpu::use_onednn(true));
-    }
-    if (get_property(ov::intel_gpu::use_onednn)) {
-        set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
-    }
-
-    // Enable KV-cache compression by default for non-systolic platforms
-    if (!is_set_by_user(ov::hint::kv_cache_precision) && !info.supports_immad) {
-        set_property(ov::hint::kv_cache_precision(ov::element::i8));
-    }
-
-    // Enable dynamic quantization by default for non-systolic platforms
-    if (!is_set_by_user(ov::hint::dynamic_quantization_group_size) && !info.supports_immad) {
-        set_property(ov::hint::dynamic_quantization_group_size(32));
-    }
-}
-
-void NewExecutionConfig::apply_rt_info(const cldnn::device_info& info, const ov::RTMap& rt_info) {
-    if (!info.supports_immad) {
-        apply_rt_info_property(ov::hint::kv_cache_precision, rt_info);
-        apply_rt_info_property(ov::hint::activations_scale_factor, rt_info);
-    }
-    apply_rt_info_property(ov::hint::dynamic_quantization_group_size, rt_info);
 }
 
 }  // namespace intel_gpu

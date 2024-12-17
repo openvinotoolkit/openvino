@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/runtime/plugin_config.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "test_utils.h"
@@ -23,6 +24,9 @@ TEST(config_test, basic) {
     std::cerr << cfg.get_property(ov::hint::inference_precision) << std::endl;
     std::cerr << cfg.get_property(ov::hint::execution_mode) << std::endl;
 
+    auto ctx = std::make_shared<ov::intel_gpu::RemoteContextImpl>("GPU", std::vector<device::ptr>{ get_test_engine().get_device() });
+    cfg.finalize(ctx, {});
+    std::cerr << cfg.to_string();
 //     std::cerr << get_prop<ov::hint::inference_precision>() << std::endl;
 //     std::cerr << get_prop<test1>() << std::endl;
 }
