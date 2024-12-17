@@ -38,7 +38,7 @@ auto defaultPrecisions =
     useLpt ? ov::pass::low_precision::precision_set::get_int8_support() : std::vector<ov::element::Type>{};
 if (useLpt) {
     // disable constant folding on dequantization subgraphs so they can be processed by LPT
-    manager.register_pass<ov::pass::MarkDequantizationSubgraph>(defaultPrecisions);
+    manager.register_pass<ov::pass::MarkDequantization>(defaultPrecisions);
 }
 
 // OpenVINO common transformations happen here
