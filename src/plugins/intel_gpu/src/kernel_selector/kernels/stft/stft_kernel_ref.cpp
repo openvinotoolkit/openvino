@@ -22,8 +22,6 @@ ParamsKey STFTKernelRef::GetSupportedKey() const {
 
     k.EnableOutputLayout(DataLayout::bfyx);
 
-    k.EnableTensorOffset();
-    k.EnableTensorPitches();
     k.EnableBatching();
     k.EnableDifferentTypes();
     k.EnableDynamicShapesSupport();

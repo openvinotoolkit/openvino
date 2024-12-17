@@ -23,10 +23,10 @@ template <typename ShapeType>
 std::vector<layout> STFT_inst::calc_output_layouts(STFT_node const& node, kernel_impl_params const& impl_param) {
     auto primitive = impl_param.typed_desc<STFT>();
 
-    auto signal_layout = impl_param.get_input_layout(0);
-    auto window_layout = impl_param.get_input_layout(1);
-    auto frame_size_layout = impl_param.get_input_layout(2);
-    auto frame_step_layout = impl_param.get_input_layout(3);
+    const auto& signal_layout = impl_param.get_input_layout(0);
+    const auto& window_layout = impl_param.get_input_layout(1);
+    const auto& frame_size_layout = impl_param.get_input_layout(2);
+    const auto& frame_step_layout = impl_param.get_input_layout(3);
 
     std::vector<ShapeType> input_shapes = {
         signal_layout.get<ShapeType>(),
