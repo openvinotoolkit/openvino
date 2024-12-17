@@ -5,7 +5,9 @@
 #pragma once
 
 #include <node.h>
+
 #include <random>
+
 #include "kernels/x64/random_uniform.hpp"
 
 namespace ov {
@@ -15,12 +17,12 @@ namespace node {
 class RandomUniform : public Node {
 public:
     union OutputType {
-        double   f64;
-        float    f32;
-        float16  f16;
+        double f64;
+        float f32;
+        float16 f16;
         bfloat16 bf16;
-        int64_t  i64;
-        int32_t  i32;
+        int64_t i64;
+        int32_t i32;
         uint32_t u32;
         uint16_t u16;
     };
@@ -45,7 +47,9 @@ public:
 
     bool created() const override;
 
-    bool canBeInPlace() const override { return false; }
+    bool canBeInPlace() const override {
+        return false;
+    }
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
@@ -62,14 +66,14 @@ private:
     void prepareGeneratorKernel();
 
     enum PortIndex { SHAPE = 0, MIN_VAL, MAX_VAL };
-    enum AlgorithmType { STL = 0, PHILOX, MERSENNE_TWISTER};
+    enum AlgorithmType { STL = 0, PHILOX, MERSENNE_TWISTER };
 
     bool m_const_inputs[3] = {false, false, false};
 
     ov::element::Type m_output_prc;
     uint64_t m_global_seed = 0lu;
     uint64_t m_op_seed = 0lu;
-    std::pair<uint64_t, uint64_t> m_state {0lu, 0lu};
+    std::pair<uint64_t, uint64_t> m_state{0lu, 0lu};
 
     VectorDims m_out_shape = {};
     uint64_t m_output_elements_count = 1lu;
@@ -121,15 +125,18 @@ private:
 
     void preparePhiloxParams();
 
-    std::pair<uint64_t, uint64_t> computePhilox(void* out, size_t work_amount, const std::pair<uint64_t, uint64_t>& prev_state);
+    std::pair<uint64_t, uint64_t> computePhilox(void* out,
+                                                size_t work_amount,
+                                                const std::pair<uint64_t, uint64_t>& prev_state);
 
     /////////////////////////////////////////////////////////////////////////////////
 
     ///// MERSENNE TWISTER /////
 
     // PyTorch reduces the execution time when generating 64-bit numbers when the range is below max value of uint32_t
-    // To reduce variable use, value of 'true' denotes the case in which for every uint32_t a single random value is generated
-    // for any dtype. Therefore, value of 'false' occurs only when dtype is int64 AND the range is above uint32_t.
+    // To reduce variable use, value of 'true' denotes the case in which for every uint32_t a single random value is
+    // generated for any dtype. Therefore, value of 'false' occurs only when dtype is int64 AND the range is above
+    // uint32_t.
     bool m_mersenne_twister_optimization_enabled = true;
 
     int32_t m_uint_storage_capacity_per_thread = 1;
@@ -150,6 +157,6 @@ private:
     void computeStl(void* out, size_t work_amount);
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov
