@@ -181,10 +181,14 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
                                                            ov::op::v8::Gather::get_type_info_static(),
                                                            ov::op::v1::Convolution::get_type_info_static(),
                                                            ov::opset1::Convolution::get_type_info_static(),
+                                                           ov::op::v1::ConvolutionBackpropData::get_type_info_static(),
+                                                           ov::opset1::ConvolutionBackpropData::get_type_info_static(),
                                                            ov::opset1::GroupConvolution::get_type_info_static() };
 
     std::vector<ov::DiscreteTypeInfo> convolutions = { ov::op::v1::Convolution::get_type_info_static(),
                                                        ov::opset1::Convolution::get_type_info_static(),
+                                                       ov::op::v1::ConvolutionBackpropData::get_type_info_static(),
+                                                       ov::opset1::ConvolutionBackpropData::get_type_info_static(),
                                                        ov::opset1::GroupConvolution::get_type_info_static() };
 
     auto all_has_types = [](const std::set<ov::Input<ov::Node>>& consumers, const std::vector<ov::DiscreteTypeInfo>& types) {
@@ -991,7 +995,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 }
 
                 // AZP does not support 8bit weight
-                if (debug_config->dynamic_quantize_asym
+                GPU_DEBUG_IF(debug_config->dynamic_quantize_asym
                     && (root->get_input_element_type(1) == ov::element::i8 || root->get_input_element_type(1) == ov::element::u8)) {
                     GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: asym quantization does not support 8bit weight" << std::endl;
                     return true;

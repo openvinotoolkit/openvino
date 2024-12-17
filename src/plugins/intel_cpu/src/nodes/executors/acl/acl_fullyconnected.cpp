@@ -2,23 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cpu/acl/acl_utils.hpp>
-#include <common/primitive_desc_iface.hpp>
-
-#include "ov_optional.hpp"
 #include "acl_fullyconnected.hpp"
+
+#include <common/primitive_desc_iface.hpp>
+#include <cpu/acl/acl_utils.hpp>
+
 #include "acl_utils.hpp"
-#include "nodes/executors/executor.hpp"
-#include "nodes/executors/memory_arguments.hpp"
-#include "utils/debug_capabilities.h"
-#include "utils/cpu_utils.hpp"
-#include "nodes/executors/debug_messages.hpp"
-#include "nodes/executors/implementation_utils.hpp"
-#include "nodes/convert.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/common/reorder_prim.h"
-#include "memory_desc/cpu_memory_desc_utils.h"
+#include "nodes/convert.h"
+#include "nodes/executors/debug_messages.hpp"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/implementation_utils.hpp"
+#include "nodes/executors/memory_arguments.hpp"
+#include "ov_optional.hpp"
+#include "utils/cpu_utils.hpp"
+#include "utils/debug_capabilities.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -57,13 +58,16 @@ static VectorDims makeDummyOutputDims(const VectorDims& inShape, const VectorDim
 static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc,
                                                         const DnnlMemoryDescPtr dstDesc) {
     const auto& weiDesc = srcDesc->getDnnlDesc();
-    const auto reorderedWeiDesc = dnnl::memory::desc{weiDesc.get_dims(), weiDesc.get_data_type(), dnnl::memory::format_tag::ba};
+    const auto reorderedWeiDesc =
+        dnnl::memory::desc{weiDesc.get_dims(), weiDesc.get_data_type(), dnnl::memory::format_tag::ba};
     const auto transposedWeiDesc = reorderedWeiDesc.reshape(dstDesc->getDnnlDesc().get_dims());
 
     return DnnlExtensionUtils::makeDescriptor(transposedWeiDesc);
 }
 
-static ov::optional<MemoryPtr> convertWeightPrecision(MemoryPtr input, MemoryPtr output, ov::element::Type weightPrecision) {
+static ov::optional<MemoryPtr> convertWeightPrecision(MemoryPtr input,
+                                                      MemoryPtr output,
+                                                      ov::element::Type weightPrecision) {
     MemoryArgs memoryArgs;
     memoryArgs[ARG_SRC] = input;
     memoryArgs[ARG_DST] = output;
@@ -74,16 +78,18 @@ static ov::optional<MemoryPtr> convertWeightPrecision(MemoryPtr input, MemoryPtr
         return ov::optional<MemoryPtr>(memoryArgs.at(ARG_DST));
     }
 
-    if (!node::Convert::isSupportedDesc(input->getDesc()) ||
-        !node::Convert::isSupportedDesc(output->getDesc())) {
+    if (!node::Convert::isSupportedDesc(input->getDesc()) || !node::Convert::isSupportedDesc(output->getDesc())) {
         return {};
     }
 
-    auto data = static_cast<const uint8_t *>(input->getData());
+    auto data = static_cast<const uint8_t*>(input->getData());
     std::vector<uint8_t> tmpBuff;
     tmpBuff.resize(output->getSize());
-    cpu_convert(data, tmpBuff.data(), DnnlExtensionUtils::DataTypeToElementType(input->getDataType()),
-                weightPrecision, input->getSize() / input->getDesc().getPrecision().size());
+    cpu_convert(data,
+                tmpBuff.data(),
+                DnnlExtensionUtils::DataTypeToElementType(input->getDataType()),
+                weightPrecision,
+                input->getSize() / input->getDesc().getPrecision().size());
 
     return ov::optional<MemoryPtr>(std::make_shared<Memory>(output->getPrimitive().get_engine(),
                                                             output->getDesc().cloneWithNewPrecision(weightPrecision),
@@ -96,12 +102,14 @@ static ov::optional<MemoryPtr> reorderDataFallback(MemoryPtr input, MemoryPtr ou
     }
     const auto inPrc = DnnlExtensionUtils::DataTypeToElementType(input->getDataType());
     auto convertedDstMemoryDesc = output->getDesc().cloneWithNewPrecision(inPrc);
-    dnnl::reorder reorderWithoutConvert = getReorderPrim(context->getRuntimeCache(),
-                                                         output->getPrimitive().get_engine(),
-                                                         input->getPrimitive().get_desc(),
-                                                         MemoryDescUtils::convertToDnnlMemoryDesc(convertedDstMemoryDesc)->getDnnlDesc());
+    dnnl::reorder reorderWithoutConvert =
+        getReorderPrim(context->getRuntimeCache(),
+                       output->getPrimitive().get_engine(),
+                       input->getPrimitive().get_desc(),
+                       MemoryDescUtils::convertToDnnlMemoryDesc(convertedDstMemoryDesc)->getDnnlDesc());
 
-    if (reorderWithoutConvert && parse_impl_name(reorderWithoutConvert.get_primitive_desc()->impl()->name()) != ref_any) {
+    if (reorderWithoutConvert &&
+        parse_impl_name(reorderWithoutConvert.get_primitive_desc()->impl()->name()) != ref_any) {
         auto convertOutput = convertWeightPrecision(input, output, inPrc);
         if (!convertOutput) {
             return {};
@@ -110,7 +118,9 @@ static ov::optional<MemoryPtr> reorderDataFallback(MemoryPtr input, MemoryPtr ou
 
         if (reorderWithoutConvert) {
             dnnl::stream loc_stream(output->getPrimitive().get_engine(), dnnl::stream::flags::in_order);
-            reorderWithoutConvert.execute(loc_stream, {{DNNL_ARG_FROM, input->getPrimitive()}, {DNNL_ARG_TO, output->getPrimitive()}});
+            reorderWithoutConvert.execute(
+                loc_stream,
+                {{DNNL_ARG_FROM, input->getPrimitive()}, {DNNL_ARG_TO, output->getPrimitive()}});
             return ov::optional<MemoryPtr>(output);
         }
     }
@@ -155,14 +165,15 @@ static MemoryPtr reorderData(DnnlMemoryDescPtr srcWeightDesc,
     // if precision conversion does not work then do direct reference reorder
     if (directReorder) {
         dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
-        directReorder.execute(loc_stream, {{DNNL_ARG_FROM, input->getPrimitive()}, {DNNL_ARG_TO, output->getPrimitive()}});
+        directReorder.execute(loc_stream,
+                              {{DNNL_ARG_FROM, input->getPrimitive()}, {DNNL_ARG_TO, output->getPrimitive()}});
     } else {
         OPENVINO_THROW("Could not make onednn reorder.");
     }
     return output;
 }
 
-static MemoryPtr reorderWeights(const MemoryArgs &memory,
+static MemoryPtr reorderWeights(const MemoryArgs& memory,
                                 const ExecutorContext::CPtr context,
                                 ACLFCAttrs& aclfcAttrs,
                                 DnnlMemoryDescPtr dnnlSrcDesc,
@@ -192,16 +203,16 @@ static MemoryPtr reorderWeights(const MemoryArgs &memory,
     return create();
 }
 
-static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
+static MemoryPtr prepareWeightMemory(const MemoryArgs& memory,
                                      const ExecutorContext::CPtr context,
-                                     const FCAttrs &attrs,
+                                     const FCAttrs& attrs,
                                      ACLFCAttrs& aclfcAttrs,
-                                     const PostOps &postOps,
+                                     const PostOps& postOps,
                                      arm_compute::WeightFormat& expectedWeightFormat,
                                      arm_compute::TensorInfo& weiTensorInfo) {
     MemoryArgs memoryArgs;
-    memoryArgs[ARG_BIAS]  = memory.at(ARG_BIAS);
-    memoryArgs[ARG_WEI]   = memory.at(ARG_WEI);
+    memoryArgs[ARG_BIAS] = memory.at(ARG_BIAS);
+    memoryArgs[ARG_WEI] = memory.at(ARG_WEI);
 
     auto originalWeightsDesc = memory.at(ARG_WEI)->getDescPtr();
 
@@ -219,21 +230,25 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
         const auto& inShape = memory.at(ARG_SRC_0)->getShape();
         const auto& wShape = originalWeightsDesc->getShape();
         const auto& inDymmyDims = makeDummyInputDims(inShape, wShape);
-        const auto& outDymmyDims = makeDummyOutputDims(inDymmyDims, wShape.getStaticDims(), memory.at(ARG_DST)->getShape().getRank());
-        memoryArgs[ARG_SRC_0] = std::make_shared<Memory>(context->getEngine(),
-                                                            memory.at(ARG_SRC_0)->getDescPtr()->cloneWithNewDims(inDymmyDims));
-        memoryArgs[ARG_DST] = std::make_shared<Memory>(context->getEngine(),
-                                                        memory.at(ARG_DST)->getDescPtr()->cloneWithNewDims(outDymmyDims));
+        const auto& outDymmyDims =
+            makeDummyOutputDims(inDymmyDims, wShape.getStaticDims(), memory.at(ARG_DST)->getShape().getRank());
+        memoryArgs[ARG_SRC_0] =
+            std::make_shared<Memory>(context->getEngine(),
+                                     memory.at(ARG_SRC_0)->getDescPtr()->cloneWithNewDims(inDymmyDims));
+        memoryArgs[ARG_DST] =
+            std::make_shared<Memory>(context->getEngine(),
+                                     memory.at(ARG_DST)->getDescPtr()->cloneWithNewDims(outDymmyDims));
     } else {
         memoryArgs[ARG_SRC_0] = memory.at(ARG_SRC_0);
-        memoryArgs[ARG_DST]   = memory.at(ARG_DST);
+        memoryArgs[ARG_DST] = memory.at(ARG_DST);
     }
 
     // TODO: ACLWeightFormatGenerator should be replaced with Reorder executor
     // that calls ACL NEReorder + NETranspose or dnnl::reorder depending on backend availability
     auto aclWeightsRepack = std::make_shared<acl_fc_executor::ACLWeightFormatGenerator>(attrs, postOps, memoryArgs);
     bool isNeededReorder = aclWeightsRepack->update(memoryArgs);
-    expectedWeightFormat = isNeededReorder ? aclWeightsRepack->getOptImplWeightFormat() : arm_compute::WeightFormat::UNSPECIFIED;
+    expectedWeightFormat =
+        isNeededReorder ? aclWeightsRepack->getOptImplWeightFormat() : arm_compute::WeightFormat::UNSPECIFIED;
     weiTensorInfo = aclWeightsRepack->getTensorInfo(ACLArgs::ACL_WEI);
 
     if (isNeededReorder) {
@@ -241,8 +256,13 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
         dnnl::impl::dim_t inner_dim = 1;
         std::vector<dnnl::impl::dim_t> remaining_dims = {};
         auto weights_md_ = dnnlDstDesc->getDnnlDesc().get();
-        dnnl::impl::cpu::acl::acl_utils::reorder_to_weight_format(weiTensorInfo, *weights_md_, expectedWeightFormat,
-                                                                  inner_dim, o_dim, remaining_dims, {});
+        dnnl::impl::cpu::acl::acl_utils::reorder_to_weight_format(weiTensorInfo,
+                                                                  *weights_md_,
+                                                                  expectedWeightFormat,
+                                                                  inner_dim,
+                                                                  o_dim,
+                                                                  remaining_dims,
+                                                                  {});
         if (aclfcAttrs.weightsNonTransposed) {
             dnnlSrcDesc = makeTransposedWeightDescriptor(dnnlSrcDesc, dnnlDstDesc);
         }
@@ -256,7 +276,7 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
     return reorderWeights(memory, context, aclfcAttrs, dnnlSrcDesc, dnnlDstDesc);
 }
 
-static bool checkPostOps(const PostOps &postOps) {
+static bool checkPostOps(const PostOps& postOps) {
     if (postOps.empty()) {
         return true;
     }
@@ -271,12 +291,12 @@ static bool checkPostOps(const PostOps &postOps) {
     return false;
 }
 
-static void initFCAttrs(const FCAttrs &attrs,
+static void initFCAttrs(const FCAttrs& attrs,
                         ACLTensorAttrs& aclTensorAttrs,
                         ACLFCAttrs& aclfcAttrs,
-                        const MemoryArgs &memory,
+                        const MemoryArgs& memory,
                         arm_compute::FullyConnectedLayerInfo& fullyConnectedLayerInfo,
-                        const PostOps &postOps) {
+                        const PostOps& postOps) {
     aclTensorAttrs.hasLayoutTypeNHWC = memory.at(ARG_SRC)->getDescPtr()->hasLayoutType(LayoutType::nspc);
     fullyConnectedLayerInfo.weights_trained_layout = getAclDataLayoutByMemoryDesc(memory.at(ARG_WEI)->getDescPtr());
     aclfcAttrs.inputPrecision = memory.at(ARG_SRC)->getDescPtr()->getPrecision();
@@ -285,9 +305,10 @@ static void initFCAttrs(const FCAttrs &attrs,
 
     if (!postOps.empty() && checkPostOps(postOps)) {
         auto activation = std::dynamic_pointer_cast<ActivationPostOp>(postOps[0]);
-        fullyConnectedLayerInfo.activation_info = getActivationLayerInfo(
-                convertToEltwiseAlgorithm(activation->type()),
-                activation->alpha(), activation->beta(), activation->gamma());
+        fullyConnectedLayerInfo.activation_info = getActivationLayerInfo(convertToEltwiseAlgorithm(activation->type()),
+                                                                         activation->alpha(),
+                                                                         activation->beta(),
+                                                                         activation->gamma());
     }
 
     if (memory.at(ARG_SRC)->getPrecision() != memory.at(ARG_WEI)->getPrecision()) {
@@ -295,21 +316,22 @@ static void initFCAttrs(const FCAttrs &attrs,
     }
 }
 
-ACLFullyConnectedExecutor::ACLFullyConnectedExecutor(const FCAttrs &attrs,
-                                                     const PostOps &postOps,
-                                                     const MemoryArgs &memory,
+ACLFullyConnectedExecutor::ACLFullyConnectedExecutor(const FCAttrs& attrs,
+                                                     const PostOps& postOps,
+                                                     const MemoryArgs& memory,
                                                      const ExecutorContext::CPtr context) {
     initFCAttrs(attrs, aclTensorAttrs, aclfcAttrs, memory, fullyConnectedLayerInfo, postOps);
-    packedWeights = prepareWeightMemory(memory, context, attrs, aclfcAttrs, postOps, expectedWeightFormat, weiTensorInfo);
+    packedWeights =
+        prepareWeightMemory(memory, context, attrs, aclfcAttrs, postOps, expectedWeightFormat, weiTensorInfo);
 }
 
-bool ACLFullyConnectedExecutor::supports(const FCConfig &config) {
+bool ACLFullyConnectedExecutor::supports(const FCConfig& config) {
     VERIFY(one_of(srcType(config), ov::element::f16, ov::element::f32), UNSUPPORTED_SRC_PRECISIONS);
     VERIFY(one_of(weiType(config), ov::element::f16, ov::element::f32), UNSUPPORTED_WEI_PRECISIONS);
-    VERIFY(postOpsNumbers(config) < 2,                                  UNSUPPORTED_NUMBER_OF_POSTOPS);
-    VERIFY(checkPostOps(config.postOps),                                UNSUPPORTED_TYPE_OF_POSTOPS);
-    VERIFY(one_of(srcRank(config), 2U, 3U, 4U),                         UNSUPPORTED_SRC_RANK);
-    VERIFY(one_of(weiRank(config), 2U, 3U),                             UNSUPPORTED_WEI_RANK);
+    VERIFY(postOpsNumbers(config) < 2, UNSUPPORTED_NUMBER_OF_POSTOPS);
+    VERIFY(checkPostOps(config.postOps), UNSUPPORTED_TYPE_OF_POSTOPS);
+    VERIFY(one_of(srcRank(config), 2U, 3U, 4U), UNSUPPORTED_SRC_RANK);
+    VERIFY(one_of(weiRank(config), 2U, 3U), UNSUPPORTED_WEI_RANK);
     return true;
 }
 
@@ -329,35 +351,34 @@ void ACLFullyConnectedExecutor::updateTensorsShapes(ACLShapes& aclMemoryShapes) 
     updateFCTensorsShapes(aclMemoryShapes);
 }
 
-arm_compute::Status ACLFullyConnectedExecutor::validateTensorsInfo(const ACLInfos & aclMemoryInfos) {
+arm_compute::Status ACLFullyConnectedExecutor::validateTensorsInfo(const ACLInfos& aclMemoryInfos) {
     if (aclfcAttrs.isConvertedWeights) {
         aclMemoryInfos[ACLArgs::ACL_WEI]->set_data_type(aclMemoryInfos[ACLArgs::ACL_SRC_0]->data_type());
     }
     int ic_total = aclMemoryInfos[ACLArgs::ACL_SRC_0]->dimension(0);
     return arm_compute::NEFullyConnectedLayer::validate(
-            aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
-            &weiTensorInfo,
-            aclMemoryInfos[ACLArgs::ACL_BIAS].get(),
-            aclMemoryInfos[ACLArgs::ACL_DST].get(),
-            fullyConnectedLayerInfo,
-            expectedWeightFormat == arm_compute::WeightFormat::UNSPECIFIED ?
-                                    arm_compute::WeightsInfo() :
-                                    arm_compute::WeightsInfo(false, 1, 1, ic_total, false, expectedWeightFormat));
+        aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
+        &weiTensorInfo,
+        aclMemoryInfos[ACLArgs::ACL_BIAS].get(),
+        aclMemoryInfos[ACLArgs::ACL_DST].get(),
+        fullyConnectedLayerInfo,
+        expectedWeightFormat == arm_compute::WeightFormat::UNSPECIFIED
+            ? arm_compute::WeightsInfo()
+            : arm_compute::WeightsInfo(false, 1, 1, ic_total, false, expectedWeightFormat));
 }
 
-ACLFunction ACLFullyConnectedExecutor::configureFunction(const ACLTensors & aclMemoryTensors) {
+ACLFunction ACLFullyConnectedExecutor::configureFunction(const ACLTensors& aclMemoryTensors) {
     auto neFC = std::make_unique<arm_compute::NEFullyConnectedLayer>();
     aclMemoryTensors[ACLArgs::ACL_WEI]->allocator()->init(weiTensorInfo);
     int icTotal = aclMemoryTensors[ACLArgs::ACL_WEI]->info()->dimension(0);
-    neFC->configure(
-            aclMemoryTensors[ACLArgs::ACL_SRC_0].get(),
-            aclMemoryTensors[ACLArgs::ACL_WEI].get(),
-            aclMemoryTensors[ACLArgs::ACL_BIAS].get(),
-            aclMemoryTensors[ACLArgs::ACL_DST].get(),
-            fullyConnectedLayerInfo,
-            expectedWeightFormat == arm_compute::WeightFormat::UNSPECIFIED ?
-                                    arm_compute::WeightsInfo() :
-                                    arm_compute::WeightsInfo(false, 1, 1, icTotal, false, expectedWeightFormat));
+    neFC->configure(aclMemoryTensors[ACLArgs::ACL_SRC_0].get(),
+                    aclMemoryTensors[ACLArgs::ACL_WEI].get(),
+                    aclMemoryTensors[ACLArgs::ACL_BIAS].get(),
+                    aclMemoryTensors[ACLArgs::ACL_DST].get(),
+                    fullyConnectedLayerInfo,
+                    expectedWeightFormat == arm_compute::WeightFormat::UNSPECIFIED
+                        ? arm_compute::WeightsInfo()
+                        : arm_compute::WeightsInfo(false, 1, 1, icTotal, false, expectedWeightFormat));
     // TODO: get rid of those flags and decide whether to import memory or not just based on input type
     if (aclfcAttrs.isWeightsRepacked || aclfcAttrs.isConvertedWeights) {
         aclTensorAttrs.memoryUsageIndicator[ACLArgs::ACL_WEI] = false;
@@ -366,13 +387,13 @@ ACLFunction ACLFullyConnectedExecutor::configureFunction(const ACLTensors & aclM
     return neFC;
 }
 
-arm_compute::Status acl_fc_executor::ACLWeightsConverter::validateTensorsInfo(const ACLInfos &aclMemoryInfos) {
+arm_compute::Status acl_fc_executor::ACLWeightsConverter::validateTensorsInfo(const ACLInfos& aclMemoryInfos) {
     return arm_compute::NECast::validate(aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
                                          aclMemoryInfos[ACLArgs::ACL_DST].get(),
                                          arm_compute::ConvertPolicy::SATURATE);
 }
 
-ACLFunction acl_fc_executor::ACLWeightsConverter::configureFunction(const ACLTensors &aclMemoryTensors) {
+ACLFunction acl_fc_executor::ACLWeightsConverter::configureFunction(const ACLTensors& aclMemoryTensors) {
     auto neCast = std::make_unique<arm_compute::NECast>();
     neCast->configure(aclMemoryTensors[ACLArgs::ACL_SRC_0].get(),
                       aclMemoryTensors[ACLArgs::ACL_DST].get(),
@@ -380,34 +401,34 @@ ACLFunction acl_fc_executor::ACLWeightsConverter::configureFunction(const ACLTen
     return neCast;
 }
 
-acl_fc_executor::ACLWeightFormatGenerator::ACLWeightFormatGenerator(const FCAttrs &attrs,
-                                                                    const PostOps &postOps,
-                                                                    const MemoryArgs &memory) {
+acl_fc_executor::ACLWeightFormatGenerator::ACLWeightFormatGenerator(const FCAttrs& attrs,
+                                                                    const PostOps& postOps,
+                                                                    const MemoryArgs& memory) {
     initFCAttrs(attrs, aclTensorAttrs, aclfcAttrs, memory, fullyConnectedLayerInfo, postOps);
 }
 
-void acl_fc_executor::ACLWeightFormatGenerator::updateTensorsShapes(ACLShapes &aclMemoryShapes) {
+void acl_fc_executor::ACLWeightFormatGenerator::updateTensorsShapes(ACLShapes& aclMemoryShapes) {
     updateFCTensorsShapes(aclMemoryShapes);
 }
 
-arm_compute::Status acl_fc_executor::ACLWeightFormatGenerator::validateTensorsInfo(const ACLInfos &aclMemoryInfos) {
+arm_compute::Status acl_fc_executor::ACLWeightFormatGenerator::validateTensorsInfo(const ACLInfos& aclMemoryInfos) {
     if (aclfcAttrs.isConvertedWeights) {
         aclMemoryInfos[ACLArgs::ACL_WEI]->set_data_type(aclMemoryInfos[ACLArgs::ACL_SRC_0]->data_type());
     }
     int icTotal = aclMemoryInfos[ACLArgs::ACL_SRC_0]->dimension(0);
     return arm_compute::NEFullyConnectedLayer::has_opt_impl(
-            expectedWeightFormat,
-            aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
-            aclMemoryInfos[ACLArgs::ACL_WEI].get(),
-            aclMemoryInfos[ACLArgs::ACL_BIAS].get(),
-            aclMemoryInfos[ACLArgs::ACL_DST].get(),
-            fullyConnectedLayerInfo,
-            arm_compute::WeightsInfo(false, 1, 1, icTotal, false, arm_compute::WeightFormat::ANY));
+        expectedWeightFormat,
+        aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
+        aclMemoryInfos[ACLArgs::ACL_WEI].get(),
+        aclMemoryInfos[ACLArgs::ACL_BIAS].get(),
+        aclMemoryInfos[ACLArgs::ACL_DST].get(),
+        fullyConnectedLayerInfo,
+        arm_compute::WeightsInfo(false, 1, 1, icTotal, false, arm_compute::WeightFormat::ANY));
 }
 
-ACLFunction acl_fc_executor::ACLWeightFormatGenerator::configureFunction(const ACLTensors &aclMemoryTensors) {
+ACLFunction acl_fc_executor::ACLWeightFormatGenerator::configureFunction(const ACLTensors& aclMemoryTensors) {
     return std::make_unique<arm_compute::NEFullyConnectedLayer>();
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov
