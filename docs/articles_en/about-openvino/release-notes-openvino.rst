@@ -27,8 +27,8 @@ What's new
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 * OpenVINO 2024.6 release includes updates for enhanced stability and improved LLM performance.
-* Introduced support for Intel® Arc™ B-Series Graphics (formerly known as Battlemage)
-* Memory optimizations implemented to improve the inference time memory and LLM performance on NPUs.
+* Introduced support for Intel® Arc™ B-Series Graphics (formerly known as Battlemage).
+* Implemented optimizations to improve the inference time and LLM performance on NPUs.
 * Improved LLM performance with GenAI API optimizations and bug fixes.
 
 
