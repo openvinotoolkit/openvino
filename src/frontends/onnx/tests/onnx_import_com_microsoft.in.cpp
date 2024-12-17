@@ -1456,3 +1456,35 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fusedmatmul_2x5x3x6x4_2x6x3x4x
 
     test_case.run();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmul_integer_to_float) {
+    const auto model = convert_model("com.microsoft/matmul_integer_to_float.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<int8_t> data_A{10, 20, 30, 40, 50, 60};
+    const std::vector<int8_t> data_B{70, 80, 90, 100, 110, 120};
+
+    const std::vector<float> a_scale{0.1f, 0.1f, 0.1f};
+    const std::vector<float> b_scale{0.1f, 0.1f};
+
+    const std::vector<int8_t> a_zero_point{1, 0, 2};
+    const std::vector<int8_t> b_zero_point{0, 1};
+
+    const std::vector<float> bias{0.5f, 0.25f};
+
+    const std::vector<float> expected_output{55.59999847412109f,
+                                             60.48000335693359f,
+                                             136.6000061035156f,
+                                             149.5800170898438f};
+
+    test_case.add_input<int8_t>(Shape{2, 3}, data_A);
+    test_case.add_input<int8_t>(Shape{3, 2}, data_B);
+    test_case.add_input<float>(Shape{3}, a_scale);
+    test_case.add_input<float>(Shape{2}, b_scale);
+    test_case.add_input<int8_t>(Shape{3}, a_zero_point);
+    test_case.add_input<int8_t>(Shape{2}, b_zero_point);
+    test_case.add_input<float>(Shape{2}, bias);
+    test_case.add_expected_output<float>(Shape{2, 2}, expected_output);
+
+    test_case.run();
+}
