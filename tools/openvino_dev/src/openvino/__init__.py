@@ -48,6 +48,7 @@ try:
     from openvino.runtime import save_model
     from openvino.runtime import layout_helpers
 
+    from openvino._pyopenvino import Node
     from openvino._pyopenvino import RemoteContext
     from openvino._pyopenvino import RemoteTensor
     from openvino._pyopenvino import Op
