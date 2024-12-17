@@ -72,10 +72,13 @@
 #endif
 
 #include "mlir_op.hpp"
+#include "op/concat.hpp"
 #include "op/matmul.hpp"
 #include "op/relu.hpp"
 #include "op/floor.hpp"
+#include "op/gather.hpp"
 #include "op/shape_of.hpp"
+#include "op/slice.hpp"
 #include "op/squeeze.hpp"
 #include "op/binary_eltwise.hpp"
 #include "openvino/core/dimension.hpp"
@@ -247,6 +250,8 @@ NodePtr ngraph_to_mlir_op(MLIRContext* context,
         dm.reserve(shape.size());
         for (size_t j = 0; j < shape.size(); ++j) {
             auto dim = shape[j];
+            if (dim.is_dynamic())
+                assert(input_map.count(ov::symbol::ancestor_of(dim.get_symbol())) && "Input map is missing a symbol for dynamic dim");
             dm.push_back(dim.is_dynamic() ? input_map.at(ov::symbol::ancestor_of(dim.get_symbol())) : empty);
         }
         output_map.emplace_back(dm);
@@ -313,9 +318,12 @@ void injectMLIR(std::shared_ptr<ov::Model> model,
     manager.register_pass<BinaryEltwisePattern<v1::Subtract, linalg::SubOp>>();
     manager.register_pass<BinaryEltwisePattern<v1::Multiply, linalg::MulOp>>();
     manager.register_pass<BinaryEltwisePattern<v1::Divide, linalg::DivOp>>();
+    manager.register_pass<ConcatPattern>();
     manager.register_pass<ReluPattern>();
     manager.register_pass<FloorPattern>();
+    manager.register_pass<GatherPattern>();
     manager.register_pass<ShapeOfPattern>();
+    manager.register_pass<SlicePattern>();
     manager.register_pass<SqueezePattern>();
     manager.register_pass<MatMulPattern>();
     manager.register_pass<Partitioner>(context, mode, loweringContext);
