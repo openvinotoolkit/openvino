@@ -161,7 +161,6 @@ bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config
     return cache.at(device);
 }
 
-
 bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
     auto device = e.get_device().get();
 
