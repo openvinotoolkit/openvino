@@ -17,13 +17,12 @@ public:
                               const ov::snippets::lowered::ExpressionPtr& expr,
                               const snippets::KernelExecutorTablePtr& kernel_table,
                               const ov::intel_cpu::MultiCacheWeakPtr& compiled_kernel_cache);
-
     size_t get_inputs_num() const override {
         return 1;
     }
     static std::set<std::vector<element::Type>> get_supported_precisions(
         const std::shared_ptr<ov::Node>& node = nullptr) {
-        return {{element::i8}, {element::bf16}, {element::f32}};
+        return {{element::i8}, {element::bf16}, {element::f16}, {element::f32}};
     }
 
 private:

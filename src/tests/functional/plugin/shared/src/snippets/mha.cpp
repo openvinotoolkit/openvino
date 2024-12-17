@@ -65,6 +65,8 @@ void MHABase::SetUp() {
 #endif
     if (inType == ov::element::bf16)
         rel_threshold = 0.05f;
+    if (inType == ov::element::f16)
+        abs_threshold = 2e-2;
  }
 
 std::string MHA::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAParams> obj) {
