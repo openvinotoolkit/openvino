@@ -57,7 +57,7 @@ std::string OpenvinoVersion::get_version() {
 }
 
 bool Metadata<METADATA_VERSION_1_0>::is_compatible() {
-    Logger logger("NPUPlugin", Logger::global().level());
+    auto logger = Logger::global().clone("NPUBlobMetadata");
     // checking if we can import the blob
     if (_ovVersion.get_version() != ov::get_openvino_version().buildNumber) {
         logger.warning("Imported blob OpenVINO version: %s, but the current OpenVINO version is: %s",
@@ -77,7 +77,7 @@ bool Metadata<METADATA_VERSION_1_0>::is_compatible() {
 }
 
 std::unique_ptr<MetadataBase> read_metadata_from(const std::vector<uint8_t>& blob) {
-    Logger logger("NPUPlugin", Logger::global().level());
+    auto logger = Logger::global().clone("NPUBlobMetadata");
     size_t magicBytesSize = MAGIC_BYTES.size();
     std::string blobMagicBytes;
     blobMagicBytes.resize(magicBytesSize);
