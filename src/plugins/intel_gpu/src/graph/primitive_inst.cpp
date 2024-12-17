@@ -38,6 +38,7 @@
 #include "gather_inst.h"
 #include "broadcast_inst.h"
 #include "dynamic_quantize_inst.h"
+#include "swiglu_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "impls/registry/implementation_manager.hpp"
 #include "impls/registry/registry.hpp"
@@ -623,6 +624,15 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                     _max_output_layout_count[j] = 0;
                 }
             } else {
+                _outputs[0] = variable.get_memory();
+
+                if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
+                    _outputs[2] = compressed_cache_variable->get_compression_scale_state()->get_memory();
+
+                    if (compressed_cache_variable->has_zp_state()) {
+                        _outputs[3] = compressed_cache_variable->get_compression_zp_state()->get_memory();
+                    }
+                }
                 GPU_DEBUG_TRACE_DETAIL << id() << " : realloc_if_needed: can_be_optimized = false and memories are not being shared" << std::endl;
             }
         } else {
@@ -2597,6 +2607,16 @@ bool primitive_inst::is_valid_fusion() const {
         } else {
             if (fd.is_type<reorder>() || fd.is_type<quantize>())
                 continue;
+            if (fd.is_type<swiglu>()) {
+                OPENVINO_ASSERT(_node->is_type<fully_connected>() && _node->get_preferred_impl_type() == impl_types::ocl);
+                if (!_node->get_selected_impl())
+                    return false;
+                // TODO : support ref kernel too
+                if (_node->get_selected_impl()->get_kernel_name().find("fully_connected_gpu_bf_tiled") != std::string::npos)
+                    return true;
+                else
+                    return false;
+            }
 
             OPENVINO_THROW("[GPU] Unsupported fused operation in dynamic shape: type=", fd.desc->type_string(), ", id=", fd.desc->id);
         }
