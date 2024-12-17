@@ -61,6 +61,9 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
             } else {
                 variable.get_memory()->fill(stream);
             }
+            if (!instance.get_dependant_initializer_insts().empty()) {
+                variable.set();
+            }
         }
 
         if (!instance.can_be_optimized()) {

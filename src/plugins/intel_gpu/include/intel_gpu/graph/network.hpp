@@ -225,6 +225,7 @@ private:
 
     ov::intel_gpu::VariablesMap _variables_states;
     ov::intel_gpu::VariablesInfoMap _variables_state_info;
+    std::vector<std::shared_ptr<primitive_inst>> _read_values;
 
     program::primitives_info _prims_info;
     size_t _weights_cache_capacity = 1;

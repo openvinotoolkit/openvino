@@ -17,8 +17,6 @@
 #include "gemm_inst.h"
 #include "fully_connected_inst.h"
 #include "deconvolution_inst.h"
-#include "quantize_inst.h"
-#include "reorder_inst.h"
 #include "pooling_inst.h"
 #include "reduce_inst.h"
 #include <impls/onednn/utils.hpp>
@@ -662,6 +660,10 @@ void program_node::select_preferred_formats(impl_types impl_type) {
 void program_node::add_dependant_shape_of_node(const program_node* node) {
     OPENVINO_ASSERT(node->is_type<shape_of>(), "[GPU] Expected node type is shape_of");
     dependant_shape_of_nodes.insert(node);
+}
+
+void program_node::add_dependant_initializer_pid(const primitive_id& id) {
+    dependant_initializer_pids.push_back(id);
 }
 
 void program_node::save(cldnn::BinaryOutputBuffer& ob) const {

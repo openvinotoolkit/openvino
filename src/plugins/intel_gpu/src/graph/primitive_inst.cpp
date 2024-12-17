@@ -1802,21 +1802,6 @@ void primitive_inst::prepare_primitive() {
         OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");
         update_shape();
 
-        if (_node->id() == "convert:Convert_11579") {
-            auto& variable_id = _node->get_users().front()->get_state_of_init_subgraph()->as<read_value>().get_primitive()->variable_id;
-            const auto& variable = get_network().get_variable(variable_id);
-            if (variable.is_set())
-                set_flag(ExecutionFlags::SKIP);
-        }
-        if (_node->is_in_state_init_subgraph() && !_node->is_type<read_value>()) {
-            auto state_prim = _node->get_state_of_init_subgraph()->as<read_value>().get_primitive();
-            GPU_DEBUG_TRACE_DETAIL << id() << " is in init_subgraph of state " << state_prim->id << std::endl;
-            if (is_init_subgraph_executed()) {
-                set_flag(ExecutionFlags::SKIP);
-                GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping init subgraph because target state " << state_prim->id
-                                       << "is already set " << std::endl;
-            }
-        }
         if (_impl_params->output_layouts[0].count() == 0) {
             GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping because output data is empty " << std::endl;
             set_flag(ExecutionFlags::SKIP);
@@ -1910,10 +1895,6 @@ void primitive_inst::prepare_primitive() {
         set_arguments();
     }
     on_execute();
-
-    if (_node->is_in_state_init_subgraph() && !_node->is_type<read_value>()) {
-        set_init_subgraph_executed(true);
-    }
 
     if (!_node->is_type<condition>() && !_node->is_type<loop>()) {
         for (size_t i = 0; i < _outputs.size(); ++i) {
@@ -2033,6 +2014,17 @@ void primitive_inst::configure_shape_of_dependencies() {
         }
     }
 }
+
+void primitive_inst::configure_initializer_dependencies() {
+    if (!dependant_initializer_insts.empty())
+        return;
+
+    OPENVINO_ASSERT(_node != nullptr, "_node should not be nullptr for configure_initializer_dependencies.");
+
+    if (dependant_initializer_insts.empty() && !_node->get_dependant_initializer_pids().empty()) {
+        dependant_initializer_insts = _network.get_primitives(_node->get_dependant_initializer_pids());
+    }
+ }
 
 primitive_inst::primitive_inst(network& network)
     : _network(network)

@@ -201,6 +201,7 @@ public:
     uint32_t get_network_id() const;
     virtual event::ptr set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0);
     void check_memory_to_set(const memory& mem, const layout& layout) const;
+    const std::vector<primitive_inst*>& get_dependant_initializer_insts() const { return dependant_initializer_insts; }
     const std::list<const cldnn::program_node *>& get_users() const { return _node->get_users(); }
     const std::vector<primitive_inst*>& get_user_insts() const { return _users; }
     void init_users() {
@@ -269,6 +270,7 @@ public:
     void do_runtime_in_place_crop();
     void do_runtime_skip_scatter_update();
     void configure_shape_of_dependencies();
+    void configure_initializer_dependencies();
 
     memory::ptr fused_memory(size_t dep_id) const {
         return dep_memory_ptr(get_fused_mem_offset() + dep_id);
@@ -356,6 +358,9 @@ protected:
 
     // List of depandant shape_of primitives for shape_of subgraphs
     std::vector<primitive_inst*> dependant_shape_of_insts;
+
+    // List of dependant primitives for state initializer subgraphs
+    std::vector<primitive_inst*> dependant_initializer_insts;
 
     std::vector<primitive_inst*> _users;
     // this is a set of dependencies in terms of execution

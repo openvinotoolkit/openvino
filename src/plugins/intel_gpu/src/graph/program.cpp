@@ -533,7 +533,6 @@ void program::init_graph() {
     }
     // Perform initial shape_of subgraphs markup
     apply_opt_pass<mark_shape_of_subgraphs>();
-    apply_opt_pass<mark_state_init_subgraphs>();
 }
 
 void program::run_graph_compilation() { apply_opt_pass<compile_graph>(); }
@@ -654,6 +653,8 @@ void program::post_optimize_graph(bool is_internal) {
     // for OOO queue
     if (_config.get_property(ov::intel_gpu::queue_type) == QueueTypes::out_of_order)
         get_processing_order().calculate_BFS_processing_order();
+
+    apply_opt_pass<mark_state_init_subgraphs>();
 }
 
 // mark if the node is constant assuming that all dependencies are marked properly

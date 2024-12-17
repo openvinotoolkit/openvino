@@ -624,6 +624,7 @@ void network::build_insts_deps() {
         inst.second->build_deps();
         inst.second->init_users();
         inst.second->configure_shape_of_dependencies();
+        inst.second->configure_initializer_dependencies();
     }
 }
 
@@ -695,6 +696,18 @@ std::map<primitive_id, network_output> network::execute(const std::vector<event:
             if (inst->output_memory_ptr() &&
                 is_surface_lock_check_needed(inst->output_memory_ptr()->get_internal_params().mem_type))
                 in_out_mem.push_back(inst->output_memory_ptr());
+        }
+    }
+
+    for (auto& inst : _read_values) {
+        if (!inst->get_dependant_initializer_insts().empty()) {
+            auto prim = inst->get_node().as<read_value>().get_primitive();
+            const auto& variable = get_variable(prim->variable_id);
+            if (variable.is_set()) {
+                for (auto& init_inst : inst->get_dependant_initializer_insts()) {
+                    init_inst->set_flag(ExecutionFlags::SKIP);
+                }
+            }
         }
     }
 
@@ -912,6 +925,9 @@ void network::allocate_primitive_instance(program_node const& node) {
         _outputs.push_back(inst);
         if (node.is_type<data>())
             _data_outputs.push_back(inst);
+    }
+    if (node.is_type<read_value>()) {
+        _read_values.push_back(inst);
     }
     if (auto state_prim = std::dynamic_pointer_cast<memory_state::variable>(inst)) {
         auto prim = inst->get_node().get_primitive();
