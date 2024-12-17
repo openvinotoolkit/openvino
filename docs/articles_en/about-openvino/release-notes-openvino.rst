@@ -39,8 +39,9 @@ OpenVINO™ Runtime
 CPU Device Plugin
 -----------------------------------------------------------------------------------------------
 
-* KV cache now uses asymmetric U8 as the default precision, reducing memory stress for LLMs and
-  increasing their performance. This option can be controlled by model meta data.
+* KV cache now uses asymmetric 8-bit unsigned integer (U8) as the default precision, reducing
+  memory stress for LLMs and increasing their performance. This option can be controlled by
+  model meta data.
 * Quality and accuracy has been improved for selected models with several bug fixes.
 
 GPU Device Plugin
