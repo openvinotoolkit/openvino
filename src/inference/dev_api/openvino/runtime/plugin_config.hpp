@@ -5,7 +5,7 @@
 #pragma once
 
 #include <memory>
-#include <unordered_map>
+#include <map>
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/core/except.hpp"
@@ -35,7 +35,6 @@
 
 namespace ov {
 
-
 struct ConfigOptionBase {
     explicit ConfigOptionBase() {}
     virtual ~ConfigOptionBase() = default;
@@ -50,7 +49,6 @@ struct ConfigOption : public ConfigOptionBase {
     ConfigOption(const T& default_val, std::function<bool(T)> validator = nullptr)
         : ConfigOptionBase(), value(default_val), validator(validator) {}
     T value;
-    std::function<bool(T)> validator;
 
     void set_any(const ov::Any any) override {
         if (validator)
@@ -68,11 +66,29 @@ struct ConfigOption : public ConfigOptionBase {
         } catch (std::exception&) {
             return false;
         }
-
     }
+
+private:
+    std::function<bool(T)> validator;
 };
 
-class PluginConfig {
+// Base class for configuration of plugins
+// Implementation should provide a list of properties with default values and validators (optional)
+// For the sake of efficiency, we expect that plugin properties are defined as class members of the derived class
+// and accessed directly in the plugin's code (i.e. w/o get_property()/set_property() calls)
+// get/set property members are provided to handle external property access
+// The class provides a helpers to read the properties from configuration file and from environment variables
+//
+// Expected order of properties resolution:
+// 1. Assign default value for each property per device
+// 2. Save user properties passed via Core::set_property() call to user_properties
+// 3. Save user properties passed via Core::compile_model() call to user_properties
+// 4. Apply RT info properties to user_properties if they were not set by user
+// 5. Read and apply properties from the config file as user_properties
+// 6. Read and apply properties from the the environment variables as user_properties
+// 7. Apply user_properties to actual plugin properties
+// 8. Update dependant properties if they were not set by user either way
+class OPENVINO_RUNTIME_API PluginConfig {
 public:
     PluginConfig() {}
     PluginConfig(std::initializer_list<ov::AnyMap::value_type> values) : PluginConfig() { set_property(ov::AnyMap(values)); }
@@ -119,7 +135,9 @@ protected:
             }
         }
     }
-    std::unordered_map<std::string, ConfigOptionBase*> m_options_map;
+    std::map<std::string, ConfigOptionBase*> m_options_map;
+
+    // List of properties explicitly set by user via Core::set_property() or Core::compile_model() or ov::Model's runtime info
     ov::AnyMap user_properties;
     using OptionMapEntry = decltype(m_options_map)::value_type;
 };
