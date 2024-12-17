@@ -15,7 +15,7 @@ SegmentMax
 
 For each index in ``segment_ids`` the operator gets values from ``data`` input tensor and calculates the maximum value for each segment.
 
-For example ``segments_ids`` with value ``[0,0,0,1,1,3,5,5]`` define 4 non empty segments other segments are empty. When coupled with a 1D data tensor ``data``, the segments are as follows:
+For example ``segments_ids`` with value ``[0,0,0,1,1,3,5,5]`` defines 4 non-empty segments. The other segments are empty. When coupled with a 1D data tensor ``data``, the segments are as follows:
 
 * Segment_0: ``[data[0], data[1], data[2]]``
 * Segment_1: ``[data[3], data[4]]``
