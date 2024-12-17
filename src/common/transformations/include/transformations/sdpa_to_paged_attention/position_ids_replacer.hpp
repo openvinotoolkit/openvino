@@ -26,6 +26,17 @@ public:
     explicit PositionIDsReplacer(const Output<Node>& position_ids);
 };
 
+/**
+ * @brief Qwen model has a specific feature in the model structure not to use position_ids input,
+ * this input is detached. The model expects data processing in order.
+ *
+ * To use this model in Continuous batching mode, we need to apply position_ids and
+ * use the corresponding rotary_emb_cos/rotary_emb_sin.
+ * For this, we replace
+ *      rotary_emb_cos/rotary_emb_sin -> Slice -> Slice
+ * With
+ *      rotary_emb_cos/rotary_emb_sin -> Slice -> Gather(by position_ids)
+ */
 class ov::pass::PositionIDsReplacerQwen : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("PositionIDsReplacerQwen", "0");
