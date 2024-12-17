@@ -25,7 +25,7 @@ struct fake_convert : public primitive_base<fake_convert> {
              const input_info& input,
              const input_info& scale,
              const input_info& shift,
-             std::string destination_type = "f8e4m3")
+             ov::element::Type destination_type = ov::element::Type_t::f8e4m3)
         : primitive_base(id, {input, scale, shift}, 1), destination_type(destination_type) {}
 
     /// @brief Constructs fake_convert primitive.
@@ -37,14 +37,14 @@ struct fake_convert : public primitive_base<fake_convert> {
     fake_convert(const primitive_id& id,
              const input_info& input,
              const input_info& scale,
-             std::string destination_type = "f8e4m3")
+             ov::element::Type destination_type = ov::element::Type_t::f8e4m3)
         : primitive_base(id, {input, scale}, 1), destination_type(destination_type) {}
 
-    std::string destination_type;
+    ov::element::Type destination_type;
 
-   size_t hash() const override {
+    size_t hash() const override {
         size_t seed = primitive::hash();
-        seed = hash_combine(seed, destination_type);
+        seed = hash_combine(seed, destination_type.get_type_name());
         return seed;
     }
 
@@ -57,12 +57,14 @@ struct fake_convert : public primitive_base<fake_convert> {
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<fake_convert>::save(ob);
-        ob << destination_type;
+        ob << destination_type.get_type_name();
     }
 
     void load(BinaryInputBuffer& ib) override {
+        std::string destination_type_str;
         primitive_base<fake_convert>::load(ib);
-        ib >> destination_type;
+        ib >> destination_type_str;
+        destination_type = ov::element::Type(destination_type_str);
     }
 };
 }  // namespace cldnn

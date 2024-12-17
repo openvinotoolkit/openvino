@@ -19,25 +19,28 @@ layout fake_convert_inst::calc_output_layout(fake_convert_node const& node, kern
 
 template<typename ShapeType>
 std::vector<layout> fake_convert_inst::calc_output_layouts(fake_convert_node const& node, kernel_impl_params const& impl_param) {
-    auto desc = impl_param.typed_desc<fake_convert>();
-    auto input_layout = impl_param.get_input_layout(0);
-    auto scale_layout = impl_param.get_input_layout(1);
-    auto output_type    = input_layout.data_type;
-    auto output_format  = input_layout.format;
+    const auto& input_layout = impl_param.get_input_layout(0);
+    auto output_type = ov::element::Type(input_layout.data_type);
 
-    ov::op::v13::FakeConvert op;
+    OPENVINO_ASSERT(ov::element::Type::merge(output_type, output_type, ov::element::Type(impl_param.get_input_layout(1).data_type)),
+        "Mixed input types are not supported.");
 
-    std::vector<ShapeType> input_shapes = {
-        input_layout.get<ShapeType>(),
-        scale_layout.get<ShapeType>()
-    };
     if (impl_param.input_layouts.size() == 3) {
-        auto shift_layout = impl_param.get_input_layout(2);
-        input_shapes.push_back(shift_layout.get<ShapeType>());
+        OPENVINO_ASSERT(ov::element::Type::merge(output_type, output_type, ov::element::Type(impl_param.get_input_layout(2).data_type)),
+            "Mixed input types are not supported.");
     }
-    std::vector<ShapeType> output_shapes = ov::op::v13::shape_infer(&op, input_shapes);
 
-    return { layout{output_shapes[0], output_type, output_format} };
+    switch (output_type) {
+    case ov::element::bf16:
+    case ov::element::f16:
+    case ov::element::f32:
+    case ov::element::dynamic:
+        break;
+    default:
+        OPENVINO_THROW("The element type of the input tensor must be a bf16, f16, f32 but got: ", output_type);
+    }
+
+    return { layout{input_layout.get_partial_shape(), output_type, input_layout.format} };
 }
 
 template std::vector<layout> fake_convert_inst::calc_output_layouts<ov::PartialShape>(fake_convert_node const& node, const kernel_impl_params& impl_param);

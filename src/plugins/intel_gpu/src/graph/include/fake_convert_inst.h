@@ -27,12 +27,12 @@ public:
     program_node& shift() const { return get_dependency(2); }
     bool has_shift() const { return (get_dependencies().size() == 3); }
 
-    std::string get_destination_type() const { return destination_type; }
+    ov::element::Type get_destination_type() const { return destination_type; }
 
     std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 
 private:
-    std::string destination_type;
+    ov::element::Type destination_type;
 };
 
 using fake_convert_node = typed_program_node<fake_convert>;

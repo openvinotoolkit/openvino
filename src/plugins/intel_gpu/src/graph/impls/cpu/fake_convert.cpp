@@ -16,7 +16,7 @@ struct fake_convert_impl : public typed_primitive_impl<fake_convert> {
     using parent = typed_primitive_impl<fake_convert>;
     using parent::parent;
 
-    std::string destination_type;
+    ov::element::Type destination_type;
 
     std::shared_ptr<ov::op::v13::FakeConvert> op;
 
@@ -40,12 +40,14 @@ struct fake_convert_impl : public typed_primitive_impl<fake_convert> {
 
     void save(BinaryOutputBuffer& ob) const override {
         parent::save(ob);
-        ob << destination_type;
+        ob << destination_type.get_type_name();
     }
 
     void load(BinaryInputBuffer& ib) override {
+        std::string destination_type_str;
         parent::load(ib);
-        ib >> destination_type;
+        ib >> destination_type_str;
+        destination_type = ov::element::Type(destination_type);
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, fake_convert_inst& instance) override {
@@ -65,7 +67,7 @@ struct fake_convert_impl : public typed_primitive_impl<fake_convert> {
 
         if (!op) {
             op = std::make_shared<ov::op::v13::FakeConvert>();
-            op->set_destination_type(ov::element::Type(destination_type));
+            op->set_destination_type(destination_type);
         }
 
         std::vector<memory::ptr> input_mem_ptrs;
@@ -116,10 +118,7 @@ attach_fake_convert_impl::attach_fake_convert_impl() {
     auto types = {
         data_types::f32,
         data_types::f16,
-        data_types::i32,
-        data_types::i64,
-        data_types::i8,
-        data_types::u8,
+        data_types::bf16
     };
 
     implementation_map<fake_convert>::add(impl_types::cpu, shape_types::static_shape, fake_convert_impl::create, types, formats);

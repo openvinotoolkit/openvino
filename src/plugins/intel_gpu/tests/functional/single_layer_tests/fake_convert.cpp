@@ -33,7 +33,7 @@ using FakeConvertTestParams = std::tuple<
                                     ov::Shape,                  // Scale shape
                                     ov::Shape,                  // Shift shape
                                     ov::element::Type,          // input precision
-                                    std::string,                // destination type
+                                    ov::element::Type,          // destination type
                                     std::string >;              // device name
 
 class FakeConvertTest : public testing::WithParamInterface<FakeConvertTestParams>,
@@ -44,7 +44,7 @@ public:
         ov::Shape scale_shape;
         ov::Shape shift_shape;
         ov::element::Type prec;
-        std::string destination_type;
+        ov::element::Type destination_type;
         std::string target_device;
 
         std::tie(input_shape, scale_shape, shift_shape, prec, destination_type, target_device) = obj.param;
@@ -62,12 +62,12 @@ public:
 
 protected:
     ov::Shape input_shape, scale_shape, shift_shape;
-    std::string destination_type;
+    ov::element::Type destination_type;
 
     void SetUp() override {
         ov::element::Type prec;
         std::tie(input_shape, scale_shape, shift_shape, prec, destination_type, targetDevice) = GetParam();
-        const float MAX_FP8 = (destination_type == fp8::TAG_F8E4M3) ? fp8::MAX_F8E4M3 : fp8::MAX_F8E5M2;
+        const float MAX_FP8 = (destination_type == ov::element::f8e4m3) ? fp8::MAX_F8E4M3 : fp8::MAX_F8E5M2;
         if (shift_shape.empty()) {
             auto data = make_shared<op::v0::Parameter>(prec, input_shape);
             auto scale = op::v0::Constant::create(prec,
@@ -77,7 +77,7 @@ protected:
                                                 MAX_FP8 / (MAX_FP8 * 3.5f),
                                                 MAX_FP8 / (MAX_FP8 * 4.f)});
 
-            auto op = make_shared<op::v13::FakeConvert>(data, scale, "f8e4m3");
+            auto op = make_shared<op::v13::FakeConvert>(data, scale, destination_type);
 
             function = make_shared<Model>(OutputVector{op}, ParameterVector{data});
         } else {
@@ -90,7 +90,7 @@ protected:
                                                 MAX_FP8 / (MAX_FP8 * 4.f)});
             auto shift = op::v0::Constant::create(prec, shift_shape, {0.f, 0.f, 0.f, 0.f});
 
-            auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e4m3");
+            auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, destination_type);
 
             function = make_shared<Model>(OutputVector{op}, ParameterVector{data});
         }
@@ -98,7 +98,7 @@ protected:
 
     void generate_inputs(const std::vector<ov::Shape>& target_shapes) override {
         inputs.clear();
-        const float MAX_FP8 = (destination_type == fp8::TAG_F8E4M3) ? fp8::MAX_F8E4M3 : fp8::MAX_F8E5M2;
+        const float MAX_FP8 = (destination_type == ov::element::f8e4m3) ? fp8::MAX_F8E4M3 : fp8::MAX_F8E5M2;
         const auto& func_inputs = function->inputs();
         auto& data_input = func_inputs[0];
         ov::Tensor tensor = ov::Tensor(data_input.get_element_type(), target_shapes[0]);
@@ -132,7 +132,7 @@ const std::vector<ov::Shape> input_shapes = {{4, 3}};
 
 const ov::Shape scale_shape = {4, 1};
 const std::vector<ov::Shape> shift_shapes = {{4, 1}, {}};
-const std::vector<std::string> destination_types = {fp8::TAG_F8E4M3, fp8::TAG_F8E5M2};
+const std::vector<ov::element::Type> destination_types = {ov::element::f8e4m3, ov::element::f8e5m2};
 
 INSTANTIATE_TEST_SUITE_P(Smoke_FakeConvertTest,
                          FakeConvertTest,

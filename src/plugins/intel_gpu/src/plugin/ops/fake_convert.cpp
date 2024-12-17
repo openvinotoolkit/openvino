@@ -16,9 +16,9 @@ static void CreateFakeConvertOp(ProgramBuilder& p, const std::shared_ptr<ov::Nod
     validate_inputs_count(op, {2, 3});
     const auto inputs = p.GetInputInfo(op);
     const std::string layerName = layer_type_name_ID(op);
-    std::string destination_type = "";
+    ov::element::Type destination_type = ov::element::Type_t::f8e4m3;
     if (auto fake_convert_v13 = std::dynamic_pointer_cast<ov::op::v13::FakeConvert>(op)) {
-        destination_type = fake_convert_v13->get_destination_type();
+        destination_type = fake_convert_v13->get_destination_element_type();
     } else {
         OPENVINO_THROW("[GPU] Can't cast Broadcast operation to any supported version");
     }
