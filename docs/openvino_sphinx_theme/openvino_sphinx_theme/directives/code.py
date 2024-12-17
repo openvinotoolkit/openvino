@@ -12,6 +12,8 @@ import requests
 import re
 import json
 
+import csv
+
 logger = logging.getLogger(__name__)
 
 
@@ -136,3 +138,51 @@ class Scrollbox(Directive):
         if self.content:
             self.state.nested_parse(self.content, self.content_offset, node)
         return [node]
+
+
+class DataTable(Directive):
+    required_arguments = 0
+    has_content = False
+    option_spec = {'header-rows': directives.nonnegative_int,
+                   'file': directives.path,
+                   'class': directives.unchanged,
+                   'name': directives.unchanged,
+                   'hidden': directives.unchanged
+                   }
+
+    def run(self) -> List[Node]:
+        current_directory = os.path.dirname(os.path.abspath(self.state.document.current_source))
+        csv_file = os.path.normpath(os.path.join(current_directory, self.options['file']))
+        if os.path.isfile(csv_file) is False:
+            self.warning("Cannot find the specified CSV file. "
+                         "Please provide a correct path.")
+        csv_node = []
+        with open(csv_file, 'r') as j:
+            csv_data = list(csv.reader(j))
+            class_table_tag = ' class="' + "".join(c for c in str(self.options['class']) + '"') if 'class' in self.options is not None else ""
+            id_table_tag = ' id="' + "".join(c for c in str(self.options['name']) + '"') if 'name' in self.options is not None else ""
+            hidden_table_tag = ' data-columns-hidden="' + "".join(c for c in str(self.options['hidden']) + '"') if 'hidden' in self.options is not None else ""
+            csv_table_html = '<table' + class_table_tag + id_table_tag + hidden_table_tag + '>'
+            head_rows = 0
+            head_rows += self.options.get('header-rows', 0)
+            row_count = 0
+            for row in csv_data[:head_rows]:
+                row_count += 1
+                parity = "row-even" if row_count % 2 == 0 else "row-odd"
+                csv_table_html += '<thead><tr class="' + parity + '">'
+                for value in row:
+                    csv_table_html += '<th class="head"><p>%s</p></th>' % value
+                csv_table_html += '</tr></thead>\n'
+            csv_table_html += '<tbody>'
+            for row in csv_data[head_rows:]:
+                row_count += 1
+                parity = "row-even" if row_count % 2 == 0 else "row-odd"
+                csv_table_html += '<tr class="' + parity + '">'
+                for value in row:
+                    csv_table_html += '<td><p>%s</p></td>' % value
+            csv_table_html += '</tr>\n</tbody>'
+            csv_table_html += "</tr>"
+            csv_table_html += '</tbody></table>'
+        csv_node.append(nodes.raw(csv_table_html, csv_table_html, format="html"))
+
+        return csv_node
