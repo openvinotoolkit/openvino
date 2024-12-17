@@ -7,6 +7,7 @@
 #include <pugixml.hpp>
 #include <regex>
 
+#include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/meta_data.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
@@ -18,6 +19,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/util/assign_base.hpp"
 #include "openvino/op/util/framework_node.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/op/util/variable.hpp"
@@ -1021,6 +1023,17 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
             FOREACH_CHILD (rt_node, in_node, "port") {
                 set_runtime_info(ovNode->input(index).get_rt_info(), rt_node.child("rt_info"));
                 ++index;
+            }
+        }
+
+        // The IR not store information about dedicated output names for Result node (model output),
+        // assume all names from parent node are Result's (model's) tensor names.
+        // Consider add dedicated RT info with information about Result's output names.
+        if (auto result = ov::as_type<ov::op::v0::Result>(ovNode.get())) {
+            if (!ov::op::util::is_parameter(result->get_input_source_output(0).get_node())) {
+                // Copy names if parent node is not parameter, model's input names should be not dedicated
+                // output names as they could be removed from Parameter's tensor during model transformations.
+                ov::descriptor::copy_tensor_names(result->get_output_tensor(0), result->get_input_tensor(0));
             }
         }
     }
