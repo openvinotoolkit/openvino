@@ -177,7 +177,7 @@ void PagedAttention::execute(dnnl::stream strm) {
         VectorDims scoreDims{len};
         redefineOutputMemory({outDims, scoreDims});
     } else {
-        redefineOutputMemory({outDims, {}});
+        redefineOutputMemory({outDims, {0}});
     }
 
     outputs[0] = getDstMemoryAtPort(0);
