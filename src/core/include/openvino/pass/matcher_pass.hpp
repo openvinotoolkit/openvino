@@ -17,11 +17,10 @@
 #define _OPENVINO_MATCHER_PASS_RTTI_WITH_TYPE_VERSION(TYPE_NAME, VERSION_NAME) \
     _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT(TYPE_NAME, VERSION_NAME, ::ov::pass::MatcherPass)
 
-#define OPENVINO_MATCHER_PASS_RTTI(...)                                                                     \
-    _OPENVINO_RTTI_EXPAND(_OPENVINO_RTTI_DEFINITION_SELECTOR(__VA_ARGS__,                                   \
-                                                             _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT,       \
-                                                             _OPENVINO_MATCHER_PASS_RTTI_WITH_TYPE_VERSION, \
-                                                             _OPENVINO_MATCHER_PASS_RTTI_WITH_TYPE)(__VA_ARGS__))
+#define OPENVINO_MATCHER_PASS_RTTI(...)                                                                       \
+    _OPENVINO_RTTI_EXPAND(_OPENVINO_RTTI_DEFINITION_SELECTOR_2(__VA_ARGS__,                                   \
+                                                               _OPENVINO_MATCHER_PASS_RTTI_WITH_TYPE_VERSION, \
+                                                               _OPENVINO_MATCHER_PASS_RTTI_WITH_TYPE)(__VA_ARGS__))
 
 namespace ov {
 using matcher_pass_callback = std::function<bool(pass::pattern::Matcher& m)>;
