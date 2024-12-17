@@ -28,7 +28,7 @@ make sure to :doc:`install OpenVINO with GenAI <../../get-started/install-openvi
 
 .. dropdown:: Text-to-Image Generation
 
-   OpenVINO GenAI introduces the openvino_genai.Text2ImagePipeline for inference of text-to-image
+   OpenVINO GenAI introduces ``openvino_genai.Text2ImagePipeline`` for inference of text-to-image
    models such as: as Stable Diffusion 1.5, 2.1, XL, LCM, Flex, and more.
    See the following usage example for reference.
 
@@ -908,7 +908,7 @@ running the following code:
 GenAI API
 #######################################
 
-The use case described here uses the following OpenVINO GenAI API classes:
+The use case described here regards the following OpenVINO GenAI API classes:
 
 * generation_config - defines a configuration class for text generation,
   enabling customization of the generation process such as the maximum length of
