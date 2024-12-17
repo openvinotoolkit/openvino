@@ -34,8 +34,8 @@ class TRANSFORMATIONS_API ScaleDownFusion;
 class TRANSFORMATIONS_API EliminateMultiplyNorm;
 class TRANSFORMATIONS_API MulConcatTransformation;
 class TRANSFORMATIONS_API NormMulTransformation;
-class TRANSFORMATIONS_API EliminateMultiplyX1;
 class TRANSFORMATIONS_API MulMulTransformation;
+class TRANSFORMATIONS_API MulDownTransformation;
 
 }  // namespace activations_scaling
 }  // namespace pass
@@ -76,14 +76,14 @@ public:
     NormMulTransformation();
 };
 
-class ov::pass::activations_scaling::EliminateMultiplyX1 : public ov::pass::MatcherPass {
-public:
-    OPENVINO_RTTI("EliminateMultiplyX1", "0");
-    EliminateMultiplyX1();
-};
-
 class ov::pass::activations_scaling::MulMulTransformation : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("MulMulTransformation", "0");
     MulMulTransformation();
+};
+
+class ov::pass::activations_scaling::MulDownTransformation : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("MulDownTransformation", "0");
+    MulDownTransformation();
 };

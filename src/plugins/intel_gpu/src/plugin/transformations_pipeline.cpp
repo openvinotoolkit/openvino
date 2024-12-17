@@ -965,13 +965,25 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             manager.register_pass<ov::pass::activations_scaling::ScaleDownSingleLayer>(activations_scale_factor, scaled_precision);
             manager.register_pass<ov::pass::activations_scaling::ScaleDownFusion>();
+
+            // Move down scalar-multiply layers as much as possible
             auto params = LayerTransformation::Params(false, scaled_precision, {scaled_precision}, true, false);
             auto lpt_pass = manager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization, params);
             lpt_pass->add_main<ov::pass::activations_scaling::EliminateMultiplyNorm>();
             lpt_pass->add_main<ov::pass::activations_scaling::MulConcatTransformation>();
             lpt_pass->add_main<ov::pass::activations_scaling::MulMulTransformation>();
+            lpt_pass->add_main<ov::pass::activations_scaling::MulDownTransformation>();
+
+            // Move up remained scalar-multiply layers
+            manager.register_pass<ov::pass::EliminateEltwise>();
             manager.register_pass<ov::pass::activations_scaling::NormMulTransformation>();
-            manager.register_pass<ov::pass::activations_scaling::EliminateMultiplyX1>();
+
+            const std::vector<DiscreteTypeInfo> allowed_data_movement_ops = {
+                ov::op::v1::Reshape::get_type_info_static(),
+                ov::op::v1::Transpose::get_type_info_static(),
+            };
+            manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMovScalar>(allowed_data_movement_ops);
+            manager.register_pass<ov::pass::Validate>();
         }
 
         manager.run_passes(func);
