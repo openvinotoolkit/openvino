@@ -365,6 +365,14 @@ private:
     void run(program& p) override;
 };
 
+class reshape_transfer : public base_pass {
+public:
+    reshape_transfer() : base_pass("reshape_transfer") {}
+
+private:
+    void run(program& p) override;
+};
+
 class mark_runtime_skippable_nodes : public base_pass {
 public:
     mark_runtime_skippable_nodes() : base_pass("mark_runtime_skippable_nodes") {}

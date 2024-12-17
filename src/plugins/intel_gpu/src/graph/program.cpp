@@ -563,6 +563,7 @@ void program::pre_optimize_graph(bool is_internal) {
 
         apply_opt_pass<reorder_transfer>();
 
+        apply_opt_pass<reshape_transfer>();
 #ifdef GPU_DEBUG_CONFIG
         GPU_DEBUG_IF(!debug_config->disable_primitive_fusing) {
 #else
