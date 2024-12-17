@@ -181,10 +181,14 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
                                                            ov::op::v8::Gather::get_type_info_static(),
                                                            ov::op::v1::Convolution::get_type_info_static(),
                                                            ov::opset1::Convolution::get_type_info_static(),
+                                                           ov::op::v1::ConvolutionBackpropData::get_type_info_static(),
+                                                           ov::opset1::ConvolutionBackpropData::get_type_info_static(),
                                                            ov::opset1::GroupConvolution::get_type_info_static() };
 
     std::vector<ov::DiscreteTypeInfo> convolutions = { ov::op::v1::Convolution::get_type_info_static(),
                                                        ov::opset1::Convolution::get_type_info_static(),
+                                                       ov::op::v1::ConvolutionBackpropData::get_type_info_static(),
+                                                       ov::opset1::ConvolutionBackpropData::get_type_info_static(),
                                                        ov::opset1::GroupConvolution::get_type_info_static() };
 
     auto all_has_types = [](const std::set<ov::Input<ov::Node>>& consumers, const std::vector<ov::DiscreteTypeInfo>& types) {
