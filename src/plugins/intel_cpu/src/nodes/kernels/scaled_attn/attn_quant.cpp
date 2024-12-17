@@ -402,8 +402,6 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                                 const size_t value_group_size) {
     size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2], S = k_src.m_dims[3], SV = v_src.m_dims[3];
     size_t block_size = k_dst.m_dims[2];
-    size_t _key_group_size = key_group_size == 0 ? S : key_group_size;
-    size_t _value_group_size = value_group_size == 0 ? SV : value_group_size;
     parallel_for3d(B, L1, H, [&](size_t b, size_t m, size_t h) {
         auto slot = slot_mapping.ptr<int32_t>(b)[m];
         if (slot < 0)
@@ -414,7 +412,7 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
         // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
         // feature(u8,idx_S)|
         for (size_t src_offset = 0, dst_offset = 0; src_offset < S;
-             src_offset += _key_group_size, dst_offset += _key_group_size + sizeof(float) + sizeof(float)) {
+             src_offset += key_group_size, dst_offset += key_group_size + sizeof(float) + sizeof(float)) {
             auto p_k = reinterpret_cast<float*>(
                 k_dst.ptr<typename ov::element_type_traits<KEY_DST_PREC>::value_type>(block_number,
                                                                                       h,
@@ -426,13 +424,13 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                                                                                            block_offset,
                                                                                            dst_offset) +
                          sizeof(float) + sizeof(float),
-                     _key_group_size,
+                     key_group_size,
                      p_k[0],
                      p_k[1]);
         }
 
         for (size_t src_offset = 0, dst_offset = 0; src_offset < SV;
-             src_offset += _value_group_size, dst_offset += _value_group_size + sizeof(float) + sizeof(float)) {
+             src_offset += value_group_size, dst_offset += value_group_size + sizeof(float) + sizeof(float)) {
             auto p_v = reinterpret_cast<float*>(
                 v_dst.ptr<typename ov::element_type_traits<VALUE_DST_PREC>::value_type>(block_number,
                                                                                         h,
@@ -444,7 +442,7 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                                                                                              block_offset,
                                                                                              dst_offset) +
                          sizeof(float) + sizeof(float),
-                     _value_group_size,
+                     value_group_size,
                      p_v[0],
                      p_v[1]);
         }
@@ -464,8 +462,6 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                                 const size_t value_group_size) {
     size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2], S = k_src.m_dims[3], SV = v_src.m_dims[3];
     size_t block_size = k_dst.m_dims[2];
-    size_t _key_group_size = key_group_size == 0 ? S : key_group_size;
-    size_t _value_group_size = value_group_size == 0 ? SV : value_group_size;
     size_t sub_byte_multiplier = 8 / v_dst.get_precision().bitwidth();
     parallel_for3d(B, L1, H, [&](size_t b, size_t m, size_t h) {
         auto slot = slot_mapping.ptr<int32_t>(b)[m];
@@ -477,7 +473,7 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
         // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
         // feature(u8,idx_S)|
         for (size_t src_offset = 0, dst_offset = 0; src_offset < S;
-             src_offset += _key_group_size, dst_offset += _key_group_size + sizeof(float) + sizeof(float)) {
+             src_offset += key_group_size, dst_offset += key_group_size + sizeof(float) + sizeof(float)) {
             auto p_k = reinterpret_cast<float*>(
                 k_dst.ptr<typename ov::element_type_traits<KEY_DST_PREC>::value_type>(block_number,
                                                                                       h,
@@ -489,13 +485,13 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                                                                                            block_offset,
                                                                                            dst_offset) +
                          sizeof(float) + sizeof(float),
-                     _key_group_size,
+                     key_group_size,
                      p_k[0],
                      p_k[1]);
         }
 
-        for (size_t src_offset = 0, dst_offset = 0; src_offset < SV; src_offset += _value_group_size,
-                    dst_offset += _value_group_size / sub_byte_multiplier + sizeof(float) + sizeof(float)) {
+        for (size_t src_offset = 0, dst_offset = 0; src_offset < SV; src_offset += value_group_size,
+                    dst_offset += value_group_size / sub_byte_multiplier + sizeof(float) + sizeof(float)) {
             uint8_t* v_base = reinterpret_cast<uint8_t*>(
                 v_dst.m_ptr.get() +
                 (block_number * v_dst.m_strides[0] + h * v_dst.m_strides[1] + block_offset * v_dst.m_strides[2]) /
@@ -503,7 +499,7 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                 dst_offset);
             auto p_v = reinterpret_cast<float*>(v_base);
             uint8_t* v_ptr = v_base + sizeof(float) * 2;
-            quant_u4(v_src.ptr<T>(b, h, m, src_offset), v_ptr, _value_group_size, p_v[0], p_v[1]);
+            quant_u4(v_src.ptr<T>(b, h, m, src_offset), v_ptr, value_group_size, p_v[0], p_v[1]);
         }
     });
 }
@@ -521,8 +517,6 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                                 const size_t value_group_size) {
     size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2], S = k_src.m_dims[3], SV = v_src.m_dims[3];
     size_t block_size = k_dst.m_dims[2];
-    size_t _key_group_size = key_group_size == 0 ? S : key_group_size;
-    size_t _value_group_size = value_group_size == 0 ? SV : value_group_size;
     size_t sub_byte_multiplier = 8 / v_dst.get_precision().bitwidth();
     parallel_for3d(B, L1, H, [&](size_t b, size_t m, size_t h) {
         auto slot = slot_mapping.ptr<int32_t>(b)[m];
@@ -534,7 +528,7 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
         // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
         // feature(u8,idx_S)|
         for (size_t src_offset = 0, dst_offset = 0; src_offset < S;
-             src_offset += _key_group_size, dst_offset += _key_group_size + sizeof(float) + sizeof(float)) {
+             src_offset += key_group_size, dst_offset += key_group_size + sizeof(float) + sizeof(float)) {
             auto p_k = reinterpret_cast<float*>(
                 k_dst.ptr<typename ov::element_type_traits<KEY_DST_PREC>::value_type>(block_number,
                                                                                       h,
@@ -546,13 +540,13 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                                                                                            block_offset,
                                                                                            dst_offset) +
                          sizeof(float) + sizeof(float),
-                     _key_group_size,
+                     key_group_size,
                      p_k[0],
                      p_k[1]);
         }
 
         for (size_t src_offset = 0, dst_offset = 0; src_offset < SV;
-             src_offset += _value_group_size, dst_offset += _value_group_size / sub_byte_multiplier + sizeof(float)) {
+             src_offset += value_group_size, dst_offset += value_group_size / sub_byte_multiplier + sizeof(float)) {
             uint8_t* v_base = reinterpret_cast<uint8_t*>(
                 v_dst.m_ptr.get() +
                 (block_number * v_dst.m_strides[0] + h * v_dst.m_strides[1] + block_offset * v_dst.m_strides[2]) /
@@ -560,7 +554,7 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                 dst_offset);
             auto p_v = reinterpret_cast<float*>(v_base);
             uint8_t* v_ptr = v_base + sizeof(float);
-            quant_s4(v_src.ptr<T>(b, h, m, src_offset), v_ptr, _value_group_size, p_v[0]);
+            quant_s4(v_src.ptr<T>(b, h, m, src_offset), v_ptr, value_group_size, p_v[0]);
         }
     });
 }

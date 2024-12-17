@@ -68,6 +68,7 @@ void attn_dequant_u4_kernel(const uint8_t* src, TDST* dst, size_t n, float scale
 #if defined(HAVE_AVX512F)
     auto v_zp = _mm512_set1_ps(zp);
     auto v_scale = _mm512_set1_ps(scale);
+    auto v_zp_scale = _mm512_set1_ps(zp * scale);
     for (; i + vec_len_f32_avx512 * 2 <= n; i += vec_len_f32_avx512 * 2) {
         auto data = _mm_loadu_si128(reinterpret_cast<__m128i*>(src_nc + i / 2));
         auto v_i32 = _mm512_cvtepu8_epi32(data);
@@ -78,12 +79,9 @@ void attn_dequant_u4_kernel(const uint8_t* src, TDST* dst, size_t n, float scale
         auto mask = _mm512_set1_epi32(0x0F);
         auto v_512_high_half = _mm512_and_si512(v_i32, mask);
         auto v_f32_high_half = _mm512_cvtepi32_ps(v_512_high_half);
-        // q - zp
-        v_f32_low_half = _mm512_sub_ps(v_f32_low_half, v_zp);
-        v_f32_high_half = _mm512_sub_ps(v_f32_high_half, v_zp);
-        // (q - zp) * scale
-        v_f32_low_half = _mm512_mul_ps(v_f32_low_half, v_scale);
-        v_f32_high_half = _mm512_mul_ps(v_f32_high_half, v_scale);
+        // q * scale- zp * scale
+        v_f32_low_half = _mm512_fmsub_ps(v_f32_low_half, v_scale, v_zp_scale);
+        v_f32_high_half = _mm512_fmsub_ps(v_f32_high_half, v_scale, v_zp_scale);
         __m512i idx1 = _mm512_set_epi32(23, 7, 22, 6, 21, 5, 20, 4, 19, 3, 18, 2, 17, 1, 16, 0);
         __m512i idx2 = _mm512_set_epi32(31, 15, 30, 14, 29, 13, 28, 12, 27, 11, 26, 10, 25, 9, 24, 8);
         __m512 first_half = _mm512_permutex2var_ps(v_f32_low_half, idx1, v_f32_high_half);
