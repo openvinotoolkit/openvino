@@ -518,6 +518,9 @@ std::vector<std::string> disabledTestPatterns() {
         // tests are useless on such platforms
         retVector.emplace_back(R"(.*(BF|bf)16.*)");
         retVector.emplace_back(R"(.*bfloat16.*)");
+        // Issue: MFDNN-12876
+        retVector.emplace_back(R"(.*smoke_LPT/RecurrentCellTransformation.CompareWithRefImpl/f32_\[1,1,3\]_CPU_f32FQ_X_level=256_.*_FQ_W_level=255.*)");
+        retVector.emplace_back(R"(.*smoke_static/ConvertFqRnnToQuantizedRnn.CompareWithRefs/Type=GRUSequence.*2.5.10.*2.1.4.*2.1.4.*)");
     }
     if (!ov::with_cpu_x86_avx2()) {
         // MatMul in Snippets uses BRGEMM that is supported only on AVX2 (and newer) platforms
