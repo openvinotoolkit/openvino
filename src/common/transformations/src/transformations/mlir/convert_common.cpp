@@ -78,6 +78,9 @@ Location createLayerLocation(MLIRContext* ctx, const std::string& layerName, con
 }
 
 SmallVector<int64_t> importShape(const ov::PartialShape& shape) {
+    if (shape.rank().is_dynamic()) {
+        OPENVINO_THROW("Dynamic ranks are not supported.");
+    }
     SmallVector<int64_t> out(shape.rank().get_length());
     // TODO: Add support for dynamically ranked shapes
     for (size_t i = 0; i < out.size(); ++i) {
@@ -98,27 +101,21 @@ Type importPrecision(MLIRContext* ctx, const ov::element::Type& precision) {
     case ov::element::Type_t::bf16:
         return BFloat16Type::get(ctx);
     case ov::element::Type_t::i64:
-        return getSInt64Type(ctx);
     case ov::element::Type_t::u64:
-        return getUInt64Type(ctx);
+        return IntegerType::get(ctx, 64);
     case ov::element::Type_t::i32:
-        return getSInt32Type(ctx);
     case ov::element::Type_t::u32:
-        return getUInt32Type(ctx);
+        return IntegerType::get(ctx, 32);
     case ov::element::Type_t::i16:
-        return getSInt16Type(ctx);
     case ov::element::Type_t::u16:
-        return getUInt16Type(ctx);
+        return IntegerType::get(ctx, 16);
     case ov::element::Type_t::i8:
-        return getSInt8Type(ctx);
     case ov::element::Type_t::u8:
-        return getUInt8Type(ctx);
-    case ov::element::Type_t::i4:
-        return getSInt4Type(ctx);
-    case ov::element::Type_t::u4:
-        return getUInt4Type(ctx);
     case ov::element::Type_t::boolean:
-        return getBool8Type(ctx);
+        return IntegerType::get(ctx, 8);
+    case ov::element::Type_t::i4:
+    case ov::element::Type_t::u4:
+        return IntegerType::get(ctx, 4);
     default:
         OPENVINO_THROW("Unsupported element_type: ", precision);
     }

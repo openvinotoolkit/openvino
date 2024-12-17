@@ -101,6 +101,9 @@ void prepareMLIRKernelWithoutWrapper(mlir::OwningOpRef<mlir::ModuleOp>& module, 
             pm.addNestedPass<func::FuncOp>(createCanonicalizerPass());
             pm.addNestedPass<func::FuncOp>(createCSEPass());
 
+            // Rewrite shape ops in tensor/arith/etc
+            pm.addPass(createConvertShapeToStandardPass());
+
             // Remove empty tensors to avoid converting them into temporary buffers.
             pm.addPass(bufferization::createEmptyTensorEliminationPass());
 
