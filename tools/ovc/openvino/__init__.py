@@ -33,6 +33,7 @@ from openvino._pyopenvino import Symbol
 from openvino._pyopenvino import Dimension
 from openvino._pyopenvino import Input
 from openvino._pyopenvino import Output
+from openvino._pyopenvino import Node
 from openvino._pyopenvino import Strides
 from openvino._pyopenvino import PartialShape
 from openvino._pyopenvino import Shape
@@ -50,6 +51,13 @@ from openvino._pyopenvino import RemoteContext
 from openvino._pyopenvino import RemoteTensor
 from openvino._pyopenvino import Op
 
+# Import public classes from _ov_api
+from openvino._ov_api import Model
+from openvino._ov_api import Core
+from openvino._ov_api import CompiledModel
+from openvino._ov_api import InferRequest
+from openvino._ov_api import AsyncInferQueue
+
 # Import all public modules
 from openvino import runtime as runtime
 from openvino import frontend as frontend
@@ -58,13 +66,6 @@ from openvino import experimental as experimental
 from openvino import preprocess as preprocess
 from openvino import utils as utils
 from openvino import properties as properties
-
-# Import most important classes and functions from openvino.runtime
-from openvino._ov_api import Model
-from openvino._ov_api import Core
-from openvino._ov_api import CompiledModel
-from openvino._ov_api import InferRequest
-from openvino._ov_api import AsyncInferQueue
 
 # Helper functions for openvino module
 from openvino.utils.data_helpers import tensor_from_file
@@ -88,6 +89,24 @@ from openvino import opset13
 from openvino import opset14
 from openvino import opset15
 from openvino import opset16
+
+# Extend Node class to support binary operators
+Node.__add__ = opset13.add
+Node.__sub__ = opset13.subtract
+Node.__mul__ = opset13.multiply
+Node.__div__ = opset13.divide
+Node.__truediv__ = opset13.divide
+Node.__radd__ = lambda left, right: opset13.add(right, left)
+Node.__rsub__ = lambda left, right: opset13.subtract(right, left)
+Node.__rmul__ = lambda left, right: opset13.multiply(right, left)
+Node.__rdiv__ = lambda left, right: opset13.divide(right, left)
+Node.__rtruediv__ = lambda left, right: opset13.divide(right, left)
+Node.__eq__ = utils.deprecated(version="2025.3", message="Use ops.equal instead")(opset13.equal)
+Node.__ne__ = utils.deprecated(version="2025.3", message="Use ops.not_equal instead")(opset13.not_equal)
+Node.__lt__ = utils.deprecated(version="2025.3", message="Use ops.less instead")(opset13.less)
+Node.__le__ = utils.deprecated(version="2025.3", message="Use ops.less_equal instead")(opset13.less_equal)
+Node.__gt__ = utils.deprecated(version="2025.3", message="Use ops.greater instead")(opset13.greater)
+Node.__ge__ = utils.deprecated(version="2025.3", message="Use ops.greater_equal instead")(opset13.greater_equal)
 
 # libva related:
 from openvino._pyopenvino import VAContext
