@@ -508,10 +508,9 @@ class Core(CoreBase):
         elif isinstance(model, bytes):
             return Model(super().read_model(model, bytes() if weights is None else weights))
         elif weights is None:
-            return Model(super().read_model(model, config = config))
+            return Model(super().read_model(model, config=config))
         else:
             return Model(super().read_model(model, weights, config))
-
 
     def compile_model(
         self,
