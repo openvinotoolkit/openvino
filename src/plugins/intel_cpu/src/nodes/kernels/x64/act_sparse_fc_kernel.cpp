@@ -3,6 +3,7 @@
 //
 #include <cstring>
 #include "act_sparse_fc_kernel.hpp"
+#include "jit_kernel_base.hpp"
 
 #include "openvino/core/parallel.hpp"
 
@@ -16,390 +17,456 @@
 
 // https://github.com/intel-sandbox/dynSparseFC/blob/main/dyn_sparse_fc.cpp
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
-namespace XARCH {
-// gemm
-template <int rows, int prefetch_v = 16>
-void brgemm_6x2(const float* A,
-                int A_stride,  // stride in number of element
-                const float* B,
-                int B_stride,  // stride in number of element
-                float* C,
-                int C_stride,  // stride in number of element
-                int K,
-                bool is_accumulate_C) {
-    SIMD_F32 c0, c1, c2, c3, c4, c5;
-    SIMD_F32 c6, c7, c8, c9, ca, cb;
+#ifndef ASSERT
+#    define ASSERT(cond)                                                     \
+        if (!(cond)) {                                                       \
+            std::stringstream ss;                                            \
+            ss << __FILE__ << ":" << __LINE__ << " " << #cond << " failed!"; \
+            throw std::runtime_error(ss.str());                              \
+        }
+#endif
 
-    if (is_accumulate_C) {
-        auto* src = C;
-        c0 = simd_loadu_ps(src + SIMDW * 0);
-        c1 = simd_loadu_ps(src + SIMDW * 1);
-        if (rows > 1) {
-            src += C_stride;
-            c2 = simd_loadu_ps(src + SIMDW * 0);
-            c3 = simd_loadu_ps(src + SIMDW * 1);
-        }
-        if (rows > 2) {
-            src += C_stride;
-            c4 = simd_loadu_ps(src + SIMDW * 0);
-            c5 = simd_loadu_ps(src + SIMDW * 1);
-        }
-        if (rows > 3) {
-            src += C_stride;
-            c6 = simd_loadu_ps(src + SIMDW * 0);
-            c7 = simd_loadu_ps(src + SIMDW * 1);
-        }
-        if (rows > 4) {
-            src += C_stride;
-            c8 = simd_loadu_ps(src + SIMDW * 0);
-            c9 = simd_loadu_ps(src + SIMDW * 1);
-        }
-        if (rows > 5) {
-            src += C_stride;
-            ca = simd_loadu_ps(src + SIMDW * 0);
-            cb = simd_loadu_ps(src + SIMDW * 1);
-        }
+#ifdef _WIN32
+#define abi_param_regs_num 4
+#else
+#define abi_param_regs_num 6
+#endif
+// first few regs contains input arguments passed in through stack
+constexpr Xbyak::Operand::Code abi_x86_64_regs[] = {
+#ifdef _WIN32
+        Xbyak::Operand::RCX, Xbyak::Operand::RDX, Xbyak::Operand::R8,  Xbyak::Operand::R9, // args passed in register
+        Xbyak::Operand::RDI, Xbyak::Operand::RSI,
+
+        Xbyak::Operand::RBX, Xbyak::Operand::RBP, Xbyak::Operand::R10, Xbyak::Operand::R11, Xbyak::Operand::R12,
+        Xbyak::Operand::R13, Xbyak::Operand::R14, Xbyak::Operand::R15
+#else
+        Xbyak::Operand::RDI, Xbyak::Operand::RSI, Xbyak::Operand::RDX, Xbyak::Operand::RCX, Xbyak::Operand::R8, Xbyak::Operand::R9, // args passed in register
+
+        Xbyak::Operand::RBX, Xbyak::Operand::RBP, Xbyak::Operand::R10, Xbyak::Operand::R11, Xbyak::Operand::R12,
+        Xbyak::Operand::R13, Xbyak::Operand::R14, Xbyak::Operand::R15
+#endif
+};
+
+class JitKernel : public ov::intel_cpu::kernel::JitKernelBase {
+public:
+  DECLARE_CPU_JIT_AUX_FUNCTIONS(JitKernel);
+  bool use_avx512;
+
+#if defined(HAVE_AVX512F)
+  JitKernel(const char* name) : JitKernelBase(name, dnnl::impl::cpu::x64::cpu_isa_t::avx512_core) {
+    use_avx512 = true;
+    mov(rax, rsp);
+    JitKernelBase::preamble();
+  }
+#else
+  JitKernel(const char* name) : JitKernelBase(name, dnnl::impl::cpu::x64::cpu_isa_t::avx2) {
+    use_avx512 = false;
+    mov(rax, rsp);
+    JitKernelBase::preamble();
+  }
+#endif
+
+  void generate() override {};
+
+  // add an int64_t return value
+  template <typename... kernel_args_t>
+  int64_t operator()(kernel_args_t... args) const {
+    using jit_kernel_func_t = int64_t (*)(const kernel_args_t... args);
+    auto *fptr = (jit_kernel_func_t)jit_ker();
+    return (*fptr)(std::forward<kernel_args_t>(args)...);
+  }
+
+  void finalize(Xbyak::Reg64 return_value = {}) {
+    if (!return_value.isNone())
+        mov(rax, return_value);
+    JitKernelBase::postamble();
+    JitKernelBase::create_kernel();
+  }
+
+  Xbyak::Reg64 get_sreg(int i, bool is_arg = false) {
+    if (i < abi_param_regs_num)
+        return Xbyak::Reg64(abi_x86_64_regs[i]);
+    if (i >= sizeof(abi_x86_64_regs)/sizeof(abi_x86_64_regs[0]))
+        throw std::runtime_error(std::string("try to allocate invalid scalar register #") + std::to_string(i));
+
+    auto r = Xbyak::Reg64(abi_x86_64_regs[i]);
+    if (is_arg)
+        mov(r, ptr[rax + (i - abi_param_regs_num + 1)*8]);// load from stack
+    return r;
+  }
+
+  Xbyak::Xmm Vmm(int id) {
+    if (use_avx512) {
+        if (id >= 32)
+            throw std::runtime_error(std::string("try to use invalid zmm register: #") + std::to_string(id));
+        return Xbyak::Zmm(id);
     } else {
-        c0 = simd_setzero_ps();
-        c1 = simd_setzero_ps();
-        c2 = simd_setzero_ps();
-        c3 = simd_setzero_ps();
-        c4 = simd_setzero_ps();
-        c5 = simd_setzero_ps();
-        c6 = simd_setzero_ps();
-        c7 = simd_setzero_ps();
-        c8 = simd_setzero_ps();
-        c9 = simd_setzero_ps();
-        ca = simd_setzero_ps();
-        cb = simd_setzero_ps();
+        if (id >= 16)
+            throw std::runtime_error(std::string("try to use invalid ymm register: #") + std::to_string(id));
+        return Xbyak::Ymm(id);
     }
-
-    const auto* pA3 = A + 3 * A_stride;
-    const auto prefetch_stride = B_stride * prefetch_v;
-    int k;
-    for (k = 0; k < K; k++, B += B_stride, A++, pA3++) {
-        auto b0 = simd_loadu_ps(B + SIMDW * 0);
-        auto b1 = simd_loadu_ps(B + SIMDW * 1);
-
-        if (prefetch_v >= 0)
-            simd_prefetch(B + 16, _MM_HINT_T0);
-        if (prefetch_v > 0)
-            simd_prefetch(B + prefetch_stride, _MM_HINT_T0);
-
-        auto a0 = simd_broadcast_ss(A);
-        c0 = simd_fmadd_ps(a0, b0, c0);
-        c1 = simd_fmadd_ps(a0, b1, c1);
-        if (rows > 1) {
-            a0 = simd_broadcast_ss(A + A_stride);
-            c2 = simd_fmadd_ps(a0, b0, c2);
-            c3 = simd_fmadd_ps(a0, b1, c3);
-        }
-        if (rows > 2) {
-            a0 = simd_broadcast_ss(A + 2 * A_stride);
-            c4 = simd_fmadd_ps(a0, b0, c4);
-            c5 = simd_fmadd_ps(a0, b1, c5);
-        }
-
-        if (rows > 3) {
-            a0 = simd_broadcast_ss(pA3);
-            c6 = simd_fmadd_ps(a0, b0, c6);
-            c7 = simd_fmadd_ps(a0, b1, c7);
-        }
-        if (rows > 4) {
-            a0 = simd_broadcast_ss(pA3 + A_stride);
-            c8 = simd_fmadd_ps(a0, b0, c8);
-            c9 = simd_fmadd_ps(a0, b1, c9);
-        }
-        if (rows > 5) {
-            a0 = simd_broadcast_ss(pA3 + 2 * A_stride);
-            ca = simd_fmadd_ps(a0, b0, ca);
-            cb = simd_fmadd_ps(a0, b1, cb);
-        }
-    }
-
-    // store C back
-    simd_storeu_ps(C + SIMDW * 0, c0);
-    simd_storeu_ps(C + SIMDW * 1, c1);
-    if (rows > 1) {
-        C += C_stride;
-        simd_storeu_ps(C + SIMDW * 0, c2);
-        simd_storeu_ps(C + SIMDW * 1, c3);
-    }
-    if (rows > 2) {
-        C += C_stride;
-        simd_storeu_ps(C + SIMDW * 0, c4);
-        simd_storeu_ps(C + SIMDW * 1, c5);
-    }
-    if (rows > 3) {
-        C += C_stride;
-        simd_storeu_ps(C + SIMDW * 0, c6);
-        simd_storeu_ps(C + SIMDW * 1, c7);
-    }
-    if (rows > 4) {
-        C += C_stride;
-        simd_storeu_ps(C + SIMDW * 0, c8);
-        simd_storeu_ps(C + SIMDW * 1, c9);
-    }
-    if (rows > 5) {
-        C += C_stride;
-        simd_storeu_ps(C + SIMDW * 0, ca);
-        simd_storeu_ps(C + SIMDW * 1, cb);
-    }
-}
-
-template <int row>
-void brgemm_4x3(const float* A,
-                int A_stride,  // stride in number of element
-                const float* B,
-                int B_stride,  // stride in number of element
-                float* C,
-                int C_stride,  // stride in number of element
-                int K,
-                bool is_accumulate_C) {
-    // loop in unit of register blocking: (3x4*8)
-    SIMD_F32 c00, c01, c02;
-    SIMD_F32 c10, c11, c12;
-    SIMD_F32 c20, c21, c22;
-    SIMD_F32 c30, c31, c32;
-
-    if (is_accumulate_C) {
-        c00 = simd_loadu_ps(C + SIMDW * 0);
-        c01 = simd_loadu_ps(C + SIMDW * 1);
-        c02 = simd_loadu_ps(C + SIMDW * 2);
-
-        if (row > 1) {
-            c10 = simd_loadu_ps(C + C_stride + SIMDW * 0);
-            c11 = simd_loadu_ps(C + C_stride + SIMDW * 1);
-            c12 = simd_loadu_ps(C + C_stride + SIMDW * 2);
-        }
-        if (row > 2) {
-            c20 = simd_loadu_ps(C + 2 * C_stride + SIMDW * 0);
-            c21 = simd_loadu_ps(C + 2 * C_stride + SIMDW * 1);
-            c22 = simd_loadu_ps(C + 2 * C_stride + SIMDW * 2);
-        }
-        if (row > 3) {
-            c30 = simd_loadu_ps(C + 3 * C_stride + SIMDW * 0);
-            c31 = simd_loadu_ps(C + 3 * C_stride + SIMDW * 1);
-            c32 = simd_loadu_ps(C + 3 * C_stride + SIMDW * 2);
-        }
+  }
+  void simd_setzero_ps(Xbyak::Xmm vmm) {
+    if (use_avx512) {
+        vpxord(vmm, vmm, vmm);
     } else {
-        c00 = simd_setzero_ps();
-        c01 = simd_setzero_ps();
-        c02 = simd_setzero_ps();
-
-        if (row > 1) {
-            c10 = simd_setzero_ps();
-            c11 = simd_setzero_ps();
-            c12 = simd_setzero_ps();
-        }
-        if (row > 2) {
-            c20 = simd_setzero_ps();
-            c21 = simd_setzero_ps();
-            c22 = simd_setzero_ps();
-        }
-        if (row > 3) {
-            c30 = simd_setzero_ps();
-            c31 = simd_setzero_ps();
-            c32 = simd_setzero_ps();
-        }
+        vpxor(vmm, vmm, vmm);
     }
-
-    auto* prefetch_B = B + 64 / sizeof(float) * 10;
-
-    // reducing along k dimension
-    //   with -O2 optimization flag, following kernel has 6~7 cycles-per-iteration
-    //   which is consistent with FMA's throughput(0.5)
-    for (int k = 0; k < K; k++, B += B_stride, A++, prefetch_B += B_stride) {
-        // 16-ymm-registers are just enough for 4x3 register blocking
-        auto b0 = simd_loadu_ps(B + SIMDW * 0);
-        auto b1 = simd_loadu_ps(B + SIMDW * 1);
-        auto b2 = simd_loadu_ps(B + SIMDW * 2);
-
-        //_mm_prefetch(prefetch_B, _MM_HINT_T0);
-
-        auto a = simd_broadcast_ss(A);
-        c00 = simd_fmadd_ps(a, b0, c00);
-        c01 = simd_fmadd_ps(a, b1, c01);
-        c02 = simd_fmadd_ps(a, b2, c02);
-
-        if (row > 1) {
-            a = simd_broadcast_ss(A + A_stride);
-            c10 = simd_fmadd_ps(a, b0, c10);
-            c11 = simd_fmadd_ps(a, b1, c11);
-            c12 = simd_fmadd_ps(a, b2, c12);
-        }
-        if (row > 2) {
-            a = simd_broadcast_ss(A + 2 * A_stride);
-            c20 = simd_fmadd_ps(a, b0, c20);
-            c21 = simd_fmadd_ps(a, b1, c21);
-            c22 = simd_fmadd_ps(a, b2, c22);
-        }
-        if (row > 3) {
-            a = simd_broadcast_ss(A + 3 * A_stride);
-            c30 = simd_fmadd_ps(a, b0, c30);
-            c31 = simd_fmadd_ps(a, b1, c31);
-            c32 = simd_fmadd_ps(a, b2, c32);
-        }
-    }
-
-    // store C back
-    simd_storeu_ps(C + SIMDW * 0, c00);
-    simd_storeu_ps(C + SIMDW * 1, c01);
-    simd_storeu_ps(C + SIMDW * 2, c02);
-    if (row > 1) {
-        simd_storeu_ps(C + C_stride + SIMDW * 0, c10);
-        simd_storeu_ps(C + C_stride + SIMDW * 1, c11);
-        simd_storeu_ps(C + C_stride + SIMDW * 2, c12);
-    }
-    if (row > 2) {
-        simd_storeu_ps(C + 2 * C_stride + SIMDW * 0, c20);
-        simd_storeu_ps(C + 2 * C_stride + SIMDW * 1, c21);
-        simd_storeu_ps(C + 2 * C_stride + SIMDW * 2, c22);
-    }
-    if (row > 3) {
-        simd_storeu_ps(C + 3 * C_stride + SIMDW * 0, c30);
-        simd_storeu_ps(C + 3 * C_stride + SIMDW * 1, c31);
-        simd_storeu_ps(C + 3 * C_stride + SIMDW * 2, c32);
-    }
-}
-
-template <int row>
-void brgemm_4x1(const float* A,
-                int A_stride,  // stride in number of element
-                const float* B,
-                int B_stride,  // stride in number of element
-                float* C,
-                int C_stride,  // stride in number of element
-                int K,
-                bool is_accumulate_C) {
-    // loop in unit of register blocking: (3x4*8)
-    SIMD_F32 c00;
-    SIMD_F32 c10;
-    SIMD_F32 c20;
-    SIMD_F32 c30;
-
-    if (is_accumulate_C) {
-        c00 = simd_loadu_ps(C + 8 * 0);
-        if (row > 1) {
-            c10 = simd_loadu_ps(C + C_stride + SIMDW * 0);
-        }
-        if (row > 2) {
-            c20 = simd_loadu_ps(C + 2 * C_stride + SIMDW * 0);
-        }
-        if (row > 3) {
-            c30 = simd_loadu_ps(C + 3 * C_stride + SIMDW * 0);
-        }
+  }
+  void simd_loadu_ps(Xbyak::Xmm vmm, const Xbyak::Address& addr) {
+    vmovups(vmm, addr);
+  }
+  // load packed half into packed single
+  void simd_loadu_phps(Xbyak::Xmm vmm, const Xbyak::Address& addr) {
+    if (use_avx512) {
+        auto vreg_256 = Xbyak::Ymm(vmm.getIdx());
+        vmovdqu(vreg_256, addr);
+        vcvtph2ps(vmm, vreg_256);
     } else {
-        c00 = simd_setzero_ps();
-        if (row > 1) {
-            c10 = simd_setzero_ps();
-        }
-        if (row > 2) {
-            c20 = simd_setzero_ps();
-        }
-        if (row > 3) {
-            c30 = simd_setzero_ps();
-        }
+        auto vreg_128 = Xbyak::Xmm(vmm.getIdx());
+        movdqu(vreg_128, addr);
+        vcvtph2ps(vmm, vreg_128);
     }
+  }
+  void simd_load_epu8_epi32(Xbyak::Xmm vmm, const Xbyak::Address& addr) {
+    vpmovzxbd(vmm, addr);
+  }
+  void simd_load_epi8_epi32(Xbyak::Xmm vmm, const Xbyak::Address& addr) {
+    vpmovsxbd(vmm, addr);
+  }
+  void simd_storeu_ps(const Xbyak::Address& addr, Xbyak::Xmm vmm) {
+    vmovups(addr, vmm);
+  }
+  void simd_fmadd_ps(Xbyak::Xmm c, Xbyak::Xmm a, const Xbyak::Operand& b) {
+    vfmadd231ps(c, a, b);
+  }
+  void simd_sub_ps(Xbyak::Xmm c, Xbyak::Xmm a, Xbyak::Xmm b) {
+    vsubps(c, a, b);
+  }
+  void simd_mul_ps(Xbyak::Xmm c, Xbyak::Xmm a, Xbyak::Xmm b) {
+    vmulps(c, a, b);
+  }
+  void simd_broadcast_ss(Xbyak::Xmm vmm, const Xbyak::Address& addr) {
+    vbroadcastss(vmm, addr);
+  }
+  void simd_cvtepi32_ps(Xbyak::Xmm vmm_dst, Xbyak::Xmm vmm_src) {
+    vcvtdq2ps(vmm_dst, vmm_src);
+  }
 
-    // reducing along k dimension
-    //   with -O2 optimization flag, following kernel has 6~7 cycles-per-iteration
-    //   which is consistent with FMA's throughput(0.5)
-    for (int k = 0; k < K; k++, B += B_stride, A++) {
-        // 16-ymm-registers are just enough for 4x3 register blocking
-        auto b0 = simd_loadu_ps(B + 8 * 0);
-        auto a = simd_broadcast_ss(A);
-        c00 = simd_fmadd_ps(a, b0, c00);
-        if (row > 1) {
-            a = simd_broadcast_ss(A + A_stride);
-            c10 = simd_fmadd_ps(a, b0, c10);
-        }
-        if (row > 2) {
-            a = simd_broadcast_ss(A + 2 * A_stride);
-            c20 = simd_fmadd_ps(a, b0, c20);
-        }
-        if (row > 3) {
-            a = simd_broadcast_ss(A + 3 * A_stride);
-            c30 = simd_fmadd_ps(a, b0, c30);
-        }
-    }
-    simd_storeu_ps(C + SIMDW * 0, c00);
-    if (row > 1) {
-        simd_storeu_ps(C + C_stride + SIMDW * 0, c10);
-    }
-    if (row > 2) {
-        simd_storeu_ps(C + 2 * C_stride + SIMDW * 0, c20);
-    }
-    if (row > 3) {
-        simd_storeu_ps(C + 3 * C_stride + SIMDW * 0, c30);
-    }
-}
+  // for_loop() performs following:
+  //    for(int idx=0; idx + step <= cnt; idx+=step) {
+  //       loop_body();
+  //    }
+  template<typename Fn, typename STEP>
+  void for_loop(Xbyak::Reg64 idx, Xbyak::Reg64 cnt, STEP step, const Fn& loop_body) {
+    Xbyak::Label loop, exit;
+    mov(idx, 0);
+
+    L(loop);
+    add(idx, step);
+    cmp(idx, cnt);
+    jg(exit, T_NEAR);
+    sub(idx, step);
+
+    loop_body();
+    add(idx, step);
+
+    jmp(loop, T_NEAR);
+    L(exit);
+    // at exit, idx is pointing to tail
+    sub(idx, step);
+  }
+
+  template<typename DT>
+  size_t vmm_width() {
+    return Vmm(0).getBit()/(sizeof(DT) * 8);
+  }
+};
 
 /*
-dst               : result
-pw0/stride_w      : weight matrix in [IC, OC] layout
-pscale            : input activations
-gate_ids/gate_cnt : an array of input channels with non-zero activations (after thresholding)
+    for (int k = 0; k < bK; k++, dst += 2 * SIMDW, srcW += W_stride) {
+        auto wf0 = simd_loadu_ps(srcW + SIMDW * 0);
+        auto wf1 = simd_loadu_ps(srcW + SIMDW * 1);
+        // prefetch right
+        simd_prefetch(srcW + 64, _MM_HINT_T0);
+        simd_storeu_ps(dst + SIMDW * 0, wf0);
+        simd_storeu_ps(dst + SIMDW * 1, wf1);
+    }
 */
-void accumulate_wf16(float* dst,
-                        int64_t OC,
-                        int* gate_ids,
-                        int gate_cnt,
-                        const ov::float16* pw0,
-                        float* dense_x,
-                        int IC) {
-    int i = 0;
-    int g = 0;
-    int64_t stride_w = OC;
-    for (; g < gate_cnt; g += 4) {
-        auto row0 = gate_ids[g];
-        auto row1 = gate_ids[g + 1];
-        auto row2 = gate_ids[g + 2];
-        auto row3 = gate_ids[g + 3];
-        auto p_w0 = pw0 + row0 * stride_w;
-        auto p_w1 = pw0 + row1 * stride_w;
-        auto p_w2 = pw0 + row2 * stride_w;
-        auto p_w3 = pw0 + row3 * stride_w;
-        auto vscale0 = simd_broadcast_ss(dense_x + g);
-        auto vscale1 = simd_broadcast_ss(dense_x + g + 1);
-        auto vscale2 = simd_broadcast_ss(dense_x + g + 2);
-        auto vscale3 = simd_broadcast_ss(dense_x + g + 3);
-        for (i = 0; i + SIMDW <= OC; i += SIMDW) {
-            auto vdst = simd_loadu_ps(dst + i);
-            auto vw0 = simd_loadu_ps(p_w0 + i);
-            auto vw1 = simd_loadu_ps(p_w1 + i);
-            auto vw2 = simd_loadu_ps(p_w2 + i);
-            auto vw3 = simd_loadu_ps(p_w3 + i);
-            // prefetch
-            //_mm_prefetch(p_w0 + i + 1024, _MM_HINT_T1);
-            //_mm_prefetch(p_w1 + i + 1024, _MM_HINT_T1);
-            //_mm_prefetch(p_w2 + i + 1024, _MM_HINT_T1);
-            //_mm_prefetch(p_w3 + i + 1024, _MM_HINT_T1);
-            vdst = simd_fmadd_ps(vw0, vscale0, vdst);
-            vdst = simd_fmadd_ps(vw1, vscale1, vdst);
-            vdst = simd_fmadd_ps(vw2, vscale2, vdst);
-            vdst = simd_fmadd_ps(vw3, vscale3, vdst);
-            simd_storeu_ps(dst + i, vdst);
+static std::shared_ptr<JitKernel> jit_compile_gemmRegBlk(int rows, int cols, int prefetch_B_adv = 0) {
+    auto jit = std::make_shared<JitKernel>(__func__);
+    auto simd_width_bytes = jit->vmm_width<uint8_t>();
+
+    auto is_preload_b = (rows >= cols);
+    auto vmmC = [&](int row, int col) {
+        return jit->Vmm(row * cols + col);
+    };
+    auto vmmB = [&](int col) {
+        if (is_preload_b)
+            return jit->Vmm(rows * cols + col);
+        else
+            return jit->Vmm(rows * cols);
+    };
+    auto vmmA = [&](int row) {
+        if (is_preload_b)
+            return jit->Vmm(rows * cols + cols);
+        else
+            return jit->Vmm(rows * cols + 1 + row);
+    };
+
+    // load all arguments into register
+    auto A_ptr = jit->get_sreg(0, true);
+    auto A_stride = jit->get_sreg(1, true);
+    auto B_ptr = jit->get_sreg(2, true);
+    auto B_stride = jit->get_sreg(3, true);
+    auto dst_ptr = jit->get_sreg(4, true);
+    auto dst_stride = jit->get_sreg(5, true);
+    auto K = jit->get_sreg(6, true);
+    auto accumulate = jit->get_sreg(7, true);
+    auto stemp = jit->get_sreg(8);
+
+    jit->lea(A_stride, jit->ptr[A_stride*4]);
+    jit->lea(B_stride, jit->ptr[B_stride*4]);
+    jit->lea(dst_stride, jit->ptr[dst_stride*4]);
+    // initilaize C
+    {
+        Xbyak::Label skip_load;
+        for (int r = 0; r < rows; r++)
+            for (int c = 0; c < cols; c++) {
+                auto ymm = vmmC(r, c);
+                jit->vxorps(ymm, ymm, ymm);
+            }
+        jit->and_(accumulate, 1);
+        jit->jz(skip_load);
+        {
+            // load subC[m_rows, m_cols]
+            jit->mov(stemp, dst_ptr);
+            for (int r = 0; r < rows; r++) {
+                for (int c = 0; c < cols; c++) {
+                    jit->simd_loadu_ps(vmmC(r, c), jit->ptr[stemp + c * simd_width_bytes]);
+                }
+                jit->add(stemp, dst_stride);
+            }
         }
+        jit->L(skip_load);
     }
 
-    auto remain_oc = (OC & 7);
-    if (remain_oc) {
-        simd_mask mask(remain_oc);
-        i = OC - 8;
-        for (g = 0; g < gate_cnt; g++) {
-            auto row = gate_ids[g];
-            auto pw = pw0 + row * stride_w;
-            auto vscale = simd_broadcast_ss(dense_x + g);
-            auto vw = mask.load(pw + i);
-            auto vdst = mask.load(dst + i);
-            auto vsum = simd_fmadd_ps(vw, vscale, vdst);
-            mask.store(dst + i, vsum);
+    // loop over K
+    //            B:    1 x cols regs
+    // A : 1 regs C: rows x cols regs
+    {
+        Xbyak::Label loop_over_k;
+        auto A_ptr3 = accumulate; // accumulate can be re-used
+
+        auto loadA = [&](int r) {
+            switch (r) {
+            case 0:
+                jit->simd_broadcast_ss(vmmA(r), jit->ptr[A_ptr]);
+                break;
+            case 1:
+                jit->simd_broadcast_ss(vmmA(r), jit->ptr[A_ptr + A_stride]);
+                break;
+            case 2:
+                jit->simd_broadcast_ss(vmmA(r), jit->ptr[A_ptr + 2 * A_stride]);
+                break;
+            case 3:
+                jit->simd_broadcast_ss(vmmA(r), jit->ptr[A_ptr3]);
+                break;
+            case 4:
+                jit->simd_broadcast_ss(vmmA(r), jit->ptr[A_ptr3 + A_stride]);
+                break;
+            case 5:
+                jit->simd_broadcast_ss(vmmA(r), jit->ptr[A_ptr3 + 2 * A_stride]);
+                break;
+            default:
+                throw std::runtime_error("number of reg-blocking rows is not supported");
+            }
+        };
+
+        if (rows > 3) {
+            jit->lea(A_ptr3, jit->ptr[A_ptr + 2 * A_stride]);
+            jit->lea(A_ptr3, jit->ptr[A_ptr3 + A_stride]);
+        }
+
+        jit->align(64, false);
+        jit->L(loop_over_k);
+        if (is_preload_b) {
+            // preload B regs
+            for (int c = 0; c < cols; c++)
+                jit->simd_loadu_ps(vmmB(c), jit->ptr[B_ptr + c * simd_width_bytes]);
+
+            if (prefetch_B_adv > 0)
+                jit->prefetcht0(jit->ptr[B_ptr + prefetch_B_adv]);
+
+            jit->lea(B_ptr, jit->ptr[B_ptr + B_stride]);
+            for (int r = 0; r < rows; r++) {
+                loadA(r);
+                for (int c = 0; c < cols; c++)
+                    jit->simd_fmadd_ps(vmmC(r, c), vmmA(r), vmmB(c));
+            }
+
+            jit->lea(A_ptr, jit->ptr[A_ptr + 4]);
+            if (rows > 3)
+                jit->lea(A_ptr3, jit->ptr[A_ptr3 + 4]);
+        } else {
+            // preload A regs
+            for (int r = 0; r < rows; r++)
+                loadA(r);
+
+            for (int c = 0; c < cols; c++) {
+                jit->simd_loadu_ps(vmmB(c), jit->ptr[B_ptr + c * simd_width_bytes]);
+                for (int r = 0; r < rows; r++)
+                    jit->simd_fmadd_ps(vmmC(r, c), vmmA(r), vmmB(c));
+            }
+
+            jit->lea(B_ptr, jit->ptr[B_ptr + B_stride]);
+            jit->lea(A_ptr, jit->ptr[A_ptr + 4]);
+            if (rows > 3)
+                jit->lea(A_ptr3, jit->ptr[A_ptr3 + 4]);
+        }
+        jit->dec(K);
+        jit->jnz(loop_over_k, jit->T_NEAR);
+    }
+
+    // save C
+    {
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
+                jit->simd_storeu_ps(jit->ptr[dst_ptr + c * simd_width_bytes], vmmC(r, c));
+            }
+            jit->add(dst_ptr, dst_stride);
         }
     }
+    jit->finalize();
+    return jit;
+}
+
+static void gemm6x2_Mx2(const float * pA, int64_t A_stride,
+                        const float * pB, int64_t B_stride,
+                        const float * pC, int64_t C_stride,
+                        int M, int64_t bK, int64_t is_accumulate_C) {
+    static std::shared_ptr<JitKernel> gemm6x2[6] = {
+        jit_compile_gemmRegBlk(6, 2),
+        jit_compile_gemmRegBlk(1, 2),
+        jit_compile_gemmRegBlk(2, 2),
+        jit_compile_gemmRegBlk(3, 2),
+        jit_compile_gemmRegBlk(4, 2),
+        jit_compile_gemmRegBlk(5, 2),
+    };
+    int m;
+    for (m = 0; m + 6 <= M; m += 6, pA += 6 * A_stride, pC += 6 * C_stride) {
+        (*gemm6x2[0])(pA, A_stride, pB, B_stride, pC, C_stride, bK, is_accumulate_C);
+    }
+    if (m < M)
+        (*gemm6x2[M-m])(pA, A_stride, pB, B_stride, pC, C_stride, bK, is_accumulate_C);
+}
+
+static std::shared_ptr<JitKernel> jit_compile_accumulate_wf16() {
+    auto jit = std::make_shared<JitKernel>(__func__);
+    auto simd_width = jit->vmm_width<float>();
+    // load all arguments into register
+    auto dst = jit->get_sreg(0, true);
+    auto OC = jit->get_sreg(1, true);
+    auto gate_ids = jit->get_sreg(2, true);
+    auto gate_cnt = jit->get_sreg(3, true);
+    auto pw0 = jit->get_sreg(4, true);
+    auto dense_x = jit->get_sreg(5, true);
+    auto IC = jit->get_sreg(6, true);
+
+    auto g = jit->get_sreg(7);
+    auto i = jit->get_sreg(8);
+    auto p_w0 = jit->get_sreg(9);
+    auto p_w1 = jit->get_sreg(10);
+    auto p_w2 = jit->get_sreg(11);
+    auto p_w3 = jit->get_sreg(12);
+
+    jit->mov(p_w0, 0);
+    jit->mov(p_w1, 0);
+    jit->mov(p_w2, 0);
+    jit->mov(p_w3, 0);
+    jit->for_loop(g, gate_cnt, 4, [&](){
+        jit->mov(p_w0.cvt32(), jit->dword[gate_ids + g*4 + 0*4]);
+        jit->mov(p_w1.cvt32(), jit->dword[gate_ids + g*4 + 1*4]);
+        jit->mov(p_w2.cvt32(), jit->dword[gate_ids + g*4 + 2*4]);
+        jit->mov(p_w3.cvt32(), jit->dword[gate_ids + g*4 + 3*4]);
+        jit->imul(p_w0, OC);
+        jit->imul(p_w1, OC);
+        jit->imul(p_w2, OC);
+        jit->imul(p_w3, OC);
+        jit->lea(p_w0, jit->ptr[pw0 + p_w0*2]);
+        jit->lea(p_w1, jit->ptr[pw0 + p_w1*2]);
+        jit->lea(p_w2, jit->ptr[pw0 + p_w2*2]);
+        jit->lea(p_w3, jit->ptr[pw0 + p_w3*2]);
+
+        auto vscale0 = jit->Vmm(0);
+        auto vscale1 = jit->Vmm(1);
+        auto vscale2 = jit->Vmm(2);
+        auto vscale3 = jit->Vmm(3);
+        jit->simd_broadcast_ss(vscale0, jit->ptr[dense_x + g*4 + 0*4]);
+        jit->simd_broadcast_ss(vscale1, jit->ptr[dense_x + g*4 + 1*4]);
+        jit->simd_broadcast_ss(vscale2, jit->ptr[dense_x + g*4 + 2*4]);
+        jit->simd_broadcast_ss(vscale3, jit->ptr[dense_x + g*4 + 3*4]);
+        jit->for_loop(i, OC, simd_width, [&](){
+            auto vdst = jit->Vmm(4);
+            auto vw0 = jit->Vmm(5);
+            auto vw1 = jit->Vmm(6);
+            auto vw2 = jit->Vmm(7);
+            auto vw3 = jit->Vmm(8);
+            jit->simd_loadu_ps(vdst, jit->ptr[dst + i*4]);
+            jit->simd_loadu_phps(vw0, jit->ptr[p_w0 + i*2]);
+            jit->simd_loadu_phps(vw1, jit->ptr[p_w1 + i*2]);
+            jit->simd_loadu_phps(vw2, jit->ptr[p_w2 + i*2]);
+            jit->simd_loadu_phps(vw3, jit->ptr[p_w3 + i*2]);
+            jit->simd_fmadd_ps(vdst, vw0, vscale0);
+            jit->simd_fmadd_ps(vdst, vw1, vscale1);
+            jit->simd_fmadd_ps(vdst, vw2, vscale2);
+            jit->simd_fmadd_ps(vdst, vw3, vscale3);
+            jit->simd_storeu_ps(jit->ptr[dst + i*4], vdst);
+        });
+    });
+    jit->finalize(i);
+    return jit;
+}
+
+// static inline void reduce_outputs(float* dst0, float* src0, int num_copies, int N, int64_t OC) {
+static std::shared_ptr<JitKernel> jit_compile_reduce_outputs() {
+    auto jit = std::make_shared<JitKernel>(__func__);
+    auto simd_width = jit->vmm_width<float>();
+    // load all arguments into register
+    auto dst0 = jit->get_sreg(0, true); // float*
+    auto src0 = jit->get_sreg(1, true); // float*
+    auto num_copies = jit->get_sreg(2, true); // int
+    auto N = jit->get_sreg(3, true); // int
+    auto OC = jit->get_sreg(4, true); // int
+
+    auto n = jit->get_sreg(5);
+    auto i = jit->get_sreg(6);
+    auto k = jit->get_sreg(7);
+    auto src_stride = jit->get_sreg(8);
+
+    jit->mov(src_stride, N);
+    jit->imul(src_stride, OC);
+
+    auto ptemp = jit->get_sreg(8);
+    jit->for_loop(n, N, 1, [&](){
+        jit->for_loop(i, OC, simd_width, [&](){
+            jit->lea(ptemp, jit->ptr[src0 + i*sizeof(float)]);
+            auto vsum = jit->Vmm(0);
+            auto vw = jit->Vmm(1);
+            jit->simd_setzero_ps(vsum);
+            jit->for_loop(k, num_copies, 1, [&](){
+                jit->simd_loadu_ps(vw, jit->ptr[ptemp]);
+                jit->vaddps(vsum, vsum, vw);
+                jit->lea(ptemp, jit->ptr[ptemp + src_stride*sizeof(float)]);
+            });
+            jit->simd_storeu_ps(jit->ptr[dst0 + i*sizeof(float)], vsum);
+        });
+        jit->add(src0, OC);
+        jit->add(dst0, OC);
+    });
+
+    jit->finalize();
+    return jit;
 }
 
 /*
@@ -407,50 +474,93 @@ dst0 : [N, OC]
 src0 : [num_copies, N, OC]
 */
 static inline void reduce_outputs(float* dst0, float* src0, int num_copies, int N, int64_t OC) {
-    parallel_nt(0, [&](const int ithr, const int nthr) {
+    static auto jit_reduce = jit_compile_reduce_outputs();
+    int64_t simd_width = jit_reduce->vmm_width<float>();
+    if (OC % simd_width) {
+        throw std::runtime_error(std::string("OC is not multiple of ") + std::to_string(simd_width));
+    }
+    ov::parallel_nt(0, [&](const int ithr, const int nthr) {
         int64_t oc0, oc1;
-        splitter(OC/SIMDW, nthr, ithr, oc0, oc1);
-        oc0 *= SIMDW;
-        oc1 *= SIMDW;
+        ov::splitter(OC/simd_width, nthr, ithr, oc0, oc1);
+        oc0 *= simd_width;
+        oc1 *= simd_width;
         if (oc1 > OC) oc1 = OC;
 
         auto* dst = dst0;
         auto* src = src0;
 
-        auto remain_oc = (oc1 - oc0) % SIMDW;
-        simd_mask mask(remain_oc);
-        for (int n = 0; n < N; n++, dst += OC, src += OC) {
-            int i;
-            for (i = oc0; i + SIMDW <= oc1; i += SIMDW) {
-                auto* ptemp = src + i;
-                auto vsum = simd_setzero_ps();
-                for (int k = 0; k < num_copies; k++, ptemp += N * OC) {
-                    auto vw = simd_loadu_ps(ptemp);
-                    vsum = simd_add_ps(vsum, vw);
-                }
-                simd_storeu_ps(dst + i, vsum);
+        (*jit_reduce)(dst0 + oc0, src0 + oc0, num_copies, N, oc1 - oc0);
+    });
+}
+
+static std::shared_ptr<JitKernel> jit_compile_repack_2xsimdw(
+            bool is_f16 = true,
+            bool is_int8_peroc = false,
+            bool with_zero_point = false) {
+    auto jit = std::make_shared<JitKernel>(__func__);
+    auto simd_width = jit->vmm_width<float>();
+    // load all arguments into register
+    auto src = jit->get_sreg(0, true); // pointer to ov::float16/u8/i8
+    auto src_stride = jit->get_sreg(1, true);
+    auto dst = jit->get_sreg(2, true); // float*
+    auto bK = jit->get_sreg(3, true);
+    auto scales = jit->get_sreg(4, is_int8_peroc); // scales
+    auto zero_point = jit->get_sreg(5, with_zero_point); // zero-point
+
+    auto k = jit->get_sreg(6);
+
+    auto wf0 = jit->Vmm(0);
+    auto wf1 = jit->Vmm(1);
+
+    auto vzp0 = jit->Vmm(2);
+    auto vzp1 = jit->Vmm(3);
+
+    auto vscale0 = jit->Vmm(4);
+    auto vscale1 = jit->Vmm(5);
+    if (is_int8_peroc) {
+        jit->simd_loadu_ps(vscale0, jit->ptr[scales + 0*simd_width*sizeof(float)]);
+        jit->simd_loadu_ps(vscale1, jit->ptr[scales + 1*simd_width*sizeof(float)]);
+        if (with_zero_point) {
+            jit->simd_loadu_ps(vzp0, jit->ptr[zero_point + 0*simd_width*sizeof(float)]);
+            jit->simd_loadu_ps(vzp1, jit->ptr[zero_point + 1*simd_width*sizeof(float)]);
+        }
+    }
+    jit->for_loop(k, bK, 1, [&](){
+        if (is_f16) {
+            jit->simd_loadu_phps(wf0, jit->ptr[src + simd_width*0*sizeof(ov::float16)]);
+            jit->simd_loadu_phps(wf1, jit->ptr[src + simd_width*1*sizeof(ov::float16)]);
+        } else if (is_int8_peroc) {
+            if (with_zero_point) {
+                jit->simd_load_epu8_epi32(wf0, jit->ptr[src + simd_width*0*sizeof(uint8_t)]);
+                jit->simd_load_epu8_epi32(wf1, jit->ptr[src + simd_width*1*sizeof(uint8_t)]);
+            } else {
+                jit->simd_load_epi8_epi32(wf0, jit->ptr[src + simd_width*0*sizeof(uint8_t)]);
+                jit->simd_load_epi8_epi32(wf1, jit->ptr[src + simd_width*1*sizeof(uint8_t)]);
             }
-            if (i < oc1) {
-                auto* ptemp = src + i;
-                auto vsum = simd_setzero_ps();
-                for (int k = 0; k < num_copies; k++, ptemp += N * OC) {
-                    auto vw = mask.load(ptemp);
-                    vsum = simd_add_ps(vsum, vw);
-                }
-                mask.store(dst + i, vsum);
+
+            jit->simd_cvtepi32_ps(wf0, wf0);
+            jit->simd_cvtepi32_ps(wf1, wf1);
+            if (with_zero_point) {
+                jit->simd_sub_ps(wf0, wf0, vzp0);
+                jit->simd_sub_ps(wf1, wf1, vzp1);
             }
-            /*
-            for (; i < oc1; i++) {
-                auto* ptemp = src + i;
-                auto vsum = 0.0f;
-                for (int k = 0; k < num_copies; k++, ptemp += N*OC) {
-                    vsum += ptemp[0];
-                }
-                dst[i] = vsum;
-            }
-            */
+            jit->simd_mul_ps(wf0, wf0, vscale0);
+            jit->simd_mul_ps(wf1, wf1, vscale1);
+        }
+
+        jit->prefetcht0(jit->ptr[src + 64]);
+        jit->simd_storeu_ps(jit->ptr[dst + simd_width*0*sizeof(float)], wf0);
+        jit->simd_storeu_ps(jit->ptr[dst + simd_width*1*sizeof(float)], wf1);
+        jit->lea(dst, jit->ptr[dst + simd_width*2*sizeof(float)]);
+        if (is_f16) {
+            jit->lea(src, jit->ptr[src + src_stride*sizeof(ov::float16)]);
+        } else if (is_int8_peroc) {
+            jit->lea(src, jit->ptr[src + src_stride*sizeof(uint8_t)]);
         }
     });
+
+    jit->finalize();
+    return jit;
 }
 
 template <class T>
@@ -461,7 +571,7 @@ static T* scratch_alloc(size_t cnt) {
     return reinterpret_cast<T*>(scratch);
 }
 
-void MM_ComputeBounded_reuseA_f16(const float* A,
+static void MM_ComputeBounded_reuseA_f16(const float* A,
                                   float* C,
                                   const ov::float16* W,
                                   int M,
@@ -469,6 +579,62 @@ void MM_ComputeBounded_reuseA_f16(const float* A,
                                   int OC,
                                   int n0,
                                   int n1) {
+    static auto repack_2xsimdw = jit_compile_repack_2xsimdw();
+    constexpr int BK = 54;
+    float* scratch = scratch_alloc<float>(BK * (SIMDW*2) + OC);
+
+    int K = IC;
+    int64_t A_stride = IC;
+    int64_t C_stride = OC;
+    int64_t W_stride = OC;
+
+    float* repacked_B = scratch;
+
+    for (int k = 0; k < K; k += BK, A += BK, W += BK * W_stride) {
+        int64_t bK = std::min(K - k, BK);
+        int64_t is_accumulate_C = (k > 0);
+
+        for (int n = n0; n + 2 * SIMDW <= n1; n += 2 * SIMDW) {
+            // prepack [BK, 16] into scratch
+            (*repack_2xsimdw)(W + n, W_stride, repacked_B, bK);
+            gemm6x2_Mx2(A, A_stride, repacked_B, 2 * SIMDW, C + n, C_stride, M, bK, is_accumulate_C);
+        }
+    }
+}
+
+static std::shared_ptr<JitKernel> get_decompress_zp_u8() {
+    auto jit = std::make_shared<JitKernel>(__func__);
+    auto simd_width = jit->vmm_width<float>();
+
+    auto zp_input_u8 = jit->get_sreg(0, true);
+    auto zp_output_f32 = jit->get_sreg(1, true);
+    auto cnt = jit->get_sreg(2, true);
+    auto n = jit->get_sreg(3);
+
+    auto vzpi32 = jit->Vmm(0);
+    jit->for_loop(n, cnt, simd_width, [&]() {
+        jit->simd_load_epu8_epi32(vzpi32, jit->ptr[zp_input_u8 + n*1]);
+        jit->simd_cvtepi32_ps(vzpi32, vzpi32);
+        jit->simd_storeu_ps(jit->ptr[zp_output_f32 + n*4], vzpi32);
+    });
+    // tails are converted using C instead.
+    jit->finalize(n);
+    return jit;
+}
+
+static void MM_ComputeBounded_reuseA_i8(
+            const float * A,
+            float * C,
+            const uint8_t* W,
+            const uint8_t* zp,
+            const float* scales,
+            int M, int IC, int OC,
+            int64_t n0, int64_t n1) {
+    static auto decompress_zp_u8 = get_decompress_zp_u8();
+    static auto repack_2xsimdw_i8_zp = jit_compile_repack_2xsimdw(false, true, true);
+    static auto repack_2xsimdw_i8_nozp = jit_compile_repack_2xsimdw(false, true, false);
+
+    auto repack_2xsimdw_i8 = zp ? repack_2xsimdw_i8_zp : repack_2xsimdw_i8_nozp;
     constexpr int BK = 54;
     float* scratch = scratch_alloc<float>(BK * (SIMDW*2) + OC);
 
@@ -477,28 +643,16 @@ void MM_ComputeBounded_reuseA_f16(const float* A,
     auto C_stride = OC;
     auto W_stride = OC;
 
-    void (*brgmm6x2_tail)(const float*, int, const float*, int, float*, int, int, bool) = nullptr;
-    auto M_tails = M % 6;
-    auto M_body = M - M_tails;
-    switch (M_tails) {
-    case 5:
-        brgmm6x2_tail = &brgemm_6x2<5>;
-        break;
-    case 4:
-        brgmm6x2_tail = &brgemm_6x2<4>;
-        break;
-    case 3:
-        brgmm6x2_tail = &brgemm_6x2<3>;
-        break;
-    case 2:
-        brgmm6x2_tail = &brgemm_6x2<2>;
-        break;
-    case 1:
-        brgmm6x2_tail = &brgemm_6x2<1>;
-        break;
-    }
-
     float* repacked_B = scratch;
+    float* zero_points = scratch + BK * (SIMDW*2);
+
+    // deocompress zero-point into scratch
+    if (zp) {
+        int n = n0 + (*decompress_zp_u8)(zp + n0, zero_points, n1-n0);
+        for (; n < n1; n ++) {
+            zero_points[n - n0] = zp[n];
+        }
+    }
 
     for (int k = 0; k < K; k += BK, A += BK, W += BK * W_stride) {
         int bK = std::min(K - k, BK);
@@ -506,27 +660,16 @@ void MM_ComputeBounded_reuseA_f16(const float* A,
 
         for (int n = n0; n + 2 * SIMDW <= n1; n += 2 * SIMDW) {
             // prepack [BK, 16] into scratch
-            auto* dst = repacked_B;
-            const auto* srcW = W + n;
-            for (int k = 0; k < bK; k++, dst += 2 * SIMDW, srcW += W_stride) {
-                auto wf0 = simd_loadu_ps(srcW + SIMDW * 0);
-                auto wf1 = simd_loadu_ps(srcW + SIMDW * 1);
-                // prefetch right
-                simd_prefetch(srcW + 64, _MM_HINT_T0);
-                simd_storeu_ps(dst + SIMDW * 0, wf0);
-                simd_storeu_ps(dst + SIMDW * 1, wf1);
-            }
-
-            auto *pA = A;
-            auto* pC = C + n;
-            for (int m = 0; m < M_body; m += 6, pA += 6 * A_stride, pC += 6 * C_stride) {
-                brgemm_6x2<6>(pA, A_stride, repacked_B, 2 * SIMDW, pC, C_stride, bK, is_accumulate_C);
-            }
-            if (brgmm6x2_tail)
-                (*brgmm6x2_tail)(pA, A_stride, repacked_B, 2 * SIMDW, pC, C_stride, bK, is_accumulate_C);
+            (*repack_2xsimdw_i8)(W + n, W_stride, repacked_B, bK, scales + n, zero_points + n - n0);
+            gemm6x2_Mx2(A, A_stride, repacked_B, 2 * SIMDW, C + n, C_stride, M, bK, is_accumulate_C);
         }
     }
 }
+
+namespace ov {
+namespace Extensions {
+namespace Cpu {
+namespace XARCH {
 
 // x : [M, IC]
 // W : [IC, OC]
@@ -549,6 +692,7 @@ void dynPruneLinear_f16(const float* input,
         });
         return;
     }
+    static auto jit_accumulate_wf16 = jit_compile_accumulate_wf16();
 
     auto prof = PROFILE("gate_ids");
     static std::vector<int> gate_ids;
@@ -581,6 +725,10 @@ void dynPruneLinear_f16(const float* input,
     static std::vector<float> output_temp;
     output_temp.resize(nthr_max * M * OC);
 
+    if (OC % SIMDW) {
+        throw std::runtime_error(std::string("OC is not multiple of ") + std::to_string(SIMDW));
+    }
+
     parallel_nt(0, [&](const int ithr, const int nthr) {
         int g0, g1;
         splitter(gate_cnt/4, nthr, ithr, g0, g1);
@@ -588,7 +736,7 @@ void dynPruneLinear_f16(const float* input,
         g1 *= 4;
         auto* pdst = &output_temp[ithr * M * OC];
         memset(pdst, 0, M * OC * sizeof(output_temp[0]));
-        accumulate_wf16(pdst, OC, &gate_ids[g0], g1 - g0, W, &gate_val[g0], IC);
+        (*jit_accumulate_wf16)(pdst, (OC), &gate_ids[g0], (g1 - g0), W, &gate_val[g0], (int64_t)(IC));
     });
 
     prof = PROFILE("reduce");
@@ -986,6 +1134,19 @@ void MM_ComputeBounded_reuseB_i8(const float * A,
                                  const float* scales,
                                  int M, int IC, int OC,
                                  int n0, int n1) {
+    static std::shared_ptr<JitKernel> gemm4x3[6] = {
+        jit_compile_gemmRegBlk(4, 3),
+        jit_compile_gemmRegBlk(1, 3),
+        jit_compile_gemmRegBlk(2, 3),
+        jit_compile_gemmRegBlk(3, 3),
+    };
+    static std::shared_ptr<JitKernel> gemm4x1[6] = {
+        jit_compile_gemmRegBlk(4, 1),
+        jit_compile_gemmRegBlk(1, 1),
+        jit_compile_gemmRegBlk(2, 1),
+        jit_compile_gemmRegBlk(3, 1),
+    };
+
     constexpr int BK = 512;
     constexpr int BN = 512;
     auto bN_SIMDWx3 = BN / (SIMDW*3) * (SIMDW*3);
@@ -995,12 +1156,9 @@ void MM_ComputeBounded_reuseB_i8(const float * A,
     float* repacked_B_n8 = repacked_B_n24 + bN_SIMDWx3 * BK;
     float* zero_points = repacked_B_n8 + SIMDW*3 * BK;
 
-    const auto A_stride = IC;
-    const auto B_stride = OC;
-    const auto C_stride = OC;
-
-    auto M_tails = M % 4;
-    auto M_body = M - M_tails;
+    const int64_t A_stride = IC;
+    const int64_t B_stride = OC;
+    const int64_t C_stride = OC;
 
     for (int cur_n = n0; cur_n < n1; cur_n += BN) {
         int bN = std::min(n1 - cur_n, BN);
@@ -1016,7 +1174,7 @@ void MM_ComputeBounded_reuseB_i8(const float * A,
         }
 
         for (int k0 = 0; k0 < IC; k0 += BK, pW += BK * B_stride) {
-            int bK = std::min(IC - k0, BK);
+            int64_t bK = std::min(IC - k0, BK);
             if (zp) {
                 repack_weight_for_4x3<true>(pW, B_stride,
                                     scales + cur_n,
@@ -1038,140 +1196,25 @@ void MM_ComputeBounded_reuseB_i8(const float * A,
             int m;
             // re-use repacked B sub-matrix in L2 cache as long as we can.
             const auto* pA = A + k0;
-            for (m = 0; m < M_body; m += 4, pA += 4 * A_stride, pC += 4 * C_stride) {
+            for (m = 0; m + 4 <= M; m += 4, pA += 4 * A_stride, pC += 4 * C_stride) {
                 auto* pB = repacked_B_n24;
                 int n = 0;
                 for (; n + SIMDW * 3 <= bN; n += SIMDW * 3, pB += SIMDW * 3 * bK)
-                    brgemm_4x3<4>(pA, A_stride, pB, SIMDW*3, pC + n, C_stride, bK, is_accumulate_C);
+                    (*gemm4x3[0])(pA, A_stride, pB, SIMDW*3, pC + n, C_stride, bK, is_accumulate_C);
                 pB = repacked_B_n8;
                 for (; n < bN; n += SIMDW, pB += SIMDW * bK)
-                    brgemm_4x1<4>(pA, A_stride, pB, SIMDW, pC + n, C_stride, bK, is_accumulate_C);
+                    (*gemm4x1[0])(pA, A_stride, pB, SIMDW, pC + n, C_stride, bK, is_accumulate_C);
             }
             // M tails
-            for (; m < M; m++, pA += A_stride, pC += C_stride) {
+            if (m < M) {
                 auto* pB = repacked_B_n24;
                 int n = 0;
                 for (; n + SIMDW * 3 <= bN; n += SIMDW * 3, pB += SIMDW * 3 * bK)
-                    brgemm_4x3<1>(pA, A_stride, pB, SIMDW*3, pC + n, C_stride, bK, is_accumulate_C);
+                    (*gemm4x3[M - m])(pA, A_stride, pB, SIMDW*3, pC + n, C_stride, bK, is_accumulate_C);
                 pB = repacked_B_n8;
                 for (; n < bN; n += SIMDW, pB += SIMDW * bK)
-                    brgemm_4x1<1>(pA, A_stride, pB, SIMDW, pC + n, C_stride, bK, is_accumulate_C);
+                    (*gemm4x1[M - m])(pA, A_stride, pB, SIMDW, pC + n, C_stride, bK, is_accumulate_C);
             }
-        }
-    }
-}
-
-
-void MM_ComputeBounded_reuseA_i8(
-            const float * A,
-            float * C,
-            const uint8_t* W,
-            const uint8_t* zp,
-            const float* scales,
-            int M, int IC, int OC,
-            int n0, int n1) {
-    constexpr int BK = 54;
-    float* scratch = scratch_alloc<float>(BK * (SIMDW*2) + OC);
-
-    int K = IC;
-    auto A_stride = IC;
-    auto C_stride = OC;
-    auto W_stride = OC;
-
-    void (*brgmm6x2_tail)(const float*, int, const float*, int, float*, int, int, bool) = nullptr;
-    auto M_tails = M % 6;
-    auto M_body = M - M_tails;
-    switch (M_tails) {
-    case 5:
-        brgmm6x2_tail = &brgemm_6x2<5>;
-        break;
-    case 4:
-        brgmm6x2_tail = &brgemm_6x2<4>;
-        break;
-    case 3:
-        brgmm6x2_tail = &brgemm_6x2<3>;
-        break;
-    case 2:
-        brgmm6x2_tail = &brgemm_6x2<2>;
-        break;
-    case 1:
-        brgmm6x2_tail = &brgemm_6x2<1>;
-        break;
-    }
-
-    float* repacked_B = scratch;
-    float* zero_points = scratch + BK * (SIMDW*2);
-
-    // deocompress zero-point into scratch
-    if (zp) {
-        int n = 0;
-        for (n = n0; n + SIMDW <= n1; n += SIMDW) {
-            auto vzpi32 = simd_load_epu8_epi32(static_cast<void const*>(zp + n));
-            auto vzpf32 = simd_cvtepi32_ps(vzpi32);
-            simd_storeu_ps(zero_points + n - n0, vzpf32);
-        }
-        for (; n < n1; n ++) {
-            zero_points[n - n0] = zp[n];
-        }
-    }
-
-    for (int k = 0; k < K; k += BK, A += BK, W += BK * W_stride) {
-        int bK = std::min(K - k, BK);
-        auto is_accumulate_C = (k > 0);
-
-        for (int n = n0; n + 2 * SIMDW <= n1; n += 2 * SIMDW) {
-            // prepack [BK, 16] into scratch
-            if (zp) {
-                auto* dst = repacked_B;
-                SIMD_F32 vzp0;
-                SIMD_F32 vzp1;
-                vzp0 = simd_loadu_ps(zero_points + (n - n0));
-                vzp1 = simd_loadu_ps(zero_points + (n - n0) + SIMDW);
-                auto vscale0 = simd_loadu_ps(scales + n);
-                auto vscale1 = simd_loadu_ps(scales + n + SIMDW);
-                const auto* srcW = W + n;
-                for (int k = 0; k < bK; k++, dst += 2 * SIMDW, srcW += W_stride) {
-                    auto wb0 = simd_load_epu8_epi32(static_cast<void const*>(srcW + SIMDW * 0));
-                    auto wb1 = simd_load_epu8_epi32(static_cast<void const*>(srcW + SIMDW * 1));
-                    auto wf0 = simd_sub_ps(simd_cvtepi32_ps(wb0), vzp0);
-                    auto wf1 = simd_sub_ps(simd_cvtepi32_ps(wb1), vzp1);
-                    wf0 = simd_mul_ps(wf0, vscale0);
-                    wf1 = simd_mul_ps(wf1, vscale1);
-
-                    // prefetch right
-                    simd_prefetch(srcW + 64, _MM_HINT_T0);
-
-                    simd_storeu_ps(dst + SIMDW * 0, wf0);
-                    simd_storeu_ps(dst + SIMDW * 1, wf1);
-                }
-            } else {
-                auto* dst = repacked_B;
-                auto vscale0 = simd_loadu_ps(scales + n);
-                auto vscale1 = simd_loadu_ps(scales + n + SIMDW);
-                const auto* srcW = W + n;
-                for (int k = 0; k < bK; k++, dst += 2 * SIMDW, srcW += W_stride) {
-                    auto wb0 = simd_load_epi8_epi32(static_cast<void const*>(srcW + SIMDW * 0));
-                    auto wb1 = simd_load_epi8_epi32(static_cast<void const*>(srcW + SIMDW * 1));
-                    auto wf0 = simd_cvtepi32_ps(wb0);
-                    auto wf1 = simd_cvtepi32_ps(wb1);
-                    wf0 = simd_mul_ps(wf0, vscale0);
-                    wf1 = simd_mul_ps(wf1, vscale1);
-
-                    // prefetch right
-                    simd_prefetch(srcW + 64, _MM_HINT_T0);
-
-                    simd_storeu_ps(dst + SIMDW * 0, wf0);
-                    simd_storeu_ps(dst + SIMDW * 1, wf1);
-                }
-            }
-
-            auto *pA = A;
-            auto* pC = C + n;
-            for (int m = 0; m < M_body; m += 6, pA += 6 * A_stride, pC += 6 * C_stride) {
-                brgemm_6x2<6>(pA, A_stride, repacked_B, 2 * SIMDW, pC, C_stride, bK, is_accumulate_C);
-            }
-            if (brgmm6x2_tail)
-                (*brgmm6x2_tail)(pA, A_stride, repacked_B, 2 * SIMDW, pC, C_stride, bK, is_accumulate_C);
         }
     }
 }
@@ -1191,27 +1234,6 @@ void MM_ComputeBounded_reuseA_i4(
     auto A_stride = IC;
     auto C_stride = OC;
     auto W_stride = (OC/2);
-
-    void (*brgmm6x2_tail)(const float*, int, const float*, int, float*, int, int, bool) = nullptr;
-    auto M_tails = M % 6;
-    auto M_body = M - M_tails;
-    switch (M_tails) {
-    case 5:
-        brgmm6x2_tail = &brgemm_6x2<5>;
-        break;
-    case 4:
-        brgmm6x2_tail = &brgemm_6x2<4>;
-        break;
-    case 3:
-        brgmm6x2_tail = &brgemm_6x2<3>;
-        break;
-    case 2:
-        brgmm6x2_tail = &brgemm_6x2<2>;
-        break;
-    case 1:
-        brgmm6x2_tail = &brgemm_6x2<1>;
-        break;
-    }
 
     float* repacked_B = scratch;
     float* zero_points = scratch + BK*(SIMDW*2);
@@ -1299,14 +1321,7 @@ void MM_ComputeBounded_reuseA_i4(
                 }
             }
 
-            // matmul(A, subB)
-            auto *pA = A;
-            auto* pC = C + n;
-            for (int m = 0; m < M_body; m += 6, pA += 6 * A_stride, pC += 6 * C_stride) {
-                brgemm_6x2<6>(pA, A_stride, repacked_B, 2 * SIMDW, pC, C_stride, bK, is_accumulate_C);
-            }
-            if (brgmm6x2_tail)
-                (*brgmm6x2_tail)(pA, A_stride, repacked_B, 2 * SIMDW, pC, C_stride, bK, is_accumulate_C);
+            gemm6x2_Mx2(A, A_stride, repacked_B, 2 * SIMDW, C + n, C_stride, M, bK, is_accumulate_C);
         }
     }
 }
