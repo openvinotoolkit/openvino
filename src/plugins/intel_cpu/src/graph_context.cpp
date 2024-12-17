@@ -1,10 +1,11 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "dnnl_types.h"
 #include "graph_context.h"
-#include "nodes/memory.hpp"
+
+#include "dnnl_types.h"
 #include "memory_control.hpp"
+#include "nodes/memory.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -27,6 +28,7 @@ GraphContext::GraphContext(const Config& config,
     numNumaNodes = 1;
     if (streamExecutor) {
         cpuStreamExecutor = std::dynamic_pointer_cast<ov::threading::CPUStreamsExecutor>(streamExecutor);
+        numaNodeId = cpuStreamExecutor ? cpuStreamExecutor->get_numa_node_id() : 0;
         auto nNumaNodes = get_num_numa_nodes();
         if (numNumaNodes < nNumaNodes)
             numNumaNodes = nNumaNodes;
@@ -41,5 +43,5 @@ const dnnl::engine& GraphContext::getEngine() {
     return eng;
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

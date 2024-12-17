@@ -54,3 +54,11 @@ void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
     desc.add<NPUW_DUMP_IO_ITERS>();
 #endif
 }
+
+void intel_npu::registerNPUWLLMOptions(OptionsDesc& desc) {
+    desc.add<NPUW_LLM>();
+    desc.add<NPUW_LLM_MODEL_DESC>();
+    desc.add<NPUW_LLM_MAX_PROMPT_LEN>();
+    desc.add<NPUW_LLM_MIN_RESPONSE_LEN>();
+    desc.add<NPUW_LLM_GENERATE_HINT>();
+}
