@@ -54,7 +54,11 @@ protected:
         auto input_layout = impl_params.get_input_layout(0);
         auto output_layout = impl_params.get_output_layout();
 
-        auto input_md = onednn::layout_to_memory_desc(input_layout);
+        auto test_md = onednn::layout_to_memory_desc(input_layout);
+        auto input_md = test_md;
+        auto permute_order = impl_params.typed_desc<reorder>()->src_permutation;
+        if (permute_order.size())
+            input_md = test_md.permute_axes({0, 3, 1, 2});
         auto output_md = onednn::layout_to_memory_desc(output_layout);
 
         OPENVINO_ASSERT(input_md.get_format_kind() != dnnl::memory::format_kind::any,

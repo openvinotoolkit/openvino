@@ -5,6 +5,7 @@
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
+#include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/primitives/convolution.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -169,7 +170,22 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
         // TODO Shouldn't transform be called every time ifmt != ofmt?
         return layout(odt, ofmt, input_layout.get_tensor().transform(ofmt, 1), op);
     } else {
-        return layout(odt, ofmt, input_layout.get_tensor(), op);
+        // debug code, to fuse reorder with src permute
+        auto org_ps = input_layout.get_partial_shape();
+        auto output_shape = ov::PartialShape();
+        int64_t input_static_rank = org_ps.rank().get_length();
+        auto permute_order = desc->src_permutation;
+        if (permute_order.empty()) {
+            for (int64_t i = 0; i <= input_static_rank - 1; ++i) {
+                permute_order.emplace_back(i); // for compliance first
+            }
+        }
+
+        for (int64_t i = 0; i < input_static_rank; ++i) {
+            output_shape.push_back(org_ps[permute_order[i]]);
+        }
+        return { layout(odt, ofmt, ov::intel_gpu::tensor_from_dims(output_shape.to_shape()), desc->output_paddings[0]) };
+        //return layout(odt, ofmt, input_layout.get_tensor(), op);
     }
 }
 
@@ -190,7 +206,22 @@ std::vector<layout> reorder_inst::calc_output_layouts(reorder_node const& /*node
 #endif // ENABLE_ONEDNN_FOR_GPU
         return { desc->weights_reorder_params->get_output_layout() };
     } else {
-        return { layout(input_layout.get<ShapeType>(), desc->output_data_types[0].value(), ofmt, desc->output_paddings[0]) };
+        // debug code, to fuse reorder with src permute
+        auto org_ps = input_layout.get<ShapeType>();
+        ShapeType output_shape;
+        int64_t input_static_rank = org_ps.rank().get_length();
+        auto permute_order = desc->src_permutation;
+        if (permute_order.empty()) {
+            for (int64_t i = 0; i <= input_static_rank - 1; ++i) {
+                permute_order.emplace_back(i); // for compliance first
+            }
+        }
+
+        for (int64_t i = 0; i < input_static_rank; ++i) {
+            output_shape.push_back(org_ps[permute_order[i]]);
+        }
+        return { layout(output_shape, desc->output_data_types[0].value(), ofmt, desc->output_paddings[0]) };
+        //return { layout(input_layout.get<ShapeType>(), desc->output_data_types[0].value(), ofmt, desc->output_paddings[0]) };
     }
 }
 

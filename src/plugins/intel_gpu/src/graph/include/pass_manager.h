@@ -363,6 +363,22 @@ public:
     reorder_transfer() : base_pass("reorder_transfer") {}
 
 private:
+    bool check_order(const std::vector<uint16_t>& transpose_order,
+                    const std::vector<size_t>& layout_order,
+                    const std::vector<size_t>& reorder_inorder,
+                    const std::vector<size_t>& reorder_outorder);
+    void run(program& p) override;
+};
+
+class reorder_reshape_transpose_fuse : public base_pass {
+public:
+    reorder_reshape_transpose_fuse() : base_pass("reorder_reshape_transpose") {}
+
+private:
+    bool check_order(const std::vector<uint16_t>& transpose_order,
+                    const std::vector<size_t>& layout_order,
+                    const std::vector<size_t>& reorder_inorder,
+                    const std::vector<size_t>& reorder_outorder);
     void run(program& p) override;
 };
 
