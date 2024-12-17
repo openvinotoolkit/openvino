@@ -26,7 +26,7 @@ private:
     template <class OV_DATA_TYPE, class OV_INDEX_TYPE>
     void executeImpl();
 
-    template<typename T>
+    template <typename T>
     struct Col2ImExecute;
 
     ov::Strides strides;

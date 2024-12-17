@@ -140,6 +140,7 @@ version).
     from ov_catvton_helper import download_models, convert_pipeline_models, convert_automasker_models
     
     pipeline, mask_processor, automasker = download_models()
+    vae_scaling_factor = pipeline.vae.config.scaling_factor
     convert_pipeline_models(pipeline)
     convert_automasker_models(automasker)
 
@@ -186,7 +187,7 @@ that all of wrapper classes return ``torch.Tensor``\ s instead of
         SCHP_PROCESSOR_LIP,
     )
     
-    pipeline = get_compiled_pipeline(pipeline, core, device, VAE_ENCODER_PATH, VAE_DECODER_PATH, UNET_PATH)
+    pipeline = get_compiled_pipeline(pipeline, core, device, VAE_ENCODER_PATH, VAE_DECODER_PATH, UNET_PATH, vae_scaling_factor)
     automasker = get_compiled_automasker(automasker, core, device, DENSEPOSE_PROCESSOR_PATH, SCHP_PROCESSOR_ATR, SCHP_PROCESSOR_LIP)
 
 Optimize model using NNCF Post-Training Quantization API
@@ -217,8 +218,7 @@ Let’s load ``skip magic`` extension to skip quantization if
 
 .. code:: ipython3
 
-    optimized_pipe = None
-    optimized_automasker = None
+    is_optimized_pipe_available = False
     
     # Fetch skip_kernel_extension module
     r = requests.get(
@@ -269,8 +269,15 @@ data.
 
     %%skip not $to_quantize.value
     
+    import gc
     import nncf
     from ov_catvton_helper import UNET_PATH
+    
+    # cleanup before quantization to free memory
+    del pipeline
+    del automasker
+    gc.collect()
+    
     
     if not UNET_INT8_PATH.exists():
         unet = core.read_model(UNET_PATH)
@@ -281,6 +288,8 @@ data.
             model_type=nncf.ModelType.TRANSFORMER,
         )
         ov.save_model(quantized_model, UNET_INT8_PATH)
+        del quantized_model
+        gc.collect()
 
 Run Weights Compression
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -299,22 +308,8 @@ applied to footprint reduction.
     from catvton_quantization_helper import compress_models
     
     compress_models(core)
-
-.. code:: ipython3
-
-    %%skip not $to_quantize.value
     
-    from catvton_quantization_helper import (
-        VAE_ENCODER_INT4_PATH,
-        VAE_DECODER_INT4_PATH,
-        DENSEPOSE_PROCESSOR_INT4_PATH,
-        SCHP_PROCESSOR_ATR_INT4,
-        SCHP_PROCESSOR_LIP_INT4,
-    )
-    
-    optimized_pipe, _, optimized_automasker = download_models()
-    optimized_pipe = get_compiled_pipeline(optimized_pipe, core, device, VAE_ENCODER_INT4_PATH, VAE_DECODER_INT4_PATH, UNET_INT8_PATH)
-    optimized_automasker = get_compiled_automasker(optimized_automasker, core, device, DENSEPOSE_PROCESSOR_INT4_PATH, SCHP_PROCESSOR_ATR_INT4, SCHP_PROCESSOR_LIP_INT4)
+    is_optimized_pipe_available = True
 
 Compare model file sizes
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -351,7 +346,7 @@ to launch the interactive demo.
 
     from ov_catvton_helper import get_pipeline_selection_option
     
-    use_quantized_models = get_pipeline_selection_option(optimized_pipe)
+    use_quantized_models = get_pipeline_selection_option(is_optimized_pipe_available)
     
     use_quantized_models
 
@@ -359,11 +354,25 @@ to launch the interactive demo.
 
     from gradio_helper import make_demo
     
-    pipe = optimized_pipe if use_quantized_models.value else pipeline
-    masker = optimized_automasker if use_quantized_models.value else automasker
+    from catvton_quantization_helper import (
+        VAE_ENCODER_INT4_PATH,
+        VAE_DECODER_INT4_PATH,
+        DENSEPOSE_PROCESSOR_INT4_PATH,
+        SCHP_PROCESSOR_ATR_INT4,
+        SCHP_PROCESSOR_LIP_INT4,
+        UNET_INT8_PATH,
+    )
+    
+    pipeline, mask_processor, automasker = download_models()
+    if use_quantized_models.value:
+        pipeline = get_compiled_pipeline(pipeline, core, device, VAE_ENCODER_INT4_PATH, VAE_DECODER_INT4_PATH, UNET_INT8_PATH, vae_scaling_factor)
+        automasker = get_compiled_automasker(automasker, core, device, DENSEPOSE_PROCESSOR_INT4_PATH, SCHP_PROCESSOR_ATR_INT4, SCHP_PROCESSOR_LIP_INT4)
+    else:
+        pipeline = get_compiled_pipeline(pipeline, core, device, VAE_ENCODER_PATH, VAE_DECODER_PATH, UNET_PATH, vae_scaling_factor)
+        automasker = get_compiled_automasker(automasker, core, device, DENSEPOSE_PROCESSOR_PATH, SCHP_PROCESSOR_ATR, SCHP_PROCESSOR_LIP)
     
     output_dir = "output"
-    demo = make_demo(pipe, mask_processor, masker, output_dir)
+    demo = make_demo(pipeline, mask_processor, automasker, output_dir)
     try:
         demo.launch(debug=True)
     except Exception:

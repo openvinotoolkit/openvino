@@ -19,7 +19,7 @@ public:
 
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
-    std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape &dims) const override;
+    std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const override;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void initDescriptor(const NodeConfig& config) override;
@@ -41,13 +41,13 @@ private:
     using executorPtr = std::shared_ptr<DnnlExecutor>;
     executorPtr dnnlExecPtr = nullptr;
 
-    void setPostOps(dnnl::primitive_attr &attr);
+    void setPostOps(dnnl::primitive_attr& attr);
 
     PoolingAttrs poolingAttrs;
 
     std::shared_ptr<PoolingExecutor> execPtr = nullptr;
 
-    void initEffectiveAttributes(const Shape &inDims, const Shape &outDims);
+    void initEffectiveAttributes(const Shape& inDims, const Shape& outDims);
     dnnl::algorithm getPoolingAlgorithm() const;
     dnnl::pooling_forward::primitive_desc createDescriptorInternal(const dnnl::memory::desc& in_candidate,
                                                                    const dnnl::memory::desc& out_candidate,
@@ -61,6 +61,6 @@ private:
     bool useACL = false;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

@@ -14,8 +14,11 @@ using namespace dnnl::impl::cpu::x64;
 namespace ov {
 namespace intel_cpu {
 
-jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_emitter(h, isa), reg_runtime_params_idx(abi_param1.getIdx()) {
+jit_kernel_emitter::jit_kernel_emitter(jit_generator* h,
+                                       cpu_isa_t isa,
+                                       const ov::snippets::lowered::ExpressionPtr& expr)
+    : jit_emitter(h, isa),
+      reg_runtime_params_idx(abi_param1.getIdx()) {
     const auto kernel = ov::as_type_ptr<snippets::op::Kernel>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(kernel != nullptr, "invoked with invalid op argument");
     OV_CPU_JIT_EMITTER_ASSERT(!kernel->region->empty(), "invoked with empty body");
@@ -59,8 +62,12 @@ void jit_kernel_emitter::init_reg_pools(const std::set<size_t>& gpr_blacklist, c
         gp_regs_pool[i] = vec_regs_pool[i] = 15 - i;
     auto remove_regs_from_pool = [](std::vector<size_t>& pool, const std::set<size_t>& to_remove) {
         // It's important to keep the order of other elements
-        pool.erase(std::remove_if(pool.begin(), pool.end(),
-                                  [&](size_t x) {return to_remove.count(x) != 0;}), pool.end());
+        pool.erase(std::remove_if(pool.begin(),
+                                  pool.end(),
+                                  [&](size_t x) {
+                                      return to_remove.count(x) != 0;
+                                  }),
+                   pool.end());
     };
     // Reserve stack base and pointer for push(...) and pop(...) operations
     std::set<size_t> gprs_blacklist_extended{Xbyak::Operand::RSP, Xbyak::Operand::RBP};
@@ -70,25 +77,31 @@ void jit_kernel_emitter::init_reg_pools(const std::set<size_t>& gpr_blacklist, c
     remove_regs_from_pool(vec_regs_pool, vec_blacklist);
 }
 
-void jit_kernel_emitter::emit_code(const std::vector<size_t> &in, const std::vector<size_t> &out,
-                                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const {
+void jit_kernel_emitter::emit_code(const std::vector<size_t>& in,
+                                   const std::vector<size_t>& out,
+                                   const std::vector<size_t>& pool_vec_idxs,
+                                   const std::vector<size_t>& pool_gpr_idxs) const {
     validate_arguments(in, out);
     emit_impl(in, out);
 }
 
-void jit_kernel_emitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
+void jit_kernel_emitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     OV_CPU_JIT_EMITTER_ASSERT(in.empty() && out.empty(), ": expects 0 registers on input and output");
     const auto num_params = num_inputs + num_outputs + num_unique_buffers;
     // The number of used gpr may be >= num_params since LoopBegin+LoopEnd could also use gpr to store work_amount
     OV_CPU_JIT_EMITTER_ASSERT(data_ptr_regs_idx.size() == num_params,
-                              "number of inputs and outputs is inconsistent with the number of allocated registers ", num_params,
-                              " data_ptr_regs_idx.size() = ", data_ptr_regs_idx.size());
+                              "number of inputs and outputs is inconsistent with the number of allocated registers ",
+                              num_params,
+                              " data_ptr_regs_idx.size() = ",
+                              data_ptr_regs_idx.size());
 }
 
 void jit_kernel_emitter::init_body_regs(const std::set<size_t>& kernel_regs,
-                                        const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
+                                        const std::vector<size_t>& pool_vec_idxs,
+                                        const std::vector<size_t>& pool_gpr_idxs) {
     // Initialize pools of gp and vec registers
-    // Reserve kernel regs (abi_param1 and, if there is, abi_param2), since they'll be used to pass runtime call args to kernel
+    // Reserve kernel regs (abi_param1 and, if there is, abi_param2), since they'll be used to pass runtime call args to
+    // kernel
     init_reg_pools(kernel_regs, {});
 
     mapping_info gpr_map_pool({}, gp_regs_pool);
@@ -122,9 +135,11 @@ void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
     h->postamble();
 }
 
-jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
+jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+                                                     dnnl::impl::cpu::x64::cpu_isa_t isa,
                                                      const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_kernel_emitter(h, isa, expr), reg_indexes_idx(abi_param2.getIdx()) {
+    : jit_kernel_emitter(h, isa, expr),
+      reg_indexes_idx(abi_param2.getIdx()) {
     const auto kernel = ov::as_type_ptr<snippets::op::KernelStatic>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(kernel != nullptr, "expectes KernelStatic expression");
     jcp = *reinterpret_cast<const jit_snippets_compile_args*>(kernel->compile_params);
@@ -158,12 +173,12 @@ void jit_kernel_static_emitter::init_data_pointers(const std::vector<Xbyak::Reg6
             }
         }
     };
-    const auto spare_corruptable_gpr = std::find_if(gp_regs_pool.begin(), gp_regs_pool.end(),
-                                                   [this](size_t reg) {
-                                                        return reg != reg_indexes_idx && reg != reg_runtime_params_idx;
-                                                   });
+    const auto spare_corruptable_gpr = std::find_if(gp_regs_pool.begin(), gp_regs_pool.end(), [this](size_t reg) {
+        return reg != reg_indexes_idx && reg != reg_runtime_params_idx;
+    });
     const bool last_iter_explicitly = spare_corruptable_gpr == gp_regs_pool.end();
-    Reg64 reg_tmp = last_iter_explicitly ? data_ptr_regs[num_params - 1] : Reg64(static_cast<int>(*spare_corruptable_gpr));
+    Reg64 reg_tmp =
+        last_iter_explicitly ? data_ptr_regs[num_params - 1] : Reg64(static_cast<int>(*spare_corruptable_gpr));
     // Vector "data_ptr_regs" is sorted by abstract regs.
     // It means that the vector contains the physical registers in order [src, .., src, dst, .., dst, buffer]
     // So we can initialize buffer register firstly as last value of vector "data_ptr_regs"
@@ -193,13 +208,15 @@ void jit_kernel_static_emitter::init_data_pointers(const std::vector<Xbyak::Reg6
     }
 }
 
-jit_kernel_dynamic_emitter::jit_kernel_dynamic_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
+jit_kernel_dynamic_emitter::jit_kernel_dynamic_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+                                                       dnnl::impl::cpu::x64::cpu_isa_t isa,
                                                        const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_kernel_emitter(h, isa, expr) {
     const auto kernel = ov::as_type_ptr<snippets::op::KernelDynamic>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(kernel, "expectes KernelDynamic expression");
 
-    // - Reserve abi_param1, since it wll be used to pass runtime call args to all dynamic emitters that needs runtime args
+    // - Reserve abi_param1, since it wll be used to pass runtime call args to all dynamic emitters that needs runtime
+    // args
     // - We cannot assign this register to the body emitters since runtime params MUST be valid during whole execution
     //   for all dynamic emitters
     init_body_regs({reg_runtime_params_idx});
@@ -220,5 +237,5 @@ void jit_kernel_dynamic_emitter::init_data_pointers(const std::vector<Xbyak::Reg
     }
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov
