@@ -698,11 +698,11 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
 void MemoryInput::createPrimitive() {
     MemoryInputBase::createPrimitive();
     if (haveSubgraph()) {
-        OPENVINO_ASSERT(getOriginalInputsNumber() == subGraph->GetInputNodesMap().size(),
+        OPENVINO_ASSERT(getOriginalInputsNumber() == subGraph->inputsNumber(),
                         "Number of node inputs must be equal the number of inner graph's inputs: ",
                         getOriginalInputsNumber(),
                         " != ",
-                        subGraph->GetInputNodesMap().size());
+                        subGraph->inputsNumber());
 
         std::vector<MemoryPtr> inputMemory;
         for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
@@ -713,11 +713,11 @@ void MemoryInput::createPrimitive() {
             inputMemory.emplace_back(std::move(mem));
         }
 
-        OPENVINO_ASSERT(getOriginalOutputsNumber() == subGraph->GetOutputNodesMap().size(),
+        OPENVINO_ASSERT(getOriginalOutputsNumber() == subGraph->outputsNumber(),
                         "Number of node outputs must be equal the number of inner graph's outputs: ",
                         getOriginalOutputsNumber(),
                         " != ",
-                        subGraph->GetOutputNodesMap().size());
+                        subGraph->outputsNumber());
 
         std::vector<MemoryPtr> outputMemory;
         for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
@@ -775,10 +775,8 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
             // depending on the memory sharing solution, we can return here if the memory is substituted from the
             // external graph or override the src pointer with the memory pointer pointing to the subgraph output
             // memory
-            auto& outputs = subGraph->GetOutputNodesMap();
-            OPENVINO_ASSERT(outputs.size() == 1);
-            auto itr = outputs.begin();
-            src = itr->second->getSrcMemoryAtPort(0);
+            OPENVINO_ASSERT(subGraph->outputsNumber() == 1);
+            src = subGraph->getOutputNodeByIndex(0)->getSrcMemoryAtPort(0);
 
             // since the shape inference(InternalDynShapeInfer, do nothing) is performed, a memory of the extra child
             // edges, attached to the output ports has to be updated after an inference of the inner graph finished
@@ -837,10 +835,8 @@ void MemoryInput::runStatic(dnnl::stream strm) {
             subGraph->ResetInferCount();
             subGraph->Infer();
 
-            auto& outputs = subGraph->GetOutputNodesMap();
-            OPENVINO_ASSERT(outputs.size() == 1);
-            auto itr = outputs.begin();
-            src = itr->second->getSrcMemoryAtPort(0);
+            OPENVINO_ASSERT(subGraph->outputsNumber() == 1);
+            src = subGraph->getOutputNodeByIndex(0)->getSrcMemoryAtPort(0);
         } else {
             src = getSrcMemoryAtPort(0);
         }
