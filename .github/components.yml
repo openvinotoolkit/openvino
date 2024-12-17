@@ -175,6 +175,7 @@ Python_API:
     - OVC
     - tools
     - TF_FE
+    - docs_snippets
   build:
     - CPU
     - HETERO
