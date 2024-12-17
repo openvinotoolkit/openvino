@@ -198,7 +198,8 @@ bool convert_node_input_precision(const std::shared_ptr<ov::Node>& node,
     return false;
 }
 
-bool convert_function_precision(const std::shared_ptr<Model>& f,
+bool convert_function_precision(ov::pass::PassBase& pass,
+                                const std::shared_ptr<Model>& f,
                                 const type_to_fuse_map& type_to_fuse,
                                 const type_to_fuse_map& type_to_extend,
                                 const precisions_map& precisions,
@@ -211,6 +212,14 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
                                 bool store_original_precision_as_rt_attribute,
                                 bool names_compatibility_mode) {
     bool is_output_precision_changed = false;
+
+    if (skip_precision_sensitive && has_fp16_compression) {
+        pass::Manager manager(pass.get_pass_config(), "KeepPrecisionSensitiveInFP32");
+        // Mark subgraphs with disable_fp16_compression to keep them in FP32
+        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+        manager.register_pass<pass::AlignMixedFP32FP16Types>();
+        manager.run_passes(f);
+    }
 
     ov::element::TypeVector orig_result_types;
     if (!convert_input_output_precision) {
@@ -268,7 +277,8 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
         if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(node)) {
             size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
             for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
-                is_changed = convert_function_precision(sub_graph_node->get_function(static_cast<int>(sub_graph_ind)),
+                is_changed = convert_function_precision(pass,
+                                                        sub_graph_node->get_function(static_cast<int>(sub_graph_ind)),
                                                         type_to_fuse,
                                                         type_to_extend,
                                                         precisions,
@@ -366,7 +376,8 @@ bool convert_precision(ov::pass::PassBase& pass,
     std::unordered_map<const ov::Node*, std::vector<Input<Node>>> const_to_internal_output;
 
     const auto names_compatibility_mode = f->has_rt_info("version") && f->get_rt_info<int64_t>("version") < 11;
-    return convert_function_precision(f,
+    return convert_function_precision(pass,
+                                      f,
                                       type_to_fuse,
                                       type_to_extend,
                                       precisions,
@@ -417,14 +428,6 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
         return false;
 
     bool has_fp16_compression = m_precisions.count(element::f32) > 0 && m_precisions[element::f32] == element::f16;
-
-    if (m_keep_precision_sensitive_in_fp32 && has_fp16_compression) {
-        pass::Manager manager(get_pass_config(), "KeepPrecisionSensitiveInFP32");
-        // Mark subgraphs with disable_fp16_compression to keep them in FP32
-        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
-        manager.register_pass<pass::AlignMixedFP32FP16Types>();
-        manager.run_passes(f);
-    }
 
     type_to_fuse_map type_to_fuse{
         {ov::op::v0::Convert::get_type_info_static(), fuse_type_to_convert},
