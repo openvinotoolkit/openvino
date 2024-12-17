@@ -24,7 +24,9 @@ NamedOutputs expand_v2(const NodeContext& node) {
                 auto unsqueeze_scalar = default_opset::Constant::create(ov::element::i32, {}, {0});
                 input = std::make_shared<default_opset::Unsqueeze>(input, unsqueeze_scalar);
             }
-            PADDLE_OP_CHECK(node, input.get_partial_shape().rank().get_length() == 1, "the rank of conv input must == 1");
+            PADDLE_OP_CHECK(node,
+                            input.get_partial_shape().rank().get_length() == 1,
+                            "the rank of conv input must == 1");
             auto cast = std::make_shared<Convert>(input, element::i32);
             node_vec.emplace_back(cast);
         }
