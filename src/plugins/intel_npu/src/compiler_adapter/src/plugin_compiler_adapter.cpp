@@ -108,6 +108,8 @@ std::vector<std::shared_ptr<IGraph>> PluginCompilerAdapter::compileWS(const std:
                                                                       const Config& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compileWS");
 
+    auto compileNetBegin = std::chrono::steady_clock::now();
+
     std::shared_ptr<NetworkDescription> initNetworkDescription;
     std::shared_ptr<NetworkDescription> mainNetworkDescription;
 
@@ -178,6 +180,11 @@ std::vector<std::shared_ptr<IGraph>> PluginCompilerAdapter::compileWS(const std:
     }
 
     _logger.debug("compile end");
+
+    auto compileNetEnd = std::chrono::steady_clock::now();
+    std::cout << "Compile net time: "
+              << std::chrono::duration_cast<std::chrono::milliseconds>(compileNetEnd - compileNetBegin).count() << " ms"
+              << std::endl;
 
     ze_graph_handle_t initGraphHandle = nullptr;
     ze_graph_handle_t mainGraphHandle = nullptr;

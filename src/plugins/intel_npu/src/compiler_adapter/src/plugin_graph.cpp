@@ -69,7 +69,9 @@ void PluginGraph::custom_export(std::ostream& stream,
     } else {
         if (_logger.level() >= ov::log::Level::INFO) {
             std::stringstream str;
-            str << "Blob size: " << _blob.size() + initBlob.size() + 4 * sizeof(uint32_t) + xmlSize + binSize
+            str << "Blob size: " << _blob.size() + initBlob.size()
+                << std::endl;
+            str << "Blob size with weights: " << _blob.size() + initBlob.size() + 4 * sizeof(uint32_t) + xmlSize + binSize
                 << std::endl;
             _logger.info(str.str().c_str());
         }
