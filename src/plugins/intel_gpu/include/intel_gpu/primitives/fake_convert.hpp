@@ -57,14 +57,12 @@ struct fake_convert : public primitive_base<fake_convert> {
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<fake_convert>::save(ob);
-        ob << destination_type.get_type_name();
+        ob << make_data(&destination_type, sizeof(destination_type));
     }
 
     void load(BinaryInputBuffer& ib) override {
-        std::string destination_type_str;
         primitive_base<fake_convert>::load(ib);
-        ib >> destination_type_str;
-        destination_type = ov::element::Type(destination_type_str);
+        ib >> make_data(&destination_type, sizeof(destination_type));
     }
 };
 }  // namespace cldnn

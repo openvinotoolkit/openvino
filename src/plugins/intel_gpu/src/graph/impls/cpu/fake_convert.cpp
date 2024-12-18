@@ -40,14 +40,12 @@ struct fake_convert_impl : public typed_primitive_impl<fake_convert> {
 
     void save(BinaryOutputBuffer& ob) const override {
         parent::save(ob);
-        ob << destination_type.get_type_name();
+        ob << make_data(&destination_type, sizeof(destination_type));
     }
 
     void load(BinaryInputBuffer& ib) override {
-        std::string destination_type_str;
         parent::load(ib);
-        ib >> destination_type_str;
-        destination_type = ov::element::Type(destination_type);
+        ib >> make_data(&destination_type, sizeof(destination_type));
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, fake_convert_inst& instance) override {
