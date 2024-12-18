@@ -18,6 +18,8 @@ using MemoryArgs = std::unordered_map<int, MemoryPtr>;
 #define ARG_SRC   ARG_SRC_0
 #define ARG_SRC_1 2
 #define ARG_SRC_2 3
+#define ARG_SRC_3 4
+#define ARG_SUM   ARG_SRC_2
 #define ARG_DST_0 17
 #define ARG_DST   ARG_DST_0
 #define ARG_WEI_0 33
@@ -29,5 +31,7 @@ using MemoryArgs = std::unordered_map<int, MemoryPtr>;
 #define ARG_ATTR_SCALES 4096
 // zero points provided at execution time
 #define ARG_ATTR_ZERO_POINTS 8192
+/// fused depthwise convolution.
+#define ARG_ATTR_POST_OP_DW 16384
 
 }  // namespace ov::intel_cpu

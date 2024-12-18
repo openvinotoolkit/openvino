@@ -24,12 +24,12 @@ public:
     using ExecutorImplementationRef = std::reference_wrapper<const ExecutorImplementation<Attrs>>;
 
     VariableExecutor(const MemoryArgs& memory,
-                     const Attrs& attrs,
-                     const PostOps& postOps,
+                     Attrs attrs,
+                     PostOps postOps,
                      ExecutorContext::CPtr context,
                      std::vector<ExecutorImplementationRef> suitableImplementations)
-        : m_attrs(attrs),
-          m_postOps(postOps),
+        : m_attrs(std::move(attrs)),
+          m_postOps(std::move(postOps)),
           m_context(std::move(context)),
           m_suitableImplementations(std::move(suitableImplementations)),
           m_implementationRequiresFallback(
@@ -43,7 +43,7 @@ public:
 
     bool update(const MemoryArgs& memory) override {
         for (auto implId = select(memory, 0); implId < m_suitableImplementations.size();
-             implId = select(memory, implId)) {
+             implId = select(memory, ++implId)) {
             if (!m_executors[implId]) {
                 m_executors[implId] = create(implId, memory);
             }
@@ -98,8 +98,9 @@ private:
         const auto selectedImplementation =
             std::find_if(startIt,
                          m_suitableImplementations.end(),
-                         [&memory](const ExecutorImplementationRef& implementation) {
-                             return implementation.get().shapeAgnostic() || implementation.get().acceptsShapes(memory);
+                         [&memory, this](const ExecutorImplementationRef& implementation) {
+                             return implementation.get().shapeAgnostic() ||
+                                    implementation.get().acceptsShapes(m_attrs, m_postOps, memory);
                          });
 
         OPENVINO_ASSERT(selectedImplementation != m_suitableImplementations.end(), "Failed to select an implemetation");
@@ -126,8 +127,8 @@ private:
         return createWithFallback(implId, memory);
     }
 
-    const Attrs& m_attrs;
-    const PostOps& m_postOps;
+    Attrs m_attrs;
+    PostOps m_postOps;
     const ExecutorContext::CPtr m_context;
     std::vector<ExecutorImplementationRef> m_suitableImplementations;
     // stores fallback status to avoid performing the check for every make() call

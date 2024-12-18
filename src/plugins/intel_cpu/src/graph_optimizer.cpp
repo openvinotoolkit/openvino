@@ -1027,6 +1027,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
                       dataEltwise->getName(),
                       " is optimized as zeropoint of Conv ##",
                       conv->getName());
+            conv->setOriginalInputPrecisionAtPort(0, dataEltwise->getOriginalInputPrecisionAtPort(0));
             graph.RemoveEdge(p_edge);
             graph.DropNode(dataEltwise);
             initializeOutputCompensation(conv);
@@ -1257,7 +1258,12 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph& graph) {
             OPENVINO_THROW("Cannot get convolution node ", parentNode->getName());
         }
 
-        if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2) || impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
+        if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2)) {
+            return false;
+        }
+        // there is no optimized implementation for avx512, so two avx512 convolutions
+        // are expected to be faster than single fused avx2 convolution
+        if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
             return false;
         }
 
