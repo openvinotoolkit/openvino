@@ -25,6 +25,7 @@ private:
 /// \brief Helper class to register user matcher pass initialization as a MatcherPass
 class CustomMatcherPass : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("frontend::CustomMatcherPass");
     explicit CustomMatcherPass(const std::function<void(ov::pass::MatcherPass*)>& matcher_pass_initializer) {
         matcher_pass_initializer(this);
     }

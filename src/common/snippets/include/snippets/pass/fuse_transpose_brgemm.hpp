@@ -23,7 +23,7 @@ namespace pass {
  */
 class FuseTransposeBrgemm: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("FuseTransposeBrgemm", "0");
+    OPENVINO_MATCHER_PASS_RTTI("snippets::pass::FuseTransposeBrgemm");
     FuseTransposeBrgemm();
 
     static bool is_supported_transpose(const Output<Node>& transpose_out);
