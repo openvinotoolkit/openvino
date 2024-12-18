@@ -3,6 +3,7 @@
 //
 
 #include "impls/registry/implementation_manager.hpp"
+#include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/runtime/system_conf.hpp"
@@ -161,7 +162,8 @@ program::program(engine& engine_ref,
     program_node::reset_unique_id();
     if (no_optimizations) {
         init_graph();
-        _config.apply_user_properties(_engine.get_device_info());
+        auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<device::ptr>{_engine.get_device()});
+        _config.finalize(ctx, {});
     } else {
         build_program(is_internal);
         if (_is_body_program) {
@@ -197,7 +199,8 @@ program::program(engine& engine_ref,
       _task_executor(std::move(task_executor)),
       processing_order(),
       is_internal(is_internal) {
-    _config.apply_user_properties(_engine.get_device_info());
+    auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<device::ptr>{_engine.get_device()});
+    _config.finalize(ctx, {});
     init_primitives();
     init_program();
     prepare_nodes(nodes);
@@ -210,7 +213,8 @@ program::program(engine& engine, const ExecutionConfig& config)
       _config(config),
       processing_order() {
     init_primitives();
-    _config.apply_user_properties(_engine.get_device_info());
+    auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<device::ptr>{_engine.get_device()});
+    _config.finalize(ctx, {});
     new_shape_infer = _config.get_property(ov::intel_gpu::allow_new_shape_infer);
     _layout_optimizer = cldnn::make_unique<layout_optimizer>();
 }
@@ -496,7 +500,8 @@ void program::set_options() {
 
 void program::build_program(bool is_internal) {
     init_graph();
-    _config.apply_user_properties(_engine.get_device_info());
+    auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<device::ptr>{_engine.get_device()});
+    _config.finalize(ctx, {});
     { pre_optimize_graph(is_internal); }
     run_graph_compilation();
     { post_optimize_graph(is_internal); }

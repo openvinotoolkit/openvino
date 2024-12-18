@@ -15,6 +15,12 @@ namespace intel_gpu {
 
 struct NewExecutionConfig : public ov::PluginConfig {
     NewExecutionConfig();
+    NewExecutionConfig(std::initializer_list<ov::AnyMap::value_type> values) : NewExecutionConfig() { set_property(ov::AnyMap(values)); }
+    explicit NewExecutionConfig(const ov::AnyMap& properties) : NewExecutionConfig() { set_property(properties); }
+    explicit NewExecutionConfig(const ov::AnyMap::value_type& property) : NewExecutionConfig() { set_property(property); }
+
+    NewExecutionConfig(const NewExecutionConfig& other);
+    NewExecutionConfig& operator=(const NewExecutionConfig& other);
 
     #define OV_CONFIG_OPTION(PropertyNamespace, PropertyVar, ...) \
         ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type> PropertyVar = \

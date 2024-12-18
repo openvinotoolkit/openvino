@@ -25,6 +25,7 @@
 #include "intel_gpu/runtime/device_query.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/itt.hpp"
+#include "openvino/core/any.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/visualize_tree.hpp"
@@ -51,6 +52,16 @@ using Time = std::chrono::high_resolution_clock;
 
 namespace ov {
 namespace intel_gpu {
+
+namespace {
+
+ov::RTMap get_rt_info(const ov::Model& model) {
+    if (model.has_rt_info("runtime_options"))
+        return model.get_rt_info<ov::AnyMap>("runtime_options");
+    return {};
+}
+
+}  // namespace
 
 #define FACTORY_DECLARATION(op_version, op_name) \
     void __register ## _ ## op_name ## _ ## op_version();
@@ -189,9 +200,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config);
-    if (model->has_rt_info("runtime_options"))
-        config.apply_rt_info(context->get_engine().get_device_info(), model->get_rt_info<ov::AnyMap>("runtime_options"));
-    config.apply_user_properties(context->get_engine().get_device_info());
+    config.finalize(context, get_rt_info(*model));
 
     set_cache_info(model, config);
 
@@ -211,9 +220,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] LoadExeNetworkImpl: Couldn't find config for GPU with id ", device_id);
 
     ExecutionConfig config = m_configs_map.at(device_id);
-    config.set_user_property(orig_config);
-    config.apply_user_properties(context_impl->get_engine().get_device_info());
-
+    config.finalize(context_impl, get_rt_info(*model));
     set_cache_info(model, config);
 
     auto transformed_model = clone_and_transform_model(model, config, context_impl);
@@ -280,9 +287,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config);
-    if (model->has_rt_info("runtime_options"))
-        config.apply_rt_info(ctx->get_engine().get_device_info(), model->get_rt_info<ov::AnyMap>("runtime_options"));
-    config.apply_user_properties(ctx->get_engine().get_device_info());
+    config.finalize(ctx, get_rt_info(*model));
 
     ProgramBuilder prog(ctx->get_engine(), config);
 
@@ -337,7 +342,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(_orig_config);
-    config.apply_user_properties(context_impl->get_engine().get_device_info());
+    config.finalize(context_impl, {});
 
     ov::CacheMode cache_mode = config.get_property(ov::cache_mode);
     ov::EncryptionCallbacks encryption_callbacks = config.get_property(ov::cache_encryption_callbacks);

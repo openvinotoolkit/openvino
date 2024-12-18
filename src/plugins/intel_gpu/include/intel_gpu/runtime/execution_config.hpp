@@ -6,6 +6,7 @@
 
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/device.hpp"
+#include "intel_gpu/runtime/plugin_config.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -169,7 +170,7 @@ private:
     std::map<std::string, BaseValidator::Ptr> property_validators;
 };
 
-using ExecutionConfig = OldExecutionConfig;
+using ExecutionConfig = NewExecutionConfig;
 }  // namespace intel_gpu
 }  // namespace ov
 
