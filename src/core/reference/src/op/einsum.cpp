@@ -425,7 +425,7 @@ void broadcast_input(ov::TensorVector& inputs,
     OPENVINO_ASSERT(input_ind < inputs.size());
     ov::Tensor& input = inputs[input_ind];
     const Shape old_shape = input.get_shape();
-    Shape new_shape;
+    PartialShape new_shape;
     new_shape.insert(new_shape.end(), new_common_shape.begin(), new_common_shape.end());
     if (is_separate_first) {
         new_shape.insert(new_shape.end(), separate_shape.begin(), separate_shape.end());
@@ -435,15 +435,15 @@ void broadcast_input(ov::TensorVector& inputs,
         new_shape.insert(new_shape.end(), separate_shape.begin(), separate_shape.end());
     }
 
-    if (input.get_shape() == new_shape) {
+    if (input.get_shape() == new_shape.to_shape()) {
         return;
     }
     OPENVINO_ASSERT(old_shape.size() <= new_shape.size());
 
-    auto output = ov::Tensor(input.get_element_type(), new_shape);
-
     std::vector<size_t> broadcast_axes(old_shape.size());
     std::iota(broadcast_axes.begin(), broadcast_axes.end(), new_shape.size() - old_shape.size());
+    OPENVINO_ASSERT(PartialShape::broadcast_merge_into(new_shape, old_shape, ov::op::AutoBroadcastType::NUMPY));
+    auto output = ov::Tensor(input.get_element_type(), new_shape.to_shape());
 
     reference::broadcast(reinterpret_cast<const char*>(input.data<T>()),
                          reinterpret_cast<char*>(output.data<T>()),
@@ -853,8 +853,10 @@ void contract_two_inputs(ov::TensorVector& inputs,
     PartialShape common_sub_shape1 = compute_sub_shape(input_shape1, common_dims_begin, common_dims_end);
     PartialShape common_sub_shape2 = compute_sub_shape(input_shape2, common_dims_begin2, common_dims_end2);
 
-    Shape reduced_sub_shape_prod = compute_sub_shape(input_shape1, reduced_dims_begin, reduced_dims_end, true);
-    Shape reduced_sub_shape = compute_sub_shape(input_shape1, reduced_dims_begin, reduced_dims_end);
+    PartialShape reduced_sub_shape_prod = compute_sub_shape(input_shape1, reduced_dims_begin, reduced_dims_end, true);
+    PartialShape reduced_sub_shape = compute_sub_shape(input_shape1, reduced_dims_begin, reduced_dims_end);
+    Shape reduced_sub_shape_prod2 = compute_sub_shape(input_shape2, reduced_dims_begin2, reduced_dims_end2, true);
+    Shape reduced_sub_shape2 = compute_sub_shape(input_shape2, reduced_dims_begin2, reduced_dims_end2);
     Shape separate1_sub_shape = compute_sub_shape(input_shape1, separate1_dims_begin, separate1_dims_end);
     Shape separate2_sub_shape = compute_sub_shape(input_shape2, separate2_dims_begin, separate2_dims_end);
 
@@ -862,29 +864,32 @@ void contract_two_inputs(ov::TensorVector& inputs,
     // in case of ellipsis among the common labels
     // reference::broadcast()
     PartialShape::broadcast_merge_into(common_sub_shape1, common_sub_shape2, op::AutoBroadcastType::NUMPY);
+    PartialShape::broadcast_merge_into(reduced_sub_shape, reduced_sub_shape2, op::AutoBroadcastType::NUMPY);
+    PartialShape::broadcast_merge_into(reduced_sub_shape_prod, reduced_sub_shape_prod2, op::AutoBroadcastType::NUMPY);
     Shape common_sub_shape = common_sub_shape1.get_shape();
     broadcast_input<T>(inputs,
                        input_ind1,
                        common_sub_shape,
                        separate1_sub_shape,
-                       reduced_sub_shape,
+                       reduced_sub_shape.get_shape(),
                        is_separate_first1);
     broadcast_input<T>(inputs,
                        input_ind2,
                        common_sub_shape,
                        separate2_sub_shape,
-                       reduced_sub_shape,
+                       reduced_sub_shape.get_shape(),
                        is_separate_first2);
 
     ov::Tensor matmul_operand1 = reshape_input_for_matmul<T>(input1,
                                                              common_sub_shape,
                                                              separate1_sub_shape,
-                                                             reduced_sub_shape_prod,
+                                                             reduced_sub_shape_prod.get_shape(),
                                                              is_separate_first1);
+
     ov::Tensor matmul_operand2 = reshape_input_for_matmul<T>(input2,
                                                              common_sub_shape,
                                                              separate2_sub_shape,
-                                                             reduced_sub_shape_prod,
+                                                             reduced_sub_shape_prod.get_shape(),
                                                              is_separate_first2);
 
     // step 3. apply MatMul operation for formatted inputs

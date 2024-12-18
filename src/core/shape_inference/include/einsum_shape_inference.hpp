@@ -31,15 +31,19 @@ std::vector<TRShape> shape_infer(const Einsum* op, const std::vector<T>& input_s
     for (size_t input_idx = 0; input_idx < input_shapes.size(); ++input_idx) {
         const auto& pshape = input_shapes[input_idx];
         const auto labels = Einsum::extract_labels(input_subscripts[input_idx]);
+        const auto has_ellipsis = std::any_of(labels.begin(), labels.end(), [](std::string label) {
+            return label == "...";
+        });
 
         if (pshape.rank().is_static()) {
             size_t input_rank = pshape.size();
             // check that a rank is greater or equal to a number of labels
             // these numbers are always equal if there is no ellipsis in the subscript
-            NODE_VALIDATION_CHECK(op,
-                                  input_rank >= labels.size(),
-                                  "Input rank must be greater or equal to a number of labels in the "
-                                  "corresponding input subscript.");
+            NODE_VALIDATION_CHECK(
+                op,
+                (input_rank >= (labels.size() - 1) && has_ellipsis) || (input_rank == labels.size() && !has_ellipsis),
+                "Input rank must be greater or equal to a number of labels in the "
+                "corresponding input subscript.");
 
             for (size_t label_ind = 0, dim_ind = 0; label_ind < labels.size() && dim_ind < input_rank; ++label_ind) {
                 auto const& label = labels[label_ind];
@@ -64,15 +68,20 @@ std::vector<TRShape> shape_infer(const Einsum* op, const std::vector<T>& input_s
                         label_to_shape[label] = TRShape{pshape[dim_ind]};
                     } else {
                         NODE_VALIDATION_CHECK(op,
-                                              label_to_shape[label].compatible(TRShape{pshape[label_ind]}),
+                                              TRShape::broadcast_merge_into(label_to_shape[label],
+                                                                            TRShape{pshape[dim_ind]},
+                                                                            op::AutoBroadcastType::NUMPY),
                                               "Different input dimensions indicated by the same labels for Einsum "
                                               "must be compatible.");
-                        OPENVINO_ASSERT(TRShape::merge_into(label_to_shape[label], TRShape{pshape[dim_ind]}));
                     }
                     ++dim_ind;
                 }
             }
         } else {
+            if (has_ellipsis) {
+                // Shape has dynamic rank and ellipsis
+                return {pshape};
+            }
             for (auto const& label : labels) {
                 NODE_VALIDATION_CHECK(op,
                                       label != "...",
