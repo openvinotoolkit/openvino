@@ -76,9 +76,12 @@ void PluginConfig::finalize(std::shared_ptr<IRemoteContext> context, const ov::R
 }
 
 void PluginConfig::apply_debug_options(std::shared_ptr<IRemoteContext> context) {
-    ov::AnyMap config_properties = read_config_file("config.json", context->get_device_name());
-    cleanup_unsupported(config_properties);
-    set_user_property(config_properties);
+    if (context) {
+        ov::AnyMap config_properties = read_config_file("config.json", context->get_device_name());
+        cleanup_unsupported(config_properties);
+        set_user_property(config_properties);
+    }
+
     ov::AnyMap env_properties = read_env({"OV_"});
     set_user_property(env_properties);
 }
