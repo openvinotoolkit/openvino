@@ -90,18 +90,6 @@ from openvino import opset14
 from openvino import opset15
 from openvino import opset16
 
-# Extend Node class to support binary operators
-Node.__add__ = opset13.add
-Node.__sub__ = opset13.subtract
-Node.__mul__ = opset13.multiply
-Node.__div__ = opset13.divide
-Node.__truediv__ = opset13.divide
-Node.__radd__ = lambda left, right: opset13.add(right, left)
-Node.__rsub__ = lambda left, right: opset13.subtract(right, left)
-Node.__rmul__ = lambda left, right: opset13.multiply(right, left)
-Node.__rdiv__ = lambda left, right: opset13.divide(right, left)
-Node.__rtruediv__ = lambda left, right: opset13.divide(right, left)
-
 # libva related:
 from openvino._pyopenvino import VAContext
 from openvino._pyopenvino import VASurfaceTensor
