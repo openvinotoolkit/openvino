@@ -16,6 +16,10 @@ static inline bool is_bf16_supported_by_brgemm() {
     return ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx512_core_amx_bf16();
 }
 
+static inline bool is_fp16_supported_by_brgemm() {
+    return ov::with_cpu_x86_avx512_core_amx_fp16();
+}
+
 static inline bool is_i8_supported_by_brgemm() {
     return ov::with_cpu_x86_avx512_core_vnni() || ov::with_cpu_x86_avx512_core_amx_int8();
 }
@@ -30,6 +34,13 @@ static inline std::vector<std::vector<element::Type>> precision_bf16_if_supporte
     std::vector<std::vector<element::Type>> prc;
     if (is_bf16_supported_by_brgemm())
         prc.emplace_back(std::vector<element::Type>(count, element::bf16));
+    return prc;
+}
+
+static inline std::vector<std::vector<element::Type>> precision_fp16_if_supported(size_t count) {
+    std::vector<std::vector<element::Type>> prc;
+    if (is_fp16_supported_by_brgemm())
+        prc.emplace_back(std::vector<element::Type>(count, element::f16));
     return prc;
 }
 

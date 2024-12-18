@@ -77,7 +77,7 @@ TEST_F(TransformationTestsF, ConvertSubtractDequantizationSubgraph) {
 
     model = std::make_shared<Model>(mul, ParameterVector{data});
 
-    manager.register_pass<pass::MarkDequantizationSubgraph>(element::TypeVector{element::u8});
+    manager.register_pass<pass::MarkDequantization>(element::TypeVector{element::u8});
     manager.register_pass<pass::ConvertSubtract>();
 }
 

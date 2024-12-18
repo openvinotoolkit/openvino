@@ -4,11 +4,11 @@
 
 #include "composite.h"
 
-#include "nodes/input.h"
 #include "cpu_memory.h"
+#include "nodes/input.h"
+#include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "transformations/cpu_opset/common/op/submodel.hpp"
 #include "utils/debug_capabilities.h"
-#include "shape_inference/shape_inference_internal_dyn.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -75,7 +75,7 @@ void Composite::selectOptimalPrimitiveDescriptor() {
 
 // @todo add ascii diagramm for memory mapping / reuse
 void Composite::createPrimitive() {
-    OPENVINO_ASSERT(getOriginalInputsNumber() == m_graph.GetInputNodesMap().size(),
+    OPENVINO_ASSERT(getOriginalInputsNumber() == m_graph.inputsNumber(),
                     "Number of node inputs must be equal the number of inner graph's inputs");
 
     std::vector<MemoryPtr> inputMemory;
@@ -83,7 +83,7 @@ void Composite::createPrimitive() {
         inputMemory.emplace_back(getSrcMemoryAtPort(i));
     }
 
-    OPENVINO_ASSERT(getOriginalOutputsNumber() == m_graph.GetOutputNodesMap().size(),
+    OPENVINO_ASSERT(getOriginalOutputsNumber() == m_graph.outputsNumber(),
                     "Number of node outputs must be equal the number of inner graph's outputs");
 
     std::vector<MemoryPtr> outputMemory;

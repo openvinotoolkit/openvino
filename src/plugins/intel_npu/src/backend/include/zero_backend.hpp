@@ -29,11 +29,11 @@ public:
     bool isCommandQueueExtSupported() const override;
     bool isLUIDExtSupported() const override;
 
-    const std::shared_ptr<ZeroInitStructsHolder>& getInitStruct() const;
-
     void* getContext() const override;
 
     void updateInfo(const Config& config) override;
+
+    const std::shared_ptr<ZeroInitStructsHolder> getInitStructs() const override;
 
 private:
     std::shared_ptr<ZeroInitStructsHolder> _initStruct;
