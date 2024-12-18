@@ -23,7 +23,7 @@ struct NewExecutionConfig : public ov::PluginConfig {
     NewExecutionConfig& operator=(const NewExecutionConfig& other);
 
     #define OV_CONFIG_OPTION(PropertyNamespace, PropertyVar, ...) \
-        ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type> PropertyVar = \
+        ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type> m_ ## PropertyVar = \
             ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type>(GET_EXCEPT_LAST(__VA_ARGS__));
 
     #include "options_release.inl"

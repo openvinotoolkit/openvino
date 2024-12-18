@@ -118,6 +118,9 @@ public:
 
     template <typename T, PropertyMutability mutability>
     T get_property(const ov::Property<T, mutability>& property) const {
+        if (is_set_by_user(property)) {
+            return user_properties.at(property.name()).template as<T>();
+        }
         OPENVINO_ASSERT(m_options_map.find(property.name()) != m_options_map.end(), "Property not found: ", property.name());
         return static_cast<ConfigOption<T>*>(m_options_map.at(property.name()))->value;
     }
