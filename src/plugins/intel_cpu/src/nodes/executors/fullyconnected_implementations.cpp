@@ -141,69 +141,6 @@ static const TypeMapping dnnlMatMulTypeMapping {
 };
 // clang-format on
 
-static bool fullyMatchConfiguration(const MemoryDescArgs& currentDescriptors,
-                                    const InOutTypes& typeConfig,
-                                    const LayoutConfig& layoutConfig,
-                                    const MappingNotation& notation) {
-    for (size_t i = 0; i < typeConfig.size(); i++) {
-        const auto& type = typeConfig[i];
-        const auto& desc = currentDescriptors.at(notation[i]);
-
-        if (desc->empty())
-            continue;
-
-        if (desc->getPrecision() != type)
-            return false;  // type mismatch
-
-        if (!desc->hasLayoutType(layoutConfig[i]))
-            return false;  // layout mismatch
-    }
-
-    return true;
-}
-
-static MemoryDescArgs createOptimalDescriptors(const MemoryDescArgs& currentDescriptors,
-                                               const InOutTypes& typeConfig,
-                                               const LayoutConfig& layoutConfig,
-                                               const MappingNotation& notation) {
-    MemoryDescArgs descs = currentDescriptors;
-
-    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-    for (size_t i = 0; i < typeConfig.size(); i++) {
-        const auto& desc = currentDescriptors.at(notation[i]);
-        const auto& descType = desc->getPrecision();
-        const auto& type = typeConfig[i];
-        const auto& layout = layoutConfig[i];
-
-        if (desc->empty())
-            continue;
-
-        if (descType == type && desc->hasLayoutType(layout)) {
-            continue;
-        }
-
-        descs[notation[i]] = creatorsMap.at(layout)->createSharedDesc(type, desc->getShape());
-    }
-
-    return descs;
-}
-
-template <typename Attrs>
-ov::optional<executor::Config<Attrs>> requiresFallbackCommon(const executor::Config<Attrs>& config,
-                                                             const TypeMapping& typeMapping,
-                                                             const LayoutConfig& layoutConfig,
-                                                             const MappingNotation& notation) {
-    const auto typeConfig = getTypeConfiguration(config.descs, typeMapping, notation);
-
-    if (fullyMatchConfiguration(config.descs, typeConfig, layoutConfig, notation)) {
-        return {};
-    }
-
-    const auto optimalDescriptors = createOptimalDescriptors(config.descs, typeConfig, layoutConfig, notation);
-
-    return ov::optional<executor::Config<Attrs>>(FCConfig{optimalDescriptors, config.attrs, config.postOps});
-}
-
 OV_CPU_MAYBE_UNUSED_FUNCTION static inline bool noWeightsDecompression(const FCConfig& config) {
     return !DnnlFCPrimitive::useWeightsDecompressionImpl(srcType(config), weiType(config), config.attrs.modelType);
 }
@@ -322,14 +259,19 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             [](const FCAttrs& attrs,
                const PostOps& postOps,
                const MemoryArgs& memory,
-               const ExecutorContext::CPtr& context) -> std::shared_ptr<Executor> {
+               const ExecutorContext::CPtr& context) -> ExecutorPtr {
                 struct ConvolutionInstantiator {
                     std::shared_ptr<DnnlConvolutionPrimitive> operator()(
                         const MemoryArgs& memory,
                         const FCAttrs& attrs,
                         const ExecutorContext::CPtr& context,
                         const std::shared_ptr<DnnlShapeAgnosticData>& shareAgnosticData) const {
-                        ConvAttrs convAttrs{attrs.withBias};
+
+                        const bool fcSemantic = true;
+                        ConvAttrs convAttrs{{1}, {0}, {0}, {0},
+                                            AutoPaddingType::None, attrs.withBias, attrs.weightsNonTransposed,
+                                            false, false, fcSemantic, false, ZeroPointsType::None, {}};
+                        
                         auto primitive =
                             DefaultInstantiator<DnnlConvolutionPrimitive, ConvAttrs, DnnlShapeAgnosticData>{}(
                             memory,
@@ -475,7 +417,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             [](const FCAttrs& attrs,
                const PostOps& postOps,
                const MemoryArgs& memory,
-               const ExecutorContext::CPtr& context) -> std::shared_ptr<Executor> {
+               const ExecutorContext::CPtr& context) -> ExecutorPtr {
                 struct MatMulInstantiator {
                     std::shared_ptr<DnnlMatMulPrimitive> operator()(
                         const MemoryArgs& memory,

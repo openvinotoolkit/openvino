@@ -14,6 +14,7 @@ struct DnnlPrimitiveAttrs {
     dnnl::primitive_attr attr;
     dnnl_primitive_args dnnlArgs;
     MemoryArgs cpuArgs;
+    bool legacyZeroPoints;
 };
 
 }  // namespace intel_cpu
