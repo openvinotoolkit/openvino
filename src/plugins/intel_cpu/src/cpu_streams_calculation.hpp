@@ -35,8 +35,6 @@ namespace intel_cpu {
  * function.
  *               - input "0" indicates that the function generates the optimal number of threads per stream based on
  * processors type information.
- * @param[in]  input_current_socket_id is the socket ID in cpu mapping table of the currently running thread
- *               - input "-1" indicates that the function get_streams_info_table will query this id internally.
  * @param[in]  input_perf_hint is performance hint set by user via ov::hint::performance_mode or the default value.
  * @param[in]  hint_llm_distribution_policy is the distribution policy for Large language models
  * @param[in]  proc_type_table is currently available candidate processors.
@@ -50,7 +48,6 @@ std::vector<std::vector<int>> get_streams_info_table(
     const int input_threads,
     const int input_infer_requests,
     const int model_prefer_threads,
-    const int input_current_socket_id,
     const std::string input_perf_hint,
     const std::set<ov::hint::ModelDistributionPolicy> hint_llm_distribution_policy,
     const std::vector<std::vector<int>>& proc_type_table);
@@ -85,7 +82,7 @@ int get_model_prefer_threads(const int num_streams,
 /**
  * @brief      Generate streams information according to processors type table
  * @param[in]  streams number of streams
- * @param[in]  input_current_socket_id is the socket ID in cpu mapping table of the currently running thread
+ * @param[in]  input_numa_node_id is the numa node ID in cpu mapping table of the currently running thread
  *               - input "-1" indicates that the function get_streams_info_table will query this id internally.
  * @param[in]  model graph handle
  * @param[in]  config intel cpu configuration
@@ -95,7 +92,7 @@ int get_model_prefer_threads(const int num_streams,
  * ov::hint::enable_hyper_threading
  */
 std::vector<std::vector<int>> generate_stream_info(const int streams,
-                                                   const int input_current_socket_id,
+                                                   const int input_numa_node_id,
                                                    const std::shared_ptr<ov::Model>& model,
                                                    Config& config,
                                                    std::vector<std::vector<int>>& proc_type_table,

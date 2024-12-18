@@ -46,7 +46,6 @@ std::vector<std::vector<int>> get_streams_info_table(
     const int input_threads,
     const int input_infer_requests,
     const int model_prefer_threads,
-    const int input_current_socket_id,
     const std::string input_perf_hint,
     const std::set<ov::hint::ModelDistributionPolicy> hint_model_distribution_policy,
     const std::vector<std::vector<int>>& proc_type_table) {
@@ -189,11 +188,7 @@ std::vector<std::vector<int>> get_streams_info_table(
         std::unordered_set<int> socket_id_list(proc_type_table.size());
         for (size_t i = 1; i < proc_type_table.size(); i++) {
             if (!socket_id_list.count(proc_type_table[i][PROC_SOCKET_ID])) {
-                if (proc_type_table[i][PROC_SOCKET_ID] == input_current_socket_id) {
-                    proc_socket_table.insert(proc_socket_table.begin(), proc_type_table[i]);
-                } else {
-                    proc_socket_table.push_back(proc_type_table[i]);
-                }
+                proc_socket_table.push_back(proc_type_table[i]);
                 socket_id_list.insert(proc_type_table[i][PROC_SOCKET_ID]);
             } else {
                 for (auto& row : proc_socket_table) {
@@ -215,7 +210,7 @@ std::vector<std::vector<int>> get_streams_info_table(
         ((input_streams_changed == true) && (input_streams == 1))) {
         n_streams = 1;
         stream_info[NUMBER_OF_STREAMS] = n_streams;
-        current_socket_id = input_current_socket_id == -1 ? get_current_socket_id() : input_current_socket_id;
+        current_socket_id = proc_type_table.size() == 1 ? proc_type_table[0][PROC_SOCKET_ID] : proc_type_table[1][PROC_SOCKET_ID] ;
         if (input_threads > 0) {
             if (hint_model_distribution_policy.size() == 0) {
                 n_threads_per_stream = std::min(input_threads, proc_type_table[0][ALL_PROC]);
@@ -680,7 +675,7 @@ int get_model_prefer_threads(const int num_streams,
 }
 
 std::vector<std::vector<int>> generate_stream_info(const int streams,
-                                                   const int input_current_socket_id,
+                                                   const int input_numa_node_id,
                                                    const std::shared_ptr<ov::Model>& model,
                                                    Config& config,
                                                    std::vector<std::vector<int>>& proc_type_table,
@@ -697,7 +692,7 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
     }
 
     if (proc_type_table.size() > 1) {
-        const auto cur_numa_node_id = get_current_numa_node_id();
+        const auto cur_numa_node_id = input_numa_node_id < 0 ? get_current_numa_node_id() : input_numa_node_id;
         sort_table_by_numa_node_id(cur_numa_node_id, proc_type_table);
     }
 
@@ -706,7 +701,6 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                      config.threads,
                                                      config.hintNumRequests,
                                                      model_prefer_threads,
-                                                     input_current_socket_id,
                                                      ov::util::to_string(config.hintPerfMode),
                                                      config.modelDistributionPolicy,
                                                      proc_type_table);
