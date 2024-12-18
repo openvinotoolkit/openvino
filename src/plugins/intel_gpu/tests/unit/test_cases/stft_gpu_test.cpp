@@ -62,7 +62,7 @@ void CompareBuffers(const memory::ptr& output, const memory::ptr& expectedOutput
         break;
 
     default:
-        ASSERT_TRUE(false) << "Unsupported data type: " << type;
+        GTEST_FAIL() << "Unsupported data type: " << type;
         break;
     }
 }
