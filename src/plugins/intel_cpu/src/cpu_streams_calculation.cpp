@@ -27,6 +27,19 @@ using namespace ov::threading;
 namespace ov {
 namespace intel_cpu {
 
+void sort_table_by_numa_node_id(const int current_numa_node, std::vector<std::vector<int>>& proc_type_table) {
+    if (proc_type_table.size() > 1) {
+        for (size_t i = 1; i < proc_type_table.size(); i++) {
+            if (current_numa_node == proc_type_table[i][PROC_NUMA_NODE_ID]) {
+                std::rotate(proc_type_table.begin() + 1, proc_type_table.begin() + i, proc_type_table.end());
+                break;
+            }
+        }
+    }
+
+    return;
+};
+
 std::vector<std::vector<int>> get_streams_info_table(
     const int input_streams,
     const bool input_streams_changed,
@@ -681,6 +694,11 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                             proc_type_table);
     if (-1 == preferred_nthreads_per_stream) {
         model_prefer_threads = get_model_prefer_threads(streams, proc_type_table, model, config);
+    }
+
+    if (proc_type_table.size() > 1) {
+        const auto cur_numa_node_id = get_current_numa_node_id();
+        sort_table_by_numa_node_id(cur_numa_node_id, proc_type_table);
     }
 
     auto streams_info_table = get_streams_info_table(config.streams,

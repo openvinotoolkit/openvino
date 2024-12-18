@@ -261,6 +261,10 @@ int get_current_socket_id() {
     return 0;
 }
 
+int get_current_numa_node_id() {
+    return 0;
+}
+
 std::vector<std::vector<int>> get_proc_type_table() {
     return {{-1}};
 }
@@ -319,6 +323,10 @@ bool is_cpu_map_available() {
 }
 
 int get_current_socket_id() {
+    return 0;
+}
+
+int get_current_numa_node_id() {
     return 0;
 }
 
@@ -411,8 +419,43 @@ int get_current_socket_id() {
 
     return 0;
 }
+
+int get_current_numa_node_id() {
+    CPU& cpu = cpu_info();
+    int cur_processor_id = sched_getcpu();
+
+    for (auto& row : cpu._cpu_mapping_table) {
+        if (cur_processor_id == row[CPU_MAP_PROCESSOR_ID]) {
+            return row[CPU_MAP_NUMA_NODE_ID];
+        }
+    }
+
+    return 0;
+}
 #    else
 int get_current_socket_id() {
+    CPU& cpu = cpu_info();
+    int cur_processor_id = GetCurrentProcessorNumber();
+
+    for (auto& row : cpu._cpu_mapping_table) {
+        if (cur_processor_id == row[CPU_MAP_PROCESSOR_ID]) {
+            return row[CPU_MAP_SOCKET_ID];
+        }
+    }
+
+    return 0;
+}
+
+int get_current_numa_node_id() {
+    CPU& cpu = cpu_info();
+    int cur_processor_id = GetCurrentProcessorNumber();;
+
+    for (auto& row : cpu._cpu_mapping_table) {
+        if (cur_processor_id == row[CPU_MAP_PROCESSOR_ID]) {
+            return row[CPU_MAP_NUMA_NODE_ID];
+        }
+    }
+
     return 0;
 }
 #    endif

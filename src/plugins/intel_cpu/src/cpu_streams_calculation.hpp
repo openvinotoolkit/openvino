@@ -109,5 +109,13 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
  */
 void get_num_streams(const int streams, const std::shared_ptr<ov::Model>& model, Config& config);
 
+/**
+ * @brief      Sort proc_type_table by numa node id on which application is running. The numa node will move to first
+ * row.
+ * @param[in]  current_numa_node numa node ID on which application is running.
+ * @param[in]  proc_type_table summary table of number of processors per type
+ */
+void sort_table_by_numa_node_id(const int current_numa_node, std::vector<std::vector<int>>& proc_type_table);
+
 }  // namespace intel_cpu
 }  // namespace ov
