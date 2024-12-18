@@ -1,0 +1,577 @@
+diff --git a/src/frontends/paddle/src/default_opset.hpp b/src/frontends/paddle/src/default_opset.hpp
+index c3eed5b565..a5dc374964 100644
+--- a/src/frontends/paddle/src/default_opset.hpp
++++ b/src/frontends/paddle/src/default_opset.hpp
+@@ -2,13 +2,13 @@
+ // SPDX-License-Identifier: Apache-2.0
+ //
+
+-#include "openvino/opsets/opset9.hpp"
++#include "openvino/opsets/opset14.hpp"
+
+ namespace ov {
+ namespace frontend {
+ namespace paddle {
+ namespace op {
+-namespace default_opset = ov::opset9;
++namespace default_opset = ov::opset14;
+
+ }  // namespace op
+ }  // namespace paddle
+diff --git a/src/frontends/paddle/src/op/abs.cpp b/src/frontends/paddle/src/op/abs.cpp
+new file mode 100644
+index 0000000000..a2f2b35816
+--- /dev/null
++++ b/src/frontends/paddle/src/op/abs.cpp
+@@ -0,0 +1,20 @@
++// Copyright (C) 2018-2024 Intel Corporation
++// SPDX-License-Identifier: Apache-2.0
++//
++
++#include "openvino/frontend/paddle/node_context.hpp"
++#include "openvino/opsets/opset6.hpp"
++
++namespace ov {
++namespace frontend {
++namespace paddle {
++namespace op {
++NamedOutputs abs(const NodeContext& node) {
++    auto data = node.get_input("X");
++    return node.default_single_output_mapping({std::make_shared<ov::opset6::Abs>(data)}, {"Out"});
++}
++
++}  // namespace op
++}  // namespace paddle
++}  // namespace frontend
++}  // namespace ov
+diff --git a/src/frontends/paddle/src/op/atan2.cpp b/src/frontends/paddle/src/op/atan2.cpp
+new file mode 100644
+index 0000000000..7a9c9782e1
+--- /dev/null
++++ b/src/frontends/paddle/src/op/atan2.cpp
+@@ -0,0 +1,88 @@
++// Copyright (C) 2018-2024 Intel Corporation
++// SPDX-License-Identifier: Apache-2.0
++//
++#include "openvino/frontend/paddle/node_context.hpp"
++#include "openvino/op/add.hpp"
++#include "openvino/op/atan.hpp"
++#include "openvino/op/constant.hpp"
++#include "openvino/op/convert_like.hpp"
++#include "openvino/op/divide.hpp"
++#include "openvino/op/equal.hpp"
++#include "openvino/op/greater.hpp"
++#include "openvino/op/greater_eq.hpp"
++#include "openvino/op/less.hpp"
++#include "openvino/op/logical_and.hpp"
++#include "openvino/op/multiply.hpp"
++#include "openvino/op/select.hpp"
++#include "openvino/op/subtract.hpp"
++#include "openvino/opsets/opset6.hpp"
++using namespace std;
++using namespace ov::op;
++
++namespace ov {
++namespace frontend {
++namespace paddle {
++
++template <typename T>
++ov::Output<ov::Node> create_same_type_const_scalar(const ov::Output<ov::Node>& same_type_output, const T& value) {
++    if (same_type_output.get_element_type().is_static()) {
++        return std::make_shared<ov::op::v0::Constant>(same_type_output.get_element_type(), ov::Shape{}, value);
++    } else {
++        ov::Output<ov::Node> const_res =
++            std::make_shared<ov::op::v0::Constant>(ov::element::from<T>(), ov::Shape{}, value);
++        const_res = std::make_shared<ov::op::v1::ConvertLike>(const_res, same_type_output);
++        return const_res;
++    }
++}
++
++namespace op {
++NamedOutputs atan2(const NodeContext& node) {
++    //    default_op_checks(node, 2, {"Atan2"});
++    auto y = node.get_input("X1");
++    auto x = node.get_input("X2");
++
++    // handle the first condition : x>0
++    auto div_y_x = make_shared<v1::Divide>(y, x);
++    auto atan = make_shared<v0::Atan>(div_y_x);
++    auto const_zero = create_same_type_const_scalar<int32_t>(x, 0);
++    auto result = atan->output(0);
++
++    // handle the second condition : x<0 && y>=0
++    auto const_pi = create_same_type_const_scalar<double>(x, std::atan(1.0) * 4);
++    auto is_x_negative = make_shared<v1::Less>(x, const_zero);
++    auto y_non_negative = make_shared<v1::GreaterEqual>(y, const_zero);
++    auto cond1 = make_shared<v1::LogicalAnd>(is_x_negative, y_non_negative);
++    auto atan_y_x_plus_pi = make_shared<v1::Add>(atan, const_pi);
++    result = make_shared<v1::Select>(cond1, atan_y_x_plus_pi, result);
++
++    // handle the third condition : x<0 && y<0
++    auto is_y_negative = make_shared<v1::Less>(y, const_zero);
++    auto cond2 = make_shared<v1::LogicalAnd>(is_x_negative, is_y_negative);
++    auto atan_y_x_minus_pi = make_shared<v1::Subtract>(atan, const_pi);
++    result = make_shared<v1::Select>(cond2, atan_y_x_minus_pi, result);
++
++    // handle the fourth condition : x=0 && y>0
++    auto is_x_zero = make_shared<v1::Equal>(x, const_zero);
++    auto is_y_positive = make_shared<v1::Greater>(y, const_zero);
++    auto cond3 = make_shared<v1::LogicalAnd>(is_x_zero, is_y_positive);
++    auto const_two = create_same_type_const_scalar<int32_t>(x, 2);
++    auto pi_div_two = make_shared<v1::Divide>(const_pi, const_two);
++    result = make_shared<v1::Select>(cond3, pi_div_two, result);
++
++    // handle the fifth condition : x=0 && y<0
++    auto cond4 = make_shared<v1::LogicalAnd>(is_x_zero, is_y_negative);
++    auto const_minus_two = create_same_type_const_scalar<int32_t>(x, -2);
++    auto pi_div_minus_two = make_shared<v1::Divide>(const_pi, const_minus_two);
++    result = make_shared<v1::Select>(cond4, pi_div_two, result);
++    // return node.default_single_output_mapping({result}, {"Out"});
++    NamedOutputs named_outputs;
++    named_outputs["Out"] = {result};
++    return named_outputs;
++    // set_node_name(node.get_name(), result.get_node_shared_ptr());
++    // return {result};
++}
++
++}  // namespace op
++}  // namespace paddle
++}  // namespace frontend
++}  // namespace ov
+diff --git a/src/frontends/paddle/src/op/elu.cpp b/src/frontends/paddle/src/op/elu.cpp
+new file mode 100644
+index 0000000000..c51a2af6f9
+--- /dev/null
++++ b/src/frontends/paddle/src/op/elu.cpp
+@@ -0,0 +1,23 @@
++// Copyright (C) 2018-2024 Intel Corporation
++// SPDX-License-Identifier: Apache-2.0
++//
++
++#include "default_opset.hpp"
++#include "openvino/frontend/paddle/node_context.hpp"
++#include "openvino/frontend/paddle/visibility.hpp"
++
++namespace ov {
++namespace frontend {
++namespace paddle {
++namespace op {
++NamedOutputs elu(const NodeContext& node) {
++    auto data = node.get_input("X");
++    auto alpha = node.get_attribute<float>("alpha", 1.0);
++    const auto& elu_node = std::make_shared<default_opset::Elu>(data, alpha);
++    return node.default_single_output_mapping({elu_node}, {"Out"});
++}
++
++}  // namespace op
++}  // namespace paddle
++}  // namespace frontend
++}  // namespace ov
+diff --git a/src/frontends/paddle/src/op/expand_as_v2.cpp b/src/frontends/paddle/src/op/expand_as_v2.cpp
+new file mode 100644
+index 0000000000..19cf05758b
+--- /dev/null
++++ b/src/frontends/paddle/src/op/expand_as_v2.cpp
+@@ -0,0 +1,49 @@
++// Copyright (C) 2018-2024 Intel Corporation
++// SPDX-License-Identifier: Apache-2.0
++//
++
++#include "default_opset.hpp"
++#include "openvino/frontend/paddle/node_context.hpp"
++
++namespace ov {
++namespace frontend {
++namespace paddle {
++namespace op {
++NamedOutputs expand_as_v2(const NodeContext& node) {
++    using namespace default_opset;
++    auto x = node.get_input("X");
++    Output<Node> shape_expected_node;
++    if (node.has_input("Y")) {
++        shape_expected_node = std::make_shared<ShapeOf>(node.get_input("Y"), element::i32);
++    } else {
++        std::vector<int32_t> shape_expected;
++        if (node.has_attribute("target_shape")) {
++            shape_expected = node.get_attribute<std::vector<int32_t>>("target_shape");
++        } else {
++            throw std::runtime_error("expand: has no target_shape attribute");
++        }
++        shape_expected_node = Constant::create(element::i32, {shape_expected.size()}, shape_expected);
++    }
++    // expected shape rank
++    const auto shape_expected_node_rank = std::make_shared<ShapeOf>(shape_expected_node, element::i32);
++    // input shape rank
++    const auto input_shape_node_shape = std::make_shared<ShapeOf>(x, element::i32);
++    const auto input_shape_node_rank = std::make_shared<ShapeOf>(input_shape_node_shape, element::i32);
++    // rank difference
++    const auto rank_diff = std::make_shared<Subtract>(shape_expected_node_rank, input_shape_node_rank);
++    // axis index needed to add
++    const auto rank_idx = std::make_shared<Broadcast>(Constant::create(element::i32, {1}, {1}), rank_diff);
++    // add axis
++    const auto fixed_input_shape_node = std::make_shared<Concat>(NodeVector{rank_idx, input_shape_node_shape}, 0);
++
++    // if -1 in shape we will copy the orginal value from input
++    auto zero_node = Constant::create(ov::element::i32, {1}, {0});
++    auto mask_node = std::make_shared<Greater>(shape_expected_node, zero_node);
++    auto fixed_shape_node = std::make_shared<Select>(mask_node, shape_expected_node, fixed_input_shape_node);
++    return node.default_single_output_mapping({std::make_shared<Broadcast>(x, fixed_shape_node)}, {"Out"});
++}
++
++}  // namespace op
++}  // namespace paddle
++}  // namespace frontend
++}  // namespace ov
+diff --git a/src/frontends/paddle/src/op/expand_v2.cpp b/src/frontends/paddle/src/op/expand_v2.cpp
+index d79e49db28..ea174efa3a 100644
+--- a/src/frontends/paddle/src/op/expand_v2.cpp
++++ b/src/frontends/paddle/src/op/expand_v2.cpp
+@@ -19,8 +19,16 @@ NamedOutputs expand_v2(const NodeContext& node) {
+         auto inputs = node.get_ng_inputs("expand_shapes_tensor");
+         ov::NodeVector node_vec;
+         for (auto& input : inputs) {
++            if (input.get_partial_shape().rank().get_length() == 0) {
++                // should unsqueeze the input with non-shape.
++                auto unsqueeze_scalar = default_opset::Constant::create(ov::element::i32, {}, {0});
++                input = std::make_shared<default_opset::Unsqueeze>(input, unsqueeze_scalar);
++            }
++            PADDLE_OP_CHECK(node,
++                            input.get_partial_shape().rank().get_length() == 1,
++                            "the rank of conv input must == 1");
+             auto cast = std::make_shared<Convert>(input, element::i32);
+-            node_vec.push_back(cast);
++            node_vec.emplace_back(cast);
+         }
+         shape_expected_node = std::make_shared<Concat>(node_vec, 0);
+     } else {
+diff --git a/src/frontends/paddle/src/op/eye.cpp b/src/frontends/paddle/src/op/eye.cpp
+new file mode 100644
+index 0000000000..3734d6fab4
+--- /dev/null
++++ b/src/frontends/paddle/src/op/eye.cpp
+@@ -0,0 +1,36 @@
++// Copyright (C) 2018-2024 Intel Corporation
++// SPDX-License-Identifier: Apache-2.0
++//
++
++#include "default_opset.hpp"
++#include "openvino/frontend/paddle/node_context.hpp"
++
++namespace ov {
++namespace frontend {
++namespace paddle {
++namespace op {
++NamedOutputs eye(const NodeContext& node) {
++    auto row = node.get_attribute<int64_t>("num_rows");
++    auto col = node.get_attribute<int64_t>("num_columns", row);
++    auto dtype = node.get_attribute<ov::element::Type>("dtype", ov::element::f32);
++
++    const auto& row_node = std::make_shared<default_opset::Constant>(ov::element::i64, Shape{}, (row));
++    const auto& col_node = std::make_shared<default_opset::Constant>(ov::element::i64, Shape{}, (col));
++    const auto& diagonal_index_node = std::make_shared<default_opset::Constant>(ov::element::i32, Shape{}, (0));
++
++    std::shared_ptr<Node> out_node;
++    if (dtype == ov::element::i32 || dtype == ov::element::i64) {
++        out_node = std::make_shared<default_opset::Eye>(row_node, col_node, diagonal_index_node, dtype);
++    } else {
++        const auto& eye_node =
++            std::make_shared<default_opset::Eye>(row_node, col_node, diagonal_index_node, ov::element::i32);
++        out_node = std::make_shared<default_opset::Convert>(eye_node, dtype);
++    }
++
++    return node.default_single_output_mapping({out_node}, {"Out"});
++}
++
++}  // namespace op
++}  // namespace paddle
++}  // namespace frontend
++}  // namespace ov
+diff --git a/src/frontends/paddle/src/op/fill_constant.cpp b/src/frontends/paddle/src/op/fill_constant.cpp
+index b066fdfbe7..4a674b61d1 100644
+--- a/src/frontends/paddle/src/op/fill_constant.cpp
++++ b/src/frontends/paddle/src/op/fill_constant.cpp
+@@ -29,6 +29,10 @@ NamedOutputs fill_constant(const NodeContext& node) {
+         PADDLE_OP_CHECK(node, false, "fill_constant only supports i32, f32, i64");
+     }
+
++    if (shape.empty()) {
++        shape.emplace_back(1);
++    }
++
+     PADDLE_OP_CHECK(node,
+                     shape.size() > 0 || node.has_input("ShapeTensor") || node.has_input("ShapeTensorList"),
+                     "fill_constant shape not set");
+diff --git a/src/frontends/paddle/src/op/interp.cpp b/src/frontends/paddle/src/op/interp.cpp
+index e7b317f288..5ab551dc3b 100644
+--- a/src/frontends/paddle/src/op/interp.cpp
++++ b/src/frontends/paddle/src/op/interp.cpp
+@@ -4,6 +4,7 @@
+
+ #include "default_opset.hpp"
+ #include "openvino/frontend/paddle/node_context.hpp"
++#include "openvino/opsets/opset4.hpp"
+
+ namespace ov {
+ namespace frontend {
+@@ -147,8 +148,9 @@ static NamedOutputs interpolate(const NodeContext& node,
+     attrs.pads_begin = {0, 0, 0, 0};
+     attrs.pads_end = {0, 0, 0, 0};
+
+-    return node.default_single_output_mapping({std::make_shared<Interpolate>(x, target_spatial_shape, scales, attrs)},
+-                                              {"Out"});
++    return node.default_single_output_mapping(
++        {std::make_shared<ov::opset4::Interpolate>(x, target_spatial_shape, scales, attrs)},
++        {"Out"});
+ }
+
+ NamedOutputs linear_interp_v2(const NodeContext& node) {
+diff --git a/src/frontends/paddle/src/op/less_equal.cpp b/src/frontends/paddle/src/op/less_equal.cpp
+new file mode 100644
+index 0000000000..89c626c820
+--- /dev/null
++++ b/src/frontends/paddle/src/op/less_equal.cpp
+@@ -0,0 +1,17 @@
++// Copyright (C) 2018-2024 Intel Corporation
++// SPDX-License-Identifier: Apache-2.0
++//
++
++#include "elementwise_ops.hpp"
++
++namespace ov {
++namespace frontend {
++namespace paddle {
++namespace op {
++NamedOutputs less_equal(const NodeContext& node) {
++    return elementwise_ops<default_opset::LessEqual>(node);
++}
++}  // namespace op
++}  // namespace paddle
++}  // namespace frontend
++}  // namespace ov
+diff --git a/src/frontends/paddle/src/op/reduce_ops.hpp b/src/frontends/paddle/src/op/reduce_ops.hpp
+index 2b59516042..954d1de425 100644
+--- a/src/frontends/paddle/src/op/reduce_ops.hpp
++++ b/src/frontends/paddle/src/op/reduce_ops.hpp
+@@ -31,6 +31,10 @@ NamedOutputs reduce_ops(const NodeContext& node) {
+         dims = node.get_attribute<std::vector<int64_t>>("dim");
+     }
+
++    std::transform(dims.begin(), dims.end(), dims.begin(), [&input_rank](int64_t value) {
++        return value >= 0 ? value : value + input_rank;
++    });
++
+     int64_t axis_size = static_cast<int64_t>(dims.size());
+     reduce_all = reduce_all || (axis_size == input_rank || axis_size == 0);
+
+diff --git a/src/frontends/paddle/src/op/scatter.cpp b/src/frontends/paddle/src/op/scatter.cpp
+new file mode 100644
+index 0000000000..b689623c9e
+--- /dev/null
++++ b/src/frontends/paddle/src/op/scatter.cpp
+@@ -0,0 +1,47 @@
++// Copyright (C) 2018-2024 Intel Corporation
++// SPDX-License-Identifier: Apache-2.0
++//
++#include "default_opset.hpp"
++#include "openvino/frontend/paddle/node_context.hpp"
++#include "openvino/opsets/opset15.hpp"
++#include "openvino/opsets/opset4.hpp"
++
++namespace ov {
++namespace frontend {
++namespace paddle {
++namespace op {
++NamedOutputs scatter(const NodeContext& node) {
++    auto x = node.get_input("X");
++    auto ids = node.get_input("Ids");
++    auto updates = node.get_input("Updates");
++    bool overwrite = node.get_attribute<bool>("overwrite");
++    ov::NodeVector node_vec;
++    if (ids.get_shape().size() == 0) {
++        ids = std::make_shared<default_opset::Unsqueeze>(ids,
++                                                         default_opset::Constant::create(ov::element::i64, {1}, {0}));
++    }
++
++    node_vec.push_back(default_opset::Constant::create(ov::element::i64, {1}, {ids.get_shape()[0]}));
++    node_vec.push_back(default_opset::Constant::create(ov::element::i64, {1}, {1}));
++    auto shape_node = std::make_shared<default_opset::Concat>(node_vec, 0);
++    auto new_ids = std::make_shared<default_opset::Reshape>(ids, shape_node, true);
++    if (overwrite) {
++        return node.default_single_output_mapping({std::make_shared<ov::opset15::ScatterNDUpdate>(x, new_ids, updates)},
++                                                  {"Out"});
++    } else {
++        auto x_dtype = x.get_element_type();
++        const auto value_node = default_opset::Constant::create(x_dtype, {1}, {0});
++        const auto shape_node = std::make_shared<default_opset::ShapeOf>(x);
++        const auto zero_node = std::make_shared<default_opset::Broadcast>(value_node, shape_node);
++        return node.default_single_output_mapping(
++            {std::make_shared<ov::opset15::ScatterNDUpdate>(zero_node,
++                                                            new_ids,
++                                                            updates,
++                                                            ov::opset15::ScatterNDUpdate::Reduction::SUM)},
++            {"Out"});
++    }
++}
++}  // namespace op
++}  // namespace paddle
++}  // namespace frontend
++}  // namespace ov
+\ No newline at end of file
+diff --git a/src/frontends/paddle/src/op/scatter_nd_add.cpp b/src/frontends/paddle/src/op/scatter_nd_add.cpp
+new file mode 100644
+index 0000000000..7ef842e5a9
+--- /dev/null
++++ b/src/frontends/paddle/src/op/scatter_nd_add.cpp
+@@ -0,0 +1,27 @@
++// Copyright (C) 2018-2024 Intel Corporation
++// SPDX-License-Identifier: Apache-2.0
++//
++
++#include "openvino/frontend/paddle/node_context.hpp"
++#include "openvino/opsets/opset15.hpp"
++
++namespace ov {
++namespace frontend {
++namespace paddle {
++namespace op {
++NamedOutputs scatter_nd_add(const NodeContext& node) {
++    auto x = node.get_input("X");
++    auto index = node.get_input("Index");
++    auto updates = node.get_input("Updates");
++    return node.default_single_output_mapping(
++        {std::make_shared<ov::opset15::ScatterNDUpdate>(x,
++                                                        index,
++                                                        updates,
++                                                        ov::opset15::ScatterNDUpdate::Reduction::SUM)},
++        {"Out"});
++}
++
++}  // namespace op
++}  // namespace paddle
++}  // namespace frontend
++}  // namespace ov
+diff --git a/src/frontends/paddle/src/op/take_along_axis.cpp b/src/frontends/paddle/src/op/take_along_axis.cpp
+new file mode 100644
+index 0000000000..64bc75c66a
+--- /dev/null
++++ b/src/frontends/paddle/src/op/take_along_axis.cpp
+@@ -0,0 +1,23 @@
++// Copyright (C) 2018-2024 Intel Corporation
++// SPDX-License-Identifier: Apache-2.0
++//
++
++#include "default_opset.hpp"
++#include "openvino/frontend/paddle/node_context.hpp"
++#include "openvino/opsets/opset6.hpp"
++namespace ov {
++namespace frontend {
++namespace paddle {
++namespace op {
++NamedOutputs take_along_axis(const NodeContext& node) {
++    auto input = node.get_input("Input");
++    auto index = node.get_input("Index");
++    auto axis = node.get_attribute<int32_t>("Axis");
++    return node.default_single_output_mapping({std::make_shared<default_opset::GatherElements>(input, index, axis)},
++                                              {"Out"});
++}
++
++}  // namespace op
++}  // namespace paddle
++}  // namespace frontend
++}  // namespace ov
+diff --git a/src/frontends/paddle/src/op_table.cpp b/src/frontends/paddle/src/op_table.cpp
+index 769492eb13..d7de21a481 100644
+--- a/src/frontends/paddle/src/op_table.cpp
++++ b/src/frontends/paddle/src/op_table.cpp
+@@ -39,9 +39,12 @@ OP_CONVERTER(elementwise_sub);
+ OP_CONVERTER(equal);
+ OP_CONVERTER(greater_equal);
+ OP_CONVERTER(not_equal);
++OP_CONVERTER(elu);
+ OP_CONVERTER(embedding);
+ OP_CONVERTER(exp);
+ OP_CONVERTER(expand_v2);
++OP_CONVERTER(expand_as_v2);
++OP_CONVERTER(eye);
+ OP_CONVERTER(flip);
+ OP_CONVERTER(flatten_contiguous_range);
+ OP_CONVERTER(floor);
+@@ -60,6 +63,7 @@ OP_CONVERTER(index_select);
+ OP_CONVERTER(layer_norm);
+ OP_CONVERTER(leaky_relu);
+ OP_CONVERTER(less_than);
++OP_CONVERTER(less_equal);
+ OP_CONVERTER(linear_interp_v2);
+ OP_CONVERTER(linspace);
+ OP_CONVERTER(lod_array_length);
+@@ -138,6 +142,12 @@ OP_CONVERTER(write_to_array);
+ OP_CONVERTER(where_index);
+ OP_CONVERTER(yolo_box);
+ OP_CONVERTER(generate_proposals_v2);
++OP_CONVERTER(abs);
++OP_CONVERTER(elu);
++OP_CONVERTER(atan2);
++OP_CONVERTER(scatter);
++OP_CONVERTER(scatter_nd_add);
++OP_CONVERTER(take_along_axis);
+ }  // namespace op
+ std::map<std::string, CreatorFunction> get_supported_ops() {
+     return {{"arg_max", op::argmax},
+@@ -173,9 +183,12 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
+             {"elementwise_sub", op::elementwise_sub},
+             {"dropout", op::dropout},
+             {"elementwise_pow", op::elementwise_pow},
++            {"elu", op::elu},
+             {"equal", op::equal},
+             {"exp", op::exp},
+             {"expand_v2", op::expand_v2},
++            {"expand_as_v2", op::expand_as_v2},
++            {"eye", op::eye},
+             {"fill_any_like", op::fill_any_like},
+             {"fill_constant", op::fill_constant},
+             {"fill_constant_batch_size_like", op::fill_constant_batch_size_like},
+@@ -196,6 +209,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
+             {"layer_norm", op::layer_norm},
+             {"leaky_relu", op::leaky_relu},
+             {"less_than", op::less_than},
++            {"less_equal", op::less_equal},
+             {"linear_interp_v2", op::linear_interp_v2},
+             {"linspace", op::linspace},
+             {"lod_array_length", op::lod_array_length},
+@@ -277,7 +291,13 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
+             {"while", op::while_},
+             {"write_to_array", op::write_to_array},
+             {"where_index", op::where_index},
+-            {"yolo_box", op::yolo_box}};
++            {"yolo_box", op::yolo_box},
++            {"abs", op::abs},
++            {"elu", op::elu},
++            {"atan2", op::atan2},
++            {"scatter", op::scatter},
++            {"scatter_nd_add", op::scatter_nd_add},
++            {"take_along_axis", op::take_along_axis}};
+ };
+
+ }  // namespace paddle
+diff --git a/src/frontends/paddle/tests/op_fuzzy.cpp b/src/frontends/paddle/tests/op_fuzzy.cpp
+index 99357a3a33..53ea785260 100644
+--- a/src/frontends/paddle/tests/op_fuzzy.cpp
++++ b/src/frontends/paddle/tests/op_fuzzy.cpp
+@@ -188,6 +188,7 @@ static const std::vector<std::string> models{
+     std::string("elementwise_floordiv_int64_2/elementwise_floordiv_int64_2.pdmodel"),
+     std::string("elementwise_floordiv_int64_3/elementwise_floordiv_int64_3.pdmodel"),
+     std::string("elementwise_mul_bool1/elementwise_mul_bool1.pdmodel"),
++    std::string("elu/elu.pdmodel"),
+     std::string("embedding_0/embedding_0.pdmodel"),
+     std::string("embedding_sparse/embedding_sparse.pdmodel"),
+     std::string("embedding_none_weight/embedding_none_weight.pdmodel"),
+@@ -201,6 +202,9 @@ static const std::vector<std::string> models{
+     std::string("expand_v2_tensor_list/expand_v2_tensor_list.pdmodel"),
+     std::string("expand_v2_tensor_list2/expand_v2_tensor_list2.pdmodel"),
+     std::string("exp_test_float32/exp_test_float32.pdmodel"),
++    std::string("eye/eye.pdmodel"),
++    std::string("eye_int32/eye_int32.pdmodel"),
++    std::string("eye_int64/eye_int64.pdmodel"),
+     std::string("flip_1/flip_1.pdmodel"),
+     std::string("flip_2/flip_2.pdmodel"),
+     std::string("flip_3/flip_3.pdmodel"),
