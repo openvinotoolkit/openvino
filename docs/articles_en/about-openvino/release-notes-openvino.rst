@@ -26,9 +26,9 @@ OpenVINO Release Notes
 What's new
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-* OpenVINO 2024.6 LTS release includes updates for enhanced stability and improved LLM performance.
-* Introduced support for Intel® Arc™ B-Series Graphics (formerly known as Battlemage)
-* Memory optimizations implemented to improve the inference time memory and LLM performance on NPUs.
+* OpenVINO 2024.6 release includes updates for enhanced stability and improved LLM performance.
+* Introduced support for Intel® Arc™ B-Series Graphics (formerly known as Battlemage).
+* Implemented optimizations to improve the inference time and LLM performance on NPUs.
 * Improved LLM performance with GenAI API optimizations and bug fixes.
 
 
@@ -39,8 +39,9 @@ OpenVINO™ Runtime
 CPU Device Plugin
 -----------------------------------------------------------------------------------------------
 
-* KV cache now uses asymmetric U8 as the default precision, reducing memory stress for LLMs and
-  increasing their performance. This option can be controlled by model meta data.
+* KV cache now uses asymmetric 8-bit unsigned integer (U8) as the default precision, reducing
+  memory stress for LLMs and increasing their performance. This option can be controlled by
+  model meta data.
 * Quality and accuracy has been improved for selected models with several bug fixes.
 
 GPU Device Plugin
