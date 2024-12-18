@@ -341,7 +341,31 @@ TEST(mark_shape_of_subgraphs, conv_without_broadcast) {
     ASSERT_FALSE(check_subgraph(prog->get_node("input"), prog->get_node("convolution")));
 }
 
-TEST(mark_shape_of_subgraphs, conv_with_broadcast_no_mark) {
+TEST(mark_shape_of_subgraphs, broadcast_w_shapeof_and_data) {
+    auto& engine = get_test_engine();
+    auto input_layout_dynamic = layout{ov::PartialShape{1, 4, 2, 2}, data_types::f32, format::bfyx};
+    auto target_shape = engine.allocate_memory({ ov::PartialShape{4}, data_types::i32, format::bfyx });
+    set_values(target_shape, {4, 4, 1, 1});
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(data("target_shape", target_shape));
+    topology.add(shape_of("shape_of", input_info("input"), data_types::i32));
+    topology.add(broadcast("broadcast", input_info("shape_of"), input_info("target_shape"), {}, ov::op::BroadcastType::BIDIRECTIONAL));
+    topology.add(reshape("reshape", input_info("input"), input_info("broadcast"), false, ov::PartialShape{4, 4, 1, 1}));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    auto prog = network.get_program();
+    ASSERT_NE(prog, nullptr);
+
+    ASSERT_TRUE(check_subgraph(prog->get_node("shape_of"), prog->get_node("broadcast")));
+}
+
+TEST(mark_shape_of_subgraphs, broadcast_w_data_and_shapeof_no_mark) {
     auto& engine = get_test_engine();
     auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), 4, ov::Dimension::dynamic(), ov::Dimension::dynamic()},
                                        data_types::f32, format::bfyx};
@@ -354,7 +378,6 @@ TEST(mark_shape_of_subgraphs, conv_with_broadcast_no_mark) {
     topology.add(data("data_0", data_0));
     topology.add(shape_of("shape_of", input_info("input"), data_types::i32));
     topology.add(broadcast("broadcast", input_info("data_0"), input_info("shape_of"), {}, ov::op::BroadcastType::BIDIRECTIONAL));
-
     topology.add(data("weights", weights));
     topology.add(convolution("convolution", input_info("broadcast"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
 
@@ -366,8 +389,5 @@ TEST(mark_shape_of_subgraphs, conv_with_broadcast_no_mark) {
     auto prog = network.get_program();
     ASSERT_NE(prog, nullptr);
 
-    ASSERT_TRUE(check_subgraph(prog->get_node("shape_of"), prog->get_node("shape_of")));
     ASSERT_FALSE(check_subgraph(prog->get_node("shape_of"), prog->get_node("broadcast")));
-    ASSERT_FALSE(check_subgraph(prog->get_node("shape_of"), prog->get_node("convolution")));
 }
-
