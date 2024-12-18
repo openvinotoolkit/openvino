@@ -277,4 +277,4 @@ Additional Resources
 * Converting models for use with OpenVINO™: :doc:`Convert a Model <../../../openvino-workflow/model-preparation>`
 * Writing your own OpenVINO™ applications: :doc:`OpenVINO™ Runtime User Guide <../../../openvino-workflow/running-inference>`
 * Sample applications: :doc:`OpenVINO™ Toolkit Samples Overview <../../../learn-openvino/openvino-samples>`
-* Pre-trained deep learning models: :doc:`Overview of OpenVINO™ Toolkit Pre-Trained Models <../../../documentation/legacy-features/model-zoo>`
+* Pre-trained deep learning models on `Hugging Face <https://huggingface.co/OpenVINO>`__.
