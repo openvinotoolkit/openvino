@@ -1031,7 +1031,7 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
         // Consider add dedicated RT info with information about Result's output names.
         if (auto result = ov::as_type<ov::op::v0::Result>(ovNode.get())) {
             if (!ov::op::util::is_parameter(result->get_input_source_output(0).get_node())) {
-                // Copy names if parent node is not parameter, model's input names should be not dedicated
+                // Copy names if parent node is not parameter, model's input names should not be dedicated
                 // output names as they could be removed from Parameter's tensor during model transformations.
                 ov::descriptor::copy_tensor_names(result->get_output_tensor(0), result->get_input_tensor(0));
             }
