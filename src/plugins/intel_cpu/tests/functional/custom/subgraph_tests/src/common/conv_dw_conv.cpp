@@ -16,7 +16,8 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
         const auto precision = ov::element::f32;
-        ov::test::InputShape input_shape{{}, {{1, 32, 112, 112}}};
+        // the shape should be big enough
+        ov::test::InputShape input_shape{{}, {{1, 32, 1120, 1120}}};
         init_input_shapes({input_shape});
 
 

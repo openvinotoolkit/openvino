@@ -34,6 +34,7 @@
 #include "ctc_greedy_decoder_seq_len_shape_inference.hpp"
 #include "ctc_greedy_decoder_shape_inference.hpp"
 #include "ctc_loss_shape_inference.hpp"
+#include "custom/convolution.hpp"
 #include "deformable_convolution_shape_inference.hpp"
 #include "deformable_psroi_pooling_shape_inference.hpp"
 #include "depth_to_space_shape_inference.hpp"
@@ -76,6 +77,9 @@
 #include "nms_shape_inference.hpp"
 #include "nv12_shape_inference.hpp"
 #include "one_hot_shape_inference.hpp"
+#include "openvino/op/binary_convolution.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/opsets/opset3.hpp"
@@ -136,7 +140,7 @@ class ShapeInferBase : public IStaticShapeInfer {
 public:
     using iface_type = IStaticShapeInfer;
 
-    ShapeInferBase(std::shared_ptr<Node> node) : m_input_ranks{}, m_node{std::move(node)} {
+    ShapeInferBase(std::shared_ptr<ov::Node> node) : m_input_ranks{}, m_node{std::move(node)} {
         static_assert(std::is_same<int64_t, Dimension::value_type>::value, "Rank type not match to input_ranks type.");
         for (size_t i = 0; i < m_node->get_input_size(); ++i) {
             const auto& shape = m_node->get_input_partial_shape(i);
@@ -306,7 +310,10 @@ public:
 /** @brief Base shape inference object implementing the IStaticShapeInfer with padding support. */
 class ShapeInferPaddingBase : public ShapeInferBase {
 public:
-    ShapeInferPaddingBase(std::shared_ptr<Node> node) : ShapeInferBase(std::move(node)), m_pads_begin{}, m_pads_end{} {}
+    ShapeInferPaddingBase(std::shared_ptr<ov::Node> node)
+        : ShapeInferBase(std::move(node)),
+          m_pads_begin{},
+          m_pads_end{} {}
 
     const ov::CoordinateDiff& get_pads_begin() override {
         return m_pads_begin;
@@ -326,7 +333,7 @@ protected:
  * @tparam TOp   Type of operator.
  * @tparam MASK  The bit mask where each bit corresponds to an input port number.
  */
-template <class TOp, IShapeInfer::port_mask_t MASK>
+template <typename TOp, IShapeInfer::port_mask_t MASK>
 class ShapeInferPaddingTA : public ShapeInferPaddingBase {
 public:
     using ShapeInferPaddingBase::ShapeInferPaddingBase;
@@ -342,7 +349,7 @@ public:
 };
 
 /**
- * @brief Shape inference using tensor accessor to get constant data and padding
+ * @brief Shape inference without using tensor accessor to get constant data and padding
  *
  * @tparam TOp   Type of operator.
  * @tparam MASK  The bit mask where each bit corresponds to an input port number.
