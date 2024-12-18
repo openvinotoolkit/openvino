@@ -39,6 +39,20 @@ const ov::AnyMap& RemoteTensor::get_properties() const {
     return _properties;
 }
 
+void RemoteTensor::set_shape(ov::Shape new_shape) {
+    if (_shape == new_shape)
+        return;
+
+    _shape = std::move(new_shape);
+
+    if (ov::shape_size(_shape) > ov::shape_size(_capacity)) {
+        OPENVINO_THROW("Cannot set a new bigger shape to this tensor.");
+    }
+
+    _strides.clear();
+    update_strides();
+}
+
 void RemoteTensor::update_strides() {
     if (_element_type.bitwidth() < 8) {
         return;

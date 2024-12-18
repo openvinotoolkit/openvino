@@ -25,13 +25,6 @@ public:
                      ov::intel_npu::MemType mem_type = ov::intel_npu::MemType::L0_INTERNAL_BUF,
                      void* mem = nullptr);
 
-    /**
-     * @brief Set new shape for tensor
-     * @note Memory allocation may happen
-     * @param shape A new shape
-     */
-    void set_shape(ov::Shape shape) override;
-
     ~ZeroRemoteTensor() override;
 
 private:

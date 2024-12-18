@@ -37,6 +37,13 @@ public:
     const std::string& get_device_name() const override;
 
     /**
+     * @brief Set new shape for tensor
+     * @note Allocation of a bigger tensor is not possible
+     * @param shape A new shape
+     */
+    void set_shape(ov::Shape shape) override;
+
+    /**
      * @return A tensor element type
      */
     const ov::element::Type& get_element_type() const override;

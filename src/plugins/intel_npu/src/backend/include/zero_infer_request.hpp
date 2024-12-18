@@ -18,6 +18,11 @@
 
 namespace intel_npu {
 
+struct TensorInfo {
+    bool tensorCreatedLocally;
+    uint64_t originalMemoryId;
+};
+
 class ZeroInferRequest final : public SyncInferRequest {
 public:
     explicit ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
@@ -79,11 +84,8 @@ private:
     mutable std::vector<std::vector<std::shared_ptr<ov::ITensor>>> _levelZeroInputTensors;
     mutable std::vector<std::shared_ptr<ov::ITensor>> _levelZeroOutputTensors;
 
-    mutable std::vector<std::optional<bool>> _inputLevelZeroTensorCreatedLocally;
-    mutable std::vector<std::optional<bool>> _outputLevelZeroTensorCreatedLocally;
-
-    mutable std::vector<uint64_t> _originalMemoryIdInputLevelZeroTensor;
-    mutable std::vector<uint64_t> _originalMemoryIdOutputLevelZeroTensor;
+    mutable std::vector<TensorInfo> _levelZeroInputTensorInfo;
+    mutable std::vector<TensorInfo> _levelZeroOutputTensorInfo;
 
     ze_device_properties_t _properties = {};
     std::shared_ptr<const zeroMemory::HostMemAllocator> _inputAllocator;

@@ -116,10 +116,8 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
       _logger("ZeroInferRequest", config.get<LOG_LEVEL>()),
       _levelZeroInputTensors(_metadata.inputs.size(), std::vector<std::shared_ptr<ov::ITensor>>(1, nullptr)),
       _levelZeroOutputTensors(_metadata.outputs.size(), nullptr),
-      _inputLevelZeroTensorCreatedLocally(_metadata.inputs.size(), std::nullopt),
-      _outputLevelZeroTensorCreatedLocally(_metadata.outputs.size(), std::nullopt),
-      _originalMemoryIdInputLevelZeroTensor(_metadata.inputs.size(), 0),
-      _originalMemoryIdOutputLevelZeroTensor(_metadata.outputs.size(), 0),
+      _levelZeroInputTensorInfo(_metadata.inputs.size(), TensorInfo{false, 0}),
+      _levelZeroOutputTensorInfo(_metadata.outputs.size(), TensorInfo{false, 0}),
       _profilingPool(_initStructs, _graph, zeroProfiling::POOL_SIZE),
       _profilingQuery(_initStructs, 0) {
     _logger.debug("ZeroInferRequest::ZeroInferRequest - SyncInferRequest");
@@ -198,7 +196,7 @@ void ZeroInferRequest::create_pipeline() {
                                                            INPUT,
                                                            *_inputAllocator,
                                                            _graph->get_batch_size());
-        _inputLevelZeroTensorCreatedLocally.at(inputIndex) = true;
+        _levelZeroInputTensorInfo.at(inputIndex).tensorCreatedLocally = true;
     }
 
     for (size_t outputIndex = 0; outputIndex < _metadata.outputs.size(); ++outputIndex) {
@@ -214,7 +212,7 @@ void ZeroInferRequest::create_pipeline() {
                                                                   OUTPUT,
                                                                   *_outputAllocator,
                                                                   _graph->get_batch_size());
-        _outputLevelZeroTensorCreatedLocally.at(outputIndex) = true;
+        _levelZeroOutputTensorInfo.at(outputIndex).tensorCreatedLocally = true;
     }
 
     if (_initStructs->getMutableCommandListVersion()) {
@@ -228,17 +226,12 @@ void ZeroInferRequest::create_pipeline() {
                 continue;
             }
 
-            auto levelZeroRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(get_level_zero_input(inputIndex));
-            if (levelZeroRemoteTensor == nullptr) {
-                _originalMemoryIdInputLevelZeroTensor.at(inputIndex) =
-                    get_memory_id(_initStructs->getContext(), get_level_zero_input(inputIndex)->data());
-
-            } else {
-                void* levelZeroBuffer =
-                    extract_object(levelZeroRemoteTensor->get_properties(), ov::intel_npu::mem_handle);
-                _originalMemoryIdInputLevelZeroTensor.at(inputIndex) =
-                    get_memory_id(_initStructs->getContext(), levelZeroBuffer);
+            if (std::dynamic_pointer_cast<ZeroRemoteTensor>(get_level_zero_input(inputIndex)) != nullptr) {
+                continue;
             }
+
+            _levelZeroInputTensorInfo.at(inputIndex).originalMemoryId =
+                get_memory_id(_initStructs->getContext(), get_level_zero_input(inputIndex)->data());
         }
 
         for (size_t outputIndex = 0; outputIndex < _metadata.outputs.size(); ++outputIndex) {
@@ -247,17 +240,12 @@ void ZeroInferRequest::create_pipeline() {
                 continue;
             }
 
-            auto levelZeroRemoteTensor =
-                std::dynamic_pointer_cast<ZeroRemoteTensor>(_levelZeroOutputTensors.at(outputIndex));
-            if (levelZeroRemoteTensor == nullptr) {
-                _originalMemoryIdOutputLevelZeroTensor.at(outputIndex) =
-                    get_memory_id(_initStructs->getContext(), _levelZeroOutputTensors.at(outputIndex)->data());
-            } else {
-                void* levelZeroBuffer =
-                    extract_object(levelZeroRemoteTensor->get_properties(), ov::intel_npu::mem_handle);
-                _originalMemoryIdOutputLevelZeroTensor.at(outputIndex) =
-                    get_memory_id(_initStructs->getContext(), levelZeroBuffer);
+            if (std::dynamic_pointer_cast<ZeroRemoteTensor>(_levelZeroOutputTensors.at(outputIndex)) != nullptr) {
+                continue;
             }
+
+            _levelZeroOutputTensorInfo.at(outputIndex).originalMemoryId =
+                get_memory_id(_initStructs->getContext(), _levelZeroOutputTensors.at(outputIndex)->data());
         }
     }
 
@@ -287,8 +275,8 @@ void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor>& tenso
                                        const bool isInput) {
     OV_ITT_TASK_CHAIN(ZERO_SET_TENSOR, itt::domains::LevelZeroBackend, "set_tensor", "set_tensor_data");
     auto& levelZeroTensors = isInput ? get_level_zero_input(index) : _levelZeroOutputTensors.at(index);
-    auto& tensorCreatedLocally =
-        isInput ? _inputLevelZeroTensorCreatedLocally.at(index) : _outputLevelZeroTensorCreatedLocally.at(index);
+    auto& tensorCreatedLocally = isInput ? _levelZeroInputTensorInfo.at(index).tensorCreatedLocally
+                                         : _levelZeroOutputTensorInfo.at(index).tensorCreatedLocally;
 
     bool setTensorData = false;
     bool levelZeroTensorCreatedLocally = true;
@@ -304,7 +292,7 @@ void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor>& tenso
     if (!setTensorData) {
         // make sure that the L0 tensor was allocated locally and is not received from the user when receiving
         // random tensor
-        if (tensorCreatedLocally.has_value() && !(*tensorCreatedLocally)) {
+        if (!tensorCreatedLocally) {
             _logger.debug("ZeroInferRequest::set_tensor_data - create locally L0 tensor");
             OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "allocate tensor");
 
@@ -325,8 +313,8 @@ void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor>& tenso
         if (_pipelineIsCreated) {
             _logger.debug("ZeroInferRequest::infer_async - update command list");
 
-            auto& updateOriginalAddress = isInput ? _originalMemoryIdInputLevelZeroTensor.at(index)
-                                                  : _originalMemoryIdOutputLevelZeroTensor.at(index);
+            auto& updateOriginalAddress = isInput ? _levelZeroInputTensorInfo.at(index).originalMemoryId
+                                                  : _levelZeroOutputTensorInfo.at(index).originalMemoryId;
 
             OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "updateCommandList");
             _pipeline->updateCommandList(levelZeroTensors->data(),
@@ -356,8 +344,8 @@ void ZeroInferRequest::set_remote_tensor_data(const std::shared_ptr<ZeroRemoteTe
     }
 
     auto& levelZeroTensors = isInput ? get_level_zero_input(index) : _levelZeroOutputTensors.at(index);
-    auto& tensorCreatedLocally =
-        isInput ? _inputLevelZeroTensorCreatedLocally.at(index) : _outputLevelZeroTensorCreatedLocally.at(index);
+    auto& tensorCreatedLocally = isInput ? _levelZeroInputTensorInfo.at(index).tensorCreatedLocally
+                                         : _levelZeroOutputTensorInfo.at(index).tensorCreatedLocally;
 
     levelZeroTensors = tensor;
     tensorCreatedLocally = false;
@@ -365,16 +353,11 @@ void ZeroInferRequest::set_remote_tensor_data(const std::shared_ptr<ZeroRemoteTe
     if (_pipelineIsCreated) {
         _logger.debug("ZeroInferRequest::infer_async - update command list");
 
-        auto& updateOriginalAddress = isInput ? _originalMemoryIdInputLevelZeroTensor.at(index)
-                                              : _originalMemoryIdOutputLevelZeroTensor.at(index);
-
         OV_ITT_TASK_NEXT(ZERO_SET_REMOTE_TENSOR, "updateCommandList");
         _pipeline->updateCommandList(
             data,
             tensor->get_byte_size(),
             isInput ? _graph->get_input_descriptors().at(index).idx : _graph->get_output_descriptors().at(index).idx);
-
-        updateOriginalAddress = get_memory_id(_initStructs->getContext(), data);
     }
 }
 
@@ -517,8 +500,8 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
                   metadata.nodeFriendlyName.c_str());
 
     auto& levelZeroTensors = isInput ? get_level_zero_input(ioIndex) : _levelZeroOutputTensors.at(ioIndex);
-    auto& tensorCreatedLocally =
-        isInput ? _inputLevelZeroTensorCreatedLocally.at(ioIndex) : _outputLevelZeroTensorCreatedLocally.at(ioIndex);
+    auto& tensorCreatedLocally = isInput ? _levelZeroInputTensorInfo.at(ioIndex).tensorCreatedLocally
+                                         : _levelZeroOutputTensorInfo.at(ioIndex).tensorCreatedLocally;
 
     levelZeroTensors = allocate_tensor(metadata,
                                        ioIndex,
@@ -658,33 +641,20 @@ void ZeroInferRequest::infer_async() {
                 continue;
             }
 
-            auto levelZeroRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(levelZeroTensor.at(SINGLE_TENSOR));
+            if (std::dynamic_pointer_cast<ZeroRemoteTensor>(levelZeroTensor.at(SINGLE_TENSOR)) != nullptr) {
+                ++inputIndex;
+                continue;
+            }
 
-            if (levelZeroRemoteTensor == nullptr) {
-                auto memoryId = get_memory_id(_initStructs->getContext(), levelZeroTensor.at(SINGLE_TENSOR)->data());
+            auto memoryId = get_memory_id(_initStructs->getContext(), levelZeroTensor.at(SINGLE_TENSOR)->data());
 
-                if (_originalMemoryIdInputLevelZeroTensor.at(inputIndex) != memoryId) {
-                    _logger.debug("Update input graph descriptor with the new tensor");
-                    _pipeline->updateCommandList(levelZeroTensor.at(SINGLE_TENSOR)->data(),
-                                                 levelZeroTensor.at(SINGLE_TENSOR)->get_byte_size(),
-                                                 _graph->get_input_descriptors().at(inputIndex).idx);
+            if (_levelZeroInputTensorInfo.at(inputIndex).originalMemoryId != memoryId) {
+                _logger.debug("Update input graph descriptor with the new tensor");
+                _pipeline->updateCommandList(levelZeroTensor.at(SINGLE_TENSOR)->data(),
+                                             levelZeroTensor.at(SINGLE_TENSOR)->get_byte_size(),
+                                             _graph->get_input_descriptors().at(inputIndex).idx);
 
-                    _originalMemoryIdInputLevelZeroTensor.at(inputIndex) = memoryId;
-                }
-            } else {
-                void* remoteLevelZeroBuffer =
-                    extract_object(levelZeroRemoteTensor->get_properties(), ov::intel_npu::mem_handle);
-
-                auto memoryId = get_memory_id(_initStructs->getContext(), remoteLevelZeroBuffer);
-
-                if (_originalMemoryIdInputLevelZeroTensor.at(inputIndex) != memoryId) {
-                    _logger.debug("Update input graph descriptor with the new remote tensor");
-                    _pipeline->updateCommandList(remoteLevelZeroBuffer,
-                                                 levelZeroRemoteTensor->get_byte_size(),
-                                                 _graph->get_input_descriptors().at(inputIndex).idx);
-
-                    _originalMemoryIdInputLevelZeroTensor.at(inputIndex) = memoryId;
-                }
+                _levelZeroInputTensorInfo.at(inputIndex).originalMemoryId = memoryId;
             }
 
             ++inputIndex;
@@ -699,32 +669,20 @@ void ZeroInferRequest::infer_async() {
                 continue;
             }
 
-            auto levelZeroRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(levelZeroTensor);
-            if (levelZeroRemoteTensor == nullptr) {
-                auto memoryId = get_memory_id(_initStructs->getContext(), levelZeroTensor->data());
+            if (std::dynamic_pointer_cast<ZeroRemoteTensor>(levelZeroTensor) != nullptr) {
+                ++outputIndex;
+                continue;
+            }
 
-                if (_originalMemoryIdOutputLevelZeroTensor.at(outputIndex) != memoryId) {
-                    _logger.debug("Update output graph descriptor with the new tensor");
-                    _pipeline->updateCommandList(levelZeroTensor->data(),
-                                                 levelZeroTensor->get_byte_size(),
-                                                 _graph->get_output_descriptors().at(outputIndex).idx);
+            auto memoryId = get_memory_id(_initStructs->getContext(), levelZeroTensor->data());
 
-                    _originalMemoryIdOutputLevelZeroTensor.at(outputIndex) = memoryId;
-                }
-            } else {
-                void* remoteLevelZeroBuffer =
-                    extract_object(levelZeroRemoteTensor->get_properties(), ov::intel_npu::mem_handle);
+            if (_levelZeroOutputTensorInfo.at(outputIndex).originalMemoryId != memoryId) {
+                _logger.debug("Update output graph descriptor with the new tensor");
+                _pipeline->updateCommandList(levelZeroTensor->data(),
+                                             levelZeroTensor->get_byte_size(),
+                                             _graph->get_output_descriptors().at(outputIndex).idx);
 
-                auto memoryId = get_memory_id(_initStructs->getContext(), remoteLevelZeroBuffer);
-
-                if (_originalMemoryIdOutputLevelZeroTensor.at(outputIndex) != memoryId) {
-                    _logger.debug("Update output graph descriptor with the new remote tensor");
-                    _pipeline->updateCommandList(remoteLevelZeroBuffer,
-                                                 levelZeroRemoteTensor->get_byte_size(),
-                                                 _graph->get_output_descriptors().at(outputIndex).idx);
-
-                    _originalMemoryIdOutputLevelZeroTensor.at(outputIndex) = memoryId;
-                }
+                _levelZeroOutputTensorInfo.at(outputIndex).originalMemoryId = memoryId;
             }
 
             ++outputIndex;
