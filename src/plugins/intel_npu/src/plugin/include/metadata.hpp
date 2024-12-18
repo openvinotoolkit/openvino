@@ -83,7 +83,7 @@ public:
     /**
      * @brief Gets the version string.
      */
-    std::string get_version();
+    std::string get_version() const;
 };
 
 struct MetadataBase {
@@ -98,6 +98,8 @@ struct MetadataBase {
     virtual void write(std::ostream& stream) = 0;
 
     virtual bool is_compatible() = 0;
+
+    virtual uint64_t get_blob_size() const = 0;
 
     virtual ~MetadataBase() = default;
 };
@@ -118,9 +120,10 @@ struct Metadata<METADATA_VERSION_1_0> : public MetadataBase {
 protected:
     uint32_t _version;
     OpenvinoVersion _ovVersion;
+    uint64_t _blobDataSize;
 
 public:
-    Metadata(std::optional<std::string_view> ovVersion = std::nullopt);
+    Metadata(uint64_t blobSize, std::optional<std::string_view> ovVersion = std::nullopt);
 
     void read(std::istream& stream) override;
 
@@ -139,6 +142,8 @@ public:
      * @note The version check can be disabled if the "NPU_DISABLE_VERSION_CHECK" environment variable is set to '1'.
      */
     bool is_compatible() override;
+
+    uint64_t get_blob_size() const override;
 };
 
 /**
@@ -147,7 +152,7 @@ public:
  * @return Unique pointer to the created MetadataBase object if the major version is supported; otherwise, returns
  * 'nullptr'.
  */
-std::unique_ptr<MetadataBase> create_metadata(uint32_t version);
+std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize);
 
 /**
  * @brief Reads metadata from a blob.
@@ -155,6 +160,6 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version);
  * @return If the blob is versioned and its major version is supported, returns an unique pointer to the read
  * MetadataBase object; otherwise, returns 'nullptr'.
  */
-std::unique_ptr<MetadataBase> read_metadata_from(const std::vector<uint8_t>& blob);
+std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream);
 
 }  // namespace intel_npu

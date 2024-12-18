@@ -6,12 +6,16 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "metadata.hpp"
+#include "openvino/core/version.hpp"
 
 using namespace intel_npu;
 
 using MetadataUnitTests = ::testing::Test;
 
 struct MetadataTest : Metadata<CURRENT_METADATA_VERSION> {
+    MetadataTest(uint64_t blobSize, std::optional<std::string_view> ovVersion)
+        : Metadata<CURRENT_METADATA_VERSION>(blobSize, ovVersion) {}
+
     void set_version(uint32_t newVersion) {
         _version = newVersion;
     }
@@ -22,67 +26,48 @@ struct MetadataTest : Metadata<CURRENT_METADATA_VERSION> {
 };
 
 TEST_F(MetadataUnitTests, readUnversionedBlob) {
-    std::vector<uint8_t> blob(50, 68);
+    std::stringstream blob("this_is an_unversioned bl0b");
 
     std::unique_ptr<MetadataBase> storedMeta;
     ASSERT_ANY_THROW(storedMeta = read_metadata_from(blob));
-    ASSERT_EQ(storedMeta, nullptr);
 }
 
 TEST_F(MetadataUnitTests, writeAndReadMetadataFromBlob) {
     std::stringstream stream;
-    size_t blobSize = 0;
-    auto meta = MetadataTest();
+    uint64_t blobSize = 0;
+    auto meta = MetadataTest(blobSize, ov::get_openvino_version().buildNumber);
 
     OV_ASSERT_NO_THROW(meta.write(stream));
-    OV_ASSERT_NO_THROW(stream.write(reinterpret_cast<const char*>(&blobSize), sizeof(blobSize)));
-    OV_ASSERT_NO_THROW(stream.write(MAGIC_BYTES.data(), MAGIC_BYTES.size()));
 
-    blobSize = stream.str().length();
-
-    std::vector<uint8_t> blob(blobSize);
-    OV_ASSERT_NO_THROW(stream.read(reinterpret_cast<char*>(blob.data()), blobSize));
-    auto storedMeta = read_metadata_from(blob);
-    ASSERT_NE(storedMeta, nullptr);
+    std::unique_ptr<MetadataBase> storedMeta;
+    OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(stream));
     ASSERT_TRUE(storedMeta->is_compatible());
 }
 
 TEST_F(MetadataUnitTests, writeAndReadInvalidOpenvinoVersion) {
-    size_t blobSize = 0;
+    uint64_t blobSize = 0;
     std::stringstream stream;
-    auto meta = MetadataTest();
+    auto meta = MetadataTest(blobSize, std::nullopt);
 
     OpenvinoVersion badOvVersion("just_some_wrong_ov_version");
     meta.set_ov_version(badOvVersion);
 
     OV_ASSERT_NO_THROW(meta.write(stream));
-    OV_ASSERT_NO_THROW(stream.write(reinterpret_cast<const char*>(&blobSize), sizeof(blobSize)));
-    OV_ASSERT_NO_THROW(stream.write(MAGIC_BYTES.data(), MAGIC_BYTES.size()));
 
-    blobSize = stream.str().length();
-
-    std::vector<uint8_t> blob(blobSize);
-    OV_ASSERT_NO_THROW(stream.read(reinterpret_cast<char*>(blob.data()), blobSize));
-    auto storedMeta = read_metadata_from(blob);
-    ASSERT_NE(storedMeta, nullptr);
+    std::unique_ptr<MetadataBase> storedMeta;
+    OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(stream));
     ASSERT_FALSE(storedMeta->is_compatible());
 }
 
 TEST_F(MetadataUnitTests, writeAndReadInvalidMetadataVersion) {
-    size_t blobSize = 0;
+    uint64_t blobSize = 0;
     std::stringstream stream;
-    auto meta = MetadataTest();
+    auto meta = MetadataTest(blobSize, std::nullopt);
 
     constexpr uint32_t dummy_version = make_version(0x00007E57, 0x0000AC3D);
     meta.set_version(dummy_version);
 
     OV_ASSERT_NO_THROW(meta.write(stream));
-    OV_ASSERT_NO_THROW(stream.write(reinterpret_cast<const char*>(&blobSize), sizeof(blobSize)));
-    OV_ASSERT_NO_THROW(stream.write(MAGIC_BYTES.data(), MAGIC_BYTES.size()));
 
-    blobSize = stream.str().length();
-
-    std::vector<uint8_t> blob(blobSize);
-    OV_ASSERT_NO_THROW(stream.read(reinterpret_cast<char*>(blob.data()), blobSize));
-    ASSERT_ANY_THROW(auto storedMeta = read_metadata_from(blob));
+    ASSERT_ANY_THROW(auto storedMeta = read_metadata_from(stream));
 }

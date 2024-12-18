@@ -132,30 +132,6 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     return result;
 }
 
-size_t getFileSize(std::istream& stream) {
-    auto log = Logger::global().clone("getFileSize");
-    if (!stream) {
-        OPENVINO_THROW("Stream is in bad status! Please check the passed stream status!");
-    }
-
-    const size_t streamStart = stream.tellg();
-    stream.seekg(0, std::ios_base::end);
-    const size_t streamEnd = stream.tellg();
-    stream.seekg(streamStart, std::ios_base::beg);
-
-    log.debug("Read blob size: streamStart=%zu, streamEnd=%zu", streamStart, streamEnd);
-
-    if (streamEnd < streamStart) {
-        OPENVINO_THROW("Invalid stream size: streamEnd (",
-                       streamEnd,
-                       ") is not larger than streamStart (",
-                       streamStart,
-                       ")!");
-    }
-
-    return streamEnd - streamStart;
-}
-
 void update_log_level(const std::map<std::string, std::string>& propertiesMap) {
     auto it = propertiesMap.find(std::string(LOG_LEVEL::key()));
     if (it != propertiesMap.end()) {
@@ -776,7 +752,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         CompilerAdapterFactory compilerAdapterFactory;
         auto compiler = compilerAdapterFactory.getCompiler(_backends->getIEngineBackend(), localConfig);
 
-        auto graphSize = getFileSize(stream);
+        auto storedMeta = read_metadata_from(stream);
+        if (!storedMeta->is_compatible()) {
+            OPENVINO_THROW("Incompatible blob version!");
+        }
+
+        auto graphSize = storedMeta->get_blob_size();
 
         std::vector<uint8_t> blob(graphSize);
         stream.read(reinterpret_cast<char*>(blob.data()), graphSize);
@@ -784,11 +765,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             OPENVINO_THROW("Failed to read data from stream!");
         }
         _logger.debug("Successfully read %zu bytes into blob.", graphSize);
-
-        auto storedMeta = read_metadata_from(blob);
-        if (!storedMeta->is_compatible()) {
-            OPENVINO_THROW("Incompatible blob version!");
-        }
 
         auto graph = compiler->parse(std::move(blob), localConfig);
         graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
