@@ -524,8 +524,8 @@ ov::pass::activations_scaling::MulDownTransformation::MulDownTransformation() {
     auto activation_m = any_input(is_non_const_node);
     auto mul_const_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(is_scalar_node);
     auto mul_m = wrap_type<ov::op::v1::Multiply>({activation_m, mul_const_m});
-    auto reshape_m = pattern::wrap_type<ov::op::v1::Reshape>({ mul_m, any_input() });
-    auto transpose_m = pattern::wrap_type<ov::op::v1::Transpose>({ mul_m, any_input() });
+    auto reshape_m = pattern::wrap_type<ov::op::v1::Reshape>({mul_m, any_input()});
+    auto transpose_m = pattern::wrap_type<ov::op::v1::Transpose>({mul_m, any_input()});
     auto matcher_m = std::make_shared<Or>(OutputVector{reshape_m, transpose_m});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
