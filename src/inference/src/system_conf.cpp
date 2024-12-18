@@ -448,7 +448,7 @@ int get_current_socket_id() {
 
 int get_current_numa_node_id() {
     CPU& cpu = cpu_info();
-    int cur_processor_id = GetCurrentProcessorNumber();;
+    int cur_processor_id = GetCurrentProcessorNumber();
 
     for (auto& row : cpu._cpu_mapping_table) {
         if (cur_processor_id == row[CPU_MAP_PROCESSOR_ID]) {

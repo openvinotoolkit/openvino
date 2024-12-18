@@ -210,7 +210,8 @@ std::vector<std::vector<int>> get_streams_info_table(
         ((input_streams_changed == true) && (input_streams == 1))) {
         n_streams = 1;
         stream_info[NUMBER_OF_STREAMS] = n_streams;
-        current_socket_id = proc_type_table.size() == 1 ? proc_type_table[0][PROC_SOCKET_ID] : proc_type_table[1][PROC_SOCKET_ID] ;
+        current_socket_id =
+            proc_type_table.size() == 1 ? proc_type_table[0][PROC_SOCKET_ID] : proc_type_table[1][PROC_SOCKET_ID];
         if (input_threads > 0) {
             if (hint_model_distribution_policy.size() == 0) {
                 n_threads_per_stream = std::min(input_threads, proc_type_table[0][ALL_PROC]);
