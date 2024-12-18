@@ -495,11 +495,22 @@ class Core(CoreBase):
     between several Core instances. The recommended way is to have a single
     Core instance per application.
     """
-    def read_model(self, model: Union[str, bytes, object], weights: Union[object, str, bytes, Tensor] = None) -> Model:
-        if weights is not None:
+    def read_model(
+        self,
+        model: Union[str, bytes, object],
+        weights: Union[object, str, bytes, Tensor] = None,
+        config: Optional[dict] = None
+    ) -> Model:
+        config = {} if config is None else config
+
+        if isinstance(weights, Tensor):
             return Model(super().read_model(model, weights))
+        elif isinstance(model, bytes):
+            return Model(super().read_model(model, bytes() if weights is None else weights))
+        elif weights is None:
+            return Model(super().read_model(model, config=config))
         else:
-            return Model(super().read_model(model))
+            return Model(super().read_model(model, weights, config))
 
     def compile_model(
         self,
