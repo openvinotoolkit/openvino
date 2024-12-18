@@ -63,7 +63,7 @@ class CompressWeightsWithFakeConvert;
 */
 class ov::pass::CompressWeightsWithFakeQuantize : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("CompressWeightsWithFakeQuantize", "0");
+    OPENVINO_MATCHER_PASS_RTTI("CompressWeightsWithFakeQuantize");
 
     CompressWeightsWithFakeQuantize();
 };
@@ -95,7 +95,7 @@ public:
 */
 class ov::pass::CompressWeightsWithFakeConvert : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("CompressWeightsWithFakeConvert", "0");
+    OPENVINO_MATCHER_PASS_RTTI("CompressWeightsWithFakeConvert");
 
     CompressWeightsWithFakeConvert();
 };

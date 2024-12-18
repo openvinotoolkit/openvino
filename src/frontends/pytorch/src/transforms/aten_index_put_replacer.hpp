@@ -15,7 +15,7 @@ namespace pass {
 
 class PYTORCH_API AtenIndexPutReplacer : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::pytorch::pass::AtenIndexPutReplacer");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::pytorch::pass::AtenIndexPutReplacer");
     AtenIndexPutReplacer();
 };
 
