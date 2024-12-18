@@ -217,7 +217,7 @@ template <>
 struct convert<IRandomGenerator::Ptr> {
     static bool decode(const Node& node, IRandomGenerator::Ptr& generator) {
         std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        const std::unordered_set<std::string> parameters = {"dist", "high", "low", "uniform"};
+        const std::unordered_set<std::string> parameters = {"dist", "high", "low"};
         validateNodeKeys(node, parameters);
         if (!node["dist"]) {
             THROW_ERROR("\"random\" must have \"dist\" attribute!");
@@ -459,7 +459,7 @@ struct convert<ONNXRTParams> {
         std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
 
         const std::unordered_set<std::string> parameters = {
-            "connections", "ep", "framework", "input_data", "metric", "name", "op_desc", 
+            "connections", "ep", "framework", "input_data", "metric", "name", "path", "op_desc", 
             "opt_level","output_data", "random", "repeat_count", "session_options", "tag", "type"};
         validateNodeKeys(node, parameters);
         // FIXME: Worth to separate these two
@@ -482,7 +482,7 @@ struct convert<Network> {
     static bool decode(const Node& node, Network& network) {
         std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
         const std::unordered_set<std::string> parameters = {
-            "framework", "input_data", "metric", "name", "output_data", "random"};
+            "framework", "input_data", "metric", "name", "path", "output_data", "random"};
         validateNodeKeys(node, parameters);
         // NB: Take path stem as network tag
         // Note that at this point, it's fine if names aren't unique
@@ -520,7 +520,12 @@ template <>
 struct convert<CPUOp> {
     static bool decode(const Node& node, CPUOp& op) {
         std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        const std::unordered_set<std::string> parameters = {"time_in_us"};
+        const std::unordered_set<std::string> parameters = {
+            "config", "connections", "device", "exec_time_in_secs", "frames_interval_in_ms", 
+            "framework", "il", "iml", "input_data", "ip", "iteration_count", "metric", "name",
+            "nireq", "ol", "oml", "op", "op_desc", "output_data", "path", "priority", "random",
+            "repeat_count", "reshape", "tag", "target_fps", "target_latency_in_ms", "type",
+            "time_in_us"};
         validateNodeKeys(node, parameters);
         // TODO: Assert there are no more options provided
         op.time_in_us = node["time_in_us"] ? node["time_in_us"].as<uint64_t>() : 0u;
@@ -573,7 +578,7 @@ struct convert<OpDesc> {
             "config", "connections", "device", "exec_time_in_secs", "frames_interval_in_ms", 
             "framework", "il", "iml", "input_data", "ip", "iteration_count", "metric", "name",
             "nireq", "ol", "oml", "op", "op_desc", "output_data", "path", "priority", "random",
-            "repeat_count", "reshape", "tag", "target_fps", "target_latency_in_ms", "type"};
+            "repeat_count", "reshape", "tag", "target_fps", "target_latency_in_ms", "type", "time_in_us"};
         validateNodeKeys(node, parameters);
         opdesc.tag = node["tag"].as<std::string>();
         auto type = node["type"] ? node["type"].as<std::string>() : "Infer";
