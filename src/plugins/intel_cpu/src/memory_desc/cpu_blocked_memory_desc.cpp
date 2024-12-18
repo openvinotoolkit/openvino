@@ -3,6 +3,7 @@
 //
 
 #include "cpu_blocked_memory_desc.h"
+
 #include "dnnl_blocked_memory_desc.h"
 #include "utils/general_utils.h"
 
@@ -15,17 +16,27 @@ static VectorDims makeRange(size_t size) {
     return retVec;
 }
 
-CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(ov::element::Type prc, const Shape& shape) :
-    CpuBlockedMemoryDesc(prc, shape, shape.getDims(), makeRange(shape.getDims().size())) {}
+CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(ov::element::Type prc, const Shape& shape)
+    : CpuBlockedMemoryDesc(prc, shape, shape.getDims(), makeRange(shape.getDims().size())) {}
 
-CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(ov::element::Type prc, const Shape& shape, const VectorDims& blockedDims,
-                  const VectorDims& order, size_t offsetPadding, const VectorDims& offsetPaddingToData,
-                  const VectorDims& strides) : MemoryDesc(shape, Blocked), precision(prc) {
-    if (std::any_of(order.begin(), order.end(), [](size_t val) { return val == Shape::UNDEFINED_DIM; })) {
+CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(ov::element::Type prc,
+                                           const Shape& shape,
+                                           const VectorDims& blockedDims,
+                                           const VectorDims& order,
+                                           size_t offsetPadding,
+                                           const VectorDims& offsetPaddingToData,
+                                           const VectorDims& strides)
+    : MemoryDesc(shape, Blocked),
+      precision(prc) {
+    if (std::any_of(order.begin(), order.end(), [](size_t val) {
+            return val == Shape::UNDEFINED_DIM;
+        })) {
         OPENVINO_THROW("CpuBlockedMemoryDesc do not support undefined order.");
     }
 
-    if (std::any_of(blockedDims.begin() + shape.getRank(), blockedDims.end(), [](size_t val) { return val == Shape::UNDEFINED_DIM; })) {
+    if (std::any_of(blockedDims.begin() + shape.getRank(), blockedDims.end(), [](size_t val) {
+            return val == Shape::UNDEFINED_DIM;
+        })) {
         OPENVINO_THROW("CpuBlockedMemoryDesc doesn't support undefined blockedDims.");
     }
 
@@ -51,29 +62,43 @@ CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(ov::element::Type prc, const Shape& s
     if (strides.empty() && !order.empty()) {
         if (shape.hasZeroDims()) {
             this->strides.resize(order.size(), 0);
-        } else if (std::any_of(this->blockedDims.begin(), this->blockedDims.end(), [](size_t val) { return val == Shape::UNDEFINED_DIM; })) {
+        } else if (std::any_of(this->blockedDims.begin(), this->blockedDims.end(), [](size_t val) {
+                       return val == Shape::UNDEFINED_DIM;
+                   })) {
             this->strides.resize(order.size(), Shape::UNDEFINED_DIM);
         } else {
             this->strides.resize(order.size(), 1);
             for (size_t i = 2; i <= order.size(); i++) {
-                this->strides[order.size() - i] = this->strides[order.size() - (i - 1)] * this->blockedDims[blockedDims.size() - (i - 1)];
+                this->strides[order.size() - i] =
+                    this->strides[order.size() - (i - 1)] * this->blockedDims[blockedDims.size() - (i - 1)];
             }
         }
     } else {
         this->strides = strides;
     }
 
-    if (!everyone_is(this->order.size(), this->blockedDims.size(), this->offsetPaddingToData.size(), this->strides.size())) {
+    if (!everyone_is(this->order.size(),
+                     this->blockedDims.size(),
+                     this->offsetPaddingToData.size(),
+                     this->strides.size())) {
         OPENVINO_THROW("Order, blocked dims, offset padding to data and strides must have equals size");
     }
 }
 
 bool CpuBlockedMemoryDesc::isDefinedImp() const {
     bool defined = true;
-    defined = defined && std::none_of(blockedDims.cbegin(), blockedDims.cend(), [](size_t val) { return val == Shape::UNDEFINED_DIM; });
-    defined = defined && std::none_of(strides.cbegin(), strides.cend(), [](size_t val) { return val == Shape::UNDEFINED_DIM; });
-    defined = defined && std::none_of(order.cbegin(), order.cend(), [](size_t val) { return val == Shape::UNDEFINED_DIM; });
-    defined = defined && std::none_of(offsetPaddingToData.cbegin(), offsetPaddingToData.cend(), [](size_t val) { return val == Shape::UNDEFINED_DIM; });
+    defined = defined && std::none_of(blockedDims.cbegin(), blockedDims.cend(), [](size_t val) {
+                  return val == Shape::UNDEFINED_DIM;
+              });
+    defined = defined && std::none_of(strides.cbegin(), strides.cend(), [](size_t val) {
+                  return val == Shape::UNDEFINED_DIM;
+              });
+    defined = defined && std::none_of(order.cbegin(), order.cend(), [](size_t val) {
+                  return val == Shape::UNDEFINED_DIM;
+              });
+    defined = defined && std::none_of(offsetPaddingToData.cbegin(), offsetPaddingToData.cend(), [](size_t val) {
+                  return val == Shape::UNDEFINED_DIM;
+              });
     defined = defined && offsetPadding != Shape::UNDEFINED_DIM;
 
     return defined;
@@ -90,15 +115,15 @@ bool CpuBlockedMemoryDesc::isCompatible(const MemoryDesc& rhs) const {
     }
 }
 
-bool CpuBlockedMemoryDesc::isCompatible(const CpuBlockedMemoryDesc &rhs, CmpMask cmpMask) const {
+bool CpuBlockedMemoryDesc::isCompatible(const CpuBlockedMemoryDesc& rhs, CmpMask cmpMask) const {
     return BlockedMemoryDesc::isCompatibleInternal(rhs, cmpMask);
 }
 
-bool CpuBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc &rhs, CmpMask cmpMask) const {
+bool CpuBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc& rhs, CmpMask cmpMask) const {
     return rhs.isCompatible(*this, cmpMask);
 }
 
-bool CpuBlockedMemoryDesc::isCompatible(const BlockedMemoryDesc &rhs, CmpMask cmpMask) const {
+bool CpuBlockedMemoryDesc::isCompatible(const BlockedMemoryDesc& rhs, CmpMask cmpMask) const {
     const BlockedMemoryDesc* pRhs = &rhs;
     if (auto cpuBlkDesc = dynamic_cast<const CpuBlockedMemoryDesc*>(pRhs)) {
         return isCompatible(*cpuBlkDesc, cmpMask);
@@ -149,7 +174,9 @@ size_t CpuBlockedMemoryDesc::getMaxMemSize() const {
     }
 
     const auto& maxDims = shape.getMaxDims();
-    if (std::any_of(maxDims.begin(), maxDims.end(), [](size_t x){ return Shape::UNDEFINED_DIM == x; })) {
+    if (std::any_of(maxDims.begin(), maxDims.end(), [](size_t x) {
+            return Shape::UNDEFINED_DIM == x;
+        })) {
         return UNDEFINED_SIZE;
     }
 
@@ -193,16 +220,16 @@ size_t CpuBlockedMemoryDesc::getElementOffset(size_t elemNumber) const {
 
 bool CpuBlockedMemoryDesc::hasLayoutType(LayoutType layoutType) const {
     switch (layoutType) {
-        case LayoutType::ncsp:
-            return isPlainFormat();
-        case LayoutType::nspc:
-            return isTailCFormat();
-        case LayoutType::nCsp8c:
-            return isBlockedCFormat(8);
-        case LayoutType::nCsp16c:
-            return isBlockedCFormat(16);
-        default:
-            return false;
+    case LayoutType::ncsp:
+        return isPlainFormat();
+    case LayoutType::nspc:
+        return isTailCFormat();
+    case LayoutType::nCsp8c:
+        return isBlockedCFormat(8);
+    case LayoutType::nCsp16c:
+        return isBlockedCFormat(16);
+    default:
+        return false;
     }
 }
 
@@ -252,13 +279,15 @@ bool CpuBlockedMemoryDesc::isTailCFormat() const {
     return true;
 }
 
-MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims) const {
-    if (std::any_of(dims.begin(), dims.end(), [](size_t x){ return Shape::UNDEFINED_DIM == x; })) {
+MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims& dims) const {
+    if (std::any_of(dims.begin(), dims.end(), [](size_t x) {
+            return Shape::UNDEFINED_DIM == x;
+        })) {
         OPENVINO_THROW("Can't clone desc if new dims are undefined");
     }
 
     // TODO [DS]: add stride recalculation for strided blobs
-    for (int i = strides.size() - 2; i >= 0 ; i--) {
+    for (int i = strides.size() - 2; i >= 0; i--) {
         if (strides[i] == Shape::UNDEFINED_DIM)
             break;
 
@@ -280,11 +309,18 @@ MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims) 
     }
 
     VectorDims newOffsetPaddingToData;
-    if (std::none_of(offsetPaddingToData.begin(), offsetPaddingToData.end(), [](size_t x){ return x == Shape::UNDEFINED_DIM;})) {
+    if (std::none_of(offsetPaddingToData.begin(), offsetPaddingToData.end(), [](size_t x) {
+            return x == Shape::UNDEFINED_DIM;
+        })) {
         newOffsetPaddingToData = offsetPaddingToData;
     }
 
-    return std::make_shared<CpuBlockedMemoryDesc>(precision, Shape(dims), newBlockedDims, order, offsetPadding, newOffsetPaddingToData);
+    return std::make_shared<CpuBlockedMemoryDesc>(precision,
+                                                  Shape(dims),
+                                                  newBlockedDims,
+                                                  order,
+                                                  offsetPadding,
+                                                  newOffsetPaddingToData);
 }
 
 bool CpuBlockedMemoryDesc::blocksExtended() const {
@@ -311,7 +347,9 @@ size_t CpuBlockedMemoryDesc::getPaddedElementsCount() const {
     if (getShape().hasZeroDims()) {
         return 0;
     }
-    if (std::any_of(blockedDims.begin(), blockedDims.end(), [](Dim dim) { return dim == Shape::UNDEFINED_DIM; })) {
+    if (std::any_of(blockedDims.begin(), blockedDims.end(), [](Dim dim) {
+            return dim == Shape::UNDEFINED_DIM;
+        })) {
         OPENVINO_THROW("Can't compute padded elements count for non undefined blocked dims");
     }
     return std::accumulate(blockedDims.begin(), blockedDims.end(), size_t{1}, std::multiplies<size_t>());
@@ -323,5 +361,5 @@ MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewPrecision(const ov::element::Typ
     return newDesc;
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

@@ -78,24 +78,22 @@ Install requirements
 
 .. code:: ipython3
 
-    import platform
-    
     %pip install -q "openvino>=2023.1.0"
     %pip install -q opencv-python requests tqdm
     
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q "matplotlib>=3.4"
     
     # Fetch `notebook_utils` module
     import requests
+    from pathlib import Path
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
     
-    open("notebook_utils.py", "w").write(r.text)
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+    
+        open("notebook_utils.py", "w").write(r.text)
 
 
 .. parsed-literal::
@@ -103,14 +101,6 @@ Install requirements
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
-
-
-
-
-.. parsed-literal::
-
-    24692
-
 
 
 Imports
@@ -121,7 +111,6 @@ Imports
 .. code:: ipython3
 
     import time
-    from pathlib import Path
     
     import cv2
     import matplotlib.cm
@@ -166,13 +155,13 @@ format.
 
 .. parsed-literal::
 
-    model/MiDaS_small.xml:   0%|          | 0.00/268k [00:00<?, ?B/s]
+    MiDaS_small.xml:   0%|          | 0.00/268k [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    model/MiDaS_small.bin:   0%|          | 0.00/31.6M [00:00<?, ?B/s]
+    MiDaS_small.bin:   0%|          | 0.00/31.6M [00:00<?, ?B/s]
 
 
 Functions
@@ -277,8 +266,12 @@ H=height, W=width).
 
 .. code:: ipython3
 
-    IMAGE_FILE = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg"
-    image = load_image(path=IMAGE_FILE)
+    IMAGE_URL = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg"
+    IMAGE_NAME = "coco_bike.jpg"
+    
+    
+    image = load_image(IMAGE_NAME, IMAGE_URL)
+    
     
     # Resize to input shape for network.
     resized_image = cv2.resize(src=image, dsize=(network_image_height, network_image_width))
@@ -309,7 +302,7 @@ original image shape.
 
 .. parsed-literal::
 
-    /tmp/ipykernel_586416/2076527990.py:15: MatplotlibDeprecationWarning: The get_cmap function was deprecated in Matplotlib 3.7 and will be removed two minor releases later. Use ``matplotlib.colormaps[name]`` or ``matplotlib.colormaps.get_cmap(obj)`` instead.
+    /tmp/ipykernel_2254280/2076527990.py:15: MatplotlibDeprecationWarning: The get_cmap function was deprecated in Matplotlib 3.7 and will be removed two minor releases later. Use ``matplotlib.colormaps[name]`` or ``matplotlib.colormaps.get_cmap(obj)`` instead.
       cmap = matplotlib.cm.get_cmap(colormap)
 
 
@@ -346,7 +339,12 @@ Video Settings
 .. code:: ipython3
 
     # Video source: https://www.youtube.com/watch?v=fu1xcQdJRws (Public Domain)
-    VIDEO_FILE = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Coco%20Walking%20in%20Berkeley.mp4"
+    VIDEO_FILE = "Coco-Walking-in-Berkeley.mp4"
+    download_file(
+        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Coco%20Walking%20in%20Berkeley.mp4",
+        VIDEO_FILE,
+    )
+    
     # Number of seconds of input video to process. Set `NUM_SECONDS` to 0 to process
     # the full video.
     NUM_SECONDS = 4
@@ -368,6 +366,13 @@ Video Settings
     output_directory = Path("output")
     output_directory.mkdir(exist_ok=True)
     result_video_path = output_directory / f"{Path(VIDEO_FILE).stem}_monodepth.mp4"
+
+
+
+.. parsed-literal::
+
+    Coco-Walking-in-Berkeley.mp4:   0%|          | 0.00/877k [00:00<?, ?B/s]
+
 
 Load the Video
 ~~~~~~~~~~~~~~
@@ -508,8 +513,8 @@ Do Inference on a Video and Create Monodepth Video
 
 .. parsed-literal::
 
-    Processed 60 frames in 25.55 seconds. Total FPS (including video processing): 2.35.Inference FPS: 48.61 
-    Monodepth Video saved to 'output/Coco%20Walking%20in%20Berkeley_monodepth.mp4'.
+    Processed 60 frames in 8.94 seconds. Total FPS (including video processing): 6.71.Inference FPS: 57.76 
+    Monodepth Video saved to 'output/Coco-Walking-in-Berkeley_monodepth.mp4'.
 
 
 Display Monodepth Video
@@ -535,14 +540,14 @@ Display Monodepth Video
 .. parsed-literal::
 
     Showing monodepth video saved at
-    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/vision-monodepth/output/Coco%20Walking%20in%20Berkeley_monodepth.mp4
+    /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/vision-monodepth/output/Coco-Walking-in-Berkeley_monodepth.mp4
     If you cannot see the video in your browser, please click on the following link to download the video 
 
 
 
 .. raw:: html
 
-    output/Coco%20Walking%20in%20Berkeley_monodepth.mp4<br>
+    output/Coco-Walking-in-Berkeley_monodepth.mp4<br>
 
 
 

@@ -1,5 +1,5 @@
 ============================
-OpenVINO 2024.4
+OpenVINO 2024.5
 ============================
 
 .. meta::
@@ -11,8 +11,8 @@ generative AI, video, audio, and language with models from popular frameworks li
 TensorFlow, ONNX, and more. Convert and optimize models, and deploy across a mix of Intel®
 hardware and environments, on-premises and on-device, in the browser or in the cloud.
 
-Check out the `OpenVINO Cheat Sheet. <https://docs.openvino.ai/2024/_static/download/OpenVINO_Quick_Start_Guide.pdf>`__
-
+| Check out the `OpenVINO Cheat Sheet [PDF] <https://docs.openvino.ai/2024/_static/download/OpenVINO_Quick_Start_Guide.pdf>`__
+| Check out the `GenAI Quick-start Guide [PDF] <https://docs.openvino.ai/2024/_static/download/GenAI_Quick_Start_Guide.pdf>`__
 
 
 .. container::
@@ -25,15 +25,15 @@ Check out the `OpenVINO Cheat Sheet. <https://docs.openvino.ai/2024/_static/down
          <section class="splide" aria-label="Splide Banner Carousel">
            <div class="splide__track">
          		<ul class="splide__list">
+               <li id="ov-homepage-slide2" class="splide__slide">
+                  <p class="ov-homepage-slide-title">New GenAI API</p>
+                  <p class="ov-homepage-slide-subtitle">Generative AI in only a few lines of code!</p>
+                  <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/nightly/learn-openvino/llm_inference_guide/genai-guide.html">Check out our guide</a>
+                  </li>
                   <li id="ov-homepage-slide1" class="splide__slide">
                   <p class="ov-homepage-slide-title">OpenVINO models on Hugging Face!</p>
                   <p class="ov-homepage-slide-subtitle">Get pre-optimized OpenVINO models, no need to convert!</p>
                   <a class="ov-homepage-banner-btn" href="https://huggingface.co/OpenVINO">Visit Hugging Face</a>
-                  </li>
-                  <li id="ov-homepage-slide2" class="splide__slide">
-                  <p class="ov-homepage-slide-title">New Generative AI API</p>
-                  <p class="ov-homepage-slide-subtitle">Generate text with LLMs in only a few lines of code!</p>
-                  <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/genai-guide.html">Check out our guide</a>
                   </li>
                   <li id="ov-homepage-slide3" class="splide__slide">
                   <p class="ov-homepage-slide-title">Improved model serving</p>

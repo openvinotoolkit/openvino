@@ -26,7 +26,7 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::shared_ptr<op::FullyConnectedCompressed>& op) {
-    validate_inputs_count(op, {4, 5, 6});
+    validate_inputs_count(op, {4, 5, 6, 7});
     auto inputs = p.GetInputInfo(op);
     std::string primitive_name = layer_type_name_ID(op);
     auto supports_immad = p.get_engine().get_device_info().supports_immad;
@@ -39,6 +39,7 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
     const size_t W_ZP_IDX = input_idx;
     std::string zp_name = op->get_input_size() > input_idx ? inputs[input_idx++].pid : "";
     auto activation_scale_input = op->get_input_size() > input_idx ? inputs[input_idx++] : cldnn::input_info();
+    auto activation_zero_point_input = op->get_input_size() > input_idx ? inputs[input_idx++] : cldnn::input_info();
 
     float zp_value = 0.0f;
     bool has_scalar_zp = false;
@@ -58,6 +59,7 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
                                      scale_name,
                                      has_scalar_zp && !supports_immad ? "" : zp_name,
                                      activation_scale_input,
+                                     activation_zero_point_input,
                                      cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                      op->get_input_partial_shape(0).size(),
                                      op->get_input_partial_shape(1).size());
@@ -68,6 +70,34 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
     }
 
     p.add_primitive(*op, fc);
+
+    if (op->get_input_partial_shape(0).size() > 3 && !p.use_new_shape_infer()) {
+        auto lastLayerName = primitive_name;
+        auto outReshapeName = primitive_name + "_cldnn_out_reshape";
+
+        // add reorder
+        auto outDims = op->get_output_shape(0);
+        auto outTensor = tensor_from_dims(outDims);
+
+        if (outDims.size() > 4) {
+            cldnn::format outputFormat = cldnn::format::bfyx;
+            switch (outDims.size()) {
+                case 5: outputFormat = cldnn::format::bfzyx; break;
+                case 6: outputFormat = cldnn::format::bfwzyx; break;
+                default: break;
+            }
+
+            cldnn::primitive_id reorderId = "reorder:" + outReshapeName + "_reorder";
+            cldnn::layout outputLayout(cldnn::element_type_to_data_type(op->get_output_element_type(0)), outputFormat, outTensor);
+            auto reorder_prim = cldnn::reorder(reorderId, cldnn::input_info(primitive_name), outputLayout);
+            p.add_primitive(*op, reorder_prim);
+            lastLayerName = reorderId;
+        }
+
+        // add reshape
+        auto outReshapePrim = cldnn::reshape(outReshapeName, cldnn::input_info(lastLayerName), outTensor);
+        p.add_primitive(*op, outReshapePrim);
+    }
 }
 
 static void CreateFullyConnectedOp(ProgramBuilder& p, const std::shared_ptr<op::FullyConnected>& op) {

@@ -1,4 +1,4 @@
-Run LLMs with OpenVINO GenAI Flavor on NPU
+Inference with OpenVINO GenAI
 ==========================================
 
 .. meta::
@@ -20,17 +20,22 @@ Install required dependencies:
    pip install nncf==2.12 onnx==1.16.1 optimum-intel==1.19.0
    pip install --pre openvino openvino-tokenizers openvino-genai --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
 
+Note that for systems based on Intel® Core™ Ultra Processors Series 2, more than 16GB of RAM
+may be required to run prompts over 1024 tokens on models exceeding 7B parameters,
+such as Llama-2-7B, Mistral-0.2-7B, and Qwen-2-7B.
+
 Export an LLM model via Hugging Face Optimum-Intel
 ##################################################
 
-Since **symmetrically-quantized 4-bit (INT4) models are preffered for inference on NPU**, make sure to export
-the model with the proper conversion and optimization settings.
+Since **symmetrically-quantized 4-bit (INT4) models are preffered for inference on NPU**, make
+sure to export the model with the proper conversion and optimization settings.
 
 | You may export LLMs via Optimum-Intel, using one of two compression methods:
 | **group quantization** - for both smaller and larger models,
 | **channel-wise quantization** - remarkably effective but for models exceeding 1 billion parameters.
 
-You select one of the methods by setting the ``--group-size`` parameter to either ``128`` or ``-1``, respectively. See the following examples:
+You select one of the methods by setting the ``--group-size`` parameter to either ``128`` or
+``-1``, respectively. See the following examples:
 
 .. tab-set::
 
@@ -85,6 +90,7 @@ which do not require specifying quantization parameters:
 | Below is a list of such models:
 
 * meta-llama/Meta-Llama-3-8B-Instruct
+* meta-llama/Llama-3.1-8B
 * microsoft/Phi-3-mini-4k-instruct
 * Qwen/Qwen2-7B
 * mistralai/Mistral-7B-Instruct-v0.2
@@ -128,6 +134,7 @@ you need to add ``do_sample=False`` **to the** ``generate()`` **method:**
 
          int main(int argc, char* argv[]) {
             std::string model_path = "TinyLlama";
+            ov::genai::LLMPipeline pipe(models_path, "NPU");
             ov::genai::GenerationConfig config;
             config.do_sample=false;
             config.max_new_tokens=100;
