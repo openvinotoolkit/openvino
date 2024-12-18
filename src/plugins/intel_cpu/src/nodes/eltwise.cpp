@@ -343,7 +343,7 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
 
         if (mayiuse(avx512_core) || mayiuse(avx2_vnni_2)) {
             auto const mode = jep_.do_output_saturation ? jit_uni_vcvtneps2bf16::conversion_mode::saturation_mode
-                                                          : jit_uni_vcvtneps2bf16::conversion_mode::default_mode;
+                                                        : jit_uni_vcvtneps2bf16::conversion_mode::default_mode;
             uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(this, isa, element::bf16, mode));
         }
 
