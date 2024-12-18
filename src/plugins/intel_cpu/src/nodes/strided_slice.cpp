@@ -343,9 +343,10 @@ bool StridedSlice::needShapeInfer() const {
 void StridedSlice::execute(dnnl::stream strm) {
     if (!execPtr) {
         if (!isDynamicNode() && !hasConstAttrInputs) {
-        // SliceScatter due to not having data dependency on shape may not call prepareParams when start/stop/step values are non-constant in Static execution.
-        // In Slice and SliceScatter op, prepareParams would be called by createPrimitive (if const inputs) or by updateDynamicParams in case of dynamic node.
-        StridedSlice::prepareParams();
+            // SliceScatter due to not having data dependency on shape may not call prepareParams when start/stop/step
+            // values are non-constant in Static execution. In Slice and SliceScatter op, prepareParams would be called
+            // by createPrimitive (if const inputs) or by updateDynamicParams in case of dynamic node.
+            StridedSlice::prepareParams();
         } else {
             OPENVINO_THROW(errorPrefix, "doesn't have compiled executor!");
         }
