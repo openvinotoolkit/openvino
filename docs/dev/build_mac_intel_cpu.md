@@ -12,14 +12,14 @@ The software was validated on:
 
 - [brew](https://brew.sh) package manager to install additional dependencies. Use [install brew](https://brew.sh) guide to achieve this.
 - Installation step for python and python libraries varies depending on the host architecture:
-  - **x86_64** Python 3.9 - 3.12 for the OpenVINO Runtime Python API, Development tools (Model Optimizer, POT and others):
+  - **x86_64** Python 3.9 - 3.12 for the OpenVINO Runtime Python API:
   ```sh
   % # let's have a look what python versions are available in brew
   % brew search python
   % # select preferred version of python based on available ones, e.g. 3.11
   % brew install python@3.11
   ```
-  - **arm64** Select universal2 installer from [Python releases](https://www.python.org/downloads/macos/) download page and install `python-3.X.Y-macos11.pkg` image. This allows to have universal python libraries, build x86_64 OpenVINO Python API and Development tools.
+  - **arm64** Select universal2 installer from [Python releases](https://www.python.org/downloads/macos/) download page and install `python-3.X.Y-macos11.pkg` image. This allows to have universal python libraries of OpenVINO Python API (build x86_64) .
 - [CMake](https://cmake.org/download/) 3.13 or higher and other development tools:
   ```sh
   % brew install cmake scons fdupes git-lfs ninja
@@ -32,13 +32,13 @@ The software was validated on:
   ```sh
   % brew install tbb pugixml flatbuffers snappy protobuf
   ```
-- Additional `pip` dependencies to build OpenVINO Runtime Python API, Development tools (Model Optimizer, POT and others):
+- Additional `pip` dependencies to build OpenVINO Runtime Python API:
   ```sh
   % # update pip and setuptools to newer versions
   % python3 -m pip install -U pip
   % python3 -m pip install -r <openvino source tree>/src/bindings/python/requirements.txt
   ```
-  Additional install requirements (after OpenVINO repo clone) in order to build OpenVINO Python API and Development tools as wheel packages:
+  Additional install requirements (after OpenVINO repo clone) in order to build OpenVINO Python API:
   ```sh
   % python3 -m pip install -r <openvino source tree>/src/bindings/python/wheel/requirements-dev.txt
   ```

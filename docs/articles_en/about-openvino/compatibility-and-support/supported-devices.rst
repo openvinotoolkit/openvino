@@ -31,11 +31,6 @@ OpenVINO offers the option of running automated inference with the following inf
 | :doc:`Automatic Batching <../../openvino-workflow/running-inference/inference-devices-and-modes/automatic-batching>`:
 | automatically groups inference requests to improve device utilization.
 
-| :doc:`(LEGACY) Multi-device Inference <./../../documentation/legacy-features/multi-device>`:
-| executes inference on multiple devices. Currently, this mode is considered a legacy
-  solution. Using Automatic Device Selection instead is advised.
-
-
 Feature Support and API Coverage
 #################################
 
@@ -52,7 +47,6 @@ Feature Support and API Coverage
  :doc:`Preprocessing acceleration <../../openvino-workflow/running-inference/optimize-inference/optimize-preprocessing>`                  Yes     Yes        No
  :doc:`Stateful models <../../openvino-workflow/running-inference/stateful-models>`                                                       Yes     Yes        Yes
  :doc:`Extensibility <../../documentation/openvino-extensibility>`                                                                        Yes     Yes        No
- :doc:`(LEGACY) Multi-device execution <./../../documentation/legacy-features/multi-device>`                                              Yes     Yes        Partial
 ======================================================================================================================================== ======= ========== ===========
 
 

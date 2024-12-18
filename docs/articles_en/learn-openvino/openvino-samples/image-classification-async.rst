@@ -129,9 +129,9 @@ To run the sample, you need to specify a model and an image:
 
 .. note::
 
-   - By default, OpenVINO™ Toolkit Samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using model conversion API with ``reverse_input_channels`` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of :doc:`Embedding Preprocessing Computation <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/[legacy]-setting-input-shapes>`.
+   - By default, OpenVINO™ Toolkit Samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using model conversion API with ``reverse_input_channels`` argument specified. For more information about the argument, refer to the **Color Conversion** section of :doc:`Preprocessing API <../../openvino-workflow/running-inference/optimize-inference/optimize-preprocessing/preprocessing-api-details>`.
 
-   - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using :doc:`model conversion API <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`.
+   - Before running the sample with a trained model, make sure the model is converted to the intermediate representation (IR) format (\*.xml + \*.bin) using :doc:`model conversion API <../../openvino-workflow/model-preparation/convert-model-to-ir>`.
 
    - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
@@ -326,6 +326,6 @@ Additional Resources
 - :doc:`Integrate the OpenVINO™ Runtime with Your Application <../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
 - :doc:`Get Started with Samples <get-started-demos>`
 - :doc:`Using OpenVINO™ Toolkit Samples <../openvino-samples>`
-- :doc:`Convert a Model <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`
+- :doc:`Convert a Model <../../openvino-workflow/model-preparation/convert-model-to-ir>`
 - `Image Classification Async Python Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/python/classification_sample_async/README.md>`__
 - `Image Classification Async C++ Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/cpp/classification_sample_async/README.md>`__

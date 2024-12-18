@@ -7,8 +7,7 @@ Bert Benchmark Python Sample
 
 
 This sample demonstrates how to estimate performance of a Bert model using Asynchronous
-Inference Request API. Unlike `demos <https://github.com/openvinotoolkit/open_model_zoo/blob/master/demos/README.md>`__
-this sample does not have
+Inference Request API. This sample does not have
 configurable command line arguments. Feel free to modify sample's source code to
 try out different options.
 
@@ -64,5 +63,5 @@ Additional Resources
 - :doc:`Integrate the OpenVINO™ Runtime with Your Application <../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
 - :doc:`Get Started with Samples <get-started-demos>`
 - :doc:`Using OpenVINO Samples <../openvino-samples>`
-- :doc:`Convert a Model <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`
+- :doc:`Convert a Model <../../openvino-workflow/model-preparation/convert-model-to-ir>`
 - `Bert Benchmark Python Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/python/benchmark/bert_benchmark/README.md>`__

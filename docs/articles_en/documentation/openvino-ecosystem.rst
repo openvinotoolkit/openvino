@@ -116,15 +116,6 @@ generative AI and vision models directly on your computer or edge device using O
   :bdg-link-success:`User Guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/ov-tokenizers.html>`
 
 OpenVINO Tokenizers add text processing operations to OpenVINO.
-|hr|
-
-
-| **OpenVINO's Open Model Zoo**
-| :bdg-link-dark:`Github <https://github.com/openvinotoolkit/open_model_zoo>`
-  :bdg-link-success:`User Guide <https://docs.openvino.ai/2024/documentation/legacy-features/model-zoo.html>`
-
-Open Model Zoo includes optimized deep learning models and a set of demos to
-expedite development of high-performance deep learning inference applications.
 
 OpenVINO-based AI projects
 ##########################

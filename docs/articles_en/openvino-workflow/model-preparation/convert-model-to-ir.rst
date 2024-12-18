@@ -296,7 +296,7 @@ used by OpenVINO, typically obtained by converting models of supported framework
 
             * The ``convert_model()`` method:
 
-              You can use ``mo`` command-line tool to convert a model to IR. The obtained IR can
+              You can use ``ovc`` to convert a model to IR. The obtained IR can
               then be read by ``read_model()`` and inferred.
 
               .. dropdown:: List of supported formats:
@@ -423,7 +423,7 @@ used by OpenVINO, typically obtained by converting models of supported framework
 
             * The ``convert_model()`` method:
 
-              You can use ``mo`` command-line tool to convert a model to IR. The obtained IR
+              You can use ``ovc`` to convert a model to IR. The obtained IR
               can then be read by ``read_model()`` and inferred.
 
               .. dropdown:: List of supported formats:
@@ -557,7 +557,7 @@ used by OpenVINO, typically obtained by converting models of supported framework
 
             * The ``convert_model()`` method:
 
-              You can use ``mo`` command-line tool to convert a model to IR. The obtained IR
+              You can use ``ovc`` to convert a model to IR. The obtained IR
               can then be read by ``read_model()`` and inferred.
 
               .. dropdown:: List of supported formats:
@@ -708,6 +708,6 @@ multiple times:
 Additional Resources
 ####################
 
-* :doc:`Transition guide from the legacy to new conversion API <../../documentation/legacy-features/transition-legacy-conversion-api>`
+* Learn about the :doc:`parameters to adjust model conversion <./conversion-parameters>`.
 * `Download models from Hugging Face <https://huggingface.co/models>`__.
 
