@@ -6,6 +6,7 @@
 
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/device.hpp"
+#include "intel_gpu/runtime/plugin_config.hpp"
 
 namespace ov::intel_gpu {
 

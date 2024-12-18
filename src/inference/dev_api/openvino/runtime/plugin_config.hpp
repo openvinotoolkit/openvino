@@ -62,7 +62,8 @@ struct ConfigOption : public ConfigOptionBase {
 
     bool is_valid_value(ov::Any val) override {
         try {
-            return validator ? validator(val.as<T>()) : true;
+            auto v = val.as<T>();
+            return validator ? validator(v) : true;
         } catch (std::exception&) {
             return false;
         }
@@ -74,6 +75,7 @@ private:
 
 // Base class for configuration of plugins
 // Implementation should provide a list of properties with default values and validators (optional)
+// and prepare a map string property name -> ConfigOptionBase pointer
 // For the sake of efficiency, we expect that plugin properties are defined as class members of the derived class
 // and accessed directly in the plugin's code (i.e. w/o get_property()/set_property() calls)
 // get/set property members are provided to handle external property access
@@ -91,9 +93,14 @@ private:
 class OPENVINO_RUNTIME_API PluginConfig {
 public:
     PluginConfig() {}
-    PluginConfig(std::initializer_list<ov::AnyMap::value_type> values) : PluginConfig() { set_property(ov::AnyMap(values)); }
-    explicit PluginConfig(const ov::AnyMap& properties) : PluginConfig() { set_property(properties); }
-    explicit PluginConfig(const ov::AnyMap::value_type& property) : PluginConfig() { set_property(property); }
+    virtual ~PluginConfig() = default;
+
+    // Disable copy and move as we need to setup m_options_map properly and ensure that
+    // values are a part of current config object
+    PluginConfig(const PluginConfig& other) = delete;
+    PluginConfig& operator=(const PluginConfig& other) = delete;
+    PluginConfig(PluginConfig&& other) = delete;
+    PluginConfig& operator=(PluginConfig&& other) = delete;
 
     void set_property(const ov::AnyMap& properties);
     Any get_property(const std::string& name) const;
@@ -118,9 +125,12 @@ public:
     std::string to_string() const;
 
     void finalize(std::shared_ptr<IRemoteContext> context, const ov::RTMap& rt_info);
-    virtual void finalize_impl(std::shared_ptr<IRemoteContext> context, const ov::RTMap& rt_info) = 0;
 
 protected:
+    virtual void apply_rt_info(std::shared_ptr<IRemoteContext> context, const ov::RTMap& rt_info) {}
+    virtual void apply_debug_options(std::shared_ptr<IRemoteContext> context);
+    virtual void finalize_impl(std::shared_ptr<IRemoteContext> context) {}
+
     template <typename T, PropertyMutability mutability>
     bool is_set_by_user(const ov::Property<T, mutability>& property) const {
         return user_properties.find(property.name()) != user_properties.end();
@@ -135,6 +145,11 @@ protected:
             }
         }
     }
+
+    ov::AnyMap read_config_file(const std::string& filename, const std::string& target_device_name) const;
+    ov::AnyMap read_env(const std::vector<std::string>& prefixes) const;
+    void cleanup_unsupported(ov::AnyMap& config) const;
+
     std::map<std::string, ConfigOptionBase*> m_options_map;
 
     // List of properties explicitly set by user via Core::set_property() or Core::compile_model() or ov::Model's runtime info
