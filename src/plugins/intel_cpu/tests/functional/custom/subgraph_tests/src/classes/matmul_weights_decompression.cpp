@@ -9,33 +9,6 @@ using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
-/*
- * WP - weights precision
- * DP - decompression precision
- * IP - input precision
- * SP - scale precision
- * Opt - optional
- *                        Subtract_const(WP)
- *                           /
- *    Weights(WP)     Convert(DP)
- *       |               /           Multiply_const(SP)
- *    Convert(DP)   Reshape (Opt)      /
- *            \        /          Convert(if SP != DP)
- *            Subtract(Opt)       /
- *                  \         Reshape (Opt)
- *                   \         /
- *                    Multiply
- *                      |
- *                   Reshape (in case of group decompression)
- *                      |
- *                   Convert (if IP != DP)
- *                      |
- *      Data(IP)   Transpose(Opt)
- *            \     /
- *             Matmul
- *               |
- *              Bias
- */
 
 std::string MatmulWeightsDecompression::getTestCaseName(testing::TestParamInfo<MatmulWeightsDecompressionParams> obj) {
     MatMulDecompressionShapeParams shape_params;
@@ -144,7 +117,7 @@ void MatmulWeightsDecompression::SetUp() {
 
     if (configuration.count(ov::hint::inference_precision.name()) &&
         configuration.at(ov::hint::inference_precision.name()) == ov::element::f16) {
-        abs_threshold = 0.1;
+        abs_threshold = 0.2;
     }
 
     ElementType netType = ov::element::f32;

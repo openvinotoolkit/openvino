@@ -155,7 +155,7 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const MatMulAttrs& attrs,
 
     const auto maxRank =
         std::max({srcDesc->getShape().getRank(), weiDesc->getShape().getRank(), dstDesc->getShape().getRank()});
-    auto normWeiDims = normalizeToRank(weiDesc->getShape().getStaticDims(), maxRank);
+    const auto normWeiDims = normalizeToRank(weiDesc->getShape().getStaticDims(), maxRank);
     if (memory.count(ARG_WEI | ARG_ATTR_SCALES)) {
         auto dstPrc = ov::element::f32;
         dnnlpoc.appendDecompressionScales(memory.at(ARG_WEI | ARG_ATTR_SCALES),

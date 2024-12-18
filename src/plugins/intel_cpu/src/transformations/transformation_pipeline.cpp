@@ -338,23 +338,12 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // We need to fuse Transpose to MatMul to have a simpler callback for the next transformation
     CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::TransposeMatMul);
     CPU_REGISTER_PASS_ARM(decompression_handling_manager, ov::pass::TransposeMatMul);
-    ov::element::TypeVector decompression_precisions{ov::element::u8,
-                                                     ov::element::i8,
-                                                     ov::element::u4,
-                                                     ov::element::i4,
-                                                     ov::element::nf4,
-                                                     ov::element::f4e2m1};
-
-    CPU_REGISTER_PASS_X64(decompression_handling_manager,
-                          ov::pass::MarkDequantization,
-                          decompression_precisions,
-                          false,
-                          true);
-    CPU_REGISTER_PASS_ARM(decompression_handling_manager,
-                          ov::pass::MarkDequantizationSubgraph,
-                          decompression_precisions,
-                          false,
-                          true);
+    const auto& decompression_precisions = ov::intel_cpu::node::FullyConnected::getSupportedCompressedWeightsTypes();
+    CPU_REGISTER_PASS_COMMON(decompression_handling_manager,
+                             ov::pass::MarkDequantization,
+                             decompression_precisions,
+                             false,
+                             true);
     CPU_SET_CALLBACK_COMMON(
         decompression_handling_manager,
         [&](const_node_ptr& node) -> bool {

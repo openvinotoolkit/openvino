@@ -1,32 +1,56 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-// #include "openvino/opsets/opset13.hpp"
-// #include "openvino/pass/manager.hpp"
-// #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/fusing_test_utils.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
-#include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
 
 using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
 
+/*
+ * WP - weights precision
+ * DP - decompression precision
+ * IP - input precision
+ * SP - scale precision
+ * Opt - optional
+ *                        Subtract_const(WP)
+ *                           /
+ *    Weights(WP)     Convert(DP)
+ *       |               /           Multiply_const(SP)
+ *    Convert(DP)   Reshape (Opt)      /
+ *            \        /          Convert(if SP != DP)
+ *            Subtract(Opt)       /
+ *                  \         Reshape (Opt)
+ *                   \         /
+ *                    Multiply
+ *                      |
+ *                   Reshape (in case of group decompression)
+ *                      |
+ *                   Convert (if IP != DP)
+ *                      |
+ *      Data(IP)   Transpose(Opt)
+ *            \     /
+ *             Matmul
+ *               |
+ *              Bias
+ */
 typedef std::tuple<MatMulDecompressionShapeParams,
-        ov::test::ElementType,      // weights precision
-        ov::test::ElementType,      // decompression precision
-        ov::test::ElementType,      // scale precision
-        bool,                       // transpose on weights
-        DecompressionSubtractType,  // decompression subtract type
-        bool,                       // reshape on decompression constants
-        ov::AnyMap,                 // additional config
-        fusingSpecificParams,
-        bool>                      // should use decompression implementation
-MatmulWeightsDecompressionParams;
+                   ov::test::ElementType,      // weights precision
+                   ov::test::ElementType,      // decompression precision
+                   ov::test::ElementType,      // scale precision
+                   bool,                       // transpose on weights
+                   DecompressionSubtractType,  // decompression subtract type
+                   bool,                       // reshape on decompression constants
+                   ov::AnyMap,                 // additional config
+                   fusingSpecificParams,
+                   bool>  // should use decompression implementation
+    MatmulWeightsDecompressionParams;
 
 class MatmulWeightsDecompression : public testing::WithParamInterface<MatmulWeightsDecompressionParams>,
                                    virtual public SubgraphBaseTest,

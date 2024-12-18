@@ -28,8 +28,6 @@ namespace ov {
 namespace intel_cpu {
 
 inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const Config& config) {
-    using ov::element::Type_t;
-
     RUN_ON_FUNCTION_SCOPE(ConvertToCPUSpecificOpset);
 
     ov::pass::Manager manager("CPU:ConvertToCPUSpecificOpset");
@@ -38,28 +36,11 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
     CPU_REGISTER_PASS_COMMON(manager, ConvertMatMulToFC);
     CPU_REGISTER_PASS_COMMON(manager, FullyConnectedBiasFusion);
 
-    std::vector<ov::element::Type> supported_activation_types;
-    std::vector<ov::element::Type> supported_compressed_weights_types;
-
-    bool useMatmulPrim = false;
-    CPU_DEBUG_CAP_ENABLE(useMatmulPrim = getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC");)
-
-    if (useMatmulPrim) {
-        supported_activation_types = {Type_t::f32, Type_t::f16};
-        supported_compressed_weights_types = {Type_t::u8, Type_t::i8};
-    } else {
-        // @todo enable for bf16 as well
-        // after EnforceInferencePrecision is replaced with ConvertPrecision
-        supported_activation_types = {Type_t::f32};
-        supported_compressed_weights_types =
-            {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4, Type_t::nf4, Type_t::f4e2m1};
-    }
-
     CPU_REGISTER_PASS_COMMON(
         manager,
         pass::ConvertFullyConnectedToFullyConnectedCompressed,
-        supported_activation_types,
-        supported_compressed_weights_types,
+        ov::intel_cpu::node::FullyConnected::getSupportedCompressedActivationsTypes(),
+        ov::intel_cpu::node::FullyConnected::getSupportedCompressedWeightsTypes(),
         [&config](const std::shared_ptr<ov::op::internal::FullyConnected>& fc, size_t IC, size_t OC, size_t G) {
             return ov::intel_cpu::node::FullyConnected::isSupportedCompressedOperation(fc,
                                                                                        IC,
