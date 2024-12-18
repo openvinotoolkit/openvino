@@ -12,37 +12,43 @@
 namespace ov {
 namespace intel_cpu {
 
-void dynPruneLinear_f16(const float* input,
-                       float threshold,
-                       float zero_point,
-                       const ov::float16* W,
-                       float* output,
-                       int M,
-                       int IC,
-                       int OC);
+class JitKernel;
 
-void dynPruneLinear_i8(const float* input,
-                       float threshold,
-                       float zero_point,
-                       const uint8_t* W,
-                       const uint8_t* zp,
-                       const float* scales,
-                       float* output,
-                       int M,
-                       int IC,
-                       int OC);
-void dynPruneLinear_i4(const float* input,
-                       float threshold,
-                       float zero_point,
-                       const uint8_t* W,
-                       const uint8_t* zp,
-                       const float* scales,
-                       float* output,
-                       int M,
-                       int IC,
-                       int OC,
-                       int IC_group_size);
-void dynPruneLinear_repack_i4(uint8_t * src, uint8_t * dst, int IC, int OC);
+enum class WeightCompressionType {
+    FP16 = 0,
+    INT8,
+    INT4
+};
+class ActSparseFcKernel {
+public:
+    // compile time parameters
+    ActSparseFcKernel(WeightCompressionType wtype, bool with_zero_points, int ic_group_size);
+
+    void operator()(const float* input,
+                    float* output,
+                    int M,
+                    int IC,
+                    int OC,
+                    float threshold,
+                    float zero_point,
+                    const void* W,
+                    const float* scales,
+                    const uint8_t* zp);
+
+    void repack_weights_i4(uint8_t * src, uint8_t * dst, int IC, int OC);
+
+private:
+    const WeightCompressionType m_wtype;
+    const bool m_with_zp;
+    JitKernel* m_decompzp_kernel;
+    JitKernel* m_accumulate_kernel;
+    const int m_ic_group_size;
+
+    std::vector<int> m_nonzero_ids;
+    std::vector<float> m_nonzero_val;
+    std::vector<float> m_output_temp;
+    int m_nonzero_cnt;
+};
 
 }  // namespace intel_cpu
 }  // namespace ov

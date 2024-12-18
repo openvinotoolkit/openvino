@@ -50,6 +50,8 @@ constexpr Xbyak::Operand::Code abi_x86_64_regs[] = {
 #endif
 };
 
+namespace ov {
+namespace intel_cpu {
 
 static int get_SIMDW() {
     auto SIMDW = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 16 : 8;
@@ -376,12 +378,6 @@ static void gemm6x2_Mx2(const float * pA, int64_t A_stride,
     if (m < M)
         (*gemm6x2[M-m])(pA, A_stride, pB, B_stride, pC, C_stride, bK, is_accumulate_C);
 }
-
-enum class WeightCompressionType {
-    FP16 = 0,
-    INT8,
-    INT4
-};
 
 static std::shared_ptr<JitKernel> jit_compile_accumulate_weight_i4(bool with_zero_point) {
     auto jit = std::make_shared<JitKernel>(__func__);
@@ -732,6 +728,8 @@ src0 : [num_copies, N, OC]
 static inline void reduce_outputs(float* dst0, float* src0, int num_copies, int N, int64_t OC) {
     static auto jit_reduce = jit_compile_reduce_outputs();
     int64_t simd_width = jit_reduce->vmm_width<float>();
+    auto prof = PROFILE("reduce_outputs");
+
     if (OC % simd_width) {
         throw std::runtime_error(std::string("OC is not multiple of ") + std::to_string(simd_width));
     }
@@ -1064,49 +1062,6 @@ static void MM_ComputeBounded_reuseB_i8(const float * A,
     }
 }
 
-
-static void accumulate_w4(float* base_dst, int OC,
-                   int* ic_ids, int ic_cnt,
-                   const uint8_t* W,
-                   const uint8_t* zp,
-                   const float* scales,
-                   float* dense_x, int IC, int IC_group_size) {
-    static auto decompress_zp_u4 = get_decompress_zp_u4();
-    static auto accumulate_weight_i4_nozp = jit_compile_accumulate_weight_i4(false);
-    static auto accumulate_weight_i4_withzp = jit_compile_accumulate_weight_i4(true);
-    auto * accumulate_weight_i4 = zp ? accumulate_weight_i4_withzp.get() : accumulate_weight_i4_nozp.get();
-    // decompress zero-point
-    thread_local std::vector<float> zpbuff;
-    zpbuff.resize(OC);
-
-    const auto SIMDW = get_SIMDW();
-    ASSERT((OC % (SIMDW*2)) == 0);
-    int last_gid = -1;
-    // vector x weights
-    for (int g = 0; g < ic_cnt; g+=4) {
-        auto ic0 = ic_ids[g];
-        auto ic1 = ic_ids[g+1];
-        auto ic2 = ic_ids[g+2];
-        auto ic3 = ic_ids[g+3];
-        auto gid = ic0 / IC_group_size;
-        auto* p_scales = scales + gid*OC;
-
-        // entering a new group, decompress zero-points
-        if (last_gid != gid) {
-            if (zp)
-                (*decompress_zp_u4)(zp + gid * (OC/2), zpbuff.data(), OC);
-            last_gid = gid;
-        }
-
-        const auto* p_w0 = W + ic0 * OC/2;
-        const auto* p_w1 = W + ic1 * OC/2;
-        const auto* p_w2 = W + ic2 * OC/2;
-        const auto* p_w3 = W + ic3 * OC/2;
-        auto* dst_zp = zpbuff.data();
-        (*accumulate_weight_i4)(base_dst, p_w0, p_w1, p_w2, p_w3, dense_x + g, OC, p_scales, zpbuff.data());
-    }
-}
-
 static void MM_ComputeBounded_reuseA_i4(
             const float * A,
             float * C,
@@ -1156,262 +1111,9 @@ static void MM_ComputeBounded_reuseA_i4(
     }
 }
 
-namespace ov {
-namespace intel_cpu {
-
-// x : [M, IC]
-// W : [IC, OC]
-//template <typename WType>
-void dynPruneLinear_f16(const float* input,
-                       float threshold,
-                       float zero_point,
-                       const ov::float16* W,
-                       float* output,
-                       int M,
-                       int IC,
-                       int OC) {
-    const auto SIMDW = get_SIMDW();
-
-    if (M > 1) {
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            int n0, n1;
-            splitter(OC / (2 * SIMDW), nthr, ithr, n0, n1);
-            n0 *= 2 * SIMDW;
-            n1 *= 2 * SIMDW;
-            MM_ComputeBounded_reuseA_f16(input, output, W, M, IC, OC, n0, n1);
-        });
-        return;
-    }
-    static auto jit_accumulate_wf16 = jit_compile_accumulate_weight(WeightCompressionType::FP16);
-
-    auto prof = PROFILE("gate_ids");
-    static std::vector<int> gate_ids;
-    static std::vector<float> gate_val;
-    int gate_cnt = 0;
-    gate_ids.resize(IC);
-    gate_val.resize(IC);
-    for (int channel = 0; channel < IC; channel++) {
-        auto* src = input + channel;
-        for (int m = 0; m < M; m++, src += IC) {
-            auto& value = src[m];
-            if (std::abs(value - zero_point) >= threshold) {
-                gate_ids[gate_cnt] = channel;
-                gate_val[gate_cnt] = value;
-                gate_cnt++;
-                break;
-            }
-        }
-    }
-    // pad to 4
-    auto last_channel = gate_ids[gate_cnt - 1];
-    while (gate_cnt & 3) {
-        gate_ids[gate_cnt] = last_channel;
-        gate_val[gate_cnt] = 0.0f;
-        gate_cnt++;
-    }
-
-    // this mm kernel is the most time-consuming one
-    auto nthr_max = parallel_get_max_threads();
-    static std::vector<float> output_temp;
-    output_temp.resize(nthr_max * M * OC);
-
-    if (OC % SIMDW) {
-        throw std::runtime_error(std::string("OC is not multiple of ") + std::to_string(SIMDW));
-    }
-
-    parallel_nt(0, [&](const int ithr, const int nthr) {
-        int g0, g1;
-        splitter(gate_cnt/4, nthr, ithr, g0, g1);
-        g0 *= 4;
-        g1 *= 4;
-        auto* pdst = &output_temp[ithr * M * OC];
-        memset(pdst, 0, M * OC * sizeof(output_temp[0]));
-        (*jit_accumulate_wf16)(pdst, (OC), &gate_ids[g0], (g1 - g0), W, &gate_val[g0]);
-    });
-
-    prof = PROFILE("reduce");
-    reduce_outputs(output, output_temp.data(), nthr_max, M, OC);
-}
-
-void dynPruneLinear_i8(const float* input,      // [M, IC]
-                        float threshold,
-                        float zero_point,
-                        const uint8_t* W,       // [IC, OC]
-                        const uint8_t* zp,      // [OC]
-                        const float* scales,    // [OC]
-                        float* output,          // [M, OC]
-                        int M, int IC, int OC) {
-    static auto accumulate_weight_i8_nozp = jit_compile_accumulate_weight(WeightCompressionType::INT8, false);
-    static auto accumulate_weight_i8_withzp = jit_compile_accumulate_weight(WeightCompressionType::INT8, true);
-    static auto decompress_zp_u8 = get_decompress_zp_u8();
-
-    auto* accumulate_weight_i8 = zp ? accumulate_weight_i8_withzp.get() : accumulate_weight_i8_nozp.get();
-    const auto SIMDW = get_SIMDW();
-
-    if (M > 1) {
-        if (M < 32) {
-            parallel_nt(0, [&](const int ithr, const int nthr) {
-                int n0, n1;
-                splitter(OC/(2*SIMDW), nthr, ithr, n0, n1);
-                n0 *= 2*SIMDW;
-                n1 *= 2*SIMDW;
-                MM_ComputeBounded_reuseA_i8(
-                    input, output,
-                    W, zp, scales, M, IC, OC, n0, n1);
-            });
-        } else {
-            parallel_nt(0, [&](const int ithr, const int nthr) {
-                int n0, n1;
-                splitter(OC/(SIMDW), nthr, ithr, n0, n1);
-                n0 *= SIMDW;
-                n1 *= SIMDW;
-                MM_ComputeBounded_reuseB_i8(
-                    input, output,
-                    W, zp, scales, M, IC, OC, n0, n1);
-            });
-        }
-        return;
-    }
-
-    auto prof = PROFILE("gate_ids");
-    static std::vector<int> gate_ids;
-    static std::vector<float> gate_val;
-    int gate_cnt = 0;
-    gate_ids.resize(IC);
-    gate_val.resize(IC);
-    for (int channel = 0; channel < IC; channel++) {
-        auto* src = input + channel;
-        for (int m = 0; m < M; m++, src += IC) {
-            auto& value = src[m];
-            if (std::abs(value - zero_point) >= threshold) {
-                gate_ids[gate_cnt] = channel;
-                gate_val[gate_cnt] = value;
-                gate_cnt++;
-                break;
-            }
-        }
-    }
-
-    // pad to 4
-    auto last_channel = gate_ids[gate_cnt - 1];
-    while (gate_cnt & 3) {
-        gate_ids[gate_cnt] = last_channel;
-        gate_val[gate_cnt] = 0.0f;
-        gate_cnt++;
-    }
-
-    // std::cout << M << "," << IC << "," << OC << "," << threshold << "," << zero_point << std::endl;
-    prof = PROFILE("mm");
-
-    // this mm kernel is the most time-consuming one
-    auto nthr_max = parallel_get_max_threads();
-    static std::vector<float> output_temp;
-    output_temp.resize(nthr_max * M * OC);
-    // decompress zero-point
-    thread_local std::vector<float> zpbuff;
-
-    parallel_nt(0, [&](const int ithr, const int nthr) {
-        int g0, g1;
-        splitter(gate_cnt/4, nthr, ithr, g0, g1);
-        g0 *= 4;
-        g1 *= 4;
-        auto* pdst = &output_temp[ithr * M * OC];
-        memset(pdst, 0, M * OC * sizeof(output_temp[0]));
-
-        if (zp) {
-            zpbuff.resize(OC);
-            (*decompress_zp_u8)(zp, zpbuff.data(), OC);
-        }
-        (*accumulate_weight_i8)(pdst, OC, &gate_ids[g0], g1 - g0, W, &gate_val[g0], scales, zpbuff.data());
-    });
-
-    prof = PROFILE("reduce");
-    reduce_outputs(output, output_temp.data(), nthr_max, M, OC);
-    return;
-}
-
-void dynPruneLinear_i4(const float* input,      // [M, IC]
-                        float threshold,
-                        float zero_point,
-                        const uint8_t* W,       // [IC, OC]
-                        const uint8_t* zp,      // [OC]
-                        const float* scales,    // [OC]
-                        float* output,          // [M, OC]
-                        int M, int IC, int OC,
-                        int IC_group_size) {
-    const auto SIMDW = get_SIMDW();
-    if ((OC % (2*SIMDW)) > 0) {
-        throw std::runtime_error("OC is not multiple of 16");
-    }
-
-    if (M > 1) {
-        // a reference impl
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            int n0, n1;
-            splitter(OC/(2*SIMDW), nthr, ithr, n0, n1);
-            n0 *= 2*SIMDW;
-            n1 *= 2*SIMDW;
-            MM_ComputeBounded_reuseA_i4(
-                input, output,
-                W, zp, scales, M, IC, OC, n0, n1, IC_group_size);
-        });
-        return;
-    }
-
-    auto prof = PROFILE("gate_ids");
-    static std::vector<int> gate_ids;
-    static std::vector<float> gate_val;
-    int gate_cnt = 0;
-    gate_ids.resize(IC);
-    gate_val.resize(IC);
-    for (int c0 = 0; c0 < IC; c0 += IC_group_size) {
-        for (int c1 = 0; c1 < IC_group_size; c1++) {
-            auto channel = c0 + c1;
-            auto& value = input[channel];
-            if (std::abs(value - zero_point) >= threshold) {
-                gate_ids[gate_cnt] = channel;
-                gate_val[gate_cnt] = value;
-                gate_cnt++;
-            }
-        }
-        if (gate_cnt & 3) {
-            // padding : ensuer 4 rows are from same group
-            auto n_pad = 4 - (gate_cnt & 3);
-            auto ic_pad = gate_ids[gate_cnt-1];
-            for (int i = 0; i < n_pad; i++) {
-                gate_ids[gate_cnt] = ic_pad;
-                gate_val[gate_cnt] = 0.0f;
-                gate_cnt++;
-            }
-        }
-    }
-
-    // std::cout << M << "," << IC << "," << OC << "," << threshold << "," << zero_point << std::endl;
-    prof = PROFILE("mm");
-
-    // this mm kernel is the most time-consuming one
-    auto nthr_max = parallel_get_max_threads();
-    static std::vector<float> output_temp;
-    output_temp.resize(nthr_max * M * OC);
-
-    parallel_nt(0, [&](const int ithr, const int nthr) {
-        int g0, g1;
-        splitter(gate_cnt/4, nthr, ithr, g0, g1);
-        g0 *= 4;
-        g1 *= 4;
-        auto* pdst = &output_temp[ithr * M * OC];
-        memset(pdst, 0, M * OC * sizeof(output_temp[0]));
-        accumulate_w4(pdst, OC, &gate_ids[g0], g1 - g0, W, zp, scales, &gate_val[g0], IC, IC_group_size);
-    });
-
-    prof = PROFILE("reduce");
-    reduce_outputs(output, output_temp.data(), nthr_max, M, OC);
-    return;
-}
-
 // [OC, IC/2, 2] => [IC, OC/2, 2]
 // each row is further reordered in unit of 16 x i4 in [0,8,1,9,2,a,3,b,4,c,5,d,6,e,7,f] order
-void dynPruneLinear_repack_i4(uint8_t * src, uint8_t * dst, int IC, int OC) {
+void ActSparseFcKernel::repack_weights_i4(uint8_t * src, uint8_t * dst, int IC, int OC) {
     auto src_stride = IC / 2;
     const auto SIMDW = get_SIMDW();
     int ic = 0;
@@ -1473,6 +1175,184 @@ void dynPruneLinear_repack_i4(uint8_t * src, uint8_t * dst, int IC, int OC) {
             }
         }
     }
+}
+
+ActSparseFcKernel::ActSparseFcKernel(WeightCompressionType wtype, bool with_zero_points, int ic_group_size)
+ : m_wtype(wtype), m_with_zp(with_zero_points), m_ic_group_size(ic_group_size) {
+    static auto decompress_zp_u8 = get_decompress_zp_u8();
+    static auto decompress_zp_u4 = get_decompress_zp_u4();
+
+    static auto accumulate_weight_fp16 = jit_compile_accumulate_weight(WeightCompressionType::FP16);
+    static auto accumulate_weight_i8_nozp = jit_compile_accumulate_weight(WeightCompressionType::INT8, false);
+    static auto accumulate_weight_i8_withzp = jit_compile_accumulate_weight(WeightCompressionType::INT8, true);
+    static auto accumulate_weight_i4_nozp = jit_compile_accumulate_weight_i4(false);
+    static auto accumulate_weight_i4_withzp = jit_compile_accumulate_weight_i4(true);
+
+    switch (m_wtype) {
+        case WeightCompressionType::FP16:
+            m_accumulate_kernel = accumulate_weight_fp16.get();
+            m_decompzp_kernel = nullptr;
+        break;
+        case WeightCompressionType::INT8:
+            m_accumulate_kernel = m_with_zp ? accumulate_weight_i8_withzp.get() : accumulate_weight_i8_nozp.get();
+            m_decompzp_kernel = decompress_zp_u8.get();
+        break;
+        case WeightCompressionType::INT4:
+            m_accumulate_kernel = m_with_zp ? accumulate_weight_i4_withzp.get() : accumulate_weight_i4_nozp.get();
+            m_decompzp_kernel = decompress_zp_u4.get();
+        break;
+    }
+}
+
+void ActSparseFcKernel::operator()(const float* input,
+                                    float* output,
+                                    int M,
+                                    int IC,
+                                    int OC,
+                                    float threshold,
+                                    float zero_point,
+                                    const void* W,
+                                    const float* scales,
+                                    const uint8_t* zp) {
+    const auto SIMDW = get_SIMDW();
+    if ((OC % (2*SIMDW)) > 0) {
+        throw std::runtime_error("OC is not multiple of 16");
+    }
+
+    if (M > 1) {
+        const auto SIMDW = get_SIMDW();
+        if (m_wtype == WeightCompressionType::FP16) {
+            parallel_nt(0, [&](const int ithr, const int nthr) {
+                int n0, n1;
+                splitter(OC / (2 * SIMDW), nthr, ithr, n0, n1);
+                n0 *= 2 * SIMDW;
+                n1 *= 2 * SIMDW;
+                MM_ComputeBounded_reuseA_f16(input, output, reinterpret_cast<const ov::float16*>(W), M, IC, OC, n0, n1);
+            });
+            return;
+        }
+        if (m_wtype == WeightCompressionType::INT8) {
+            if (M < 32) {
+                parallel_nt(0, [&](const int ithr, const int nthr) {
+                    int n0, n1;
+                    splitter(OC/(2*SIMDW), nthr, ithr, n0, n1);
+                    n0 *= 2*SIMDW;
+                    n1 *= 2*SIMDW;
+                    MM_ComputeBounded_reuseA_i8(
+                        input, output,
+                        reinterpret_cast<const uint8_t*>(W), zp, scales, M, IC, OC, n0, n1);
+                });
+            } else {
+                parallel_nt(0, [&](const int ithr, const int nthr) {
+                    int n0, n1;
+                    splitter(OC/(SIMDW), nthr, ithr, n0, n1);
+                    n0 *= SIMDW;
+                    n1 *= SIMDW;
+                    MM_ComputeBounded_reuseB_i8(
+                        input, output,
+                        reinterpret_cast<const uint8_t*>(W), zp, scales, M, IC, OC, n0, n1);
+                });
+            }
+            return;
+        }
+        if (m_wtype == WeightCompressionType::INT4) {
+            // a reference impl
+            parallel_nt(0, [&](const int ithr, const int nthr) {
+                int n0, n1;
+                splitter(OC/(2*SIMDW), nthr, ithr, n0, n1);
+                n0 *= 2*SIMDW;
+                n1 *= 2*SIMDW;
+                MM_ComputeBounded_reuseA_i4(
+                    input, output,
+                    reinterpret_cast<const uint8_t*>(W), zp, scales, M, IC, OC, n0, n1, m_ic_group_size);
+            });
+            return;
+        }
+        return;
+    }
+
+    // collect non-zero(non-sparse) activation channel id & value
+    auto prof = PROFILE("nonzero_ids");
+    m_nonzero_cnt = 0;
+    m_nonzero_ids.resize(IC);
+    m_nonzero_val.resize(IC);
+    auto IC_group_size = m_ic_group_size > 0 ? m_ic_group_size : IC;
+    for (int c0 = 0; c0 < IC; c0 += IC_group_size) {
+        for (int c1 = 0; c1 < IC_group_size; c1++) {
+            auto channel = c0 + c1;
+            auto& value = input[channel];
+            if (std::abs(value - zero_point) >= threshold) {
+                m_nonzero_ids[m_nonzero_cnt] = channel;
+                m_nonzero_val[m_nonzero_cnt] = value;
+                m_nonzero_cnt++;
+            }
+        }
+        if (m_nonzero_cnt & 3) {
+            // padding : ensuer 4 rows are from same group
+            auto n_pad = 4 - (m_nonzero_cnt & 3);
+            auto ic_pad = m_nonzero_ids[m_nonzero_cnt-1];
+            for (int i = 0; i < n_pad; i++) {
+                m_nonzero_ids[m_nonzero_cnt] = ic_pad;
+                m_nonzero_val[m_nonzero_cnt] = 0.0f;
+                m_nonzero_cnt++;
+            }
+        }
+    }
+
+    auto nthr_max = parallel_get_max_threads();
+    m_output_temp.resize(nthr_max * M * OC);
+
+    thread_local std::vector<float> zpbuff;
+
+    parallel_nt(0, [&](const int ithr, const int nthr) {
+        int g0, g1;
+        splitter(m_nonzero_cnt/4, nthr, ithr, g0, g1);
+        g0 *= 4;
+        g1 *= 4;
+        auto* pdst = &m_output_temp[ithr * M * OC];
+        memset(pdst, 0, M * OC * sizeof(m_output_temp[0]));
+        switch (m_wtype) {
+            case WeightCompressionType::FP16:
+                (*m_accumulate_kernel)(pdst, (OC), &m_nonzero_ids[g0], (g1 - g0), W, &m_nonzero_val[g0]);
+            break;
+            case WeightCompressionType::INT8:
+                if (zp) {
+                    zpbuff.resize(OC);
+                    (*m_decompzp_kernel)(zp, zpbuff.data(), OC);
+                }
+                (*m_accumulate_kernel)(pdst, OC, &m_nonzero_ids[g0], g1 - g0, W, &m_nonzero_val[g0], scales, zpbuff.data());
+            break;
+            case WeightCompressionType::INT4:
+                {
+                    zpbuff.resize(OC);
+                    int last_gid = -1;
+                    // vector x weights
+                    for (int g = 0; g < m_nonzero_cnt; g+=4) {
+                        auto ic0 = m_nonzero_ids[g];
+                        auto ic1 = m_nonzero_ids[g+1];
+                        auto ic2 = m_nonzero_ids[g+2];
+                        auto ic3 = m_nonzero_ids[g+3];
+                        auto gid = ic0 / m_ic_group_size;
+                        auto* p_scales = scales + gid*OC;
+
+                        // entering a new group, decompress zero-points
+                        if (last_gid != gid) {
+                            if (zp)
+                                (*m_decompzp_kernel)(zp + gid * (OC/2), zpbuff.data(), OC);
+                            last_gid = gid;
+                        }
+
+                        const auto* p_w0 = reinterpret_cast<const uint8_t*>(W) + ic0 * OC/2;
+                        const auto* p_w1 = reinterpret_cast<const uint8_t*>(W) + ic1 * OC/2;
+                        const auto* p_w2 = reinterpret_cast<const uint8_t*>(W) + ic2 * OC/2;
+                        const auto* p_w3 = reinterpret_cast<const uint8_t*>(W) + ic3 * OC/2;
+                        (*m_accumulate_kernel)(pdst, p_w0, p_w1, p_w2, p_w3, &m_nonzero_val[g], OC, p_scales, zpbuff.data());
+                    }
+                }
+            break;
+        }
+    });
+    reduce_outputs(output, m_output_temp.data(), nthr_max, M, OC);
 }
 
 }  // namespace intel_cpu

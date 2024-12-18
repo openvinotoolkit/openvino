@@ -34,6 +34,7 @@ namespace node {
 
 struct ActSparseFC::Executor : public ActSparseFC::ExecutorBase {
     ActSparseFC* m_node;
+    std::shared_ptr<ActSparseFcKernel> m_kernel;
     DnnlScratchPadPtr m_scrachPad;
     MemoryPtr m_weight;
     MemoryPtr m_zp;
@@ -54,6 +55,11 @@ struct ActSparseFC::Executor : public ActSparseFC::ExecutorBase {
         : m_node(pnode),
           m_scrachPad(scrachPad),
           m_config(m_node->m_config) {
+        m_kernel = std::make_shared<ActSparseFcKernel>(
+            m_config.is_quantized ? (m_config.is_int4 ? WeightCompressionType::INT4 : WeightCompressionType::INT8)
+                                  : (WeightCompressionType::FP16),
+            m_config.with_zero_point,
+            m_config.ic_q_group_size);
         // reorder weights
         const auto& context = m_node->context;
         const auto& engine = m_node->getEngine();
@@ -75,7 +81,7 @@ struct ActSparseFC::Executor : public ActSparseFC::ExecutorBase {
 
                 auto* src = raw_weight_mem->getDataAs<uint8_t>();
                 auto* dst = weight_mem->getDataAs<uint8_t>();
-                dynPruneLinear_repack_i4(src, dst, m_config.ic, m_config.oc);
+                m_kernel->repack_weights_i4(src, dst, m_config.ic, m_config.oc);
             } else {
                 // raw [OC, IC] layout
                 // target [IC, OC] layout
@@ -97,7 +103,7 @@ struct ActSparseFC::Executor : public ActSparseFC::ExecutorBase {
             auto* src = raw_zp_mem->getDataAs<uint8_t>();
             auto* dst = zp_mem->getDataAs<uint8_t>();
 
-            dynPruneLinear_repack_i4(src, dst, m_config.ic / m_config.ic_q_group_size, m_config.oc);
+            m_kernel->repack_weights_i4(src, dst, m_config.ic / m_config.ic_q_group_size, m_config.oc);
             return zp_mem;
         };
 
@@ -152,41 +158,16 @@ struct ActSparseFC::Executor : public ActSparseFC::ExecutorBase {
         const auto& ishape = m_node->getSrcMemoryAtPort(0)->getStaticDims();
         int M = shape_size(ishape) / ishape[ishape.size() - 1];
 
-        if (m_config.is_quantized) {
-            if (m_config.is_int4) {
-                dynPruneLinear_i4(input,
-                                  m_config.threshold,
-                                  0,
-                                  weight,
-                                  zp,
-                                  scales,
-                                  output,
-                                  M,
-                                  m_config.ic,
-                                  m_config.oc,
-                                  m_config.ic_q_group_size);
-            } else {
-                dynPruneLinear_i8(input,
-                                  m_node->m_config.threshold,
-                                  0,
-                                  weight,
-                                  zp,
-                                  scales,
-                                  output,
-                                  M,
-                                  m_node->m_config.ic,
-                                  m_node->m_config.oc);
-            }
-        } else {
-            dynPruneLinear_f16(input,
-                               m_config.threshold,
-                               0,
-                               reinterpret_cast<const ov::float16*>(weight),
-                               output,
-                               M,
-                               m_config.ic,
-                               m_config.oc);
-        }
+        (*m_kernel)(input,
+                    output,
+                    M,
+                    m_config.ic,
+                    m_config.oc,
+                    m_config.threshold,
+                    0,
+                    weight,
+                    scales,
+                    zp);
     }
 };
 #else
