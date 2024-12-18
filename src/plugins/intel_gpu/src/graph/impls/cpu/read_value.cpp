@@ -3,6 +3,8 @@
 //
 
 #include "impls/cpu/cpu_impl_helpers.hpp"
+#include "assign_inst.h"
+#include "kv_cache_inst.h"
 #include "read_value_inst.h"
 #include "impls/registry/implementation_map.hpp"
 #include "register.hpp"
@@ -61,7 +63,9 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
             } else {
                 variable.get_memory()->fill(stream);
             }
-            if (!instance.get_dependant_initializer_insts().empty()) {
+            auto user_inst = instance.get_user_insts().front();
+            if (!(user_inst->get_node().is_type<assign>() || user_inst->get_node().is_type<kv_cache>()) &&
+                !instance.get_dependant_initializer_insts().empty()) {
                 variable.set();
             }
         }

@@ -90,14 +90,13 @@ private:
 };
 
 class mark_state_init_subgraphs : public base_pass {
+    // This optimization pass aggregates nodes into state initializer subgraphs
 public:
-    mark_state_init_subgraphs() :
-        base_pass("mark_state_init_subgraphs") {}
+    mark_state_init_subgraphs() : base_pass("mark_state_init_subgraphs") {}
 
 private:
     void run(program& p) override;
     void mark_node(program_node* node);
-    int32_t num_groups = 0;
 };
 
 class mark_shape_of_subgraphs : public base_pass {

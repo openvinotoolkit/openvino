@@ -513,13 +513,12 @@ protected:
     bool constant = false;
     bool data_flow = false;
     bool in_shape_of_subgraph = false;
+    bool runtime_skippable = false;
 
     std::set<const program_node*> dependant_shape_of_nodes;
 
     std::string state_init_subgraph_id;
     std::vector<primitive_id> dependant_initializer_pids;
-
-    bool runtime_skippable = false;
 
     bool output = false;
     uint8_t user_mark = 0;

@@ -48,7 +48,7 @@ void mark_state_init_subgraphs::mark_node(program_node* node) {
                     dep.first->set_state_init_subgraph_id(variable_id);
                     if (!dep.first->is_constant())
                         node->add_dependant_initializer_pid(dep.first->id());
-                    // Enqueue visited depedendant node
+                    // Enqueue visited dependant node
                     q.push(dep.first);
                 }
             }

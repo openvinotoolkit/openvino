@@ -292,8 +292,6 @@ public:
     bool has_node() const { return _node != nullptr; }
     bool has_inner_networks() const;
     void allocate_internal_buffers(bool reset = true);
-    bool is_init_subgraph_executed() const { return _init_subgraph_executed; }
-    void set_init_subgraph_executed(bool val) { _init_subgraph_executed = val; }
 
     static memory::ptr allocate_output(engine& engine,
                                        memory_pool& pool,
@@ -410,7 +408,6 @@ protected:
     bool _can_share_buffer = true;
     bool _is_constant = false;
     bool _needs_completion_event = false;
-    bool _init_subgraph_executed = false;
 
     std::vector<size_t> _max_output_layout_count;
     std::vector<size_t> max_intermediates_memory_sizes;
