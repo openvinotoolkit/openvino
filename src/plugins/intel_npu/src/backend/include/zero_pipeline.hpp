@@ -7,8 +7,7 @@
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
-#include "openvino/runtime/iinfer_request.hpp"
-#include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/itensor.hpp"
 #include "zero_memory.hpp"
 #include "zero_profiling.hpp"
 
