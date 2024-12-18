@@ -80,6 +80,8 @@
 #include "op/shape_of.hpp"
 #include "op/slice.hpp"
 #include "op/squeeze.hpp"
+#include "op/transpose.hpp"
+#include "op/unsqueeze.hpp"
 #include "op/binary_eltwise.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/rt_info.hpp"
@@ -325,6 +327,8 @@ void injectMLIR(std::shared_ptr<ov::Model> model,
     manager.register_pass<ShapeOfPattern>();
     manager.register_pass<SlicePattern>();
     manager.register_pass<SqueezePattern>();
+    manager.register_pass<TransposePattern>();
+    manager.register_pass<UnsqueezePattern>();
     manager.register_pass<MatMulPattern>();
     manager.register_pass<Partitioner>(context, mode, loweringContext);
     manager.run_passes(model);
