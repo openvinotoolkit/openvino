@@ -203,10 +203,7 @@ def test_custom_op():
 
 class CustomSimpleOp(Op):
     def __init__(self, inputs=None):
-        super().__init__(self)
-        if inputs is not None:
-            self.set_arguments(inputs)
-            self.constructor_validate_and_infer_types()
+        super().__init__(self, inputs)
 
     def validate_and_infer_types(self):
         self.set_output_type(0, self.get_input_element_type(0), self.get_input_partial_shape(0))
@@ -239,12 +236,18 @@ def test_op_extension(prepared_paths):
     input_shape = [2, 1]
 
     core = Core()
+    print("1")
     core.add_extension(CustomSimpleOp)
+    print("2")
     core.add_extension(OpExtension(CustomSimpleOpWithAttribute))
+    print("3")
     core.add_extension(OpExtension(CustomAdd))
+    print("4")
     param1 = ops.parameter(Shape(input_shape), dtype=np.float32, name="data1")
     param2 = ops.parameter(Shape(input_shape), dtype=np.float32, name="data2")
+    print("5")
     custom_simple = CustomSimpleOp(inputs=[param1, param2])
+    print("6")
     custom_simple.set_friendly_name("test_add")
     custom_with_attribute = CustomSimpleOpWithAttribute(inputs=[custom_simple], attrs={"value_str": "test_attribute"})
     custom_add = CustomAdd(inputs=[custom_with_attribute])
@@ -260,7 +263,7 @@ def test_op_extension(prepared_paths):
     assert compare_models(simple_model, model_with_custom_op)
 
 
-def test_fail_create_op_ext():
+def test_fail_create_op_extension():
     class OpWithBadClassTypeInfo(Op):
         class_type_info = "OpWithBadClassTypeInfo"
 

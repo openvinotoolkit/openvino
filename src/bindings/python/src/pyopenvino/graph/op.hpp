@@ -7,6 +7,7 @@
 #include <pybind11/pybind11.h>
 
 #include "openvino/op/op.hpp"
+#include "openvino/core/node.hpp"
 #include "pyopenvino/graph/discrete_type_info.hpp"
 
 namespace py = pybind11;
@@ -19,8 +20,9 @@ public:
     PyOp() = default;
 
     // Keeps a reference to the Python object to manage its lifetime
-    PyOp(const py::object& py_obj) : py_handle(py_obj) {
+    PyOp(const py::object& py_obj, const py::object& inputs=py::none()) : py_handle(py_obj) {
         py::gil_scoped_acquire gil;  // Acquire the GIL while in this scope.
+        std::cout << "jello" << std::endl;
         // Try to look up the overridden method on the Python side.
         py::function overrided_py_method = pybind11::get_override(this, "get_type_info");
         if (overrided_py_method) {   // method is found
@@ -29,6 +31,11 @@ public:
         } else {
             const auto py_class_name = py_handle.get_type().attr("__name__").cast<std::string>();
             m_type_info = std::make_shared<DiscreteTypeInfoWrapper>(py_class_name, "extension");
+        }
+        if (!inputs.is_none()) {
+            std::cout << "here" << std::endl;
+            this->set_arguments(inputs.cast<const ov::NodeVector>());
+            this->constructor_validate_and_infer_types();
         }
     }
 

@@ -45,6 +45,7 @@ std::shared_ptr<ov::Node> PyOp::clone_with_new_inputs(const ov::OutputVector& ne
 }
 
 const ov::op::Op::type_info_t& PyOp::get_type_info() const {
+    std::cout << reinterpret_cast<size_t>(m_type_info.get())  << std::endl;
     return *m_type_info;
 }
 
@@ -60,6 +61,18 @@ void regclass_graph_Op(py::module m) {
     py::class_<ov::op::Op, std::shared_ptr<ov::op::Op>, PyOp, ov::Node> op(m, "Op");
 
     op.def(py::init([](const py::object& py_obj) {
+        std::cout << "lel" <<std::endl;
         return PyOp(py_obj);
     }));
+
+    op.def(py::init([](const py::object& py_obj, const py::object& inputs) {
+        return PyOp(py_obj, inputs);
+    }));
+
+    // op.def(py::init([](const py::object& py_obj, py::object& inputs) {
+    //     if (inputs.is_none()) {
+    //         return PyOp(py_obj);
+    //     }
+    //     return PyOp(py_obj);
+    // }), py::arg("py_obj"), py::arg("inputs"));
 }
