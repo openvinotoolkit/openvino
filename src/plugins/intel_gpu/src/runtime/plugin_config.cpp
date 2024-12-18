@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,21 @@ NewExecutionConfig::NewExecutionConfig() : ov::PluginConfig() {
     #include "intel_gpu/runtime/options_debug.inl"
 
     #undef OV_CONFIG_OPTION
+}
+
+NewExecutionConfig::NewExecutionConfig(const NewExecutionConfig& other) : NewExecutionConfig() {
+    user_properties = other.user_properties;
+    for (const auto& kv : other.m_options_map) {
+        m_options_map.at(kv.first)->set_any(kv.second->get_any());
+    }
+}
+
+NewExecutionConfig& NewExecutionConfig::operator=(const NewExecutionConfig& other) {
+    user_properties = other.user_properties;
+    for (const auto& kv : other.m_options_map) {
+        m_options_map.at(kv.first)->set_any(kv.second->get_any());
+    }
+    return *this;
 }
 
 void NewExecutionConfig::apply_rt_info(std::shared_ptr<IRemoteContext> context, const ov::RTMap& rt_info) {
