@@ -19,7 +19,7 @@ namespace pass {
 // it borrows value of Variable that was used for some state (or node) in a graph
 class UninitializedVariableResolver : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::tensorflow::pass::UninitializedVariableResolver");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::tensorflow::pass::UninitializedVariableResolver");
     UninitializedVariableResolver();
 };
 
