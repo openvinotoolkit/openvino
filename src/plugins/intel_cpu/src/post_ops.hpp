@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <vector>
 
@@ -29,7 +30,7 @@ using eltwiseExecutorCreatingStrategy = std::function<ExecutorPtr(const Activati
                                                                   const PostOps&)>;
 
 struct ActivationPostOp : PostOp {
-    enum class Type : size_t {
+    enum class Type : uint8_t {
         relu,
         tanh,
         elu,
@@ -49,6 +50,7 @@ struct ActivationPostOp : PostOp {
         round_half_to_even,
         round_half_away_from_zero,
         linear,
+        powerstatic
     };
 
     ActivationPostOp(const Type type,
@@ -85,13 +87,12 @@ private:
 };
 
 struct ScaleShiftPostOp : PostOp {
-    enum Type {
+    enum class Type : uint8_t {
         add,
         subtract,
         divide,
         multiply,
         muladd,
-        powerstatic,
         prelu,
     };
 
@@ -119,20 +120,28 @@ private:
 };
 
 struct FakeQuantizePostOp : PostOp {
-    FakeQuantizePostOp(std::vector<float> cropLow,
+    enum class Type : uint8_t { binarization, quantization_only, quantization_dequantization };
+
+    FakeQuantizePostOp(const Type type,
+                       std::vector<float> cropLow,
                        std::vector<float> cropHigh,
                        std::vector<float> inputScale,
                        std::vector<float> inputShift,
                        std::vector<float> outputScale,
                        std::vector<float> outputShift,
-                       const size_t levels)
-        : m_cropLow(std::move(cropLow)),
+                       const size_t levels,
+                       bool isInputLowBroadcasted,
+                       bool isOutputHighBroadcasted)
+        : m_type(type),
+          m_cropLow(std::move(cropLow)),
           m_cropHigh(std::move(cropHigh)),
           m_inputScale(std::move(inputScale)),
           m_inputShift(std::move(inputShift)),
           m_outputScale(std::move(outputScale)),
           m_outputShift(std::move(outputShift)),
-          m_levels(levels) {}
+          m_levels(levels),
+          m_isInputLowBroadcasted(isInputLowBroadcasted),
+          m_isOutputHighBroadcasted(isOutputHighBroadcasted) {}
 
     [[nodiscard]] const std::vector<float>& cropLow() const {
         return m_cropLow;
@@ -162,7 +171,20 @@ struct FakeQuantizePostOp : PostOp {
         return m_levels;
     }
 
+    Type type() const {
+        return m_type;
+    }
+
+    bool isInputLowBroadcast() const {
+        return m_isInputLowBroadcasted;
+    }
+
+    bool isOutputHighBroadcast() const {
+        return m_isOutputHighBroadcasted;
+    }
+
 private:
+    const Type m_type;
     const std::vector<float> m_cropLow;
     const std::vector<float> m_cropHigh;
     const std::vector<float> m_inputScale;
@@ -170,9 +192,58 @@ private:
     const std::vector<float> m_outputScale;
     const std::vector<float> m_outputShift;
     const size_t m_levels;
+    // necessary only for legacy post ops
+    bool m_isInputLowBroadcasted;
+    bool m_isOutputHighBroadcasted;
 };
 
-enum class EltwiseKind {
+struct DepthwiseConvolutionPostOp : PostOp {
+    DepthwiseConvolutionPostOp(size_t ih, size_t iw, std::vector<size_t> kernel, std::vector<size_t> strides)
+        : m_ih(ih),
+          m_iw(iw),
+          m_kernel(std::move(kernel)),
+          m_strides(std::move(strides)) {}
+
+    size_t ih() const {
+        return m_ih;
+    }
+
+    size_t iw() const {
+        return m_iw;
+    }
+
+    const std::vector<size_t>& kernel() const {
+        return m_kernel;
+    }
+
+    const std::vector<size_t>& strides() const {
+        return m_strides;
+    }
+
+private:
+    size_t m_ih;
+    size_t m_iw;
+    std::vector<size_t> m_kernel;
+    std::vector<size_t> m_strides;
+};
+
+struct SumPostOp : PostOp {
+    SumPostOp(float scale, int32_t zero_point) : m_scale(scale), m_zero_point(zero_point) {}
+
+    float scale() const {
+        return m_scale;
+    }
+
+    int32_t zeroPoint() const {
+        return m_zero_point;
+    }
+
+private:
+    float m_scale;
+    int32_t m_zero_point;
+};
+
+enum class EltwiseKind : uint8_t {
     Activation,
     ScaleShift,
     // @todo Binary?
@@ -187,6 +258,8 @@ ScaleShiftPostOp::Type convertToScaleShiftOpt(const Algorithm alg);
 ActivationPostOp::Type convertToActivationPostOpt(const Algorithm alg);
 
 Algorithm convertToEltwiseAlgorithm(const ActivationPostOp::Type m_type);
+
+FakeQuantizePostOp::Type convertToFqPostOp(const Algorithm alg);
 
 PostOps getPostOps(const std::vector<NodePtr>& fused);
 }  // namespace ov::intel_cpu
