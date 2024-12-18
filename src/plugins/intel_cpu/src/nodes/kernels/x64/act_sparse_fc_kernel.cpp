@@ -58,6 +58,54 @@ static int get_SIMDW() {
     return SIMDW;
 }
 
+//*****************************************
+// RegCmp & compare operator overload to support if_ statement:
+//    - if_(rax > rbx)
+//    - if_(rax == rbx)
+//    - if_(rax <= 8)
+//
+struct RegCmp {
+    struct RegImm {
+        int32_t id; /* imm32 or regid */
+        bool is_imm32;
+        RegImm() = default;
+        RegImm(const Xbyak::Reg64& reg) : id(reg.getIdx()), is_imm32(false) {}
+        RegImm(int imm32) : id(imm32), is_imm32(true) {}
+    };
+    Xbyak::Reg64 lhs;
+    RegImm rhs;
+    std::string op;
+    RegCmp(std::string _op, const RegImm& _lhs, const RegImm& _rhs) {
+        if (_lhs.is_imm32) {
+            lhs = Xbyak::Reg64(_rhs.id);
+            rhs = _lhs;
+            op = _op;
+            // revert op
+            if (op == ">") op = "<";
+            else if (op == "<") op = ">";
+            else if (op == "<=") op = ">=";
+            else if (op == ">=") op = "<=";
+        } else {
+            lhs = Xbyak::Reg64(_lhs.id);
+            rhs = _rhs;
+            op = _op;
+        }
+    }
+};
+
+inline RegCmp operator ==(const RegCmp::RegImm& lhs, const Xbyak::Reg64& rhs) { return RegCmp("==", lhs, rhs); }
+inline RegCmp operator ==(const Xbyak::Reg64& lhs, const RegCmp::RegImm& rhs) { return RegCmp("==", lhs, rhs); }
+inline RegCmp operator !=(const RegCmp::RegImm& lhs, const Xbyak::Reg64& rhs) { return RegCmp("!=", lhs, rhs); }
+inline RegCmp operator !=(const Xbyak::Reg64& lhs, const RegCmp::RegImm& rhs) { return RegCmp("!=", lhs, rhs); }
+inline RegCmp operator >=(const RegCmp::RegImm& lhs, const Xbyak::Reg64& rhs) { return RegCmp(">=", lhs, rhs); }
+inline RegCmp operator >=(const Xbyak::Reg64& lhs, const RegCmp::RegImm& rhs) { return RegCmp(">=", lhs, rhs); }
+inline RegCmp operator <=(const RegCmp::RegImm& lhs, const Xbyak::Reg64& rhs) { return RegCmp("<=", lhs, rhs); }
+inline RegCmp operator <=(const Xbyak::Reg64& lhs, const RegCmp::RegImm& rhs) { return RegCmp("<=", lhs, rhs); }
+inline RegCmp operator >(const RegCmp::RegImm& lhs, const Xbyak::Reg64& rhs) { return RegCmp(">", lhs, rhs); }
+inline RegCmp operator >(const Xbyak::Reg64& lhs, const RegCmp::RegImm& rhs) { return RegCmp(">", lhs, rhs); }
+inline RegCmp operator <(const RegCmp::RegImm& lhs, const Xbyak::Reg64& rhs) { return RegCmp("<", lhs, rhs); }
+inline RegCmp operator <(const Xbyak::Reg64& lhs, const RegCmp::RegImm& rhs) { return RegCmp("<", lhs, rhs); }
+
 class JitKernel : public dnnl::impl::cpu::x64::jit_generator {
 public:
   DECLARE_CPU_JIT_AUX_FUNCTIONS(JitKernel);
@@ -171,7 +219,8 @@ public:
     vcvtdq2ps(vmm_dst, vmm_src);
   }
 
-  // for_loop() performs following:
+  //***********************************************
+  // for_loop(idx, start, stop, step, loop_body) performs following:
   //    for(int idx=start; idx + step <= stop; idx+=step) {
   //       loop_body();
   //    }
@@ -180,6 +229,7 @@ public:
     Xbyak::Label loop, exit;
     mov(idx, start);
 
+    align(64, false);
     L(loop);
     add(idx, step);
     cmp(idx, stop);
@@ -195,22 +245,69 @@ public:
     sub(idx, step);
   }
 
+  //***********************************************
+  // while_(rax > 0, loop_body) performs following:
+  //    while(rax > 0) {
+  //       loop_body();
+  //    }
+  template<typename Fn>
+  void while_(RegCmp regcmp, const Fn& loop_body) {
+    Xbyak::Label loop, exit;
+
+    align(64, false);
+    L(loop);
+
+    if (regcmp.rhs.is_imm32)
+        cmp(regcmp.lhs, regcmp.rhs.id);
+    else
+        cmp(regcmp.lhs, Xbyak::Reg64(regcmp.rhs.id));
+    if (regcmp.op == "==") jne(exit, T_NEAR); // if not equal (ZF=0).
+    if (regcmp.op == "!=") je(exit, T_NEAR); // if equal (ZF=1).
+    if (regcmp.op == ">") jle(exit, T_NEAR); // if less or equal (ZF=1 or SF≠ OF).
+    if (regcmp.op == ">=") jl(exit, T_NEAR); // if less (SF≠ OF).
+    if (regcmp.op == "<") jge(exit, T_NEAR); // if greater or equal (SF=OF).
+    if (regcmp.op == "<=") jg(exit, T_NEAR); // if greater (ZF=0 and SF=OF).
+
+    loop_body();
+
+    jmp(loop, T_NEAR);
+    L(exit);
+  }
+  //***********************************************
+  // if (reg >= imm32, then_body, else_body)
+  void if_(RegCmp regcmp, const std::function<void()>& then_body, const std::function<void()>& else_body = {}) {
+    Xbyak::Label if_else, if_exit;
+
+    if (regcmp.rhs.is_imm32)
+        cmp(regcmp.lhs, regcmp.rhs.id);
+    else
+        cmp(regcmp.lhs, Xbyak::Reg64(regcmp.rhs.id));
+    if (regcmp.op == "==") jne(if_else, T_NEAR); // if not equal (ZF=0).
+    if (regcmp.op == "!=") je(if_else, T_NEAR); // if equal (ZF=1).
+    if (regcmp.op == ">") jle(if_else, T_NEAR); // if less or equal (ZF=1 or SF≠ OF).
+    if (regcmp.op == ">=") jl(if_else, T_NEAR); // if less (SF≠ OF).
+    if (regcmp.op == "<") jge(if_else, T_NEAR); // if greater or equal (SF=OF).
+    if (regcmp.op == "<=") jg(if_else, T_NEAR); // if greater (ZF=0 and SF=OF).
+
+    then_body();
+
+    if (else_body)
+        jmp(if_exit, T_NEAR);
+
+    L(if_else);
+
+    if (else_body)
+        else_body();
+
+    L(if_exit);
+  }
+
   template<typename DT>
   size_t vmm_width() {
     return Vmm(0).getBit()/(sizeof(DT) * 8);
   }
 };
 
-/*
-    for (int k = 0; k < bK; k++, dst += 2 * SIMDW, srcW += W_stride) {
-        auto wf0 = simd_loadu_ps(srcW + SIMDW * 0);
-        auto wf1 = simd_loadu_ps(srcW + SIMDW * 1);
-        // prefetch right
-        simd_prefetch(srcW + 64, _MM_HINT_T0);
-        simd_storeu_ps(dst + SIMDW * 0, wf0);
-        simd_storeu_ps(dst + SIMDW * 1, wf1);
-    }
-*/
 static std::shared_ptr<JitKernel> jit_compile_gemmRegBlk(int rows, int cols, int prefetch_B_adv = 0) {
     auto jit = std::make_shared<JitKernel>(__func__);
     auto simd_width_bytes = jit->vmm_width<uint8_t>();
@@ -246,68 +343,60 @@ static std::shared_ptr<JitKernel> jit_compile_gemmRegBlk(int rows, int cols, int
     jit->lea(A_stride, jit->ptr[A_stride*4]);
     jit->lea(B_stride, jit->ptr[B_stride*4]);
     jit->lea(dst_stride, jit->ptr[dst_stride*4]);
-    // initilaize C
-    {
-        Xbyak::Label skip_load;
+
+    jit->if_(accumulate == 0, [&] {
+        // initilaize C to zero
         for (int r = 0; r < rows; r++)
             for (int c = 0; c < cols; c++) {
                 auto ymm = vmmC(r, c);
                 jit->vxorps(ymm, ymm, ymm);
             }
-        jit->and_(accumulate, 1);
-        jit->jz(skip_load);
-        {
-            // load subC[m_rows, m_cols]
-            jit->mov(stemp, dst_ptr);
-            for (int r = 0; r < rows; r++) {
-                for (int c = 0; c < cols; c++) {
-                    jit->simd_loadu_ps(vmmC(r, c), jit->ptr[stemp + c * simd_width_bytes]);
-                }
-                jit->add(stemp, dst_stride);
+    }, [&] {
+        // load subC[m_rows, m_cols]
+        jit->mov(stemp, dst_ptr);
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
+                jit->simd_loadu_ps(vmmC(r, c), jit->ptr[stemp + c * simd_width_bytes]);
             }
+            jit->add(stemp, dst_stride);
         }
-        jit->L(skip_load);
-    }
+    });
 
     // loop over K
     //            B:    1 x cols regs
     // A : 1 regs C: rows x cols regs
-    {
-        Xbyak::Label loop_over_k;
-        auto A_ptr3 = accumulate; // accumulate can be re-used
-
-        auto loadA = [&](int r) {
-            switch (r) {
-            case 0:
-                jit->simd_broadcast_ss(vmmA(r), jit->ptr[A_ptr]);
-                break;
-            case 1:
-                jit->simd_broadcast_ss(vmmA(r), jit->ptr[A_ptr + A_stride]);
-                break;
-            case 2:
-                jit->simd_broadcast_ss(vmmA(r), jit->ptr[A_ptr + 2 * A_stride]);
-                break;
-            case 3:
-                jit->simd_broadcast_ss(vmmA(r), jit->ptr[A_ptr3]);
-                break;
-            case 4:
-                jit->simd_broadcast_ss(vmmA(r), jit->ptr[A_ptr3 + A_stride]);
-                break;
-            case 5:
-                jit->simd_broadcast_ss(vmmA(r), jit->ptr[A_ptr3 + 2 * A_stride]);
-                break;
-            default:
-                throw std::runtime_error("number of reg-blocking rows is not supported");
-            }
-        };
-
-        if (rows > 3) {
-            jit->lea(A_ptr3, jit->ptr[A_ptr + 2 * A_stride]);
-            jit->lea(A_ptr3, jit->ptr[A_ptr3 + A_stride]);
+    auto A_ptr3 = accumulate; // accumulate can be re-used
+    auto loadA = [&](int r) {
+        switch (r) {
+        case 0:
+            jit->simd_broadcast_ss(vmmA(r), jit->ptr[A_ptr]);
+            break;
+        case 1:
+            jit->simd_broadcast_ss(vmmA(r), jit->ptr[A_ptr + A_stride]);
+            break;
+        case 2:
+            jit->simd_broadcast_ss(vmmA(r), jit->ptr[A_ptr + 2 * A_stride]);
+            break;
+        case 3:
+            jit->simd_broadcast_ss(vmmA(r), jit->ptr[A_ptr3]);
+            break;
+        case 4:
+            jit->simd_broadcast_ss(vmmA(r), jit->ptr[A_ptr3 + A_stride]);
+            break;
+        case 5:
+            jit->simd_broadcast_ss(vmmA(r), jit->ptr[A_ptr3 + 2 * A_stride]);
+            break;
+        default:
+            throw std::runtime_error("number of reg-blocking rows is not supported");
         }
+    };
 
-        jit->align(64, false);
-        jit->L(loop_over_k);
+    if (rows > 3) {
+        jit->lea(A_ptr3, jit->ptr[A_ptr + 2 * A_stride]);
+        jit->lea(A_ptr3, jit->ptr[A_ptr3 + A_stride]);
+    }
+
+    jit->while_(K > 0, [&]() {
         if (is_preload_b) {
             // preload B regs
             for (int c = 0; c < cols; c++)
@@ -343,18 +432,16 @@ static std::shared_ptr<JitKernel> jit_compile_gemmRegBlk(int rows, int cols, int
                 jit->lea(A_ptr3, jit->ptr[A_ptr3 + 4]);
         }
         jit->dec(K);
-        jit->jnz(loop_over_k, jit->T_NEAR);
-    }
+    });
 
     // save C
-    {
-        for (int r = 0; r < rows; r++) {
-            for (int c = 0; c < cols; c++) {
-                jit->simd_storeu_ps(jit->ptr[dst_ptr + c * simd_width_bytes], vmmC(r, c));
-            }
-            jit->add(dst_ptr, dst_stride);
+    for (int r = 0; r < rows; r++) {
+        for (int c = 0; c < cols; c++) {
+            jit->simd_storeu_ps(jit->ptr[dst_ptr + c * simd_width_bytes], vmmC(r, c));
         }
+        jit->add(dst_ptr, dst_stride);
     }
+
     jit->finalize();
     return jit;
 }
