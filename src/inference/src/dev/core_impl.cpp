@@ -223,12 +223,6 @@ static const auto core_properties_names =
 
 static const auto auto_batch_properties_names =
     ov::util::make_array(ov::auto_batch_timeout.name(), ov::hint::allow_auto_batching.name());
-
-void remove_core_properties(ov::AnyMap& properties) {
-    for (const auto& name : core_properties_names) {
-        properties.erase(name);
-    }
-}
 }  // namespace
 
 bool ov::is_config_applicable(const std::string& user_device_name, const std::string& subprop_device_name) {
@@ -352,10 +346,8 @@ ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName,
 
     // remove core properties for HW devices
     if (!is_virtual_device(parsed._deviceName)) {
-        for (const auto& name : {ov::enable_mmap.name(), ov::force_tbb_terminate.name()}) {
-            // note: ov::cache_dir kept as plugin may require it
-            parsed._config.erase(name);
-        }
+        // note: ov::cache_dir kept as plugin may require it
+        CoreConfig::remove_core_skip_cache_dir(parsed._config);
     }
     return parsed;
 }
@@ -842,7 +834,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
                                                           const std::string& device_name,
                                                           const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "Core::compile_model::Path");
-    auto parsed = parseDeviceNameIntoConfig(device_name, coreConfig, config);
+    auto parsed = parse_device_config(device_name, coreConfig, config, false);
     // in case of compile_model(file_name), we need to clear-up core-level properties
     auto plugin = get_plugin(parsed._deviceName);
     ov::SoPtr<ov::ICompiledModel> compiled_model;
@@ -851,13 +843,13 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
 
     if (cacheManager && device_supports_model_caching(plugin) && !is_proxy_device(plugin)) {
         // Skip caching for proxy plugin. HW plugin will load network from the cache
+        CoreConfig::remove_core_skip_cache_dir(parsed._config);
         CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap(), model_path};
         cacheContent.blobId = ov::ModelCache::compute_hash(model_path, create_compile_config(plugin, parsed._config));
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         compiled_model =
             load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
-                auto model =
-                    ov::util::read_model(model_path, std::string{}, extensions, parsed._core_config.get_enable_mmap());
+                const auto model = util::read_model(model_path, "", extensions, parsed._core_config.get_enable_mmap());
                 return compile_model_and_cache(plugin, model, parsed._config, {}, cacheContent);
             });
     } else {
@@ -1593,7 +1585,19 @@ void ov::CoreConfig::set(const ov::AnyMap& config) {
 
 void ov::CoreConfig::set_and_update(ov::AnyMap& config) {
     set(config);
-    remove_core_properties(config);
+    remove_core(config);
+}
+
+void ov::CoreConfig::remove_core(ov::AnyMap& config) {
+    for (const auto& name : core_properties_names) {
+        config.erase(name);
+    }
+}
+
+void ov::CoreConfig::remove_core_skip_cache_dir(ov::AnyMap& config) {
+    for (const auto& name : {ov::enable_mmap.name(), ov::force_tbb_terminate.name()}) {
+        config.erase(name);
+    }
 }
 
 void ov::CoreConfig::set_cache_dir_for_device(const std::string& dir, const std::string& name) {
@@ -1664,9 +1668,13 @@ void ov::CoreImpl::add_mutex(const std::string& dev_name) {
     dev_mutexes[dev_name];
 }
 
-std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& modelPath, const std::string& binPath) const {
+std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& modelPath,
+                                                    const std::string& binPath,
+                                                    const AnyMap& properties) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::read_model from file");
-    return ov::util::read_model(modelPath, binPath, extensions, coreConfig.get_enable_mmap());
+    auto local_core_config = coreConfig;
+    local_core_config.set(properties);
+    return ov::util::read_model(modelPath, binPath, extensions, local_core_config.get_enable_mmap());
 }
 
 std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& model,

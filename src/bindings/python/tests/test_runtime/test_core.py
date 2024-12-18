@@ -141,6 +141,24 @@ def test_read_model_from_ir(request, tmp_path):
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_read_model_from_ir_with_user_config(request, tmp_path):
+    core = Core()
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
+    relu_model = get_relu_model()
+    serialize(relu_model, xml_path, bin_path)
+
+    core_cache_dir = core.get_property("CACHE_DIR")
+    cache_path = tmp_path / Path("cache")
+
+    model = core.read_model(xml_path, bin_path, config={"CACHE_DIR": f"{cache_path}"})
+
+    assert isinstance(model, Model)
+    assert core_cache_dir == core.get_property("CACHE_DIR")
+    assert os.path.exists(cache_path)
+    os.rmdir(cache_path)
+
+
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_read_model_from_tensor(request, tmp_path):
     core = Core()
     xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path, is_xml_path=True, is_bin_path=True)
@@ -176,6 +194,24 @@ def test_read_model_as_path(request, tmp_path):
 
     model = core.read_model(model=Path(xml_path))
     assert isinstance(model, Model)
+
+
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_read_model_as_path_with_user_config(request, tmp_path):
+    core = Core()
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
+    relu_model = get_relu_model()
+    serialize(relu_model, xml_path, bin_path)
+
+    core_cache_dir = core.get_property("CACHE_DIR")
+    cache_path = tmp_path / Path("cache_as_path")
+
+    model = core.read_model(Path(xml_path), Path(bin_path), config={"CACHE_DIR": f"{cache_path}"})
+
+    assert isinstance(model, Model)
+    assert core_cache_dir == core.get_property("CACHE_DIR")
+    assert os.path.exists(cache_path)
+    os.rmdir(cache_path)
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
