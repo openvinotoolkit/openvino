@@ -211,3 +211,24 @@ TEST_F(TransformationTestsF, SDPAFusionTest6) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
+
+TEST_F(TransformationTestsF, SDPAFusionTest7) {
+    const PartialShape query_shape{1, 8, -1, 32};
+    const PartialShape key_shape{-1, 1, 8, 32};
+    const PartialShape value_shape{1, 8, -1, 32};
+
+    const auto query = std::make_shared<ov::op::v0::Parameter>(element::f16, query_shape);
+    const auto key = std::make_shared<ov::op::v0::Parameter>(element::f16, key_shape);
+    const auto value = std::make_shared<ov::op::v0::Parameter>(element::f16, value_shape);
+    {
+        const auto key_t =
+            std::make_shared<ov::op::v1::Transpose>(key,
+                                                    op::v0::Constant::create(element::i64, Shape{4}, {1, 2, 3, 0}));
+        const auto qk = std::make_shared<ov::op::v0::MatMul>(query, key_t, false, false);
+        const auto softmax = std::make_shared<ov::op::v8::Softmax>(qk, -1);
+        const auto qkv = std::make_shared<ov::op::v0::MatMul>(softmax, value, false, false);
+
+        model = std::make_shared<ov::Model>(NodeVector{qkv}, ParameterVector{query, key, value});
+        manager.register_pass<ov::pass::SDPAFusion>();
+    }
+}

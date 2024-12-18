@@ -3,7 +3,6 @@
 //
 
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
-
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/add.hpp"
@@ -15,6 +14,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 
 namespace ov {
@@ -29,7 +29,12 @@ SDPAFusion::SDPAFusion() {
     auto v = makePattern(ov::Rank(4));
     auto mask = makePattern();
 
-    auto k_t = makePattern<ov::op::v1::Transpose>({k, {0, 1, 3, 2}});
+    auto k_transpose_order = pattern::wrap_type<ov::op::v0::Constant>([](const Output<Node>& node) {
+        auto axis_order = std::dynamic_pointer_cast<ov::op::v0::Constant>(node.get_node_shared_ptr())->cast_vector<int64_t>();
+        return axis_order == std::vector<int64_t>{0, 1, 3, 2};
+    });
+
+    auto k_t = pattern::wrap_type<ov::op::v1::Transpose>({k, k_transpose_order});
     auto qk_nn = makePattern<ov::op::v0::MatMul>({q, k_t}, {{"transpose_a", false}, {"transpose_b", false}});
     auto qk_nt = makePattern<ov::op::v0::MatMul>({q, k}, {{"transpose_a", false}, {"transpose_b", true}});
     auto qk = qk_nt | qk_nn;
