@@ -310,10 +310,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         auto v_reshape =
             std::make_shared<v1::Reshape>(v_target_layout, v0::Constant::create(element::i64, Shape{2}, {0, -1}), true);
 
-        auto hidden_shape = std::make_shared<v3::ShapeOf>(real_q);
-        auto hidden_dim = std::make_shared<v8::Gather>(hidden_shape,
-                                                       v0::Constant::create(element::i64, Shape{}, {-1}),
-                                                       v0::Constant::create(element::i64, Shape{}, {0}));
         std::shared_ptr<ov::Node> scale;
         if (pattern_map.count(scale_input)) {
             scale = pattern_map.at(scale_input).get_node_shared_ptr();
@@ -328,6 +324,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                 // most likely `scale` below will always be a constant in real inference, but dynamic dimension
                 // propagation may not always derive it as a constant. That's why a sub-graph computing `scale` is built
                 // instead of just a constant node representing one of the dimensions.
+                auto hidden_shape = std::make_shared<v3::ShapeOf>(real_q);
+                auto hidden_dim = std::make_shared<v8::Gather>(hidden_shape,
+                                                               v0::Constant::create(element::i64, Shape{}, {-1}),
+                                                               v0::Constant::create(element::i64, Shape{}, {0}));
                 scale = std::make_shared<v1::Divide>(
                     v0::Constant::create(element::f32, Shape{}, {1}),
                     std::make_shared<v0::Sqrt>(std::make_shared<v0::Convert>(hidden_dim, element::f32)));
