@@ -43,7 +43,7 @@ struct jit_eltwise_params {
 
     size_t work_amount;
     bool use_runtime_ptrs;
-    bool do_constant_saturation;
+    bool do_output_saturation;
 };
 
 struct jit_eltwise_call_args_indexes {

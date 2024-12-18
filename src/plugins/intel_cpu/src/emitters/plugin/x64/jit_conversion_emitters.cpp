@@ -66,9 +66,6 @@ jit_convert_truncation_emitter::jit_convert_truncation_emitter(jit_generator* ho
                                                                const std::shared_ptr<ov::Node>& node,
                                                                ov::element::Type exec_prc)
     : jit_convert_emitter(host, host_isa, node, exec_prc) {
-    if (uni_vcvtneps2bf16)
-        uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(host, host_isa, exec_prc, arithmetic_mode::truncation));
-
     prepare_table();
 }
 

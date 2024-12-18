@@ -44,6 +44,9 @@ struct store_emitter_params : public emitter_params {
     int store_num_;
 };
 
+// Arithmetic modes for data type conversion in store_emitter
+enum arithmetic_mode { saturation, truncation };
+
 class jit_load_emitter : public jit_emitter {
 public:
     jit_load_emitter(dnnl::impl::cpu::x64::jit_generator* host,

@@ -11,10 +11,11 @@ namespace intel_cpu {
 
 class jit_uni_vcvtneps2bf16 : public jit_emitter {
 public:
+    enum class conversion_mode { default_mode, saturation_mode };
     jit_uni_vcvtneps2bf16(dnnl::impl::cpu::x64::jit_generator* host,
                           dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                           ov::element::Type exec_prc = ov::element::bf16,
-                          arithmetic_mode mode = arithmetic_mode::none)
+                          conversion_mode mode = conversion_mode::default_mode)
         : jit_emitter(host, host_isa, exec_prc) {
         prepare_table();
         mode_ = mode;
@@ -25,7 +26,7 @@ public:
     }
 
 private:
-    arithmetic_mode mode_ = arithmetic_mode::none;
+    conversion_mode mode_ = conversion_mode::default_mode;
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override {
         if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
             emit_isa<dnnl::impl::cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
@@ -45,7 +46,7 @@ private:
             conditional3<isa == dnnl::impl::cpu::x64::sse41, Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
 
         Vmm in = Vmm(in_vec_idxs[0]);
-        if (mode_ == arithmetic_mode::constant_saturation) {
+        if (mode_ == conversion_mode::saturation_mode) {
             Vmm vmm_temp = Vmm(out_vec_idxs[0]);
 
             h->uni_vmaxps(vmm_temp, in, table_val("bf16_min"));
