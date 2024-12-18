@@ -42,7 +42,8 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
     auto gather_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past});
     auto beam_idx = wrap_type<ov::op::v0::Parameter>();
     auto gather_past = wrap_type<ov::op::v8::Gather>({gather_input, beam_idx, wrap_type<ov::op::v0::Constant>()});
-    auto concat_past_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past, gather_past});
+    auto gather_convert = wrap_type<ov::op::v0::Convert>({gather_past});
+    auto concat_past_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past, gather_past, gather_convert});
     auto concat = wrap_type<ov::op::v0::Concat>({concat_past_input, any_input()});
     auto convert_present = wrap_type<ov::op::v0::Convert>({concat});
     auto present_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{concat, convert_present});
@@ -62,9 +63,9 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
         if (past_node->get_variable_id() != present_node->get_variable_id())
             return false;
 
-        // TODO: Support conversion internally
-        if (concat_node->get_output_element_type(0) != past_node->get_output_element_type(0))
-            return false;
+        // // TODO: Support conversion internally
+        // if (concat_node->get_output_element_type(0) != past_node->get_output_element_type(0))
+        //    return false;
 
         auto variable = past_node->get_variable();
         auto concat_axis = concat_node->get_axis();
