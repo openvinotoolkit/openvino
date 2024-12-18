@@ -144,7 +144,7 @@ void PagedAttention::createPrimitive() {
         // Since we are quantize only last dim it's safe to use the last dim of KV.
         auto kCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
         auto vCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
-        const auto cpuConfig = context->getConfig();
+        const auto& cpuConfig = context->getConfig();
 
         size_t key_group_size = cpuConfig.keyCacheGroupSize;
         size_t value_group_size = cpuConfig.valueCacheGroupSize;

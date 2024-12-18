@@ -627,6 +627,7 @@ void paged_attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
     } else if (k_src.get_precision() == ov::element::bf16) {
         funcs_bf16[dispatch](k_src, v_src, k_dst, v_dst, slot_mapping, key_group_size, value_group_size);
     } else if (k_src.get_precision() == ov::element::f16) {
+        printf("quantize with f16\n");
         funcs_f16[dispatch](k_src, v_src, k_dst, v_dst, slot_mapping, key_group_size, value_group_size);
     }
 }

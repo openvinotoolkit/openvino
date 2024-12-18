@@ -72,10 +72,22 @@ void cvt_copy(TA* dst, TB* src, size_t n) {
     }
 }
 
+size_t inline get_sub_byte_multiplier(ov::element::Type type) {
+    return one_of(type, ov::element::i4, ov::element::u4) ? 8 / type.bitwidth() : 1;
+}
+
 template <typename T,
           ov::element::Type_t SRC_PREC,
-          typename std::enable_if<SRC_PREC != ov::element::u8 || SRC_PREC != ov::element::u4, bool>::type = true>
-static void attn_acc_value_block(float* out, float* weight, T* v, size_t S, size_t block_size, size_t group_size) {
+          typename std::enable_if<(std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value ||
+                                   std::is_same<T, float>::value) &&
+                                      (SRC_PREC != ov::element::u8 || SRC_PREC != ov::element::u4),
+                                  bool>::type = true>
+static void attn_acc_value_block(float* out,
+                                 float* weight,
+                                 T* v,
+                                 const size_t S,
+                                 const size_t block_size,
+                                 const size_t group_size) {
 #    if defined(HAVE_AVX512F)
     size_t j = 0;
     for (; j + 4 <= block_size; j += 4) {
@@ -208,7 +220,7 @@ template <typename T,
 static void attn_acc_value_block(float* out,
                                  float* weight,
                                  uint8_t* v,
-                                 size_t S,
+                                 const size_t S,
                                  const size_t block_size,
                                  const size_t group_size) {
     // The layout for per token per head:
@@ -355,15 +367,16 @@ template <typename T,
           typename std::enable_if<SRC_PREC == ov::element::u4, bool>::type = true>
 static void attn_acc_value_block(float* out,
                                  float* weight,
-                                 uint8_t* v,
-                                 size_t S,
+                                 void* v,
+                                 const size_t S,
                                  const size_t block_size,
                                  const size_t group_size) {
     size_t src_offset = 0;
     size_t dst_offset = 0;
     const size_t params_offset = sizeof(float) * 2;
-    auto sub_byte_multiplyer = 8 / 4;
-    const size_t src_stride = S / group_size * (group_size / sub_byte_multiplyer + params_offset);
+    uint8_t* v_ptr = reinterpret_cast<uint8_t*>(v);
+    auto sub_byte_multiplier = 8 / 4;
+    const size_t src_stride = S / group_size * (group_size / sub_byte_multiplier + params_offset);
     auto extract_half_byte = [](uint8_t val, bool high_half) -> uint8_t {
         uint8_t shift = high_half ? 0 : 4;
 
@@ -373,13 +386,13 @@ static void attn_acc_value_block(float* out,
         dst_offset = 0;
         src_offset = 0;
         while (dst_offset < S) {
-            auto v0 = reinterpret_cast<float*>(v + src_offset);
+            auto v0 = reinterpret_cast<float*>(v_ptr + src_offset);
             size_t i = 0;
 #    if defined(HAVE_AVX512F)
             auto attn_w_vec0 = _mm512_set1_ps(weight[j] * v0[0]);
             auto v_zp = _mm512_set1_ps(v0[1]);
             for (; i + vec_len_f32_avx512 * 2 <= group_size; i += vec_len_f32_avx512 * 2) {
-                auto data = _mm_loadu_si128(reinterpret_cast<__m128i*>(v + i / 2 + src_offset + params_offset));
+                auto data = _mm_loadu_si128(reinterpret_cast<__m128i*>(v_ptr + i / 2 + src_offset + params_offset));
                 auto v_i32 = _mm512_cvtepu8_epi32(data);
 
                 auto v_512_low_half = _mm512_srli_epi32(v_i32, 4);
@@ -408,7 +421,7 @@ static void attn_acc_value_block(float* out,
             auto v256_attn_w_vec0 = _mm256_set1_ps(weight[j] * v0[0]);
             auto v256_zp = _mm256_set1_ps(v0[1]);
             for (; i + vec_len_f32_avx2 * 2 <= group_size; i += vec_len_f32_avx2 * 2) {
-                auto data = _mm_loadl_epi64(reinterpret_cast<__m128i*>(v + i / 2 + src_offset + params_offset));
+                auto data = _mm_loadl_epi64(reinterpret_cast<__m128i*>(v_ptr + i / 2 + src_offset + params_offset));
 
                 auto v_i32 = _mm256_cvtepu8_epi32(data);
                 auto v_256_low_half = _mm256_srli_epi32(v_i32, 4);
@@ -437,16 +450,16 @@ static void attn_acc_value_block(float* out,
             }
 #    endif
             for (; i < group_size; i += 2) {
-                uint8_t data = v[i / 2 + src_offset + params_offset];
+                uint8_t data = v_ptr[i / 2 + src_offset + params_offset];
                 float tmp0 = extract_half_byte(data, static_cast<bool>(i % 2));
                 float tmp1 = extract_half_byte(data, static_cast<bool>((i + 1) % 2));
                 out[dst_offset + i] += weight[j] * (tmp0 - v0[1]) * v0[0];
                 out[dst_offset + i + 1] += weight[j] * (tmp1 - v0[1]) * v0[0];
             }
             dst_offset += group_size;
-            src_offset += group_size / sub_byte_multiplyer + params_offset;
+            src_offset += group_size / sub_byte_multiplier + params_offset;
         }
-        v += src_stride;
+        v_ptr += src_stride;
     }
 }
 
@@ -455,15 +468,16 @@ template <typename T,
           typename std::enable_if<SRC_PREC == ov::element::i4, bool>::type = true>
 static void attn_acc_value_block(float* out,
                                  float* weight,
-                                 uint8_t* v,
-                                 size_t S,
+                                 void* v,
+                                 const size_t S,
                                  const size_t block_size,
                                  const size_t group_size) {
     size_t src_offset = 0;
     size_t dst_offset = 0;
     const size_t params_offset = sizeof(float);
-    auto sub_byte_multiplyer = 8 / 4;
-    const size_t src_stride = S / group_size * (group_size / sub_byte_multiplyer + params_offset);
+    auto sub_byte_multiplier = 8 / 4;
+    uint8_t* v_ptr = reinterpret_cast<uint8_t*>(v);
+    const size_t src_stride = S / group_size * (group_size / sub_byte_multiplier + params_offset);
     auto extract_half_byte = [](uint8_t val, bool high_half) -> uint8_t {
         uint8_t shift = high_half ? 0 : 4;
 
@@ -474,12 +488,12 @@ static void attn_acc_value_block(float* out,
         dst_offset = 0;
         src_offset = 0;
         while (dst_offset < S) {
-            auto v0 = reinterpret_cast<float*>(v + src_offset);
+            auto v0 = reinterpret_cast<float*>(v_ptr + src_offset);
             size_t i = 0;
 #    if defined(HAVE_AVX512F)
             auto attn_w_vec0 = _mm512_set1_ps(weight[j] * v0[0]);
             for (; i + vec_len_f32_avx512 * 2 <= group_size; i += vec_len_f32_avx512 * 2) {
-                auto data = _mm_loadu_si128(reinterpret_cast<__m128i*>(v + i / 2 + src_offset + params_offset));
+                auto data = _mm_loadu_si128(reinterpret_cast<__m128i*>(v_ptr + i / 2 + src_offset + params_offset));
                 auto v_i32 = _mm512_cvtepi8_epi32(data);
                 // cvt to f32
                 auto v_256_low_half = _mm512_srai_epi32(v_i32, 4);
@@ -503,7 +517,7 @@ static void attn_acc_value_block(float* out,
 #    elif defined(HAVE_AVX2) || defined(HAVE_AVX512F)
             auto v256_attn_w_vec0 = _mm256_set1_ps(weight[j] * v0[0]);
             for (; i + vec_len_f32_avx2 * 2 <= group_size; i += vec_len_f32_avx2 * 2) {
-                auto data = _mm_loadl_epi64(reinterpret_cast<__m128i*>(v + i / 2 + src_offset + params_offset));
+                auto data = _mm_loadl_epi64(reinterpret_cast<__m128i*>(v_ptr + i / 2 + src_offset + params_offset));
 
                 auto v_i32 = _mm256_cvtepi8_epi32(data);
                 auto v_256_low_half = _mm256_srai_epi32(v_i32, 4);
@@ -527,7 +541,7 @@ static void attn_acc_value_block(float* out,
             }
 #    endif
             for (; i < group_size; i += 2) {
-                uint8_t data = v[i / 2 + src_offset + params_offset];
+                uint8_t data = v_ptr[i / 2 + src_offset + params_offset];
                 float tmp0 = extract_half_byte(data, static_cast<bool>(i % 2));
                 tmp0 = tmp0 > 8 ? (tmp0 - 16) : tmp0;
                 float tmp1 = extract_half_byte(data, static_cast<bool>((i + 1) % 2));
@@ -536,14 +550,19 @@ static void attn_acc_value_block(float* out,
                 out[dst_offset + i + 1] += weight[j] * (tmp1)*v0[0];
             }
             dst_offset += group_size;
-            src_offset += group_size / sub_byte_multiplyer + params_offset;
+            src_offset += group_size / sub_byte_multiplier + params_offset;
         }
-        v += src_stride;
+        v_ptr += src_stride;
     }
 }
 
 template <typename TA, typename TB>
-static void dot_product_block(TA* a, TB* b, float* c, size_t n, size_t block_size, size_t group_size) {
+static void dot_product_block(TA* a,
+                              TB* b,
+                              float* c,
+                              const size_t n,
+                              const size_t block_size,
+                              const size_t group_size) {
 #    if defined(HAVE_AVX512F)
     size_t j = 0;
     for (; j + 4 <= block_size; j += 4) {
@@ -655,7 +674,12 @@ static void dot_product_block(TA* a, TB* b, float* c, size_t n, size_t block_siz
 }
 
 template <typename TA>
-static void dot_product_block(TA* a, uint8_t* b, float* c, size_t n, size_t block_size, const size_t group_size) {
+static void dot_product_block(TA* a,
+                              uint8_t* b,
+                              float* c,
+                              const size_t n,
+                              const size_t block_size,
+                              const size_t group_size) {
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
     // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
@@ -928,11 +952,11 @@ template <typename TDST,
 void transpose_16NxK(TDST* dst,
                      void* src,
                      TDST* tmp,
-                     size_t N,
-                     size_t K,
-                     size_t dst_stride,
-                     size_t src_stride,
-                     size_t group_size) {
+                     const size_t N,
+                     const size_t K,
+                     const size_t dst_stride,
+                     const size_t src_stride,
+                     const size_t group_size) {
     size_t k = 0;
     auto* src_ptr = reinterpret_cast<typename ov::element_type_traits<SRC_PREC>::value_type*>(src);
     for (; k + 16 <= K; k += 16) {
@@ -958,10 +982,10 @@ template <typename T,
 static void transpose_16NxK(T* dst,
                             T* src,
                             T* tmp,
-                            size_t N,
-                            size_t K,
-                            size_t dst_stride,
-                            size_t src_stride,
+                            const size_t N,
+                            const size_t K,
+                            const size_t dst_stride,
+                            const size_t src_stride,
                             const size_t group_size) {
     // will treat as uint32_t transpose
     auto s = reinterpret_cast<uint32_t*>(src);
@@ -983,10 +1007,10 @@ template <typename TDST,
 void transpose_16NxK(TDST* dst,
                      void* src,
                      TDST* tmp,
-                     size_t N,
-                     size_t K,
-                     size_t dst_stride,
-                     size_t src_stride,
+                     const size_t N,
+                     const size_t K,
+                     const size_t dst_stride,
+                     const size_t src_stride,
                      const size_t group_size) {
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
@@ -1006,35 +1030,29 @@ void transpose_16NxK(TDST* dst,
         s += src_offset;
         t += src_stride;
     }
-    transpose_16NxK<TDST, precision_of<TDST>::value>(dst,
-                                                     tmp,
-                                                     reinterpret_cast<TDST*>(0),
-                                                     N,
-                                                     K,
-                                                     dst_stride,
-                                                     src_stride,
-                                                     0);
+    transpose_16NxK<TDST,
+                    precision_of<TDST>::value>(dst, tmp, reinterpret_cast<TDST*>(0), N, K, dst_stride, src_stride, 0);
 }
 
 // dequant f16/u8 to float
 template <typename T,
           ov::element::Type_t SRC_PREC,
           typename std::enable_if<SRC_PREC != ov::element::u8, bool>::type = true>
-static inline void dequant(T* dst, void* src, size_t N, size_t K, const size_t group_size) {
+static inline void dequant(T* dst, void* src, const size_t N, const size_t K, const size_t group_size) {
     // never called
     OPENVINO_THROW("dequant: should not be called.");
 }
 template <typename T,
           ov::element::Type_t SRC_PREC,
           typename std::enable_if<SRC_PREC == ov::element::f16, bool>::type = true>
-static inline void dequant(float* dst, ov::float16* src, size_t N, size_t K, const size_t group_size) {
+static inline void dequant(float* dst, ov::float16* src, const size_t N, const size_t K, const size_t group_size) {
     cvt_copy(dst, src, K * N);
 }
 
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
           typename std::enable_if<SRC_PREC == ov::element::u8, bool>::type = true>
-void dequant(TDST* dst, uint8_t* src, size_t N, size_t K, const size_t group_size) {
+void dequant(TDST* dst, uint8_t* src, const size_t N, const size_t K, const size_t group_size) {
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
     // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
@@ -1059,7 +1077,7 @@ void dequant(TDST* dst, uint8_t* src, size_t N, size_t K, const size_t group_siz
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
           typename std::enable_if<SRC_PREC == ov::element::u4, bool>::type = true>
-void dequant(TDST* dst, uint8_t* src, size_t N, size_t K, const size_t group_size) {
+void dequant(TDST* dst, uint8_t* src, const size_t N, const size_t K, const size_t group_size) {
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
     // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
@@ -1084,7 +1102,7 @@ void dequant(TDST* dst, uint8_t* src, size_t N, size_t K, const size_t group_siz
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
           typename std::enable_if<SRC_PREC == ov::element::i4, bool>::type = true>
-void dequant(TDST* dst, uint8_t* src, size_t N, size_t K, const size_t group_size) {
+void dequant(TDST* dst, uint8_t* src, const size_t N, const size_t K, const size_t group_size) {
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
     // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
@@ -1181,10 +1199,10 @@ template <typename TDST,
 static void pack_32NxK(TDST* dst,
                        void* src,
                        TDST* tmp,
-                       size_t N,
-                       size_t K,
-                       size_t dst_stride,
-                       size_t src_stride,
+                       const size_t N,
+                       const size_t K,
+                       const size_t dst_stride,
+                       const size_t src_stride,
                        const size_t group_size) {
     auto src_ptr = reinterpret_cast<typename ov::element_type_traits<SRC_PREC>::value_type*>(src);
     for (size_t n = 0; n < N; n += 32) {
@@ -1212,10 +1230,10 @@ template <typename TDST,
 static void pack_32NxK(TDST* dst,
                        void* src,
                        TDST* tmp,
-                       size_t N,
-                       size_t K,
-                       size_t dst_stride,
-                       size_t src_stride,
+                       const size_t N,
+                       const size_t K,
+                       const size_t dst_stride,
+                       const size_t src_stride,
                        const size_t group_size) {
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
@@ -1245,10 +1263,10 @@ template <typename TDST,
 static void pack_32NxK(TDST* dst,
                        void* src,
                        TDST* tmp,
-                       size_t N,
-                       size_t K,
-                       size_t dst_stride,
-                       size_t src_stride,
+                       const size_t N,
+                       const size_t K,
+                       const size_t dst_stride,
+                       const size_t src_stride,
                        const size_t group_size) {
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
@@ -1269,7 +1287,14 @@ static void pack_32NxK(TDST* dst,
         s += src_offset;
         t += src_stride;
     }
-    pack_32NxK<TDST, precision_of<TDST>::value>(dst, tmp, reinterpret_cast<TDST*>(0), N, K, dst_stride, src_stride, group_size);
+    pack_32NxK<TDST, precision_of<TDST>::value>(dst,
+                                                tmp,
+                                                reinterpret_cast<TDST*>(0),
+                                                N,
+                                                K,
+                                                dst_stride,
+                                                src_stride,
+                                                group_size);
 }
 
 template <typename TDST,
@@ -1279,10 +1304,10 @@ template <typename TDST,
 static void pack_32NxK(TDST* dst,
                        void* src,
                        TDST* tmp,
-                       size_t N,
-                       size_t K,
-                       size_t dst_stride,
-                       size_t src_stride,
+                       const size_t N,
+                       const size_t K,
+                       const size_t dst_stride,
+                       const size_t src_stride,
                        const size_t group_size) {
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
@@ -1303,7 +1328,14 @@ static void pack_32NxK(TDST* dst,
         s += src_offset;
         t += src_stride;
     }
-    pack_32NxK<TDST, precision_of<TDST>::value>(dst, tmp, reinterpret_cast<TDST*>(0), N, K, dst_stride, src_stride, group_size);
+    pack_32NxK<TDST, precision_of<TDST>::value>(dst,
+                                                tmp,
+                                                reinterpret_cast<TDST*>(0),
+                                                N,
+                                                K,
+                                                dst_stride,
+                                                src_stride,
+                                                group_size);
 }
 #    endif
 
@@ -1313,16 +1345,16 @@ template <typename TDST,
 static void pack_32NxK(TDST* dst,
                        void* src,
                        TDST* tmp,
-                       size_t N,
-                       size_t K,
-                       size_t dst_stride,
-                       size_t src_stride,
-                       size_t group_size) {
+                       const size_t N,
+                       const size_t K,
+                       const size_t dst_stride,
+                       const size_t src_stride,
+                       const size_t group_size) {
     // never called
     OPENVINO_THROW("pack_32NxK: should not be called.");
 }
 
-template <typename DATA_TYPE, typename KEY_CACHE_TYPE, typename VALUE_CACHE_TYPE>
+template <typename DATA_TYPE, typename KEY_CACHE_TYPE, ov::element::Type_t VALUE_PREC>
 struct MHAHelper {
     // initialize once
     size_t _H;
@@ -1458,13 +1490,11 @@ struct MHAHelper {
             if ((S % 32 == 0) && (block_size % 16 == 0) && (S <= 32 * 6)) {
                 if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_bf16) &&
                     precision_of<DATA_TYPE>::value == ov::element::bf16 &&
-                    precision_of<KEY_CACHE_TYPE>::value == ov::element::bf16 &&
-                    precision_of<VALUE_CACHE_TYPE>::value == ov::element::bf16) {
+                    precision_of<KEY_CACHE_TYPE>::value == ov::element::bf16 && VALUE_PREC == ov::element::bf16) {
                     _fastpath_valid_prec = ov::element::bf16;
                 } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_fp16) &&
                            precision_of<DATA_TYPE>::value == ov::element::f16 &&
-                           precision_of<KEY_CACHE_TYPE>::value == ov::element::f16 &&
-                           precision_of<VALUE_CACHE_TYPE>::value == ov::element::bf16) {
+                           precision_of<KEY_CACHE_TYPE>::value == ov::element::f16 && VALUE_PREC == ov::element::f16) {
                     _fastpath_valid_prec = ov::element::f16;
                 }
             }
@@ -1533,7 +1563,7 @@ struct MHAHelper {
         auto q_end = std::min(q_start + _block_size, q_len);
         auto q_cnt = q_end - q_start;
         constexpr bool q_is_xf16 = one_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
-        constexpr bool q_cache_is_same = precision_of<DATA_TYPE>::value == precision_of<VALUE_CACHE_TYPE>::value;
+        constexpr bool q_cache_is_same = precision_of<DATA_TYPE>::value == VALUE_PREC;
         auto cur_kv_len_blocks = div_up(cur_kv_len, _block_size);
         for (size_t h = hq_beg; h < hq_end; h++) {
             auto* q_ptr = query.ptr<DATA_TYPE>(h, q_start, 0);
@@ -1731,42 +1761,20 @@ struct MHAHelper {
         memset(_output.ptr<float>(ithr), 0, q_len * _H * _SV * sizeof(float));
         for (size_t pv = 0, i = 0; pv < cur_kv_len; pv += _block_size, i++) {
             auto block_number = block_table[i];
-            auto* v = present_value.ptr<VALUE_CACHE_TYPE>(block_number, hk);
             for (size_t pq = 0; pq < q_len; pq++) {
                 for (size_t h = hq_beg; h < hq_end; h++) {
-                    if (present_value.get_precision() == ov::element::u4) {
-                        auto sub_byte_multiplyer = 8 / present_value.get_precision().bitwidth();
-                        size_t v_stride =
-                            (block_number * present_value.m_strides[0] + hk * present_value.m_strides[1]) /
-                            sub_byte_multiplyer;
-                        auto* v_ptr = present_value.m_ptr.get() + v_stride;
-                        attn_acc_value_block<VALUE_CACHE_TYPE, ov::element::u4>(_output.ptr<float>(ithr, pq, h),
-                                                                                _weight.ptr<float>(ithr, h, pq) + pv,
-                                                                                v_ptr,
-                                                                                _SV,
-                                                                                std::min(_block_size, cur_kv_len - pv),
-                                                                                _value_group_size);
-                    } else if (present_value.get_precision() == ov::element::i4) {
-                        auto sub_byte_multiplyer = 8 / present_value.get_precision().bitwidth();
-                        size_t v_stride =
-                            (block_number * present_value.m_strides[0] + hk * present_value.m_strides[1]) /
-                            sub_byte_multiplyer;
-                        auto* v_ptr = present_value.m_ptr.get() + v_stride;
-                        attn_acc_value_block<VALUE_CACHE_TYPE, ov::element::i4>(_output.ptr<float>(ithr, pq, h),
-                                                                                _weight.ptr<float>(ithr, h, pq) + pv,
-                                                                                v_ptr,
-                                                                                _SV,
-                                                                                std::min(_block_size, cur_kv_len - pv),
-                                                                                _value_group_size);
-                    } else {
-                        attn_acc_value_block<VALUE_CACHE_TYPE, precision_of<VALUE_CACHE_TYPE>::value>(
-                            _output.ptr<float>(ithr, pq, h),
-                            _weight.ptr<float>(ithr, h, pq) + pv,
-                            v,
-                            _SV,
-                            std::min(_block_size, cur_kv_len - pv),
-                            _value_group_size);
-                    }
+                    auto sub_byte_multiplier = get_sub_byte_multiplier(present_value.get_precision());
+                    size_t v_stride = (block_number * present_value.m_strides[0] + hk * present_value.m_strides[1]) *
+                                      present_value.get_precision().size() / sub_byte_multiplier;
+                    auto* v_ptr = reinterpret_cast<typename element_type_traits<VALUE_PREC>::value_type*>(
+                        present_value.m_ptr.get() + v_stride);
+                    attn_acc_value_block<typename element_type_traits<VALUE_PREC>::value_type, VALUE_PREC>(
+                        _output.ptr<float>(ithr, pq, h),
+                        _weight.ptr<float>(ithr, h, pq) + pv,
+                        v_ptr,
+                        _SV,
+                        std::min(_block_size, cur_kv_len - pv),
+                        _value_group_size);
                 }
             }
         }
@@ -1923,44 +1931,21 @@ struct MHAHelper {
             // kv_len must be valid
             if (pv < context_len) {
                 auto block_number = block_indices.ptr<int32_t>()[block_indices_begins.ptr<int32_t>()[b] + pv_in_blocks];
-                auto* v = present_value.ptr<VALUE_CACHE_TYPE>(block_number, hk);
                 for (size_t pq = 0; pq < q_len; pq++) {
                     for (size_t h = hq_beg; h < hq_end; h++) {
-                        if (present_value.get_precision() == ov::element::u4) {
-                            auto sub_byte_multiplyer = 8 / present_value.get_precision().bitwidth();
-                            size_t v_stride =
-                                (block_number * present_value.m_strides[0] + hk * present_value.m_strides[1]) /
-                                sub_byte_multiplyer;
-                            auto* v_ptr = present_value.m_ptr.get() + v_stride;
-                            attn_acc_value_block<VALUE_CACHE_TYPE, ov::element::u4>(
-                                _output_bhl.ptr<float>(ithr, b, pq, h),
-                                _weight_bhl.ptr<float>(b, h, pq) + pv,
-                                v_ptr,
-                                _SV,
-                                std::min(_block_size, context_len - pv),
-                                _value_group_size);
-                        } else if (present_value.get_precision() == ov::element::i4) {
-                            auto sub_byte_multiplyer = 8 / present_value.get_precision().bitwidth();
-                            size_t v_stride =
-                                (block_number * present_value.m_strides[0] + hk * present_value.m_strides[1]) /
-                                sub_byte_multiplyer;
-                            auto* v_ptr = present_value.m_ptr.get() + v_stride;
-                            attn_acc_value_block<VALUE_CACHE_TYPE, ov::element::i4>(
-                                _output_bhl.ptr<float>(ithr, b, pq, h),
-                                _weight_bhl.ptr<float>(b, h, pq) + pv,
-                                v_ptr,
-                                _SV,
-                                std::min(_block_size, context_len - pv),
-                                _value_group_size);
-                        } else {
-                            attn_acc_value_block<VALUE_CACHE_TYPE, precision_of<VALUE_CACHE_TYPE>::value>(
-                                _output_bhl.ptr<float>(ithr, b, pq, h),
-                                _weight_bhl.ptr<float>(b, h, pq) + pv,
-                                v,
-                                _SV,
-                                std::min(_block_size, context_len - pv),
-                                _value_group_size);
-                        }
+                        auto sub_byte_multiplier = get_sub_byte_multiplier(present_value.get_precision());
+                        size_t v_stride =
+                            (block_number * present_value.m_strides[0] + hk * present_value.m_strides[1]) *
+                            present_value.get_precision().size() / sub_byte_multiplier;
+                        auto* v_ptr = reinterpret_cast<typename element_type_traits<VALUE_PREC>::value_type*>(
+                            present_value.m_ptr.get() + v_stride);
+                        attn_acc_value_block<typename element_type_traits<VALUE_PREC>::value_type, VALUE_PREC>(
+                            _output_bhl.ptr<float>(ithr, b, pq, h),
+                            _weight_bhl.ptr<float>(b, h, pq) + pv,
+                            v_ptr,
+                            _SV,
+                            std::min(_block_size, context_len - pv),
+                            _value_group_size);
                     }
                 }
             }
@@ -1981,9 +1966,9 @@ struct MHAHelper {
     }
 };
 
-template <typename DATA_TYPE, typename KEY_CACHE_TYPE, typename VALUE_CACHE_TYPE>
+template <typename DATA_TYPE, typename KEY_CACHE_TYPE, ov::element::Type_t VALUE_PREC>
 struct MHA {
-    MHAHelper<DATA_TYPE, KEY_CACHE_TYPE, VALUE_CACHE_TYPE>& _helper;
+    MHAHelper<DATA_TYPE, KEY_CACHE_TYPE, VALUE_PREC>& _helper;
     struct AttnWorkItem {
         int32_t batch_in_reorder;  // which batch in reorder buffer will be used
         int32_t batch_in_seq;      // batch idx in sequence
@@ -2083,7 +2068,7 @@ struct MHA {
 
     WorkItems _workitems;
 
-    MHA(MHAHelper<DATA_TYPE, KEY_CACHE_TYPE, VALUE_CACHE_TYPE>& helper) : _helper(helper) {}
+    MHA(MHAHelper<DATA_TYPE, KEY_CACHE_TYPE, VALUE_PREC>& helper) : _helper(helper) {}
 
     // one loop to handle first and second tokens
     void exec_loop_mixed(const PlainTensor& q,
@@ -2121,7 +2106,6 @@ struct MHA {
 
             auto ithr = parallel_get_thread_num();
             auto* k_ptr = k_cache.ptr<KEY_CACHE_TYPE>(block_number, hk);
-            auto* v_ptr = v_cache.ptr<VALUE_CACHE_TYPE>(block_number, hk);
 
             transpose_16NxK<DATA_TYPE, precision_of<KEY_CACHE_TYPE>::value>(
                 _helper._qk_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
@@ -2134,78 +2118,32 @@ struct MHA {
                 _helper._key_group_size);
 
             if (q_is_xf16) {
-                if (v_cache.get_precision() == ov::element::u4) {
-                    auto sub_byte_multiplyer = 8 / v_cache.get_precision().bitwidth();
-                    size_t v_stride =
-                        (block_number * v_cache.m_strides[0] + hk * v_cache.m_strides[1]) / sub_byte_multiplyer;
-                    auto* v_ptr = v_cache.m_ptr.get() + v_stride;
-                    pack_32NxK<DATA_TYPE, ov::element::u4>(
-                        _helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
-                        v_ptr,
-                        _helper._output.template ptr<DATA_TYPE>(ithr),
-                        _helper._block_size,
-                        _helper._SV,
-                        rnd_up(_helper._SV, _helper._block_size),
-                        _helper._SV,
-                        _helper._value_group_size);
-                } else if (v_cache.get_precision() == ov::element::i4) {
-                    auto sub_byte_multiplyer = 8 / v_cache.get_precision().bitwidth();
-                    size_t v_stride =
-                        (block_number * v_cache.m_strides[0] + hk * v_cache.m_strides[1]) / sub_byte_multiplyer;
-                    auto* v_ptr = v_cache.m_ptr.get() + v_stride;
-                    pack_32NxK<DATA_TYPE, ov::element::i4>(
-                        _helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
-                        v_ptr,
-                        _helper._output.template ptr<DATA_TYPE>(ithr),
-                        _helper._block_size,
-                        _helper._SV,
-                        rnd_up(_helper._SV, _helper._block_size),
-                        _helper._SV,
-                        _helper._value_group_size);
-                } else {
-                    pack_32NxK<DATA_TYPE, precision_of<VALUE_CACHE_TYPE>::value>(
-                        _helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
-                        v_ptr,
-                        _helper._output.template ptr<DATA_TYPE>(ithr),
-                        _helper._block_size,
-                        _helper._SV,
-                        rnd_up(_helper._SV, _helper._block_size),
-                        _helper._SV,
-                        _helper._value_group_size);
-                }
+                auto sub_byte_multiplier = get_sub_byte_multiplier(v_cache.get_precision());
+                size_t v_stride = (block_number * v_cache.m_strides[0] + hk * v_cache.m_strides[1]) *
+                                  v_cache.get_precision().size() / sub_byte_multiplier;
+                auto* v_ptr = v_cache.m_ptr.get() + v_stride;
+                pack_32NxK<DATA_TYPE, VALUE_PREC>(
+                    _helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
+                    v_ptr,
+                    _helper._output.template ptr<DATA_TYPE>(ithr),
+                    _helper._block_size,
+                    _helper._SV,
+                    rnd_up(_helper._SV, _helper._block_size),
+                    _helper._SV,
+                    _helper._value_group_size);
             } else {
                 // need to decompress
                 if (!q_cache_is_same) {
-                    if (v_cache.get_precision() == ov::element::u4) {
-                        auto sub_byte_multiplyer = 8 / v_cache.get_precision().bitwidth();
-                        size_t v_stride =
-                            (block_number * v_cache.m_strides[0] + hk * v_cache.m_strides[1]) / sub_byte_multiplyer;
-                        auto* v_ptr = v_cache.m_ptr.get() + v_stride;
-                        dequant<DATA_TYPE, ov::element::u4>(
-                            _helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
-                            v_ptr,
-                            _helper._block_size,
-                            _helper._SV,
-                            _helper._value_group_size);
-                    } else if (v_cache.get_precision() == ov::element::i4) {
-                        auto sub_byte_multiplyer = 8 / v_cache.get_precision().bitwidth();
-                        size_t v_stride =
-                            (block_number * v_cache.m_strides[0] + hk * v_cache.m_strides[1]) / sub_byte_multiplyer;
-                        auto* v_ptr = v_cache.m_ptr.get() + v_stride;
-                        dequant<DATA_TYPE, ov::element::i4>(
-                            _helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
-                            v_ptr,
-                            _helper._block_size,
-                            _helper._SV,
-                            _helper._value_group_size);
-                    } else {
-                        dequant<DATA_TYPE, precision_of<VALUE_CACHE_TYPE>::value>(
-                            _helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
-                            v_ptr,
-                            _helper._block_size,
-                            _helper._SV,
-                            _helper._value_group_size);
-                    }
+                    auto sub_byte_multiplier = get_sub_byte_multiplier(v_cache.get_precision());
+                    size_t v_stride = (block_number * v_cache.m_strides[0] + hk * v_cache.m_strides[1]) *
+                                      v_cache.get_precision().size() / sub_byte_multiplier;
+                    auto* v_ptr = v_cache.m_ptr.get() + v_stride;
+                    dequant<DATA_TYPE, VALUE_PREC>(
+                        _helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
+                        v_ptr,
+                        _helper._block_size,
+                        _helper._SV,
+                        _helper._value_group_size);
                 }
             }
         });
@@ -2356,16 +2294,16 @@ struct MHA {
     }
 };
 
-template <typename DATA_TYPE, typename KEY_CACHE_TYPE, typename VALUE_CACHE_TYPE>
+template <typename DATA_TYPE, typename KEY_CACHE_TYPE, ov::element::Type_t VALUE_PREC>
 struct AttentionExecutor : public PagedAttentionExecutor {
-    MHAHelper<DATA_TYPE, KEY_CACHE_TYPE, VALUE_CACHE_TYPE> _helper;
-    MHA<DATA_TYPE, KEY_CACHE_TYPE, VALUE_CACHE_TYPE> _kernel;
+    MHAHelper<DATA_TYPE, KEY_CACHE_TYPE, VALUE_PREC> _helper;
+    MHA<DATA_TYPE, KEY_CACHE_TYPE, VALUE_PREC> _kernel;
     PlainTensor _slot_mapping;
 
     AttentionExecutor() : _kernel(_helper) {}
 
     explicit AttentionExecutor(size_t key_group_size, size_t value_group_size)
-        : _helper(MHAHelper<DATA_TYPE, KEY_CACHE_TYPE, VALUE_CACHE_TYPE>(key_group_size, value_group_size)),
+        : _helper(MHAHelper<DATA_TYPE, KEY_CACHE_TYPE, VALUE_PREC>(key_group_size, value_group_size)),
           _kernel(_helper) {}
 
     void init(const std::vector<MemoryPtr>& inputs,
@@ -2408,21 +2346,22 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         // The layout for per token per head for u8 kv cache:
         // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
         // feature(u8,idx_S)| The actual size needs to deduct scale and zeropoint.
-        const size_t key_sub_byte_multiplyer = 8 / k_cache.get_precision().bitwidth();
-        const size_t value_sub_byte_multiplyer = 8 / v_cache.get_precision().bitwidth();
-        const size_t key_params_size = sizeof(float) * 2 * key_sub_byte_multiplyer;
+        const size_t key_sub_byte_multiplier = get_sub_byte_multiplier(k_cache.get_precision());
+        const size_t value_sub_byte_multiplier = get_sub_byte_multiplier(v_cache.get_precision());
+        const size_t key_params_size = sizeof(float) * 2 * key_sub_byte_multiplier;
         // u4 needs scale + zp. s4 needs scale.
         const size_t param_size =
             one_of(v_cache.get_precision(), ov::element::u4, ov::element::u8) ? sizeof(float) * 2 : sizeof(float);
-        const size_t value_params_size = param_size * value_sub_byte_multiplyer;
-        size_t key_group_num = _helper._key_group_size ? k_cache.size(3) / (_helper._key_group_size + key_params_size) : 1;
-        size_t value_group_num = _helper._value_group_size ? v_cache.size(3) / (_helper._value_group_size + value_params_size) : 1;
+        const size_t value_params_size = param_size * value_sub_byte_multiplier;
+        size_t key_group_num =
+            _helper._key_group_size ? k_cache.size(3) / (_helper._key_group_size + key_params_size) : 1;
+        size_t value_group_num =
+            _helper._value_group_size ? v_cache.size(3) / (_helper._value_group_size + value_params_size) : 1;
         auto S = k_cache.size(3) - (k_cache.get_precision().is_real() ? 0 : key_params_size * key_group_num);
         auto SV = v_cache.size(3) - (v_cache.get_precision().is_real() ? 0 : value_params_size * value_group_num);
         // revise group_size if it's zero.
         _helper._key_group_size = _helper._key_group_size ? _helper._key_group_size : S;
         _helper._value_group_size = _helper._value_group_size ? _helper._value_group_size : SV;
-        printf("key_group_size %ld, value_group_size %ld S %ld V %ld\n", _helper._key_group_size, _helper._value_group_size, S, SV);
         auto block_size = k_cache.size(2);
         auto H = q.size(1) / S;
         auto h_each_group_len = 1;
@@ -2557,11 +2496,23 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
     if (data_type == ov::element::bf16) {
 #    if defined(HAVE_AVX512F)
         if (key_cache_type == ov::element::u8) {
-            executor =
-                std::make_shared<AttentionExecutor<ov::bfloat16, uint8_t, uint8_t>>(key_group_size, value_group_size);
+            if (value_cache_type == ov::element::u4) {
+                executor =
+                    std::make_shared<AttentionExecutor<ov::bfloat16, uint8_t, ov::element::u4>>(key_group_size,
+                                                                                                value_group_size);
+            } else if (value_cache_type == ov::element::u8) {
+                executor =
+                    std::make_shared<AttentionExecutor<ov::bfloat16, uint8_t, ov::element::u8>>(key_group_size,
+                                                                                                value_group_size);
+            } else {
+                OPENVINO_THROW("make_pa_executor: key_cache_type u8 with value_cache_type ",
+                               value_cache_type.to_string(),
+                               " is not support");
+            }
+
         } else {
             OPENVINO_ASSERT(key_cache_type == ov::element::bf16, "expect kvcache type bf16, current: ", key_cache_type);
-            executor = std::make_shared<AttentionExecutor<ov::bfloat16, ov::bfloat16, ov::bfloat16>>();
+            executor = std::make_shared<AttentionExecutor<ov::bfloat16, ov::bfloat16, ov::element::bf16>>();
         }
 #    else
         OPENVINO_THROW("make_pa_executor: bf16 needs avx512+ hardware.");
@@ -2569,24 +2520,44 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
     } else if (data_type == ov::element::f16) {
 #    if defined(HAVE_AVX512F)
         if (key_cache_type == ov::element::u8) {
-            executor =
-                std::make_shared<AttentionExecutor<ov::float16, uint8_t, uint8_t>>(key_group_size, value_group_size);
+            if (value_cache_type == ov::element::u4) {
+                executor = std::make_shared<AttentionExecutor<ov::float16, uint8_t, ov::element::u4>>(key_group_size,
+                                                                                                      value_group_size);
+            } else if (value_cache_type == ov::element::u8) {
+                executor = std::make_shared<AttentionExecutor<ov::float16, uint8_t, ov::element::u8>>(key_group_size,
+                                                                                                      value_group_size);
+            } else {
+                OPENVINO_THROW("make_pa_executor: key_cache_type u8 with value_cache_type ",
+                               value_cache_type.to_string(),
+                               " is not support");
+            }
         } else {
             OPENVINO_ASSERT(key_cache_type == ov::element::f16, "expect kvcache type f16, current: ", key_cache_type);
-            executor = std::make_shared<AttentionExecutor<ov::float16, ov::float16, ov::float16>>();
+            executor = std::make_shared<AttentionExecutor<ov::float16, ov::float16, ov::element::f16>>();
         }
 #    else
         OPENVINO_THROW("make_pa_executor: f16 needs avx512+ hardware.");
 #    endif
     } else if (data_type == ov::element::f32) {
         if (key_cache_type == ov::element::u8) {
-            executor = std::make_shared<AttentionExecutor<float, uint8_t, uint8_t>>(key_group_size, value_group_size);
+            if (value_cache_type == ov::element::u4) {
+                executor = std::make_shared<AttentionExecutor<float, uint8_t, ov::element::u4>>(key_group_size,
+                                                                                                value_group_size);
+            } else if (value_cache_type == ov::element::u8) {
+                executor = std::make_shared<AttentionExecutor<float, uint8_t, ov::element::u8>>(key_group_size,
+                                                                                                value_group_size);
+            } else {
+                OPENVINO_THROW("make_pa_executor: key_cache_type u8 with value_cache_type ",
+                               value_cache_type.to_string(),
+                               " is not support");
+            }
         } else if (key_cache_type == ov::element::f16) {
-            executor =
-                std::make_shared<AttentionExecutor<float, ov::float16, ov::float16>>(key_group_size, value_group_size);
+            executor = std::make_shared<AttentionExecutor<float, ov::float16, ov::element::f16>>(key_group_size,
+                                                                                                 value_group_size);
         } else {
             OPENVINO_ASSERT(key_cache_type == ov::element::f32, "expect kvcache type f32, current: ", key_cache_type);
-            executor = std::make_shared<AttentionExecutor<float, float, float>>(key_group_size, value_group_size);
+            executor =
+                std::make_shared<AttentionExecutor<float, float, ov::element::f32>>(key_group_size, value_group_size);
         }
     } else {
         OPENVINO_THROW("make_pa_executor: unsupported precision: ", data_type);
