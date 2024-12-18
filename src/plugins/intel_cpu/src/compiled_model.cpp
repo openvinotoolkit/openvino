@@ -23,8 +23,8 @@
 #include "openvino/util/common_util.hpp"
 #include "transformations/transformation_pipeline.h"
 #include "transformations/utils/utils.hpp"
-#include "utils/serialize.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/serialize.hpp"
 
 #if defined(OV_CPU_WITH_ACL)
 #    include "nodes/executors/acl/acl_ie_scheduler.hpp"
@@ -44,7 +44,10 @@ struct ImmediateSerialExecutor : public ov::threading::ITaskExecutor {
 };
 
 #ifdef CPU_DEBUG_CAPS
-static void dumpMemoryStats(unsigned level, const std::string& name, std::deque<CompiledModel::GraphGuard>& graphs) {
+static void dumpMemoryStats(unsigned level,
+                            const std::string& name,
+                            std::deque<CompiledModel::GraphGuard>& graphs,
+                            const SocketsWeights& weights_cache) {
     if (level > 0) {
         std::cout << "Memory stats for model name: " << name << " " << std::endl;
         if (graphs.empty()) {
@@ -70,6 +73,14 @@ static void dumpMemoryStats(unsigned level, const std::string& name, std::deque<
                 std::cout << "Scratchpad " << i << " size: " << scratchpads[i]->size() << " bytes" << std::endl;
             }
         }
+        std::cout << std::endl;
+        std::cout << "Weights cache statistics" << std::endl;
+        auto weights_statistics = weights_cache.dumpStatistics();
+        for (auto&& item : weights_statistics) {
+            std::cout << "Socket ID: " << item.first << std::endl;
+            std::cout << "Total size: " << item.second.total_size << " bytes" << std::endl;
+            std::cout << "Total memory objects: " << item.second.total_memory_objects << std::endl;
+        }
     }
 }
 #endif
@@ -79,7 +90,7 @@ CompiledModel::~CompiledModel() {
         m_sub_compiled_models.clear();
         m_sub_memory_manager->_memorys_table.clear();
     }
-    CPU_DEBUG_CAP_ENABLE(dumpMemoryStats(m_cfg.debugCaps.memoryStatisticsDumpLevel, m_name, m_graphs));
+    CPU_DEBUG_CAP_ENABLE(dumpMemoryStats(m_cfg.debugCaps.memoryStatisticsDumpLevel, m_name, m_graphs, m_socketWeights));
 }
 
 CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,

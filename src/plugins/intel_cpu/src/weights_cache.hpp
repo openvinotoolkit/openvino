@@ -40,6 +40,11 @@ class WeightsSharing {
     };
 
 public:
+    struct Statistics {
+        size_t total_size;  // bytes
+        size_t total_memory_objects;
+    };
+
     typedef std::shared_ptr<WeightsSharing> Ptr;
 
     class SharedMemory {
@@ -62,6 +67,8 @@ public:
 
     SharedMemory::Ptr get(const std::string& key) const;
 
+    Statistics dumpStatistics() const;
+
 protected:
     mutable std::mutex guard;
     std::unordered_map<std::string, MemoryInfo::Ptr> sharedWeights;
@@ -78,6 +85,8 @@ public:
 
     WeightsSharing::Ptr& operator[](int i);
     const WeightsSharing::Ptr& operator[](int i) const;
+
+    std::vector<std::pair<int, WeightsSharing::Statistics>> dumpStatistics() const;
 
 private:
     std::map<int, WeightsSharing::Ptr> _cache_map;
