@@ -41,7 +41,7 @@ public:
  */
 class ov::pass::InitConstMask : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("InitConstMask", "0");
+    OPENVINO_MATCHER_PASS_RTTI("InitConstMask");
     explicit InitConstMask(
         const ov::AxisSet& dims,
         const std::function<bool(const double& value)>& condition = [](const double& value) {
