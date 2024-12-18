@@ -23,7 +23,7 @@ namespace low_precision {
  */
 class LP_TRANSFORMATIONS_API MarkupBias : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MarkupBias", "0");
+    OPENVINO_MATCHER_PASS_RTTI("low_precision::MarkupBias");
     MarkupBias();
 };
 

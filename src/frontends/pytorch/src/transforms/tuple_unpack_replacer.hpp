@@ -14,7 +14,7 @@ namespace pass {
 
 class PrimTupleUnpackReplacer : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::pytorch::pass::PrimTupleUnpackReplacer");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::pytorch::pass::PrimTupleUnpackReplacer");
     PrimTupleUnpackReplacer();
 };
 

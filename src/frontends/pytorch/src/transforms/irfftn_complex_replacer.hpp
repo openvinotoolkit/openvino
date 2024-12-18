@@ -14,7 +14,7 @@ namespace pass {
 
 class IRFFTNComplexReplacer : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::pytorch::pass::IRFFTNComplexReplacer");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::pytorch::pass::IRFFTNComplexReplacer");
     IRFFTNComplexReplacer();
 };
 

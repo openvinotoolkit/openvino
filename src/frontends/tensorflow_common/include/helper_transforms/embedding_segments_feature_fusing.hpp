@@ -20,7 +20,7 @@ namespace pass {
 // Such sub-graph is met in the Wide and Deep model in case of the SINGLE categorical feature.
 class EmbeddingSegmentSingleFeatureFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::tensorflow::pass::EmbeddingSegmentSingleFeatureFusion");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::tensorflow::pass::EmbeddingSegmentSingleFeatureFusion");
     EmbeddingSegmentSingleFeatureFusion();
 };
 
