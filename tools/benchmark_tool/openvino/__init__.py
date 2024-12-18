@@ -101,12 +101,6 @@ Node.__rsub__ = lambda left, right: opset13.subtract(right, left)
 Node.__rmul__ = lambda left, right: opset13.multiply(right, left)
 Node.__rdiv__ = lambda left, right: opset13.divide(right, left)
 Node.__rtruediv__ = lambda left, right: opset13.divide(right, left)
-Node.__eq__ = utils.deprecated(version="2025.3", message="Use ops.equal instead")(opset13.equal)
-Node.__ne__ = utils.deprecated(version="2025.3", message="Use ops.not_equal instead")(opset13.not_equal)
-Node.__lt__ = utils.deprecated(version="2025.3", message="Use ops.less instead")(opset13.less)
-Node.__le__ = utils.deprecated(version="2025.3", message="Use ops.less_equal instead")(opset13.less_equal)
-Node.__gt__ = utils.deprecated(version="2025.3", message="Use ops.greater instead")(opset13.greater)
-Node.__ge__ = utils.deprecated(version="2025.3", message="Use ops.greater_equal instead")(opset13.greater_equal)
 
 # libva related:
 from openvino._pyopenvino import VAContext
