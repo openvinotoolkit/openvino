@@ -87,7 +87,7 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
     # for ov_plugins.hpp
     $<IF:$<AND:$<BOOL:${OV_GENERATOR_MULTI_CONFIG}>,$<VERSION_GREATER_EQUAL:${CMAKE_VERSION},3.20>>,${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>,${CMAKE_CURRENT_BINARY_DIR}>)
 
-target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::itt openvino::util openvino::core::dev)
+target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::itt openvino::util openvino::core::dev nlohmann_json::nlohmann_json)
 ov_mark_target_as_cc(${TARGET_NAME}_obj)
 
 # OpenVINO Runtime is public API => need to mark this library as important for ABI free
