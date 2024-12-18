@@ -165,7 +165,7 @@ public:
 
 intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                                               ov::intel_cpu::MultiCacheWeakPtr cache)
-    : TargetMachine(std::make_shared<CPURuntimeConfigurator>()),
+    : TargetMachine(std::make_shared<CPURuntimeConfigurator>(cache)),
       h(new jit_snippet()),
       isa(host_isa),
       compiled_kernel_cache(std::move(cache)) {

@@ -128,12 +128,13 @@ public:
                      const std::vector<ptrdiff_t>& start_offset_in,
                      const std::vector<ptrdiff_t>& start_offset_out,
                      const std::shared_ptr<CPURuntimeConfig>& snippet_config,
-                     const BufferScratchpadAllocator& allocator);
+                     const BufferScratchpadAllocator& allocator,
+                     const ov::intel_cpu::MultiCacheWeakPtr& kernel_cache);
     virtual ~SubgraphExecutor() = default;
 
-    void execute(const dnnl::stream& strm,
-                 const std::vector<MemoryPtr>& inMemPtrs,
-                 const std::vector<MemoryPtr>& outMemPtrs);
+    void exec(const dnnl::stream& strm,
+              const std::vector<MemoryPtr>& inMemPtrs,
+              const std::vector<MemoryPtr>& outMemPtrs);
 
 protected:
     virtual void exec_impl(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) = 0;
@@ -143,9 +144,46 @@ protected:
     void parallel_forNd(const std::function<void(jit_snippets_call_args&, size_t)>& initializer,
                         const std::function<void(jit_snippets_call_args&, const std::vector<size_t>&)>& caller);
 
+#if defined(OPENVINO_ARCH_X86_64)
+    std::vector<MemoryPtr> createRepackedMemPtrs(const dnnl::stream& strm,
+                                                 const std::vector<MemoryPtr>& inMemPtrs) const;
+    virtual void exec_impl_with_external_repacking(const dnnl::stream& strm,
+                                                   const std::vector<MemoryPtr>& inMemPtrs,
+                                                   const std::vector<MemoryPtr>& outMemPtrs) = 0;
+    void repack_inputs(const std::vector<MemoryPtr>& srcMemPtrs, const std::vector<MemoryPtr>& repackedMemPtrs);
+    void parallel_for_with_repacking(
+        const std::function<void(jit_snippets_call_args&, size_t)>& initializer,
+        const std::function<void(const std::vector<size_t>&)>& repacker,
+        const std::function<void(jit_snippets_call_args&, const std::vector<size_t>&)>& caller);
+
+    enum class RepackingImplType {
+        NONE,               // no kernel-outside repacking
+        LAST_LOOP_OUTSIDE,  // should be executed last-batch loop outside (there is broadcasting by last batch dim)
+        LAST_LOOP_INSIDE,   // should be executed last-batch loop inside
+        SEPARATE,           // should be separathy from kernel executed
+    };
+    RepackingImplType m_repacking_impl_type = RepackingImplType::NONE;
+
+    std::unordered_map<size_t, CPURuntimeConfig::RepackedInput> m_repacked_inputs = {};
+#endif  // OPENVINO_ARCH_X86_64
+
     inline void update_scratchpad_ptr(void*& scratchpad_ptr, size_t ithr) const {
         if (m_buffer_scratchpad_size > 0)
             scratchpad_ptr = m_buffer_scratchpad->getDataAs<uint8_t>() + ithr * m_buffer_scratchpad_size;
+    }
+
+    inline void init_call_args(jit_snippets_call_args& call_args,
+                               const std::vector<MemoryPtr>& srcMemPtrs,
+                               const std::vector<MemoryPtr>& dstMemPtrs,
+                               size_t ithr) {
+        for (size_t i = 0; i < srcMemPtrs.size(); i++) {
+            call_args.src_ptrs[i] = srcMemPtrs[i]->getDataAs<const uint8_t>() + m_start_offset_in[i];
+        }
+
+        for (size_t i = 0; i < dstMemPtrs.size(); i++)
+            call_args.dst_ptrs[i] = dstMemPtrs[i]->getDataAs<uint8_t>() + m_start_offset_out[i];
+
+        update_scratchpad_ptr(call_args.buffer_scratchpad_ptr, ithr);
     }
 
     std::shared_ptr<snippets::Schedule> m_schedule;
@@ -171,11 +209,6 @@ protected:
     bool enabled_segfault_detector = false;
     inline void segfault_detector();
 #endif
-
-private:
-    std::vector<MemoryPtr> reorder_inputs(const dnnl::stream& strm, const std::vector<MemoryPtr>& inMemPtrs);
-
-    std::unordered_map<size_t, CpuBlockedMemoryDescPtr> m_in_requested_descs = {};
 };
 
 }  // namespace node

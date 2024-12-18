@@ -39,8 +39,9 @@ std::string CPURuntimeConfig::to_string() const {
 }
 #endif
 
-CPURuntimeConfigurator::CPURuntimeConfigurator()
-    : ov::snippets::RuntimeConfigurator(std::make_shared<CPURuntimeConfig>()) {}
+CPURuntimeConfigurator::CPURuntimeConfigurator(ov::intel_cpu::MultiCacheWeakPtr cache)
+    : ov::snippets::RuntimeConfigurator(std::make_shared<CPURuntimeConfig>()),
+      compiled_kernel_cache(std::move(cache)) {}
 
 void CPURuntimeConfigurator::initialization(const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
     RuntimeConfigurator::initialization(linear_ir);

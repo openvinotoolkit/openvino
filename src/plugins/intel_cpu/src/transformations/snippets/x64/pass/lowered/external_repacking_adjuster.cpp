@@ -38,9 +38,11 @@ BrgemmExternalRepackingAdjuster::BrgemmExternalRepackingAdjuster(const ov::snipp
 bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::BrgemmExternalRepackingAdjuster")
     const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(m_configurator->get_config());
-    auto& optimal_descs = cpu_config->m_in_requested_descs;
     for (const auto& i : m_param_idces_with_external_repacking) {
         const auto& shape = cpu_config->io_shapes[i];
+        if (shape == cpu_config->latest_shapes[i])
+            continue;
+
         const auto& K = *++shape.rbegin();
         const auto& N = *shape.rbegin();
 
@@ -60,12 +62,34 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
         const auto last_idx = shape.size() - 1;
         requested_order.insert(requested_order.end(), {last_idx - 1, last_idx, last_idx - 1});
 
-        optimal_descs[i] =
+        const auto desc =
             std::make_shared<CpuBlockedMemoryDesc>(precision, Shape(shape), requested_blocked_shape, requested_order);
+
+        auto config = BrgemmCopyBKernelConfig(precision,
+                                              precision,
+                                              dnnl::impl::cpu::x64::cpu_isa_t::avx512_core_amx,
+                                              false,
+                                              false,
+                                              brgemm_utils::repacking::compute_inner_n_block(precision));
+        const auto executor = std::make_shared<BrgemmCopyBKernelExecutor>(
+            static_cast<const CPURuntimeConfigurator*>(m_configurator)->get_cache(),
+            config);
+        config.update(N,
+                      N,
+                      K,
+                      K,
+                      ov::snippets::utils::get_dim_in_stride(shape, cpu_config->io_layouts[i], 1) * precision.size(),
+                      brgemm_utils::repacking::compute_LDB(N, precision));
+        executor->update_by_config(config);
+
+        const auto in_offsets = cpu_config->io_data_offsets[i];
 
         ov::snippets::VectorDims shape_for_offset(cpu_config->tensor_rank - shape.size(), 1);
         shape_for_offset.insert(shape_for_offset.end(), requested_blocked_shape.begin(), requested_blocked_shape.end());
         m_configurator->compute_offsets(shape_for_offset, i, 0);
+        const auto out_offsets = cpu_config->io_data_offsets[i];
+
+        cpu_config->repacked_inputs[i] = CPURuntimeConfig::RepackedInput(desc, executor, in_offsets, out_offsets);
     }
     return true;
 }
