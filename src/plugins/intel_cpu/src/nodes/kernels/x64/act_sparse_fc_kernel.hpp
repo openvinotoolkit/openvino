@@ -10,9 +10,7 @@
 #include "openvino/core/type/float16.hpp"
 
 namespace ov {
-namespace Extensions {
-namespace Cpu {
-namespace XARCH {
+namespace intel_cpu {
 
 void dynPruneLinear_f16(const float* input,
                        float threshold,
@@ -46,7 +44,5 @@ void dynPruneLinear_i4(const float* input,
                        int IC_group_size);
 void dynPruneLinear_repack_i4(uint8_t * src, uint8_t * dst, int IC, int OC);
 
-}  // namespace XARCH
-}  // namespace Cpu
-}  // namespace Extensions
+}  // namespace intel_cpu
 }  // namespace ov

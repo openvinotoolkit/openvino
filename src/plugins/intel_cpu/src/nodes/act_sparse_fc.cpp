@@ -8,17 +8,17 @@
 #include <vector>
 
 #include "common/arbitrary_order_desc_creator.h"
-#include "common/primitive_hashing_utils.hpp"
 #include "common/bfloat16.hpp"
 #include "common/cpu_memcpy.h"
+#include "common/primitive_hashing_utils.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu/x64/jit_generator.hpp"
+#include "nodes/reorder.h"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/plain_tensor.hpp"
-#include "nodes/reorder.h"
 
 #if defined(OPENVINO_ARCH_X86_64)
-#include "kernels/x64/act_sparse_fc_kernel.hpp"
+#    include "kernels/x64/act_sparse_fc_kernel.hpp"
 #endif
 
 #include "openvino/core/parallel.hpp"
@@ -33,14 +33,14 @@ namespace node {
 #if defined(OPENVINO_ARCH_X86_64)
 
 struct ActSparseFC::Executor : public ActSparseFC::ExecutorBase {
-    ActSparseFC * m_node;
+    ActSparseFC* m_node;
     DnnlScratchPadPtr m_scrachPad;
     MemoryPtr m_weight;
     MemoryPtr m_zp;
     MemoryPtr m_scales;
     ActSparseFCNode::Config& m_config;
 
-    void show(const char * name, uint8_t * src, int stride, int rows, int cols) {
+    void show(const char* name, uint8_t* src, int stride, int rows, int cols) {
         printf("===== %s \n", name);
         for (int r = 0; r < rows; r++, src += stride) {
             for (int c = 0; c < cols; c++) {
@@ -50,7 +50,10 @@ struct ActSparseFC::Executor : public ActSparseFC::ExecutorBase {
         }
     }
 
-    Executor(ActSparseFC* pnode, DnnlScratchPadPtr scrachPad) : m_node(pnode), m_scrachPad(scrachPad), m_config(m_node->m_config) {
+    Executor(ActSparseFC* pnode, DnnlScratchPadPtr scrachPad)
+        : m_node(pnode),
+          m_scrachPad(scrachPad),
+          m_config(m_node->m_config) {
         // reorder weights
         const auto& context = m_node->context;
         const auto& engine = m_node->getEngine();
@@ -72,7 +75,7 @@ struct ActSparseFC::Executor : public ActSparseFC::ExecutorBase {
 
                 auto* src = raw_weight_mem->getDataAs<uint8_t>();
                 auto* dst = weight_mem->getDataAs<uint8_t>();
-                ov::Extensions::Cpu::XARCH::dynPruneLinear_repack_i4(src, dst, m_config.ic, m_config.oc);
+                dynPruneLinear_repack_i4(src, dst, m_config.ic, m_config.oc);
             } else {
                 // raw [OC, IC] layout
                 // target [IC, OC] layout
@@ -94,7 +97,7 @@ struct ActSparseFC::Executor : public ActSparseFC::ExecutorBase {
             auto* src = raw_zp_mem->getDataAs<uint8_t>();
             auto* dst = zp_mem->getDataAs<uint8_t>();
 
-            ov::Extensions::Cpu::XARCH::dynPruneLinear_repack_i4(src, dst, m_config.ic/m_config.ic_q_group_size, m_config.oc);
+            dynPruneLinear_repack_i4(src, dst, m_config.ic / m_config.ic_q_group_size, m_config.oc);
             return zp_mem;
         };
 
@@ -142,7 +145,7 @@ struct ActSparseFC::Executor : public ActSparseFC::ExecutorBase {
     void execute() override {
         const auto* input = m_node->getSrcDataAtPortAs<float>(0);
         const auto* weight = m_weight->getDataAs<uint8_t>();
-        const auto* zp = m_config.with_zero_point ?  m_zp->getDataAs<uint8_t>() : nullptr;
+        const auto* zp = m_config.with_zero_point ? m_zp->getDataAs<uint8_t>() : nullptr;
         const auto* scales = m_config.is_quantized ? m_scales->getDataAs<float>() : nullptr;
         auto* output = m_node->getDstDataAtPortAs<float>(0);
 
@@ -151,45 +154,45 @@ struct ActSparseFC::Executor : public ActSparseFC::ExecutorBase {
 
         if (m_config.is_quantized) {
             if (m_config.is_int4) {
-                ov::Extensions::Cpu::XARCH::dynPruneLinear_i4(input,
-                                                            m_config.threshold,
-                                                            0,
-                                                            weight,
-                                                            zp,
-                                                            scales,
-                                                            output,
-                                                            M,
-                                                            m_config.ic,
-                                                            m_config.oc,
-                                                            m_config.ic_q_group_size);
+                dynPruneLinear_i4(input,
+                                  m_config.threshold,
+                                  0,
+                                  weight,
+                                  zp,
+                                  scales,
+                                  output,
+                                  M,
+                                  m_config.ic,
+                                  m_config.oc,
+                                  m_config.ic_q_group_size);
             } else {
-                ov::Extensions::Cpu::XARCH::dynPruneLinear_i8(input,
-                                                            m_node->m_config.threshold,
-                                                            0,
-                                                            weight,
-                                                            zp,
-                                                            scales,
-                                                            output,
-                                                            M,
-                                                            m_node->m_config.ic,
-                                                            m_node->m_config.oc);
+                dynPruneLinear_i8(input,
+                                  m_node->m_config.threshold,
+                                  0,
+                                  weight,
+                                  zp,
+                                  scales,
+                                  output,
+                                  M,
+                                  m_node->m_config.ic,
+                                  m_node->m_config.oc);
             }
         } else {
-            ov::Extensions::Cpu::XARCH::dynPruneLinear_f16(input,
-                                                           m_config.threshold,
-                                                           0,
-                                                           reinterpret_cast<const ov::float16*>(weight),
-                                                           output,
-                                                           M,
-                                                           m_config.ic,
-                                                           m_config.oc);
+            dynPruneLinear_f16(input,
+                               m_config.threshold,
+                               0,
+                               reinterpret_cast<const ov::float16*>(weight),
+                               output,
+                               M,
+                               m_config.ic,
+                               m_config.oc);
         }
     }
 };
 #else
 struct ActSparseFC::Executor : public ActSparseFC::ExecutorBase {
-    ActSparseFC * m_pnode;
-    Executor(ActSparseFC * pnode, DnnlScratchPadPtr scrachPad) : m_pnode(pnode) {}
+    ActSparseFC* m_pnode;
+    Executor(ActSparseFC* pnode, DnnlScratchPadPtr scrachPad) : m_pnode(pnode) {}
     void execute() override {}
 };
 #endif
@@ -214,7 +217,7 @@ ActSparseFC::ActSparseFC(const std::shared_ptr<ov::Node>& op, const GraphContext
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
 
-    const auto & config = context->getConfig();
+    const auto& config = context->getConfig();
 
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW("CPU: " + errorMessage);
@@ -227,19 +230,27 @@ void ActSparseFC::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    //auto rtPrecision = getOriginalInputPrecisionAtPort(0);
-    //OPENVINO_ASSERT(rtPrecision == ov::element::f32, "Unexpected rtPrecision:", rtPrecision);
+    // auto rtPrecision = getOriginalInputPrecisionAtPort(0);
+    // OPENVINO_ASSERT(rtPrecision == ov::element::f32, "Unexpected rtPrecision:", rtPrecision);
     auto rtPrecision = ov::element::f32;
 
     std::vector<PortConfigurator> inPortConfigs;
     std::vector<PortConfigurator> outPortConfigs;
 
-    inPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getInputShapeAtPort(0), false, -1);      // input
-    inPortConfigs.emplace_back(LayoutType::ncsp, getOriginalInputPrecisionAtPort(1), getInputShapeAtPort(1), false, -1);  // weight
+    inPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getInputShapeAtPort(0), false, -1);  // input
+    inPortConfigs.emplace_back(LayoutType::ncsp,
+                               getOriginalInputPrecisionAtPort(1),
+                               getInputShapeAtPort(1),
+                               false,
+                               -1);  // weight
     if (m_config.is_quantized) {
         inPortConfigs.emplace_back(LayoutType::ncsp, ov::element::f32, getInputShapeAtPort(2), false, -1);  // scales
         if (m_config.with_zero_point)
-            inPortConfigs.emplace_back(LayoutType::ncsp, getOriginalInputPrecisionAtPort(3), getInputShapeAtPort(3), false, -1);  // zero-pt
+            inPortConfigs.emplace_back(LayoutType::ncsp,
+                                       getOriginalInputPrecisionAtPort(3),
+                                       getInputShapeAtPort(3),
+                                       false,
+                                       -1);  // zero-pt
     }
 
     outPortConfigs.emplace_back(LayoutType::ncsp, rtPrecision, getOutputShapeAtPort(0), false, -1);
@@ -247,8 +258,7 @@ void ActSparseFC::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any);
 }
 
-bool ActSparseFC::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
-                                         std::string& errorMessage) noexcept {
+bool ActSparseFC::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
 #if defined(OPENVINO_ARCH_X86_64)
     try {
         const auto node = std::dynamic_pointer_cast<const ActSparseFCNode>(op);
