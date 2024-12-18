@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+import platform
 import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
@@ -62,6 +63,8 @@ class TestUnaryOpsAllRealDomain(CommonTFLayerTest):
     def test_unary_ops(self, input_shape, input_type, op_type,
                        ie_device, precision, ir_version, temp_dir,
                        use_legacy_frontend):
+        if platform.machine() in ["aarch64", "arm64", "ARM64"] and op_type in ['Cos', 'Cosh', 'Sinh', 'Exp']:
+            pytest.skip("159585: accuracy error on ARM")
         self._test(*self.create_unary_net(input_shape, input_type, op_type),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend, custom_eps=1e-3)
