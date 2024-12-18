@@ -56,6 +56,7 @@ struct device_info {
     uint64_t max_local_mem_size;                ///< Maximum size of local memory arena in bytes.
     uint64_t max_global_mem_size;               ///< Maximum size of global device memory in bytes.
     uint64_t max_alloc_mem_size;                ///< Maximum size of memory object allocation in bytes.
+    uint64_t max_global_cache_size;             ///< Maximum size of cache memory bytes.
 
     uint64_t max_image2d_width;                 ///< Maximum image 2d width supported by the device.
     uint64_t max_image2d_height;                ///< Maximum image 2d height supported by the device.
