@@ -14,10 +14,11 @@ TEST(config_test, basic) {
     ov::intel_gpu::NewExecutionConfig cfg;
     std::cerr << cfg.to_string();
 
+    std::cerr << cfg.get_property("PERFORMANCE_HINT").as<std::string>();
     cfg.set_user_property(ov::hint::execution_mode(ov::hint::ExecutionMode::ACCURACY));
     cfg.set_property(ov::hint::inference_precision(ov::element::f32));
 
-    std::cerr << "PROF: " << cfg.enable_profiling.value << std::endl;
+    std::cerr << "PROF: " << cfg.m_enable_profiling.value << std::endl;
 
     std::cerr << cfg.to_string();
 
