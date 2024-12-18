@@ -42,7 +42,7 @@ SegmentMax-16 has no attributes.
 
 * **2**: *segment_ids*
 
-  * **Description**: controls the data is divided into segments. **Required.**
+  * **Description**: Controls how the data is divided into segments. **Required.**
   * **Range of values**: 1D tensor of non-negative, sorted integer numbers. Its size is equal to the size of the first dimension of the input tensor.
   * **Type**: *T_IDX*
 
