@@ -358,4 +358,23 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCPURuntimOptionsWithCompil
     ASSERT_EQ(size.as<uint64_t>(), 16);
 }
 
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCPURuntimOptionsWithCoreProperties) {
+    ov::Core core;
+    ov::Any type;
+    ov::Any size;
+
+    core.set_property(deviceName, ov::hint::kv_cache_precision(ov::element::f32));
+    core.set_property(deviceName, ov::hint::dynamic_quantization_group_size(16));
+
+    ov::CompiledModel compiledModel;
+    model->set_rt_info("f16", "runtime_options", ov::hint::kv_cache_precision.name());
+    model->set_rt_info("0", "runtime_options", ov::hint::dynamic_quantization_group_size.name());
+
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, deviceName));
+    OV_ASSERT_NO_THROW(type = compiledModel.get_property(ov::hint::kv_cache_precision));
+    OV_ASSERT_NO_THROW(size = compiledModel.get_property(ov::hint::dynamic_quantization_group_size));
+    ASSERT_EQ(type.as<ov::element::Type>(), ov::element::f32);
+    ASSERT_EQ(size.as<uint64_t>(), 16);
+}
+
 } // namespace

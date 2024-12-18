@@ -23,7 +23,6 @@ static const std::vector<CPUSpecificParams>& filterSpecificParamsFC() {
 std::vector<fusingSpecificParams> fusingParamsSet2D_smoke {
     emptyFusingSpec,
     fusingBias,
-    fusingMultiplyPerChannel,
     fusingRelu,
     fusingTanh
 };
@@ -62,7 +61,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_f16, MatMulLayerCPUTest, testParams2D_smoke
 std::vector<fusingSpecificParams> fusingParamsSet3D_smoke {
     emptyFusingSpec,
     fusingBias,
-    fusingMultiplyPerChannel,
     fusingRelu,
     fusingTanh
 };
@@ -106,7 +104,6 @@ const std::vector<ShapeRelatedParams> IS = {
 
 std::vector<fusingSpecificParams> fusingParamsSet4D_smoke {
         emptyFusingSpec,
-        fusingMultiplyPerChannel,
         fusingRelu,
         fusingTanh
 };
