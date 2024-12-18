@@ -6,6 +6,7 @@
 
 #include <sstream>
 
+#include "memory_accessor.hpp"
 #include "openvino/core/enum_names.hpp"
 #include "primitive_type_base.h"
 #include "stft_shape_inference.hpp"
@@ -35,25 +36,12 @@ std::vector<layout> STFT_inst::calc_output_layouts(STFT_node const& node, kernel
         frame_step_layout.get<ShapeType>(),
     };
 
-    std::unordered_map<size_t, ov::Tensor> const_data;
-    for (std::size_t i = 2; i < impl_param.input_layouts.size(); ++i) {
-        ov::PartialShape input_shape = ov::PartialShape(input_shapes[i]);
-        if (impl_param.memory_deps.find(i) != impl_param.memory_deps.end()) {
-            auto gpu_mem = impl_param.memory_deps.at(i);
-            const auto count = static_cast<ov::Dimension::value_type>(gpu_mem->count());
-            OPENVINO_ASSERT(count == 1, "The shape of frame_size and frame_step must be a scalar.");
-            cldnn::mem_lock<uint8_t, mem_lock_type::read> gpu_mem_lock(gpu_mem, impl_param.get_stream());
-            const_data.emplace(
-                i,
-                make_tensor(layout{input_shape, gpu_mem->get_layout().data_type, gpu_mem->get_layout().format},
-                            gpu_mem_lock.data()));
-        }
-    }
+    const auto ta = MemoryAccessor(&impl_param.memory_deps, impl_param.get_stream());
 
     std::vector<ShapeType> output_shapes;
     ov::op::v15::STFT op;
     op.set_transpose_frames(primitive->transpose_frames);
-    output_shapes = shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
+    output_shapes = shape_infer(&op, input_shapes, ta);
 
     return {layout{output_shapes[0], signal_layout.data_type, signal_layout.format}};
 }
