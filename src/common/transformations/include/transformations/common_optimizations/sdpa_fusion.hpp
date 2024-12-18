@@ -52,7 +52,7 @@ namespace pass {
 ///                     └─────────┘
 class TRANSFORMATIONS_API SDPAFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SDPAFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("SDPAFusion", "0");
     SDPAFusion();
 };
 

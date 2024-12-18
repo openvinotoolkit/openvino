@@ -50,7 +50,7 @@ namespace pass {
 /// 2. Q_scale * SDPA_Scale == 1 or K_scale * SDPA_Scale == 1
 class TRANSFORMATIONS_API SDPAScaleFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SDPAScaleFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("SDPAScaleFusion", "0");
     SDPAScaleFusion();
 };
 
