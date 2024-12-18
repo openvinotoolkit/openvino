@@ -25,14 +25,33 @@ if (NOT DEFINED GRAPH_COMPILER_LIBS)
         set(GC_ENABLE_LEGACY OFF)
         set(GC_ENABLE_BINDINGS_PYTHON OFF)
         set(OV_BUILD_SHARED_LIBS_TMP ${BUILD_SHARED_LIBS})
-        set(BUILD_SHARED_LIBS ON)
+        set(BUILD_SHARED_LIBS OFF)
+
+        FetchContent_GetProperties(GC)
+        if(NOT GC_POPULATED)
+            FetchContent_Populate(GC)
+        endif()
+        if(NOT DEFINED LLVM_DIR OR NOT DEFINED MLIR_DIR)
+            execute_process(
+                COMMAND /bin/bash ./scripts/compile.sh --dev --llvm --imex
+                WORKING_DIRECTORY ${gc_SOURCE_DIR}
+            )
+
+            SET(LLVM_INST_PATH "${gc_SOURCE_DIR}/externals/llvm-project/build")
+            SET(LLVM_DIR "${LLVM_INST_PATH}/lib/cmake/llvm")
+            SET(MLIR_DIR "${LLVM_INST_PATH}/lib/cmake/mlir")
+            add_definitions(-DMLIR_RUNNER_UTILS_PATH=${LLVM_INST_PATH}/lib)
+            add_subdirectory(${gc_SOURCE_DIR} ${gc_BINARY_DIR} EXCLUDE_FROM_ALL)
+        endif()
+
         FetchContent_MakeAvailable(GC)
         set(BUILD_SHARED_LIBS ${OV_BUILD_SHARED_LIBS_TMP})
         FetchContent_GetProperties(GC BINARY_DIR gc_BINARY_DIR)
-        find_library(GC_CPU_RUNTIME_PATH GcCpuRuntime)
-        install(FILES ${GC_CPU_RUNTIME_PATH} DESTINATION ${OV_CPACK_RUNTIMEDIR})
+        ov_cpack_add_component(GcCpuRuntime HIDDEN)
+        set(GC_CPU_RUNTIME_PATH ${gc_BINARY_DIR}/lib/libGcCpuRuntime.so)
+        install(FILES ${GC_CPU_RUNTIME_PATH} DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT GcCpuRuntime)
         # a hack to not bother with actual file extension
-        install(FILES ${GC_CPU_RUNTIME_PATH}.20.0git DESTINATION ${OV_CPACK_RUNTIMEDIR})
+        install(FILES ${GC_CPU_RUNTIME_PATH}.20.0git DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT GcCpuRuntime)
     endif ()
 
     set(GRAPH_COMPILER_LIBS
