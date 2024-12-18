@@ -19,7 +19,7 @@ using namespace ov::pass;
 
 class RenameReLU : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("RanameReLU");
+    OPENVINO_MATCHER_PASS_RTTI("RenameReLU");
     RenameReLU() : MatcherPass() {
         auto relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu>();
         ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -35,7 +35,7 @@ public:
 
 class RenameSigmoid : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("RenameSigmoid");
+    OPENVINO_MATCHER_PASS_RTTI("RenameSigmoid");
     RenameSigmoid() : MatcherPass() {
         auto sigmoid = pattern::wrap_type<ov::op::v0::Sigmoid>();
         ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -259,7 +259,7 @@ TEST(PassConfig, EnableDisablePasses9) {
 
 class TestNestedMatcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TestNestedMatcher");
+    OPENVINO_MATCHER_PASS_RTTI("TestNestedMatcher");
     TestNestedMatcher() : MatcherPass() {
         auto any_op = pattern::any_input();
         ov::matcher_pass_callback callback = [this](pattern::Matcher& m) {
