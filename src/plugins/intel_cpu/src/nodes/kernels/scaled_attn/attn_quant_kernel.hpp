@@ -88,7 +88,7 @@ void attn_dequant_u4_kernel(const uint8_t* src, TDST* dst, size_t n, float scale
         mm512_uni_storeu_ps(dst + i, first_half);
         mm512_uni_storeu_ps(dst + i + vec_len_f32_avx512, second_half);
     }
-#elif defined(HAVE_AVX2) || defined(HAVE_AVX512F)
+#elif defined(HAVE_AVX2)
     auto v256_zp = _mm256_set1_ps(zp);
     auto v256_scale = _mm256_set1_ps(scale);
     for (; i + vec_len_f32_avx2 * 2 <= n; i += vec_len_f32_avx2 * 2) {
@@ -171,7 +171,7 @@ void attn_dequant_s4_kernel(const uint8_t* src, TDST* dst, size_t n, float scale
         mm512_uni_storeu_ps(dst + i + vec_len_f32_avx512, second_half);
     }
 
-#elif defined(HAVE_AVX2) || defined(HAVE_AVX512F)
+#elif defined(HAVE_AVX2)
     for (; i + vec_len_f32_avx2 * 2 <= n; i += vec_len_f32_avx2 * 2) {
         auto v256_scale = _mm256_set1_ps(scale);
         auto data = _mm_loadl_epi64(reinterpret_cast<__m128i*>(src_nc + i / 2));

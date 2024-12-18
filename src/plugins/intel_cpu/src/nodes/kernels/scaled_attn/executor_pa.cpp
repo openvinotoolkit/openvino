@@ -417,7 +417,7 @@ static void attn_acc_value_block(float* out,
                 mm512_uni_storeu_ps(out + dst_offset + i, v_out0);
                 mm512_uni_storeu_ps(out + dst_offset + i + vec_len_f32_avx512, v_out1);
             }
-#    elif defined(HAVE_AVX2) || defined(HAVE_AVX512F)
+#    elif defined(HAVE_AVX2)
             auto v256_attn_w_vec0 = _mm256_set1_ps(weight[j] * v0[0]);
             auto v256_zp = _mm256_set1_ps(v0[1]);
             for (; i + vec_len_f32_avx2 * 2 <= group_size; i += vec_len_f32_avx2 * 2) {
@@ -514,7 +514,7 @@ static void attn_acc_value_block(float* out,
                 mm512_uni_storeu_ps(out + dst_offset + i, v_out0);
                 mm512_uni_storeu_ps(out + dst_offset + i + vec_len_f32_avx512, v_out1);
             }
-#    elif defined(HAVE_AVX2) || defined(HAVE_AVX512F)
+#    elif defined(HAVE_AVX2)
             auto v256_attn_w_vec0 = _mm256_set1_ps(weight[j] * v0[0]);
             for (; i + vec_len_f32_avx2 * 2 <= group_size; i += vec_len_f32_avx2 * 2) {
                 auto data = _mm_loadl_epi64(reinterpret_cast<__m128i*>(v_ptr + i / 2 + src_offset + params_offset));
