@@ -5,10 +5,13 @@
 #pragma once
 
 #include <cstdlib>
+#include <oneapi/dnnl/dnnl.hpp>
 
 #include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/executor_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
+#include "nodes/executors/precision_translation.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu {
@@ -86,6 +89,80 @@ size_t weiMemSize(const Config& config) {
 template <typename Config>
 size_t postOpsNumbers(const Config& config) {
     return config.postOps.size();
+}
+
+template <typename Attrs>
+std::optional<executor::Config<Attrs>> requiresFallbackCommon(const executor::Config<Attrs>& config,
+                                                              const TypeMapping& typeMapping,
+                                                              const std::vector<LayoutType>& layoutConfig,
+                                                              const MappingNotation& notation) {
+    // @todo lambdas inside a template function can potentially increase binary size
+    auto fullyMatchConfiguration = [](const MemoryDescArgs& currentDescriptors,
+                                      const InOutTypes& typeConfig,
+                                      const std::vector<LayoutType>& layoutConfig,
+                                      const MappingNotation& notation) {
+        for (size_t i = 0; i < typeConfig.size(); i++) {
+            const auto& type = typeConfig[i];
+            const auto& desc = currentDescriptors.at(notation[i]);
+
+            if (desc->empty()) {
+                continue;
+            }
+
+            if (desc->getPrecision() != type) {
+                return false;  // type mismatch
+            }
+
+            if (desc->getShape().getRank() > 2 && !desc->hasLayoutType(layoutConfig[i])) {
+                return false;  // layout mismatch
+            }
+        }
+
+        return true;
+    };
+
+    auto createOptimalDescriptors = [](const MemoryDescArgs& currentDescriptors,
+                                       const InOutTypes& typeConfig,
+                                       const std::vector<LayoutType>& layoutConfig,
+                                       const MappingNotation& notation) {
+        MemoryDescArgs descs = currentDescriptors;
+
+        const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+        for (size_t i = 0; i < typeConfig.size(); i++) {
+            const auto& desc = currentDescriptors.at(notation[i]);
+            const auto& descType = desc->getPrecision();
+            const auto& type = typeConfig[i];
+            const auto& layout = layoutConfig[i];
+
+            if (desc->empty()) {
+                continue;
+            }
+
+            if (descType == type && desc->hasLayoutType(layout)) {
+                continue;
+            }
+
+            if (desc->getShape().getRank() < 2) {
+                descs[notation[i]] = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(type, desc->getShape());
+                continue;
+            }
+
+            descs[notation[i]] = creatorsMap.at(layout)->createSharedDesc(type, desc->getShape());
+        }
+
+        return descs;
+    };
+
+    const auto typeConfig = getTypeConfiguration(config.descs, typeMapping, notation);
+
+    if (fullyMatchConfiguration(config.descs, typeConfig, layoutConfig, notation)) {
+        return {};
+    }
+
+    const auto optimalDescriptors = createOptimalDescriptors(config.descs, typeConfig, layoutConfig, notation);
+
+    return std::optional<executor::Config<Attrs>>(
+        executor::Config<Attrs>{optimalDescriptors, config.attrs, config.postOps});
 }
 
 }  // namespace ov::intel_cpu

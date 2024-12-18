@@ -99,6 +99,6 @@ TEST(StaticMemoryTest, UnsupportedDnnlPrecision) {
     OV_ASSERT_NO_THROW(raw_data_ptr = testMemory->getData());
     ASSERT_FALSE(nullptr == raw_data_ptr);
     dnnl_memory = dnnl::memory();
-    ASSERT_THROW(dnnl_memory = testMemory->getPrimitive(), ov::Exception);
+    OV_ASSERT_NO_THROW(dnnl_memory = testMemory->getPrimitive());
     ASSERT_FALSE(dnnl_memory);
 }
