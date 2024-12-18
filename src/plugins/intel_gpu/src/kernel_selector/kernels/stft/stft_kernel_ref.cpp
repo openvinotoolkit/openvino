@@ -12,11 +12,9 @@ ParamsKey STFTKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::INT64);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::F16);
-    k.EnableInputDataType(Datatype::BF16);
 
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
-    k.EnableOutputDataType(Datatype::BF16);
 
     k.EnableInputLayout(DataLayout::bfyx);
 

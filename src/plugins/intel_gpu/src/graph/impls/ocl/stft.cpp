@@ -78,7 +78,7 @@ struct STFT_impl : typed_primitive_impl_ocl<STFT> {
 namespace detail {
 
 attach_STFT_impl::attach_STFT_impl() {
-    auto types = {data_types::i32, data_types::i64, data_types::f16, data_types::f32, data_types::bf16};
+    auto types = {data_types::i32, data_types::i64, data_types::f16, data_types::f32};
 
     auto formats = {format::bfyx};
 
