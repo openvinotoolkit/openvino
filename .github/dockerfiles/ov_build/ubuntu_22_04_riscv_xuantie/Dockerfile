@@ -71,9 +71,9 @@ ENV XUANTIE_REPO="https://github.com/XUANTIE-RV/xuantie-gnu-toolchain" \
     XUINTIE_TMP_PATH="/tmp/xuantie" \
     XUINTIE_SRC="/tmp/xuantie/src"
     
-RUN mkdir ${XUINTIE_TMP_PATH} && cd ${XUINTIE_TMP_PATH} && \
+RUN mkdir -p ${XUINTIE_TMP_PATH} && cd ${XUINTIE_TMP_PATH} && \
     git clone --branch ${XUINTIE_VERSION} --depth 1 ${XUANTIE_REPO} ${XUINTIE_SRC} && \
-    cd ${XUINTIE_SRC} && configure --prefix=${XUINTIE_PATH} && make -j$(nproc) && make install && \
+    cd ${XUINTIE_SRC} && ./configure --prefix=${XUINTIE_PATH} && make -j$(nproc) && make install && \
     rm -rf ${XUINTIE_TMP_PATH}
     
 # Setup pip
