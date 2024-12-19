@@ -64,12 +64,10 @@ void OldExecutionConfig::set_default() {
         std::make_tuple(ov::hint::activations_scale_factor, 0.f),
 
         // Legacy API properties
-        std::make_tuple(ov::intel_gpu::nv12_two_inputs, false),
         std::make_tuple(ov::intel_gpu::config_file, ""),
         std::make_tuple(ov::intel_gpu::enable_lp_transformations, false));
 
     register_property<PropertyVisibility::INTERNAL>(
-        std::make_tuple(ov::intel_gpu::max_dynamic_batch, 1),
         std::make_tuple(ov::intel_gpu::queue_type, QueueTypes::out_of_order),
         std::make_tuple(ov::intel_gpu::optimize_data, false),
         std::make_tuple(ov::intel_gpu::enable_memory_pool, true),
@@ -79,7 +77,6 @@ void OldExecutionConfig::set_default() {
         std::make_tuple(ov::intel_gpu::force_implementations, ImplForcingMap{}),
         std::make_tuple(ov::intel_gpu::partial_build_program, false),
         std::make_tuple(ov::intel_gpu::allow_new_shape_infer, false),
-        std::make_tuple(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape, false),
         std::make_tuple(ov::intel_gpu::buffers_preallocation_ratio, 1.1f),
         std::make_tuple(ov::intel_gpu::max_kernels_per_batch, 8),
         std::make_tuple(ov::intel_gpu::use_onednn, false));
@@ -200,10 +197,6 @@ void OldExecutionConfig::apply_debug_options(const cldnn::device_info& info) {
     GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
         GPU_DEBUG_COUT << "[WARNING] ov::enable_profiling property was forced because of enabled OV_GPU_DumpProfilingData debug option\n";
         set_property(ov::enable_profiling(true));
-    }
-
-    GPU_DEBUG_IF(debug_config->disable_dynamic_impl == 1) {
-        set_property(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape(true));
     }
 
     GPU_DEBUG_IF(debug_config->dynamic_quantize_group_size != debug_config->DYNAMIC_QUANTIZE_GROUP_SIZE_NOT_SET) {

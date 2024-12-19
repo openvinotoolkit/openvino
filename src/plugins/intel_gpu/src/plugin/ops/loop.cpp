@@ -300,7 +300,6 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
 
     auto config = p.get_config();
     config.set_property(ov::intel_gpu::custom_outputs(output_names_vec));
-    config.set_property(ov::intel_gpu::max_dynamic_batch(1));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
 
     // get body program from ov::Model

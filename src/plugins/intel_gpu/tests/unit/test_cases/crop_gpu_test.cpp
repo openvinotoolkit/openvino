@@ -1317,7 +1317,6 @@ TEST_P(crop_gpu_dynamic, i32_in2x3x2x2_crop_offsets) {
             }
         }
     }
-    config2.set_property(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape(true));
     network network2(engine, topology, config2); // run with static kernel
     network2.set_input_data("input", input);
     auto outputs2 = network2.execute();

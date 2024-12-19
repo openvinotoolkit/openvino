@@ -33,7 +33,39 @@
 
 #define GET_EXCEPT_LAST(...) EXPAND(GET_EXCEPT_LAST_IMPL(COUNT(__VA_ARGS__), __VA_ARGS__))
 
+#define OV_CONFIG_DECLARE_OPTION(PropertyNamespace, PropertyVar, Visibility, ...) \
+    ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type, Visibility> m_ ## PropertyVar{GET_EXCEPT_LAST(__VA_ARGS__)};
+
+#define OV_CONFIG_OPTION_MAPPING(PropertyNamespace, PropertyVar, ...) \
+        m_options_map[PropertyNamespace::PropertyVar.name()] = & m_ ## PropertyVar;
+
+#define OV_CONFIG_RELEASE_OPTION(PropertyNamespace, PropertyVar, ...) \
+    OV_CONFIG_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::RELEASE, __VA_ARGS__)
+
+#define OV_CONFIG_RELEASE_INTERNAL_OPTION(PropertyNamespace, PropertyVar, ...) \
+    OV_CONFIG_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::RELEASE_INTERNAL, __VA_ARGS__)
+
+#define OV_CONFIG_DEBUG_OPTION(PropertyNamespace, PropertyVar, ...) \
+    OV_CONFIG_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::DEBUG, __VA_ARGS__)
+
 namespace ov {
+
+enum class OptionVisibility {
+    RELEASE = 0,            // Option can be set for any build type via public interface, environment and config file
+    RELEASE_INTERNAL = 1,   // Option can be set for any build type via environment and config file only
+    DEBUG = 2,              // Option can be set for debug builds only via environment and config file
+};
+
+inline std::ostream& operator<<(std::ostream& os, const OptionVisibility& visibility) {
+    switch (visibility) {
+    case OptionVisibility::RELEASE: os << "RELEASE"; break;
+    case OptionVisibility::RELEASE_INTERNAL: os << "RELEASE_INTERNAL"; break;
+    case OptionVisibility::DEBUG: os << "DEBUG"; break;
+    default: os << "UNKNOWN"; break;
+    }
+
+    return os;
+}
 
 struct ConfigOptionBase {
     explicit ConfigOptionBase() {}
@@ -42,13 +74,15 @@ struct ConfigOptionBase {
     virtual void set_any(const ov::Any any) = 0;
     virtual ov::Any get_any() const = 0;
     virtual bool is_valid_value(ov::Any val) = 0;
+    virtual OptionVisibility get_visibility() const = 0;
 };
 
-template <typename T>
+template <typename T, OptionVisibility visibility_ = OptionVisibility::DEBUG>
 struct ConfigOption : public ConfigOptionBase {
     ConfigOption(const T& default_val, std::function<bool(T)> validator = nullptr)
         : ConfigOptionBase(), value(default_val), validator(validator) {}
     T value;
+    constexpr static const auto visibility = visibility_;
 
     void set_any(const ov::Any any) override {
         if (validator)
@@ -67,6 +101,10 @@ struct ConfigOption : public ConfigOptionBase {
         } catch (std::exception&) {
             return false;
         }
+    }
+
+    OptionVisibility get_visibility() const override {
+        return visibility;
     }
 
 private:
@@ -139,6 +177,14 @@ protected:
         return user_properties.find(property.name()) != user_properties.end();
     }
 
+    ConfigOptionBase* get_option_ptr(const std::string& name) const {
+        auto it = m_options_map.find(name);
+        OPENVINO_ASSERT(it != m_options_map.end(), "Option not found: ", name);
+        OPENVINO_ASSERT(it->second != nullptr, "Option is invalid: ", name);
+
+        return it->second;
+    }
+
     template <typename T, PropertyMutability mutability>
     void apply_rt_info_property(const ov::Property<T, mutability>& property, const ov::RTMap& rt_info) {
         if (!is_set_by_user(property)) {
@@ -148,6 +194,8 @@ protected:
             }
         }
     }
+
+    void set_user_property(const ov::AnyMap& properties, const std::vector<OptionVisibility>& allowed_visibility);
 
     ov::AnyMap read_config_file(const std::string& filename, const std::string& target_device_name) const;
     ov::AnyMap read_env(const std::vector<std::string>& prefixes) const;

@@ -22,13 +22,8 @@ struct NewExecutionConfig : public ov::PluginConfig {
     NewExecutionConfig(const NewExecutionConfig& other);
     NewExecutionConfig& operator=(const NewExecutionConfig& other);
 
-    #define OV_CONFIG_OPTION(PropertyNamespace, PropertyVar, ...) \
-        ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type> m_ ## PropertyVar = \
-            ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type>(GET_EXCEPT_LAST(__VA_ARGS__));
-
-    #include "options_release.inl"
-    #include "options_debug.inl"
-
+    #define OV_CONFIG_OPTION(...) OV_CONFIG_DECLARE_OPTION(__VA_ARGS__)
+    #include "intel_gpu/runtime/options.inl"
     #undef OV_CONFIG_OPTION
 
     void finalize_impl(std::shared_ptr<IRemoteContext> context) override;
