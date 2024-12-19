@@ -661,15 +661,18 @@ $(document).ready(function () {
             var filteredNetworkModels = Filter.FilterByNetworkModel(graph, [networkModel]);
             var filteredIeTypes = Filter.ByIeTypes(filteredNetworkModels, ieTypes);
             var filteredGraphData = Filter.BySortPlatforms(filteredIeTypes, platforms);
+            var filterdPlatforms = platforms.filter(platform =>
+                filteredGraphData.some(filteredGraph => platform === filteredGraph.Platform)
+              );
             $('.chart-placeholder').append(chartContainer);
             if (filteredGraphData.length > 0) {
                 if (isLLM === true) {
-                    var graphConfigs = setGraphConfigsByEngines(filteredGraphData, appConfig, kpis, precisions)
-                    createChartWithNewDataByEngines(platforms, graphConfigs, chartContainer, display);
+                    var graphConfigs = setGraphConfigsByEngines(filteredGraphData, appConfig, kpis, precisions);
+                    createChartWithNewDataByEngines(filterdPlatforms, graphConfigs, chartContainer, display);
                 }
                 else {
-                    var graphConfigs = setGraphConfigs(filteredGraphData, appConfig, kpis, precisions)
-                    createChartWithNewData(platforms, graphConfigs, appConfig, chartContainer, display);
+                    var graphConfigs = setGraphConfigs(filteredGraphData, appConfig, kpis, precisions);
+                    createChartWithNewData(filterdPlatforms, graphConfigs, appConfig, chartContainer, display);
                 }
 
             } else {
@@ -759,8 +762,7 @@ $(document).ready(function () {
             columnHeaderContainer.append(columnIcon);
             var columnHeader = $('<div class="chart-header">');
             columnHeader.append($('<div class="title">' + graphConfig.chartTitle + '</div>'));
-            columnHeader.append($('<div class="subtitle">' + graphConfig.unit + '</div>'));
-            columnHeader.append($('<div class="subtitle">' + appConfig.UnitDescription[graphConfig.unit] + '</div>'));
+            columnHeader.append($('<div class="subtitle">' + graphConfig.unit + ' ' + appConfig.UnitDescription[graphConfig.unit] +'</div>'));
             columnHeaderContainer.append(columnHeader);
             chartGraphsContainer.append(graphItem);
             var graphClass = $('<div>');

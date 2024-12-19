@@ -16046,7 +16046,7 @@
                         "bf16": ""
                     }
                 ],
-                "Unit": "Tokens per Sec",
+                "Unit": "Tokens per sec",
                 "UnitDesc": "higher is better"
             },
             "latency": {
@@ -16081,7 +16081,7 @@
                         "bf16": ""
                     }
                 ],
-                "Unit": "Tokens per Sec",
+                "Unit": "Tokens per sec",
                 "UnitDesc": "higher is better"
             },
             "latency": {
@@ -16116,7 +16116,7 @@
                         "bf16": ""
                     }
                 ],
-                "Unit": "Tokens per Sec",
+                "Unit": "Tokens per sec",
                 "UnitDesc": "higher is better"
             },
             "latency": {
@@ -16151,7 +16151,7 @@
                         "bf16": ""
                     }
                 ],
-                "Unit": "Tokens per Sec",
+                "Unit": "Tokens per sec",
                 "UnitDesc": "higher is better"
             },
             "latency": {
@@ -16186,7 +16186,7 @@
                         "bf16": ""
                     }
                 ],
-                "Unit": "Tokens per Sec",
+                "Unit": "Tokens per sec",
                 "UnitDesc": "higher is better"
             },
             "latency": {
@@ -16256,7 +16256,7 @@
                         "bf16": ""
                     }
                 ],
-                "Unit": "Tokens per Sec",
+                "Unit": "Tokens per sec",
                 "UnitDesc": "higher is better"
             },
             "latency": {
@@ -16326,7 +16326,7 @@
                         "bf16": ""
                     }
                 ],
-                "Unit": "Tokens per Sec",
+                "Unit": "Tokens per sec",
                 "UnitDesc": "higher is better"
             },
             "latency": {
@@ -16361,7 +16361,7 @@
                         "bf16": ""
                     }
                 ],
-                "Unit": "Tokens per Sec",
+                "Unit": "Tokens per sec",
                 "UnitDesc": "higher is better"
             },
             "latency": {
