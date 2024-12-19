@@ -107,6 +107,23 @@ struct ConfigOption : public ConfigOptionBase {
         return visibility;
     }
 
+    operator T() const {
+        return value;
+    }
+
+    ConfigOption& operator=(const T& val) {
+        value = val;
+        return *this;
+    }
+
+    bool operator==(const T& val) const {
+        return value == val;
+    }
+
+    bool operator!=(const T& val) const {
+        return !(*this == val);
+    }
+
 private:
     std::function<bool(T)> validator;
 };
@@ -157,7 +174,7 @@ public:
     template <typename T, PropertyMutability mutability>
     T get_property(const ov::Property<T, mutability>& property) const {
         if (is_set_by_user(property)) {
-            return user_properties.at(property.name()).template as<T>();
+            return m_user_properties.at(property.name()).template as<T>();
         }
         OPENVINO_ASSERT(m_options_map.find(property.name()) != m_options_map.end(), "Property not found: ", property.name());
         return static_cast<ConfigOption<T>*>(m_options_map.at(property.name()))->value;
@@ -174,7 +191,7 @@ protected:
 
     template <typename T, PropertyMutability mutability>
     bool is_set_by_user(const ov::Property<T, mutability>& property) const {
-        return user_properties.find(property.name()) != user_properties.end();
+        return m_user_properties.find(property.name()) != m_user_properties.end();
     }
 
     ConfigOptionBase* get_option_ptr(const std::string& name) const {
@@ -195,7 +212,7 @@ protected:
         }
     }
 
-    void set_user_property(const ov::AnyMap& properties, const std::vector<OptionVisibility>& allowed_visibility);
+    void set_user_property(const ov::AnyMap& properties, const std::vector<OptionVisibility>& allowed_visibility, bool throw_on_error);
 
     ov::AnyMap read_config_file(const std::string& filename, const std::string& target_device_name) const;
     ov::AnyMap read_env(const std::vector<std::string>& prefixes) const;
@@ -204,7 +221,7 @@ protected:
     std::map<std::string, ConfigOptionBase*> m_options_map;
 
     // List of properties explicitly set by user via Core::set_property() or Core::compile_model() or ov::Model's runtime info
-    ov::AnyMap user_properties;
+    ov::AnyMap m_user_properties;
     using OptionMapEntry = decltype(m_options_map)::value_type;
 };
 
