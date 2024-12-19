@@ -14,7 +14,7 @@ namespace pass {
  */
 class OPENVINO_API ConvertFP32ToFP16 : public ModelPass {
 public:
-    OPENVINO_RTTI("ConvertFP32ToFP16");
+    OPENVINO_MODEL_PASS_RTTI("ConvertFP32ToFP16");
     bool run_on_model(const std::shared_ptr<ov::Model>&) override;
 };
 }  // namespace pass

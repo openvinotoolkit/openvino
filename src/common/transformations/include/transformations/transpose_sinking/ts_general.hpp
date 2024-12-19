@@ -52,6 +52,6 @@ public:
  */
 class ov::pass::transpose_sinking::TSGeneral : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("TSGeneral", "0");
+    OPENVINO_MODEL_PASS_RTTI("TSGeneral");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
