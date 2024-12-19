@@ -87,7 +87,8 @@ ov::element::Type Brgemm::get_output_type(const ov::element::Type& in_type0, con
     const bool is_f32 = utils::everyone_is(element::f32, in_type0, in_type1);
     const bool is_int8 = utils::one_of(in_type0, element::i8, element::u8) && in_type1 == element::i8;
     const bool is_bf16 = utils::everyone_is(element::bf16, in_type0, in_type1);
-    if (is_f32 || is_bf16) {
+    const bool is_f16 = utils::everyone_is(element::f16, in_type0, in_type1);
+    if (is_f32 || is_bf16 || is_f16) {
         return element::f32;
     } else if (is_int8) {
         return element::i32;

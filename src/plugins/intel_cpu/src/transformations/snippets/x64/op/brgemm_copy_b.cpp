@@ -91,7 +91,7 @@ void BrgemmCopyB::validate_and_infer_types() {
 }
 
 void BrgemmCopyB::validate_element_type(const ov::element::Type& element_type) {
-    OPENVINO_ASSERT(one_of(element_type, element::f32, element::bf16, element::i8),
+    OPENVINO_ASSERT(one_of(element_type, element::f32, element::bf16, element::f16, element::i8),
                     "BrgemmCopyB doesn't support element type" + element_type.get_type_name());
 }
 

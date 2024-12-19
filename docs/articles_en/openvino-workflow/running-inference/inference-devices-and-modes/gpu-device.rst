@@ -124,7 +124,7 @@ Selected precision of each primitive depends on the operation precision in IR, q
 The ``u1``/``u8``/``i8`` data types are used for quantized operations only, which means that they are not selected automatically for non-quantized operations.
 For more details on how to get a quantized model, refer to the :doc:`Model Optimization guide <../../model-optimization>`.
 
-Floating-point precision of a GPU primitive is selected based on operation precision in the OpenVINO IR, except for the :doc:`<compressed f16 OpenVINO IR form <../../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/[legacy]-compressing-model-to-fp16>`, which is executed in the ``f16`` precision.
+Floating-point precision of a GPU primitive is selected based on operation precision in the OpenVINO IR, except for the :doc:`<compressed f16 OpenVINO IR form <../../../openvino-workflow/model-preparation/conversion-parameters>`, which is executed in the ``f16`` precision.
 
 .. note::
 

@@ -60,12 +60,14 @@ jobs:
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           path: 'openvino'
           submodules: 'true'
 
       - name: Clone OpenVINO Contrib
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: 'openvino_contrib'
@@ -220,12 +222,20 @@ jobs:
             
             $pythonCommand = "py -$pyVersion -c `"import sys; print(f'{sys.executable}')`""
             $pythonExecutablePath = & cmd /c $pythonCommand
-          
+
+            $pipVersion = & $pythonExecutablePath -c "import pip; print(pip.__version__)"
+            Write-Host "Using pip version: $pipVersion for $pyVersion"
+            $env:PIP_CACHE_DIR="${{ env.PIP_CACHE_PATH }}/$pipVersion"
+            
             & $pythonExecutablePath -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
 
-            cmake -DPython3_EXECUTABLE="$pythonExecutablePath" -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B "$pyBuildDir"
-            cmake --build "$pyBuildDir" --parallel --config ${{ env.CMAKE_BUILD_TYPE }}          
+            cmake -DPython3_EXECUTABLE="$pythonExecutablePath" -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B "$pyBuildDir" &&
+            cmake --build "$pyBuildDir" --parallel --config ${{ env.CMAKE_BUILD_TYPE }} &&          
             cmake --install "$pyBuildDir" --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_WHEELS_DIR }} --component python_wheels
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host "Failed to build Python wheels for Python $pyVersion"
+              exit 1
+            }
           }
 
       - name: Pack Artifacts

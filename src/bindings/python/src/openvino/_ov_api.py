@@ -5,9 +5,7 @@
 from types import TracebackType
 from typing import Any, Iterable, Union, Optional, Dict, Type
 from pathlib import Path
-import warnings
 
-import numpy as np
 
 from openvino._pyopenvino import Model as ModelBase
 from openvino._pyopenvino import Core as CoreBase
@@ -16,7 +14,7 @@ from openvino._pyopenvino import AsyncInferQueue as AsyncInferQueueBase
 from openvino._pyopenvino import Tensor
 from openvino._pyopenvino import Node
 
-from openvino.runtime.utils.data_helpers import (
+from openvino.utils.data_helpers import (
     OVDict,
     _InferRequestWrapper,
     _data_dispatch,
@@ -514,13 +512,24 @@ class Core(CoreBase):
     between several Core instances. The recommended way is to have a single
     Core instance per application.
     """
-    def read_model(self, model: Union[str, bytes, object], weights: Union[object, str, bytes, Tensor] = None) -> Model:
+    def read_model(
+        self,
+        model: Union[str, bytes, object],
+        weights: Union[object, str, bytes, Tensor] = None,
+        config: Optional[dict] = None
+    ) -> Model:
+        config = {} if config is None else config
         if isinstance(model, Model):
             model = model._Model__model
-        if weights is not None:
+            
+        if isinstance(weights, Tensor):
             return Model(super().read_model(model, weights))
+        elif isinstance(model, bytes):
+            return Model(super().read_model(model, bytes() if weights is None else weights))
+        elif weights is None:
+            return Model(super().read_model(model, config=config))
         else:
-            return Model(super().read_model(model))
+            return Model(super().read_model(model, weights, config))
 
     def compile_model(
         self,
