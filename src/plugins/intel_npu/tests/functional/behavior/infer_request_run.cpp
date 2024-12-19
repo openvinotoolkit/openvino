@@ -41,3 +41,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(batchingConfigs)),
                          InferRequestRunTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
+                         ROITensorInference,
+                         ::testing::Combine(::testing::Values(tensor_roi::roi_nchw()),
+                                            ::testing::Values(ov::test::utils::DEVICE_NPU)),
+                         ov::test::utils::appendPlatformTypeTestName<OVInferRequestInferenceTests>);

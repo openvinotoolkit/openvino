@@ -52,7 +52,7 @@ public:
 
     uint32_t get_unique_id();
     void set_last_submitted_id(uint32_t id_index);
-    const uint32_t get_last_submitted_id() const;
+    uint32_t get_last_submitted_id() const;
 
     const std::optional<std::size_t> get_batch_size() const;
 
