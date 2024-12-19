@@ -323,6 +323,9 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
     }
     node_info->add("dependant_shape_of_nodes_ids", dependant_shape_of_nodes_ids);
     node_info->add("in_shape_of_subgraph", in_shape_of_subgraph);
+
+    node_info->add("state_init_subgraph_id", state_init_subgraph_id);
+    node_info->add("dependant_initializer_pids", dependant_initializer_pids);
     return node_info;
 }
 
@@ -702,6 +705,9 @@ void program_node::save(cldnn::BinaryOutputBuffer& ob) const {
     ob << in_shape_of_subgraph;
     ob << runtime_skippable;
 
+    ob << state_init_subgraph_id;
+    ob << dependant_initializer_pids;
+
     ob << output;
     ob << user_mark;
     ob << optimized;
@@ -876,6 +882,9 @@ void program_node::load(cldnn::BinaryInputBuffer& ib) {
     ib >> data_flow;
     ib >> in_shape_of_subgraph;
     ib >> runtime_skippable;
+
+    ib >> state_init_subgraph_id;
+    ib >> dependant_initializer_pids;
 
     ib >> output;
     ib >> user_mark;
