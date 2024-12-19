@@ -4,6 +4,7 @@ Image-to-Video synthesis with AnimateAnyone and OpenVINO
 .. image:: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/animate-anyone/animate-anyone.gif
 
 
+
 `AnimateAnyone <https://arxiv.org/pdf/2311.17117.pdf>`__ tackles the
 task of generating animation sequences from a single character image. It
 builds upon diffusion models pre-trained on vast character image
@@ -35,9 +36,14 @@ Learn more in `GitHub
 repo <https://github.com/MooreThreads/Moore-AnimateAnyone>`__ and
 `paper <https://arxiv.org/pdf/2311.17117.pdf>`__.
 
-.. warning::
+.. container:: alert alert-warning
 
-   This tutorial requires at least **96 GB** of RAM for model conversion and **40 GB** for inference. Changing the values of ``HEIGHT`` ``WIDTH`` and ``VIDEO_LENGTH`` variables will change the memory consumption but will also affect accuracy.
+   ::
+
+      <p style="font-size:1.25em"><b>! WARNING !</b></p>
+      <p>
+          This tutorial requires at least <b>96 GB</b> of RAM for model conversion and <b>40 GB</b> for inference. Changing the values of <code>HEIGHT</code>, <code>WIDTH</code> and <code>VIDEO_LENGTH</code> variables will change the memory consumption but will also affect accuracy.
+      </p>
 
 
 **Table of contents:**
@@ -81,13 +87,10 @@ Prerequisites
     import requests
 
 
-    REPO_PATH = Path("Moore-AnimateAnyone")
-    if not REPO_PATH.exists():
-        !git clone -q "https://github.com/itrushkin/Moore-AnimateAnyone.git"
-    %pip install -q "torch>=2.1" torchvision einops omegaconf "diffusers<=0.24" transformers av accelerate "openvino>=2024.0" "nncf>=2.9.0" "gradio>=4.19" --extra-index-url "https://download.pytorch.org/whl/cpu"
-    import sys
+    %pip install -q "torch>=2.1" torchvision einops omegaconf "diffusers<=0.24" "huggingface-hub<0.26.0" transformers av accelerate  "gradio>=4.19" --extra-index-url "https://download.pytorch.org/whl/cpu"
+    %pip install -q "openvino>=2024.0" "nncf>=2.9.0"
 
-    sys.path.insert(0, str(REPO_PATH.resolve()))
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
     )
@@ -97,6 +100,16 @@ Prerequisites
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
     open("notebook_utils.py", "w").write(r.text)
+
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
+    )
+    open("cmd_helper.py", "w").write(r.text)
+
+
+    from cmd_helper import clone_repo
+
+    clone_repo("https://github.com/itrushkin/Moore-AnimateAnyone.git")
 
     %load_ext skip_kernel_extension
 

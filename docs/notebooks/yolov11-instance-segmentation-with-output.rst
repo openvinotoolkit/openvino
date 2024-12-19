@@ -111,21 +111,23 @@ Import required utility functions. The lower cell will download the
 .. code:: ipython3
 
     from pathlib import Path
-    
-    # Fetch `notebook_utils` module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
+    if not Path("notebook_utils.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
     
-    open("notebook_utils.py", "w").write(r.text)
+        open("notebook_utils.py", "w").write(r.text)
+    
+    
     from notebook_utils import download_file, VideoPlayer, device_widget
 
 .. code:: ipython3
 
     # Download a test sample
     IMAGE_PATH = Path("./data/coco_bike.jpg")
+    
     download_file(
         url="https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg",
         filename=IMAGE_PATH.name,
@@ -136,14 +138,14 @@ Import required utility functions. The lower cell will download the
 
 .. parsed-literal::
 
-    data/coco_bike.jpg:   0%|          | 0.00/182k [00:00<?, ?B/s]
+    coco_bike.jpg:   0%|          | 0.00/182k [00:00<?, ?B/s]
 
 
 
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/coco_bike.jpg')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/coco_bike.jpg')
 
 
 
@@ -216,14 +218,14 @@ Let us consider the examples:
 
 .. parsed-literal::
 
-    100%|██████████| 5.90M/5.90M [00:00<00:00, 25.2MB/s]
+    100%|██████████| 5.90M/5.90M [00:00<00:00, 25.6MB/s]
 
 
 .. parsed-literal::
 
     
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/coco_bike.jpg: 480x640 3 bicycles, 2 cars, 1 motorcycle, 1 dog, 69.6ms
-    Speed: 2.0ms preprocess, 69.6ms inference, 4.8ms postprocess per image at shape (1, 3, 480, 640)
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/coco_bike.jpg: 480x640 3 bicycles, 2 cars, 1 motorcycle, 1 dog, 64.8ms
+    Speed: 1.9ms preprocess, 64.8ms inference, 2.8ms postprocess per image at shape (1, 3, 480, 640)
 
 
 
@@ -260,7 +262,7 @@ preserve dynamic shapes in the model.
     OpenVINO: export success ✅ 2.0s, saved as 'yolo11n-seg_openvino_model/' (6.0 MB)
     
     Export complete (2.2s)
-    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization
+    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization
     Predict:         yolo predict task=segment model=yolo11n-seg_openvino_model imgsz=640 half 
     Validate:        yolo val task=segment model=yolo11n-seg_openvino_model imgsz=640 data=/ultralytics/ultralytics/cfg/datasets/coco.yaml half 
     Visualize:       https://netron.app
@@ -345,8 +347,8 @@ Test on single image
 .. parsed-literal::
 
     
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/coco_bike.jpg: 640x640 3 bicycles, 2 cars, 1 dog, 23.2ms
-    Speed: 1.8ms preprocess, 23.2ms inference, 3.8ms postprocess per image at shape (1, 3, 640, 640)
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/coco_bike.jpg: 640x640 3 bicycles, 2 cars, 1 dog, 23.8ms
+    Speed: 2.0ms preprocess, 23.8ms inference, 4.0ms postprocess per image at shape (1, 3, 640, 640)
 
 
 
@@ -410,10 +412,12 @@ Let’s load ``skip magic`` extension to skip quantization if
     # Fetch skip_kernel_extension module
     import requests
     
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
-    )
-    open("skip_kernel_extension.py", "w").write(r.text)
+    
+    if not Path("skip_kernel_extension.py").exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
+        )
+        open("skip_kernel_extension.py", "w").write(r.text)
     
     %load_ext skip_kernel_extension
 
@@ -493,14 +497,6 @@ transformation function for getting only input tensors.
 .. parsed-literal::
 
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-    '/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-785/.workspace/scm/datasets/val2017.zip' already exists.
-    '/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-785/.workspace/scm/datasets/coco2017labels-segments.zip' already exists.
-
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-785/.workspace/scm/datasets/coco.yaml:   0%|     …
 
 
 .. parsed-literal::
@@ -668,8 +664,8 @@ on the image.
 .. parsed-literal::
 
     
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/810/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/coco_bike.jpg: 640x640 2 bicycles, 2 cars, 1 dog, 11.2ms
-    Speed: 1.9ms preprocess, 11.2ms inference, 3.4ms postprocess per image at shape (1, 3, 640, 640)
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/jobs/ov-notebook/jobs/OVNotebookOps/builds/835/archive/.workspace/scm/ov-notebook/notebooks/yolov11-optimization/data/coco_bike.jpg: 640x640 2 bicycles, 2 cars, 1 dog, 11.3ms
+    Speed: 2.0ms preprocess, 11.3ms inference, 3.1ms postprocess per image at shape (1, 3, 640, 640)
 
 
 
@@ -728,7 +724,7 @@ models.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 19.61 ms
+    [ INFO ] Read model took 19.89 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [?,3,?,?]
@@ -738,7 +734,7 @@ models.
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'x': [1,3,640,640]
-    [ INFO ] Reshape model took 8.69 ms
+    [ INFO ] Reshape model took 8.57 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : u8 / [N,C,H,W] / [1,3,640,640]
@@ -746,7 +742,7 @@ models.
     [ INFO ]     ***NO_NAME*** (node: __module.model.23/aten::cat/Concat_8) : f32 / [...] / [1,116,8400]
     [ INFO ]     input.255 (node: __module.model.23.cv4.2.1.act/aten::silu_/Swish_46) : f32 / [...] / [1,32,160,160]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 390.55 ms
+    [ INFO ] Compile model took 368.93 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -783,17 +779,17 @@ models.
     [ INFO ] Fill input 'x' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 36.99 ms
+    [ INFO ] First inference took 40.94 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            1806 iterations
-    [ INFO ] Duration:         15074.73 ms
+    [ INFO ] Count:            1758 iterations
+    [ INFO ] Duration:         15078.04 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        49.77 ms
-    [ INFO ]    Average:       49.90 ms
-    [ INFO ]    Min:           24.69 ms
-    [ INFO ]    Max:           66.18 ms
-    [ INFO ] Throughput:   119.80 FPS
+    [ INFO ]    Median:        48.01 ms
+    [ INFO ]    Average:       51.29 ms
+    [ INFO ]    Min:           39.82 ms
+    [ INFO ]    Max:           142.69 ms
+    [ INFO ] Throughput:   116.59 FPS
 
 
 .. code:: ipython3
@@ -819,7 +815,7 @@ models.
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 29.59 ms
+    [ INFO ] Read model took 29.86 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [1,3,640,640]
@@ -837,7 +833,7 @@ models.
     [ INFO ]     ***NO_NAME*** (node: __module.model.23/aten::cat/Concat_8) : f32 / [...] / [1,116,8400]
     [ INFO ]     input.255 (node: __module.model.23.cv4.2.1.act/aten::silu_/Swish_46) : f32 / [...] / [1,32,160,160]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 592.55 ms
+    [ INFO ] Compile model took 609.11 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -874,17 +870,17 @@ models.
     [ INFO ] Fill input 'x' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 24.82 ms
+    [ INFO ] First inference took 26.42 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            3702 iterations
-    [ INFO ] Duration:         15040.97 ms
+    [ INFO ] Count:            3708 iterations
+    [ INFO ] Duration:         15029.82 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        24.15 ms
-    [ INFO ]    Average:       24.25 ms
-    [ INFO ]    Min:           20.10 ms
-    [ INFO ]    Max:           43.05 ms
-    [ INFO ] Throughput:   246.13 FPS
+    [ INFO ]    Median:        24.08 ms
+    [ INFO ]    Average:       24.20 ms
+    [ INFO ]    Min:           18.24 ms
+    [ INFO ]    Max:           40.66 ms
+    [ INFO ] Throughput:   246.71 FPS
 
 
 Other ways to optimize model
@@ -939,6 +935,7 @@ The following code runs model inference on a video:
         skip_first_frames=0,
         model=seg_model,
         device=device.value,
+        video_width: int = None,  # if not set the original size is used
     ):
         player = None
     
@@ -973,9 +970,11 @@ The following code runs model inference on a video:
                 if frame is None:
                     print("Source ended")
                     break
-                # If the frame is larger than full HD, reduce size to improve the performance.
-                scale = 1280 / max(frame.shape)
-                if scale < 1:
+    
+                if video_width:
+                    # If the frame is larger than video_width, reduce size to improve the performance.
+                    # If more, increase size for better demo expirience.
+                    scale = video_width / max(frame.shape)
                     frame = cv2.resize(
                         src=frame,
                         dsize=None,
@@ -983,11 +982,12 @@ The following code runs model inference on a video:
                         fy=scale,
                         interpolation=cv2.INTER_AREA,
                     )
+    
                 # Get the results.
                 input_image = np.array(frame)
     
                 start_time = time.time()
-                detections = seg_model(input_image)
+                detections = seg_model(input_image, verbose=False)
                 stop_time = time.time()
                 frame = detections[0].plot()
     
@@ -1064,7 +1064,18 @@ set \ ``use_popup=True``.
     if WEBCAM_INFERENCE:
         VIDEO_SOURCE = 0  # Webcam
     else:
-        VIDEO_SOURCE = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/people.mp4"
+        download_file(
+            "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/people.mp4",
+            "people.mp4",
+        )
+        VIDEO_SOURCE = "people.mp4"
+
+
+
+.. parsed-literal::
+
+    people.mp4:   0%|          | 0.00/3.54M [00:00<?, ?B/s]
+
 
 .. code:: ipython3
 
@@ -1087,6 +1098,7 @@ set \ ``use_popup=True``.
         use_popup=False,
         model=seg_ov_model,
         device=device.value,
+        # video_width=1280,
     )
 
 

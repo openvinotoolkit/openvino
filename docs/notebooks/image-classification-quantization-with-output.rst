@@ -70,7 +70,6 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
     # Set the data and model directories
     DATA_DIR = Path("data")
     MODEL_DIR = Path("model")
-    model_repo = "pytorch-cifar-models"
     
     DATA_DIR.mkdir(exist_ok=True)
     MODEL_DIR.mkdir(exist_ok=True)
@@ -89,23 +88,42 @@ Model preparation stage has the following steps:
 
 .. code:: ipython3
 
-    import sys
+    import requests
     
-    if not Path(model_repo).exists():
-        !git clone https://github.com/chenyaofo/pytorch-cifar-models.git
     
-    sys.path.append(model_repo)
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+    )
+    open("notebook_utils.py", "w").write(r.text)
+    
+    r = requests.get(
+        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/cmd_helper.py",
+    )
+    open("cmd_helper.py", "w").write(r.text)
+
+
 
 
 .. parsed-literal::
 
-    Cloning into 'pytorch-cifar-models'...
-    remote: Enumerating objects: 282, done.[K
-    remote: Counting objects: 100% (281/281), done.[K
-    remote: Compressing objects: 100% (94/94), done.[K
-    remote: Total 282 (delta 135), reused 275 (delta 130), pack-reused 1 (from 1)[K
-    Receiving objects: 100% (282/282), 9.22 MiB | 9.58 MiB/s, done.
-    Resolving deltas: 100% (135/135), done.
+    1491
+
+
+
+.. code:: ipython3
+
+    from cmd_helper import clone_repo
+    
+    
+    clone_repo("https://github.com/chenyaofo/pytorch-cifar-models.git")
+
+
+
+
+.. parsed-literal::
+
+    PosixPath('pytorch-cifar-models')
+
 
 
 .. code:: ipython3
@@ -176,7 +194,7 @@ Preprocessing for model obtained from training
 
 .. parsed-literal::
 
-    100%|██████████| 170498071/170498071 [00:07<00:00, 22536051.32it/s]
+    100%|██████████| 170498071/170498071 [00:07<00:00, 22538385.96it/s]
 
 
 .. parsed-literal::
@@ -248,10 +266,10 @@ about supported parameters can be found on this
 
 .. parsed-literal::
 
-    2024-11-05 01:37:57.500572: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-11-05 01:37:57.532367: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-12-10 01:58:02.605724: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-12-10 01:58:02.638370: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-11-05 01:37:58.074631: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-12-10 01:58:03.190744: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -323,14 +341,8 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
-    import requests
-    
-    r = requests.get(
-        url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
-    )
-    open("notebook_utils.py", "w").write(r.text)
-    
     from notebook_utils import device_widget
+    
     
     device = device_widget()
     
@@ -419,7 +431,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 9.87 ms
+    [ INFO ] Read model took 9.73 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [1,3,32,32]
@@ -433,7 +445,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Model outputs:
     [ INFO ]     x.17 (node: aten::linear/Add) : f32 / [...] / [1,10]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 193.44 ms
+    [ INFO ] Compile model took 180.20 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model2
@@ -470,17 +482,17 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Fill input 'x' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 3.27 ms
+    [ INFO ] First inference took 3.36 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            88560 iterations
-    [ INFO ] Duration:         15003.24 ms
+    [ INFO ] Count:            88452 iterations
+    [ INFO ] Duration:         15002.00 ms
     [ INFO ] Latency:
     [ INFO ]    Median:        1.84 ms
     [ INFO ]    Average:       1.85 ms
-    [ INFO ]    Min:           1.26 ms
-    [ INFO ]    Max:           9.06 ms
-    [ INFO ] Throughput:   5902.73 FPS
+    [ INFO ]    Min:           1.33 ms
+    [ INFO ]    Max:           8.96 ms
+    [ INFO ] Throughput:   5896.02 FPS
 
 
 .. code:: ipython3
@@ -506,7 +518,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 14.74 ms
+    [ INFO ] Read model took 14.82 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [1,3,32,32]
@@ -520,7 +532,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Model outputs:
     [ INFO ]     x.17 (node: aten::linear/Add) : f32 / [...] / [1,10]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 266.00 ms
+    [ INFO ] Compile model took 272.37 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model2
@@ -557,17 +569,17 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Fill input 'x' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 1.97 ms
+    [ INFO ] First inference took 2.51 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            165708 iterations
-    [ INFO ] Duration:         15001.40 ms
+    [ INFO ] Count:            165696 iterations
+    [ INFO ] Duration:         15001.57 ms
     [ INFO ] Latency:
     [ INFO ]    Median:        1.00 ms
     [ INFO ]    Average:       1.04 ms
-    [ INFO ]    Min:           0.67 ms
-    [ INFO ]    Max:           91.64 ms
-    [ INFO ] Throughput:   11046.17 FPS
+    [ INFO ]    Min:           0.71 ms
+    [ INFO ]    Max:           79.41 ms
+    [ INFO ] Throughput:   11045.25 FPS
 
 
 Compare results on four pictures
@@ -675,5 +687,5 @@ Compare results on four pictures
 
 
 
-.. image:: image-classification-quantization-with-output_files/image-classification-quantization-with-output_30_2.png
+.. image:: image-classification-quantization-with-output_files/image-classification-quantization-with-output_31_2.png
 
