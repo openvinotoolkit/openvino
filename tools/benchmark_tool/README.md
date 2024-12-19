@@ -11,4 +11,4 @@ For more detailed information on how this sample works, check the dedicated [art
 The Python benchmark_app is automatically installed when you install OpenVINO Developer Tools using [PyPI](https://docs.openvino.ai/2024/get-started/install-openvino/install-openvino-pip.html) Before running ``benchmark_app``, make sure the ``openvino_env`` virtual environment is activated, and navigate to the directory where your model is located.
 
 The benchmarking application works with models in the OpenVINO IR (``model.xml`` and ``model.bin``) and ONNX (``model.onnx``) formats.
-Make sure to [convert your models](https://docs.openvino.ai/2024/documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api.html) if necessary.
+Make sure to [convert your models](https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-to-ir.html) if necessary.
