@@ -10,9 +10,7 @@ RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf && \
     echo 'APT::Get::no-install-recommends "true";' >> /etc/apt/apt.conf
 
 ENV DEBIAN_FRONTEND="noninteractive" \
-    TZ="Europe/London" \
-    CCACHE_MAXSIZE=2G \
-    RISCV_TOOLCHAIN_ROOT=/__w/openvino/xuantie/Xuantie-900-gcc-linux-5.15.0-glibc-x86_64-V2.8.1/
+    TZ="Europe/London"
 
 RUN apt-get update && \
     apt-get install software-properties-common && \
@@ -66,7 +64,7 @@ RUN dpkg --add-architecture riscv64 && \
     apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/riscv64-sources.list && \
     apt-get install -y --no-install-recommends libpython3-dev:riscv64 && \
     apt-get install -y --no-install-recommends apt-utils && \
-    apt-get -y install  curl && apt-get install libgomp1:riscv64 && \
+    apt-get install libgomp1:riscv64 && \
     apt-get install libatomic1:riscv64
 
 # Setup pip
