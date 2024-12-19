@@ -4,11 +4,11 @@
 
 #include "lora.h"
 
-#include "nodes/input.h"
 #include "cpu_memory.h"
+#include "nodes/input.h"
 #include "ov_ops/lora_subgraph.hpp"
-#include "utils/debug_capabilities.h"
 #include "shape_inference/shape_inference_pass_through.hpp"
+#include "utils/debug_capabilities.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -48,7 +48,7 @@ void LoRA::selectOptimalPrimitiveDescriptor() {
     std::vector<Input::InputConfig> graphInputConfig;
 
     auto mainInputDesc = getParentOutputMemDesc(getParentEdgeAt(0));
-    auto mainInputPrc = mainInputDesc->getPrecision(); // we have to align precision across all the inputs
+    auto mainInputPrc = mainInputDesc->getPrecision();  // we have to align precision across all the inputs
 
     inConfs.emplace_back(mainInputDesc);
     graphInputConfig.emplace_back(node::Input::InputConfig{mainInputDesc, true});
@@ -76,7 +76,7 @@ void LoRA::selectOptimalPrimitiveDescriptor() {
 
     std::vector<PortConfig> outConfs;
 
-    outConfs.emplace_back(desc, BlockedMemoryDesc::FULL_MASK, 0); // use the memory from the first input inPlace
+    outConfs.emplace_back(desc, BlockedMemoryDesc::FULL_MASK, 0);  // use the memory from the first input inPlace
 
     const NodeConfig config(inConfs, outConfs);
 
@@ -88,7 +88,7 @@ void LoRA::selectOptimalPrimitiveDescriptor() {
 
 // @todo add ascii diagram for memory mapping / reuse
 void LoRA::createPrimitive() {
-    CPU_NODE_ASSERT(getOriginalInputsNumber() == m_graph.GetInputNodesMap().size(),
+    CPU_NODE_ASSERT(getOriginalInputsNumber() == m_graph.inputsNumber(),
                     "Number of node inputs must be equal the number of inner graph's inputs");
 
     std::vector<MemoryPtr> inputMemory;
@@ -99,7 +99,7 @@ void LoRA::createPrimitive() {
         inputMemory.emplace_back(std::move(mem));
     }
 
-    CPU_NODE_ASSERT(getOriginalOutputsNumber() == m_graph.GetOutputNodesMap().size(),
+    CPU_NODE_ASSERT(getOriginalOutputsNumber() == m_graph.outputsNumber(),
                     "Number of node outputs must be equal the number of inner graph's outputs");
 
     std::vector<MemoryPtr> outputMemory{getDstMemoryAtPort(0)};

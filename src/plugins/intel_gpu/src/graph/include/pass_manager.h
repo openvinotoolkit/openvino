@@ -140,6 +140,7 @@ public:
 private:
     void run(program& p) override;
     void fuse_bias(program &p);
+    void fuse_swiglu(program &p);
     void fuse_reorders(program& p);
     void fuse_simple_primitives(program &p);
     void fuse_constant_transposes(program &p);
@@ -210,9 +211,10 @@ public:
 
 private:
     void run(program& p) override;
-    std::list<std::pair<primitive_id, memory::ptr>> calculate(engine& engine,
-                                                              const ExecutionConfig& config,
-                                                              std::shared_ptr<ov::threading::IStreamsExecutor> task_executor);
+    std::list<std::tuple<primitive_id, memory::ptr, std::shared_ptr<weightless_cache_manager>, std::shared_ptr<layout>>>
+    calculate(engine& engine,
+              const ExecutionConfig& config,
+              std::shared_ptr<ov::threading::IStreamsExecutor> task_executor);
     bool has_non_const_user(program_node& node) const;
     void handle_constant(program& prog, program_node& node);
     void add_constant(program& prog, program_node& node);
@@ -307,13 +309,8 @@ public:
         if ((node->can_be_optimized() && !node->is_runtime_skippable()) || !dep->can_be_optimized()) {
             node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
         } else {
-            if (node->is_runtime_skippable() || dep->is_runtime_skippable()) {
+            if (node->is_runtime_skippable() || dep->is_runtime_skippable() || dep->can_be_optimized()) {
                 node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
-                for (const auto& subdep : dep->get_dependencies()) {
-                    add_memory_dependency(node, subdep.first);
-                    add_memory_dependency(subdep.first, node);
-                }
-                return;
             }
 
             for (const auto& subdep : dep->get_dependencies()) {

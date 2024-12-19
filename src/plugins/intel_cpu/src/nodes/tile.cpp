@@ -4,10 +4,9 @@
 
 #include "tile.h"
 
-#include "openvino/op/tile.hpp"
-#include "openvino/op/constant.hpp"
-
 #include "common/cpu_memcpy.h"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/tile.hpp"
 #include "utils/ngraph_utils.hpp"
 
 namespace ov {
@@ -24,8 +23,7 @@ bool Tile::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
             errorMessage = "Only static shape is supported for tile repeats input.";
             return false;
         }
-        if (!isDynamicNgraphNode(op) &&
-                !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(TILE_REPEATS))) {
+        if (!isDynamicNgraphNode(op) && !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(TILE_REPEATS))) {
             errorMessage = "Only constant 'Repeats' input is supported with static shapes.";
             return false;
         }
@@ -46,7 +44,8 @@ Tile::Tile(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context
 
     if (ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(TILE_REPEATS))) {
         constMap[TILE_REPEATS] = true;
-        repeats = originRepeats = ov::as_type<const ov::op::v0::Constant>(op->get_input_node_ptr(TILE_REPEATS))->cast_vector<size_t>();
+        repeats = originRepeats =
+            ov::as_type<const ov::op::v0::Constant>(op->get_input_node_ptr(TILE_REPEATS))->cast_vector<size_t>();
         while (repeats.size() < getInputShapeAtPort(TILE_INPUT).getRank()) {
             repeats.insert(repeats.begin(), 1lu);
         }
@@ -180,9 +179,9 @@ void Tile::plainExecute(dnnl::stream strm) {
     int m_inner_dim = 1;
     int m_outer_dim = 1;
     auto inDims = srcMemory.getStaticDims();
-    for (int i = 0; i < axis; i++ )
+    for (int i = 0; i < axis; i++)
         m_outer_dim *= inDims[i];
-    for (size_t i = axis; i < inDims.size(); i++ )
+    for (size_t i = axis; i < inDims.size(); i++)
         m_inner_dim *= inDims[i];
 
     int MB = srcMemory.getStaticDims()[0];
@@ -222,6 +221,6 @@ bool Tile::created() const {
     return getType() == Type::Tile;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov
