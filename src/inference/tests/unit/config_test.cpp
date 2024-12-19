@@ -8,8 +8,6 @@
 #include <gtest/gtest.h>
 #include <string>
 
-#include "common_test_utils/common_utils.hpp"
-
 using namespace ::testing;
 using namespace ov;
 
@@ -18,6 +16,8 @@ static constexpr Property<bool, PropertyMutability::RW> bool_property{"BOOL_PROP
 static constexpr Property<int32_t, PropertyMutability::RW> int_property{"INT_PROPERTY"};
 static constexpr Property<std::string, PropertyMutability::RW> high_level_property{"HIGH_LEVEL_PROPERTY"};
 static constexpr Property<std::string, PropertyMutability::RW> low_level_property{"LOW_LEVEL_PROPERTY"};
+static constexpr Property<uint8_t, PropertyMutability::RW> release_internal_property{"RELEASE_INTERNAL_PROPERTY"};
+static constexpr Property<uint8_t, PropertyMutability::RW> debug_property{"DEBUG_PROPERTY"};
 
 
 struct EmptyTestConfig : public ov::PluginConfig {
@@ -32,10 +32,15 @@ struct EmptyTestConfig : public ov::PluginConfig {
 
 struct NotEmptyTestConfig : public ov::PluginConfig {
     NotEmptyTestConfig() {
-        m_options_map[bool_property.name()] = &m_bool_property;
-        m_options_map[int_property.name()] = &m_int_property;
-        m_options_map[high_level_property.name()] = &m_high_level_property;
-        m_options_map[low_level_property.name()] = &m_low_level_property;
+    #define OV_CONFIG_OPTION(...) OV_CONFIG_OPTION_MAPPING(__VA_ARGS__)
+        OV_CONFIG_RELEASE_OPTION(, bool_property, true, "")
+        OV_CONFIG_RELEASE_OPTION(, int_property, -1, "")
+        OV_CONFIG_RELEASE_OPTION(, high_level_property, "", "")
+        OV_CONFIG_RELEASE_OPTION(, low_level_property, "", "")
+        OV_CONFIG_RELEASE_INTERNAL_OPTION(, release_internal_property, 1, "")
+        OV_CONFIG_DEBUG_OPTION(, debug_property, 2, "")
+    #undef OV_CONFIG_OPTION
+
     }
 
     NotEmptyTestConfig(const NotEmptyTestConfig& other) : NotEmptyTestConfig() {
@@ -45,10 +50,14 @@ struct NotEmptyTestConfig : public ov::PluginConfig {
         }
     }
 
-    ConfigOption<bool> m_bool_property = ConfigOption<bool>(true);
-    ConfigOption<int32_t> m_int_property = ConfigOption<int32_t>(-1);
-    ConfigOption<std::string> m_high_level_property = ConfigOption<std::string>("");
-    ConfigOption<std::string> m_low_level_property = ConfigOption<std::string>("");
+    #define OV_CONFIG_OPTION(...) OV_CONFIG_DECLARE_OPTION(__VA_ARGS__)
+        OV_CONFIG_RELEASE_OPTION(, bool_property, true, "")
+        OV_CONFIG_RELEASE_OPTION(, int_property, -1, "")
+        OV_CONFIG_RELEASE_OPTION(, high_level_property, "", "")
+        OV_CONFIG_RELEASE_OPTION(, low_level_property, "", "")
+        OV_CONFIG_RELEASE_INTERNAL_OPTION(, release_internal_property, 1, "")
+        OV_CONFIG_DEBUG_OPTION(, debug_property, 2, "")
+    #undef OV_CONFIG_OPTION
 
     std::vector<std::string> get_supported_properties() const {
         std::vector<std::string> supported_properties;
@@ -68,6 +77,7 @@ struct NotEmptyTestConfig : public ov::PluginConfig {
         apply_rt_info_property(high_level_property, rt_info);
     }
 
+    using ov::PluginConfig::get_option_ptr;
     using ov::PluginConfig::is_set_by_user;
 };
 
@@ -81,7 +91,7 @@ TEST(plugin_config, can_create_empty_config) {
 TEST(plugin_config, can_create_not_empty_config) {
     ASSERT_NO_THROW(
         NotEmptyTestConfig cfg;
-        ASSERT_EQ(cfg.get_supported_properties().size(), 4);
+        ASSERT_EQ(cfg.get_supported_properties().size(), 6);
     );
 }
 
@@ -199,4 +209,17 @@ TEST(plugin_config, can_copy_config) {
     cfg1.m_int_property.value = 3;
     ASSERT_EQ(cfg2.m_high_level_property.value, "value1");
     ASSERT_EQ(cfg2.m_int_property.value, 1);
+}
+
+TEST(plugin_config, set_user_property_throw_for_non_release_options) {
+    NotEmptyTestConfig cfg;
+    ASSERT_ANY_THROW(cfg.set_user_property(release_internal_property(10)));
+    ASSERT_ANY_THROW(cfg.set_user_property(debug_property(10)));
+}
+
+TEST(plugin_config, visibility_is_correct) {
+    NotEmptyTestConfig cfg;
+    ASSERT_EQ(cfg.get_option_ptr(release_internal_property.name())->get_visibility(), OptionVisibility::RELEASE_INTERNAL);
+    ASSERT_EQ(cfg.get_option_ptr(debug_property.name())->get_visibility(), OptionVisibility::DEBUG);
+    ASSERT_EQ(cfg.get_option_ptr(int_property.name())->get_visibility(), OptionVisibility::RELEASE);
 }
