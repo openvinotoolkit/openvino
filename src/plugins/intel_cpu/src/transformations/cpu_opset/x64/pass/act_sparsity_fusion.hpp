@@ -9,11 +9,11 @@
 namespace ov {
 namespace intel_cpu {
 
-class ActivationSparsityFusion: public ov::pass::MatcherPass {
+class ActivationSparsityFusion : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ActivationSparsityFusion", "0");
     ActivationSparsityFusion();
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

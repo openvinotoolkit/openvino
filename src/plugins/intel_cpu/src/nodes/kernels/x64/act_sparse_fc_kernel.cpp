@@ -638,7 +638,11 @@ static std::shared_ptr<SIMDJit> jit_compile_repack_2xsimdw(WeightCompressionType
 
 template <class T>
 T* ActSparseFcKernel::scratch_alloc(size_t cnt) {
+#    if defined(__GNUC__) || defined(__clang__)
     thread_local uint8_t scratch[1024 * 1024 * 2] __attribute__((aligned(4096)));
+#    else
+    thread_local uint8_t scratch[1024 * 1024 * 2];
+#    endif
     ASSERT(cnt * sizeof(T) < sizeof(scratch));
     // DEBUG_LOG(reinterpret_cast<void*>(scratch));
     return reinterpret_cast<T*>(scratch);

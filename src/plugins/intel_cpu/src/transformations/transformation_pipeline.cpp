@@ -142,10 +142,10 @@
 #include "transformations/cpu_opset/common/pass/permute_slice_n_interpolation.hpp"
 #include "transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
+#include "transformations/cpu_opset/x64/pass/act_sparsity_fusion.hpp"
 #include "transformations/cpu_opset/x64/pass/convert_to_interaction.hpp"
 #include "transformations/cpu_opset/x64/pass/mlp_fusion.hpp"
 #include "transformations/cpu_opset/x64/pass/qkv_proj_fusion.hpp"
-#include "transformations/cpu_opset/x64/pass/act_sparsity_fusion.hpp"
 #include "transformations/cpu_opset/x64/pass/sdpa_fuse_transpose_reshape.hpp"
 
 // Snippets
@@ -163,9 +163,9 @@
 
 // Misc
 #include "dnnl.hpp"
+#include "nodes/act_sparse_fc.h"
 #include "nodes/fake_quantize.h"
 #include "nodes/llm_mlp.h"
-#include "nodes/act_sparse_fc.h"
 #include "nodes/mha.h"
 #include "nodes/mvn.h"
 #include "nodes/normalize.h"

@@ -25,7 +25,6 @@ bool ActSparseFCNode::visit_attributes(ov::AttributeVisitor& visitor) {
 void ActSparseFCNode::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(ActSparseFCNode_validate_and_infer_types);
     const auto input_size = get_input_size();
-    //NODE_VALIDATION_CHECK(this, input_size == expect_input_size);
 
     const auto& ishape = get_input_partial_shape(0);
     const auto& itype = get_input_element_type(0);

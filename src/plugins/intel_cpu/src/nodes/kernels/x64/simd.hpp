@@ -8,7 +8,7 @@
 
 #if defined(HAVE_AVX512F)
 // AVX512F
-#define SIMDW 16
+#    define SIMDW 16
 using SIMD_F32 = __m512;
 using SIMD_I32 = __m512i;
 
@@ -25,18 +25,18 @@ inline void simd_storeu_ps(float* ptr, __m512 v) {
     _mm512_storeu_ps(ptr, v);
 }
 inline void simd_storeu_si(void* ptr, SIMD_I32 v) {
-    _mm512_storeu_si512(reinterpret_cast<void *>(ptr), v);
+    _mm512_storeu_si512(reinterpret_cast<void*>(ptr), v);
 }
-inline SIMD_F32 simd_broadcast_ss(float const * mem_addr) {
+inline SIMD_F32 simd_broadcast_ss(float const* mem_addr) {
     return _mm512_set1_ps(*mem_addr);
 }
-inline SIMD_F32 simd_loadu_ps(float const * mem_addr) {
+inline SIMD_F32 simd_loadu_ps(float const* mem_addr) {
     return _mm512_loadu_ps(mem_addr);
 }
 static SIMD_F32 simd_loadu_ps(const ov::float16* p) {
     return _mm512_cvtph_ps(_mm256_loadu_si256(reinterpret_cast<__m256i const*>(p)));
 }
-static SIMD_I32 simd_loadu_i32(const void * p) {
+static SIMD_I32 simd_loadu_i32(const void* p) {
     return _mm512_loadu_si512(p);
 }
 inline SIMD_F32 simd_add_ps(SIMD_F32 a, SIMD_F32 b) {
@@ -105,7 +105,7 @@ struct simd_mask {
 };
 #elif defined(HAVE_AVX2)
 // AVX2
-#define SIMDW 8
+#    define SIMDW 8
 using SIMD_F32 = __m256;
 using SIMD_I32 = __m256i;
 inline SIMD_I32 simd_load_epu8_epi32(void const* ptr) {
@@ -121,19 +121,19 @@ inline void simd_storeu_ps(float* ptr, SIMD_F32 v) {
     _mm256_storeu_ps(ptr, v);
 }
 inline void simd_storeu_si(void* ptr, SIMD_I32 v) {
-    _mm256_storeu_si256(reinterpret_cast<__m256i *>(ptr), v);
+    _mm256_storeu_si256(reinterpret_cast<__m256i*>(ptr), v);
 }
-inline SIMD_F32 simd_broadcast_ss(float const * mem_addr) {
+inline SIMD_F32 simd_broadcast_ss(float const* mem_addr) {
     return _mm256_broadcast_ss(mem_addr);
 }
-inline SIMD_F32 simd_loadu_ps(float const * mem_addr) {
+inline SIMD_F32 simd_loadu_ps(float const* mem_addr) {
     return _mm256_loadu_ps(mem_addr);
 }
 static SIMD_F32 simd_loadu_ps(const ov::float16* p) {
     return _mm256_cvtph_ps(_mm_loadu_si128(reinterpret_cast<__m128i const*>(p)));
 }
-static SIMD_I32 simd_loadu_i32(const void * p) {
-    return _mm256_loadu_si256(reinterpret_cast<__m256i const *>(p));
+static SIMD_I32 simd_loadu_i32(const void* p) {
+    return _mm256_loadu_si256(reinterpret_cast<__m256i const*>(p));
 }
 inline SIMD_F32 simd_add_ps(SIMD_F32 a, SIMD_F32 b) {
     return _mm256_add_ps(a, b);
@@ -200,7 +200,7 @@ struct simd_mask {
 };
 #else
 // scalar
-#define SIMDW 1
+#    define SIMDW 1
 using SIMD_F32 = float;
 using SIMD_I32 = int32_t;
 inline SIMD_I32 simd_load_epu8_epi32(void const* ptr) {
@@ -218,16 +218,16 @@ inline void simd_storeu_ps(float* ptr, SIMD_F32 v) {
 inline void simd_storeu_si(void* ptr, SIMD_I32 v) {
     *reinterpret_cast<SIMD_I32*>(ptr) = v;
 }
-inline SIMD_F32 simd_broadcast_ss(float const * mem_addr) {
+inline SIMD_F32 simd_broadcast_ss(float const* mem_addr) {
     return *(mem_addr);
 }
-inline SIMD_F32 simd_loadu_ps(float const * mem_addr) {
+inline SIMD_F32 simd_loadu_ps(float const* mem_addr) {
     return *(mem_addr);
 }
 static SIMD_F32 simd_loadu_ps(const ov::float16* p) {
     return static_cast<float>(*p);
 }
-static SIMD_I32 simd_loadu_i32(const void * p) {
+static SIMD_I32 simd_loadu_i32(const void* p) {
     return *reinterpret_cast<const SIMD_I32*>(p);
 }
 inline SIMD_F32 simd_add_ps(SIMD_F32 a, SIMD_F32 b) {
@@ -240,7 +240,7 @@ inline SIMD_F32 simd_mul_ps(SIMD_F32 a, SIMD_F32 b) {
     return a * b;
 }
 inline SIMD_F32 simd_fmadd_ps(SIMD_F32 a, SIMD_F32 b, SIMD_F32 c) {
-    return a*b + c;
+    return a * b + c;
 }
 inline SIMD_F32 simd_setzero_ps(void) {
     return 0;
@@ -276,8 +276,7 @@ inline void simd_prefetch(void const* p, int i) {
     //_mm_prefetch(p, i);
 }
 struct simd_mask {
-    simd_mask(int num_tails) {
-    }
+    simd_mask(int num_tails) {}
     SIMD_F32 load(const float* mem_addr) {
         return *mem_addr;
     }
