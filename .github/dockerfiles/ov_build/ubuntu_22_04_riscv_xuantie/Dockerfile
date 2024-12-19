@@ -90,7 +90,7 @@ ARG XUINTIE_SRC="/tmp/xuantie/src"
     
 RUN mkdir -p ${XUINTIE_TMP_PATH}
 RUN cd ${XUINTIE_TMP_PATH} && git clone --branch ${XUANTIE_VERSION} --depth 1 ${XUANTIE_REPO} ${XUINTIE_SRC}
-RUN cd ${XUINTIE_SRC} && ./configure --prefix=${XUINTIE_PATH} && make -j$(nproc) && make install
+RUN cd ${XUINTIE_SRC} && ./configure --prefix=${XUINTIE_PATH} --target=riscv64-unknown-gnu && make -j$(nproc) && make install
 RUN rm -rf ${XUINTIE_TMP_PATH}
     
 # Setup pip
