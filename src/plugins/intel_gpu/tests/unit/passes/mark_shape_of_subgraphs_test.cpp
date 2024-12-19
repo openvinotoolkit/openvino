@@ -321,20 +321,18 @@ TEST(mark_shape_of_subgraphs, gather_compressed_no_mark) {
 
 TEST(mark_shape_of_subgraphs, broadcast_not_existed_after_shapeof) {
     auto& engine = get_test_engine();
-    auto reshape_pattern = engine.allocate_memory({ ov::PartialShape{4}, data_types::i32, format::bfyx });
-    set_values(reshape_pattern, {1, 4, 1, 1});
     auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), 4, ov::Dimension::dynamic(), ov::Dimension::dynamic()},
                                        data_types::f32, format::bfyx};
     auto data_0 = engine.allocate_memory({ ov::PartialShape{4}, data_types::i32, format::bfyx });
+    set_values(data_0, {1, 4, 1, 1});
     auto weights = engine.allocate_memory({ data_types::f16, format::bfyx, {1152, 4, 1, 1} });
 
     topology topology;
     topology.add(input_layout("input", input_layout_dynamic));
     topology.add(data("data_0", data_0));
-    topology.add(data("reshape_pattern", reshape_pattern));
     topology.add(data("weights", weights));
     topology.add(shape_of("shape_of", input_info("input"), data_types::i32));
-    topology.add(reshape("reshape", input_info("shape_of"), input_info("reshape_pattern"), false, {}));
+    topology.add(reshape("reshape", input_info("shape_of"), input_info("data_0"), false, {}));
     topology.add(convolution("convolution", input_info("reshape"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -348,7 +346,7 @@ TEST(mark_shape_of_subgraphs, broadcast_not_existed_after_shapeof) {
     ASSERT_TRUE(check_subgraph(prog->get_node("shape_of"), prog->get_node("convolution")));
 }
 
-TEST(mark_shape_of_subgraphs, broadcast_w_data_and_shapeof_no_mark) {
+TEST(mark_shape_of_subgraphs, broadcast_w_data_and_direct_shapeof_no_mark) {
     auto& engine = get_test_engine();
     auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), 4, ov::Dimension::dynamic(), ov::Dimension::dynamic()},
                                        data_types::f32, format::bfyx};
@@ -372,15 +370,16 @@ TEST(mark_shape_of_subgraphs, broadcast_w_data_and_shapeof_no_mark) {
     auto prog = network.get_program();
     ASSERT_NE(prog, nullptr);
 
+    ASSERT_FALSE(check_subgraph(prog->get_node("shape_of"), prog->get_node("convolution")));
     ASSERT_FALSE(check_subgraph(prog->get_node("shape_of"), prog->get_node("broadcast")));
 }
 
-TEST(mark_shape_of_subgraphs, broadcast_w_data_and_shapeof_gather) {
+TEST(mark_shape_of_subgraphs, broadcast_w_data_and_indirect_shapeof) {
     auto& engine = get_test_engine();
-    auto input_layout_dynamic = layout{ov::PartialShape{1, 4, 2, 2}, data_types::f32, format::bfyx};
+    auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), 4, ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+                                       data_types::f32, format::bfyx};
     auto data_0 = engine.allocate_memory({ ov::PartialShape{1}, data_types::i32, format::bfyx });
     set_values(data_0, {0});
-    //auto weights = engine.allocate_memory({ data_types::f16, format::bfyx, {1152, 4, 2, 2} });
 
     topology topology;
     topology.add(input_layout("input", input_layout_dynamic));
@@ -388,8 +387,6 @@ TEST(mark_shape_of_subgraphs, broadcast_w_data_and_shapeof_gather) {
     topology.add(shape_of("shape_of", input_info("input"), data_types::i32));
     topology.add(gather("gather", input_info("shape_of"), input_info("data_0"), 0, 0, {}));
     topology.add(broadcast("broadcast", input_info("data_0"), input_info("gather"), {}, ov::op::BroadcastType::BIDIRECTIONAL));
-    //topology.add(data("weights", weights));
-    //topology.add(convolution("convolution", input_info("broadcast"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -402,9 +399,10 @@ TEST(mark_shape_of_subgraphs, broadcast_w_data_and_shapeof_gather) {
     ASSERT_TRUE(check_subgraph(prog->get_node("shape_of"), prog->get_node("broadcast")));
 }
 
-TEST(mark_shape_of_subgraphs, broadcast_w_shapeof_and_data) {
+TEST(mark_shape_of_subgraphs, broadcast_w_direct_shapeof_and_data) {
     auto& engine = get_test_engine();
-    auto input_layout_dynamic = layout{ov::PartialShape{1, 4, 2, 2}, data_types::f32, format::bfyx};
+    auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), 4, ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+                                       data_types::f32, format::bfyx};
     auto target_shape = engine.allocate_memory({ ov::PartialShape{4}, data_types::i32, format::bfyx });
     set_values(target_shape, {4, 4, 1, 1});
 
