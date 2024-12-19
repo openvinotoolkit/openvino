@@ -57,6 +57,12 @@ static cv::gapi::GNetPackage getNetPackage(const std::string& tag, const OpenVIN
         } else if (std::holds_alternative<AttrMap<std::string>>(params.output_model_layout)) {
             network->cfgOutputModelLayout(std::get<AttrMap<std::string>>(params.output_model_layout));
         }
+
+        if (std::holds_alternative<AttrMap<std::vector<size_t>>>(params.reshape)) {
+            network->cfgReshape(std::get<AttrMap<std::vector<size_t>>>(params.reshape));
+        } else if (std::holds_alternative<std::vector<size_t>>(params.reshape)) {
+            network->cfgReshape(std::get<std::vector<size_t>>(params.reshape));
+        }
     }
     return cv::gapi::networks(*network);
 }
@@ -79,6 +85,9 @@ static void cfgExecutionProvider(cv::gapi::onnx::Params<cv::gapi::Generic>& netw
 static cv::gapi::GNetPackage getNetPackage(const std::string& tag, const ONNXRTParams& params) {
     cv::gapi::onnx::Params<cv::gapi::Generic> network{tag, params.model_path};
     network.cfgSessionOptions(params.session_options);
+    if (params.opt_level.has_value()) {
+        network.cfgOptLevel(params.opt_level.value());
+    }
     cfgExecutionProvider(network, params.ep);
     return cv::gapi::networks(network);
 }

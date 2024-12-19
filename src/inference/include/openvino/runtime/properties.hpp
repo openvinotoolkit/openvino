@@ -580,6 +580,12 @@ static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization
  */
 static constexpr Property<element::Type, PropertyMutability::RW> kv_cache_precision{"KV_CACHE_PRECISION"};
 
+/**
+ * @brief This property scales down activations to prevent overflows when inference precision is f16.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<float, PropertyMutability::RW> activations_scale_factor{"ACTIVATIONS_SCALE_FACTOR"};
+
 }  // namespace hint
 
 /**
@@ -795,6 +801,8 @@ struct EncryptionCallbacks {
  * when loading from the cache. This property is set in core.compile_model only.
  * - First value of the struct is encryption function.
  * - Second value of the struct is decryption function.
+ * @note GPU Plugin: encrypts whole blob, not only model structure. Only used when ov::cache_mode property is set to
+ * "OPTIMIZE_SIZE".
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<EncryptionCallbacks, PropertyMutability::WO> cache_encryption_callbacks{

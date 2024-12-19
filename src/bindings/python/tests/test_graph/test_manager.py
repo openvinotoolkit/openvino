@@ -9,10 +9,10 @@ import pytest
 
 import openvino.runtime.opset10 as ops
 from openvino import Core, Model
-from openvino.runtime.passes import Manager, Serialize, ConstantFolding, Version
+from openvino.passes import Manager, Serialize, ConstantFolding, Version
 
 from tests.test_graph.util import count_ops_of_type
-from tests.utils.helpers import create_filename_for_test, compare_models
+from tests.utils.helpers import create_filenames_for_ir, compare_models
 
 
 def create_model():
@@ -48,10 +48,27 @@ def test_constant_folding():
     assert np.allclose(values_out, values_expected)
 
 
+def test_runtime_passes_manager():
+    import openvino.runtime.passes as rt
+    node_constant = ops.constant(np.array([[0.0, 0.1, -0.1], [-2.5, 2.5, 3.0]], dtype=np.float32))
+    node_ceil = ops.ceiling(node_constant)
+    model = Model(node_ceil, [], "TestModel")
+
+    assert count_ops_of_type(model, node_ceil) == 1
+    assert count_ops_of_type(model, node_constant) == 1
+
+    pass_manager = rt.Manager()
+    pass_manager.register_pass(rt.ConstantFolding())
+    pass_manager.run_passes(model)
+
+    assert count_ops_of_type(model, node_ceil) == 0
+    assert count_ops_of_type(model, node_constant) == 1
+
+
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 @pytest.fixture
 def prepare_ir_paths(request, tmp_path):
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
 
     yield xml_path, bin_path
 
@@ -138,7 +155,7 @@ def test_serialize_pass_mixed_args_kwargs_v2(prepare_ir_paths):
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_serialize_pass_wrong_num_of_args(request, tmp_path):
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
 
     pass_manager = Manager()
     with pytest.raises(TypeError) as e:

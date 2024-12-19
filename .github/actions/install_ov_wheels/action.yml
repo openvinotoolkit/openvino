@@ -1,0 +1,48 @@
+name: 'Find and install OpenVINO Python wheels'
+description: 'Finds the OpenVINO Python wheels suitable for the "python3" executable and installs them'
+inputs:
+  wheels-dir-path:
+    description: 'Path to the directory in which wheels are located'
+    required: true
+  wheels-to-install:
+    description: 'List of wheel names to install in the form of "openvino openvino_tokenizers"'
+runs:
+  using: 'composite'
+  steps:
+    - name: Install OpenVINO Python wheels (Windows)
+      shell: pwsh
+      if: runner.os == 'Windows'
+      run: |
+        # Get the Python version
+        $pyVersion = python3 -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')"
+        
+        foreach ($wheel in $("${{ inputs.wheels-to-install }}" -split ' ')) {
+            # Search for the python-specific wheel version and install it if exists
+            $wheelPath = Get-ChildItem -Path ${{ inputs.wheels-dir-path }} -Filter "$wheel-*cp$pyVersion*.whl" | Select-Object -First 1
+            if ($wheelPath) {
+                python3 -m pip install $wheelPath.FullName
+            } else {
+                # If the python-specific version does not exist, install by name only
+                $wheelPathByName = Get-ChildItem -Path ${{ inputs.wheels-dir-path }} -Filter "$wheel-*.whl" | Select-Object -First 1
+                python3 -m pip install $wheelPathByName.FullName
+            }
+        }
+
+    - name: Install OpenVINO Python wheels (Linux and macOS)
+      shell: bash
+      if: runner.os != 'Windows'
+      run: |
+        py_version=$(python3 -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')")
+        for wheel in ${{ inputs.wheels-to-install }}; do
+          echo "Installing the ${wheel} wheel"
+          
+          # Search for the python-specific wheel version and install it if exists
+          wheel_path=$(find ${{ inputs.wheels-dir-path }} -name "$wheel-*cp$py_version*.whl")
+          echo "Wheel path: ${wheel_path}"
+          if [ -n "${wheel_path}" ]; then
+            python3 -m pip install $wheel_path
+          else
+            # If the python-specific version does not exist, install by name only
+            python3 -m pip install ${{ inputs.wheels-dir-path }}/$wheel-*.whl
+          fi
+        done

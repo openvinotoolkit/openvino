@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "cpu_types.h"
-#include "cpu_shape.h"
 
-#include <string>
 #include <sstream>
+#include <string>
+
+#include "cpu_shape.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -41,6 +42,9 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"GroupConvolution", Type::Convolution},
         {"MatMul", Type::MatMul},
         {"FullyConnected", Type::FullyConnected},
+        {"FullyConnectedCompressed", Type::FullyConnected},
+        {"FullyConnectedQuantizedLegacy", Type::FullyConnected},
+        {"FullyConnectedQuantized", Type::FullyConnected},
         {"MaxPool", Type::Pooling},
         {"AvgPool", Type::Pooling},
         {"AdaptiveMaxPool", Type::AdaptivePooling},
@@ -191,7 +195,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Atan", Type::Math},
         {"Atanh", Type::Math},
         {"Ceil", Type::Math},
-        {"Ceiling", Type::Math},
+        {"Ceiling", Type::Eltwise},
         {"Cos", Type::Math},
         {"Cosh", Type::Math},
         {"Floor", Type::Eltwise},
@@ -257,8 +261,8 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"QKVProjection", Type::QKVProjection},
         {"RMS", Type::RMS},
         {"SearchSorted", Type::SearchSorted},
-        {"ActSparseFC", Type::ActSparseFC},
-    };
+        {"LoraSubgraph", Type::LoRA},
+        {"ActSparseFC", Type::ActSparseFC}};
     return type_to_name_tbl;
 }
 
@@ -390,6 +394,7 @@ std::string NameFromType(const Type type) {
         CASE(QKVProjection);
         CASE(RMS);
         CASE(SearchSorted);
+        CASE(LoRA);
         CASE(ActSparseFC);
         CASE(Unknown);
     }
@@ -419,6 +424,7 @@ std::string algToString(const Algorithm alg) {
         CASE(EltwiseSubtract);
         CASE(EltwiseDivide);
         CASE(EltwiseFloor);
+        CASE(EltwiseCeiling);
         CASE(EltwiseFloorMod);
         CASE(EltwiseMod);
         CASE(EltwiseMaximum);
@@ -468,6 +474,10 @@ std::string algToString(const Algorithm alg) {
         CASE(FQCommon);
         CASE(FQQuantization);
         CASE(FQBinarization);
+        CASE(FullyConnectedCommon);
+        CASE(FullyConnectedCompressed);
+        CASE(FullyConnectedQuantized);
+        CASE(FullyConnectedQuantizedLegacy);
         CASE(ROIPoolingMax);
         CASE(ROIPoolingBilinear);
         CASE(ROIAlignMax);

@@ -21,11 +21,13 @@ void intel_npu::registerRunTimeOptions(OptionsDesc& desc) {
     desc.add<PROFILING_TYPE>();
     desc.add<MODEL_PRIORITY>();
     desc.add<CREATE_EXECUTOR>();
+    desc.add<DEFER_WEIGHTS_LOAD>();
     desc.add<NUM_STREAMS>();
     desc.add<ENABLE_CPU_PINNING>();
     desc.add<WORKLOAD_TYPE>();
     desc.add<TURBO>();
     desc.add<BYPASS_UMD_CACHING>();
+    desc.add<RUN_INFERENCES_SEQUENTIALLY>();
 }
 
 // Heuristically obtained number. Varies depending on the values of PLATFORM and PERFORMANCE_HINT

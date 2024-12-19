@@ -4,6 +4,11 @@
 
 #include "cpu_streams_calculation.hpp"
 
+#include <algorithm>
+#include <cstdio>
+#include <numeric>
+#include <unordered_set>
+
 #include "cpu_map_scheduling.hpp"
 #include "graph.h"
 #include "openvino/op/fake_quantize.hpp"
@@ -13,29 +18,25 @@
 #include "transformations/utils.hpp"
 #include "transformations/utils/utils.hpp"
 
-#include <algorithm>
-#include <cstdio>
-#include <numeric>
-#include <unordered_set>
-
 using namespace ov;
 using namespace ov::threading;
 
-#define INIT_VAL -100
+#define INIT_VAL     -100
 #define TP_CPU_LIMIT 32
 
 namespace ov {
 namespace intel_cpu {
 
-std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
-                                                     const bool input_streams_changed,
-                                                     const int input_threads,
-                                                     const int input_infer_requests,
-                                                     const int model_prefer_threads,
-                                                     const int input_current_socket_id,
-                                                     const std::string input_perf_hint,
-                                                     const std::set<ov::hint::ModelDistributionPolicy> hint_model_distribution_policy,
-                                                     const std::vector<std::vector<int>>& proc_type_table) {
+std::vector<std::vector<int>> get_streams_info_table(
+    const int input_streams,
+    const bool input_streams_changed,
+    const int input_threads,
+    const int input_infer_requests,
+    const int model_prefer_threads,
+    const int input_current_socket_id,
+    const std::string input_perf_hint,
+    const std::set<ov::hint::ModelDistributionPolicy> hint_model_distribution_policy,
+    const std::vector<std::vector<int>>& proc_type_table) {
     std::vector<int> stream_info(CPU_STREAMS_TABLE_SIZE, INIT_VAL);
     std::vector<std::vector<int>> streams_info_table;
     std::vector<std::vector<int>> proc_socket_table;
@@ -204,13 +205,13 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
         current_socket_id = input_current_socket_id == -1 ? get_current_socket_id() : input_current_socket_id;
         if (input_threads > 0) {
             if (hint_model_distribution_policy.size() == 0) {
+                n_threads_per_stream = std::min(input_threads, proc_type_table[0][ALL_PROC]);
+            } else {
                 for (auto& row : proc_socket_table) {
                     if (current_socket_id == row[PROC_SOCKET_ID]) {
                         n_threads_per_stream = std::min(input_threads, row[ALL_PROC]);
                     }
                 }
-            } else {
-                n_threads_per_stream = std::min(input_threads, proc_type_table[0][ALL_PROC]);
             }
             if (proc_type_table.size() == 1) {
                 if ((n_threads_per_stream > proc_type_table[0][MAIN_CORE_PROC]) &&
@@ -241,18 +242,33 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
             } else {
                 n_threads_per_stream = proc_type_table[0][ALL_PROC];
             }
-        } else if (hint_model_distribution_policy.size() == 0) {
-            for (auto& row : proc_socket_table) {
-                if (row[PROC_SOCKET_ID] == current_socket_id) {
-                    n_threads_per_stream = std::max(n_threads_per_stream, row[ALL_PROC]);
-                }
-            }
         } else {
-            for (size_t i = 1; i < proc_type_table.size(); i++) {
-                if (proc_type_table[i][PROC_SOCKET_ID] == current_socket_id) {
-                    n_threads_per_stream = std::max(n_threads_per_stream, proc_type_table[i][ALL_PROC]);
+            size_t socket_index = 0;
+            for (socket_index = 0; socket_index < proc_socket_table.size(); socket_index++) {
+                if (proc_socket_table[socket_index][PROC_SOCKET_ID] == current_socket_id) {
+                    break;
                 }
             }
+            const std::vector<int>& current_socket_info = proc_socket_table[socket_index];
+            n_threads_per_stream = model_prefer_threads == 0
+                                       ? current_socket_info[ALL_PROC]
+                                       : std::min(current_socket_info[ALL_PROC], model_prefer_threads);
+            stream_info[THREADS_PER_STREAM] = n_threads_per_stream;
+            if (current_socket_info[ALL_PROC] == current_socket_info[MAIN_CORE_PROC]) {
+                stream_info[PROC_TYPE] = MAIN_CORE_PROC;
+                update_streams_per_node(MAIN_CORE_PROC, current_socket_info);
+            } else if (current_socket_info[ALL_PROC] == current_socket_info[EFFICIENT_CORE_PROC]) {
+                stream_info[PROC_TYPE] = EFFICIENT_CORE_PROC;
+                update_streams_per_node(EFFICIENT_CORE_PROC, current_socket_info);
+            } else {
+                stream_info[PROC_TYPE] = ALL_PROC;
+                update_mix_stream_info(current_socket_info,
+                                       proc_type_table,
+                                       n_threads_per_stream,
+                                       IStreamsExecutor::Config::StreamsMode::SUB_STREAMS_NULL,
+                                       ALL_PROC);
+            }
+            update_ids_method(current_socket_info);
         }
     } else {
         n_threads =
@@ -324,8 +340,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                     n_threads_per_stream = static_cast<int>(n_threads / n_streams);
                     check_threads_per_stream();
                 } else {
-                    n_threads_per_stream =
-                        model_threads > 0 ? model_threads : static_cast<int>(n_threads / n_streams);
+                    n_threads_per_stream = model_threads > 0 ? model_threads : static_cast<int>(n_threads / n_streams);
                 }
             }
         }
@@ -474,7 +489,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                 }
             }
         }
-    } else {
+    } else if (proc_type_table.size() == 1) {
         if (stream_info[PROC_TYPE] == ALL_PROC) {
             update_mix_stream_info(proc_socket_table[0],
                                    proc_type_table,
@@ -575,7 +590,7 @@ int get_model_prefer_threads(const int num_streams,
                     (networkToleranceForLowCache.ratio_mem_limited_gemms > ov::MemBandwidthPressure::LIMITED))) {
             config.modelPreferThreads = 8;
         }
-#elif((defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__))
+#elif ((defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__))
         config.modelPreferThreads = 1;
         if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
             if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) ||

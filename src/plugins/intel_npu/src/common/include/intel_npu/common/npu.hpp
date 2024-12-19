@@ -7,9 +7,10 @@
 #include <cstdint>
 
 #include "intel_npu/common/icompiled_model.hpp"
+#include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/sync_infer_request.hpp"
 #include "intel_npu/config/config.hpp"
-#include "intel_npu/icompiler.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -47,6 +48,8 @@ public:
     virtual void* getContext() const;
     /** @brief Update backend and device info */
     virtual void updateInfo(const Config& config) = 0;
+    /** @brief Get LevelZero structures */
+    virtual const std::shared_ptr<ZeroInitStructsHolder> getInitStructs() const;
 
 protected:
     virtual ~IEngineBackend() = default;
@@ -54,22 +57,11 @@ protected:
 
 //------------------------------------------------------------------------------
 
-class IExecutor {
-public:
-    virtual ~IExecutor() = default;
-
-    virtual void setWorkloadType(const ov::WorkloadType workloadType) const = 0;
-};
-
 //------------------------------------------------------------------------------
 
 class IDevice : public std::enable_shared_from_this<IDevice> {
 public:
     using Uuid = ov::device::UUID;
-
-    virtual std::shared_ptr<IExecutor> createExecutor(
-        const std::shared_ptr<const NetworkDescription>& networkDescription,
-        const Config& config) = 0;
 
     virtual std::string getName() const = 0;
     virtual std::string getFullDeviceName() const = 0;
@@ -85,7 +77,6 @@ public:
 
     virtual std::shared_ptr<SyncInferRequest> createInferRequest(
         const std::shared_ptr<const ICompiledModel>& compiledModel,
-        const std::shared_ptr<IExecutor>& executor,
         const Config& config) = 0;
 
     virtual void updateInfo(const Config& config) = 0;

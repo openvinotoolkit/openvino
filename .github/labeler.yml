@@ -57,10 +57,12 @@
 'category: docs':
 - '**/*.md'
 - any: ['docs/**/*',
-        '!docs/snippets/**/*']
+        '!docs/snippets/**/*',
+        '!docs/articles_en/assets/snippets/**/*']
 
 'category: docs_snippets':
 - 'docs/snippets/**/*'
+- 'docs/articles_en/assets/snippets/**/*'
 
 'category: extensions':
 - 'src/core/include/openvino/core/extension.hpp'
@@ -100,10 +102,6 @@
 'category: LP transformations':
 - 'src/common/low_precision_transformations/**/*'
 
-'category: MO':
-- 'tools/mo/**/*'
-- 'tests/layer_tests/mo_python_api_tests/**/*'
-
 'category: OVC':
 - 'tools/ovc/**/*'
 - 'tests/layer_tests/ovc_python_api_tests/**/*'
@@ -119,7 +117,6 @@
 - any: ['src/bindings/js/node/CMakeLists.txt',
         'src/bindings/js/node/package.json',
         'src/bindings/js/node/package-lock.json']
-- 'tools/openvino_dev/**/*'
 
 'category: PDPD FE':
 - 'src/frontends/paddle/**/*'
@@ -183,7 +180,6 @@
 
 'category: tools':
 - any: ['tools/**',
-        '!tools/mo/**/*',
         '!tools/ovc/**/*']
 
 'category: transformations':

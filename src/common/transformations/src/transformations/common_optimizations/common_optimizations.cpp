@@ -98,6 +98,7 @@
 #include "transformations/op_conversions/convert_softmax_downgrade.hpp"
 #include "transformations/op_conversions/convert_softmax_upgrade.hpp"
 #include "transformations/op_conversions/convert_space_to_depth.hpp"
+#include "transformations/op_conversions/convert_squeeze15_downgrade.hpp"
 #include "transformations/op_conversions/convert_subtract.hpp"
 #include "transformations/op_conversions/convert_topk11_downgrade.hpp"
 #include "transformations/op_conversions/convert_xor_to_logical_xor.hpp"
@@ -235,6 +236,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     REGISTER_PASS(manager, ConvertEmbeddingBagPacked15ToEmbeddingBagPackedSum3)
     REGISTER_PASS(manager, ConvertScatterNDUpdate15ToScatterNDUpdate3)
     REGISTER_PASS(manager, ConvertSliceScatter)
+    REGISTER_PASS(manager, ConvertSqueeze15ToSqueeze0)
 
     auto fq_fusions = manager.register_pass<GraphRewrite>();
     ADD_MATCHER(fq_fusions, FakeQuantizeMulFusion)
