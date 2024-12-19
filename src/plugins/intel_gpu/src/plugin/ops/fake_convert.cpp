@@ -11,17 +11,11 @@
 
 namespace ov {
 namespace intel_gpu {
-
-static void CreateFakeConvertOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op) {
+static void CreateFakeConvertOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v13::FakeConvert>& op) {
     validate_inputs_count(op, {2, 3});
     const auto inputs = p.GetInputInfo(op);
     const std::string layerName = layer_type_name_ID(op);
-    ov::element::Type destination_type = ov::element::Type_t::f8e4m3;
-    if (auto fake_convert_v13 = std::dynamic_pointer_cast<ov::op::v13::FakeConvert>(op)) {
-        destination_type = fake_convert_v13->get_destination_element_type();
-    } else {
-        OPENVINO_THROW("[GPU] Can't cast FakeConvert operation to any supported version");
-    }
+    ov::element::Type destination_type = op->get_destination_element_type();
     std::shared_ptr<cldnn::fake_convert> fake_convert_prim = nullptr;
     if (inputs.size() == 2) {
         fake_convert_prim = std::make_shared<cldnn::fake_convert>(layerName,
