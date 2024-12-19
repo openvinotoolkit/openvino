@@ -85,8 +85,10 @@ protected:
                 if (param.wtype == ov::element::i8)
                     return weight_deq;
 
-                auto weight_shape =
-                    std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{2}, std::vector<int>{OC, IC});
+                auto weight_shape = std::make_shared<ov::op::v0::Constant>(
+                    ov::element::i32,
+                    ov::Shape{2},
+                    std::vector<int>{static_cast<int>(OC), static_cast<int>(IC)});
                 return std::make_shared<ov::opset10::Reshape>(weight_deq, weight_shape, false);
             }
             if (param.wtype == ov::element::u8 || param.wtype == ov::element::u4) {
@@ -128,8 +130,10 @@ protected:
                 if (param.wtype == ov::element::i8)
                     return weight_deq;
 
-                auto weight_shape =
-                    std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{2}, std::vector<int>{OC, IC});
+                auto weight_shape = std::make_shared<ov::op::v0::Constant>(
+                    ov::element::i32,
+                    ov::Shape{2},
+                    std::vector<int>{static_cast<int>(OC), static_cast<int>(IC)});
                 return std::make_shared<ov::opset10::Reshape>(weight_deq, weight_shape, false);
             }
             if (param.wtype == ov::element::f16) {

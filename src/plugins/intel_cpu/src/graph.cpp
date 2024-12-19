@@ -46,10 +46,6 @@
 #include "utils/precision_support.h"
 #include "utils/verbose.h"
 
-//#include "/home/tingqian/aboutSHW/include/linux_perf.hpp"
-#define PROFILE(...) LinuxPerf::Profile(__VA_ARGS__)
-#define PROFILE(...) 1
-
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
 #    include <tbb/task.h>
 #endif
@@ -1422,8 +1418,6 @@ public:
 inline void Graph::ExecuteNode(const NodePtr& node, SyncInferRequest* request, int numaId) const {
     if (request)
         request->throw_if_canceled();
-
-    auto prof = PROFILE(node->getTypeStr(), node->getOriginalLayers());
 
     node->execute(m_stream, numaId);
 }

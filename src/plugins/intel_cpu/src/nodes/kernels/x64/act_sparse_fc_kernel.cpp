@@ -1137,45 +1137,40 @@ void ActSparseFcKernel::operator()(const float* input,
         g1 *= 4;
         auto* pdst = &m_output_temp[ithr * OC];
         memset(pdst, 0, OC * sizeof(m_output_temp[0]));
-        switch (m_wtype) {
-        case WeightCompressionType::FP16:
+
+        if (m_wtype == WeightCompressionType::FP16) {
             (*m_accumulate_kernel)(pdst, OC, &m_nonzero_ids[g0], (g1 - g0), W, &m_nonzero_val[g0]);
-            break;
-        case WeightCompressionType::INT8:
+        } else if (m_wtype == WeightCompressionType::INT8) {
             if (zp) {
                 zpbuff.resize(OC);
                 (*m_decompzp_kernel)(zp, zpbuff.data(), OC);
             }
             (*m_accumulate_kernel)(pdst, OC, &m_nonzero_ids[g0], g1 - g0, W, &m_nonzero_val[g0], scales, zpbuff.data());
-            break;
-            case WeightCompressionType::INT4:
-                {
-                    zpbuff.resize(OC);
-                    int last_gid = -1;
-                    // vector x weights
-                    for (int g = g0; g < g1; g+=4) {
-                        auto ic0 = m_nonzero_ids[g];
-                        auto ic1 = m_nonzero_ids[g+1];
-                        auto ic2 = m_nonzero_ids[g+2];
-                        auto ic3 = m_nonzero_ids[g+3];
-                        auto gid = ic0 / m_ic_group_size;
-                        auto* p_scales = scales + gid*OC;
+        } else if (m_wtype == WeightCompressionType::INT4) {
+            zpbuff.resize(OC);
+            int last_gid = -1;
+            // vector x weights
+            for (int g = g0; g < g1; g += 4) {
+                auto ic0 = m_nonzero_ids[g];
+                auto ic1 = m_nonzero_ids[g + 1];
+                auto ic2 = m_nonzero_ids[g + 2];
+                auto ic3 = m_nonzero_ids[g + 3];
+                auto gid = ic0 / m_ic_group_size;
+                auto* p_scales = scales + gid * OC;
 
-                        // entering a new group, decompress zero-points
-                        if (last_gid != gid) {
-                            if (zp)
-                                (*m_decompzp_kernel)(zp + gid * (OC/2), zpbuff.data(), OC);
-                            last_gid = gid;
-                        }
-
-                        const auto* p_w0 = reinterpret_cast<const uint8_t*>(W) + ic0 * OC/2;
-                        const auto* p_w1 = reinterpret_cast<const uint8_t*>(W) + ic1 * OC/2;
-                        const auto* p_w2 = reinterpret_cast<const uint8_t*>(W) + ic2 * OC/2;
-                        const auto* p_w3 = reinterpret_cast<const uint8_t*>(W) + ic3 * OC/2;
-                        (*m_accumulate_kernel)(pdst, p_w0, p_w1, p_w2, p_w3, &m_nonzero_val[g], OC, p_scales, zpbuff.data());
-                    }
+                // entering a new group, decompress zero-points
+                if (last_gid != gid) {
+                    if (zp)
+                        (*m_decompzp_kernel)(zp + gid * (OC / 2), zpbuff.data(), OC);
+                    last_gid = gid;
                 }
-            break;
+
+                const auto* p_w0 = reinterpret_cast<const uint8_t*>(W) + ic0 * OC / 2;
+                const auto* p_w1 = reinterpret_cast<const uint8_t*>(W) + ic1 * OC / 2;
+                const auto* p_w2 = reinterpret_cast<const uint8_t*>(W) + ic2 * OC / 2;
+                const auto* p_w3 = reinterpret_cast<const uint8_t*>(W) + ic3 * OC / 2;
+                (*m_accumulate_kernel)(pdst, p_w0, p_w1, p_w2, p_w3, &m_nonzero_val[g], OC, p_scales, zpbuff.data());
+            }
         }
     });
     reduce_outputs(output, m_output_temp.data(), nthr_max, OC);
@@ -1183,4 +1178,4 @@ void ActSparseFcKernel::operator()(const float* input,
 
 }  // namespace intel_cpu
 }  // namespace ov
-#endif // OPENVINO_ARCH_X86_64
+#endif  // OPENVINO_ARCH_X86_64

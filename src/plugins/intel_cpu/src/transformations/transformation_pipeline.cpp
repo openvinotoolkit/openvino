@@ -957,8 +957,6 @@ void Transformations::PostLpt() {
             return node::ActSparseFC::isSupportedOperation(node, errorMsg);
         },
         ActivationSparsityFusion);
-    //CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::PrintModel, "xxx.cpp");
-
 #endif  // OPENVINO_ARCH_X86_64
 
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::transpose_sinking::TSShapeOfForward);
