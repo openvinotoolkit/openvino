@@ -393,7 +393,6 @@ static std::shared_ptr<SIMDJit> jit_compile_accumulate_weight(WeightCompressionT
     return jit;
 }
 
-// static inline void reduce_outputs(float* dst0, float* src0, int num_copies, int N, int64_t OC) {
 static std::shared_ptr<SIMDJit> jit_compile_reduce_outputs() {
     auto jit = std::make_shared<SIMDJit>(__func__);
     auto simd_width = jit->vmm_width<float>();
@@ -401,37 +400,55 @@ static std::shared_ptr<SIMDJit> jit_compile_reduce_outputs() {
     auto dst0 = jit->get_sreg(0, true); // float*
     auto src0 = jit->get_sreg(1, true); // float*
     auto num_copies = jit->get_sreg(2, true); // int
-    auto N = jit->get_sreg(3, true); // int
-    auto OC = jit->get_sreg(4, true); // int
+    auto OC = jit->get_sreg(3, true); // int
+    auto stride = jit->get_sreg(4, true); // int
 
     auto n = jit->get_sreg(5);
     auto i = jit->get_sreg(6);
     auto k = jit->get_sreg(7);
-    auto src_stride = jit->get_sreg(8);
-
-    jit->mov(src_stride, N);
-    jit->imul(src_stride, OC);
-
     auto ptemp = jit->get_sreg(8);
-    jit->for_loop(n, 0, N, 1, [&](){
-        jit->for_loop(i, 0, OC, simd_width, [&](){
-            jit->lea(ptemp, jit->ptr[src0 + i*sizeof(float)]);
-            auto vsum = jit->Vmm(0);
-            auto vw = jit->Vmm(1);
-            jit->simd_setzero_ps(vsum);
-            jit->for_loop(k, 0, num_copies, 1, [&](){
-                jit->simd_loadu_ps(vw, jit->ptr[ptemp]);
-                jit->vaddps(vsum, vsum, vw);
-                jit->lea(ptemp, jit->ptr[ptemp + src_stride*sizeof(float)]);
-            });
-            jit->simd_storeu_ps(jit->ptr[dst0 + i*sizeof(float)], vsum);
+
+    jit->for_loop(i, 0, OC, simd_width, [&] {
+        jit->lea(ptemp, jit->ptr[src0 + i*sizeof(float)]);
+        auto vsum = jit->Vmm(0);
+        auto vw = jit->Vmm(1);
+        jit->simd_setzero_ps(vsum);
+        jit->for_loop(k, 0, num_copies, 1, [&] {
+            jit->simd_loadu_ps(vw, jit->ptr[ptemp]);
+            jit->simd_add_ps(vsum, vsum, vw);
+            jit->lea(ptemp, jit->ptr[ptemp + stride*sizeof(float)]);
         });
-        jit->add(src0, OC);
-        jit->add(dst0, OC);
+        jit->simd_storeu_ps(jit->ptr[dst0 + i*sizeof(float)], vsum);
     });
 
     jit->finalize();
     return jit;
+}
+
+/*
+dst0 : [N, OC]
+src0 : [num_copies, N, OC]
+*/
+static inline void reduce_outputs(float* dst0, float* src0, int num_copies, int64_t OC) {
+    static auto jit_reduce = jit_compile_reduce_outputs();
+    int64_t simd_width = jit_reduce->vmm_width<float>();
+    auto prof = PROFILE("reduce_outputs");
+
+    if (OC % simd_width) {
+        throw std::runtime_error(std::string("OC is not multiple of ") + std::to_string(simd_width));
+    }
+    ov::parallel_nt(0, [&](const int ithr, const int nthr) {
+        int64_t oc0, oc1;
+        ov::splitter(OC/simd_width, nthr, ithr, oc0, oc1);
+        oc0 *= simd_width;
+        oc1 *= simd_width;
+        if (oc1 > OC) oc1 = OC;
+
+        auto* dst = dst0;
+        auto* src = src0;
+
+        (*jit_reduce)(dst0 + oc0, src0 + oc0, num_copies, oc1 - oc0, OC);
+    });
 }
 
 static std::shared_ptr<SIMDJit> jit_compile_repack_3xsimdw_1xsimdw(bool with_zp) {
@@ -529,32 +546,6 @@ static std::shared_ptr<SIMDJit> jit_compile_repack_3xsimdw_1xsimdw(bool with_zp)
     });
     jit->finalize();
     return jit;
-}
-
-/*
-dst0 : [N, OC]
-src0 : [num_copies, N, OC]
-*/
-static inline void reduce_outputs(float* dst0, float* src0, int num_copies, int N, int64_t OC) {
-    static auto jit_reduce = jit_compile_reduce_outputs();
-    int64_t simd_width = jit_reduce->vmm_width<float>();
-    auto prof = PROFILE("reduce_outputs");
-
-    if (OC % simd_width) {
-        throw std::runtime_error(std::string("OC is not multiple of ") + std::to_string(simd_width));
-    }
-    ov::parallel_nt(0, [&](const int ithr, const int nthr) {
-        int64_t oc0, oc1;
-        ov::splitter(OC/simd_width, nthr, ithr, oc0, oc1);
-        oc0 *= simd_width;
-        oc1 *= simd_width;
-        if (oc1 > OC) oc1 = OC;
-
-        auto* dst = dst0;
-        auto* src = src0;
-
-        (*jit_reduce)(dst0 + oc0, src0 + oc0, num_copies, N, oc1 - oc0);
-    });
 }
 
 static std::shared_ptr<SIMDJit> jit_compile_repack_2xsimdw(WeightCompressionType wtype, bool with_zero_point = false) {
@@ -905,7 +896,7 @@ static void MM_ComputeBounded_reuseA_i4(
         // deocompress zero-point into scratch buffer
         if (zp) {
             const auto* pzp = zp + n0/2;
-            int n = n0 + (*decompress_zp_u4)(pzp, zero_points, n1);
+            int n = n0 + (*decompress_zp_u4)(pzp, zero_points, n1 - n0);
             for (; n < n1; n += 2, pzp++) {
                 zero_points[n - n0] = (*pzp) & 0xF;
                 zero_points[n - n0 + 1] = (*pzp) >> 4;
@@ -1066,7 +1057,6 @@ void ActSparseFcKernel::operator()(const float* input,
             return;
         }
         if (m_wtype == WeightCompressionType::INT4) {
-            // a reference impl
             parallel_nt(0, [&](const int ithr, const int nthr) {
                 int n0, n1;
                 splitter(OC/(2*SIMDW), nthr, ithr, n0, n1);
@@ -1110,7 +1100,7 @@ void ActSparseFcKernel::operator()(const float* input,
     }
 
     auto nthr_max = parallel_get_max_threads();
-    m_output_temp.resize(nthr_max * M * OC);
+    m_output_temp.resize(nthr_max * OC);
 
     thread_local std::vector<float> zpbuff;
 
@@ -1119,11 +1109,11 @@ void ActSparseFcKernel::operator()(const float* input,
         splitter(m_nonzero_cnt/4, nthr, ithr, g0, g1);
         g0 *= 4;
         g1 *= 4;
-        auto* pdst = &m_output_temp[ithr * M * OC];
-        memset(pdst, 0, M * OC * sizeof(m_output_temp[0]));
+        auto* pdst = &m_output_temp[ithr * OC];
+        memset(pdst, 0, OC * sizeof(m_output_temp[0]));
         switch (m_wtype) {
             case WeightCompressionType::FP16:
-                (*m_accumulate_kernel)(pdst, (OC), &m_nonzero_ids[g0], (g1 - g0), W, &m_nonzero_val[g0]);
+                (*m_accumulate_kernel)(pdst, OC, &m_nonzero_ids[g0], (g1 - g0), W, &m_nonzero_val[g0]);
             break;
             case WeightCompressionType::INT8:
                 if (zp) {
@@ -1137,7 +1127,7 @@ void ActSparseFcKernel::operator()(const float* input,
                     zpbuff.resize(OC);
                     int last_gid = -1;
                     // vector x weights
-                    for (int g = 0; g < m_nonzero_cnt; g+=4) {
+                    for (int g = g0; g < g1; g+=4) {
                         auto ic0 = m_nonzero_ids[g];
                         auto ic1 = m_nonzero_ids[g+1];
                         auto ic2 = m_nonzero_ids[g+2];
@@ -1162,7 +1152,7 @@ void ActSparseFcKernel::operator()(const float* input,
             break;
         }
     });
-    reduce_outputs(output, m_output_temp.data(), nthr_max, M, OC);
+    reduce_outputs(output, m_output_temp.data(), nthr_max, OC);
 }
 
 }  // namespace intel_cpu

@@ -64,7 +64,7 @@ static int get_SIMDW() {
 //    - if_(rax > rbx)
 //    - if_(rax == rbx)
 //    - if_(rax <= 8)
-//
+// Note lhs & rhs of binary operator can only be register or imm32, not a general expression
 struct RegCmp {
     struct RegImm {
         int32_t id; /* imm32 or regid */
@@ -188,6 +188,10 @@ public:
         }
     }
 
+    // simd_xxx helpers have meaning similar to x86 intrinsics
+    // it's more well-known than raw instruction can it also can be
+    // made cross-platform(avx2/avx512/neon/...)
+
     void simd_set1_epi32(Xbyak::Xmm vmm, int32_t imm32) {
         // this set1 is not performance critical
         mov(dword[rsp - 4], imm32);
@@ -237,6 +241,9 @@ public:
     }
     void simd_sub_ps(Xbyak::Xmm c, Xbyak::Xmm a, Xbyak::Xmm b) {
         vsubps(c, a, b);
+    }
+    void simd_add_ps(Xbyak::Xmm c, Xbyak::Xmm a, Xbyak::Xmm b) {
+        vaddps(c, a, b);
     }
     void simd_mul_ps(Xbyak::Xmm c, Xbyak::Xmm a, Xbyak::Xmm b) {
         vmulps(c, a, b);
