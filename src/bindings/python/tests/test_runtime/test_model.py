@@ -815,6 +815,13 @@ def test_copy_failed():
     assert "Cannot copy 'openvino.runtime.Model'. Please, use deepcopy instead." in str(e.value)
 
 
+def test_model_attr_not_found():
+    model = generate_add_model()
+    with pytest.raises(AttributeError) as e:
+        _ = model.not_found_attr
+    assert "'openvino._pyopenvino.Model' object has no attribute 'not_found_attr'" in str(e.value)
+
+
 def test_model_with_statement():
     mem_model = generate_model_with_memory(input_shape=Shape([2, 1]), data_type=Type.f32)
     with tempfile.TemporaryDirectory() as model_save_dir:
@@ -822,14 +829,16 @@ def test_model_with_statement():
 
         with Core().read_model(f"{model_save_dir}/model.xml") as model:
             assert mem_model.friendly_name == model.friendly_name
-
-        assert model.friendly_name is None  # Model.__model is set to None
+   
         with pytest.raises(AttributeError):
             save_model(model, f"{model_save_dir}/model.xml")
 
+    # Behavior after exiting the context manager
     with mem_model as model:
         pass
-    assert mem_model.friendly_name is None
+    assert type(mem_model) == Model
+    with pytest.raises(AttributeError, match="attribute is no longer accessible."):
+            model.friendly_name
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")

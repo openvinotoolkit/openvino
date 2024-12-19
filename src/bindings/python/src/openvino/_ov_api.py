@@ -39,8 +39,9 @@ class Model:
             self.__model = ModelBase(**kwargs)
 
     def __getattr__(self, name: str) -> Any:
-        if hasattr(self.__model, name):
-            return getattr(self.__model, name)
+        if self.__model is None:
+            raise AttributeError(f"'Model' object has no attribute '{name}' or attribute is no longer accessible.")
+        return getattr(self.__model, name)
 
     def clone(self) -> "Model":
         return Model(self.__model.clone())
