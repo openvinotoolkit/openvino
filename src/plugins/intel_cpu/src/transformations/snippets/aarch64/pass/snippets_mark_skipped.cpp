@@ -212,6 +212,13 @@ auto is_skipped_op(const std::shared_ptr<ov::Node>& op) -> bool {
     return ov::is_type<ov::op::v0::Constant>(op) || ov::is_type<ov::op::v0::Parameter>(op) ||
            ov::is_type<ov::op::v0::Result>(op);
 }
+
+bool isSuitableMatMulWithConstantPath(const std::shared_ptr<Node>& node) {
+    return ov::is_type<ov::opset1::MatMul>(node) &&
+           !ov::is_type<ov::opset1::Constant>(node->get_input_node_shared_ptr(1)) &&
+           ov::op::util::is_on_constant_path(node->input_value(1));
+}
+
 }  // namespace
 
 bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
@@ -220,6 +227,15 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
     for (auto& node : m->get_ordered_ops()) {
         if (is_skipped_op(node))
             continue;
+        // We perform this check separately because we mark here only weights path
+        // Matmul itself will be checked further
+        if (isSuitableMatMulWithConstantPath(node)) {
+            auto markup_func = [](Node* node) {
+                SetSnippetsNodeType(node->shared_from_this(), snippets::pass::SnippetsNodeType::SkippedByPlugin);
+            };
+            std::unordered_set<Node*> visited;
+            ov::op::util::visit_constant_path(node->get_input_node_ptr(1), visited, markup_func);
+        }
         if (isSuitableConvolutionParent(node)) {
             // Initiate fusing chain
             SetNodeFusingType(node, NodeFusingType::FusedWithConvolution);
