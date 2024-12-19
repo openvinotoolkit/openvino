@@ -40,6 +40,7 @@ RUN apt-get update && \
         # Compilers
         gcc \
         g++ \
+        # xuantie-gnu-toolchain
         autoconf \
         automake \
         autotools-dev \
