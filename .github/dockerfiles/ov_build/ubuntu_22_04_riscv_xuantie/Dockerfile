@@ -40,6 +40,23 @@ RUN apt-get update && \
         # Compilers
         gcc \
         g++ \
+        autoconf \
+        automake \
+        autotools-dev \
+        libmpc-dev \
+        libmpfr-dev\ 
+        libgmp-dev \
+        gawk \
+        build-essential \
+        bison \
+        flex \
+        texinfo \
+        gperf \
+        libtool \
+        patchutils \
+        bc \
+        zlib1g-dev \
+        libexpat-dev \
         && \
     rm -rf /var/lib/apt/lists/*
 
@@ -71,10 +88,10 @@ ARG XUINTIE_PATH="/opt/riscv"
 ARG XUINTIE_TMP_PATH="/tmp/xuantie"
 ARG XUINTIE_SRC="/tmp/xuantie/src"
     
-RUN mkdir -p ${XUINTIE_TMP_PATH} && cd ${XUINTIE_TMP_PATH} && \
-    git clone --branch ${XUANTIE_VERSION} --depth 1 ${XUANTIE_REPO} ${XUINTIE_SRC} && \
-    cd ${XUINTIE_SRC} && ./configure --prefix=${XUINTIE_PATH} && make -j$(nproc) && make install && \
-    rm -rf ${XUINTIE_TMP_PATH}
+RUN mkdir -p ${XUINTIE_TMP_PATH}
+RUN cd ${XUINTIE_TMP_PATH} && git clone --branch ${XUANTIE_VERSION} --depth 1 ${XUANTIE_REPO} ${XUINTIE_SRC}
+RUN cd ${XUINTIE_SRC} && ./configure --prefix=${XUINTIE_PATH} && make -j$(nproc) && make install
+RUN rm -rf ${XUINTIE_TMP_PATH}
     
 # Setup pip
 ENV PIP_VERSION="24.0"
