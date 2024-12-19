@@ -19,14 +19,14 @@ ExecutionConfig::ExecutionConfig() : ov::PluginConfig() {
 }
 
 ExecutionConfig::ExecutionConfig(const ExecutionConfig& other) : ExecutionConfig() {
-    user_properties = other.user_properties;
+    m_user_properties = other.m_user_properties;
     for (const auto& kv : other.m_options_map) {
         m_options_map.at(kv.first)->set_any(kv.second->get_any());
     }
 }
 
 ExecutionConfig& ExecutionConfig::operator=(const ExecutionConfig& other) {
-    user_properties = other.user_properties;
+    m_user_properties = other.m_user_properties;
     for (const auto& kv : other.m_options_map) {
         m_options_map.at(kv.first)->set_any(kv.second->get_any());
     }

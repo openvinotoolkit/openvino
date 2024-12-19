@@ -34,22 +34,31 @@ ov::Any PluginConfig::get_property(const std::string& name) const {
 }
 
 void PluginConfig::set_user_property(const AnyMap& config) {
-    static std::vector<OptionVisibility> allowed_visibility = {OptionVisibility::RELEASE};
-    set_user_property(config, allowed_visibility);
+    const static std::vector<OptionVisibility> allowed_visibility = {OptionVisibility::RELEASE};
+    const bool throw_on_error = true;
+    set_user_property(config, allowed_visibility, throw_on_error);
 }
 
-void PluginConfig::set_user_property(const ov::AnyMap& config, const std::vector<OptionVisibility>& allowed_visibility) {
+void PluginConfig::set_user_property(const ov::AnyMap& config, const std::vector<OptionVisibility>& allowed_visibility, bool throw_on_error) {
     for (auto& kv : config) {
         auto& name = kv.first;
         auto& val = kv.second;
 
         auto option = get_option_ptr(name);
         if (std::find(allowed_visibility.begin(), allowed_visibility.end(), option->get_visibility()) == allowed_visibility.end()) {
-            OPENVINO_THROW("Unkown property: ", name);
+            if (throw_on_error)
+                OPENVINO_THROW("Unkown property: ", name);
+            else
+                continue;
         }
-        OPENVINO_ASSERT(option->is_valid_value(val), "Invalid value: ", val.as<std::string>(), " for property: ",  name);
+        if (!option->is_valid_value(val)) {
+            if (throw_on_error)
+                OPENVINO_THROW("Invalid value: ", val.as<std::string>(), " for property: ",  name);
+            else
+                continue;
+        }
 
-        user_properties[name] = val;
+        m_user_properties[name] = val;
     }
 }
 
@@ -61,7 +70,7 @@ void PluginConfig::finalize(std::shared_ptr<IRemoteContext> context, const ov::R
     // E.g num_streams=AUTO && hint=THROUGHPUT
     // If we apply hints first and then copy all values from user config to internal one,
     // then we'll get num_streams=AUTO in final config while some integer number is expected.
-    for (const auto& prop : user_properties) {
+    for (const auto& prop : m_user_properties) {
         auto& option = m_options_map.at(prop.first);
         option->set_any(prop.second);
     }
@@ -69,7 +78,7 @@ void PluginConfig::finalize(std::shared_ptr<IRemoteContext> context, const ov::R
     finalize_impl(context);
 
     // Clear properties after finalize_impl to be able to check if a property was set by user during plugin-side finalization
-    user_properties.clear();
+    m_user_properties.clear();
 }
 
 void PluginConfig::apply_debug_options(std::shared_ptr<IRemoteContext> context) {
@@ -81,14 +90,17 @@ void PluginConfig::apply_debug_options(std::shared_ptr<IRemoteContext> context) 
 #endif
     };
 
+    const bool throw_on_error = false;
+
     if (context) {
         ov::AnyMap config_properties = read_config_file("config.json", context->get_device_name());
         cleanup_unsupported(config_properties);
-        set_user_property(config_properties, allowed_visibility);
+        set_user_property(config_properties, allowed_visibility, throw_on_error);
     }
 
     ov::AnyMap env_properties = read_env({"OV_"});
-    set_user_property(env_properties, allowed_visibility);
+    cleanup_unsupported(env_properties);
+    set_user_property(env_properties, allowed_visibility, throw_on_error);
 }
 
 ov::AnyMap PluginConfig::read_config_file(const std::string& filename, const std::string& target_device_name) const {
@@ -155,10 +167,9 @@ ov::AnyMap PluginConfig::read_env(const std::vector<std::string>& prefixes) cons
 
 void PluginConfig::cleanup_unsupported(ov::AnyMap& config) const {
     for (auto it = config.begin(); it != config.end();) {
-        const auto& known_options = m_options_map;
         auto& name = it->first;
-        auto opt_it = std::find_if(known_options.begin(), known_options.end(), [&](const OptionMapEntry& o) { return o.first == name; });
-        if (opt_it == known_options.end()) {
+        auto opt_it = std::find_if(m_options_map.begin(), m_options_map.end(), [&](const OptionMapEntry& o) { return o.first == name; });
+        if (opt_it == m_options_map.end()) {
             it = config.erase(it);
         } else {
             ++it;
@@ -176,7 +187,7 @@ std::string PluginConfig::to_string() const {
         s << "\t" << option.first << ": " << option.second->get_any().as<std::string>() << std::endl;
     }
     s << "USER PROPERTIES:\n";
-    for (const auto& user_prop : user_properties) {
+    for (const auto& user_prop : m_user_properties) {
         s << "\t" << user_prop.first << ": " << user_prop.second.as<std::string>() << std::endl;
     }
 
