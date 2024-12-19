@@ -9,6 +9,7 @@
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/einsum.hpp"
@@ -26,7 +27,7 @@
 
 namespace {
 /// \brief      Check if the EinsumDecomposition transformation is applicable to a given Einsum.
-/// The transformation is applicable if input subscript does not have repeated labels and ellipsis.
+/// The transformation is applicable if input subscript does not have repeated labels.
 ///
 /// \param      subscript          A subscript to check its format
 ///
@@ -35,7 +36,7 @@ namespace {
 bool is_subscript_applicable(const std::string& subscript) {
     auto labels = ov::op::v7::Einsum::extract_labels(subscript);
     auto unique_labels = std::unordered_set<std::string>(labels.begin(), labels.end());
-    return std::find(labels.begin(), labels.end(), "...") == labels.end() && unique_labels.size() == labels.size();
+    return unique_labels.size() == labels.size();
 }
 
 /// \brief      Compute einsum_path for a given Einsum node meaning that the (pseudo-)optimal
@@ -174,7 +175,88 @@ void update_operands(ov::OutputVector& input_nodes,
     input_subscripts.erase(input_subscripts.begin() + input_ind1);
     input_subscripts.push_back(new_subscript);
 }
+using LabelDimMap = std::unordered_map<std::string, std::vector<size_t>>;
 
+LabelDimMap compute_label_dim_map(const ov::Rank& input_rank, const std::string& input_subscript) {
+    static const std::string ellipsis = "...";
+    const auto labels = ov::op::v7::Einsum::extract_labels(input_subscript);
+    const auto static_input_rank = input_rank.is_static();
+    OPENVINO_ASSERT(static_input_rank || (std::find(labels.begin(), labels.end(), ellipsis) == labels.end()),
+                    "Input rank cannot be dynamic in case of ellipsis in input subscript");
+    const size_t input_rank_length = static_input_rank ? input_rank.get_length() : labels.size();
+    OPENVINO_ASSERT(input_rank_length >= labels.size());
+    const size_t num_broadcasted_dims = input_rank_length - labels.size() + 1;
+    OPENVINO_ASSERT(num_broadcasted_dims > 0);
+
+    LabelDimMap resulted_map;
+    size_t current_dim = 0;
+    for (const auto& label : labels) {
+        if (label == ellipsis) {
+            std::vector<size_t> label_dims(num_broadcasted_dims);
+            std::iota(label_dims.begin(), label_dims.end(), current_dim);
+            resulted_map[label] = label_dims;
+            current_dim += num_broadcasted_dims;
+        } else if (resulted_map.find(label) != resulted_map.end()) {
+            resulted_map[label].push_back(current_dim);
+            ++current_dim;
+        } else {
+            std::vector<size_t> label_dims;
+            label_dims.push_back(current_dim);
+            resulted_map[label] = label_dims;
+            ++current_dim;
+        }
+    }
+
+    return resulted_map;
+}
+
+void compute_ranges(const ov::Rank& input_rank,
+                    const std::string& input_subscript,
+                    const std::vector<std::string>& common_labels,
+                    const std::vector<std::string>& sep_labels,
+                    const std::vector<std::string>& reduced_labels,
+                    size_t& common_begin,
+                    size_t& common_end,
+                    size_t& sep_begin,
+                    size_t& sep_end,
+                    size_t& reduced_begin,
+                    size_t& reduced_end,
+                    bool is_separated_first) {
+    auto label_to_dim_map = compute_label_dim_map(input_rank, input_subscript);
+    static const std::string ellipsis = "...";
+
+    size_t common_rank = common_labels.size();
+    if (std::find(common_labels.begin(), common_labels.end(), ellipsis) != common_labels.end()) {
+        OPENVINO_ASSERT(label_to_dim_map.find(ellipsis) != label_to_dim_map.end());
+        common_rank += label_to_dim_map[ellipsis].size() - 1;
+    }
+
+    size_t sep_rank = sep_labels.size();
+    if (std::find(sep_labels.begin(), sep_labels.end(), ellipsis) != sep_labels.end()) {
+        OPENVINO_ASSERT(label_to_dim_map.find(ellipsis) != label_to_dim_map.end());
+        sep_rank += label_to_dim_map[ellipsis].size() - 1;
+    }
+
+    size_t reduced_rank = reduced_labels.size();
+    if (std::find(reduced_labels.begin(), reduced_labels.end(), ellipsis) != reduced_labels.end()) {
+        OPENVINO_ASSERT(label_to_dim_map.find(ellipsis) != label_to_dim_map.end());
+        reduced_rank += label_to_dim_map[ellipsis].size() - 1;
+    }
+
+    common_begin = 0;
+    common_end = common_begin + common_rank;
+    if (is_separated_first) {
+        sep_begin = common_end;
+        sep_end = sep_begin + sep_rank;
+        reduced_begin = sep_end;
+        reduced_end = reduced_begin + reduced_rank;
+    } else {
+        reduced_begin = common_end;
+        reduced_end = reduced_begin + reduced_rank;
+        sep_begin = reduced_end;
+        sep_end = sep_begin + sep_rank;
+    }
+}
 /// \brief      Return input node with computed sub-shape defined by a range [s_begin;s_end)
 ///
 /// \param      data_shape          Input node that contains some tensor shape
@@ -241,6 +323,84 @@ ov::Output<ov::Node> unsqueeze_input(const ov::Output<ov::Node>& input_node,
     auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(input_node, unsqueeze_axes_const);
     subgraph_nodes.insert(subgraph_nodes.end(), {unsqueeze_axes_const, unsqueeze});
     return unsqueeze->output(0);
+}
+
+ov::OutputVector broadcast_merge_shapes(ov::OutputVector& shapes_lhs,
+                                        ov::OutputVector& shapes_rhs,
+                                        ov::NodeVector& subgraph_nodes) {
+    // TODO - Refactor func to remove loop and duplicated Broadcast.
+    OPENVINO_ASSERT(shapes_lhs.size() == shapes_rhs.size());
+    ov::OutputVector broadcasted_shape_nodes{shapes_lhs.size()};
+
+    for (size_t shp_i = 0; shp_i < shapes_lhs.size(); shp_i++) {
+        auto const_1 = ov::op::v0::Constant::create(ov::element::Type_t::i64, ov::Shape{1}, {1});
+        auto tmp_const_of_lhs_shp =
+            std::make_shared<ov::op::v3::Broadcast>(const_1, shapes_lhs[shp_i], ov::op::BroadcastType::NUMPY);
+        auto tmp_const_of_broadcasted_shp =
+            std::make_shared<ov::op::v3::Broadcast>(tmp_const_of_lhs_shp,
+                                                    shapes_rhs[shp_i],
+                                                    ov::op::BroadcastType::BIDIRECTIONAL);
+        auto broadcasted_shape = std::make_shared<ov::op::v3::ShapeOf>(tmp_const_of_broadcasted_shp);
+        broadcasted_shape_nodes[shp_i] = broadcasted_shape;
+        subgraph_nodes.insert(subgraph_nodes.end(),
+                              {const_1, tmp_const_of_lhs_shp, tmp_const_of_broadcasted_shp, broadcasted_shape});
+    }
+    return broadcasted_shape_nodes;
+}
+
+/// \brief      Broadcast input node to the new shape specified by broadcasted sub-shapes of the common,
+/// separate and reduced dimensions so that the broadcasted input has a format acceptable by Reshape MatMul
+///
+/// \param      input_node              Input node to reshape
+/// \param      common_sub_shape        A sub-shape corresponding to the broadcasted common dimensions
+/// \param      separate_sub_shape      A sub-shape corresponding to the broadcasted separate dimensions
+/// \param      reduced_sub_shape_prod  A product of the broadcasted separate dimensions sizes
+/// \param      is_separate_first       true - the separate dimensions placed before reduced
+/// dimensions, otherwise, it is after them
+/// \param      subgraph_nodes          A vector of operation nodes that is included into
+/// a sub-graph decomposing Einsum that is needed for copy_runtime_info
+///
+/// \return     Broadcasted input node
+///
+ov::Output<ov::Node> broadcast_input(const ov::Output<ov::Node>& input_node,
+                                     const ov::OutputVector& common_sub_shape,
+                                     const ov::OutputVector& separate_sub_shape,
+                                     const ov::OutputVector& reduced_sub_shape,
+                                     bool is_separate_first,
+                                     ov::NodeVector& subgraph_nodes) {
+    ov::OutputVector new_shape_parts;
+    new_shape_parts.insert(new_shape_parts.end(), common_sub_shape.begin(), common_sub_shape.end());
+    // form a new shape for input so that collapsed dimensions corresponding
+    // to the common, separate and reduced dimensions are placed in the correct order
+    if (is_separate_first) {
+        new_shape_parts.insert(new_shape_parts.end(), separate_sub_shape.begin(), separate_sub_shape.end());
+        new_shape_parts.insert(new_shape_parts.end(), reduced_sub_shape.begin(), reduced_sub_shape.end());
+    } else {
+        new_shape_parts.insert(new_shape_parts.end(), reduced_sub_shape.begin(), reduced_sub_shape.end());
+        new_shape_parts.insert(new_shape_parts.end(), separate_sub_shape.begin(), separate_sub_shape.end());
+    }
+
+    // in case of scalar reshape is not needed
+    if (new_shape_parts.size() == 0) {
+        return input_node;
+    }
+    auto new_shape_op = std::make_shared<ov::op::v0::Concat>(new_shape_parts, 0);
+    // if new shape is possible to compute on the shape infer stage, insert Constant node immediately
+    // in order to prevent repeated computing during constant-folding pass
+    std::shared_ptr<ov::op::v3::Broadcast> reshaped_input_op;
+    if (auto new_shape_const = ov::util::get_constant_from_source(new_shape_op)) {
+        reshaped_input_op =
+            std::make_shared<ov::op::v3::Broadcast>(input_node, new_shape_const, ov::op::BroadcastType::BIDIRECTIONAL);
+        subgraph_nodes.insert(subgraph_nodes.end(), {new_shape_const});
+    } else {
+        reshaped_input_op = std::make_shared<ov::op::v3::Broadcast>(input_node,
+                                                                    new_shape_op->output(0),
+                                                                    ov::op::BroadcastType::BIDIRECTIONAL);
+        subgraph_nodes.insert(subgraph_nodes.end(), {new_shape_op});
+    }
+
+    subgraph_nodes.insert(subgraph_nodes.end(), {reshaped_input_op});
+    return reshaped_input_op->output(0);
 }
 
 /// \brief      Reshape input node to the new shape specified by sub-shapes of the common,
@@ -334,7 +494,7 @@ void transpose_input(ov::OutputVector& input_nodes,
                      size_t input_ind,
                      ov::NodeVector& subgraph_nodes) {
     // perform sanity check for arguments
-    auto num_inputs = input_nodes.size();
+    const auto num_inputs = input_nodes.size();
     OPENVINO_ASSERT(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
     OPENVINO_ASSERT(input_ind < num_inputs, "Input index is out of range.");
 
@@ -350,21 +510,22 @@ void transpose_input(ov::OutputVector& input_nodes,
 
     // find permutation that establishes bijection between the input subscript
     // and the required one
-    auto labels = ov::op::v7::Einsum::extract_labels(input_subscript);
-    auto required_labels = ov::op::v7::Einsum::extract_labels(required_subscript);
+    const auto& input_node = input_nodes[input_ind];
+    const auto labels = ov::op::v7::Einsum::extract_labels(input_subscript);
+    const auto required_labels = ov::op::v7::Einsum::extract_labels(required_subscript);
     OPENVINO_ASSERT(labels.size() == required_labels.size());
+    const auto label_dim_map = compute_label_dim_map(input_node.get_partial_shape().rank(), input_subscript);
     for (const auto& required_label : required_labels) {
-        auto it = std::find(labels.begin(), labels.end(), required_label);
-        OPENVINO_ASSERT(it != labels.end());
-        int64_t found_index = static_cast<int64_t>(it - labels.begin());
-        permutation.push_back(found_index);
+        const auto label_dims_it = label_dim_map.find(required_label);
+        OPENVINO_ASSERT(label_dims_it != label_dim_map.end());
+        const auto& label_dims = label_dims_it->second;
+        permutation.insert(permutation.end(), label_dims.begin(), label_dims.end());
     }
 
     // create a sub-graph for transposing into the required layout
-    const auto& input_node = input_nodes[input_ind];
-    auto permutation_const =
+    const auto permutation_const =
         ov::op::v0::Constant::create(ov::element::Type_t::i64, ov::Shape{permutation.size()}, permutation);
-    auto transpose = std::make_shared<ov::op::v1::Transpose>(input_node, permutation_const);
+    const auto transpose = std::make_shared<ov::op::v1::Transpose>(input_node, permutation_const);
 
     // update a vector of inputs and input subscripts
     input_nodes[input_ind] = transpose->output(0);
@@ -468,6 +629,11 @@ void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
     const auto& input_node1 = input_nodes[input_ind1];
     const auto& input_node2 = input_nodes[input_ind2];
 
+    // extract diagonals in case repeated labels in the corresponding input subscripts
+    // TODO
+    // extract_diagonal(einsum_decompose_ptr, input_nodes, input_subscripts, input_ind1, subgraph_nodes);
+    // extract_diagonal(einsum_decompose_ptr, input_nodes, input_subscripts, input_ind2, subgraph_nodes);
+
     // reduce dimensions for input operands if possible
     reduce_input(einsum_decompose_ptr, input_nodes, input_subscripts, output_subscript, input_ind1, subgraph_nodes);
     reduce_input(einsum_decompose_ptr, input_nodes, input_subscripts, output_subscript, input_ind2, subgraph_nodes);
@@ -491,6 +657,7 @@ void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
     std::vector<int64_t> common_labels_inds1, common_labels_inds2;
     std::vector<int64_t> separate_labels_inds1, separate_labels_inds2;
     std::vector<int64_t> reduced_labels_inds1, reduced_labels_inds2;
+    std::vector<std::string> common_labels, sep_labels1, sep_labels2, reduced_labels;  // +++++
     for (size_t label_ind = 0; label_ind < labels1.size(); ++label_ind) {
         const auto& label = labels1[label_ind];
         auto iter = std::find(labels2.begin(), labels2.end(), label);
@@ -501,13 +668,16 @@ void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
             if (is_dim_reduced) {
                 reduced_labels_inds1.push_back(static_cast<int64_t>(label_ind));
                 reduced_labels_inds2.push_back(static_cast<int64_t>(iter - labels2.begin()));
+                reduced_labels.push_back(label);
             } else {
                 common_labels_inds1.push_back(static_cast<int64_t>(label_ind));
                 common_labels_inds2.push_back(static_cast<int64_t>(iter - labels2.begin()));
+                common_labels.push_back(label);
             }
         } else {
             separate_part1 += label;
             separate_labels_inds1.push_back(static_cast<int64_t>(label_ind));
+            sep_labels1.push_back(label);
         }
     }
     for (size_t label_ind = 0; label_ind < labels2.size(); ++label_ind) {
@@ -516,6 +686,7 @@ void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
         if (iter == labels1.end()) {
             separate_part2 += label;
             separate_labels_inds2.push_back(static_cast<int64_t>(label_ind));
+            sep_labels2.push_back(label);
         }
     }
 
@@ -601,26 +772,71 @@ void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
 
     auto matmul_operand1 = input_node1;
     auto matmul_operand2 = input_node2;
-    int64_t common_dims_begin = 0;
-    int64_t common_dims_end = common_labels_inds1.size();
+
+    size_t common_dims_begin, common_dims_end, reduced_dims_begin, reduced_dims_end, separate1_dims_begin,
+        separate1_dims_end;
+    compute_ranges(input_node1.get_partial_shape().rank(),
+                   input_subscript1,
+                   common_labels,
+                   sep_labels1,
+                   reduced_labels,
+                   common_dims_begin,
+                   common_dims_end,
+                   separate1_dims_begin,
+                   separate1_dims_end,
+                   reduced_dims_begin,
+                   reduced_dims_end,
+                   is_separate_first1);
+
+    size_t common_dims_begin2, common_dims_end2, reduced_dims_begin2, reduced_dims_end2, separate2_dims_begin,
+        separate2_dims_end;
+    compute_ranges(input_node2.get_partial_shape().rank(),
+                   input_subscript2,
+                   common_labels,
+                   sep_labels2,
+                   reduced_labels,
+                   common_dims_begin2,
+                   common_dims_end2,
+                   separate2_dims_begin,
+                   separate2_dims_end,
+                   reduced_dims_begin2,
+                   reduced_dims_end2,
+                   is_separate_first2);
+
+    no_reshape_for_matmul1 = false;
+    no_reshape_for_matmul2 = false;
+    // // no_reshape_after_matmul = false;
     ov::OutputVector common_sub_shape, separate1_sub_shape, separate2_sub_shape;
+
     if (no_reshape_for_matmul1 == false || no_reshape_for_matmul2 == false) {
         auto data_shape1 = std::make_shared<ov::op::v3::ShapeOf>(input_node1);
+        auto data_shape2 = std::make_shared<ov::op::v3::ShapeOf>(input_node2);
         common_sub_shape = compute_sub_shape(data_shape1, common_dims_begin, common_dims_end, subgraph_nodes);
-        int64_t reduced_dims_begin = (is_separate_first1 ? common_labels_inds1.size() + separate_labels_inds1.size()
-                                                         : common_labels_inds1.size());
-        int64_t reduced_dims_end = reduced_dims_begin + reduced_labels_inds1.size();
+        auto common_sub_shape2 = compute_sub_shape(data_shape2, common_dims_begin2, common_dims_end2, subgraph_nodes);
+        OPENVINO_ASSERT(common_sub_shape.size() == common_sub_shape2.size());
+        common_sub_shape = broadcast_merge_shapes(common_sub_shape, common_sub_shape2, subgraph_nodes);
         auto reduced_sub_shape_prod =
             compute_sub_shape(data_shape1, reduced_dims_begin, reduced_dims_end, subgraph_nodes, true);
+        auto reduced_sub_shape_prod2 =
+            compute_sub_shape(data_shape2, reduced_dims_begin2, reduced_dims_end2, subgraph_nodes, true);
+        auto reduced_sub_shape =
+            compute_sub_shape(data_shape1, reduced_dims_begin, reduced_dims_end, subgraph_nodes, false);
+        auto reduced_sub_shape2 =
+            compute_sub_shape(data_shape2, reduced_dims_begin2, reduced_dims_end2, subgraph_nodes, false);
 
+        reduced_sub_shape_prod =
+            broadcast_merge_shapes(reduced_sub_shape_prod, reduced_sub_shape_prod2, subgraph_nodes);
+        reduced_sub_shape = broadcast_merge_shapes(reduced_sub_shape, reduced_sub_shape2, subgraph_nodes);
         if (no_reshape_for_matmul1 == false || no_reshape_after_matmul == false) {
-            int64_t separate1_dims_begin =
-                (is_separate_first1 ? common_labels_inds1.size()
-                                    : common_labels_inds1.size() + reduced_labels_inds1.size());
-            int64_t separate1_dims_end = separate1_dims_begin + separate_labels_inds1.size();
             separate1_sub_shape =
                 compute_sub_shape(data_shape1, separate1_dims_begin, separate1_dims_end, subgraph_nodes);
-            matmul_operand1 = reshape_input_for_matmul(input_node1,
+            auto broadcasted1 = broadcast_input(input_node1,
+                                                common_sub_shape,
+                                                separate1_sub_shape,
+                                                reduced_sub_shape,
+                                                is_separate_first1,
+                                                subgraph_nodes);
+            matmul_operand1 = reshape_input_for_matmul(broadcasted1,
                                                        common_sub_shape,
                                                        separate1_sub_shape,
                                                        reduced_sub_shape_prod,
@@ -629,14 +845,15 @@ void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
         }
 
         if (no_reshape_for_matmul2 == false || no_reshape_after_matmul == false) {
-            auto data_shape2 = std::make_shared<ov::op::v3::ShapeOf>(input_node2);
-            int64_t separate2_dims_begin =
-                (is_separate_first2 ? common_labels_inds2.size()
-                                    : common_labels_inds2.size() + reduced_labels_inds2.size());
-            int64_t separate2_dims_end = separate2_dims_begin + separate_labels_inds2.size();
             separate2_sub_shape =
                 compute_sub_shape(data_shape2, separate2_dims_begin, separate2_dims_end, subgraph_nodes);
-            matmul_operand2 = reshape_input_for_matmul(input_node2,
+            auto broadcasted2 = broadcast_input(input_node2,
+                                                common_sub_shape,
+                                                separate2_sub_shape,
+                                                reduced_sub_shape,
+                                                is_separate_first2,
+                                                subgraph_nodes);
+            matmul_operand2 = reshape_input_for_matmul(broadcasted2,
                                                        common_sub_shape,
                                                        separate2_sub_shape,
                                                        reduced_sub_shape_prod,
@@ -654,8 +871,11 @@ void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
 
     // step 4. reshape back by unrolling dimensions corresponding to separate labels if needed
     // now dimensions corresponding to reduced labels are reduced by the MatMul operation
-    std::string resultant_subscript =
-        input_subscript1.substr(common_dims_begin, common_dims_end) + separate_part1 + separate_part2;
+    common_part = "";
+    for (const auto& common_label : common_labels) {
+        common_part += common_label;
+    }
+    const std::string resultant_subscript = common_part + separate_part1 + separate_part2;
     if (no_reshape_after_matmul) {
         // this is a case when Reshape is not needed after MatMul operation
         // since there are no collapsed (or auxiliary added) separated dimensions
@@ -667,12 +887,12 @@ void contract_two_inputs(ov::pass::EinsumDecomposition* einsum_decompose_ptr,
         new_shape.insert(new_shape.end(), separate2_sub_shape.begin(), separate2_sub_shape.end());
         auto result_shape_op = std::make_shared<ov::op::v0::Concat>(new_shape, 0);
 
-        // if new shape is possible to compute on the shape infer stage, insert Constant node immediatelly
+        // if new shape is possible to compute on the shape infer stage, insert Constant node immediately
         // in order to prevent repeated computing during constant-folding pass
         std::shared_ptr<ov::op::v1::Reshape> result_op;
         if (auto new_shape_const = ov::util::get_constant_from_source(result_shape_op)) {
             result_op = std::make_shared<ov::op::v1::Reshape>(matmul->output(0), new_shape_const, false);
-            subgraph_nodes.insert(subgraph_nodes.end(), {new_shape_const});
+            subgraph_nodes.insert(subgraph_nodes.end(), {result_shape_op, new_shape_const});
         } else {
             result_op = std::make_shared<ov::op::v1::Reshape>(matmul->output(0), result_shape_op->output(0), false);
             subgraph_nodes.insert(subgraph_nodes.end(), {result_shape_op});
@@ -723,6 +943,12 @@ ov::pass::EinsumDecomposition::EinsumDecomposition() {
         // and a vector of sub-graph nodes for copy_runtime_info
         ov::OutputVector input_nodes = einsum_node->input_values();
         ov::NodeVector subgraph_nodes;
+        // check that the transformation is applicable
+        if (std::any_of(input_nodes.cbegin(), input_nodes.cend(), [](ov::Output<Node> node) {
+                return node.get_partial_shape().rank().is_dynamic();
+            })) {
+            return false;
+        }
 
         // compute einsum path that is used to contract a pair of operands
         // in more optimal order
@@ -739,13 +965,15 @@ ov::pass::EinsumDecomposition::EinsumDecomposition() {
                                 subgraph_nodes);
         }
 
-        // reduce dimensions for the remained input node
         OPENVINO_ASSERT(input_nodes.size() == 1);
-        reduce_input(this, input_nodes, input_subscripts, output_subscript, 0, subgraph_nodes);
 
+        // extract diagonal for the single operand
+        // TODO
+        // extract_diagonal(this, input_nodes, input_subscripts, 0, subgraph_nodes);
+        // reduce dimensions for the remained input node
+        reduce_input(this, input_nodes, input_subscripts, output_subscript, 0, subgraph_nodes);
         // transpose dimensions to layout required by the output subscript
         transpose_input(input_nodes, input_subscripts, output_subscript, 0, subgraph_nodes);
-
         // replace the original Einsum node with the last node from decomposing sub-graph
         // preserve the original node name
         auto last_node = input_nodes[0].get_node_shared_ptr();
