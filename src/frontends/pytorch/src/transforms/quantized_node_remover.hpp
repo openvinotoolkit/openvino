@@ -20,7 +20,7 @@ namespace pass {
  */
 class QuantizedNodeRemover : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::pytorch::pass::QuantizedNodeRemover");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::pytorch::pass::QuantizedNodeRemover");
     QuantizedNodeRemover();
 };
 
