@@ -23,34 +23,31 @@ void PluginConfig::set_property(const AnyMap& config) {
         auto& name = kv.first;
         auto& val = kv.second;
 
-        const auto& known_options = m_options_map;
-        auto it = std::find_if(known_options.begin(), known_options.end(), [&](const OptionMapEntry& o) { return o.first == name; });
-        OPENVINO_ASSERT(it != known_options.end(), "Option not found: ", name);
-        OPENVINO_ASSERT(it->second != nullptr, "Option is invalid: ", name);
-
-        it->second->set_any(val);
+        auto option = get_option_ptr(name);
+        option->set_any(val);
     }
 }
 
 ov::Any PluginConfig::get_property(const std::string& name) const {
-    const auto& known_options = m_options_map;
-    auto it = std::find_if(known_options.begin(), known_options.end(), [&](const OptionMapEntry& o) { return o.first == name; });
-    OPENVINO_ASSERT(it != known_options.end(), "Option not found: ", name);
-    OPENVINO_ASSERT(it->second != nullptr, "Option is invalid: ", name);
-
-    return it->second->get_any();
+    auto option = get_option_ptr(name);
+    return option->get_any();
 }
 
 void PluginConfig::set_user_property(const AnyMap& config) {
+    static std::vector<OptionVisibility> allowed_visibility = {OptionVisibility::RELEASE};
+    set_user_property(config, allowed_visibility);
+}
+
+void PluginConfig::set_user_property(const ov::AnyMap& config, const std::vector<OptionVisibility>& allowed_visibility) {
     for (auto& kv : config) {
         auto& name = kv.first;
         auto& val = kv.second;
 
-        const auto& known_options = m_options_map;
-        auto it = std::find_if(known_options.begin(), known_options.end(), [&](const OptionMapEntry& o) { return o.first == name; });
-        OPENVINO_ASSERT(it != known_options.end(), "Option not found: ", name);
-        OPENVINO_ASSERT(it->second != nullptr, "Option is invalid: ", name);
-        OPENVINO_ASSERT(it->second->is_valid_value(val), "Invalid value: ", val.as<std::string>(), " for property: ",  name);
+        auto option = get_option_ptr(name);
+        if (std::find(allowed_visibility.begin(), allowed_visibility.end(), option->get_visibility()) == allowed_visibility.end()) {
+            OPENVINO_THROW("Unkown property: ", name);
+        }
+        OPENVINO_ASSERT(option->is_valid_value(val), "Invalid value: ", val.as<std::string>(), " for property: ",  name);
 
         user_properties[name] = val;
     }
@@ -76,14 +73,22 @@ void PluginConfig::finalize(std::shared_ptr<IRemoteContext> context, const ov::R
 }
 
 void PluginConfig::apply_debug_options(std::shared_ptr<IRemoteContext> context) {
+    static std::vector<OptionVisibility> allowed_visibility = {
+        OptionVisibility::RELEASE,
+        OptionVisibility::RELEASE_INTERNAL,
+#ifdef ENABLE_DEBUG_CAPS
+        OptionVisibility::DEBUG
+#endif
+    };
+
     if (context) {
         ov::AnyMap config_properties = read_config_file("config.json", context->get_device_name());
         cleanup_unsupported(config_properties);
-        set_user_property(config_properties);
+        set_user_property(config_properties, allowed_visibility);
     }
 
     ov::AnyMap env_properties = read_env({"OV_"});
-    set_user_property(env_properties);
+    set_user_property(env_properties, allowed_visibility);
 }
 
 ov::AnyMap PluginConfig::read_config_file(const std::string& filename, const std::string& target_device_name) const {
