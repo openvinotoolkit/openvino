@@ -8,7 +8,7 @@
 #include "transformations/cpu_opset/x64/op/act_sparse_fc.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64)
-#include "kernels/x64/mlp_kernel.hpp"
+#    include "kernels/x64/mlp_kernel.hpp"
 #endif
 
 namespace ov {
@@ -32,8 +32,7 @@ public:
     }
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;
-    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
-                                     std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     struct ExecutorBase {

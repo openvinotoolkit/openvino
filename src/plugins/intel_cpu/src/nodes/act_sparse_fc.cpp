@@ -158,16 +158,7 @@ struct ActSparseFC::Executor : public ActSparseFC::ExecutorBase {
         const auto& ishape = m_node->getSrcMemoryAtPort(0)->getStaticDims();
         int M = shape_size(ishape) / ishape[ishape.size() - 1];
 
-        (*m_kernel)(input,
-                    output,
-                    M,
-                    m_config.ic,
-                    m_config.oc,
-                    m_config.threshold,
-                    0,
-                    weight,
-                    scales,
-                    zp);
+        (*m_kernel)(input, output, M, m_config.ic, m_config.oc, m_config.threshold, 0, weight, scales, zp);
     }
 };
 #else
