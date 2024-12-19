@@ -11,7 +11,7 @@ namespace intel_gpu {
 
 class ConvertStridedSlicesToVariadicSplit : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertStridedSlicesToVariadicSplit", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertStridedSlicesToVariadicSplit");
     ConvertStridedSlicesToVariadicSplit();
 };
 

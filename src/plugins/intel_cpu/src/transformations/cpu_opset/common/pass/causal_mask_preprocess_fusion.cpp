@@ -24,7 +24,7 @@ using namespace ov::gen_pattern;
 
 class CausalMaskPreprocess : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("CausalMaskPreprocess", "0");
+    OPENVINO_MATCHER_PASS_RTTI("CausalMaskPreprocess");
     CausalMaskPreprocess();
 
 private:

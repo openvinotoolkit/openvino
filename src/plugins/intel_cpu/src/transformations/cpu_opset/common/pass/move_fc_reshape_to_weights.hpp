@@ -25,7 +25,7 @@ namespace intel_cpu {
  */
 class MoveFCReshapeToWeights : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MoveFCReshapeToWeights", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MoveFCReshapeToWeights");
     MoveFCReshapeToWeights();
 };
 

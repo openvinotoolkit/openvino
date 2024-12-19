@@ -18,7 +18,7 @@ namespace pass {
  */
 class BrgemmToBrgemmTPP: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("BrgemmToBrgemmTPP", "0");
+    OPENVINO_MATCHER_PASS_RTTI("BrgemmToBrgemmTPP");
     BrgemmToBrgemmTPP();
 
     static bool is_supported_brgemm_configuration(const std::vector<std::vector<size_t>>& layouts,

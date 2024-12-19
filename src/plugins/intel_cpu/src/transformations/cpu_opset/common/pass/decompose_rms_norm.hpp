@@ -11,7 +11,7 @@ namespace intel_cpu {
 
 class DecomposeRMSNorm : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("DecomposeRMSNorm", "0");
+    OPENVINO_MATCHER_PASS_RTTI("DecomposeRMSNorm");
     DecomposeRMSNorm();
 };
 

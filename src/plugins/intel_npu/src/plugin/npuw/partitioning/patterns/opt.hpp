@@ -64,31 +64,37 @@ struct Context {
 
 class DQMatMulCWi : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQMatMulCWi");
     explicit DQMatMulCWi(Context::Ref ctx);
 };
 
 class DQMatMulGQi : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQMatMulGQi");
     explicit DQMatMulGQi(Context::Ref ctx);
 };
 
 class DQMatMulGQ2i : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQMatMulGQ2i");
     explicit DQMatMulGQ2i(Context::Ref ctx);
 };
 
 class DQMatMulGQiP : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQMatMulGQiP");
     explicit DQMatMulGQiP(Context::Ref ctx);
 };
 
 class DQMatMulGQ2iP : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQMatMulGQ2iP");
     explicit DQMatMulGQ2iP(Context::Ref ctx);
 };
 
 class DQParMMGQ : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQParMMGQ");
     explicit DQParMMGQ(Context::Ref ctx);
 };
 
@@ -98,16 +104,19 @@ void mergeParallelMatMuls(const std::shared_ptr<ov::Model>& m, Context& ctx);
 
 class DQLiftGatherAsymCW : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQLiftGatherAsymCW");
     DQLiftGatherAsymCW();
 };
 
 class DQLiftGatherSymCW : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQLiftGatherSymCW");
     DQLiftGatherSymCW();
 };
 
 class DQLiftGatherSymGQ : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQLiftGatherSymGQ");
     DQLiftGatherSymGQ();
 };
 
@@ -115,21 +124,25 @@ public:
 
 class DQUnpackDictGatheru : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQUnpackDictGatheru");
     DQUnpackDictGatheru(Context::Ref ctx);
 };
 
 class DQUnpackDictGatherGQi : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQUnpackDictGatherGQi");
     DQUnpackDictGatherGQi(Context::Ref ctx);
 };
 
 class HostGather : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::HostGather");
     HostGather(Context::Ref ctx);
 };
 
 class HostGatherDQ : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::HostGatherDQ");
     HostGatherDQ(Context::Ref ctx);
 };
 
@@ -137,43 +150,51 @@ public:
 
 class DQUnpackDictMatMulCWu : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQUnpackDictMatMulCWu");
     DQUnpackDictMatMulCWu(Context::Ref ctx);
 };
 
 class DQUnpackDictMatMulGQi : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQUnpackDictMatMulGQi");
     DQUnpackDictMatMulGQi(Context::Ref ctx);
 };
 
 class CompressDictMatMulf32 : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::CompressDictMatMulf32");
     CompressDictMatMulf32(Context::Ref ctx);
 };
 
 // Slice last Matmul
 class SliceLastMatmul : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::SliceLastMatmul");
     SliceLastMatmul();
 };
 
 class SliceLastMatmulAdd : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::SliceLastMatmulAdd");
     SliceLastMatmulAdd();
 };
 
 class SliceLastMatmulTranspose : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::SliceLastMatmulTranspose");
     SliceLastMatmulTranspose();
 };
 
 class SliceLastMatmulMultiply : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::SliceLastMatmulMultiply");
     SliceLastMatmulMultiply();
 };
 
 // Convolution to MatMul
 class ConvToMatmul : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::ConvToMatmul");
     ConvToMatmul(Context::Ref ctx);
 };
 
