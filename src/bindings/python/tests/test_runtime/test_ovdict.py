@@ -9,7 +9,7 @@ import pytest
 import openvino.runtime.opset13 as ops
 from openvino import Core, CompiledModel, InferRequest, Model
 from openvino.runtime import ConstOutput
-from openvino.runtime.ie_api import OVDict
+from openvino.runtime.utils.data_helpers import OVDict
 
 
 def _get_ovdict(

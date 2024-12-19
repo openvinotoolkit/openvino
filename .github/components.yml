@@ -149,6 +149,7 @@ PyTorch_FE:
   build:
     - CPU
     - Python_API
+    - TOKENIZERS # PyTorch_FE tests depend on tokenizers build
 
 JAX_FE:
   revalidate:
@@ -174,6 +175,7 @@ Python_API:
     - OVC
     - tools
     - TF_FE
+    - docs_snippets
   build:
     - CPU
     - HETERO
@@ -242,6 +244,12 @@ tools:
 docs:
   revalidate: []
   build: []
+  
+docs_snippets:
+  revalidate:
+    - docs_snippets
+  build:
+    - Python_API
 
 licensing:
   revalidate: []

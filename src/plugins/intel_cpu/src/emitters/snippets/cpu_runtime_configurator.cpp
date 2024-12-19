@@ -8,8 +8,8 @@
 #include "snippets/utils/utils.hpp"
 
 #ifndef OPENVINO_ARCH_ARM64
-#include "transformations/snippets/x64/pass/lowered/brgemm_copy_b_loop_ports_adjuster.hpp"
-#include "transformations/snippets/x64/pass/lowered/external_repacking_adjuster.hpp"
+#    include "transformations/snippets/x64/pass/lowered/brgemm_copy_b_loop_ports_adjuster.hpp"
+#    include "transformations/snippets/x64/pass/lowered/external_repacking_adjuster.hpp"
 #endif
 namespace ov {
 namespace intel_cpu {
@@ -21,7 +21,8 @@ const size_t CPURuntimeConfigurator::rank6D = 6;
 std::string CPURuntimeConfig::to_string() const {
     std::stringstream out;
     out << RuntimeConfig::to_string();
-    out << "Loop Parameters:" << "\n";
+    out << "Loop Parameters:"
+        << "\n";
     for (size_t i = 0; i < loop_args.size(); ++i) {
         const auto& loop = loop_args[i];
         out << "\t[" << i << "] WA: " << loop.m_work_amount << "\n";
@@ -38,8 +39,8 @@ std::string CPURuntimeConfig::to_string() const {
 }
 #endif
 
-CPURuntimeConfigurator::CPURuntimeConfigurator() : ov::snippets::RuntimeConfigurator(std::make_shared<CPURuntimeConfig>()) {
-}
+CPURuntimeConfigurator::CPURuntimeConfigurator()
+    : ov::snippets::RuntimeConfigurator(std::make_shared<CPURuntimeConfig>()) {}
 
 void CPURuntimeConfigurator::initialization(const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
     RuntimeConfigurator::initialization(linear_ir);
@@ -78,12 +79,14 @@ void CPURuntimeConfigurator::update_loop_args(const ov::snippets::lowered::Linea
         const auto& data_sizes = loop_info->get_data_sizes();
 
         auto& loop_arg = cpu_config->loop_args[idx];
-        loop_arg = jit_snippets_call_args::loop_args_t(loop_info->get_work_amount(), loop_info->get_ptr_increments(), loop_info->get_finalization_offsets());
+        loop_arg = jit_snippets_call_args::loop_args_t(loop_info->get_work_amount(),
+                                                       loop_info->get_ptr_increments(),
+                                                       loop_info->get_finalization_offsets());
         for (int64_t i = 0; i < loop_arg.m_num_data_ptrs; ++i) {
             loop_arg.m_ptr_increments[i] *= (increment * data_sizes[i]);
             loop_arg.m_finalization_offsets[i] *= data_sizes[i];
         }
     }
 }
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov
