@@ -6,13 +6,10 @@
 #include <cstddef>
 #include <vector>
 
-#include "openvino/core/type/bfloat16.hpp"
-#include "openvino/core/type/float16.hpp"
+#include "simd_jit.hpp"
 
 namespace ov {
 namespace intel_cpu {
-
-class JitKernel;
 
 enum class WeightCompressionType {
     FP16 = 0,
@@ -40,8 +37,8 @@ public:
 private:
     const WeightCompressionType m_wtype;
     const bool m_with_zp;
-    JitKernel* m_decompzp_kernel;
-    JitKernel* m_accumulate_kernel;
+    SIMDJit* m_decompzp_kernel;
+    SIMDJit* m_accumulate_kernel;
     const int m_ic_group_size;
 
     std::vector<int> m_nonzero_ids;
