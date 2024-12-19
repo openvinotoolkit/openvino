@@ -29,7 +29,7 @@ class Pruning;
  */
 class ov::pass::InitMasks : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("InitMasks", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("InitMasks");
     InitMasks();
 };
 
@@ -56,7 +56,7 @@ public:
  */
 class ov::pass::PropagateMasks : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("PropagateMasks", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("PropagateMasks");
     PropagateMasks();
 };
 

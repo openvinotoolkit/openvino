@@ -38,7 +38,7 @@ namespace intel_gpu {
 ///              └───────────┘                                                                   └───────────────┘
 class IndirectKVCache : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("IndirectKVCache", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("IndirectKVCache");
     IndirectKVCache();
 };
 

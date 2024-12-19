@@ -82,7 +82,7 @@ public:
 
 class ov::pass::ConvertReduceToReshape : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("ConvertReduceToReshape", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("ConvertReduceToReshape");
     // Handling reduce if it can be converted to reshape (check input/output tensor)
     ConvertReduceToReshape() {
         // Redundant reduce based on its mode

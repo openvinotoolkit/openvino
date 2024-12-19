@@ -50,7 +50,7 @@ public:
  */
 class ov::pass::MVNFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("MVNFusion", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("MVNFusion");
     MVNFusion() {
         add_matcher<ov::pass::MVNFusionWithoutConstants>();
         add_matcher<ov::pass::MVNFusionWithConstantsInside>();

@@ -45,7 +45,7 @@ public:
  */
 class ov::pass::LSTMCellFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("LSTMCellFusion", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("LSTMCellFusion");
     LSTMCellFusion() {
         add_matcher<ov::pass::LSTMCellFusionWithJointWeights>();
         add_matcher<ov::pass::LSTMCellFusionWithSplitWeights>();

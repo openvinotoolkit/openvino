@@ -90,7 +90,7 @@ private:
  */
 class ov::pass::RoPEFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("RoPEFusion", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("RoPEFusion");
     RoPEFusion(bool support_2d_rope = false) {
         add_matcher<ov::pass::RoPEFusionFlux>();
         add_matcher<ov::pass::RoPEFusionGPTNEOX>();

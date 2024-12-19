@@ -21,7 +21,7 @@ class TRANSFORMATIONS_API RemoveFilteringBoxesBySize;
 
 class ov::pass::FuseFilteringBoxesBySize : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("FuseFilteringBoxesBySize", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("FuseFilteringBoxesBySize");
     FuseFilteringBoxesBySize();
 };
 

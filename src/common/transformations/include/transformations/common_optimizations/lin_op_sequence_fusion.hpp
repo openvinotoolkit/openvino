@@ -45,7 +45,7 @@ public:
  */
 class ov::pass::LinOpSequenceFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("LinOpSequenceFusion", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("LinOpSequenceFusion");
     LinOpSequenceFusion() {
         add_matcher<ov::pass::AddMultiplyFusion>();
         add_matcher<ov::pass::AddAddFusion>();

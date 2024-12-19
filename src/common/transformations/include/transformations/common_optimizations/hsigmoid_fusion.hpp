@@ -79,7 +79,7 @@ public:
  */
 class ov::pass::HSigmoidFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("HSigmoidFusion", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("HSigmoidFusion");
     HSigmoidFusion() {
         add_matcher<ov::pass::HSigmoidFusionWithReluDiv>();
         add_matcher<ov::pass::HSigmoidFusionWithReluMul>();
