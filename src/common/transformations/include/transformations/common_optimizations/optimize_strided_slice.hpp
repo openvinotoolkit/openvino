@@ -71,7 +71,7 @@ public:
  */
 class ov::pass::SliceSequenceToSingleSlice : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SliceSequenceToSingleSlice", "0");
+    OPENVINO_MATCHER_PASS_RTTI("SliceSequenceToSingleSlice");
     SliceSequenceToSingleSlice();
 };
 

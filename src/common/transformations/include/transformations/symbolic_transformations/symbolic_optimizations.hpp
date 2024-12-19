@@ -58,6 +58,6 @@ public:
  */
 class ov::pass::LabelResolvingThroughSelect : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("LabelResolvingThroughSelect", "0");
+    OPENVINO_MATCHER_PASS_RTTI("LabelResolvingThroughSelect");
     LabelResolvingThroughSelect();
 };
