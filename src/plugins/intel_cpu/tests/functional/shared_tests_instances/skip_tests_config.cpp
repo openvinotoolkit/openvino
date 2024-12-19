@@ -377,7 +377,8 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*smoke_EltwiseChain_MergeConvert_int8/.*InPRC0=i32.*Conversion=i8.*)");
     // by calc abs_threshold with expected value
     retVector.emplace_back(R"(.*smoke_CompareWithRefs_static/EltwiseLayerTest.*_eltwise_op_type=Div_.*_model_type=i32_.*)");
-
+    // int8 / code-generation specific
+    retVector.emplace_back(R"(smoke_LPT.*)");
     retVector.emplace_back(R"(.*smoke_RoPETest.*)");
 #endif
 
@@ -479,8 +480,6 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_TestsDFT_(1|2|3|4)d/DFTLayerTest.Inference.*)");
     // Issue 88764, 91647, 108802: accuracy issue
     retVector.emplace_back(R"(MultipleLSTMCellTest/MultipleLSTMCellTest.CompareWithRefs.*)");
-    // int8 / code-generation specific
-    retVector.emplace_back(R"(smoke_LPT.*)");
     // Compressed weights are not supported
     retVector.emplace_back(R"(smoke_MatMulCompressedWeights.*)");
     retVector.emplace_back(R"(smoke_MatMulSharedCompressedWeights.*)");
@@ -565,6 +564,11 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_Snippets_MHA.*EnforceBF16.*)");
         retVector.emplace_back(R"(.*ConcatSDPTest.*bf16.*)");
     }
+    // MHA FP16 precision is only supported on amx_fp16 platform
+    if (!ov::with_cpu_x86_avx512_core_amx_fp16()) {
+        retVector.emplace_back(R"(.*smoke_Snippets_MHA.*FP16.*)");
+    }
+
 #ifdef SNIPPETS_LIBXSMM_TPP
     // GN in TPP requires exposing tmp Buffer results outside the loop (ticket: 151234)
     retVector.emplace_back(R"(.*smoke_Snippets_GroupNormalization.*)");
