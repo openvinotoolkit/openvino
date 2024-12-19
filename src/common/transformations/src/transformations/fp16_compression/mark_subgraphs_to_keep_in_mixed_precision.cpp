@@ -244,8 +244,8 @@ public:
 
 class MarkExp : public pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("MarkExp");
     // only exponent that go into ReduceOp should be marked as precision sensitive and kept in f32
-    OPENVINO_RTTI("MarkExp", "0");
     MarkExp() {
         MATCHER_SCOPE(MarkExp);
         auto exp_pattern = pattern::wrap_type<ov::op::v0::Exp>();
