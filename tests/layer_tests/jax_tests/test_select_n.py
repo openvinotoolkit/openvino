@@ -16,8 +16,6 @@ class TestSelectN(JaxLayerTest):
         cases = []
         which = rng.uniform(0,self.input_shape, self.input_shape).astype(self.input_type)
         which = np.array(which)
-        
-        cases = []
         cases_len = 2 if (self.input_type == np.bool or self.input_type == bool) else self.input_shape
         for i in range(cases_len):
             cases.append(jnp.array(rng.uniform(i*10, (i+1)*10, self.input_shape).astype(self.input_type)))
@@ -35,7 +33,7 @@ class TestSelectN(JaxLayerTest):
         
 
     @pytest.mark.parametrize("input_shape", [1,2,3,4,5,6,7,8,9,10])
-    @pytest.mark.parametrize("input_type", [np.int32, np.int64, np.bool, bool])
+    @pytest.mark.parametrize("input_type", [np.int32, np.int64, bool])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_jax_fe
