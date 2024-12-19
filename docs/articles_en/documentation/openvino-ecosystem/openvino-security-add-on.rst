@@ -735,7 +735,7 @@ How to Use the OpenVINO™ Security Add-on
 
 This section requires interactions between the Model Developer/Independent Software vendor and the User. All roles must complete all applicable :ref:`set up steps <setup_host>` and :ref:`installation steps <install_ovsa>` before beginning this section.
 
-This document uses the `face-detection-retail-0004 <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/face-detection-retail-0004/README.md>`__ model as an example.
+This document uses a face-detection model as an example.
 
 The following figure describes the interactions between the Model Developer, Independent Software Vendor, and User.
 
@@ -793,15 +793,8 @@ Step 2: Create a key store and add a certificate to it
 Step 3: Create the model
 ------------------------
 
-This example uses ``curl`` to download the ``face-detection-retail-004`` model from the OpenVINO Model Zoo. If you are behind a firewall, check and set your proxy settings.
-
-Download a model from the Model Zoo:
-
-.. code-block:: sh
-
-   curl --create-dirs https://download.01.org/opencv/2021/openvinotoolkit/2021.1/open_../legacy-features/model-zoo/models_bin/1/face-detection-retail-0004/FP32/face-detection-retail-0004.xml https://download.01.org/opencv/2021/openvinotoolkit/2021.1/open_../legacy-features/model-zoo/models_bin/1/face-detection-retail-0004/FP32/face-detection-retail-0004.bin -o model/face-detection-retail-0004.xml -o model/face-detection-retail-0004.bin
-
-The model is downloaded to the ``OVSA_DEV_ARTEFACTS/model`` directory
+Download a `model <https://huggingface.co/OpenVINO>`__ in OpenVINO IR format to
+the ``OVSA_DEV_ARTEFACTS/model`` directory.
 
 Step 4: Define access control for  the model and create a master license for it
 -------------------------------------------------------------------------------
@@ -811,9 +804,9 @@ Define and enable the model access control and master license:
 .. code-block:: sh
 
    uuid=$(uuidgen)
-   /opt/ovsa/bin/ovsatool controlAccess -i model/face-detection-retail-0004.xml model/face-detection-retail-0004.bin -n "face detection" -d "face detection retail" -v 0004 -p face_detection_model.dat -m face_detection_model.masterlic -k isv_keystore -g $uuid
+   /opt/ovsa/bin/ovsatool controlAccess -i model/<name-of-the-model>.xml model/<name-of-the-model>.bin -n "name of the model" -d "detailed name of the model" -p <name-of-the-model>.dat -m <name-of-the-model>.masterlic -k isv_keystore -g $uuid
 
-The Intermediate Representation files for the ``face-detection-retail-0004`` model are encrypted as ``face_detection_model.dat`` and a master license is generated as ``face_detection_model.masterlic``
+The Intermediate Representation files for the model are encrypted as ``<name-of-the-model>.dat`` and a master license is generated as ``<name-of-the-model>.masterlic``
 
 Step 5: Create a Runtime Reference TCB
 --------------------------------------
@@ -824,7 +817,7 @@ Generate the reference TCB for the runtime
 
 .. code-block:: sh
 
-   /opt/ovsa/bin/ovsaruntime gen-tcb-signature -n "Face Detect @ Runtime VM" -v "1.0" -f face_detect_runtime_vm.tcb -k isv_keystore
+   /opt/ovsa/bin/ovsaruntime gen-tcb-signature -n "Face Detect @ Runtime VM" -v "1.0" -f model_inference_runtime_vm.tcb -k isv_keystore
 
 
 Step 6: Publish the access controlled Model and Runtime Reference TCB
@@ -856,7 +849,7 @@ Step 7: Receive a User Request
    .. code-block:: sh
 
       cd $OVSA_DEV_ARTEFACTS
-      /opt/ovsa/bin/ovsatool sale -m face_detection_model.masterlic -k isv_keystore -l 30daylicense.config -t face_detect_runtime_vm.tcb -p custkeystore.csr.crt -c face_detection_model.lic
+      /opt/ovsa/bin/ovsatool sale -m <name-of-the-model>.masterlic -k isv_keystore -l 30daylicense.config -t detect_runtime_vm.tcb -p custkeystore.csr.crt -c <name-of-the-model>.lic
 
 
 4. Update the license server database with the license.
@@ -864,13 +857,13 @@ Step 7: Receive a User Request
    .. code-block:: sh
 
       cd /opt/ovsa/DB
-      python3 ovsa_store_customer_lic_cert_db.py ovsa.db $OVSA_DEV_ARTEFACTS/face_detection_model.lic $OVSA_DEV_ARTEFACTS/custkeystore.csr.crt
+      python3 ovsa_store_customer_lic_cert_db.py ovsa.db $OVSA_DEV_ARTEFACTS/<name-of-the-model>.lic $OVSA_DEV_ARTEFACTS/custkeystore.csr.crt
 
 
 5. Provide these files to the User:
 
-   * ``face_detection_model.dat``
-   * ``face_detection_model.lic``
+   * ``<name-of-the-model>.dat``
+   * ``<name-of-the-model>.lic``
 
 Model User Instructions
 +++++++++++++++++++++++
@@ -930,14 +923,14 @@ Step 4: Receive and load the access controlled model into the OpenVINO™ Model 
 
 1. Receive the model as files named:
 
-   * face_detection_model.dat
-   * face_detection_model.lic
+   * <name-of-the-model>.dat
+   * <name-of-the-model>.lic
 
    .. code-block:: sh
 
       cd $OVSA_RUNTIME_ARTEFACTS
-      scp username@<developer-vm-ip-address>:/<username-home-directory>/OVSA/artefacts/face_detection_model.dat .
-      scp username@<developer-vm-ip-address>:/<username-home-directory>/OVSA/artefacts/face_detection_model.lic .
+      scp username@<developer-vm-ip-address>:/<username-home-directory>/OVSA/artefacts/<name-of-the-model>.dat .
+      scp username@<developer-vm-ip-address>:/<username-home-directory>/OVSA/artefacts/<name-of-the-model>.lic .
 
 2. Prepare the environment:
 
@@ -954,8 +947,8 @@ Step 4: Receive and load the access controlled model into the OpenVINO™ Model 
    .. code-block:: sh
 
       cd $OVSA_RUNTIME_ARTEFACTS/../ovms
-      cp $OVSA_RUNTIME_ARTEFACTS/face_detection_model.dat model/fd/1/.
-      cp $OVSA_RUNTIME_ARTEFACTS/face_detection_model.lic model/fd/1/.
+      cp $OVSA_RUNTIME_ARTEFACTS/<name-of-the-model>.dat model/fd/1/.
+      cp $OVSA_RUNTIME_ARTEFACTS/<name-of-the-model>.lic model/fd/1/.
       cp $OVSA_RUNTIME_ARTEFACTS/custkeystore model/fd/1/.
 
 4. Rename and edit ``sample.json`` to include the names of the access controlled model artefacts you received from the Model Developer. The file looks like this:
@@ -976,7 +969,7 @@ Step 4: Receive and load the access controlled model into the OpenVINO™ Model 
       	"config":{
 	   	"name":"controlled-access-model",
       		"base_path":"/sampleloader/model/fd",
-	   	"custom_loader_options": {"loader_name":  "ovsa", "keystore":  "custkeystore", "controlled_access_file": "face_detection_model"}
+	   	"custom_loader_options": {"loader_name":  "ovsa", "keystore":  "custkeystore", "controlled_access_file": "<name-of-the-model>"}
       	}
       	}
       ]
@@ -1010,7 +1003,7 @@ Step 6: Prepare to run Inference
       pip3 install futures==3.1.1
       pip3 install tensorflow-serving-api==1.14.0
 
-3. Copy the ``face_detection.py`` from the example_client in ``/opt/ovsa/example_client``
+3. Copy the ``detection.py`` from the example_client in ``/opt/ovsa/example_client``
 
    .. code-block:: sh
 
@@ -1027,11 +1020,11 @@ Step 6: Prepare to run Inference
 Step 7: Run Inference
 ---------------------
 
-Run the ``face_detection.py`` script:
+Run the ``detection.py`` script:
 
 .. code-block:: sh
 
-   python3 face_detection.py --grpc_port 3335 --batch_size 1 --width 300 --height 300 --input_images_dir images --output_dir results --tls --server_cert /var/OVSA/Modelserver/server.pem --client_cert /var/OVSA/Modelserver/client.pem --client_key /var/OVSA/Modelserver/client.key --model_name controlled-access-model
+   python3 detection.py --grpc_port 3335 --batch_size 1 --width 300 --height 300 --input_images_dir images --output_dir results --tls --server_cert /var/OVSA/Modelserver/server.pem --client_cert /var/OVSA/Modelserver/client.pem --client_key /var/OVSA/Modelserver/client.key --model_name controlled-access-model
 
 
 Summary
