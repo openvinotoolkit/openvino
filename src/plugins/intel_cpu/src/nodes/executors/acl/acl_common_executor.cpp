@@ -11,14 +11,13 @@
 namespace ov {
 namespace intel_cpu {
 
-static const std::unordered_map<int, ACLArgs> argConvert = {
-    {ARG_SRC_0, ACL_SRC_0},
-    {ARG_SRC_1, ACL_SRC_1},
-    {ARG_SRC_2, ACL_SRC_2},
-    {ARG_BIAS, ACL_BIAS},
-    {ARG_WEI, ACL_WEI},
-    {ARG_DST, ACL_DST},
-};
+static const std::unordered_map<int, ACLArgs> argConvert = {{ARG_SRC_0, ACL_SRC_0},
+                                                            {ARG_SRC_1, ACL_SRC_1},
+                                                            {ARG_SRC_2, ACL_SRC_2},
+                                                            {ARG_BIAS, ACL_BIAS},
+                                                            {ARG_WEI, ACL_WEI},
+                                                            {ARG_DST, ACL_DST},
+                                                            {ARG_DST_DEQ_SCALE, ACL_DST_DEQ_SCALE}};
 
 using ACLTypes = std::array<arm_compute::DataType, ACLArgs::COUNT_OF_ARGS>;
 using ACLLayouts = std::array<arm_compute::DataLayout, ACLArgs::COUNT_OF_ARGS>;
@@ -39,9 +38,9 @@ static void initACLTensorParams(const MemoryPtr& memoryPtr,
     }
 }
 
-static std::shared_ptr<arm_compute::TensorInfo> initTensorInfo(const arm_compute::TensorShape& tensorShape,
-                                                               const arm_compute::DataType& dataType,
-                                                               const arm_compute::DataLayout& dataLayout) {
+std::shared_ptr<arm_compute::TensorInfo> ACLCommonExecutor::initTensorInfo(const arm_compute::TensorShape& tensorShape,
+                                                                           const arm_compute::DataType& dataType,
+                                                                           const arm_compute::DataLayout& dataLayout) {
     std::shared_ptr<arm_compute::TensorInfo> aclMemoryInfo = nullptr;
     if (dataType != arm_compute::DataType::UNKNOWN) {
         aclMemoryInfo = std::make_shared<arm_compute::TensorInfo>(tensorShape, 1, dataType, dataLayout);
@@ -70,6 +69,9 @@ bool ACLCommonExecutor::update(const MemoryArgs& memory) {
     ACLTypes aclDataType{};
     ACLLayouts aclDataLayout{};
     for (auto& cpu_mem_ptr : memory) {
+        if (cpu_mem_ptr.second->getSize() == 0) {
+            continue;
+        }
         const ACLArgs index = argConvert.at(cpu_mem_ptr.first);
         initACLTensorParams(cpu_mem_ptr.second,
                             aclTensorAttrs,
