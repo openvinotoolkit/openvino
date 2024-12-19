@@ -172,7 +172,7 @@ KERNEL(sdpa_opt)(
 #endif
 
 #if SUBGROUPS_PER_WG > SUBGROUP_SIZE
-    #error "sdpa_opt.cl: Number of subgroups per work group should be less than subgroup_size
+    #error "sdpa_opt.cl: Number of subgroups per work group should be no more than subgroup_size"
 #endif
 
     const uint sgid = get_sub_group_id();
@@ -853,6 +853,10 @@ KERNEL(sdpa_opt)(
     #error sdpa_opt.cl: unsupported TARGET_SEQ_LEN_BLOCK_SIZE
 #endif
 
+#if SUBGROUPS_PER_WG > SUBGROUP_SIZE
+    #error "sdpa_opt.cl: Number of subgroups per work group should be no more than subgroup_size"
+#endif
+
     // Define indexes variables using macro declarations to avoid register spills
     #define batch_idx ((uint)get_global_id(0))
     #define num_heads_dim ((uint)get_global_id(0))
@@ -1179,7 +1183,7 @@ KERNEL(sdpa_opt)(
             for (uint m = sgid; m < seq_idx_end; m += SUBGROUPS_PER_WG) {
                 // rowmax
                 SOFTMAX_ACCUMULATOR_TYPE qk_max_new;
-                if (sglid < SUBGROUPS_PER_WG) { // TODO: if SUBGROUPS_PER_WG > 16?
+                if (sglid < SUBGROUPS_PER_WG) {
                     qk_max_new = slm_qk_max_vals[m][sglid];
                 } else {
                     qk_max_new = SOFTMAX_ACCUMULATOR_VAL_MIN;
