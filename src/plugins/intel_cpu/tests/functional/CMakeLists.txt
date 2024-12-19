@@ -59,6 +59,7 @@ if(NOT (ARM OR AARCH64))
          ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/arm
          ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/arm
          ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/snippets/arm
+         ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/low_precision_transformations/aarch64
          ${CMAKE_CURRENT_SOURCE_DIR}/utils/arm)
 else()
     # temporary disable all custom tests for ARM
@@ -81,7 +82,8 @@ endif()
 if(NOT X86_64)
     list(APPEND EXCLUDED_SOURCE_PATHS
          ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/x64
-         ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/x64)
+         ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/x64
+         ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/low_precision_transformations/x64)
 endif()
 
 ov_add_test_target(
