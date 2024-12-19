@@ -13,12 +13,8 @@ namespace ov {
 namespace intel_gpu {
 
 NewExecutionConfig::NewExecutionConfig() : ov::PluginConfig() {
-    #define OV_CONFIG_OPTION(PropertyNamespace, PropertyVar, ...) \
-        m_options_map[PropertyNamespace::PropertyVar.name()] = & m_ ## PropertyVar;
-
-    #include "intel_gpu/runtime/options_release.inl"
-    #include "intel_gpu/runtime/options_debug.inl"
-
+    #define OV_CONFIG_OPTION(...) OV_CONFIG_OPTION_MAPPING(__VA_ARGS__)
+    #include "intel_gpu/runtime/options.inl"
     #undef OV_CONFIG_OPTION
 }
 
