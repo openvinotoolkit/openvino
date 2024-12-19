@@ -38,7 +38,7 @@ void regclass_passes_Manager(py::module m) {
     manager.def(
         "run_passes",
         [](ov::pass::Manager& self, const py::object& ie_api_model) {
-            const auto model = ie_api_model.attr("_Model__model").cast<std::shared_ptr<ov::Model>>();
+            const auto model = Common::utils::convert_to_model(ie_api_model);
             self.run_passes(model);
         },
         py::arg("model"),

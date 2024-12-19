@@ -9,6 +9,7 @@
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/ops/util/multisubgraph.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -21,7 +22,7 @@ void regclass_graph_op_TensorIterator(py::module m) {
     cls.def(
         "set_body",
         [](const std::shared_ptr<ov::op::v0::TensorIterator>& self, py::object& ie_api_model) {
-            const auto body = ie_api_model.attr("_Model__model").cast<std::shared_ptr<ov::Model>>();
+            const auto body = Common::utils::convert_to_model(ie_api_model);
             self->set_body(body);
         },
         py::arg("body"));
@@ -75,7 +76,7 @@ void regclass_graph_op_TensorIterator(py::module m) {
     cls.def(
         "set_function",
         [](const std::shared_ptr<ov::op::v0::TensorIterator>& self, const py::object& ie_api_model) {
-            const auto func = ie_api_model.attr("_Model__model").cast<std::shared_ptr<ov::Model>>();
+            const auto func = Common::utils::convert_to_model(ie_api_model);
             self->set_function(func);
         },
         py::arg("func"));

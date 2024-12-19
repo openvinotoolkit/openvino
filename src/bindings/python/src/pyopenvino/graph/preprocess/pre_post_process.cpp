@@ -11,6 +11,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "pyopenvino/core/common.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -554,7 +555,7 @@ void regclass_graph_PrePostProcessor(py::module m) {
     proc.doc() = "openvino.runtime.preprocess.PrePostProcessor wraps ov::preprocess::PrePostProcessor";
 
     proc.def(py::init([](const py::object& ie_api_model) {
-                 const auto model = ie_api_model.attr("_Model__model").cast<std::shared_ptr<ov::Model>>();
+                 const auto model = Common::utils::convert_to_model(ie_api_model);
                  return std::make_shared<ov::preprocess::PrePostProcessor>(model);
              }),
              py::arg("model"),

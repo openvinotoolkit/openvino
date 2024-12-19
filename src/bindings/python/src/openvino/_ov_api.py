@@ -521,7 +521,7 @@ class Core(CoreBase):
         config = {} if config is None else config
         if isinstance(model, Model):
             model = model._Model__model
-            
+
         if isinstance(weights, Tensor):
             return Model(super().read_model(model, weights))
         elif isinstance(model, bytes):

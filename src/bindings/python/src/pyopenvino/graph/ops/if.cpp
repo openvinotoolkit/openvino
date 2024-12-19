@@ -12,6 +12,7 @@
 #include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/ops/if.hpp"
 #include "pyopenvino/graph/ops/util/multisubgraph.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -80,7 +81,7 @@ void regclass_graph_op_If(py::module m) {
     cls.def(
         "set_then_body",
         [](const std::shared_ptr<ov::op::v8::If>& self, const py::object& ie_api_model) {
-            const auto body = ie_api_model.attr("_Model__model").cast<std::shared_ptr<ov::Model>>();
+            const auto body = Common::utils::convert_to_model(ie_api_model);
             return self->set_then_body(body);
         },
         py::arg("body"),
@@ -96,7 +97,7 @@ void regclass_graph_op_If(py::module m) {
     cls.def(
         "set_else_body",
         [](const std::shared_ptr<ov::op::v8::If>& self, const py::object& ie_api_model) {
-            const auto body = ie_api_model.attr("_Model__model").cast<std::shared_ptr<ov::Model>>();
+            const auto body = Common::utils::convert_to_model(ie_api_model);
             return self->set_else_body(body);
         },
         py::arg("body"),
@@ -167,7 +168,7 @@ void regclass_graph_op_If(py::module m) {
     cls.def(
         "set_function",
         [](const std::shared_ptr<ov::op::v8::If>& self, int index, const py::object& ie_api_model) {
-            const auto func = ie_api_model.attr("_Model__model").cast<std::shared_ptr<ov::Model>>();
+            const auto func = Common::utils::convert_to_model(ie_api_model);
             self->set_function(index, func);
         },
         py::arg("index"),

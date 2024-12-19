@@ -101,14 +101,14 @@ PYBIND11_MODULE(_pyopenvino, m) {
     m.def(
         "get_batch",
         [](const py::object& ie_api_model) {
-            const auto model = ie_api_model.attr("_Model__model").cast<std::shared_ptr<ov::Model>>();
+            const auto model = Common::utils::convert_to_model(ie_api_model);
             return ov::get_batch(model);
         },
         py::arg("model"));
     m.def(
         "set_batch",
         [](const py::object& ie_api_model, ov::Dimension value) {
-            auto model = ie_api_model.attr("_Model__model").cast<std::shared_ptr<ov::Model>>();
+            auto model = Common::utils::convert_to_model(ie_api_model);
             ov::set_batch(model, value);
         },
         py::arg("model"),
@@ -116,7 +116,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
     m.def(
         "set_batch",
         [](const py::object& ie_api_model, int64_t value) {
-            auto model = ie_api_model.attr("_Model__model").cast<std::shared_ptr<ov::Model>>();
+            auto model = Common::utils::convert_to_model(ie_api_model);
             ov::set_batch(model, ov::Dimension(value));
         },
         py::arg("model"),
@@ -128,7 +128,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
            const py::object& xml_path,
            const py::object& bin_path,
            const std::string& version) {
-            const auto model = ie_api_model.attr("_Model__model").cast<std::shared_ptr<ov::Model>>();
+            const auto model = Common::utils::convert_to_model(ie_api_model);
             ov::serialize(model,
                           Common::utils::convert_path_to_string(xml_path),
                           Common::utils::convert_path_to_string(bin_path),
