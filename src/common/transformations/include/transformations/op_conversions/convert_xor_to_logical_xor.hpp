@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API ConvertXorToLogicalXor;
  */
 class ov::pass::ConvertXorToLogicalXor : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertXorToLogicalXor", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertXorToLogicalXor");
     ConvertXorToLogicalXor();
 };
