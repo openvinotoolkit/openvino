@@ -53,8 +53,9 @@ const ov::Shape& ZeroTensor::get_shape() const {
 }
 
 void ZeroTensor::update_strides() const {
-    if (_element_type.bitwidth() < 8)
+    if (_element_type.bitwidth() < 8) {
         return;
+    }
 
     auto& shape = get_shape();
     if (_strides.empty() && !shape.empty()) {
@@ -110,19 +111,16 @@ void ZeroTensor::destroy_memory() {
 }
 
 void ZeroTensor::set_shape(ov::Shape new_shape) {
-    if (_shape == new_shape)
+    if (_shape == new_shape) {
         return;
+    }
 
     _shape = std::move(new_shape);
 
     if (get_size() > get_capacity()) {
-#ifdef __linux__
-        OPENVINO_THROW("Re-shaping the tensor with a larger shape is not available.");
-#endif
-
         if (!_init_structs->getMutableCommandListVersion()) {
             OPENVINO_THROW("Re-shaping the tensor with a larger shape is not available using this driver version. "
-                           "Please update the driver.");
+                           "Please update the driver to the latest version.");
         }
 
         destroy_memory();
@@ -131,10 +129,20 @@ void ZeroTensor::set_shape(ov::Shape new_shape) {
         _capacity = _shape;
         _ptr = _allocator.allocate(get_bytes_capacity());
         initialize_elements(_ptr, _element_type, _shape);
+
+        _reset_tensor_memory = true;
     }
 
     _strides.clear();
     update_strides();
+}
+
+bool ZeroTensor::memory_address_changed() {
+    return _reset_tensor_memory;
+}
+
+void ZeroTensor::reset_memory_flag() {
+    _reset_tensor_memory = false;
 }
 
 ZeroTensor::~ZeroTensor() {

@@ -15,13 +15,9 @@
 #include "zero_pipeline.hpp"
 #include "zero_profiling.hpp"
 #include "zero_remote_tensor.hpp"
+#include "zero_tensor.hpp"
 
 namespace intel_npu {
-
-struct TensorInfo {
-    bool tensorCreatedLocally;
-    uint64_t originalMemoryId;
-};
 
 class ZeroInferRequest final : public SyncInferRequest {
 public:
@@ -67,12 +63,9 @@ private:
     std::shared_ptr<ov::ITensor>& get_level_zero_input(size_t index, size_t tensorNo = 0) const;
     std::vector<std::shared_ptr<ov::ITensor>>& get_level_zero_inputs(size_t index) const;
 
-    std::shared_ptr<ov::ITensor> allocate_tensor(
-        const IODescriptor& descriptor,
-        const size_t index,
-        const bool isInput,
-        const ov::Allocator& allocator = {},
-        const std::optional<std::size_t> batchSize = std::nullopt) const override;
+    std::shared_ptr<ov::ITensor> create_tensor(ov::element::Type type,
+                                               const ov::Shape& shape,
+                                               const ov::Allocator& allocator = {}) const override;
 
     const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
     const std::shared_ptr<IGraph> _graph;
@@ -83,9 +76,6 @@ private:
     // memory area for the tensor.
     mutable std::vector<std::vector<std::shared_ptr<ov::ITensor>>> _levelZeroInputTensors;
     mutable std::vector<std::shared_ptr<ov::ITensor>> _levelZeroOutputTensors;
-
-    mutable std::vector<TensorInfo> _levelZeroInputTensorInfo;
-    mutable std::vector<TensorInfo> _levelZeroOutputTensorInfo;
 
     ze_device_properties_t _properties = {};
     std::shared_ptr<const zeroMemory::HostMemAllocator> _inputAllocator;

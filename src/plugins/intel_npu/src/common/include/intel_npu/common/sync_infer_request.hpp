@@ -11,12 +11,6 @@
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/iplugin.hpp"
 
-namespace {
-
-constexpr size_t BATCH_AXIS = 0;
-
-}
-
 namespace intel_npu {
 
 /**
@@ -163,12 +157,15 @@ protected:
      * @param batchSize If provided, the value of the shape on the 0th axis is overriden with this value.
      * @return Pointer towards the allocated tensor
      */
-    virtual std::shared_ptr<ov::ITensor> allocate_tensor(
-        const IODescriptor& descriptor,
-        const size_t index,
-        const bool isInput,
-        const ov::Allocator& allocator = {},
-        const std::optional<std::size_t> batchSize = std::nullopt) const;
+    std::shared_ptr<ov::ITensor> allocate_tensor(const IODescriptor& descriptor,
+                                                 const size_t index,
+                                                 const bool isInput,
+                                                 const ov::Allocator& allocator = {},
+                                                 const std::optional<std::size_t> batchSize = std::nullopt) const;
+
+    virtual std::shared_ptr<ov::ITensor> create_tensor(ov::element::Type type,
+                                                       const ov::Shape& shape,
+                                                       const ov::Allocator& allocator = {}) const;
 
     bool is_batched_input(size_t idx) const;
 

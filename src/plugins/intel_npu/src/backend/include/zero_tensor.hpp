@@ -15,6 +15,12 @@
 
 namespace intel_npu {
 
+/**
+ * @brief Constructs Tensor using element type and shape. Allocate internal host storage using custom allocator.
+ * @details The implementation is simillar with the AllocatedTensor class from OV repository.
+ * @note Set_shape method throw an error in case re-allocation is needed but this is not supported by the driver.
+ * There are two extra methods to notify the consumer if memorey changed or not and to reset the flag.
+ */
 class ZeroTensor final : public ov::ITensor {
 public:
     ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
@@ -22,7 +28,7 @@ public:
                const ov::Shape& shape,
                const ov::Allocator& allocator);
 
-    void* data(const ov::element::Type& element_type) const override;
+    void* data(const ov::element::Type& type = {}) const override;
 
     const ov::element::Type& get_element_type() const override;
 
@@ -31,6 +37,9 @@ public:
     void set_shape(ov::Shape new_shape) override;
 
     const ov::Strides& get_strides() const override;
+
+    bool memory_address_changed();
+    void reset_memory_flag();
 
     ~ZeroTensor();
 
@@ -51,6 +60,7 @@ private:
     mutable std::once_flag _strides_once;
     ov::Allocator _allocator;
     void* _ptr = nullptr;
+    bool _reset_tensor_memory = false;
 };
 
 }  // namespace intel_npu

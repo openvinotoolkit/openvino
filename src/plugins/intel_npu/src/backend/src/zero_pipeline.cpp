@@ -33,21 +33,21 @@ Type extract_object(const ov::AnyMap& params, const ov::Property<Type>& p) {
 namespace intel_npu {
 
 Pipeline::Pipeline(const Config& config,
-                   const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
+                   const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                    const std::shared_ptr<IGraph>& graph,
                    zeroProfiling::ProfilingPool& profiling_pool,
                    zeroProfiling::ProfilingQuery& profiling_query,
                    const std::shared_ptr<zeroProfiling::NpuInferProfiling>& npu_profiling,
-                   const std::vector<std::vector<std::shared_ptr<ov::ITensor>>>& inputTensorsData,
-                   const std::vector<std::shared_ptr<ov::ITensor>>& outputTensorsData,
+                   const std::vector<std::vector<std::shared_ptr<ov::ITensor>>>& input_tensors_data,
+                   const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors_data,
                    uint32_t group_ordinal)
     : _graph(graph),
       _config(config),
       _id(_graph->get_unique_id()),
       _number_of_command_lists(_graph->get_batch_size().has_value() ? *_graph->get_batch_size() : 1),
       _event_pool{
-          std::make_shared<EventPool>(initStructs->getDevice(),
-                                      initStructs->getContext(),
+          std::make_shared<EventPool>(init_structs->getDevice(),
+                                      init_structs->getContext(),
                                       _number_of_command_lists ? static_cast<uint32_t>(_number_of_command_lists) : 1)},
       _npu_profiling(npu_profiling),
       _logger("Pipeline", _config.get<LOG_LEVEL>()) {
@@ -64,65 +64,62 @@ Pipeline::Pipeline(const Config& config,
     _logger.debug("Pipeline - emplace_back _event_pool and _command_queue");
     for (size_t i = 0; i < _number_of_command_lists; i++) {
         _command_lists.emplace_back(
-            std::make_unique<CommandList>(initStructs,
+            std::make_unique<CommandList>(init_structs,
                                           group_ordinal,
-                                          initStructs->getMutableCommandListVersion() ? true : false));
+                                          init_structs->getMutableCommandListVersion() ? true : false));
         _events.emplace_back(std::make_shared<Event>(_event_pool, static_cast<uint32_t>(i)));
         _fences.emplace_back(std::make_unique<Fence>(*_graph->get_command_queue()));
     }
 
     for (size_t i = 0; i < _number_of_command_lists; i++) {
-        size_t ioIndex = 0;
+        size_t io_index = 0;
         for (const auto& desc : graph->get_input_descriptors()) {
-            if (inputTensorsData.at(ioIndex).size() > 1) {
+            if (input_tensors_data.at(io_index).size() > 1) {
                 void* data = nullptr;
-                auto remoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(inputTensorsData.at(ioIndex).at(i));
-                if (remoteTensor == nullptr) {
-                    data = inputTensorsData.at(ioIndex).at(i)->data();
-
+                auto remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(input_tensors_data.at(io_index).at(i));
+                if (remote_tensor == nullptr) {
+                    data = input_tensors_data.at(io_index).at(i)->data();
                 } else {
-                    data = extract_object(remoteTensor->get_properties(), ov::intel_npu::mem_handle);
+                    data = extract_object(remote_tensor->get_properties(), ov::intel_npu::mem_handle);
                 }
 
                 graph->set_argument_value(desc.idx, data);
 
-                ++ioIndex;
+                ++io_index;
                 continue;
             }
 
             void* data = nullptr;
-            auto remoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(inputTensorsData.at(ioIndex).at(0));
-            if (remoteTensor == nullptr) {
-                data = inputTensorsData.at(ioIndex).at(0)->data();
-
+            auto remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(input_tensors_data.at(io_index).at(0));
+            if (remote_tensor == nullptr) {
+                data = input_tensors_data.at(io_index).at(0)->data();
             } else {
-                data = extract_object(remoteTensor->get_properties(), ov::intel_npu::mem_handle);
+                data = extract_object(remote_tensor->get_properties(), ov::intel_npu::mem_handle);
             }
 
             graph->set_argument_value(
                 desc.idx,
                 static_cast<unsigned char*>(data) +
-                    (i * inputTensorsData.at(ioIndex).at(0)->get_byte_size()) / _number_of_command_lists);
+                    (i * input_tensors_data.at(io_index).at(0)->get_byte_size()) / _number_of_command_lists);
 
-            ++ioIndex;
+            ++io_index;
         }
 
-        ioIndex = 0;
+        io_index = 0;
         for (const auto& desc : graph->get_output_descriptors()) {
             void* data = nullptr;
-            auto remoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(outputTensorsData.at(ioIndex));
-            if (remoteTensor == nullptr) {
-                data = outputTensorsData.at(ioIndex)->data();
-
+            auto remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(output_tensors_data.at(io_index));
+            if (remote_tensor == nullptr) {
+                data = output_tensors_data.at(io_index)->data();
             } else {
-                data = extract_object(remoteTensor->get_properties(), ov::intel_npu::mem_handle);
+                data = extract_object(remote_tensor->get_properties(), ov::intel_npu::mem_handle);
             }
 
             graph->set_argument_value(
                 desc.idx,
                 static_cast<unsigned char*>(data) +
-                    (i * outputTensorsData.at(ioIndex)->get_byte_size()) / _number_of_command_lists);
-            ++ioIndex;
+                    (i * output_tensors_data.at(io_index)->get_byte_size()) / _number_of_command_lists);
+            ++io_index;
         }
 
         if (_config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
@@ -225,7 +222,7 @@ void Pipeline::reset() const {
     _logger.debug("Pipeline - rest() completed");
 };
 
-void Pipeline::updateCommandList(const void* data, size_t byte_size, uint32_t index) {
+void Pipeline::updateCommandList(uint32_t arg_index, const void* arg_data, size_t byte_size) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandList");
     _logger.debug("Pipeline - updateCommandList");
 
@@ -233,24 +230,24 @@ void Pipeline::updateCommandList(const void* data, size_t byte_size, uint32_t in
 
     for (size_t i = 0; i < _number_of_command_lists; i++) {
         _command_lists.at(i)->updateMutableCommandList(
-            index,
-            static_cast<const unsigned char*>(data) + (i * byte_size) / _number_of_command_lists);
+            arg_index,
+            static_cast<const unsigned char*>(arg_data) + (i * byte_size) / _number_of_command_lists);
         _command_lists.at(i)->close();
     }
 };
 
-void Pipeline::updateCommandList(const void* data, uint32_t index, size_t commandListIndex) {
+void Pipeline::updateCommandListIndex(uint32_t arg_index, const void* arg_data, size_t command_list_index) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandList");
     _logger.debug("Pipeline - updateCommandList");
 
     const size_t _number_of_command_lists = _command_lists.size();
 
-    OPENVINO_ASSERT(commandListIndex < _number_of_command_lists,
+    OPENVINO_ASSERT(command_list_index < _number_of_command_lists,
                     "Command list index is higgher than the number of Command lists ",
-                    commandListIndex);
+                    command_list_index);
 
-    _command_lists.at(commandListIndex)->updateMutableCommandList(index, data);
-    _command_lists.at(commandListIndex)->close();
+    _command_lists.at(command_list_index)->updateMutableCommandList(arg_index, arg_data);
+    _command_lists.at(command_list_index)->close();
 };
 
 }  // namespace intel_npu
