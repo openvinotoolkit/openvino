@@ -829,16 +829,16 @@ def test_model_with_statement():
 
         with Core().read_model(f"{model_save_dir}/model.xml") as model:
             assert mem_model.friendly_name == model.friendly_name
-   
+
         with pytest.raises(AttributeError):
             save_model(model, f"{model_save_dir}/model.xml")
 
     # Behavior after exiting the context manager
     with mem_model as model:
         pass
-    assert type(mem_model) == Model
+    assert isinstance(mem_model, Model)
     with pytest.raises(AttributeError, match="attribute is no longer accessible."):
-            model.friendly_name
+        model.friendly_name
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")

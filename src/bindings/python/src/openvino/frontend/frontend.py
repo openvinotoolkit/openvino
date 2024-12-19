@@ -15,8 +15,6 @@ class FrontEnd(FrontEndBase):
         super().__init__(fe)
 
     def convert(self, model: Union[Model, InputModel]) -> Model:
-        if isinstance(model, Model):
-            model = model._Model__model
         converted_model = super().convert(model)
         if isinstance(model, InputModel):
             return Model(converted_model)
@@ -29,7 +27,7 @@ class FrontEnd(FrontEndBase):
         return Model(super().decode(model))
 
     def normalize(self, model: Model) -> None:
-        super().normalize(model._Model__model)
+        super().normalize(model)
 
 
 class FrontEndManager(FrontEndManagerBase):
