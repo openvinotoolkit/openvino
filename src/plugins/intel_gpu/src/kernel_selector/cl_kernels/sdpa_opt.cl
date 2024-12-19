@@ -1192,7 +1192,7 @@ KERNEL(sdpa_opt)(
                 SOFTMAX_ACCUMULATOR_TYPE exp_sum_new = SOFTMAX_ACCUMULATOR_VAL_ZERO;
                 for (uint k = sglid; k < partition_seq_len; k += SUBGROUP_SIZE) {
                     SOFTMAX_ACCUMULATOR_TYPE a = native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(slm_qk_vals[m][k]) - qk_max_new);
-                    slm_qk_vals[m][k] = convert_half(a);
+                    slm_qk_vals[m][k] = TO_OUTPUT_TYPE(a);
                     exp_sum_new += a;
                 }
                 exp_sum_new = sub_group_reduce_add(exp_sum_new);
