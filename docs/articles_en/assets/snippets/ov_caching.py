@@ -70,6 +70,9 @@ def decrypt_base64(src):
     return base64.b64decode(bytes(src, "utf-8"))
 
 core = ov.Core()
+if "GPU" not in core.available_devices:
+    return 0
+
 core.set_property({props.cache_dir: path_to_cache_dir})
 config_cache = {}
 config_cache["CACHE_ENCRYPTION_CALLBACKS"] = [encrypt_base64, decrypt_base64]
