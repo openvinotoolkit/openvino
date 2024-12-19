@@ -90,7 +90,7 @@ void IGraph::set_last_submitted_id(uint32_t id_index) {
     _last_submitted_id = id_index;
 }
 
-const uint32_t IGraph::get_last_submitted_id() const {
+uint32_t IGraph::get_last_submitted_id() const {
     return _last_submitted_id;
 }
 
