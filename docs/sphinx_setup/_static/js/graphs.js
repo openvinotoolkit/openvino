@@ -9,7 +9,6 @@ class Filter {
             .forEach(item => optionMap.set(item.Platform, item));
         return Array.from(optionMap.values());
     }
-
     // param: GraphData[], ieType
     static ByIeTypes(graphDataArr, ieTypes) {
         const optionMap = new Map();
@@ -18,7 +17,6 @@ class Filter {
             .forEach(item => optionMap.set(item.Platform, item));
         return Array.from(optionMap.values());
     }
-
     // param: GraphData[], ieType, networkModels
     static ByTypesAndModels(graphDataArr, ieTypes, models) {
         return Array.from(
@@ -26,9 +24,8 @@ class Filter {
                 .filter(({ PlatformType, Model }) => ieTypes.includes(PlatformType) && models.includes(Model))
                 .reduce((map, item) => map.set(item.Platform, item), new Map())
                 .values()
-        ).sort((a, b) => a.Platform.localeCompare(b.Platform));
+        );
     }
-
     // param: GraphData[], clientPlatforms
     static ByIeKpis(graphDataArr, clientPlatforms) {
         return Array.from(
@@ -40,7 +37,6 @@ class Filter {
             }, new Set())
         );
     }
-
     // param: GraphData[]
     static getParameters(graphDataArr) {
         var parameters = []
@@ -51,7 +47,6 @@ class Filter {
         })
         return parameters;
     }
-
     // param: GraphData[]
     static getIeTypes(graphDataArr) {
         var kpis = []
@@ -62,20 +57,12 @@ class Filter {
         })
         return kpis;
     }
-
     // param: GraphData[], clientPlatforms[]
-    static ByClientPlatforms(graphDataArr, platformsArr) {
-        return graphDataArr.filter((data) => {
-            return platformsArr.includes(data.Platform)
-        });
-    }
-
-    // param: GraphData[], coreTypes[]
-    static FilterByCoreTypes(graphDataArr, coreTypes) {
-        if (coreTypes) {
-            return graphDataArr.filter((data) => coreTypes.includes(data.PlatformType));
-        }
-        return graphDataArr;
+    static BySortPlatforms(graphDataArr, platformsArr) {
+        return graphDataArr
+            .filter((data) => platformsArr.includes(data.Platform))
+            .sort((a, b) => a.Platform.localeCompare(b.Platform));
+        //sort is necessary
     }
 }
 
@@ -114,15 +101,14 @@ class Graph {
             .sort((a, b) => a.localeCompare(b));
     }
     static getIeTypes(graphDataArr) {
-        return Array.from(new Set(graphDataArr.map((obj) => obj.PlatformType)));
-    }
-    static getCoreTypes(graphDataArr) {
-        return Array.from(new Set(graphDataArr.map((obj) => obj.ieType)));
+        return Array.from(new Set(graphDataArr.map((obj) => obj.PlatformType)))
+            .sort((a, b) => a.localeCompare(b));
     }
 
     // param: GraphData[]
     static getPlatformNames(graphDataArr) {
-        return graphDataArr.map((data) => data.Platform);
+        return graphDataArr.map((data) => data.Platform)
+            .sort((a, b) => a.localeCompare(b));
     }
 
     // param: GraphData[], engine: string, precisions: list
@@ -159,8 +145,8 @@ class Graph {
                 array.push([obj])
             }
         })
-        return array;
 
+        return array;
     }
 
     // this returns an object that is used to ender the chart
@@ -297,13 +283,13 @@ $(document).ready(function () {
             const models = networkModels.map((networkModel) => createCheckMark(networkModel, 'networkmodel'));
             modal.find('.models-column').append(models);
 
-            const selectAllModelsButton = createCheckMark('', 'networkmodel');
+            const selectAllModelsButton = createCheckMark('', 'networkmodel', false, false);
             modal.find('.models-selectall').append(selectAllModelsButton);
 
-            const selectAllPlatformsButton = createCheckMark('', 'platform');
+            const selectAllPlatformsButton = createCheckMark('', 'platform', false, false);
             modal.find('.platforms-selectall').append(selectAllPlatformsButton);
 
-            const precisions = Modal.getPrecisionsLabels(graph).map((precision) => createCheckMark(precision, 'precision', false));
+            const precisions = Modal.getPrecisionsLabels(graph).map((precision) => createCheckMark(precision, 'precision', false, false));
             modal.find('.precisions-column').append(precisions);
 
             selectAllCheckboxes(precisions);
@@ -318,21 +304,17 @@ $(document).ready(function () {
             modal.find('#modal-display-graphs').hide();
             modal.find('.ietype-column input').first().prop('checked', true);
 
-            const kpiLabels = Filter.getParameters(graph).map((parameter) => createCheckMark(parameter, 'kpi', false));
+            const kpiLabels = Filter.getParameters(graph).map((parameter) => createCheckMark(parameter, 'kpi', false, true));
             modal.find('.kpi-column').append(kpiLabels);
 
             $('body').prepend(modal);
 
-            preselectDefaultSettings(graph, modal, appConfig);
-
-            //is not generic solution :(
             if (appConfig.DefaultSelections.platformTypes?.data?.includes('Select All')) {
                 selectAllCheckboxes(iefilter);
-
             };
+            preselectDefaultSettings(graph, modal, appConfig);
             renderClientPlatforms(graph, modal);
 
-            $('.clear-all-btn').on('click', clearAll);
             $('#build-graphs-btn').on('click', () => {
                 $('#modal-configure-graphs').hide();
                 clickBuildGraphs(graph, appConfig, getSelectedNetworkModels(), getSelectedIeTypes(), getSelectedClientPlatforms(), getSelectedKpis(), Modal.getPrecisions(appConfig, getSelectedPrecisions()), isLLM);
@@ -409,19 +391,9 @@ $(document).ready(function () {
         precisions.prop('disabled', false);
     }
 
-    function clearAll() {
-        $('.modal-content-grid-container input:checkbox').each((index, object) => $(object).prop('checked', false));
-        validatePrecisionSelection();
-        validateSelections();
-    }
-
     function preselectDefaultSettings(graph, modal, appConfig) {
-
-        const defaultSelections = appConfig.DefaultSelections;
-        selectDefaultPlatformType(defaultSelections.platformTypes, graph, modal);
-        applyPlatformFilters(defaultSelections.platformFilters, modal, graph);
-        clearAllSettings(defaultSelections);
-
+        selectDefaultPlatformType(appConfig.DefaultSelections.platformTypes, graph, modal);
+        clearAllSettings(appConfig.DefaultSelections);
         validateSelections();
         validatePrecisionSelection();
     }
@@ -431,17 +403,8 @@ $(document).ready(function () {
         $(`input[data-ietype="${type}"]`).prop('checked', true);
         renderClientPlatforms(graph, modal);
     }
-    function applyPlatformFilters(platformFilters, modal, graph) {
-        if (!platformFilters) return;
-        const filters = modal.find('.selectable-box-container').children('.selectable-box');
-        filters.removeClass('selected');
-        platformFilters.data.forEach(selection => {
-            filters.filter(`[data-${platformFilters.name}="${selection}"]`).addClass('selected');
-        });
-        renderClientPlatforms(graph, modal);
-    }
+
     function clearAllSettings(defaultSelections) {
-        clearAll();
         Object.keys(defaultSelections).forEach(setting => {
             const { name, data } = defaultSelections[setting];
             data.forEach(selection => {
@@ -463,7 +426,7 @@ $(document).ready(function () {
         var platformNames = Graph.getPlatformNames(fPlatforms);
         $('.platforms-column .checkmark-container').remove();
 
-        const clientPlatforms = platformNames.map((platform) => createCheckMark(platform, 'platform', true));
+        const clientPlatforms = platformNames.map((platform) => createCheckMark(platform, 'platform', true, false));
 
         var enabledPlatforms = filterPlatforms(graph, getSelectedIeTypes(), getSelectedNetworkModels());
         enableCheckBoxes(clientPlatforms, enabledPlatforms);
@@ -471,6 +434,7 @@ $(document).ready(function () {
 
         enableParmeters(graph, getSelectedClientPlatforms());
         modal.find('.platforms-column input').on('click', validateSelections);
+        validateSelections();
     }
 
     function enableParmeters(graph, clientPlatforms) {
@@ -486,11 +450,12 @@ $(document).ready(function () {
         })
     }
 
-    function createCheckMark(itemLabel, modelLabel, disabled) {
+    function createCheckMark(itemLabel, modelLabel, disabled, checked = false) {
         const item = $('<label class="checkmark-container">');
         item.text(itemLabel);
         const checkbox = $('<input type="checkbox"/>');
         checkbox.prop('disabled', disabled);
+        checkbox.prop('checked', checked);
         const checkboxSpan = $('<span class="checkmark">');
         item.append(checkbox);
         item.append(checkboxSpan);
@@ -546,6 +511,7 @@ $(document).ready(function () {
             listContainer.style.margin = 0;
             listContainer.style.padding = 0;
             listContainer.style.paddingLeft = '0px';
+            listContainer.style.float = "right";
 
             legendContainer.appendChild(listContainer);
         }
@@ -556,57 +522,55 @@ $(document).ready(function () {
     const htmlLegendPlugin = {
         id: 'htmlLegend',
         afterUpdate(chart, args, options) {
-
+            charts = [...new Set([...charts, ...[chart]])];
             const ul = getOrCreateLegendList(chart, chart.options.plugins.htmlLegend.containerID);
-
             // Remove old legend items
             while (ul.firstChild) {
                 ul.firstChild.remove();
             }
 
-            const items = chart.legend.legendItems;
+            const items = chart.options.plugins.legend.labels.generateLabels(chart);
             items.forEach(item => {
                 const li = document.createElement('li');
                 li.style.alignItems = 'center';
                 li.style.display = 'block';
                 li.style.flexDirection = 'column';
-                li.style.marginLeft = '4px';
-
+                li.style.marginLeft = '6px';
+                li.style.cursor = "pointer";
+                li.style.fontSize = '0.6rem';
+                li.style.textDecoration = item.hidden ? 'line-through' : '';
                 li.onclick = () => {
-                    chart.toggleDataVisibility(item.index);
-                    chart.update();
+                    charts.forEach((chartItem) => {
+                        chartItem.setDatasetVisibility(item.datasetIndex, !chartItem.isDatasetVisible(item.datasetIndex));
+                        chartItem.update();
+                      })
                 };
-
-                // Color box
+                
                 const boxSpan = document.createElement('span');
                 boxSpan.style.background = item.fillStyle;
                 boxSpan.style.borderColor = item.strokeStyle;
-                boxSpan.style.borderWidth = item.lineWidth + 'px';
                 boxSpan.style.display = 'inline-block';
                 boxSpan.style.height = '10px';
                 boxSpan.style.marginRight = '4px';
                 boxSpan.style.width = '30px';
 
-                // Text
-                const textContainer = document.createElement('p');
-                textContainer.style.color = '#666';
-                textContainer.style.margin = 0;
-                textContainer.style.padding = 0;
-                textContainer.style.fontSize = '0.6rem';
-                textContainer.style.marginLeft = '3px';
-                textContainer.style.textDecoration = item.hidden ? 'line-through' : '';
+                const textSpan = document.createElement('span');
+                textSpan.style.bottom = '1px'
+                textSpan.style.position = 'relative'
+                textSpan.style.fontSize = '0.6rem';
+                textSpan.style.textDecoration = item.hidden ? 'line-through' : '';
 
                 const text = document.createTextNode(item.text);
-                textContainer.appendChild(text);
+                textSpan.appendChild(text);
 
                 li.appendChild(boxSpan);
-                li.appendChild(textContainer);
+                li.appendChild(textSpan);
                 ul.appendChild(li);
             });
         }
     };
 
-    function getChartOptionsByEngines(containerId, allowedAxisIDs) {
+    function getChartOptionsByEngines(allowedAxisIDs) {
         const axisConfigs = {
             x: {
                 title: { display: true, text: 'Request Rate' }
@@ -637,11 +601,11 @@ $(document).ready(function () {
                 }, {}),
             plugins: {
                 legend: { display: false },
-                htmlLegend: { containerID: containerId }
+                htmlLegend: { containerID: 'modal-footer' }
             }
         };
     }
-    function getChartOptions(title, containerId) {
+    function getChartOptions(title) {
         return {
             responsive: true,
             indexAxis: 'y',
@@ -668,7 +632,7 @@ $(document).ready(function () {
                     display: false
                 },
                 htmlLegend: {
-                    containerID: containerId,
+                    containerID: 'modal-footer',
                 }
             }
         }
@@ -696,17 +660,19 @@ $(document).ready(function () {
 
             var filteredNetworkModels = Filter.FilterByNetworkModel(graph, [networkModel]);
             var filteredIeTypes = Filter.ByIeTypes(filteredNetworkModels, ieTypes);
-            var filteredGraphData = Filter.ByClientPlatforms(filteredIeTypes, platforms);
+            var filteredGraphData = Filter.BySortPlatforms(filteredIeTypes, platforms);
+            var filterdPlatforms = platforms.filter(platform =>
+                filteredGraphData.some(filteredGraph => platform === filteredGraph.Platform)
+              );
             $('.chart-placeholder').append(chartContainer);
-            var labels = Graph.getPlatformNames(filteredGraphData);
             if (filteredGraphData.length > 0) {
                 if (isLLM === true) {
-                    var graphConfigs = setGraphConfigsByEngines(filteredGraphData, appConfig, kpis, precisions)
-                    createChartWithNewDataByEngines(labels, graphConfigs, chartContainer, display);
+                    var graphConfigs = setGraphConfigsByEngines(filteredGraphData, appConfig, kpis, precisions);
+                    createChartWithNewDataByEngines(filterdPlatforms, graphConfigs, chartContainer, display);
                 }
                 else {
-                    var graphConfigs = setGraphConfigs(filteredGraphData, appConfig, kpis, precisions)
-                    createChartWithNewData(labels, graphConfigs, chartContainer, display);
+                    var graphConfigs = setGraphConfigs(filteredGraphData, appConfig, kpis, precisions);
+                    createChartWithNewData(filterdPlatforms, graphConfigs, appConfig, chartContainer, display);
                 }
 
             } else {
@@ -732,7 +698,6 @@ $(document).ready(function () {
         labelsContainer.addClass('chart-labels-container');
         chartWrap.append(labelsContainer);
 
-        // get the kpi title's and create headers for the graphs
         var chartGraphsContainer = $('<div>');
         chartGraphsContainer.addClass('chart-graphs-container');
         chartWrap.append(chartGraphsContainer);
@@ -768,7 +733,7 @@ $(document).ready(function () {
         setChartsDisplayDirection(display.mode);
         adjustHeaderIcons(display.mode);
     }
-    function createChartWithNewData(labels, graphConfigs, chartContainer, display) {
+    function createChartWithNewData(labels, graphConfigs, appConfig, chartContainer, display) {
 
         var chartWrap = $('<div>');
         chartWrap.addClass('chart-wrap');
@@ -778,7 +743,6 @@ $(document).ready(function () {
         labelsContainer.addClass('chart-labels-container');
         chartWrap.append(labelsContainer);
 
-        // get the kpi title's and create headers for the graphs
         var chartGraphsContainer = $('<div>');
         chartGraphsContainer.addClass('chart-graphs-container');
         chartWrap.append(chartGraphsContainer);
@@ -798,7 +762,7 @@ $(document).ready(function () {
             columnHeaderContainer.append(columnIcon);
             var columnHeader = $('<div class="chart-header">');
             columnHeader.append($('<div class="title">' + graphConfig.chartTitle + '</div>'));
-            // columnHeader.append($('<div class="subtitle">' + graphConfig.unit + ' ' + appConfig.UnitDescription[graphConfig.unit] + '</div>'));
+            columnHeader.append($('<div class="subtitle">' + graphConfig.unit + ' ' + appConfig.UnitDescription[graphConfig.unit] +'</div>'));
             columnHeaderContainer.append(columnHeader);
             chartGraphsContainer.append(graphItem);
             var graphClass = $('<div>');
@@ -857,7 +821,6 @@ $(document).ready(function () {
         return graphConfigs
     }
     function processMetric(labels, datasets, chartTitle, container, widthClass, id) {
-        // ratio for consistent chart label height
         var heightRatio = (30 + (labels.length * 55));
         var chart = $('<div>');
         const containerId = `legend-container-${id}`;
@@ -876,7 +839,7 @@ $(document).ready(function () {
             new Chart(context, {
                 type: 'bar',
                 data: getChartData(labels, datasets),
-                options: getChartOptions(chartTitle, containerId),
+                options: getChartOptions(chartTitle),
                 plugins: [htmlLegendPlugin]
             });
         });
@@ -896,10 +859,9 @@ $(document).ready(function () {
             })
         }
     }
-
+    var charts = [];
     function processMetricByEngines(labels, datasets, container, widthClass, id) {
-        // ratio for consistent chart label height
-        var heightRatio = (80 + (labels.length * 55));
+        var heightRatio = (30 + (labels.length * 55));
         var chart = $('<div>');
         const containerId = `legend-container-${id}`;
         const legend = $(`<div id="${containerId}">`);
@@ -933,8 +895,7 @@ $(document).ready(function () {
                         backgroundColor: precision.color,
                         yAxisID: precision.label === "Throughput" ? 'y' : 'y1',
                         fill: false
-                    }
-                    )
+                    })
                 })
             })
 
@@ -953,9 +914,10 @@ $(document).ready(function () {
                     labels: labels,
                     datasets: graphDatas
                 },
-                options: getChartOptionsByEngines(containerId, allowedAxisIDs),
+                options: getChartOptionsByEngines(allowedAxisIDs),
                 plugins: [htmlLegendPlugin]
             });
+
         });
     }
 

@@ -13,7 +13,6 @@
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
-
 namespace ov {
 namespace intel_cpu {
 namespace pass {
@@ -27,11 +26,13 @@ using namespace ov::snippets::utils;
 bool BrgemmCPUBlocking::DummyPass::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
     return true;
 }
-std::shared_ptr<snippets::lowered::pass::PassBase> BrgemmCPUBlocking::DummyPass::merge(const std::shared_ptr<snippets::lowered::pass::PassBase>& other) {
+std::shared_ptr<snippets::lowered::pass::PassBase> BrgemmCPUBlocking::DummyPass::merge(
+    const std::shared_ptr<snippets::lowered::pass::PassBase>& other) {
     return !other || ov::is_type<DummyPass>(other) ? std::make_shared<DummyPass>() : nullptr;
 }
 
-LinearIR::constExprIt BrgemmCPUBlocking::move_new_memory_buffer(LinearIR& linear_ir, const LinearIR::constExprIt& brgemm_it) {
+LinearIR::constExprIt BrgemmCPUBlocking::move_new_memory_buffer(LinearIR& linear_ir,
+                                                                const LinearIR::constExprIt& brgemm_it) {
     const auto& brgemm_expr = brgemm_it->get();
     const auto wsp_expr = brgemm_expr->get_input_port_connector(2)->get_source().get_expr();
     const auto wsp_buffer = ov::as_type_ptr<ov::snippets::lowered::BufferExpression>(wsp_expr);
@@ -48,7 +49,8 @@ size_t BrgemmCPUBlocking::get_default_n_blk(size_t n) const {
     return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 64 : 24;
 }
 
-std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const {
+std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(
+    const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const {
     const auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
     OPENVINO_ASSERT(brgemm, "BrgemmCPU is expected!");
 
@@ -64,7 +66,8 @@ std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(const 
 }
 
 SpecificIterationHandlers BrgemmCPUBlocking::get_k_loop_handlers(size_t work_amount, size_t block_size) const {
-    SpecificIterationHandlers handlers = ov::snippets::lowered::pass::BrgemmBlockingBase::get_k_loop_handlers(work_amount, block_size);
+    SpecificIterationHandlers handlers =
+        ov::snippets::lowered::pass::BrgemmBlockingBase::get_k_loop_handlers(work_amount, block_size);
     handlers.register_pass<SpecificLoopIterType::FIRST_ITER, DummyPass>();
     return handlers;
 }
@@ -78,16 +81,21 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
     const auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
     const auto type = brgemm->get_type();
 
-    auto res = ov::snippets::lowered::pass::BrgemmBlockingBase::mark_blocking_loops(linear_ir, brgemm_it, m_block, n_block, k_block);
+    auto res = ov::snippets::lowered::pass::BrgemmBlockingBase::mark_blocking_loops(linear_ir,
+                                                                                    brgemm_it,
+                                                                                    m_block,
+                                                                                    n_block,
+                                                                                    k_block);
 
     if (stand_alone(type))
         return res;
 
-    const auto copy_b_expr = linear_ir.get_expr_by_node(brgemm->get_brgemm_copy());
-    const ov::snippets::VectorDims full_subtensor(2, get_full_dim_value());
-    copy_b_expr->get_input_port_descriptor(0)->set_subtensor(full_subtensor);
-    copy_b_expr->get_output_port_descriptor(0)->set_subtensor(full_subtensor);
-
+    const auto copy_b_expr = repacking::get_copy_b_expr(brgemm_expr);
+    if (copy_b_expr) {
+        const ov::snippets::VectorDims full_subtensor(2, get_full_dim_value());
+        copy_b_expr->get_input_port_descriptor(0)->set_subtensor(full_subtensor);
+        copy_b_expr->get_output_port_descriptor(0)->set_subtensor(full_subtensor);
+    }
     if (with_amx(type)) {
         move_new_memory_buffer(linear_ir, brgemm_it);
         auto buffer_it = std::prev(brgemm_it);
@@ -98,6 +106,7 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
     if (with_compensations(type)) {
         const ov::snippets::VectorDims compensations_subtensor{1, get_full_dim_value()};
         OPENVINO_ASSERT(brgemm_expr->get_input_count() == 3, "Brgemm must have 3 inputs in case of compensations.");
+        OPENVINO_ASSERT(copy_b_expr, "BrgemmCopyB must be present in case of compensations.");
         const auto& compens_port = brgemm_expr->get_input_port(2);
         compens_port.get_descriptor_ptr()->set_subtensor(compensations_subtensor);
         copy_b_expr->get_output_port_descriptor(1)->set_subtensor(compensations_subtensor);

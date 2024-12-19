@@ -4,8 +4,6 @@
 
 #include "plugin_compiler_adapter.hpp"
 
-#include <ze_graph_ext.h>
-
 #include <memory>
 #include <string>
 
@@ -19,7 +17,6 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "plugin_graph.hpp"
-#include "ze_graph_ext_wrappers.hpp"
 
 namespace {
 std::shared_ptr<void> loadLibrary(const std::string& libpath) {
@@ -70,29 +67,7 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
 
     _logger.info("PluginCompilerAdapter creating adapter using graphExtVersion");
 
-    switch (graphExtVersion) {
-    case ZE_GRAPH_EXT_VERSION_1_3:
-        _zeGraphExt = std::make_shared<ZeGraphExtWrappers<ZE_GRAPH_EXT_VERSION_1_3>>(_zeroInitStruct);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_4:
-        _zeGraphExt = std::make_shared<ZeGraphExtWrappers<ZE_GRAPH_EXT_VERSION_1_4>>(_zeroInitStruct);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_5:
-        _zeGraphExt = std::make_shared<ZeGraphExtWrappers<ZE_GRAPH_EXT_VERSION_1_5>>(_zeroInitStruct);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_6:
-        _zeGraphExt = std::make_shared<ZeGraphExtWrappers<ZE_GRAPH_EXT_VERSION_1_6>>(_zeroInitStruct);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_7:
-        _zeGraphExt = std::make_shared<ZeGraphExtWrappers<ZE_GRAPH_EXT_VERSION_1_7>>(_zeroInitStruct);
-        break;
-    case ZE_GRAPH_EXT_VERSION_1_8:
-        _zeGraphExt = std::make_shared<ZeGraphExtWrappers<ZE_GRAPH_EXT_VERSION_1_8>>(_zeroInitStruct);
-        break;
-    default:
-        _zeGraphExt = std::make_shared<ZeGraphExtWrappers<ZE_GRAPH_EXT_VERSION_1_2>>(_zeroInitStruct);
-        break;
-    }
+    _zeGraphExt = std::make_shared<ZeGraphExtWrappers>(_zeroInitStruct);
 
     _logger.info("initialize PluginCompilerAdapter complete, using graphExtVersion: %d.%d",
                  ZE_MAJOR_VERSION(graphExtVersion),

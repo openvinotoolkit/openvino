@@ -4,16 +4,15 @@
 
 #pragma once
 
-#include "node.h"
-
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "node.h"
 #include "snippets/op/subgraph.hpp"
 
 #if defined(OPENVINO_ARCH_ARM64)
-#include "cpu/aarch64/cpu_isa_traits.hpp"
+#    include "cpu/aarch64/cpu_isa_traits.hpp"
 #else
-#include "cpu/x64/cpu_isa_traits.hpp"
+#    include "cpu/x64/cpu_isa_traits.hpp"
 #endif
 
 #include <array>
@@ -27,7 +26,7 @@ public:
     Subgraph(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
     ~Subgraph() override = default;
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
     ov::element::Type getRuntimePrecision() const override;
@@ -109,9 +108,12 @@ private:
 
 class Subgraph::SubgraphCodeGenerator {
 public:
-    SubgraphCodeGenerator(const std::shared_ptr<Subgraph::SubgraphAttrs>& snippet_attrs, const std::shared_ptr<CPURuntimeConfig>& config);
+    SubgraphCodeGenerator(const std::shared_ptr<Subgraph::SubgraphAttrs>& snippet_attrs,
+                          const std::shared_ptr<CPURuntimeConfig>& config);
 
-    const std::shared_ptr<snippets::Schedule>& get() const { return schedule; }
+    const std::shared_ptr<snippets::Schedule>& get() const {
+        return schedule;
+    }
 
 private:
     std::shared_ptr<snippets::Schedule> schedule;
@@ -129,13 +131,17 @@ public:
                      const BufferScratchpadAllocator& allocator);
     virtual ~SubgraphExecutor() = default;
 
-    virtual void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) = 0;
+    void execute(const dnnl::stream& strm,
+                 const std::vector<MemoryPtr>& inMemPtrs,
+                 const std::vector<MemoryPtr>& outMemPtrs);
 
 protected:
+    virtual void exec_impl(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) = 0;
+
     void parallel_for6d(const std::function<void(jit_snippets_call_args&, size_t)>& initializer,
-                        const std::function<void(jit_snippets_call_args&, const size_t*)>& caller);
+                        const std::function<void(jit_snippets_call_args&, const std::vector<size_t>&)>& caller);
     void parallel_forNd(const std::function<void(jit_snippets_call_args&, size_t)>& initializer,
-                        const std::function<void(jit_snippets_call_args&, const size_t*)>& caller);
+                        const std::function<void(jit_snippets_call_args&, const std::vector<size_t>&)>& caller);
 
     inline void update_scratchpad_ptr(void*& scratchpad_ptr, size_t ithr) const {
         if (m_buffer_scratchpad_size > 0)
@@ -151,6 +157,7 @@ protected:
     // Buffer scratchpad
     MemoryPtr m_buffer_scratchpad = nullptr;
     size_t m_buffer_scratchpad_size = 0;
+    size_t m_internal_buffer_size = 0;
 
     const size_t rank6D = 6;
 
@@ -164,8 +171,13 @@ protected:
     bool enabled_segfault_detector = false;
     inline void segfault_detector();
 #endif
+
+private:
+    std::vector<MemoryPtr> reorder_inputs(const dnnl::stream& strm, const std::vector<MemoryPtr>& inMemPtrs);
+
+    std::unordered_map<size_t, CpuBlockedMemoryDescPtr> m_in_requested_descs = {};
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

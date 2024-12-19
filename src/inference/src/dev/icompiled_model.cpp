@@ -10,6 +10,10 @@
 #include "openvino/runtime/properties.hpp"
 #include "transformations/utils/utils.hpp"
 
+#if defined(OPENVINO_GNU_LIBC) && !defined(__ANDROID__)
+#    include <malloc.h>
+#endif
+
 ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model,
                                    const std::shared_ptr<const ov::IPlugin>& plugin,
                                    const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
@@ -47,8 +51,11 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
                 }
             }
         }
-
-        std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, std::shared_ptr<ov::descriptor::Tensor>> tensor_map;
+        std::unordered_map<std::shared_ptr<descriptor::Tensor>,
+                           std::shared_ptr<descriptor::Tensor>,
+                           descriptor::TensorExtension::Hasher,
+                           descriptor::TensorExtension::Equal>
+            tensor_map;
         for (const auto& param : model->get_parameters()) {
             const auto& param_name = param->get_friendly_name();
             auto new_param = ov::as_type_ptr<ov::op::v0::Parameter>(param->copy_with_new_inputs({}));
@@ -150,4 +157,13 @@ void ov::ICompiledModel::set_model_shared_object(ov::Model& model, const std::sh
 
 void ov::ICompiledModel::release_memory() {
     // nothing to do
+}
+
+ov::ICompiledModel::~ICompiledModel() {
+#if defined(OPENVINO_GNU_LIBC) && !defined(__ANDROID__)
+    // Linux memory margent doesn't return system memory immediate after release.
+    // It depends on memory chunk size and allocation history.
+    // Try return memory from a process to system now to reduce memory usage and not wait to the end of the process.
+    malloc_trim(0);
+#endif
 }

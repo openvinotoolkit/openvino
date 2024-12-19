@@ -37,7 +37,7 @@ CPU
       * Ubuntu 20.04 long-term support (LTS), 64-bit (Kernel 5.15+)
       * macOS 12.6 and above, 64-bit and ARM64
       * CentOS 7
-      * Red Hat Enterprise Linux 9.3-9.4, 64-bit
+      * Red Hat Enterprise Linux (RHEL) 8 and 9, 64-bit
       * openSUSE Tumbleweed, 64-bit and ARM64
       * Ubuntu 20.04 ARM64
 
@@ -65,7 +65,7 @@ GPU
       * Ubuntu 22.04 long-term support (LTS), 64-bit
       * Ubuntu 20.04 long-term support (LTS), 64-bit
       * CentOS 7
-      * Red Hat Enterprise Linux 9.3-9.4, 64-bit
+      * Red Hat Enterprise Linux (RHEL) 8 and 9, 64-bit
 
    .. tab-item:: Additional considerations
 

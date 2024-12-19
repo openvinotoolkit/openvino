@@ -14,7 +14,7 @@ class GatherND : public Node {
 public:
     GatherND(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;
     bool created() const override;
@@ -65,7 +65,7 @@ private:
             MemoryPtr dstMemPtr;
         };
 
-        template<typename T>
+        template <typename T>
         struct GatherNDEmitter {
             void operator()(GatherNDContext& ctx) {
                 ctx.executor->gatherElementwise<T>(ctx.srcMemPtr, ctx.idxMemPtr, ctx.dstMemPtr);
@@ -80,6 +80,6 @@ private:
     executorPtr execPtr = nullptr;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

@@ -7,7 +7,7 @@ model = nncf.quantize(model, ...)
 #! [quantize]
 
 #! [tune_model]
-... # fine-tuning preparations, e.g. dataset, loss, optimizer setup, etc.
+... # fine-tuning preparations, e.g. dataset, loss, optimization setup, etc.
 
 # tune quantized model for 5 epochs as the baseline
 for epoch in range(0, 5):

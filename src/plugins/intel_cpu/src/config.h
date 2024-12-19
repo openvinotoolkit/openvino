@@ -4,17 +4,16 @@
 
 #pragma once
 
+#include <bitset>
+#include <map>
+#include <mutex>
+
+#include "internal_properties.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "openvino/util/common_util.hpp"
-
-#include "internal_properties.hpp"
 #include "utils/debug_caps_config.h"
-
-#include <bitset>
-#include <map>
-#include <mutex>
 
 namespace ov {
 namespace intel_cpu {
@@ -38,11 +37,7 @@ struct Config {
         Disable,
     };
 
-    enum class ModelType {
-        CNN,
-        LLM,
-        Unknown
-    };
+    enum class ModelType { CNN, LLM, Unknown };
 
     bool collectPerfCounters = false;
     bool exclusiveAsyncRequests = false;
@@ -51,14 +46,16 @@ struct Config {
     std::string device_id = {};
     float fcSparseWeiDecompressionRate = 1.0f;
     uint64_t fcDynamicQuantizationGroupSize = 32;
-    ov::element::Type kvCachePrecision = ov::element::f16;
     bool fcDynamicQuantizationGroupSizeSetExplicitly = false;
+    bool kvCachePrecisionSetExplicitly = false;
 #if defined(OV_CPU_WITH_ACL)
     bool aclFastMath = false;
 #endif
 #if defined(OPENVINO_ARCH_X86_64)
+    ov::element::Type kvCachePrecision = ov::element::u8;
     size_t rtCacheCapacity = 5000ul;
 #else
+    ov::element::Type kvCachePrecision = ov::element::f16;
     // TODO: Executor cache may leads to incorrect behavior on oneDNN ACL primitives
     size_t rtCacheCapacity = 0ul;
 #endif
@@ -67,7 +64,8 @@ struct Config {
     bool streamsChanged = false;
     int threads = 0;
     int threadsPerStream = 0;
-    ov::threading::IStreamsExecutor::ThreadBindingType threadBindingType = ov::threading::IStreamsExecutor::ThreadBindingType::NONE;
+    ov::threading::IStreamsExecutor::ThreadBindingType threadBindingType =
+        ov::threading::IStreamsExecutor::ThreadBindingType::NONE;
     ov::hint::PerformanceMode hintPerfMode = ov::hint::PerformanceMode::LATENCY;
     std::vector<std::vector<int>> streamsRankTable;
     bool changedHintPerfMode = false;
@@ -104,6 +102,8 @@ struct Config {
 
     void updateProperties();
 
+    void applyRtInfo(const std::shared_ptr<const ov::Model>& model);
+
     std::map<std::string, std::string> _config;
 
     int modelPreferThreads = -1;
@@ -118,4 +118,4 @@ struct Config {
 };
 
 }  // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov
