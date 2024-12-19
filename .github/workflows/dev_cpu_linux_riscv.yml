@@ -92,10 +92,10 @@ jobs:
       INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
-      CCACHE_REMOTE_DIR: /mount/caches/ccache/ubuntu22_riscv64/${{ github.base_ref || github.ref_name }}
+      CCACHE_REMOTE_DIR: /mount/caches/ccache/ubuntu22_riscv64_xuantie/${{ github.base_ref || github.ref_name }}
       CCACHE_DIR: /__w/openvino/openvino/ccache
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
-      CACHE_MAXSIZE: 2G
+      CCACHE_MAXSIZE: 2G
       XUANTIE_BIN_PATH: /mount/testdata1/
     if: "!needs.smart_ci.outputs.skip_workflow"
 
@@ -118,7 +118,6 @@ jobs:
         uses: ./openvino/.github/actions/cache
         with:
           save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
           cache-size: 10
           max-cache-size: 50
           cache-path: ${{ env.CCACHE_REMOTE_DIR }}
@@ -134,9 +133,11 @@ jobs:
             cp ${XUANTIE_BIN_PATH}${XUANTIE_TAR_NAME}.tar ${XUANTIE_DIR}
             tar -xf ${XUANTIE_TAR_NAME}.tar
             chmod -R 777 ${XUANTIE_TAR_NAME}
-            python3 -m pip install --upgrade pip setuptools wheel
             ln -s /usr/include/riscv64-linux-gnu/ /usr/include/python3.10/
           popd
+
+      - name: Clean ccache stats
+        run: ccache --zero-stats
 
       - name: CMake configure - OpenVINO
         run: |
@@ -148,12 +149,12 @@ jobs:
             -DENABLE_INTEL_CPU=ON \
             -DENABLE_INTEL_GPU=OFF \
             -DENABLE_INTEL_NPU=OFF \
-            -DENABLE_SAMPLES=ON \
+            -DENABLE_SAMPLES=OFF \
             -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/toolchains/riscv64-071-xuantie-gnu.toolchain.cmake \
             -DRISCV_TOOLCHAIN_ROOT=${XUANTIE_DIR}/${XUANTIE_TAR_NAME} \
-            -DENABLE_PYTHON=ON \
+            -DENABLE_PYTHON=OFF \
             -DENABLE_PYTHON_PACKAGING=ON \
-            -DENABLE_WHEEL=ON \
+            -DENABLE_WHEEL=OFF \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCPACK_GENERATOR=TGZ \
@@ -164,13 +165,15 @@ jobs:
             -B ${BUILD_DIR}
 
       - name: Cmake build - OpenVINO
-        run: cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
+        run: cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
+
+      - name: Show ccache stats
+        run: ccache --show-stats
 
       - name: Cmake install - OpenVINO
         run: |
           cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake
           cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_TEST_DIR} -DCOMPONENT=tests -P ${BUILD_DIR}/cmake_install.cmake
-          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -DCOMPONENT=python_wheels -P ${BUILD_DIR}/cmake_install.cmake
 
       - name: Pack Artifacts
         run: |
@@ -184,7 +187,7 @@ jobs:
           popd
 
       # #
-      # # Upload build artifacts and logs
+      # # Upload build artifacts
       # #
       - name: Upload XUANTIE
         uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
@@ -192,14 +195,6 @@ jobs:
         with:
           name: xuantie
           path: ${{ env.XUANTIE_DIR }}
-          if-no-files-found: 'ignore'
-
-      - name: Upload build logs
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
-        if: always()
-        with:
-          name: build_logs
-          path: ${{ env.SCCACHE_ERROR_LOG }}
           if-no-files-found: 'ignore'
 
       - name: Upload openvino package
@@ -225,7 +220,7 @@ jobs:
     name: CPU functional tests
     needs: [ Docker, Build, Smart_CI ]
     timeout-minutes: 30
-    runs-on: aks-linux-8-cores-32gb
+    runs-on: aks-linux-4-cores-16gb
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_riscv }}
       volumes:
@@ -234,13 +229,12 @@ jobs:
       run:
         shell: bash
     env:
-      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       GTEST_FILTER: '*smoke_AdaPoolAvg4DLayoutTest*'
 
     steps:
-      - name: Download OpenVINO package
+      - name: Download Xuantie
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: xuantie
@@ -274,10 +268,6 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C $INSTALL_TEST_DIR
           popd
 
-      - name: Define gtest key
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        run: echo "GTEST_FILTER=${{ inputs.testFilter }}" >> "$GITHUB_ENV"
-
       - name: Intel CPU plugin func tests
         run: |
           # Needed as the Linux CC does not require setupvars to work
@@ -286,7 +276,7 @@ jobs:
           fi
           # Needed as ze_loader.so is under INSTALL_TEST_DIR
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALL_TEST_DIR}/tests
-          chmod -R 777 ${XUANTIE_DIR}/${XUANTIE_TAR_NAME}
+          chmod -R +x ${XUANTIE_DIR}/${XUANTIE_TAR_NAME}
           ${XUANTIE_DIR}/${XUANTIE_TAR_NAME}/bin/qemu-riscv64 -cpu c910v ${INSTALL_TEST_DIR}/tests/ov_cpu_func_tests --gtest_filter=${{ env.GTEST_FILTER }} --gtest_print_time=1
         timeout-minutes: 25
 

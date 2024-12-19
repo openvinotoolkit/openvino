@@ -63,7 +63,6 @@ RUN echo deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy main restricte
 RUN dpkg --add-architecture riscv64 && \
     apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/riscv64-sources.list && \
     apt-get install -y --no-install-recommends libpython3-dev:riscv64 && \
-    apt-get install -y --no-install-recommends apt-utils && \
     apt-get install libgomp1:riscv64 && \
     apt-get install libatomic1:riscv64
 
