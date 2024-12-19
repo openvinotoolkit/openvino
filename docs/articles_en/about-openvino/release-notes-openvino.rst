@@ -1735,6 +1735,9 @@ Deprecated and to be removed in the future
   * “auto shape” and “auto batch size” (reshaping a model in runtime) will be removed in the
     future. OpenVINO's dynamic shape models are recommended instead.
 
+* Starting with 2025.0 MacOS x86 will no longer be recommended for use due to the discontinuation
+  of validation. Full support will be removed later in 2025.
+
 * A number of notebooks have been deprecated. For an up-to-date listing of available notebooks,
   refer to the `OpenVINO™ Notebook index (openvinotoolkit.github.io) <https://openvinotoolkit.github.io/openvino_notebooks/>`__.
 
