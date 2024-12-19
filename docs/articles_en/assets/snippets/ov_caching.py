@@ -59,3 +59,21 @@ config_cache["CACHE_ENCRYPTION_CALLBACKS"] = [encrypt_base64, decrypt_base64]
 model = core.read_model(model=model_path)
 compiled_model = core.compile_model(model=model, device_name=device_name, config=config_cache)
 # ! [ov:caching:part4]
+
+# ! [ov:caching:part5]
+import base64
+
+def encrypt_base64(src):
+    return base64.b64encode(bytes(src, "utf-8"))
+
+def decrypt_base64(src):
+    return base64.b64decode(bytes(src, "utf-8"))
+
+core = ov.Core()
+if "GPU" in core.available_devices:
+    core.set_property({props.cache_dir: path_to_cache_dir})
+    config_cache = {}
+    config_cache["CACHE_ENCRYPTION_CALLBACKS"] = [encrypt_base64, decrypt_base64]
+    config_cache["CACHE_MODE"] = "OPTIMIZE_SIZE"
+    compiled_model = core.compile_model(model=model_path, device_name='GPU', config=config_cache)
+# ! [ov:caching:part5]
