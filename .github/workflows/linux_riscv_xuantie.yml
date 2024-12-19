@@ -1,12 +1,14 @@
 name: Linux RISC-V with Xuantie (Ubuntu 22.04, Python 3.10)
 on:
   workflow_dispatch:
+    inputs:
+      testFilter:
+        description: 'Filter for google tests'
+        required: true
+        default: '*smoke_AdaPoolAvg4DLayoutTest*'
   pull_request:
-  merge_group:
-  push:
-    branches:
-      - master
-      - 'releases/**'
+    paths:
+      - '.github/workflows/linux_riscv_xuantie.yml'
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -147,8 +149,11 @@ jobs:
         run: >
           cmake -G "${{ env.CMAKE_GENERATOR }}"
           -DENABLE_CPPLINT=OFF
-          -DENABLE_CPPLINT=OFF
+          -DENABLE_INTEL_GPU=OFF
+          -DENABLE_INTEL_NPU=OFF
+          -DENABLE_SAMPLES=OF
           -DENABLE_NCC_STYLE=OFF
+          -DENABLE_PYTHON=OFF
           -DENABLE_TESTS=ON
           -DENABLE_STRICT_DEPENDENCIES=OFF
           -DCMAKE_VERBOSE_MAKEFILE=ON
