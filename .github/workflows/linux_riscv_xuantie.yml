@@ -138,7 +138,10 @@ jobs:
       #
       - name: Clean ccache stats
         run: ccache --zero-stats
-
+      
+      - name: Debug
+        run: ls -la /opt/riscv/bin/
+      
       - name: CMake - Configure
         run: >
           cmake -G "${{ env.CMAKE_GENERATOR }}"
@@ -158,11 +161,40 @@ jobs:
       - name: Cmake - Build
         run: cmake --build ${OPENVINO_BUILD_DIR} --parallel $(nproc)
 
-      - name: Show ccache stats
-        run: ccache --show-stats
-
-      - name: Clean ccache
-        run: ccache --cleanup
+      - name: Show ccache stats and cleanup
+        run: |
+          ccache --show-stats
+          ccache --cleanup
+        
+      - name: Cmake install - OpenVINO
+        run: |
+          cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_DIR}
+          cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_TEST_DIR} --component tests
+        working-directory: ${{ env.BUILD_DIR }}
+          
+      - name: Pack openvino_package
+        run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_package.tar.gz
+        working-directory: ${{ env.INSTALL_DIR }}
+        
+      - name: Pack openvino_tests
+        run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_tests.tar.gz
+        working-directory: ${{ env.INSTALL_TEST_DIR }}
+        
+      - name: Upload openvino package
+        if: ${{ always() }}
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: openvino_package
+          path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+          if-no-files-found: 'error'
+          
+      - name: Upload openvino tests package
+        if: ${{ always() }}
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: openvino_tests
+          path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+          if-no-files-found: 'error'
 
   Overall_Status:
     name: ci/gha_overall_status_linux_riscv
