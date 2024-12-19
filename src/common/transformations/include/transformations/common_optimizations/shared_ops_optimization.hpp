@@ -22,6 +22,6 @@ class TRANSFORMATIONS_API SharedOpOptimization;
  */
 class ov::pass::SharedOpOptimization : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("SharedOpOptimization", "0");
+    OPENVINO_MODEL_PASS_RTTI("SharedOpOptimization");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };

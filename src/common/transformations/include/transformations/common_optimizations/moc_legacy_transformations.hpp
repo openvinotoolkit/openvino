@@ -32,7 +32,7 @@ namespace pass {
 
 class MOCLegacyTransformations : public ModelPass {
 public:
-    OPENVINO_RTTI("MOCLegacyTransformations", "0");
+    OPENVINO_MODEL_PASS_RTTI("MOCLegacyTransformations");
     explicit MOCLegacyTransformations(const std::vector<std::string>& params_with_custom_types)
         : m_params_with_custom_types(params_with_custom_types) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& f) override;

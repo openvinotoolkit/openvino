@@ -4,15 +4,25 @@
 
 #pragma once
 
-#include <list>
 #include <memory>
-#include <vector>
+#include <string>
 
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/enum_mask.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/rtti.hpp"
 #include "openvino/pass/pass_config.hpp"
+
+#define _OPENVINO_MODEL_PASS_RTTI_WITH_TYPE(TYPE_NAME) _OPENVINO_MODEL_PASS_RTTI_WITH_TYPE_VERSION(TYPE_NAME, "0")
+
+#define _OPENVINO_MODEL_PASS_RTTI_WITH_TYPE_VERSION(TYPE_NAME, VERSION_NAME) \
+    _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT(TYPE_NAME, VERSION_NAME, ::ov::pass::ModelPass)
+
+#define OPENVINO_MODEL_PASS_RTTI(...)                                                                       \
+    _OPENVINO_RTTI_EXPAND(_OPENVINO_RTTI_DEFINITION_SELECTOR_2(__VA_ARGS__,                                 \
+                                                               _OPENVINO_MODEL_PASS_RTTI_WITH_TYPE_VERSION, \
+                                                               _OPENVINO_MODEL_PASS_RTTI_WITH_TYPE)(__VA_ARGS__))
 
 namespace ov {
 namespace pass {

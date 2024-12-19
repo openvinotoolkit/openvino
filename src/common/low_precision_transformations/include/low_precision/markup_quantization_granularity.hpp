@@ -34,6 +34,8 @@ class LP_TRANSFORMATIONS_API MarkupQuantizationGranularity;
  */
 class ov::pass::low_precision::MarkupQuantizationGranularity : public ov::pass::ModelPass {
 public:
+    OPENVINO_MODEL_PASS_RTTI("low_precision::MarkupQuantizationGranularity");
+
     class PerTensorQuantization {
     public:
         explicit PerTensorQuantization(const bool versionIsRequired) : versionIsRequired(versionIsRequired) {}
@@ -45,7 +47,6 @@ public:
         std::unordered_map<std::string, std::vector<PortQuantizationGranularityRestriction>> portsByVersion;
     };
 
-    OPENVINO_RTTI("MarkupPerTensorQuantization", "0");
     explicit MarkupQuantizationGranularity(const std::vector<QuantizationGranularityRestriction>& restrictions = {});
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 

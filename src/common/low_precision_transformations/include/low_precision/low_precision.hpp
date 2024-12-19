@@ -42,7 +42,7 @@ class LP_TRANSFORMATIONS_API LowPrecision;
 
 class ov::pass::low_precision::MarkupOptimizations : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("MarkupOptimizations", "0");
+    OPENVINO_MODEL_PASS_RTTI("low_precision::MarkupOptimizations");
     MarkupOptimizations(
         const std::vector<PrecisionsRestriction>& precisionRestrictions,
         const std::vector<QuantizationGranularityRestriction>& quantizationRestrictions,
@@ -62,7 +62,7 @@ public:
 
 class LP_TRANSFORMATIONS_API ov::pass::low_precision::LowPrecision : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("LowPrecision", "0");
+    OPENVINO_MODEL_PASS_RTTI("low_precision::LowPrecision");
     LowPrecision(
         const std::vector<PrecisionsRestriction>& precisionRestrictions = {},
         const std::vector<QuantizationGranularityRestriction>& quantizationRestrictions = {},

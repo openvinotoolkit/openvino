@@ -17,6 +17,7 @@ namespace pass {
 
 class CopyTensorNamesToRefModel : public ov::pass::ModelPass {
 public:
+    OPENVINO_MODEL_PASS_RTTI("CopyTensorNamesToRefModel");
     CopyTensorNamesToRefModel(const std::shared_ptr<ov::Model>& ref_model) : m_ref_model(ref_model) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& f) override {
         const auto& orig_results = f->get_results();

@@ -23,6 +23,6 @@ class TRANSFORMATIONS_API RemoveMultiSubGraphOpDanglingParamsResults;
 
 class ov::pass::RemoveMultiSubGraphOpDanglingParamsResults : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("RemoveMultiSubGraphOpDanglingParamsResults", "0");
+    OPENVINO_MODEL_PASS_RTTI("RemoveMultiSubGraphOpDanglingParamsResults");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };

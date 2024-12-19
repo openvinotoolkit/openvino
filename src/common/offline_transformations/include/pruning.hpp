@@ -67,7 +67,7 @@ public:
  */
 class ov::pass::ShrinkWeights : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("ShrinkWeights", "0");
+    OPENVINO_MODEL_PASS_RTTI("ShrinkWeights");
     bool run_on_model(const std::shared_ptr<ov::Model>&) override;
 };
 
@@ -77,6 +77,6 @@ public:
  */
 class ov::pass::Pruning : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("Pruning", "0");
+    OPENVINO_MODEL_PASS_RTTI("Pruning");
     bool run_on_model(const std::shared_ptr<Model>&) override;
 };
