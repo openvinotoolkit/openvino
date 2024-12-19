@@ -12,6 +12,7 @@ using namespace ov::frontend;
 /// \brief Helper class to register user function as a FunctionPass
 class CustomModelPass : public ov::pass::ModelPass {
 public:
+    OPENVINO_MODEL_PASS_RTTI("frontend::CustomModelPass");
     explicit CustomModelPass(std::function<bool(std::shared_ptr<ov::Model>)> pass) : m_pass(std::move(pass)) {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& f) override {
