@@ -196,10 +196,61 @@ jobs:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
+  
+  CPU_Functional_Tests:
+    name: CPU functional tests
+    timeout-minutes: 30
+    needs: [Smart_CI, Docker, Build]
+    runs-on: aks-linux-4-cores-16gb
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_riscv_xuantie }}
+      volumes:
+        - ${{ github.workspace }}:${{ github.workspace }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+
+    steps:
+      - name: Download OpenVINO artifacts (tarballs)
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          pattern: openvino_[package|tests]*
+          path: ${{ env.INSTALL_DIR }}
+          merge-multiple: true
+          
+      - name: Extract OpenVINO packages and tests
+        run: |
+          pigz -dc openvino_package.tar.gz | tar -xf - -C ${INSTALL_DIR}
+          pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
+        working-directory: ${{ env.INSTALL_DIR }}
+
+      - name: Intel CPU plugin func tests (parallel)
+        run: |
+          # Needed as the Linux CC does not require setupvars to work
+          if [[ -f "${{ env.INSTALL_DIR }}/setupvars.sh" ]]; then
+            source ${{ env.INSTALL_DIR }}/setupvars.sh
+          fi
+          ${{ env.RISCV_TOOLCHAIN_ROOT}}/bin/qemu-riscv64 -cpu c910v ${{ env.INSTALL_TEST_DIR }}/tests/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=${{ env.GTEST_FILTER }}
+        env:
+          LD_LIBRARY_PATH: "$LD_LIBRARY_PATH:${{ env.INSTALL_TEST_DIR }}" # Needed as ze_loader.so is under INSTALL_TEST_DIR
+        timeout-minutes: 25
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        if: always()
+        with:
+          name: test-results-functional-cpu
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/temp/*.log
+            ${{ env.INSTALL_TEST_DIR }}/logs/*.log
+          if-no-files-found: 'error'
 
   Overall_Status:
     name: ci/gha_overall_status_linux_riscv
-    needs: [Smart_CI, Build]
+    needs: [Smart_CI, Build, CPU_Functional_Tests]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
