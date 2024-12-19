@@ -101,6 +101,7 @@ jobs:
       CCACHE_DIR: ${{ github.workspace }}/ccache
       CCACHE_TEMPDIR: ${{ github.workspace }}/ccache_temp
       CCACHE_MAXSIZE: 2G
+      RISCV_TOOLCHAIN_ROOT: /opt/riscv
 
     if: ${{ github.event_name != 'merge_group' }}
     steps:
