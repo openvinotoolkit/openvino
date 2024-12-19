@@ -22,7 +22,6 @@ inputs:
 runs:
   using: 'composite'
   steps:
-
     - name: Check if Python is already installed (Linux)
       if: ${{ runner.os == 'Linux' }}
       shell: bash
@@ -54,13 +53,11 @@ runs:
       with:
         python-version: ${{ inputs.version }}
 
-    - if: ${{ runner.os == 'macOS' || runner.os == 'Windows' || (runner.os == 'Linux' && runner.arch != 'ARM64' && steps.check_python.outputs.installed == 'false' ) }}
+    - if: ${{ runner.os == 'macOS' || runner.os == 'Windows' || (runner.os == 'Linux' && runner.arch != 'ARM64' && steps.check_python.outputs.installed == 'false') }}
       name: Setup Python ${{ inputs.version }}
       uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
       with:
         python-version: ${{ inputs.version }}
-      env:
-        PIP_CACHE_DIR: ${{ inputs.self-hosted-runner == 'true' && inputs.pip-cache-path || '' }}
 
     - if: ${{ inputs.should-setup-pip-paths == 'true' && runner.os != 'Windows' }}
       name: Setup pip variables (cache and install path)
