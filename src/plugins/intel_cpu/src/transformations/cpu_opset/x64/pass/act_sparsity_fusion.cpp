@@ -59,8 +59,8 @@ ov::intel_cpu::ActivationSparsityFusion::ActivationSparsityFusion() {
     auto fc_weight_sym = makePattern<opset1::Convert>({fc_weight_i8}, {{"destination_type", "f32"}});
 
     auto fc_weight_scales_per_OC = makeConst(ov::element::f32, ov::PartialShape({ov::Dimension(), 1}), nullptr);
-    auto fc_weight_deq_i8_u8 =
-        makePattern<opset1::Multiply>({fc_weight_asym | fc_weight_sym, fc_weight_scales_per_OC}, {{"auto_broadcast", "numpy"}});
+    auto fc_weight_deq_i8_u8 = makePattern<opset1::Multiply>({fc_weight_asym | fc_weight_sym, fc_weight_scales_per_OC},
+                                                             {{"auto_broadcast", "numpy"}});
 
     // INT4 groupped quantization would have a reshape
     //      weight const  u4  [OC, IC//group_size, group_size]
@@ -88,8 +88,8 @@ ov::intel_cpu::ActivationSparsityFusion::ActivationSparsityFusion() {
         makePattern<opset1::Subtract>({fc_weight_u4f32, fc_weight_zero_point_u4f32}, {{"auto_broadcast", "numpy"}});
     auto fc_weight_scales_gr =
         makeConst(ov::element::f32, ov::PartialShape({ov::Dimension(), ov::Dimension(), ov::Dimension(1)}), nullptr);
-    auto fc_weight_u4_deq =
-        makePattern<opset1::Multiply>({fc_weight_sub_zp | fc_weight_i4f32, fc_weight_scales_gr}, {{"auto_broadcast", "numpy"}});
+    auto fc_weight_u4_deq = makePattern<opset1::Multiply>({fc_weight_sub_zp | fc_weight_i4f32, fc_weight_scales_gr},
+                                                          {{"auto_broadcast", "numpy"}});
     auto fc_weight_shape = makePattern("[?]");
     auto fc_weight_u4_deq_reshape =
         makePattern<opset1::Reshape>({fc_weight_u4_deq, fc_weight_shape}, {{"special_zero", false}});
@@ -97,9 +97,9 @@ ov::intel_cpu::ActivationSparsityFusion::ActivationSparsityFusion() {
     auto fc_weight_f16 = makeConst(ov::element::f16, ov::PartialShape({ov::Dimension(), ov::Dimension()}), nullptr);
     auto fc_weight_f16_f32 = makePattern<opset1::Convert>({fc_weight_f16}, {{"destination_type", "f32"}});
 
-    auto fc_result = makePattern<opset1::MatMul>(
-        {sparse_input, fc_weight_f16_f32 | fc_weight_deq_i8_u8 | fc_weight_u4_deq_reshape},
-        {{"transpose_a", false}, {"transpose_b", true}});  // [?,?,up_size]
+    auto fc_result =
+        makePattern<opset1::MatMul>({sparse_input, fc_weight_f16_f32 | fc_weight_deq_i8_u8 | fc_weight_u4_deq_reshape},
+                                    {{"transpose_a", false}, {"transpose_b", true}});  // [?,?,up_size]
 
     auto result = fc_result;
 
@@ -117,8 +117,6 @@ ov::intel_cpu::ActivationSparsityFusion::ActivationSparsityFusion() {
             return false;
         }
 
-        //std::cout << m.get_match_root() << std::endl;
-
         OutputVector new_args;
 
         new_args.push_back(pattern_map.at(input));
@@ -126,7 +124,7 @@ ov::intel_cpu::ActivationSparsityFusion::ActivationSparsityFusion() {
         ActSparseFCNode::Config config;
         config.ic = 0;
         config.oc = 0;
-        config.ic_q_group_size = 0; // per-OC by default
+        config.ic_q_group_size = 0;  // per-OC by default
         config.is_int4 = false;
         config.with_zero_point = false;
         config.is_quantized = true;
@@ -141,8 +139,7 @@ ov::intel_cpu::ActivationSparsityFusion::ActivationSparsityFusion() {
             const auto& w_shape = const_weight->get_shape();
             config.oc = w_shape[0];
             config.ic = w_shape[1];
-        } else if (pattern_map.count(fc_weight_u8) > 0 ||
-                   pattern_map.count(fc_weight_i8) > 0) {
+        } else if (pattern_map.count(fc_weight_u8) > 0 || pattern_map.count(fc_weight_i8) > 0) {
             if (pattern_map.count(fc_weight_u8)) {
                 new_args.push_back(pattern_map.at(fc_weight_u8));
                 new_args.push_back(pattern_map.at(fc_weight_scales_per_OC));
@@ -160,8 +157,7 @@ ov::intel_cpu::ActivationSparsityFusion::ActivationSparsityFusion() {
             const auto& w_shape = const_weight->get_shape();
             config.oc = w_shape[0];
             config.ic = w_shape[1];
-        } else if (pattern_map.count(fc_weight_u4) > 0 ||
-                   pattern_map.count(fc_weight_i4) > 0) {
+        } else if (pattern_map.count(fc_weight_u4) > 0 || pattern_map.count(fc_weight_i4) > 0) {
             if (pattern_map.count(fc_weight_u4)) {
                 new_args.push_back(pattern_map.at(fc_weight_u4));
                 new_args.push_back(pattern_map.at(fc_weight_scales_gr));

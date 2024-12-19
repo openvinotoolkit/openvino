@@ -6,16 +6,14 @@
 #include <cstddef>
 #include <vector>
 
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "simd_jit.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-enum class WeightCompressionType {
-    FP16 = 0,
-    INT8,
-    INT4
-};
+enum class WeightCompressionType { FP16 = 0, INT8, INT4 };
 class ActSparseFcKernel {
 public:
     // compile time parameters
@@ -32,7 +30,47 @@ public:
                     const float* scales,
                     const uint8_t* zp);
 
-    void repack_weights_i4(uint8_t * src, uint8_t * dst, int IC, int OC);
+    void repack_weights_i4(uint8_t* src, uint8_t* dst, int IC, int OC);
+
+private:
+    void
+    MM_ComputeBounded_reuseA_f16(const float* A, float* C, const ov::float16* W, int M, int IC, int OC, int n0, int n1);
+    void MM_ComputeBounded_reuseA_i8(const float* A,
+                                     float* C,
+                                     const uint8_t* W,
+                                     const uint8_t* zp,
+                                     const float* scales,
+                                     int M,
+                                     int IC,
+                                     int OC,
+                                     int64_t n0,
+                                     int64_t n1);
+
+    void MM_ComputeBounded_reuseB_i8(const float* A,
+                                     float* C,
+                                     const uint8_t* W,
+                                     const uint8_t* zp,
+                                     const float* scales,
+                                     int M,
+                                     int IC,
+                                     int OC,
+                                     int n0,
+                                     int n1);
+
+    void MM_ComputeBounded_reuseA_i4(const float* A,
+                                     float* C,
+                                     const uint8_t* W,
+                                     const uint8_t* zp,
+                                     const float* scales,
+                                     int M,
+                                     int IC,
+                                     int OC,
+                                     int n0,
+                                     int n1,
+                                     int icgs);
+
+    template <class T>
+    T* scratch_alloc(size_t cnt);
 
 private:
     const WeightCompressionType m_wtype;

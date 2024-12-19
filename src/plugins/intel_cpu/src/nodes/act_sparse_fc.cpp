@@ -198,8 +198,6 @@ ActSparseFC::ActSparseFC(const std::shared_ptr<ov::Node>& op, const GraphContext
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
 
-    const auto& config = context->getConfig();
-
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW("CPU: " + errorMessage);
     }
@@ -244,9 +242,8 @@ bool ActSparseFC::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
     try {
         const auto node = std::dynamic_pointer_cast<const ActSparseFCNode>(op);
         const auto& config = node->get_config();
-        if ((config.oc % 16) > 0) {
+        if ((config.oc % 32) > 0) {
             errorMessage = "Unsupported OC size for node " + node->get_friendly_name();
-            std::cout << "ActSparseFC: " << errorMessage << std::endl;
             return false;
         }
     } catch (...) {

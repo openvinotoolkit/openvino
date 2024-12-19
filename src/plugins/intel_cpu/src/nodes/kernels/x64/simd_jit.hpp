@@ -157,8 +157,8 @@ public:
         return (*fptr)(std::forward<kernel_args_t>(args)...);
     }
 
-    void finalize(Xbyak::Reg64 return_value = {}) {
-        if (!return_value.isNone())
+    void finalize(Xbyak::Reg64 return_value = Xbyak::Reg64(Xbyak::Operand::RAX)) {
+        if (return_value.getIdx() != rax.getIdx())
             mov(rax, return_value);
         postamble();
         create_kernel();
@@ -167,7 +167,7 @@ public:
     Xbyak::Reg64 get_sreg(int i, bool is_arg = false) {
         if (i < abi_param_regs_num)
             return Xbyak::Reg64(abi_x86_64_regs[i]);
-        if (i >= sizeof(abi_x86_64_regs) / sizeof(abi_x86_64_regs[0]))
+        if (i >= static_cast<int>(sizeof(abi_x86_64_regs) / sizeof(abi_x86_64_regs[0])))
             throw std::runtime_error(std::string("try to allocate invalid scalar register #") + std::to_string(i));
 
         auto r = Xbyak::Reg64(abi_x86_64_regs[i]);
