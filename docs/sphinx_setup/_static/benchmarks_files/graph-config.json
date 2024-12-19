@@ -25,6 +25,7 @@
         "msec/token": "(lower is better)",
         "Generating time, sec.": "(lower is better)",
         "msec/token/TDP": "(lower is better)",
+        "Tokens per sec": "(higher is better)",
         "FPS": "(higher is better)",
         "FPS/$": "(higher is better)",
         "FPS/TDP": "(higher is better)",
