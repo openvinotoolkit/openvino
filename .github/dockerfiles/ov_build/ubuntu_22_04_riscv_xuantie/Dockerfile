@@ -66,10 +66,10 @@ RUN dpkg --add-architecture riscv64 && \
 
 # build xuintie toolchain
 ARG XUANTIE_VERSION="V2.8.1"
-ENV XUANTIE_REPO="https://github.com/XUANTIE-RV/xuantie-gnu-toolchain" \
-    XUINTIE_PATH="/opt/riscv" \
-    XUINTIE_TMP_PATH="/tmp/xuantie" \
-    XUINTIE_SRC="/tmp/xuantie/src"
+ARG XUANTIE_REPO="https://github.com/XUANTIE-RV/xuantie-gnu-toolchain"
+ARG XUINTIE_PATH="/opt/riscv"
+ARG XUINTIE_TMP_PATH="/tmp/xuantie"
+ARG XUINTIE_SRC="/tmp/xuantie/src"
     
 RUN mkdir -p ${XUINTIE_TMP_PATH} && cd ${XUINTIE_TMP_PATH} && \
     git clone --branch ${XUANTIE_VERSION} --depth 1 ${XUANTIE_REPO} ${XUINTIE_SRC} && \
