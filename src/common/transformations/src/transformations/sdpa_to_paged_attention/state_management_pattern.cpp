@@ -429,6 +429,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
             parameters_to_remove.push_back(param);
         }
 
+        pa_transpose->set_friendly_name(sdpa_node->get_friendly_name());
         replace_node(m.get_match_root(), pa_transpose);
         return true;
     };

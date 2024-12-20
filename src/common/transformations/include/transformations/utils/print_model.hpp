@@ -19,6 +19,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/pass.hpp"
 #include "transformations/utils/utils.hpp"
 

@@ -11,11 +11,9 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "openvino/op/slice.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -112,22 +110,21 @@ ov::pass::TotalSequenceLengthPatternQwen::TotalSequenceLengthPatternQwen(
 
     auto p_input_ids = wrap_type<v0::Parameter>();
     auto p_unsqueeze = wrap_type<v0::Unsqueeze>({p_input_ids, any_input()});
-    auto p_opt_reshape_2 = optional<v1::Reshape>({p_unsqueeze, any_input()});
-    auto p_opt_convert_2 = optional<v0::Convert>(p_opt_reshape_2);
-    auto p_kv_shape_current = wrap_type<v3::ShapeOf>({p_opt_convert_2});
+    auto p_opt_reshape_1 = optional<v1::Reshape>({p_unsqueeze, any_input()});
+    auto p_opt_convert_1 = optional<v0::Convert>(p_opt_reshape_1);
+    auto p_kv_shape_current = wrap_type<v3::ShapeOf>({p_opt_convert_1});
     auto p_seq_current = wrap_type<v8::Gather>({p_kv_shape_current, any_input(), any_input()});
+    auto p_opt_convert_2 = optional<v0::Convert>(p_seq_current);
 
     auto p_max_context_len = wrap_type<v0::Parameter>();
-    auto p_prev_max_seq_len = wrap_type<v1::Subtract>({max_context_len, any_input()});
-    auto p_opt_convert_1 = optional<v0::Convert>(p_prev_max_seq_len);
-    auto opt_reshape_1 = optional<v1::Reshape>({p_opt_convert_1, p_seq_current});
-
-    auto p_total_seq = wrap_type<v1::Add>({p_seq_current, opt_reshape_1});
+    auto p_prev_max_seq_len = wrap_type<v1::Subtract>({p_max_context_len, any_input()});
+    auto p_opt_convert_3 = optional<v0::Convert>(p_prev_max_seq_len);
+    auto p_opt_reshape_2 = optional<v1::Reshape>({p_opt_convert_3, any_input()});
+    auto p_total_seq = wrap_type<v1::Add>({p_opt_convert_2, p_opt_reshape_2});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto total_seq = pattern_map.at(p_total_seq).get_node_shared_ptr();
-
         std::shared_ptr<Node> replacement = max_context_len;
 
         auto target_type = total_seq->get_output_element_type(0);

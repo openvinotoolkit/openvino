@@ -81,9 +81,12 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     OPENVINO_ASSERT(input_ids_node, "The model doesn't contain input_ids or input_embeds input. Aborting.");
 
     input_ids_node->set_partial_shape(PartialShape{-1});
+    auto input_ids_target_inputs = input_ids_node->get_output_target_inputs(0);
     auto unsqueezed_input_ids =
         std::make_shared<v0::Unsqueeze>(input_ids_node, v0::Constant::create(element::i32, Shape{}, {1}));
-    replace_node(input_ids_node, unsqueezed_input_ids);
+    for (const auto& target : input_ids_target_inputs) {
+        target.replace_source_output(unsqueezed_input_ids);
+    }
 
     auto cur_seq_len = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(unsqueezed_input_ids),
                                                     v0::Constant::create(element::i64, Shape{}, {1}),
@@ -106,9 +109,12 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         position_ids->set_partial_shape(PartialShape{-1});
         position_ids->validate_and_infer_types();
     }
+    auto position_ids_target_inputs = position_ids->get_output_target_inputs(0);
     auto unsqueezed_position_ids =
         std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {1}));
-    replace_node(position_ids, unsqueezed_position_ids);
+    for (const auto& target : position_ids_target_inputs) {
+        target.replace_source_output(unsqueezed_position_ids);
+    }
 
     int layer_index = 0;
 
