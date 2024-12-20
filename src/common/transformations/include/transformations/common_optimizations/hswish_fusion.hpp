@@ -68,7 +68,7 @@ public:
  */
 class ov::pass::HSwishFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("HSwishFusion", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("HSwishFusion");
     HSwishFusion() {
         add_matcher<ov::pass::HSwishFusionWithReluDiv>();
         add_matcher<ov::pass::HSwishFusionWithReluMul>();
