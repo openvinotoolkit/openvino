@@ -280,6 +280,10 @@ struct convert<IAccuracyMetric::Ptr> {
 template <>
 struct convert<GlobalOptions> {
     static bool decode(const Node& node, GlobalOptions& opts) {
+        const std::unordered_set<std::string> parameters = {"blob_dir", "compiler_type", "device_name", 
+        "disable_high_resolution_waitable_timer", "log_level", "metric", "model_dir", "multi_inference", 
+        "random", "save_validation_outputs"};
+        validateNodeKeys(node, parameters, "global options");
         if (node["model_dir"]) {
             if (!node["model_dir"]["local"]) {
                 THROW_ERROR("\"model_dir\" must contain \"local\" key!");
@@ -481,13 +485,17 @@ struct convert<InferOp> {
         const auto framework = node["framework"] ? node["framework"].as<std::string>() : "openvino";
         if (framework == "openvino") {
             // NB: Parse OpenVINO model parameters such as path, device, precision, etc
+            op.params = node.as<OpenVINOParams>();
             const std::unordered_set<std::string> parameters = {"config", "device", "framework", "il", "iml", 
             "input_data", "ip", "metric", "name", "nireq", "ol", "oml", "op", "output_data", "path", 
             "priority", "random", "repeat_count", "reshape", "tag", "type"};
-            op.params = node.as<OpenVINOParams>();
             validateNodeKeys(node, parameters, "node with \"type: Infer\" and \"framework: openvino\"");
         } else if (framework == "onnxrt") {
             op.params = node.as<ONNXRTParams>();
+            const std::unordered_set<std::string> parameters = {"device_type", "ep", "framework", 
+            "input_data", "metric", "name", "opt_level", "output_data", "params", "path", "random", 
+            "repeat_count", "session_options", "tag", "type"};
+            validateNodeKeys(node, parameters, "node with \"type: Infer\" and \"framework: onnxrt\"");
         } else {
             THROW_ERROR("Unsupported \"framework:\" value: " << framework);
         }
@@ -655,7 +663,9 @@ static InferenceParams adjustParams(InferenceParams&& params, const GlobalOption
 static StreamDesc parseStream(const YAML::Node& node, const GlobalOptions& opts, const std::string& default_name,
                               const ReplaceBy& replace_by) {
     StreamDesc stream;
-
+    const std::unordered_set<std::string> parameters = {"delay_in_us", "exec_time_in_secs", "frames_interval_in_ms",
+    "iteration_count", "name", "network", "target_fps", "target_latency_in_ms"};
+    validateNodeKeys(node, parameters, "node at stream level");
     // FIXME: Create a function for the duplicate code below
     stream.name = node["name"] ? node["name"].as<std::string>() : default_name;
     stream.frames_interval_in_us = 0u;
@@ -856,6 +866,8 @@ static std::vector<ScenarioDesc> parseScenarios(const YAML::Node& node, const Gl
                                                 const ReplaceBy& replace_by) {
     std::vector<ScenarioDesc> scenarios;
     for (const auto& subnode : node) {
+        const std::unordered_set<std::string> parameters = {"input_stream_list", "name"};
+        validateNodeKeys(subnode, parameters, "node at scenario level");
         ScenarioDesc scenario;
         scenario.name = subnode["name"] ? subnode["name"].as<std::string>()
                                         : "multi_inference_" + std::to_string(scenarios.size());
