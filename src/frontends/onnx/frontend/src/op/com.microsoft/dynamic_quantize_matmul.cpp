@@ -6,7 +6,7 @@
 #include "exceptions.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/subtract.hpp"
-#include "openvino/op/divide.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/convert.hpp"
@@ -77,14 +77,14 @@ ov::OutputVector dynamic_quantize_matmul(const ov::frontend::onnx::Node& node) {
     }
 
     // At time of writing, ov::MatMul does not support int8/uint8 types. To get the correct output, we need to dequantize B. 
-    // Technically this does not do DynamicQuantization, but is required for correct output of the operator
-    // B_dequantized = (B - b_zero_point) / b_scale
-    
-    // We also need to convert b_scale dtype to match B_dequantized, as OV "Divide" op requires both argument dtypes to match
+    // Technically this does not do DynamicQuantization, but is required for correct output of the operator. It will implement A * B_dequantized + bias
+    // According to ONNX RT docs, they do linear quantization shown here https://tomwildenhain-microsoft.github.io/onnxruntime/docs/performance/quantization.html
+    // B_dequantized = (B - b_zero_point) * b_scale
 
-    ov::Output<ov::Node> B_dequantized = std::make_shared<v1::Subtract>(B, b_zero_point);
-    B_dequantized = std::make_shared<v0::Convert>(B_dequantized, b_scale.get_element_type());
-    B_dequantized = std::make_shared<v1::Divide>(B_dequantized, b_scale);
+    ov::Output<ov::Node> B_dequantized = std::make_shared<v0::Convert>(B, b_scale.get_element_type());
+    b_zero_point = std::make_shared<v0::Convert>(b_zero_point, b_scale.get_element_type());
+    B_dequantized = std::make_shared<v1::Subtract>(B_dequantized, b_zero_point);
+    B_dequantized = std::make_shared<v1::Multiply>(B_dequantized, b_scale);
 
     // A, B are N-dimensional matrices. According to example ONNX models for this operator, the suboperations pass input A/B such that B's shape is already transposed.
     // E.g. https://github.com/microsoft/onnxruntime/blob/main/onnxruntime/test/testdata/transform/fusion/dynamic_quantize_matmul.onnx

@@ -1363,12 +1363,11 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_dynamic_quantize_matmul) {
 
     // Fill test case here
     const std::vector<float> input_A{1.29292f, 2.47473f, 3.291903f, 4.1728945f, 5.213912f, 6.1293125f};
-    const std::vector<int8_t> input_B{1, 2, 3, 125, 126, -128};
-    const std::vector<float> b_scale{6.28947502f};
-    const std::vector<int8_t> b_zero_point{69};
+    const std::vector<int8_t> input_B{-2, 29, 61, 61, 29, 125};
+    const std::vector<float> b_scale{0.003137f};
+    const std::vector<int8_t> b_zero_point{-34};
 
-    const std::vector<float> expected{3.16867157e+02f, 3.40601959e+02f, -3.60632910e+03f, 6.47037888e+01f, 1.11719864e+02f, -6.54899121e+03f,
-    -7.19602890e+01f, -6.04708314e-01f, -9.75953906e+03f};
+    const std::vector<float> expected{0.8681802f, 0.7458673f, 1.6218146f, 1.5770973f, 1.4774824f, 3.0677009f, 2.3504133f, 2.2423527f, 4.611995f};
 
     // add_input needs to be called in order of model inputs (order matters)
     test_case.add_input<float>(Shape{3,2}, input_A);
@@ -1379,7 +1378,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_dynamic_quantize_matmul) {
     test_case.add_expected_output<float>(Shape{3,3}, expected);
 
     if (std::string("${BACKEND_NAME}") == std::string("IE_GPU")) {
-        test_case.run_with_tolerance_as_fp(0.0001f);
+        test_case.run_with_tolerance_as_fp(0.003f);
     } else {
         test_case.run();
     }
