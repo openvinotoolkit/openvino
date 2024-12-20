@@ -49,7 +49,7 @@ public:
  */
 class ov::pass::PullThroughReduce : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("PullThroughReduce", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("PullThroughReduce");
     PullThroughReduce() {
         add_matcher<ov::pass::PullUnsqueezeThroughReduce>();
         add_matcher<ov::pass::PullReshapeThroughReduce>();

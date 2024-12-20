@@ -43,7 +43,7 @@ public:
  */
 class ConvertBitwiseToLogical : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("ConvertBitwiseToLogical", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("ConvertBitwiseToLogical");
     ConvertBitwiseToLogical() {
         add_matcher<ov::pass::ConvertBitwiseAndToLogicalAnd>();
         add_matcher<ov::pass::ConvertBitwiseNotToLogicalNot>();

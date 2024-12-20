@@ -148,7 +148,7 @@ public:
  */
 class ov::pass::PReluFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("PReluFusion", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("PReluFusion");
     PReluFusion() {
         add_matcher<ov::pass::PReluFusionNegativeAdd>();
         add_matcher<ov::pass::PReluFusionNegativeSub>();

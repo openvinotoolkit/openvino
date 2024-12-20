@@ -29,7 +29,7 @@ public:
 
 class OptimizeSequenceTransposes : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("OptimizeSequenceTransposes", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("OptimizeSequenceTransposes");
     OptimizeSequenceTransposes();
 };
 

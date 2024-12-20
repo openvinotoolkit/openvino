@@ -66,7 +66,7 @@ public:
 
 class ov::pass::ConvertTensorIteratorToSequence : public GraphRewrite {
 public:
-    OPENVINO_RTTI("ConvertTensorIteratorToSequence", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("ConvertTensorIteratorToSequence");
     ConvertTensorIteratorToSequence();
 };
 
@@ -88,7 +88,7 @@ public:
  */
 class ov::pass::ConvertLoopToLSTMSequence : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("ConvertLoopToLSTMSequence", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("ConvertLoopToLSTMSequence");
     ConvertLoopToLSTMSequence() {
         add_matcher<ov::pass::ConvertLoopWithScatterUpdateToLSTMSequence>();
         add_matcher<ov::pass::ConvertLoopWithSlicedInputConcatOutputToLSTMSequence>();

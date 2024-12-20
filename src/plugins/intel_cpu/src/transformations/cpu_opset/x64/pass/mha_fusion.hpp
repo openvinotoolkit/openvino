@@ -54,7 +54,7 @@ public:
 
 class MHAFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("MHAFusion", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("MHAFusion");
     MHAFusion() {
         add_matcher<MHAFloatFusion>();
         add_matcher<MHAFloatFusion2>();

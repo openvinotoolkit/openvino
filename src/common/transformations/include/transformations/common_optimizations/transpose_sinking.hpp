@@ -81,7 +81,7 @@ public:
  */
 class ov::pass::TransposeSinking : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("TransposeSinking", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("TransposeSinking");
     TransposeSinking() {
         add_matcher<ov::pass::TransposeFQReduction>();
         add_matcher<ov::pass::TransposeReduction>();

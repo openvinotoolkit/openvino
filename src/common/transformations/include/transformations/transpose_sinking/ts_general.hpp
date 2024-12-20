@@ -29,7 +29,7 @@ using TransposeSinkingGeneral = ov::pass::transpose_sinking::TSGeneral;
  */
 class ov::pass::transpose_sinking::TSGeneralForward : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("TSGeneralForward", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("TSGeneralForward");
     TSGeneralForward();
 };
 
@@ -40,7 +40,7 @@ public:
  */
 class ov::pass::transpose_sinking::TSGeneralBackward : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("TSGeneralBackward", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("TSGeneralBackward");
     TSGeneralBackward();
 };
 

@@ -11,7 +11,7 @@ namespace intel_gpu {
 
 class TransposeFusion: public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("TransposeFusion", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("TransposeFusion");
     TransposeFusion(bool supports_immad = false);
 };
 

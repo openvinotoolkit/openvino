@@ -41,7 +41,7 @@ public:
  */
 class ov::pass::CompressFloatConstants : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("CompressFloatConstants", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("CompressFloatConstants");
     /// @brief Transformation constructor
     /// @param postponed Postponed compression, see ov::pass::CompressFloatConstantsImpl for details.
     CompressFloatConstants(bool postponed = false) {

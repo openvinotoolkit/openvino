@@ -90,7 +90,7 @@ public:
 
 class ov::pass::PadFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("PadFusion", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("PadFusion");
     PadFusion() {
         add_matcher<ov::pass::PadFusionAvgPool>();
         add_matcher<ov::pass::PadFusionConvolution>();

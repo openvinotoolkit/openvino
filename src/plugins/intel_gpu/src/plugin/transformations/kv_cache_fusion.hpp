@@ -76,7 +76,7 @@ namespace intel_gpu {
 ///   └─────────────┘         └───────────┘                                                      └─────────┘
 class KVCacheFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("KVCacheFusion", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("KVCacheFusion");
     KVCacheFusion();
 
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;

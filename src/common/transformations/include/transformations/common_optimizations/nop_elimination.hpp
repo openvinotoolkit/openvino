@@ -145,7 +145,7 @@ public:
 
 class ov::pass::NopElimination : public GraphRewrite {
 public:
-    OPENVINO_RTTI("NopElimination", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("NopElimination");
     NopElimination(bool use_shape_for_elimination = true);
 };
 

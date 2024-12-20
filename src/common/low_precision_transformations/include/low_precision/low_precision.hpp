@@ -56,7 +56,7 @@ private:
 
 class ov::pass::low_precision::TypeRelaxedReplacer : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("TypeRelaxedReplacer", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("low_precision::TypeRelaxedReplacer");
     TypeRelaxedReplacer();
 };
 

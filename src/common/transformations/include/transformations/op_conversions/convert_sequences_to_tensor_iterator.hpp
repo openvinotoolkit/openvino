@@ -59,6 +59,6 @@ public:
 
 class ov::pass::ConvertSequenceToTensorIterator : public GraphRewrite {
 public:
-    OPENVINO_RTTI("ConvertSequenceToTensorIterator", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("ConvertSequenceToTensorIterator");
     ConvertSequenceToTensorIterator();
 };
