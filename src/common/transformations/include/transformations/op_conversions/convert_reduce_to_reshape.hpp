@@ -32,6 +32,8 @@ class TRANSFORMATIONS_API ConvertReduceLogicalOrToReshape;
 
 class CvtReduceBase : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("CvtReduceBase");
+
     template <class T>
     ov::matcher_pass_callback convert_reduce_to_reshape();
 

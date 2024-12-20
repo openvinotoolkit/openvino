@@ -20,6 +20,6 @@ class TRANSFORMATIONS_API ConvertBroadcast3;
 
 class ov::pass::ConvertBroadcast3 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertBroadcast3", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertBroadcast3");
     ConvertBroadcast3();
 };

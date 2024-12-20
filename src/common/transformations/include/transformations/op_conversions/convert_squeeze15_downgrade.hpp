@@ -15,7 +15,7 @@ namespace pass {
  */
 class TRANSFORMATIONS_API ConvertSqueeze15ToSqueeze0 : public MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertSqueeze15ToSqueeze0", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertSqueeze15ToSqueeze0");
     ConvertSqueeze15ToSqueeze0();
 };
 

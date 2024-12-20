@@ -25,6 +25,6 @@ class TRANSFORMATIONS_API SoftPlusDecomposition;
  */
 class ov::pass::SoftPlusDecomposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SoftPlusDecomposition", "0");
+    OPENVINO_MATCHER_PASS_RTTI("SoftPlusDecomposition");
     SoftPlusDecomposition();
 };

@@ -20,6 +20,6 @@ class TRANSFORMATIONS_API ConvertTopK3;
 
 class ov::pass::ConvertTopK3 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertTopK3", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertTopK3");
     ConvertTopK3();
 };

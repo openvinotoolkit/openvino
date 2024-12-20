@@ -20,6 +20,6 @@ class TRANSFORMATIONS_API ConvertMulticlassNms8ToMulticlassNms9;
 
 class ov::pass::ConvertMulticlassNms8ToMulticlassNms9 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertMulticlassNms8ToMulticlassNms9", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertMulticlassNms8ToMulticlassNms9");
     ConvertMulticlassNms8ToMulticlassNms9();
 };

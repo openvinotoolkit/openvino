@@ -20,6 +20,6 @@ class TRANSFORMATIONS_API ConvertMod;
 
 class ov::pass::ConvertMod : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertMod", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertMod");
     ConvertMod();
 };

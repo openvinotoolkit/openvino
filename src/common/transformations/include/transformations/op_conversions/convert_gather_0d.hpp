@@ -25,6 +25,6 @@ class TRANSFORMATIONS_API ConvertGather0D;
  */
 class ov::pass::ConvertGather0D : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertGather0D", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertGather0D");
     ConvertGather0D();
 };

@@ -40,6 +40,6 @@ class TRANSFORMATIONS_API SoftSignDecomposition;
 
 class ov::pass::SoftSignDecomposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SoftSignDecomposition", "0");
+    OPENVINO_MATCHER_PASS_RTTI("SoftSignDecomposition");
     SoftSignDecomposition();
 };

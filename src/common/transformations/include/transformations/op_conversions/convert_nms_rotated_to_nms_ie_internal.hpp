@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API ConvertNMSRotatedToNMSIEInternal;
 
 class ov::pass::ConvertNMSRotatedToNMSIEInternal : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertNMSRotatedToNMSIEInternal", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertNMSRotatedToNMSIEInternal");
     ConvertNMSRotatedToNMSIEInternal();
 };
