@@ -1432,6 +1432,9 @@ KERNEL(sdpa_opt)(
 
             }
 
+            // protect slm_qk_vals as it is read in w*v stage and write in next round q*k stage.
+            barrier(CLK_LOCAL_MEM_FENCE);
+
             {
                 // Rescale acc_output_res values and save current iter results to global accumulator
                 for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
