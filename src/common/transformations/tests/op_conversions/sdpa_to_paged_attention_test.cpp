@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/pass/sdpa_to_paged_attention.hpp"
+
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -27,7 +29,6 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/pass/sdpa_to_paged_attention.hpp"
 #include "transformations/sdpa_to_paged_attention/total_sequence_length_pattern.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 #include "transformations/utils/print_model.hpp"
