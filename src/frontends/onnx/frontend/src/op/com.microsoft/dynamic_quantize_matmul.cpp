@@ -9,6 +9,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
 #include "utils/common.hpp"
 
 using namespace ov::op;
@@ -75,15 +76,14 @@ ov::OutputVector dynamic_quantize_matmul(const ov::frontend::onnx::Node& node) {
                          element_type_bias);
     }
 
-    
-    FRONT_END_THROW("number of inputs is " + inputs.size()); // DEBUG REMOVE
-
-
     // At time of writing, ov::MatMul does not support int8/uint8 types. To get the correct output, we need to dequantize B. 
     // Technically this does not do DynamicQuantization, but is required for correct output of the operator
     // B_dequantized = (B - b_zero_point) / b_scale
+    
+    // We also need to convert b_scale dtype to match B_dequantized, as OV "Divide" op requires both argument dtypes to match
 
     ov::Output<ov::Node> B_dequantized = std::make_shared<v1::Subtract>(B, b_zero_point);
+    B_dequantized = std::make_shared<v0::Convert>(B_dequantized, b_scale.get_element_type());
     B_dequantized = std::make_shared<v1::Divide>(B_dequantized, b_scale);
 
     // A, B are N-dimensional matrices. According to example ONNX models for this operator, the suboperations pass input A/B such that B's shape is already transposed.
@@ -93,7 +93,7 @@ ov::OutputVector dynamic_quantize_matmul(const ov::frontend::onnx::Node& node) {
     auto result = std::make_shared<v0::MatMul>(A, B_dequantized, false, false);
 
     // Adding bias if required
-    if (!bias.get_node_shared_ptr()) {
+    if (bias.get_node_shared_ptr()) {
         return {std::make_shared<v1::Add>(result, bias)};
     }
 
