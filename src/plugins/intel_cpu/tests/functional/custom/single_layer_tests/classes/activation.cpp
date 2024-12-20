@@ -267,6 +267,7 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
     static const std::map<utils::ActivationTypes, std::vector<std::vector<float>>> activationTypes {
         {Abs,         {{}}},
         {Exp,         {{}}},
+        {Ceiling,     {{}}},
         {Clamp,       {{-2.0f, 2.0f}}},
         {Elu,         {{0.1f}}},
         {Floor,       {{}}},

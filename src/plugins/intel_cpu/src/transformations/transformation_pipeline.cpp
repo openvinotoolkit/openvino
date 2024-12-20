@@ -1117,9 +1117,10 @@ void Transformations::MainSnippets(void) {
     auto is_supported_op = [](const std::shared_ptr<const ov::Node>& n) -> bool {
 #if defined(OPENVINO_ARCH_ARM64)
         return (ov::is_type<ov::op::v0::Abs>(n) || ov::is_type<ov::op::v1::Add>(n) ||
-                ov::is_type<ov::op::v0::Clamp>(n) || ov::is_type<ov::op::v0::Convert>(n) ||
-                ov::is_type<ov::op::v1::Divide>(n) || ov::is_type<ov::op::v0::Elu>(n) ||
-                ov::is_type<ov::op::v0::Exp>(n) || ov::is_type<ov::op::v0::Floor>(n) ||
+                ov::is_type<ov::op::v0::Clamp>(n) || ov::is_type<ov::op::v0::Ceiling>(n) ||
+                ov::is_type<ov::op::v0::Convert>(n) || ov::is_type<ov::op::v1::Divide>(n) ||
+                ov::is_type<ov::op::v0::Elu>(n) || ov::is_type<ov::op::v0::Exp>(n) ||
+                ov::is_type<ov::op::v0::Floor>(n) || ov::is_type<ov::op::v1::FloorMod>(n) ||
                 ov::is_type<ov::op::v0::Gelu>(n) || ov::is_type<ov::op::v7::Gelu>(n) ||
                 ov::is_type<ov::op::v4::HSwish>(n) || ov::is_type<ov::op::v1::Maximum>(n) ||
                 ov::is_type<ov::op::v1::Minimum>(n) || ov::is_type<ov::op::v4::Mish>(n) ||
