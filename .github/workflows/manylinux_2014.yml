@@ -101,7 +101,7 @@ jobs:
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       BUILD_DIR: ${{ github.workspace }}/build
-      DOCKER_CONFIG: "/mount/.docker"
+      #DOCKER_CONFIG: "/mount/.docker"
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
