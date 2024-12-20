@@ -177,7 +177,7 @@ jobs:
         run: |
           cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }}
           cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_TEST_DIR }} --component tests
-        working-directory: ${{ env.BUILD_DIR }}
+        working-directory: ${{ env.OPENVINO_BUILD_DIR }}
           
       - name: Pack openvino_package
         run: tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_package.tar.gz
