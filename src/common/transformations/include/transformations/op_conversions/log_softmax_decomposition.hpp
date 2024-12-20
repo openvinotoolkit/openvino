@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API LogSoftmaxDecomposition;
  */
 class ov::pass::LogSoftmaxDecomposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("LogSoftmaxDecomposition", "0");
+    OPENVINO_MATCHER_PASS_RTTI("LogSoftmaxDecomposition");
     LogSoftmaxDecomposition();
 };
