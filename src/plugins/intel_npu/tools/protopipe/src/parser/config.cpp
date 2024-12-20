@@ -136,19 +136,14 @@ static ScenarioGraph buildGraph(const std::vector<OpDesc>& op_descs,
                                 const std::vector<std::vector<std::string>>& connections);
 
 namespace {
-    void validateNodeKeys(const YAML::Node& node, const std::unordered_set<std::string>& supported_keys)
+    void validateNodeKeys(const YAML::Node& node, const std::unordered_set<std::string>& supported_keys, std::string position_name)
     {
         for (const auto& nodeChild : node) {
             const auto key = nodeChild.first.as<std::string>();
             if (supported_keys.find(key) == supported_keys.end()) {
                 const auto mark = node[key].Mark();
                 std::stringstream ss;
-                ss << "Unsupported node: '" << key << "' at line " << mark.line << " column: " << mark.column <<".";
-                ss << " Following nodes are known at this stage: [ ";
-                for (const auto& supportedKey : supported_keys) { 
-                    ss << "\"" << supportedKey << "\" ";
-                }
-                ss << "].";
+                ss << "Unsupported key: '" << key << "' for " << position_name << "!";
                 THROW_ERROR(ss.str());
             }
         }
@@ -199,9 +194,6 @@ struct convert<LayerVariantAttr<T>> {
 template <>
 struct convert<UniformGenerator::Ptr> {
     static bool decode(const Node& node, UniformGenerator::Ptr& generator) {
-        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        const std::unordered_set<std::string> parameters = {"high", "low"};
-        validateNodeKeys(node, parameters);
         if (!node["low"]) {
             THROW_ERROR("Uniform distribution must have \"low\" attribute");
         }
@@ -216,9 +208,6 @@ struct convert<UniformGenerator::Ptr> {
 template <>
 struct convert<IRandomGenerator::Ptr> {
     static bool decode(const Node& node, IRandomGenerator::Ptr& generator) {
-        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        const std::unordered_set<std::string> parameters = {"dist", "high", "low"};
-        validateNodeKeys(node, parameters);
         if (!node["dist"]) {
             THROW_ERROR("\"random\" must have \"dist\" attribute!");
         }
@@ -235,9 +224,6 @@ struct convert<IRandomGenerator::Ptr> {
 template <>
 struct convert<Norm::Ptr> {
     static bool decode(const Node& node, Norm::Ptr& metric) {
-        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        const std::unordered_set<std::string> parameters = {"tolerance"};
-        validateNodeKeys(node, parameters);
         // NB: If bigger than tolerance - fail.
         if (!node["tolerance"]) {
             THROW_ERROR("Metric \"norm\" must have \"tolerance\" attribute!");
@@ -252,9 +238,6 @@ template <>
 struct convert<Cosine::Ptr> {
     static bool decode(const Node& node, Cosine::Ptr& metric) {
         // NB: If lower than threshold - fail.
-        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        const std::unordered_set<std::string> parameters = {"threshold"};
-        validateNodeKeys(node, parameters);
         if (!node["threshold"]) {
             THROW_ERROR("Metric \"cosine\" must have \"threshold\" attribute!");
         }
@@ -267,9 +250,6 @@ struct convert<Cosine::Ptr> {
 template <>
 struct convert<NRMSE::Ptr> {
     static bool decode(const Node& node, NRMSE::Ptr& metric) {
-        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        const std::unordered_set<std::string> parameters = {"tolerance"};
-        validateNodeKeys(node, parameters);
         // NB: If bigger than tolerance - fail.
         if (!node["tolerance"]) {
             THROW_ERROR("Metric \"nrmse\" must have \"tolerance\" attribute!");
@@ -283,9 +263,6 @@ struct convert<NRMSE::Ptr> {
 template <>
 struct convert<IAccuracyMetric::Ptr> {
     static bool decode(const Node& node, IAccuracyMetric::Ptr& metric) {
-        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        const std::unordered_set<std::string> parameters = {"name", "threshold", "tolerance"};
-        validateNodeKeys(node, parameters);
         const auto type = node["name"].as<std::string>();
         if (type == "norm") {
             metric = node.as<Norm::Ptr>();
@@ -303,11 +280,6 @@ struct convert<IAccuracyMetric::Ptr> {
 template <>
 struct convert<GlobalOptions> {
     static bool decode(const Node& node, GlobalOptions& opts) {
-        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        const std::unordered_set<std::string> parameters = {
-            "blob_dir", "compiler_type", "device_name", "disable_high_resolution_waitable_timer", 
-            "log_level", "metric", "model_dir", "multi_inference", "random", "save_validation_outputs"};
-        validateNodeKeys(node, parameters);
         if (node["model_dir"]) {
             if (!node["model_dir"]["local"]) {
                 THROW_ERROR("\"model_dir\" must contain \"local\" key!");
@@ -346,12 +318,6 @@ struct convert<GlobalOptions> {
 template <>
 struct convert<OpenVINOParams> {
     static bool decode(const Node& node, OpenVINOParams& params) {
-        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-
-        const std::unordered_set<std::string> parameters = {
-            "config", "connections", "device", "il", "iml", "ip", "name", "nireq", "ol", 
-            "oml", "op", "op_desc", "path", "priority", "repeat_count", "reshape", "tag", "type"};
-        validateNodeKeys(node, parameters);
         // FIXME: Worth to separate these two
         const auto name = node["name"] ? node["name"].as<std::string>() : node["path"].as<std::string>();
         fs::path path{name};
@@ -418,9 +384,6 @@ struct convert<OpenVINOParams> {
 template <>
 struct convert<ONNXRTParams::OpenVINO> {
     static bool decode(const Node& node, ONNXRTParams::OpenVINO& ov_ep) {
-        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        const std::unordered_set<std::string> parameters = {"device_type", "params"};
-        validateNodeKeys(node, parameters);
         if (node["params"]) {
             ov_ep.params_map = node["params"].as<std::map<std::string, std::string>>();
         }
@@ -440,9 +403,6 @@ struct convert<ONNXRTParams::OpenVINO> {
 template <>
 struct convert<ONNXRTParams::EP> {
     static bool decode(const Node& node, ONNXRTParams::EP& ep) {
-        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        const std::unordered_set<std::string> parameters = {"device_type", "params"};
-        validateNodeKeys(node, parameters);
         const auto ep_name = node["name"].as<std::string>();
         if (ep_name == "OV") {
             ep = node.as<ONNXRTParams::OpenVINO>();
@@ -456,12 +416,6 @@ struct convert<ONNXRTParams::EP> {
 template <>
 struct convert<ONNXRTParams> {
     static bool decode(const Node& node, ONNXRTParams& params) {
-        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-
-        const std::unordered_set<std::string> parameters = {
-            "connections", "ep", "framework", "input_data", "metric", "name", "path", "op_desc", 
-            "opt_level","output_data", "random", "repeat_count", "session_options", "tag", "type"};
-        validateNodeKeys(node, parameters);
         // FIXME: Worth to separate these two
         params.model_path = node["name"] ? node["name"].as<std::string>() : node["path"].as<std::string>();
         if (node["session_options"]) {
@@ -480,10 +434,6 @@ struct convert<ONNXRTParams> {
 template <>
 struct convert<Network> {
     static bool decode(const Node& node, Network& network) {
-        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        const std::unordered_set<std::string> parameters = {
-            "framework", "input_data", "metric", "name", "path", "output_data", "random"};
-        validateNodeKeys(node, parameters);
         // NB: Take path stem as network tag
         // Note that at this point, it's fine if names aren't unique
         const auto name = node["name"].as<std::string>();
@@ -519,14 +469,6 @@ struct convert<Network> {
 template <>
 struct convert<CPUOp> {
     static bool decode(const Node& node, CPUOp& op) {
-        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        const std::unordered_set<std::string> parameters = {
-            "config", "connections", "device", "exec_time_in_secs", "frames_interval_in_ms", 
-            "framework", "il", "iml", "input_data", "ip", "iteration_count", "metric", "name",
-            "nireq", "ol", "oml", "op", "op_desc", "output_data", "path", "priority", "random",
-            "repeat_count", "reshape", "tag", "target_fps", "target_latency_in_ms", "type",
-            "time_in_us"};
-        validateNodeKeys(node, parameters);
         // TODO: Assert there are no more options provided
         op.time_in_us = node["time_in_us"] ? node["time_in_us"].as<uint64_t>() : 0u;
         return true;
@@ -536,17 +478,14 @@ struct convert<CPUOp> {
 template <>
 struct convert<InferOp> {
     static bool decode(const Node& node, InferOp& op) {
-        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        const std::unordered_set<std::string> parameters = {
-            "config", "connections", "device", "exec_time_in_secs", "frames_interval_in_ms", 
-            "framework", "il", "iml", "input_data", "ip", "iteration_count", "metric", "name", 
-            "nireq", "ol", "oml", "op", "op_desc", "output_data", "path", "priority", "random", 
-            "repeat_count", "reshape", "tag", "target_fps", "target_latency_in_ms", "type"};
-        validateNodeKeys(node, parameters);
         const auto framework = node["framework"] ? node["framework"].as<std::string>() : "openvino";
         if (framework == "openvino") {
             // NB: Parse OpenVINO model parameters such as path, device, precision, etc
+            const std::unordered_set<std::string> parameters = {"config", "device", "framework", "il", "iml", 
+            "input_data", "ip", "metric", "name", "nireq", "ol", "oml", "op", "output_data", "path", 
+            "priority", "random", "repeat_count", "reshape", "tag", "type"};
             op.params = node.as<OpenVINOParams>();
+            validateNodeKeys(node, parameters, "node with \"type: Infer\" and \"framework: openvino\"");
         } else if (framework == "onnxrt") {
             op.params = node.as<ONNXRTParams>();
         } else {
@@ -573,13 +512,6 @@ struct convert<InferOp> {
 template <>
 struct convert<OpDesc> {
     static bool decode(const Node& node, OpDesc& opdesc) {
-        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        const std::unordered_set<std::string> parameters = {
-            "config", "connections", "device", "exec_time_in_secs", "frames_interval_in_ms", 
-            "framework", "il", "iml", "input_data", "ip", "iteration_count", "metric", "name",
-            "nireq", "ol", "oml", "op", "op_desc", "output_data", "path", "priority", "random",
-            "repeat_count", "reshape", "tag", "target_fps", "target_latency_in_ms", "type", "time_in_us"};
-        validateNodeKeys(node, parameters);
         opdesc.tag = node["tag"].as<std::string>();
         auto type = node["type"] ? node["type"].as<std::string>() : "Infer";
         auto repeat_count = node["repeat_count"] ? node["repeat_count"].as<uint64_t>() : 1u;
@@ -608,6 +540,7 @@ struct convert<OpDesc> {
         } else {
             THROW_ERROR("Unsupported operation type: \"" << type << "\"!");
         }
+        
         return true;
     }
 };
@@ -848,11 +781,6 @@ static ScenarioGraph buildGraph(const std::vector<OpDesc>& op_descs,
 static StreamDesc parseAdvancedStream(const YAML::Node& node, const GlobalOptions& opts,
                                       const std::string& default_name, const ReplaceBy& replace_by) {
     StreamDesc stream;
-    std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-    const std::unordered_set<std::string> parameters = {
-        "connections", "exec_time_in_secs", "frames_interval_in_ms", "iteration_count", "name",
-        "op_desc", "target_fps", "target_latency_in_ms"};
-    validateNodeKeys(node, parameters);
     // FIXME: Create a function for the duplicate code below
     stream.name = node["name"] ? node["name"].as<std::string>() : default_name;
     stream.frames_interval_in_us = 0u;
@@ -928,9 +856,6 @@ static std::vector<ScenarioDesc> parseScenarios(const YAML::Node& node, const Gl
                                                 const ReplaceBy& replace_by) {
     std::vector<ScenarioDesc> scenarios;
     for (const auto& subnode : node) {
-        std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-        const std::unordered_set<std::string> parameters = {"input_stream_list", "name"};
-        validateNodeKeys(subnode, parameters);
         ScenarioDesc scenario;
         scenario.name = subnode["name"] ? subnode["name"].as<std::string>()
                                         : "multi_inference_" + std::to_string(scenarios.size());
@@ -950,12 +875,6 @@ static std::vector<ScenarioDesc> parseScenarios(const YAML::Node& node, const Gl
 }
 
 Config parseConfig(const YAML::Node& node, const ReplaceBy& replace_by) {
-    std::cout << "Septi: " << __FILE__ << ":" << __LINE__ << "   ---   " << __func__ << std::endl;
-
-    const std::unordered_set<std::string> parameters = {
-        "blob_dir", "compiler_type", "device_name", "disable_high_resolution_waitable_timer",
-        "log_level", "metric", "model_dir", "multi_inference", "random", "save_validation_outputs"};
-    validateNodeKeys(node, parameters);
     const auto global_opts = node.as<GlobalOptions>();
 
     // FIXME: Perhaps should be done somewhere else...
