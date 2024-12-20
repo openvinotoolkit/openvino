@@ -224,10 +224,10 @@ jobs:
 
     steps:
       - name: Init XUANTIE
-         run: |
-             mkdir ${XUANTIE_DIR}
-             tar -xvf ${XUANTIE_BIN_PATH}/${XUANTIE_TAR_NAME}.tar -C ${XUANTIE_DIR}
-             chmod -R +x ${XUANTIE_DIR}/${XUANTIE_TAR_NAME}
+        run: |
+            mkdir ${XUANTIE_DIR}
+            tar -xvf ${XUANTIE_BIN_PATH}/${XUANTIE_TAR_NAME}.tar -C ${XUANTIE_DIR}
+            chmod -R +x ${XUANTIE_DIR}/${XUANTIE_TAR_NAME}
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
