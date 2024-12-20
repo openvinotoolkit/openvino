@@ -481,7 +481,11 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
 
                     apply_post_ops(true, jep_.oc_size > 1 ? j * sizeof(float) : 0);
 
-                    store_scalar(ptr[reg_dst + j * jep.dst_prc.size()], xmm_dst, exec_prc, jep.dst_prc);
+                    store_scalar(ptr[reg_dst + j * jep.dst_prc.size()],
+                                 xmm_dst,
+                                 exec_prc,
+                                 jep.dst_prc,
+                                 jep.do_output_saturation);
                 }
 
                 for (size_t i = 0; i < jep.inputs_number; i++)
@@ -549,7 +553,7 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
 
             apply_post_ops(true);
 
-            store_scalar(ptr[reg_dst], xmm_dst, exec_prc, jep.dst_prc);
+            store_scalar(ptr[reg_dst], xmm_dst, exec_prc, jep.dst_prc, jep.do_output_saturation);
 
             for (size_t i = 0; i < jep.inputs_number; i++)
                 if (jep.src_size[i] != 1)
@@ -1015,7 +1019,8 @@ private:
     inline void store_scalar(const Xbyak::Address& op,
                              Xmm xmm_dst,
                              ov::element::Type src_prc,
-                             ov::element::Type dst_prc) {
+                             ov::element::Type dst_prc,
+                             const bool do_output_saturation) {
         if (src_prc == dst_prc) {
             switch (src_prc.size()) {
             case 4:
@@ -1050,7 +1055,11 @@ private:
             uni_vmovss(op, xmm_dst);
             break;
         case ov::element::bf16:
-            uni_vpsrld(xmm_dst, xmm_dst, 16);
+            if (do_output_saturation)
+                uni_vpsrld(xmm_dst, xmm_dst, 16);
+            else
+                uni_vcvtneps2bf16->emit_code({static_cast<size_t>(xmm_dst.getIdx())},
+                                             {static_cast<size_t>(xmm_dst.getIdx())});
             uni_vpextrw(op, xmm_dst, 0x0);
             break;
         case ov::element::f16:
@@ -1424,7 +1433,7 @@ struct EltwiseKey {
                     result = result && (inpDims[i] == rhs.inpDims[i]);
                 }
             }
-            if ((outPrc == ov::element::bf16) && (doOutputSaturation != rhs.doOutputSaturation))
+            if (doOutputSaturation != rhs.doOutputSaturation)
                 return false;
         }
 
@@ -2874,8 +2883,11 @@ void Eltwise::prepareParams() {
                                "'");
             }
         }
-        // do output saturation if inputs has constant, this saturation process will be moved to compilation stage in
-        // future
+
+        // FP32 constant inputs may contain values out of BF16 representable range. In case output precision is BF16 we
+        // choose "saturation" mode for fp32->bf16 conversion procedure to prevent getting -Inf/+Inf values in the
+        // outputs. Since "saturation" conversion is more time consuming, better solution would be to clamp constants on
+        // compilation stage (ticket: 159589).
         key.doOutputSaturation = false;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
             if (getParentEdgeAt(i)->getParent()->isConstant()) {

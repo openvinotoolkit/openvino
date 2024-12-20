@@ -9,6 +9,11 @@
 using namespace CPUTestUtils;
 namespace ov {
 namespace test {
+/*
+  This test aims to cover Eltwise node BF16 output precision conversion logic in "saturation" mode. In this test, we
+  have a select node with condition input of boolean type and then/else inputs of f32 type(as constant node with bf16
+  overflow data). The select node is followed by a convolution node to ensoure that it is converted to bf16 precision.
+*/
 using selectParams = std::tuple<InputShape,  // Condition shapes
                                 ElementType  // Then/Else precision
                                 >;
