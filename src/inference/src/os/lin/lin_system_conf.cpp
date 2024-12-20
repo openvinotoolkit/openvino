@@ -28,15 +28,10 @@ CPU::CPU() {
 
     auto get_info_linux = [&](int mode) {
         int cpu_index = 0;
-        int cache_index = 0;
-        int cache_files = 3;
+        int file_index = 0;
+        int max_files = 3;
 
         std::string one_info;
-
-        std::vector<std::string> file_name = {"/topology/core_cpus_list",
-                                              "/topology/physical_package_id",
-                                              "/cpufreq/cpuinfo_max_freq"};
-        int num_of_files = file_name.size();
 
         std::string::size_type pos = 0;
         std::string::size_type endpos = 0;
@@ -61,7 +56,7 @@ CPU::CPU() {
             core_1 = std::stoi(sub_str);
             sub_str = possible_info.substr(endpos + 1);
             core_2 = std::stoi(sub_str);
-            system_info_table.resize(core_2 + 1, std::vector<std::string>(cache_files, ""));
+            system_info_table.resize(core_2 + 1, std::vector<std::string>(max_files, ""));
         } else {
             return -1;
         }
@@ -85,12 +80,12 @@ CPU::CPU() {
 
                 for (cpu_index = core_1; cpu_index <= core_2; cpu_index++) {
                     if (mode == cache_info_mode) {
-                        for (int n = 0; n < cache_files; n++) {
-                            cache_index = (n == 0) ? n : n + 1;
+                        for (int n = 0; n < max_files; n++) {
+                            file_index = (n == 0) ? n : n + 1;
                             one_info.clear();
 
                             std::ifstream cache_file("/sys/devices/system/cpu/cpu" + std::to_string(cpu_index) +
-                                                     "/cache/index" + std::to_string(cache_index) + "/shared_cpu_list");
+                                                     "/cache/index" + std::to_string(file_index) + "/shared_cpu_list");
                             if (cache_file.is_open()) {
                                 std::getline(cache_file, one_info);
                             } else {
@@ -102,7 +97,11 @@ CPU::CPU() {
                             system_info_table[cpu_index][n] = std::move(one_info);
                         }
                     } else {
-                        for (int n = 0; n < num_of_files; n++) {
+                        std::vector<std::string> file_name = {"/topology/core_cpus_list",
+                                                              "/topology/physical_package_id",
+                                                              "/cpufreq/cpuinfo_max_freq"};
+
+                        for (int n = 0; n < max_files; n++) {
                             one_info.clear();
 
                             std::ifstream cache_file("/sys/devices/system/cpu/cpu" + std::to_string(cpu_index) +
