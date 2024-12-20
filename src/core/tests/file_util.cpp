@@ -362,13 +362,13 @@ TEST(file_util, path_cast_from_wstring) {
     EXPECT_STREQ(L"/usr/local/file.txt", ov::util::Path(L"/usr/local/file.txt").generic_wstring().c_str());
 
     // from wchar_t to char8_t
-    EXPECT_STREQ(u8"", ov::util::Path(L"").u8string().c_str());
-    EXPECT_STREQ(u8"file.txt", ov::util::Path(L"file.txt").u8string().c_str());
-    EXPECT_STREQ(u8"./local/file.txt", ov::util::Path(L"./local/file.txt").generic_u8string().c_str());
-    EXPECT_STREQ(u8"~/local/file.txt", ov::util::Path(L"~/local/file.txt").generic_u8string().c_str());
-    EXPECT_STREQ(u8"/usr/local/file.txt", ov::util::Path(L"/usr/local/file.txt").generic_u8string().c_str());
-    EXPECT_STREQ(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗22.txt",
-                 ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗22.txt").generic_u8string().c_str());
+    EXPECT_EQ(u8"", ov::util::Path(L"").u8string());
+    EXPECT_EQ(u8"file.txt", ov::util::Path(L"file.txt").u8string());
+    EXPECT_EQ(u8"./local/file.txt", ov::util::Path(L"./local/file.txt").generic_u8string());
+    EXPECT_EQ(u8"~/local/file.txt", ov::util::Path(L"~/local/file.txt").generic_u8string());
+    EXPECT_EQ(u8"/usr/local/file.txt", ov::util::Path(L"/usr/local/file.txt").generic_u8string());
+    EXPECT_EQ(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗22.txt",
+              ov::util::Path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗22.txt").generic_u8string());
 
     // from wchar_t to char16_t
     EXPECT_EQ(u"", ov::util::Path(L"").u16string());
