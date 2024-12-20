@@ -67,8 +67,8 @@ public:
     /// \brief Allows a value to be used as a function result.
     ///
     /// \param arg Node that produces the input tensor.
-    /// \param use_input_names  When true Result will use input node tensor names as output names (Default: true).
-    Result(const Output<Node>& arg, bool use_input_names = true);
+    /// \param use_input_names  When true Result will use input node tensor names as output names (Default: false).
+    Result(const Output<Node>& arg, bool use_input_names = false);
 
     void validate_and_infer_types() override;
 
