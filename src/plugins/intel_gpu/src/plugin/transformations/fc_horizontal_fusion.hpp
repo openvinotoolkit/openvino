@@ -11,7 +11,7 @@ namespace intel_gpu {
 
 class FullyConnectedHorizontalFusion: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("FullyConnectedHorizontalFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("FullyConnectedHorizontalFusion");
     FullyConnectedHorizontalFusion(bool fuse_mlp_swiglu = false);
 };
 

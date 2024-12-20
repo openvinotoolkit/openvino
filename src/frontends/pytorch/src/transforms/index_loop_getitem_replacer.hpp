@@ -18,7 +18,7 @@ namespace pass {
  */
 class IndexLoopGetitemReplacer : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::pytorch::pass::IndexLoopGetitemReplacer");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::pytorch::pass::IndexLoopGetitemReplacer");
     IndexLoopGetitemReplacer();
 };
 
