@@ -5,7 +5,7 @@
 import logging
 from typing import Optional
 
-from openvino.runtime import AxisSet
+from openvino import AxisSet
 from openvino.utils.types import (
     TensorShape,
 )
