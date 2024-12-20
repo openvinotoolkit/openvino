@@ -11,7 +11,7 @@ namespace ov {
 namespace pass {
 class OPENVINO_API BackwardGraphRewrite : public GraphRewrite {
 public:
-    OPENVINO_RTTI("ov::pass::BackwardGraphRewrite");
+    OPENVINO_GRAPH_REWRITE_RTTI("ov::pass::BackwardGraphRewrite");
 
     BackwardGraphRewrite() = default;
 

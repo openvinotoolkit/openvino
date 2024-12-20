@@ -96,7 +96,7 @@ public:
  */
 class ov::pass::GeluFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("GeluFusion", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("GeluFusion");
     GeluFusion() {
         add_matcher<ov::pass::GeluFusionWithErfOne>();
         add_matcher<ov::pass::GeluFusionWithErfTwo>();

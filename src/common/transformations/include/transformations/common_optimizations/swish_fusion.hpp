@@ -68,7 +68,7 @@ public:
  */
 class ov::pass::SwishFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("SwishFusion", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("SwishFusion");
     SwishFusion() {
         add_matcher<ov::pass::SwishFusionWithSigmoid>();
         add_matcher<ov::pass::SwishFusionWithSigmoidWithBeta>();

@@ -56,7 +56,7 @@ public:
 
 class TRANSFORMATIONS_API MoveEltwiseUpThroughDataMov : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("MoveEltwiseUpThroughDataMov", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("MoveEltwiseUpThroughDataMov");
     MoveEltwiseUpThroughDataMov(std::vector<DiscreteTypeInfo> allowed_data_movement_ops = get_default_allowed_ops()) {
         this->add_matcher<MoveEltwiseUpThroughDataMovScalar>(allowed_data_movement_ops);
         this->add_matcher<MoveEltwiseUpThroughDataMovPerChannel>();
