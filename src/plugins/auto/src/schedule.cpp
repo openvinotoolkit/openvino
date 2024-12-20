@@ -89,10 +89,7 @@ void Schedule::generate_workers(const std::string& device, const SoCompiledModel
         (m_context->m_device_priorities.end() == it_numrequests || it_numrequests->num_requests_per_devices == -1)
             ? optimal_num
             : it_numrequests->num_requests_per_devices;
-    num_requests =
-        (num_requests == 1 && m_context->m_performance_hint != ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)
-            ? 2
-            : num_requests;
+    num_requests = (num_requests == 1) ? 2 : num_requests;
     auto& worker_requests = m_worker_requests[device];
     auto& idle_worker_requests = m_idle_worker_requests[device];
     worker_requests.resize(num_requests);
