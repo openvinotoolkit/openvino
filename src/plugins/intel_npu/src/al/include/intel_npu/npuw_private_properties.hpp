@@ -185,6 +185,14 @@ static constexpr ov::Property<bool> dyn_quant{"NPUW_DQ"};
 
 /**
  * @brief
+ * Type: bool.
+ * Apply the full DQ transformation pipeline in the plugin.
+ * Default value: true.
+ */
+static constexpr ov::Property<bool> dyn_quant_full{"NPUW_DQ_FULL"};
+
+/**
+ * @brief
  * Type: string.
  * Identify and merge parallel MatMuls over dimension(s) specified.
  * When set to YES, applies transformation for all dimensions.
@@ -369,6 +377,51 @@ static constexpr ov::Property<std::string> inputs_outputs{"NPUW_DUMP_IO"};
  */
 static constexpr ov::Property<std::string> io_iters{"NPUW_DUMP_IO_ITERS"};
 }  // namespace dump
+
+namespace llm {
+/**
+ * @brief
+ * Type: bool.
+ * Tell NPUW that you want to pass dynamic stateful LLM model.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> enabled{"NPUW_LLM"};
+
+/**
+ * @brief
+ * Type: std::map<std::string, std::string>.
+ * Tell NPUW about your LLM model. Use following structure for that:
+ * "type:<type>,name_or_path:<name_or_path>,num_key_value_heads:<number>".
+ * Default value: empty structure defined above.
+ */
+static constexpr ov::Property<std::string> model_desc{"NPUW_LLM_MODEL_DESC"};
+
+/**
+ * @brief
+ * Type: uint32_t.
+ * Tell NPUW your desirable max prompt length.
+ * Default value: 1024.
+ */
+static constexpr ov::Property<uint32_t> max_prompt_len{"NPUW_LLM_MAX_PROMPT_LEN"};
+
+/**
+ * @brief
+ * Type: uint32_t.
+ * Tell NPUW your desirable min response length.
+ * Default value: 128.
+ */
+static constexpr ov::Property<uint32_t> min_response_len{"NPUW_LLM_MIN_RESPONSE_LEN"};
+
+/**
+ * @brief
+ * Type: std::string.
+ * Tell NPUW the preferrable hint for generation stage, that leads to usage of optimal configuration for it.
+ * Possible values: "FAST_COMPILE", "BEST_PERF".
+ * Default value: "FAST_COMPILE".
+ */
+static constexpr ov::Property<std::string> generate_hint{"NPUW_LLM_GENERATE_HINT"};
+
+}  // namespace llm
 
 }  // namespace npuw
 }  // namespace intel_npu

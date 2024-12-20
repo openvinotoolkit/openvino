@@ -14,9 +14,9 @@ namespace intel_cpu {
 
 class PermuteSliceAndInterpolation : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("PermuteSliceAndInterpolation", "0");
+    OPENVINO_MATCHER_PASS_RTTI("PermuteSliceAndInterpolation");
     PermuteSliceAndInterpolation();
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

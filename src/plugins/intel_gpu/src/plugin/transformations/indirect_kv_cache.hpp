@@ -44,13 +44,13 @@ public:
 
 class IndirectGemmOpt : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("IndirectGemmOpt", "0");
+    OPENVINO_MATCHER_PASS_RTTI("IndirectGemmOpt");
     IndirectGemmOpt();
 };
 
 class IndirectSDPAOpt : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("IndirectSDPAOpt", "0");
+    OPENVINO_MATCHER_PASS_RTTI("IndirectSDPAOpt");
     IndirectSDPAOpt();
 };
 }   // namespace intel_gpu

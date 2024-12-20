@@ -186,8 +186,15 @@ protected:
             if (ret) {
                 tag = convert_data_format(transposed_format);
                 dnnl::memory::dims original_dims = dims;
-                for (size_t i = 0; i < original_dims.size(); ++i) {
-                    dims[i] = original_dims[order[i]];
+                if (is_input) {
+                    for (size_t i = 0; i < original_dims.size(); ++i) {
+                        dims[i] = original_dims[order[i]];
+                    }
+                } else {
+                    // Get non-transposed dims for output dims
+                    for (size_t i = 0; i < original_dims.size(); ++i) {
+                        dims[order[i]] = original_dims[i];
+                    }
                 }
             } else {
                 std::ostringstream ostream;

@@ -40,7 +40,7 @@ namespace pass {
  */
 class TokenizeMHASnippets: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TokenizeMHASnippets", "0");
+    OPENVINO_MATCHER_PASS_RTTI("snippets::pass::TokenizeMHASnippets");
     TokenizeMHASnippets(const SnippetsTokenization::Config& config);
 
     static std::vector<int32_t> get_fusion_transpose_order(size_t rank);
