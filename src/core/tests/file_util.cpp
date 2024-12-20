@@ -407,9 +407,9 @@ TEST(file_util, path_cast_from_wstring_to_u32string) {
 
 TEST(file_util, path_cast_to_wstring_msc_skip) {
     // from char8_t, char16_t to wchar_t
-    EXPECT_STREQ(L"/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗27.txt",
+    EXPECT_STREQ(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗27.txt",
                  ov::util::Path(u8"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗27.txt").wstring().c_str());
-    EXPECT_STREQ(L"/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗28.txt",
+    EXPECT_STREQ(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗28.txt",
                  ov::util::Path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗28.txt").wstring().c_str());
 }
 
