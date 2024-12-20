@@ -30,10 +30,21 @@ public:
                         const MemoryArgs& memory,
                         const dnnl::memory::data_type outDataType);
     DnnlPrimitiveAttrs compose();
-    void appendDecompressionScales(const MemoryCPtr& scales_ptr, bool needTranspose, ov::element::Type dstPrecision);
+
+    void appendDecompressionScales(const MemoryCPtr& scales_ptr,
+                                   bool needTranspose,
+                                   ov::element::Type dstPrecision,
+                                   const VectorDims& weiDims);
     void appendDecompressionZeroPoints(const MemoryCPtr& zero_points_ptr,
                                        bool needTranspose,
-                                       ov::element::Type dstPrecision);
+                                       ov::element::Type dstPrecision,
+                                       const VectorDims& weiDims);
+    void appendDecompressionScalesLegacy(const MemoryCPtr& scales_ptr,
+                                         bool needTranspose,
+                                         ov::element::Type dstPrecision);
+    void appendDecompressionZeroPointsLegacy(const MemoryCPtr& zero_points_ptr,
+                                             bool needTranspose,
+                                             ov::element::Type dstPrecision);
     void setDynamicQuantizationParams(uint64_t groupSize);
 
 private:

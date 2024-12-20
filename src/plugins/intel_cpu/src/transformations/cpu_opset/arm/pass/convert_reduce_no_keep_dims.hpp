@@ -45,7 +45,7 @@ namespace intel_cpu {
 
 class ConvertReduceNoKeepDimsBase : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertReduceNoKeepDims", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertReduceNoKeepDimsBase");
     template <class T>
     ov::matcher_pass_callback convert_reduce();
 };

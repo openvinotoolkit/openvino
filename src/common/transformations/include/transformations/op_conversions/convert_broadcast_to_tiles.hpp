@@ -20,6 +20,6 @@ class TRANSFORMATIONS_API ConvertBroadcastToTiles;
 
 class ov::pass::ConvertBroadcastToTiles : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertBroadcastToTiles", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertBroadcastToTiles");
     ConvertBroadcastToTiles();
 };
