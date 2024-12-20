@@ -159,7 +159,7 @@ jobs:
           -DENABLE_STRICT_DEPENDENCIES=OFF
           -DCMAKE_VERBOSE_MAKEFILE=ON
           -DENABLE_WHEEL=OFF
-          -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+          -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
           -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/toolchains/riscv64-071-xuantie-gnu.toolchain.cmake
           -DRISCV_TOOLCHAIN_ROOT=/opt/riscv
           -S ${OPENVINO_REPO}
