@@ -307,8 +307,13 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
         jit.AddConstant(MakeJitConstant("OUTPUT_LEFTOVERS", output_leftover));
 
         const auto input_leftover_num = "(" + input0_dims.f() + "%" + feature_block_size + ")";
-        const auto input_leftover = "(" + input_leftover_num + "!= 0)";
-        jit.AddConstant(MakeJitConstant("INPUT_LEFTOVERS", input_leftover));
+        if (!params.inputs[0].Feature().is_dynamic) {
+            const auto input_leftover = "(" + input_leftover_num + "!= 0)";
+            jit.AddConstant(MakeJitConstant("INPUT_LEFTOVERS", input_leftover));
+        } else {
+            // When input0 feature is dynaimic, just run as INPUT_LEFTOVERS=true mode.
+            jit.AddConstant(MakeJitConstant("INPUT_LEFTOVERS", 1));
+        }
     }
 
     return jit;
