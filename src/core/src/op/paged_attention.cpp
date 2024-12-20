@@ -150,7 +150,7 @@ void PagedAttentionExtension::validate_and_infer_types() {
     if (get_input_size() == 16) {
         NODE_VALIDATION_CHECK(
             this,
-            get_input_partial_shape(13).rank().is_dynamic() || get_input_partial_shape(14).rank().get_length() == 1,
+            get_input_partial_shape(13).rank().is_dynamic() || get_input_partial_shape(13).rank().get_length() == 1,
             "Input `rotated_block_indices` should either have rank 1 or be omitted, but it has rank ",
             get_input_partial_shape(13).rank().get_length(),
             ".");
@@ -161,8 +161,8 @@ void PagedAttentionExtension::validate_and_infer_types() {
                               ".");
         NODE_VALIDATION_CHECK(
             this,
-            get_input_partial_shape(14).rank().is_dynamic() || get_input_partial_shape(14).rank().get_length() == 1,
-            "Input `rotation_deltas` should either have rank 1 or be omitted, but it has rank ",
+            get_input_partial_shape(14).rank().is_dynamic() || get_input_partial_shape(14).rank().get_length() == 2,
+            "Input `rotation_deltas` should either have rank 2 or be omitted, but it has rank ",
             get_input_partial_shape(14).rank().get_length(),
             ".");
         NODE_VALIDATION_CHECK(this,

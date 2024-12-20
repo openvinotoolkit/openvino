@@ -1154,12 +1154,13 @@ static void pack_32NxK(TDST* dst,
 template <class T>
 void fill_rotation_coefficients_from_lut(T* rotation_coefficients_block_data,
                                          const int32_t* rotation_deltas_block_data,
+                                         size_t rotation_deltas_token_stride,
                                          const T* rotation_trig_lut,
                                          size_t block_size,
                                          size_t embedding_size) {
     size_t dst_offset = 0;
     for (size_t tok_idx = 0; tok_idx < block_size; tok_idx++) {
-        size_t gather_idx = rotation_deltas_block_data[tok_idx];
+        size_t gather_idx = *(rotation_deltas_block_data + rotation_deltas_token_stride * tok_idx);
         size_t src_offset = gather_idx * embedding_size;
         std::memcpy(rotation_coefficients_block_data + dst_offset,
                     rotation_trig_lut + src_offset,
@@ -1195,15 +1196,28 @@ void rotate_kv_cache(PlainTensor& key_cache,
     }
     std::cout << std::endl;
 
+    size_t rotation_deltas_token_stride = 0;
+    size_t rotation_deltas_block_stride = 1;
+
+    bool is_per_token = (rotation_deltas.shape()[1] == block_size);
+    if (is_per_token) {
+        rotation_deltas_token_stride = 1;
+        rotation_deltas_block_stride = block_size;
+    }
+
     std::cout << "VSHAMPOR: rotating blocks \n";
     for (size_t i = 0; i < num_rotated_blocks; i++) {
         size_t rotated_block_index = *(rotated_block_indices_data + i);
         std::cout << "block " << rotated_block_index << "\n";
         OPENVINO_ASSERT(rotated_block_index < num_blocks_in_total);
-        int32_t* rotation_deltas_block_data = rotation_deltas.ptr<int32_t>() + i * block_size;
+
+        int32_t* rotation_deltas_block_data = rotation_deltas.ptr<int32_t>() + i * rotation_deltas_block_stride;
+
+        std::cout << "VSHAMPOR: rotation_delta is " << *rotation_deltas_block_data << std::endl;
         float* rotation_coefficient_block_data = rotation_coefficients_scratch.ptr<float>();
         fill_rotation_coefficients_from_lut(rotation_coefficient_block_data,
                                             rotation_deltas_block_data,
+                                            rotation_deltas_token_stride,
                                             rotation_trig_lut_data,
                                             block_size,
                                             embedding_size);
@@ -2306,7 +2320,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             if (!inputs[ID_ROTATED_BLOCK_INDICES]->getShape().hasZeroDims())
                 rotated_block_indices.reset(inputs[ID_ROTATED_BLOCK_INDICES]);  // [num_blocks]
             if (!inputs[ID_ROTATION_DELTAS]->getShape().hasZeroDims())
-                rotation_deltas.reset(inputs[ID_ROTATION_DELTAS]);  // [num_blocks * block_size (32)], row-major layout
+                rotation_deltas.reset(inputs[ID_ROTATION_DELTAS]);  // [num_blocks,  block_size (32) || 1]
             if (!inputs[ID_ROTATION_TRIG_LUT]->getShape().hasZeroDims())
                 rotation_trig_lut.reset(
                     inputs[ID_ROTATION_TRIG_LUT]);  // [max_context_len * embedding_size], row-major layout
@@ -2373,7 +2387,8 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         if (rotated_block_indices) {
             // Only K entries are needed to be rotated, since position is encoded at the Q^T @ (effective_RoPE_matrix) @
             // K matrix multiplication
-            rotation_deltas.assert_dims({rotated_block_indices.size(0) * block_size});
+            rotation_deltas.assert_dims({rotated_block_indices.size(0), 0}, /* special_zero = */ true);
+            OPENVINO_ASSERT(rotation_deltas.shape()[1] == 1 || rotation_deltas.shape()[1] == block_size); // per-block or per-token granularity
             rotation_trig_lut.assert_dims({0, S}, /* special_zero = */ true);
             init_rotation_coefficient_scratch = true;
         }
