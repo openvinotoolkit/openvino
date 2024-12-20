@@ -132,7 +132,7 @@ jobs:
           pushd ${XUANTIE_DIR}
             cp ${XUANTIE_BIN_PATH}${XUANTIE_TAR_NAME}.tar ${XUANTIE_DIR}
             tar -xf ${XUANTIE_TAR_NAME}.tar
-            chmod -R 777 ${XUANTIE_TAR_NAME}
+            chmod -R +x ${XUANTIE_TAR_NAME}
             ln -s /usr/include/riscv64-linux-gnu/ /usr/include/python3.10/
           popd
 
@@ -231,7 +231,7 @@ jobs:
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      GTEST_FILTER: '*smoke_AdaPoolAvg4DLayoutTest*'
+      GTEST_FILTER: ${{ github.event_name == 'workflow_dispatch' && inputs.testFilter || '*smoke_AdaPoolAvg4DLayoutTest*' }}
 
     steps:
       - name: Download Xuantie
