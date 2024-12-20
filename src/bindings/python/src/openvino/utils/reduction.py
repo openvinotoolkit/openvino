@@ -4,7 +4,7 @@
 
 from typing import Iterable, Optional
 
-from openvino.runtime import Node
+from openvino import Node
 
 
 def get_reduction_axes(node: Node, reduction_axes: Optional[Iterable[int]]) -> Iterable[int]:
