@@ -21,7 +21,9 @@ public:
     bool isExecutable() const override;
 
     bool needShapeInfer() const override;
-    bool needPrepareParams() const override { return false; }
+    bool needPrepareParams() const override {
+        return false;
+    }
     void executeDynamicImpl(dnnl::stream strm) override;
     void execute(dnnl::stream strm) override;
 
@@ -33,6 +35,6 @@ private:
     std::string errorPrefix;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

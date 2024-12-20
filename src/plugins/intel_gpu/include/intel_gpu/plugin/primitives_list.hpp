@@ -272,6 +272,8 @@ REGISTER_FACTORY(v13, BitwiseXor);
 REGISTER_FACTORY(v15, ROIAlignRotated);
 REGISTER_FACTORY(v15, BitwiseRightShift);
 REGISTER_FACTORY(v15, BitwiseLeftShift);
+REGISTER_FACTORY(v15, SearchSorted);
+REGISTER_FACTORY(v15, STFT);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);

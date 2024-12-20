@@ -126,14 +126,14 @@ std::shared_ptr<ov::intel_gpu::op::KVCacheCompressed>
 
 class KVCacheCompressionMatcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("KVCacheCompressionMatcher", "0");
+    OPENVINO_MATCHER_PASS_RTTI("KVCacheCompressionMatcher");
     KVCacheCompressionMatcher(ov::element::Type compression_dt);
 };
 
 KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compression_dt) {
     using namespace ov::pass::pattern;
 
-    if (compression_dt != element::i8)
+    if (compression_dt != element::i8 && compression_dt != element::u8)
         return;
 
     const auto quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
