@@ -75,9 +75,9 @@ struct ActSparseFC::Executor : public ActSparseFC::ExecutorBase {
 
                 const auto& dims = raw_weight_mem->getShape().getStaticDims();
                 OPENVINO_ASSERT(dims.size() == 3);
-                OPENVINO_ASSERT(dims[0] == m_config.oc);
-                OPENVINO_ASSERT(dims[1] == m_config.ic / m_config.ic_q_group_size);
-                OPENVINO_ASSERT(dims[2] == m_config.ic_q_group_size);
+                OPENVINO_ASSERT(dims[0] == static_cast<size_t>(m_config.oc));
+                OPENVINO_ASSERT(dims[1] == static_cast<size_t>(m_config.ic / m_config.ic_q_group_size));
+                OPENVINO_ASSERT(dims[2] == static_cast<size_t>(m_config.ic_q_group_size));
 
                 auto* src = raw_weight_mem->getDataAs<uint8_t>();
                 auto* dst = weight_mem->getDataAs<uint8_t>();

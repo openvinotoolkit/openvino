@@ -54,11 +54,6 @@ constexpr Xbyak::Operand::Code abi_x86_64_regs[] = {
 #endif
 };
 
-static int get_SIMDW() {
-    auto SIMDW = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 16 : 8;
-    return SIMDW;
-}
-
 //*****************************************
 // RegCmp & compare operator overload to support if_ statement:
 //    - if_(rax > rbx)
@@ -379,8 +374,8 @@ public:
     }
 
     template <typename DT>
-    size_t vmm_width() {
-        return Vmm(0).getBit() / (sizeof(DT) * 8);
+    static int vmm_width() {
+        return (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 512 : 256) / (sizeof(DT) * 8);
     }
 };
 

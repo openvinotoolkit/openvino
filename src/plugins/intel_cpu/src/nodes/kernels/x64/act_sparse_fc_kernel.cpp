@@ -25,7 +25,7 @@ namespace intel_cpu {
 
 static std::shared_ptr<SIMDJit> jit_compile_gemmRegBlk(int rows, int cols, int prefetch_B_adv = 0) {
     auto jit = std::make_shared<SIMDJit>(__func__);
-    auto simd_width_bytes = jit->vmm_width<uint8_t>();
+    auto simd_width_bytes = SIMDJit::vmm_width<uint8_t>();
 
     auto is_preload_b = (rows >= cols);
     auto vmmC = [&](int row, int col) {
@@ -191,7 +191,7 @@ static void gemm6x2_Mx2(const float* pA,
 
 static std::shared_ptr<SIMDJit> jit_compile_accumulate_weight_i4(bool with_zero_point) {
     auto jit = std::make_shared<SIMDJit>(__func__);
-    auto simd_width = jit->vmm_width<float>();
+    auto simd_width = SIMDJit::vmm_width<float>();
     auto dst = jit->get_sreg(0, true);          // float*
     auto p_w0 = jit->get_sreg(1, true);         // int4*
     auto p_w1 = jit->get_sreg(2, true);         // int4*
@@ -287,7 +287,7 @@ static std::shared_ptr<SIMDJit> jit_compile_accumulate_weight_i4(bool with_zero_
 }
 static std::shared_ptr<SIMDJit> jit_compile_accumulate_weight(WeightCompressionType wtype, bool with_zp = false) {
     auto jit = std::make_shared<SIMDJit>(__func__);
-    auto simd_width = jit->vmm_width<float>();
+    auto simd_width = SIMDJit::vmm_width<float>();
     // load all arguments into register
     auto dst = jit->get_sreg(0, true);  // float*
     auto OC = jit->get_sreg(1, true);
@@ -396,7 +396,7 @@ static std::shared_ptr<SIMDJit> jit_compile_accumulate_weight(WeightCompressionT
 
 static std::shared_ptr<SIMDJit> jit_compile_reduce_outputs() {
     auto jit = std::make_shared<SIMDJit>(__func__);
-    auto simd_width = jit->vmm_width<float>();
+    auto simd_width = SIMDJit::vmm_width<float>();
     // load all arguments into register
     auto dst0 = jit->get_sreg(0, true);        // float*
     auto src0 = jit->get_sreg(1, true);        // float*
@@ -431,7 +431,7 @@ src0 : [num_copies, N, OC]
 */
 static inline void reduce_outputs(float* dst0, float* src0, int num_copies, int64_t OC) {
     static auto jit_reduce = jit_compile_reduce_outputs();
-    int64_t simd_width = jit_reduce->vmm_width<float>();
+    int64_t simd_width = SIMDJit::vmm_width<float>();
 
     ov::parallel_nt(0, [&](const int ithr, const int nthr) {
         int64_t oc0, oc1;
@@ -447,7 +447,7 @@ static inline void reduce_outputs(float* dst0, float* src0, int num_copies, int6
 
 static std::shared_ptr<SIMDJit> jit_compile_repack_3xsimdw_1xsimdw(bool with_zp) {
     auto jit = std::make_shared<SIMDJit>(__func__);
-    auto simd_width = jit->vmm_width<float>();
+    auto simd_width = SIMDJit::vmm_width<float>();
     // load all arguments into register
     auto src = jit->get_sreg(0, true);             // uint8_t*
     auto strideW = jit->get_sreg(1, true);         // int
@@ -544,7 +544,7 @@ static std::shared_ptr<SIMDJit> jit_compile_repack_3xsimdw_1xsimdw(bool with_zp)
 
 static std::shared_ptr<SIMDJit> jit_compile_repack_2xsimdw(WeightCompressionType wtype, bool with_zero_point = false) {
     auto jit = std::make_shared<SIMDJit>(__func__);
-    auto simd_width = jit->vmm_width<float>();
+    auto simd_width = SIMDJit::vmm_width<float>();
     // load all arguments into register
     auto src = jit->get_sreg(0, true);         // pointer to ov::float16/u8/i8/i4
     auto src_stride = jit->get_sreg(1, true);  // in unit of f16 or bytes (int8/int4)
@@ -658,7 +658,7 @@ void ActSparseFcKernel::MM_ComputeBounded_reuseA_f16(const float* A,
                                                      int n1) {
     static auto repack_2xsimdw = jit_compile_repack_2xsimdw(WeightCompressionType::FP16);
     constexpr int BK = 54;
-    const auto SIMDW = get_SIMDW();
+    const auto SIMDW = SIMDJit::vmm_width<float>();
     float* scratch = scratch_alloc<float>(BK * (SIMDW * 2) + OC);
 
     int K = IC;
@@ -682,7 +682,7 @@ void ActSparseFcKernel::MM_ComputeBounded_reuseA_f16(const float* A,
 
 static std::shared_ptr<SIMDJit> get_decompress_zp_u8() {
     auto jit = std::make_shared<SIMDJit>(__func__);
-    auto simd_width = jit->vmm_width<float>();
+    auto simd_width = SIMDJit::vmm_width<float>();
 
     auto zp_input_u8 = jit->get_sreg(0, true);
     auto zp_output_f32 = jit->get_sreg(1, true);
@@ -702,7 +702,7 @@ static std::shared_ptr<SIMDJit> get_decompress_zp_u8() {
 
 static std::shared_ptr<SIMDJit> get_decompress_zp_u4() {
     auto jit = std::make_shared<SIMDJit>(__func__);
-    auto simd_width = jit->vmm_width<float>();
+    auto simd_width = SIMDJit::vmm_width<float>();
 
     auto zp_input_u4 = jit->get_sreg(0, true);
     auto zp_output_f32 = jit->get_sreg(1, true);
@@ -747,7 +747,7 @@ void ActSparseFcKernel::MM_ComputeBounded_reuseA_i8(const float* A,
 
     auto repack_2xsimdw_i8 = zp ? repack_2xsimdw_i8_zp : repack_2xsimdw_i8_nozp;
     constexpr int BK = 54;
-    const auto SIMDW = get_SIMDW();
+    const auto SIMDW = SIMDJit::vmm_width<float>();
     float* scratch = scratch_alloc<float>(BK * (SIMDW * 2) + OC);
 
     int K = IC;
@@ -806,7 +806,7 @@ void ActSparseFcKernel::MM_ComputeBounded_reuseB_i8(const float* A,
     static auto repack_3xsimdw_i8_1xsimdw_withzp = jit_compile_repack_3xsimdw_1xsimdw(true);
     auto* repack_3xsimdw_i8 = zp ? repack_3xsimdw_i8_1xsimdw_withzp.get() : repack_3xsimdw_i8_1xsimdw_nozp.get();
 
-    const auto SIMDW = get_SIMDW();
+    const auto SIMDW = SIMDJit::vmm_width<float>();
     constexpr int BK = 512;
     constexpr int BN = 512;
     auto bN_SIMDWx3 = BN / (SIMDW * 3) * (SIMDW * 3);
@@ -876,7 +876,7 @@ void ActSparseFcKernel::MM_ComputeBounded_reuseA_i4(const float* A,
     auto* repack_2xsimdw = zp ? repack_2xsimdw_withzp.get() : repack_2xsimdw_nozp.get();
 
     int BK = icgs;
-    const auto SIMDW = get_SIMDW();
+    const auto SIMDW = SIMDJit::vmm_width<float>();
     float* scratch = scratch_alloc<float>(BK * (SIMDW * 2) + OC);
 
     int K = IC;
@@ -915,7 +915,7 @@ void ActSparseFcKernel::MM_ComputeBounded_reuseA_i4(const float* A,
 // each row is further reordered in unit of 16 x i4 in [0,8,1,9,2,a,3,b,4,c,5,d,6,e,7,f] order
 void ActSparseFcKernel::repack_weights_i4(uint8_t* src, uint8_t* dst, int IC, int OC) {
     auto src_stride = IC / 2;
-    const auto SIMDW = get_SIMDW();
+    const auto SIMDW = SIMDJit::vmm_width<float>();
 
 #    if 0
     uint8_t scratch0[64];
@@ -1024,13 +1024,13 @@ void ActSparseFcKernel::operator()(const float* input,
                                    const void* W,
                                    const float* scales,
                                    const uint8_t* zp) {
-    const auto SIMDW = get_SIMDW();
+    const auto SIMDW = SIMDJit::vmm_width<float>();
     if (OC % (2 * SIMDW)) {
         throw std::runtime_error(std::string("ActSparseFcKernel: OC is not multiple of ") + std::to_string(2 * SIMDW));
     }
 
     if (M > 1) {
-        const auto SIMDW = get_SIMDW();
+        const auto SIMDW = SIMDJit::vmm_width<float>();
         if (m_wtype == WeightCompressionType::FP16) {
             parallel_nt(0, [&](const int ithr, const int nthr) {
                 int n0, n1;
