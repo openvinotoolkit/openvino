@@ -13,6 +13,7 @@ on:
   
 env:
   CMAKE_GENERATOR: 'Ninja Multi-Config'
+  XUANTIE_BIN_PATH: /mount/testdata1
   XUANTIE_DIR: /__w/openvino/xuantie
   XUANTIE_TAR_NAME: 'Xuantie-900-gcc-linux-5.15.0-glibc-x86_64-V2.8.1'
 
@@ -96,7 +97,6 @@ jobs:
       CCACHE_DIR: /__w/openvino/openvino/ccache
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 2G
-      XUANTIE_BIN_PATH: /mount/testdata1/
     if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
