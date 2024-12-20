@@ -187,7 +187,7 @@ TEST_P(AutoRuntimeFallback, releaseResource) {
                                                                                               ifThrow);
             inferRequests[deviceName].push_back(inferRequest);
             inferRequests[deviceName].push_back(inferRequest_2);
-            ON_CALL(*mockIExeNet.get(), create_infer_request()).WillByDefault([this, &inferRequests, deviceName]() {
+            ON_CALL(*mockIExeNet.get(), create_infer_request()).WillByDefault([&inferRequests, deviceName]() {
                 auto infer = inferRequests.at(deviceName).back();
                 if (inferRequests.at(deviceName).size() > 1) {
                     // in case of passthrough model, we need to keep the infer request
@@ -210,7 +210,7 @@ TEST_P(AutoRuntimeFallback, releaseResource) {
             inferRequests[deviceName].push_back(inferRequest);
             inferRequests[deviceName].push_back(inferRequest_2);
             ON_CALL(*mockIExeNetActual.get(), create_infer_request())
-                .WillByDefault(InvokeWithoutArgs([this, &inferRequests, deviceName]() {
+                .WillByDefault(InvokeWithoutArgs([&inferRequests, deviceName]() {
                     std::this_thread::sleep_for(std::chrono::milliseconds(0));
                     auto infer = inferRequests.at(deviceName).back();
                     if (inferRequests.at(deviceName).size() > 1) {
@@ -241,7 +241,7 @@ TEST_P(AutoRuntimeFallback, releaseResource) {
                 inferRequests[deviceName].push_back(inferRequest);
                 inferRequests[deviceName].push_back(inferRequest_2);
                 ON_CALL(*mockIExeNetGPU_1.get(), create_infer_request())
-                    .WillByDefault(InvokeWithoutArgs([this, &inferRequests, deviceName]() {
+                    .WillByDefault(InvokeWithoutArgs([&inferRequests, deviceName]() {
                         std::this_thread::sleep_for(std::chrono::milliseconds(0));
                         auto infer = inferRequests.at(deviceName).back();
                         if (inferRequests.at(deviceName).size() > 1) {
@@ -265,7 +265,7 @@ TEST_P(AutoRuntimeFallback, releaseResource) {
             inferRequests[deviceName].push_back(inferRequest);
             inferRequests[deviceName].push_back(inferRequest_2);
             ON_CALL(*mockIExeNetOTHER.get(), create_infer_request())
-                .WillByDefault(InvokeWithoutArgs([this, &inferRequests, deviceName]() {
+                .WillByDefault(InvokeWithoutArgs([&inferRequests, deviceName]() {
                     std::this_thread::sleep_for(std::chrono::milliseconds(0));
                     auto infer = inferRequests.at(deviceName).back();
                     if (inferRequests.at(deviceName).size() > 1) {
@@ -399,7 +399,7 @@ TEST_P(AutoCTPUTRuntimeFallback, ctputDeviceInferFailTest) {
                                                                                                 ifThrow);
             inferRequests[deviceName].push_back(mockInferrequest);
             inferRequests[deviceName].push_back(inferRequest_2);
-            ON_CALL(*mockIExeNet.get(), create_infer_request()).WillByDefault([this, &inferRequests, deviceName]() {
+            ON_CALL(*mockIExeNet.get(), create_infer_request()).WillByDefault([&inferRequests, deviceName]() {
                 auto infer = inferRequests.at(deviceName).back();
                 if (inferRequests.at(deviceName).size() > 1) {
                     // in case of passthrough model, we need to keep the infer request
@@ -423,7 +423,7 @@ TEST_P(AutoCTPUTRuntimeFallback, ctputDeviceInferFailTest) {
             inferRequests[deviceName].push_back(mockInferrequestGPU_0);
             inferRequests[deviceName].push_back(inferRequest_2);
             ON_CALL(*mockIExeNetActual.get(), create_infer_request())
-                .WillByDefault(InvokeWithoutArgs([this, &inferRequests, deviceName]() {
+                .WillByDefault(InvokeWithoutArgs([&inferRequests, deviceName]() {
                     std::this_thread::sleep_for(std::chrono::milliseconds(0));
                     auto infer = inferRequests.at(deviceName).back();
                     if (inferRequests.at(deviceName).size() > 1) {
@@ -455,7 +455,7 @@ TEST_P(AutoCTPUTRuntimeFallback, ctputDeviceInferFailTest) {
                 inferRequests[deviceName].push_back(mockInferrequestGPU_1);
                 inferRequests[deviceName].push_back(inferRequest_2);
                 ON_CALL(*mockIExeNetGPU_1.get(), create_infer_request())
-                    .WillByDefault(InvokeWithoutArgs([this, &inferRequests, deviceName]() {
+                    .WillByDefault(InvokeWithoutArgs([&inferRequests, deviceName]() {
                         std::this_thread::sleep_for(std::chrono::milliseconds(0));
                         auto infer = inferRequests.at(deviceName).back();
                         if (inferRequests.at(deviceName).size() > 1) {
