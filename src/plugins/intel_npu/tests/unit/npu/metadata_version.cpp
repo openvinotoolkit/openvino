@@ -19,10 +19,6 @@ struct MetadataTest : Metadata<CURRENT_METADATA_VERSION> {
     void set_version(uint32_t newVersion) {
         _version = newVersion;
     }
-
-    void set_ov_version(const OpenvinoVersion& newVersion) {
-        _ovVersion = newVersion;
-    }
 };
 
 TEST_F(MetadataUnitTests, readUnversionedBlob) {
@@ -47,10 +43,7 @@ TEST_F(MetadataUnitTests, writeAndReadMetadataFromBlob) {
 TEST_F(MetadataUnitTests, writeAndReadInvalidOpenvinoVersion) {
     uint64_t blobSize = 0;
     std::stringstream stream;
-    auto meta = MetadataTest(blobSize, std::nullopt);
-
-    OpenvinoVersion badOvVersion("just_some_wrong_ov_version");
-    meta.set_ov_version(badOvVersion);
+    auto meta = MetadataTest(blobSize, "just_some_wrong_ov_version");
 
     OV_ASSERT_NO_THROW(meta.write(stream));
 
@@ -71,3 +64,42 @@ TEST_F(MetadataUnitTests, writeAndReadInvalidMetadataVersion) {
 
     ASSERT_ANY_THROW(auto storedMeta = read_metadata_from(stream));
 }
+
+struct MetadataVersionTestFixture : Metadata<CURRENT_METADATA_VERSION>, ::testing::TestWithParam<uint32_t> {
+public:
+    std::stringstream blob;
+
+    void set_version(uint32_t newVersion) {
+        _version = newVersion;
+    }
+
+    MetadataVersionTestFixture() : Metadata<CURRENT_METADATA_VERSION>(0, std::nullopt) {}
+
+    MetadataVersionTestFixture(uint64_t blobSize, std::optional<std::string_view> ovVersion)
+        : Metadata<CURRENT_METADATA_VERSION>(blobSize, ovVersion) {}
+
+    void TestBody() override {}
+};
+
+TEST_P(MetadataVersionTestFixture, readInvalidMetadataVersion) {
+    auto dummyMeta = MetadataVersionTestFixture(0, ov::get_openvino_version().buildNumber);
+    auto metaVersion = GetParam();
+    dummyMeta.set_version(metaVersion);
+    dummyMeta.write(blob);
+
+    ASSERT_ANY_THROW(read_metadata_from(blob));
+}
+
+constexpr uint16_t currentMajor = get_major(CURRENT_METADATA_VERSION),
+                   currentMinor = get_minor(CURRENT_METADATA_VERSION);
+
+INSTANTIATE_TEST_CASE_P(MetadataUnitTests,
+                        MetadataVersionTestFixture,
+                        ::testing::Values(make_version(currentMajor, currentMinor + 1),
+                                          make_version(currentMajor, currentMinor - 1),
+                                          make_version(currentMajor + 1, currentMinor),
+                                          make_version(currentMajor + 1, currentMinor + 1),
+                                          make_version(currentMajor + 1, currentMinor - 1),
+                                          make_version(currentMajor - 1, currentMinor),
+                                          make_version(currentMajor - 1, currentMinor + 1),
+                                          make_version(currentMajor - 1, currentMinor - 1)));
