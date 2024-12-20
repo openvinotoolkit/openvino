@@ -25,6 +25,6 @@ class TRANSFORMATIONS_API InterpolateSequenceFusion;
  */
 class ov::pass::InterpolateSequenceFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("InterpolateSequenceFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("InterpolateSequenceFusion");
     InterpolateSequenceFusion();
 };

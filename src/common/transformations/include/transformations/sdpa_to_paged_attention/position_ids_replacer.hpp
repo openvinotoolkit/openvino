@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API PositionIDsReplacer;
 
 class ov::pass::PositionIDsReplacer : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("PositionIDsReplacer", "0");
+    OPENVINO_MATCHER_PASS_RTTI("PositionIDsReplacer");
     explicit PositionIDsReplacer(const Output<Node>& position_ids);
 };

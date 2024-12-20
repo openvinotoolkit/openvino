@@ -35,6 +35,6 @@ class TRANSFORMATIONS_API WrapInterpolateIntoTransposes;
  */
 class ov::pass::WrapInterpolateIntoTransposes : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("WrapInterpolateIntoTransposes", "0");
+    OPENVINO_MATCHER_PASS_RTTI("WrapInterpolateIntoTransposes");
     WrapInterpolateIntoTransposes();
 };

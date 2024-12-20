@@ -24,7 +24,7 @@ namespace pass {
  */
 class TRANSFORMATIONS_API ConvolutionToGroupConvolutionFusion : public MatcherPass {
 public:
-    OPENVINO_RTTI("ConvolutionToGroupConvolutionFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvolutionToGroupConvolutionFusion");
     ConvolutionToGroupConvolutionFusion();
 };
 

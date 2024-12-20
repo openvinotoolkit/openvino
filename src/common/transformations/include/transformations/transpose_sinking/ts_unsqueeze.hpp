@@ -37,6 +37,6 @@ public:
  */
 class ov::pass::transpose_sinking::TSUnsqueezeBackward : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::pass::TSUnsqueezeBackward", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ov::pass::TSUnsqueezeBackward");
     TSUnsqueezeBackward();
 };

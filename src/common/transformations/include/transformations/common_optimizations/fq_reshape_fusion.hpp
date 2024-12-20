@@ -27,6 +27,6 @@ class TRANSFORMATIONS_API FakeQuantizeReshapeFusion;
 
 class ov::pass::FakeQuantizeReshapeFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("FakeQuantizeReshapeFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("FakeQuantizeReshapeFusion");
     FakeQuantizeReshapeFusion();
 };

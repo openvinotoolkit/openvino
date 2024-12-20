@@ -23,6 +23,6 @@ class TRANSFORMATIONS_API BroadcastElementwiseFusion;
 
 class ov::pass::BroadcastElementwiseFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("BroadcastElementwiseFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("BroadcastElementwiseFusion");
     BroadcastElementwiseFusion();
 };

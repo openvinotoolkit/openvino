@@ -103,6 +103,6 @@ class TRANSFORMATIONS_API SoftmaxFusion;
 
 class ov::pass::SoftmaxFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SoftmaxFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("SoftmaxFusion");
     SoftmaxFusion();
 };

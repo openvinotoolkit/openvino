@@ -27,6 +27,6 @@ public:
 
 class ov::pass::transpose_sinking::TSSliceBackward : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::pass::TSSliceBackward", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ov::pass::TSSliceBackward");
     TSSliceBackward();
 };

@@ -35,6 +35,6 @@ class TRANSFORMATIONS_API GRUCellFusion;
 
 class ov::pass::GRUCellFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("GRUCellFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("GRUCellFusion");
     GRUCellFusion();
 };

@@ -40,7 +40,7 @@ namespace pass {
  */
 class TRANSFORMATIONS_API MarkDequantization : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MarkDequantization", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MarkDequantization");
     explicit MarkDequantization(const element::TypeVector& precisions,
                                 bool fold_subtract_const = false,
                                 bool fold_multiply_const = true);
@@ -70,7 +70,7 @@ public:
  */
 class TRANSFORMATIONS_API KeepConstsPrecision : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("KeepConstsPrecision", "0");
+    OPENVINO_MATCHER_PASS_RTTI("KeepConstsPrecision");
     explicit KeepConstsPrecision(const element::TypeVector& precisions,
                                  bool fold_subtract_const = false,
                                  bool fold_multiply_const = true);

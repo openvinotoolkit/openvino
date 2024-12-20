@@ -25,6 +25,6 @@ class TRANSFORMATIONS_API NearestNeighborUpsamplingFusion;
  */
 class ov::pass::NearestNeighborUpsamplingFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("NearestNeighborUpsamplingFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("NearestNeighborUpsamplingFusion");
     NearestNeighborUpsamplingFusion();
 };

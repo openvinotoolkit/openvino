@@ -26,6 +26,6 @@ class TRANSFORMATIONS_API SkipGatherBeforeTransposeAndReshape;
  */
 class ov::pass::SkipGatherBeforeTransposeAndReshape : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SkipGatherBeforeTransposeAndReshape", "0");
+    OPENVINO_MATCHER_PASS_RTTI("SkipGatherBeforeTransposeAndReshape");
     SkipGatherBeforeTransposeAndReshape();
 };
