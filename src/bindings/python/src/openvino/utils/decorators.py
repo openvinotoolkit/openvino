@@ -6,7 +6,7 @@ from functools import wraps
 from inspect import signature
 from typing import Any, Callable, Dict, Optional, Union, get_origin, get_args
 
-from openvino.runtime import Node, Output
+from openvino import Node, Output
 from openvino.utils.types import NodeInput, as_node, as_nodes
 
 
