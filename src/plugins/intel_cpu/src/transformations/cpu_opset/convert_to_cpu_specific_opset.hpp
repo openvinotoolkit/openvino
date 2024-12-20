@@ -36,26 +36,11 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
     CPU_REGISTER_PASS_COMMON(manager, ConvertMatMulToFC);
     CPU_REGISTER_PASS_COMMON(manager, FullyConnectedBiasFusion);
 
-    std::vector<ov::element::Type> supported_activation_types{
-        // @todo enable for bf16 as well
-        // after EnforceInferencePrecision is replaced with ConvertPrecision
-        ov::element::f32,
-    };
-
-    std::vector<ov::element::Type> supported_compressed_weights_types{
-        ov::element::u8,
-        ov::element::i8,
-        ov::element::u4,
-        ov::element::i4,
-        ov::element::nf4,
-        ov::element::f4e2m1,
-    };
-
-    CPU_REGISTER_PASS_X64(
+    CPU_REGISTER_PASS_COMMON(
         manager,
         pass::ConvertFullyConnectedToFullyConnectedCompressed,
-        supported_activation_types,
-        supported_compressed_weights_types,
+        ov::intel_cpu::node::FullyConnected::getSupportedCompressedActivationsTypes(),
+        ov::intel_cpu::node::FullyConnected::getSupportedCompressedWeightsTypes(),
         [&config](const std::shared_ptr<ov::op::internal::FullyConnected>& fc, size_t IC, size_t OC, size_t G) {
             return ov::intel_cpu::node::FullyConnected::isSupportedCompressedOperation(fc,
                                                                                        IC,
@@ -65,8 +50,8 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
         });
 
     CPU_REGISTER_PASS_X64(manager, pass::ConvertFCToFCQuantizedLegacy);
-    CPU_REGISTER_PASS_X64(manager, MoveFCReshapeToWeights);
-    CPU_REGISTER_PASS_X64(manager, ov::pass::Validate);
+    CPU_REGISTER_PASS_COMMON(manager, MoveFCReshapeToWeights);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_COMMON(manager, AlignMatMulInputRanks);
     CPU_REGISTER_PASS_COMMON(manager, ConvertTileToSeqTiles);
     CPU_REGISTER_PASS_COMMON(manager, ConvertToPowerStatic);
