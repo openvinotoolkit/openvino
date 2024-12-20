@@ -16,6 +16,9 @@ class Property(str):
 
     def __call__(self, *args: Any) -> Callable[..., Any]:
         if args is not None:
+            from openvino import Model
+            if args and isinstance(args[0], Model):
+                return self.prop(args[0]._Model__model)
             return self.prop(*args)
         return self.prop()
 
