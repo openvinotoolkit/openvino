@@ -206,7 +206,7 @@ Here is an example of how to convert a model obtained with ``torch.export``:
 Converting a PyTorch Model from Disk
 ####################################
 
-PyTorch provides the capability to save models in two distinct formats: ``torch.jit.ScriptModule` and ``torch.export.ExportedProgram``.
+PyTorch provides the capability to save models in two distinct formats: ``torch.jit.ScriptModule`` and ``torch.export.ExportedProgram``.
 Both formats can be saved to disk as standalone files, enabling them to be reloaded independently of the original Python code.
 
 ExportedProgram Format
@@ -234,7 +234,7 @@ Below is an example of how to convert an ``ExportedProgram`` from disk:
          ovc exported_program.pt2
 
 ScriptModule Format
-++++++++++++++++++++++
++++++++++++++++++++
 
 `torch.jit.save() <https://pytorch.org/docs/stable/generated/torch.jit.save.html>`__ serializes ``ScriptModule`` object on disk.
 To convert the serialized ``ScriptModule`` format, run ``convert_model`` function with ``example_input`` parameter as follows:
@@ -246,6 +246,8 @@ To convert the serialized ``ScriptModule`` format, run ``convert_model`` functio
    import torch
 
    convert_model(input_model='script_module.pt', example_input=torch.rand(1, 10))
+
+``example_input`` is the required parameter for the conversion because ``torch.jit.ScriptModule`` object is always saved in an untraced state on disk.
 
 Exporting a PyTorch Model to ONNX Format
 ########################################
