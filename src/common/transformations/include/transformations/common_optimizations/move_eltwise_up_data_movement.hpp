@@ -29,7 +29,7 @@ namespace pass {
 ///   └────────────────┘                      └────────────────┘
 class TRANSFORMATIONS_API MoveEltwiseUpThroughDataMovScalar : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MoveEltwiseUpThroughDataMovScalar", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MoveEltwiseUpThroughDataMovScalar");
     MoveEltwiseUpThroughDataMovScalar(std::vector<DiscreteTypeInfo> allowed_data_movement_ops);
 };
 
@@ -50,7 +50,7 @@ public:
 ///            └────────────────┘    └────────────────────┘                   └───────────┘    └─────────────┘
 class TRANSFORMATIONS_API MoveEltwiseUpThroughDataMovPerChannel : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MoveEltwiseUpThroughDataMovPerChannel", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MoveEltwiseUpThroughDataMovPerChannel");
     MoveEltwiseUpThroughDataMovPerChannel();
 };
 

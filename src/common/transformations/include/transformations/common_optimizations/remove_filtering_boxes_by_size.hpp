@@ -27,6 +27,6 @@ public:
 
 class ov::pass::RemoveFilteringBoxesBySize : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("RemoveFilteringBoxesBySize", "0");
+    OPENVINO_MATCHER_PASS_RTTI("RemoveFilteringBoxesBySize");
     RemoveFilteringBoxesBySize();
 };
