@@ -70,6 +70,7 @@ DEFINE_OPT(NPUW_DUMP_IO_ITERS, bool, false, npuw::dump::io_iters, RunTime);
 DEFINE_OPT(NPUW_LLM, bool, false, npuw::llm::enabled, CompileTime);
 DEFINE_OPT(NPUW_LLM_MAX_PROMPT_LEN, uint32_t, 1024, npuw::llm::max_prompt_len, CompileTime);
 DEFINE_OPT(NPUW_LLM_MIN_RESPONSE_LEN, uint32_t, 128, npuw::llm::min_response_len, CompileTime);
+DEFINE_OPT(NPUW_LLM_PAD_TOKEN_ID, int64_t, 0, npuw::llm::pad_token_id, CompileTime);
 
 namespace npuw {
 namespace llm {

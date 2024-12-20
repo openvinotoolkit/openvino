@@ -414,6 +414,14 @@ static constexpr ov::Property<uint32_t> min_response_len{"NPUW_LLM_MIN_RESPONSE_
 
 /**
  * @brief
+ * Type: std::map<std::string, ov::Any>.
+ * Tell NPUW the configuration for compilation of prefill model.
+ * NOTE: !! Write-only !!
+ */
+static constexpr ov::Property<std::string> prefill_config{"NPUW_LLM_PREFILL_CONFIG"};
+
+/**
+ * @brief
  * Type: std::string.
  * Tell NPUW the preferrable hint for generation stage, that leads to usage of optimal configuration for it.
  * Possible values: "FAST_COMPILE", "BEST_PERF".
@@ -421,6 +429,21 @@ static constexpr ov::Property<uint32_t> min_response_len{"NPUW_LLM_MIN_RESPONSE_
  */
 static constexpr ov::Property<std::string> generate_hint{"NPUW_LLM_GENERATE_HINT"};
 
+/**
+ * @brief
+ * Type: std::map<std::string, ov::Any>.
+ * Tell NPUW the configuration for compilation of generate model.
+ * NOTE: !! Write-only !!
+ */
+static constexpr ov::Property<std::string> generate_config{"NPUW_LLM_GENERATE_CONFIG"};
+
+/**
+ * @brief
+ * Type: int64_t.
+ * Pad token ID to fill input token ids in the conversation mode.
+ * Default: 0.
+ */
+static constexpr ov::Property<int64_t> pad_token_id{"NPUW_LLM_PAD_TOKEN_ID"};
 }  // namespace llm
 
 }  // namespace npuw
