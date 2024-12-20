@@ -8,12 +8,15 @@ set(CMAKE_CXX_STANDARD 11)
 set(TARGET_NAME "openvino_template_extension")
 
 # The OpenVINO installed from PyPI can be used to find OpenVINO_DIR
-find_package(Python3 REQUIRED)
-execute_process(
-    COMMAND ${Python3_EXECUTABLE} -c "from openvino.utils import get_cmake_path; print(get_cmake_path(), end='')"
-    OUTPUT_VARIABLE OpenVINO_DIR_PY
-    ERROR_QUIET
-)
+if(NOT CMAKE_CROSSCOMPILING)
+    find_package(Python3 QUIET COMPONENTS Interpreter)
+    if(Python3_Interpreter_FOUND)
+        execute_process(
+            COMMAND ${Python3_EXECUTABLE} -c "from openvino.utils import get_cmake_path; print(get_cmake_path(), end='')"
+            OUTPUT_VARIABLE OpenVINO_DIR_PY
+            ERROR_QUIET)
+    endif()
+endif()
 
 find_package(OpenVINO REQUIRED PATHS "${OpenVINO_DIR_PY}")
 
