@@ -1183,18 +1183,6 @@ void rotate_kv_cache(PlainTensor& key_cache,
     size_t num_rotated_blocks = rotated_block_indices.size(0);
     int32_t* rotated_block_indices_data = rotated_block_indices.ptr<int32_t>();
     float* rotation_trig_lut_data = rotation_trig_lut.ptr<float>();
-    size_t block_chunk_size = block_size * embedding_size;
-    size_t head_chunk_size = embedding_size * block_size;
-
-    std::cout << "VSHAMPOR: num_rotated_blocks= " << num_rotated_blocks << ", num_blocks_in_total= "
-        << num_blocks_in_total << ", block_size=" << block_size << ", num_heads=" << num_heads << " , embedding_size=" << embedding_size << std::endl;
-
-    std::cout << "VSHAMPOR: block rotation order \n";
-    for (size_t i = 0; i < num_rotated_blocks; i++) {
-        size_t rotated_block_index = *(rotated_block_indices_data + i);
-        std::cout << rotated_block_index << ' ';
-    }
-    std::cout << std::endl;
 
     size_t rotation_deltas_token_stride = 0;
     size_t rotation_deltas_block_stride = 1;
@@ -1205,15 +1193,12 @@ void rotate_kv_cache(PlainTensor& key_cache,
         rotation_deltas_block_stride = block_size;
     }
 
-    std::cout << "VSHAMPOR: rotating blocks \n";
     for (size_t i = 0; i < num_rotated_blocks; i++) {
         size_t rotated_block_index = *(rotated_block_indices_data + i);
-        std::cout << "block " << rotated_block_index << "\n";
         OPENVINO_ASSERT(rotated_block_index < num_blocks_in_total);
 
         int32_t* rotation_deltas_block_data = rotation_deltas.ptr<int32_t>() + i * rotation_deltas_block_stride;
 
-        std::cout << "VSHAMPOR: rotation_delta is " << *rotation_deltas_block_data << std::endl;
         float* rotation_coefficient_block_data = rotation_coefficients_scratch.ptr<float>();
         fill_rotation_coefficients_from_lut(rotation_coefficient_block_data,
                                             rotation_deltas_block_data,
@@ -1222,101 +1207,8 @@ void rotate_kv_cache(PlainTensor& key_cache,
                                             block_size,
                                             embedding_size);
         KVCACHE_TYPE* cache_block_ptr = key_cache.ptr<KVCACHE_TYPE>(rotated_block_index);
-        std::cout << "(t0-cos(d0) " << std::setprecision(3)
-            << *rotation_coefficient_block_data << " "
-            << *(rotation_coefficient_block_data + 1) << " .. "
-            << *(rotation_coefficient_block_data + embedding_size / 2 - 2) << " "
-            << *(rotation_coefficient_block_data + embedding_size / 2 - 1)
-            << " t0-cos(dD/2) <-> t0-sin(d0) "
-            << *(rotation_coefficient_block_data + embedding_size / 2) << " "
-            << *(rotation_coefficient_block_data + embedding_size / 2 + 1) << " .. "
-            << *(rotation_coefficient_block_data + embedding_size - 2) << " "
-            << *(rotation_coefficient_block_data + embedding_size - 1) << " "
-            << " t0-sin(dD/2) <-> t1-cos(d0) "
-            << *(rotation_coefficient_block_data + block_chunk_size / 2) << " "
-            << *(rotation_coefficient_block_data + block_chunk_size / 2 + 1) << " .. "
-            << *(rotation_coefficient_block_data + block_chunk_size - 2) << " "
-            << *(rotation_coefficient_block_data + block_chunk_size - 1) << " tB-sin(dD/2)) ";
-        std::cout << std::endl;
-        std::cout << "[t0-cos(d0)" << std::setprecision(3)
-            << *cache_block_ptr << " "
-            << *(cache_block_ptr + 1) << " .. "
-            << *(cache_block_ptr + embedding_size / 2 - 2) << " "
-            << *(cache_block_ptr + embedding_size / 2 - 1)
-            << " t0-cos(dD/2) <-> t0-sin(d0) "
-            << *(cache_block_ptr + embedding_size / 2) << " "
-            << *(cache_block_ptr + embedding_size / 2 + 1) << " .. "
-            << *(cache_block_ptr + embedding_size - 2) << " "
-            << *(cache_block_ptr + embedding_size - 1)
-            << " t0-sin(dD/2) <-> t1-cos(d0) "
-            << *(cache_block_ptr + embedding_size) << " "
-            << *(cache_block_ptr + embedding_size + 1) << " .. "
-            << *(cache_block_ptr + head_chunk_size - embedding_size - 2) << " "
-            << *(cache_block_ptr + head_chunk_size - embedding_size - 1)
-            << " t(B-1)-sin(dD/2) <-> tB-cos(d0) "
-            << *(cache_block_ptr + head_chunk_size - embedding_size) << " "
-            << *(cache_block_ptr + head_chunk_size - embedding_size + 1) << " .. "
-            << " t(B)-cos(dD/2) <-> tB-sin(d0) "
-            << *(cache_block_ptr + head_chunk_size - embedding_size / 2 - 2) << " "
-            << *(cache_block_ptr + head_chunk_size - embedding_size / 2 - 1) << " .. "
-            << *(cache_block_ptr + head_chunk_size - 2) << " "
-            << *(cache_block_ptr + head_chunk_size - 1) << " tB-sin(dD/2)] | ";
-        std::cout.flush();
-
-        size_t counter = 0;
-        for (size_t i = 0; i < head_chunk_size; i++) {
-            if (*(cache_block_ptr + head_chunk_size - 1 - i) == 0) {
-                counter++;
-            } else {
-                break;
-            }
-        }
-        std::cout << "\ntrailing zeros: " << counter << "/" << head_chunk_size <<
-            " (" << std::setprecision(3) << (counter + 0.0) / head_chunk_size * 100.0 << "%)" << std::endl << std::endl;
         rotate_kv_cache_block(cache_block_ptr, rotation_coefficient_block_data, num_heads, block_size, embedding_size);
-
-        std::cout << std::endl;
-        std::cout << "result \n";
-
-        std::cout << "[t0-cos(d0)" << std::setprecision(3)
-            << *cache_block_ptr << " "
-            << *(cache_block_ptr + 1) << " .. "
-            << *(cache_block_ptr + embedding_size / 2 - 2) << " "
-            << *(cache_block_ptr + embedding_size / 2 - 1)
-            << " t0-cos(dD/2) <-> t0-sin(d0) "
-            << *(cache_block_ptr + embedding_size / 2) << " "
-            << *(cache_block_ptr + embedding_size / 2 + 1) << " .. "
-            << *(cache_block_ptr + embedding_size - 2) << " "
-            << *(cache_block_ptr + embedding_size - 1)
-            << " t0-sin(dD/2) <-> t1-cos(d0) "
-            << *(cache_block_ptr + embedding_size) << " "
-            << *(cache_block_ptr + embedding_size + 1) << " .. "
-            << *(cache_block_ptr + head_chunk_size - embedding_size - 2) << " "
-            << *(cache_block_ptr + head_chunk_size - embedding_size - 1)
-            << " t(B-1)-sin(dD/2) <-> tB-cos(d0) "
-            << *(cache_block_ptr + head_chunk_size - embedding_size) << " "
-            << *(cache_block_ptr + head_chunk_size - embedding_size + 1) << " .. "
-            << " t(B)-cos(dD/2) <-> tB-sin(d0) "
-            << *(cache_block_ptr + head_chunk_size - embedding_size / 2 - 2) << " "
-            << *(cache_block_ptr + head_chunk_size - embedding_size / 2 - 1) << " .. "
-            << *(cache_block_ptr + head_chunk_size - 2) << " "
-            << *(cache_block_ptr + head_chunk_size - 1) << " tB-sin(dD/2)] | ";
-        std::cout << std::endl;
-        std::cout << std::endl;
-
-        counter = 0;
-        for (size_t i = 0; i < head_chunk_size; i++) {
-            if (*(cache_block_ptr + head_chunk_size - 1 - i) == 0) {
-                counter++;
-            } else {
-                break;
-            }
-        }
-        std::cout << "\ntrailing zeros: " << counter << "/" << head_chunk_size <<
-            " (" << std::setprecision(3) << (counter + 0.0) / head_chunk_size * 100.0 << "%)" << std::endl << std::endl;
     }
-    std::cout << std::endl;
-    std::cout << std::endl;
 }
 
 template <typename DATA_TYPE, typename KEY_CACHE_TYPE, ov::element::Type_t VALUE_PREC>
