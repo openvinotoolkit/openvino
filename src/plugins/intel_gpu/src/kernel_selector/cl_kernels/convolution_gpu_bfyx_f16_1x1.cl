@@ -122,6 +122,28 @@ KERNEL(convolution_b_fs_yx_fsv16_1x1)(
     {
 #endif // SLM_DIV_FACTOR > 1
         vec_t src = 0;
+#if IS_DYNAMIC
+        if (INPUT_LEFTOVERS && ((k + 1) * FEATURE_SLICE_SIZE >= INPUT0_FEATURE_NUM))
+        {
+            if (k * FEATURE_SLICE_SIZE + sglid < INPUT0_FEATURE_NUM)
+            {
+#if X_BLOCK_SIZE > 1
+                __attribute__((opencl_unroll_hint(X_BLOCK_SIZE)))
+                for (int i = 0; i < X_BLOCK_SIZE; i++)
+                {
+                    const uint xb = (x + i) % INPUT0_SIZE_X;
+                    const uint yb = y + (x + i) / INPUT0_SIZE_X;
+                    const uint input_idx = input_offset + k * input_fs_pitch + yb * input_y_pitch + xb * input_x_pitch;
+
+                    src[i] = input[input_idx + sglid];
+                }
+#else
+                src = input[input_offset + k * input_fs_pitch + sglid];
+#endif // X_BLOCK_SIZE > 1
+            }
+        }
+        else
+#else
 #if INPUT_LEFTOVERS
         if ((k + 1) * FEATURE_SLICE_SIZE >= INPUT0_FEATURE_NUM)
         {
@@ -144,6 +166,7 @@ KERNEL(convolution_b_fs_yx_fsv16_1x1)(
         }
         else
 #endif // INPUT_LEFTOVERS
+#endif // IS_DYNAMIC
         {
 #if PADDED_INPUT
 #if X_BLOCK_SIZE > 1
