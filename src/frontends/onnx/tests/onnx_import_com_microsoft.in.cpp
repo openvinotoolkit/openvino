@@ -1364,16 +1364,17 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_dynamic_quantize_matmul) {
     // Fill test case here
     const std::vector<float> input_A{1.29292f, 2.47473f, 3.291903f, 4.1728945f, 5.213912f, 6.1293125f};
     const std::vector<int8_t> input_B{1, 2, 3, 125, 126, -128};
-    const std::vector<int8_t> b_zero_point{69};
     const std::vector<float> b_scale{6.28947502f};
+    const std::vector<int8_t> b_zero_point{69};
 
     const std::vector<float> expected{3.16867157e+02f, 3.40601959e+02f, -3.60632910e+03f, 6.47037888e+01f, 1.11719864e+02f, -6.54899121e+03f,
     -7.19602890e+01f, -6.04708314e-01f, -9.75953906e+03f};
 
+    // add_input needs to be called in order of model inputs (order matters)
     test_case.add_input<float>(Shape{3,2}, input_A);
     test_case.add_input<int8_t>(Shape{2,3}, input_B);
-    test_case.add_input<int8_t>(Shape{1}, b_zero_point);
     test_case.add_input<float>(Shape{1}, b_scale);
+    test_case.add_input<int8_t>(Shape{1}, b_zero_point);
 
     test_case.add_expected_output<float>(Shape{3,3}, expected);
 
