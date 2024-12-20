@@ -63,10 +63,12 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
             } else {
                 variable.get_memory()->fill(stream);
             }
-            auto user_inst = instance.get_user_insts().front();
-            if (!(user_inst->get_node().is_type<assign>() || user_inst->get_node().is_type<kv_cache>()) &&
-                !instance.get_dependant_initializer_insts().empty()) {
-                variable.set();
+            if (!instance.get_user_insts().empty()) {
+                auto user_inst = instance.get_user_insts().front();
+                if (!(user_inst->get_node().is_type<assign>() || user_inst->get_node().is_type<kv_cache>()) &&
+                    !instance.get_dependant_initializer_insts().empty()) {
+                    variable.set();
+                }
             }
         }
 
