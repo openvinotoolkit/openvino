@@ -27,6 +27,6 @@ class TRANSFORMATIONS_API FakeConvertDecomposition;
 
 class ov::pass::FakeConvertDecomposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("FakeConvertDecomposition", "0");
+    OPENVINO_MATCHER_PASS_RTTI("FakeConvertDecomposition");
     FakeConvertDecomposition();
 };

@@ -34,49 +34,39 @@ ov::pass::FakeConvertDecomposition::FakeConvertDecomposition() {
         const Output<Node> input_scale{fake_convert_node->input_value(1)};
         auto input_type = data.get_element_type();
 
-        ov::NodeVector decomp_ops;
+        ov::pass::NodeRegistry decomp_ops;
         if (input_type != input_scale.get_element_type()) {
             input_type = input_scale.get_element_type();
             data = std::make_shared<ov::op::v0::Convert>(data, input_type);
-            decomp_ops.push_back(data.get_node_shared_ptr());
+            data = decomp_ops.add(data.get_node_shared_ptr());
         }
 
         std::shared_ptr<Node> result;
-        const auto scale = std::make_shared<ov::op::v1::Multiply>(data, input_scale);
-        decomp_ops.push_back(scale);
+        const auto scale = decomp_ops.make<ov::op::v1::Multiply>(data, input_scale);
         if (fake_convert_node->get_input_size() == 2) {
             const auto downconvert =
-                std::make_shared<ov::op::v0::Convert>(scale, fake_convert_node->get_destination_element_type());
-            decomp_ops.push_back(downconvert);
-            const auto upconvert = std::make_shared<ov::op::v0::Convert>(downconvert, input_type);
-            decomp_ops.push_back(upconvert);
+                decomp_ops.make<ov::op::v0::Convert>(scale, fake_convert_node->get_destination_element_type());
+            const auto upconvert = decomp_ops.make<ov::op::v0::Convert>(downconvert, input_type);
 
-            result = std::make_shared<ov::op::v1::Divide>(upconvert, input_scale);
-            decomp_ops.push_back(result);
+            result = decomp_ops.make<ov::op::v1::Divide>(upconvert, input_scale);
         } else {
             const Output<Node> input_shift{fake_convert_node->input_value(2)};
-            const auto shift = std::make_shared<ov::op::v1::Subtract>(scale, input_shift);
-            decomp_ops.push_back(shift);
+            const auto shift = decomp_ops.make<ov::op::v1::Subtract>(scale, input_shift);
 
             const auto downconvert =
-                std::make_shared<ov::op::v0::Convert>(shift, fake_convert_node->get_destination_element_type());
-            decomp_ops.push_back(downconvert);
-            const auto upconvert = std::make_shared<ov::op::v0::Convert>(downconvert, input_type);
-            decomp_ops.push_back(upconvert);
+                decomp_ops.make<ov::op::v0::Convert>(shift, fake_convert_node->get_destination_element_type());
+            const auto upconvert = decomp_ops.make<ov::op::v0::Convert>(downconvert, input_type);
 
-            const auto deshift = std::make_shared<ov::op::v1::Add>(upconvert, input_shift);
-            decomp_ops.push_back(deshift);
-            result = std::make_shared<ov::op::v1::Divide>(deshift, input_scale);
-            decomp_ops.push_back(result);
+            const auto deshift = decomp_ops.make<ov::op::v1::Add>(upconvert, input_shift);
+            result = decomp_ops.make<ov::op::v1::Divide>(deshift, input_scale);
         }
 
         if (result->get_output_element_type(0) != fake_convert_node->get_output_element_type(0)) {
-            result = std::make_shared<ov::op::v0::Convert>(result, fake_convert_node->get_output_element_type(0));
-            decomp_ops.push_back(result);
+            result = decomp_ops.make<ov::op::v0::Convert>(result, fake_convert_node->get_output_element_type(0));
         }
 
         result->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ov::copy_runtime_info(fake_convert_node, decomp_ops);
+        ov::copy_runtime_info(fake_convert_node, decomp_ops.get());
         ov::replace_node(m.get_match_root(), result);
         return true;
     };

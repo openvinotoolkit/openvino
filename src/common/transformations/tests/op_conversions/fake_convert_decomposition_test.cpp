@@ -43,70 +43,66 @@ public:
             result << "defaultShift=false";
         return result.str();
     }
-
-protected:
-    void SetUp() override {
-        FakeConvertDecompositionParams params = this->GetParam();
-
-        Shape data_shape, scale_shape, shift_shape;
-        element::Type_t data_prec, dst_prec;
-        bool default_shift;
-        std::tie(data_shape, scale_shape, shift_shape, data_prec, dst_prec, default_shift) = params;
-
-        std::shared_ptr<ov::Model> f(nullptr);
-        {
-            const auto data = std::make_shared<opset1::Parameter>(data_prec, PartialShape(data_shape));
-            const auto scale = std::make_shared<opset1::Constant>(data_prec, scale_shape);
-            const auto shift = std::make_shared<opset1::Constant>(data_prec, shift_shape);
-
-            const auto fake_convert = default_shift
-                                          ? std::make_shared<opset13::FakeConvert>(data, scale, dst_prec)
-                                          : std::make_shared<opset13::FakeConvert>(data, scale, shift, dst_prec);
-            f = std::make_shared<ov::Model>(NodeVector{fake_convert}, ParameterVector{data});
-
-            pass::Manager manager;
-            manager.register_pass<ov::pass::InitNodeInfo>();
-            manager.register_pass<ov::pass::FakeConvertDecomposition>();
-            manager.run_passes(f);
-
-            OV_ASSERT_NO_THROW(check_rt_info(f));
-        }
-
-        std::shared_ptr<ov::Model> f_ref(nullptr);
-        {
-            const auto input_data = std::make_shared<opset1::Parameter>(data_prec, PartialShape(data_shape));
-            const auto input_scale = std::make_shared<opset1::Constant>(data_prec, scale_shape);
-            const auto input_shift = std::make_shared<opset1::Constant>(data_prec, shift_shape);
-            ParameterVector params;
-            params.push_back(input_data);
-            std::shared_ptr<Node> data = input_data;
-
-            std::shared_ptr<Node> result;
-            const auto scale = std::make_shared<ov::op::v1::Multiply>(data, input_scale);
-            if (default_shift) {
-                const auto downconvert = std::make_shared<ov::op::v0::Convert>(scale, dst_prec);
-                const auto upconvert = std::make_shared<ov::op::v0::Convert>(downconvert, data_prec);
-
-                result = std::make_shared<ov::op::v1::Divide>(upconvert, input_scale);
-            } else {
-                const auto shift = std::make_shared<ov::op::v1::Subtract>(scale, input_shift);
-
-                const auto downconvert = std::make_shared<ov::op::v0::Convert>(shift, dst_prec);
-                const auto upconvert = std::make_shared<ov::op::v0::Convert>(downconvert, data_prec);
-
-                const auto deshift = std::make_shared<ov::op::v1::Add>(upconvert, input_shift);
-                result = std::make_shared<ov::op::v1::Divide>(deshift, input_scale);
-            }
-
-            f_ref = std::make_shared<ov::Model>(NodeVector{result}, params);
-        }
-
-        const auto res = compare_functions(f, f_ref);
-        ASSERT_TRUE(res.first) << res.second;
-    }
 };
 
-TEST_P(FakeConvertDecompositionTest, CompareFunctions) {}
+TEST_P(FakeConvertDecompositionTest, CompareFunctions) {
+    FakeConvertDecompositionParams params = this->GetParam();
+
+    Shape data_shape, scale_shape, shift_shape;
+    element::Type_t data_prec, dst_prec;
+    bool default_shift;
+    std::tie(data_shape, scale_shape, shift_shape, data_prec, dst_prec, default_shift) = params;
+
+    std::shared_ptr<ov::Model> model(nullptr);
+    {
+        const auto data = std::make_shared<opset1::Parameter>(data_prec, PartialShape(data_shape));
+        const auto scale = std::make_shared<opset1::Constant>(data_prec, scale_shape);
+        const auto shift = std::make_shared<opset1::Constant>(data_prec, shift_shape);
+
+        const auto fake_convert = default_shift ? std::make_shared<opset13::FakeConvert>(data, scale, dst_prec)
+                                                : std::make_shared<opset13::FakeConvert>(data, scale, shift, dst_prec);
+        model = std::make_shared<ov::Model>(NodeVector{fake_convert}, ParameterVector{data});
+
+        pass::Manager manager;
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::FakeConvertDecomposition>();
+        manager.run_passes(model);
+
+        OV_ASSERT_NO_THROW(check_rt_info(model));
+    }
+
+    std::shared_ptr<ov::Model> model_ref(nullptr);
+    {
+        const auto input_data = std::make_shared<opset1::Parameter>(data_prec, PartialShape(data_shape));
+        const auto input_scale = std::make_shared<opset1::Constant>(data_prec, scale_shape);
+        const auto input_shift = std::make_shared<opset1::Constant>(data_prec, shift_shape);
+        ParameterVector params;
+        params.push_back(input_data);
+        std::shared_ptr<Node> data = input_data;
+
+        std::shared_ptr<Node> result;
+        const auto scale = std::make_shared<ov::op::v1::Multiply>(data, input_scale);
+        if (default_shift) {
+            const auto downconvert = std::make_shared<ov::op::v0::Convert>(scale, dst_prec);
+            const auto upconvert = std::make_shared<ov::op::v0::Convert>(downconvert, data_prec);
+
+            result = std::make_shared<ov::op::v1::Divide>(upconvert, input_scale);
+        } else {
+            const auto shift = std::make_shared<ov::op::v1::Subtract>(scale, input_shift);
+
+            const auto downconvert = std::make_shared<ov::op::v0::Convert>(shift, dst_prec);
+            const auto upconvert = std::make_shared<ov::op::v0::Convert>(downconvert, data_prec);
+
+            const auto deshift = std::make_shared<ov::op::v1::Add>(upconvert, input_shift);
+            result = std::make_shared<ov::op::v1::Divide>(deshift, input_scale);
+        }
+
+        model_ref = std::make_shared<ov::Model>(NodeVector{result}, params);
+    }
+
+    const auto res = compare_functions(model, model_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
 
 const std::vector<element::Type_t> data_precisions = {element::Type_t::f32,
                                                       element::Type_t::f16,
