@@ -926,7 +926,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             disable_fc_swiglu_fusion = true;
         // mlp fusion is only supported for cldnn on high performant GPUis
         bool fuse_mlp_swiglu = !device_info.supports_immad &&
-                               device_info.execution_units_count >= 128 &&
+                               device_info.execution_units_count >= 112 &&
                                !disable_fc_swiglu_fusion;
         if (!disable_horizontal_fc_fusion)
             manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>(fuse_mlp_swiglu);

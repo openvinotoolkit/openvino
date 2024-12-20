@@ -169,7 +169,7 @@ void prepare_primitive_fusing::fuse_swiglu(program &p) {
     GPU_DEBUG_IF(debug_config->disable_fc_swiglu_fusion == 1)
         disable_fc_swiglu_fusion = true;
     // Apply only for high performant GPU
-    if (disable_fc_swiglu_fusion || p.get_engine().get_device_info().execution_units_count < 128)
+    if (disable_fc_swiglu_fusion || p.get_engine().get_device_info().execution_units_count < 112)
         return;
 
     if (p.get_engine().get_device_info().supports_immad)
