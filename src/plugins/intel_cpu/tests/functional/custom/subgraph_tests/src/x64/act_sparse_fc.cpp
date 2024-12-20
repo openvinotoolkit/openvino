@@ -8,6 +8,7 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "transformations/rt_info/decompression.hpp"
 
 namespace ov {
 namespace test {
@@ -143,7 +144,9 @@ protected:
                 in_data.resolution = resolution;
                 auto tensor = ov::test::utils::create_and_fill_tensor(ov::element::f16, ov::Shape{OC, IC}, in_data);
                 auto weight_const_f16 = std::make_shared<ov::op::v0::Constant>(tensor);
-                return std::make_shared<ov::op::v0::Convert>(weight_const_f16, ov::element::f32);
+                auto convert_f32 = std::make_shared<ov::op::v0::Convert>(weight_const_f16, ov::element::f32);
+                ov::mark_as_decompression(convert_f32);
+                return convert_f32;
             }
             ov::test::utils::InputGenerateData in_data;
             in_data.start_from = -0.5;
@@ -194,8 +197,8 @@ static ov::test::InputShape ishape_1st{ov::PartialShape{-1, -1, 4096 / 4},
 static ov::test::InputShape ishape_2nd{ov::PartialShape{-1, -1, 4096 / 4}, {ov::Shape{1, 1, 4096 / 4}}};
 
 const std::vector<ActSparseFCFusionParams> test_params = {
-    //{ishape_1st, 4096 / 4, 11008 / 4, ov::element::f16, 0, 0.0f},
-    //{ishape_2nd, 4096 / 4, 11008 / 4, ov::element::f16, 0, 0.3f},
+    {ishape_1st, 4096 / 4, 11008 / 4, ov::element::f16, 0, 0.0f},
+    {ishape_2nd, 4096 / 4, 11008 / 4, ov::element::f16, 0, 0.3f},
     {ishape_1st, 4096 / 4, 11008 / 4, ov::element::i8, 0, 0.0f},
     {ishape_2nd, 4096 / 4, 11008 / 4, ov::element::i8, 0, 0.3f},
     {ishape_1st, 4096 / 4, 11008 / 4, ov::element::u8, 0, 0.0f},
