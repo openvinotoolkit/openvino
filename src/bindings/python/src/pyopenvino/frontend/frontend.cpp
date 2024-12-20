@@ -113,10 +113,13 @@ void regclass_frontend_FrontEnd(py::module m) {
                 :rtype: openvino.runtime.Model
              )");
 
-    fem.def("convert",
-            static_cast<void (FrontEnd::*)(const std::shared_ptr<ov::Model>&) const>(&FrontEnd::convert),
-            py::arg("model"),
-            R"(
+    fem.def(
+        "convert",
+        [](FrontEnd& self, const py::object& ie_api_model) {
+            return self.convert(Common::utils::convert_to_model(ie_api_model));
+        },
+        py::arg("model"),
+        R"(
                 Completely convert the remaining, not converted part of a function.
 
                 :param model: Partially converted OpenVINO model.
@@ -153,10 +156,13 @@ void regclass_frontend_FrontEnd(py::module m) {
                 :rtype: openvino.runtime.Model
              )");
 
-    fem.def("normalize",
-            &FrontEnd::normalize,
-            py::arg("model"),
-            R"(
+    fem.def(
+        "normalize",
+        [](FrontEnd& self, const py::object& ie_api_model) {
+            self.normalize(Common::utils::convert_to_model(ie_api_model));
+        },
+        py::arg("model"),
+        R"(
                 Runs normalization passes on function that was loaded with partial conversion.
 
                 :param model : Partially converted OpenVINO model.
