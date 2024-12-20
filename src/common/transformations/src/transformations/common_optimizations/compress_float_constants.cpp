@@ -75,7 +75,6 @@ using namespace ov::pass;
 
 class DetectFakeQuantizeOrFakeConvert : public MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("DetectFakeQuantizeOrFakeConvert");
     DetectFakeQuantizeOrFakeConvert() {
         auto root = pattern::wrap_type<ov::op::v0::FakeQuantize, ov::op::v13::FakeConvert>();
 
@@ -90,7 +89,6 @@ public:
 
 class DetectCompressedWeights : public MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("DetectCompressedWeights");
     DetectCompressedWeights() {
         auto weights = pattern::wrap_type<ov::op::v0::Constant>(pattern::type_matches_any({ov::element::i4,
                                                                                            ov::element::u4,
