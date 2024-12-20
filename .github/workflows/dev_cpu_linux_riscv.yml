@@ -129,12 +129,8 @@ jobs:
       - name: Init XUANTIE
         run: |
           mkdir ${XUANTIE_DIR}
-          pushd ${XUANTIE_DIR}
-            cp ${XUANTIE_BIN_PATH}${XUANTIE_TAR_NAME}.tar ${XUANTIE_DIR}
-            tar -xf ${XUANTIE_TAR_NAME}.tar
-            chmod -R +x ${XUANTIE_TAR_NAME}
-            ln -s /usr/include/riscv64-linux-gnu/ /usr/include/python3.10/
-          popd
+          tar -xvf ${XUANTIE_BIN_PATH}/${XUANTIE_TAR_NAME}.tar -C ${XUANTIE_DIR}
+          chmod -R +x ${XUANTIE_DIR}/${XUANTIE_TAR_NAME}
 
       - name: Clean ccache stats
         run: ccache --zero-stats
@@ -189,13 +185,6 @@ jobs:
       # #
       # # Upload build artifacts
       # #
-      - name: Upload XUANTIE
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
-        if: always()
-        with:
-          name: xuantie
-          path: ${{ env.XUANTIE_DIR }}
-          if-no-files-found: 'ignore'
 
       - name: Upload openvino package
         if: ${{ always() }}
@@ -234,11 +223,11 @@ jobs:
       GTEST_FILTER: ${{ github.event_name == 'workflow_dispatch' && inputs.testFilter || '*smoke_AdaPoolAvg4DLayoutTest*' }}
 
     steps:
-      - name: Download Xuantie
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
-        with:
-          name: xuantie
-          path: ${{ env.XUANTIE_DIR }}
+      - name: Init XUANTIE
+          run: |
+              mkdir ${XUANTIE_DIR}
+              tar -xvf ${XUANTIE_BIN_PATH}/${XUANTIE_TAR_NAME}.tar -C ${XUANTIE_DIR}
+              chmod -R +x ${XUANTIE_DIR}/${XUANTIE_TAR_NAME}
 
       - name: Download OpenVINO package
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
@@ -276,7 +265,6 @@ jobs:
           fi
           # Needed as ze_loader.so is under INSTALL_TEST_DIR
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALL_TEST_DIR}/tests
-          chmod -R +x ${XUANTIE_DIR}/${XUANTIE_TAR_NAME}
           ${XUANTIE_DIR}/${XUANTIE_TAR_NAME}/bin/qemu-riscv64 -cpu c910v ${INSTALL_TEST_DIR}/tests/ov_cpu_func_tests --gtest_filter=${{ env.GTEST_FILTER }} --gtest_print_time=1
         timeout-minutes: 25
 
