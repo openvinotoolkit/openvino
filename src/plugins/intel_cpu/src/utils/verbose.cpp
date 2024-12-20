@@ -105,7 +105,10 @@ void Verbose::printInfo() {
         prefix = colorize(BLUE, prefix);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, " ");
         shift(written);
-        std::string fmt_str = dnnl::impl::md2fmt_str(prefix.c_str(), desc, dnnl::impl::format_kind_t::dnnl_format_kind_undef);
+        written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, "%s", prefix.c_str());
+        shift(written);
+        std::string fmt_str =
+            dnnl::impl::md2fmt_str(prefix.c_str(), desc, dnnl::impl::format_kind_t::dnnl_format_kind_undef);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, "%s", fmt_str.c_str());
         shift(written);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, ":");

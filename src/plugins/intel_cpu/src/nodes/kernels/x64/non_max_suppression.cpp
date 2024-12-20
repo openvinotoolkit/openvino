@@ -19,8 +19,7 @@ void NonMaxSuppression<isa>::generate() {
     load_vector_emitter.reset(new jit_load_emitter(this, isa, ov::element::f32, ov::element::f32, vector_step));
     load_scalar_emitter.reset(new jit_load_emitter(this, isa, ov::element::f32, ov::element::f32, scalar_step));
 
-    exp_injector.reset(
-        new x64::jit_uni_eltwise_injector_f32<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.f));
+    exp_injector.reset(new x64::jit_uni_eltwise_injector<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.f));
 
     this->preamble();
 

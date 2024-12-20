@@ -45,8 +45,7 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
     }
 
     void generate() override {
-        exp_injector.reset(
-            new jit_uni_eltwise_injector_f32<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.f));
+        exp_injector.reset(new jit_uni_eltwise_injector<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.f));
 
         if (mayiuse(avx512_core))
             uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(this, isa));
@@ -134,7 +133,7 @@ private:
 
     Xbyak::Label l_table;
 
-    std::shared_ptr<jit_uni_eltwise_injector_f32<isa>> exp_injector;
+    std::shared_ptr<jit_uni_eltwise_injector<isa>> exp_injector;
 
     jit_logistic_config_params jcp_;
 
