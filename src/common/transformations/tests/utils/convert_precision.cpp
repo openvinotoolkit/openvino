@@ -2296,7 +2296,7 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsForParameterAndResult)
         auto sin = make_shared<opset10::Sin>(param_1);
         sin->set_friendly_name("sine");
         sin->get_output_tensor(0).add_names({"sine:0"});
-        auto result_sin = make_shared<opset10::Result>(sin);
+        auto result_sin = make_shared<opset10::Result>(sin, false);
         model = make_shared<Model>(result_sin, ParameterVector{param_1});
 
         type_to_fuse_map empty_type_to_fuse_map = {};
@@ -2389,13 +2389,12 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsMultiParam) {
         auto converted_mul = make_shared<opset10::Convert>(mul, element::f64);
         auto sin = make_shared<opset10::Sin>(convert_1);
 
-        add->get_output_tensor(0).add_names({"add:0"});
-        mul->get_output_tensor(0).add_names({"mul:0"});
-        sin->get_output_tensor(0).add_names({"sine:0"});
-
         auto result_add = make_shared<opset10::Result>(converted_add);
         auto result_mul = make_shared<opset10::Result>(converted_mul);
         auto result_sin = make_shared<opset10::Result>(sin);
+        result_add->get_output_tensor(0).add_names({"add:0"});
+        result_mul->get_output_tensor(0).add_names({"mul:0"});
+        result_sin->get_output_tensor(0).add_names({"sine:0"});
 
         model_ref = make_shared<Model>(ResultVector{result_add, result_mul, result_sin},
                                        ParameterVector{param_1, param_2, param_3, param_4});
@@ -2441,9 +2440,6 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsSingleNodeMultipleOutp
         auto convert_1 = make_shared<opset10::Convert>(param_1, element::f32);
         auto axis = opset10::Constant::create(element::i32, Shape{}, {0});
         auto split = make_shared<opset10::Split>(convert_1, axis, 3);
-        split->get_output_tensor(0).add_names({"split:0"});
-        split->get_output_tensor(1).add_names({"split:1"});
-        split->get_output_tensor(2).add_names({"split:2"});
 
         auto convert_split_0 = make_shared<opset10::Convert>(split->output(0), element::f64);
         auto convert_split_1 = make_shared<opset10::Convert>(split->output(1), element::f64);
@@ -2567,7 +2563,6 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsMultiSubgraphs) {
         if_op->set_input(convert_1, param_1_then, param_1_else);
         if_op->set_input(convert_2, param_2_then, param_2_else);
         auto result = if_op->set_output(result_then, result_else);
-        result.add_names({"if_result:0"});
         auto converted_result = make_shared<opset10::Convert>(result, element::f64);
         converted_result->get_output_tensor(0).add_names({"if_result:0"});
 

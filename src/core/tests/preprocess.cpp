@@ -2079,7 +2079,7 @@ TEST(pre_post_process, postprocess_one_node_many_outputs) {
     ResultVector results;
     for (size_t i = 0; i < op->get_num_splits(); i++) {
         op->output(i).set_names({"tensor_Split" + std::to_string(i)});
-        auto res = std::make_shared<op::v0::Result>(op->output(i));
+        auto res = std::make_shared<op::v0::Result>(op->output(i), false);
         results.emplace_back(res);
     }
     auto model = std::make_shared<Model>(ResultVector{results}, ParameterVector{data1});
