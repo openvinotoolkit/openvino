@@ -8,7 +8,7 @@ endif()
 
 set(TARGET_NAME "openvino_intel_cpu_plugin")
 
-if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR OV_COMPILER_IS_CLANG) AND CMAKE_CXX_STANDARD GREATER_EQUAL 20)
+if((CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG) AND CMAKE_CXX_STANDARD GREATER_EQUAL 20)
     set(CMAKE_CXX_FLAGS "-Wno-error=deprecated ${CMAKE_CXX_FLAGS}")
 endif()
 
@@ -28,7 +28,7 @@ elseif(OV_COMPILER_IS_CLANG)
     else()
         ov_add_compiler_flags(-Wno-delete-non-virtual-dtor)
     endif()
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+elseif(CMAKE_COMPILER_IS_GNUCXX)
     if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
         ov_add_compiler_flags(-Wno-array-bounds)
     endif()
@@ -89,7 +89,7 @@ if(NOT BUILD_SHARED_LIBS)
     endforeach()
 endif()
 
-if (AARCH64 AND NOT APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 10.2)
+if (AARCH64 AND NOT APPLE AND CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 10.2)
     # according to https://github.com/ARM-software/ComputeLibrary/issues/1053#issuecomment-1846903707 comment
     # the 'multi_isa=1' below enables FP32, FP16 and SVE / SVE2 kernels
     # But: arm_sve.h header is not available on gcc older 10.2 (let's test it), so we have to check it
@@ -133,7 +133,7 @@ set_property(CACHE OV_CPU_ARM_TARGET_ARCH PROPERTY STRINGS ${OV_CPU_ARM_TARGET_A
 if(X86 OR X86_64 OR AARCH64)
     # disable mlas with webassembly and intel compiler on windows
     if(EMSCRIPTEN OR (WIN32 AND AARCH64) OR MINGW OR
-       (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7) OR (OV_COMPILER_IS_INTEL_LLVM AND WIN32))
+       (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7) OR (OV_COMPILER_IS_INTEL_LLVM AND WIN32))
         set(ENABLE_MLAS_FOR_CPU_DEFAULT OFF)
     else()
         set(ENABLE_MLAS_FOR_CPU_DEFAULT ON)

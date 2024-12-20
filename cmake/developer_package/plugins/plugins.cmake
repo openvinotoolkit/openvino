@@ -92,7 +92,7 @@ function(ov_add_plugin)
             set_target_properties(${OV_PLUGIN_NAME} PROPERTIES COMPILE_PDB_NAME ${OV_PLUGIN_NAME})
         endif()
 
-        if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT CMAKE_CROSSCOMPILING)
+        if(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CROSSCOMPILING)
             if (APPLE)
                 target_link_options(${OV_PLUGIN_NAME} PRIVATE -Wl,-undefined,dynamic_lookup)
             else()
