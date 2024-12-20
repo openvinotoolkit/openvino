@@ -26,7 +26,7 @@ class TRANSFORMATIONS_API MarkShapeOfSubgraphs;
  */
 class ov::pass::MarkPrecisionSensitiveShapeOfSubgraphs : public ModelPass {
 public:
-    OPENVINO_RTTI("MarkPrecisionSensitiveShapeOfSubgraphs", "0");
+    OPENVINO_MODEL_PASS_RTTI("MarkPrecisionSensitiveShapeOfSubgraphs");
     MarkPrecisionSensitiveShapeOfSubgraphs();
     bool run_on_model(const std::shared_ptr<ov::Model>& f) override;
 

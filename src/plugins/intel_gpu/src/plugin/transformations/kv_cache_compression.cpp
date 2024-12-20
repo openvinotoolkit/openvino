@@ -126,7 +126,7 @@ std::shared_ptr<ov::intel_gpu::op::KVCacheCompressed>
 
 class KVCacheCompressionMatcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("KVCacheCompressionMatcher", "0");
+    OPENVINO_MATCHER_PASS_RTTI("KVCacheCompressionMatcher");
     KVCacheCompressionMatcher(ov::element::Type compression_dt);
 };
 

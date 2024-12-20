@@ -337,19 +337,14 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::MarkShapeOfSubgraphs);
     // We need to fuse Transpose to MatMul to have a simpler callback for the next transformation
     CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::TransposeMatMul);
-    ov::element::TypeVector decompression_precisions{ov::element::u8,
-                                                     ov::element::i8,
-                                                     ov::element::u4,
-                                                     ov::element::i4,
-                                                     ov::element::nf4,
-                                                     ov::element::f4e2m1};
-
-    CPU_REGISTER_PASS_X64(decompression_handling_manager,
-                          ov::pass::MarkDequantization,
-                          decompression_precisions,
-                          false,
-                          true);
-    CPU_SET_CALLBACK_X64(
+    CPU_REGISTER_PASS_ARM(decompression_handling_manager, ov::pass::TransposeMatMul);
+    const auto& decompression_precisions = ov::intel_cpu::node::FullyConnected::getSupportedCompressedWeightsTypes();
+    CPU_REGISTER_PASS_COMMON(decompression_handling_manager,
+                             ov::pass::MarkDequantization,
+                             decompression_precisions,
+                             false,
+                             true);
+    CPU_SET_CALLBACK_COMMON(
         decompression_handling_manager,
         [&](const_node_ptr& node) -> bool {
             return !is_decompression_multiply(node);
@@ -1122,9 +1117,10 @@ void Transformations::MainSnippets(void) {
     auto is_supported_op = [](const std::shared_ptr<const ov::Node>& n) -> bool {
 #if defined(OPENVINO_ARCH_ARM64)
         return (ov::is_type<ov::op::v0::Abs>(n) || ov::is_type<ov::op::v1::Add>(n) ||
-                ov::is_type<ov::op::v0::Clamp>(n) || ov::is_type<ov::op::v0::Convert>(n) ||
-                ov::is_type<ov::op::v1::Divide>(n) || ov::is_type<ov::op::v0::Elu>(n) ||
-                ov::is_type<ov::op::v0::Exp>(n) || ov::is_type<ov::op::v0::Floor>(n) ||
+                ov::is_type<ov::op::v0::Clamp>(n) || ov::is_type<ov::op::v0::Ceiling>(n) ||
+                ov::is_type<ov::op::v0::Convert>(n) || ov::is_type<ov::op::v1::Divide>(n) ||
+                ov::is_type<ov::op::v0::Elu>(n) || ov::is_type<ov::op::v0::Exp>(n) ||
+                ov::is_type<ov::op::v0::Floor>(n) || ov::is_type<ov::op::v1::FloorMod>(n) ||
                 ov::is_type<ov::op::v0::Gelu>(n) || ov::is_type<ov::op::v7::Gelu>(n) ||
                 ov::is_type<ov::op::v4::HSwish>(n) || ov::is_type<ov::op::v1::Maximum>(n) ||
                 ov::is_type<ov::op::v1::Minimum>(n) || ov::is_type<ov::op::v4::Mish>(n) ||
