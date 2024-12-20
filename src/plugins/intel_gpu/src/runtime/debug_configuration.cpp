@@ -29,7 +29,7 @@ void print_option(std::string option_name, T option_value) {
 
 static std::string to_upper_case(const std::string& var) {
     std::stringstream s;
-
+    // test for baseline.
     for (size_t i = 0; i < var.size(); i++) {
         if (std::isupper(var[i])) {
             if (i != 0) {
