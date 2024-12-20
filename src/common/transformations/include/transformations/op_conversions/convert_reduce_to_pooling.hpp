@@ -35,6 +35,8 @@ class TRANSFORMATIONS_API ConvertReduceSumToPooling;
 
 class ConvertReduceBase : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("ConvertReduceBase");
+
     template <class T>
     ov::matcher_pass_callback convert_reduce_to_pooling();
 };
