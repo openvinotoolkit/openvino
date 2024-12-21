@@ -77,6 +77,7 @@ jobs:
         with:
           images: |
             ov_build/ubuntu_22_04_riscv_xuantie
+            ov_test/ubuntu_22_04_riscv_xuantie
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
@@ -209,7 +210,7 @@ jobs:
     needs: [Smart_CI, Docker, Build]
     runs-on: aks-linux-4-cores-16gb
     container:
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_riscv_xuantie }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_riscv_xuantie }}
       volumes:
         - ${{ github.workspace }}:${{ github.workspace }}
     defaults:
