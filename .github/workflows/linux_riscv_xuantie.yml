@@ -98,8 +98,9 @@ jobs:
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
       CMAKE_C_COMPILER_LAUNCHER: ccache
       OPENVINO_REPO: ${{ github.workspace }}/openvino
-      OPENVINO_BUILD_DIR: ${{ github.workspace }}/openvino_build
+      BUILD_DIR: ${{ github.workspace }}/build
       INSTALL_DIR: ${{ github.workspace }}/openvino_install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/tests_install
       CCACHE_REMOTE_DIR: /mount/caches/ccache/ubuntu22_riscv64/xuantie/${{ needs.Smart_CI.outputs.target_branch }}
       CCACHE_DIR: ${{ github.workspace }}/ccache
       CCACHE_TEMPDIR: ${{ github.workspace }}/ccache_temp
@@ -163,10 +164,10 @@ jobs:
           -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/toolchains/riscv64-071-xuantie-gnu.toolchain.cmake
           -DRISCV_TOOLCHAIN_ROOT=/opt/riscv
           -S ${OPENVINO_REPO}
-          -B ${OPENVINO_BUILD_DIR}
+          -B ${BUILD_DIR}
 
       - name: Cmake - Build
-        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel $(nproc)
+        run: cmake --build ${BUILD_DIR} --parallel $(nproc)
 
       - name: Show ccache stats and cleanup
         run: |
@@ -177,7 +178,7 @@ jobs:
         run: |
           cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }}
           cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_TEST_DIR }} --component tests
-        working-directory: ${{ env.OPENVINO_BUILD_DIR }}
+        working-directory: ${{ env.BUILD_DIR }}
           
       - name: Pack openvino_package
         run: tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_package.tar.gz
