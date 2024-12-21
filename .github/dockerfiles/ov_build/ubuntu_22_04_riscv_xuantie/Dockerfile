@@ -61,6 +61,7 @@ RUN apt-get update && \
         # qemu build dependencies
         expect \
         pkg-config \
+        libglib2.0-dev \
         && \
     rm -rf /var/lib/apt/lists/*
 
@@ -94,11 +95,11 @@ ARG XUINTIE_SRC="/tmp/xuantie/src"
     
 RUN mkdir -p ${XUINTIE_TMP_PATH} && cd ${XUINTIE_TMP_PATH} && \
     git clone --branch ${XUANTIE_VERSION} --depth 1 ${XUANTIE_REPO} ${XUINTIE_SRC} && cd ${XUINTIE_SRC} && \
-    ./configure --prefix=${XUINTIE_PATH} && \
-    make linux -j$(nproc) && \
-    make report-linux SIM=qemu -j$(nproc) && \
-    make install && \
-    rm -rf ${XUINTIE_TMP_PATH}
+    ./configure --prefix=${XUINTIE_PATH}
+RUN make linux -j$(nproc)
+RUN make report-linux SIM=qemu -j$(nproc)
+RUN make install
+RUN rm -rf ${XUINTIE_TMP_PATH}
 
 # Setup pip
 ENV PIP_VERSION="24.0"
