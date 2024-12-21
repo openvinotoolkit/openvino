@@ -2438,6 +2438,59 @@ std::set<std::vector<element::Type>> jit_sigmoid_emitter::get_supported_precisio
     return {{element::f32}};
 }
 
+/// ERF ///
+jit_erf_emitter::jit_erf_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                 dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                 const std::shared_ptr<ov::Node>& node)
+    : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
+    prepare_table();
+    exp_emitter = std::make_unique<jit_exp_emitter>(h, host_isa, node);
+}
+
+jit_erf_emitter::jit_erf_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                 dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                 const ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+    exp_emitter = std::make_unique<jit_exp_emitter>(h, host_isa, exec_prc);
+}
+
+size_t jit_erf_emitter::get_inputs_count() const {
+    return 1;
+}
+
+void jit_erf_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
+        emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OPENVINO_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+void jit_erf_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                               const std::vector<size_t>& out_vec_idxs) const {
+    if (exec_prc_ != ov::element::f32) {
+        OPENVINO_THROW("unsupported precision: " + exec_prc_.to_string());
+    }
+
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+    const TReg src(in_vec_idxs[0]);
+    const TReg dst(out_vec_idxs[0]);
+
+    h->erf(dst.s, src.s);
+}
+
+void jit_erf_emitter::emit_data() const {
+    jit_emitter::emit_data();
+}
+
+std::set<std::vector<element::Type>> jit_erf_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32}};
+}
+
+
 /// SOFT_SIGN ///
 jit_soft_sign_emitter::jit_soft_sign_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                              dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
