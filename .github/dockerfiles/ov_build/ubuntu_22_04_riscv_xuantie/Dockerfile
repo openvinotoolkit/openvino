@@ -40,7 +40,7 @@ RUN apt-get update && \
         # Compilers
         gcc \
         g++ \
-        # xuantie-gnu-toolchain
+        # xuantie-gnu-toolchain build dependencies
         autoconf \
         automake \
         autotools-dev \
@@ -58,6 +58,8 @@ RUN apt-get update && \
         bc \
         zlib1g-dev \
         libexpat-dev \
+        # qemu build dependencies
+        expect \
         && \
     rm -rf /var/lib/apt/lists/*
 
@@ -89,11 +91,13 @@ ARG XUINTIE_PATH="/opt/riscv"
 ARG XUINTIE_TMP_PATH="/tmp/xuantie"
 ARG XUINTIE_SRC="/tmp/xuantie/src"
     
-RUN mkdir -p ${XUINTIE_TMP_PATH}
-RUN cd ${XUINTIE_TMP_PATH} && git clone --branch ${XUANTIE_VERSION} --depth 1 ${XUANTIE_REPO} ${XUINTIE_SRC}
-RUN cd ${XUINTIE_SRC} && ./configure --prefix=${XUINTIE_PATH} && make linux -j$(nproc) && make install
-RUN cd ${XUINTIE_SRC} && make report-linux SIM=qemu -j$(nproc) && make install
-RUN rm -rf ${XUINTIE_TMP_PATH}
+RUN mkdir -p ${XUINTIE_TMP_PATH} && cd ${XUINTIE_TMP_PATH} && \
+    git clone --branch ${XUANTIE_VERSION} --depth 1 ${XUANTIE_REPO} ${XUINTIE_SRC} && cd ${XUINTIE_SRC} && \
+    ./configure --prefix=${XUINTIE_PATH} && \
+    make linux -j$(nproc) && \
+    make report-linux SIM=qemu -j$(nproc) && \
+    make install && \
+    rm -rf ${XUINTIE_TMP_PATH}
     
 # Setup pip
 ENV PIP_VERSION="24.0"
