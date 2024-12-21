@@ -60,6 +60,7 @@ RUN apt-get update && \
         libexpat-dev \
         # qemu build dependencies
         expect \
+        pkg-config \
         && \
     rm -rf /var/lib/apt/lists/*
 
@@ -98,7 +99,7 @@ RUN mkdir -p ${XUINTIE_TMP_PATH} && cd ${XUINTIE_TMP_PATH} && \
     make report-linux SIM=qemu -j$(nproc) && \
     make install && \
     rm -rf ${XUINTIE_TMP_PATH}
-    
+
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
