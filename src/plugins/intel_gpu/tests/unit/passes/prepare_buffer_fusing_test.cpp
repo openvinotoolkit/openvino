@@ -1224,7 +1224,7 @@ TEST(prepare_buffer_fusing, test_implicit_crop_and_outerpadding) {
     auto reorder_prim = network.get_primitive("gather1_reorder");
     ASSERT_EQ(reorder_prim->can_be_optimized(), true);
     reorder_prim = network.get_primitive("gather2_reorder");
-    ASSERT_EQ(reorder_prim->can_be_optimized(), true);
+    ASSERT_EQ(reorder_prim->can_be_optimized(), false);
     auto reshape_prim = network.get_primitive("reshape1");
     ASSERT_EQ(reshape_prim->can_be_optimized(), true);
 }

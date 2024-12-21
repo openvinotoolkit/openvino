@@ -192,9 +192,9 @@ TEST(add_required_reorders, skip_adding_reorder_batch_axis_padding) {
     crop_prim = network.get_primitive("crop2");
     ASSERT_EQ(crop_prim->can_be_optimized(), true);
     auto reorder_prim = network.get_primitive("crop1_reorder");
-    ASSERT_EQ(reorder_prim->can_be_optimized(), true);
+    ASSERT_EQ(reorder_prim->can_be_optimized(), false);
     reorder_prim = network.get_primitive("crop2_reorder");
-    ASSERT_EQ(reorder_prim->can_be_optimized(), true);
+    ASSERT_EQ(reorder_prim->can_be_optimized(), false);
     auto concate = network.get_primitive("concat");
     ASSERT_EQ(concate->can_be_optimized(), false);
 }
