@@ -2079,7 +2079,7 @@ TEST(pre_post_process, postprocess_one_node_many_outputs) {
     ResultVector results;
     for (size_t i = 0; i < op->get_num_splits(); i++) {
         op->output(i).set_names({"tensor_Split" + std::to_string(i)});
-        auto res = std::make_shared<op::v0::Result>(op->output(i), false);
+        auto res = std::make_shared<op::v0::Result>(op->output(i));
         results.emplace_back(res);
     }
     auto model = std::make_shared<Model>(ResultVector{results}, ParameterVector{data1});
@@ -2096,12 +2096,55 @@ TEST(pre_post_process, postprocess_one_node_many_outputs) {
     p.output(2).tensor().set_element_type(element::f32);
     model = p.build();
     EXPECT_EQ(model->get_results().size(), 3);
-    // Tensor names on output is lost as origin named tensor is before convert op
+    // Tensor names on modified outputs are set to Split tensors not model output.
     // New result has different precision means different tensor.
     EXPECT_EQ(model->output(0).get_tensor().get_names().count("tensor_Split0"), 0);
-    EXPECT_EQ(model->output(0).get_tensor().get_names().count("output_split0"), 1);
-    EXPECT_EQ(model->output(1).get_tensor().get_names().count("tensor_Split1"), 1);
     EXPECT_EQ(model->output(2).get_tensor().get_names().count("tensor_Split2"), 0);
+    // Add output node still on output after pre-processing
+    EXPECT_EQ(model->output(0).get_tensor().get_names().count("output_split0"), 1);
+    // Not modified output still have name
+    EXPECT_EQ(model->output(1).get_tensor().get_names().count("tensor_Split1"), 1);
+    EXPECT_EQ(model->get_results()[0]->input(0).get_source_output().get_node()->get_friendly_name(), "Split.0");
+    EXPECT_EQ(model->get_results()[1]->input(0).get_source_output().get_node()->get_friendly_name(), "Split");
+    EXPECT_EQ(model->get_results()[2]->input(0).get_source_output().get_node()->get_friendly_name(), "Split.2");
+}
+
+TEST(pre_post_process, postprocess_one_node_many_outputs_results_created_by_model) {
+    auto data1 = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
+    auto c1 = opset8::Constant::create(element::i32, Shape{}, {0});
+    auto op = std::make_shared<opset8::Split>(data1, c1, 3);
+    op->set_friendly_name("Split");
+    op->output(0).set_names({"tensor_Split0"});
+    auto r1 = std::make_shared<op::v0::Result>(op->output(0));
+
+    OutputVector outputs{r1};
+    for (size_t i = 1; i < op->get_num_splits(); i++) {
+        auto output = op->output(i);
+        output.set_names({"tensor_Split" + std::to_string(i)});
+        outputs.push_back(std::move(output));
+    }
+    auto model = std::make_shared<Model>(outputs, ParameterVector{data1});
+    // Set tensor name to model output 0
+    model->output(0).set_names({"output_split0"});
+    EXPECT_EQ(model->output(0).get_tensor().get_names().count("output_split0"), 1);
+    // Result input has still tensor_split0 names from split op
+    EXPECT_EQ(model->output(0).get_node()->get_input_tensor(0).get_names().count("tensor_Split0"), 1);
+    EXPECT_EQ(model->output(1).get_tensor().get_names().count("tensor_Split1"), 1);
+    EXPECT_EQ(model->output(2).get_tensor().get_names().count("tensor_Split2"), 1);
+
+    auto p = PrePostProcessor(model);
+    p.output(0).tensor().set_element_type(element::f32);
+    p.output(2).tensor().set_element_type(element::f32);
+    model = p.build();
+    EXPECT_EQ(model->get_results().size(), 3);
+
+    // output 0 by user,not use input nodes names as its own, modified by PPP (tensor_Split0 is on split output)
+    EXPECT_EQ(model->output(0).get_tensor().get_names().count("tensor_Split0"), 0);
+    EXPECT_EQ(model->output(0).get_tensor().get_names().count("output_split0"), 1);
+    // output 1 created by model, assume its names is output name, not modified by PPP
+    EXPECT_EQ(model->output(1).get_tensor().get_names().count("tensor_Split1"), 1);
+    // output 2 created by model, assume its names is output name, modified by PPP
+    EXPECT_EQ(model->output(2).get_tensor().get_names().count("tensor_Split2"), 1);
     EXPECT_EQ(model->get_results()[0]->input(0).get_source_output().get_node()->get_friendly_name(), "Split.0");
     EXPECT_EQ(model->get_results()[1]->input(0).get_source_output().get_node()->get_friendly_name(), "Split");
     EXPECT_EQ(model->get_results()[2]->input(0).get_source_output().get_node()->get_friendly_name(), "Split.2");
