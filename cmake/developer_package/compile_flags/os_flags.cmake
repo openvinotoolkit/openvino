@@ -4,6 +4,7 @@
 
 include(ProcessorCount)
 include(CheckCXXCompilerFlag)
+include(CheckCXXSourceCompiles)
 
 #
 # ov_disable_deprecated_warnings()
@@ -89,6 +90,50 @@ macro(ov_dev_package_no_errors)
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${ov_c_cxx_dev_no_errors}")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ov_c_cxx_dev_no_errors} ${ov_cxx_dev_no_errors}")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ov_c_cxx_dev_no_errors}")
+endmacro()
+
+#
+# ov_check_compiler_supports_sve(flags)
+#
+# Checks whether CXX compiler for passed language supports SVE code compilation
+#
+macro(ov_check_compiler_supports_sve flags)
+    # Code to compile
+    set(SVE_CODE "
+    #include <arm_sve.h>
+    int main() {
+        svfloat64_t a;
+        a = svdup_n_f64(0);
+        return 0;
+    }")
+
+    # Save the current state of required flags
+    set(CMAKE_REQUIRED_FLAGS_SAVE ${CMAKE_REQUIRED_FLAGS})
+
+    # Set the flags necessary for compiling the test code with SVE support
+    set(CMAKE_REQUIRED_FLAGS "${CMAKE_CXX_FLAGS_INIT} ${flags}")
+
+    # Check if the source code compiles with the given flags for C++
+    CHECK_CXX_SOURCE_COMPILES("${SVE_CODE}" CXX_HAS_SVE)            
+
+    # If the compilation test is successful, set appropriate variables indicating support
+    if(CXX_HAS_SVE)
+        set(CXX_SVE_FOUND TRUE CACHE BOOL "SVE available on host")
+        set(CXX_SVE_FOUND TRUE CACHE BOOL "CXX SVE support")
+        set(CXX_SVE_FLAGS "${flags}" CACHE STRING "CXX SVE flags")
+    endif()
+
+    # Restore the original state of required flags
+    set(CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS_SAVE})
+
+    # If the compilation test fails, indicate that the support is not found
+    if(NOT CXX_SVE_FOUND)
+        set(CXX_SVE_FOUND FALSE CACHE BOOL "CXX SVE support")
+        set(CXX_SVE_FLAGS "" CACHE STRING "CXX SVE flags")
+    endif()
+
+    # Mark the variables as advanced to hide them in the default CMake GUI
+    mark_as_advanced(CXX_SVE_FOUND CXX_SVE_FLAGS)
 endmacro()
 
 #
@@ -205,6 +250,49 @@ macro(ov_arm_neon_fp16_optimization_flags flags)
         message(WARNING "fp16 is not supported by 32-bit ARM")
     else()
         message(WARNING "fp16 is not supported by architecture ${CMAKE_SYSTEM_PROCESSOR}")
+    endif()
+endmacro()
+
+#
+# ov_arm_sve_optimization_flags(<output flags>)
+#
+macro(ov_arm_sve_optimization_flags flags)
+    # Check for compiler SVE support
+    ov_check_compiler_supports_sve("-march=armv8-a+sve")
+
+    if(OV_COMPILER_IS_INTEL_LLVM)
+        message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        # nothing should be required here
+    elseif(ANDROID)
+        if(ANDROID_ABI STREQUAL "arm64-v8a")
+            set(${flags} -Wno-unused-command-line-argument)
+            if(CXX_SVE_FOUND)
+                list(APPEND ${flags} -march=armv8-a+sve)
+            else()
+                message(WARNING "SVE is not supported on this Android ABI: ${ANDROID_ABI}")
+            endif()
+        else()
+            message(WARNING "SVE is not supported on this Android ABI: ${ANDROID_ABI}")
+        endif()
+    else()
+        if(AARCH64)
+            set(${flags} -O2)
+        
+            # Add flag for SVE if supported
+            if(CXX_SVE_FOUND)
+                list(APPEND ${flags} -march=armv8-a+sve)
+            endif()
+            if(NOT CMAKE_CL_64)
+                list(APPEND ${flags} -ftree-vectorize)
+            endif()
+
+            set(${flags} ${${flags}})
+        elseif(ARM)
+            message(WARNING "SVE is not supported on 32-bit ARM architectures.")
+        else()
+            message(WARNING "SVE is not supported by architecture ${CMAKE_SYSTEM_PROCESSOR}")
+        endif()
     endif()
 endmacro()
 
@@ -366,6 +454,12 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ov_add_compiler_flags(/bigobj)
     # Build with multiple processes
     ov_add_compiler_flags(/MP)
+
+    # Workaround for an MSVC compiler issue in some versions of Visual Studio 2022.
+    # The issue involves a null dereference to a mutex. For details, refer to link https://github.com/microsoft/STL/wiki/Changelog#vs-2022-1710
+    if(MSVC AND MSVC_VERSION GREATER_EQUAL 1930 AND MSVC_VERSION LESS 1941)
+	ov_add_compiler_flags(/D_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR)
+    endif()
 
     if(AARCH64 AND NOT MSVC_VERSION LESS 1930)
         # otherwise, _ARM64_EXTENDED_INTRINSICS is defined, which defines 'mvn' macro

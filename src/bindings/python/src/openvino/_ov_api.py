@@ -2,11 +2,10 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any, Iterable, Union, Optional, Dict
+from types import TracebackType
+from typing import Any, Iterable, Union, Optional, Dict, Type
 from pathlib import Path
-import warnings
 
-import numpy as np
 
 from openvino._pyopenvino import Model as ModelBase
 from openvino._pyopenvino import Core as CoreBase
@@ -15,7 +14,7 @@ from openvino._pyopenvino import AsyncInferQueue as AsyncInferQueueBase
 from openvino._pyopenvino import Tensor
 from openvino._pyopenvino import Node
 
-from openvino.runtime.utils.data_helpers import (
+from openvino.utils.data_helpers import (
     OVDict,
     _InferRequestWrapper,
     _data_dispatch,
@@ -23,22 +22,30 @@ from openvino.runtime.utils.data_helpers import (
 )
 
 
-class Model(ModelBase):
+class Model:
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         if args and not kwargs:
             if isinstance(args[0], ModelBase):
-                super().__init__(args[0])
+                self.__model = ModelBase(args[0])
             elif isinstance(args[0], Node):
-                super().__init__(*args)
+                self.__model = ModelBase(*args)
             else:
-                super().__init__(*args)
+                self.__model = ModelBase(*args)
         if args and kwargs:
-            super().__init__(*args, **kwargs)
+            self.__model = ModelBase(*args, **kwargs)
         if kwargs and not args:
-            super().__init__(**kwargs)
+            self.__model = ModelBase(**kwargs)
+
+    def __getattr__(self, name: str) -> Any:
+        if self.__model is None:
+            raise AttributeError(f"'Model' object has no attribute '{name}' or attribute is no longer accessible.")
+        return getattr(self.__model, name)
 
     def clone(self) -> "Model":
-        return Model(super().clone())
+        return Model(self.__model.clone())
+
+    def __copy__(self) -> "Model":
+        raise TypeError("Cannot copy 'openvino.runtime.Model'. Please, use deepcopy instead.")
 
     def __deepcopy__(self, memo: Dict) -> "Model":
         """Returns a deepcopy of Model.
@@ -46,7 +53,17 @@ class Model(ModelBase):
         :return: A copy of Model.
         :rtype: openvino.runtime.Model
         """
-        return Model(super().clone())
+        return Model(self.__model.clone())
+
+    def __enter__(self) -> "Model":
+        return self
+
+    def __exit__(self, exc_type: Type[BaseException], exc_value: BaseException, traceback: TracebackType) -> None:
+        del self.__model
+        self.__model = None
+
+    def __repr__(self) -> str:
+        return self.__model.__repr__()
 
 
 class InferRequest(_InferRequestWrapper):
@@ -495,11 +512,24 @@ class Core(CoreBase):
     between several Core instances. The recommended way is to have a single
     Core instance per application.
     """
-    def read_model(self, model: Union[str, bytes, object], weights: Union[object, str, bytes, Tensor] = None) -> Model:
-        if weights is not None:
+    def read_model(
+        self,
+        model: Union[str, bytes, object],
+        weights: Union[object, str, bytes, Tensor] = None,
+        config: Optional[dict] = None
+    ) -> Model:
+        config = {} if config is None else config
+        if isinstance(model, Model):
+            model = model._Model__model
+
+        if isinstance(weights, Tensor):
             return Model(super().read_model(model, weights))
+        elif isinstance(model, bytes):
+            return Model(super().read_model(model, bytes() if weights is None else weights))
+        elif weights is None:
+            return Model(super().read_model(model, config=config))
         else:
-            return Model(super().read_model(model))
+            return Model(super().read_model(model, weights, config))
 
     def compile_model(
         self,
@@ -534,6 +564,8 @@ class Core(CoreBase):
         :return: A compiled model.
         :rtype: openvino.runtime.CompiledModel
         """
+        if isinstance(model, Model):
+            model = model._Model__model
         if weights is None:
             if device_name is None:
                 return CompiledModel(
@@ -552,6 +584,16 @@ class Core(CoreBase):
                 super().compile_model(model, weights, device_name, {} if config is None else config),
                 weights=weights,
             )
+
+    def query_model(
+            self,
+            model: Model,
+            device_name: str,
+            config: Optional[dict] = None,
+    ) -> dict:
+        return super().query_model(model._Model__model,
+                                   device_name,
+                                   {} if config is None else config, )
 
     def import_model(
         self,
@@ -628,4 +670,6 @@ def compile_model(
 
     """
     core = Core()
+    if isinstance(model, Model):
+        model = model._Model__model
     return core.compile_model(model, device_name, {} if config is None else config)

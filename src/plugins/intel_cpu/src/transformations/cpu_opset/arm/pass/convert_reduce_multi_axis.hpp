@@ -51,7 +51,7 @@ namespace intel_cpu {
 
 class ConvertReduceMultiAxisBase : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertReduceMultiAxisBase", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertReduceMultiAxisBase");
     template <class T>
     ov::matcher_pass_callback convert_reduce();
 };
@@ -82,7 +82,7 @@ public:
 
 class ConvertReduceMultiAxis : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("ConvertReduceMultiAxis", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("ConvertReduceMultiAxis");
     ConvertReduceMultiAxis() {
         add_matcher<ConvertReduceProd>();
         add_matcher<ConvertReduceMin>();

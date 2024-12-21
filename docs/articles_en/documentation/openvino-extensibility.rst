@@ -32,7 +32,7 @@ Custom operations, which are not included in the list, are not recognized by Ope
 1. A new or rarely used regular framework operation is not supported in OpenVINO yet.
 2. A new user operation that was created for some specific model topology by the author of the model using framework extension capabilities.
 
-Importing models with such operations requires additional steps. This guide illustrates the workflow for running inference on models featuring custom operations. This allows plugging in your own implementation for them. OpenVINO Extensibility API enables adding support for those custom operations and using one implementation for Model Optimizer and OpenVINO Runtime.
+Importing models with such operations requires additional steps. This guide illustrates the workflow for running inference on models featuring custom operations. This allows plugging in your own implementation for them. OpenVINO Extensibility API enables adding support for those custom operations and using one implementation for model conversion API and OpenVINO Runtime.
 
 Defining a new custom operation basically consists of two parts:
 
@@ -56,21 +56,9 @@ Mapping from Framework Operation
 
 Mapping of custom operation is implemented differently, depending on model format used for import.
 If a model is represented in the ONNX (including models exported from PyTorch in ONNX), TensorFlow Lite, PaddlePaddle or
-TensorFlow formats, then one of the classes from :doc:`Frontend Extension API <openvino-extensibility/frontend-extensions>`
-should be used. It consists of several classes available in C++ which can be used with the ``--extensions`` option in Model Optimizer
-or when a model is imported directly to OpenVINO runtime using the ``read_model`` method.
-Python API is also available for runtime model import.
+TensorFlow formats, then you should use one of the classes from :doc:`Frontend Extension API <openvino-extensibility/frontend-extensions>`,
+the application of which is described below.
 
-If you are implementing extensions for new ONNX, PaddlePaddle, TensorFlow Lite or TensorFlow frontends and plan to use the ``--extensions``
-option in Model Optimizer for model conversion, then the extensions should be:
-
-1. Implemented in C++ only.
-
-2. Compiled as a separate shared library (see details on how to do this further in this guide).
-
-Model Optimizer does not support new frontend extensions written in Python API.
-
-Remaining part of this guide describes application of Frontend Extension API for new frontends.
 
 Registering Extensions
 ######################
@@ -104,7 +92,7 @@ Extensions can be loaded from a code with the  ``ov::Core::add_extension`` metho
          :fragment: [add_extension]
 
 
-The ``Identity`` is a custom operation class defined in :doc:`Custom Operation Guide <openvino-extensibility/custom-openvino-operations>`. This is sufficient to enable reading OpenVINO IR which uses the ``Identity`` extension operation emitted by Model Optimizer. In order to load original model directly to the runtime, add a mapping extension:
+The ``Identity`` is a custom operation class defined in :doc:`Custom Operation Guide <openvino-extensibility/custom-openvino-operations>`. This is sufficient to enable reading OpenVINO IR which uses the ``Identity`` extension operation. In order to load original model directly to the runtime, add a mapping extension:
 
 .. tab-set::
 
@@ -133,11 +121,11 @@ Create a Library with Extensions
 
 An extension library should be created in the following cases:
 
-* Conversion of a model with custom operations in Model Optimizer.
+* Conversion of a model with custom operations in model conversion API
 * Loading a model with custom operations in a Python application. This applies to both framework model and OpenVINO IR.
 * Loading models with custom operations in tools that support loading extensions from a library, for example the ``benchmark_app``.
 
-To create an extension library, for example, to load the extensions into Model Optimizer, perform the following:
+To create an extension library, perform the following:
 
 1. Create an entry point for extension library. OpenVINO provides the ``OPENVINO_CREATE_EXTENSIONS()`` macro, which allows to define an entry point to a library with OpenVINO Extensions.
 This macro should have a vector of all OpenVINO Extensions as an argument.
