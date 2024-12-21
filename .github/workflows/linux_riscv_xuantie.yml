@@ -21,6 +21,7 @@ permissions: read-all
 env:
   TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
   GTEST_FILTER: ${{ github.event_name == 'workflow_dispatch' && inputs.testFilter || '*smoke_AdaPoolAvg4DLayoutTest*' }}
+  RISCV_TOOLCHAIN_ROOT: /opt/riscv
 
 jobs:
   Smart_CI:
@@ -105,7 +106,6 @@ jobs:
       CCACHE_DIR: ${{ github.workspace }}/ccache
       CCACHE_TEMPDIR: ${{ github.workspace }}/ccache_temp
       CCACHE_MAXSIZE: 2G
-      RISCV_TOOLCHAIN_ROOT: /opt/riscv
 
     if: ${{ github.event_name != 'merge_group' }}
     steps:
@@ -145,7 +145,7 @@ jobs:
         run: ccache --zero-stats
       
       - name: Debug
-        run: ls -la /opt/riscv/bin/
+        run: ls -la ${{ env.RISCV_TOOLCHAIN_ROOT }}/bin
       
       - name: CMake - Configure
         run: >
@@ -162,7 +162,6 @@ jobs:
           -DENABLE_WHEEL=OFF
           -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
           -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/toolchains/riscv64-071-xuantie-gnu.toolchain.cmake
-          -DRISCV_TOOLCHAIN_ROOT=/opt/riscv
           -S ${OPENVINO_REPO}
           -B ${BUILD_DIR}
 
