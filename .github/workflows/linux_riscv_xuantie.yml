@@ -230,16 +230,20 @@ jobs:
           
       - name: Extract OpenVINO packages and tests
         run: |
-          pigz -dc openvino_package.tar.gz | tar -xf - -C ${INSTALL_DIR}
-          pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
+          pigz -dc openvino_package.tar.gz | tar -xvf - -C ${INSTALL_DIR}
+          pigz -dc openvino_tests.tar.gz | tar -xvf - -C ${INSTALL_DIR}
         working-directory: ${{ env.INSTALL_DIR }}
 
+      - name: Debug
+        run: ls -la ${{ env.RISCV_TOOLCHAIN_ROOT }}/bin  
+        
       - name: Intel CPU plugin func tests (parallel)
         run: |
           # Needed as the Linux CC does not require setupvars to work
           if [[ -f "${{ env.INSTALL_DIR }}/setupvars.sh" ]]; then
             source ${{ env.INSTALL_DIR }}/setupvars.sh
           fi
+          echo "run cpu functional tests"
           ${{ env.RISCV_TOOLCHAIN_ROOT}}/bin/qemu-riscv64 -cpu c910v ${{ env.INSTALL_TEST_DIR }}/tests/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=${{ env.GTEST_FILTER }}
         env:
           LD_LIBRARY_PATH: "$LD_LIBRARY_PATH:${{ env.INSTALL_TEST_DIR }}" # Needed as ze_loader.so is under INSTALL_TEST_DIR
