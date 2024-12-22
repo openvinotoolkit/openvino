@@ -79,11 +79,14 @@ public:
      * For the following file formats the `bin_path` parameter is not used:
      *  * ONNX format (*.onnx)
      *  * PDPD (*.pdmodel)
-     *  * TF (*.pb)
+     *  * TF (*.pb, *.meta, SavedModel directory)
      *  * TFLite (*.tflite)
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this read operation.
      * @return A model.
      */
-    std::shared_ptr<ov::Model> read_model(const std::wstring& model_path, const std::wstring& bin_path = {}) const;
+    std::shared_ptr<ov::Model> read_model(const std::wstring& model_path,
+                                          const std::wstring& bin_path = {},
+                                          const ov::AnyMap& properties = {}) const;
 #endif
 
     /**
@@ -96,17 +99,54 @@ public:
      * For the following file formats the `bin_path` parameter is not used:
      *  * ONNX format (*.onnx)
      *  * PDPD (*.pdmodel)
-     *  * TF (*.pb)
+     *  * TF (*.pb, *.meta, SavedModel directory)
      *  * TFLite (*.tflite)
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this read operation.
      * @return A model.
      * @{
      */
-    std::shared_ptr<ov::Model> read_model(const std::string& model_path, const std::string& bin_path = {}) const;
+    std::shared_ptr<ov::Model> read_model(const std::string& model_path,
+                                          const std::string& bin_path = {},
+                                          const ov::AnyMap& properties = {}) const;
 
 #ifdef OPENVINO_CPP_VER_17
     template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
-    std::shared_ptr<ov::Model> read_model(const Path& model_path, const Path& bin_path = {}) const {
-        return read_model(model_path.string(), bin_path.string());
+    auto read_model(const Path& model_path, const Path& bin_path = {}, const ov::AnyMap& properties = {}) const {
+        return read_model(model_path.string(), bin_path.string(), properties);
+    }
+#endif
+    /// @}
+
+    /**
+     * @brief Reads models from IR / ONNX / PDPD / TF / TFLite file formats.
+     *
+     * @param model_path Path to a model.
+     * @param bin_path Path to a data file.
+     * For IR format (*.bin):
+     *  * if `bin_path` is empty, will try to read a bin file with the same name as xml and
+     *  * if the bin file with the same name is not found, will load IR without weights.
+     * For the following file formats the `bin_path` parameter is not used:
+     *  * ONNX format (*.onnx)
+     *  * PDPD (*.pdmodel)
+     *  * TF (*.pb, *.meta, SavedModel directory)
+     *  * TFLite (*.tflite)
+     * @param properties Optional pack of pairs: (property name, property value) relevant only for this read operation.
+     * @return A model.
+     * @{
+     */
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> read_model(const std::string& model_path,
+                                                                        const std::string& bin_path,
+                                                                        Properties&&... properties) const {
+        return read_model(model_path, bin_path, AnyMap{std::forward<Properties>(properties)...});
+    }
+
+#ifdef OPENVINO_CPP_VER_17
+    template <class Path,
+              class... Properties,
+              std::enable_if_t<std::is_same_v<Path, std::filesystem::path> && (sizeof...(Properties) > 0)>* = nullptr>
+    auto read_model(const Path& model_path, const Path& bin_path, Properties&&... properties) const {
+        return read_model(model_path.string(), bin_path.string(), std::forward<Properties>(properties)...);
     }
 #endif
     /// @}

@@ -16,6 +16,7 @@
 
 class SimpleLowPrecisionTransformer : public ov::pass::ModelPass{
 public:
+    OPENVINO_MODEL_PASS_RTTI("SimpleLowPrecisionTransformer");
     SimpleLowPrecisionTransformer(
         const std::vector<ov::pass::low_precision::PrecisionsRestriction>& precisionRestrictions = {},
         const std::vector<ov::pass::low_precision::QuantizationGranularityRestriction>& quantizationRestrictions = {},

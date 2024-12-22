@@ -2467,6 +2467,99 @@ TEST(reorder_gpu_f32, bfzyx_to_bsv16_fsv16_padded)
     }
 }
 
+TEST(reorder_gpu_f32, bfzyx_to_bfyx_padded) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+
+    const int32_t b_in = 1024;
+    const int32_t f_in = 64;
+    const int32_t x_in = 72;
+    const int32_t y_in = 2;
+    const int32_t z_in = 3;
+
+    const int32_t b_crop = 1024;
+    const int32_t f_crop = 64;
+    const int32_t x_crop = 72;
+    const int32_t y_crop = 2;
+    const int32_t z_crop = 1;
+
+    const int32_t z0_off = 0;
+    const int32_t z1_off = 1;
+    const int32_t z2_off = 2;
+
+    auto input = engine.allocate_memory({ data_types::f32,format::bfzyx,{ b_in, f_in, x_in, y_in, z_in } });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(crop("crop0", input_info("input"), { b_crop, f_crop, x_crop, y_crop, z_crop }, { 0, 0, 0, 0, z0_off }));
+    topology.add(crop("crop1", input_info("input"), { b_crop, f_crop, x_crop, y_crop, z_crop }, { 0, 0, 0, 0, z1_off }));
+    topology.add(crop("crop2", input_info("input"), { b_crop, f_crop, x_crop, y_crop, z_crop }, { 0, 0, 0, 0, z2_off }));
+    topology.add(reorder("reorder0", input_info("crop0"), format::bfyx, data_types::f32));
+    topology.add(reorder("reorder1", input_info("crop1"), format::bfyx, data_types::f32));
+    topology.add(reorder("reorder2", input_info("crop2"), format::bfyx, data_types::f32));
+    topology.add(reshape("reshape0", input_info("reorder0"), tensor(batch(b_in), feature(y_in), spatial(x_in, f_in))));
+    topology.add(reshape("reshape1", input_info("reorder1"), tensor(batch(b_in), feature(y_in), spatial(x_in, f_in))));
+    topology.add(reshape("reshape2", input_info("reorder2"), tensor(batch(b_in), feature(y_in), spatial(x_in, f_in))));
+
+    std::vector<float> input_vec = rg.generate_random_1d<float>(input->count(), -10, 10);
+    set_values(input, input_vec);
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+    auto output0 = outputs.at("reshape0").get_memory();
+    auto output1 = outputs.at("reshape1").get_memory();
+    auto output2 = outputs.at("reshape2").get_memory();
+
+    cldnn::mem_lock<float> output_ptr0(output0, get_test_stream());
+    for (int b = 0; b < b_crop; ++b) {
+        for (int f = 0; f < f_crop; ++f) {
+            for (int z = 0; z < z_crop; ++z) {
+                for (int y = 0; y < y_crop; ++y) {
+                    for (int x = 0; x < x_crop; ++x) {
+                        int linear_id = x + x_in * (y + y_in * (z + z0_off + z_in * (f + f_in * b)));
+                        int output_linear_id = x + x_crop * (y + y_crop * (z + z_crop * (f + f_crop * b)));
+                        ASSERT_EQ(output_ptr0[output_linear_id], input_vec[linear_id]);
+                    }
+                }
+            }
+        }
+    }
+
+    cldnn::mem_lock<float> output_ptr1(output1, get_test_stream());
+    for (int b = 0; b < b_crop; ++b) {
+        for (int f = 0; f < f_crop; ++f) {
+            for (int z = 0; z < z_crop; ++z) {
+                for (int y = 0; y < y_crop; ++y) {
+                    for (int x = 0; x < x_crop; ++x) {
+                        int linear_id = x + x_in * (y + y_in * (z + z1_off + z_in * (f + f_in * b)));
+                        int output_linear_id = x + x_crop * (y + y_crop * (z + z_crop * (f + f_crop * b)));
+                        ASSERT_EQ(output_ptr1[output_linear_id], input_vec[linear_id]);
+                    }
+                }
+            }
+        }
+    }
+
+    cldnn::mem_lock<float> output_ptr2(output2, get_test_stream());
+    for (int b = 0; b < b_crop; ++b) {
+        for (int f = 0; f < f_crop; ++f) {
+            for (int z = 0; z < z_crop; ++z) {
+                for (int y = 0; y < y_crop; ++y) {
+                    for (int x = 0; x < x_crop; ++x) {
+                        int linear_id = x + x_in * (y + y_in * (z + z2_off + z_in * (f + f_in * b)));
+                        int output_linear_id = x + x_crop * (y + y_crop * (z + z_crop * (f + f_crop * b)));
+                        ASSERT_EQ(output_ptr2[output_linear_id], input_vec[linear_id]);
+                    }
+                }
+            }
+        }
+    }
+}
+
 TEST(reorder_gpu_f32, b_fs_yx_fsv16_to_bfyx_opt_allowed)
 {
     auto& engine = get_test_engine();
