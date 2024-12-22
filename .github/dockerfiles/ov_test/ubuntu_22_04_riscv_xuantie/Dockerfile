@@ -39,7 +39,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # build xuintie qemu emulator
-ARG XUANTIE_VERSION="v6.0.0"
+ARG XUANTIE_VERSION="5af674035298c07b361de69afdabf2fcbb37da71"
 ARG XUANTIE_REPO="https://github.com/XUANTIE-RV/qemu"
 ARG XUINTIE_PATH="/opt/riscv"
 ARG XUINTIE_TMP_PATH="/tmp/qemu"
