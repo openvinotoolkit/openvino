@@ -39,14 +39,14 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # build xuintie qemu emulator
-ARG XUANTIE_VERSION="5af674035298c07b361de69afdabf2fcbb37da71"
-ARG XUANTIE_REPO="https://github.com/XUANTIE-RV/qemu"
-ARG XUINTIE_PATH="/opt/riscv"
-ARG XUINTIE_TMP_PATH="/tmp/qemu"
-ARG XUINTIE_SRC="/tmp/qemu/src"
+ARG QEMU_VERSION="5af674035298c07b361de69afdabf2fcbb37da71"
+ARG QEMU_REPO="https://github.com/XUANTIE-RV/qemu"
+ARG QEMU_PATH="/opt/riscv"
+ARG QEMU_TMP_PATH="/tmp/qemu"
+ARG QEMU_SRC="/tmp/qemu/src"
     
-RUN mkdir -p ${XUINTIE_TMP_PATH} && cd ${XUINTIE_TMP_PATH} && \
-    git clone --branch ${XUANTIE_VERSION} --depth 1 ${XUANTIE_REPO} ${XUINTIE_SRC} && cd ${XUINTIE_SRC} && \
-    ./configure --prefix=${XUINTIE_PATH} --target-list=riscv64-linux-user && \
+RUN mkdir -p ${QEMU_TMP_PATH} && cd ${QEMU_TMP_PATH} && \
+    git clone --branch ${QEMU_VERSION} --depth 1 ${QEMU_REPO} ${QEMU_SRC} && cd ${QEMU_SRC} && \
+    ./configure --prefix=${QEMU_PATH} --target-list=riscv64-linux-user && \
     make -j$(nproc) && make install && \
-    rm -rf ${XUINTIE_TMP_PATH}
+    rm -rf ${QEMU_TMP_PATH}
