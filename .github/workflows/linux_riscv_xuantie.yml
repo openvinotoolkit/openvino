@@ -237,8 +237,8 @@ jobs:
       - name: Debug
         run: |
           ls -la ${{ env.RISCV_TOOLCHAIN_ROOT }}/bin
-          ${{ env.RISCV_TOOLCHAIN_ROOT}}/bin/qemu-riscv64 --version
-          ${{ env.RISCV_TOOLCHAIN_ROOT}}/bin/qemu-riscv64 -cpu help
+          ${{ env.RISCV_TOOLCHAIN_ROOT }}/bin/qemu-riscv64 --version
+          ${{ env.RISCV_TOOLCHAIN_ROOT }}/bin/qemu-riscv64 -cpu help
         
       - name: Intel CPU plugin func tests (parallel)
         run: |
