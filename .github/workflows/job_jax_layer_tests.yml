@@ -1,4 +1,4 @@
-name: JAX/Flax Models tests
+name: JAX Layer Tests
 
 on:
   workflow_call:
@@ -12,29 +12,37 @@ on:
         type: string
         required: false
         default: '{"image": null}'
-      model_scope:
-        description: 'Scope of models for testing.'
+      affected-components:
+        description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
+        type: string
+        required: true
+      python-version:
+        description: 'Python version to setup. E.g., "3.11"'
         type: string
         required: true
 
 permissions: read-all
 
+env:
+  PIP_CACHE_PATH_LINUX: /mount/caches/pip/linux
+  PIP_CACHE_PATH_WIN: "C:\\mount\\caches\\pip\\win"
+
 jobs:
-  JAX_Models_Tests:
-    name: JAX/Flax Models tests
-    timeout-minutes: ${{ inputs.model_scope == 'precommit' && 35 || 35 }}
+  JAX_Layer_Tests:
+    name: JAX Layer Tests
+    timeout-minutes: 40
     runs-on: ${{ inputs.runner }}
     container: ${{ fromJSON(inputs.container) }}
     defaults:
       run:
-        shell: bash
+        shell: ${{ contains(inputs.runner, 'win') && 'pwsh' || 'bash' }}
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
-      MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
+      LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
     steps:
       - name: Download OpenVINO artifacts (tarballs)
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
@@ -46,65 +54,80 @@ jobs:
       - name: Download OpenVINO artifacts (wheels)
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
-          pattern: openvino_[tokenizers_wheel|wheels]*
+          pattern: openvino_[wheels]*
           path: ${{ env.INSTALL_WHEELS_DIR }}
           merge-multiple: true
 
       # Needed as ${{ github.workspace }} is not working correctly when using Docker
       - name: Setup Variables
+        if: runner.os != 'Windows'
         run: |
           echo "OPENVINO_REPO=$GITHUB_WORKSPACE/openvino" >> "$GITHUB_ENV"
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
-          echo "MODEL_HUB_TESTS_INSTALL_DIR=$GITHUB_WORKSPACE/install/tests/model_hub_tests" >> "$GITHUB_ENV"
+          echo "INSTALL_WHEELS_DIR=$GITHUB_WORKSPACE/install/wheels" >> "$GITHUB_ENV"
+          echo "LAYER_TESTS_INSTALL_DIR=$GITHUB_WORKSPACE/install/tests/layer_tests" >> "$GITHUB_ENV"
+  
+      - name: Install OpenVINO dependencies (mac)
+        if: runner.os == 'macOS'
+        run: brew install pigz
           
-      - name: Extract OpenVINO packages and tests
+      - name: Extract OpenVINO packages (Linux, macOS)
+        if: runner.os != 'Windows'
         run: |
             pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
         working-directory: ${{ env.INSTALL_DIR }}
 
-      - name: Fetch setup_python action
+      - name: Extract OpenVINO artifacts (Windows)
+        if: runner.os == 'Windows'
+        run: |
+            Expand-Archive openvino_tests.zip -DestinationPath ${{ env.INSTALL_DIR }}
+        working-directory: ${{ env.INSTALL_DIR }}
+
+      - name: Fetch setup_python and install wheels actions
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
+            .github/actions/install_ov_wheels/action.yml
           sparse-checkout-cone-mode: false
           path: 'openvino'
 
-      - name: Setup Python 3.11
+      - name: Setup Python ${{ inputs.python-version }}
         uses: ./openvino/.github/actions/setup_python
         with:
-          version: '3.11'
-          should-setup-pip-paths: 'false'
-          self-hosted-runner: ${{ contains(inputs.runner, 'aks') }}
+          version: ${{ inputs.python-version }}
+          pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH_LINUX || env.PIP_CACHE_PATH_WIN }}
+          should-setup-pip-paths: ${{ runner.os != 'macOS' }}
+          self-hosted-runner: ${{ runner.os != 'macOS' }}
 
       - name: Install OpenVINO Python wheels
-        run: |
-          # To enable pytest parallel features
-          python3 -m pip install pytest-xdist[psutil]
-          python3 -m pip install ./openvino-*
-          python3 -m pip install ./openvino_tokenizers-*
-        working-directory: ${{ env.INSTALL_WHEELS_DIR }}
+        uses: ./openvino/.github/actions/install_ov_wheels
+        with:
+          wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
+          wheels-to-install: 'openvino'
 
-      - name: Install JAX tests requirements for precommit
+      - name: Install JAX Layer tests dependencies
         run: |
+          # jax test requirements
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_jax
 
-      - name: JAX/Flax Models Tests from Hugging Face
-        if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly' }}
-        run: |
-          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/jax/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-jax_model_${{ inputs.model_scope }}_tests.html --self-contained-html -v
+      - name: JAX Layer Tests
+        if: ${{ fromJSON(inputs.affected-components).JAX_FE.test }}
+        run: python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/jax_tests ${PARALLEL} -m precommit_jax_fe -v --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-jax.xml
         env:
-          TYPE: ${{ inputs.model_scope == 'precommit' && 'precommit' || 'nightly' }}
           TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+          JAX_TRACE_MODE: JAXPR
+          PARALLEL: ${{ runner.os == 'Windows' && ' ' || '-n logical'}}
 
       - name: Upload Test Results
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         if: ${{ !cancelled() }}
         with:
-          name: test-results-jax-models-${{ inputs.model_scope }}
+          name: test-results-python-jax-layers
           path: |
             ${{ env.INSTALL_TEST_DIR }}/TEST*.html
-          if-no-files-found: 'error'
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          if-no-files-found: 'warn'
