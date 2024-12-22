@@ -30,6 +30,7 @@ RUN apt-get update && \
         gcc \
         g++ \
         # qemu build dependencies
+        libc6-riscv64-cross \
         build-essential \
         pkg-config \
         libglib2.0-dev \
