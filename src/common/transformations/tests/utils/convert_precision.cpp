@@ -1951,12 +1951,127 @@ TEST(TransformationTests, ConvertPrecision_DivisionByZeroMinimalPattern) {
         auto eps_const = opset10::Constant::create(element::f32, Shape{1}, {eps_value});
         auto add = std::make_shared<opset10::Add>(input_2_decompressed, eps_const);
         auto divide = std::make_shared<opset10::Divide>(input_1_decompressed, add);
+        auto conv = std::make_shared<opset10::Convert>(divide, element::f16);
 
-        model_ref = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input_1, input_2});
+        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input_1, input_2});
     }
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default();
     FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+static std::shared_ptr<ov::Model> make_then_body(bool ref) {
+    auto el_type = ref ? element::f16 : element::f32;
+
+    auto then_param = std::make_shared<opset10::Parameter>(el_type, PartialShape{1, 112, 112, 24});
+    auto opt_conv =
+        ref ? std::make_shared<opset10::Convert>(then_param, element::f32)->output(0) : then_param->output(0);
+    auto red_mean_const = opset10::Constant::create(element::i32, Shape{3}, {0, 1, 2});
+    auto red_mean = std::make_shared<opset10::ReduceMean>(opt_conv, red_mean_const);
+
+    auto opt_conv_sub =
+        ref ? std::make_shared<opset10::Convert>(then_param, element::f32)->output(0) : then_param->output(0);
+    auto subtract = std::make_shared<opset10::Subtract>(opt_conv_sub, red_mean);
+
+    auto power_const = opset10::Constant::create(el_type, Shape{1}, {2});
+    auto opt_conv_1 =
+        ref ? std::make_shared<opset10::Convert>(power_const, element::f32)->output(0) : power_const->output(0);
+    auto power = std::make_shared<opset10::Power>(subtract, opt_conv_1);
+
+    auto red_mean_const_1 = opset10::Constant::create(element::i32, Shape{3}, {0, 1, 2});
+    auto reduce_mean_1 = std::make_shared<opset10::ReduceMean>(power, red_mean_const_1);
+
+    auto add_const = opset10::Constant::create(el_type, Shape{1}, {1.001e-05});
+    auto opt_conv_2 =
+        ref ? std::make_shared<opset10::Convert>(add_const, element::f32)->output(0) : add_const->output(0);
+    auto add = std::make_shared<opset10::Add>(reduce_mean_1, opt_conv_2);
+
+    auto sqrt = std::make_shared<opset10::Sqrt>(add);
+
+    auto divide = std::make_shared<opset10::Divide>(subtract, sqrt);
+
+    auto mul_const =
+        opset10::Constant::create(element::f16, Shape{1, 1, 1, 24}, std::vector<float16>(24, 1));  // stub values
+    auto mul_conv = std::make_shared<opset10::Convert>(mul_const, element::f32);
+    auto mul = std::make_shared<opset10::Multiply>(divide, mul_conv);
+
+    auto add_const_1 =
+        opset10::Constant::create(element::f16, Shape{1, 1, 1, 24}, std::vector<float16>(24, 1));  // stub values
+    auto add_conv = std::make_shared<opset10::Convert>(add_const_1, element::f32);
+    auto add_1 = std::make_shared<opset10::Multiply>(mul, add_conv);
+
+    auto res_conv = ref ? std::make_shared<opset10::Convert>(add_1, element::f16)->output(0) : add_1->output(0);
+
+    auto then_res = std::make_shared<opset10::Result>(res_conv);
+
+    return std::make_shared<ov::Model>(OutputVector{then_res}, ParameterVector{then_param});
+}
+
+static std::shared_ptr<ov::Model> make_else_body(bool ref) {
+    auto el_type = ref ? element::f16 : element::f32;
+    auto else_param = std::make_shared<opset10::Parameter>(el_type, ov::Shape{1, 112, 112, 24});
+    auto else_res = std::make_shared<opset10::Result>(else_param);
+
+    return std::make_shared<ov::Model>(OutputVector{else_res}, ParameterVector{else_param});
+}
+
+TEST(TransformationTests, Convert_Precision_If_Body) {
+    shared_ptr<Model> main_model, main_model_ref;
+    pass::Manager manager;
+    {
+        auto then_body = make_then_body(false);
+        auto then_param = then_body->get_parameters()[0];
+        auto then_res = then_body->get_results()[0];
+
+        auto else_body = make_else_body(false);
+        auto else_param = else_body->get_parameters()[0];
+        auto else_res = else_body->get_results()[0];
+
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 112, 112, 24});
+        auto cond = std::make_shared<ov::op::v0::Constant>(element::boolean, Shape{1}, true);
+        auto if_op = std::make_shared<ov::opset8::If>(cond);
+        auto if_result = std::make_shared<ov::op::v0::Result>(if_op);
+
+        if_op->set_then_body(then_body);
+        if_op->set_else_body(else_body);
+        if_op->set_input(input, then_param, else_param);
+        if_op->set_output(then_res, else_res);
+
+        main_model = std::make_shared<Model>(NodeVector{if_result}, ParameterVector{input});
+
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = true;
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                      empty_type_to_fuse_map,
+                                                      keep_precision_sensitive_in_fp32);
+        manager.run_passes(main_model);
+    }
+
+    {
+        auto then_body = make_then_body(true);
+        auto then_param = then_body->get_parameters()[0];
+        auto then_res = then_body->get_results()[0];
+
+        auto else_body = make_else_body(true);
+        auto else_param = else_body->get_parameters()[0];
+        auto else_res = else_body->get_results()[0];
+
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f16, ov::Shape{1, 112, 112, 24});
+        auto cond = std::make_shared<ov::op::v0::Constant>(element::boolean, Shape{1}, true);
+        auto if_op = std::make_shared<ov::opset8::If>(cond);
+        auto if_result = std::make_shared<ov::op::v0::Result>(if_op);
+
+        if_op->set_then_body(then_body);
+        if_op->set_else_body(else_body);
+        if_op->set_input(input, then_param, else_param);
+        if_op->set_output(then_res, else_res);
+
+        main_model_ref = std::make_shared<Model>(NodeVector{if_result}, ParameterVector{input});
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    FunctionsComparator::Result result = func_comparator(main_model_ref, main_model);
     ASSERT_TRUE(result.valid) << result.message;
 }
 
@@ -1994,8 +2109,9 @@ TEST(TransformationTests, ConvertPrecision_PowWithNegativeExponent) {
         auto pow_exp_const = opset10::Constant::create(element::f32, Shape{1}, {-1.77});
         auto pow = std::make_shared<opset10::Power>(add, pow_exp_const);
         auto mul = std::make_shared<opset10::Multiply>(input_1_decompressed, pow);
+        auto conv = std::make_shared<opset10::Convert>(mul, element::f16);
 
-        model_ref = std::make_shared<Model>(NodeVector{mul}, ParameterVector{input_1, input_2});
+        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input_1, input_2});
     }
 
     const FunctionsComparator func_comparator = FunctionsComparator::with_default();
