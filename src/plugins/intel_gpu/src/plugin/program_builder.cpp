@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/split.hpp"
@@ -106,19 +107,10 @@ ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& 
     config_path += "/cldnn_global_custom_kernels/cldnn_global_custom_kernels.xml";
 
     CustomLayer::LoadFromFile(config_path, m_custom_layers, true);
-    auto custom_layers_config = m_config.m_config_file.value;
+    auto custom_layers_config = m_config.get_config_file();
     CustomLayer::LoadFromFile(custom_layers_config, m_custom_layers, custom_layers_config.empty());
 
     auto ops = model->get_ordered_ops();
-    // In the case of dynamic models, because most of the layers are mapped to shape agnostic kernels,
-    // smaller # of kernels are built compared to static models.
-    // So having smaller batch size is even better for dynamic model as we can do more parallel build.
-    if (model->is_dynamic()) {
-        m_config.m_max_kernels_per_batch = 4;
-    } else {
-        m_config.m_max_kernels_per_batch = 8;
-    }
-
     m_program = build(ops, partial_build, is_inner_program);
 }
 
@@ -159,14 +151,33 @@ std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::sha
             break;
         }
     }
-
-    if (is_inner_program) {
-        allow_new_shape_infer = (m_config.m_allow_new_shape_infer || allow_new_shape_infer);
+    bool is_dynamic = false;
+    for (const auto& op : ops) {
+        if (op->is_dynamic()) {
+            is_dynamic = true;
+            break;
+        }
     }
 
-    m_config.m_partial_build_program = partial_build;
-    m_config.m_optimize_data = true;
-    m_config.m_allow_new_shape_infer = allow_new_shape_infer;
+    if (is_inner_program) {
+        allow_new_shape_infer = (m_config.get_allow_new_shape_infer() || allow_new_shape_infer);
+    }
+
+    // In the case of dynamic models, because most of the layers are mapped to shape agnostic kernels,
+    // smaller # of kernels are built compared to static models.
+    // So having smaller batch size is even better for dynamic model as we can do more parallel build.
+    if (is_dynamic) {
+        m_config.set_property(ov::intel_gpu::max_kernels_per_batch(4));;
+    } else {
+        m_config.set_property(ov::intel_gpu::max_kernels_per_batch(8));;
+    }
+
+    m_config.set_property(ov::intel_gpu::partial_build_program(partial_build));
+    m_config.set_property(ov::intel_gpu::optimize_data(true));
+    m_config.set_property(ov::intel_gpu::allow_new_shape_infer(allow_new_shape_infer));
+    //if (has_lstm)
+    m_config.set_property(ov::intel_gpu::use_onednn(true));
+    m_config.finalize(m_engine);
 
     prepare_build();
     {
@@ -310,7 +321,7 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
     prim->origin_op_name = op.get_friendly_name();
     prim->origin_op_type_name = op.get_type_name();
 
-    if (this->m_config.m_cache_mode == ov::CacheMode::OPTIMIZE_SIZE) {
+    if (this->m_config.get_cache_mode() == ov::CacheMode::OPTIMIZE_SIZE) {
         if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
             auto rt_info = op.get_rt_info();
 
@@ -341,7 +352,7 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
             prim->origin_op_type_name = prim->type_string();
     }
 
-    if (this->m_config.m_enable_profiling && should_profile) {
+    if (this->m_config.get_enable_profiling() && should_profile) {
         profiling_ids.push_back(prim_id);
         init_profile_info(*prim);
     }

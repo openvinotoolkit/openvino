@@ -111,7 +111,7 @@ namespace cldnn {
 std::mutex kernels_cache::_mutex;
 
 std::string kernels_cache::get_cache_path() const {
-    auto path = _config.m_cache_dir.value;
+    auto path = _config.get_cache_dir();
     if (path.empty()) {
         return {};
     }
@@ -123,12 +123,12 @@ std::string kernels_cache::get_cache_path() const {
 }
 
 bool kernels_cache::is_cache_enabled() const {
-    if (!_config.m_allow_new_shape_infer &&
-        (_config.m_cache_mode == ov::CacheMode::OPTIMIZE_SPEED)) {
+    if (!_config.get_allow_new_shape_infer() &&
+        (_config.get_cache_mode() == ov::CacheMode::OPTIMIZE_SPEED)) {
         return false;
     }
 
-    return !_config.m_cache_dir.value.empty();
+    return !_config.get_cache_dir().empty();
 }
 
 size_t kernels_cache::get_max_kernels_per_batch() const {
@@ -136,7 +136,7 @@ size_t kernels_cache::get_max_kernels_per_batch() const {
     GPU_DEBUG_IF(debug_config->max_kernels_per_batch >= 1) {
         return static_cast<size_t>(debug_config->max_kernels_per_batch);
     }
-    return _config.m_max_kernels_per_batch;
+    return _config.get_max_kernels_per_batch();
 }
 
 void kernels_cache::get_program_source(const kernels_code& kernels_source_code, std::vector<kernels_cache::batch_program>* all_batches) const {

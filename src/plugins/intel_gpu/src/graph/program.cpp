@@ -108,8 +108,8 @@ using namespace cldnn;
 using namespace ov::intel_gpu;
 
 static ov::threading::IStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config, std::string tags, int num_streams = 0) {
-    int streams = (num_streams > 0) ? num_streams : config.m_compilation_num_threads.value;
-    auto priority = config.m_host_task_priority;
+    int streams = (num_streams > 0) ? num_streams : config.get_compilation_num_threads();
+    auto priority = config.get_host_task_priority();
     auto core_type = ov::hint::SchedulingCoreType::ANY_CORE;
     switch (priority) {
         case ov::hint::Priority::LOW: core_type = ov::hint::SchedulingCoreType::ECORE_ONLY; break;
@@ -117,7 +117,7 @@ static ov::threading::IStreamsExecutor::Config make_task_executor_config(const E
         case ov::hint::Priority::HIGH: core_type = ov::hint::SchedulingCoreType::PCORE_ONLY; break;
         default: OPENVINO_ASSERT(false, "[GPU] Can't create task executor: invalid host task priority value: ", priority);
     }
-    bool enable_cpu_pinning = config.m_enable_cpu_pinning;
+    bool enable_cpu_pinning = config.get_enable_cpu_pinning();
 
     ov::threading::IStreamsExecutor::Config task_executor_config(tags,
                                                                  streams,
@@ -163,8 +163,7 @@ program::program(engine& engine_ref,
     program_node::reset_unique_id();
     if (no_optimizations) {
         init_graph();
-        auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<device::ptr>{_engine.get_device()});
-        _config.finalize(ctx, {});
+        _config.finalize(_engine);
     } else {
         build_program(is_internal);
         if (_is_body_program) {
@@ -200,8 +199,7 @@ program::program(engine& engine_ref,
       _task_executor(std::move(task_executor)),
       processing_order(),
       is_internal(is_internal) {
-    auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<device::ptr>{_engine.get_device()});
-    _config.finalize(ctx, {});
+    _config.finalize(_engine);
     init_primitives();
     init_program();
     prepare_nodes(nodes);
@@ -214,9 +212,8 @@ program::program(engine& engine, const ExecutionConfig& config)
       _config(config),
       processing_order() {
     init_primitives();
-    auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<device::ptr>{_engine.get_device()});
-    _config.finalize(ctx, {});
-    new_shape_infer = _config.m_allow_new_shape_infer;
+    _config.finalize(_engine);
+    new_shape_infer = _config.get_allow_new_shape_infer();
     _layout_optimizer = std::make_unique<layout_optimizer>();
 }
 
@@ -228,7 +225,7 @@ void program::init_program() {
     set_options();
 
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
-    new_shape_infer = _config.m_allow_new_shape_infer;
+    new_shape_infer = _config.get_allow_new_shape_infer();
 
     if (_task_executor == nullptr)
         _task_executor = program::make_task_executor(_config);
@@ -236,7 +233,7 @@ void program::init_program() {
                                                                       kernel_selector::KernelBase::get_db().get_batch_headers(),
                                                                       kernel_selector::KernelBase::get_db().get_cm_batch_headers()));
 
-    _kernels_cache->set_kernels_reuse(get_config().m_enable_kernels_reuse);
+    _kernels_cache->set_kernels_reuse(_config.get_enable_kernels_reuse());
 
     if (!_compilation_context)
         _compilation_context = program::make_compilation_context(_config);
@@ -490,15 +487,11 @@ void program::set_options() {
     static std::atomic<uint32_t> id_gen{0};
     prog_id = ++id_gen;
     assert(prog_id != 0);
-    if (!_config.m_force_implementations.value.empty()) {
-        _config.m_optimize_data = true;
-    }
 }
 
 void program::build_program(bool is_internal) {
     init_graph();
-    auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<device::ptr>{_engine.get_device()});
-    _config.finalize(ctx, {});
+    _config.finalize(_engine);
     { pre_optimize_graph(is_internal); }
     run_graph_compilation();
     { post_optimize_graph(is_internal); }
@@ -528,9 +521,6 @@ void program::init_graph() {
     for (auto& node : processing_order) {
         if (!node->is_type<data>())
             node->get_output_layouts();
-        if (node->is_type<lstm_seq>()) {
-            _config.m_use_onednn = true;
-        }
     }
     // Perform initial shape_of subgraphs markup
     apply_opt_pass<mark_shape_of_subgraphs>();
@@ -548,7 +538,7 @@ void program::pre_optimize_graph(bool is_internal) {
 
     bool output_size_handling_enabled = analyze_output_size_handling_need();
 
-    bool optimize_data = _config.m_optimize_data;
+    bool optimize_data = _config.get_optimize_data();
     if (optimize_data) {
         apply_opt_pass<prepare_quantization>();
     }
@@ -625,7 +615,7 @@ void program::post_optimize_graph(bool is_internal) {
 
     reorder_factory rf;
 
-    bool optimize_data = _config.m_optimize_data;
+    bool optimize_data = _config.get_optimize_data();
 
     if (!is_internal) {
         apply_opt_pass<post_optimize_weights>(rf);
@@ -633,7 +623,7 @@ void program::post_optimize_graph(bool is_internal) {
 
     apply_opt_pass<remove_redundant_reorders>(false, true);  // TODO: do we need it at this place also?
 
-    auto partial_build = _config.m_partial_build_program;
+    auto partial_build = _config.get_partial_build_program();
 #ifdef GPU_DEBUG_CONFIG
     GPU_DEBUG_GET_INSTANCE(debug_config);
     if (!is_internal && (!partial_build || !debug_config->dry_run_path.empty())) {
@@ -652,7 +642,7 @@ void program::post_optimize_graph(bool is_internal) {
 
     // Recalculate processing order after all graph transformation to keep optimal primitives ordering
     // for OOO queue
-    if (_config.m_queue_type == QueueTypes::out_of_order)
+    if (_config.get_queue_type() == QueueTypes::out_of_order)
         get_processing_order().calculate_BFS_processing_order();
 
     apply_opt_pass<mark_state_init_subgraphs>();
@@ -776,7 +766,7 @@ const std::vector<primitive_id>& program::get_allocating_order(bool forced_updat
 }
 
 void program::prepare_memory_dependencies() {
-    if (!_config.m_enable_memory_pool)
+    if (!_config.get_enable_memory_pool())
         return;
     for (auto& node : get_processing_order()) {
         node->add_memory_dependency(node->get_unique_id());
@@ -1408,7 +1398,7 @@ program::primitives_info program::get_current_stage_info() const {
 
 void program::save_pass_info(std::string pass_name) {
     // TODO: Directory path here can be probably changed to some bool flag
-    if (!_config.m_dump_graphs.value.empty())
+    if (!_config.get_dump_graphs().empty())
         optimizer_passes_info.emplace_back(pass_name, get_current_stage_info());
 }
 
@@ -1436,7 +1426,7 @@ const program::primitives_info& program::get_primitives_info() const { return pr
 void program::apply_opt_pass(base_pass& pass) { pm->run(*this, pass); }
 
 void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
-    lo.set_implementation_forcing(_config.m_force_implementations);
+    lo.set_implementation_forcing(_config.get_force_implementations());
 
 
     // first pass to set layout optimization_attributes for topology
@@ -1662,15 +1652,15 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::bs_fs_yx_bsv16_fsv16_network, 1);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    bool enable_onednn_for_tests = get_config().m_optimize_data || is_internal_program();
+    bool enable_onednn_for_tests = get_config().get_optimize_data() || is_internal_program();
     auto& engine = get_engine();
     if (engine.get_device_info().vendor_id == INTEL_VENDOR_ID &&
-        get_config().m_queue_type == QueueTypes::in_order &&
+        get_config().get_queue_type() == QueueTypes::in_order &&
         enable_onednn_for_tests) {
             if (engine.get_device_info().supports_immad) {
                 lo.add_all_onednn_impls_optimization_attribute();
             } else {
-                if (get_config().m_use_onednn) {
+                if (get_config().get_use_onednn()) {
                     lo.enable_onednn_for<lstm_seq>();
                 }
             }
@@ -1884,8 +1874,8 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
     init_program();
 
     std::shared_ptr<ov::MappedMemory> mapped_memory = nullptr;
-    std::string weights_path = _config.m_weights_path;
-    if (_config.m_cache_mode == ov::CacheMode::OPTIMIZE_SIZE &&
+    std::string weights_path = _config.get_weights_path();
+    if (_config.get_cache_mode() == ov::CacheMode::OPTIMIZE_SIZE &&
         ov::util::validate_weights_path(weights_path)) {
         mapped_memory = ov::load_mmap_object(weights_path);
     }

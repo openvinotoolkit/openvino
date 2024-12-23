@@ -335,7 +335,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     const ov::element::TypeVector supported_woq_types = {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4};
     bool enableInt8;
     ov::element::Type infer_precision = ov::element::undefined;
-    bool unroll_loop = config.m_enable_loop_unrolling;
+    bool unroll_loop = config.get_enable_loop_unrolling();
     {
         ov::pass::Manager manager("Plugin:GPU");
         auto pass_config = manager.get_pass_config();
@@ -348,7 +348,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
 
         auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
-        enableInt8 = config.m_enable_lp_transformations && is_model_quantized;
+        enableInt8 = config.get_enable_lp_transformations() && is_model_quantized;
 
         manager.register_pass<ov::pass::MarkDequantization>(
             std::vector<ov::element::Type>{ ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4 },
@@ -381,7 +381,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         };
 
         // Add conversion from FP data types to infer precision if it's specified
-        infer_precision = config.m_inference_precision;
+        infer_precision = config.get_inference_precision();
         if (infer_precision != ov::element::undefined) {
             if (!fp_precision_supported(infer_precision))
                 infer_precision = fallback_precision;
@@ -463,7 +463,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 GPU_DEBUG_CODE(return cldnn::debug_configuration::get_instance()->enable_sdpa == 1);
             }
 
-            if (!config.m_enable_sdpa_optimization)
+            if (!config.get_enable_sdpa_optimization())
                 return false;
 
             auto sdpa = ov::as_type_ptr<const ov::op::v13::ScaledDotProductAttention>(node);
@@ -1133,7 +1133,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::GLUFusion>();
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
 
-        auto kv_cache_compression_dt = config.m_kv_cache_precision;
+        auto kv_cache_compression_dt = config.get_kv_cache_precision();
         manager.register_pass<ov::intel_gpu::KVCacheCompression>(kv_cache_compression_dt, device_info.supports_immad);
 
         manager.register_pass<ov::intel_gpu::ConvertConvolutionToInternal>();
@@ -1151,7 +1151,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::SinkReshape>();
 
         if (device_info.supports_immad) {
-            auto dynamic_quantization_group_size = config.m_dynamic_quantization_group_size;
+            auto dynamic_quantization_group_size = config.get_dynamic_quantization_group_size();
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
                 for (size_t i = 0 ; i < root->get_input_node_shared_ptr(0)->get_output_size(); ++i) {
                     if (root->get_input_node_shared_ptr(0)->get_output_element_type(i) == ov::element::Type_t::f32) {

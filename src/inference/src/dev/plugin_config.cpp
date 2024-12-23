@@ -67,7 +67,7 @@ ov::Any PluginConfig::get_property(const std::string& name, const std::vector<Op
 }
 
 void PluginConfig::set_property(const AnyMap& config) {
-    const static std::vector<OptionVisibility> allowed_visibility = {OptionVisibility::RELEASE};
+    const static std::vector<OptionVisibility> allowed_visibility = {OptionVisibility::RELEASE,OptionVisibility::RELEASE_INTERNAL, OptionVisibility::DEBUG};
     const bool throw_on_error = true;
     set_property(config, allowed_visibility, throw_on_error);
 }
@@ -119,6 +119,18 @@ void PluginConfig::finalize(std::shared_ptr<IRemoteContext> context, const ov::R
     m_user_properties.clear();
 
     m_is_finalized = true;
+}
+
+bool PluginConfig::visit_attributes(ov::AttributeVisitor& visitor) const {
+    // for (const auto& prop : m_user_properties) {
+    //     visitor.on_attribute(prop.first + "__user", prop.second.as<std::string>());
+    // }
+    // for (const auto& prop : m_options_map) {
+    //     visitor.on_attribute(prop.first + "__internal", prop.second->get_any().as<std::string>());
+    // }
+    // visitor.on_attribute("is_finalized", m_is_finalized);
+
+    return true;
 }
 
 void PluginConfig::apply_debug_options(std::shared_ptr<IRemoteContext> context) {
