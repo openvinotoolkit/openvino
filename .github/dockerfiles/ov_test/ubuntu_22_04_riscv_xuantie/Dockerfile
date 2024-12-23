@@ -17,7 +17,6 @@ RUN apt-get update && \
     add-apt-repository --yes --no-update ppa:git-core/ppa && \
     add-apt-repository --yes --no-update ppa:deadsnakes/ppa && \
     apt-get update && \
-    # install compilers to build OpenVINO for RISC-V 64
     apt-get install \
         curl \
         git \
@@ -31,6 +30,8 @@ RUN apt-get update && \
         gcc \
         g++ \
         # qemu build dependencies
+        gcc-riscv64-linux-gnu \
+        g++-riscv64-linux-gnu \
         libc6-riscv64-cross \
         build-essential \
         pkg-config \
@@ -50,6 +51,6 @@ ARG XUINTIE_SRC="/tmp/xuantie/src"
 RUN mkdir -p ${XUINTIE_TMP_PATH} && cd ${XUINTIE_TMP_PATH} && \
     git clone --branch ${XUANTIE_VERSION} --depth 1 ${XUANTIE_REPO} ${XUINTIE_SRC} && \
     cd ${XUINTIE_SRC} && git submodule update --init -- qemu && \
-    cd ${XUINTIE_SRC}/qemu && ./configure --prefix=${XUINTIE_PATH} --interp-prefix=${XUINTIE_PATH}/sysroot --target-list=riscv64-linux-user && \
+    cd ${XUINTIE_SRC}/qemu && ./configure --prefix=${XUINTIE_PATH} --interp-prefix=/usr/riscv64-linux-gnu --target-list=riscv64-linux-user && \
     make -j$(nproc) && make install && \
     rm -rf ${XUINTIE_TMP_PATH}
