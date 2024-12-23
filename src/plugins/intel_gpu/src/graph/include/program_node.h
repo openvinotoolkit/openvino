@@ -301,9 +301,9 @@ public:
     void set_in_shape_of_subgraph(bool val = true) { in_shape_of_subgraph = val; }
     bool is_in_shape_of_subgraph() const { return in_shape_of_subgraph; }
 
-    void set_state_init_subgraph_id(std::string id) { state_init_subgraph_id = id; }
-    bool is_in_state_init_subgraph() const { return !state_init_subgraph_id.empty(); }
-    std::string get_state_init_subgraph_id() const { return state_init_subgraph_id; }
+    void set_state_variable_id_of_init_subgraph(std::string id) { state_id_of_init_subgraph = id; }
+    bool is_in_state_init_subgraph() const { return !state_id_of_init_subgraph.empty(); }
+    std::string get_state_variable_id_of_init_subgraph() const { return state_id_of_init_subgraph; }
 
     // check/set if the node can be optimized out (removed from the network)
     bool can_be_optimized() const { return optimized; }
@@ -372,10 +372,10 @@ public:
         return dependant_shape_of_nodes;
     }
 
-    void add_dependant_initializer_pid(const primitive_id& id);
+    void add_state_initializer(const primitive_id& id);
 
-    const std::vector<primitive_id>& get_dependant_initializer_pids() const {
-        return dependant_initializer_pids;
+    const std::vector<primitive_id>& get_state_initializers() const {
+        return state_initializers;
     }
 
     void set_reused_memory_color(uint32_t color) const {
@@ -517,8 +517,8 @@ protected:
 
     std::set<const program_node*> dependant_shape_of_nodes;
 
-    std::string state_init_subgraph_id;
-    std::vector<primitive_id> dependant_initializer_pids;
+    std::string state_id_of_init_subgraph;
+    std::vector<primitive_id> state_initializers;
 
     bool output = false;
     uint8_t user_mark = 0;

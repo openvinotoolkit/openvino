@@ -23,16 +23,16 @@
 using namespace cldnn;
 using namespace ::tests;
 
-static bool check_subgraph(const program_node& node, const program& program, const size_t expected_num_pids) {
-    auto& pids = node.get_dependant_initializer_pids();
-    if (pids.size() != expected_num_pids)
+static bool check_subgraph(const program_node& node, const program& program, const size_t expected_num) {
+    auto& state_initializers = node.get_state_initializers();
+    if (state_initializers.size() != expected_num)
         return false;
 
     const auto& variable_id = node.as<read_value>().get_primitive()->variable_id;
-    for (auto& pid : pids) {
+    for (auto& pid : state_initializers) {
         if (!program.get_node(pid).is_in_state_init_subgraph())
             return false;
-        if (program.get_node(pid).get_state_init_subgraph_id().compare(variable_id) != 0)
+        if (program.get_node(pid).get_state_variable_id_of_init_subgraph().compare(variable_id) != 0)
             return false;
     }
     return true;

@@ -17,18 +17,16 @@ void mark_state_init_subgraphs::mark_node(program_node* node) {
         return;
 
     const auto& variable_id = node->as<read_value>().get_primitive()->variable_id;
-    node->set_state_init_subgraph_id(variable_id);
+    node->set_state_variable_id_of_init_subgraph(variable_id);
 
-    // Create a queue for BFS
     std::queue<program_node*> q;
-    // Enqueue the source node (read_value)
     q.push(node);
 
     auto can_be_marked = [&](const program_node* dep_node, const program_node* cur_node) {
         for (auto& u : dep_node->get_users()) {
             if (u == cur_node)
                 continue;
-            if (u->get_state_init_subgraph_id().compare(variable_id) != 0) {
+            if (u->get_state_variable_id_of_init_subgraph().compare(variable_id) != 0) {
                 return false;
             }
         }
@@ -36,19 +34,16 @@ void mark_state_init_subgraphs::mark_node(program_node* node) {
         return true;
     };
 
-    // Iterate over the queue
     while (!q.empty()) {
         auto cur_size = q.size();
         for (size_t i = 0; i < cur_size; ++i) {
-            // Dequeue the node from queue
             auto& cur_node = q.front();
             q.pop();
             for (auto& dep : cur_node->get_dependencies()) {
                 if (can_be_marked(dep.first, cur_node)) {
-                    dep.first->set_state_init_subgraph_id(variable_id);
+                    dep.first->set_state_variable_id_of_init_subgraph(variable_id);
                     if (!dep.first->is_constant())
-                        node->add_dependant_initializer_pid(dep.first->id());
-                    // Enqueue visited dependant node
+                        node->add_state_initializer(dep.first->id());
                     q.push(dep.first);
                 }
             }
