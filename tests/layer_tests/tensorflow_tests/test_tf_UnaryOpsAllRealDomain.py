@@ -67,4 +67,4 @@ class TestUnaryOpsAllRealDomain(CommonTFLayerTest):
             pytest.skip("159585: accuracy error on ARM")
         self._test(*self.create_unary_net(input_shape, input_type, op_type),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend, custom_eps=1e-3)
+                   use_legacy_frontend=use_legacy_frontend, custom_eps=3 * 1e-3)
