@@ -223,15 +223,10 @@ struct reorder : public primitive_base<reorder> {
     memory_type input_mem_type = memory_type::buffer;
     /// @brief Parameters required for reorder weights.
     std::shared_ptr<WeightsReorderParams> weights_reorder_params = {};
-    /// @brief Parameters required for source transpose.
-    std::vector<int> src_permutation;
+
     inline bool has_surface_input() const {
         return input.size() == 1 &&
                input_mem_type == memory_type::surface;
-    }
-
-    void set_src_permutation(const std::vector<int> & src_perm) {
-        this->src_permutation = src_perm;
     }
 
     /// @brief Convert truncation Mode

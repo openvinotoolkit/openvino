@@ -44,8 +44,6 @@ void compile_graph::run(program& p) {
                     std::string fail_reason = "";
                     try {
                         if (selected_impl_manager) {
-                            if (node->id() == "reorder:/detect/Reshape_14_reorder")
-                                std::cout << "break" << std::endl;
                             node->selected_impl = selected_impl_manager->create(*node, *params);
                         }
                     } catch (std::exception& e) {
@@ -64,8 +62,8 @@ void compile_graph::run(program& p) {
             });
         }
     }
-    for (auto& iter : tasks)
-        task_executor->run_and_wait({iter});
+
+    task_executor->run_and_wait(tasks);
     tasks.clear();
 
     if (exception) {

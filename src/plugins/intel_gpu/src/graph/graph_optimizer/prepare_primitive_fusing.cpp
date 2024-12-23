@@ -137,7 +137,6 @@ void prepare_primitive_fusing::fuse_reorders(program &p) {
 
         program_helpers::do_for_types<reorder>(*node, [&p](reorder_node& node) {
             auto& input = node.input();
-
             // Restrictions:
             // - inputs cannot be padded
             // - primitives input cannot be output

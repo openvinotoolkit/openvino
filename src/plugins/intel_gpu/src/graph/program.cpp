@@ -598,7 +598,6 @@ void program::pre_optimize_graph(bool is_internal) {
         apply_opt_pass<prepare_buffer_fusing>();
     }
 
-    apply_opt_pass<handle_reshape>();
     // check if there exists some layout incompatibilities and add an reorder node if required
     apply_opt_pass<add_required_reorders>();
 
