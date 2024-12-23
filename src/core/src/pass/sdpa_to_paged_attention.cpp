@@ -25,7 +25,7 @@ ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_block_indices_inpu
       m_use_score_outputs(use_score_outputs) {}
 
 static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> node, const char* name) {
-    // Set name for both node and output tensor (should be only one tensor, and any other names will be overriden by a
+    // Set name for both node and output tensor (should be only one tensor, and any other names will be overridden by a
     // given single name)
     node->set_friendly_name(name);
     OPENVINO_ASSERT(node->get_output_size() == 1);
@@ -149,8 +149,10 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         }
     }
 
-    for (auto& param_name : {"beam_idx", "attention_mask"}) {
+    for (const std::string& param_name : {"beam_idx", "attention_mask"}) {
         if (auto param = get_parameter(model, param_name)) {
+            if (param_name == "attention_mask" && param->output(0).get_target_inputs().size() == 1)
+                param->output(0).get_target_inputs().begin()->replace_source_output(input_ids_node->output(0));
             model->remove_parameter(param);
 
             if (param->output(0).get_target_inputs().size() == 0) {
