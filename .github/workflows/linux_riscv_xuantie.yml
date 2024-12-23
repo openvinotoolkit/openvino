@@ -128,8 +128,7 @@ jobs:
         id: ccache_restore
         uses: ./openvino/.github/actions/cache
         with:
-          # save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          save-always: 'true'
+          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
           cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
           cache-size: 10
           max-cache-size: 50
