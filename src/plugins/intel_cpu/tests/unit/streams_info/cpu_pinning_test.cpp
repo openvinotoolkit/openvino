@@ -29,6 +29,7 @@ public:
 
         auto test_output = ov::intel_cpu::get_cpu_pinning(test_data.input_cpu_pinning,
                                                           test_data.input_changed,
+                                                          false,
                                                           test_data.input_proc_type_table,
                                                           test_data.input_stream_info_table);
 

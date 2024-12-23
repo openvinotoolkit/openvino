@@ -254,6 +254,11 @@ void ExecutionConfig::apply_user_properties(const cldnn::device_info& info) {
             set_property(ov::hint::enable_cpu_reservation(true));
         }
     }
+    if (get_property(ov::hint::enable_cpu_reservation)) {
+        if (!is_set_by_user(ov::hint::enable_cpu_pinning)) {
+            set_property(ov::hint::enable_cpu_pinning(true));
+        }
+    }
 
     // Enable KV-cache compression by default for non-systolic platforms
     if (!is_set_by_user(ov::hint::kv_cache_precision) && !info.supports_immad) {

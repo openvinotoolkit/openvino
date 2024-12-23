@@ -72,6 +72,7 @@ std::vector<std::vector<int>> apply_hyper_threading(bool& input_ht_hint,
 
 bool get_cpu_pinning(bool& input_value,
                      const bool input_changed,
+                     const bool cpu_reservation,
                      const std::vector<std::vector<int>>& proc_type_table,
                      const std::vector<std::vector<int>>& streams_info_table) {
     bool result_value;
@@ -90,7 +91,7 @@ bool get_cpu_pinning(bool& input_value,
             if ((streams_info_table[0][PROC_TYPE] == ALL_PROC) &&
                 (streams_info_table[1][PROC_TYPE] != EFFICIENT_CORE_PROC) &&
                 (streams_info_table[2][PROC_TYPE] == EFFICIENT_CORE_PROC)) {
-                result_value = false;
+                result_value = cpu_reservation;
             }
         }
     }
