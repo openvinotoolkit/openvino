@@ -33,11 +33,25 @@
 
 #define GET_EXCEPT_LAST(...) EXPAND(GET_EXCEPT_LAST_IMPL(COUNT(__VA_ARGS__), __VA_ARGS__))
 
+#define GET_LAST_IMPL(N, ...) CAT(GET_LAST_IMPL_, N)(__VA_ARGS__)
+#define GET_LAST_IMPL_0(_0, ...) _0
+#define GET_LAST_IMPL_1(_0, _1, ...) _1
+#define GET_LAST_IMPL_2(_0, _1, _2, ...) _2
+#define GET_LAST_IMPL_3(_0, _1, _2, _3, ...) _3
+#define GET_LAST_IMPL_4(_0, _1, _2, _3, _4, ...) _4
+#define GET_LAST_IMPL_5(_0, _1, _2, _3, _4, _5, ...) _5
+#define GET_LAST_IMPL_6(_0, _1, _2, _3, _4, _5, _6, ...) _6
+
+#define GET_LAST(...) GET_LAST_IMPL(COUNT(__VA_ARGS__), _, __VA_ARGS__ ,,,,,,,,,,,)
+
 #define OV_CONFIG_DECLARE_OPTION(PropertyNamespace, PropertyVar, Visibility, ...) \
     ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type, Visibility> m_ ## PropertyVar{GET_EXCEPT_LAST(__VA_ARGS__)};
 
 #define OV_CONFIG_OPTION_MAPPING(PropertyNamespace, PropertyVar, ...) \
         m_options_map[PropertyNamespace::PropertyVar.name()] = & m_ ## PropertyVar;
+
+#define OV_CONFIG_OPTION_HELP(PropertyNamespace, PropertyVar, Visibility, DefaultValue, ...) \
+        { #PropertyNamespace "::" #PropertyVar, PropertyNamespace::PropertyVar.name(), GET_LAST(__VA_ARGS__)},
 
 #define OV_CONFIG_RELEASE_OPTION(PropertyNamespace, PropertyVar, ...) \
     OV_CONFIG_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::RELEASE, __VA_ARGS__)
@@ -159,16 +173,10 @@ public:
 
     void set_property(const ov::AnyMap& properties);
     Any get_property(const std::string& name) const;
-    void set_user_property(const ov::AnyMap& properties);
 
     template <typename... Properties>
     util::EnableIfAllStringAny<void, Properties...> set_property(Properties&&... properties) {
         set_property(ov::AnyMap{std::forward<Properties>(properties)...});
-    }
-
-    template <typename... Properties>
-    util::EnableIfAllStringAny<void, Properties...> set_user_property(Properties&&... properties) {
-        set_user_property(ov::AnyMap{std::forward<Properties>(properties)...});
     }
 
     template <typename T, PropertyMutability mutability>
@@ -189,6 +197,7 @@ protected:
     virtual void apply_debug_options(std::shared_ptr<IRemoteContext> context);
     virtual void finalize_impl(std::shared_ptr<IRemoteContext> context) {}
 
+
     template <typename T, PropertyMutability mutability>
     bool is_set_by_user(const ov::Property<T, mutability>& property) const {
         return m_user_properties.find(property.name()) != m_user_properties.end();
@@ -207,12 +216,13 @@ protected:
         if (!is_set_by_user(property)) {
             auto rt_info_val = rt_info.find(property.name());
             if (rt_info_val != rt_info.end()) {
-                set_user_property(property(rt_info_val->second.template as<T>()));
+                set_property(property(rt_info_val->second.template as<T>()));
             }
         }
     }
 
-    void set_user_property(const ov::AnyMap& properties, const std::vector<OptionVisibility>& allowed_visibility, bool throw_on_error);
+    ov::Any get_property(const std::string& name, const std::vector<OptionVisibility>& allowed_visibility) const;
+    void set_property(const ov::AnyMap& properties, const std::vector<OptionVisibility>& allowed_visibility, bool throw_on_error);
 
     ov::AnyMap read_config_file(const std::string& filename, const std::string& target_device_name) const;
     ov::AnyMap read_env(const std::vector<std::string>& prefixes) const;
@@ -223,6 +233,16 @@ protected:
     // List of properties explicitly set by user via Core::set_property() or Core::compile_model() or ov::Model's runtime info
     ov::AnyMap m_user_properties;
     using OptionMapEntry = decltype(m_options_map)::value_type;
+
+    // property variable name, string name, default value, description
+    using OptionsDesc = std::vector<std::tuple<std::string, std::string, std::string>>;
+    static OptionsDesc m_options_desc;
+    virtual const OptionsDesc& get_options_desc() const { static OptionsDesc empty; return empty; }
+    const std::string get_help_message(const std::string& name = "") const;
+    void print_help() const;
+
+private:
+    bool m_is_finalized = false;
 };
 
 }  // namespace ov

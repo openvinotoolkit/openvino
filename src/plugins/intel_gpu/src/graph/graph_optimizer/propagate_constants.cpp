@@ -133,8 +133,8 @@ propagate_constants::calculate(engine& engine,
         return {};
 
     ExecutionConfig cf_config = config;
-    cf_config.set_property(ov::intel_gpu::optimize_data(false));
-    cf_config.set_property(ov::intel_gpu::custom_outputs(const_outputs));
+    cf_config.m_optimize_data = false;
+    cf_config.m_custom_outputs = const_outputs;
     network::ptr net = network::build_network(engine, nodes, cf_config, task_executor, true);
     std::map<primitive_id, cache_tuple> weightless_cache_map;
     for (auto& cin : const_inputs) {

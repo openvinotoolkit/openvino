@@ -105,7 +105,7 @@ ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& 
     config_path += "/cldnn_global_custom_kernels/cldnn_global_custom_kernels.xml";
 
     CustomLayer::LoadFromFile(config_path, m_custom_layers, true);
-    auto custom_layers_config = m_config.get_property(ov::intel_gpu::config_file);
+    auto custom_layers_config = m_config.m_config_file.value;
     CustomLayer::LoadFromFile(custom_layers_config, m_custom_layers, custom_layers_config.empty());
 
     auto ops = model->get_ordered_ops();
@@ -113,9 +113,9 @@ ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& 
     // smaller # of kernels are built compared to static models.
     // So having smaller batch size is even better for dynamic model as we can do more parallel build.
     if (model->is_dynamic()) {
-        m_config.set_property(ov::intel_gpu::max_kernels_per_batch(4));
+        m_config.m_max_kernels_per_batch = 4;
     } else {
-        m_config.set_property(ov::intel_gpu::max_kernels_per_batch(8));
+        m_config.m_max_kernels_per_batch = 8;
     }
 
     m_program = build(ops, partial_build, is_inner_program);
@@ -160,12 +160,12 @@ std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::sha
     }
 
     if (is_inner_program) {
-        allow_new_shape_infer = (m_config.get_property(ov::intel_gpu::allow_new_shape_infer) || allow_new_shape_infer);
+        allow_new_shape_infer = (m_config.m_allow_new_shape_infer || allow_new_shape_infer);
     }
 
-    m_config.set_property(ov::intel_gpu::partial_build_program(partial_build));
-    m_config.set_property(ov::intel_gpu::optimize_data(true));
-    m_config.set_property(ov::intel_gpu::allow_new_shape_infer(allow_new_shape_infer));
+    m_config.m_partial_build_program = partial_build;
+    m_config.m_optimize_data = true;
+    m_config.m_allow_new_shape_infer = allow_new_shape_infer;
 
     prepare_build();
     {
@@ -309,7 +309,7 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
     prim->origin_op_name = op.get_friendly_name();
     prim->origin_op_type_name = op.get_type_name();
 
-    if (this->m_config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE) {
+    if (this->m_config.m_cache_mode == ov::CacheMode::OPTIMIZE_SIZE) {
         if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
             auto rt_info = op.get_rt_info();
 
@@ -340,7 +340,7 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
             prim->origin_op_type_name = prim->type_string();
     }
 
-    if (this->m_config.get_property(ov::enable_profiling) && should_profile) {
+    if (this->m_config.m_enable_profiling && should_profile) {
         profiling_ids.push_back(prim_id);
         init_profile_info(*prim);
     }

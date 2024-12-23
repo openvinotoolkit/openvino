@@ -20,7 +20,7 @@ namespace ov::intel_gpu {
 namespace {
 std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::shared_ptr<const ov::IPlugin>& plugin,
                                                                    const ExecutionConfig& config) {
-    if (config.get_property(ov::internal::exclusive_async_requests)) {
+    if (config.m_exclusive_async_requests) {
         // exclusive_async_requests essentially disables the streams (and hence should be checked first) => aligned with
         // the CPU behavior
         return plugin->get_executor_manager()->get_executor("GPU");
@@ -30,7 +30,7 @@ std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::sh
         bool enable_cpu_reservation = config.get_property(ov::hint::enable_cpu_reservation);
         return std::make_shared<ov::threading::CPUStreamsExecutor>(
             ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor",
-                                                    config.get_property(ov::num_streams),
+                                                    config.m_num_streams.value,
                                                     1,
                                                     ov::hint::SchedulingCoreType::PCORE_ONLY,
                                                     enable_cpu_reservation,
@@ -38,7 +38,7 @@ std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::sh
     } else {
         return std::make_shared<ov::threading::CPUStreamsExecutor>(
             ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor",
-                                                    config.get_property(ov::num_streams),
+                                                    config.m_num_streams.value,
                                                     0,
                                                     ov::hint::SchedulingCoreType::ANY_CORE,
                                                     false,
@@ -62,7 +62,7 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
       m_outputs(ov::ICompiledModel::outputs()),
       m_loaded_from_cache(false) {
     auto graph_base = std::make_shared<Graph>(model, m_context, m_config, 0);
-    for (uint16_t n = 0; n < m_config.get_property(ov::num_streams); n++) {
+    for (uint16_t n = 0; n < m_config.m_num_streams.value; n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
         m_graphs.push_back(graph);
     }
@@ -157,7 +157,7 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
     }
 
     auto graph_base = std::make_shared<Graph>(ib, context, m_config, 0);
-    for (uint16_t n = 0; n < m_config.get_property(ov::num_streams); n++) {
+    for (uint16_t n = 0; n < m_config.m_num_streams.value; n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
         m_graphs.push_back(graph);
     }
@@ -179,8 +179,8 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
 void CompiledModel::export_model(std::ostream& model) const {
     // If ov::CacheMode::OPTIMIZE_SIZE is set, do the export iff it's possible to do weightless caching
     // which requires the weights_path.
-    ov::CacheMode cache_mode = m_config.get_property(ov::cache_mode);
-    std::string weights_path = m_config.get_property(ov::weights_path);
+    ov::CacheMode cache_mode = m_config.m_cache_mode;
+    std::string weights_path = m_config.m_weights_path;
     if (cache_mode == ov::CacheMode::OPTIMIZE_SIZE &&
         !ov::util::validate_weights_path(weights_path))
         return;
@@ -188,7 +188,7 @@ void CompiledModel::export_model(std::ostream& model) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::export_model");
     OPENVINO_ASSERT(!m_graphs.empty(), "[GPU] Model not loaded");
 
-    const ov::EncryptionCallbacks encryption_callbacks = m_config.get_property(ov::cache_encryption_callbacks);
+    const ov::EncryptionCallbacks encryption_callbacks = m_config.m_cache_encryption_callbacks;
 
     // Do not allow encryption for CacheMode::OPTIMIZE_SPEED - the cache size may cause severe memory penalty.
     const bool encryption_enabled = encryption_callbacks.encrypt && cache_mode == ov::CacheMode::OPTIMIZE_SIZE;
@@ -291,8 +291,8 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     } else if (name == ov::loaded_from_cache) {
         return decltype(ov::loaded_from_cache)::value_type {m_loaded_from_cache};
     } else if (name == ov::optimal_number_of_infer_requests) {
-        unsigned int nr = m_config.get_property(ov::num_streams);
-        if (m_config.get_property(ov::hint::performance_mode) != ov::hint::PerformanceMode::LATENCY)
+        unsigned int nr = m_config.m_num_streams.value;
+        if (m_config.m_performance_mode != ov::hint::PerformanceMode::LATENCY)
             nr *= 2;
         return decltype(ov::optimal_number_of_infer_requests)::value_type {nr};
     } else if (name == ov::execution_devices) {
