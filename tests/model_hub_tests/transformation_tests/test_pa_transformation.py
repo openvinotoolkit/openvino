@@ -64,8 +64,9 @@ def compare_diffs(ov_model: ov.Model,
         interesting_output_patterns["scores"] = r'^scores\.[0-9]+'
 
     if (allow_cache_rotation):
-        interesting_input_patterns["rotation_coefficients"] = r'^rotation_coefficients\.[0-9]+';
         interesting_input_patterns["rotated_block_indices"] = r'^rotated_block_indices\.[0-9]+';
+        interesting_input_patterns["rotation_deltas"] = r'^rotation_deltas\.[0-9]+';
+        interesting_input_patterns["rotation_trig_lut"] = r'rotation_trig_lut';
 
     input_counters = {k: 0 for k in interesting_input_patterns}
     output_counters = {k: 0 for k in interesting_output_patterns}
@@ -79,6 +80,10 @@ def compare_diffs(ov_model: ov.Model,
                 for name in list(model_io.get_names()):
                     if re.search(pattern, name):
                         counter_dict[input_id] += 1
+
+    if allow_cache_rotation:
+        assert input_counters["rotation_trig_lut"] == 1
+        input_counters.pop("rotation_trig_lut")
 
     for input_id, count in input_counters.items():
         assert count == resulting_map["PagedAttentionExtension"], \
