@@ -47,7 +47,9 @@ bool ConvertCPULayerTest::isInOutPrecisionSupported(ov::element::Type inPrc, ov:
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     if ((inPrc == ov::element::i8 && outPrc == ov::element::u8) ||
         (inPrc == ov::element::u8 && outPrc == ov::element::i8) ||
-        (inPrc == ov::element::f32 && (outPrc == ov::element::u8 || outPrc == ov::element::i8)))
+        (inPrc == ov::element::f32 && (outPrc == ov::element::u8 || outPrc == ov::element::i8)) ||
+        (inPrc == ov::element::f8e4m3 || inPrc == ov::element::f8e5m2 ||
+        outPrc == ov::element::f8e4m3 || outPrc == ov::element::f8e5m2))
         return false;
 #endif
     return true;
@@ -65,7 +67,9 @@ void ConvertCPULayerTest::SetUp() {
     if (primitive.empty())
         primitive = getPrimitiveType();
 #if defined(OPENVINO_ARCH_ARM64)
-    if (inPrc == ov::element::u4 || inPrc == ov::element::i4) {
+    if (inPrc == ov::element::u4 || inPrc == ov::element::i4 ||
+        inPrc == ov::element::f8e4m3 || inPrc == ov::element::f8e5m2 ||
+        outPrc == ov::element::f8e4m3 || outPrc == ov::element::f8e5m2) {
         primitive = "ref";
     } else if (shapes.first.is_static() &&
         inPrc != ov::element::bf16 && outPrc != ov::element::bf16 &&
@@ -91,6 +95,12 @@ void ConvertCPULayerTest::SetUp() {
     }
 
     inputDynamicShapes.push_back(shapes.first);
+
+    if (outPrc == ov::element::f16) {
+        configuration.insert(ov::hint::inference_precision(ov::element::f16));
+    } else if (outPrc == ov::element::bf16) {
+        configuration.insert(ov::hint::inference_precision(ov::element::bf16));
+    }
 
     ov::ParameterVector params;
     for (auto&& shape : inputDynamicShapes) {

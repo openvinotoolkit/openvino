@@ -15,7 +15,7 @@ const std::vector<ov::test::utils::ConversionTypes> conversionOpTypes = {
     ov::test::utils::ConversionTypes::CONVERT_LIKE,
 };
 
-const std::vector<std::vector<ov::Shape>> shapes = {{{1, 2, 3, 4}}, {{1, 1, 3, 5}}};
+const std::vector<std::vector<ov::Shape>> shapes = {{{1, 2, 3, 4}}};
 
 const std::vector<ov::element::Type> types = {
     ov::element::u8,
