@@ -59,7 +59,7 @@ public:
 
 class ConvertReduceNoKeepDims : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("ConvertReduceNoKeepDims", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("ConvertReduceNoKeepDims");
     ConvertReduceNoKeepDims() {
         add_matcher<ConvertReduction<ov::op::util::LogicalReductionKeepDims>>();
         add_matcher<ConvertReduction<ov::op::util::ArithmeticReductionKeepDims>>();

@@ -22,7 +22,7 @@ class TRANSFORMATIONS_API TotalSequenceLengthPatternQwen;
 
 class ov::pass::TotalSequenceLengthPattern : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("TotalSequenceLengthPattern", "0");
+    OPENVINO_MATCHER_PASS_RTTI("TotalSequenceLengthPattern");
     explicit TotalSequenceLengthPattern(const std::shared_ptr<ov::op::v0::Parameter>& max_context_len);
 };
 

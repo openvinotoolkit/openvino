@@ -1319,6 +1319,7 @@ ov::pass::ConvertLoopWithSlicedInputConcatOutputToLSTMSequence::ConvertLoopWithS
 
 class EliminateGatherWithRange : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("EliminateGatherWithRange");
     EliminateGatherWithRange() {
         using namespace ov;
         using namespace ov::pass;
