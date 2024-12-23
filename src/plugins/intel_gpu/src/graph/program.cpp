@@ -569,6 +569,7 @@ void program::pre_optimize_graph(bool is_internal) {
 
         apply_opt_pass<reorder_transfer>();
 
+        apply_opt_pass<reshape_transfer>();
 #ifdef GPU_DEBUG_CONFIG
         GPU_DEBUG_IF(!debug_config->disable_primitive_fusing) {
 #else
@@ -596,8 +597,7 @@ void program::pre_optimize_graph(bool is_internal) {
     if (optimize_data) {
         apply_opt_pass<prepare_buffer_fusing>();
     }
-    // temp place to fuse reorder+transpose
-    apply_opt_pass<reorder_reshape_transpose_fuse>();
+
     apply_opt_pass<handle_reshape>();
     // check if there exists some layout incompatibilities and add an reorder node if required
     apply_opt_pass<add_required_reorders>();
