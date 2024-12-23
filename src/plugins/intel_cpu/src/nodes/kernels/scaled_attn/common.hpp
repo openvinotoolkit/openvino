@@ -39,7 +39,8 @@ static constexpr size_t vec_len_f32_neon = vec_len_neon / sizeof(float);
 static constexpr size_t vec_len_f16_neon = vec_len_neon / sizeof(ov::float16);
 
 #if defined(HAVE_SVE)
-static constexpr size_t vec_len_f32_sve = svcntw();
+static size_t vec_len_f32_sve = svcntw();
+static size_t vec_len_f16_sve = svcnth();
 #endif
 
 #ifdef HAVE_AVX512F
@@ -403,6 +404,28 @@ inline void __vst1q_f32(ov::bfloat16* a, float32x4_t b) {
 #endif
 
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+#    if defined(HAVE_SVE)
+inline svfloat16_t exp_ps_sve_f16(svbool_t& pg, svfloat16_t& src) {
+    svbool_t pg_f32 = svtrn1_b16(pg, svpfalse());
+
+    // Extract lower and upper halves of src into two separate vecs and convert
+    svfloat16_t zero = svdup_n_f16(0.0);
+    svfloat16_t low_f16 = svtrn1_f16(src, zero);
+    svfloat16_t high_f16 = svtrn2_f16(src, zero);
+    svfloat32_t low_f32 = svcvt_f32_f16_z(pg, low_f16);
+    svfloat32_t high_f32 = svcvt_f32_f16_z(pg, high_f16);
+
+    // Perform exp and convert back to f16
+    svfloat32_t low_exp_f32 = exp_ps_sve(pg_f32, low_f32);
+    svfloat32_t high_exp_f32 = exp_ps_sve(pg_f32, high_f32);
+    svfloat16_t low_exp_f16 = svcvt_f16_f32_z(pg_f32, low_exp_f32);
+    svfloat16_t high_exp_f16 = svcvt_f16_f32_z(pg_f32, high_exp_f32);
+
+    // Interleave both to get final result
+    svfloat16_t res = svtrn1_f16(low_exp_f16, high_exp_f16);
+    return res;
+}
+#    else
 inline float16x8_t exp_ps_neon_f16(float16x8_t x) {
     const float32x4_t x_high = vcvt_f32_f16(vget_high_f16(x));
     const float32x4_t x_low = vcvt_f32_f16(vget_low_f16(x));
@@ -411,6 +434,7 @@ inline float16x8_t exp_ps_neon_f16(float16x8_t x) {
     const float16x8_t res = vcombine_f16(vcvt_f16_f32(exp_ps_neon_f32(x_low)), vcvt_f16_f32(exp_ps_neon_f32(x_high)));
     return res;
 }
+#    endif
 inline float16_t hsum(float16x8_t vec) {
     float16x4_t sum1 = vpadd_f16(vget_low_f16(vec), vget_high_f16(vec));
     float16x4_t sum2 = vpadd_f16(sum1, sum1);

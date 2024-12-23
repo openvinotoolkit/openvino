@@ -186,10 +186,10 @@ endfunction()
 #  Return currently requested ARCH id
 #
 function(_currently_requested_top_arch VAR)
-    if(ENABLE_NEON_FP16)
-        set(RES NEON_FP16)
-    elseif(ENABLE_SVE)
+    if(ENABLE_SVE)
         set(RES SVE)
+    elseif(ENABLE_NEON_FP16)
+        set(RES NEON_FP16)
     elseif(ENABLE_AVX512F)
         set(RES AVX512F)
     elseif(ENABLE_AVX2)
