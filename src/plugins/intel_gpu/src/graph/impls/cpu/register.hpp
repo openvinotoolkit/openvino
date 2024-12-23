@@ -56,6 +56,7 @@ REGISTER_CPU(broadcast);
 REGISTER_CPU(tile);
 REGISTER_CPU(select);
 REGISTER_CPU(reduce);
+REGISTER_CPU(fake_convert);
 
 #undef REGISTER_CPU
 

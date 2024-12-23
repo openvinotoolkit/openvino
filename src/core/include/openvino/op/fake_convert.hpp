@@ -68,6 +68,7 @@ public:
     bool has_evaluate() const override;
 
     std::string get_destination_type() const;
+    void set_destination_type(ov::element::Type destination_type);
     const ov::element::Type& get_destination_element_type() const;
 
 private:
