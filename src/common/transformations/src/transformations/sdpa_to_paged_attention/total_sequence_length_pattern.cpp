@@ -20,6 +20,22 @@
 using namespace ov::op;
 using namespace ov::pass::pattern;
 
+namespace {
+
+void align_replacement(std::shared_ptr<ov::Node>& replacement,
+                       const ov::PartialShape& required_shape,
+                       ov::element::Type target_type) {
+    if (replacement->get_output_element_type(0) != target_type) {
+        replacement = std::make_shared<v0::Convert>(replacement, target_type);
+    }
+
+    if (replacement->get_output_partial_shape(0) != required_shape && required_shape.rank().is_static()) {
+        replacement = ov::op::util::reshapeTo(replacement, ov::Shape(required_shape.rank().get_length(), 1));
+    }
+}
+
+}  // namespace
+
 ov::pass::TotalSequenceLengthPattern::TotalSequenceLengthPattern(
     const std::shared_ptr<ov::op::v0::Parameter>& max_context_len) {
     MATCHER_SCOPE(TotalSequenceLengthPattern);
@@ -77,16 +93,8 @@ ov::pass::TotalSequenceLengthPattern::TotalSequenceLengthPattern(
 
         if (concat_axis_to_compare == gather_idx_to_compare) {
             auto target_type = gather->get_output_element_type(0);
-
-            if (replacement->get_output_element_type(0) != target_type) {
-                replacement = std::make_shared<v0::Convert>(replacement, target_type);
-            }
-
             auto required_shape = gather->get_output_partial_shape(0);
-
-            if (replacement->get_output_partial_shape(0) != required_shape && required_shape.rank().is_static()) {
-                replacement = op::util::reshapeTo(replacement, Shape(required_shape.rank().get_length(), 1));
-            }
+            align_replacement(replacement, required_shape, target_type);
         } else {
             // TODO: change in the future when we start supporting dynamic shapes here
             replacement = ov::util::get_constant_from_source(gather->output(0));
@@ -128,14 +136,8 @@ ov::pass::TotalSequenceLengthPatternQwen::TotalSequenceLengthPatternQwen(
         std::shared_ptr<Node> replacement = max_context_len;
 
         auto target_type = total_seq->get_output_element_type(0);
-        if (replacement->get_output_element_type(0) != target_type) {
-            replacement = std::make_shared<v0::Convert>(replacement, target_type);
-        }
-
         auto required_shape = total_seq->get_output_partial_shape(0);
-        if (replacement->get_output_partial_shape(0) != required_shape && required_shape.rank().is_static()) {
-            replacement = op::util::reshapeTo(replacement, Shape(required_shape.rank().get_length(), 1));
-        }
+        align_replacement(replacement, required_shape, target_type);
 
         replace_node(total_seq, replacement);
         return true;

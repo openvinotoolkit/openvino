@@ -22,7 +22,7 @@ class TRANSFORMATIONS_API TotalSequenceLengthPatternQwen;
 
 class ov::pass::TotalSequenceLengthPattern : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TotalSequenceLengthPattern", "0");
+    OPENVINO_MATCHER_PASS_RTTI("TotalSequenceLengthPattern", "0");
     explicit TotalSequenceLengthPattern(const std::shared_ptr<ov::op::v0::Parameter>& max_context_len);
 };
 
@@ -35,12 +35,12 @@ public:
  * CurrentSeqLen: Parameter(name: input_ids) -> ShapeOf -> Gather
  *
  * Before applying this transformation, we already detected the PrevSeqLen place in the PrevSequenceLengthPattern
- * and replaced it with the next subgraph
+ * and replaced it with the next subgraph:
  * PrevSeqLen: Subtract (in: Parameter(name: max_context_len), in: CurrentSeqLen)
  *
  **/
 class ov::pass::TotalSequenceLengthPatternQwen : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TotalSequenceLengthPattern", "0");
+    OPENVINO_MATCHER_PASS_RTTI("TotalSequenceLengthPattern", "0");
     explicit TotalSequenceLengthPatternQwen(const std::shared_ptr<ov::op::v0::Parameter>& max_context_len);
 };

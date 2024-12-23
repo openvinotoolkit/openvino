@@ -27,15 +27,17 @@ public:
 };
 
 /**
- * @brief Qwen model has a specific feature in the model structure not to use position_ids input,
- * this input is detached. The model expects data processing in order.
+ * @brief Qwen model expects data processing in order, the "position ids" input is detached and
+ * is not explicitly used in the model. The model uses implicitly defined "position ids" based
+ * on the past KV cache size.
  *
  * To use this model in Continuous batching mode, we need to apply position_ids and
  * use the corresponding rotary_emb_cos/rotary_emb_sin.
  * For this, we replace
  *      rotary_emb_cos/rotary_emb_sin -> Slice -> Slice
  * With
- *      rotary_emb_cos/rotary_emb_sin -> Slice -> Gather(by position_ids)
+ *      rotary_emb_cos/rotary_emb_sin -> Gather(by position_ids)
+ * Which enables applying RoPE for each token independently of their order in the input tensor.
  */
 class ov::pass::PositionIDsReplacerQwen : public ov::pass::MatcherPass {
 public:
