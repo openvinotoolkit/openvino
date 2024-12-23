@@ -219,6 +219,7 @@ CPU::CPU() {
         } else if (valid_cpu_mapping_table.size() == (unsigned)_processors) {
             return 0;
         } else {
+            std::lock_guard<std::mutex> lock{_cpu_mutex};
             _processors = valid_cpu_mapping_table.size();
             _cpu_mapping_table.swap(valid_cpu_mapping_table);
             update_valid_processor_linux(std::move(phy_core_list),
