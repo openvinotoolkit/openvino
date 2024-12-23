@@ -81,7 +81,7 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
 
 void ov::npuw::LLMInferRequest::prepare_for_new_conversation() {
     fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at("input_ids")),
-         m_npuw_llm_compiled_model->m_cfg.get<::intel_npu::NPUW_LLM_PAD_TOKEN_ID>());
+                         m_npuw_llm_compiled_model->m_cfg.get<::intel_npu::NPUW_LLM_PAD_TOKEN_ID>());
     fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at("attention_mask")), 0);
     fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at("position_ids")), 0);
     fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask")), 0);

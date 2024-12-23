@@ -443,7 +443,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     std::map<std::string, ov::Any> npuw_llm_props;
     std::map<std::string, ov::Any> other_props;
     split_llm_properties(properties, npuw_llm_props, other_props);
-    
+
     // Remove "NPUW_LLM_PREFILL_CONFIG", "NPUW_LLM_GENERATE_CONFIG" from map,
     // to not pass them into ::intel_npu::Config object, as we don't need to
     // preserve them somewhere.
@@ -491,11 +491,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     const ::intel_npu::npuw::llm::GenerateHint generate_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_HINT>();
     LOG_DEBUG("9. Passed GENERATE_HINT: " << std::string(::intel_npu::NPUW_LLM_GENERATE_HINT::toString(generate_hint)));
-     // NB: GENERATE_HINT is only applicable for default generate config!
+    // NB: GENERATE_HINT is only applicable for default generate config!
     if (generate_config_opt.has_value() && npuw_llm_props.count(ov::intel_npu::npuw::llm::generate_hint.name())) {
         OPENVINO_THROW("GENERATE_HINT is only applicable for default generate config!");
     }
-    auto generate_config = opt_or_default(generate_config_opt, get_default_generate_config(model, npudesc, generate_hint));
+    auto generate_config =
+        opt_or_default(generate_config_opt, get_default_generate_config(model, npudesc, generate_hint));
 
     merge_config_with(prefill_config, other_props);
     merge_config_with(generate_config, other_props);
@@ -521,7 +522,8 @@ void ov::npuw::LLMCompiledModel::set_property(const ov::AnyMap& properties) {
 
 ov::Any ov::npuw::LLMCompiledModel::get_property(const std::string& name) const {
     OPENVINO_SUPPRESS_DEPRECATED_START
-    if (name == ov::intel_npu::npuw::llm::prefill_config.name() || name == ov::intel_npu::npuw::llm::generate_config.name()) {
+    if (name == ov::intel_npu::npuw::llm::prefill_config.name() ||
+        name == ov::intel_npu::npuw::llm::generate_config.name()) {
         OPENVINO_THROW(name, " is write-only option!");
     }
 
