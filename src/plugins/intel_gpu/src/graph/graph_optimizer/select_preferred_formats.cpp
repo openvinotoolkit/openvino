@@ -74,7 +74,7 @@ void select_preferred_formats::run(program& p) {
     }
 #endif  // ENABLE_ONEDNN_FOR_GPU
 
-    auto forcing_map = p.get_config().m_force_implementations.value;
+    auto forcing_map = p.get_config().get_force_implementations();
 
     for (auto n : p.get_processing_order()) {
         n->recalc_output_layout();
