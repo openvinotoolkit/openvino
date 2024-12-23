@@ -292,6 +292,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     const auto& defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support();
     const ov::element::TypeVector supported_woq_types = {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4};
     bool enableInt8;
+    ov::element::Type infer_precision = ov::element::undefined;
     bool unroll_loop = config.get_property(ov::intel_gpu::enable_loop_unrolling);
     {
         ov::pass::Manager manager("Plugin:GPU");
@@ -338,7 +339,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         };
 
         // Add conversion from FP data types to infer precision if it's specified
-        auto infer_precision = config.get_property(ov::hint::inference_precision);
+        infer_precision = config.get_property(ov::hint::inference_precision);
         if (infer_precision != ov::element::undefined) {
             if (!fp_precision_supported(infer_precision))
                 infer_precision = fallback_precision;
@@ -930,9 +931,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::RoPEShareCosSin>();
 
         float activations_scale_factor = config.get_property(ov::hint::activations_scale_factor);
-        ov::element::Type scaled_precision = element::f16;
 
-        if (activations_scale_factor > 0.f) {
+        if (activations_scale_factor > 0.f && infer_precision == ov::element::f16) {
             using namespace ov::pass::low_precision;
 
             auto supportedPrecisions = std::vector<PrecisionsRestriction>({});
@@ -948,10 +948,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             pass_config->disable<MVNTransformation>();
             pass_config->disable<ConcatTransformation>();
             pass_config->disable<ClampTransformation>();
-            pass_config->disable<UnsqueezeTransformation>();
-            pass_config->disable<VariadicSplitTransformation>();
-            pass_config->disable<ReshapeTransformation>();
-            pass_config->disable<TransposeTransformation>();
+            // pass_config->disable<UnsqueezeTransformation>();
+            // pass_config->disable<VariadicSplitTransformation>();
+            // pass_config->disable<ReshapeTransformation>();
+            // pass_config->disable<TransposeTransformation>();
 
             pass_config->set_callback<FoldConvertTransformation>(
                 [](const std::shared_ptr<const ov::Node> &node) -> bool {
@@ -963,16 +963,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     return (ov::is_dequantization_node(node) || ov::is_type<ov::opset1::FakeQuantize>(node));
                 });
 
-            manager.register_pass<ov::pass::activations_scaling::ScaleDownSingleLayer>(activations_scale_factor, scaled_precision);
+            manager.register_pass<ov::pass::activations_scaling::ScaleDownSingleLayer>(activations_scale_factor, infer_precision);
             manager.register_pass<ov::pass::activations_scaling::ScaleDownFusion>();
 
             // Move down scalar-multiply layers as much as possible
-            auto params = LayerTransformation::Params(false, scaled_precision, {scaled_precision}, true, false);
+            auto params = LayerTransformation::Params(false, infer_precision, {infer_precision}, true, false);
             auto lpt_pass = manager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization, params);
             lpt_pass->add_main<ov::pass::activations_scaling::EliminateMultiplyNorm>();
             lpt_pass->add_main<ov::pass::activations_scaling::MulConcatTransformation>();
             lpt_pass->add_main<ov::pass::activations_scaling::MulMulTransformation>();
-            lpt_pass->add_main<ov::pass::activations_scaling::MulDownTransformation>();
+            // lpt_pass->add_main<ov::pass::activations_scaling::MulDownTransformation>();
 
             // Move up remained scalar-multiply layers
             manager.register_pass<ov::pass::EliminateEltwise>();
