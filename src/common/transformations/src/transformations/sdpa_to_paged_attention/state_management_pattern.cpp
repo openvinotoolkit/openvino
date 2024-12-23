@@ -402,7 +402,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
             auto rotated_block_indices = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
                                                  "rotated_block_indices." + std::to_string(layer_index - 1));
             auto rotation_deltas = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1, -1}),
-                                                 "rotation_deltas." + std::to_string(layer_index - 1));
+                                           "rotation_deltas." + std::to_string(layer_index - 1));
 
             pa_arguments.insert(pa_arguments.begin() + 13, rotated_block_indices);
             pa_arguments.insert(pa_arguments.begin() + 14, rotation_deltas);

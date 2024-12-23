@@ -2280,7 +2280,8 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             // Only K entries are needed to be rotated, since position is encoded at the Q^T @ (effective_RoPE_matrix) @
             // K matrix multiplication
             rotation_deltas.assert_dims({rotated_block_indices.size(0), 0}, /* special_zero = */ true);
-            OPENVINO_ASSERT(rotation_deltas.shape()[1] == 1 || rotation_deltas.shape()[1] == block_size); // per-block or per-token granularity
+            OPENVINO_ASSERT(rotation_deltas.shape()[1] == 1 ||
+                            rotation_deltas.shape()[1] == block_size);  // per-block or per-token granularity
             rotation_trig_lut.assert_dims({0, S}, /* special_zero = */ true);
             init_rotation_coefficient_scratch = true;
         }
