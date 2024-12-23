@@ -98,6 +98,9 @@ void PluginConfig::set_property(const ov::AnyMap& config, const std::vector<Opti
 }
 
 void PluginConfig::finalize(std::shared_ptr<IRemoteContext> context, const ov::RTMap& rt_info) {
+    if (m_is_finalized)
+        return;
+
     apply_rt_info(context, rt_info);
     apply_debug_options(context);
     // Copy internal properties before applying hints to ensure that
@@ -122,8 +125,8 @@ void PluginConfig::apply_debug_options(std::shared_ptr<IRemoteContext> context) 
     static std::vector<OptionVisibility> allowed_visibility = {
         OptionVisibility::RELEASE,
         OptionVisibility::RELEASE_INTERNAL,
-#ifdef ENABLE_DEBUG_CAPS
         OptionVisibility::DEBUG
+#ifdef ENABLE_DEBUG_CAPS
 #endif
     };
 
