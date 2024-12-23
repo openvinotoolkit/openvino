@@ -434,8 +434,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     auto p = std::getenv("USE_OLD");
     bool use_old = p && p[0] == '1';
     if (!use_old) {
-        CPU_REGISTER_PASS_COMMON(manager, StatefulSDPAFusion);
-        CPU_REGISTER_PASS_X64(manager, ov::intel_cpu::SDPAFuseTransposeReshape);
+        CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
     }
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_X64(manager, ov::pass::KeepConstsPrecision, decompression_precisions, false, true);
@@ -953,10 +952,10 @@ void Transformations::PostLpt() {
     }
 #endif  // OPENVINO_ARCH_X86_64
 
-    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::transpose_sinking::TSShapeOfForward);
     auto p = std::getenv("USE_OLD");
     bool use_old = p && p[0] == '1';
     if (use_old) {
+        CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::transpose_sinking::TSShapeOfForward);
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, StatefulSDPAFusion);
         CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::SDPAFuseTransposeReshape);
     }
