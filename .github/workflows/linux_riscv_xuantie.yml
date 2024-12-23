@@ -238,7 +238,7 @@ jobs:
             source ${{ env.INSTALL_DIR }}/setupvars.sh
           fi
           echo "run cpu functional tests"
-          ${{ env.RISCV_TOOLCHAIN_ROOT}}/bin/qemu-riscv64 -cpu c910v ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=${{ env.GTEST_FILTER }}
+          ${{ env.RISCV_TOOLCHAIN_ROOT}}/bin/qemu-riscv64 -L /opt/riscv/sysroot -cpu c910v ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=${{ env.GTEST_FILTER }}
         env:
           LD_LIBRARY_PATH: "$LD_LIBRARY_PATH:${{ env.INSTALL_TEST_DIR }}" # Needed as ze_loader.so is under INSTALL_TEST_DIR
         timeout-minutes: 25
