@@ -11,6 +11,7 @@
 #include "openvino/op/loop.hpp"
 #include "openvino/op/search_sorted.hpp"
 #include "openvino/op/stft.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
 
 #include "intel_gpu/plugin/common_utils.hpp"

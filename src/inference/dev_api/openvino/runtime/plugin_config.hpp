@@ -197,7 +197,6 @@ protected:
     virtual void apply_debug_options(std::shared_ptr<IRemoteContext> context);
     virtual void finalize_impl(std::shared_ptr<IRemoteContext> context) {}
 
-
     template <typename T, PropertyMutability mutability>
     bool is_set_by_user(const ov::Property<T, mutability>& property) const {
         return m_user_properties.find(property.name()) != m_user_properties.end();
@@ -236,12 +235,10 @@ protected:
 
     // property variable name, string name, default value, description
     using OptionsDesc = std::vector<std::tuple<std::string, std::string, std::string>>;
-    static OptionsDesc m_options_desc;
     virtual const OptionsDesc& get_options_desc() const { static OptionsDesc empty; return empty; }
     const std::string get_help_message(const std::string& name = "") const;
     void print_help() const;
 
-private:
     bool m_is_finalized = false;
 };
 
