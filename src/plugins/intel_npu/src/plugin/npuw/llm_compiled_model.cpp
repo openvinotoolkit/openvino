@@ -5,15 +5,15 @@
 
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
-#include "openvino/pass/stateful_to_stateless.hpp"
-#include "openvino/runtime/iasync_infer_request.hpp"
-#include "openvino/openvino.hpp"
-#include "openvino/pass/validate.hpp"
-#include "openvino/pass/matcher_pass.hpp"
-#include "openvino/pass/graph_rewrite.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/op/ops.hpp"
+#include "openvino/openvino.hpp"
 #include "openvino/opsets/opset13.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/stateful_to_stateless.hpp"
+#include "openvino/pass/validate.hpp"
+#include "openvino/runtime/iasync_infer_request.hpp"
 
 namespace {
 uint32_t align_to(uint32_t value, uint32_t alignment) {
@@ -71,15 +71,15 @@ public:
         auto callback = [=](ov::pass::pattern::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
 
-            auto matched_node_param     = node_to_output.at(param).get_node_shared_ptr();
-            auto matched_node_concat    = node_to_output.at(concat).get_node_shared_ptr();
+            auto matched_node_param = node_to_output.at(param).get_node_shared_ptr();
+            auto matched_node_concat = node_to_output.at(concat).get_node_shared_ptr();
             auto matched_node_transpose = node_to_output.at(transpose).get_node_shared_ptr();
-            auto matched_node_matmul    = node_to_output.at(matmul).get_node_shared_ptr();
+            auto matched_node_matmul = node_to_output.at(matmul).get_node_shared_ptr();
 
-            auto matched_param     = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_param);
-            auto matched_concat    = std::static_pointer_cast<ov::op::v0::Concat>(matched_node_concat);
+            auto matched_param = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_param);
+            auto matched_concat = std::static_pointer_cast<ov::op::v0::Concat>(matched_node_concat);
             auto matched_transpose = std::static_pointer_cast<ov::op::v1::Transpose>(matched_node_transpose);
-            auto matched_matmul    = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
+            auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
 
             auto shape = matched_param->get_partial_shape();
             OPENVINO_ASSERT(shape.size() == 4u);
@@ -88,20 +88,22 @@ public:
             std::swap(shape[2], shape[3]);
             auto new_param = std::make_shared<ov::opset13::Parameter>(matched_param->get_element_type(), shape);
             new_param->set_friendly_name(matched_param->get_friendly_name());
-            new_param->outputs().begin()->get_tensor().set_names(matched_param->outputs().begin()->get_tensor().get_names());
+            new_param->outputs().begin()->get_tensor().set_names(
+                matched_param->outputs().begin()->get_tensor().get_names());
             ov::replace_node(matched_param, new_param);
             // NB: Save in order to add/remove to the model later on
             ctx.get().new_params.push_back(new_param);
             ctx.get().old_params.push_back(matched_param);
 
             auto order_cst = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 3, 1});
-            auto new_transpose = std::make_shared<ov::opset13::Transpose>(matched_transpose->input_value(0),
-                                                                          order_cst->output(0));
+            auto new_transpose =
+                std::make_shared<ov::opset13::Transpose>(matched_transpose->input_value(0), order_cst->output(0));
             new_transpose->set_friendly_name(matched_transpose->get_friendly_name());
             ov::replace_node(matched_transpose, new_transpose);
 
-            auto new_concat = std::make_shared<ov::opset13::Concat>(
-                ov::OutputVector{new_param->output(0), new_transpose->output(0)}, 3u);
+            auto new_concat =
+                std::make_shared<ov::opset13::Concat>(ov::OutputVector{new_param->output(0), new_transpose->output(0)},
+                                                      3u);
             new_concat->set_friendly_name(matched_concat->get_friendly_name());
             ov::replace_node(matched_concat, new_concat);
 
@@ -122,7 +124,7 @@ public:
         ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             auto& pattern_to_output = m.get_pattern_value_map();
             auto node = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(
-                    pattern_to_output.at(pattern_node).get_node_shared_ptr());
+                pattern_to_output.at(pattern_node).get_node_shared_ptr());
 
             if (node == nullptr || transformation_callback(node)) {
                 return false;
@@ -168,7 +170,7 @@ public:
         k_rank = register_new_node<v0::Squeeze>(k_rank, zero_i);
         auto minus_inf =
             register_new_node(v0::Constant::create(element::f32, Shape{}, {-std::numeric_limits<float>::infinity()}))
-            ->output(0);
+                ->output(0);
         auto keep_dim_last = register_new_node<v0::Squeeze>(k_next_dim, zero_i);
         auto k_dims_before_transpose = register_new_node<v4::Range>(zero_i, keep_dim_last, one_i, element::i32);
 
@@ -181,9 +183,9 @@ public:
             if (!node->get_causal()) {
                 mask = node->input_value(3);
 
-                // two types of masks are supported. A boolean mask where a value of True indicates that the element should
-                // take part in attention. A float mask of the same type as query, key, value that is added to the attention
-                // score.
+                // two types of masks are supported. A boolean mask where a value of True indicates that the element
+                // should take part in attention. A float mask of the same type as query, key, value that is added to
+                // the attention score.
                 if (mask.get_element_type() == element::boolean) {
                     atten_mask = register_new_node<v1::ConvertLike>(mask, scaled_atten);
                     auto inv_mask = register_new_node<v1::LogicalNot>(mask);
@@ -198,7 +200,8 @@ public:
                 auto tsl = register_new_node<v0::Unsqueeze>(target_s_len, zero_i);
                 auto mask_shape = register_new_node<v0::Concat>(OutputVector{tsl, ssl}, 0);
                 mask = register_new_node<v1::Broadcast>(minus_inf, mask_shape);
-                auto horizontal_range = register_new_node<v4::Range>(zero_i, source_s_len, one_i, element::i32)->output(0);
+                auto horizontal_range =
+                    register_new_node<v4::Range>(zero_i, source_s_len, one_i, element::i32)->output(0);
                 horizontal_range = register_new_node<v0::Unsqueeze>(horizontal_range, zero_i);
                 auto stop = register_new_node<v1::Add>(target_s_len, one_i);
                 auto vertical_range = register_new_node<v4::Range>(one_i, stop, one_i, element::i32)->output(0);
@@ -467,7 +470,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     reshape_to_static(kvcache_model, 1u, m_kvcache_desc.total_size, axes);
     LOG_DEBUG("6.Check and apply opt layout if applicable.");
     // NB: Try to apply opt transpose only for Llama-2-7b-chat-hf model
-    if ( model_desc.name_or_path == "meta-llama/Llama-2-7b-chat-hf" ||
+    if (model_desc.name_or_path == "meta-llama/Llama-2-7b-chat-hf" ||
         (model_desc.type == "llama" && model_desc.num_key_value_heads == 32)) {
         if (optimize_value_tensors(kvcache_model)) {
             // NB: Check if TransposeValueTensors transformation was applied
@@ -488,7 +491,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     // NB: GENERATE_HINT is only applicable for default generate config!
     const ::intel_npu::npuw::llm::GenerateHint generate_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_HINT>();
-    LOG_DEBUG("10. Passed GENERATE_HINT: " << std::string(::intel_npu::NPUW_LLM_GENERATE_HINT::toString(generate_hint)));
+    LOG_DEBUG(
+        "10. Passed GENERATE_HINT: " << std::string(::intel_npu::NPUW_LLM_GENERATE_HINT::toString(generate_hint)));
     auto generate_config = get_default_generate_config(model, npudesc, generate_hint);
 
     merge_config_with(prefill_config, properties_copy);

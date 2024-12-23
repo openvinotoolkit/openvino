@@ -28,8 +28,7 @@ ov::SoPtr<ov::ITensor> make_tensor_slice(ov::SoPtr<ov::ITensor> tensor,
     return ov::get_tensor_impl(ov::Tensor(ov::make_tensor(tensor), start_shape, end_shape));
 }
 
-void copy_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src,
-                                ov::SoPtr<ov::ITensor>& dst) {
+void copy_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITensor>& dst) {
     const auto src_shape = src->get_shape();
 
     OPENVINO_ASSERT(src_shape.size() == 4u);
@@ -38,7 +37,7 @@ void copy_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src,
 
     const auto src_strides = src->get_strides();
     const auto dst_strides = dst->get_strides();
-    const auto elem_size   = src->get_byte_size() / src->get_size();
+    const auto elem_size = src->get_byte_size() / src->get_size();
 
     const auto C = src_shape[1];
     const auto H = src_shape[2];
@@ -49,10 +48,10 @@ void copy_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src,
 
     const size_t chunk_byte_size = W * elem_size;
 
-    const auto* src_p  = static_cast<uint8_t*>(src->data());
-          auto* dst_p  = static_cast<uint8_t*>(dst->data());
+    const auto* src_p = static_cast<uint8_t*>(src->data());
+    auto* dst_p = static_cast<uint8_t*>(dst->data());
 
-    for (size_t i = 0; i < C*H; ++i) {
+    for (size_t i = 0; i < C * H; ++i) {
         const size_t src_offset = i * IS_H;
         const size_t dst_offset = i * OS_H;
         std::copy_n(src_p + src_offset, chunk_byte_size, dst_p + dst_offset);
@@ -147,8 +146,9 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             //        taking into account kvcache dimension.
             fill_tensor<ov::float16>(kvcache_in_tensor, 0);
 
-            const auto& kv_dim = (output_name.find("value") != std::string::npos &&
-                m_kvcache_desc.v_tensors_transposed) ? 3u : m_kvcache_desc.dim;
+            const auto& kv_dim = (output_name.find("value") != std::string::npos && m_kvcache_desc.v_tensors_transposed)
+                                     ? 3u
+                                     : m_kvcache_desc.dim;
 
             auto prefill_out_slice =
                 make_tensor_slice(prefill_out_tensor,
@@ -156,8 +156,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                                   m_kvcache_desc.max_prompt_size - m_kvcache_desc.num_stored_tokens,
                                   m_kvcache_desc.max_prompt_size);
 
-            auto kvcache_in_slice =
-                make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, m_kvcache_desc.num_stored_tokens);
+            auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, m_kvcache_desc.num_stored_tokens);
 
             if (kv_dim == 3u) {
                 copy_columns_by_row_chunks(prefill_out_slice, kvcache_in_slice);
@@ -195,8 +194,9 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         const auto& output_name = kvcache_compiled->outputs()[kStartOutputKVCacheLayers + i].get_any_name();
         const auto& input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
         auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
-        const auto& kv_dim = (output_name.find("value") != std::string::npos &&
-            m_kvcache_desc.v_tensors_transposed) ? 3u : m_kvcache_desc.dim;
+        const auto& kv_dim = (output_name.find("value") != std::string::npos && m_kvcache_desc.v_tensors_transposed)
+                                 ? 3u
+                                 : m_kvcache_desc.dim;
         auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor,
                                                   kv_dim,
                                                   m_kvcache_desc.num_stored_tokens - 1,
