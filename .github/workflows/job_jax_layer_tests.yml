@@ -114,12 +114,13 @@ jobs:
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_jax
 
       - name: JAX Layer Tests
-        if: ${{ fromJSON(inputs.affected-components).JAX_FE.test }}
-        run: python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/jax_tests -m precommit_jax_fe --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-jax.xml
+        if: ${{ fromJSON(inputs.affected-components).JAX_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287, 142196
+        run: python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/jax_tests ${PARALLEL} -m precommit_jax_fe --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-jax.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
           JAX_TRACE_MODE: JAXPR
+          PARALLEL: ${{ runner.os == 'Windows' && ' ' || '-n logical'}}
 
       - name: Upload Test Results
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
