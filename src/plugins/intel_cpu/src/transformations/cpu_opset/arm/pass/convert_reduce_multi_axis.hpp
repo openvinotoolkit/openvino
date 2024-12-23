@@ -82,7 +82,7 @@ public:
 
 class ConvertReduceMultiAxis : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("ConvertReduceMultiAxis", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("ConvertReduceMultiAxis");
     ConvertReduceMultiAxis() {
         add_matcher<ConvertReduceProd>();
         add_matcher<ConvertReduceMin>();
