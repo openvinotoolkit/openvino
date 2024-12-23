@@ -4137,6 +4137,10 @@ TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dyn_quan_dynamic_f_input
     this->test_compressed_int4_scale_dyn_quan(false, true, 511, true);
 }
 
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_batch_1) {
+    this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 1, 2048, 3072);
+}
+
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case) {
     this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 359, 1536, 2560);
 }
