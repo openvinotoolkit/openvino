@@ -63,8 +63,9 @@ void cvt_copy(TA* dst, TB* src, size_t n) {
         mm256_uni_storeu_ps(dst + i, vb);
     }
 #elif defined(OPENVINO_ARCH_ARM64)
+#    if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
     if (std::is_same<TA, ov::float16>::value && std::is_same<TB, ov::float16>::value) {
-#    if defined(HAVE_SVE)
+#        if defined(HAVE_SVE)
         size_t inc = vec_len_f16_sve;
         svbool_t pg = svptrue_b16();
 
@@ -77,15 +78,15 @@ void cvt_copy(TA* dst, TB* src, size_t n) {
             svst1_f16(pg, reinterpret_cast<float16_t*>(dst + i), b1);
             i += inc;
         }
-#    else
+#        else
         for (; i + vec_len_f16_neon <= n; i += vec_len_f16_neon) {
             auto vb1 = vld1q_f16(reinterpret_cast<const float16_t*>(src + i));
             vst1q_f16(reinterpret_cast<float16_t*>(dst + i), vb1);
         }
-#    endif
+#        endif
     }
-#else
-#    if defined(HAVE_SVE)
+#    else
+#        if defined(HAVE_SVE)
     auto _dst = reinterpret_cast<float32_t*>(dst);
     size_t inc = vec_len_f32_sve;
     svbool_t pg = svptrue_b32();
@@ -99,18 +100,11 @@ void cvt_copy(TA* dst, TB* src, size_t n) {
         svst1_f32(pg, _dst + i, b1);
         i += inc;
     }
-#    else
+#        else
     if (std::is_same<TA, float>::value && std::is_same<TB, float>::value) {
         for (; i + vec_len_f32_neon <= n; i += vec_len_f32_neon) {
             float32x4_t vb1 = __vld1q_f32(src + i);
             __vst1q_f32(dst + i, vb1);
-        }
-    }
-#        if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-    if (std::is_same<TA, ov::float16>::value && std::is_same<TB, ov::float16>::value) {
-        for (; i + vec_len_f16_neon <= n; i += vec_len_f16_neon) {
-            auto vb1 = vld1q_f16(reinterpret_cast<const float16_t*>(src + i));
-            vst1q_f16(reinterpret_cast<float16_t*>(dst + i), vb1);
         }
     }
 #        endif
