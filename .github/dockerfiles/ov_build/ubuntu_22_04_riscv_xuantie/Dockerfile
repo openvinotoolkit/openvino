@@ -91,7 +91,7 @@ ARG XUINTIE_SRC="/tmp/xuantie/src"
     
 RUN mkdir -p ${XUINTIE_TMP_PATH} && cd ${XUINTIE_TMP_PATH} && \
     git clone --branch ${XUANTIE_VERSION} --depth 1 ${XUANTIE_REPO} ${XUINTIE_SRC} && cd ${XUINTIE_SRC} && \
-    ./configure --prefix=${XUINTIE_PATH} && \
+    ./configure --prefix=${XUINTIE_PATH} --disable-gdb && \
     make linux -j$(nproc) && make install && \
     rm -rf ${XUINTIE_TMP_PATH}
 
