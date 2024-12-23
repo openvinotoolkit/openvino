@@ -58,9 +58,9 @@ KERNEL(quantize_input)(
     }
 
     // Pair of quantizing_scale and quantized activation_sum for each group
-    quan_var[offset * 2] = CAT(CAT(convert_, INPUT0_TYPE), _rte)(quan_scale);
+    quan_var[offset * 2] = convert_half(quan_scale);
     #if COMPRESSED_WEIGHTS_INT8
-        quan_var[(offset * 2) + 1] = CAT(CAT(convert_, INPUT0_TYPE), _rte)(quantized_sum);
+        quan_var[(offset * 2) + 1] = convert_half(quantized_sum);
     #endif
 }
 #else  // !FC_KERNEL_DYNAMIC_QUANTIZE
@@ -1016,25 +1016,25 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
             // Next batch
             in_offset += (TILE_IN_B_PITCH * 2);
 
-            #if (PER_TOKEN_SIZE_DYN_QUANTIZE == 0) && (NUM_LOOP_IN_DYN_QUAN_GROUP == 1)
-                de_quantize_scale[bi * 2] = TO_INPUT0_TYPE(quan_var[scale_offset * 2]);
-                de_quantize_scale[bi * 2 + 1] = TO_INPUT0_TYPE(quan_var[scale_offset * 2 + scale_pitch * 2]);
+            #if !PER_TOKEN_SIZE_DYN_QUANTIZE && (NUM_LOOP_IN_DYN_QUAN_GROUP == 1)
+                de_quantize_scale[bi * 2] = quan_var[scale_offset * 2];
+                de_quantize_scale[bi * 2 + 1] = quan_var[scale_offset * 2 + scale_pitch * 2];
                 #if COMPRESSED_WEIGHTS_INT8
                     // Need additional accumulation of quantized activation along the dyn-quan group
                     //  to use i8 multiplier for int8 weight
-                    activation_sum[bi * 2] = TO_INPUT0_TYPE(quan_var[scale_offset * 2 + 1]);
-                    activation_sum[bi * 2 + 1] = TO_INPUT0_TYPE(quan_var[scale_offset * 2 + 1 + scale_pitch * 2]);
+                    activation_sum[bi * 2] = quan_var[scale_offset * 2 + 1];
+                    activation_sum[bi * 2 + 1] = quan_var[scale_offset * 2 + 1 + scale_pitch * 2];
                 #endif
                 scale_offset += (scale_pitch * 2);
             #endif
         }
 
-        #if (PER_TOKEN_SIZE_DYN_QUANTIZE == 0) && (NUM_LOOP_IN_DYN_QUAN_GROUP > 1)
+        #if !PER_TOKEN_SIZE_DYN_QUANTIZE && (NUM_LOOP_IN_DYN_QUAN_GROUP > 1)
             if (ni % NUM_LOOP_IN_DYN_QUAN_GROUP == 0) {
                 unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
-                    de_quantize_scale[bi] = TO_INPUT0_TYPE(quan_var[scale_offset * 2]);
+                    de_quantize_scale[bi] = quan_var[scale_offset * 2];
                     #if COMPRESSED_WEIGHTS_INT8
-                        activation_sum[bi] = TO_INPUT0_TYPE(quan_var[scale_offset * 2 + 1]);
+                        activation_sum[bi] = quan_var[scale_offset * 2 + 1];
                     #endif
                     scale_offset += scale_pitch;
                 }
@@ -1219,7 +1219,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
             #endif
         }  // Whole tile_k elements of each iteration : ki
 
-        #if (PER_TOKEN_SIZE_DYN_QUANTIZE == 0) && DQ_DECOMPRESSION_SCALE_POST_OP && (TILE_IFM_ELEMENTS_SIZE <= DECOMPRESSION_SCALE_GROUP_SIZE)
+        #if !PER_TOKEN_SIZE_DYN_QUANTIZE && DQ_DECOMPRESSION_SCALE_POST_OP && (TILE_IFM_ELEMENTS_SIZE <= DECOMPRESSION_SCALE_GROUP_SIZE)
             // Dynamic-quantizing group size set to same or smaller than scale group size
             if ((ni % NUM_LOOP_IN_DYN_QUAN_GROUP) == (NUM_LOOP_IN_DYN_QUAN_GROUP - 1)) {
                 const uint ni_offset = ((ni*TILE_IFM*SIMD) / DECOMPRESSION_SCALE_GROUP_SIZE)*DECOMPRESSION_SCALE_FEATURE_PITCH;

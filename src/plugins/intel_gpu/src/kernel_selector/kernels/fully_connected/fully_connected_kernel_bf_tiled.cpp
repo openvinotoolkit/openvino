@@ -57,10 +57,10 @@ static size_t get_scale_group_size(const fully_connected_params& params) {
     return params.weights.IFM().v / params.decompression_scale.Feature().v;
 }
 
-static bool is_dyn_quan_8bit_asym(const fully_connected_params& params) {
+static bool is_8bit_asym_wei(const fully_connected_params& params) {
     auto weight_type = params.weights.GetDType();
     // UINT8 weight type is supported by FC dyn-quantize(with SLM).
-    if (weight_type == WeightsType::UINT8)
+    if (weight_type == WeightsType::UINT8 && params.has_decompression_zp)
         return true;
 
     return false;
@@ -70,7 +70,8 @@ static bool is_weight_dyn_quantizable(const fully_connected_params& params) {
     auto weight_type = params.weights.GetDType();
     if (weight_type == WeightsType::INT4 || weight_type == WeightsType::UINT4)
         return true;
-    if (is_dyn_quan_8bit_asym(params))
+    // No validated case of sym 8bit weight
+    if (is_8bit_asym_wei(params))
         return true;
 
     return false;
@@ -121,7 +122,7 @@ static size_t get_dynamic_quantize_group_size(const fully_connected_params& para
             dynamic_quantization_group_size = scale_group_size;
 
             // For int8 ASYM model, activation_sum should fit to weight zp
-            if (is_dyn_quan_8bit_asym(params) && params.has_decompression_zp == true &&
+            if (is_8bit_asym_wei(params) && params.has_decompression_zp == true &&
                 dynamic_quantization_group_size > zp_group_size && (zp_group_size % input_load_size) == 0) {
                 dynamic_quantization_group_size = zp_group_size;
             }
@@ -753,10 +754,8 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         jit.AddConstant(MakeJitConstant("DQ_DECOMPRESSION_SCALE_POST_OP", 1));
         jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", quantize_grp_size));
 
-        if (is_per_token_dynamic_quantize(params) && quantize_grp_size == get_input_bf_size(params).second)
-            jit.AddConstant(MakeJitConstant("PER_TOKEN_SIZE_DYN_QUANTIZE", 1));
-        else
-            jit.AddConstant(MakeJitConstant("PER_TOKEN_SIZE_DYN_QUANTIZE", 0));
+        jit.AddConstant(MakeJitConstant("PER_TOKEN_SIZE_DYN_QUANTIZE",
+                                    is_per_token_dynamic_quantize(params) && quantize_grp_size == get_input_bf_size(params).second));
     } else {
         if (add_decompress_scale_post_op)
             jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
@@ -897,7 +896,8 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
                     size_t input_f = get_input_bf_size(prim_params).second;
                     size_t input_size = input_f * dispatchData.tile_m * dispatchData.gws[2];
                     OPENVINO_ASSERT(quantize_grp_size != 0, "Error: quantize_grp_size is zero.");
-                    size_t quan_var_size = (input_size / quantize_grp_size) * sizeof(float) * 2;
+                    // half type of de_quan_scale and activation sum for each quantized group
+                    size_t quan_var_size = (input_size / quantize_grp_size) * 2 * 2;
 
                     if (kd.internalBufferSizes[0] < input_size ||
                         kd.internalBufferSizes[1] < quan_var_size) {
@@ -1117,8 +1117,8 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
         quan_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         // char type quantized input
         kd.internalBufferSizes.push_back(input_size);
-        // float type of de_quan_scale and activation sum for each quantized group
-        kd.internalBufferSizes.push_back((input_size / quantize_grp_size) * sizeof(float) * 2);
+        // half type of de_quan_scale and activation sum for each quantized group
+        kd.internalBufferSizes.push_back((input_size / quantize_grp_size) * 2 * 2);
         kernel_number++;
     }
     kd.internalBufferDataType = Datatype::F16;
