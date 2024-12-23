@@ -55,9 +55,8 @@ void check_level_zero_attributes_match(const IODescriptor& ioDescriptor, const A
                         '\n' + "Given: " + std::to_string(ovDimensions.size()));
 
     for (size_t index = 0; index < ovDimensions.size(); ++index) {
-        OPENVINO_ASSERT(
-            ovDimensions[index] == zeDescriptor.info.dims[index],
-            "Shape mismatch for input/output named " + ioDescriptor.nameFromCompiler);
+        OPENVINO_ASSERT(ovDimensions[index] == zeDescriptor.info.dims[index],
+                        "Shape mismatch for input/output named " + ioDescriptor.nameFromCompiler);
     }
     for (size_t index = ovDimensions.size(); index < ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE; ++index) {
         OPENVINO_ASSERT(zeDescriptor.info.dims[index] == 0 || zeDescriptor.info.dims[index] == 1,
