@@ -7,9 +7,8 @@ on:
         required: true
         default: '*smoke_AdaPoolAvg4DLayoutTest*'
   pull_request:
-    branches:
-      - master
-      - 'releases/**'
+    paths:
+      - '.github/workflows/dev_cpu_linux_riscv.yml'
 
 concurrency:
   # github.ref is not unique in post-commit
