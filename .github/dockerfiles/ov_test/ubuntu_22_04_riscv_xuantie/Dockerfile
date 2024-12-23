@@ -18,7 +18,6 @@ RUN apt-get update && \
     add-apt-repository --yes --no-update ppa:deadsnakes/ppa && \
     apt-get update && \
     # install compilers to build OpenVINO for RISC-V 64
-    apt-get install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu && \
     apt-get install \
         curl \
         git \
