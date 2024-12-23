@@ -47,7 +47,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
         _engine(&engine),
         _attrs(attrs),
         _pd(pd) {
-            _enable_profiling = config.m_enable_profiling;
+            _enable_profiling = config.get_enable_profiling();
 
             _scratchpad_md = _pd.scratchpad_desc();
 
@@ -70,7 +70,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
         _engine(&engine),
         _pd(),
         _prim() {
-            _enable_profiling = config.m_enable_profiling;
+            _enable_profiling = config.get_enable_profiling();
             GPU_DEBUG_GET_INSTANCE(debug_config);
             GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
                 _enable_profiling = true;
@@ -318,7 +318,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
 
 private:
     std::string get_cache_directory(const ExecutionConfig& config) const {
-        auto path = config.m_cache_dir.value;
+        auto path = config.get_cache_dir();
         if (path.empty()) {
             return {};
         }
@@ -343,7 +343,7 @@ private:
     void build_primitive(const ExecutionConfig& config) {
         auto cache_outpath = get_cache_directory(config);
 
-        if (!config.m_allow_new_shape_infer) {
+        if (!config.get_allow_new_shape_infer()) {
             cache_outpath = "";
         }
 
