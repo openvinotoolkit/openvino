@@ -491,11 +491,6 @@ void program::set_options() {
     if (!_config.m_force_implementations.value.empty()) {
         _config.m_optimize_data = true;
     }
-
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
-        _config.m_dump_graphs = debug_config->dump_graphs;
-    }
 }
 
 void program::build_program(bool is_internal) {

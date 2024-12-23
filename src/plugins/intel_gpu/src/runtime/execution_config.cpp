@@ -22,6 +22,7 @@ ExecutionConfig::ExecutionConfig() : ov::PluginConfig() {
 
 ExecutionConfig::ExecutionConfig(const ExecutionConfig& other) : ExecutionConfig() {
     m_user_properties = other.m_user_properties;
+    m_is_finalized = other.m_is_finalized;
     for (const auto& kv : other.m_options_map) {
         m_options_map.at(kv.first)->set_any(kv.second->get_any());
     }
@@ -29,6 +30,7 @@ ExecutionConfig::ExecutionConfig(const ExecutionConfig& other) : ExecutionConfig
 
 ExecutionConfig& ExecutionConfig::operator=(const ExecutionConfig& other) {
     m_user_properties = other.m_user_properties;
+    m_is_finalized = other.m_is_finalized;
     for (const auto& kv : other.m_options_map) {
         m_options_map.at(kv.first)->set_any(kv.second->get_any());
     }
@@ -52,6 +54,11 @@ void ExecutionConfig::apply_rt_info(std::shared_ptr<IRemoteContext> context, con
 }
 
 void ExecutionConfig::finalize_impl(std::shared_ptr<IRemoteContext> context) {
+    if (m_help) {
+        print_help();
+        exit(-1);
+    }
+
     const auto& info = std::dynamic_pointer_cast<RemoteContextImpl>(context)->get_engine().get_device_info();
     apply_hints(info);
     if (!is_set_by_user(ov::intel_gpu::enable_lp_transformations)) {
