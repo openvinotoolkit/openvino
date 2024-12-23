@@ -87,13 +87,9 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, const RemoteContextImpl::Ptr& context
         }
     }
     {
-        bool bool_prop_value;
-        ib >> bool_prop_value;
-        m_config.set_property(ov::intel_gpu::partial_build_program(bool_prop_value));
-        ib >> bool_prop_value;
-        m_config.set_property(ov::intel_gpu::optimize_data(bool_prop_value));
-        ib >> bool_prop_value;
-        m_config.set_property(ov::intel_gpu::allow_new_shape_infer(bool_prop_value));
+        ib >> m_config.m_partial_build_program.value;
+        ib >> m_config.m_optimize_data.value;
+        ib >> m_config.m_allow_new_shape_infer.value;
     }
 
     auto imported_prog = std::make_shared<cldnn::program>(get_engine(), m_config);
@@ -178,7 +174,7 @@ void Graph::build(std::shared_ptr<cldnn::program> program) {
 
     auto external_queue = m_context->get_external_queue();
     if (external_queue) {
-        OPENVINO_ASSERT(m_config.get_property(ov::num_streams) == 1, "[GPU] Throughput streams can't be used with shared queue!");
+        OPENVINO_ASSERT(m_config.m_num_streams == 1, "[GPU] Throughput streams can't be used with shared queue!");
         const auto &engine = program->get_engine();
         m_network = std::make_shared<cldnn::network>(program, engine.create_stream(m_config, external_queue), m_stream_id);
     } else {
@@ -210,7 +206,7 @@ bool Graph::use_external_queue() const {
 
 std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive_info>& primitives_info, bool filter_const_primitives) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::get_runtime_model");
-    if (m_config.get_property(ov::enable_profiling)) {
+    if (m_config.m_enable_profiling) {
         try {
             // Update may throw an exception for step-by-step runtime graph dump,
             // since network->get_executed_primitives() method can't be called before network execution
@@ -522,9 +518,9 @@ void Graph::export_model(cldnn::BinaryOutputBuffer &ob) {
         }
     }
     {
-        ob << m_config.get_property(ov::intel_gpu::partial_build_program);
-        ob << m_config.get_property(ov::intel_gpu::optimize_data);
-        ob << m_config.get_property(ov::intel_gpu::allow_new_shape_infer);
+        ob << m_config.m_partial_build_program.value;
+        ob << m_config.m_optimize_data.value;
+        ob << m_config.m_allow_new_shape_infer.value;
     }
 
     ob.set_stream(m_network->get_stream_ptr().get());

@@ -23,12 +23,12 @@ static cldnn::condition::branch gen_branch(ProgramBuilder& p, const std::shared_
 
     auto config = p.get_config();
     {
-        auto custom_outputs = config.get_property(ov::intel_gpu::custom_outputs);
+        auto custom_outputs = config.m_custom_outputs.value;
         if (!custom_outputs.empty()) {
-            config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>({})));
+            config.m_custom_outputs = std::vector<std::string>({});
         }
     }
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(op->is_dynamic() || p.use_new_shape_infer()));
+    config.m_allow_new_shape_infer = op->is_dynamic() || p.use_new_shape_infer();
 
     ProgramBuilder prog(internal_body, p.get_engine(), config, false, p.get_task_executor(), p.get_compilation_context(), true);
     branch.inner_program = prog.get_compiled_program();

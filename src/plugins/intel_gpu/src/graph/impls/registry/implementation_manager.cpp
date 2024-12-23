@@ -58,7 +58,7 @@ std::unique_ptr<primitive_impl> ImplementationManager::create(const program_node
     if (auto impl = create_impl(node, params)) {
         update_impl(*impl, params);
         impl->set_node_params(node);
-        impl->can_share_kernels = node.get_program().get_config().get_property(ov::intel_gpu::hint::enable_kernels_reuse);
+        impl->can_share_kernels = node.get_program().get_config().m_enable_kernels_reuse;
         return impl;
     }
 

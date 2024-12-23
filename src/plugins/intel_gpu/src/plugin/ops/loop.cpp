@@ -299,8 +299,8 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
     auto output_names_vec = GetOutputNames(layerName, body_execution_condition_id, output_primitive_maps, back_edges);
 
     auto config = p.get_config();
-    config.set_property(ov::intel_gpu::custom_outputs(output_names_vec));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
+    config.m_custom_outputs = output_names_vec;
+    config.m_allow_new_shape_infer = is_dynamic;
 
     // get body program from ov::Model
     ProgramBuilder prog(ov_model, p.get_engine(), config, false, p.get_task_executor(), p.get_compilation_context(), true);

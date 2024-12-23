@@ -26,10 +26,11 @@ struct ExecutionConfig : public ov::PluginConfig {
     #include "intel_gpu/runtime/options.inl"
     #undef OV_CONFIG_OPTION
 
+protected:
     void finalize_impl(std::shared_ptr<IRemoteContext> context) override;
     void apply_rt_info(std::shared_ptr<IRemoteContext> context, const ov::RTMap& rt_info) override;
+    const ov::PluginConfig::OptionsDesc& get_options_desc() const override;
 
-private:
     void apply_user_properties(const cldnn::device_info& info);
     void apply_hints(const cldnn::device_info& info);
     void apply_execution_hints(const cldnn::device_info& info);

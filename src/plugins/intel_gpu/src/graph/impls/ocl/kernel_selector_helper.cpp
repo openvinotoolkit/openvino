@@ -1164,13 +1164,13 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     params.engineInfo.ip_version = device_info.ip_version;
     params.engineInfo.arch = kernel_selector::gpu_arch(static_cast<std::underlying_type<gpu_arch>::type>(device_info.arch));
 
-    auto impl_forcing = config.get_property(ov::intel_gpu::force_implementations);
+    auto impl_forcing = config.m_force_implementations.value;
 
     if (impl_forcing.count(param_info.desc->id) != 0) {
         params.forceImplementation = impl_forcing.at(param_info.desc->id).kernel_name;
     }
 
-    params.allowStaticInputReordering = config.get_property(ov::intel_gpu::optimize_data) || config.get_property(ov::intel_gpu::allow_static_input_reorder);
+    params.allowStaticInputReordering = config.m_optimize_data || config.m_allow_static_input_reorder;
     params.allowInputReordering = false;
 }
 

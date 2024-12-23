@@ -56,9 +56,14 @@ namespace intel_gpu {
 namespace {
 
 ov::RTMap get_rt_info(const ov::Model& model) {
+    ov::RTMap rt_info;
     if (model.has_rt_info("runtime_options"))
-        return model.get_rt_info<ov::AnyMap>("runtime_options");
-    return {};
+        rt_info = model.get_rt_info<ov::AnyMap>("runtime_options");
+
+    if (model.has_rt_info("__weights_path")) {
+        rt_info[ov::weights_path.name()] = model.get_rt_info<ov::Any>("__weights_path");
+    }
+    return rt_info;
 }
 
 }  // namespace
@@ -174,22 +179,6 @@ Plugin::Plugin() {
     m_compiled_model_runtime_properties["OV_VERSION"] = ov_version.buildNumber;
 }
 
-void Plugin::set_cache_info(const std::shared_ptr<const ov::Model>& model, ExecutionConfig& config) const {
-    // WEIGHTS_PATH is used for the weightless cache mechanism which is used only with
-    // ov::CacheMode::OPTIMIZE_SIZE setting. Not setting WEIGHTS_PATH will result in not
-    // using that mechanism.
-    if (config.get_property(ov::cache_mode) != ov::CacheMode::OPTIMIZE_SIZE) {
-        return;
-    }
-
-    const auto& rt_info = model->get_rt_info();
-    auto weights_path = rt_info.find("__weights_path");
-    if (weights_path != rt_info.end()) {
-        ov::AnyMap weights_path_property{{"WEIGHTS_PATH", weights_path->second}};
-        config.set_property(weights_path_property);
-    }
-}
-
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model");
     std::string device_id = get_device_id(orig_config);
@@ -199,10 +188,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] compile_model: Couldn't find config for GPU with id ", device_id);
 
     ExecutionConfig config = m_configs_map.at(device_id);
-    config.set_user_property(orig_config);
+    config.set_property(orig_config);
     config.finalize(context, get_rt_info(*model));
-
-    set_cache_info(model, config);
 
     auto transformed_model = clone_and_transform_model(model, config, context);
     {
@@ -221,7 +208,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.finalize(context_impl, get_rt_info(*model));
-    set_cache_info(model, config);
 
     auto transformed_model = clone_and_transform_model(model, config, context_impl);
     return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context_impl, config);
@@ -251,7 +237,7 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const AnyMap& params) 
 
 void Plugin::set_property(const ov::AnyMap &config) {
     auto update_config = [](ExecutionConfig& config, const ov::AnyMap& user_config) {
-        config.set_user_property(user_config);
+        config.set_property(user_config);
         // Check that custom layers config can be loaded
         if (user_config.find(ov::intel_gpu::config_file.name()) != user_config.end()) {
             CustomLayerMap custom_layers;
@@ -286,12 +272,12 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     auto ctx = get_default_context(device_id);
 
     ExecutionConfig config = m_configs_map.at(device_id);
-    config.set_user_property(orig_config);
+    config.set_property(orig_config);
     config.finalize(ctx, get_rt_info(*model));
 
     ProgramBuilder prog(ctx->get_engine(), config);
 
-    float query_model_ratio = config.get_property(ov::internal::query_model_ratio.name()).as<float>();
+    float query_model_ratio = config.m_query_model_ratio;
 
     auto supported = ov::get_supported_nodes(model,
         [&config,&ctx,this](std::shared_ptr<ov::Model>& model) {
@@ -341,11 +327,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     }
 
     ExecutionConfig config = m_configs_map.at(device_id);
-    config.set_user_property(_orig_config);
+    config.set_property(_orig_config);
     config.finalize(context_impl, {});
 
-    ov::CacheMode cache_mode = config.get_property(ov::cache_mode);
-    ov::EncryptionCallbacks encryption_callbacks = config.get_property(ov::cache_encryption_callbacks);
+    ov::CacheMode cache_mode = config.m_cache_mode;
+    ov::EncryptionCallbacks encryption_callbacks = config.m_cache_encryption_callbacks;
     const bool encryption_enabled = encryption_callbacks.decrypt && cache_mode == ov::CacheMode::OPTIMIZE_SIZE;
 
     std::unique_ptr<cldnn::BinaryInputBuffer> ib_ptr =
@@ -362,9 +348,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
         return nullptr;
     }
 
-    std::string weights_path = config.get_property(ov::weights_path);
-    if (config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE &&
-        !ov::util::validate_weights_path(weights_path)) {
+    std::string weights_path = config.m_weights_path;
+    if (config.m_cache_mode == ov::CacheMode::OPTIMIZE_SIZE && !ov::util::validate_weights_path(weights_path)) {
         return nullptr;
     }
 
@@ -663,7 +648,7 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
     auto context = get_default_contexts().at(device_id);
     const auto& device_info = context->get_engine().get_device_info();
     const auto& config = m_configs_map.at(device_id);
-    uint32_t n_streams = static_cast<uint32_t>(config.get_property(ov::num_streams));
+    uint32_t n_streams = static_cast<uint32_t>(config.m_num_streams.value);
     uint64_t occupied_device_mem = 0;
     auto statistic_result = get_metric(ov::intel_gpu::memory_statistics.name(), options).as<std::map<std::string, uint64_t>>();
     auto occupied_usm_dev = statistic_result.find("usm_device_current");

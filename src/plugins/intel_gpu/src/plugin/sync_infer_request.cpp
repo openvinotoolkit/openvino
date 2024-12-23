@@ -114,8 +114,8 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const CompiledModel>& c
     : ov::ISyncInferRequest(compiled_model)
     , m_graph(compiled_model->get_graph(0))
     , m_context(std::static_pointer_cast<RemoteContextImpl>(compiled_model->get_context_impl()))
-    , m_shape_predictor(new cldnn::ShapePredictor(&m_graph->get_engine(), m_graph->get_config().get_property(ov::intel_gpu::buffers_preallocation_ratio)))
-    , m_enable_profiling(m_graph->get_config().get_property(ov::enable_profiling))
+    , m_shape_predictor(new cldnn::ShapePredictor(&m_graph->get_engine(), m_graph->get_config().m_buffers_preallocation_ratio))
+    , m_enable_profiling(m_graph->get_config().m_enable_profiling)
     , m_use_external_queue(m_graph->use_external_queue()) {
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(debug_config->mem_preallocation_params.is_initialized) {
@@ -415,7 +415,7 @@ void SyncInferRequest::wait() {
             auto mem_shape = output_layout.get_shape();
             // In case of old shape infer we need to shrink out tensor shape to avoid redudnant dimensions that occur due to rank extension
             // For new shape infer this shouldn't happen, thus remove that WA once we migrate to ngraph-based shape infer for all cases
-            if (!m_graph->get_config().get_property(ov::intel_gpu::allow_new_shape_infer)) {
+            if (!m_graph->get_config().m_allow_new_shape_infer) {
                 OPENVINO_ASSERT(port.get_partial_shape().is_static(), "[GPU] Unexpected dynamic shape for legacy shape inference");
                 OPENVINO_ASSERT(ov::shape_size(port.get_shape()) == ov::shape_size(mem_shape), "[GPU] Unexpected elements count for output tensor");
                 mem_shape = port.get_shape();
@@ -888,7 +888,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
 
     auto memory = device_tensor->get_memory();
     // WA to extend shape to ranks expected by legacy shape infer. Remove after full migration to new shape infer
-    if (!m_graph->get_config().get_property(ov::intel_gpu::allow_new_shape_infer)) {
+    if (!m_graph->get_config().m_allow_new_shape_infer) {
         auto new_layout = memory->get_layout();
         new_layout.set_partial_shape(m_graph->get_input_layouts().at(input_idx).get_shape());
         memory = engine.reinterpret_buffer(*memory, new_layout);

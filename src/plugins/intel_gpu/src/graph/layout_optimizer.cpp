@@ -435,7 +435,7 @@ bool should_use_winograd_2x3_s1(const convolution_node& node,
                                 layout const& input_layout,
                                 layout const& weights_layout,
                                 bool output_size_handling_enabled) {
-    bool disable_winograd_conv = node.get_program().get_config().get_property(ov::intel_gpu::disable_winograd_convolution);
+    bool disable_winograd_conv = node.get_program().get_config().m_disable_winograd_convolution;
     if (disable_winograd_conv)
         return false;
 

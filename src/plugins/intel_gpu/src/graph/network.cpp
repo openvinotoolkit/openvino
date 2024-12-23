@@ -180,9 +180,9 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
     , _memory_pool(new memory_pool(program->get_engine()))
     , _internal(is_internal)
     , _is_primary_stream(is_primary_stream)
-    , _enable_profiling(program->get_config().get_property(ov::enable_profiling))
+    , _enable_profiling(program->get_config().m_enable_profiling)
     , _reset_arguments(true)
-    , _shape_predictor(new ShapePredictor(&program->get_engine(), program->get_config().get_property(ov::intel_gpu::buffers_preallocation_ratio))) {
+    , _shape_predictor(new ShapePredictor(&program->get_engine(), program->get_config().m_buffers_preallocation_ratio)) {
     if (!_internal) {
         net_id = get_unique_net_id();
     }
@@ -364,7 +364,7 @@ void network::calculate_weights_cache_capacity() {
     }
 
     // Sum all weights constants for each stream
-    required_mem_size += weights_const_size * _config.get_property(ov::streams::num);
+    required_mem_size += weights_const_size * _config.m_num_streams.value;
     // Add all other constants (shared between streams)
     required_mem_size += total_const_size - weights_const_size;
 
