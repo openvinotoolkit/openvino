@@ -22,7 +22,7 @@ ExecutionConfig::ExecutionConfig() : ov::PluginConfig() {
 
 ExecutionConfig::ExecutionConfig(const ExecutionConfig& other) : ExecutionConfig() {
     m_user_properties = other.m_user_properties;
-    m_is_finalized = other.m_is_finalized;
+    m_is_finalized = false; // copy is not automatically finalized
     for (const auto& kv : other.m_options_map) {
         m_options_map.at(kv.first)->set_any(kv.second->get_any());
     }
@@ -30,11 +30,16 @@ ExecutionConfig::ExecutionConfig(const ExecutionConfig& other) : ExecutionConfig
 
 ExecutionConfig& ExecutionConfig::operator=(const ExecutionConfig& other) {
     m_user_properties = other.m_user_properties;
-    m_is_finalized = other.m_is_finalized;
+    m_is_finalized = false; // copy is not automatically finalized
     for (const auto& kv : other.m_options_map) {
         m_options_map.at(kv.first)->set_any(kv.second->get_any());
     }
     return *this;
+}
+
+void ExecutionConfig::finalize(cldnn::engine& engine) {
+    auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    PluginConfig::finalize(ctx, {});
 }
 
 void ExecutionConfig::apply_rt_info(std::shared_ptr<IRemoteContext> context, const ov::RTMap& rt_info) {
@@ -79,6 +84,10 @@ void ExecutionConfig::finalize_impl(std::shared_ptr<IRemoteContext> context) {
     // Enable dynamic quantization by default for non-systolic platforms
     if (!is_set_by_user(ov::hint::dynamic_quantization_group_size) && !info.supports_immad) {
         m_dynamic_quantization_group_size = 32;
+    }
+
+    if (!get_force_implementations().empty()) {
+        m_optimize_data = true;
     }
 }
 

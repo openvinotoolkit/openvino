@@ -60,7 +60,7 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<non_m
                             const size_t kBatchNum = static_cast<size_t>(scores_layout.get_partial_shape()[0].get_length());
                             const size_t kClassNum = static_cast<size_t>(scores_layout.get_partial_shape()[1].get_length());
                             const size_t kNStreams =
-                                    static_cast<size_t>(node.get_program().get_config().m_num_streams.value);
+                                    static_cast<size_t>(node.get_program().get_config().get_num_streams());
                             const size_t kKeyValue = kBatchNum * std::min(kClassNum, static_cast<size_t>(8)) * kNStreams;
                             return kKeyValue > 64;
                         }

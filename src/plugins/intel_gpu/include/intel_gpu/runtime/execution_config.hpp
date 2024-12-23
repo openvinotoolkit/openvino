@@ -22,7 +22,10 @@ struct ExecutionConfig : public ov::PluginConfig {
     ExecutionConfig(const ExecutionConfig& other);
     ExecutionConfig& operator=(const ExecutionConfig& other);
 
-    #define OV_CONFIG_OPTION(...) OV_CONFIG_DECLARE_OPTION(__VA_ARGS__)
+    void finalize(cldnn::engine& engine);
+    using ov::PluginConfig::finalize;
+
+    #define OV_CONFIG_OPTION(...) OV_CONFIG_DECLARE_GETTERS(__VA_ARGS__)
     #include "intel_gpu/runtime/options.inl"
     #undef OV_CONFIG_OPTION
 
@@ -36,6 +39,10 @@ protected:
     void apply_execution_hints(const cldnn::device_info& info);
     void apply_performance_hints(const cldnn::device_info& info);
     void apply_priority_hints(const cldnn::device_info& info);
+
+    #define OV_CONFIG_OPTION(...) OV_CONFIG_DECLARE_OPTION(__VA_ARGS__)
+    #include "intel_gpu/runtime/options.inl"
+    #undef OV_CONFIG_OPTION
 };
 
 }  // namespace intel_gpu

@@ -277,7 +277,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
     ProgramBuilder prog(ctx->get_engine(), config);
 
-    float query_model_ratio = config.m_query_model_ratio;
+    float query_model_ratio = config.get_query_model_ratio();
 
     auto supported = ov::get_supported_nodes(model,
         [&config,&ctx,this](std::shared_ptr<ov::Model>& model) {
@@ -330,8 +330,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     config.set_property(_orig_config);
     config.finalize(context_impl, {});
 
-    ov::CacheMode cache_mode = config.m_cache_mode;
-    ov::EncryptionCallbacks encryption_callbacks = config.m_cache_encryption_callbacks;
+    ov::CacheMode cache_mode = config.get_cache_mode();
+    ov::EncryptionCallbacks encryption_callbacks = config.get_cache_encryption_callbacks();
     const bool encryption_enabled = encryption_callbacks.decrypt && cache_mode == ov::CacheMode::OPTIMIZE_SIZE;
 
     std::unique_ptr<cldnn::BinaryInputBuffer> ib_ptr =
@@ -348,8 +348,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
         return nullptr;
     }
 
-    std::string weights_path = config.m_weights_path;
-    if (config.m_cache_mode == ov::CacheMode::OPTIMIZE_SIZE && !ov::util::validate_weights_path(weights_path)) {
+    std::string weights_path = config.get_weights_path();
+    if (config.get_cache_mode() == ov::CacheMode::OPTIMIZE_SIZE && !ov::util::validate_weights_path(weights_path)) {
         return nullptr;
     }
 
@@ -648,7 +648,7 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
     auto context = get_default_contexts().at(device_id);
     const auto& device_info = context->get_engine().get_device_info();
     const auto& config = m_configs_map.at(device_id);
-    uint32_t n_streams = static_cast<uint32_t>(config.m_num_streams.value);
+    uint32_t n_streams = static_cast<uint32_t>(config.get_num_streams());
     uint64_t occupied_device_mem = 0;
     auto statistic_result = get_metric(ov::intel_gpu::memory_statistics.name(), options).as<std::map<std::string, uint64_t>>();
     auto occupied_usm_dev = statistic_result.find("usm_device_current");

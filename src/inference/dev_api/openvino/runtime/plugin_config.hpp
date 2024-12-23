@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <map>
+#include "openvino/core/attribute_visitor.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/core/except.hpp"
@@ -46,6 +47,19 @@
 
 #define OV_CONFIG_DECLARE_OPTION(PropertyNamespace, PropertyVar, Visibility, ...) \
     ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type, Visibility> m_ ## PropertyVar{GET_EXCEPT_LAST(__VA_ARGS__)};
+
+#define OV_CONFIG_DECLARE_GETTERS(PropertyNamespace, PropertyVar, Visibility, ...) \
+    const decltype(PropertyNamespace::PropertyVar)::value_type& get_##PropertyVar() const { \
+        if (m_is_finalized) { \
+            return m_ ## PropertyVar.value; \
+        } else { \
+            if (m_user_properties.find(PropertyNamespace::PropertyVar.name()) != m_user_properties.end()) { \
+                return m_user_properties.at(PropertyNamespace::PropertyVar.name()).as<decltype(PropertyNamespace::PropertyVar)::value_type>(); \
+            } else { \
+                return m_ ## PropertyVar.value; \
+            } \
+        } \
+    }
 
 #define OV_CONFIG_OPTION_MAPPING(PropertyNamespace, PropertyVar, ...) \
         m_options_map[PropertyNamespace::PropertyVar.name()] = & m_ ## PropertyVar;
@@ -191,6 +205,8 @@ public:
     std::string to_string() const;
 
     void finalize(std::shared_ptr<IRemoteContext> context, const ov::RTMap& rt_info);
+
+    bool visit_attributes(ov::AttributeVisitor& visitor) const;
 
 protected:
     virtual void apply_rt_info(std::shared_ptr<IRemoteContext> context, const ov::RTMap& rt_info) {}

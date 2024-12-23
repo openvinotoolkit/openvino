@@ -86,11 +86,7 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, const RemoteContextImpl::Ptr& context
             ib >> perfEntry.parentPrimitive;
         }
     }
-    {
-        ib >> m_config.m_partial_build_program.value;
-        ib >> m_config.m_optimize_data.value;
-        ib >> m_config.m_allow_new_shape_infer.value;
-    }
+    // ib >> m_config;
 
     auto imported_prog = std::make_shared<cldnn::program>(get_engine(), m_config);
     imported_prog->load(ib);
@@ -174,7 +170,7 @@ void Graph::build(std::shared_ptr<cldnn::program> program) {
 
     auto external_queue = m_context->get_external_queue();
     if (external_queue) {
-        OPENVINO_ASSERT(m_config.m_num_streams == 1, "[GPU] Throughput streams can't be used with shared queue!");
+        OPENVINO_ASSERT(m_config.get_num_streams() == 1, "[GPU] Throughput streams can't be used with shared queue!");
         const auto &engine = program->get_engine();
         m_network = std::make_shared<cldnn::network>(program, engine.create_stream(m_config, external_queue), m_stream_id);
     } else {
@@ -206,7 +202,7 @@ bool Graph::use_external_queue() const {
 
 std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive_info>& primitives_info, bool filter_const_primitives) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::get_runtime_model");
-    if (m_config.m_enable_profiling) {
+    if (m_config.get_enable_profiling()) {
         try {
             // Update may throw an exception for step-by-step runtime graph dump,
             // since network->get_executed_primitives() method can't be called before network execution
@@ -517,11 +513,7 @@ void Graph::export_model(cldnn::BinaryOutputBuffer &ob) {
             ob << perf_item.second.second.parentPrimitive;
         }
     }
-    {
-        ob << m_config.m_partial_build_program.value;
-        ob << m_config.m_optimize_data.value;
-        ob << m_config.m_allow_new_shape_infer.value;
-    }
+    // ob << m_config;
 
     ob.set_stream(m_network->get_stream_ptr().get());
     m_network->get_program()->save(ob);

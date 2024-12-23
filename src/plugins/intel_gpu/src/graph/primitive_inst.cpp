@@ -163,7 +163,7 @@ static memory::ptr get_memory_from_pool(engine& _engine,
     OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(),
                     "[GPU] Can't allocate output for dynamic layout without upper bound");
     // Use layout with max tensor for dynamic shape with upper bound
-    if (_node.get_program().get_config().m_enable_memory_pool) {
+    if (_node.get_program().get_config().get_enable_memory_pool()) {
         if (curr_memory != nullptr)
             pool.release_memory(curr_memory, _node.get_unique_id(), _node.id(), net_id);
         return pool.get_memory(layout,
@@ -2029,7 +2029,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
     : _network(network)
     , _node(&node)
     , _node_output_layout(node.get_output_layout())
-    , _use_shared_kernels(node.get_program().get_config().m_enable_kernels_reuse)
+    , _use_shared_kernels(node.get_program().get_config().get_enable_kernels_reuse())
     , _impl_params(node.get_kernel_impl_params())
     , _impl(node.get_selected_impl() ? node.get_selected_impl()->clone() : nullptr)
     , _runtime_memory_dependencies(node.get_memory_dependencies())
@@ -2577,8 +2577,8 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
         ExecutionConfig subgraph_config{
             ov::intel_gpu::allow_static_input_reorder(true),
             ov::intel_gpu::allow_new_shape_infer(true),
-            ov::enable_profiling(get_network().get_config().m_enable_profiling),
-            ov::intel_gpu::use_onednn(get_network().get_config().m_use_onednn)
+            ov::enable_profiling(get_network().get_config().get_enable_profiling()),
+            ov::intel_gpu::use_onednn(get_network().get_config().get_use_onednn())
         };
         auto prog = program::build_program(get_network().get_engine(),
                                            t,
