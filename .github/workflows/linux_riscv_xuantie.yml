@@ -243,16 +243,6 @@ jobs:
           LD_LIBRARY_PATH: "$LD_LIBRARY_PATH:${{ env.INSTALL_TEST_DIR }}" # Needed as ze_loader.so is under INSTALL_TEST_DIR
         timeout-minutes: 25
 
-      - name: Upload Test Results
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
-        if: always()
-        with:
-          name: test-results-functional-cpu
-          path: |
-            ${{ env.INSTALL_TEST_DIR }}/temp/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/*.log
-          if-no-files-found: 'error'
-
   Overall_Status:
     name: ci/gha_overall_status_linux_riscv
     needs: [Smart_CI, Build, CPU_Functional_Tests]
