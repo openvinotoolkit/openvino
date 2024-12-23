@@ -9,7 +9,7 @@ OV_CONFIG_RELEASE_OPTION(ov, cache_dir, "", "Directory where model cache can be 
 OV_CONFIG_RELEASE_OPTION(ov, num_streams, 1, "Number of streams to be used for inference")
 OV_CONFIG_RELEASE_OPTION(ov, compilation_num_threads, std::max(1, static_cast<int>(std::thread::hardware_concurrency())), "Max number of CPU threads used for model compilation for the stages that supports parallelism")
 OV_CONFIG_RELEASE_OPTION(ov::hint, inference_precision, ov::element::f16,
-                [](ov::element::Type t) { return t == ov::element::f16 || t == ov::element::f32 || t == ov::element::undefined; }, "Model floating-point inference precision")
+                [](ov::element::Type t) { return t == ov::element::f16 || t == ov::element::f32 || t == ov::element::undefined; }, "Model floating-point inference precision. Supported values: { f16, f32, undefined }")
 OV_CONFIG_RELEASE_OPTION(ov::hint, model_priority, ov::hint::Priority::MEDIUM, "High-level hint that defines the priority of the model. It may impact number of threads used for model compilton and inference as well as device queue settings")
 OV_CONFIG_RELEASE_OPTION(ov::hint, performance_mode, ov::hint::PerformanceMode::LATENCY, "High-level hint that defines target model inference mode. It may impact number of streams, auto batching, etc")
 OV_CONFIG_RELEASE_OPTION(ov::hint, execution_mode, ov::hint::ExecutionMode::PERFORMANCE, "High-level hint that defines the most important metric for the model. Performance mode allows unsafe optimizations that may reduce the model accuracy")

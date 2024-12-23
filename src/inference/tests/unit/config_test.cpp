@@ -101,35 +101,27 @@ TEST(plugin_config, can_set_get_property) {
     ASSERT_EQ(cfg.get_property(bool_property), true);
     ASSERT_NO_THROW(cfg.set_property(bool_property(false)));
     ASSERT_EQ(cfg.get_property(bool_property), false);
-
-    ASSERT_NO_THROW(cfg.set_user_property(bool_property(true)));
-    ASSERT_EQ(cfg.get_property(bool_property), true);
 }
 
 TEST(plugin_config, throw_for_unsupported_property) {
     NotEmptyTestConfig cfg;
     ASSERT_ANY_THROW(cfg.get_property(unsupported_property));
     ASSERT_ANY_THROW(cfg.set_property(unsupported_property(10.0f)));
-    ASSERT_ANY_THROW(cfg.set_user_property(unsupported_property(10.0f)));
 }
 
 TEST(plugin_config, can_direct_access_to_properties) {
     NotEmptyTestConfig cfg;
-    ASSERT_EQ(cfg.m_bool_property.value, cfg.get_property(bool_property));
-    ASSERT_NO_THROW(cfg.set_property(bool_property(false)));
-    ASSERT_EQ(cfg.m_bool_property.value, cfg.get_property(bool_property));
-    ASSERT_EQ(cfg.m_bool_property.value, false);
+    ASSERT_EQ(cfg.m_int_property.value, cfg.get_property(int_property));
+    ASSERT_NO_THROW(cfg.set_property(int_property(1)));
+    ASSERT_EQ(cfg.m_int_property.value, -1); // user property doesn't impact member value until finalize() is called
 
-    ASSERT_NO_THROW(cfg.set_user_property(bool_property(true)));
-    ASSERT_EQ(cfg.m_bool_property.value, false); // user property doesn't impact member value until finalize() is called
-
-    cfg.m_bool_property.value = true;
-    ASSERT_EQ(cfg.get_property(bool_property), true);
+    cfg.m_int_property.value = 2;
+    ASSERT_EQ(cfg.get_property(int_property), 1); // still 1 as user property was set previously
 }
 
 TEST(plugin_config, finalization_updates_member) {
     NotEmptyTestConfig cfg;
-    ASSERT_NO_THROW(cfg.set_user_property(bool_property(false)));
+    ASSERT_NO_THROW(cfg.set_property(bool_property(false)));
     ASSERT_EQ(cfg.m_bool_property.value, true); // user property doesn't impact member value until finalize() is called
 
     cfg.finalize(nullptr, {});
@@ -146,7 +138,7 @@ TEST(plugin_config, get_property_before_finalization_returns_user_property_if_se
     cfg.m_bool_property.value = false; // update member directly
     ASSERT_EQ(cfg.get_property(bool_property), false);  // OK, return the class member value as no user property was set
 
-    ASSERT_NO_THROW(cfg.set_user_property(bool_property(true)));
+    ASSERT_NO_THROW(cfg.set_property(bool_property(true)));
     ASSERT_TRUE(cfg.is_set_by_user(bool_property));
     ASSERT_EQ(cfg.get_property(bool_property), true);  // now user property value is returned
     ASSERT_EQ(cfg.m_bool_property.value, false);  // but class member is not updated
@@ -159,7 +151,7 @@ TEST(plugin_config, get_property_before_finalization_returns_user_property_if_se
 TEST(plugin_config, finalization_updates_dependant_properties) {
     NotEmptyTestConfig cfg;
 
-    cfg.set_user_property(high_level_property("value1"));
+    cfg.set_property(high_level_property("value1"));
     ASSERT_TRUE(cfg.is_set_by_user(high_level_property));
     ASSERT_FALSE(cfg.is_set_by_user(low_level_property));
 
@@ -196,7 +188,7 @@ TEST(plugin_config, can_copy_config) {
     cfg1.m_high_level_property.value = "value1";
     cfg1.m_low_level_property.value = "value2";
     cfg1.m_int_property.value = 1;
-    cfg1.set_user_property(bool_property(false));
+    cfg1.set_property(bool_property(false));
 
     NotEmptyTestConfig cfg2 = cfg1;
     ASSERT_EQ(cfg2.m_high_level_property.value, "value1");
@@ -211,10 +203,10 @@ TEST(plugin_config, can_copy_config) {
     ASSERT_EQ(cfg2.m_int_property.value, 1);
 }
 
-TEST(plugin_config, set_user_property_throw_for_non_release_options) {
+TEST(plugin_config, set_property_throw_for_non_release_options) {
     NotEmptyTestConfig cfg;
-    ASSERT_ANY_THROW(cfg.set_user_property(release_internal_property(10)));
-    ASSERT_ANY_THROW(cfg.set_user_property(debug_property(10)));
+    ASSERT_ANY_THROW(cfg.set_property(release_internal_property(10)));
+    ASSERT_ANY_THROW(cfg.set_property(debug_property(10)));
 }
 
 TEST(plugin_config, visibility_is_correct) {
