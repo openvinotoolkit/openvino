@@ -410,12 +410,6 @@ void merge_config_with(ov::AnyMap& lhs, const ov::AnyMap& rhs) {
     }
 }
 
-void drop_cache_dir(ov::AnyMap& config) {
-    if (config.count("NPU_USE_NPUW") != 0u) {
-        pop_option(config, "CACHE_DIR");
-    }
-}
-
 void split_llm_properties(const ov::AnyMap& properties, ov::AnyMap& llm_properties, ov::AnyMap& other_properties) {
     for (auto it = properties.begin(); it != properties.end(); ++it) {
         if (it->first.find("NPUW_LLM") != it->first.npos) {
