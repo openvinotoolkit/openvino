@@ -11,7 +11,7 @@ namespace intel_gpu {
 
 class FullyConnectedConvertFusion: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("FullyConnectedConvertFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("FullyConnectedConvertFusion");
     FullyConnectedConvertFusion();
 };
 

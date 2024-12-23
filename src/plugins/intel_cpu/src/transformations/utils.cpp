@@ -3,8 +3,9 @@
 //
 
 #include "utils.hpp"
+
 #include "openvino/opsets/opset1.hpp"
-#include "cpu_opset/common/op/fully_connected.hpp"
+#include "ov_ops/fully_connected.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -21,7 +22,7 @@ bool has_matmul_with_compressed_weights(const std::shared_ptr<const ov::Model>& 
     };
 
     for (const auto& op : model->get_ops()) {
-        if (!ov::is_type<ov::op::v0::MatMul>(op) && !ov::is_type<FullyConnectedNode>(op))
+        if (!ov::is_type<ov::op::v0::MatMul>(op) && !ov::is_type<ov::op::internal::FullyConnected>(op))
             continue;
 
         if (!op->get_input_element_type(0).is_real())
@@ -40,5 +41,5 @@ bool has_matmul_with_compressed_weights(const std::shared_ptr<const ov::Model>& 
     return false;
 }
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

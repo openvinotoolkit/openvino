@@ -9,23 +9,23 @@
 namespace ov {
 namespace intel_cpu {
 
-class ConvertToInteraction: public ov::pass::MatcherPass {
+class ConvertToInteraction : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertToInteraction", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertToInteraction");
     ConvertToInteraction();
 };
 
-class FuseFQtoInteraction: public ov::pass::MatcherPass {
+class FuseFQtoInteraction : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("FuseFQtoInteraction", "0");
+    OPENVINO_MATCHER_PASS_RTTI("FuseFQtoInteraction");
     FuseFQtoInteraction();
 };
 
-class ConvertInteractionInt8: public ov::pass::MatcherPass {
+class ConvertInteractionInt8 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertInteractionInt8", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertInteractionInt8");
     ConvertInteractionInt8();
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

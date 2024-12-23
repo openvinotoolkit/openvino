@@ -27,6 +27,6 @@ class TRANSFORMATIONS_API MulFakeQuantizeFusion;
  */
 class ov::pass::MulFakeQuantizeFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MulFakeQuantizeFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MulFakeQuantizeFusion");
     MulFakeQuantizeFusion();
 };

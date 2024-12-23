@@ -18,7 +18,7 @@ namespace pass {
  */
 class OPENVINO_API ConstantFolding : public ModelPass {
 public:
-    OPENVINO_RTTI("ConstantFolding");
+    OPENVINO_MODEL_PASS_RTTI("ConstantFolding");
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 protected:

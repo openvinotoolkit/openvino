@@ -19,7 +19,7 @@ namespace pass {
 // that simulates initial state of tensor array container
 class TensorArrayV3Replacer : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::tensorflow::pass::TensorArrayV3Replacer");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::tensorflow::pass::TensorArrayV3Replacer");
     TensorArrayV3Replacer();
 };
 

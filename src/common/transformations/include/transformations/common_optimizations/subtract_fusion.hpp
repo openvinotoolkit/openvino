@@ -24,6 +24,6 @@ class TRANSFORMATIONS_API SubtractFusion;
  */
 class ov::pass::SubtractFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SubtractFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("SubtractFusion");
     SubtractFusion();
 };
