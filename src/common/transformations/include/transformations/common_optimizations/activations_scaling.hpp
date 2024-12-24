@@ -16,26 +16,12 @@ class TRANSFORMATIONS_API ActivationsScaling;
 
 namespace activations_scaling {
 
-TRANSFORMATIONS_API void mark_as_scale_down_node(const std::shared_ptr<Node>& node);
-
-TRANSFORMATIONS_API bool is_scale_down_node(const std::shared_ptr<const Node>& node);
-
-class TRANSFORMATIONS_API ScaleDownNode : public RuntimeAttribute {
-public:
-    OPENVINO_RTTI("scale_down_node", "0");
-
-    bool is_copyable() const override {
-        return false;
-    }
-};
-
 class TRANSFORMATIONS_API ScaleDownSingleLayer;
 class TRANSFORMATIONS_API ScaleDownFusion;
-class TRANSFORMATIONS_API EliminateMultiplyNorm;
+class TRANSFORMATIONS_API EliminateMultiplyScalar;
 class TRANSFORMATIONS_API MulConcatTransformation;
 class TRANSFORMATIONS_API NormMulTransformation;
 class TRANSFORMATIONS_API MulMulTransformation;
-class TRANSFORMATIONS_API MulDownTransformation;
 
 }  // namespace activations_scaling
 }  // namespace pass
@@ -44,7 +30,7 @@ class TRANSFORMATIONS_API MulDownTransformation;
 // ActivationsScaling makes activation values smaller to prevent overflow due to the limited range of FP16
 // This feature is controlled by ov::hint::activations_scale_factor.
 // For example, when this property is set as 16, activations are divided by 16.
-// If ov::hint::activations_scale_factor is less than zero, it is disabled.
+// If ov::hint::activations_scale_factor is less than or equal to zero, it is disabled.
 
 class ov::pass::activations_scaling::ScaleDownSingleLayer : public ov::pass::MatcherPass {
 public:
@@ -58,10 +44,10 @@ public:
     ScaleDownFusion();
 };
 
-class ov::pass::activations_scaling::EliminateMultiplyNorm : public ov::pass::MatcherPass {
+class ov::pass::activations_scaling::EliminateMultiplyScalar : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("EliminateMultiplyNorm", "0");
-    EliminateMultiplyNorm();
+    OPENVINO_RTTI("EliminateMultiplyScalar", "0");
+    EliminateMultiplyScalar();
 };
 
 class ov::pass::activations_scaling::MulConcatTransformation : public ov::pass::MatcherPass {
@@ -80,10 +66,4 @@ class ov::pass::activations_scaling::MulMulTransformation : public ov::pass::Mat
 public:
     OPENVINO_RTTI("MulMulTransformation", "0");
     MulMulTransformation();
-};
-
-class ov::pass::activations_scaling::MulDownTransformation : public ov::pass::MatcherPass {
-public:
-    OPENVINO_RTTI("MulDownTransformation", "0");
-    MulDownTransformation();
 };

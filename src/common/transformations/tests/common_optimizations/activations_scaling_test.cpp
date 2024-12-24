@@ -78,12 +78,10 @@ TEST_F(TransformationTestsF, ScaleDownFusionTest) {
         auto shape_post = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 3, 16, 16});
 
         auto scale_down0 = std::make_shared<ov::op::v1::Multiply>(reshape_pre->output(0), scale_down_const);
-        ov::pass::activations_scaling::mark_as_scale_down_node(scale_down0);
         auto reshape_post0 = std::make_shared<ov::op::v1::Reshape>(scale_down0, shape_post, true);
         auto result0 = std::make_shared<ov::op::v0::Result>(reshape_post0);
 
         auto scale_down1 = std::make_shared<ov::op::v1::Multiply>(reshape_pre->output(0), scale_down_const);
-        ov::pass::activations_scaling::mark_as_scale_down_node(scale_down1);
         auto reshape_post1 = std::make_shared<ov::op::v1::Reshape>(scale_down1, shape_post, true);
         auto result1 = std::make_shared<ov::op::v0::Result>(reshape_post1);
 
@@ -102,7 +100,6 @@ TEST_F(TransformationTestsF, ScaleDownFusionTest) {
         auto shape_post = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 3, 16, 16});
 
         auto scale_down0 = std::make_shared<ov::op::v1::Multiply>(reshape_pre->output(0), scale_down_const);
-        ov::pass::activations_scaling::mark_as_scale_down_node(scale_down0);
         auto reshape_post0 = std::make_shared<ov::op::v1::Reshape>(scale_down0, shape_post, true);
         auto result0 = std::make_shared<ov::op::v0::Result>(reshape_post0);
 
@@ -113,7 +110,7 @@ TEST_F(TransformationTestsF, ScaleDownFusionTest) {
     }
 }
 
-TEST_F(TransformationTestsF, EliminateMultiplyNormTest) {
+TEST_F(TransformationTestsF, EliminateMultiplyScalarTest) {
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 16, 16});
         auto scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {10});
@@ -126,7 +123,7 @@ TEST_F(TransformationTestsF, EliminateMultiplyNormTest) {
         auto result = std::make_shared<ov::op::v0::Result>(convert);
 
         model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
-        manager.register_pass<ov::pass::activations_scaling::EliminateMultiplyNorm>();
+        manager.register_pass<ov::pass::activations_scaling::EliminateMultiplyScalar>();
     }
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 16, 16});
