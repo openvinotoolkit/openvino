@@ -34,6 +34,7 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/performance_heuristics.hpp"
+#include "openvino/runtime/plugin_config.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/weights_path.hpp"
@@ -188,7 +189,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] compile_model: Couldn't find config for GPU with id ", device_id);
 
     ExecutionConfig config = m_configs_map.at(device_id);
-    config.set_property(orig_config);
+    config.set_property(orig_config, OptionVisibility::RELEASE);
     config.finalize(context, get_rt_info(*model));
 
     auto transformed_model = clone_and_transform_model(model, config, context);
@@ -237,7 +238,7 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const AnyMap& params) 
 
 void Plugin::set_property(const ov::AnyMap &config) {
     auto update_config = [](ExecutionConfig& config, const ov::AnyMap& user_config) {
-        config.set_property(user_config);
+        config.set_property(user_config, OptionVisibility::RELEASE);
         // Check that custom layers config can be loaded
         if (user_config.find(ov::intel_gpu::config_file.name()) != user_config.end()) {
             CustomLayerMap custom_layers;
@@ -272,7 +273,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     auto ctx = get_default_context(device_id);
 
     ExecutionConfig config = m_configs_map.at(device_id);
-    config.set_property(orig_config);
+    config.set_property(orig_config, OptionVisibility::RELEASE);
     config.finalize(ctx, get_rt_info(*model));
 
     ProgramBuilder prog(ctx->get_engine(), config);
@@ -327,7 +328,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     }
 
     ExecutionConfig config = m_configs_map.at(device_id);
-    config.set_property(_orig_config);
+    config.set_property(_orig_config, OptionVisibility::RELEASE);
     config.finalize(context_impl, {});
 
     ov::CacheMode cache_mode = config.get_cache_mode();
@@ -435,7 +436,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] get_property: Couldn't find config for GPU with id ", device_id);
 
     const auto& c = m_configs_map.at(device_id);
-    return c.get_property(name);
+    return c.get_property(name, OptionVisibility::RELEASE);
 }
 
 auto StringRightTrim = [](std::string string, std::string substring, bool case_sensitive = true) {

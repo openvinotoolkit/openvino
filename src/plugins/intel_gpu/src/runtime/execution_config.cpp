@@ -53,7 +53,7 @@ void ExecutionConfig::apply_rt_info(std::shared_ptr<IRemoteContext> context, con
     // WEIGHTS_PATH is used for the weightless cache mechanism which is used only with
     // ov::CacheMode::OPTIMIZE_SIZE setting. Not setting WEIGHTS_PATH will result in not
     // using that mechanism.
-    if (get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE) {
+    if (get_cache_mode() == ov::CacheMode::OPTIMIZE_SIZE) {
         apply_rt_info_property(ov::weights_path, rt_info);
     }
 }
@@ -72,7 +72,7 @@ void ExecutionConfig::finalize_impl(std::shared_ptr<IRemoteContext> context) {
     if (info.supports_immad) {
         m_use_onednn = true;
     }
-    if (get_property(ov::intel_gpu::use_onednn)) {
+    if (get_use_onednn()) {
         m_queue_type = QueueTypes::in_order;
     }
 
@@ -99,7 +99,7 @@ void ExecutionConfig::apply_hints(const cldnn::device_info& info) {
 
 void ExecutionConfig::apply_execution_hints(const cldnn::device_info& info) {
     if (is_set_by_user(ov::hint::execution_mode)) {
-        const auto mode = get_property(ov::hint::execution_mode);
+        const auto mode = get_execution_mode();
         if (!is_set_by_user(ov::hint::inference_precision)) {
             if (mode == ov::hint::ExecutionMode::ACCURACY) {
                 m_inference_precision = ov::element::undefined;
@@ -115,7 +115,7 @@ void ExecutionConfig::apply_execution_hints(const cldnn::device_info& info) {
 
 void ExecutionConfig::apply_performance_hints(const cldnn::device_info& info) {
     if (is_set_by_user(ov::hint::performance_mode)) {
-        const auto mode = get_property(ov::hint::performance_mode);
+        const auto mode = get_performance_mode();
         if (!is_set_by_user(ov::num_streams)) {
             if (mode == ov::hint::PerformanceMode::LATENCY) {
                 m_num_streams = 1;
@@ -125,18 +125,18 @@ void ExecutionConfig::apply_performance_hints(const cldnn::device_info& info) {
         }
     }
 
-    if (get_property(ov::num_streams) == ov::streams::AUTO) {
+    if (get_num_streams() == ov::streams::AUTO) {
         int32_t n_streams = std::max<int32_t>(info.num_ccs, 2);
         m_num_streams = n_streams;
     }
 
-    if (get_property(ov::internal::exclusive_async_requests)) {
+    if (get_exclusive_async_requests()) {
         m_num_streams = 1;
     }
 
     // Allow kernels reuse only for single-stream scenarios
-    if (get_property(ov::intel_gpu::hint::enable_kernels_reuse)) {
-        if (get_property(ov::num_streams) != 1) {
+    if (get_enable_kernels_reuse()) {
+        if (get_num_streams() != 1) {
             m_enable_kernels_reuse = false;
         }
     }
@@ -144,7 +144,7 @@ void ExecutionConfig::apply_performance_hints(const cldnn::device_info& info) {
 
 void ExecutionConfig::apply_priority_hints(const cldnn::device_info& info) {
     if (is_set_by_user(ov::hint::model_priority)) {
-        const auto priority = get_property(ov::hint::model_priority);
+        const auto priority = get_model_priority();
         if (!is_set_by_user(ov::intel_gpu::hint::queue_priority)) {
             m_queue_priority = priority;
         }

@@ -78,11 +78,31 @@
 
 namespace ov {
 
-enum class OptionVisibility {
-    RELEASE = 0,            // Option can be set for any build type via public interface, environment and config file
-    RELEASE_INTERNAL = 1,   // Option can be set for any build type via environment and config file only
-    DEBUG = 2,              // Option can be set for debug builds only via environment and config file
+enum class OptionVisibility : uint8_t {
+    RELEASE = 1 << 0,            // Option can be set for any build type via public interface, environment and config file
+    RELEASE_INTERNAL = 1 << 1,   // Option can be set for any build type via environment and config file only
+    DEBUG = 1 << 2,              // Option can be set for debug builds only via environment and config file
+#ifdef ENABLE_DEBUG_CAPS
+    ANY = 0x07,                  // Any visibility is valid including DEBUG
+#else
+    ANY = 0x03,                  // Any visibility is valid excluding DEBUG
+#endif
 };
+
+inline OptionVisibility operator&(OptionVisibility a, OptionVisibility b) {
+    typedef std::underlying_type<OptionVisibility>::type underlying_type;
+    return static_cast<OptionVisibility>(static_cast<underlying_type>(a) & static_cast<underlying_type>(b));
+}
+
+inline OptionVisibility operator|(OptionVisibility a, OptionVisibility b) {
+    typedef std::underlying_type<OptionVisibility>::type underlying_type;
+    return static_cast<OptionVisibility>(static_cast<underlying_type>(a) | static_cast<underlying_type>(b));
+}
+
+inline OptionVisibility operator~(OptionVisibility a) {
+    typedef std::underlying_type<OptionVisibility>::type underlying_type;
+    return static_cast<OptionVisibility>(~static_cast<underlying_type>(a));
+}
 
 inline std::ostream& operator<<(std::ostream& os, const OptionVisibility& visibility) {
     switch (visibility) {
@@ -185,21 +205,12 @@ public:
     PluginConfig(PluginConfig&& other) = delete;
     PluginConfig& operator=(PluginConfig&& other) = delete;
 
-    void set_property(const ov::AnyMap& properties);
-    Any get_property(const std::string& name) const;
+    void set_property(const ov::AnyMap& properties, OptionVisibility allowed_visibility = OptionVisibility::ANY, bool throw_on_error = true);
+    Any get_property(const std::string& name, OptionVisibility allowed_visibility = OptionVisibility::ANY) const;
 
     template <typename... Properties>
     util::EnableIfAllStringAny<void, Properties...> set_property(Properties&&... properties) {
         set_property(ov::AnyMap{std::forward<Properties>(properties)...});
-    }
-
-    template <typename T, PropertyMutability mutability>
-    T get_property(const ov::Property<T, mutability>& property) const {
-        if (is_set_by_user(property)) {
-            return m_user_properties.at(property.name()).template as<T>();
-        }
-        OPENVINO_ASSERT(m_options_map.find(property.name()) != m_options_map.end(), "Property not found: ", property.name());
-        return static_cast<ConfigOption<T>*>(m_options_map.at(property.name()))->value;
     }
 
     std::string to_string() const;
@@ -235,9 +246,6 @@ protected:
             }
         }
     }
-
-    ov::Any get_property(const std::string& name, const std::vector<OptionVisibility>& allowed_visibility) const;
-    void set_property(const ov::AnyMap& properties, const std::vector<OptionVisibility>& allowed_visibility, bool throw_on_error);
 
     ov::AnyMap read_config_file(const std::string& filename, const std::string& target_device_name) const;
     ov::AnyMap read_env(const std::vector<std::string>& prefixes) const;

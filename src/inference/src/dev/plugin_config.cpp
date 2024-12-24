@@ -48,31 +48,21 @@ size_t get_terminal_width() {
 
 namespace ov {
 
-ov::Any PluginConfig::get_property(const std::string& name) const {
-    const static std::vector<OptionVisibility> allowed_visibility = {OptionVisibility::RELEASE, OptionVisibility::RELEASE_INTERNAL};
-    return get_property(name, allowed_visibility);
-}
 
-ov::Any PluginConfig::get_property(const std::string& name, const std::vector<OptionVisibility>& allowed_visibility) const {
+ov::Any PluginConfig::get_property(const std::string& name, OptionVisibility allowed_visibility) const {
     if (m_user_properties.find(name) != m_user_properties.end()) {
         return m_user_properties.at(name);
     }
 
     auto option = get_option_ptr(name);
-     if (std::find(allowed_visibility.begin(), allowed_visibility.end(), option->get_visibility()) == allowed_visibility.end()) {
+     if ((allowed_visibility & option->get_visibility()) == option->get_visibility()) {
         OPENVINO_THROW("Couldn't get unknown property: ", name);
     }
 
     return option->get_any();
 }
 
-void PluginConfig::set_property(const AnyMap& config) {
-    const static std::vector<OptionVisibility> allowed_visibility = {OptionVisibility::RELEASE,OptionVisibility::RELEASE_INTERNAL, OptionVisibility::DEBUG};
-    const bool throw_on_error = true;
-    set_property(config, allowed_visibility, throw_on_error);
-}
-
-void PluginConfig::set_property(const ov::AnyMap& config, const std::vector<OptionVisibility>& allowed_visibility, bool throw_on_error) {
+void PluginConfig::set_property(const ov::AnyMap& config, OptionVisibility allowed_visibility, bool throw_on_error) {
     OPENVINO_ASSERT(!m_is_finalized, "Setting property after config finalization is prohibited");
 
     for (auto& kv : config) {
@@ -80,7 +70,7 @@ void PluginConfig::set_property(const ov::AnyMap& config, const std::vector<Opti
         auto& val = kv.second;
 
         auto option = get_option_ptr(name);
-        if (std::find(allowed_visibility.begin(), allowed_visibility.end(), option->get_visibility()) == allowed_visibility.end()) {
+        if ((allowed_visibility & option->get_visibility()) == option->get_visibility()) {
             if (throw_on_error)
                 OPENVINO_THROW("Couldn't set unknown property: ", name);
             else
@@ -134,25 +124,17 @@ bool PluginConfig::visit_attributes(ov::AttributeVisitor& visitor) const {
 }
 
 void PluginConfig::apply_debug_options(std::shared_ptr<IRemoteContext> context) {
-    static std::vector<OptionVisibility> allowed_visibility = {
-        OptionVisibility::RELEASE,
-        OptionVisibility::RELEASE_INTERNAL,
-        OptionVisibility::DEBUG
-#ifdef ENABLE_DEBUG_CAPS
-#endif
-    };
-
     const bool throw_on_error = false;
 
     if (context) {
         ov::AnyMap config_properties = read_config_file("config.json", context->get_device_name());
         cleanup_unsupported(config_properties);
-        set_property(config_properties, allowed_visibility, throw_on_error);
+        set_property(config_properties, OptionVisibility::ANY, throw_on_error);
     }
 
     ov::AnyMap env_properties = read_env({"OV_"});
     cleanup_unsupported(env_properties);
-    set_property(env_properties, allowed_visibility, throw_on_error);
+    set_property(env_properties, OptionVisibility::ANY, throw_on_error);
 }
 
 ov::AnyMap PluginConfig::read_config_file(const std::string& filename, const std::string& target_device_name) const {
