@@ -30,24 +30,28 @@ void reshape_transfer::run(program& p) {
         return false;
     };
 
-    std::function<bool(cldnn::program_node*)> is_suitable_reorder;
-    is_suitable_reorder = [&is_suitable_reorder](const cldnn::program_node* node) -> bool {
+    std::function<bool(cldnn::program_node*)> is_suitable_parent;
+    is_suitable_parent = [&is_suitable_parent](const cldnn::program_node* node) -> bool {
         if (node->get_users().size() != 1 || node->is_dynamic())
             return false;
-        for (size_t idx = 0; idx < node->get_dependencies().size(); idx++) {
-            auto& input = node->get_dependency(idx);
-            if (!input.is_in_data_flow() || input.is_constant())
-                continue;
-            if (input.is_type<convolution>()) {
-                return true;
-            } else if (input.is_type<eltwise>() && input.get_dependency(1).is_constant()) {
-                return is_suitable_reorder(&input);
-            } else if (input.is_type<activation>()) {
-                return is_suitable_reorder(&input);
+        if (node->is_type<convolution>())
+            return true;
+        if (node->is_type<reorder>()) {
+            for (size_t idx = 0; idx < node->get_dependencies().size(); idx++) {
+                auto& input = node->get_dependency(idx);
+                if (!input.is_in_data_flow() || input.is_constant())
+                    continue;
+                if (input.is_type<convolution>()) {
+                    return true;
+                } else if (input.is_type<eltwise>() && input.get_dependency(1).is_constant()) {
+                    return is_suitable_parent(&input);
+                } else if (input.is_type<activation>()) {
+                    return is_suitable_parent(&input);
+                }
+                return false;
             }
-            return false;
         }
-        return true;
+        return false;
     };
 
     auto update_order = [](std::vector<uint16_t> original_order, cldnn::program_node* reshape) {
@@ -63,7 +67,7 @@ void reshape_transfer::run(program& p) {
         auto transformed_order = original_order;
         ov::Shape new_shape(transformed_order.size());
         const uint16_t merge_dim_idx = [&]() {
-            for (size_t i = 0; i < reshape_in_shape.size(); ++i) {
+            for (uint16_t i = 0; i < reshape_in_shape.size(); ++i) {
                 if (reshape_in_shape[i] != reshape_out_shape[i])
                     return i;
             }
@@ -110,7 +114,7 @@ void reshape_transfer::run(program& p) {
             continue;
         }
 
-        if (!is_suitable_reorder(parent_node)) {
+        if (!is_suitable_parent(parent_node)) {
             continue;
         }
         reshape_node* reshape_node = nullptr;
