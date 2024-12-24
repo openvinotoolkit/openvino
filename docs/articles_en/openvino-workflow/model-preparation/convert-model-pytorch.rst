@@ -203,6 +203,52 @@ Here is an example of how to convert a model obtained with ``torch.export``:
    This is an experimental feature. Use it only if you know that you need to. PyTorch version 2.2
    is recommended. Dynamic shapes are not supported yet.
 
+Converting a PyTorch Model from Disk
+####################################
+
+PyTorch provides the capability to save models in two distinct formats: ``torch.jit.ScriptModule`` and ``torch.export.ExportedProgram``.
+Both formats can be saved to disk as standalone files, enabling them to be reloaded independently of the original Python code.
+
+ExportedProgram Format
+++++++++++++++++++++++
+
+The ``ExportedProgram`` format is saved on disk using `torch.export.save() <https://pytorch.org/docs/stable/export.html#serialization>`__.
+Below is an example of how to convert an ``ExportedProgram`` from disk:
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. code-block:: py
+         :force:
+
+         import openvino as ov
+         ov_model = ov.convert_model('exported_program.pt2')
+
+   .. tab-item:: CLI
+      :sync: cli
+
+      .. code-block:: sh
+
+         ovc exported_program.pt2
+
+ScriptModule Format
++++++++++++++++++++
+
+`torch.jit.save() <https://pytorch.org/docs/stable/generated/torch.jit.save.html>`__ serializes ``ScriptModule`` object on disk.
+To convert the serialized ``ScriptModule`` format, run ``convert_model`` function with ``example_input`` parameter as follows:
+
+.. code-block:: py
+   :force:
+
+   from openvino import convert_model
+   import torch
+
+   convert_model(input_model='script_module.pt', example_input=torch.rand(1, 10))
+
+``example_input`` is the required parameter for the conversion because ``torch.jit.ScriptModule`` object is always saved in an untraced state on disk.
+
 Exporting a PyTorch Model to ONNX Format
 ########################################
 

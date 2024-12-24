@@ -28,6 +28,6 @@ class TRANSFORMATIONS_API ReshapeSinkingMatMul;
 
 class ov::pass::ReshapeSinkingMatMul : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ReshapeSinkingMatMul", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ReshapeSinkingMatMul");
     ReshapeSinkingMatMul();
 };
