@@ -217,7 +217,7 @@ public:
 
     void finalize(std::shared_ptr<IRemoteContext> context, const ov::RTMap& rt_info);
 
-    bool visit_attributes(ov::AttributeVisitor& visitor) const;
+    bool visit_attributes(ov::AttributeVisitor& visitor);
 
 protected:
     virtual void apply_rt_info(std::shared_ptr<IRemoteContext> context, const ov::RTMap& rt_info) {}

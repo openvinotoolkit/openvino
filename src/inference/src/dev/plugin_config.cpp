@@ -55,7 +55,7 @@ ov::Any PluginConfig::get_property(const std::string& name, OptionVisibility all
     }
 
     auto option = get_option_ptr(name);
-     if ((allowed_visibility & option->get_visibility()) == option->get_visibility()) {
+     if ((allowed_visibility & option->get_visibility()) != option->get_visibility()) {
         OPENVINO_THROW("Couldn't get unknown property: ", name);
     }
 
@@ -70,7 +70,7 @@ void PluginConfig::set_property(const ov::AnyMap& config, OptionVisibility allow
         auto& val = kv.second;
 
         auto option = get_option_ptr(name);
-        if ((allowed_visibility & option->get_visibility()) == option->get_visibility()) {
+        if ((allowed_visibility & option->get_visibility()) != option->get_visibility()) {
             if (throw_on_error)
                 OPENVINO_THROW("Couldn't set unknown property: ", name);
             else
@@ -111,14 +111,16 @@ void PluginConfig::finalize(std::shared_ptr<IRemoteContext> context, const ov::R
     m_is_finalized = true;
 }
 
-bool PluginConfig::visit_attributes(ov::AttributeVisitor& visitor) const {
-    // for (const auto& prop : m_user_properties) {
-    //     visitor.on_attribute(prop.first + "__user", prop.second.as<std::string>());
-    // }
-    // for (const auto& prop : m_options_map) {
-    //     visitor.on_attribute(prop.first + "__internal", prop.second->get_any().as<std::string>());
-    // }
-    // visitor.on_attribute("is_finalized", m_is_finalized);
+bool PluginConfig::visit_attributes(ov::AttributeVisitor& visitor) {
+    for (const auto& prop : m_user_properties) {
+        auto val = prop.second.as<std::string>();
+        visitor.on_attribute(prop.first + "__user", val);
+    }
+    for (const auto& prop : m_options_map) {
+        auto val = prop.second->get_any().as<std::string>();
+        visitor.on_attribute(prop.first + "__internal", val);
+    }
+    visitor.on_attribute("is_finalized", m_is_finalized);
 
     return true;
 }
@@ -212,20 +214,20 @@ void PluginConfig::cleanup_unsupported(ov::AnyMap& config) const {
 }
 
 std::string PluginConfig::to_string() const {
-    std::stringstream s;
+    std::stringstream ss;
 
-    s << "-----------------------------------------\n";
-    s << "PROPERTIES:\n";
+    ss << "-----------------------------------------\n";
+    ss << "PROPERTIES:\n";
 
     for (const auto& option : m_options_map) {
-        s << "\t" << option.first << ": " << option.second->get_any().as<std::string>() << std::endl;
+        ss << "\t" << option.first << ": " << option.second->get_any().as<std::string>() << std::endl;
     }
-    s << "USER PROPERTIES:\n";
+    ss << "USER PROPERTIES:\n";
     for (const auto& user_prop : m_user_properties) {
-        s << "\t" << user_prop.first << ": " << user_prop.second.as<std::string>() << std::endl;
+        ss << "\t" << user_prop.first << ": " << user_prop.second.as<std::string>() << std::endl;
     }
 
-    return s.str();
+    return ss.str();
 }
 
 void PluginConfig::print_help() const {
@@ -276,7 +278,7 @@ void PluginConfig::print_help() const {
 
     const size_t max_name_width = static_cast<int>(std::get<0>(*max_name_length_item).size() + std::get<1>(*max_name_length_item).size());
     const size_t terminal_width = get_terminal_width();
-    ss << std::left << std::setw(max_name_width) << ("Option name") << " | " << " Description " << "\n";
+    ss << std::left << std::setw(max_name_width) << "Option name" << " | " << " Description " << "\n";
     ss << std::left << std::setw(terminal_width) << std::setfill('-') << "" << "\n";
     for (auto& kv : options_desc) {
         ss << format_text(std::get<0>(kv), std::get<1>(kv), std::get<2>(kv), max_name_width, terminal_width) << "\n";
