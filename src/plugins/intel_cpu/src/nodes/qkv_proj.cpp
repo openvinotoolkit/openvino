@@ -340,7 +340,7 @@ QKVProjection::QKVProjection(const std::shared_ptr<ov::Node>& op, const GraphCon
         concurrency = parallel_get_max_threads();
     }
 
-    if (!isSupportedOperation(op, errorMessage, concurrency, config.fcDynamicQuantizationGroupSize)) {
+    if (!isSupportedOperation(op, errorMessage, concurrency, config.get_dynamic_quantization_group_size())) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     const auto node = ov::as_type_ptr<const QKVProjectionNode>(op);

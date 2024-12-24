@@ -1789,7 +1789,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     };
 
     // @todo should be handled in scope of selectPreferPrimitiveDescriptor
-    if (context->getConfig().modelType == Config::ModelType::CNN) {
+    if (context->getConfig().get_model_type() == ModelType::CNN) {
         if (isChannelsFirstApplicable)
             addDesc(supportedPrimitiveDescriptors, ChannelsFirst);
         addDesc(supportedPrimitiveDescriptors, Planar);
@@ -1797,7 +1797,6 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         addDesc(supportedPrimitiveDescriptors, Planar);
         if (isChannelsFirstApplicable)
             addDesc(supportedPrimitiveDescriptors, ChannelsFirst);
-    }
 
     canUseEltwiseExecPtr = !supportedPrimitiveDescriptors.empty() && useAcl;
     if (!supportedPrimitiveDescriptors.empty())
@@ -1822,7 +1821,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         return;
 #endif
 
-    if (context->getConfig().modelType == Config::ModelType::CNN) {
+    if (context->getConfig().get_model_type() == ModelType::CNN) {
         if (isChannelsFirstApplicable) {
             supportedPrimitiveDescriptors.emplace_back(initDesc(ChannelsFirst));
         }

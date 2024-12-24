@@ -26,6 +26,51 @@ namespace ov {
  */
 namespace intel_cpu {
 
+struct DenormalsOptimization {
+    enum class Mode {
+        DEFAULT,
+        ON,
+        OFF
+    };
+
+    DenormalsOptimization() {};
+    DenormalsOptimization(Mode mode) : m_mode(mode) {};
+    DenormalsOptimization(bool mode) { m_mode = mode ? Mode::ON : Mode::OFF; }
+    operator bool() const { return m_mode == Mode::ON; }
+
+    Mode m_mode = Mode::DEFAULT;
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const DenormalsOptimization& value) {
+    switch (value.m_mode) {
+    case DenormalsOptimization::Mode::DEFAULT:
+        return os << "DEFAULT";
+    case DenormalsOptimization::Mode::ON:
+        return os << "ON";
+    case DenormalsOptimization::Mode::OFF:
+        return os << "OFF";
+    default:
+        OPENVINO_THROW("Unsupported denormals optimization mode: ");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, DenormalsOptimization& value) {
+    std::string str;
+    is >> str;
+    if (str == "DEFAULT") {
+        value = DenormalsOptimization::Mode::DEFAULT;
+    } else if (str == "ON") {
+        value = DenormalsOptimization::Mode::ON;
+    } else if (str == "OFF") {
+        value = DenormalsOptimization::Mode::OFF;
+    } else {
+        OPENVINO_THROW("Could not read denormals optimization mode from str: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
 /**
  * @brief This property define whether to perform denormals optimization.
  * @ingroup ov_runtime_cpu_prop_cpp_api
@@ -33,7 +78,8 @@ namespace intel_cpu {
  * Computation with denormals is very time consuming. FTZ(Flushing denormals to zero) and DAZ(Denormals as zero)
  * could significantly improve the performance, but it does not comply with IEEE standard. In most cases, this behavior
  * has little impact on model accuracy. Users could enable this optimization if no or acceptable accuracy drop is seen.
- * The following code enables denormals optimization
+ * By default OV runtime doesn't change master thread settings.
+ * The following code explicitly enables denormals optimization
  *
  * @code
  * ie.set_property(ov::denormals_optimization(true)); // enable denormals optimization
@@ -45,7 +91,7 @@ namespace intel_cpu {
  * ie.set_property(ov::denormals_optimization(false)); // disable denormals optimization
  * @endcode
  */
-static constexpr Property<bool> denormals_optimization{"CPU_DENORMALS_OPTIMIZATION"};
+static constexpr Property<DenormalsOptimization> denormals_optimization{"CPU_DENORMALS_OPTIMIZATION"};
 
 /**
  * @brief This property defines threshold for sparse weights decompression feature activation
