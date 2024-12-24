@@ -121,6 +121,46 @@ bool query_local_block_io_supported(engine& e, const ExecutionConfig& config) {
 
 namespace cldnn {
 
+bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
+    auto device = e.get_device().get();
+
+    static std::mutex m;
+    std::lock_guard<std::mutex> lock(m);
+
+    static std::map<cldnn::device*, bool> cache;
+    if (cache.find(device) != cache.end()) {
+        return cache.at(device);
+    }
+
+    std::shared_ptr<kernel_selector::KernelString> kernel_string = std::make_shared<kernel_selector::KernelString>();
+    // This program checks if cm sources can be jitted by current IGC version
+    const char* kernel_code = R""""(
+        #include <cm/cm.h>
+        #include <cm/cmtl.h>
+
+        extern "C" _GENX_MAIN_ void cm_check() {
+            unsigned int id = cm_linear_global_id();
+        }
+        )"""";
+
+    kernel_string->str = kernel_code;
+    kernel_string->options = " -cmc ";
+    kernel_string->entry_point = "cm_check";
+    kernel_string->batch_compilation = true;
+
+    try {
+        cldnn::kernel_impl_params dummy_params;
+        auto _kernels_cache_device_query = std::unique_ptr<cldnn::kernels_cache>(new cldnn::kernels_cache(e, config, 0));
+        _kernels_cache_device_query->add_kernels_source(dummy_params, {kernel_string}, false);
+        _kernels_cache_device_query->build_all();
+        cache[device] = true;
+    } catch (std::exception&) {
+        cache[device] = false;
+    }
+
+    return cache.at(device);
+}
+
 bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
     auto device = e.get_device().get();
 
