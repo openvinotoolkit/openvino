@@ -3,6 +3,8 @@
 
 import numpy as np
 import pytest
+pytest.importorskip("openvino.tools.mo", reason="Ticket - 157136")
+
 from common.layer_test_class import check_ir_version
 from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 
@@ -34,7 +36,6 @@ def get_flatten_shape(src_shape, axis):
     return [fst_dim, snd_dim]
 
 
-@pytest.mark.skip(reason="Ticket - 157136")
 class TestSoftmax(OnnxRuntimeLayerTest):
     def _prepare_input(self, inputs_dict):
         for input in inputs_dict.keys():

@@ -3,6 +3,8 @@
 
 import numpy as np
 import pytest
+pytest.importorskip("openvino.tools.mo", reason="Ticket - 157136")
+
 from common.layer_test_class import check_ir_version
 from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 
@@ -20,7 +22,6 @@ def cumsum(a, axis=None, exclusive=False, reverse=False):
     return res
 
 
-@pytest.mark.skip(reason="Ticket - 157136")
 class TestCumSum(OnnxRuntimeLayerTest):
     def create_net(self, shape, ir_version, axis=None, reverse=None, exclusive=None):
         """

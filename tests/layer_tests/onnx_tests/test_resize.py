@@ -3,6 +3,8 @@
 
 import numpy as np
 import pytest
+pytest.importorskip("openvino.tools.mo", reason="Ticket - 157136")
+
 from common.layer_test_class import check_ir_version
 from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 
@@ -12,7 +14,6 @@ from openvino.tools.mo.middle.passes.convert_data_type import data_type_str_to_n
 from unit_tests.utils.graph import build_graph
 
 
-@pytest.mark.skip(reason="Ticket - 157136")
 class TestResize(OnnxRuntimeLayerTest):
     def create_resize_net(self, input_shape, output_shape, scales, sizes,
                           coordinate_transformation_mode, cubic_coeff_a, mode,

@@ -2,13 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+pytest.importorskip("openvino.tools.mo", reason="Ticket - 157136")
+
 from common.layer_test_class import check_ir_version
 from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 
 from unit_tests.utils.graph import build_graph
 
 
-@pytest.mark.skip(reason="Ticket - 157136")
 class TestClip(OnnxRuntimeLayerTest):
     def create_net(self, shape, ir_version, opset, min=None, max=None):
         """

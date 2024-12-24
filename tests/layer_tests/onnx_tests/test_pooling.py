@@ -3,6 +3,8 @@
 
 import numpy as np
 import pytest
+pytest.importorskip("openvino.tools.mo", reason="Ticket - 157136")
+
 from common.layer_test_class import check_ir_version
 from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 
@@ -13,7 +15,6 @@ def float_array(x):
     return np.array(x, dtype=float)
 
 
-@pytest.mark.skip(reason="Ticket - 157136")
 class TestPooling(OnnxRuntimeLayerTest):
     def create_net(self, shape, kernel_shape, pads, strides, op, ir_version, count_include_pad=None,
                    auto_pad=None,
