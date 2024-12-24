@@ -1089,13 +1089,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
 
-        bool disable_horizontal_fc_fusion = false;
-        bool disable_fc_swiglu_fusion = false;
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        GPU_DEBUG_IF(debug_config->disable_horizontal_fc_fusion == 1)
-            disable_horizontal_fc_fusion = true;
-        GPU_DEBUG_IF(debug_config->disable_fc_swiglu_fusion == 1)
-            disable_fc_swiglu_fusion = true;
+        bool disable_horizontal_fc_fusion = config.get_disable_horizontal_fc_fusion();
+        bool disable_fc_swiglu_fusion = config.get_disable_fc_swiglu_fusion();
+
         // mlp fusion is only supported for cldnn on high performant GPUis
         bool fuse_mlp_swiglu = !device_info.supports_immad &&
                                device_info.execution_units_count >= 128 &&
@@ -1151,6 +1147,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::SinkReshape>();
 
         if (device_info.supports_immad) {
+            bool asymmetric_dyn_quant = config.get_asym_dynamic_quantization();
             auto dynamic_quantization_group_size = config.get_dynamic_quantization_group_size();
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
                 for (size_t i = 0 ; i < root->get_input_node_shared_ptr(0)->get_output_size(); ++i) {
@@ -1169,7 +1166,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
                 // AZP does not support 8bit weight
                 // XXX: This is currently wrapped as GPU_DEBUG_IF as dynamic_quantize_asym is not exposed through public API.
-                GPU_DEBUG_IF(debug_config->dynamic_quantize_asym
+                GPU_DEBUG_IF(asymmetric_dyn_quant
                     && (root->get_input_element_type(1) == ov::element::i8 || root->get_input_element_type(1) == ov::element::u8)) {
                     GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: asym quantization does not support 8bit weight" << std::endl;
                     return true;
@@ -1193,7 +1190,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
                 return false;
             });
-            manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size);
+            manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size, asymmetric_dyn_quant);
         }
 
         // Remove Pad in front of MaxPool if both the pads_begin and pads_end are zero.

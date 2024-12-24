@@ -13,7 +13,7 @@
 #include "openvino/op/search_sorted.hpp"
 #include "openvino/op/stft.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "ov_ops/dynamic_quantize.hpp"
+
 
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
@@ -63,7 +63,6 @@ std::string layer_type_name_ID(const std::shared_ptr<ov::Node>& op) {
 }
 
 ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& engine, const ExecutionConfig& config,
-                               bool partial_build,
                                std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                                std::shared_ptr<cldnn::ICompilationContext> compilation_context,
                                bool is_inner_program)
@@ -111,7 +110,7 @@ ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& 
     CustomLayer::LoadFromFile(custom_layers_config, m_custom_layers, custom_layers_config.empty());
 
     auto ops = model->get_ordered_ops();
-    m_program = build(ops, partial_build, is_inner_program);
+    m_program = build(ops, is_inner_program);
 }
 
 ProgramBuilder::ProgramBuilder(cldnn::engine& engine, const ExecutionConfig& config)
@@ -141,43 +140,8 @@ void ProgramBuilder::cleanup_build() {
 #endif
 }
 
-std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::shared_ptr<ov::Node>>& ops, bool partial_build, bool is_inner_program) {
+std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::shared_ptr<ov::Node>>& ops, bool is_inner_program) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "ProgramBuilder::build");
-    // In the case of inner program, allow_new_shape_infer flag is setted by outside of program.
-    // So, do not check allow_new_shape_infer for inner program build
-    for (const auto& op : ops) {
-        if (requires_new_shape_infer(op)) {
-            allow_new_shape_infer = true;
-            break;
-        }
-    }
-    bool is_dynamic = false;
-    for (const auto& op : ops) {
-        if (op->is_dynamic()) {
-            is_dynamic = true;
-            break;
-        }
-    }
-
-    if (is_inner_program) {
-        allow_new_shape_infer = (m_config.get_allow_new_shape_infer() || allow_new_shape_infer);
-    }
-
-    // In the case of dynamic models, because most of the layers are mapped to shape agnostic kernels,
-    // smaller # of kernels are built compared to static models.
-    // So having smaller batch size is even better for dynamic model as we can do more parallel build.
-    if (is_dynamic) {
-        m_config.set_property(ov::intel_gpu::max_kernels_per_batch(4));;
-    } else {
-        m_config.set_property(ov::intel_gpu::max_kernels_per_batch(8));;
-    }
-
-    m_config.set_property(ov::intel_gpu::partial_build_program(partial_build));
-    m_config.set_property(ov::intel_gpu::optimize_data(true));
-    m_config.set_property(ov::intel_gpu::allow_new_shape_infer(allow_new_shape_infer));
-    //if (has_lstm)
-    m_config.set_property(ov::intel_gpu::use_onednn(true));
-    m_config.finalize(m_engine);
 
     prepare_build();
     {
@@ -223,7 +187,6 @@ bool ProgramBuilder::is_op_supported(const std::shared_ptr<ov::Node>& op) {
         if (!data_types_are_supported(op.get()))
             return false;
 
-        allow_new_shape_infer = requires_new_shape_infer(op);
         CreateSingleLayerPrimitive(op);
         cleanup_build();
         DisableQueryMode();
@@ -280,7 +243,7 @@ std::vector<cldnn::input_info> ProgramBuilder::GetInputInfo(const std::shared_pt
         // Note: Currently Split/Variadic Split are divided to multiple crops
         // LSTMCell contains its own body network, and each output has a unique pid
         // But there is no need to maintain output port index for the next node e.g. Result
-        bool is_legacy_multiple_outputs = !allow_new_shape_infer
+        bool is_legacy_multiple_outputs = !use_new_shape_infer()
                                           || ov::is_type<ov::op::v1::Split>(prevOp)
                                           || ov::is_type<ov::op::v1::VariadicSplit>(prevOp)
                                           || ov::is_type<ov::op::v4::LSTMCell>(prevOp);
