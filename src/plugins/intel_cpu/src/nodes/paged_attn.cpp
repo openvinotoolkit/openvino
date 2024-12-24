@@ -163,8 +163,8 @@ void PagedAttention::createPrimitive() {
         auto vCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
         const auto& cpuConfig = context->getConfig();
 
-        size_t key_group_size = cpuConfig.keyCacheGroupSize;
-        size_t value_group_size = cpuConfig.valueCacheGroupSize;
+        size_t key_group_size = cpuConfig.get_key_cache_group_size();
+        size_t value_group_size = cpuConfig.get_value_cache_group_size();
         return make_pa_executor(rtPrecision, kCachePrecision, vCachePrecision, key_group_size, value_group_size);
 #else
         return nullptr;
