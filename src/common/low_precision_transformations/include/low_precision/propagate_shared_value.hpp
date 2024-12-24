@@ -38,6 +38,7 @@ class LP_TRANSFORMATIONS_API PropagateSharedValue;
 template <class AttributeType>
 class ov::pass::low_precision::PropagateSharedValue : public ov::pass::ModelPass {
 public:
+    OPENVINO_MODEL_PASS_RTTI("low_precision::PropagateSharedValue");
     bool run_on_model(const std::shared_ptr<ov::Model>& f) override {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "PropagateSharedValue");
 
