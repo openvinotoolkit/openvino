@@ -24,9 +24,13 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/device_query.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
+#include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/deprecated.hpp"
+#include "openvino/op/loop.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/search_sorted.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
@@ -37,6 +41,7 @@
 #include "openvino/runtime/plugin_config.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
+#include "ov_ops/dynamic_quantize.hpp"
 #include "openvino/util/weights_path.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/init_node_info.hpp"
@@ -65,6 +70,90 @@ ov::RTMap get_rt_info(const ov::Model& model) {
         rt_info[ov::weights_path.name()] = model.get_rt_info<ov::Any>("__weights_path");
     }
     return rt_info;
+}
+
+bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
+    if (op->is_dynamic()) {
+        return true;
+    }
+
+    // HACK: SearchSorted has specific shape requirements.
+    // E.g. static input shapes: sorted:[8], values:[2,3,4] are prefectly fine,
+    // but sorted:[8,1,1,1], values:[2,3,4,1] is not valid.
+    if (ov::is_type<ov::op::v15::SearchSorted>(op))
+        return true;
+
+    if (ov::is_type<ov::op::internal::DynamicQuantize>(op))
+        return true;
+
+    if (ov::is_type<ov::op::v5::Loop>(op)) {
+        const auto body_function = std::static_pointer_cast<ov::op::v5::Loop>(op)->get_function();
+        if (body_function->is_dynamic())
+            return true;
+    }
+
+    if (ov::is_type<ov::op::v5::LSTMSequence>(op) || ov::is_type<ov::op::v4::LSTMCell>(op)) {
+        return true;
+    }
+    // When input node has dynamic shape with 4 dimension, this function return false
+    // because op.is_dynamic() which only checks input shapes return false.
+    // So, in the case of input data, we need to check output shape.
+    for (size_t i = 0; i < op->get_output_size(); i++) {
+        if (op->get_output_partial_shape(i).is_dynamic())
+            return true;
+    }
+
+    for (size_t i = 0; i < op->get_output_size(); i++) {
+        if (op->get_output_partial_shape(i).size() > 6)
+            return true;
+    }
+
+    for (size_t i = 0; i < op->get_input_size(); i++) {
+        if (op->get_input_partial_shape(i).size() > 6)
+            return true;
+    }
+
+    return false;
+}
+
+void set_model_properties(const ov::Model& model, ExecutionConfig& config) {
+    const auto& ops = model.get_ordered_ops();
+    // In the case of inner program, allow_new_shape_infer flag is setted by outside of program.
+    // So, do not check allow_new_shape_infer for inner program build
+    for (const auto& op : ops) {
+        if (requires_new_shape_infer(op)) {
+            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+            break;
+        }
+    }
+    bool is_dynamic = false;
+    for (const auto& op : ops) {
+        if (op->is_dynamic()) {
+            is_dynamic = true;
+            break;
+        }
+    }
+    bool has_lstm = false;
+    for (const auto& op : ops) {
+        if (ov::is_type<ov::op::v5::LSTMSequence>(op)) {
+            has_lstm = true;
+            break;
+        }
+    }
+
+    // In the case of dynamic models, because most of the layers are mapped to shape agnostic kernels,
+    // smaller # of kernels are built compared to static models.
+    // So having smaller batch size is even better for dynamic model as we can do more parallel build.
+    if (is_dynamic) {
+        config.set_property(ov::intel_gpu::max_kernels_per_batch(4));
+    } else {
+        config.set_property(ov::intel_gpu::max_kernels_per_batch(8));
+    }
+
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    if (has_lstm)
+        config.set_property(ov::intel_gpu::use_onednn(true));
 }
 
 }  // namespace
@@ -114,14 +203,13 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
                                                              const ExecutionConfig& config,
                                                              const std::shared_ptr<RemoteContextImpl>& context) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::clone_and_transform_model");
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_DEFINE_MEM_LOGGER("Plugin::clone_and_transform_model");
 
     auto cloned_model = model->clone();
     OPENVINO_ASSERT(cloned_model != nullptr, "[GPU] Failed to clone model!");
 
-    GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
-        auto path_base = debug_config->dump_graphs + "/" + cloned_model->get_name();
+    GPU_DEBUG_IF(!config.get_dump_graphs_path().empty()) {
+        auto path_base = config.get_dump_graphs_path() + "/" + cloned_model->get_name();
         ov::pass::VisualizeTree(path_base + ".svg").run_on_model(cloned_model);
     }
 
@@ -140,8 +228,8 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
         new_res->set_friendly_name(old_res->get_friendly_name());
     }
 
-    GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
-        auto path_base = debug_config->dump_graphs + "/" + cloned_model->get_name() + "_" +  "transformed_func";
+    GPU_DEBUG_IF(!config.get_dump_graphs_path().empty()) {
+        auto path_base = config.get_dump_graphs_path() + "/" + cloned_model->get_name() + "_" +  "transformed_func";
         ov::pass::VisualizeTree(path_base + ".svg").run_on_model(cloned_model);
     }
     return cloned_model;
@@ -189,7 +277,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] compile_model: Couldn't find config for GPU with id ", device_id);
 
     ExecutionConfig config = m_configs_map.at(device_id);
-    config.set_property(orig_config, OptionVisibility::RELEASE);
+    config.set_user_property(orig_config, OptionVisibility::RELEASE);
+    set_model_properties(*model, config);
     config.finalize(context, get_rt_info(*model));
 
     auto transformed_model = clone_and_transform_model(model, config, context);
@@ -208,6 +297,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] LoadExeNetworkImpl: Couldn't find config for GPU with id ", device_id);
 
     ExecutionConfig config = m_configs_map.at(device_id);
+    set_model_properties(*model, config);
     config.finalize(context_impl, get_rt_info(*model));
 
     auto transformed_model = clone_and_transform_model(model, config, context_impl);
@@ -238,7 +328,7 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const AnyMap& params) 
 
 void Plugin::set_property(const ov::AnyMap &config) {
     auto update_config = [](ExecutionConfig& config, const ov::AnyMap& user_config) {
-        config.set_property(user_config, OptionVisibility::RELEASE);
+        config.set_user_property(user_config, OptionVisibility::RELEASE);
         // Check that custom layers config can be loaded
         if (user_config.find(ov::intel_gpu::config_file.name()) != user_config.end()) {
             CustomLayerMap custom_layers;
@@ -273,7 +363,8 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     auto ctx = get_default_context(device_id);
 
     ExecutionConfig config = m_configs_map.at(device_id);
-    config.set_property(orig_config, OptionVisibility::RELEASE);
+    config.set_user_property(orig_config, OptionVisibility::RELEASE);
+    set_model_properties(*model, config);
     config.finalize(ctx, get_rt_info(*model));
 
     ProgramBuilder prog(ctx->get_engine(), config);
@@ -328,7 +419,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     }
 
     ExecutionConfig config = m_configs_map.at(device_id);
-    config.set_property(_orig_config, OptionVisibility::RELEASE);
+    config.set_user_property(_orig_config, OptionVisibility::RELEASE);
     config.finalize(context_impl, {});
 
     ov::CacheMode cache_mode = config.get_cache_mode();
@@ -648,7 +739,9 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
     auto device_id = get_property(ov::device::id.name(), options).as<std::string>();
     auto context = get_default_contexts().at(device_id);
     const auto& device_info = context->get_engine().get_device_info();
-    const auto& config = m_configs_map.at(device_id);
+    auto config = m_configs_map.at(device_id);
+    config.set_property(ov::intel_gpu::partial_build_program(true));
+    config.finalize(context, {});
     uint32_t n_streams = static_cast<uint32_t>(config.get_num_streams());
     uint64_t occupied_device_mem = 0;
     auto statistic_result = get_metric(ov::intel_gpu::memory_statistics.name(), options).as<std::map<std::string, uint64_t>>();
@@ -766,7 +859,7 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
 
         TransformationsPipeline transformations(config, context);
         transformations.apply(cloned_model);
-        program = std::make_shared<ProgramBuilder>(cloned_model, engine, config, true);
+        program = std::make_shared<ProgramBuilder>(cloned_model, engine, config);
         std::pair<int64_t, int64_t> device_memory_usage = program->get_compiled_program()->get_estimated_device_mem_usage();
         if (device_memory_usage.first == static_cast<int64_t>(-1L) && device_memory_usage.second == static_cast<int64_t>(-1L)) {
             return static_cast<uint32_t>(max_batch_size);

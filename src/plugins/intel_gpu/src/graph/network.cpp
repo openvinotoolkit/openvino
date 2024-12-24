@@ -237,9 +237,8 @@ network::~network() {
     if (_program != nullptr)
         _program->cancel_compilation_context();
     _memory_pool->clear_pool_for_network(net_id);
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
-        dump_perf_data_raw(debug_config->dump_profiling_data + "/perf_raw" + std::to_string(net_id) + ".csv", _exec_order);
+    GPU_DEBUG_IF(!_config.get_dump_profiling_data_path().empty()) {
+        dump_perf_data_raw(_config.get_dump_profiling_data_path() + "/perf_raw" + std::to_string(net_id) + ".csv", _exec_order);
     }
 }
 

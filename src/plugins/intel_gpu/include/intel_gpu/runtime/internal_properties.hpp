@@ -110,6 +110,7 @@ static constexpr Property<bool, ov::PropertyMutability::RW> disable_runtime_buff
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_memory_reuse{"DISABLE_MEMORY_REUSE"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_post_ops_fusions{"DISABLE_POST_OPS_FUSIONS"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_horizontal_fc_fusion{"DISABLE_HORIZONTAL_FC_FUSION"};
+static constexpr Property<bool, ov::PropertyMutability::RW> disable_fc_swiglu_fusion{"DISABLE_FC_SWIGLU_FUSION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_fake_alignment{"DISABLE_FAKE_ALIGNMENT"};
 static constexpr Property<bool, ov::PropertyMutability::RW> use_usm_host{"USE_USM_HOST"};
 static constexpr Property<bool, ov::PropertyMutability::RW> asym_dynamic_quantization{"ASYM_DYNAMIC_QUANTIZATION"};

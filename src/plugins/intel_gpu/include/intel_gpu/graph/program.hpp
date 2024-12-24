@@ -309,7 +309,6 @@ private:
     // if subgraph can be optimized if it consists of only inputs and corresponding outputs
     bool _can_be_optimized;
     std::unique_ptr<ImplementationsCache> _impls_cache;
-    const size_t _impls_cache_capacity = 300;
     std::shared_ptr<ICompilationContext> _compilation_context;
     bool _loaded_from_cache = false;
 

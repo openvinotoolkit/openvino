@@ -103,7 +103,6 @@ private:
 
     std::string get_cache_path() const;
     bool is_cache_enabled() const;
-    size_t get_max_kernels_per_batch() const;
 
     bool _reuse_kernels = false;
 

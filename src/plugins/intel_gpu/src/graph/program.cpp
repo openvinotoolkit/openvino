@@ -238,12 +238,7 @@ void program::init_program() {
 
 
     _layout_optimizer = cldnn::make_unique<layout_optimizer>();
-    size_t impls_cache_capacity = _impls_cache_capacity;
-    GPU_DEBUG_IF(debug_config->impls_cache_capacity >= 0) {
-        impls_cache_capacity = debug_config->impls_cache_capacity;
-    }
-
-    _impls_cache = cldnn::make_unique<ImplementationsCache>(impls_cache_capacity);
+    _impls_cache = cldnn::make_unique<ImplementationsCache>(get_config().get_impls_cache_capacity());
     // Remove items of compilation context's internal queue when some impl is popped in kernels_cache
     // compilation context's queue check duplication of inserted task
     _impls_cache->set_remove_item_callback([this](ImplementationsCache::ItemType& item) {
@@ -546,26 +541,13 @@ void program::pre_optimize_graph(bool is_internal) {
 
     reorder_factory rf;
     if (optimize_data) {
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-#ifdef GPU_DEBUG_CONFIG
-        GPU_DEBUG_IF(!debug_config->disable_primitive_fusing) {
-#else
-        {
-#endif
-            apply_opt_pass<prepare_primitive_fusing_through>();
-        }
+        apply_opt_pass<prepare_primitive_fusing_through>();
 
         apply_opt_pass<pre_replace_deconv>();
 
         apply_opt_pass<reorder_transfer>();
 
-#ifdef GPU_DEBUG_CONFIG
-        GPU_DEBUG_IF(!debug_config->disable_primitive_fusing) {
-#else
-        {
-#endif
-            apply_opt_pass<prepare_primitive_fusing>();
-        }
+        apply_opt_pass<prepare_primitive_fusing>();
 
         apply_opt_pass<select_preferred_formats>();
 

@@ -62,7 +62,18 @@ ov::Any PluginConfig::get_property(const std::string& name, OptionVisibility all
     return option->get_any();
 }
 
-void PluginConfig::set_property(const ov::AnyMap& config, OptionVisibility allowed_visibility, bool throw_on_error) {
+void PluginConfig::set_property(const ov::AnyMap& config) {
+    OPENVINO_ASSERT(!m_is_finalized, "Setting property after config finalization is prohibited");
+
+    for (auto& kv : config) {
+        auto& name = kv.first;
+        auto& val = kv.second;
+
+        get_option_ptr(name)->set_any(val);
+    }
+}
+
+void PluginConfig::set_user_property(const ov::AnyMap& config, OptionVisibility allowed_visibility, bool throw_on_error) {
     OPENVINO_ASSERT(!m_is_finalized, "Setting property after config finalization is prohibited");
 
     for (auto& kv : config) {
@@ -131,12 +142,22 @@ void PluginConfig::apply_debug_options(std::shared_ptr<IRemoteContext> context) 
     if (context) {
         ov::AnyMap config_properties = read_config_file("config.json", context->get_device_name());
         cleanup_unsupported(config_properties);
-        set_property(config_properties, OptionVisibility::ANY, throw_on_error);
+#ifdef ENABLE_DEBUG_CAPS
+        for (auto& prop : config_properties) {
+            std::cout << "Non default config value for " << prop.first << " = " << prop.second.as<std::string>() << std::endl;
+        }
+#endif
+        set_user_property(config_properties, OptionVisibility::ANY, throw_on_error);
     }
 
     ov::AnyMap env_properties = read_env({"OV_"});
     cleanup_unsupported(env_properties);
-    set_property(env_properties, OptionVisibility::ANY, throw_on_error);
+#ifdef ENABLE_DEBUG_CAPS
+    for (auto& prop : env_properties) {
+        std::cout << "Non default env value for " << prop.first << " = " << prop.second.as<std::string>() << std::endl;
+    }
+#endif
+    set_user_property(env_properties, OptionVisibility::ANY, throw_on_error);
 }
 
 ov::AnyMap PluginConfig::read_config_file(const std::string& filename, const std::string& target_device_name) const {

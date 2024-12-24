@@ -310,15 +310,16 @@ void SyncInferRequest::enqueue() {
     m_internal_outputs = network->execute(dependencies);
     auto network_enqueue_end = std::chrono::high_resolution_clock::now();
 
+    const auto& config = network->get_config();
+
     // If dump layers path is set, only runs first inference.
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0 && debug_config->dump_iteration.empty()) {
+    GPU_DEBUG_IF(!config.get_dump_tensors_path().empty() && config.get_dump_iterations().empty()) {
         GPU_DEBUG_INFO << "Only run first inference to dump layers." << std::endl;
         exit(0);
     }
 
     auto enqueue_end = std::chrono::high_resolution_clock::now();
-    GPU_DEBUG_IF(cldnn::debug_configuration::get_instance()->host_time_profiling) {
+    GPU_DEBUG_IF(config.get_host_time_profiling()) {
         network_enqueue_time = std::chrono::duration_cast<std::chrono::microseconds>(network_enqueue_end - network_enqueue_start).count();
 
         const uint64_t total_time = std::chrono::duration_cast<std::chrono::microseconds>(enqueue_end - enqueue_start).count();

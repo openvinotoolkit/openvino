@@ -66,27 +66,6 @@ static bool is_weight_dyn_quantizable(const fully_connected_params& params) {
 // DYNAMIC_QUANTIZE
 static size_t get_dynamic_quantize_group_size(const fully_connected_params& params) {
     auto dynamic_quantization_group_size = params.dynamic_quantization_group_size;
-
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->dynamic_quantize_group_size != debug_config->DYNAMIC_QUANTIZE_GROUP_SIZE_NOT_SET) {
-        dynamic_quantization_group_size = debug_config->dynamic_quantize_group_size;
-
-        // Specify which Fully-connected layer would be dynamic-quantized
-        GPU_DEBUG_IF(!debug_config->dynamic_quantize_layers_without_onednn.empty()) {
-            auto layers = debug_config->dynamic_quantize_layers_without_onednn;
-            auto iter = std::find_if(layers.begin(), layers.end(), [&](const std::string& pattern){
-                return debug_config->is_layer_name_matched(params.layerID, pattern);
-            });
-
-            if (iter != layers.end()) {
-                dynamic_quantization_group_size = debug_config->dynamic_quantize_group_size;
-                GPU_DEBUG_COUT << "Found specified Fully-connected layer [" << params.layerID << "]. Enable Dynamic-quantize." << std::endl;
-            } else {
-                dynamic_quantization_group_size = 0;
-            }
-        }
-    }
-
     const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
     for (auto group_size : available_quantize_grp_size) {
         if (dynamic_quantization_group_size >= group_size) {

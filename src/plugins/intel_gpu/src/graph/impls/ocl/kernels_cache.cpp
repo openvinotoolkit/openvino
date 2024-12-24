@@ -131,14 +131,6 @@ bool kernels_cache::is_cache_enabled() const {
     return !_config.get_cache_dir().empty();
 }
 
-size_t kernels_cache::get_max_kernels_per_batch() const {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->max_kernels_per_batch >= 1) {
-        return static_cast<size_t>(debug_config->max_kernels_per_batch);
-    }
-    return _config.get_max_kernels_per_batch();
-}
-
 void kernels_cache::get_program_source(const kernels_code& kernels_source_code, std::vector<kernels_cache::batch_program>* all_batches) const {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::BuildAll::GetProgramSource");
     std::map<std::string, std::tuple<int32_t, std::vector<batch_program>>> program_buckets;
@@ -201,7 +193,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 
             // Create new kernels batch when the limit is reached
             // and current kernel's entry_point is duplicated in this kernels batch
-            if (current_bucket.back().kernels_counter >= get_max_kernels_per_batch()
+            if (current_bucket.back().kernels_counter >= _config.get_max_kernels_per_batch()
                 || current_bucket.back().entry_point_to_id.find(entry_point) != current_bucket.back().entry_point_to_id.end()
                 || need_separate_batch(entry_point)) {
                 const auto& batch_id = static_cast<int32_t>(current_bucket.size());
@@ -243,9 +235,8 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             b.hash_value = std::hash<std::string>()(full_code);
 
             std::string dump_sources_dir = "";
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(!debug_config->dump_sources.empty()) {
-                dump_sources_dir = debug_config->dump_sources;
+            GPU_DEBUG_IF(!_config.get_dump_sources_path().empty()) {
+                dump_sources_dir = _config.get_dump_sources_path();
             }
 
             // Add -g -s to build options to allow IGC assembly dumper to associate assembler sources with corresponding OpenCL kernel code lines
@@ -301,10 +292,9 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
 
     bool dump_sources = batch.dump_custom_program;
     std::string dump_sources_dir = "";
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(!debug_config->dump_sources.empty()) {
+    GPU_DEBUG_IF(!_config.get_dump_sources_path().empty()) {
         dump_sources = true;
-        dump_sources_dir = debug_config->dump_sources;
+        dump_sources_dir = _config.get_dump_sources_path();
     }
 
     std::string err_log;  // accumulated build log from all program's parts (only contains messages from parts which
@@ -379,7 +369,7 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
             if (is_cache_enabled()) {
                 // If kernels caching is enabled, then we save compiled bucket to binary file with name ${code_hash_value}.cl_cache
                 // Note: Bin file contains full bucket, not separate kernels, so kernels reuse across different models is quite limited
-                // Bucket size can be changed in get_max_kernels_per_batch() method, but forcing it to 1 will lead to much longer
+                // Bucket size can be changed by max_kernels_per_batch config option, but forcing it to 1 will lead to much longer
                 // compile time.
                 std::lock_guard<std::mutex> lock(cacheAccessMutex);
                 ov::intel_gpu::save_binary(cached_bin_name, getProgramBinaries(program));

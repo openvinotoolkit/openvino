@@ -51,8 +51,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
 
             _scratchpad_md = _pd.scratchpad_desc();
 
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(debug_config->verbose >= 4) {
+            GPU_DEBUG_IF(config.get_verbose() >= 4) {
                 if (_scratchpad_md.get_size() > 0) {
                     static std::atomic_llong total{0};
                     int64_t size = _scratchpad_md.get_size() / 1048576;
@@ -71,8 +70,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
         _pd(),
         _prim() {
             _enable_profiling = config.get_enable_profiling();
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
+            GPU_DEBUG_IF(!config.get_dump_profiling_data_path().empty()) {
                 _enable_profiling = true;
             }
         }

@@ -1073,8 +1073,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
 }
 
 bool primitive_inst::use_async_compilation() {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->disable_async_compilation) {
+    GPU_DEBUG_IF(get_config().get_disable_async_compilation()) {
         return false;
     }
 
@@ -1568,8 +1567,7 @@ void primitive_inst::do_runtime_in_place_concat() {
         return false;
     };
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_in_place_concat: " + id()));
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->disable_runtime_buffer_fusing) {
+    GPU_DEBUG_IF(get_config().get_disable_runtime_buffer_fusing()) {
         return;
     }
     if (update_shape_done_by_other) {
@@ -1678,8 +1676,7 @@ void primitive_inst::do_runtime_skip_scatter_update() {
 
 void primitive_inst::do_runtime_in_place_crop() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_in_place_crop: " + id()));
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->disable_runtime_buffer_fusing) {
+    GPU_DEBUG_IF(get_config().get_disable_runtime_buffer_fusing()) {
         return;
     }
 
@@ -1972,8 +1969,7 @@ void primitive_inst::execute() {
 
     set_out_event(_impl->execute(_impl_params->dep_events, *this));
 
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
+    GPU_DEBUG_IF(!get_config().get_dump_profiling_data_path().empty()) {
         auto ev = _impl_params->out_event;
         get_network().get_stream().wait_for_events({ev});
 
@@ -2307,8 +2303,7 @@ void primitive_inst::update_weights() {
             reorder_impl->set_arguments(*reorder_inst, args);
             add_dep_event(reorder_impl->execute({}, *reorder_inst));
 
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
+            GPU_DEBUG_IF(!get_config().get_dump_profiling_data_path().empty()) {
                 stream.wait_for_events(_impl_params->dep_events);
             }
 

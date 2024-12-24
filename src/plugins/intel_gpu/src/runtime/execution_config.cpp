@@ -69,7 +69,7 @@ void ExecutionConfig::finalize_impl(std::shared_ptr<IRemoteContext> context) {
     if (!is_set_by_user(ov::intel_gpu::enable_lp_transformations)) {
         m_enable_lp_transformations = info.supports_imad || info.supports_immad;
     }
-    if (info.supports_immad) {
+    if (!is_set_by_user(ov::intel_gpu::use_onednn) && info.supports_immad) {
         m_use_onednn = true;
     }
     if (get_use_onednn()) {

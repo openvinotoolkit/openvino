@@ -300,11 +300,10 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
 
     auto config = p.get_config();
     config.set_property(ov::intel_gpu::custom_outputs(output_names_vec));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
     config.finalize(p.get_engine());
 
     // get body program from ov::Model
-    ProgramBuilder prog(ov_model, p.get_engine(), config, false, p.get_task_executor(), p.get_compilation_context(), true);
+    ProgramBuilder prog(ov_model, p.get_engine(), config, p.get_task_executor(), p.get_compilation_context(), true);
     auto body_program = prog.get_compiled_program();
 
     GPU_DEBUG_LOG << "* trip_count_id                 : " << trip_count_id << std::endl;
