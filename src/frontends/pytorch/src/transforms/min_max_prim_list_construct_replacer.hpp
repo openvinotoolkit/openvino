@@ -14,7 +14,7 @@ namespace pass {
 
 class MinMaxPrimListConstructReplacer : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::pytorch::pass::MinMaxPrimListConstructReplacer");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::pytorch::pass::MinMaxPrimListConstructReplacer");
     MinMaxPrimListConstructReplacer();
 };
 

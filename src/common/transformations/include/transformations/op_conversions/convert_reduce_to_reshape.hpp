@@ -32,6 +32,8 @@ class TRANSFORMATIONS_API ConvertReduceLogicalOrToReshape;
 
 class CvtReduceBase : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("CvtReduceBase");
+
     template <class T>
     ov::matcher_pass_callback convert_reduce_to_reshape();
 
@@ -82,7 +84,7 @@ public:
 
 class ov::pass::ConvertReduceToReshape : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("ConvertReduceToReshape", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("ConvertReduceToReshape");
     // Handling reduce if it can be converted to reshape (check input/output tensor)
     ConvertReduceToReshape() {
         // Redundant reduce based on its mode
