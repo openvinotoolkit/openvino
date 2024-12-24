@@ -5,7 +5,6 @@
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
-#include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/primitives/convolution.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU

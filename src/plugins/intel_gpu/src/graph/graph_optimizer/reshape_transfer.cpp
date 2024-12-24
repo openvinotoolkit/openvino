@@ -16,7 +16,8 @@ void reshape_transfer::run(program& p) {
     // (reorder) + reshape + transpose
     // sink reshape for further possible optimization
     auto is_suitable_permute = [](cldnn::program_node* node) {
-        return node->get_users().size() == 1 && node->is_dynamic() == false;
+        return node->get_users().size() == 1 && node->is_dynamic() == false &&
+               node->get_output_layout().get_rank() == 4;
     };
 
     auto is_suitable_reshape = [](cldnn::program_node* node) -> bool {
@@ -28,8 +29,8 @@ void reshape_transfer::run(program& p) {
             return true;
         return false;
     };
-     std::function<bool(cldnn::program_node*)> is_suitable_reorder;
 
+    std::function<bool(cldnn::program_node*)> is_suitable_reorder;
     is_suitable_reorder = [&is_suitable_reorder](const cldnn::program_node* node) -> bool {
         if (node->get_users().size() != 1 || node->is_dynamic())
             return false;
@@ -58,51 +59,32 @@ void reshape_transfer::run(program& p) {
         // updated order must be (0,2,3,1):
         // dim with index=2 is split into 2 parts: 2 and 3
         const auto& reshape_in_shape = reshape->get_input_layout().get_dims();
-        const auto& reshape_out_dim = reshape->get_output_layout().get_dims();
-        auto reshape_out_shape = reshape_out_dim;
+        const auto& reshape_out_shape = reshape->get_output_layout().get_dims();
         auto transformed_order = original_order;
         ov::Shape new_shape(transformed_order.size());
-        if (original_order.size() < reshape_out_dim.size() && reshape_out_dim.size() == 4) {
-            // if order dims is less than reshape dims, means reshape shape has been converted to upper dims some time
-            // before merge spatial dims
-            reshape_out_shape.resize(original_order.size());
-            for (size_t i = 0; i < reshape_out_dim.size(); ++i) {
-                if (i < 2) {
-                    reshape_out_shape[i] = reshape_out_dim[i];
-                } else {
-                    reshape_out_shape[2] *= reshape_out_dim[i];
-                }
+        const uint16_t merge_dim_idx = [&]() {
+            for (size_t i = 0; i < reshape_in_shape.size(); ++i) {
+                if (reshape_in_shape[i] != reshape_out_shape[i])
+                    return i;
             }
-            const size_t merge_dim_idx = [&]() {
-                for (size_t i = 0; i < reshape_in_shape.size(); ++i) {
-                    if (reshape_in_shape[i] != reshape_out_shape[i])
-                        return i;
-                }
-                OPENVINO_THROW("merged_dim_idx can not be found");
-            }();
-            auto insertIt = transformed_order.end();
-            for (auto it = transformed_order.begin(); it != transformed_order.end(); ++it) {
-                auto& elem = *it;
-                if (elem > merge_dim_idx) {
-                    elem++;
-                } else if (elem == merge_dim_idx) {
-                    insertIt = it + 1;
-                }
+            OPENVINO_THROW("same input/output for reshape node");
+        }();
+        auto insertIt = transformed_order.end();
+        for (auto it = transformed_order.begin(); it != transformed_order.end(); ++it) {
+            auto& elem = *it;
+            if (elem > merge_dim_idx) {
+                elem++;
+            } else if (elem == merge_dim_idx) {
+                insertIt = it + 1;
             }
-            transformed_order.insert(insertIt, merge_dim_idx + 1);
-        } else {
-            auto reorder_orders = [](std::vector<uint16_t>& order, std::vector<uint16_t> place_order) {
-                // for all elements to put in place
-                for (size_t i = 0; i < order.size() - 1; ++i) {
-                    while (i != place_order[i]) {
-                        // swap it with the element at its final place
-                        auto alt = place_order[i];
-                        std::swap(order[i], order[alt]);
-                        std::swap(place_order[i], place_order[alt]);
-                    }
-                }
-            };
-            reorder_orders(transformed_order, std::vector<uint16_t>({0, 1, 3, 2}));
+        }
+        transformed_order.insert(insertIt, merge_dim_idx + 1);
+        // remove invalid orders
+        if (transformed_order.size() > reshape_out_shape.size()) {
+            transformed_order.erase(
+                std::remove_if(transformed_order.begin(), transformed_order.end(), [&](uint16_t& order) {
+                    return order >= reshape_out_shape.size();
+                }));
         }
         return transformed_order;
     };
@@ -136,20 +118,24 @@ void reshape_transfer::run(program& p) {
             reshape_node = &(inter_node->as<reshape>());
 
         auto transpose_order = update_order(transpose_node.get_permute_order(), reshape_node);
-        auto next_node = transpose_node.get_users().front();
-        auto new_reshape_tensor = transpose_node.get_output_layout().get_tensor();
-        p.move_node(*reshape_node, *node, *next_node);
-        // replace the permute node and reshape node
         auto new_permute =
             std::make_shared<permute>(transpose_node.id() + "_reordered", parent_node->id(), transpose_order);
         auto& new_permute_node = p.get_or_create(new_permute);
-        auto new_reshape =
-            std::make_shared<reshape>(reshape_node->id() + "_sinked", new_permute_node.id(), new_reshape_tensor);
-        auto& new_reshape_node = p.get_or_create(new_reshape);
+        if (new_permute_node.as<permute>().is_rotating_except_batch()) {
+            auto next_node = transpose_node.get_users().front();
+            auto new_reshape_tensor = transpose_node.get_output_layout().get_tensor();
+            p.move_node(*reshape_node, *node, *next_node);
+            // replace the permute node and reshape node
+            auto new_reshape =
+                std::make_shared<reshape>(reshape_node->id() + "_sinked", new_permute_node.id(), new_reshape_tensor);
+            auto& new_reshape_node = p.get_or_create(new_reshape);
 
-        p.replace(transpose_node, new_permute_node);
-        p.replace(*reshape_node, new_reshape_node);
-        new_permute_node.recalc_output_layout(false);
-        new_reshape_node.recalc_output_layout(false);
+            p.replace(transpose_node, new_permute_node);
+            p.replace(*reshape_node, new_reshape_node);
+            new_permute_node.recalc_output_layout(false);
+            new_reshape_node.recalc_output_layout(false);
+        } else {
+            p.remove_if_dangling(new_permute_node);
+        }
     }
 }
