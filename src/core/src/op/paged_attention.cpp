@@ -20,7 +20,7 @@ void PagedAttentionExtension::validate_and_infer_types() {
 
     NODE_VALIDATION_CHECK(this,
                           get_input_size() == 13 || get_input_size() == 16,
-                          "PagedAttensionExtension expects 13 or 15 inputs, but it has ",
+                          "PagedAttensionExtension expects 13 or 16 inputs, but it has ",
                           get_input_size());
 
     NODE_VALIDATION_CHECK(
