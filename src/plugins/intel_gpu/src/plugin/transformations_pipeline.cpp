@@ -1022,12 +1022,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::pass::ConstantFolding>();
 
         manager.register_pass<ov::pass::SDPAScaleFusion>();
-
-        if (config.get_property(ov::enable_static_scaling)) {
-            float scale_factor = func->get_rt_info().count("scale_factor") ? func->get_rt_info<std::float_t>("scale_factor") : 0.f;
-            manager.register_pass<ov::pass::StaticScaling>();
-        }
-
         manager.register_pass<ov::pass::ConvertGatherToGatherCompressed>();
         auto pass_config = manager.get_pass_config();
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
