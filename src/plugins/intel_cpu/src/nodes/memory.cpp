@@ -18,6 +18,7 @@
 #include "shape_inference/shape_inference_pass_through.hpp"
 #include "transformations/cpu_opset/common/op/read_value_with_subgraph.hpp"
 #include "utils/general_utils.h"
+#include "openvino/util/common_util.hpp"
 
 using namespace dnnl;
 

@@ -14,12 +14,14 @@ namespace ov::intel_cpu {
 GraphContext::GraphContext(Config config,
                            WeightsSharing::Ptr w_cache,
                            bool isGraphQuantized,
+                           bool denormalsAsZero,
                            ov::threading::IStreamsExecutor::Ptr streamExecutor,
                            std::shared_ptr<SubMemoryManager> sub_memory_manager)
     : m_config(std::move(config)),
       m_weightsCache(std::move(w_cache)),
-      m_rtParamsCache(std::make_shared<MultiCache>(m_config.rtCacheCapacity)),
+      m_rtParamsCache(std::make_shared<MultiCache>(m_config.get_cpu_runtime_cache_capacity())),
       m_isGraphQuantizedFlag(isGraphQuantized),
+      m_denormalsAsZero(denormalsAsZero),
       m_streamExecutor(std::move(streamExecutor)),
       m_subMemoryManager(std::move(sub_memory_manager)),
 

@@ -223,7 +223,7 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph) {
 
 #ifdef CPU_DEBUG_CAPS
 void serialize(const Graph& graph) {
-    const std::string& path = graph.getConfig().debugCaps.execGraphPath;
+    const std::string& path = graph.getConfig().get_exec_graph_path();
 
     if (path.empty()) {
         return;
@@ -270,11 +270,11 @@ void serializeToCout(const Graph& graph) {
     }
 }
 
-void summary_perf(const Graph& graph) {
+void dump_summary_perf(const Graph& graph) {
     if (!graph.getGraphContext()) {
         return;
     }
-    const std::string& summaryPerf = graph.getConfig().debugCaps.summaryPerf;
+    const std::string& summaryPerf = graph.getConfig().get_summary_perf();
 
     if (summaryPerf.empty() || !std::stoi(summaryPerf)) {
         return;
@@ -365,7 +365,7 @@ void summary_perf(const Graph& graph) {
     }
 }
 
-void average_counters(const Graph& graph) {
+void dump_average_counters(const Graph& graph) {
     /**
      * @todo improve logic for a graph with inner graphs:
      * - collect counters only for the outer graph if full path is specified
@@ -378,7 +378,7 @@ void average_counters(const Graph& graph) {
         return;
     }
 
-    const std::string& path = graph.getConfig().debugCaps.averageCountersPath;
+    const std::string& path = graph.getConfig().get_average_counters();
 
     if (path.empty()) {
         return;

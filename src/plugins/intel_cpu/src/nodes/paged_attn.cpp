@@ -150,14 +150,14 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }
 
-bool PagedAttention::isQuantByChannel(const Config::CacheQuantMode mode) noexcept {
+bool PagedAttention::isQuantByChannel(const CacheQuantMode mode) noexcept {
     // AUTO means select by primitive
     // for non-x86 platform, by-channel quantization is disabled
     // for x86 platform, by-channel quantization is disabled by default until further accuracy data collect
     bool byChannel = false;
-    if (mode == Config::CacheQuantMode::BY_CHANNEL) {
+    if (mode == CacheQuantMode::BY_CHANNEL) {
         byChannel = true;
-    } else if (mode == Config::CacheQuantMode::BY_HIDDEN) {
+    } else if (mode == CacheQuantMode::BY_HIDDEN) {
         byChannel = false;
     }
 #if defined(OPENVINO_ARCH_ARM64)
@@ -179,12 +179,12 @@ void PagedAttention::createPrimitive() {
         auto vCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
         const auto& cpuConfig = context->getConfig();
 
-        bool byChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode);
+        bool byChannel = isQuantByChannel(cpuConfig.get_key_cache_quant_mode());
         return make_pa_executor(rtPrecision,
                                 kCachePrecision,
                                 vCachePrecision,
-                                cpuConfig.keyCacheGroupSize,
-                                cpuConfig.valueCacheGroupSize,
+                                cpuConfig.get_key_cache_group_size(),
+                                cpuConfig.get_value_cache_group_size(),
                                 byChannel);
 #else
         return nullptr;

@@ -386,7 +386,7 @@ void Input::cloneBlobIfRequired() {
     CpuBlockedMemoryDesc memDesc(prec, shape);
 
     bool needFlushDenormalsToZero = true;
-    if (context->getConfig().DAZOn) {
+    if (context->getDenormalsAsZero()) {
         // DAZ has been set, processor automatically converts all denormal source operands
         // to a zero with the sign of the original operand before performing any
         // computations on them, thus no need to flush them to zero manually
@@ -404,7 +404,7 @@ void Input::cloneBlobIfRequired() {
             }
             // Only bf16 inferencePrecision cases need to be checked for saturation
             const bool do_bf16_saturation_check =
-                (context->getConfig().inferencePrecision == ov::element::bf16) ? true : false;
+                (context->getConfig().get_inference_precision() == ov::element::bf16) ? true : false;
 
 #if defined(OPENVINO_ARCH_X86_64)
             auto fn = jit_has_subnormals_function();
