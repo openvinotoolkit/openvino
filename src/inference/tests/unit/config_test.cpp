@@ -40,7 +40,6 @@ struct NotEmptyTestConfig : public ov::PluginConfig {
         OV_CONFIG_RELEASE_INTERNAL_OPTION(, release_internal_property, 1, "")
         OV_CONFIG_DEBUG_OPTION(, debug_property, 2, "")
     #undef OV_CONFIG_OPTION
-
     }
 
     NotEmptyTestConfig(const NotEmptyTestConfig& other) : NotEmptyTestConfig() {
@@ -50,7 +49,7 @@ struct NotEmptyTestConfig : public ov::PluginConfig {
         }
     }
 
-    #define OV_CONFIG_OPTION(...) OV_CONFIG_DECLARE_OPTION(__VA_ARGS__)
+    #define OV_CONFIG_OPTION(...) OV_CONFIG_DECLARE_OPTION(__VA_ARGS__)  OV_CONFIG_DECLARE_GETTERS(__VA_ARGS__)
         OV_CONFIG_RELEASE_OPTION(, bool_property, true, "")
         OV_CONFIG_RELEASE_OPTION(, int_property, -1, "")
         OV_CONFIG_RELEASE_OPTION(, high_level_property, "", "")
@@ -97,26 +96,26 @@ TEST(plugin_config, can_create_not_empty_config) {
 
 TEST(plugin_config, can_set_get_property) {
     NotEmptyTestConfig cfg;
-    ASSERT_NO_THROW(cfg.get_property(bool_property));
-    ASSERT_EQ(cfg.get_property(bool_property), true);
+    ASSERT_NO_THROW(cfg.get_bool_property());
+    ASSERT_EQ(cfg.get_bool_property(), true);
     ASSERT_NO_THROW(cfg.set_property(bool_property(false)));
-    ASSERT_EQ(cfg.get_property(bool_property), false);
+    ASSERT_EQ(cfg.get_bool_property(), false);
 }
 
 TEST(plugin_config, throw_for_unsupported_property) {
     NotEmptyTestConfig cfg;
-    ASSERT_ANY_THROW(cfg.get_property(unsupported_property));
+    ASSERT_ANY_THROW(cfg.get_property(unsupported_property.name()));
     ASSERT_ANY_THROW(cfg.set_property(unsupported_property(10.0f)));
 }
 
 TEST(plugin_config, can_direct_access_to_properties) {
     NotEmptyTestConfig cfg;
-    ASSERT_EQ(cfg.m_int_property.value, cfg.get_property(int_property));
+    ASSERT_EQ(cfg.m_int_property.value, cfg.get_int_property());
     ASSERT_NO_THROW(cfg.set_property(int_property(1)));
     ASSERT_EQ(cfg.m_int_property.value, -1); // user property doesn't impact member value until finalize() is called
 
     cfg.m_int_property.value = 2;
-    ASSERT_EQ(cfg.get_property(int_property), 1); // still 1 as user property was set previously
+    ASSERT_EQ(cfg.get_int_property(), 1); // stil 1 as user property was set previously
 }
 
 TEST(plugin_config, finalization_updates_member) {
@@ -132,19 +131,19 @@ TEST(plugin_config, finalization_updates_member) {
 TEST(plugin_config, get_property_before_finalization_returns_user_property_if_set) {
     NotEmptyTestConfig cfg;
 
-    ASSERT_EQ(cfg.get_property(bool_property), true);  // default value
+    ASSERT_EQ(cfg.get_bool_property(), true);  // default value
     ASSERT_EQ(cfg.m_bool_property.value, true);  // default value
 
     cfg.m_bool_property.value = false; // update member directly
-    ASSERT_EQ(cfg.get_property(bool_property), false);  // OK, return the class member value as no user property was set
+    ASSERT_EQ(cfg.get_bool_property(), false);  // OK, return the class member value as no user property was set
 
     ASSERT_NO_THROW(cfg.set_property(bool_property(true)));
     ASSERT_TRUE(cfg.is_set_by_user(bool_property));
-    ASSERT_EQ(cfg.get_property(bool_property), true);  // now user property value is returned
+    ASSERT_EQ(cfg.get_bool_property(), true);  // now user property value is returned
     ASSERT_EQ(cfg.m_bool_property.value, false);  // but class member is not updated
 
     cfg.finalize(nullptr, {});
-    ASSERT_EQ(cfg.get_property(bool_property), cfg.m_bool_property.value);  // equal after finalization
+    ASSERT_EQ(cfg.get_bool_property(), cfg.m_bool_property.value);  // equal after finalization
     ASSERT_FALSE(cfg.is_set_by_user(bool_property)); // and user property is cleared
 }
 
@@ -194,7 +193,7 @@ TEST(plugin_config, can_copy_config) {
     ASSERT_EQ(cfg2.m_high_level_property.value, "value1");
     ASSERT_EQ(cfg2.m_low_level_property.value, "value2");
     ASSERT_EQ(cfg2.m_int_property.value, 1);
-    ASSERT_EQ(cfg2.get_property(bool_property), false); // ensure user properties are copied too
+    ASSERT_EQ(cfg2.get_bool_property(), false); // ensure user properties are copied too
 
     // check that cfg1 modification doesn't impact a copy
     cfg1.set_property(high_level_property("value3"));
