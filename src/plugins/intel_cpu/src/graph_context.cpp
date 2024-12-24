@@ -22,7 +22,7 @@ GraphContext::GraphContext(const Config& config,
       subMemoryManager(sub_memory_manager),
       memoryStatesRegister(std::make_shared<node::MemoryStatesRegister>()),
       networkMemoryControl(std::make_shared<NetworkMemoryControl>()) {
-    rtParamsCache = std::make_shared<MultiCache>(config.rtCacheCapacity);
+    rtParamsCache = std::make_shared<MultiCache>(config.get_cpu_runtime_cache_capacity());
     // primitive/executors can be shared across sub-stream
     // but scratch pad cannot be shared.
     numNumaNodes = 1;

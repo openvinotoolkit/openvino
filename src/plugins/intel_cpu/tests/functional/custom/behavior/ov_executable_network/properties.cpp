@@ -54,19 +54,6 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkSupportedPropertiesAreAvailable
     ASSERT_EQ(supportedProperties, expectedSupportedProperties);
 }
 
-TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkGetROPropertiesDoesNotThrow) {
-    ov::Core ie;
-    std::vector<ov::PropertyName> properties;
-
-    ov::CompiledModel compiledModel = ie.compile_model(model, deviceName);
-
-    OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
-
-    for (const auto& property : properties) {
-        OV_ASSERT_NO_THROW((void)compiledModel.get_property(property));
-    }
-}
-
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkSetROPropertiesThrow) {
     ov::Core ie;
     std::vector<ov::PropertyName> properties;

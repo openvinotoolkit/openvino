@@ -10,6 +10,7 @@
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/core/except.hpp"
+#include <iostream>
 
 #ifndef COUNT_N
     #define COUNT_N(_1, _2, _3, _4, _5, N, ...) N
@@ -133,8 +134,10 @@ struct ConfigOption : public ConfigOptionBase {
     constexpr static const auto visibility = visibility_;
 
     void set_any(const ov::Any any) override {
-        if (validator)
+        if (validator) {
+            // TODO: is very any way to print option name here?
             OPENVINO_ASSERT(validator(any.as<T>()), "Invalid value: ", any.as<std::string>());
+        }
         value = any.as<T>();
     }
 
@@ -220,18 +223,19 @@ public:
 
     bool visit_attributes(ov::AttributeVisitor& visitor);
 
-protected:
-    virtual void apply_rt_info(std::shared_ptr<IRemoteContext> context, const ov::RTMap& rt_info) {}
-    virtual void apply_debug_options(std::shared_ptr<IRemoteContext> context);
-    virtual void finalize_impl(std::shared_ptr<IRemoteContext> context) {}
-
     template <typename T, PropertyMutability mutability>
     bool is_set_by_user(const ov::Property<T, mutability>& property) const {
         return m_user_properties.find(property.name()) != m_user_properties.end();
     }
 
+protected:
+    virtual void apply_rt_info(std::shared_ptr<IRemoteContext> context, const ov::RTMap& rt_info) {}
+    virtual void apply_debug_options(std::shared_ptr<IRemoteContext> context);
+    virtual void finalize_impl(std::shared_ptr<IRemoteContext> context) {}
+
     ConfigOptionBase* get_option_ptr(const std::string& name) const {
         auto it = m_options_map.find(name);
+        // TODO: print more meaningful error message
         OPENVINO_ASSERT(it != m_options_map.end(), "Option not found: ", name);
         OPENVINO_ASSERT(it->second != nullptr, "Option is invalid: ", name);
 

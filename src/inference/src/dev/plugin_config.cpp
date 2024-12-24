@@ -78,7 +78,14 @@ void PluginConfig::set_user_property(const ov::AnyMap& config, OptionVisibility 
 
     for (auto& kv : config) {
         auto& name = kv.first;
-        auto& val = kv.second;
+        auto val = kv.second;
+
+        // [WA] ov::Any cannot be casted from int to streams::Num
+        // Can be reproduced with CpuExecNetworkCheckModelStreamsHasHigherPriorityThanThroughputHint test
+        // Should be fixed before the merge
+        if (name == ov::num_streams.name()) {
+            val = val.as<std::string>();
+        }
 
         auto option = get_option_ptr(name);
         if ((allowed_visibility & option->get_visibility()) != option->get_visibility()) {

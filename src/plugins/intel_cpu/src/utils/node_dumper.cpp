@@ -24,20 +24,16 @@ static void formatNodeName(std::string& name) {
     std::replace(name.begin(), name.end(), ':', '-');
 }
 
-static bool shouldBeDumped(const NodePtr& node, const DebugCapsConfig& config, const std::string& portsKind) {
-    const auto& dumpFilters = config.blobDumpFilters;
-
-    if (dumpFilters.empty())
-        return false;
-
-    if (dumpFilters.count(DebugCapsConfig::FILTER::BY_PORTS)) {  // filter by ports configured
-        if (dumpFilters.at(DebugCapsConfig::FILTER::BY_PORTS) != "ALL" &&
-            portsKind != dumpFilters.at(DebugCapsConfig::FILTER::BY_PORTS))
+static bool shouldBeDumped(const NodePtr& node, const Config& config, const std::string& portsKind) {
+    const auto& filter_by_ports = config.get_blob_dump_node_ports();
+    if (!filter_by_ports.empty()) {  // filter by ports configured
+        if (filter_by_ports != "ALL" && portsKind != filter_by_ports)
             return false;
     }
 
-    if (dumpFilters.count(DebugCapsConfig::FILTER::BY_EXEC_ID)) {  // filter by exec id configured
-        std::stringstream ss(dumpFilters.at(DebugCapsConfig::FILTER::BY_EXEC_ID));
+    const auto& filter_by_exec_id = config.get_blob_dump_node_exec_id();
+    if (!filter_by_exec_id.empty()) {  // filter by exec id configured
+        std::stringstream ss(filter_by_exec_id);
         int id;
         bool matched = false;
 
@@ -52,8 +48,9 @@ static bool shouldBeDumped(const NodePtr& node, const DebugCapsConfig& config, c
             return false;
     }
 
-    if (dumpFilters.count(DebugCapsConfig::FILTER::BY_TYPE)) {  // filter by type configured
-        std::stringstream ss(dumpFilters.at(DebugCapsConfig::FILTER::BY_TYPE));
+    const auto& filter_by_type = config.get_blob_dump_node_type();
+    if (!filter_by_type.empty()) {  // filter by type configured
+        std::stringstream ss(filter_by_type);
         std::string type;
         bool matched = false;
 
@@ -68,24 +65,25 @@ static bool shouldBeDumped(const NodePtr& node, const DebugCapsConfig& config, c
             return false;
     }
 
-    if (dumpFilters.count(DebugCapsConfig::FILTER::BY_NAME)) {  // filter by name configured
-        if (dumpFilters.at(DebugCapsConfig::FILTER::BY_NAME) !=
+     const auto& filter_by_name = config.get_blob_dump_node_name();
+    if (!filter_by_name.empty()) {  // filter by name configured
+        if (filter_by_name !=
                 "*" &&  // to have 'single char' option for matching all the names
             !std::regex_match(node->getName(),
-                              std::regex(dumpFilters.at(DebugCapsConfig::FILTER::BY_NAME))))  // name does not match
+                              std::regex(filter_by_name)))  // name does not match
             return false;
     }
 
     return true;
 }
 
-static void dump(const BlobDumper& bd, const std::string& file, const DebugCapsConfig& config) {
-    switch (config.blobDumpFormat) {
-    case DebugCapsConfig::FORMAT::BIN: {
+static void dump(const BlobDumper& bd, const std::string& file, const Config& config) {
+    switch (config.get_blob_dump_format()) {
+    case BlobDumpFormat::BIN: {
         bd.dump(file);
         break;
     }
-    case DebugCapsConfig::FORMAT::TEXT: {
+    case BlobDumpFormat::TEXT: {
         bd.dumpAsTxt(file);
         break;
     }
@@ -94,7 +92,7 @@ static void dump(const BlobDumper& bd, const std::string& file, const DebugCapsC
     }
 }
 
-static void dumpInternalBlobs(const NodePtr& node, const DebugCapsConfig& config) {
+static void dumpInternalBlobs(const NodePtr& node, const Config& config) {
     std::string nodeName = node->getName();
     formatNodeName(nodeName);
 
@@ -103,7 +101,7 @@ static void dumpInternalBlobs(const NodePtr& node, const DebugCapsConfig& config
     for (size_t i = 0; i < internalBlobs.size(); i++) {
         const auto& blb = internalBlobs[i];
         std::string file_name = NameFromType(node->getType()) + "_" + nodeName + "_blb" + std::to_string(i) + ".ieb";
-        auto dump_file = config.blobDumpDir + "/#" + std::to_string(node->getExecIndex()) + "_" + file_name;
+        auto dump_file = config.get_blob_dump_dir() + "/#" + std::to_string(node->getExecIndex()) + "_" + file_name;
 
         if (blb->getDesc().getPrecision() == ov::element::u1)
             continue;
@@ -113,7 +111,7 @@ static void dumpInternalBlobs(const NodePtr& node, const DebugCapsConfig& config
     }
 }
 
-void dumpInputBlobs(const NodePtr& node, const DebugCapsConfig& config, int count) {
+void dumpInputBlobs(const NodePtr& node, const Config& config, int count) {
     if (!shouldBeDumped(node, config, "IN"))
         return;
 
@@ -133,7 +131,7 @@ void dumpInputBlobs(const NodePtr& node, const DebugCapsConfig& config, int coun
         if (file_name.size() > 240)
             file_name = file_name.substr(file_name.size() - 240);
 
-        auto dump_file = config.blobDumpDir + "/#" + exec_order + "_" + file_name;
+        auto dump_file = config.get_blob_dump_dir() + "/#" + exec_order + "_" + file_name;
         std::cout << "Dump inputs: " << dump_file << std::endl;
 
         auto& desc = prEdge->getMemory().getDesc();
@@ -147,7 +145,7 @@ void dumpInputBlobs(const NodePtr& node, const DebugCapsConfig& config, int coun
     dumpInternalBlobs(node, config);
 }
 
-void dumpOutputBlobs(const NodePtr& node, const DebugCapsConfig& config, int count) {
+void dumpOutputBlobs(const NodePtr& node, const Config& config, int count) {
     if (!shouldBeDumped(node, config, "OUT"))
         return;
 
@@ -166,7 +164,7 @@ void dumpOutputBlobs(const NodePtr& node, const DebugCapsConfig& config, int cou
         if (file_name.size() > 240)
             file_name = file_name.substr(file_name.size() - 240);
 
-        auto dump_file = config.blobDumpDir + "/#" + exec_order + "_" + file_name;
+        auto dump_file = config.get_blob_dump_dir() + "/#" + exec_order + "_" + file_name;
         std::cout << "Dump outputs:  " << dump_file << std::endl;
 
         auto& desc = childEdge->getMemory().getDesc();

@@ -343,7 +343,7 @@ QKVProjection::QKVProjection(const std::shared_ptr<ov::Node>& op, const GraphCon
     if (concurrency == 0)
         concurrency = parallel_get_max_threads();
 
-    if (!isSupportedOperation(op, errorMessage, concurrency, config.fcDynamicQuantizationGroupSize)) {
+    if (!isSupportedOperation(op, errorMessage, concurrency, config.get_dynamic_quantization_group_size())) {
         OPENVINO_THROW("CPU: " + errorMessage);
     }
     const auto node = std::dynamic_pointer_cast<const QKVProjectionNode>(op);

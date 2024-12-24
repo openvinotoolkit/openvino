@@ -53,14 +53,15 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_cfg{cfg},
       m_name{model->get_name()},
       m_loaded_from_cache(loaded_from_cache),
-      m_sub_memory_manager(sub_memory_manager) {
+      m_sub_memory_manager(sub_memory_manager),
+      m_model_name(model->get_friendly_name()) {
     m_mutex = std::make_shared<std::mutex>();
     const auto& core = m_plugin->get_core();
     if (!core)
         OPENVINO_THROW("Unable to get API version. Core is unavailable");
 
     IStreamsExecutor::Config executor_confg;
-    if (cfg.exclusiveAsyncRequests) {
+    if (cfg.get_exclusive_async_requests()) {
         // special case when all InferRequests are muxed into a single queue
         m_task_executor = m_plugin->get_executor_manager()->get_executor("CPU");
     } else {
@@ -156,7 +157,7 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
                 GraphContext::Ptr ctx;
                 {
                     std::lock_guard<std::mutex> lock{*m_mutex.get()};
-                    auto isQuantizedFlag = (m_cfg.lpTransformsMode == Config::On) &&
+                    auto isQuantizedFlag = (m_cfg.get_lp_transforms_mode()) &&
                                            ov::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
 
                     ctx = std::make_shared<GraphContext>(m_cfg,
@@ -219,16 +220,16 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         return m_loaded_from_cache;
     }
 
-    Config engConfig = get_graph()._graph.getConfig();
-    auto option = engConfig._config.find(name);
-    if (option != engConfig._config.end()) {
-        return option->second;
-    }
+    // Config engConfig = get_graph()._graph.getConfig();
+    // auto option = engConfig._config.find(name);
+    // if (option != engConfig._config.end()) {
+    //     return option->second;
+    // }
 
-    // @todo Can't we just use local copy (_cfg) instead?
-    auto graphLock = get_graph();
-    const auto& graph = graphLock._graph;
-    const auto& config = graph.getConfig();
+    // // @todo Can't we just use local copy (_cfg) instead?
+    // auto graphLock = get_graph();
+    // const auto& graph = graphLock._graph;
+    // const auto& config = graph.getConfig();
 
     auto RO_property = [](const std::string& propertyName) {
         return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
@@ -266,78 +267,22 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     }
 
     if (name == ov::model_name) {
-        // @todo Does not seem ok to 'dump()' the whole graph everytime in order to get a name
-        const std::string modelName = graph.dump()->get_friendly_name();
-        return decltype(ov::model_name)::value_type(modelName);
+        return decltype(ov::model_name)::value_type {m_model_name};
+    } else if (name == ov::loaded_from_cache) {
+        return decltype(ov::loaded_from_cache)::value_type {m_loaded_from_cache};
     } else if (name == ov::optimal_number_of_infer_requests) {
-        const auto streams = config.streamExecutorConfig.get_streams();
+        const auto streams = m_cfg.streamExecutorConfig.get_streams();
         return decltype(ov::optimal_number_of_infer_requests)::value_type(
             streams > 0 ? streams : 1);  // ov::optimal_number_of_infer_requests has no negative values
-    } else if (name == ov::num_streams) {
-        const auto streams = config.streamExecutorConfig.get_streams();
-        return decltype(ov::num_streams)::value_type(
-            streams);  // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
-        OPENVINO_SUPPRESS_DEPRECATED_START
-    } else if (name == ov::affinity) {
-        const auto affinity = config.threadBindingType;
-        switch (affinity) {
-        case IStreamsExecutor::ThreadBindingType::NONE:
-            return ov::Affinity::NONE;
-        case IStreamsExecutor::ThreadBindingType::CORES:
-            return ov::Affinity::CORE;
-        case IStreamsExecutor::ThreadBindingType::NUMA:
-            return ov::Affinity::NUMA;
-        case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
-            return ov::Affinity::HYBRID_AWARE;
-        }
-        return ov::Affinity::NONE;
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    } else if (name == ov::inference_num_threads) {
-        const auto num_threads = config.streamExecutorConfig.get_threads();
-        return decltype(ov::inference_num_threads)::value_type(num_threads);
-    } else if (name == ov::enable_profiling.name()) {
-        const bool perfCount = config.collectPerfCounters;
-        return decltype(ov::enable_profiling)::value_type(perfCount);
-    } else if (name == ov::hint::inference_precision) {
-        return decltype(ov::hint::inference_precision)::value_type(config.inferencePrecision);
-    } else if (name == ov::hint::performance_mode) {
-        return decltype(ov::hint::performance_mode)::value_type(config.hintPerfMode);
-    } else if (name == ov::log::level) {
-        return decltype(ov::log::level)::value_type(config.logLevel);
-    } else if (name == ov::hint::enable_cpu_pinning.name()) {
-        const bool use_pin = config.enableCpuPinning;
-        return decltype(ov::hint::enable_cpu_pinning)::value_type(use_pin);
-    } else if (name == ov::hint::scheduling_core_type) {
-        const auto stream_mode = config.schedulingCoreType;
-        return stream_mode;
-    } else if (name == ov::hint::model_distribution_policy) {
-        const auto& distribution_policy = config.modelDistributionPolicy;
-        return distribution_policy;
-    } else if (name == ov::hint::enable_hyper_threading.name()) {
-        const bool use_ht = config.enableHyperThreading;
-        return decltype(ov::hint::enable_hyper_threading)::value_type(use_ht);
-    } else if (name == ov::hint::execution_mode) {
-        return config.executionMode;
-    } else if (name == ov::hint::num_requests) {
-        return decltype(ov::hint::num_requests)::value_type(config.hintNumRequests);
     } else if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{m_plugin->get_device_name()};
-    } else if (name == ov::intel_cpu::denormals_optimization) {
-        return decltype(ov::intel_cpu::denormals_optimization)::value_type(config.denormalsOptMode ==
-                                                                           Config::DenormalsOptMode::DO_On);
-    } else if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
-        return decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type(
-            config.fcSparseWeiDecompressionRate);
-    } else if (name == ov::hint::dynamic_quantization_group_size) {
-        return decltype(ov::hint::dynamic_quantization_group_size)::value_type(config.fcDynamicQuantizationGroupSize);
-    } else if (name == ov::hint::kv_cache_precision) {
-        return decltype(ov::hint::kv_cache_precision)::value_type(config.kvCachePrecision);
     }
-    OPENVINO_THROW("Unsupported property: ", name);
+
+    return m_cfg.get_property(name);
 }
 
 void CompiledModel::export_model(std::ostream& modelStream) const {
-    ModelSerializer serializer(modelStream, m_cfg.cacheEncrypt);
+    ModelSerializer serializer(modelStream, m_cfg.get_cache_encryption_callbacks().encrypt);
     serializer << m_model;
 }
 

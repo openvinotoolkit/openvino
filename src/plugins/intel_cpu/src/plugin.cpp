@@ -135,6 +135,7 @@ Plugin::Plugin() : deviceFullName(getDeviceFullName()), specialSetup(new CPUSpec
     auto& ov_version = ov::get_openvino_version();
     m_compiled_model_runtime_properties["OV_VERSION"] = std::string(ov_version.buildNumber);
     m_msg_manager = ov::threading::message_manager();
+    m_remote_context = std::make_shared<RemoteContextImpl>(get_device_name());
 }
 
 Plugin::~Plugin() {
@@ -144,24 +145,35 @@ Plugin::~Plugin() {
     executor_manager()->clear("CPUCallbackExecutor");
 }
 
-static bool streamsSet(const ov::AnyMap& config) {
-    return config.count(ov::num_streams.name());
+namespace {
+
+ov::RTMap get_rt_info(const ov::Model& model) {
+    ov::RTMap rt_info;
+    if (model.has_rt_info("runtime_options"))
+        rt_info = model.get_rt_info<ov::AnyMap>("runtime_options");
+
+    if (model.has_rt_info("__weights_path")) {
+        rt_info[ov::weights_path.name()] = model.get_rt_info<ov::Any>("__weights_path");
+    }
+    return rt_info;
 }
 
+}  // namespace
+
 void Plugin::get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) const {
-    int streams_set = config.streams;
+    int streams_set = config.get_num_streams();
     int streams;
-    if (config.streamsChanged) {
+    if (config.is_set_by_user(ov::num_streams)) {
         streams = streams_set;
-    } else if (config.hintPerfMode == ov::hint::PerformanceMode::LATENCY) {
+    } else if (config.get_performance_mode() == ov::hint::PerformanceMode::LATENCY) {
         streams = 1;
-    } else if (config.hintPerfMode == ov::hint::PerformanceMode::THROUGHPUT) {
+    } else if (config.get_performance_mode() == ov::hint::PerformanceMode::THROUGHPUT) {
         streams = 0;
     } else {
         streams = streams_set == 1 ? 0 : streams_set;
     }
 
-    if (!((0 == streams_set) && config.streamsChanged)) {
+    if (!((0 == streams_set) && config.is_set_by_user(ov::num_streams))) {
         get_num_streams(streams, model, config);
     } else {
         config.streamExecutorConfig = IStreamsExecutor::Config{"CPUStreamsExecutor", streams};
@@ -169,6 +181,11 @@ void Plugin::get_performance_streams(Config& config, const std::shared_ptr<ov::M
 }
 
 void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported) const {
+
+    conf.streamExecutorConfig.set_property(ov::num_streams.name(), conf.get_property(ov::num_streams.name()).as<std::string>());
+    conf.streamExecutorConfig.set_property(ov::inference_num_threads.name(), conf.get_property(ov::inference_num_threads.name()).as<std::string>());
+    // conf.streamExecutorConfig.set_property(ov::threads_per_stream.name(), conf.get_property(ov::threads_per_stream.name()));
+
     const auto model_prefer_name = std::string("MODEL_PREFER_THREADS");
     if (imported && model->has_rt_info("intel_cpu_hints_config")) {
         // load model_prefer_threads from cache
@@ -207,7 +224,7 @@ static Config::ModelType getModelType(const std::shared_ptr<const Model>& model)
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                          const ov::AnyMap& orig_config) const {
+                                                          const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Plugin::compile_model");
     CREATE_DEBUG_TIMER(debugLoadTimer);
 
@@ -239,27 +256,26 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
-    auto config = orig_config;
+    // auto config = orig_config;
     const std::shared_ptr<ov::Model> cloned_model = model->clone();
-    Config::ModelType modelType = getModelType(model);
     DEBUG_LOG(PrintableModel(*cloned_model, "org_"));
 
     // update the props after the perf mode translated to configs
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
-    Config conf = engConfig;
-    conf.applyRtInfo(cloned_model);
-    conf.readProperties(config, modelType);
+    // Config conf = engConfig;
+    // conf.applyRtInfo(cloned_model);
+    // conf.readProperties(config, modelType);
 
-    Transformations transformations(cloned_model, conf);
+    Config config = m_plugin_config;
+    config.set_property(properties, OptionVisibility::RELEASE);
+    config.modelType = getModelType(model);
+
+    Transformations transformations(cloned_model, config);
 
     transformations.UpToLpt();
 
-    calculate_streams(conf, cloned_model);
-
-    if (!conf.cacheEncrypt || !conf.cacheDecrypt) {
-        conf.cacheEncrypt = codec_xor_str;
-        conf.cacheDecrypt = codec_xor_str;
-    }
+    calculate_streams(config, cloned_model);
+    config.finalize(get_default_context(), get_rt_info(*model));
 
     transformations.PostLpt();
     transformations.Snippets();
@@ -288,85 +304,90 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     // SSE runtime check is needed for some ATOM machine, which is x86-64 but w/o SSE
-    static Xbyak::util::Cpu cpu;
-    if (cpu.has(Xbyak::util::Cpu::tSSE)) {
-        if (conf.denormalsOptMode == Config::DenormalsOptMode::DO_On) {
+    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::sse41)) {
+        auto denormals_optimization = config.get_denormals_optimization();
+        if (denormals_optimization && *denormals_optimization == true) {
             flush_to_zero(true);
-            conf.DAZOn = denormals_as_zero(true);
-        } else if (conf.denormalsOptMode == Config::DenormalsOptMode::DO_Off) {
+            config.DAZOn = denormals_as_zero(true);
+        } else if (denormals_optimization && *denormals_optimization == false) {
             flush_to_zero(false);
             denormals_as_zero(false);
         }
     }
-    return std::make_shared<CompiledModel>(cloned_model, shared_from_this(), conf, false);
+
+    return std::make_shared<CompiledModel>(cloned_model, shared_from_this(), config, false);
 }
 
 void Plugin::set_property(const ov::AnyMap& config) {
-    // @todo after Legacy configuration is dropped, use some wrapper class to keep both the property and
-    // "ifSetExplicitly" flag
-    streamsExplicitlySetForEngine = streamsSet(config);
-
-    engConfig.readProperties(config);
+    m_plugin_config.set_property(config, OptionVisibility::RELEASE);
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options) const {
-    if (name == ov::optimal_number_of_infer_requests) {
-        const auto streams = engConfig.streamExecutorConfig.get_streams();
-        return decltype(ov::optimal_number_of_infer_requests)::value_type(
-            streams);  // ov::optimal_number_of_infer_requests has no negative values
-    } else if (name == ov::num_streams) {
-        const auto streams = engConfig.streamExecutorConfig.get_streams();
-        return decltype(ov::num_streams)::value_type(
-            streams);  // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
-        OPENVINO_SUPPRESS_DEPRECATED_START
-    } else if (name == ov::affinity) {
-        const auto affinity = engConfig.threadBindingType;
-        switch (affinity) {
-        case IStreamsExecutor::ThreadBindingType::NONE:
-            return ov::Affinity::NONE;
-        case IStreamsExecutor::ThreadBindingType::CORES:
-            return ov::Affinity::CORE;
-        case IStreamsExecutor::ThreadBindingType::NUMA:
-            return ov::Affinity::NUMA;
-        case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
-            return ov::Affinity::HYBRID_AWARE;
-        }
-        return ov::Affinity::NONE;
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    } else if (name == ov::device::id.name()) {
-        return decltype(ov::device::id)::value_type{engConfig.device_id};
-    } else if (name == ov::inference_num_threads) {
-        const auto threads = engConfig.streamExecutorConfig.get_threads();
-        return decltype(ov::inference_num_threads)::value_type(threads);
-    } else if (name == ov::enable_profiling.name()) {
-        const bool perfCount = engConfig.collectPerfCounters;
-        return decltype(ov::enable_profiling)::value_type(perfCount);
-    } else if (name == ov::hint::inference_precision) {
-        return decltype(ov::hint::inference_precision)::value_type(engConfig.inferencePrecision);
-    } else if (name == ov::hint::performance_mode) {
-        return engConfig.hintPerfMode;
-    } else if (name == ov::hint::enable_cpu_pinning) {
-        const bool pin_value = engConfig.enableCpuPinning;
-        return decltype(ov::hint::enable_cpu_pinning)::value_type(pin_value);
-    } else if (name == ov::hint::scheduling_core_type) {
-        const auto core_type = engConfig.schedulingCoreType;
-        return core_type;
-    } else if (name == ov::hint::model_distribution_policy) {
-        const auto& distribution_policy = engConfig.modelDistributionPolicy;
-        return distribution_policy;
-    } else if (name == ov::hint::enable_hyper_threading) {
-        const bool ht_value = engConfig.enableHyperThreading;
-        return decltype(ov::hint::enable_hyper_threading)::value_type(ht_value);
-    } else if (name == ov::hint::num_requests) {
-        return decltype(ov::hint::num_requests)::value_type(engConfig.hintNumRequests);
-    } else if (name == ov::hint::execution_mode) {
-        return engConfig.executionMode;
-    } else if (name == ov::internal::compiled_model_runtime_properties.name()) {
+    // if (name == ov::optimal_number_of_infer_requests) {
+    //     const auto streams = engConfig.streamExecutorConfig.get_streams();
+    //     return decltype(ov::optimal_number_of_infer_requests)::value_type(
+    //         streams);  // ov::optimal_number_of_infer_requests has no negative values
+    // } else if (name == ov::num_streams) {
+    //     const auto streams = engConfig.streamExecutorConfig.get_streams();
+    //     return decltype(ov::num_streams)::value_type(
+    //         streams);  // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
+    //     OPENVINO_SUPPRESS_DEPRECATED_START
+    // } else if (name == ov::affinity) {
+    //     const auto affinity = engConfig.threadBindingType;
+    //     switch (affinity) {
+    //     case IStreamsExecutor::ThreadBindingType::NONE:
+    //         return ov::Affinity::NONE;
+    //     case IStreamsExecutor::ThreadBindingType::CORES:
+    //         return ov::Affinity::CORE;
+    //     case IStreamsExecutor::ThreadBindingType::NUMA:
+    //         return ov::Affinity::NUMA;
+    //     case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
+    //         return ov::Affinity::HYBRID_AWARE;
+    //     }
+    //     return ov::Affinity::NONE;
+    //     OPENVINO_SUPPRESS_DEPRECATED_END
+    // } else if (name == ov::device::id.name()) {
+    //     return decltype(ov::device::id)::value_type{engConfig.device_id};
+    // } else if (name == ov::inference_num_threads) {
+    //     const auto threads = engConfig.streamExecutorConfig.get_threads();
+    //     return decltype(ov::inference_num_threads)::value_type(threads);
+    // } else if (name == ov::enable_profiling.name()) {
+    //     const bool perfCount = engConfig.collectPerfCounters;
+    //     return decltype(ov::enable_profiling)::value_type(perfCount);
+    // } else if (name == ov::hint::inference_precision) {
+    //     return decltype(ov::hint::inference_precision)::value_type(engConfig.inferencePrecision);
+    // } else if (name == ov::hint::performance_mode) {
+    //     return engConfig.hintPerfMode;
+    // } else if (name == ov::hint::enable_cpu_pinning) {
+    //     const bool pin_value = engConfig.enableCpuPinning;
+    //     return decltype(ov::hint::enable_cpu_pinning)::value_type(pin_value);
+    // } else if (name == ov::hint::scheduling_core_type) {
+    //     const auto core_type = engConfig.schedulingCoreType;
+    //     return core_type;
+    // } else if (name == ov::hint::model_distribution_policy) {
+    //     const auto& distribution_policy = engConfig.modelDistributionPolicy;
+    //     return distribution_policy;
+    // } else if (name == ov::hint::enable_hyper_threading) {
+    //     const bool ht_value = engConfig.enableHyperThreading;
+    //     return decltype(ov::hint::enable_hyper_threading)::value_type(ht_value);
+    // } else if (name == ov::hint::num_requests) {
+    //     return decltype(ov::hint::num_requests)::value_type(engConfig.hintNumRequests);
+    // } else if (name == ov::hint::execution_mode) {
+    //     return engConfig.executionMode;
+        // } else if (name == ov::log::level) {
+        //     return engConfig.logLevel;
+    // } else if (name == ov::internal::exclusive_async_requests.name()) {
+    //     return engConfig.exclusiveAsyncRequests;
+    // } else if (name == ov::hint::dynamic_quantization_group_size) {
+    //     return decltype(ov::hint::dynamic_quantization_group_size)::value_type(
+    //         engConfig.fcDynamicQuantizationGroupSize);
+    // } else if (name == ov::hint::kv_cache_precision) {
+    //     return decltype(ov::hint::kv_cache_precision)::value_type(engConfig.kvCachePrecision);
+
+    if (name == ov::internal::compiled_model_runtime_properties.name()) {
         auto model_runtime_properties = ov::Any(m_compiled_model_runtime_properties);
         return decltype(ov::internal::compiled_model_runtime_properties)::value_type(
             std::move(model_runtime_properties.as<std::string>()));
-    } else if (name == ov::log::level) {
-        return engConfig.logLevel;
     } else if (name == ov::internal::compiled_model_runtime_properties_supported.name()) {
         ov::Any res = true;
         auto it = options.find(ov::internal::compiled_model_runtime_properties.name());
@@ -383,13 +404,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
             }
         }
         return res;
-    } else if (name == ov::internal::exclusive_async_requests.name()) {
-        return engConfig.exclusiveAsyncRequests;
-    } else if (name == ov::hint::dynamic_quantization_group_size) {
-        return decltype(ov::hint::dynamic_quantization_group_size)::value_type(
-            engConfig.fcDynamicQuantizationGroupSize);
-    } else if (name == ov::hint::kv_cache_precision) {
-        return decltype(ov::hint::kv_cache_precision)::value_type(engConfig.kvCachePrecision);
+
     }
     return get_ro_property(name, options);
 }
@@ -485,12 +500,6 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
     } else if (name == ov::internal::caching_properties) {
         std::vector<ov::PropertyName> cachingProperties = {ov::device::full_name};
         return decltype(ov::internal::caching_properties)::value_type(std::move(cachingProperties));
-    } else if (name == ov::intel_cpu::denormals_optimization) {
-        return decltype(ov::intel_cpu::denormals_optimization)::value_type(engConfig.denormalsOptMode ==
-                                                                           Config::DenormalsOptMode::DO_On);
-    } else if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
-        return decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type(
-            engConfig.fcSparseWeiDecompressionRate);
     } else if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{get_device_name()};
     } else if (name == ov::device::type) {
@@ -511,27 +520,27 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
 #endif
     }
 
-    OPENVINO_THROW("Cannot get unsupported property: ", name);
+    return m_plugin_config.get_property(name, OptionVisibility::RELEASE);
+    // OPENVINO_THROW("Cannot get unsupported property: ", name);
 }
 
-ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& config) const {
+ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& properties) const {
     WeightsSharing::Ptr fake_w_cache;
 
     if (model == nullptr) {
         OPENVINO_THROW("Only ngraph-based models are supported!");
     }
 
-    Config conf = engConfig;
-    Config::ModelType modelType = getModelType(model);
-    conf.applyRtInfo(model);
-    conf.readProperties(config, modelType);
-
-    auto context = std::make_shared<GraphContext>(conf, fake_w_cache, false);
+    Config config = m_plugin_config;
+    config.set_property(properties, OptionVisibility::RELEASE);
+    config.modelType = getModelType(model);
+    config.finalize(get_default_context(), get_rt_info(*model));
+    auto context = std::make_shared<GraphContext>(config, fake_w_cache, false);
 
     auto supported = ov::get_supported_nodes(
         model,
         [&](std::shared_ptr<ov::Model>& model) {
-            Transformations transformation(model, conf);
+            Transformations transformation(model, config);
             transformation.UpToLpt();
             transformation.PostLpt();
             transformation.Snippets();
@@ -555,22 +564,30 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return res;
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_stream, const ov::AnyMap& config) const {
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_stream, const ov::AnyMap& properties) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
 
     CacheDecrypt decrypt{codec_xor};
     bool decript_from_string = false;
-    if (config.count(ov::cache_encryption_callbacks.name())) {
-        auto encryption_callbacks = config.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>();
+    if (properties.count(ov::cache_encryption_callbacks.name())) {
+        auto encryption_callbacks = properties.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>();
         decrypt.m_decrypt_str = encryption_callbacks.decrypt;
         decript_from_string = true;
     }
 
-    auto _config = config;
+    auto _properties = properties;
     std::shared_ptr<ov::AlignedBuffer> model_buffer;
-    if (_config.count(ov::internal::cached_model_buffer.name())) {
-        model_buffer = _config.at(ov::internal::cached_model_buffer.name()).as<std::shared_ptr<ov::AlignedBuffer>>();
-        _config.erase(ov::internal::cached_model_buffer.name());
+    if (_properties.count(ov::internal::cached_model_buffer.name())) {
+        model_buffer = _properties.at(ov::internal::cached_model_buffer.name()).as<std::shared_ptr<ov::AlignedBuffer>>();
+        _properties.erase(ov::internal::cached_model_buffer.name());
+    }
+
+    // check ov::loaded_from_cache property and erase it to avoid exception in readProperties.
+    const auto& it = _properties.find(ov::loaded_from_cache.name());
+    bool loaded_from_cache = false;
+    if (it != _properties.end()) {
+        loaded_from_cache = it->second.as<bool>();
+        _properties.erase(it);
     }
 
     ModelDeserializer deserializer(
@@ -585,23 +602,18 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
     std::shared_ptr<ov::Model> model;
     deserializer >> model;
 
-    Config conf = engConfig;
-    Config::ModelType modelType = getModelType(model);
-    conf.applyRtInfo(model);
-    // check ov::loaded_from_cache property and erase it to avoid exception in readProperties.
-    const auto& it = _config.find(ov::loaded_from_cache.name());
-    bool loaded_from_cache = false;
-    if (it != _config.end()) {
-        loaded_from_cache = it->second.as<bool>();
-        _config.erase(it);
-    }
-    conf.readProperties(_config, modelType);
+    Config config = m_plugin_config;
+    config.set_property(properties, OptionVisibility::RELEASE);
+    config.modelType = getModelType(model);
 
     // import config props from caching model
-    calculate_streams(conf, model, true);
-    auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), conf, loaded_from_cache);
+    calculate_streams(config, model, true);
+    config.finalize(get_default_context(), get_rt_info(*model));
+
+    auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), config, loaded_from_cache);
     return compiled_model;
 }
+
 }  // namespace intel_cpu
 }  // namespace ov
 

@@ -460,9 +460,9 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
             const auto originalInputPrecision = getOriginalInputPrecisionAtPort(i);
             const auto precision =
                 ((originalInputPrecision == ov::element::f32) &&
-                 one_of(context->getConfig().inferencePrecision, ov::element::bf16, ov::element::f16) &&
+                 one_of(context->getConfig().get_inference_precision(), ov::element::bf16, ov::element::f16) &&
                  subgraph_attrs->snippet->has_domain_sensitive_ops())
-                    ? context->getConfig().inferencePrecision
+                    ? context->getConfig().get_inference_precision()
                     : originalInputPrecision;
             if (supportedPrecisions.count(precision) == 0)
                 OPENVINO_THROW("Subgraph node with name `", getName(), "` doesn't support ", precision, " precision.");
@@ -654,7 +654,7 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
                                            ov::snippets::pass::Canonicalization,
                                            ov::snippets::pass::AnalyzeBroadcastableInputs,
                                            broadcastable_inputs);
-    if (one_of(context->getConfig().inferencePrecision, ov::element::bf16, ov::element::f16) &&
+    if (one_of(context->getConfig().get_inference_precision(), ov::element::bf16, ov::element::f16) &&
         subgraph_attrs->snippet->has_domain_sensitive_ops()) {
         // enforce BF16 precisions to supported operations
         // MatMul has to be decomposed to Brgemm operations before enforcement
@@ -664,7 +664,7 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
                                                ov::snippets::pass::MatMulToBrgemm,
                                                pass::EnforcePrecision,
                                                element::f32,
-                                               context->getConfig().inferencePrecision);
+                                               context->getConfig().get_inference_precision());
     }
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
                                            ov::snippets::pass::PropagatePrecision,

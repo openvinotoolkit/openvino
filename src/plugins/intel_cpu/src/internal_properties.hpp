@@ -68,5 +68,27 @@ inline std::istream& operator>>(std::istream& is, SnippetsMode& mode) {
  */
 static constexpr Property<SnippetsMode, PropertyMutability::RW> snippets_mode{"SNIPPETS_MODE"};
 
+/**
+ * @brief Enables fast-math mode for ARM Compute Library (ACL).
+ */
+static constexpr Property<bool, PropertyMutability::RW> acl_fast_math{"ACL_FAST_MATH"};
+
+
+enum class BlobDumpFormat {
+    BIN,
+    TEXT,
+};
+
+static constexpr Property<std::string, ov::PropertyMutability::RW> verbose{"VERBOSE"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> exec_graph_path{"EXEC_GRAPH_PATH"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> average_counters{"AVERAGE_COUNTERS"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> blob_dump_dir{"BLOB_DUMP_DIR"};
+static constexpr Property<BlobDumpFormat, ov::PropertyMutability::RW> blob_dump_format{"BLOB_DUMP_FORMAT"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> blob_dump_node_exec_id{"BLOB_DUMP_NODE_EXEC_ID"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> blob_dump_node_ports{"BLOB_DUMP_NODE_PORTS"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> blob_dump_node_type{"BLOB_DUMP_NODE_TYPE"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> blob_dump_node_name{"BLOB_DUMP_NODE_NAME"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> summary_perf{"SUMMARY_PERF"};
+
 }  // namespace intel_cpu
 }  // namespace ov

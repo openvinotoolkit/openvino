@@ -83,6 +83,7 @@ target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE
 target_include_directories(${TARGET_NAME}_obj PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:openvino::shape_inference,INTERFACE_INCLUDE_DIRECTORIES>
     $<$<TARGET_EXISTS:openvino_proxy_plugin_obj>:$<TARGET_PROPERTY:openvino_proxy_plugin_obj,INTERFACE_INCLUDE_DIRECTORIES>>
     # for ov_plugins.hpp
     $<IF:$<AND:$<BOOL:${OV_GENERATOR_MULTI_CONFIG}>,$<VERSION_GREATER_EQUAL:${CMAKE_VERSION},3.20>>,${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>,${CMAKE_CURRENT_BINARY_DIR}>)
@@ -101,7 +102,7 @@ endif()
 # Create library file from object library
 
 add_library(${TARGET_NAME} INTERFACE)
-target_link_libraries(${TARGET_NAME} INTERFACE openvino::runtime)
+target_link_libraries(${TARGET_NAME} INTERFACE openvino::runtime openvino::shape_inference)
 target_include_directories(${TARGET_NAME} INTERFACE $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>)
 
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
@@ -122,14 +123,15 @@ if (TBBBIND_2_5_FOUND)
 endif()
 
 target_include_directories(${TARGET_NAME}_s PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>)
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+    $<TARGET_PROPERTY:openvino::shape_inference,INTERFACE_INCLUDE_DIRECTORIES>)
 
 if(WIN32)
     set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
 endif()
 
 target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS}
-    openvino::runtime::dev openvino::pugixml)
+    openvino::runtime::dev openvino::pugixml openvino::shape_inference)
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
 

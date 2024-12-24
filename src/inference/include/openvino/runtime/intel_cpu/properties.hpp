@@ -12,6 +12,7 @@
 #pragma once
 
 #include "openvino/runtime/properties.hpp"
+#include "ov_optional.hpp"
 
 namespace ov {
 
@@ -45,7 +46,7 @@ namespace intel_cpu {
  * ie.set_property(ov::denormals_optimization(false)); // disable denormals optimization
  * @endcode
  */
-static constexpr Property<bool> denormals_optimization{"CPU_DENORMALS_OPTIMIZATION"};
+static constexpr Property<ov::optional<bool>> denormals_optimization{"CPU_DENORMALS_OPTIMIZATION"};
 
 /**
  * @brief This property defines threshold for sparse weights decompression feature activation

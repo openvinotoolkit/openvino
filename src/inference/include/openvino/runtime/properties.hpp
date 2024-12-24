@@ -1209,7 +1209,7 @@ namespace streams {
  * @ingroup ov_runtime_cpp_prop_api
  */
 struct Num {
-    using Base = std::tuple<int32_t>;  //!< NumStreams is representable as int32_t
+    // using Base = std::tuple<int32_t>;  //!< NumStreams is representable as int32_t
 
     constexpr Num() : num{-1} {};
 

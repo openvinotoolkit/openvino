@@ -503,7 +503,7 @@ LLMMLP::LLMMLP(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     const auto& config = context->getConfig();
-    if (!isSupportedOperation(op, errorMessage, config.fcDynamicQuantizationGroupSize)) {
+    if (!isSupportedOperation(op, errorMessage, config.get_dynamic_quantization_group_size())) {
         OPENVINO_THROW("CPU: " + errorMessage);
     }
     const auto node_mlp = std::dynamic_pointer_cast<const LLMMLPNode>(op);
