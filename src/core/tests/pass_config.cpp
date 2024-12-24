@@ -19,7 +19,7 @@ using namespace ov::pass;
 
 class RenameReLU : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("RanameReLU");
+    OPENVINO_MATCHER_PASS_RTTI("RenameReLU");
     RenameReLU() : MatcherPass() {
         auto relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu>();
         ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -35,7 +35,7 @@ public:
 
 class RenameSigmoid : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("RenameSigmoid");
+    OPENVINO_MATCHER_PASS_RTTI("RenameSigmoid");
     RenameSigmoid() : MatcherPass() {
         auto sigmoid = pattern::wrap_type<ov::op::v0::Sigmoid>();
         ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -51,7 +51,7 @@ public:
 
 class TestModelPass : public pass::ModelPass {
 public:
-    OPENVINO_RTTI("TestModelPass");
+    OPENVINO_MODEL_PASS_RTTI("TestModelPass");
 
     bool run_on_model(const std::shared_ptr<ov::Model>& f) override {
         pass::Manager manager(get_pass_config());
@@ -66,7 +66,7 @@ public:
 
 class TestGraphRewritePass : public pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("TestGraphRewritePass");
+    OPENVINO_GRAPH_REWRITE_RTTI("TestGraphRewritePass");
     TestGraphRewritePass() {
         add_matcher<RenameReLU, false /*disabled by default*/>();
         add_matcher<RenameSigmoid>();
@@ -259,7 +259,7 @@ TEST(PassConfig, EnableDisablePasses9) {
 
 class TestNestedMatcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TestNestedMatcher");
+    OPENVINO_MATCHER_PASS_RTTI("TestNestedMatcher");
     TestNestedMatcher() : MatcherPass() {
         auto any_op = pattern::any_input();
         ov::matcher_pass_callback callback = [this](pattern::Matcher& m) {
@@ -284,7 +284,7 @@ public:
 
 class TestNestedGraphRewrite : public pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("TestNestedGraphRewrite");
+    OPENVINO_GRAPH_REWRITE_RTTI("TestNestedGraphRewrite");
     TestNestedGraphRewrite() {
         add_matcher<TestNestedMatcher>();
     }
