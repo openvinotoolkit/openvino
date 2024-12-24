@@ -296,10 +296,10 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 } else {
                     OPENVINO_THROW("invalid value");
                 }
-                // enforce inference precision to bf16 for GNR acc verify
+                // enforce inference precision to f16 for GNR acc verify
                 if (mayiuse(avx512_core_amx_fp16)) {
-                    // inferencePrecision = ov::element::f16;
-                    inferencePrecision = ov::element::bf16;
+                    inferencePrecision = ov::element::f16;
+                    // inferencePrecision = ov::element::bf16;
                 }
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
@@ -406,10 +406,10 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         } else {
             inferencePrecision = ov::element::undefined;
         }
-        // enforce inference precision to bf16 for GNR acc verify
+        // enforce inference precision to f16 for GNR acc verify
         if (mayiuse(avx512_core_amx_fp16)) {
-            // inferencePrecision = ov::element::f16;
-            inferencePrecision = ov::element::bf16;
+            inferencePrecision = ov::element::f16;
+            // inferencePrecision = ov::element::bf16;
         }
     }
     // enable ACL fast math in PERFORMANCE mode
