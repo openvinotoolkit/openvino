@@ -338,14 +338,6 @@ std::optional<T> get_option(ov::AnyMap& config, const std::string& option_name) 
     return std::nullopt;
 }
 
-template <typename T>
-T opt_or_default(const std::optional<ov::Any>& opt, const T& default_value) {
-    if (opt.has_value()) {
-        return opt.value().as<T>();
-    }
-    return default_value;
-}
-
 ov::AnyMap get_baseline_common_config() {
     ov::AnyMap config = {
         {"NPU_COMPILATION_MODE_PARAMS", "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm"},
@@ -487,7 +479,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     prefill_model = cvt_kvcache_to_fp16(prefill_model);
 
     auto npudesc = extract_npu_descriptor(plugin);
-    auto prefill_config = opt_or_default(prefill_config_opt, get_default_prefill_config(prefill_model, npudesc));
+    auto prefill_config =
+        prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();
 
     const ::intel_npu::npuw::llm::GenerateHint generate_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_HINT>();
     LOG_DEBUG("9. Passed GENERATE_HINT: " << std::string(::intel_npu::NPUW_LLM_GENERATE_HINT::toString(generate_hint)));
@@ -496,7 +489,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         OPENVINO_THROW("GENERATE_HINT is only applicable for default generate config!");
     }
     auto generate_config =
-        opt_or_default(generate_config_opt, get_default_generate_config(model, npudesc, generate_hint));
+        generate_config_opt.value_or(get_default_generate_config(model, npudesc, generate_hint)).as<ov::AnyMap>();
 
     merge_config_with(prefill_config, other_props);
     merge_config_with(generate_config, other_props);
@@ -560,7 +553,6 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::model_desc, NPUW_LLM_MODEL_DESC, getString),
                           BIND(npuw::llm::max_prompt_len, NPUW_LLM_MAX_PROMPT_LEN, get),
                           BIND(npuw::llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN, get),
-                          BIND(npuw::llm::generate_hint, NPUW_LLM_GENERATE_HINT, getString),
-                          BIND(npuw::llm::pad_token_id, NPUW_LLM_PAD_TOKEN_ID, get)});
+                          BIND(npuw::llm::generate_hint, NPUW_LLM_GENERATE_HINT, getString)});
 #undef BIND
 }
