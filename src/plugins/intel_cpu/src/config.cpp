@@ -296,6 +296,11 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 } else {
                     OPENVINO_THROW("invalid value");
                 }
+                // enforce inference precision to bf16 for GNR acc verify
+                if (mayiuse(avx512_core_amx_fp16)) {
+                    // inferencePrecision = ov::element::f16;
+                    inferencePrecision = ov::element::bf16;
+                }
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
@@ -400,6 +405,11 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 inferencePrecision = ov::element::bf16;
         } else {
             inferencePrecision = ov::element::undefined;
+        }
+        // enforce inference precision to bf16 for GNR acc verify
+        if (mayiuse(avx512_core_amx_fp16)) {
+            // inferencePrecision = ov::element::f16;
+            inferencePrecision = ov::element::bf16;
         }
     }
     // enable ACL fast math in PERFORMANCE mode
