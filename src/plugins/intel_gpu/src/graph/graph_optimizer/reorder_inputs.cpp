@@ -704,7 +704,7 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
         GPU_DEBUG_LOG_PASS << "  " << node_ptr->id() << " " << fmt_to_str(fmt) << std::endl;
     }
 
-    GPU_DEBUG_IF(debug_config->verbose >= 2) {
+    GPU_DEBUG_IF(p.get_config().get_verbose() >= 2) {
         reorder_cnt total_reorder_count =
             std::accumulate(p.get_processing_order().begin(),
                             p.get_processing_order().end(),
