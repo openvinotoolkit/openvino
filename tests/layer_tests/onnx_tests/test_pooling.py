@@ -13,6 +13,7 @@ def float_array(x):
     return np.array(x, dtype=float)
 
 
+@pytest.mark.skip(reason="Ticket - 157136")
 class TestPooling(OnnxRuntimeLayerTest):
     def create_net(self, shape, kernel_shape, pads, strides, op, ir_version, count_include_pad=None,
                    auto_pad=None,

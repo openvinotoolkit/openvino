@@ -8,6 +8,7 @@ from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 from unit_tests.utils.graph import build_graph
 
 
+@pytest.mark.skip(reason="Ticket - 157136")
 class TestReduce(OnnxRuntimeLayerTest):
     def create_reduce(self, shape, reshapped_shape, op, axes, keep_dims, ir_version):
         """

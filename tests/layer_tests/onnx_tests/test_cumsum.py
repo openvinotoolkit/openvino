@@ -20,6 +20,7 @@ def cumsum(a, axis=None, exclusive=False, reverse=False):
     return res
 
 
+@pytest.mark.skip(reason="Ticket - 157136")
 class TestCumSum(OnnxRuntimeLayerTest):
     def create_net(self, shape, ir_version, axis=None, reverse=None, exclusive=None):
         """

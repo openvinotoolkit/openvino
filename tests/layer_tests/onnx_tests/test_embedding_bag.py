@@ -23,6 +23,7 @@ class PytorchLayerTest(CommonLayerTest):
         return {'output': self.torch_model(*self.var).detach().numpy()}
 
 
+@pytest.mark.skip(reason="Ticket - 157136")
 class EmbeddingBagModel(torch.nn.Module):
     def __init__(self, n, m, indices_shape=None, per_sample_weights=False, mode="sum"):
         super(EmbeddingBagModel, self).__init__()

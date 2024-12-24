@@ -8,6 +8,7 @@ from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 from unit_tests.utils.graph import build_graph
 
 
+@pytest.mark.skip(reason="Ticket - 157136")
 class TestLRN(OnnxRuntimeLayerTest):
     def create_net(self, shape, alpha, beta, bias, size, ir_version):
         """

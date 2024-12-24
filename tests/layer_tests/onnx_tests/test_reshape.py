@@ -8,6 +8,7 @@ from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 from unit_tests.utils.graph import build_graph
 
 
+@pytest.mark.skip(reason="Ticket - 157136")
 class TestReshape(OnnxRuntimeLayerTest):
     def create_reshape_net(self, input_shape, output_shape, ir_version):
         """

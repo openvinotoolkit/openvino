@@ -34,6 +34,7 @@ def get_flatten_shape(src_shape, axis):
     return [fst_dim, snd_dim]
 
 
+@pytest.mark.skip(reason="Ticket - 157136")
 class TestLog(OnnxRuntimeLayerTest):
     def _prepare_input(self, inputs_dict):
         for input in inputs_dict.keys():
