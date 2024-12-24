@@ -77,8 +77,10 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
                                          kernel_impl_params& concat_params,
                                          std::vector<kernel_impl_params>& pred_params,
                                          bool is_runtime) {
-    if (concat_node.is_output() || concat_params.fused_desc.size() > 0 || concat_node.is_in_shape_of_subgraph())
+    if (concat_node.is_output() || concat_params.fused_desc.size() > 0 || concat_node.is_in_shape_of_subgraph()) {
+        GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing_match_fail] : " << concat_node.id() << std::endl;
         return false;
+    }
     bool do_runtime_buffer_fusing = true;
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(debug_config->disable_runtime_buffer_fusing) {
@@ -93,8 +95,10 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         for (size_t j = 0; j < concat_params.get_output_layout().get_rank(); j++) {
             if (j != concat_axis_index) {
                 if ((concat_params.get_output_layout().data_padding._lower_size[j] != 0)
-                    || (concat_params.get_output_layout().data_padding._upper_size[j] != 0))
-                    return false;
+                    || (concat_params.get_output_layout().data_padding._upper_size[j] != 0)) {
+                        GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing_match_fail] : " << concat_node.id() << std::endl;
+                        return false;
+                }
             }
         }
     }
@@ -109,14 +113,20 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         // for simple patterns where the concat is the only user of all the preds.
         // Also cascaded concat is not handled for dynamic shape. for now.
         // If we have more flexible exec order handling in the future we'll be able to remove this condition below
-        if (p.first->is_dynamic() && (!do_runtime_buffer_fusing || p.first->get_users().size() > 1))
+        if (p.first->is_dynamic() && (!do_runtime_buffer_fusing || p.first->get_users().size() > 1)) {
+            GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing_match_fail] : " << p.first->id() << " , " << concat_node.id() << std::endl;
             return false;
-        if (concat_node.is_dynamic() && (!do_runtime_buffer_fusing || !p.first->is_dynamic()))
-            return false;
+        }
+        if (concat_node.is_dynamic() && (!do_runtime_buffer_fusing || !p.first->is_dynamic())) {
+                GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing_match_fail] : " << p.first->id() << " , " << concat_node.id() << std::endl;
+                return false;
+        }
     }
     // if this is called in primitive_inst::execute() and concat is static, that concat should already be optimized in build time, not in runtime.
-    if (is_runtime && !concat_node.is_dynamic())
-        return false;
+    if (is_runtime && !concat_node.is_dynamic()) {
+            GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing_match_fail] : " << concat_node.id() << std::endl;
+            return false;
+    }
     bool is_onednn_impl = false;
 
     // For in place concatenation input layouts and data types must match.
@@ -131,50 +141,67 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
 
     size_t idx = 0;
     for (const auto& pred : pred_nodes) {
-        if (!available_pred(*pred.first))
+        if (!available_pred(*pred.first)) {
+            GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing_match_fail] : " << pred.first->id() << " , " << concat_node.id() << std::endl;
             return false;
-        if (pred.first->is_output())
+        }
+        if (pred.first->is_output()) {
+            GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing_match_fail] : " << pred.first->id() << " , " << concat_node.id() << std::endl;
             return false;
-        // if an input is marked as network output, prevent optimizations
+        }        // if an input is marked as network output, prevent optimizations
         // which would affect a form of its output (unless debug flag is set),
         // we also need to restrict input types to those which support padding on all axis
         if (!pred.first->is_dynamic() || is_runtime) {
-            if (!pred.first->is_padding_supported(static_cast<int>(concat_axis), lower_padd_in_axis))
+            if (!pred.first->is_padding_supported(static_cast<int>(concat_axis), lower_padd_in_axis)) {
+                GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing_match_fail] : " << pred.first->id() << " , " << concat_node.id() << std::endl;
                 return false;
+            }
         }
         // TODO: handle optimized reshape
-        if (pred.first->is_type<reshape>() && pred.first->can_be_optimized())
-            return false;
+        if (pred.first->is_type<reshape>() && pred.first->can_be_optimized()) {
+                GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing_match_fail] : " << pred.first->id() << " , " << concat_node.id() << std::endl;
+                return false;
+        }
         // TODO: Investigate if this condition is needed
-        if (pred.first->get_users().size() > 2)
-            return false;
-
+        if (pred.first->get_users().size() > 2) {
+                GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing_match_fail] : " << pred.first->id() << " , " << concat_node.id() << std::endl;
+                return false;
+        }
        // Check that input isn't optimized out concatenation along different axis.
         if (pred.first->is_type<concatenation>() && pred.first->can_be_optimized()) {
             // cascaded concat opt is not supported for dynamic shape yet
-            if (concat_node.is_dynamic() || is_runtime)
+            if (concat_node.is_dynamic() || is_runtime) {
+                GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing_match_fail] : " << pred.first->id() << " , " << concat_node.id() << std::endl;
                 return false;
-            else if (pred.first->as<concatenation>().get_primitive()->axis != concat_axis)
+            } else if (pred.first->as<concatenation>().get_primitive()->axis != concat_axis) {
+                GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing_match_fail] : " << pred.first->id() << " , " << concat_node.id() << std::endl;
                 return false;
+            }
         }
         // Check that input isn't optimized out non-concatenation.
-        if (!pred.first->is_type<concatenation>() && pred.first->can_be_optimized())
-            return false;
-
+        if (!pred.first->is_type<concatenation>() && pred.first->can_be_optimized()) {
+                GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing_match_fail] : " << pred.first->id() << " , " << concat_node.id() << std::endl;
+                return false;
+        }
         size_t concat_users = 0;
         for (const auto& user : pred.first->get_users())
             if (user->is_type<concatenation>())
                 concat_users += 1;
 
         // If input is used by more than one concatenation then they may require different paddings.
-        if (concat_users != 1)
+        if (concat_users != 1) {
+            GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing_match_fail] : " << concat_node.id() << std::endl;
             return false;
-
+        }
         const layout& pred_l = pred_params[idx].get_output_layout();
-        if (output_format != pred_l.format || output_datatype != pred_l.data_type)
+        if (output_format != pred_l.format || output_datatype != pred_l.data_type) {
+            GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing_match_fail] : " << concat_node.id() << std::endl;
             return false;
-        if (pred_l.format.block_sizes().size() > 1)
+        }
+        if (pred_l.format.block_sizes().size() > 1) {
+            GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing_match_fail] : " << concat_node.id() << std::endl;
             return false;
+        }
         // TODO: Below condition should be moved to program_node::supports_padding.
         // This however will need updating the algorithm as it may make cascade adjustment impossible in some cases.
         // It however would make normal optimizations possible in others, so this is a trade-off to be investigated.
