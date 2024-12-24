@@ -31,6 +31,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_4D_Dynamic, ConvertCPULayerTe
                                 ::testing::ValuesIn(inShapes_4D_dynamic()),
                                 ::testing::ValuesIn(precisions()),
                                 ::testing::ValuesIn(precisions()),
+                                ::testing::Values(ov::test::SpecialValue::none),
                                 ::testing::ValuesIn(memForm4D_dynamic)),
                         ConvertCPULayerTest::getTestCaseName);
 
@@ -39,6 +40,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_4bit_Dynamic, ConvertCPULayer
                          ::testing::Combine(::testing::ValuesIn(inShapes_4D_dynamic()),
                                             ::testing::ValuesIn({ov::element::u4, ov::element::i4}),
                                             ::testing::ValuesIn({ov::element::f32, ov::element::bf16, ov::element::u8, ov::element::i8}),
+                                            ::testing::Values(ov::test::SpecialValue::none),
                                             ::testing::Values(CPUSpecificParams({nchw}, {nchw}, {}, {"ref"}))),
                          ConvertCPULayerTest::getTestCaseName);
 
@@ -52,6 +54,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_4D_Static, ConvertCPULayerTes
                                 ::testing::ValuesIn(inShapes_4D_static()),
                                 ::testing::ValuesIn(precisions()),
                                 ::testing::ValuesIn(precisions()),
+                                ::testing::Values(ov::test::SpecialValue::none),
                                 ::testing::ValuesIn(memForm4D_static_common)),
                         ConvertCPULayerTest::getTestCaseName);
 
@@ -66,6 +69,13 @@ const std::vector<ov::element::Type> f8_precisions = {
     ov::element::f8e5m2,
 };
 
+const std::vector<ov::test::SpecialValue> specialValue = {
+    ov::test::SpecialValue::none,
+    ov::test::SpecialValue::nan,
+    ov::test::SpecialValue::inf,
+    ov::test::SpecialValue::overflow,
+};
+
 std::vector<CPUSpecificParams> memForm4D_fp8 = {
     CPUSpecificParams({nchw}, {nchw}, {}, expectedPrimitiveType()),
     CPUSpecificParams({nhwc}, {nhwc}, {}, expectedPrimitiveType()),
@@ -76,6 +86,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_from_fp8_Static, ConvertCPULa
                                 ::testing::ValuesIn(inShapes_4D_static()),
                                 ::testing::ValuesIn(f8_precisions),
                                 ::testing::ValuesIn(float_precisions),
+                                ::testing::ValuesIn(specialValue),
                                 ::testing::ValuesIn(memForm4D_fp8)),
                         ConvertCPULayerTest::getTestCaseName);
 
@@ -84,6 +95,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_to_fp8_Static, ConvertCPULaye
                                 ::testing::ValuesIn(inShapes_4D_static()),
                                 ::testing::ValuesIn(float_precisions),
                                 ::testing::ValuesIn(f8_precisions),
+                                ::testing::ValuesIn(specialValue),
                                 ::testing::ValuesIn(memForm4D_fp8)),
                         ConvertCPULayerTest::getTestCaseName);
 
@@ -92,6 +104,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_from_fp8_Dynamic, ConvertCPUL
                                 ::testing::ValuesIn(inShapes_4D_dynamic()),
                                 ::testing::ValuesIn(f8_precisions),
                                 ::testing::ValuesIn(float_precisions),
+                                ::testing::ValuesIn(specialValue),
                                 ::testing::ValuesIn(memForm4D_fp8)),
                         ConvertCPULayerTest::getTestCaseName);
 
@@ -100,6 +113,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_to_fp8_Dynamic, ConvertCPULay
                                 ::testing::ValuesIn(inShapes_4D_dynamic()),
                                 ::testing::ValuesIn(float_precisions),
                                 ::testing::ValuesIn(f8_precisions),
+                                ::testing::ValuesIn(specialValue),
                                 ::testing::ValuesIn(memForm4D_fp8)),
                         ConvertCPULayerTest::getTestCaseName);
 
