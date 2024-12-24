@@ -512,9 +512,9 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
 
     attrs.sparseWeights = useSparseWeightsDecompression(getParentEdgeAt(WEIGHTS)->getParent(),
                                                         getOriginalInputPrecisionAtPort(DATA),
-                                                        context->getConfig().fcSparseWeiDecompressionRate);
-    attrs.dynamicQuantizationGroupSize = context->getConfig().fcDynamicQuantizationGroupSize;
-    attrs.modelType = context->getConfig().modelType;
+                                                        context->getConfig().get_sparse_weights_decompression_rate());
+    attrs.dynamicQuantizationGroupSize = context->getConfig().get_dynamic_quantization_group_size();
+    attrs.modelType = context->getConfig().get_model_type();
 
     postOps = getPostOps(fusedWith);
 

@@ -20,7 +20,7 @@ struct FCAttrs {
     bool sparseWeights = false;
     uint64_t dynamicQuantizationGroupSize;
 
-    ov::intel_cpu::Config::ModelType modelType = ov::intel_cpu::Config::ModelType::Unknown;
+    ov::intel_cpu::ModelType modelType = ov::intel_cpu::ModelType::UNKNOWN;
 };
 
 using FCConfig = executor::Config<FCAttrs>;

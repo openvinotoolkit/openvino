@@ -37,7 +37,7 @@ endif()
 target_link_libraries(cpuUtils PRIVATE ${CPU_UTILS_LINK_LIBRARIES})
 target_include_directories(cpuUtils PUBLIC ${CPU_UTILS_INCLUDE_PATHS})
 
-set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src)
+set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src $<TARGET_PROPERTY:openvino::shape_inference,INTERFACE_INCLUDE_DIRECTORIES>)
 set(DEPENDENCIES openvino_intel_cpu_plugin openvino_template_extension)
 set(LINK_LIBRARIES funcSharedTests cpuUtils openvino::snippets ov_snippets_models)
 

@@ -23,7 +23,7 @@ class DnnlFCPrimitive {
         DnnlMemoryDescCPtr dst;
         dnnl::primitive_attr attr;
         bool sparseWeights;
-        Config::ModelType modelType;
+        ModelType modelType;
 
         [[nodiscard]] size_t hash() const;
         bool operator==(const Key& rhs) const;
@@ -62,7 +62,7 @@ public:
 
     static bool useWeightsDecompressionImpl(const ov::element::Type inputType,
                                             const ov::element::Type weightsType,
-                                            const Config::ModelType modelType);
+                                            const ModelType modelType);
 
     static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
                                                             const DnnlMemoryDescPtr& dstDesc,

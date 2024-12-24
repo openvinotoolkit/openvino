@@ -32,7 +32,7 @@ struct MemBandwidthPressure {
 };
 
 OPENVINO_RUNTIME_API MemBandwidthPressure mem_bandwidth_pressure_tolerance(
-    const std::shared_ptr<ov::Model> model,
+    const std::shared_ptr<const ov::Model> model,
     const float cache_size,
     const float memThresholdAssumeLimited = MemBandwidthPressure::LIMITED);
 

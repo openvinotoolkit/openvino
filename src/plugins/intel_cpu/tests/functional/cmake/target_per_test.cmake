@@ -98,6 +98,7 @@ endfunction()
 if(ENABLE_CPU_SPECIFIC_TARGET_PER_TEST)
   create_target_per_test_for_directory(${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/common ov_cpu_func_subgraph)
   create_target_per_test_for_directory(${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests ov_cpu_func_slt)
+  create_target_per_test_for_directory(${CMAKE_CURRENT_SOURCE_DIR}/custom/behavior/ov_executable_network ov_cpu_func_behavior)
 endif()
 
 # examples of targets:

@@ -43,9 +43,9 @@ public:
     std::shared_ptr<Graph> create_graph(const std::vector<ov::PartialShape>& input_shapes,
                                         const size_t num_consumers = 1) {
         Config conf;
-        conf.rtCacheCapacity = 100;
+        conf.set_property(ov::intel_cpu::cpu_runtime_cache_capacity(100));
         const auto context =
-            std::make_shared<const GraphContext>(conf, nullptr, false);
+            std::make_shared<const GraphContext>(conf, nullptr, false, false);
 
         std::shared_ptr<Graph> graph = std::shared_ptr<Graph>(new Graph());
 

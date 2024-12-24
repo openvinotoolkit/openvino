@@ -160,6 +160,7 @@ if(WIN32)
 endif()
 
 if(ENABLE_CPU_DEBUG_CAPS)
+    add_definitions(-DENABLE_DEBUG_CAPS)
     add_definitions(-DCPU_DEBUG_CAPS)
 endif()
 

@@ -201,7 +201,7 @@ protected:
     virtual void apply_model_specific_options(const IRemoteContext* context, const ov::Model& model) {}
     void apply_env_options();
     void apply_config_options(std::string_view device_name, std::filesystem::path config_path = "");
-    virtual void finalize_impl(const IRemoteContext* context) {}
+    virtual void finalize_impl(const IRemoteContext* context, const ov::Model* model) {}
 
     template <typename T, PropertyMutability mutability>
     bool is_set_by_user(const ov::Property<T, mutability>& property) const {

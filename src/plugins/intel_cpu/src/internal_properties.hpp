@@ -99,7 +99,6 @@ inline std::istream& operator>>(std::istream& is, CacheQuantMode& mode) {
     }
     return is;
 }
-/** @endcond */
 
 /**
  * @brief Define cache quant mode.
@@ -108,5 +107,70 @@ inline std::istream& operator>>(std::istream& is, CacheQuantMode& mode) {
  * @param BY_HIDDEN - quant by hidden
  */
 static constexpr Property<CacheQuantMode, PropertyMutability::RW> key_cache_quant_mode{"KEY_CACHE_QUANT_MODE"};
+
+/**
+ * @brief Enables fast-math mode for ARM Compute Library (ACL).
+ */
+static constexpr Property<bool, PropertyMutability::RW> acl_fast_math{"ACL_FAST_MATH"};
+
+/**
+ * @brief Enum to define model type hint.
+ */
+enum class ModelType {
+    UNKNOWN = 0,
+    CNN = 1,
+    LLM = 2
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const ModelType& type) {
+    switch (type) {
+    case ModelType::UNKNOWN:
+        return os << "UNKNOWN";
+    case ModelType::CNN:
+        return os << "CNN";
+    case ModelType::LLM:
+        return os << "LLM";
+    default:
+        OPENVINO_THROW("Unsupported model type value");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, ModelType& type) {
+    std::string str;
+    is >> str;
+    if (str == "UNKNOWN") {
+        type = ModelType::UNKNOWN;
+    } else if (str == "CNN") {
+        type = ModelType::CNN;
+    } else if (str == "LLM") {
+        type = ModelType::LLM;
+    } else {
+        OPENVINO_THROW("Unsupported model type mode: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief Defines model type hint, which is used as heueristic for some internal optimizations
+ */
+static constexpr Property<ModelType, PropertyMutability::RW> model_type{"MODEL_TYPE"};
+
+enum class BlobDumpFormat {
+    BIN,
+    TEXT,
+};
+
+static constexpr Property<std::string, ov::PropertyMutability::RW> verbose{"VERBOSE"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> exec_graph_path{"EXEC_GRAPH_PATH"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> average_counters{"AVERAGE_COUNTERS"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> blob_dump_dir{"BLOB_DUMP_DIR"};
+static constexpr Property<BlobDumpFormat, ov::PropertyMutability::RW> blob_dump_format{"BLOB_DUMP_FORMAT"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> blob_dump_node_exec_id{"BLOB_DUMP_NODE_EXEC_ID"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> blob_dump_node_ports{"BLOB_DUMP_NODE_PORTS"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> blob_dump_node_type{"BLOB_DUMP_NODE_TYPE"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> blob_dump_node_name{"BLOB_DUMP_NODE_NAME"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> summary_perf{"SUMMARY_PERF"};
 
 }  // namespace ov::intel_cpu

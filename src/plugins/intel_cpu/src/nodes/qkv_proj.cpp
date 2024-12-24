@@ -336,12 +336,12 @@ QKVProjection::QKVProjection(const std::shared_ptr<ov::Node>& op, const GraphCon
     std::string errorMessage;
 
     const auto& config = context->getConfig();
-    size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
+    size_t concurrency = config.get_stream_executor_config().get_threads_per_stream();
     if (concurrency == 0) {
         concurrency = parallel_get_max_threads();
     }
 
-    if (!isSupportedOperation(op, errorMessage, concurrency, config.fcDynamicQuantizationGroupSize)) {
+    if (!isSupportedOperation(op, errorMessage, concurrency, config.get_dynamic_quantization_group_size())) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     const auto node = ov::as_type_ptr<const QKVProjectionNode>(op);

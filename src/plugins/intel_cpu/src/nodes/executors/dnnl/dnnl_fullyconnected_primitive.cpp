@@ -126,13 +126,13 @@ DnnlMemoryDescPtr DnnlFCPrimitive::makeTransposedWeightDescriptor(const DnnlMemo
 
 bool DnnlFCPrimitive::useWeightsDecompressionImpl(const ov::element::Type inputType,
                                                   const ov::element::Type weightsType,
-                                                  const ov::intel_cpu::Config::ModelType modelType) {
+                                                  const ov::intel_cpu::ModelType modelType) {
     if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
         if (one_of(inputType, f32, bf16) && one_of(weightsType, u8, i8, nf4, u4, i4, f4e2m1)) {
             return true;
         }
 
-        if (modelType == ov::intel_cpu::Config::ModelType::LLM) {
+        if (modelType == ov::intel_cpu::ModelType::LLM) {
             // f16c kernel saves memory footprint with additional decompression computational overhead
             // which is only meaningful on LLM with small batch-size.
             // TODO: fall-back to use f32 weights on large batch-size
