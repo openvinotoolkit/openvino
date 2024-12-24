@@ -539,6 +539,11 @@ public:
             a->set(m_attr_map[name].as_vector<int64_t>());
         } else if (auto a = ov::as_type<ov::AttributeAdapter<ov::element::TypeVector>>(&adapter)) {
             a->set(m_attr_map[name].as_T_vector<ov::element::Type>());
+        } else if (auto a = dynamic_cast<ov::AttributeAdapter<std::shared_ptr<ov::op::util::Variable>>*>(&adapter)) {
+            ov::op::util::VariableInfo var_info;
+            var_info.variable_id = m_attr_map[name].as_string();
+            auto variable = std::make_shared<ov::op::util::Variable>(var_info);
+            a->set(variable);
         } else {
             OPENVINO_THROW("unsupported AttributeAdapter for attribute : ", name);
         }
@@ -896,6 +901,7 @@ struct PatternNode {
     // scalar constant (treated as wildcard for single-element-constant with any rank)
     PatternNode(int v) : node(std::make_shared<ov::op::v0::Constant>(element::from<int>(), Shape({}), v)) {}
     PatternNode(float v) : node(std::make_shared<ov::op::v0::Constant>(element::from<float>(), Shape({}), v)) {}
+    PatternNode(long long v) : node(std::make_shared<ov::op::v0::Constant>(element::from<int64_t>(), Shape({}), v)) {}
 
     PatternNode(std::initializer_list<int> v, values_info vi = nullptr) {
         node = ConstVector(std::vector<int>(v), vi);
