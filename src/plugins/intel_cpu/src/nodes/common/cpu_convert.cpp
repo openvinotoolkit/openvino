@@ -518,6 +518,18 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
         src_t lbound, ubound;
         std::tie(lbound, ubound) = ctx.range<src_t>();
 
+        // Align with the behavior of ngraph ref and jit implementation. Conversion from f8e4m3-inf
+        // to float should output float-inf instead of f8e4m3-max. Proper handling of special values
+        // (nan, inf, overflow) has already been assured by the conversion process.
+        if (std::is_same<src_t, ov::float8_e4m3>::value || std::is_same<src_t, ov::float8_e5m2>::value ||
+            std::is_same<dst_t, ov::float8_e4m3>::value || std::is_same<dst_t, ov::float8_e5m2>::value) {
+            parallel_for(ctx.size, [&](size_t i) {
+                dst[i] = static_cast<dst_t>(src[i]);
+            });
+            ctx.converted = true;
+            return;
+        }
+
         if (std::is_integral<src_t>::value || ctx.interimPrc.is_real() || std::is_integral<dst_t>::value) {
             parallel_for(ctx.size, [&](size_t i) {
                 dst[i] = static_cast<dst_t>(std::max(std::min(src[i], ubound), lbound));
