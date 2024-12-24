@@ -4,10 +4,12 @@
 
 #include "fully_connected_kernel_bf_tiled.h"
 #include "kernel_selector_utils.h"
+#include "swiglu/swiglu_kernel_base.h"
 #include <vector>
 #include <functional>
 #include "common_types.h"
 
+static constexpr size_t lws_batches = 8;
 static constexpr size_t simd = 16;
 static constexpr size_t min_quantize_grp_size = 32;
 static constexpr size_t min_slm_size = 256;
@@ -48,6 +50,17 @@ static std::pair<size_t, size_t> get_output_aligned_bf_size(const fully_connecte
     output_b = (needs_align == true) ? CeilDiv(output_b, align_b) : output_b;
 
     return {output_b, output_f};
+}
+
+static bool is_weight_dyn_quantizable(const fully_connected_params& params) {
+    auto weight_type = params.weights.GetDType();
+    if (weight_type == WeightsType::INT4 || weight_type == WeightsType::UINT4)
+        return true;
+    // UINT8 weight type is supported by FC dyn-quantize(with SLM).
+    if (weight_type == WeightsType::UINT8)
+        return true;
+
+    return false;
 }
 
 // DYNAMIC_QUANTIZE
@@ -91,7 +104,7 @@ static size_t get_dynamic_quantize_group_size(const fully_connected_params& para
     return 0;
 }
 
-static bool should_dynamic_quantize(const fully_connected_params& params) {
+static bool should_dynamic_quantize(const fully_connected_params& params, bool print_log = false) {
     size_t dynamic_quantization_group_size = get_dynamic_quantize_group_size(params);
 
     if (params.inputs[0].GetFirstElementOffset() != 0)
@@ -110,11 +123,17 @@ static bool should_dynamic_quantize(const fully_connected_params& params) {
     const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
     if ((scale_group_size % simd == 0) && (input_f % dynamic_quantization_group_size == 0) &&
         (params.is_shape_agnostic || (params.inputs[0].Batch().v > 1 && input_b > min_slm_size)) &&
-        params.inputs[0].GetDType() == Datatype::F16 &&
-        (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4)) {
-        GPU_DEBUG_TRACE_DETAIL << " Dynamic quantizing for FC : scale_group_size " << scale_group_size << ", Input (" <<
-            kernel_selector::toString(params.inputs[0].GetDType()) << ", " << kernel_selector::toString(params.outputs[0].GetLayout()) <<
-            ") B: " << params.inputs[0].Batch().v << ", F: " << params.inputs[0].Feature().v << ", Y: " << params.inputs[0].Y().v << std ::endl;
+        params.inputs[0].GetDType() == Datatype::F16 && is_weight_dyn_quantizable(params)) {
+        if (print_log) {
+            GPU_DEBUG_TRACE_DETAIL << " Dynamic quantizing for FC : scale_group_size: " << scale_group_size <<
+                ", Dyn-quan group size: " << dynamic_quantization_group_size <<
+                ", Type(I:" << kernel_selector::toString(params.inputs[0].GetDType()) <<
+                ", O:" << kernel_selector::toString(params.outputs[0].GetDType()) <<
+                ", W:" << kernel_selector::toString(params.weights.GetDType()) <<
+                "), Format(W:" << kernel_selector::toString(params.weights.GetLayout()) <<
+                ") B: " << params.inputs[0].Batch().v << ", F: " << params.inputs[0].Feature().v <<
+                ", Y: " << params.inputs[0].Y().v << std ::endl;
+        }
         return true;
     }
 
@@ -140,7 +159,26 @@ static bool is_weight_horizontal(const fully_connected_params& params, size_t ou
             && output_f / 4 /* tile_ofm=4 */ > min_num_threads * 1.5);
 }
 
+static bool is_weight_small_kn(const fully_connected_params& params, size_t output_f) {
+    size_t min_num_threads = params.engineInfo.computeUnitsCount * simd;
+    return output_f / 2 /*most frequently used tile_ofm*/ <= min_num_threads;
+}
+
+static bool is_swiglu_fused(const fully_connected_params& params) {
+    bool swiglu_fused = false;
+    if (!params.fused_ops.empty()) {
+        for (auto p : params.fused_ops) {
+            if (p.GetType() == kernel_selector::KernelType::SWIGLU)
+                swiglu_fused = true;
+        }
+    }
+    if (swiglu_fused)
+        OPENVINO_ASSERT(params.fused_ops.size() == 1);
+    return swiglu_fused;
+}
 static bool is_suitable_outer_ofm(const fully_connected_params& params, size_t output_f) {
+    if (is_swiglu_fused(params))
+        return true;
     size_t min_num_threads = params.engineInfo.computeUnitsCount * simd;
     return (params.weights.OFM().v > params.weights.IFM().v * 6
             && output_f / 8 /* tile_ofm=4 and outer_ofm=2 */ > min_num_threads * 1.5);
@@ -204,8 +242,9 @@ DeviceFeaturesKey FullyConnected_bf_tiled::get_required_device_features_key(cons
 }
 
 bool FullyConnected_bf_tiled::Validate(const Params& params) const {
-    if (!Parent::Validate(params))
+    if (!Parent::Validate(params)) {
         return false;
+    }
 
     auto& fc_params = static_cast<const fully_connected_params&>(params);
     auto& input = fc_params.inputs[0];
@@ -293,8 +332,17 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
     size_t output_f = bf_size.second;
 
     auto batch_size = params.is_shape_agnostic ? Align(output_b, tparams.tile_b) : output_b;
-    if (batch_size % (tparams.tile_b * tparams.dispatch_bsv) != 0)
-        return false;
+    // If batch size is prime number, still can apply tile execution to avoid poor performance.
+    if (batch_size % (tparams.tile_b * tparams.dispatch_bsv) != 0) {
+        if ((tparams.dispatch_bsv != 1) || batch_size == 1)
+            return false;
+        size_t tile = simd;
+        while (batch_size % tile != 0)
+            tile--;
+        if (tile > 1)
+            return false;
+    }
+
     if (CeilDiv(output_f, tparams.tile_ofm * simd) % tparams.dispatch_fsv != 0)
         return false;
 
@@ -305,21 +353,21 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
     if (tparams.tile_ofm * simd > 64)
         return false;
 
-    bool is_i4_u4 = (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4);
+    bool is_dyn_quantable_type = is_weight_dyn_quantizable(params);
     if (tparams.kernel_type == FullyConnected_bf_tiled::KernelType::SLM) {
         const auto required_batch_alignment = 64;
         if (!params.is_shape_agnostic && (!IsAligned(output_b, required_batch_alignment) || output_b < min_slm_size))
             return false;
 
         const auto required_tile_b = 8;
-        if ((tparams.tile_b != required_tile_b) && !is_i4_u4)
+        if ((tparams.tile_b != required_tile_b) && !is_dyn_quantable_type)
             return false;
 
         const auto required_tile_ofm = 2;
         if (tparams.tile_ofm != required_tile_ofm)
             return false;
 
-        if (params.weights.GetDType() != WeightsType::INT4 && params.weights.GetDType() != WeightsType::UINT4)
+        if (!is_dyn_quantable_type)
             return false;
 
         if (params.engineInfo.deviceType != dev_type::integrated_gpu)
@@ -331,7 +379,7 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
 
         return true;
     }
-    if (params.compressed && is_i4_u4) {
+    if (params.compressed && is_dyn_quantable_type) {
         if (!(tparams.tile_ofm == 2 || tparams.tile_ofm == 4))
             return false;
         if (tparams.tile_ofm == 4 && tparams.outer_ofm == 2 && !is_suitable_outer_ofm(params, output_f))
@@ -373,7 +421,11 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
     while (max_tile_ofm * 2 * simd <= output_f && max_tile_ofm < 4)
         max_tile_ofm *= 2;
 
-    if (params.weights.GetDType() == WeightsType::UINT4 || params.weights.GetDType() == WeightsType::INT4) {
+    bool swiglu_fused = is_swiglu_fused(params);
+
+    if (params.weights.GetDType() == WeightsType::UINT4 || params.weights.GetDType() == WeightsType::INT4 ||
+        (is_weight_dyn_quantizable(params) && should_dynamic_quantize(params))) {
+        // Only 4bit weight type is fully optimized to use SLM. In default kernel, SLM is not applied to 8bit weight.
         if (!params.is_shape_agnostic && batch == 1) {
             // Tuning for Meteor Lake
             if (is_weight_vertical(params, output_f)) {
@@ -382,32 +434,52 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
                 } else if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
                     return selector.Default(tune_params(1, 1, 4, 4, 1, 1, 1, EXE_MODE_DEFAULT));
                 }
+            } else if (is_weight_small_kn(params, output_f)) {
+                if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
+                    if (swiglu_fused)
+                        return selector.Default(tune_params(1, 1, 4, 2, 2, 1, 1, EXE_MODE_DEFAULT));
+                    else
+                        return selector.Default(tune_params(1, 1, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
+                } else {
+                    return selector.Default(tune_params(1, 2, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
+                }
             } else {
                 if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
                     return selector.Default(tune_params(1, 1, 4, 4, 1, 1, 1, EXE_MODE_DEFAULT));
                 } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
-                    selector.Case(tune_params(1, 4, 4, 2, 2, 1, 1, EXE_MODE_DEFAULT))
-                            .Case(tune_params(1, 4, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
+                    // Here : b1 static
+                    if (swiglu_fused) {
+                        return selector.Default(tune_params(1, 4, 4, 2, 2, 1, 1, EXE_MODE_DEFAULT));
+                    } else {
+                        selector.Case(tune_params(1, 4, 4, 2, 2, 1, 1, EXE_MODE_DEFAULT))
+                                .Case(tune_params(1, 4, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
+                    }
                 } else {
-                    return selector.Default(tune_params(1, 2, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
+                    if (swiglu_fused) {
+                        return selector.Default(tune_params(1, 2, 4, 2, 2, 1, 1, EXE_MODE_DEFAULT));
+                    } else {
+                        return selector.Default(tune_params(1, 2, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
+                    }
                 }
             }
         } else {
             // Try to use SLM kernels if possible
+            unsigned int forced_outer_ofm = swiglu_fused ? 2 : 1;
             if (preferred_kernel_type != KernelType::DEFAULT) {
                 if (params.is_shape_agnostic && !should_dynamic_quantize(params)) {
-                    selector.Case(tune_params(16, 2, 2, 4, 1, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
-                            .Case(tune_params(16, 2, 1, 4, 1, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
+                    selector.Case(tune_params(16, 2, 2, 4, forced_outer_ofm, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
+                            .Case(tune_params(16, 2, 1, 4, forced_outer_ofm, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
                 }
-                selector.Case(tune_params(8, 2, 2, 4, 1, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
-                        .Case(tune_params(8, 2, 1, 4, 1, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
+                selector.Case(tune_params(8, 2, 2, 4, forced_outer_ofm, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
+                        .Case(tune_params(8, 2, 1, 4, forced_outer_ofm, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
             }
+
             if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16)
-                return selector.Default(tune_params(8, 1, 1, 4, 1, 1, 1, EXE_MODE_DEFAULT));
+                return selector.Default(tune_params(8, 1, 1, 4, forced_outer_ofm, 1, 1, EXE_MODE_DEFAULT));
             else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2)
-                return selector.Default(tune_params(8, 4, 1, 2, 1, 1, 1, EXE_MODE_DEFAULT));
+                return selector.Default(tune_params(8, 4, 1, 2, forced_outer_ofm, 1, 1, EXE_MODE_DEFAULT));
             else
-                return selector.Default(tune_params(8, 2, 1, 4, 1, 1, 1, EXE_MODE_DEFAULT));
+                return selector.Default(tune_params(8, 2, 1, 4, forced_outer_ofm, 1, 1, EXE_MODE_DEFAULT));
         }
     } else if (params.compressed && params.engineInfo.supports_immad) {
         return selector.Default(tune_params(1, 1, 1, 4, 1, 1, 1, EXE_MODE_DEFAULT));
@@ -484,12 +556,15 @@ FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int au
         kernel_type = kernel_number == 0 ? KernelType::DEFAULT : KernelType::SLM;
 
     auto tparams = GetAutoTuneParams(params, kernel_type, autoTuneIndex);
+    std::pair<size_t, size_t> threads;
+    if (is_swiglu_fused(params))
+        threads = get_output_aligned_bf_size(params, true, tparams.tile_b, tparams.tile_ofm * simd);
+    else
+        threads = get_output_aligned_bf_size(params, true, tparams.tile_b, tparams.tile_ofm * tparams.outer_ofm * simd);
 
-    auto threads = get_output_aligned_bf_size(params, true, tparams.tile_b, tparams.tile_ofm * tparams.outer_ofm * simd);
     auto batch_threads = threads.first;
     auto feature_threads = threads.second;
 
-    const size_t lws_batches = 8;
     const size_t aligned_batch = Align(batch_threads, lws_batches); // Each WG calculates 8x8 batches (TILE_B x LWS[2] size)
     const bool can_use_slm = tparams.kernel_type == KernelType::SLM;
 
@@ -534,11 +609,17 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     size_t tile_k_ofm_packed = tile_k_ofm;
     size_t quantize_grp_size = get_dynamic_quantize_group_size(params);
 
+    if (is_swiglu_fused(params)) {
+        auto split_length = params.fused_ops[0].GetOpParams<swiglu_fuse_params>()->split_length;
+        auto split_to_glu_idx = params.fused_ops[0].GetOpParams<swiglu_fuse_params>()->split_to_glu_idx;
+        jit.AddConstant(MakeJitConstant("SWIGLU_LENGTH", split_length));
+        jit.AddConstant(MakeJitConstant("SWIGLU_SPLIT_TO_GLU_IDX", split_to_glu_idx));
+    }
+
     bool add_decompress_scale_post_op = false;
     WeightsType weights_dt = params.weights.GetDType();
     if (weights_dt == WeightsType::UINT4 || weights_dt == WeightsType::INT4) {
         tile_k_ofm_packed /= 2;
-
         jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE", weights_dt, tile_k_ofm));
         const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
         // Do not use SCALE_POST_OP for SLM kernel, since it demonstrates worse performance
@@ -569,7 +650,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
 
     if (dispatchData.use_slm) {
         OPENVINO_ASSERT(dispatchData.tile_n == 2, "[GPU] Unsupported TILE_OFM size for SLM kernel configuration");
-        OPENVINO_ASSERT(weights_dt == WeightsType::INT4 || weights_dt == WeightsType::UINT4, "[GPU] Unsupported FC weights type for SLM kernel configuration");
+        OPENVINO_ASSERT(is_weight_dyn_quantizable(params), "[GPU] Unsupported FC weights type for SLM kernel configuration");
 
         auto lws_batches = dispatchData.lws[2];
         auto total_weights_elements = simd * dispatchData.tile_n * simd * dispatchData.tile_mk; // SIMD * TILE_OFM * SIMD * TILE_IFM
@@ -596,15 +677,19 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         jit.AddConstant(MakeJitConstant("LWS_BATCHES", lws_batches));
         jit.AddConstant(MakeJitConstant("FILTER_LOAD_ITERS", weights_load_iters));
 
-        if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
-            jit.AddConstant(MakeJitConstant("FILTER_ACTUAL_LOAD_BLOCK_SIZE", block_read_size / 2));
-            jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE_PRELOAD", params.weights.GetDType(), weights_elements_per_load / 2));
-        } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
-            jit.AddConstant(MakeJitConstant("FILTER_ACTUAL_LOAD_BLOCK_SIZE", block_read_size / 2));
-            jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE_PRELOAD", params.weights.GetDType(), weights_elements_per_load / 2));
+        if (weights_dt == WeightsType::INT4 || weights_dt == WeightsType::UINT4) {
+            if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
+                jit.AddConstant(MakeJitConstant("FILTER_ACTUAL_LOAD_BLOCK_SIZE", block_read_size / 2));
+                jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE_PRELOAD", params.weights.GetDType(), weights_elements_per_load / 2));
+            } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
+                jit.AddConstant(MakeJitConstant("FILTER_ACTUAL_LOAD_BLOCK_SIZE", block_read_size / 2));
+                jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE_PRELOAD", params.weights.GetDType(), weights_elements_per_load / 2));
+            } else {
+                jit.AddConstant(MakeJitConstant("FILTER_ACTUAL_LOAD_BLOCK_SIZE", block_read_size));
+                jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE_PRELOAD", params.weights.GetDType(), weights_elements_per_load));
+            }
         } else {
             jit.AddConstant(MakeJitConstant("FILTER_ACTUAL_LOAD_BLOCK_SIZE", block_read_size));
-            jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE_PRELOAD", params.weights.GetDType(), weights_elements_per_load));
         }
 
         jit.AddConstant(MakeJitConstant("FILTER_LOAD_BLOCK_SIZE", block_read_size));
@@ -616,8 +701,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     // Validated perf gain, Dynamic quantize force enable SCALE_POST_OP for char type multiplication
     if (should_dynamic_quantize(params)) {
         jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 1));
-        jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
-        jit.AddConstant(MakeJitConstant("DQ_TYPE", "char"));
+        jit.AddConstant(MakeJitConstant("DQ_DECOMPRESSION_SCALE_POST_OP", 1));
         jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", quantize_grp_size));
     } else {
         if (add_decompress_scale_post_op)
@@ -625,6 +709,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 0));
         jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", min_quantize_grp_size));
     }
+    jit.AddConstant(MakeJitConstant("DQ_TYPE", "char"));
 
     jit.AddConstant(MakeJitConstant("IFM_SIZE", get_input_bf_size(params).second));
     jit.AddConstant(MakeJitConstant("SIMD", simd));
@@ -647,9 +732,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     }
 
     auto max_tile_b_size = dispatchData.tile_m;
-    if (params.compressed &&
-        params.is_shape_agnostic &&
-        (weights_dt == WeightsType::UINT4 || weights_dt == WeightsType::INT4))
+    if (params.compressed && params.is_shape_agnostic && is_weight_dyn_quantizable(params))
         max_tile_b_size = std::max(max_tile_b_size, (uint32_t)8);
 
     jit.Merge(MakeConstantLoopUnrollJitConstants(max_tile_b_size));
@@ -681,7 +764,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         jit.AddConstant(MakeJitConstant("BATCH_SIZE", "(OUTPUT_BATCH_NUM)"));
     }
 
-    if (!params.fused_ops.empty()) {
+    if (!params.fused_ops.empty() && !is_swiglu_fused(params)) {
         std::vector<std::string> idx_order_scalar = { "(out_b + bi)", "(out_f + sglid)", "0", "0" };
         std::vector<std::string> idx_order_vec = { "(out_b + bi)", "(out_f + sglid + fi * SIMD)", "0", "0" };
         if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
@@ -760,10 +843,14 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
 
                     if (kd.internalBufferSizes[0] < input_size) {
                         kd.internalBufferSizes.clear();
-                        kd.internalBufferSizes.push_back(input_size);                           // quantized input is char type
-                        kd.internalBufferSizes.push_back(input_size / quantize_grp_size * 2);   // de_quan_scale is half type
+                        // quantized input is char type
+                        kd.internalBufferSizes.push_back(input_size);
+                        // half type of de_quan_scale and activation sum for each quantized group
+                        OPENVINO_ASSERT(quantize_grp_size != 0, "Error: quantize_grp_size is zero.");
+                        kd.internalBufferSizes.push_back((input_size / quantize_grp_size) * 2 * 2);
                     }
 
+                    OPENVINO_ASSERT(quantize_grp_size != 0, "Error: quantize_grp_size is zero.");
                     kd.kernels[0].params.workGroups.global = {std::max((input_size / quantize_grp_size), (size_t)1), 1, 1};
                     kd.kernels[0].params.workGroups.local = {16, 1, 1};
                 }
@@ -784,11 +871,13 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
     auto output_f = get_output_aligned_bf_size(fc_params, false).second;
 
     WeightsLayout weights_layout = WeightsLayout::os_iyx_osv16;
-    if (fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16
+    if (is_swiglu_fused(fc_params)) {
+        weights_layout = WeightsLayout::os_is_yx_osv32_isv2;
+    } else if (fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16
         && (fc_params.weights.GetLayout() == WeightsLayout::oiyx || fc_params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2)
         && (fc_params.weights.GetDType() == WeightsType::INT4 || fc_params.weights.GetDType() == WeightsType::UINT4)
         && is_weight_horizontal(fc_params, output_f)) {
-        // Large N + Small K case (horizontal weight) to use [osv64_isv2] + TILE_OFM 4 for batch 1
+        // Large N + small K case (horizontal weight) to use [osv64_isv2] + TILE_OFM 4 for batch 1
         weights_layout = WeightsLayout::os_is_yx_osv64_isv2;
     } else if (fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16
         && (fc_params.weights.GetDType() == WeightsType::INT4 || fc_params.weights.GetDType() == WeightsType::UINT4)
@@ -896,6 +985,7 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
     const auto& fc_params = static_cast<const fully_connected_params&>(params);
 
     size_t quantize_grp_size = get_dynamic_quantize_group_size(fc_params);
+    OPENVINO_ASSERT(quantize_grp_size != 0, "Error: quantize_grp_size is zero.");
 
     bool bProperInput = fc_params.inputs[0].GetLayout() == dl;
     if (!bProperInput && !fc_params.inputs[0].PitchesDifferFromLogicalDims()) {
@@ -935,6 +1025,8 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
         auto& quan_kernel = kd.kernels[0];
         DispatchData dyn_quan_dispatch = dispatchData;
         auto input_size = std::max(fc_params.inputs[0].PhysicalSize(), get_input_bf_size(fc_params).second);
+        if (!params.is_shape_agnostic)
+            input_size = std::max(input_size, Align(get_input_bf_size(fc_params).first, lws_batches) * get_input_bf_size(fc_params).second);
         dyn_quan_dispatch.gws = {input_size / quantize_grp_size, 1, 1};
         dyn_quan_dispatch.lws = {16, 1, 1};
         quan_kernel.params.workGroups.global = dyn_quan_dispatch.gws;
@@ -945,7 +1037,6 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
         auto quan_cldnn_jit = GetJitConstants(new_params, dyn_quan_dispatch);
         quan_cldnn_jit.AddConstant(MakeJitConstant("FC_KERNEL_DYNAMIC_QUANTIZE", 1));
         auto quan_jit = CreateJit(kernelName, quan_cldnn_jit, quan_entry_point);
-
 
         FillCLKernelData(quan_kernel,
                         dyn_quan_dispatch,
@@ -965,8 +1056,10 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
         quan_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
         quan_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         quan_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        // char type quantized input
         kd.internalBufferSizes.push_back(input_size);
-        kd.internalBufferSizes.push_back(input_size / quantize_grp_size * 2);
+        // half type of de_quan_scale and activation sum for each quantized group
+        kd.internalBufferSizes.push_back(input_size / quantize_grp_size * 2 * 2);
         kernel_number++;
     }
     kd.internalBufferDataType = Datatype::F16;

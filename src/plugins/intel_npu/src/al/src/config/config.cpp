@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_npu/al/config/config.hpp"
+#include "intel_npu/config/config.hpp"
 
 namespace intel_npu {
 
@@ -47,6 +47,14 @@ int32_t OptionParser<int32_t>::parse(std::string_view val) {
         return std::stol(val.data());
     } catch (...) {
         OPENVINO_THROW("Value '%s' is not a valid INT32 option", val.data());
+    }
+}
+
+uint32_t OptionParser<uint32_t>::parse(std::string_view val) {
+    try {
+        return std::stoul(val.data());
+    } catch (...) {
+        OPENVINO_THROW("Value '%s' is not a valid UINT32 option", val.data());
     }
 }
 

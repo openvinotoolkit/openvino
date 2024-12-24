@@ -5,6 +5,7 @@
 #pragma once
 
 #include <node.h>
+
 #include <string>
 #include <vector>
 
@@ -72,9 +73,9 @@ private:
         StridedSliceExecutor(const StridedSliceAttributes& attrs,
                              const std::vector<MemoryCPtr>& srcMemory,
                              const std::vector<MemoryCPtr>& dstMemory,
-                             const std::string& errorPrefix) : errorPrefix(errorPrefix) {}
-        virtual void exec(const std::vector<MemoryCPtr>& srcMemory,
-                          const std::vector<MemoryCPtr>& dstMemory) = 0;
+                             const std::string& errorPrefix)
+            : errorPrefix(errorPrefix) {}
+        virtual void exec(const std::vector<MemoryCPtr>& srcMemory, const std::vector<MemoryCPtr>& dstMemory) = 0;
         virtual ~StridedSliceExecutor() = default;
 
     protected:
@@ -87,12 +88,9 @@ private:
                                    const std::vector<MemoryCPtr>& srcMemory,
                                    const std::vector<MemoryCPtr>& dstMemory,
                                    const std::string& errorPrefix);
-        void exec(const std::vector<MemoryCPtr>& srcMemory,
-                  const std::vector<MemoryCPtr>& dstMemory) override;
-        void execSliceScatter(const std::vector<MemoryCPtr>& srcMemory,
-                              const std::vector<MemoryCPtr>& dstMemory);
-        void execStridedSlice(const std::vector<MemoryCPtr>& srcMemory,
-                              const std::vector<MemoryCPtr>& dstMemory);
+        void exec(const std::vector<MemoryCPtr>& srcMemory, const std::vector<MemoryCPtr>& dstMemory) override;
+        void execSliceScatter(const std::vector<MemoryCPtr>& srcMemory, const std::vector<MemoryCPtr>& dstMemory);
+        void execStridedSlice(const std::vector<MemoryCPtr>& srcMemory, const std::vector<MemoryCPtr>& dstMemory);
 
     private:
         struct StridedSliceParams {
@@ -122,6 +120,7 @@ private:
         size_t workAmount = 0lu;
         size_t lastDstDim = 0lu;
         size_t srcShift = 0lu;
+        size_t m_threads_num = 0lu;
     };
     using executorPtr = std::shared_ptr<StridedSliceExecutor>;
     executorPtr execPtr = nullptr;
@@ -139,6 +138,6 @@ private:
     std::string errorPrefix;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

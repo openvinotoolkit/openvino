@@ -17,6 +17,7 @@ namespace pass {
 
 class CopyTensorNamesToRefModel : public ov::pass::ModelPass {
 public:
+    OPENVINO_MODEL_PASS_RTTI("CopyTensorNamesToRefModel");
     CopyTensorNamesToRefModel(const std::shared_ptr<ov::Model>& ref_model) : m_ref_model(ref_model) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& f) override {
         const auto& orig_results = f->get_results();
@@ -59,6 +60,9 @@ void TransformationTestsF::SetUp() {
 }
 
 void TransformationTestsF::TearDown() {
+    if (test_skipped) {
+        return;
+    }
     OPENVINO_ASSERT(model != nullptr, "Test Model is not initialized.");
 
     std::shared_ptr<ov::Model> cloned_function;
@@ -85,6 +89,7 @@ void TransformationTestsF::TearDown() {
         ASSERT_TRUE(res.valid) << res.message;
         comparator.disable(FunctionsComparator::CmpValues::ACCURACY);
     }
+
     auto res = comparator.compare(model, model_ref);
     ASSERT_TRUE(res.valid) << res.message;
 }

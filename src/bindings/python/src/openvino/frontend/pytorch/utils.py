@@ -7,8 +7,8 @@
 import torch
 import numpy as np
 
-from openvino.runtime import op, Type as OVType, Shape, Tensor
-from openvino.runtime import opset11 as ops
+from openvino import op, Type as OVType, Shape, Tensor
+from openvino import opset11 as ops
 
 
 def make_constant(*args, **kwargs):
@@ -46,6 +46,15 @@ def get_type_from_py_type(value):
 
 
 def torch_tensor_to_ov_const(torch_t: torch.Tensor, shared_memory=True):
+    is_fake_tensor = False
+    try:
+        from torch._prims import FakeTensor
+        is_fake_tensor = isinstance(torch_t, FakeTensor)
+    except:
+        pass
+    assert not is_fake_tensor, '`FakeTensor` is found in the graph during conversion. ' \
+                               'In order to avoid `FakeTensor` in the traced model, ' \
+                               'try to infer the model before exporting.'
     torch_t = torch_t.contiguous()
     if torch_t.dtype == torch.bfloat16:
         # reinterpret bfloat16 data as float16 to allow conversion to numpy

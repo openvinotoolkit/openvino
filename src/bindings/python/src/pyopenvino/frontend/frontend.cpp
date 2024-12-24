@@ -20,13 +20,6 @@ namespace py = pybind11;
 
 using namespace ov::frontend;
 
-class MemoryBuffer : public std::streambuf {
-public:
-    MemoryBuffer(char* data, std::size_t size) {
-        setg(data, data, data + size);
-    }
-};
-
 void regclass_frontend_FrontEnd(py::module m) {
     py::class_<FrontEnd, std::shared_ptr<FrontEnd>> fem(m, "FrontEnd", py::dynamic_attr(), py::module_local());
     fem.doc() = "openvino.frontend.FrontEnd wraps ov::frontend::FrontEnd";
@@ -57,7 +50,7 @@ void regclass_frontend_FrontEnd(py::module m) {
             } else if (py::isinstance(py_obj, pybind11::module::import("io").attr("BytesIO"))) {
                 // support of BytesIO
                 py::buffer_info info = py::buffer(py_obj.attr("getbuffer")()).request();
-                MemoryBuffer mb(reinterpret_cast<char*>(info.ptr), info.size);
+                Common::utils::MemoryBuffer mb(reinterpret_cast<char*>(info.ptr), info.size);
                 std::istream _istream(&mb);
                 return self.load(&_istream, enable_mmap);
             } else {
@@ -120,10 +113,13 @@ void regclass_frontend_FrontEnd(py::module m) {
                 :rtype: openvino.runtime.Model
              )");
 
-    fem.def("convert",
-            static_cast<void (FrontEnd::*)(const std::shared_ptr<ov::Model>&) const>(&FrontEnd::convert),
-            py::arg("model"),
-            R"(
+    fem.def(
+        "convert",
+        [](FrontEnd& self, const py::object& ie_api_model) {
+            return self.convert(Common::utils::convert_to_model(ie_api_model));
+        },
+        py::arg("model"),
+        R"(
                 Completely convert the remaining, not converted part of a function.
 
                 :param model: Partially converted OpenVINO model.
@@ -160,10 +156,13 @@ void regclass_frontend_FrontEnd(py::module m) {
                 :rtype: openvino.runtime.Model
              )");
 
-    fem.def("normalize",
-            &FrontEnd::normalize,
-            py::arg("model"),
-            R"(
+    fem.def(
+        "normalize",
+        [](FrontEnd& self, const py::object& ie_api_model) {
+            self.normalize(Common::utils::convert_to_model(ie_api_model));
+        },
+        py::arg("model"),
+        R"(
                 Runs normalization passes on function that was loaded with partial conversion.
 
                 :param model : Partially converted OpenVINO model.

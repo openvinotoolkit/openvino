@@ -112,14 +112,7 @@ tokenizer and preparing the images.
 
 .. code:: ipython3
 
-    import platform
-
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "gradio>=4.19" "openvino>=2023.1.0" "transformers[torch]>=4.30" "datasets" "nncf>=2.6.0" "torch>=2.1" Pillow
-
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "gradio>=4.19" "matplotlib>=3.4" "openvino>=2023.1.0" "transformers[torch]>=4.30" "datasets" "nncf>=2.6.0" "torch>=2.1" Pillow
 
     import requests
 
@@ -735,6 +728,7 @@ up of the dynamic quantized models.
 
 Interactive demo
 ----------------
+
 
 Now, it is your turn! You can provide your own image and comma-separated
 list of labels for zero-shot classification.

@@ -35,20 +35,12 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 
 .. code:: ipython3
 
-    import platform
-    
     # Install required packages
-    %pip install -q "openvino>=2023.1.0" opencv-python tqdm
-    
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q "openvino>=2023.1.0" opencv-python tqdm "matplotlib>=3.4"
 
 
 .. parsed-literal::
 
-    Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -109,13 +101,13 @@ Download model weights
 
 .. parsed-literal::
 
-    model/road-segmentation-adas-0001.xml:   0%|          | 0.00/389k [00:00<?, ?B/s]
+    road-segmentation-adas-0001.xml:   0%|          | 0.00/389k [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    model/road-segmentation-adas-0001.bin:   0%|          | 0.00/720k [00:00<?, ?B/s]
+    road-segmentation-adas-0001.bin:   0%|          | 0.00/720k [00:00<?, ?B/s]
 
 
 Select inference device
@@ -189,14 +181,14 @@ is provided.
 
 .. parsed-literal::
 
-    data/empty_road_mapillary.jpg:   0%|          | 0.00/227k [00:00<?, ?B/s]
+    empty_road_mapillary.jpg:   0%|          | 0.00/227k [00:00<?, ?B/s]
 
 
 
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f8630302df0>
+    <matplotlib.image.AxesImage at 0x7f620b9afe50>
 
 
 
@@ -223,7 +215,7 @@ Do Inference
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f861873c6d0>
+    <matplotlib.image.AxesImage at 0x7f61bc2f8a00>
 
 
 

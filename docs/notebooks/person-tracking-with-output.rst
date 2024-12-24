@@ -128,20 +128,12 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
 
 .. code:: ipython3
 
-    import platform
-
-    %pip install -q "openvino-dev>=2024.0.0"
-    %pip install -q opencv-python requests scipy tqdm
-
-    if platform.system() != "Windows":
-        %pip install -q "matplotlib>=3.4"
-    else:
-        %pip install -q "matplotlib>=3.4,<3.7"
+    %pip install -q "openvino>=2024.0.0"
+    %pip install -q opencv-python requests scipy tqdm "matplotlib>=3.4"
 
 
 .. parsed-literal::
 
-    Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
@@ -156,7 +148,7 @@ Imports
     import collections
     from pathlib import Path
     import time
-
+    
     import numpy as np
     import cv2
     from IPython import display
@@ -166,17 +158,17 @@ Imports
 .. code:: ipython3
 
     # Import local modules
-
+    
     if not Path("./notebook_utils.py").exists():
         # Fetch `notebook_utils` module
         import requests
-
+    
         r = requests.get(
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
         )
-
+    
         open("notebook_utils.py", "w").write(r.text)
-
+    
     import notebook_utils as utils
     from deepsort_utils.tracker import Tracker
     from deepsort_utils.nn_matching import NearestNeighborDistanceMetric
@@ -197,16 +189,6 @@ We will use pre-trained models from OpenVINO’s `Open Model
 Zoo <https://docs.openvino.ai/2024/documentation/legacy-features/model-zoo.html>`__
 to start the test.
 
-Use ``omz_downloader``, which is a command-line tool from the
-``openvino-dev`` package. It automatically creates a directory structure
-and downloads the selected model. This step is skipped if the model is
-already downloaded. The selected model comes from the public directory,
-which means it must be converted into OpenVINO Intermediate
-Representation (OpenVINO IR).
-
-   **NOTE**: Using a model outside the list can require different pre-
-   and post-processing.
-
 In this case, `person detection
 model <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/person-detection-0202/README.md>`__
 is deployed to detect the person in each frame of the video, and
@@ -215,60 +197,39 @@ model <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/inte
 is used to output embedding vector to match a pair of images of a person
 by the cosine distance.
 
-If you want to download another model (``person-detection-xxx`` from
-`Object Detection Models
-list <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/index.md#object-detection-models>`__,
-``person-reidentification-retail-xxx`` from `Reidentification Models
-list <https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/index.md#reidentification-models>`__),
-replace the name of the model in the code below.
-
 .. code:: ipython3
 
+    from notebook_utils import download_ir_model
+    
     # A directory where the model will be downloaded.
     base_model_dir = "model"
     precision = "FP16"
     # The name of the model from Open Model Zoo
     detection_model_name = "person-detection-0202"
-
-    download_command = (
-        f"omz_downloader " f"--name {detection_model_name} " f"--precisions {precision} " f"--output_dir {base_model_dir} " f"--cache_dir {base_model_dir}"
+    
+    
+    download_det_model_url = (
+        f"https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1/{detection_model_name}/{precision}/{detection_model_name}.xml"
     )
-    ! $download_command
-
-    detection_model_path = f"model/intel/{detection_model_name}/{precision}/{detection_model_name}.xml"
-
-
+    
+    detection_model_path = download_ir_model(download_det_model_url, Path(base_model_dir) / detection_model_name / precision)
+    
     reidentification_model_name = "person-reidentification-retail-0287"
+    download_reid_model_url = f"https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1/{reidentification_model_name}/{precision}/{reidentification_model_name}.xml"
+    
+    reidentification_model_path = download_ir_model(download_reid_model_url, Path(base_model_dir) / reidentification_model_name / precision)
 
-    download_command = (
-        f"omz_downloader " f"--name {reidentification_model_name} " f"--precisions {precision} " f"--output_dir {base_model_dir} " f"--cache_dir {base_model_dir}"
-    )
-    ! $download_command
-
-    reidentification_model_path = f"model/intel/{reidentification_model_name}/{precision}/{reidentification_model_name}.xml"
 
 
 .. parsed-literal::
 
-    ################|| Downloading person-detection-0202 ||################
-
-    ========== Downloading model/intel/person-detection-0202/FP16/person-detection-0202.xml
+    person-detection-0202.bin:   0%|          | 0.00/3.47M [00:00<?, ?B/s]
 
 
-    ========== Downloading model/intel/person-detection-0202/FP16/person-detection-0202.bin
 
+.. parsed-literal::
 
-    ################|| Downloading person-reidentification-retail-0287 ||################
-
-    ========== Downloading model/intel/person-reidentification-retail-0287/person-reidentification-retail-0267.onnx
-
-
-    ========== Downloading model/intel/person-reidentification-retail-0287/FP16/person-reidentification-retail-0287.xml
-
-
-    ========== Downloading model/intel/person-reidentification-retail-0287/FP16/person-reidentification-retail-0287.bin
-
-
+    person-reidentification-retail-0287.bin:   0%|          | 0.00/1.13M [00:00<?, ?B/s]
 
 
 Load model
@@ -293,18 +254,18 @@ performance, but slightly longer startup time).
 .. code:: ipython3
 
     core = ov.Core()
-
-
+    
+    
     class Model:
         """
         This class represents a OpenVINO model object.
-
+    
         """
-
+    
         def __init__(self, model_path, batchsize=1, device="AUTO"):
             """
             Initialize the model object
-
+    
             Parameters
             ----------
             model_path: path of inference model
@@ -316,18 +277,18 @@ performance, but slightly longer startup time).
             self.input_shape = self.input_layer.shape
             self.height = self.input_shape[2]
             self.width = self.input_shape[3]
-
+    
             for layer in self.model.inputs:
                 input_shape = layer.partial_shape
                 input_shape[0] = batchsize
                 self.model.reshape({layer: input_shape})
             self.compiled_model = core.compile_model(model=self.model, device_name=device)
             self.output_layer = self.compiled_model.output(0)
-
+    
         def predict(self, input):
             """
             Run inference
-
+    
             Parameters
             ----------
             input: array of input data
@@ -345,7 +306,7 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     device = utils.device_widget()
-
+    
     device
 
 
@@ -368,19 +329,18 @@ Data Processing
 
 
 
-Data Processing includes data preprocess and postprocess functions.
-
-- Data preprocess function is used to change the layout and shape of input
-  data, according to requirement of the network input format.
-- Data postprocess function is used to extract the useful information from
-  network’s original output and visualize it.
+Data Processing includes data preprocess and postprocess functions. -
+Data preprocess function is used to change the layout and shape of input
+data, according to requirement of the network input format. - Data
+postprocess function is used to extract the useful information from
+network’s original output and visualize it.
 
 .. code:: ipython3
 
     def preprocess(frame, height, width):
         """
         Preprocess a single image
-
+    
         Parameters
         ----------
         frame: input frame
@@ -391,12 +351,12 @@ Data Processing includes data preprocess and postprocess functions.
         resized_image = resized_image.transpose((2, 0, 1))
         input_image = np.expand_dims(resized_image, axis=0).astype(np.float32)
         return input_image
-
-
+    
+    
     def batch_preprocess(img_crops, height, width):
         """
         Preprocess batched images
-
+    
         Parameters
         ----------
         img_crops: batched input images
@@ -405,12 +365,12 @@ Data Processing includes data preprocess and postprocess functions.
         """
         img_batch = np.concatenate([preprocess(img, height, width) for img in img_crops], axis=0)
         return img_batch
-
-
+    
+    
     def process_results(h, w, results, thresh=0.5):
         """
         postprocess detection results
-
+    
         Parameters
         ----------
         h, w: original height and width of input image
@@ -437,18 +397,18 @@ Data Processing includes data preprocess and postprocess functions.
                 )
                 labels.append(int(label))
                 scores.append(float(score))
-
+    
         if len(boxes) == 0:
             boxes = np.array([]).reshape(0, 4)
             scores = np.array([])
             labels = np.array([])
         return np.array(boxes), np.array(scores), np.array(labels)
-
-
+    
+    
     def draw_boxes(img, bbox, identities=None):
         """
         Draw bounding box in original image
-
+    
         Parameters
         ----------
         img: original image
@@ -474,12 +434,12 @@ Data Processing includes data preprocess and postprocess functions.
                 2,
             )
         return img
-
-
+    
+    
     def cosin_metric(x1, x2):
         """
         Calculate the consin distance of two vector
-
+    
         Parameters
         ----------
         x1, x2: input vectors
@@ -506,19 +466,19 @@ Visualize data
     image_indices = ["1_1.png", "1_2.png", "2_1.png"]
     image_paths = [utils.download_file(base_file_link + image_index, directory="data") for image_index in image_indices]
     image1, image2, image3 = [cv2.cvtColor(cv2.imread(str(image_path)), cv2.COLOR_BGR2RGB) for image_path in image_paths]
-
+    
     # Define titles with images.
     data = {"Person 1": image1, "Person 2": image2, "Person 3": image3}
-
+    
     # Create a subplot to visualize images.
     fig, axs = plt.subplots(1, len(data.items()), figsize=(5, 5))
-
+    
     # Fill the subplot.
     for ax, (name, image) in zip(axs, data.items()):
         ax.axis("off")
         ax.set_title(name)
         ax.imshow(image)
-
+    
     # Display an image.
     plt.show(fig)
 
@@ -526,19 +486,19 @@ Visualize data
 
 .. parsed-literal::
 
-    data/person_1_1.png:   0%|          | 0.00/68.3k [00:00<?, ?B/s]
+    person_1_1.png:   0%|          | 0.00/68.3k [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    data/person_1_2.png:   0%|          | 0.00/68.9k [00:00<?, ?B/s]
+    person_1_2.png:   0%|          | 0.00/68.9k [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    data/person_2_1.png:   0%|          | 0.00/70.3k [00:00<?, ?B/s]
+    person_2_1.png:   0%|          | 0.00/70.3k [00:00<?, ?B/s]
 
 
 
@@ -587,7 +547,7 @@ video file.
         2. Prepare a set of frames for person tracking.
         3. Run AI inference for person tracking.
         4. Visualize the results.
-
+    
         Parameters:
         ----------
             source: The webcam number to feed the video stream with primary webcam set to "0", or the video path.
@@ -610,7 +570,7 @@ video file.
             if use_popup:
                 title = "Press ESC to Exit"
                 cv2.namedWindow(winname=title, flags=cv2.WINDOW_GUI_NORMAL | cv2.WINDOW_AUTOSIZE)
-
+    
             processing_times = collections.deque()
             while True:
                 # Grab the frame.
@@ -619,11 +579,11 @@ video file.
                     print("Source ended")
                     break
                 # If the frame is larger than full HD, reduce size to improve the performance.
-
+    
                 # Resize the image and change dims to fit neural network input.
                 h, w = frame.shape[:2]
                 input_image = preprocess(frame, detector.height, detector.width)
-
+    
                 # Measure processing time.
                 start_time = time.time()
                 # Get the results.
@@ -632,21 +592,21 @@ video file.
                 processing_times.append(stop_time - start_time)
                 if len(processing_times) > 200:
                     processing_times.popleft()
-
+    
                 _, f_width = frame.shape[:2]
                 # Mean processing time [ms].
                 processing_time = np.mean(processing_times) * 1100
                 fps = 1000 / processing_time
-
+    
                 # Get poses from detection results.
                 bbox_xywh, score, label = process_results(h, w, results=output)
-
+    
                 img_crops = []
                 for box in bbox_xywh:
                     x1, y1, x2, y2 = xywh_to_xyxy(box, h, w)
                     img = frame[y1:y2, x1:x2]
                     img_crops.append(img)
-
+    
                 # Get reidentification feature of each person.
                 if img_crops:
                     # preprocess
@@ -654,17 +614,17 @@ video file.
                     features = extractor.predict(img_batch)
                 else:
                     features = np.array([])
-
+    
                 # Wrap the detection and reidentification results together
                 bbox_tlwh = xywh_to_tlwh(bbox_xywh)
                 detections = [Detection(bbox_tlwh[i], features[i]) for i in range(features.shape[0])]
-
+    
                 # predict the position of tracking target
                 tracker.predict()
-
+    
                 # update tracker
                 tracker.update(detections)
-
+    
                 # update bbox identities
                 outputs = []
                 for track in tracker.tracks:
@@ -676,14 +636,14 @@ video file.
                     outputs.append(np.array([x1, y1, x2, y2, track_id], dtype=np.int32))
                 if len(outputs) > 0:
                     outputs = np.stack(outputs, axis=0)
-
+    
                 # draw box for visualization
                 if len(outputs) > 0:
                     bbox_tlwh = []
                     bbox_xyxy = outputs[:, :4]
                     identities = outputs[:, -1]
                     frame = draw_boxes(frame, bbox_xyxy, identities)
-
+    
                 cv2.putText(
                     img=frame,
                     text=f"Inference time: {processing_time:.1f}ms ({fps:.1f} FPS)",
@@ -694,7 +654,7 @@ video file.
                     thickness=1,
                     lineType=cv2.LINE_AA,
                 )
-
+    
                 if use_popup:
                     cv2.imshow(winname=title, mat=frame)
                     key = cv2.waitKey(1)
@@ -709,7 +669,7 @@ video file.
                     # Display the image in this notebook.
                     display.clear_output(wait=True)
                     display.display(i)
-
+    
         # ctrl-c
         except KeyboardInterrupt:
             print("Interrupted")
@@ -763,11 +723,11 @@ will work.
 .. code:: ipython3
 
     USE_WEBCAM = False
-
+    
     cam_id = 0
     video_file = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/people.mp4"
     source = cam_id if USE_WEBCAM else video_file
-
+    
     run_person_tracking(source=source, flip=USE_WEBCAM, use_popup=False)
 
 

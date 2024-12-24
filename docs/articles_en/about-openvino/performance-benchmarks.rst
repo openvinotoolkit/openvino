@@ -56,15 +56,16 @@ implemented in your solutions. Click the buttons below to see the chosen benchma
 
          :material-regular:`table_view;1.4em` LLM performance for AI PC
 
-   .. grid-item::
+.. uncomment under 
+   .. .. grid-item::
 
       .. button-link:: #
-         :class: ovms-toolkit-benchmark-llm
+         :class: ovms-toolkit-benchmark-llm-result
          :color: primary
          :outline:
          :expand:
 
-         :material-regular:`bar_chart;1.4em` OVMS for GenAI (coming soon)
+         :material-regular:`bar_chart;1.4em` OVMS for GenAI
 
 
 
@@ -132,21 +133,21 @@ For a listing of all platforms and configurations used for testing, refer to the
 
    .. grid-item::
 
-      .. button-link:: ../_static/benchmarks_files/OV-2024.4-platform_list.pdf
+      .. button-link:: ../_static/benchmarks_files/OV-2024.6-platform_list.pdf
          :color: primary
          :outline:
          :expand:
 
          :material-regular:`download;1.5em` Click for Hardware Platforms [PDF]
 
-      .. button-link:: ../_static/benchmarks_files/OV-2024.4-system-info-detailed.xlsx
+      .. button-link:: ../_static/benchmarks_files/OV-2024.6-system-info-detailed.xlsx
          :color: primary
          :outline:
          :expand:
 
          :material-regular:`download;1.5em` Click for Configuration Details [XLSX]
 
-      .. button-link:: ../_static/benchmarks_files/OV-2024.4-Performance-Data.xlsx
+      .. button-link:: ../_static/benchmarks_files/OV-2024.6-Performance-Data.xlsx
          :color: primary
          :outline:
          :expand:
@@ -160,10 +161,10 @@ For a listing of all platforms and configurations used for testing, refer to the
 **Disclaimers**
 
 * Intel® Distribution of OpenVINO™ toolkit performance results are based on release
-  2024.3, as of July 31, 2024.
+  2024.6, as of December 18, 2024.
 
 * OpenVINO Model Server performance results are based on release
-  2024.3, as of Aug. 19, 2024.
+  2024.5, as of November 20, 2024.
 
 The results may not reflect all publicly available updates. Intel technologies' features and
 benefits depend on system configuration and may require enabled hardware, software, or service

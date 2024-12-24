@@ -33,11 +33,11 @@ public:
     Group(const std::shared_ptr<ov::Node>& node,
           size_t gid,
           own::ade::NodeHandle nh,
-          const std::shared_ptr<own::ade::Graph>& g,
+          const std::weak_ptr<own::ade::Graph>& g,
           const std::weak_ptr<Snapshot>& snapshot);
     Group(size_t gid,
           own::ade::NodeHandle nh,
-          const std::shared_ptr<own::ade::Graph>& g,
+          const std::weak_ptr<own::ade::Graph>& g,
           const std::weak_ptr<Snapshot>& snapshot);
 
     // After we formed a final structure of partitioning,
@@ -81,6 +81,8 @@ public:
     const std::set<std::string>& avoidedTargets() const;
     const std::string& isolatedTag() const;
     std::string specialTags() const;
+    void addWeightsPrecision(const std::vector<ov::element::Type>& prec);
+    const std::vector<ov::element::Type>& getConstsPrecision() const;
 
 private:
     void includeExtraLayers(detail::OVNodeSet& input_layers,
@@ -98,12 +100,16 @@ private:
 
     own::ade::NodeHandle m_nh;
     size_t m_id;  // used for utility prints only
-    std::shared_ptr<own::ade::Graph> m_graph;
+    std::weak_ptr<own::ade::Graph> m_graph;
     std::weak_ptr<Snapshot> m_snapshot;
     bool m_frozen = false;
     bool m_nofold = false;
     std::set<std::string> m_avoided_devices;
     std::string m_isol_tag = "";
+
+    // Structure to keep track of mixed precision within initial model
+    // Note: partitioning is stable so keep it in a single vector
+    std::vector<ov::element::Type> m_consts_precision;
 
     // Unique repeated tag
     std::shared_ptr<Repeated> m_repeated = nullptr;

@@ -5,6 +5,7 @@
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
+#include "openvino/util/weights_path.hpp"
 
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/itt.hpp"
@@ -169,14 +170,26 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
 void CompiledModel::export_model(std::ostream& model) const {
     // If ov::CacheMode::OPTIMIZE_SIZE is set, do the export iff it's possible to do weightless caching
     // which requires the weights_path.
-    if (m_config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE &&
-        m_config.get_property(ov::weights_path).empty())
+    ov::CacheMode cache_mode = m_config.get_property(ov::cache_mode);
+    std::string weights_path = m_config.get_property(ov::weights_path);
+    if (cache_mode == ov::CacheMode::OPTIMIZE_SIZE &&
+        !ov::util::validate_weights_path(weights_path))
         return;
 
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::export_model");
     OPENVINO_ASSERT(!m_graphs.empty(), "[GPU] Model not loaded");
 
-    cldnn::BinaryOutputBuffer ob(model);
+    const ov::EncryptionCallbacks encryption_callbacks = m_config.get_property(ov::cache_encryption_callbacks);
+
+    // Do not allow encryption for CacheMode::OPTIMIZE_SPEED - the cache size may cause severe memory penalty.
+    const bool encryption_enabled = encryption_callbacks.encrypt && cache_mode == ov::CacheMode::OPTIMIZE_SIZE;
+    std::unique_ptr<cldnn::BinaryOutputBuffer> ob_ptr =
+        encryption_enabled
+            ? cldnn::make_unique<cldnn::EncryptedBinaryOutputBuffer>(model, encryption_callbacks.encrypt)
+            : cldnn::make_unique<cldnn::BinaryOutputBuffer>(model);
+    auto& ob = *ob_ptr;
+
+    ob << cldnn::make_data(&cache_mode, sizeof(ov::CacheMode));
 
     // Inputs
     {
@@ -218,6 +231,7 @@ void CompiledModel::export_model(std::ostream& model) const {
     }
 
     get_graph(0)->export_model(ob);
+    ob.flush();
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
@@ -257,6 +271,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::dynamic_quantization_group_size.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::hint::activations_scale_factor.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::id.name(), PropertyMutability::RO},
             ov::PropertyName{ov::execution_devices.name(), PropertyMutability::RO},
         };
@@ -288,5 +303,13 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
     return std::make_shared<SyncInferRequest>(std::static_pointer_cast<const CompiledModel>(shared_from_this()));
 }
 
+
+void CompiledModel::release_memory() {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    auto capacity = dnnl::get_primitive_cache_capacity();
+    dnnl::set_primitive_cache_capacity(0);
+    dnnl::set_primitive_cache_capacity(capacity);
+#endif
+}
 }  // namespace intel_gpu
 }  // namespace ov

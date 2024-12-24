@@ -4,22 +4,22 @@
 
 #include "if.h"
 
-#include "openvino/op/if.hpp"
-
-#include "common/cpu_memcpy.h"
-#include "shape_inference/shape_inference_internal_dyn.hpp"
-#include "nodes/common/cpu_convert.h"
-#include "transformations/utils/utils.hpp"
-
 #include <string>
 #include <vector>
+
+#include "common/cpu_memcpy.h"
+#include "nodes/common/cpu_convert.h"
+#include "openvino/op/if.hpp"
+#include "shape_inference/shape_inference_internal_dyn.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
-If::PortMapHelper::PortMapHelper(const MemoryPtr &from, const std::deque<MemoryPtr>& to,
-                                           const dnnl::engine& eng) : srcMemPtr(from), dstMemPtrs(to) {
+If::PortMapHelper::PortMapHelper(const MemoryPtr& from, const std::deque<MemoryPtr>& to, const dnnl::engine& eng)
+    : srcMemPtr(from),
+      dstMemPtrs(to) {
     size = 0;
     if (srcMemPtr->getDesc().isDefined())
         size = srcMemPtr->getShape().getElementsCount();
@@ -43,7 +43,7 @@ void If::PortMapHelper::execute(dnnl::stream& strm) {
 }
 
 void If::PortMapHelper::redefineTo() {
-    const auto &currDesc = dstMemPtrs.front()->getDesc();
+    const auto& currDesc = dstMemPtrs.front()->getDesc();
     if (currDesc.getShape().isDynamic() || currDesc.getShape().getStaticDims() != srcMemPtr->getStaticDims()) {
         // TODO : check the entire dstMemPtrs usage considering the proper memory sharing
         auto newShape = srcMemPtr->getStaticDims();
@@ -60,7 +60,7 @@ bool If::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::st
     try {
         if (!one_of(op->get_type_info(), ov::op::v8::If::get_type_info_static())) {
             errorMessage = "Not supported If operation version " + std::string(op->get_type_info().version_id) +
-                    " with name '" + op->get_friendly_name() + "'. Node If supports only opset8 version.";
+                           " with name '" + op->get_friendly_name() + "'. Node If supports only opset8 version.";
             return false;
         }
     } catch (...) {
@@ -69,8 +69,9 @@ bool If::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::st
     return true;
 }
 
-If::If(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
-        Node(op, context, InternalDynShapeInferFactory()), ovOp(op) {
+If::If(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, InternalDynShapeInferFactory()),
+      ovOp(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -85,11 +86,9 @@ void If::getSupportedDescriptors() {
     subGraphThen.CreateGraph(thenBody, context);
     subGraphElse.CreateGraph(elseBody, context);
 
-    const auto& inMapThen = subGraphThen.GetInputNodesMap();
     for (const auto& param : ifOp->get_then_body()->get_parameters()) {
-        auto inNode = inMapThen.find(ifOp->get_then_body()->get_parameter_index(param));
-        if (inNode != inMapThen.end()) {
-            inputMemThen.push_back(getToMemories(inNode->second.get(), 0));
+        if (auto inNode = subGraphThen.getInputNodeByIndex(ifOp->get_then_body()->get_parameter_index(param))) {
+            inputMemThen.push_back(getToMemories(inNode.get(), 0));
         } else {
             OPENVINO_THROW("Then body of node If with name ",
                            getName(),
@@ -98,11 +97,9 @@ void If::getSupportedDescriptors() {
         }
     }
 
-    const auto& inMapElse = subGraphElse.GetInputNodesMap();
     for (const auto& param : ifOp->get_else_body()->get_parameters()) {
-        auto inNode = inMapElse.find(ifOp->get_else_body()->get_parameter_index(param));
-        if (inNode != inMapElse.end()) {
-            inputMemElse.push_back(getToMemories(inNode->second.get(), 0));
+        if (auto inNode = subGraphElse.getInputNodeByIndex(ifOp->get_else_body()->get_parameter_index(param))) {
+            inputMemElse.push_back(getToMemories(inNode.get(), 0));
         } else {
             OPENVINO_THROW("Else body of node If with name ",
                            getName(),
@@ -111,49 +108,51 @@ void If::getSupportedDescriptors() {
         }
     }
 
-    const auto &outMapThen = subGraphThen.GetOutputNodesMap();
     for (const auto& out : ifOp->get_then_body()->get_results()) {
-        auto outNode = outMapThen.find(ifOp->get_then_body()->get_result_index(out));
-        if (outNode != outMapThen.end()) {
-            auto outMem = outNode->second->getSrcMemoryAtPort(0);
+        if (auto outNode = subGraphThen.getOutputNodeByIndex(ifOp->get_then_body()->get_result_index(out))) {
+            auto outMem = outNode->getSrcMemoryAtPort(0);
             outputMemThen.push_back(outMem);
         } else {
-            OPENVINO_THROW("Then body of node If with name ", getName(), " does not have output with name: ", out->get_friendly_name());
+            OPENVINO_THROW("Then body of node If with name ",
+                           getName(),
+                           " does not have output with name: ",
+                           out->get_friendly_name());
         }
     }
 
-    const auto &outMapElse = subGraphElse.GetOutputNodesMap();
     for (const auto& out : ifOp->get_else_body()->get_results()) {
-        auto outNode = outMapElse.find(ifOp->get_else_body()->get_result_index(out));
-        if (outNode != outMapElse.end()) {
-            auto outMem = outNode->second->getSrcMemoryAtPort(0);
+        if (auto outNode = subGraphElse.getOutputNodeByIndex(ifOp->get_else_body()->get_result_index(out))) {
+            auto outMem = outNode->getSrcMemoryAtPort(0);
             outputMemElse.push_back(outMem);
         } else {
-            OPENVINO_THROW("Else body of node If with name ", getName(), " does not have output with name: ", out->get_friendly_name());
+            OPENVINO_THROW("Else body of node If with name ",
+                           getName(),
+                           " does not have output with name: ",
+                           out->get_friendly_name());
         }
     }
 
     // Port map: outputs
     for (const auto& desc : ifOp->get_output_descriptions(0)) {
         auto body_output_idx = desc->m_body_value_index;
-        thenOutputPortMap.emplace_back(PortMap {
-            static_cast<int>(desc->m_output_index), static_cast<int>(body_output_idx)});
+        thenOutputPortMap.emplace_back(
+            PortMap{static_cast<int>(desc->m_output_index), static_cast<int>(body_output_idx)});
     }
     for (const auto& desc : ifOp->get_output_descriptions(1)) {
         auto body_output_idx = desc->m_body_value_index;
-        elseOutputPortMap.emplace_back(PortMap {
-            static_cast<int>(desc->m_output_index), static_cast<int>(body_output_idx)});
+        elseOutputPortMap.emplace_back(
+            PortMap{static_cast<int>(desc->m_output_index), static_cast<int>(body_output_idx)});
     }
 
     for (const auto& desc : ifOp->get_input_descriptions(0)) {
         auto body_input_index = desc->m_body_parameter_index;
-        thenInputPortMap.emplace_back(PortMap {
-            static_cast<int>(desc->m_input_index), static_cast<int>(body_input_index)});
+        thenInputPortMap.emplace_back(
+            PortMap{static_cast<int>(desc->m_input_index), static_cast<int>(body_input_index)});
     }
     for (const auto& desc : ifOp->get_input_descriptions(1)) {
         auto body_input_index = desc->m_body_parameter_index;
-        elseInputPortMap.emplace_back(PortMap {
-            static_cast<int>(desc->m_input_index), static_cast<int>(body_input_index)});
+        elseInputPortMap.emplace_back(
+            PortMap{static_cast<int>(desc->m_input_index), static_cast<int>(body_input_index)});
     }
 }
 
@@ -166,16 +165,17 @@ void If::initSupportedPrimitiveDescriptors() {
     config.outConfs.reserve(getChildEdges().size());
 
     for (size_t i = 0; i < inputShapes.size(); i++) {
-        PortConfig dataConf {};
+        PortConfig dataConf{};
         auto descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
         dataConf.setMemDesc(descCreator->createSharedDesc(getOriginalInputPrecisionAtPort(i), getInputShapeAtPort(i)));
         config.inConfs.emplace_back(dataConf);
     }
 
     for (size_t i = 0; i < outputShapes.size(); i++) {
-        PortConfig dataConf {};
+        PortConfig dataConf{};
         auto descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
-        dataConf.setMemDesc(descCreator->createSharedDesc(getOriginalOutputPrecisionAtPort(i), getOutputShapeAtPort(i)));
+        dataConf.setMemDesc(
+            descCreator->createSharedDesc(getOriginalOutputPrecisionAtPort(i), getOutputShapeAtPort(i)));
         config.outConfs.push_back(dataConf);
     }
 
@@ -195,9 +195,9 @@ void If::createPrimitive() {
 }
 
 void If::prepareBeforeMappers(const bool isThen, const dnnl::engine& eng) {
-    auto &inputPortMap = isThen ? thenInputPortMap : elseInputPortMap;
-    auto &inputMems = isThen ? inputMemThen : inputMemElse;
-    auto &beforeMappers = isThen ? beforeThenMappers : beforeElseMappers;
+    auto& inputPortMap = isThen ? thenInputPortMap : elseInputPortMap;
+    auto& inputMems = isThen ? inputMemThen : inputMemElse;
+    auto& beforeMappers = isThen ? beforeThenMappers : beforeElseMappers;
     for (auto& map_rule : inputPortMap) {
         auto fromMem = getSrcMemoryAtPort(map_rule.from);
         auto& toMems = inputMems[map_rule.to];
@@ -216,12 +216,12 @@ void If::prepareBeforeMappers(const bool isThen, const dnnl::engine& eng) {
 }
 
 void If::prepareAfterMappers(const bool isThen, const dnnl::engine& eng) {
-    auto &outputPortMap = isThen ? thenOutputPortMap : elseOutputPortMap;
-    auto &outputMems = isThen ? outputMemThen : outputMemElse;
-    auto &afterMappers = isThen ? afterThenMappers : afterElseMappers;
+    auto& outputPortMap = isThen ? thenOutputPortMap : elseOutputPortMap;
+    auto& outputMems = isThen ? outputMemThen : outputMemElse;
+    auto& afterMappers = isThen ? afterThenMappers : afterElseMappers;
     for (auto& map_rule : outputPortMap) {
         auto toMems = getToMemories(this, map_rule.from);
-        auto &fromMem = outputMems[map_rule.to];
+        auto& fromMem = outputMems[map_rule.to];
         // Check precision between If node input/output and it's subgrapsh input/output.
         for (const auto& toMem : toMems) {
             if (fromMem->getDesc().getPrecision() != toMem->getDesc().getPrecision()) {
@@ -250,11 +250,11 @@ void If::execute(dnnl::stream strm) {
     auto& afterMappers = condition ? afterThenMappers : afterElseMappers;
     auto& subGraph = condition ? subGraphThen : subGraphElse;
 
-    for (auto &mapper : beforeMappers)
+    for (auto& mapper : beforeMappers)
         mapper->execute(strm);
     subGraph.ResetInferCount();
     subGraph.Infer();
-    for (auto &mapper : afterMappers)
+    for (auto& mapper : afterMappers)
         mapper->execute(strm);
 }
 
@@ -266,6 +266,6 @@ bool If::created() const {
     return getType() == Type::If;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

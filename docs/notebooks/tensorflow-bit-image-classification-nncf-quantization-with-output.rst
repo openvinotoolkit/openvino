@@ -58,7 +58,7 @@ Guide <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/README.
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4" "tensorflow_datasets>=4.9.0"
     else:
-        %pip install -q "matplotlib>=3.4,<3.7" "tensorflow_datasets>=4.9.0,<4.9.3"
+        %pip install -q "matplotlib>=3.4" "tensorflow_datasets>=4.9.0,<4.9.3"
 
 .. code:: ipython3
 

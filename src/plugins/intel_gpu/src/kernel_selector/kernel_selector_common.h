@@ -46,6 +46,7 @@ namespace kernel_selector {
 
 std::string GetStringEnv(const char* varName);
 
+using KernelLanguage = cldnn::kernel_language;
 using KernelString = cldnn::kernel_string;
 using WorkGroupSizes = cldnn::work_group_sizes;
 using ScalarDescriptor = cldnn::scalar_desc;

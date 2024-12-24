@@ -7,6 +7,7 @@
 #include "nodes/bin_conv.h"
 #include "nodes/broadcast.h"
 #include "nodes/bucketize.h"
+#include "nodes/causal_mask_preprocess.h"
 #include "nodes/col2im.h"
 #include "nodes/color_convert.h"
 #include "nodes/composite.h"
@@ -45,11 +46,11 @@
 #include "nodes/if.h"
 #include "nodes/input.h"
 #include "nodes/interaction.h"
-#include "nodes/llm_mlp.h"
-#include "nodes/qkv_proj.h"
 #include "nodes/interpolate.h"
 #include "nodes/inverse.hpp"
+#include "nodes/llm_mlp.h"
 #include "nodes/log_softmax.h"
+#include "nodes/lora.h"
 #include "nodes/lrn.h"
 #include "nodes/mathematics.h"
 #include "nodes/matmul.h"
@@ -71,6 +72,7 @@
 #include "nodes/priorbox_clustered.h"
 #include "nodes/proposal.h"
 #include "nodes/psroi_pooling.h"
+#include "nodes/qkv_proj.h"
 #include "nodes/random_uniform.hpp"
 #include "nodes/range.h"
 #include "nodes/rdft.h"
@@ -90,22 +92,23 @@
 #include "nodes/rope.h"
 #include "nodes/scaled_attn.h"
 #include "nodes/scatter_update.h"
-#include "nodes/string_tensor_pack.h"
-#include "nodes/string_tensor_unpack.h"
+#include "nodes/search_sorted.h"
 #include "nodes/shapeof.h"
 #include "nodes/shuffle_channels.h"
 #include "nodes/softmax.h"
 #include "nodes/space_to_batch.h"
 #include "nodes/space_to_depth.h"
 #include "nodes/split.h"
+#include "nodes/stft.h"
 #include "nodes/strided_slice.h"
+#include "nodes/string_tensor_pack.h"
+#include "nodes/string_tensor_unpack.h"
 #include "nodes/subgraph.h"
 #include "nodes/tensoriterator.h"
 #include "nodes/tile.h"
 #include "nodes/topk.h"
 #include "nodes/transpose.h"
 #include "nodes/unique.hpp"
-#include "nodes/causal_mask_preprocess.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -213,10 +216,13 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(RegionYolo, Type::RegionYolo);
     INTEL_CPU_NODE(DFT, Type::DFT);
     INTEL_CPU_NODE(RDFT, Type::RDFT);
+    INTEL_CPU_NODE(STFT, Type::STFT);
     INTEL_CPU_NODE(ExtractImagePatches, Type::ExtractImagePatches);
     INTEL_CPU_NODE(Subgraph, Type::Subgraph);
     INTEL_CPU_NODE(Composite, Type::SubModel);
     INTEL_CPU_NODE(ScaledDotProductAttention, Type::ScaledDotProductAttention);
+    INTEL_CPU_NODE(SearchSorted, Type::SearchSorted);
+    INTEL_CPU_NODE(LoRA, Type::LoRA);
 #if defined(OPENVINO_ARCH_X86_64)
     INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);
     INTEL_CPU_NODE(GridSample, Type::GridSample);

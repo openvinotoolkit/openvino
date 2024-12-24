@@ -5,12 +5,17 @@
 #include "openvino/frontend/paddle/frontend.hpp"
 
 #include <google/protobuf/port_def.inc>
+#ifndef PROTOBUF_VERSION
+#    include <google/protobuf/runtime_version.h>
+#endif
 #if PROTOBUF_VERSION >= 4022000  // protobuf 4.22
 #    define OV_PROTOBUF_ABSL_IS_USED
 #endif
 #include <google/protobuf/port_undef.inc>
 
-#ifndef OV_PROTOBUF_ABSL_IS_USED
+#ifdef OV_PROTOBUF_ABSL_IS_USED
+#    include <absl/log/globals.h>
+#else
 #    include <google/protobuf/stubs/logging.h>
 #endif
 
@@ -594,7 +599,9 @@ PADDLE_C_API void* get_front_end_data() {
 
 #ifndef OPENVINO_DEBUG_ENABLE
     // disable protobuf logging
-#    ifndef OV_PROTOBUF_ABSL_IS_USED
+#    ifdef OV_PROTOBUF_ABSL_IS_USED
+    absl::SetGlobalVLogLevel(0);
+#    else
     google::protobuf::SetLogHandler(nullptr);
 #    endif
 #endif

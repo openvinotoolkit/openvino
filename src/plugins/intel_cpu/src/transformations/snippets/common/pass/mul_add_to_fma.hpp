@@ -11,12 +11,13 @@ namespace intel_cpu {
 namespace pass {
 
 /**
-* @interface MulAddToFMA
-* @brief Replaces mul and add with FusedMulAdd node
-* @ingroup snippets
-*/
+ * @interface MulAddToFMA
+ * @brief Replaces mul and add with FusedMulAdd node
+ * @ingroup snippets
+ */
 class MulAddToFMA : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("MulAddToFMA");
     MulAddToFMA();
 };
 

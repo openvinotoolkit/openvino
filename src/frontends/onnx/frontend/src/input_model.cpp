@@ -37,6 +37,9 @@ InputModel::InputModel(std::istream& model_stream,
     : InputModel(model_stream, ov::util::wstring_to_string(path), enable_mmap, std::move(extensions)) {}
 #endif
 
+InputModel::InputModel(std::shared_ptr<ModelProto> model_proto, frontend::ExtensionHolder extensions)
+    : m_editor{std::make_shared<ONNXModelEditor>(model_proto, std::move(extensions))} {}
+
 std::vector<ov::frontend::Place::Ptr> InputModel::get_inputs() const {
     const auto& inputs = m_editor->model_inputs();
     std::vector<ov::frontend::Place::Ptr> in_places;
@@ -528,6 +531,13 @@ void InputModel::add_tensor_names(std::shared_ptr<Model>& model) {
         // multiple graph cuts might have removed some parts of the model which initially required additional names
         if (it != model_inputs.end()) {
             it->add_names(tensor_names.second);
+        }
+    }
+
+    // Set model output names
+    for (auto&& result : model->get_results()) {
+        if (!is_type<op::v0::Parameter>(result->get_input_source_output(0).get_node())) {
+            result->get_output_tensor(0).add_names(result->get_input_tensor(0).get_names());
         }
     }
 }

@@ -11,7 +11,7 @@ namespace intel_gpu {
 
 class ConvertBinaryConvolutionToConvolution: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertBinaryConvolutionToConvolution", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertBinaryConvolutionToConvolution");
     ConvertBinaryConvolutionToConvolution();
 };
 
