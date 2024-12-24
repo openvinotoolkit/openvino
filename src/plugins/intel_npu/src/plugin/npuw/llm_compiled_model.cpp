@@ -15,43 +15,6 @@
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 
-namespace {
-uint32_t align_to(uint32_t value, uint32_t alignment) {
-    return (value + alignment - 1) & ~(alignment - 1);
-}
-
-std::shared_ptr<ov::Model> cvt_kvcache_to_fp16(const std::shared_ptr<ov::Model>& model) {
-    ov::preprocess::PrePostProcessor ppp(model);
-
-    for (const auto& tensor : model->inputs()) {
-        if (tensor.get_any_name().find("past_key") != std::string::npos) {
-            ppp.input(tensor.get_any_name()).tensor().set_element_type(ov::element::Type_t::f16);
-        }
-    }
-
-    for (const auto& tensor : model->outputs()) {
-        if (tensor.get_any_name().find("present") != std::string::npos) {
-            ppp.output(tensor.get_any_name()).tensor().set_element_type(ov::element::Type_t::f16);
-        }
-    }
-
-    return ppp.build();
-}
-
-std::shared_ptr<ov::Model> redirect_new_kv_to_output(const std::shared_ptr<ov::Model>& model) {
-    const auto kStartOutputKVCacheLayers = 1u;
-    for (std::size_t i = kStartOutputKVCacheLayers; i < model->outputs().size(); ++i) {
-        auto kvout = model->output(i);
-        auto kvrslt = kvout.get_node();
-        auto kvcat = kvrslt->inputs()[0].get_source_output().get_node();
-        auto kvval = kvcat->inputs()[1].get_source_output();
-        kvval.set_names({kvout.get_any_name()});
-        kvrslt->inputs()[0].replace_source_output(kvval);
-    }
-    model->validate_nodes_and_infer_types();
-    return model;
-}
-
 namespace opp = ov::pass::pattern;
 class TransposeValueTensors : public ov::pass::MatcherPass {
 public:
@@ -61,6 +24,7 @@ public:
         using Ref = std::reference_wrapper<Context>;
     };
 
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::TransposeValueTensors");
     TransposeValueTensors(Context::Ref ctx) {
         auto param = opp::wrap_type<ov::op::v0::Parameter>();
         auto transpose = opp::wrap_type<ov::op::v1::Transpose>({opp::any_input(), opp::any_input()});
@@ -117,7 +81,7 @@ public:
 
 class ScaledDotProductAttentionDecomposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ScaledDotProductAttentionDecomposition", "0");
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::ScaledDotProductAttentionDecomposition");
     ScaledDotProductAttentionDecomposition() {
         auto pattern_node = ov::pass::pattern::wrap_type<ov::op::v13::ScaledDotProductAttention>();
 
@@ -219,6 +183,43 @@ public:
         return result;
     }
 };
+
+namespace {
+uint32_t align_to(uint32_t value, uint32_t alignment) {
+    return (value + alignment - 1) & ~(alignment - 1);
+}
+
+std::shared_ptr<ov::Model> cvt_kvcache_to_fp16(const std::shared_ptr<ov::Model>& model) {
+    ov::preprocess::PrePostProcessor ppp(model);
+
+    for (const auto& tensor : model->inputs()) {
+        if (tensor.get_any_name().find("past_key") != std::string::npos) {
+            ppp.input(tensor.get_any_name()).tensor().set_element_type(ov::element::Type_t::f16);
+        }
+    }
+
+    for (const auto& tensor : model->outputs()) {
+        if (tensor.get_any_name().find("present") != std::string::npos) {
+            ppp.output(tensor.get_any_name()).tensor().set_element_type(ov::element::Type_t::f16);
+        }
+    }
+
+    return ppp.build();
+}
+
+std::shared_ptr<ov::Model> redirect_new_kv_to_output(const std::shared_ptr<ov::Model>& model) {
+    const auto kStartOutputKVCacheLayers = 1u;
+    for (std::size_t i = kStartOutputKVCacheLayers; i < model->outputs().size(); ++i) {
+        auto kvout = model->output(i);
+        auto kvrslt = kvout.get_node();
+        auto kvcat = kvrslt->inputs()[0].get_source_output().get_node();
+        auto kvval = kvcat->inputs()[1].get_source_output();
+        kvval.set_names({kvout.get_any_name()});
+        kvrslt->inputs()[0].replace_source_output(kvval);
+    }
+    model->validate_nodes_and_infer_types();
+    return model;
+}
 
 std::shared_ptr<ov::Model> cvt_value_tensors_layout(std::shared_ptr<ov::Model> model) {
     ov::preprocess::PrePostProcessor ppp(model);
@@ -325,14 +326,6 @@ std::optional<ov::Any> pop_option(ov::AnyMap& config, const std::string& option_
         std::optional<ov::Any> found = std::make_optional(it->second);
         config.erase(it);
         return found;
-    }
-    return std::nullopt;
-}
-
-template <typename T>
-std::optional<T> get_option(ov::AnyMap& config, const std::string& option_name) {
-    if (auto it = config.find(option_name); it != config.end()) {
-        return std::make_optional(it->second.as<T>());
     }
     return std::nullopt;
 }
