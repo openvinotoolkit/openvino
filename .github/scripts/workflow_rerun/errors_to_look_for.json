@@ -94,5 +94,17 @@
     {
         "error_text": "Failed to make request",
         "ticket": 158401
+    },
+    {
+        "error_text": "Failure when receiving data from the peer",
+        "ticket": 159323
+    },
+    {
+        "error_text": "HTTP response code said error",
+        "ticket": 159398
+    },
+    {
+        "error_text": "download failed after attempts",
+        "ticket": 159547
     }
 ]
