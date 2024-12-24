@@ -306,7 +306,7 @@ bool SDPASubgraphFusion::run_on_model(const std::shared_ptr<ov::Model>& f) {
     ov::pass::Manager manager(get_pass_config(), "SDPASubgraphFusion");
     manager.set_per_pass_validation(false);
 
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::SimplifyShapeOfSubGraph, true);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::SimplifyGatherShapeOf);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::transpose_sinking::TSShapeOfForward);
     CPU_REGISTER_PASS_COMMON(manager, StatefulSDPAFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
