@@ -61,6 +61,7 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
     std::shared_ptr<Node> reshape_k, reshape_v, unsqueeze_k, unsqueeze_v;
     std::shared_ptr<Node> computed_bcst_k, computed_bcst_v, multiply_k, multiply_v;
     std::shared_ptr<Node> mq_reshape_k, mq_reshape_v;
+    std::shared_ptr<Node> computed_bcst3_k, computed_bcst3_v;
     auto multi_query_bcst = [](const std::shared_ptr<Node>& kv) {
         auto reshape_kv = makePattern<opset6::Reshape>({kv, any_input()});
         auto unsqueeze_kv = makePattern<opset1::Unsqueeze>({kv, any_input()});
@@ -79,12 +80,16 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
                                            {{"mode", "numpy"}});
 
         auto multiply_kv = makePattern<opset6::Multiply>({reshape_kv | unsqueeze_kv, constant_bcst | computed_bcst});
-        auto result = makePattern<opset6::Reshape>({multiply_kv, any_input()});
-        return std::make_tuple(result, reshape_kv, unsqueeze_kv, computed_bcst, multiply_kv);
+        auto computed_bcst3 =
+            makePattern<opset3::Broadcast>({unsqueeze_kv, any_input()},
+                                           {{"mode", "bidirectional"}});
+
+        auto result = makePattern<opset6::Reshape>({multiply_kv | computed_bcst3, any_input()});
+        return std::make_tuple(result, reshape_kv, unsqueeze_kv, computed_bcst, multiply_kv, computed_bcst3);
     };
 
-    std::tie(mq_reshape_k, reshape_k, unsqueeze_k, computed_bcst_k, multiply_k) = multi_query_bcst(concat_k);
-    std::tie(mq_reshape_v, reshape_v, unsqueeze_v, computed_bcst_v, multiply_v) = multi_query_bcst(concat_v);
+    std::tie(mq_reshape_k, reshape_k, unsqueeze_k, computed_bcst_k, multiply_k, computed_bcst3_k) = multi_query_bcst(concat_k);
+    std::tie(mq_reshape_v, reshape_v, unsqueeze_v, computed_bcst_v, multiply_v, computed_bcst3_v) = multi_query_bcst(concat_v);
     auto present_k = concat_k | mq_reshape_k;
     auto present_v = concat_v | mq_reshape_v;
 
@@ -221,7 +226,9 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
                                     computed_bcst_v,
                                     multiply_v,
                                     mq_reshape_k,
-                                    mq_reshape_v})) {
+                                    mq_reshape_v,
+                                    computed_bcst3_k,
+                                    computed_bcst3_v})) {
             return false;
         }
 
@@ -300,7 +307,6 @@ bool SDPASubgraphFusion::run_on_model(const std::shared_ptr<ov::Model>& f) {
     manager.set_per_pass_validation(false);
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::SimplifyShapeOfSubGraph, true);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertBroadcast3);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::transpose_sinking::TSShapeOfForward);
     CPU_REGISTER_PASS_COMMON(manager, StatefulSDPAFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
