@@ -80,16 +80,16 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
                                            {{"mode", "numpy"}});
 
         auto multiply_kv = makePattern<opset6::Multiply>({reshape_kv | unsqueeze_kv, constant_bcst | computed_bcst});
-        auto computed_bcst3 =
-            makePattern<opset3::Broadcast>({unsqueeze_kv, any_input()},
-                                           {{"mode", "bidirectional"}});
+        auto computed_bcst3 = makePattern<opset3::Broadcast>({unsqueeze_kv, any_input()}, {{"mode", "bidirectional"}});
 
         auto result = makePattern<opset6::Reshape>({multiply_kv | computed_bcst3, any_input()});
         return std::make_tuple(result, reshape_kv, unsqueeze_kv, computed_bcst, multiply_kv, computed_bcst3);
     };
 
-    std::tie(mq_reshape_k, reshape_k, unsqueeze_k, computed_bcst_k, multiply_k, computed_bcst3_k) = multi_query_bcst(concat_k);
-    std::tie(mq_reshape_v, reshape_v, unsqueeze_v, computed_bcst_v, multiply_v, computed_bcst3_v) = multi_query_bcst(concat_v);
+    std::tie(mq_reshape_k, reshape_k, unsqueeze_k, computed_bcst_k, multiply_k, computed_bcst3_k) =
+        multi_query_bcst(concat_k);
+    std::tie(mq_reshape_v, reshape_v, unsqueeze_v, computed_bcst_v, multiply_v, computed_bcst3_v) =
+        multi_query_bcst(concat_v);
     auto present_k = concat_k | mq_reshape_k;
     auto present_v = concat_v | mq_reshape_v;
 
