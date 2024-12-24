@@ -235,7 +235,7 @@ CPU::CPU() {
 
     if (!get_info_linux(cache_info_mode)) {
         parse_cache_info_linux(system_info_table,
-                               node_info_table,
+                               std::move(node_info_table),
                                _processors,
                                _numa_nodes,
                                _sockets,
@@ -249,7 +249,7 @@ CPU::CPU() {
          (_proc_type_table[0][ALL_PROC] != _proc_type_table[0][EFFICIENT_CORE_PROC]))) {
         if (!get_info_linux(freq_info_mode)) {
             parse_freq_info_linux(system_info_table,
-                                  node_info_table,
+                                  std::move(node_info_table),
                                   _processors,
                                   _numa_nodes,
                                   _sockets,
