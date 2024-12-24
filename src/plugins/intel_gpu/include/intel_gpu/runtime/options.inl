@@ -45,6 +45,7 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, partial_build_program, false, "
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, allow_new_shape_infer, false, "Switch between new and old shape inference flow. Shall be removed soon")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, buffers_preallocation_ratio, 1.1f, "Threshold for preallocation feature in case when it uses ratio policy")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, use_onednn, false, "Enable/Disable onednn for usage for particular model/platform")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, max_kernels_per_batch, 8, "Controls how many kernels we combine into batch for more efficient ocl compilation")
 
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, verbose, 0, "Enable logging for debugging purposes. The higher value the more verbose output. 0 - Disabled, 4 - Maximum verbosity")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, log_to_file, "", "Save verbose log to specified file")
@@ -58,7 +59,6 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_tensors, "", "Save intermediate in/ou
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_memory_pool, "", "Save csv file with memory pool info to specified folder")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_iterations, "", "Space separated list of iterations where other dump options should be enabled")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, host_time_profiling, false, "Measre and print host time spent from the beginning of the infer until all host work is done and plugin is ready to block thread on the final clFinish() call")
-OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, max_kernels_per_batch, 8, "Controls how many kernels we combine into batch for more efficient ocl compilation")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, impls_cache_capacity, 300, "Controls capacity of LRU implementations cache that is created for each program object for dynamic models")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_async_compilation, false, "Disable feature that allows to asyncrhonously prepare static-shaped implementations for the primitives with shape-agnostic kernels selected during compilation")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_runtime_buffer_fusing, false, "Disable runtime inplace optimizations for operations like concat and crop")
