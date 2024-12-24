@@ -6,6 +6,7 @@
 
 #include <limits>
 #include <string>
+#include "openvino/util/common_util.hpp"
 namespace {
 template <class Container>
 bool contains_type_index(Container&& types, const std::type_info& user_type) {
@@ -200,9 +201,14 @@ namespace util {
 void Read<bool>::operator()(std::istream& is, bool& value) const {
     std::string str;
     is >> str;
-    if (str == "YES") {
+
+    std::set<std::string> off = {"0", "false", "off", "no"};
+    std::set<std::string> on = {"1", "true", "on", "yes"};
+    str = util::to_lower(str);
+
+    if (on.count(str)) {
         value = true;
-    } else if (str == "NO") {
+    } else if (off.count(str)) {
         value = false;
     } else {
         OPENVINO_THROW("Could not convert to bool from string " + str);
