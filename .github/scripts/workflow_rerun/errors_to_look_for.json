@@ -8,7 +8,7 @@
         "ticket": 135715
     },
     {
-        "error_text": "GnuTLS recv error",
+        "error_text": "error: RPC failed",
         "ticket": 131918
     },
     {
@@ -82,5 +82,9 @@
     {
         "error_text": "Upload progress stalled",
         "ticket": 152933
+    },
+    {
+        "error_text": "because the GET request got Content-Type",
+        "ticket": 158400
     }
 ]

@@ -12,7 +12,6 @@ Generative AI workflow
    Generative Model Preparation <llm_inference_guide/genai-model-preparation>
    Inference with OpenVINO GenAI <llm_inference_guide/genai-guide>
    Inference with Optimum Intel <llm_inference_guide/llm-inference-hf>
-   Generative AI with Base OpenVINO (not recommended) <llm_inference_guide/llm-inference-native-ov>
    OpenVINO Tokenizers <llm_inference_guide/ov-tokenizers>
 
 
@@ -20,12 +19,12 @@ Generative AI workflow
 Generative AI is a specific area of Deep Learning models used for producing new and “original”
 data, based on input in the form of image, sound, or natural language text. Due to their
 complexity and size, generative AI pipelines are more difficult to deploy and run efficiently.
-OpenVINO simplifies the process and ensures high-performance integrations, with the following
+OpenVINO™ simplifies the process and ensures high-performance integrations, with the following
 options:
 
 .. tab-set::
 
-   .. tab-item:: OpenVINO GenAI
+   .. tab-item:: OpenVINO™ GenAI
 
       | - Suggested for production deployment for the supported use cases.
       | - Smaller footprint and fewer dependencies.
@@ -38,6 +37,8 @@ options:
       API and tokenizers, among other components, it manages the essential tasks such as the
       text generation loop, tokenization, and scheduling, offering ease of use and high
       performance.
+
+      `Check out the OpenVINO GenAI Quick-start Guide [PDF] <https://docs.openvino.ai/nightly/_static/download/GenAI_Quick_Start_Guide.pdf>`__
 
    .. tab-item:: Hugging Face integration
 
@@ -54,54 +55,40 @@ options:
       as well as conversion on the fly. For integration with the final product it may offer
       lower performance, though.
 
-`Check out the GenAI Quick-start Guide [PDF] <https://docs.openvino.ai/2024/_static/download/GenAI_Quick_Start_Guide.pdf>`__
 
-The advantages of using OpenVINO for LLM deployment:
 
-.. dropdown:: Fewer dependencies and smaller footprint
-   :animate: fade-in-slide-down
-   :color: secondary
+The advantages of using OpenVINO for generative model deployment:
 
-   Less bloated than frameworks such as Hugging Face and PyTorch, with a smaller binary size and reduced
-   memory footprint, makes deployments easier and updates more manageable.
+| **Fewer dependencies and smaller footprint**
+|    Less bloated than frameworks such as Hugging Face and PyTorch, with a smaller binary size and reduced
+     memory footprint, makes deployments easier and updates more manageable.
 
-.. dropdown:: Compression and precision management
-   :animate: fade-in-slide-down
-   :color: secondary
+| **Compression and precision management**
+|    Techniques such as 8-bit and 4-bit weight compression, including embedding layers, and storage
+     format reduction. This includes fp16 precision for non-compressed models and int8/int4 for
+     compressed models, like GPTQ models from `Hugging Face <https://huggingface.co/models>`__.
 
-   Techniques such as 8-bit and 4-bit weight compression, including embedding layers, and storage
-   format reduction. This includes fp16 precision for non-compressed models and int8/int4 for
-   compressed models, like GPTQ models from `Hugging Face <https://huggingface.co/models>`__.
+| **Enhanced inference capabilities**
+|    Advanced features like in-place KV-cache, dynamic quantization, KV-cache quantization and
+     encapsulation, dynamic beam size configuration, and speculative sampling, and more are
+     available.
 
-.. dropdown:: Enhanced inference capabilities
-   :animate: fade-in-slide-down
-   :color: secondary
+| **Stateful model optimization**
+|    Models from the Hugging Face Transformers are converted into a stateful form, optimizing
+     inference performance and memory usage in long-running text generation tasks by managing past
+     KV-cache tensors more efficiently internally. This feature is automatically activated for
+     many supported models, while unsupported ones remain stateless. Learn more about the
+     :doc:`Stateful models and State API <../openvino-workflow/running-inference/stateful-models>`.
 
-   Advanced features like in-place KV-cache, dynamic quantization, KV-cache quantization and
-   encapsulation, dynamic beam size configuration, and speculative sampling, and more are
-   available.
-
-.. dropdown:: Stateful model optimization
-   :animate: fade-in-slide-down
-   :color: secondary
-
-   Models from the Hugging Face Transformers are converted into a stateful form, optimizing
-   inference performance and memory usage in long-running text generation tasks by managing past
-   KV-cache tensors more efficiently internally. This feature is automatically activated for
-   many supported models, while unsupported ones remain stateless. Learn more about the
-   :doc:`Stateful models and State API <../openvino-workflow/running-inference/stateful-models>`.
-
-.. dropdown:: Optimized LLM inference
-   :animate: fade-in-slide-down
-   :color: secondary
-
-   Includes a Python API for rapid development and C++ for further optimization, offering
-   better performance than Python-based runtimes.
+| **Optimized LLM inference**
+|    Includes a Python API for rapid development and C++ for further optimization, offering
+     better performance than Python-based runtimes.
 
 
 Proceed to guides on:
 
 * :doc:`OpenVINO GenAI Flavor <./llm_inference_guide/genai-guide>`
 * :doc:`Hugging Face and Optimum Intel <./llm_inference_guide/llm-inference-hf>`
+* `Generative AI with Base OpenVINO <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/llm-inference-native-ov.html>`__
 
 

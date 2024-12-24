@@ -270,6 +270,13 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         else
             assign_v_node->set_arguments({new_node->output(2)});
 
+        // Markup pattern:
+        // ReadValue->Convert(Optional)->ScaledDotProductAttentionWithKVCache->Convert(Optional)->Assign, so that
+        // ReadValue can't be replaced with ReadValueWithSubgraph in this pattern.
+        // TODO: Temporarily skip this pattern. If MemoryInputSDPA supports Subgraph in the future, it may be deleted.
+        past_k_node->get_rt_info()["DisableInitSubgraphFusing"] = true;
+        past_v_node->get_rt_info()["DisableInitSubgraphFusing"] = true;
+
         return true;
     };
 

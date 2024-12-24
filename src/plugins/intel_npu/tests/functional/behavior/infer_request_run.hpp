@@ -13,6 +13,7 @@
 #include <thread>
 
 #include "base/ov_behavior_test_utils.hpp"
+#include "behavior/ov_infer_request/inference.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
@@ -764,6 +765,21 @@ TEST_P(BatchingRunSeqTests, CheckMultipleBatchingRunsSeq) {
             expected_result++;
         }
     }
+}
+
+using ROITensorInference = OVInferRequestInferenceTests;
+
+TEST_P(ROITensorInference, InferenceROITensor) {
+    auto model = OVInferRequestInferenceTests::create_n_inputs(1, ov::element::f32, m_param.m_shape);
+    auto compiled_model = ie->compile_model(model, target_device);
+    // Create InferRequest
+    ov::InferRequest req;
+    req = compiled_model.create_infer_request();
+    const std::string tensor_name = "tensor_input0";
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(req.set_tensor(tensor_name, m_param.m_input_tensor),
+                                  ov::Exception,
+                                  "The tensor is not continuous");
 }
 
 }  // namespace behavior
