@@ -54,8 +54,8 @@ void SubgraphBaseTest::run() {
     summary.setDeviceName(targetDevice);
     summary.updateOPsStats(function, status, rel_influence_coef);
 
-    if (isCurrentTestDisabled)
-        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+    // if (isCurrentTestDisabled)
+    //     GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
 
     // in case of crash jump will be made and work will be continued
     auto crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(new ov::test::utils::CrashHandler());
@@ -143,8 +143,8 @@ void SubgraphBaseTest::query_model() {
     summary.setDeviceName(targetDevice);
     summary.updateOPsStats(function, status, rel_influence_coef);
 
-    if (isCurrentTestDisabled)
-        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+    // if (isCurrentTestDisabled)
+    //     GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
 
     // in case of crash jump will be made and work will be continued
     auto crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(new ov::test::utils::CrashHandler());
@@ -202,8 +202,8 @@ void SubgraphBaseTest::import_export() {
     summary.setDeviceName(targetDevice);
     summary.updateOPsStats(function, status, rel_influence_coef);
 
-    if (isCurrentTestDisabled)
-        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+    // if (isCurrentTestDisabled)
+    //     GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
 
     // in case of crash jump will be made and work will be continued
     auto crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(new ov::test::utils::CrashHandler());
