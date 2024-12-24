@@ -20,6 +20,6 @@ class TRANSFORMATIONS_API PullTransposeThroughFQUp;
 
 class ov::pass::PullTransposeThroughFQUp : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("PullTransposeThroughFQUp", "0");
+    OPENVINO_MATCHER_PASS_RTTI("PullTransposeThroughFQUp");
     PullTransposeThroughFQUp();
 };

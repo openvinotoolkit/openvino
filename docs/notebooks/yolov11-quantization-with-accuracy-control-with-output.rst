@@ -321,7 +321,7 @@ It can be the same dataset.
   quantization and report an error if the ``max_drop`` value can’t be
   reached.
 - ``drop_type`` defines how the accuracy drop will be
-  calculated: ABSOLUTE (used by default) or RELATIVE.
+ calculated: ABSOLUTE (used by default) or RELATIVE.
 - ``ranking_subset_size`` - size of a subset that is used to rank layers
   by their contribution to the accuracy drop. Default value is 300, and
   the more samples it has the better ranking, potentially. Here we use the

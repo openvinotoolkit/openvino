@@ -33,6 +33,7 @@ jobs:
     steps:
       - name: checkout action
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           sparse-checkout: .github/actions/smart-ci
 
@@ -67,6 +68,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
 
       - uses: ./.github/actions/handle_docker
         id: handle_docker
@@ -101,6 +103,7 @@ jobs:
             -DENABLE_SYSTEM_OPENCL=ON \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCPACK_GENERATOR=TGZ \
+            -DENABLE_WHEEL=ON \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
 
   Debian_Packages:
@@ -184,6 +187,7 @@ jobs:
 
       - name: Fetch setup_python action
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
@@ -300,6 +304,16 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
 
+  Python_API_Tests:
+    name: Python API tests
+    needs: [ Docker, Build, Smart_CI ]
+    uses: ./.github/workflows/job_python_api_tests.yml
+    with:
+      runner: 'aks-linux-4-cores-16gb'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: '3.11'
+
   TensorFlow_Layer_Tests:
     name: TensorFlow Layer Tests
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
@@ -314,6 +328,16 @@ jobs:
     name: Pytorch Layer Tests
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_pytorch_layer_tests.yml
+    with:
+      runner: 'aks-linux-4-cores-16gb'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: '3.11'
+
+  JAX_Layer_Tests:
+    name: JAX Layer Tests
+    needs: [ Docker, Build, Smart_CI ]
+    uses: ./.github/workflows/job_jax_layer_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
@@ -460,6 +484,7 @@ jobs:
 
       - name: Clone OpenVINO Contrib
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}

@@ -82,6 +82,8 @@ static std::shared_ptr<pattern::op::Label> construct_mean_graph() {
 
 class TestGraphRewrite : public ov::pass::GraphRewrite {
 public:
+    OPENVINO_GRAPH_REWRITE_RTTI("TestGraphRewrite");
+
     void construct_multiply_by_one() {
         // pattern #1 : a * 1 = a
         auto iconst1 = construct_constant_node(1);
@@ -558,8 +560,8 @@ TEST(pattern, multiple_optionals_in_row) {
 
     // Pattern:
     auto in = wrap_type<v0::Parameter>();
-    auto pattern_convert = optional<v0::Convert>(in);
-    auto pattern_relu = optional<v0::Relu>(pattern_convert);
+    auto pattern_convert = pattern::optional<v0::Convert>(in);
+    auto pattern_relu = pattern::optional<v0::Relu>(pattern_convert);
     auto pattern_sigmoid = wrap_type<v0::Sigmoid>({pattern_relu});
 
     // Test:

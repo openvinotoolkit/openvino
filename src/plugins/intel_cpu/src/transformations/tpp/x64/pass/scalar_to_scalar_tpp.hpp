@@ -18,7 +18,7 @@ namespace pass {
  */
 class ScalarToScalarTPP: public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ScalarToScalarTPP", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ScalarToScalarTPP");
     ScalarToScalarTPP();
 };
 

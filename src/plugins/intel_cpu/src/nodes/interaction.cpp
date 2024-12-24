@@ -4,7 +4,10 @@
 
 #include "interaction.h"
 
-#include "transformations/cpu_opset/x64/op/interaction.hpp"
+#include <chrono>
+#include <string>
+#include <vector>
+
 #include "common/bfloat16.hpp"
 #include "common/cpu_memcpy.h"
 #include "cpu/x64/cpu_isa_traits.hpp"
@@ -16,10 +19,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "nodes/common/cpu_convert.h"
 #include "onednn/dnnl.h"
-
-#include <chrono>
-#include <string>
-#include <vector>
+#include "transformations/cpu_opset/x64/op/interaction.hpp"
 
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
@@ -36,7 +36,9 @@ template <cpu_isa_t isa>
 struct jit_move_scale_kernel : public jit_uni_move_scale_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_move_scale_kernel)
 
-    explicit jit_move_scale_kernel(const jit_move_scale_compile_params& jcp) : jit_uni_move_scale_kernel(jcp), jit_generator(jit_name()) {
+    explicit jit_move_scale_kernel(const jit_move_scale_compile_params& jcp)
+        : jit_uni_move_scale_kernel(jcp),
+          jit_generator(jit_name()) {
         runtime_prc = jcp_.src_prc == ov::element::bf16 ? ov::element::bf16 : ov::element::f32;
         if (jcp_.dst_prc == ov::element::i8 || jcp_.dst_prc == ov::element::u8)
             runtime_prc = ov::element::f32;
@@ -50,12 +52,13 @@ struct jit_move_scale_kernel : public jit_uni_move_scale_kernel, public jit_gene
     }
 
 private:
-    using Vmm = typename dnnl::impl::utils::conditional3<isa == cpu_isa_t::sse41, Xmm, isa == cpu_isa_t::avx2, Ymm, Zmm>::type;
+    using Vmm =
+        typename dnnl::impl::utils::conditional3<isa == cpu_isa_t::sse41, Xmm, isa == cpu_isa_t::avx2, Ymm, Zmm>::type;
 
     void generate() override {
         this->preamble();
 
-#define GET_OFF(field) offsetof(jit_move_scale_call_args, field)
+#    define GET_OFF(field) offsetof(jit_move_scale_call_args, field)
         mov(reg_in, ptr[reg_params + GET_OFF(p_in)]);
         mov(reg_out, ptr[reg_params + GET_OFF(p_out)]);
         mov(reg_work_amount, jcp_.input_size);
@@ -107,7 +110,7 @@ private:
         if (jcp_.with_scales) {
             if (!jcp_.broadcast_scales) {
                 load(vmm_scales, reg_scales, ov::element::f32, ov::element::f32, step, false);
-                add(reg_scales,  sizeof(float) * step);
+                add(reg_scales, sizeof(float) * step);
             }
             uni_vmulps(vmm_in, vmm_in, vmm_scales);
         }
@@ -119,25 +122,39 @@ private:
             add(reg_out_aux, jcp_.dst_prc.size() * step);
         }
     }
-#undef GET_OFF
+#    undef GET_OFF
 
-    inline void load(const Vmm& vmm_dst, const Xbyak::Reg64& reg_src, ov::element::Type src_prc, ov::element::Type dst_prc, const int& elt_num, bool fill) {
+    inline void load(const Vmm& vmm_dst,
+                     const Xbyak::Reg64& reg_src,
+                     ov::element::Type src_prc,
+                     ov::element::Type dst_prc,
+                     const int& elt_num,
+                     bool fill) {
         const auto seed = load_emitter_params(src_prc, dst_prc, elt_num, fill, "float_min").hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(new jit_load_emitter(this, isa, src_prc, dst_prc, elt_num, src_prc, fill, "float_min"));
+            emitters[seed].reset(
+                new jit_load_emitter(this, isa, src_prc, dst_prc, elt_num, src_prc, fill, "float_min"));
         }
 
-        emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), 0}, {static_cast<size_t>(vmm_dst.getIdx())},
-                                  pool_aux_vmm_idxs, pool_aux_gpr_idxs);
+        emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), 0},
+                                  {static_cast<size_t>(vmm_dst.getIdx())},
+                                  pool_aux_vmm_idxs,
+                                  pool_aux_gpr_idxs);
     }
-    inline void store(const Xbyak::Reg64& reg_dst, const Vmm& vmm_src, ov::element::Type src_prc, ov::element::Type dst_prc, const int& elt_num) {
+    inline void store(const Xbyak::Reg64& reg_dst,
+                      const Vmm& vmm_src,
+                      ov::element::Type src_prc,
+                      ov::element::Type dst_prc,
+                      const int& elt_num) {
         const auto seed = store_emitter_params(src_prc, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
             emitters[seed].reset(new jit_store_emitter(this, isa, src_prc, dst_prc, elt_num));
         }
 
-        emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
-                                  pool_aux_vmm_idxs, pool_aux_gpr_idxs);
+        emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx())},
+                                  {static_cast<size_t>(reg_dst.getIdx())},
+                                  pool_aux_vmm_idxs,
+                                  pool_aux_gpr_idxs);
     }
 
     size_t vec_size;
@@ -155,13 +172,14 @@ private:
     Reg64 reg_work_amount = r14;
     Reg64 reg_params = abi_param1;
 
-    const std::vector<size_t> pool_aux_gpr_idxs = { static_cast<size_t>(rsi.getIdx()), static_cast<size_t>(rbp.getIdx()) };
-    const std::vector<size_t> pool_aux_vmm_idxs = { static_cast<size_t>(xmm_tmp.getIdx()) };
+    const std::vector<size_t> pool_aux_gpr_idxs = {static_cast<size_t>(rsi.getIdx()),
+                                                   static_cast<size_t>(rbp.getIdx())};
+    const std::vector<size_t> pool_aux_vmm_idxs = {static_cast<size_t>(xmm_tmp.getIdx())};
 
     std::unordered_map<size_t, std::unique_ptr<jit_emitter>> emitters;
 };
 
-#endif // OPENVINO_ARCH_X86_64
+#endif  // OPENVINO_ARCH_X86_64
 
 Interaction::Interaction(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
@@ -174,7 +192,7 @@ Interaction::Interaction(const std::shared_ptr<ov::Node>& op, const GraphContext
     const std::vector<float>& scales = interaction->get_output_scales();
     if (!scales.empty()) {
         fqScales = scales;
-        outputDataType  = interaction->get_output_element_type(0);
+        outputDataType = interaction->get_output_element_type(0);
     }
 }
 
@@ -194,23 +212,12 @@ void Interaction::initSupportedPrimitiveDescriptors() {
     // initialize input ports
     std::vector<PortConfigurator> inPortConfigs;
     for (size_t i = 0; i < getParentEdges().size(); ++i) {
-        inPortConfigs.emplace_back(
-            LayoutType::ncsp,
-            dataPrecision,
-            getInputShapeAtPort(i),
-            false, -1);
+        inPortConfigs.emplace_back(LayoutType::ncsp, dataPrecision, getInputShapeAtPort(i), false, -1);
     }
     // initialize output port
     std::vector<PortConfigurator> outPortConfigs = {
-        PortConfigurator {
-            LayoutType::ncsp,
-            outputDataType,
-            getOutputShapeAtPort(0),
-            false,
-            -1
-        }
-    };
-    //add descriptor
+        PortConfigurator{LayoutType::ncsp, outputDataType, getOutputShapeAtPort(0), false, -1}};
+    // add descriptor
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any);
 }
 
@@ -221,8 +228,7 @@ static inline void cat(uint8_t* out,
                        size_t elemSize) {
     size_t offset = 0;
     for (size_t j = 0; j < feature_sizes.size(); j++) {
-        cpu_memcpy(out + offset * elemSize, in[j] + bs * feature_sizes[j] * elemSize,
-            feature_sizes[j] * elemSize);
+        cpu_memcpy(out + offset * elemSize, in[j] + bs * feature_sizes[j] * elemSize, feature_sizes[j] * elemSize);
         offset += feature_sizes[j];
     }
 }
@@ -303,8 +309,7 @@ void Interaction::prepareParams() {
     auto matmul_pd = matmul::primitive_desc(getEngine(), src_md, weights_md, dst_md, matmul_attr);
     prim = matmul(matmul_pd);
     featureSizes.assign(inputSizes, featureSize);
-    auto initMemoryPtr = [&](const ov::element::Type& prc, const intel_cpu::Shape& shape,
-        MemoryPtr& ptr) {
+    auto initMemoryPtr = [&](const ov::element::Type& prc, const intel_cpu::Shape& shape, MemoryPtr& ptr) {
         ptr = std::make_shared<Memory>(getEngine(), intel_cpu::DnnlBlockedMemoryDesc(prc, shape));
     };
     initMemoryPtr(dataPrecision, intel_cpu::Shape{inputSizes, featureSize}, inputMemPtr);
@@ -336,7 +341,7 @@ void Interaction::prepareParams() {
         moveFeatureKernel.reset(new jit_move_scale_kernel<cpu_isa_t::sse41>(jcp));
         moveInteractKernel.reset(new jit_move_scale_kernel<cpu_isa_t::sse41>(interJcp));
     }
-#endif // OPENVINO_ARCH_X86_64
+#endif  // OPENVINO_ARCH_X86_64
 
     if (moveFeatureKernel && moveInteractKernel) {
         moveFeatureKernel->create_ker();
@@ -360,8 +365,7 @@ bool Interaction::isExecutable() const {
     return true;
 }
 
-bool Interaction::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
-        std::string& errorMessage) noexcept {
+bool Interaction::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto interaction = std::dynamic_pointer_cast<const InteractionNode>(op);
         if (!interaction) {
@@ -374,7 +378,6 @@ bool Interaction::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
     return true;
 }
 
-
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov
