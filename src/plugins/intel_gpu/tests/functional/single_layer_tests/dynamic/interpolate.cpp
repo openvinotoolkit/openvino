@@ -556,14 +556,14 @@ const std::vector<ShapeParams> shapeParams4D_LargeShape = {
         {{1.f, 1.f, 2.f, 2.f}},
         defaultAxes4D.front()
     },
-    // ShapeParams{
-    //     ov::op::v4::Interpolate::ShapeCalcMode::SIZES,
-    //     InputShape{{-1, -1, -1, -1}, {{1, 3, 48, 48}}},
-    //     ov::test::utils::InputLayerType::CONSTANT,
-    //     ov::test::utils::InputLayerType::CONSTANT,
-    //     {{1, 3, 144, 144}},
-    //     defaultAxes4D.front()
-    // },
+    ShapeParams{
+        ov::op::v4::Interpolate::ShapeCalcMode::SIZES,
+        InputShape{{-1, -1, -1, -1}, {{1, 3, 48, 48}}},
+        ov::test::utils::InputLayerType::CONSTANT,
+        ov::test::utils::InputLayerType::CONSTANT,
+        {{1, 3, 144, 144}},
+        defaultAxes4D.front()
+    },
 };
 
 const auto interpolateCasesLinearOnnx_AlignCorners_Floor = ::testing::Combine(

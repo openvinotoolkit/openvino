@@ -189,19 +189,51 @@ public:
 namespace detail {
 
 attach_resample_impl::attach_resample_impl() {
-    auto formats = {
-        format::bfyx,
-    };
+    // auto formats = {
+    //     format::bfyx,
+    // };
 
-    auto types = {
-        data_types::f32,
+    // auto types = {
+    //     data_types::f32,
+    // };
+
+    // implementation_map<resample>::add(impl_types::cpu, shape_types::static_shape, resample_impl::create, types, formats);
+    // implementation_map<resample>::add(impl_types::cpu, shape_types::dynamic_shape, resample_impl::create, types, formats);
+
+    //std::set<implementation_map<resample>::key_type> keys;
+
+    const auto types = {data_types::f32, data_types::i32};
+    const auto formats = {
+        format::bfyx,
+        format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv32_fsv16,
+        format::bs_fs_yx_bsv32_fsv32,
+
+        format::bfzyx,
+        format::b_fs_zyx_fsv16,
+        format::b_fs_zyx_fsv32,
+        format::bs_fs_zyx_bsv16_fsv32,
+        format::bs_fs_zyx_bsv16_fsv16,
+        format::bs_fs_zyx_bsv32_fsv32,
+        format::bs_fs_zyx_bsv32_fsv16,
     };
+    // for (const auto type : types) {
+    //     for (const auto format : formats) {
+    //         keys.emplace(type, format);
+    //     }
+    // }
+
+    // keys.emplace(data_types::f32, format::yxfb);
 
     implementation_map<resample>::add(impl_types::cpu, shape_types::static_shape, resample_impl::create, types, formats);
     implementation_map<resample>::add(impl_types::cpu, shape_types::dynamic_shape, resample_impl::create, types, formats);
 }
 
 }  // namespace detail
+
+
 }  // namespace cpu
 }  // namespace cldnn
 
