@@ -9,9 +9,9 @@ from pathlib import Path
 
 from openvino._pyopenvino import NodeFactory as _NodeFactory
 
-from openvino import Node, Output, Extension
+from openvino.runtime import Node, Output, Extension
 
-from openvino.exceptions import UserInputError
+from openvino.runtime.exceptions import UserInputError
 
 DEFAULT_OPSET = "opset13"
 
