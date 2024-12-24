@@ -16,7 +16,7 @@
 
 namespace ov::intel_gpu {
 
-DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size)
+DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size, bool asymmetric)
     : ov::pass::MatcherPass() {
     GPU_DEBUG_GET_INSTANCE(debug_config);
     using namespace ov::pass::pattern;
@@ -55,9 +55,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         config.scale_dt = element::f16;
         config.group_sizes = shape_group_size;
 
-        // AZP does not support grouped size dyn-quan
-        // XXX: This is currently wrapped as GPU_DEBUG_IF as dynamic_quantize_asym is not exposed through public API.
-        GPU_DEBUG_IF(debug_config->dynamic_quantize_asym && group_size == UINT64_MAX) {
+        if (asymmetric && group_size == UINT64_MAX) {
             config.quantization_type = QuantizationType::Asymmetric;
             config.quantization_dt = element::u8;
             config.zp_dt = element::u8; // it supports u8 only now
