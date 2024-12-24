@@ -21,7 +21,7 @@ struct StreamGenerateionTestCase {
     int input_thread;
     int input_request;
     int input_model_prefer;
-    int input_socket_id;
+    int input_numa_node_id;
     ov::hint::SchedulingCoreType input_type;
     bool input_ht_value;
     bool input_ht_changed;
@@ -65,7 +65,7 @@ public:
         cpu._proc_type_table = test_data.input_proc_type_table;
 
         auto proc_type_table = ov::intel_cpu::generate_stream_info(test_data.input_stream,
-                                                                   test_data.input_socket_id,
+                                                                   test_data.input_numa_node_id,
                                                                    nullptr,
                                                                    config,
                                                                    test_data.input_proc_type_table,
