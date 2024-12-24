@@ -321,24 +321,6 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
     return std::make_optional(NPUDesc{arch.as<std::string>(), max_tiles.as<int64_t>()});
 }
 
-std::optional<ov::Any> pop_option(ov::AnyMap& config, const std::string& option_name) {
-    if (auto it = config.find(option_name); it != config.end()) {
-        std::optional<ov::Any> found = std::make_optional(it->second);
-        config.erase(it);
-        return found;
-    }
-    return std::nullopt;
-}
-
-template <typename T>
-T pop_or_default(ov::AnyMap& config, const std::string& key, const T& default_value) {
-    auto anyopt = pop_option(config, key);
-    if (anyopt.has_value()) {
-        return anyopt.value().as<T>();
-    }
-    return default_value;
-}
-
 ov::AnyMap get_baseline_common_config() {
     ov::AnyMap config = {
         {"NPU_COMPILATION_MODE_PARAMS", "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm"},
