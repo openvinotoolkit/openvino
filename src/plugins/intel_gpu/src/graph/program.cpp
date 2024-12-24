@@ -832,6 +832,27 @@ void program::reverse_connection(program_node& dep_node, program_node& user_node
     }
 }
 
+void program::set_state_initializers(const std::string& variable_id, const primitive_id& id) {
+    state_initializers[variable_id].push_back(id);
+}
+
+bool program::has_state_initializers(const std::string& variable_id, const primitive_id& id) {
+    auto it = state_initializers.find(variable_id);
+    if (it != state_initializers.end()) {
+        const auto& initializers = it->second;
+        return std::find(initializers.begin(), initializers.end(), id) != initializers.end();
+    }
+    return false;
+}
+
+bool program::contains_state(const std::string& variable_id) {
+    auto it = state_initializers.find(variable_id);
+    if (it != state_initializers.end())
+        return true;
+    else
+        return false;
+}
+
 program_node& program::get_or_create(std::shared_ptr<primitive> prim) {
     auto itr = nodes_map.lower_bound(prim->id);
     if (itr != nodes_map.end() && itr->first == prim->id)

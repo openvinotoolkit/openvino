@@ -9,6 +9,7 @@
 #include "quantize_inst.h"
 #include "eltwise_inst.h"
 #include "convolution_inst.h"
+#include "read_value_inst.h"
 #include <string>
 #include <vector>
 #include <memory>
@@ -96,7 +97,7 @@ public:
 
 private:
     void run(program& p) override;
-    void mark_node(program_node* node);
+    void mark_init_subgraph(program& p, read_value_node& node);
 };
 
 class mark_shape_of_subgraphs : public base_pass {

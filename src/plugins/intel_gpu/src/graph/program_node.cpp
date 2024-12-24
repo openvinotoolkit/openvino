@@ -323,9 +323,6 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
     }
     node_info->add("dependant_shape_of_nodes_ids", dependant_shape_of_nodes_ids);
     node_info->add("in_shape_of_subgraph", in_shape_of_subgraph);
-
-    node_info->add("state_id_of_init_subgraph", state_id_of_init_subgraph);
-    node_info->add("state_initializers", state_initializers);
     return node_info;
 }
 
@@ -665,10 +662,6 @@ void program_node::add_dependant_shape_of_node(const program_node* node) {
     dependant_shape_of_nodes.insert(node);
 }
 
-void program_node::add_state_initializer(const primitive_id& id) {
-    state_initializers.push_back(id);
-}
-
 void program_node::save(cldnn::BinaryOutputBuffer& ob) const {
     ob << unique_id;
     ob << valid_output_layouts;
@@ -704,9 +697,6 @@ void program_node::save(cldnn::BinaryOutputBuffer& ob) const {
     ob << data_flow;
     ob << in_shape_of_subgraph;
     ob << runtime_skippable;
-
-    ob << state_id_of_init_subgraph;
-    ob << state_initializers;
 
     ob << output;
     ob << user_mark;
@@ -882,9 +872,6 @@ void program_node::load(cldnn::BinaryInputBuffer& ib) {
     ib >> data_flow;
     ib >> in_shape_of_subgraph;
     ib >> runtime_skippable;
-
-    ib >> state_id_of_init_subgraph;
-    ib >> state_initializers;
 
     ib >> output;
     ib >> user_mark;

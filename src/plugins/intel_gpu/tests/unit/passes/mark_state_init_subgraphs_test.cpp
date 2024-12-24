@@ -23,16 +23,17 @@
 using namespace cldnn;
 using namespace ::tests;
 
-static bool check_subgraph(const program_node& node, const program& program, const size_t expected_num) {
-    auto& state_initializers = node.get_state_initializers();
-    if (state_initializers.size() != expected_num)
+static bool check_subgraph(const program_node& node, program& program, std::vector<primitive_id> expected_subgraph) {
+    const auto& variable_id = node.as<read_value>().get_primitive()->variable_id;
+    if (!program.contains_state(variable_id))
         return false;
 
-    const auto& variable_id = node.as<read_value>().get_primitive()->variable_id;
-    for (auto& pid : state_initializers) {
-        if (!program.get_node(pid).is_in_state_init_subgraph())
-            return false;
-        if (program.get_node(pid).get_state_variable_id_of_init_subgraph().compare(variable_id) != 0)
+    auto& state_initializers = program.get_initializers(variable_id);
+    if (state_initializers.size() != expected_subgraph.size())
+        return false;
+
+    for (auto& pid : expected_subgraph) {
+        if (std::find(state_initializers.begin(), state_initializers.end(), pid) == state_initializers.end())
             return false;
     }
     return true;
@@ -79,7 +80,7 @@ TEST(mark_state_init_subgraphs, cross_attn_key_state_init_subgraphs) {
     auto prog = network.get_program();
     ASSERT_NE(prog, nullptr);
 
-    ASSERT_TRUE(check_subgraph(prog->get_node("read_value"), *prog, 4));
+    ASSERT_TRUE(check_subgraph(prog->get_node("read_value"), *prog, {"transpose", "reshape", "fc", "input_k", "convert"}));
 }
 
 TEST(mark_state_init_subgraphs, cross_attn_value_state_init_subgraphs) {
@@ -136,5 +137,83 @@ TEST(mark_state_init_subgraphs, cross_attn_value_state_init_subgraphs) {
     auto prog = network.get_program();
     ASSERT_NE(prog, nullptr);
 
-    ASSERT_TRUE(check_subgraph(prog->get_node("read_value"), *prog, 4));
+    ASSERT_TRUE(check_subgraph(prog->get_node("read_value"), *prog, {"transpose", "reshape1", "fc", "input_v", "convert", "add_data"}));
+}
+
+TEST(mark_state_init_subgraphs, cross_attn_multiple_state_init_subgraphs) {
+    auto& engine = get_test_engine();
+    auto param_layout_dynamic = layout{ov::PartialShape{-1, -1, 512}, data_types::f16, format::bfyx};
+    auto input_q_layout_dynamic = layout{ov::PartialShape{-1, 8, -1, 64}, data_types::f16, format::bfyx};
+    auto weights = engine.allocate_memory({ ov::PartialShape{512, 512}, data_types::f32, format::bfyx });
+    auto add_data = engine.allocate_memory({ ov::PartialShape{1, 1, 512}, data_types::f16, format::bfyx });
+    auto kv_layout = layout{ov::PartialShape{-1, 8, -1, 64},  data_types::f16, format::bfyx};
+    activation_additional_params act_params = {-65504, 65504};
+
+    topology topology;
+    topology.add(input_layout("param", param_layout_dynamic));
+    topology.add(input_layout("input_q", input_q_layout_dynamic));
+    topology.add(data("weights_k_proj", weights));
+    topology.add(data("weights_v_proj", weights));
+    topology.add(data("add_data", add_data));
+    topology.add(reorder("convert_k_proj",
+                         input_info("weights_k_proj"),
+                         format::any,
+                         data_types::f16,
+                         std::vector<float>(),
+                         reorder_mean_mode::subtract,
+                         padding(),
+                         true));
+    topology.add(reorder("convert_v_proj",
+                         input_info("weights_v_proj"),
+                         format::any,
+                         data_types::f16,
+                         std::vector<float>(),
+                         reorder_mean_mode::subtract,
+                         padding(),
+                         true));
+    topology.add(fully_connected("fc_k_proj", input_info("param"), { "convert_k_proj" }, "", data_types::f16, 3, 2));
+    topology.add(reshape("reshape_k_proj",
+                         input_info("fc_k_proj"),
+                         true,
+                         {0, 0, 8, 64},
+                         ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), 8, 64},
+                         reshape::reshape_mode::base));
+    topology.add(permute("transpose_k_proj", input_info("reshape_k_proj"), {0, 2, 1, 3}));
+    topology.add(read_value("read_value_1", {input_info("transpose_k_proj")}, "v1", {kv_layout}, data_types::f32));
+    topology.add(gemm("gemm_k_proj", {input_info("input_q"), input_info("read_value_1")}, data_types::f16, {0, 1, 2, 3}, {0, 1, 3, 2}, {0, 1, 2, 3}, 1.0f, 0.0f));
+    topology.add(activation("clamp", input_info("gemm_k_proj"), activation_func::clamp, act_params));
+    topology.add(fully_connected("fc_v_proj", input_info("param"), { "convert_v_proj" }, "", data_types::f16, 3, 2));
+    topology.add(eltwise("add_v_proj",
+                         {input_info("fc_v_proj"), input_info("add_data")},
+                         eltwise_mode::sum,
+                         std::vector<float>{},
+                         data_types::f16,
+                         ov::op::AutoBroadcastType::NUMPY,
+                         true));
+    topology.add(reshape("reshape_v_proj",
+                         input_info("add_v_proj"),
+                         true,
+                         {0, 0, 8, 64},
+                         ov::PartialShape{-1, -1, 8, 64},
+                         reshape::reshape_mode::base));
+    topology.add(permute("transpose_v_proj", input_info("reshape_v_proj"), {0, 2, 1, 3}));
+    topology.add(read_value("read_value_2", {input_info("transpose_v_proj")}, "v2", {kv_layout}, data_types::f32));
+    topology.add(gemm("gemm_qkv", {input_info("clamp"), input_info("read_value_2")}, data_types::f16, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 2, 1, 3}, 1.0f, 0.0f));
+    topology.add(reshape("reshape_qkv",
+                         input_info("gemm_qkv"),
+                         true,
+                         {0, 0, 512},
+                         ov::PartialShape{-1, -1, 512},
+                         reshape::reshape_mode::base));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    auto prog = network.get_program();
+    ASSERT_NE(prog, nullptr);
+
+    ASSERT_TRUE(check_subgraph(prog->get_node("read_value_1"), *prog, {"transpose_k_proj", "reshape_k_proj", "fc_k_proj", "convert_k_proj"}));
+    ASSERT_TRUE(check_subgraph(prog->get_node("read_value_2"), *prog, {"transpose_v_proj", "reshape_v_proj", "fc_v_proj", "convert_v_proj", "add_data"}));
 }

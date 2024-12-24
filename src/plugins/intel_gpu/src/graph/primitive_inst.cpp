@@ -2015,17 +2015,6 @@ void primitive_inst::configure_shape_of_dependencies() {
     }
 }
 
-void primitive_inst::configure_state_initializers() {
-    if (!state_initializers.empty())
-        return;
-
-    OPENVINO_ASSERT(_node != nullptr, "_node should not be nullptr for configure_state_initializers.");
-
-    if (state_initializers.empty() && !_node->get_state_initializers().empty()) {
-        state_initializers = _network.get_primitives(_node->get_state_initializers());
-    }
- }
-
 primitive_inst::primitive_inst(network& network)
     : _network(network)
     , _node(nullptr)

@@ -66,7 +66,7 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
             if (!instance.get_user_insts().empty()) {
                 auto user_inst = instance.get_user_insts().front();
                 if (!(user_inst->get_node().is_type<assign>() || user_inst->get_node().is_type<kv_cache>()) &&
-                    !instance.get_state_initializers().empty()) {
+                    instance.get_network().contains_state(variable_id)) {
                     variable.set();
                 }
             }
