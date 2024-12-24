@@ -36,6 +36,40 @@ inline std::ostream& operator<<(std::ostream& os, const QueueTypes& val) {
     return os;
 }
 
+enum class DumpFormat : uint8_t {
+    binary = 0,
+    text = 1,
+    text_raw = 2,
+};
+
+inline std::ostream& operator<<(std::ostream& os, const DumpFormat& val) {
+    switch (val) {
+        case DumpFormat::binary: os << "binary"; break;
+        case DumpFormat::text: os << "text"; break;
+        case DumpFormat::text_raw: os << "text_raw"; break;
+        default: os << "unknown";
+    }
+
+    return os;
+}
+
+enum class DumpTensors : uint8_t {
+    all = 0,
+    in = 1,
+    out = 2,
+};
+
+inline std::ostream& operator<<(std::ostream& os, const DumpTensors& val) {
+    switch (val) {
+        case DumpTensors::all: os << "all"; break;
+        case DumpTensors::in: os << "in"; break;
+        case DumpTensors::out: os << "out"; break;
+        default: os << "unknown";
+    }
+
+    return os;
+}
+
 /**
  * @brief Defines queue type that must be used for model execution
  */
@@ -56,15 +90,19 @@ static constexpr Property<bool, PropertyMutability::RW> use_onednn{"USE_ONEDNN"}
 
 static constexpr Property<bool, ov::PropertyMutability::RW> help{"HELP"};
 static constexpr Property<size_t, ov::PropertyMutability::RW> verbose{"VERBOSE"};
-static constexpr Property<std::string, ov::PropertyMutability::RW> log_to_file{"LOG_TO_FILE"};
-static constexpr Property<bool, ov::PropertyMutability::RW> disable_usm{"DISABLE_USM"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> log_to_file{"GPU_LOG_TO_FILE"};
+static constexpr Property<bool, ov::PropertyMutability::RW> disable_usm{"GPU_DISABLE_USM"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_onednn_post_ops_opt{"DISABLE_ONEDNN_POST_OPS_OPT"};
-static constexpr Property<std::string, PropertyMutability::RW> dump_graphs{"GPU_DUMP_GRAPHS"};
-static constexpr Property<std::string, ov::PropertyMutability::RW> dump_profiling_data{"DUMP_PROFILING_DATA"};
-static constexpr Property<std::string, ov::PropertyMutability::RW> dump_sources{"DUMP_SOURCES"};
-static constexpr Property<std::string, ov::PropertyMutability::RW> dump_tensors{"DUMP_TENSORS"};
-static constexpr Property<std::string, ov::PropertyMutability::RW> dump_memory_pool{"DUMP_MEMORY_POOL"};
-static constexpr Property<std::string, ov::PropertyMutability::RW> dump_iterations{"DUMP_ITERATIONS"};
+static constexpr Property<std::string, PropertyMutability::RW> dump_graphs_path{"GPU_DUMP_GRAPHS_PATH"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> dump_profiling_data_path{"GPU_DUMP_PROFILING_DATA_PATH"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> dump_sources_path{"GPU_DUMP_SOURCES_PATH"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> dump_tensors_path{"GPU_DUMP_TENSORS_PATH"};
+static constexpr Property<DumpTensors, ov::PropertyMutability::RW> dump_tensors{"DUMP_TENSORS"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> dump_layers{"GPU_DUMP_LAYERS"};
+static constexpr Property<DumpFormat, ov::PropertyMutability::RW> dump_tensors_format{"DUMP_TENSORS_FORMAT"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> dump_memory_pool_path{"GPU_DUMP_MEMORY_POOL_PATH"};
+static constexpr Property<int32_t, ov::PropertyMutability::RW> dump_batch_limit{"GPU_DUMP_BATCH_LIMIT"};
+static constexpr Property<std::set<int64_t>, ov::PropertyMutability::RW> dump_iterations{"GPU_DUMP_ITERATIONS"};
 static constexpr Property<bool, ov::PropertyMutability::RW> host_time_profiling{"HOST_TIME_PROFILING"};
 static constexpr Property<size_t, ov::PropertyMutability::RW> impls_cache_capacity{"IMPLS_CACHE_CAPACITY"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_async_compilation{"DISABLE_ASYNC_COMPILATION"};
@@ -76,7 +114,7 @@ static constexpr Property<bool, ov::PropertyMutability::RW> disable_fake_alignme
 static constexpr Property<bool, ov::PropertyMutability::RW> use_usm_host{"USE_USM_HOST"};
 static constexpr Property<bool, ov::PropertyMutability::RW> asym_dynamic_quantization{"ASYM_DYNAMIC_QUANTIZATION"};
 static constexpr Property<std::string, ov::PropertyMutability::RW> mem_prealloc_options{"MEM_PREALLOC_OPTIONS"};
-static constexpr Property<std::string, ov::PropertyMutability::RW> load_dump_raw_binary{"LOAD_DUMP_RAW_BINARY"};
+static constexpr Property<std::vector<std::string>, ov::PropertyMutability::RW> load_dump_raw_binary{"LOAD_DUMP_RAW_BINARY"};
 
 }  // namespace intel_gpu
 }  // namespace ov

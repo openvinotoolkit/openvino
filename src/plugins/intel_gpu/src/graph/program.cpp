@@ -1372,8 +1372,7 @@ program::primitives_info program::get_current_stage_info() const {
 }
 
 void program::save_pass_info(std::string pass_name) {
-    // TODO: Directory path here can be probably changed to some bool flag
-    if (!_config.get_dump_graphs().empty())
+    if (!_config.get_dump_graphs_path().empty())
         optimizer_passes_info.emplace_back(pass_name, get_current_stage_info());
 }
 
