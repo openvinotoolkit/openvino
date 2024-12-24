@@ -10820,7 +10820,14 @@ TEST_P(conv_dyn_test, convolution_gpu_fsv16_1x1_no_bias) {
         return outputs_ref.at("conv").get_memory();
     };
 
-    auto in_layout = layout{ov::PartialShape{ov::Dimension(), ov::Dimension(p.in_shape[1]), ov::Dimension(), ov::Dimension()}, data_types::f16, format::b_fs_yx_fsv16};
+    cldnn::layout in_layout;
+    if (p.in_shape[2] % 2 == 0) {
+        // input feature is static
+        in_layout = layout{ov::PartialShape{ov::Dimension(), ov::Dimension(p.in_shape[1]), ov::Dimension(), ov::Dimension()}, data_types::f16, format::b_fs_yx_fsv16};
+    } else {
+        // input feature is dynamic
+        in_layout = layout{ov::PartialShape{ov::Dimension(), ov::Dimension(), ov::Dimension(), ov::Dimension()}, data_types::f16, format::b_fs_yx_fsv16};
+    }
     auto input = engine.allocate_memory({ p.in_shape, data_types::f16, format::b_fs_yx_fsv16 });
     auto weights = engine.allocate_memory({p.wei_shape, data_types::f16, is_grouped ? format::bfzyx : format::bfyx});
 
