@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/graph/serialization/helpers.hpp"
 #include "intel_gpu/runtime/layout.hpp"
+#include "openvino/runtime/plugin_config.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/pass/serialize.hpp"
@@ -33,6 +35,34 @@
 #include <sys/stat.h>
 
 namespace ov::intel_gpu {
+namespace {
+
+
+class OstreamAttributeVisitor : public ov::AttributeVisitor {
+    cldnn::BinaryOutputBuffer& os;
+
+    template<typename T>
+    void append_attribute(const std::string& name, const T& value) {
+        os << name;
+        os << value;
+    }
+public:
+    OstreamAttributeVisitor(cldnn::BinaryOutputBuffer& os) : os(os) {}
+
+    void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
+        OPENVINO_THROW("Attribute ", name, " can't be processed\n");
+    }
+
+    void on_adapter(const std::string& name, ov::ValueAccessor<bool>& adapter) override {
+        append_attribute(name, adapter.get());
+    }
+
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::string>& adapter) override {
+        append_attribute(name, adapter.get());
+    }
+};
+
+}  // namespace
 
 Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id)
     : m_context(context)
@@ -512,7 +542,8 @@ void Graph::export_model(cldnn::BinaryOutputBuffer &ob) {
             ob << perf_item.second.second.parentPrimitive;
         }
     }
-    // ob << m_config;
+    OstreamAttributeVisitor visitor(ob);
+    m_config.visit_attributes(visitor);
 
     ob.set_stream(m_network->get_stream_ptr().get());
     m_network->get_program()->save(ob);
