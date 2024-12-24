@@ -590,6 +590,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
 
             // Precision
             info.type = item.get_element_type();
+            info.type = ov::element::Type_t::f32;
             // Partial Shape
             if (shape_map.count(name)) {
                 if (shape_map.at(name).size() > 1) {

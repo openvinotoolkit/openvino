@@ -778,10 +778,10 @@ std::map<std::string, ov::TensorVector> get_tensors(std::map<std::string, std::v
                 // Fill with Numpy arrrays
                 tensors[input_name].push_back(
                     get_numpy_tensor(files.second, inputId, batchSize, {input_name, input_info}, &tensor_src_info));
-            } else if (input_info.is_image()) {
-                // Fill with Images
-                tensors[input_name].push_back(
-                    get_image_tensor(files.second, inputId, batchSize, {input_name, input_info}, &tensor_src_info));
+            // } else if (input_info.is_image()) {
+            //     // Fill with Images
+            //     tensors[input_name].push_back(
+            //         get_image_tensor(files.second, inputId, batchSize, {input_name, input_info}, &tensor_src_info));
             } else {
                 // Fill with binary files
                 tensors[input_name].push_back(

@@ -545,6 +545,44 @@ INSTANTIATE_TEST_SUITE_P(InterpolateLinear_Layout_Test, InterpolateLayerGPUTest,
             ::testing::Values(true, false)),
     InterpolateLayerGPUTest::getTestCaseName);
 
+
+const std::vector<ShapeParams> shapeParams4D_LargeShape = {
+    ShapeParams{
+        ov::op::v4::Interpolate::ShapeCalcMode::SCALES,
+        //InputShape{{-1, {2, 100}, -1, -1}, {{1, 64, 148, 148}}},
+        InputShape{{-1, -1, -1, -1}, {{1, 3, 48, 48}}}, // min shape for failure
+        ov::test::utils::InputLayerType::CONSTANT,
+        ov::test::utils::InputLayerType::CONSTANT,
+        {{1.f, 1.f, 2.f, 2.f}},
+        defaultAxes4D.front()
+    },
+    // ShapeParams{
+    //     ov::op::v4::Interpolate::ShapeCalcMode::SIZES,
+    //     InputShape{{-1, -1, -1, -1}, {{1, 3, 48, 48}}},
+    //     ov::test::utils::InputLayerType::CONSTANT,
+    //     ov::test::utils::InputLayerType::CONSTANT,
+    //     {{1, 3, 144, 144}},
+    //     defaultAxes4D.front()
+    // },
+};
+
+const auto interpolateCasesLinearOnnx_AlignCorners_Floor = ::testing::Combine(
+        ::testing::Values(ov::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX),
+        ::testing::Values(ov::op::v4::Interpolate::CoordinateTransformMode::ALIGN_CORNERS),
+        ::testing::Values(ov::op::v4::Interpolate::NearestMode::FLOOR),
+        ::testing::ValuesIn(antialias),
+        ::testing::Values(std::vector<size_t>{0, 0, 0, 0}),
+        ::testing::Values(std::vector<size_t>{0, 0, 0, 0}),
+        ::testing::ValuesIn(cubeCoefs));
+
+INSTANTIATE_TEST_SUITE_P(InterpolateLinearOnnx_LargeShape_Layout_Test, InterpolateLayerGPUTest,
+        ::testing::Combine(
+            interpolateCasesLinearOnnx_AlignCorners_Floor,
+            ::testing::ValuesIn(shapeParams4D_LargeShape),
+            ::testing::Values(ov::element::f32),
+            ::testing::Values(true)),
+    InterpolateLayerGPUTest::getTestCaseName);
+
 const auto interpolateCasesCubic_Smoke = ::testing::Combine(
         ::testing::Values(ov::op::v4::Interpolate::InterpolateMode::CUBIC),
         ::testing::ValuesIn(coordinateTransformModes_Smoke),

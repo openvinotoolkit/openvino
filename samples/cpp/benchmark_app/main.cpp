@@ -691,6 +691,8 @@ int main(int argc, char* argv[]) {
                     type_to_set = ov::element::u8;
                 }
 
+                type_to_set = ov::element::f32;
+
                 auto& in = preproc.input(item.get_any_name());
                 if (type_to_set != ov::element::undefined) {
                     in.tensor().set_element_type(type_to_set);
