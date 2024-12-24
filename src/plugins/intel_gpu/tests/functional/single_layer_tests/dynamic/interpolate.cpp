@@ -549,12 +549,19 @@ INSTANTIATE_TEST_SUITE_P(InterpolateLinear_Layout_Test, InterpolateLayerGPUTest,
 const std::vector<ShapeParams> shapeParams4D_LargeShape = {
     ShapeParams{
         ov::op::v4::Interpolate::ShapeCalcMode::SCALES,
-        //InputShape{{-1, {2, 100}, -1, -1}, {{1, 64, 148, 148}}},
-        InputShape{{-1, -1, -1, -1}, {{1, 3, 48, 48}}}, // min shape for failure
+        InputShape{{-1, {2, 100}, -1, -1}, {{1, 64, 148, 148}}},
         ov::test::utils::InputLayerType::CONSTANT,
         ov::test::utils::InputLayerType::CONSTANT,
         {{1.f, 1.f, 2.f, 2.f}},
         defaultAxes4D.front()
+    },
+    ShapeParams{
+        ov::op::v4::Interpolate::ShapeCalcMode::SCALES,
+        InputShape{{-1, -1, -1, -1}, {{1, 3, 48, 48}}},
+        ov::test::utils::InputLayerType::CONSTANT,
+        ov::test::utils::InputLayerType::CONSTANT,
+        {{2.f, 2.f}},
+        reducedAxes4D.front()
     },
     ShapeParams{
         ov::op::v4::Interpolate::ShapeCalcMode::SIZES,

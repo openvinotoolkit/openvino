@@ -72,7 +72,6 @@ void register_implementations() {
     REGISTER_OCL(swiglu);
     REGISTER_OCL(tile);
     REGISTER_OCL(gather_tree);
-    //REGISTER_OCL(resample);
     REGISTER_OCL(grn);
     REGISTER_OCL(ctc_greedy_decoder);
     REGISTER_OCL(ctc_loss);

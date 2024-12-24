@@ -33,19 +33,10 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<resam
 
                 return true;
         })
-        // OV_GPU_CREATE_INSTANCE_OCL(ocl::ResampleImplementationManager, shape_types::dynamic_shape,
-        //     [](const cldnn::program_node& node){
-        //         return false;
-        // })
-
         OV_GPU_GET_INSTANCE_CPU(resample, shape_types::static_shape,
             [](const cldnn::program_node& node){
                 return true;
         })
-        // OV_GPU_GET_INSTANCE_CPU(resample, shape_types::dynamic_shape,
-        //     [](const cldnn::program_node& node){
-        //         return false;
-        // })
     };
 
     return impls;

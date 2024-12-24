@@ -106,34 +106,32 @@ struct resample_impl : public typed_primitive_impl<resample> {
         auto input_mem_ptr = instance.input_memory_ptr();
         cldnn::mem_lock<uint8_t, mem_lock_type::read> input_lock(input_mem_ptr, stream);
         
+        auto input_rank = params->input_layouts[0].get_rank();
         for (size_t i = 0; i < params->input_layouts.size(); i++) {
             auto input_tensor = make_tensor(params->input_layouts[0], input_lock.data());
             input_host_tensors.push_back(input_tensor);
         }
 
+        if (scales.size() < input_rank)
+            scales.insert(scales.begin(), input_rank - scales.size(), 1.f);
+        
+        for(size_t i = (input_rank - axes.size()); i > 0; i--)
+            axes.insert(axes.begin(), 1, (i - 1));
+
         if (input_host_tensors.size() == 1) {
             auto target_shape_sizes = params->output_layouts[0].get_tensor().sizes();
             std::vector<int64_t> target_shape_ps;
-            for (size_t i = 0; i < axes.size(); i++)
+            for (size_t i = 0; i < input_rank; i++)
                 target_shape_ps.push_back(target_shape_sizes[i]);
 
             auto target_shape_tensor = ov::Tensor(ov::element::i32, {target_shape_ps.size()}, target_shape_ps.data());
             input_host_tensors.push_back(target_shape_tensor);
 
-            if (shape_calc_mode == ov::op::util::InterpolateBase::ShapeCalcMode::SIZES) {
-                auto new_scales = scales;
-                auto input_shape_sizes = params->input_layouts[0].get_tensor().sizes();
-                for (size_t i = 0; i < sizes.size(); i++)
-                    new_scales[i] = sizes[i] / input_shape_sizes[i];
-
-                auto scales_tensor = ov::Tensor(ov::element::f32, {new_scales.size()}, new_scales.data());
-                input_host_tensors.push_back(scales_tensor);
-                shape_calc_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
-            } else if (shape_calc_mode == ov::op::util::InterpolateBase::ShapeCalcMode::SCALES) {
+            if (shape_calc_mode == ov::op::util::InterpolateBase::ShapeCalcMode::SCALES) {
                 auto scales_tensor = ov::Tensor(ov::element::f32, {scales.size()}, scales.data());
                 input_host_tensors.push_back(scales_tensor);
             } else {
-                OPENVINO_ASSERT(false, "[GPU] Not supported Interpolate ShapeCalcMode", instance.id());
+                OPENVINO_ASSERT(false, "[GPU] Not supported Interpolate ShapeCalcMode of CPU impl", instance.id());
             }
             
             auto axes_tensor = ov::Tensor(ov::element::i64, {axes.size()}, axes.data());
@@ -189,19 +187,6 @@ public:
 namespace detail {
 
 attach_resample_impl::attach_resample_impl() {
-    // auto formats = {
-    //     format::bfyx,
-    // };
-
-    // auto types = {
-    //     data_types::f32,
-    // };
-
-    // implementation_map<resample>::add(impl_types::cpu, shape_types::static_shape, resample_impl::create, types, formats);
-    // implementation_map<resample>::add(impl_types::cpu, shape_types::dynamic_shape, resample_impl::create, types, formats);
-
-    //std::set<implementation_map<resample>::key_type> keys;
-
     const auto types = {data_types::f32, data_types::i32};
     const auto formats = {
         format::bfyx,
@@ -219,13 +204,6 @@ attach_resample_impl::attach_resample_impl() {
         format::bs_fs_zyx_bsv32_fsv32,
         format::bs_fs_zyx_bsv32_fsv16,
     };
-    // for (const auto type : types) {
-    //     for (const auto format : formats) {
-    //         keys.emplace(type, format);
-    //     }
-    // }
-
-    // keys.emplace(data_types::f32, format::yxfb);
 
     implementation_map<resample>::add(impl_types::cpu, shape_types::static_shape, resample_impl::create, types, formats);
     implementation_map<resample>::add(impl_types::cpu, shape_types::dynamic_shape, resample_impl::create, types, formats);

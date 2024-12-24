@@ -47,7 +47,6 @@
 #include "intel_gpu/primitives/reduce.hpp"
 #include "intel_gpu/primitives/region_yolo.hpp"
 #include "intel_gpu/primitives/reorg_yolo.hpp"
-//#include "intel_gpu/primitives/resample.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
 #include "intel_gpu/primitives/reverse_sequence.hpp"
 #include "intel_gpu/primitives/rms.hpp"
