@@ -77,7 +77,8 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
                                                                                             post_op.eltwise.alg,
                                                                                             post_op.eltwise.alpha,
                                                                                             post_op.eltwise.beta,
-                                                                                            1.f));
+                                                                                            1.f,
+                                                                                            data_type::f32));
             } else if (post_op.is_depthwise()) {
                 depthwise_injectors.push_back(std::make_shared<jit_uni_depthwise_injector_f32<isa>>(this, post_op));
             } else if (post_op.is_quantization()) {
