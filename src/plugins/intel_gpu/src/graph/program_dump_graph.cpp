@@ -157,7 +157,7 @@ void dump_full_node(std::ofstream& out, const program_node* node) {
 }  // namespace
 
 std::string get_dir_path(const ExecutionConfig& config) {
-    auto path = config.get_dump_graphs();
+    auto path = config.get_dump_graphs_path();
     if (path.empty()) {
         return {};
     }
