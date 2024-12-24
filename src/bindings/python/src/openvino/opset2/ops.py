@@ -9,17 +9,18 @@ import numpy as np
 from functools import partial
 import warnings
 
-from openvino import Node, Shape
+from openvino.runtime import Node, Shape
 from openvino.op import Constant, Parameter
-from openvino.utils.decorators import binary_op, nameable_op, unary_op
-from openvino.utils.input_validation import (
+from openvino.runtime.opset_utils import _get_node_factory
+from openvino.runtime.utils.decorators import binary_op, nameable_op, unary_op
+from openvino.runtime.utils.input_validation import (
     assert_list_of_ints,
     check_valid_attributes,
     is_non_negative_value,
     is_positive_value,
 )
-from openvino.utils.node_factory import NodeFactory, _get_node_factory
-from openvino.utils.types import (
+from openvino.runtime.utils.node_factory import NodeFactory
+from openvino.runtime.utils.types import (
     NodeInput,
     NumericData,
     NumericType,

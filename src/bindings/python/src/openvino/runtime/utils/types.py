@@ -9,9 +9,9 @@ from typing import List, Union, Optional
 
 import numpy as np
 
-from openvino.exceptions import OVTypeError
-from openvino import Node, Shape, Output, Type
-from openvino.op import Constant
+from openvino.runtime.exceptions import OVTypeError
+from openvino.runtime import Node, Shape, Output, Type
+from openvino.runtime.op import Constant
 
 log = logging.getLogger(__name__)
 

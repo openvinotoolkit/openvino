@@ -7,11 +7,11 @@ from functools import partial
 
 from typing import Union, Optional, List
 
-from openvino import Node, Type
-from openvino.utils.node_factory import _get_node_factory
-from openvino.utils.types import TensorShape
-from openvino.utils.decorators import nameable_op
-from openvino.utils.types import NodeInput, as_node, as_nodes
+from openvino.runtime import Node, Type
+from openvino.runtime.opset_utils import _get_node_factory
+from openvino.runtime.utils.types import TensorShape
+from openvino.runtime.utils.decorators import nameable_op
+from openvino.runtime.utils.types import NodeInput, as_node, as_nodes
 
 _get_node_factory_opset14 = partial(_get_node_factory, "opset14")
 

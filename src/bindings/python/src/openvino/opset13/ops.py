@@ -11,12 +11,12 @@ import numpy as np
 
 log = logging.getLogger(__name__)
 
-from openvino import Node, Shape, Type, Output, Tensor
+from openvino.runtime import Node, Shape, Type, Output, Tensor
 from openvino.op import Constant, Result
 from openvino.opset1 import convert_like
-from openvino.utils.node_factory import _get_node_factory
-from openvino.utils.decorators import binary_op, nameable_op, unary_op, overloading
-from openvino.utils.types import (
+from openvino.runtime.opset_utils import _get_node_factory
+from openvino.runtime.utils.decorators import binary_op, nameable_op, unary_op, overloading
+from openvino.runtime.utils.types import (
     NumericData,
     NodeInput,
     NumericType,

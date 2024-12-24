@@ -5,7 +5,7 @@
 
 import numpy as np
 from typing import Union
-from openvino import Type, Shape
+from openvino.runtime import Type, Shape
 
 
 def pack_data(array: np.ndarray, type: Type) -> np.ndarray:

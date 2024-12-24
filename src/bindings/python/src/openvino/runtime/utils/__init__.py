@@ -4,4 +4,4 @@
 
 """Generic utilities. Factor related functions out to separate files."""
 
-from openvino.utils import numpy_to_c, replace_node, replace_output_update_name
+from openvino._pyopenvino.util import numpy_to_c, replace_node, replace_output_update_name

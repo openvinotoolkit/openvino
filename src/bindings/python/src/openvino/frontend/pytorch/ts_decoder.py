@@ -6,7 +6,7 @@
 
 from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder as Decoder
 from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
-from openvino import op, PartialShape, Type as OVType, OVAny
+from openvino.runtime import op, PartialShape, Type as OVType, OVAny
 from openvino.frontend.pytorch.utils import (
     ivalue_to_constant,
     get_value_from_getattr,
@@ -15,7 +15,7 @@ from openvino.frontend.pytorch.utils import (
     convert_quantized_tensor,
     graph_has_ops,
 )
-from openvino import opset11 as ops
+from openvino.runtime import opset11 as ops
 from openvino.frontend.pytorch import quantized, patch_model
 from openvino.frontend.pytorch.module_extension import ModuleExtension
 

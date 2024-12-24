@@ -8,17 +8,17 @@ from typing import List, Optional, Union, get_args
 import numpy as np
 from functools import partial
 
-from openvino import Node, PartialShape, Type
+from openvino.runtime import Node, PartialShape, Type
 from openvino.op import Constant, Parameter, tensor_iterator
-from openvino.utils.node_factory import _get_node_factory
-from openvino.utils.decorators import binary_op, nameable_op, unary_op
-from openvino.utils.input_validation import (
+from openvino.runtime.opset_utils import _get_node_factory
+from openvino.runtime.utils.decorators import binary_op, nameable_op, unary_op
+from openvino.runtime.utils.input_validation import (
     check_valid_attributes,
     is_non_negative_value,
     is_positive_value,
 )
-from openvino.utils.node_factory import NodeFactory
-from openvino.utils.types import (
+from openvino.runtime.utils.node_factory import NodeFactory
+from openvino.runtime.utils.types import (
     NodeInput,
     NumericData,
     NumericType,
