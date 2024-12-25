@@ -165,8 +165,11 @@ void paged_attention_inst::on_execute() {
     mem_lock<int32_t, mem_lock_type::write> blocks_indexes_start_lock(blocks_indexes_start_mem, stream);
     mem_lock<int32_t, mem_lock_type::write> blocks_indexes_end_lock(blocks_indexes_end_mem, stream);
     mem_lock<int32_t, mem_lock_type::write> blocked_gws_subseq_mapping_mem_lock(blocked_gws_subseq_mapping_mem, stream);
+    std::unique_ptr<mem_lock<int32_t, mem_lock_type::write>> subsequence_offsets_lock = nullptr;
     std::unique_ptr<mem_lock<int32_t, mem_lock_type::write>> sequential_gws_subseq_mapping_lock = nullptr;
 
+    const auto& desc = _impl_params->typed_desc<paged_attention>();
+    const bool has_scores_output = desc->has_scores_output();
     if (stage == PagedAttentionStage::MIXED) {
         const size_t sequential_gws_subseq_mapping_idx = has_scores_output ? 8 : 6;
 
@@ -175,6 +178,16 @@ void paged_attention_inst::on_execute() {
 
         auto sequential_gws_subseq_mapping_mem = _intermediates_memory[sequential_gws_subseq_mapping_idx];
         sequential_gws_subseq_mapping_lock.reset(new mem_lock<int32_t, mem_lock_type::write>(sequential_gws_subseq_mapping_mem, stream));
+    }
+
+    if (has_scores_output) {
+        const size_t subsequence_offsets_idx = 4;
+
+        OPENVINO_ASSERT(_intermediates_memory.size() > subsequence_offsets_idx,
+                        "[GPU] Unexpected number of intermediates buffers for Paged Attention for scores output calculation");
+
+        auto subsequence_offsets_mem = _intermediates_memory[subsequence_offsets_idx];
+        subsequence_offsets_lock.reset(new mem_lock<int32_t, mem_lock_type::write>(subsequence_offsets_mem, stream));
     }
 
     size_t index = 0;
