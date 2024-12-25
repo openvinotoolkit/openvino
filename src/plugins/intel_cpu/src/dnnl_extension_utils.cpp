@@ -36,6 +36,8 @@ uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
     case dnnl::memory::data_type::s4:
     case dnnl::memory::data_type::u4:
     case dnnl::memory::data_type::f8_e8m0:
+    case dnnl::memory::data_type::f8_e4m3:
+    case dnnl::memory::data_type::f8_e5m2:
     case dnnl::memory::data_type::f4_e2m1:
         return 1;
     case dnnl::memory::data_type::undef:
@@ -70,6 +72,10 @@ dnnl::memory::data_type DnnlExtensionUtils::ElementTypeToDataType(const ov::elem
         return memory::data_type::u4;
     case ov::element::f8e8m0:
         return memory::data_type::f8_e8m0;
+    case ov::element::f8e4m3:
+        return memory::data_type::f8_e4m3;
+    case ov::element::f8e5m2:
+        return memory::data_type::f8_e5m2;
     case ov::element::f4e2m1:
         return memory::data_type::f4_e2m1;
     case ov::element::undefined:
@@ -106,6 +112,10 @@ ov::element::Type DnnlExtensionUtils::DataTypeToElementType(const dnnl::memory::
         return ov::element::u4;
     case memory::data_type::f8_e8m0:
         return ov::element::f8e8m0;
+    case memory::data_type::f8_e4m3:
+        return ov::element::f8e4m3;
+    case memory::data_type::f8_e5m2:
+        return ov::element::f8e5m2;
     case memory::data_type::f4_e2m1:
         return ov::element::f4e2m1;
     case memory::data_type::undef:
