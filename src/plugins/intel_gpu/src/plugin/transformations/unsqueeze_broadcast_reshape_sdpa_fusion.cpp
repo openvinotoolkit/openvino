@@ -52,13 +52,14 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
     auto reshape_b_m = wrap_type<ov::op::v1::Reshape>({broadcast_b_m, any_input()}, reshape_predicate);
     auto reshape_c_m = wrap_type<ov::op::v1::Reshape>({broadcast_c_m, any_input()}, reshape_predicate);
 
-    auto convert_reshape_b_m = wrap_type<ov::op::v0::Convert>({reshape_b_m});
-    auto reshape_b_m_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{reshape_b_m, convert_reshape_b_m});
-    auto convert_reshape_c_m = wrap_type<ov::op::v0::Convert>({reshape_c_m});
-    auto reshape_c_m_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{reshape_c_m, convert_reshape_c_m});
+    //auto convert_reshape_b_m = wrap_type<ov::op::v0::Convert>({reshape_b_m});
+    //auto reshape_b_m_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{reshape_b_m, convert_reshape_b_m});
+    //auto convert_reshape_c_m = wrap_type<ov::op::v0::Convert>({reshape_c_m});
+    //auto reshape_c_m_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{reshape_c_m, convert_reshape_c_m});
 
     auto sdpa_without_attn_mask_m = wrap_type<op::SDPA>({ input_a_m, reshape_b_m, reshape_c_m });
-    auto sdpa_with_attn_mask_m = wrap_type<op::SDPA>({ input_a_m, reshape_b_m_input, reshape_c_m_input, input_attn_mask });
+    auto sdpa_with_attn_mask_m = wrap_type<op::SDPA>({ input_a_m, reshape_b_m, reshape_c_m, input_attn_mask });
+    //auto sdpa_with_attn_mask_m = wrap_type<op::SDPA>({ input_a_m, reshape_b_m_input, reshape_c_m_input, input_attn_mask });
     auto sdpa_with_attn_mask_and_scale_m = wrap_type<op::SDPA>({ input_a_m, reshape_b_m, reshape_c_m, input_attn_mask, input_scale });
 
     auto sdpa_m = std::make_shared<Or>(OutputVector{sdpa_without_attn_mask_m, sdpa_with_attn_mask_m, sdpa_with_attn_mask_and_scale_m});
