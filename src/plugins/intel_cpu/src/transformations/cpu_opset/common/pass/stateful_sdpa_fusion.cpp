@@ -302,9 +302,7 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
 
 bool SDPASubgraphFusion::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(SDPASubgraphFusion);
-    using namespace ov::pass::pattern;
-    ov::pass::Manager manager(get_pass_config(), "SDPASubgraphFusion");
-    manager.set_per_pass_validation(false);
+    ov::pass::Manager manager("SDPASubgraphFusion");
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::SimplifyGatherShapeOf);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::transpose_sinking::TSShapeOfForward);
