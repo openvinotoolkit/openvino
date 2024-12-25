@@ -927,7 +927,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         });
 
         manager.register_pass<ov::pass::RMSFusion>();
-        manager.register_pass<ov::pass::RMSFusion>(false);
+        //manager.register_pass<ov::pass::RMSFusion>(false);
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
         manager.register_pass<ov::intel_gpu::TransposeFusion>(device_info.supports_immad);
