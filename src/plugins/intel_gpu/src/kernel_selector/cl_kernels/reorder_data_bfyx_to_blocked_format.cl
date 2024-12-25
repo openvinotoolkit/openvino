@@ -26,7 +26,7 @@
                                         } \
                                     }
 
-#define FUNC_VLOAD_LEFTOVERS(inner, outer)    unroll_for (uint lh = 0; lh < outer; ++lh) { \
+#define FUNC_LOAD_LEFTOVERS(inner, outer)    unroll_for (uint lh = 0; lh < outer; ++lh) { \
                                         const uint input_idx = INPUT0_GET_TILED_INDEX(INPUT0_TILED_ORDER); \
                                         INPUTVTYPE read_data; \
                                         unroll_for (uint lw = 0; lw < inner; ++lw) { \
@@ -125,7 +125,7 @@ KERNEL (reorder_data_bfyx_to_blocked_format)(
         if (X_NO_REMAINDER_CONDITION) {
             FUNC_VLOAD(TILE_SIZE, TILE_SIZE)
         } else {
-            FUNC_VLOAD_LEFTOVERS(X_REMAINDER_SIZE, TILE_SIZE)
+            FUNC_LOAD_LEFTOVERS(X_REMAINDER_SIZE, TILE_SIZE)
         }
 #else
         FUNC_VLOAD(TILE_SIZE, TILE_SIZE)
@@ -145,7 +145,15 @@ KERNEL (reorder_data_bfyx_to_blocked_format)(
 #ifdef F_REMAINDER_CONDITION
     else if (F_REMAINDER_CONDITION) {
         // read and transpose
+    #ifdef X_REMAINDER_CONDITION
+        if (X_NO_REMAINDER_CONDITION) {
+            FUNC_VLOAD(TILE_SIZE, F_REMAINDER_SIZE)
+        } else {
+            FUNC_LOAD_LEFTOVERS(X_REMAINDER_SIZE, F_REMAINDER_SIZE)
+        }
+    #else
         FUNC_VLOAD(TILE_SIZE, F_REMAINDER_SIZE)
+    #endif
 
         // write to ddr
     #ifdef X_REMAINDER_CONDITION
