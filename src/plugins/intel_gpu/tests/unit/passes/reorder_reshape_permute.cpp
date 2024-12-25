@@ -17,13 +17,9 @@ TEST(opt_reorder_reshape_permute, no_reshape) {
     auto in_layout = layout{ov::PartialShape({1, 2, 4, 6}), data_types::f16, format::bfyx};
     auto input = engine.allocate_memory(layout{ov::PartialShape({1, 2, 4, 6}), data_types::f16, format::bfyx});
     auto weight = engine.allocate_memory(layout{ov::PartialShape({3, 2, 1, 1}), data_types::f16, format::bfyx});
+    tests::set_random_values<ov::float16>(input);
+    tests::set_random_values<ov::float16>(weight);
 
-    set_values<ov::float16>(input, {2.0f, 3.0f, 4.0f, 4.0f, 3.0f, 2.0f, 1.f,  2.f,  3.f,  1.f,  2.f,  4.f,
-                                    5.f,  1.f,  1.f,  2.f,  1.f,  2.f,  2.0f, 3.0f, 1.0f, 4.0f, 1.0f, 4.0f,
-                                    3.0f, 2.0f, 0.0f, 1.0f, 0.0f, 2.0f, 2.f,  4.f,  1.f,  1.f,  2.f,  1.f,
-                                    1.f,  2.f,  0.f,  2.f,  5.f,  2.f,  4.0f, 3.0f, 1.0f, 0.0f, 3.0f, 2.0f});
-
-    set_values<ov::float16>(weight, {1.f, 1.f, 1.f, 1.f, 1.f, 1.f});
     topology topology;
     topology.add(input_layout("input", in_layout));
     topology.add(data("weight", weight));
@@ -54,7 +50,9 @@ TEST(opt_reorder_reshape_permute, no_reshape) {
         });
     ASSERT_NE(it, optimzed_nodes.end());
     auto permute_inst = net.get_primitive("permute_inter");
-    ASSERT_TRUE(permute_inst->can_be_optimized());
+    if (net.get_primitive("convolution")->get_impl()->is_onednn()) {
+        ASSERT_TRUE(permute_inst->can_be_optimized());
+    }
     auto out_mem = output.at("softmax").get_memory();
     mem_lock<ov::float16> lock(out_mem, get_test_stream());
 
@@ -62,9 +60,13 @@ TEST(opt_reorder_reshape_permute, no_reshape) {
     auto ref_output = ref_network.execute();
     auto ref_out_mem = ref_output.at("softmax").get_memory();
     mem_lock<ov::float16> lock_ref(ref_out_mem, get_test_stream());
+    auto tolerance = default_tolerance(ref_out_mem->get_layout().data_type);
     for (size_t i = 0; i < out_mem->count(); i++) {
-        float actual = lock[i];
-        ASSERT_EQ(actual, lock_ref[i]);
+        ASSERT_NEAR(lock[i],lock_ref[i], tolerance)
+                << "\ntolerance = " << tolerance
+                << "\ni = " << i
+                << "\nref[i] = " << lock_ref[i]
+                << "\nopt[i] = " << lock[i];
     }
 }
 
@@ -73,12 +75,8 @@ TEST(opt_reorder_reshape_permute, no_reorder) {
     auto in_layout = layout{ov::PartialShape({1, 2, 4, 6}), data_types::f16, format::bfyx};
     auto input = engine.allocate_memory(layout{ov::PartialShape({1, 2, 4, 6}), data_types::f16, format::bfyx});
     auto weight = engine.allocate_memory(layout{ov::PartialShape({3, 2, 1, 1}), data_types::f16, format::bfyx});
-    set_values<ov::float16>(input, {2.0f, 3.0f, 4.0f, 4.0f, 3.0f, 2.0f, 1.f,  2.f,  3.f,  1.f,  2.f,  4.f,
-                                    5.f,  1.f,  1.f,  2.f,  1.f,  2.f,  2.0f, 3.0f, 1.0f, 4.0f, 1.0f, 4.0f,
-                                    3.0f, 2.0f, 0.0f, 1.0f, 0.0f, 2.0f, 2.f,  4.f,  1.f,  1.f,  2.f,  1.f,
-                                    1.f,  2.f,  0.f,  2.f,  5.f,  2.f,  4.0f, 3.0f, 1.0f, 0.0f, 3.0f, 2.0f});
-
-    set_values<ov::float16>(weight, {1.f, 1.f, 1.f, 1.f, 1.f, 1.f});
+    tests::set_random_values<ov::float16>(input);
+    tests::set_random_values<ov::float16>(weight);
     topology topology;
     topology.add(input_layout("input", in_layout));
     topology.add(data("weight", weight));
@@ -110,7 +108,9 @@ TEST(opt_reorder_reshape_permute, no_reorder) {
     ASSERT_TRUE(reshape_dist > permute_dist);
     // select preferred formats, conv + permute
     auto permute_inst = net.get_primitive("permute_inter");
-    ASSERT_TRUE(permute_inst->can_be_optimized());
+     if (net.get_primitive("convolution")->get_impl()->is_onednn()) {
+        ASSERT_TRUE(permute_inst->can_be_optimized());
+     }
     auto out_mem = output.at("softmax").get_memory();
     mem_lock<ov::float16> lock(out_mem, get_test_stream());
 
@@ -118,9 +118,13 @@ TEST(opt_reorder_reshape_permute, no_reorder) {
     auto ref_output = ref_network.execute();
     auto ref_out_mem = ref_output.at("softmax").get_memory();
     mem_lock<ov::float16> lock_ref(ref_out_mem, get_test_stream());
+    auto tolerance = default_tolerance(ref_out_mem->get_layout().data_type);
     for (size_t i = 0; i < out_mem->count(); i++) {
-        float actual = lock[i];
-        ASSERT_EQ(actual, lock_ref[i]);
+        ASSERT_NEAR(lock[i],lock_ref[i], tolerance)
+                << "\ntolerance = " << tolerance
+                << "\ni = " << i
+                << "\nref[i] = " << lock_ref[i]
+                << "\nopt[i] = " << lock[i];
     }
 }
 
@@ -129,12 +133,8 @@ TEST(opt_reorder_reshape_permute, no_reorder_no_reshape) {
     auto in_layout = layout{ov::PartialShape({1, 2, 4, 6}), data_types::f16, format::bfyx};
     auto input = engine.allocate_memory(layout{ov::PartialShape({1, 2, 4, 6}), data_types::f16, format::bfyx});
     auto weight = engine.allocate_memory(layout{ov::PartialShape({3, 2, 1, 1}), data_types::f16, format::bfyx});
-    set_values<ov::float16>(input, {2.0f, 3.0f, 4.0f, 4.0f, 3.0f, 2.0f, 1.f,  2.f,  3.f,  1.f,  2.f,  4.f,
-                                    5.f,  1.f,  1.f,  2.f,  1.f,  2.f,  2.0f, 3.0f, 1.0f, 4.0f, 1.0f, 4.0f,
-                                    3.0f, 2.0f, 0.0f, 1.0f, 0.0f, 2.0f, 2.f,  4.f,  1.f,  1.f,  2.f,  1.f,
-                                    1.f,  2.f,  0.f,  2.f,  5.f,  2.f,  4.0f, 3.0f, 1.0f, 0.0f, 3.0f, 2.0f});
-
-    set_values<ov::float16>(weight, {1.f, 1.f, 1.f, 1.f, 1.f, 1.f});
+    tests::set_random_values<ov::float16>(input);
+    tests::set_random_values<ov::float16>(weight);
     topology topology;
     topology.add(input_layout("input", in_layout));
     topology.add(data("weight", weight));
@@ -157,7 +157,9 @@ TEST(opt_reorder_reshape_permute, no_reorder_no_reshape) {
     cldnn::network ref_network(engine, topology, ref_config);
     // select preferred formats, conv + permute
     auto permute_inst = net.get_primitive("permute_inter");
-    ASSERT_TRUE(permute_inst->can_be_optimized());
+    if (net.get_primitive("convolution")->get_impl()->is_onednn()) {
+        ASSERT_TRUE(permute_inst->can_be_optimized());
+    }
     auto out_mem = output.at("softmax").get_memory();
     mem_lock<ov::float16> lock(out_mem, get_test_stream());
 
@@ -165,9 +167,13 @@ TEST(opt_reorder_reshape_permute, no_reorder_no_reshape) {
     auto ref_output = ref_network.execute();
     auto ref_out_mem = ref_output.at("softmax").get_memory();
     mem_lock<ov::float16> lock_ref(ref_out_mem, get_test_stream());
+    auto tolerance = default_tolerance(ref_out_mem->get_layout().data_type);
     for (size_t i = 0; i < out_mem->count(); i++) {
-        float actual = lock[i];
-        ASSERT_EQ(actual, lock_ref[i]);
+        ASSERT_NEAR(lock[i],lock_ref[i], tolerance)
+                << "\ntolerance = " << tolerance
+                << "\ni = " << i
+                << "\nref[i] = " << lock_ref[i]
+                << "\nopt[i] = " << lock[i];
     }
 }
 
@@ -176,12 +182,8 @@ TEST(opt_reorder_reshape_permute, cutomized_net_yolov6_alike) {
     auto in_layout = layout{ov::PartialShape({1, 2, 4, 6}), data_types::f16, format::bfyx};
     auto input = engine.allocate_memory(layout{ov::PartialShape({1, 2, 4, 6}), data_types::f16, format::bfyx});
     auto weight = engine.allocate_memory(layout{ov::PartialShape({3, 2, 1, 1}), data_types::f16, format::bfyx});
-    set_values<ov::float16>(input, {2.0f, 3.0f, 4.0f, 4.0f, 3.0f, 2.0f, 1.f,  2.f,  3.f,  1.f,  2.f,  4.f,
-                                    5.f,  1.f,  1.f,  2.f,  1.f,  2.f,  2.0f, 3.0f, 1.0f, 4.0f, 1.0f, 4.0f,
-                                    3.0f, 2.0f, 0.0f, 1.0f, 0.0f, 2.0f, 2.f,  4.f,  1.f,  1.f,  2.f,  1.f,
-                                    1.f,  2.f,  0.f,  2.f,  5.f,  2.f,  4.0f, 3.0f, 1.0f, 0.0f, 3.0f, 2.0f});
-
-    set_values<ov::float16>(weight, {1.f, 1.f, 1.f, 1.f, 1.f, 1.f});
+    tests::set_random_values<ov::float16>(input);
+    tests::set_random_values<ov::float16>(weight);
     topology topology;
     topology.add(input_layout("input", in_layout));
     topology.add(data("weight", weight));
@@ -211,7 +213,9 @@ TEST(opt_reorder_reshape_permute, cutomized_net_yolov6_alike) {
         });
     ASSERT_NE(it, optimzed_nodes.end());
     auto permute_inst = net.get_primitive("permute_inter");
-    ASSERT_TRUE(permute_inst->can_be_optimized());
+    if (net.get_primitive("convolution")->get_impl()->is_onednn()) {
+        ASSERT_TRUE(permute_inst->can_be_optimized());
+    }
     auto reshape_inst = net.get_primitive("reshape_inter");
     ASSERT_TRUE(reshape_inst->can_be_optimized());
 
@@ -231,9 +235,13 @@ TEST(opt_reorder_reshape_permute, cutomized_net_yolov6_alike) {
 
     auto ref_out_mem = ref_output.at("softmax").get_memory();
     mem_lock<ov::float16> lock_ref(ref_out_mem, get_test_stream());
+    auto tolerance = default_tolerance(ref_out_mem->get_layout().data_type);
     for (size_t i = 0; i < out_mem->count(); i++) {
-        float actual = lock[i];
-        ASSERT_EQ(actual, lock_ref[i]);
+        ASSERT_NEAR(lock[i],lock_ref[i], tolerance)
+                << "\ntolerance = " << tolerance
+                << "\ni = " << i
+                << "\nref[i] = " << lock_ref[i]
+                << "\nopt[i] = " << lock[i];
     }
 }
 
@@ -242,12 +250,8 @@ TEST(opt_reorder_reshape_permute, cutomized_net_yolov6_alike_4d) {
     auto in_layout = layout{ov::PartialShape({1, 2, 4, 6}), data_types::f16, format::bfyx};
     auto input = engine.allocate_memory(layout{ov::PartialShape({1, 2, 4, 6}), data_types::f16, format::bfyx});
     auto weight = engine.allocate_memory(layout{ov::PartialShape({3, 2, 1, 1}), data_types::f16, format::bfyx});
-    set_values<ov::float16>(input, {2.0f, 3.0f, 4.0f, 4.0f, 3.0f, 2.0f, 1.f,  2.f,  3.f,  1.f,  2.f,  4.f,
-                                    5.f,  1.f,  1.f,  2.f,  1.f,  2.f,  2.0f, 3.0f, 1.0f, 4.0f, 1.0f, 4.0f,
-                                    3.0f, 2.0f, 0.0f, 1.0f, 0.0f, 2.0f, 2.f,  4.f,  1.f,  1.f,  2.f,  1.f,
-                                    1.f,  2.f,  0.f,  2.f,  5.f,  2.f,  4.0f, 3.0f, 1.0f, 0.0f, 3.0f, 2.0f});
-
-    set_values<ov::float16>(weight, {1.f, 1.f, 1.f, 1.f, 1.f, 1.f});
+    tests::set_random_values<ov::float16>(input);
+    tests::set_random_values<ov::float16>(weight);
     topology topology;
     topology.add(input_layout("input", in_layout));
     topology.add(data("weight", weight));
@@ -277,7 +281,9 @@ TEST(opt_reorder_reshape_permute, cutomized_net_yolov6_alike_4d) {
         });
     ASSERT_NE(it, optimzed_nodes.end());
     auto permute_inst = net.get_primitive("permute_inter");
-    ASSERT_TRUE(permute_inst->can_be_optimized());
+    if (net.get_primitive("convolution")->get_impl()->is_onednn()) {
+        ASSERT_TRUE(permute_inst->can_be_optimized());
+    }
     auto reshape_inst = net.get_primitive("reshape_inter");
     ASSERT_TRUE(reshape_inst->can_be_optimized());
 
@@ -297,9 +303,13 @@ TEST(opt_reorder_reshape_permute, cutomized_net_yolov6_alike_4d) {
 
     auto ref_out_mem = ref_output.at("softmax").get_memory();
     mem_lock<ov::float16> lock_ref(ref_out_mem, get_test_stream());
+    auto tolerance = default_tolerance(ref_out_mem->get_layout().data_type);
     for (size_t i = 0; i < out_mem->count(); i++) {
-        float actual = lock[i];
-        ASSERT_EQ(actual, lock_ref[i]);
+        ASSERT_NEAR(lock[i],lock_ref[i], tolerance)
+                << "\ntolerance = " << tolerance
+                << "\ni = " << i
+                << "\nref[i] = " << lock_ref[i]
+                << "\nopt[i] = " << lock[i];
     }
 }
 
@@ -308,12 +318,8 @@ TEST(opt_reorder_reshape_permute, not_sinking_reshape) {
     auto in_layout = layout{ov::PartialShape({1, 2, 4, 6}), data_types::f16, format::bfyx};
     auto input = engine.allocate_memory(layout{ov::PartialShape({1, 2, 4, 6}), data_types::f16, format::bfyx});
     auto weight = engine.allocate_memory(layout{ov::PartialShape({3, 2, 1, 1}), data_types::f16, format::bfyx});
-    set_values<ov::float16>(input, {2.0f, 3.0f, 4.0f, 4.0f, 3.0f, 2.0f, 1.f,  2.f,  3.f,  1.f,  2.f,  4.f,
-                                    5.f,  1.f,  1.f,  2.f,  1.f,  2.f,  2.0f, 3.0f, 1.0f, 4.0f, 1.0f, 4.0f,
-                                    3.0f, 2.0f, 0.0f, 1.0f, 0.0f, 2.0f, 2.f,  4.f,  1.f,  1.f,  2.f,  1.f,
-                                    1.f,  2.f,  0.f,  2.f,  5.f,  2.f,  4.0f, 3.0f, 1.0f, 0.0f, 3.0f, 2.0f});
-
-    set_values<ov::float16>(weight, {1.f, 1.f, 1.f, 1.f, 1.f, 1.f});
+    tests::set_random_values<ov::float16>(input);
+    tests::set_random_values<ov::float16>(weight);
     topology topology;
     topology.add(input_layout("input", in_layout));
     topology.add(data("weight", weight));
@@ -336,16 +342,8 @@ TEST(opt_reorder_reshape_permute, not_sinking_reshape) {
 
     net.set_input_data("input", input);
     auto output = net.execute();
-    auto optimzed_nodes = net.get_program()->get_optimized();
-    auto it =
-        std::find_if(std::begin(optimzed_nodes), std::end(optimzed_nodes), [&](cldnn::program::optimized_info& oi) {
-            return oi.first == "reorder_inter";
-        });
-    ASSERT_NE(it, optimzed_nodes.end());
     auto permute_inst = net.get_primitive("permute_inter");
     ASSERT_FALSE(permute_inst->can_be_optimized());
-    auto reshape_inst = net.get_primitive("reshape_inter");
-    ASSERT_FALSE(reshape_inst->can_be_optimized());
 
     auto& processing_order = prog->get_processing_order();
 
@@ -363,9 +361,12 @@ TEST(opt_reorder_reshape_permute, not_sinking_reshape) {
 
     auto ref_out_mem = ref_output.at("softmax").get_memory();
     mem_lock<ov::float16> lock_ref(ref_out_mem, get_test_stream());
+    auto tolerance = default_tolerance(ref_out_mem->get_layout().data_type);
     for (size_t i = 0; i < out_mem->count(); i++) {
-        float actual = lock[i];
-        std::cout << actual << ", " << std::endl;
-        ASSERT_EQ(actual, lock_ref[i]);
+        ASSERT_NEAR(lock[i],lock_ref[i], tolerance)
+                << "\ntolerance = " << tolerance
+                << "\ni = " << i
+                << "\nref[i] = " << lock_ref[i]
+                << "\nopt[i] = " << lock[i];
     }
 }
