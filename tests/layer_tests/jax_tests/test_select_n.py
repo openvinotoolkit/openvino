@@ -33,7 +33,7 @@ class TestSelectN(JaxLayerTest):
         return jax_select_n, None, 'select_n'
         
 
-    @pytest.mark.parametrize("input_shape", [1,2,3,4,5,6,7,8,9,10])
+    @pytest.mark.parametrize("input_shape", [[],[1],[2,3],[4,5,6],[7,8,9,10]])
     @pytest.mark.parametrize("input_type", [np.int32, np.int64, bool])
     @pytest.mark.parametrize("case_num", [1,2,3,4,5,6,7,8,9,10])
     @pytest.mark.nightly
