@@ -617,6 +617,9 @@ KERNEL(pa_sdpa_scores_calculation)(
                     slm_exp_sums[head_idx] = adjusted_exp_sum;
                 global_exp_sum += adjusted_exp_sum;
             }
+
+            global_exp_sum = sub_group_reduce_add(global_exp_sum);
+
             slm_global_exp_sum[head_idx] = global_exp_sum;
         }
 

@@ -105,46 +105,20 @@ std::string paged_attention_inst::to_string(const paged_attention_node& node) {
 }
 
 void paged_attention_inst::on_execute() {
-    auto stage = get_paged_attention_stage(*_impl_params);
-
-    if (stage == PagedAttentionStage::UNKNOWN ||
-        stage == PagedAttentionStage::GENERATE)
-        return;
-
-    OPENVINO_ASSERT(_intermediates_memory.size() >= 3, "Unexpected number of intermediates buffers for Paged Attention at prefill stage");
-
-    const auto blocks_indexes_start_idx = 0;
-    const auto blocks_indexes_end_idx = 1;
-    const auto blocked_gws_subseq_mapping_idx = 2;
-
-    const auto past_lens_mem = past_lens_memory_ptr();
-    auto subsequence_begins_mem = subsequence_begins_memory_ptr();
-    auto blocks_indexes_start_mem = _intermediates_memory[blocks_indexes_start_idx];
-    auto blocks_indexes_end_mem = _intermediates_memory[blocks_indexes_end_idx];
-    auto blocked_gws_subseq_mapping_mem = _intermediates_memory[blocked_gws_subseq_mapping_idx];
-
-    OPENVINO_ASSERT(subsequence_begins_mem->get_layout().data_type == data_types::i32);
-
-    auto& stream = get_network().get_stream();
-    mem_lock<int32_t, mem_lock_type::read> past_lens_mem_lock(past_lens_mem, stream);
-    mem_lock<int32_t, mem_lock_type::read> subsequence_begins_mem_lock(subsequence_begins_mem, stream);
-    mem_lock<int32_t, mem_lock_type::write> blocks_indexes_start_lock(blocks_indexes_start_mem, stream);
-    mem_lock<int32_t, mem_lock_type::write> blocks_indexes_end_lock(blocks_indexes_end_mem, stream);
-    mem_lock<int32_t, mem_lock_type::write> blocked_gws_subseq_mapping_mem_lock(blocked_gws_subseq_mapping_mem, stream);
-    std::unique_ptr<mem_lock<int32_t, mem_lock_type::write>> subsequence_offsets_lock = nullptr;
-    std::unique_ptr<mem_lock<int32_t, mem_lock_type::write>> sequential_gws_subseq_mapping_lock = nullptr;
-
     const auto& desc = _impl_params->typed_desc<paged_attention>();
     const bool has_scores_output = desc->has_scores_output();
-    if (stage == PagedAttentionStage::MIXED) {
-        const size_t sequential_gws_subseq_mapping_idx = has_scores_output ? 8 : 6;
+    const auto stage = get_paged_attention_stage(*_impl_params);
 
-        OPENVINO_ASSERT(_intermediates_memory.size() > sequential_gws_subseq_mapping_idx,
-                        "[GPU] Unexpected number of intermediates buffers for Paged Attention for mixed stage");
+    if ((stage == PagedAttentionStage::UNKNOWN) ||
+        (stage == PagedAttentionStage::GENERATE && !has_scores_output))
+        return;
 
-        auto sequential_gws_subseq_mapping_mem = _intermediates_memory[sequential_gws_subseq_mapping_idx];
-        sequential_gws_subseq_mapping_lock.reset(new mem_lock<int32_t, mem_lock_type::write>(sequential_gws_subseq_mapping_mem, stream));
-    }
+    auto& stream = get_network().get_stream();
+    const auto past_lens_mem = past_lens_memory_ptr();
+    const auto subsequence_begins_mem = subsequence_begins_memory_ptr();
+    mem_lock<int32_t, mem_lock_type::read> past_lens_mem_lock(past_lens_mem, stream);
+    mem_lock<int32_t, mem_lock_type::read> subsequence_begins_mem_lock(subsequence_begins_mem, stream);
+    std::unique_ptr<mem_lock<int32_t, mem_lock_type::write>> subsequence_offsets_lock = nullptr;
 
     if (has_scores_output) {
         const size_t subsequence_offsets_idx = 4;
@@ -154,6 +128,52 @@ void paged_attention_inst::on_execute() {
 
         auto subsequence_offsets_mem = _intermediates_memory[subsequence_offsets_idx];
         subsequence_offsets_lock.reset(new mem_lock<int32_t, mem_lock_type::write>(subsequence_offsets_mem, stream));
+    }
+
+    if (stage == PagedAttentionStage::GENERATE) {
+        // For the generate stage it's not necessary to configure any other intermediate
+        // buffers. Simply calculate the offsets and exit
+        size_t subsequence_offsets_acc = 0;
+        for (size_t i = 0; i < subsequence_begins_mem_lock.size() - 1; i++) {
+            const auto past_len = past_lens_mem_lock[i];
+            const auto seq_start = subsequence_begins_mem_lock[i];
+            const auto seq_end = subsequence_begins_mem_lock[i + 1];
+            const auto seq_length = seq_end - seq_start;
+
+            if (subsequence_offsets_lock) {
+                subsequence_offsets_lock->operator[](i) = static_cast<int32_t>(subsequence_offsets_acc);
+                subsequence_offsets_acc += seq_length + past_len;
+            }
+        }
+
+        return;
+    }
+
+    OPENVINO_ASSERT(_intermediates_memory.size() >= 3, "Unexpected number of intermediates buffers for Paged Attention at prefill stage");
+
+    const auto blocks_indexes_start_idx = 0;
+    const auto blocks_indexes_end_idx = 1;
+    const auto blocked_gws_subseq_mapping_idx = 2;
+
+    auto blocks_indexes_start_mem = _intermediates_memory[blocks_indexes_start_idx];
+    auto blocks_indexes_end_mem = _intermediates_memory[blocks_indexes_end_idx];
+    auto blocked_gws_subseq_mapping_mem = _intermediates_memory[blocked_gws_subseq_mapping_idx];
+
+    OPENVINO_ASSERT(subsequence_begins_mem->get_layout().data_type == data_types::i32);
+
+    mem_lock<int32_t, mem_lock_type::write> blocks_indexes_start_lock(blocks_indexes_start_mem, stream);
+    mem_lock<int32_t, mem_lock_type::write> blocks_indexes_end_lock(blocks_indexes_end_mem, stream);
+    mem_lock<int32_t, mem_lock_type::write> blocked_gws_subseq_mapping_mem_lock(blocked_gws_subseq_mapping_mem, stream);
+    std::unique_ptr<mem_lock<int32_t, mem_lock_type::write>> sequential_gws_subseq_mapping_lock = nullptr;
+
+    if (stage == PagedAttentionStage::MIXED) {
+        const size_t sequential_gws_subseq_mapping_idx = has_scores_output ? 8 : 6;
+
+        OPENVINO_ASSERT(_intermediates_memory.size() > sequential_gws_subseq_mapping_idx,
+                        "[GPU] Unexpected number of intermediates buffers for Paged Attention for mixed stage");
+
+        auto sequential_gws_subseq_mapping_mem = _intermediates_memory[sequential_gws_subseq_mapping_idx];
+        sequential_gws_subseq_mapping_lock.reset(new mem_lock<int32_t, mem_lock_type::write>(sequential_gws_subseq_mapping_mem, stream));
     }
 
     size_t index = 0;

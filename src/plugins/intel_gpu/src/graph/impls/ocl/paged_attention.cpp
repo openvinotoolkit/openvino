@@ -323,12 +323,13 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
 
         execute_stage(events, instance, res_events, Stage::KV_CACHE_UPDATE, is_mixed_mode);
 
-        std::vector<event::ptr> dep_events(res_events.begin(), res_events.end());
         if (stage == PagedAttentionStage::PREFILL) {
+            std::vector<event::ptr> dep_events(res_events.begin(), res_events.end());
             execute_stage(dep_events, instance, res_events, Stage::SDPA, is_mixed_mode);
         }
 
         if (stage == PagedAttentionStage::GENERATE || stage == PagedAttentionStage::MIXED || has_scores_output) {
+            std::vector<event::ptr> dep_events(res_events.begin(), res_events.end());
             execute_stage(dep_events, instance, res_events, Stage::PA_SDPA, is_mixed_mode);
         }
 
