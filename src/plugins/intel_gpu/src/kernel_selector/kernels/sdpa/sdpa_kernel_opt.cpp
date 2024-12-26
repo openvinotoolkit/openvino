@@ -224,7 +224,7 @@ CommonDispatchData SDPAKernelOpt::SetDefault(const sdpa_params& params, size_t k
 
             const size_t heads_num = static_cast<size_t>(params.conf.heads_num);
             const size_t head_size = static_cast<size_t>(params.conf.head_size);
-            const size_t sg_num_scale = get_sg_number_scale_factor(params, heads_num, kernel_idx);
+            const size_t sg_num_scale = get_sg_number_scale_factor(params, head_size, kernel_idx);
             const size_t target_seq_len_block_size = get_target_seq_len_block_size();
             const size_t target_seq_len = static_cast<size_t>(params.conf.paged_attention_aligned_seq_len);
 
