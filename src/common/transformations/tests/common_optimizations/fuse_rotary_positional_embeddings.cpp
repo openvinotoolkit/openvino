@@ -3,7 +3,6 @@
 //
 
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
-#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
 #include <gtest/gtest.h>
 
@@ -14,6 +13,7 @@
 #include "openvino/opsets/opset3.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "ov_ops/type_relaxed.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 
 using namespace testing;
