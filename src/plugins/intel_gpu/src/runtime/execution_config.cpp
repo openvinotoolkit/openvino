@@ -250,12 +250,16 @@ void ExecutionConfig::apply_user_properties(const cldnn::device_info& info) {
     }
 
     // Enable KV-cache compression by default for non-systolic platforms
-    if (!is_set_by_user(ov::hint::kv_cache_precision) && !info.supports_immad) {
+    if (!is_set_by_user(ov::hint::kv_cache_precision) &&
+        internal_properties.find(ov::hint::kv_cache_precision.name()) == internal_properties.end() &&
+        !info.supports_immad) {
         set_property(ov::hint::kv_cache_precision(ov::element::i8));
     }
 
     // Enable dynamic quantization by default for non-systolic platforms
-    if (!is_set_by_user(ov::hint::dynamic_quantization_group_size) && !info.supports_immad) {
+    if (!is_set_by_user(ov::hint::dynamic_quantization_group_size) &&
+        internal_properties.find(ov::hint::dynamic_quantization_group_size.name()) == internal_properties.end() &&
+        !info.supports_immad) {
         set_property(ov::hint::dynamic_quantization_group_size(32));
     }
 
