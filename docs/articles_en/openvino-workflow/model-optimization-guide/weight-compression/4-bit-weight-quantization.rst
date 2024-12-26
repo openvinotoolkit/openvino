@@ -134,6 +134,10 @@ trade-offs after optimization:
   the original floating-point precision of the model weights (``INT8_ASYM`` is default value).
 
 |
+.. tip::
+
+   NNCF allows stacking the supported optimization methods. For example, AWQ, Scale Estimation
+   and GPTQ methods can be enabled all together to achieve better accuracy.
 
 4-bit Weight Quantization with GPTQ
 ###################################
