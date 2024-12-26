@@ -44,7 +44,7 @@ You select one of the methods by setting the ``--group-size`` parameter to eithe
       .. code-block:: console
          :name: group-quant
 
-         optimum-cli export openvino -m TinyLlama/TinyLlama-1.1B-Chat-v1.0 --weight-format int4 --sym --ratio 1.0 --group_size 128 TinyLlama-1.1B-Chat-v1.0
+         optimum-cli export openvino -m TinyLlama/TinyLlama-1.1B-Chat-v1.0 --weight-format int4 --sym --ratio 1.0 --group-size 128 TinyLlama-1.1B-Chat-v1.0
 
    .. tab-item:: Channel-wise quantization
 
