@@ -154,7 +154,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
             auto target_inputs = param->output(0).get_target_inputs();
             if (!strcmp(param_name, "attention_mask") && target_inputs.size() == 1 &&
                 ov::is_type<op::util::ShapeOfBase>(target_inputs.begin()->get_node())) {
-                target_inputs.begin()->replace_source_output(input_ids_node->output(0));
+                target_inputs.begin()->replace_source_output(unsqueezed_input_ids->output(0));
                 target_inputs = param->output(0).get_target_inputs();
             }
             model->remove_parameter(param);

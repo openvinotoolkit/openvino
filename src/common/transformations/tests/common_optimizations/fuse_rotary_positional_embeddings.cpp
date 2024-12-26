@@ -3,6 +3,7 @@
 //
 
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
 #include <gtest/gtest.h>
 
@@ -124,6 +125,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_LLama2_no_gather) {
     const size_t num_head = 32;
 
     model = buildROPE_Llama2(batch, seq_length, max_position_embeddings, ndims, false);
+    manager.register_pass<ov::pass::SymbolicOptimizations>();
     manager.register_pass<ov::pass::RoPEFusion>();
 
     {
@@ -159,6 +161,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_LLama2_with_gather) {
     const size_t num_head = 32;
 
     model = buildROPE_Llama2(batch, seq_length, max_position_embeddings, ndims, true);
+    manager.register_pass<ov::pass::SymbolicOptimizations>();
     manager.register_pass<ov::pass::RoPEFusion>();
 
     {
@@ -300,6 +303,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTNEOX_no_gather) {
     const int max_position_embeddings = 2048;
 
     model = buildROPE_GPTNEOX(batch, seq_len, max_position_embeddings, ndims, num_heads, rotary_ndims, false);
+    manager.register_pass<ov::pass::SymbolicOptimizations>();
     manager.register_pass<ov::pass::RoPEFusion>();
     {
         auto input =
@@ -335,6 +339,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTNEOX_with_gather) {
     const int max_position_embeddings = 2048;
 
     model = buildROPE_GPTNEOX(batch, seq_len, max_position_embeddings, ndims, num_heads, rotary_ndims, true);
+    manager.register_pass<ov::pass::SymbolicOptimizations>();
     manager.register_pass<ov::pass::RoPEFusion>();
     {
         auto cos_sin = makeCosSinCache(max_position_embeddings, rotary_ndims);
@@ -456,6 +461,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ) {
         model = std::make_shared<ov::Model>(ov::NodeVector{permute_Transpose_828},
                                             ov::ParameterVector{input, gather_sin_cos});
     }
+    manager.register_pass<ov::pass::SymbolicOptimizations>();
     manager.register_pass<ov::pass::RoPEFusion>();
     {
         auto input =
@@ -564,6 +570,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML) {
         model = std::make_shared<ov::Model>(ov::NodeVector{aten_cat_Concat_425},
                                             ov::ParameterVector{input, seq_length, cos_sin_cache});
     }
+    manager.register_pass<ov::pass::SymbolicOptimizations>();
     manager.register_pass<ov::pass::RoPEFusion>();
     {
         auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{seq_len, batch, 4608});
@@ -643,6 +650,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML_Slice) {
         model = std::make_shared<ov::Model>(ov::NodeVector{cat_Concat},
                                             ov::ParameterVector{input, seq_length, cos_sin_cache});
     }
+    manager.register_pass<ov::pass::SymbolicOptimizations>();
     manager.register_pass<ov::pass::RoPEFusion>();
     {
         auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{seq_len, batch, 4608});
@@ -728,6 +736,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ_Slice) {
         model =
             std::make_shared<ov::Model>(ov::NodeVector{permute_Transpose}, ov::ParameterVector{input, gather_sin_cos});
     }
+    manager.register_pass<ov::pass::SymbolicOptimizations>();
     manager.register_pass<ov::pass::RoPEFusion>();
     {
         auto input =
@@ -842,6 +851,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML_2d_rope) {
         model = std::make_shared<ov::Model>(ov::NodeVector{cat_Concat_425},
                                             ov::ParameterVector{input, cos_sin_cache, position_ids});
     }
+    manager.register_pass<ov::pass::SymbolicOptimizations>();
     manager.register_pass<ov::pass::RoPEFusion>(true);
     {
         auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{batch, seq_len, 4608});
@@ -951,6 +961,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML_nano_2d_rope) {
         model = std::make_shared<ov::Model>(ov::NodeVector{flatten_Reshape_421},
                                             ov::ParameterVector{input, cos_sin_cache, position_ids});
     }
+    manager.register_pass<ov::pass::SymbolicOptimizations>();
     manager.register_pass<ov::pass::RoPEFusion>(true);
     {
         auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{batch, seq_len, 3072});
@@ -1007,6 +1018,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_Flux_mul) {
 
         model = std::make_shared<ov::Model>(ov::NodeVector{y}, ov::ParameterVector{x, t_cos, t_sin});
     }
+    manager.register_pass<ov::pass::SymbolicOptimizations>();
     manager.register_pass<ov::pass::RoPEFusion>(true);
     {
         auto x =
@@ -1061,6 +1073,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_Flux_squeeze_mul_unsqueeze) {
 
         model = std::make_shared<ov::Model>(ov::NodeVector{y}, ov::ParameterVector{x, t_cos, t_sin});
     }
+    manager.register_pass<ov::pass::SymbolicOptimizations>();
     manager.register_pass<ov::pass::RoPEFusion>(true);
     {
         auto x =
@@ -1115,6 +1128,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_Flux_mul_squeeze_unsqueeze) {
 
         model = std::make_shared<ov::Model>(ov::NodeVector{y}, ov::ParameterVector{x, t_cos, t_sin});
     }
+    manager.register_pass<ov::pass::SymbolicOptimizations>();
     manager.register_pass<ov::pass::RoPEFusion>(true);
     {
         auto x =

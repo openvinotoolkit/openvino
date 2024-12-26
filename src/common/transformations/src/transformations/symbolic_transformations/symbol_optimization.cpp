@@ -442,8 +442,6 @@ void optimize_multi_value_usage(ov::Output<ov::Node>& output,
         auto alternative_source = multi_symbol_source[*result];
         if (output.get_element_type() != alternative_source.get_element_type()) {
             auto convert = std::make_shared<ov::op::v0::Convert>(alternative_source, output.get_element_type());
-            // should this be a convert like? no, output should be erased ideally. or should we just avoid dynamic data
-            // type?
             ov::copy_runtime_info(output.get_node_shared_ptr(), convert);
             alternative_source = convert->output(0);
         }
