@@ -68,7 +68,7 @@ auto available_pred = [](const program_node& input) {
         !input.is_type<activation>() && !input.is_type<deconvolution>() && !input.is_type<concatenation>() &&
         !input.is_type<crop>() && !input.is_type<eltwise>() && !input.is_type<resample>() &&
         !input.is_type<reorder>() && !(input.is_type<permute>() && !input.as<permute>().is_rotating_except_batch()) &&
-        !input.is_type<strided_slice>())
+        !input.is_type<strided_slice>() && !input.is_type<reshape>())
         return false;
     return true;
 };
@@ -158,10 +158,10 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
             }
         }
         // TODO: handle optimized reshape
-        if (pred.first->is_type<reshape>() && pred.first->can_be_optimized()) {
-                GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing_match_fail] : " << pred.first->id() << " , " << concat_node.id() << std::endl;
-                return false;
-        }
+        // if (pred.first->is_type<reshape>() && pred.first->can_be_optimized()) {
+        //         GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing_match_fail] : " << pred.first->id() << " , " << concat_node.id() << std::endl;
+        //         return false;
+        // }
         // TODO: Investigate if this condition is needed
         if (pred.first->get_users().size() > 2) {
                 GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing_match_fail] : " << pred.first->id() << " , " << concat_node.id() << std::endl;
@@ -179,7 +179,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
             }
         }
         // Check that input isn't optimized out non-concatenation.
-        if (!pred.first->is_type<concatenation>() && pred.first->can_be_optimized()) {
+        if (!pred.first->is_type<concatenation>() && !pred.first->is_type<reshape>() && pred.first->can_be_optimized()) {
                 GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing_match_fail] : " << pred.first->id() << " , " << concat_node.id() << std::endl;
                 return false;
         }
