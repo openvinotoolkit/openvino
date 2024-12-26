@@ -5,7 +5,7 @@
 # mypy: ignore-errors
 
 from typing import Optional, Any
-from openvino import Core
+from openvino.runtime import Core
 
 
 def _get_device(options) -> Optional[Any]:
