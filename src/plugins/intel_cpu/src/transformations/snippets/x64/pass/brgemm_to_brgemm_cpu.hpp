@@ -25,7 +25,7 @@ namespace pass {
  *                  \        Buffer (with repacked data)  Buffer (with compensations)
  *                   \                |                  /
  *                               BrgemmCPU
- *        - f32|f32 with transpose_b, u8|i8, i8|i8 or bf16|bf16 on AMX system:
+ *        - f32|f32 with transpose_b, u8|i8, i8|i8 or bf16|bf16 on AMX system or fp16|fp16 on AMX_FP16 system:
  *                 \              BrgemmCopyB
  *                  \        Buffer (with repacked data)  Buffer (with new memory)
  *                   \                |                  /
@@ -34,7 +34,7 @@ namespace pass {
  */
 class BrgemmToBrgemmCPU : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("BrgemmToBrgemmCPU", "0");
+    OPENVINO_MATCHER_PASS_RTTI("BrgemmToBrgemmCPU");
     BrgemmToBrgemmCPU();
 };
 

@@ -14,7 +14,7 @@ namespace pass {
 
 class PrimListConstructPadReplacer : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::pytorch::pass::PrimListConstructPadReplacer");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::pytorch::pass::PrimListConstructPadReplacer");
     PrimListConstructPadReplacer();
 };
 

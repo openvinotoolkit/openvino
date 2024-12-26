@@ -228,14 +228,16 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
         if (dstPrc != f8e8m0 || useDynamicQuantization)
             dstPrc = ov::element::f32;
 
-        dnnlpoc.appendDecompressionScales(memory.at(ARG_WEI | ARG_ATTR_SCALES), !attrs.weightsNonTransposed, dstPrc);
+        dnnlpoc.appendDecompressionScalesLegacy(memory.at(ARG_WEI | ARG_ATTR_SCALES),
+                                                !attrs.weightsNonTransposed,
+                                                dstPrc);
     }
 
     if (memory.count(ARG_WEI | ARG_ATTR_ZERO_POINTS)) {
         auto dstPrc = useDynamicQuantization ? ov::element::u8 : ov::element::f32;
-        dnnlpoc.appendDecompressionZeroPoints(memory.at(ARG_WEI | ARG_ATTR_ZERO_POINTS),
-                                              !attrs.weightsNonTransposed,
-                                              dstPrc);
+        dnnlpoc.appendDecompressionZeroPointsLegacy(memory.at(ARG_WEI | ARG_ATTR_ZERO_POINTS),
+                                                    !attrs.weightsNonTransposed,
+                                                    dstPrc);
     }
 
     if (useDynamicQuantization) {
@@ -247,9 +249,9 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
             uint8_t zp_value = (wei_precision == ov::element::i8) ? 128 : 8;
             DnnlBlockedMemoryDesc zpMemoryDesc(ov::element::u8, Shape({1}));
             auto decompressionSubtractPtr = std::make_shared<Memory>(context->getEngine(), zpMemoryDesc, &zp_value);
-            dnnlpoc.appendDecompressionZeroPoints(decompressionSubtractPtr,
-                                                  !attrs.weightsNonTransposed,
-                                                  ov::element::u8);
+            dnnlpoc.appendDecompressionZeroPointsLegacy(decompressionSubtractPtr,
+                                                        !attrs.weightsNonTransposed,
+                                                        ov::element::u8);
         }
         dnnlpoc.setDynamicQuantizationParams(attrs.dynamicQuantizationGroupSize);
     }

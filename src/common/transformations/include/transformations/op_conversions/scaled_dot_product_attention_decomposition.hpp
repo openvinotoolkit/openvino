@@ -18,7 +18,7 @@ class TRANSFORMATIONS_API ScaledDotProductAttentionDecomposition;
 
 class ov::pass::ScaledDotProductAttentionDecomposition : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ScaledDotProductAttentionDecomposition", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ScaledDotProductAttentionDecomposition");
     ScaledDotProductAttentionDecomposition();
     std::shared_ptr<ov::Node> decompose(std::shared_ptr<ov::op::v13::ScaledDotProductAttention> node);
 };

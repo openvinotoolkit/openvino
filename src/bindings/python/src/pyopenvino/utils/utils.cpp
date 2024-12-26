@@ -311,6 +311,18 @@ std::string convert_path_to_string(const py::object& path) {
     OPENVINO_THROW(str.str());
 }
 
+std::shared_ptr<ov::Model> convert_to_model(const py::object& obj) {
+    if (!py::isinstance(obj, py::module_::import("openvino").attr("Model"))) {
+        throw py::type_error("Incompatible `model` argument. Please provide a valid openvino.Model instance.");
+    }
+    auto model = obj.attr("_Model__model").cast<std::shared_ptr<ov::Model>>();
+    if (model == nullptr) {
+        throw py::attribute_error("Invalid openvino.Model instance. It cannot be None. "
+                                  "Please make sure it is not used outside of its context.");
+    }
+    return model;
+}
+
 Version convert_to_version(const std::string& version) {
     if (version == "UNSPECIFIED")
         return Version::UNSPECIFIED;
