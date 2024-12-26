@@ -59,9 +59,15 @@ protected:
             if (param.wtype == ov::element::i8 || param.wtype == ov::element::i4) {
                 ov::test::utils::InputGenerateData in_data;
                 // range [-128, +127]
-                in_data.start_from = -64;
-                in_data.range = 63;
-                in_data.resolution = 128;
+                if (param.wtype == ov::element::i8) {
+                    in_data.start_from = -64;
+                    in_data.range = 128;
+                    in_data.resolution = 16;
+                } else {
+                    in_data.start_from = -8;
+                    in_data.range = 8;
+                    in_data.resolution = 16;
+                }
                 auto tensor = ov::test::utils::create_and_fill_tensor(
                     param.wtype,
                     (param.wtype == ov::element::i8) ? ov::Shape{OC, IC}
@@ -73,7 +79,7 @@ protected:
                 // range after dequantize, [-1, +1]
                 in_data.start_from = 0;
                 in_data.range = 1;
-                in_data.resolution = 128;
+                in_data.resolution = 16;
                 auto tensor_scales = ov::test::utils::create_and_fill_tensor(
                     ov::element::f32,
                     (param.wtype == ov::element::i8) ? ov::Shape{OC, 1} : ov::Shape{OC, IC / IC_group_size, 1},
@@ -94,9 +100,15 @@ protected:
             }
             if (param.wtype == ov::element::u8 || param.wtype == ov::element::u4) {
                 ov::test::utils::InputGenerateData in_data;
-                in_data.start_from = 0;
-                in_data.range = (param.wtype == ov::element::u8) ? 255 : 15;
-                in_data.resolution = 128;
+                if (param.wtype == ov::element::u8) {
+                    in_data.start_from = 16;
+                    in_data.range = 256 - 16;
+                    in_data.resolution = 256 - 32;
+                } else {
+                    in_data.start_from = 0;
+                    in_data.range = 16;
+                    in_data.resolution = 16;
+                }
                 auto tensor = ov::test::utils::create_and_fill_tensor(
                     param.wtype,
                     (param.wtype == ov::element::u8) ? ov::Shape{OC, IC}
@@ -105,9 +117,15 @@ protected:
                 auto weight_const_u8u4 = std::make_shared<ov::op::v0::Constant>(tensor);
                 auto weight_const_f32 = std::make_shared<ov::op::v0::Convert>(weight_const_u8u4, ov::element::f32);
 
-                in_data.start_from = (param.wtype == ov::element::u8) ? 128 : 8;
-                in_data.range = 2;
-                in_data.resolution = 128;
+                if (param.wtype == ov::element::u8) {
+                    in_data.start_from = 128-2;
+                    in_data.range = 2;
+                    in_data.resolution = 2;
+                } else {
+                    in_data.start_from = 8 - 4;
+                    in_data.range = 8;
+                    in_data.resolution = 8;
+                }
                 auto tensor_zp = ov::test::utils::create_and_fill_tensor(
                     param.wtype,
                     (param.wtype == ov::element::u8) ? ov::Shape{OC, 1} : ov::Shape{OC, IC / IC_group_size, 1},
@@ -120,7 +138,7 @@ protected:
                 // range after dequantize, [-1, +1]
                 in_data.start_from = 0;
                 in_data.range = 1;
-                in_data.resolution = 128;
+                in_data.resolution = 16;
                 auto tensor_scale_per_oc = ov::test::utils::create_and_fill_tensor(
                     ov::element::f32,
                     (param.wtype == ov::element::u8) ? ov::Shape{OC, 1} : ov::Shape{OC, IC / IC_group_size, 1},
@@ -141,7 +159,7 @@ protected:
                 ov::test::utils::InputGenerateData in_data;
                 in_data.start_from = -0.5;
                 in_data.range = 1;
-                in_data.resolution = resolution;
+                in_data.resolution = 16;
                 auto tensor = ov::test::utils::create_and_fill_tensor(ov::element::f16, ov::Shape{OC, IC}, in_data);
                 auto weight_const_f16 = std::make_shared<ov::op::v0::Constant>(tensor);
                 auto convert_f32 = std::make_shared<ov::op::v0::Convert>(weight_const_f16, ov::element::f32);
@@ -166,7 +184,7 @@ protected:
             std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1, 1, 1}, std::vector<float>{0.0f});
         auto sparse_input = std::make_shared<ov::opset10::Select>(lessEqual, zero_const, src);
 
-        auto fc_weight = create_const(param.OC, param.IC, param.IC_group_size, 100);
+        auto fc_weight = create_const(param.OC, param.IC, param.IC_group_size, 16);
         auto fc_output = std::make_shared<ov::op::v0::MatMul>(sparse_input, fc_weight, false, true);
 
         function = std::make_shared<ov::Model>(ov::NodeVector{fc_output}, ov::ParameterVector{src});

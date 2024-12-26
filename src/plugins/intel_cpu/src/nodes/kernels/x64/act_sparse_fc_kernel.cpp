@@ -6,19 +6,8 @@
 #include <cstring>
 
 #if defined(OPENVINO_ARCH_X86_64)
-#    include "simd_jit.hpp"
-// #include "simd.hpp"
 
 #    include "openvino/core/parallel.hpp"
-
-#    ifndef ASSERT
-#        define ASSERT(cond)                                                     \
-            if (!(cond)) {                                                       \
-                std::stringstream ss;                                            \
-                ss << __FILE__ << ":" << __LINE__ << " " << #cond << " failed!"; \
-                throw std::runtime_error(ss.str());                              \
-            }
-#    endif
 
 namespace ov {
 namespace intel_cpu {
@@ -45,22 +34,22 @@ static std::shared_ptr<SIMDJit> jit_compile_gemmRegBlk(int rows, int cols, int p
     };
 
     // load all arguments into register
-    auto A_ptr = jit->get_sreg(0, true);
-    auto A_stride = jit->get_sreg(1, true);
-    auto B_ptr = jit->get_sreg(2, true);
-    auto B_stride = jit->get_sreg(3, true);
-    auto dst_ptr = jit->get_sreg(4, true);
-    auto dst_stride = jit->get_sreg(5, true);
-    auto K = jit->get_sreg(6, true);
-    auto accumulate = jit->get_sreg(7, true);
-    auto stemp = jit->get_sreg(8);
+    auto A_ptr = jit->get_sreg(0);
+    auto A_stride = jit->get_sreg(1);
+    auto B_ptr = jit->get_sreg(2);
+    auto B_stride = jit->get_sreg(3);
+    auto dst_ptr = jit->get_sreg(4);
+    auto dst_stride = jit->get_sreg(5);
+    auto K = jit->get_sreg(6);
+    auto accumulate = jit->get_sreg(7);
 
-    jit->lea(A_stride, jit->ptr[A_stride * 4]);
-    jit->lea(B_stride, jit->ptr[B_stride * 4]);
-    jit->lea(dst_stride, jit->ptr[dst_stride * 4]);
+    auto stemp = jit->get_sreg();
 
-    jit->if_(
-        accumulate == 0,
+    A_stride = A_stride * 4;
+    B_stride = B_stride * 4;
+    dst_stride = dst_stride * 4;
+
+    jit->if_(accumulate == 0,
         [&] {
             // initilaize C to zero
             for (int r = 0; r < rows; r++)
@@ -87,7 +76,7 @@ static std::shared_ptr<SIMDJit> jit_compile_gemmRegBlk(int rows, int cols, int p
     auto loadA = [&](int r) {
         switch (r) {
         case 0:
-            jit->simd_broadcast_ss(vmmA(r), jit->ptr[A_ptr]);
+            jit->simd_broadcast_ss(vmmA(r), jit->ptr[A_ptr + 0]);
             break;
         case 1:
             jit->simd_broadcast_ss(vmmA(r), jit->ptr[A_ptr + A_stride]);
@@ -96,7 +85,7 @@ static std::shared_ptr<SIMDJit> jit_compile_gemmRegBlk(int rows, int cols, int p
             jit->simd_broadcast_ss(vmmA(r), jit->ptr[A_ptr + 2 * A_stride]);
             break;
         case 3:
-            jit->simd_broadcast_ss(vmmA(r), jit->ptr[A_ptr3]);
+            jit->simd_broadcast_ss(vmmA(r), jit->ptr[A_ptr3 + 0]);
             break;
         case 4:
             jit->simd_broadcast_ss(vmmA(r), jit->ptr[A_ptr3 + A_stride]);
@@ -110,8 +99,7 @@ static std::shared_ptr<SIMDJit> jit_compile_gemmRegBlk(int rows, int cols, int p
     };
 
     if (rows > 3) {
-        jit->lea(A_ptr3, jit->ptr[A_ptr + 2 * A_stride]);
-        jit->lea(A_ptr3, jit->ptr[A_ptr3 + A_stride]);
+        A_ptr3 = A_ptr + 3 * A_stride;
     }
 
     jit->do_while_(K > 0, [&]() {
@@ -123,16 +111,16 @@ static std::shared_ptr<SIMDJit> jit_compile_gemmRegBlk(int rows, int cols, int p
             if (prefetch_B_adv > 0)
                 jit->prefetcht0(jit->ptr[B_ptr + prefetch_B_adv]);
 
-            jit->lea(B_ptr, jit->ptr[B_ptr + B_stride]);
+            B_ptr = B_ptr + B_stride;
             for (int r = 0; r < rows; r++) {
                 loadA(r);
                 for (int c = 0; c < cols; c++)
                     jit->simd_fmadd_ps(vmmC(r, c), vmmA(r), vmmB(c));
             }
 
-            jit->lea(A_ptr, jit->ptr[A_ptr + 4]);
+            A_ptr = A_ptr + 4;
             if (rows > 3)
-                jit->lea(A_ptr3, jit->ptr[A_ptr3 + 4]);
+                A_ptr3 = A_ptr3 + 4;
         } else {
             // preload A regs
             for (int r = 0; r < rows; r++)
@@ -144,12 +132,12 @@ static std::shared_ptr<SIMDJit> jit_compile_gemmRegBlk(int rows, int cols, int p
                     jit->simd_fmadd_ps(vmmC(r, c), vmmA(r), vmmB(c));
             }
 
-            jit->lea(B_ptr, jit->ptr[B_ptr + B_stride]);
-            jit->lea(A_ptr, jit->ptr[A_ptr + 4]);
+            B_ptr = B_ptr + B_stride;
+            A_ptr = A_ptr + 4;
             if (rows > 3)
-                jit->lea(A_ptr3, jit->ptr[A_ptr3 + 4]);
+                A_ptr3 = A_ptr3 + 4;
         }
-        jit->dec(K);
+        K--;
     });
 
     // save C
@@ -192,17 +180,17 @@ static void gemm6x2_Mx2(const float* pA,
 static std::shared_ptr<SIMDJit> jit_compile_accumulate_weight_i4(bool with_zero_point) {
     auto jit = std::make_shared<SIMDJit>(__func__);
     auto simd_width = SIMDJit::vmm_width<float>();
-    auto dst = jit->get_sreg(0, true);          // float*
-    auto p_w0 = jit->get_sreg(1, true);         // int4*
-    auto p_w1 = jit->get_sreg(2, true);         // int4*
-    auto p_w2 = jit->get_sreg(3, true);         // int4*
-    auto p_w3 = jit->get_sreg(4, true);         // int4*
-    auto dense_x = jit->get_sreg(5, true);      // float*
-    auto OC = jit->get_sreg(6, true);           // float*
-    auto scales = jit->get_sreg(7, true);       // float*
-    auto zero_points = jit->get_sreg(8, true);  // float*
+    auto dst = jit->get_sreg(0);          // float*
+    auto p_w0 = jit->get_sreg(1);         // int4*
+    auto p_w1 = jit->get_sreg(2);         // int4*
+    auto p_w2 = jit->get_sreg(3);         // int4*
+    auto p_w3 = jit->get_sreg(4);         // int4*
+    auto dense_x = jit->get_sreg(5);      // float*
+    auto OC = jit->get_sreg(6);           // float*
+    auto scales = jit->get_sreg(7);       // float*
+    auto zero_points = jit->get_sreg(8);  // float*
 
-    auto oc = jit->get_sreg(9);
+    auto oc = jit->get_sreg();
 
     auto vx = [&](int i) {
         ASSERT(i < 4);
@@ -227,7 +215,7 @@ static std::shared_ptr<SIMDJit> jit_compile_accumulate_weight_i4(bool with_zero_
     auto vscale0 = jit->Vmm(14);
     auto vscale1 = jit->Vmm(15);
 
-    Xbyak::Reg64 pweights[4] = {p_w0, p_w1, p_w2, p_w3};
+    decltype(p_w0) pweights[4] = {p_w0, p_w1, p_w2, p_w3};
 
     jit->simd_set1_epi32(vmask_u4, 0xF);
     jit->simd_broadcast_ss(vx(0), jit->ptr[dense_x + 0 * sizeof(float)]);
@@ -251,8 +239,8 @@ static std::shared_ptr<SIMDJit> jit_compile_accumulate_weight_i4(bool with_zero_
         jit->simd_setzero_ps(vsum1);
 
         for (int ic = 0; ic < 4; ic++) {
-            jit->simd_load_epu8_epi32(wi32, jit->ptr[pweights[ic]]);
-            jit->lea(pweights[ic], jit->ptr[pweights[ic] + simd_width]);
+            jit->simd_load_epu8_epi32(wi32, jit->ptr[pweights[ic] + 0]);
+            pweights[ic] = pweights[ic] + simd_width;
 
             if (with_zero_point) {
                 // u4->i32
@@ -289,41 +277,37 @@ static std::shared_ptr<SIMDJit> jit_compile_accumulate_weight(WeightCompressionT
     auto jit = std::make_shared<SIMDJit>(__func__);
     auto simd_width = SIMDJit::vmm_width<float>();
     // load all arguments into register
-    auto dst = jit->get_sreg(0, true);  // float*
-    auto OC = jit->get_sreg(1, true);
-    auto gate_ids = jit->get_sreg(2, true);  // int32_t *
-    auto gate_cnt = jit->get_sreg(3, true);  // int
-    auto pw0 = jit->get_sreg(4, true);       // ov::float16* / uint8_t*
-    auto dense_x = jit->get_sreg(5, true);   //
-    auto scales =
-        jit->get_sreg(6, wtype == WeightCompressionType::INT8 || wtype == WeightCompressionType::INT4);  // float*
-    auto zero_points = jit->get_sreg(7, with_zp);                                                        // float*
+    auto dst = jit->get_sreg(0);  // float*
+    auto OC = jit->get_sreg(1);
+    auto gate_ids = jit->get_sreg(2);  // int32_t *
+    auto gate_cnt = jit->get_sreg(3);  // int
+    auto pw0 = jit->get_sreg(4);       // ov::float16* / uint8_t*
+    auto dense_x = jit->get_sreg(5);   //
+    auto scales = jit->get_sreg(6);  // float*
+    auto zero_points = jit->get_sreg(7); // float*
 
-    auto g = jit->get_sreg(8);
-    auto i = jit->get_sreg(9);
-    auto p_w0 = jit->get_sreg(10);
-    auto p_w1 = jit->get_sreg(11);
-    auto p_w2 = jit->get_sreg(12);
-    auto p_w3 = jit->get_sreg(13);
+    auto g = jit->get_sreg();
+    auto i = jit->get_sreg();
+    auto p_w0 = jit->get_sreg();
+    auto p_w1 = jit->get_sreg();
+    auto p_w2 = jit->get_sreg();
+    auto p_w3 = jit->get_sreg();
 
-    jit->mov(p_w0, 0);
-    jit->mov(p_w1, 0);
-    jit->mov(p_w2, 0);
-    jit->mov(p_w3, 0);
+    p_w0 = 0;
+    p_w1 = 0;
+    p_w2 = 0;
+    p_w3 = 0;
     jit->for_loop(g, 0, gate_cnt, 4, [&]() {
         auto weight_element_size = (wtype == WeightCompressionType::FP16) ? 2 : 1;
-        jit->mov(p_w0.cvt32(), jit->dword[gate_ids + g * 4 + 0 * 4]);
-        jit->mov(p_w1.cvt32(), jit->dword[gate_ids + g * 4 + 1 * 4]);
-        jit->mov(p_w2.cvt32(), jit->dword[gate_ids + g * 4 + 2 * 4]);
-        jit->mov(p_w3.cvt32(), jit->dword[gate_ids + g * 4 + 3 * 4]);
-        jit->imul(p_w0, OC);
-        jit->imul(p_w1, OC);
-        jit->imul(p_w2, OC);
-        jit->imul(p_w3, OC);
-        jit->lea(p_w0, jit->ptr[pw0 + p_w0 * weight_element_size]);
-        jit->lea(p_w1, jit->ptr[pw0 + p_w1 * weight_element_size]);
-        jit->lea(p_w2, jit->ptr[pw0 + p_w2 * weight_element_size]);
-        jit->lea(p_w3, jit->ptr[pw0 + p_w3 * weight_element_size]);
+        jit->mov(p_w0.r32(), jit->dword[gate_ids + g * 4 + 0 * 4]);
+        jit->mov(p_w1.r32(), jit->dword[gate_ids + g * 4 + 1 * 4]);
+        jit->mov(p_w2.r32(), jit->dword[gate_ids + g * 4 + 2 * 4]);
+        jit->mov(p_w3.r32(), jit->dword[gate_ids + g * 4 + 3 * 4]);
+
+        p_w0 = pw0 + p_w0 * OC * weight_element_size;
+        p_w1 = pw0 + p_w1 * OC * weight_element_size;
+        p_w2 = pw0 + p_w2 * OC * weight_element_size;
+        p_w3 = pw0 + p_w3 * OC * weight_element_size;
 
         auto vx0 = jit->Vmm(0);
         auto vx1 = jit->Vmm(1);
@@ -398,25 +382,25 @@ static std::shared_ptr<SIMDJit> jit_compile_reduce_outputs() {
     auto jit = std::make_shared<SIMDJit>(__func__);
     auto simd_width = SIMDJit::vmm_width<float>();
     // load all arguments into register
-    auto dst0 = jit->get_sreg(0, true);        // float*
-    auto src0 = jit->get_sreg(1, true);        // float*
-    auto num_copies = jit->get_sreg(2, true);  // int
-    auto OC = jit->get_sreg(3, true);          // int
-    auto stride = jit->get_sreg(4, true);      // int
+    auto dst0 = jit->get_sreg(0);        // float*
+    auto src0 = jit->get_sreg(1);        // float*
+    auto num_copies = jit->get_sreg(2);  // int
+    auto OC = jit->get_sreg(3);          // int
+    auto stride = jit->get_sreg(4);      // int
 
-    auto i = jit->get_sreg(5);
-    auto k = jit->get_sreg(6);
-    auto ptemp = jit->get_sreg(7);
+    auto i = jit->get_sreg();
+    auto k = jit->get_sreg();
+    auto ptemp = jit->get_sreg();
 
     jit->for_loop(i, 0, OC, simd_width, [&] {
-        jit->lea(ptemp, jit->ptr[src0 + i * sizeof(float)]);
+        ptemp = src0 + i * sizeof(float);
         auto vsum = jit->Vmm(0);
         auto vw = jit->Vmm(1);
         jit->simd_setzero_ps(vsum);
         jit->for_loop(k, 0, num_copies, 1, [&] {
-            jit->simd_loadu_ps(vw, jit->ptr[ptemp]);
+            jit->simd_loadu_ps(vw, jit->ptr[ptemp + 0]);
             jit->simd_add_ps(vsum, vsum, vw);
-            jit->lea(ptemp, jit->ptr[ptemp + stride * sizeof(float)]);
+            ptemp = ptemp + stride * sizeof(float);
         });
         jit->simd_storeu_ps(jit->ptr[dst0 + i * sizeof(float)], vsum);
     });
@@ -449,19 +433,19 @@ static std::shared_ptr<SIMDJit> jit_compile_repack_3xsimdw_1xsimdw(bool with_zp)
     auto jit = std::make_shared<SIMDJit>(__func__);
     auto simd_width = SIMDJit::vmm_width<float>();
     // load all arguments into register
-    auto src = jit->get_sreg(0, true);             // uint8_t*
-    auto strideW = jit->get_sreg(1, true);         // int
-    auto scales = jit->get_sreg(2, true);          // float*
-    auto zero_points = jit->get_sreg(3, true);     // float*
-    auto K = jit->get_sreg(4, true);               // int
-    auto N = jit->get_sreg(5, true);               // int
-    auto repacked_B_nx3 = jit->get_sreg(6, true);  // float*
-    auto repacked_B_nx1 = jit->get_sreg(7, true);  // float*
+    auto src = jit->get_sreg(0);             // uint8_t*
+    auto strideW = jit->get_sreg(1);         // int
+    auto scales = jit->get_sreg(2);          // float*
+    auto zero_points = jit->get_sreg(3);     // float*
+    auto K = jit->get_sreg(4);               // int
+    auto N = jit->get_sreg(5);               // int
+    auto repacked_B_nx3 = jit->get_sreg(6);  // float*
+    auto repacked_B_nx1 = jit->get_sreg(7);  // float*
 
-    auto k = jit->get_sreg(8);
-    auto n0 = jit->get_sreg(9);
-    auto dst = jit->get_sreg(10);
-    auto dst_stride = jit->get_sreg(11);
+    auto k = jit->get_sreg();
+    auto n0 = jit->get_sreg();
+    auto dst = jit->get_sreg();
+    auto dst_stride = jit->get_sreg();
 
     auto wf0 = jit->Vmm(0);
     auto wf1 = jit->Vmm(1);
@@ -476,8 +460,8 @@ static std::shared_ptr<SIMDJit> jit_compile_repack_3xsimdw_1xsimdw(bool with_zp)
     auto zp2 = jit->Vmm(8);
 
     jit->for_loop(k, 0, K, 1, [&]() {
-        jit->lea(dst, jit->ptr[repacked_B_nx3]);
-        jit->imul(dst_stride, K, simd_width * 3 * sizeof(float));
+        dst = repacked_B_nx3;
+        dst_stride = K * simd_width * 3 * sizeof(float);
 
         jit->for_loop(n0, 0, N, simd_width * 3, [&]() {
             jit->simd_loadu_ps(scale0, jit->ptr[scales + n0 * sizeof(float) + 0 * simd_width * sizeof(float)]);
@@ -512,11 +496,11 @@ static std::shared_ptr<SIMDJit> jit_compile_repack_3xsimdw_1xsimdw(bool with_zp)
             jit->simd_storeu_ps(jit->ptr[dst + 0 * simd_width * sizeof(float)], wf0);
             jit->simd_storeu_ps(jit->ptr[dst + 1 * simd_width * sizeof(float)], wf1);
             jit->simd_storeu_ps(jit->ptr[dst + 2 * simd_width * sizeof(float)], wf2);
-            jit->lea(dst, jit->ptr[dst + dst_stride]);
+            dst += dst_stride;
         });
 
-        jit->lea(dst, jit->ptr[repacked_B_nx1]);
-        jit->imul(dst_stride, K, simd_width * 1 * sizeof(float));
+        dst = repacked_B_nx1;
+        dst_stride = K *(simd_width * 1 * sizeof(float));
 
         jit->for_loop(n0, n0, N, simd_width, [&]() {
             jit->simd_loadu_ps(scale0, jit->ptr[scales + n0 * sizeof(float)]);
@@ -530,13 +514,13 @@ static std::shared_ptr<SIMDJit> jit_compile_repack_3xsimdw_1xsimdw(bool with_zp)
                 jit->simd_cvtepi32_ps(wf0, wf0);
             }
             jit->simd_mul_ps(wf0, wf0, scale0);
-            jit->simd_storeu_ps(jit->ptr[dst], wf0);
-            jit->lea(dst, jit->ptr[dst + dst_stride]);
+            jit->simd_storeu_ps(jit->ptr[dst + 0], wf0);
+            dst = dst + dst_stride;
         });
         // move to next row
-        jit->lea(repacked_B_nx3, jit->ptr[repacked_B_nx3 + simd_width * 3 * sizeof(float)]);
-        jit->lea(repacked_B_nx1, jit->ptr[repacked_B_nx1 + simd_width * 1 * sizeof(float)]);
-        jit->lea(src, jit->ptr[src + strideW]);
+        repacked_B_nx3 = repacked_B_nx3 + simd_width * 3 * sizeof(float);
+        repacked_B_nx1 = repacked_B_nx1 + simd_width * 1 * sizeof(float);
+        src = src + strideW;
     });
     jit->finalize();
     return jit;
@@ -546,15 +530,14 @@ static std::shared_ptr<SIMDJit> jit_compile_repack_2xsimdw(WeightCompressionType
     auto jit = std::make_shared<SIMDJit>(__func__);
     auto simd_width = SIMDJit::vmm_width<float>();
     // load all arguments into register
-    auto src = jit->get_sreg(0, true);         // pointer to ov::float16/u8/i8/i4
-    auto src_stride = jit->get_sreg(1, true);  // in unit of f16 or bytes (int8/int4)
-    auto dst = jit->get_sreg(2, true);         // float*
-    auto bK = jit->get_sreg(3, true);
-    auto scales =
-        jit->get_sreg(4, wtype == WeightCompressionType::INT8 || wtype == WeightCompressionType::INT4);  // scales
-    auto zero_point = jit->get_sreg(5, with_zero_point);                                                 // zero-point
+    auto src = jit->get_sreg(0);         // pointer to ov::float16/u8/i8/i4
+    auto src_stride = jit->get_sreg(1);  // in unit of f16 or bytes (int8/int4)
+    auto dst = jit->get_sreg(2);         // float*
+    auto bK = jit->get_sreg(3);
+    auto scales = jit->get_sreg(4);     // scales
+    auto zero_point = jit->get_sreg(5); // zero-point
 
-    auto k = jit->get_sreg(6);
+    auto k = jit->get_sreg();
 
     auto wf0 = jit->Vmm(0);
     auto wf1 = jit->Vmm(1);
@@ -624,11 +607,11 @@ static std::shared_ptr<SIMDJit> jit_compile_repack_2xsimdw(WeightCompressionType
         jit->prefetcht0(jit->ptr[src + 64]);
         jit->simd_storeu_ps(jit->ptr[dst + simd_width * 0 * sizeof(float)], wf0);
         jit->simd_storeu_ps(jit->ptr[dst + simd_width * 1 * sizeof(float)], wf1);
-        jit->lea(dst, jit->ptr[dst + simd_width * 2 * sizeof(float)]);
+        dst = dst + simd_width * 2 * sizeof(float);
         if (wtype == WeightCompressionType::FP16) {
-            jit->lea(src, jit->ptr[src + src_stride * sizeof(ov::float16)]);
+            src = src + src_stride * sizeof(ov::float16);
         } else if (wtype == WeightCompressionType::INT8 || wtype == WeightCompressionType::INT4) {
-            jit->lea(src, jit->ptr[src + src_stride * sizeof(uint8_t)]);
+            src = src + src_stride * sizeof(uint8_t);
         }
     });
 
@@ -684,10 +667,11 @@ static std::shared_ptr<SIMDJit> get_decompress_zp_u8() {
     auto jit = std::make_shared<SIMDJit>(__func__);
     auto simd_width = SIMDJit::vmm_width<float>();
 
-    auto zp_input_u8 = jit->get_sreg(0, true);
-    auto zp_output_f32 = jit->get_sreg(1, true);
-    auto cnt = jit->get_sreg(2, true);
-    auto n = jit->get_sreg(3);
+    auto zp_input_u8 = jit->get_sreg(0);
+    auto zp_output_f32 = jit->get_sreg(1);
+    auto cnt = jit->get_sreg(2);
+
+    auto n = jit->get_sreg();
 
     auto vzpi32 = jit->Vmm(0);
     jit->for_loop(n, 0, cnt, simd_width, [&]() {
@@ -704,10 +688,11 @@ static std::shared_ptr<SIMDJit> get_decompress_zp_u4() {
     auto jit = std::make_shared<SIMDJit>(__func__);
     auto simd_width = SIMDJit::vmm_width<float>();
 
-    auto zp_input_u4 = jit->get_sreg(0, true);
-    auto zp_output_f32 = jit->get_sreg(1, true);
-    auto cnt = jit->get_sreg(2, true);
-    auto n = jit->get_sreg(3);
+    auto zp_input_u4 = jit->get_sreg(0);
+    auto zp_output_f32 = jit->get_sreg(1);
+    auto cnt = jit->get_sreg(2);
+
+    auto n = jit->get_sreg();
 
     auto vzpi4x2 = jit->Vmm(0);
     auto vzpi32_lo = jit->Vmm(1);
@@ -717,8 +702,8 @@ static std::shared_ptr<SIMDJit> get_decompress_zp_u4() {
     jit->simd_set1_epi32(vmask_u4, 0xF);
 
     jit->for_loop(n, 0, cnt, simd_width * 2, [&]() {
-        jit->simd_load_epu8_epi32(vzpi4x2, jit->ptr[zp_input_u4]);
-        jit->lea(zp_input_u4, jit->ptr[zp_input_u4 + simd_width]);
+        jit->simd_load_epu8_epi32(vzpi4x2, jit->ptr[zp_input_u4 + 0]);
+        zp_input_u4 = zp_input_u4 + simd_width;
         jit->simd_and(vzpi32_lo, vzpi4x2, vmask_u4);
         jit->simd_srli_epi32(vzpi32_hi, vzpi4x2, 4);
         jit->simd_cvtepi32_ps(vzpi32_lo, vzpi32_lo);
