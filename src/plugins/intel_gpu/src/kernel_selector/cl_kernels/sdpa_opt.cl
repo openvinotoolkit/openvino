@@ -1299,9 +1299,6 @@ KERNEL(sdpa_opt)(
                                                             partition_idx;
                         exp_sums[exp_sums_output_offset] = exp_sum_new;
                         max_logits[exp_sums_output_offset] = qk_max_new;
-                        const uint output_offset = subsequence_idx * NUM_HEADS * aligned_max_context_len +
-                                                num_heads_dim * aligned_max_context_len +
-                                                partition_idx * SEQ_LEN_PARTITION_SIZE + sgid * TARGET_SEQ_LEN_BLOCK_SIZE;
                     }
 
                     const uint output_offset = subsequence_idx * NUM_HEADS * aligned_max_context_len +
