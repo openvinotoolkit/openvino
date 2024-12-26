@@ -38,7 +38,7 @@ public:
         result << "dataPrecision=" << element::Type(data_prec) << "_";
         result << "destinationPrecision=" << element::Type(dst_prec) << "_";
         if (default_shift)
-            result << "destinationPrecision=true";
+            result << "defaultShift=true";
         else
             result << "defaultShift=false";
         return result.str();
