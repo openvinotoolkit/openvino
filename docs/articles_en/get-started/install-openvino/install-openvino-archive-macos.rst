@@ -47,7 +47,7 @@ Step 1: Install OpenVINO Core Components
       cd <user_home>/Downloads
 
 
-4. Download the `OpenVINO Runtime archive file for macOS <https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.5/macos/>`__, extract the files, rename the extracted folder and move it to the desired path:
+4. Download the `OpenVINO Runtime archive file for macOS <https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.6/macos/>`__, extract the files, rename the extracted folder and move it to the desired path:
 
    .. tab-set::
 
@@ -57,9 +57,9 @@ Step 1: Install OpenVINO Core Components
          .. code-block:: sh
 
 
-            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.5/macos/m_openvino_toolkit_macos_12_6_2024.5.0.17288.7975fa5da0c_x86_64.tgz --output openvino_2024.5.0.tgz
-            tar -xf openvino_2024.5.0.tgz
-            sudo mv m_openvino_toolkit_macos_12_6_2024.5.0.17288.7975fa5da0c_x86_64 /opt/intel/openvino_2024.5.0
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.6/macos/m_openvino_toolkit_macos_12_6_2024.6.0.17404.4c0f47d2335_x86_64.tgz --output openvino_2024.6.0.tgz
+            tar -xf openvino_2024.6.0.tgz
+            sudo mv m_openvino_toolkit_macos_12_6_2024.6.0.17404.4c0f47d2335_x86_64 /opt/intel/openvino_2024.6.0
 
       .. tab-item:: ARM, 64-bit
          :sync: arm-64
@@ -67,9 +67,9 @@ Step 1: Install OpenVINO Core Components
          .. code-block:: sh
 
 
-            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.5/macos/m_openvino_toolkit_macos_12_6_2024.5.0.17288.7975fa5da0c_arm64.tgz --output openvino_2024.5.0.tgz
-            tar -xf openvino_2024.5.0.tgz
-            sudo mv m_openvino_toolkit_macos_12_6_2024.5.0.17288.7975fa5da0c_arm64 /opt/intel/openvino_2024.5.0
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.6/macos/m_openvino_toolkit_macos_12_6_2024.6.0.17404.4c0f47d2335_arm64.tgz --output openvino_2024.6.0.tgz
+            tar -xf openvino_2024.6.0.tgz
+            sudo mv m_openvino_toolkit_macos_12_6_2024.6.0.17404.4c0f47d2335_arm64 /opt/intel/openvino_2024.6.0
 
 
 5. (Optional) Install *numpy* Python Library:
@@ -78,11 +78,11 @@ Step 1: Install OpenVINO Core Components
 
       This step is required only when you decide to use Python API.
 
-   You can use the ``requirements.txt`` file from the ``/opt/intel/openvino_2024.5.0/python`` folder:
+   You can use the ``requirements.txt`` file from the ``/opt/intel/openvino_2024.6.0/python`` folder:
 
    .. code-block:: sh
 
-      cd /opt/intel/openvino_2024.5.0
+      cd /opt/intel/openvino_2024.6.0
       python3 -m pip install -r ./python/requirements.txt
 
 6. For simplicity, it is useful to create a symbolic link as below:
@@ -90,7 +90,7 @@ Step 1: Install OpenVINO Core Components
    .. code-block:: sh
 
 
-      sudo ln -s /opt/intel/openvino_2024.5.0 /opt/intel/openvino_2024
+      sudo ln -s /opt/intel/openvino_2024.6.0 /opt/intel/openvino_2024
 
 
    .. note::
@@ -190,4 +190,4 @@ Additional Resources
 * :doc:`Convert models for use with OpenVINO™ <../../../openvino-workflow/model-preparation/convert-model-to-ir>`
 * :doc:`Write your own OpenVINO™ applications <../../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
 * Sample applications: :doc:`OpenVINO™ Toolkit Samples Overview <../../../learn-openvino/openvino-samples>`
-* Pre-trained deep learning models: :doc:`Overview of OpenVINO™ Toolkit Pre-Trained Models <../../../documentation/legacy-features/model-zoo>`
+* Pre-trained deep learning models on `Hugging Face <https://huggingface.co/OpenVINO>`__

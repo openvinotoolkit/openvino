@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API ConvertDeformableConv8To1;
  */
 class ov::pass::ConvertDeformableConv8To1 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertDeformableConv8To1", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertDeformableConv8To1");
     ConvertDeformableConv8To1();
 };
