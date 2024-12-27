@@ -170,30 +170,189 @@ static void quant_u8(const T* src, uint8_t* dst, size_t n, float& scale, float& 
     }
 }
 
+template <typename T>
+static void quant_u8_by_channel_kernel(const T* src,
+                                       uint8_t* dst,
+                                       size_t seq_dim,
+                                       size_t hidden_dims,
+                                       size_t src_stride,
+                                       size_t dst_stride,
+                                       float* scale,
+                                       float* zp) {
+    size_t j = 0;
+#if defined(HAVE_AVX512F)
+    for (; j + vec_len_f32_avx512 <= hidden_dims; j += vec_len_f32_avx512) {
+        auto v_max = _mm512_set1_ps(-std::numeric_limits<float>::max());
+        auto v_min = _mm512_set1_ps(std::numeric_limits<float>::max());
+        for (size_t i = 0; i < seq_dim; i += 1) {
+            auto v_cur = mm512_uni_loadu_ps(src + i * src_stride + j);
+            v_max = _mm512_max_ps(v_max, v_cur);
+            v_min = _mm512_min_ps(v_min, v_cur);
+        }
+        auto v_scale = _mm512_sub_ps(v_max, v_min);
+        v_scale = _mm512_mul_ps(v_scale, _mm512_set1_ps(1.0f / 255));
+        auto v_mask = _mm512_cmp_ps_mask(v_scale, _mm512_setzero_ps(), _CMP_EQ_OQ);
+        v_scale = _mm512_mask_add_ps(v_scale, v_mask, v_scale, _mm512_set1_ps(0.0001f));
+        auto v_zp = _mm512_mul_ps(v_min, _mm512_set1_ps(-1.0f));
+        v_zp = _mm512_div_ps(v_zp, v_scale);
+
+        _mm512_storeu_ps(scale + j, v_scale);
+        _mm512_storeu_ps(zp + j, v_zp);
+    }
+#endif
+#if defined(HAVE_AVX2)
+    for (; j + vec_len_f32_avx2 <= hidden_dims; j += vec_len_f32_avx2) {
+        auto v_max = _mm256_set1_ps(-std::numeric_limits<float>::max());
+        auto v_min = _mm256_set1_ps(std::numeric_limits<float>::max());
+        for (size_t i = 0; i < seq_dim; i++) {
+            auto v_cur = mm256_uni_loadu_ps(src + i * src_stride + j);
+            v_max = _mm256_max_ps(v_max, v_cur);
+            v_min = _mm256_min_ps(v_min, v_cur);
+        }
+        auto v_scale = _mm256_sub_ps(v_max, v_min);
+        v_scale = _mm256_mul_ps(v_scale, _mm256_set1_ps(1 / 255.0f));
+        auto v_cond = _mm256_cmp_ps(v_scale, _mm256_setzero_ps(), _CMP_EQ_OQ);
+        auto v_comp = _mm256_and_ps(v_cond, _mm256_set1_ps(0.0001f));
+        v_scale = _mm256_add_ps(v_scale, v_comp);
+        auto v_zp = _mm256_mul_ps(v_min, _mm256_set1_ps(-1.0f));
+        v_zp = _mm256_div_ps(v_zp, v_scale);
+        _mm256_storeu_ps(scale + j, v_scale);
+        _mm256_storeu_ps(zp + j, v_zp);
+    }
+#endif
+    for (; j < hidden_dims; j++) {
+        float max = -std::numeric_limits<float>::max();
+        float min = std::numeric_limits<float>::max();
+        for (size_t i = 0; i < seq_dim; i++) {
+            float tmp = src[i * src_stride + j];
+            max = std::max(max, tmp);
+            min = std::min(min, tmp);
+        }
+        float orgin_range = (max - min);
+        float temp_scale = 0.0f;
+        float temp_zp = 0.0f;
+        if (orgin_range != 0.0f) {
+            temp_scale = orgin_range / 255;
+            temp_zp = -255 * min / orgin_range;
+        } else {
+            temp_scale = 0.0001f;
+            temp_zp = -min / temp_scale;
+        }
+        scale[j] = temp_scale;
+        zp[j] = temp_zp;
+    }
+    // quantize
+    for (size_t i = 0; i < seq_dim; ++i) {
+        for (size_t j = 0; j < hidden_dims; j++) {
+            float tmp = src[i * src_stride + j];
+            dst[i * dst_stride + j] = static_cast<uint8_t>(std::round(tmp / scale[j] + zp[j]));
+        }
+    }
+}
+
 template <typename T, typename T2>
 static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                           const ov::intel_cpu::PlainTensor& v_src,
                           const ov::intel_cpu::PlainTensor& k_dst,
                           const ov::intel_cpu::PlainTensor& v_dst,
+                          const size_t L0,
+                          float* temp_buffer,
                           const ov::intel_cpu::PlainTensor& k_scale_zp,
                           const ov::intel_cpu::PlainTensor& v_scale_zp,
+                          const bool quant_key_by_channel,
                           const size_t key_group_size,
                           const size_t value_group_size) {
     // For compatibility, all input_kvs are permuted to BHLS
     size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2], S = k_src.m_dims[3], SV = v_src.m_dims[3];
-    parallel_for3d(L1, B, H, [&](size_t m, size_t b, size_t h) {
-        auto p_k = k_scale_zp.ptr<float>(m, b, h);
-        auto p_v = v_scale_zp.ptr<float>(m, b, h);
-        for (size_t group_id = 0; group_id < S / key_group_size; group_id++) {
-            quant_u8(k_src.ptr<T>(b, h, m, group_id * key_group_size),
-                     k_dst.ptr<T2>(b, h, m, group_id * key_group_size),
-                     key_group_size,
-                     p_k[group_id * 2],
-                     p_k[group_id * 2 + 1]);
+    std::cout << "attn_quant_mt|L0|" << L0 << "|L1|" << L1 << "|quant_key_by_channel|" << quant_key_by_channel
+              << std::endl;
+    printf("attn_quant_mt|src|dims %ld %ld %ld %ld\n",
+           k_src.m_dims[0],
+           k_src.m_dims[1],
+           k_src.m_dims[2],
+           k_src.m_dims[3]);
+    printf("attn_quant_mt|src|stride %ld %ld %ld %ld\n",
+           k_src.m_strides[0],
+           k_src.m_strides[1],
+           k_src.m_strides[2],
+           k_src.m_strides[3]);
+    printf("attn_quant_mt|dst|dims %ld %ld %ld %ld\n",
+           k_dst.m_dims[0],
+           k_dst.m_dims[1],
+           k_dst.m_dims[2],
+           k_dst.m_dims[3]);
+    printf("attn_quant_mt|dst|stride %ld %ld %ld %ld\n",
+           k_dst.m_strides[0],
+           k_dst.m_strides[1],
+           k_dst.m_strides[2],
+           k_dst.m_strides[3]);
+
+    printf("attn_quant_mt|scale_zp|dims %ld %ld %ld %ld\n",
+           k_scale_zp.m_dims[0],
+           k_scale_zp.m_dims[1],
+           k_scale_zp.m_dims[2],
+           k_scale_zp.m_dims[3]);
+    // TODO: support beam search with beam_table.
+    if (quant_key_by_channel) {
+        if (L0 == 0) {
+            parallel_for3d(ov::intel_cpu::div_up(L1, key_group_size), B, H, [&](size_t group_id, size_t b, size_t h) {
+                quant_u8_by_channel_kernel(k_src.ptr<T>(b, h, group_id * key_group_size),
+                                           k_dst.ptr<T2>(b, h, group_id * key_group_size),
+                                           std::min(key_group_size, L1 - group_id * key_group_size),
+                                           S,
+                                           k_src.m_strides[2],
+                                           k_dst.m_strides[2],
+                                           k_scale_zp.ptr<float>(group_id * 2, b, h),
+                                           k_scale_zp.ptr<float>(group_id * 2 + 1, b, h));
+            });
+        } else {
+            size_t group_id = L0 / key_group_size;
+            size_t prev_nums = L0 % key_group_size;
+            printf("2nd_quant|L0 %ld group_size %ld group_id %ld prev_nums %ld\n",
+                   L0,
+                   key_group_size,
+                   group_id,
+                   prev_nums);
+            printf("\n");
+            parallel_for2d(B, H, [&](size_t b, size_t h) {
+                auto thread_id = parallel_get_thread_num();
+                float* thread_temp_buffer = temp_buffer + thread_id * key_group_size * S;
+                attn_dequant_u8_by_channel_kernel(k_dst.ptr<uint8_t>(b, h, group_id * key_group_size),
+                                                  thread_temp_buffer,
+                                                  prev_nums,
+                                                  S,
+                                                  k_dst.m_strides[2],
+                                                  S,
+                                                  k_scale_zp.ptr<float>(group_id * 2, b, h),
+                                                  k_scale_zp.ptr<float>(group_id * 2 + 1, b, h));
+                std::memcpy(thread_temp_buffer + prev_nums * S, k_src.ptr<T>(b, h), sizeof(T) * S);
+                quant_u8_by_channel_kernel(thread_temp_buffer,
+                                           k_dst.ptr<T2>(b, h, group_id * key_group_size),
+                                           std::min(key_group_size, L1 + prev_nums),
+                                           S,
+                                           S,
+                                           k_dst.m_strides[2],
+                                           k_scale_zp.ptr<float>(group_id * 2, b, h),
+                                           k_scale_zp.ptr<float>(group_id * 2 + 1, b, h));
+            });
         }
+    } else {
+        parallel_for3d(L1, B, H, [&](size_t m, size_t b, size_t h) {
+            auto p_k = k_scale_zp.ptr<float>(L0 + m, b, h);
+            for (size_t group_id = 0; group_id < S / key_group_size; group_id++) {
+                quant_u8(k_src.ptr<T>(b, h, m, group_id * key_group_size),
+                         k_dst.ptr<T2>(b, h, L0 + m, group_id * key_group_size),
+                         key_group_size,
+                         p_k[group_id * 2],
+                         p_k[group_id * 2 + 1]);
+            }
+        });
+    }
+    parallel_for3d(L1, B, H, [&](size_t m, size_t b, size_t h) {
+        auto p_v = v_scale_zp.ptr<float>(L0 + m, b, h);
         for (size_t group_id = 0; group_id < SV / value_group_size; group_id++) {
             quant_u8(v_src.ptr<T>(b, h, m, group_id * value_group_size),
-                     v_dst.ptr<T2>(b, h, m, group_id * value_group_size),
+                     v_dst.ptr<T2>(b, h, L0 + m, group_id * value_group_size),
                      value_group_size,
                      p_v[group_id * 2],
                      p_v[group_id * 2 + 1]);
@@ -236,20 +395,51 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
 
 void attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
                   const ov::intel_cpu::PlainTensor& v_src,
+                  float* temp_buffer,
                   const ov::intel_cpu::PlainTensor& k_dst,
                   const ov::intel_cpu::PlainTensor& v_dst,
                   const ov::intel_cpu::PlainTensor& k_scale_zp,
                   const ov::intel_cpu::PlainTensor& v_scale_zp,
+                  const size_t L0,
+                  const bool quant_k_by_channel,
                   const size_t k_group_size,
                   const size_t v_group_size) {
     if (k_src.get_precision() == ov::element::f32 && k_dst.get_precision() == ov::element::u8) {
-        attn_quant_mt<float, uint8_t>(k_src, v_src, k_dst, v_dst, k_scale_zp, v_scale_zp, k_group_size, v_group_size);
+        attn_quant_mt<float, uint8_t>(k_src,
+                                      v_src,
+                                      k_dst,
+                                      v_dst,
+                                      L0,
+                                      temp_buffer,
+                                      k_scale_zp,
+                                      v_scale_zp,
+                                      quant_k_by_channel,
+                                      k_group_size,
+                                      v_group_size);
     } else if (k_src.get_precision() == ov::element::bf16 && k_dst.get_precision() == ov::element::u8) {
-        attn_quant_mt<ov::bfloat16,
-                      uint8_t>(k_src, v_src, k_dst, v_dst, k_scale_zp, v_scale_zp, k_group_size, v_group_size);
+        attn_quant_mt<ov::bfloat16, uint8_t>(k_src,
+                                             v_src,
+                                             k_dst,
+                                             v_dst,
+                                             L0,
+                                             temp_buffer,
+                                             k_scale_zp,
+                                             v_scale_zp,
+                                             quant_k_by_channel,
+                                             k_group_size,
+                                             v_group_size);
     } else if (k_src.get_precision() == ov::element::f16 && k_dst.get_precision() == ov::element::u8) {
-        attn_quant_mt<ov::float16,
-                      uint8_t>(k_src, v_src, k_dst, v_dst, k_scale_zp, v_scale_zp, k_group_size, v_group_size);
+        attn_quant_mt<ov::float16, uint8_t>(k_src,
+                                            v_src,
+                                            k_dst,
+                                            v_dst,
+                                            L0,
+                                            temp_buffer,
+                                            k_scale_zp,
+                                            v_scale_zp,
+                                            quant_k_by_channel,
+                                            k_group_size,
+                                            v_group_size);
     } else {
         OPENVINO_THROW("unsupport src type: ",
                        k_src.get_precision(),

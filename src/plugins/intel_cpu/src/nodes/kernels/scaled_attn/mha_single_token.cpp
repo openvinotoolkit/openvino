@@ -13,6 +13,7 @@
 #    include <immintrin.h>
 #endif
 
+#include "attn_quant_kernel.hpp"
 #include "common.hpp"
 #include "mha_single_token.hpp"
 #include "openvino/core/parallel.hpp"
@@ -626,6 +627,211 @@ static ov::float16 dot_product_fp16(ov::float16* a,
 #endif
 
 template <typename TA>
+static float
+dot_product_by_channel(TA* a, uint8_t* b, size_t n, float* scale, float* zp, size_t group_size) {
+    float sum = 0.0f;
+    size_t i = 0;
+#if defined(HAVE_AVX512F)
+    auto v512_sum0 = _mm512_set1_ps(0.0f);
+    auto v512_sum1 = _mm512_set1_ps(0.0f);
+    auto v512_sum2 = _mm512_set1_ps(0.0f);
+    auto v512_sum3 = _mm512_set1_ps(0.0f);
+    for (; i + 4 * vec_len_f32_avx512 <= n; i += vec_len_f32_avx512 * 4) {
+        auto v0_zp = _mm512_loadu_ps(zp + i);
+        auto v1_zp = _mm512_loadu_ps(zp + i + vec_len_f32_avx512);
+        auto v2_zp = _mm512_loadu_ps(zp + i + vec_len_f32_avx512 * 2);
+        auto v3_zp = _mm512_loadu_ps(zp + i + vec_len_f32_avx512 * 3);
+        auto v0_scale = _mm512_loadu_ps(scale + i);
+        auto v1_scale = _mm512_loadu_ps(scale + i + vec_len_f32_avx512);
+        auto v2_scale = _mm512_loadu_ps(scale + i + vec_len_f32_avx512 * 2);
+        auto v3_scale = _mm512_loadu_ps(scale + i + vec_len_f32_avx512 * 3);
+        auto va0 = mm512_uni_loadu_ps(a + i);
+        auto va1 = mm512_uni_loadu_ps(a + i + vec_len_f32_avx512);
+        auto va2 = mm512_uni_loadu_ps(a + i + vec_len_f32_avx512 * 2);
+        auto va3 = mm512_uni_loadu_ps(a + i + vec_len_f32_avx512 * 3);
+
+        auto vb0_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(b + i));
+        auto vb1_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(b + i + vec_len_f32_avx512));
+        auto vb2_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(b + i + vec_len_f32_avx512 * 2));
+        auto vb3_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(b + i + vec_len_f32_avx512 * 3));
+
+        auto vb0_256 = _mm512_cvtepu8_epi32(vb0_128);
+        auto vb1_256 = _mm512_cvtepu8_epi32(vb1_128);
+        auto vb2_256 = _mm512_cvtepu8_epi32(vb2_128);
+        auto vb3_256 = _mm512_cvtepu8_epi32(vb3_128);
+
+        auto vb0 = _mm512_cvtepi32_ps(vb0_256);
+        auto vb1 = _mm512_cvtepi32_ps(vb1_256);
+        auto vb2 = _mm512_cvtepi32_ps(vb2_256);
+        auto vb3 = _mm512_cvtepi32_ps(vb3_256);
+
+        vb0 = _mm512_sub_ps(vb0, v0_zp);
+        vb1 = _mm512_sub_ps(vb1, v1_zp);
+        vb2 = _mm512_sub_ps(vb2, v2_zp);
+        vb3 = _mm512_sub_ps(vb3, v3_zp);
+
+        vb0 = _mm512_mul_ps(vb0, v0_scale);
+        vb1 = _mm512_mul_ps(vb1, v1_scale);
+        vb2 = _mm512_mul_ps(vb2, v2_scale);
+        vb3 = _mm512_mul_ps(vb3, v3_scale);
+
+        v512_sum0 = _mm512_fmadd_ps(va0, vb0, v512_sum0);
+        v512_sum1 = _mm512_fmadd_ps(va1, vb1, v512_sum1);
+        v512_sum2 = _mm512_fmadd_ps(va2, vb2, v512_sum2);
+        v512_sum3 = _mm512_fmadd_ps(va3, vb3, v512_sum3);
+    }
+    if (i + 2 * vec_len_f32_avx512 <= n) {
+        auto v0_zp = _mm512_loadu_ps(zp + i);
+        auto v1_zp = _mm512_loadu_ps(zp + i + vec_len_f32_avx512);
+        auto v0_scale = _mm512_loadu_ps(scale + i);
+        auto v1_scale = _mm512_loadu_ps(scale + i + vec_len_f32_avx512);
+
+        auto va0 = mm512_uni_loadu_ps(a + i);
+        auto va1 = mm512_uni_loadu_ps(a + i + vec_len_f32_avx512);
+
+        auto vb0_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(b + i));
+        auto vb1_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(b + i + vec_len_f32_avx512));
+
+        auto vb0_256 = _mm512_cvtepu8_epi32(vb0_128);
+        auto vb1_256 = _mm512_cvtepu8_epi32(vb1_128);
+
+        auto vb0 = _mm512_cvtepi32_ps(vb0_256);
+        auto vb1 = _mm512_cvtepi32_ps(vb1_256);
+
+        vb0 = _mm512_sub_ps(vb0, v0_zp);
+        vb1 = _mm512_sub_ps(vb1, v1_zp);
+
+        vb0 = _mm512_mul_ps(vb0, v0_scale);
+        vb1 = _mm512_mul_ps(vb1, v1_scale);
+
+        v512_sum0 = _mm512_fmadd_ps(va0, vb0, v512_sum0);
+        v512_sum1 = _mm512_fmadd_ps(va1, vb1, v512_sum1);
+        i += 2 * vec_len_f32_avx512;
+    }
+    if (i + vec_len_f32_avx512 <= n) {
+        auto v0_zp = _mm512_loadu_ps(zp + i);
+        auto v0_scale = _mm512_loadu_ps(scale + i);
+
+        auto va0 = mm512_uni_loadu_ps(a + i);
+        auto vb0_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(b + i));
+        auto vb0_256 = _mm512_cvtepu8_epi32(vb0_128);
+        auto vb0 = _mm512_cvtepi32_ps(vb0_256);
+        vb0 = _mm512_sub_ps(vb0, v0_zp);
+        vb0 = _mm512_mul_ps(vb0, v0_scale);
+        v512_sum0 = _mm512_fmadd_ps(va0, vb0, v512_sum0);
+        i += vec_len_f32_avx512;
+    }
+    v512_sum0 = _mm512_add_ps(v512_sum0, v512_sum1);
+    v512_sum2 = _mm512_add_ps(v512_sum2, v512_sum3);
+    v512_sum0 = _mm512_add_ps(v512_sum0, v512_sum2);
+    sum += _mm512_reduce_add_ps(v512_sum0);
+#endif
+#if defined(HAVE_AVX2)
+    auto vsum0 = _mm256_set1_ps(0.0f);
+    auto vsum1 = _mm256_set1_ps(0.0f);
+    auto vsum2 = _mm256_set1_ps(0.0f);
+    auto vsum3 = _mm256_set1_ps(0.0f);
+    for (; i + 4 * vec_len_f32_avx2 <= n; i += vec_len_f32_avx2 * 4) {
+        auto v0_zp = _mm256_loadu_ps(zp + i);
+        auto v1_zp = _mm256_loadu_ps(zp + i + vec_len_f32_avx2);
+        auto v2_zp = _mm256_loadu_ps(zp + i + vec_len_f32_avx2 * 2);
+        auto v3_zp = _mm256_loadu_ps(zp + i + vec_len_f32_avx2 * 3);
+        auto v0_scale = _mm256_loadu_ps(scale + i);
+        auto v1_scale = _mm256_loadu_ps(scale + i + vec_len_f32_avx2);
+        auto v2_scale = _mm256_loadu_ps(scale + i + vec_len_f32_avx2 * 2);
+        auto v3_scale = _mm256_loadu_ps(scale + i + vec_len_f32_avx2 * 3);
+
+        auto va0 = mm256_uni_loadu_ps(a + i);
+        auto va1 = mm256_uni_loadu_ps(a + i + vec_len_f32_avx2);
+        auto va2 = mm256_uni_loadu_ps(a + i + vec_len_f32_avx2 * 2);
+        auto va3 = mm256_uni_loadu_ps(a + i + vec_len_f32_avx2 * 3);
+
+        auto vb0_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + i));
+        auto vb1_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + i + vec_len_f32_avx2));
+        auto vb2_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + i + vec_len_f32_avx2 * 2));
+        auto vb3_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + i + vec_len_f32_avx2 * 3));
+
+        auto vb0_256 = _mm256_cvtepu8_epi32(vb0_128);
+        auto vb1_256 = _mm256_cvtepu8_epi32(vb1_128);
+        auto vb2_256 = _mm256_cvtepu8_epi32(vb2_128);
+        auto vb3_256 = _mm256_cvtepu8_epi32(vb3_128);
+
+        auto vb0 = _mm256_cvtepi32_ps(vb0_256);
+        auto vb1 = _mm256_cvtepi32_ps(vb1_256);
+        auto vb2 = _mm256_cvtepi32_ps(vb2_256);
+        auto vb3 = _mm256_cvtepi32_ps(vb3_256);
+
+        vb0 = _mm256_sub_ps(vb0, v0_zp);
+        vb1 = _mm256_sub_ps(vb1, v1_zp);
+        vb2 = _mm256_sub_ps(vb2, v2_zp);
+        vb3 = _mm256_sub_ps(vb3, v3_zp);
+
+        vb0 = _mm256_mul_ps(vb0, v0_scale);
+        vb1 = _mm256_mul_ps(vb1, v1_scale);
+        vb2 = _mm256_mul_ps(vb2, v2_scale);
+        vb3 = _mm256_mul_ps(vb3, v3_scale);
+
+        vsum0 = _mm256_fmadd_ps(va0, vb0, vsum0);
+        vsum1 = _mm256_fmadd_ps(va1, vb1, vsum1);
+        vsum2 = _mm256_fmadd_ps(va2, vb2, vsum2);
+        vsum3 = _mm256_fmadd_ps(va3, vb3, vsum3);
+    }
+    if (i + 2 * vec_len_f32_avx2 <= n) {
+        auto v0_zp = _mm256_loadu_ps(zp + i);
+        auto v1_zp = _mm256_loadu_ps(zp + i + vec_len_f32_avx2);
+        auto v0_scale = _mm256_loadu_ps(scale + i);
+        auto v1_scale = _mm256_loadu_ps(scale + i + vec_len_f32_avx2);
+
+        auto va0 = mm256_uni_loadu_ps(a + i);
+        auto va1 = mm256_uni_loadu_ps(a + i + vec_len_f32_avx2);
+
+        auto vb0_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + i));
+        auto vb1_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + i + vec_len_f32_avx2));
+
+        auto vb0_256 = _mm256_cvtepu8_epi32(vb0_128);
+        auto vb1_256 = _mm256_cvtepu8_epi32(vb1_128);
+
+        auto vb0 = _mm256_cvtepi32_ps(vb0_256);
+        auto vb1 = _mm256_cvtepi32_ps(vb1_256);
+
+        vb0 = _mm256_sub_ps(vb0, v0_zp);
+        vb1 = _mm256_sub_ps(vb1, v1_zp);
+
+        vb0 = _mm256_mul_ps(vb0, v0_scale);
+        vb1 = _mm256_mul_ps(vb1, v1_scale);
+
+        vsum0 = _mm256_fmadd_ps(va0, vb0, vsum0);
+        vsum1 = _mm256_fmadd_ps(va1, vb1, vsum1);
+        i += 2 * vec_len_f32_avx2;
+    }
+    if (i + vec_len_f32_avx2 <= n) {
+        auto v0_zp = _mm256_loadu_ps(zp + i);
+        auto v0_scale = _mm256_loadu_ps(scale + i);
+
+        auto va0 = mm256_uni_loadu_ps(a + i);
+        auto vb0_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(b + i));
+        auto vb0_256 = _mm256_cvtepu8_epi32(vb0_128);
+        auto vb0 = _mm256_cvtepi32_ps(vb0_256);
+
+        vb0 = _mm256_sub_ps(vb0, v0_zp);
+        vb0 = _mm256_mul_ps(vb0, v0_scale);
+
+        vsum0 = _mm256_fmadd_ps(va0, vb0, vsum0);
+        i += vec_len_f32_avx2;
+    }
+    vsum0 = _mm256_add_ps(vsum0, vsum1);
+    vsum2 = _mm256_add_ps(vsum2, vsum3);
+    vsum0 = _mm256_add_ps(vsum0, vsum2);
+    hsum(vsum0);
+    sum += _mm256_cvtss_f32(vsum0);
+#endif
+    for (; i < n; i++) {
+        sum += a[i] * (b[i] - zp[i]) * scale[i];
+    }
+    return sum;
+}
+
+template <typename TA>
 static float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, float* head_sum, size_t group_size) {
     float sum = 0.0f;
     size_t group_id = 0;
@@ -898,7 +1104,8 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                                     const ov::intel_cpu::PlainTensor& past_v_scale_zp,
                                     ov::intel_cpu::PlainTensor& head_sum,
                                     size_t key_group_size,
-                                    size_t value_group_size) {
+                                    size_t value_group_size,
+                                    bool quant_key_by_channel) {
     ov::intel_cpu::PlainTensor causal_mask;
     bool select_nfltmax_at_0 = false;
     auto B = query.size(0);
@@ -925,7 +1132,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
     //  but it seems not necessary for avx512. Possible reason may be that for avx2 the cost of dot_product
     //  is larger than the memory access time, but for avx512 is not and the cost of pre-compute is a pure increase.
     bool pastkv_is_int8 = past_k_scale_zp;
-    if (pastkv_is_int8) {
+    if (pastkv_is_int8 && !quant_key_by_channel) {
         // be sure no false sharing
         size_t group_num = S / key_group_size;
         head_sum.resize<float>({B, H, q_len, group_num + 16});
@@ -963,15 +1170,37 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                             continue;
                         }
 #endif
-                        auto p_k = present_key.ptr<T2>(0, h_group, pk);
-                        prefetch_bytes(S, _MM_HINT_T0, 4096, p_k);
-                        buf_attn_w.ptr<T3>(0, h_group, 0)[pk] = dot_product(query.ptr<T>(0, h_group),
-                                                                            p_k,
-                                                                            S,
-                                                                            p,
-                                                                            p + 1,
-                                                                            head_sum.ptr<float>(0, h_group),
-                                                                            key_group_size);
+                        if (quant_key_by_channel) {
+                            auto p_scale = past_k_scale_zp.ptr<float>(pk / key_group_size * 2, 0, h_group);
+                            auto p_zp = past_k_scale_zp.ptr<float>(pk / key_group_size * 2 + 1, 0, h_group);
+                            auto p_k = present_key.ptr<uint8_t>(0, h_group, pk);
+                            attn_dequant_u8_by_channel_kernel(p_k,
+                                                              head_sum.ptr<float>(ithr),
+                                                              1,
+                                                              S,
+                                                              present_key.m_strides[2],
+                                                              S,
+                                                              p_scale,
+                                                              p_zp);
+
+                            prefetch_bytes(S, _MM_HINT_T0, 4096, p_k);
+                            buf_attn_w.ptr<T3>(0, h_group, 0)[pk] = dot_product_by_channel(query.ptr<T>(0, h_group),
+                                                                                           p_k,
+                                                                                           S,
+                                                                                           p_scale,
+                                                                                           p_zp,
+                                                                                           key_group_size);
+                        } else {
+                            auto p_k = present_key.ptr<T2>(0, h_group, pk);
+                            prefetch_bytes(S, _MM_HINT_T0, 4096, p_k);
+                            buf_attn_w.ptr<T3>(0, h_group, 0)[pk] = dot_product(query.ptr<T>(0, h_group),
+                                                                                p_k,
+                                                                                S,
+                                                                                p,
+                                                                                p + 1,
+                                                                                head_sum.ptr<float>(0, h_group),
+                                                                                key_group_size);
+                        }
                         parallel_it_step(pk, kv_len, b, B, h_group, h_group_num);
                     }
                 } else {
@@ -993,14 +1222,26 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                             continue;
                         }
 #endif
-                        auto p_k = present_key.ptr<T2>(b_kv, h_group, pk);
-                        buf_attn_w.ptr<T3>(b, h_group, 0)[pk] = dot_product(query.ptr<T>(b, h_group),
-                                                                            p_k,
-                                                                            S,
-                                                                            p,
-                                                                            p + 1,
-                                                                            head_sum.ptr<float>(b, h_group),
-                                                                            key_group_size);
+                        if (quant_key_by_channel) {
+                            auto p_scale = past_k_scale_zp.ptr<float>(pk / key_group_size * 2, b_kv, h_group);
+                            auto p_zp = past_k_scale_zp.ptr<float>(pk / key_group_size * 2 + 1, b_kv, h_group);
+                            auto p_k = present_key.ptr<uint8_t>(b_kv, h_group, pk);
+                            buf_attn_w.ptr<T3>(b, h_group, 0)[pk] = dot_product_by_channel(query.ptr<T>(b, h_group),
+                                                                                           p_k,
+                                                                                           S,
+                                                                                           p_scale,
+                                                                                           p_zp,
+                                                                                           key_group_size);
+                        } else {
+                            auto p_k = present_key.ptr<T2>(b_kv, h_group, pk);
+                            buf_attn_w.ptr<T3>(b, h_group, 0)[pk] = dot_product(query.ptr<T>(b, h_group),
+                                                                                p_k,
+                                                                                S,
+                                                                                p,
+                                                                                p + 1,
+                                                                                head_sum.ptr<float>(b, h_group),
+                                                                                key_group_size);
+                        }
                         parallel_it_step(pk, kv_len, b, B, h_group, h_group_num);
                     }
                 }
@@ -1024,13 +1265,25 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                                 continue;
                             }
 #endif
-                            buf_attn_w.ptr<T3>(b, h, pq)[pk] = dot_product(query.ptr<T>(b, h, pq),
-                                                                           present_key.ptr<T2>(b_kv, h_group, pk),
-                                                                           S,
-                                                                           p,
-                                                                           p + 1,
-                                                                           head_sum.ptr<float>(b, h, pq),
-                                                                           key_group_size);
+                            if (quant_key_by_channel) {
+                                auto p_scale = past_k_scale_zp.ptr<float>(pk / key_group_size * 2, b_kv, h_group);
+                                auto p_zp = past_k_scale_zp.ptr<float>(pk / key_group_size * 2 + 1, b_kv, h_group);
+                                auto p_k = present_key.ptr<uint8_t>(b_kv, h_group, pk);
+                                buf_attn_w.ptr<T3>(b, h, pq)[pk] = dot_product_by_channel(query.ptr<T>(b, h, pq),
+                                                                                          p_k,
+                                                                                          S,
+                                                                                          p_scale,
+                                                                                          p_zp,
+                                                                                          key_group_size);
+                            } else {
+                                buf_attn_w.ptr<T3>(b, h, pq)[pk] = dot_product(query.ptr<T>(b, h, pq),
+                                                                               present_key.ptr<T2>(b_kv, h_group, pk),
+                                                                               S,
+                                                                               p,
+                                                                               p + 1,
+                                                                               head_sum.ptr<float>(b, h, pq),
+                                                                               key_group_size);
+                            }
                         }
                     }
                     parallel_it_step(pk, kv_len, b, B, h_group, h_group_num);
@@ -1173,7 +1426,8 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                       const ov::intel_cpu::PlainTensor& past_v_scale_zp,
                       ov::intel_cpu::PlainTensor& head_sum,
                       size_t key_group_size,
-                      size_t value_group_size) {
+                      size_t value_group_size,
+                      bool quant_key_by_channel) {
     if (query.get_precision() == ov::element::bf16) {
         if (present_key.get_precision() == ov::element::u8) {
             mha_single_token_kernel<ov::bfloat16, uint8_t, float>(query,
@@ -1192,7 +1446,8 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                                   past_v_scale_zp,
                                                                   head_sum,
                                                                   key_group_size,
-                                                                  value_group_size);
+                                                                  value_group_size,
+                                                                  quant_key_by_channel);
         } else {
             mha_single_token_kernel<ov::bfloat16, ov::bfloat16, float>(query,
                                                                        present_key,
@@ -1210,7 +1465,8 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                                        past_v_scale_zp,
                                                                        head_sum,
                                                                        key_group_size,
-                                                                       value_group_size);
+                                                                       value_group_size,
+                                                                       quant_key_by_channel);
         }
     } else if (query.get_precision() == ov::element::f16) {
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
@@ -1231,7 +1487,8 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                                            past_v_scale_zp,
                                                                            head_sum,
                                                                            key_group_size,
-                                                                           value_group_size);
+                                                                           value_group_size,
+                                                                           quant_key_by_channel);
         } else {
             OPENVINO_THROW("Unsupported precision: ", present_key.get_precision());
         }
@@ -1253,7 +1510,8 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                                  past_v_scale_zp,
                                                                  head_sum,
                                                                  key_group_size,
-                                                                 value_group_size);
+                                                                 value_group_size,
+                                                                 quant_key_by_channel);
         } else {
             mha_single_token_kernel<ov::float16, ov::float16, float>(query,
                                                                      present_key,
@@ -1271,7 +1529,8 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                                      past_v_scale_zp,
                                                                      head_sum,
                                                                      key_group_size,
-                                                                     value_group_size);
+                                                                     value_group_size,
+                                                                     quant_key_by_channel);
         }
 #endif
     } else if (query.get_precision() == ov::element::f32) {
@@ -1292,7 +1551,8 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                            past_v_scale_zp,
                                                            head_sum,
                                                            key_group_size,
-                                                           value_group_size);
+                                                           value_group_size,
+                                                           quant_key_by_channel);
         } else if (present_key.get_precision() == ov::element::f16) {
             mha_single_token_kernel<float, ov::float16, float>(query,
                                                                present_key,
@@ -1310,7 +1570,8 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                                past_v_scale_zp,
                                                                head_sum,
                                                                key_group_size,
-                                                               value_group_size);
+                                                               value_group_size,
+                                                               quant_key_by_channel);
         } else {
             mha_single_token_kernel<float, float, float>(query,
                                                          present_key,
@@ -1328,7 +1589,8 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                          past_v_scale_zp,
                                                          head_sum,
                                                          key_group_size,
-                                                         value_group_size);
+                                                         value_group_size,
+                                                         quant_key_by_channel);
         }
     } else {
         OPENVINO_THROW("Unsupported precision: ", query.get_precision());

@@ -18,10 +18,13 @@ namespace XARCH {
 
 void attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
                   const ov::intel_cpu::PlainTensor& v_src,
+                  float* temp_buffer,
                   const ov::intel_cpu::PlainTensor& k_dst,
                   const ov::intel_cpu::PlainTensor& v_dst,
                   const ov::intel_cpu::PlainTensor& k_scale_zp,
                   const ov::intel_cpu::PlainTensor& v_scale_zp,
+                  const size_t L0,
+                  const bool quant_k_by_channel,
                   const size_t k_group_size,
                   const size_t v_group_size);
 

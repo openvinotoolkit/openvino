@@ -808,9 +808,10 @@ MemStatePtr MemoryInputSDPA::makeState() const {
     // retrieve the internal precision and axis order from the SDPA node
     OPENVINO_ASSERT(node);
     auto kv_precision = node->getKVCachePrecision();
-    size_t group_size = 0;
+    ScaledDotProductAttention::SDPAQuantParam quant_param;
     if (kv_precision == ov::element::u8) {
-        group_size = state_name.find(".key") != std::string::npos ? node->getKeyGroupSize() : node->getValueGroupSize();
+        quant_param =
+            state_name.find(".key") != std::string::npos ? node->getKeyQuantParam() : node->getValueQuantParam();
     }
 
     VectorDims order = {2, 0, 1, 3};
@@ -819,7 +820,7 @@ MemStatePtr MemoryInputSDPA::makeState() const {
 
     auto internal_desc = ArbitraryOrderDescCreator(order).createSharedDesc(kv_precision, outputShapes.at(0));
 
-    return std::make_shared<VariableStateKVcache>(state_name, original_desc, internal_desc, group_size);
+    return std::make_shared<VariableStateKVcache>(state_name, original_desc, internal_desc, quant_param.groupSize);
 }
 
 void MemoryInputSDPA::runStatic(dnnl::stream strm) {
