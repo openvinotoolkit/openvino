@@ -19,6 +19,6 @@ class TRANSFORMATIONS_API ConvertOpSet3ToOpSet2;
 
 class ov::pass::ConvertOpSet3ToOpSet2 : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("ConvertOpSet3ToOpSet2", "0");
+    OPENVINO_MODEL_PASS_RTTI("ConvertOpSet3ToOpSet2");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };

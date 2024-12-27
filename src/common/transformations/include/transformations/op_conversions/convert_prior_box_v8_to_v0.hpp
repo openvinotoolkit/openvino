@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API ConvertPriorBox8To0;
  */
 class ov::pass::ConvertPriorBox8To0 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertPriorBox8To0", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertPriorBox8To0");
     ConvertPriorBox8To0();
 };
