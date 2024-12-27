@@ -980,10 +980,30 @@ void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
         memory::data_type bdt = outDnnlDesc.get_data_type();
 #else
         memory::data_type bdt = memory::data_type::f32;
-        // brdgmm_dw_conv supports only bia_type the same as src_type or dst_type
+        /* brdgmm_dw_conv has more perf gain on bf16/fp16 inference.
+        brdgmm_dw_conv supports only bia_type the same as src_type or dst_type.
+        dw convolution support in onednn 3.5.
+        BF16:
+        kernel type | brgdconv | jit_uni_dw_convolution_fwd_t
+        support impl type | native bf16 ISA without AMX | avx512_core_bf16 or avx512_core
+        bias dt | oneof(src,dest) | oneof(src, dest, f32)
+
+        FP16:
+        kernel type | brgdconv | brgemm_convolution_fwd_t
+        impl type | native FP16 ISA without AMX | native FP16 ISA
+        bias type | oneof(src,dest) | oneof(src, dest, f32)
+        */
         auto out_dt = outDnnlDesc.get_data_type();
-        if (!canBeExecutedInInt8() && isDepthWise() && out_dt != memory::data_type::f32)
-            bdt = out_dt;
+        if (!canBeExecutedInInt8() && isDepthWise()) {
+            bool isF16BiasSupported = (out_dt == memory::data_type::f16) && hasHardwareSupport(ov::element::f16);
+            bool isBF16BiasSupported = (out_dt == memory::data_type::bf16) &&
+                                       (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) ||
+                                        dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2));
+
+            if (isF16BiasSupported || isBF16BiasSupported) {
+                bdt = out_dt;
+            }
+        }
 #endif
         biasDnnlDesc =
             dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(expectedBiasDims), bdt, memory::format_tag::any);
