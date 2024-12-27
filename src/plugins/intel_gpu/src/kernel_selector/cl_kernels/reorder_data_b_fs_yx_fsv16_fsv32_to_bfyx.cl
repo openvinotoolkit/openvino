@@ -79,7 +79,7 @@ KERNEL (reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx)(
                 // read
                 INPUTVTYPE read_data;
                 for (int j = 0; j < X_REMAINDER_SIZE; ++j) {
-                     read_data[j] = input[input_idx_tile+get_sub_group_local_id()+get_max_sub_group_size()*j];
+                     read_data[j] = AS_INPUT0_TYPE(_sub_group_block_read((const __global uint*)(input) + input_idx_tile + j * DEFAULT_STRIDE));
                 }
                 // write
                 for (int i = 0 ; i < X_REMAINDER_SIZE; i++) {
