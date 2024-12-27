@@ -296,6 +296,9 @@ protected:
         if (instruction_set == TargetInstructionSet::AVX512 && (!ov::with_cpu_x86_avx512f())) {
             GTEST_SKIP() << "test executor must have AVX512 support";
         }
+        if (instruction_set == TargetInstructionSet::AVX2 && (!ov::with_cpu_x86_avx2())) {
+            GTEST_SKIP() << "test executor must have AVX2 support";
+        }
         auto num_elements_to_process = std::get<1>(GetParam());
 
         MemChunk<T> chunk_x = {-0.76777814f,
