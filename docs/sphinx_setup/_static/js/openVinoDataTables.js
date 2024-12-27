@@ -1,16 +1,15 @@
 $(document).ready(function () {
   var columnDefs = [];
-
   var tables = $('table.modeldata');
   for (let table of tables) {
-    var hidden = table.getAttribute('data-columns-hidden');
+    var hidden = table.getAttribute('data-column-hidden');
     columnDefs = [{ "visible": false, "targets": JSON.parse(hidden) }]
     $(table).DataTable({
       responsive: true,
       "autoWidth": false,
       language: {
         buttons: {
-          colvisRestore: "Restore default"
+          colvisRestore: "Restore default selection"
         }
       },
       lengthMenu: [
