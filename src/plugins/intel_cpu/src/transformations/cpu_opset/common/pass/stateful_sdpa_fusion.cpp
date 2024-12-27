@@ -23,6 +23,7 @@
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/common_optimizations/simplify_shape_of_sub_graph.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
+#include "transformations/cpu_opset/x64/pass/sdpa_fuse_transpose_reshape.hpp"
 #include "transformations/defs.hpp"
 #include "transformations/op_conversions/convert_broadcast3.hpp"
 #include "transformations/transpose_sinking/ts_shape_of.hpp"
@@ -307,7 +308,7 @@ bool SDPASubgraphFusion::run_on_model(const std::shared_ptr<ov::Model>& f) {
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::SimplifyGatherShapeOf);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::transpose_sinking::TSShapeOfForward);
     CPU_REGISTER_PASS_COMMON(manager, StatefulSDPAFusion);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
+    CPU_REGISTER_PASS_X64(manager, SDPAFuseTransposeReshape);
 
     manager.run_passes(f);
     return false;
