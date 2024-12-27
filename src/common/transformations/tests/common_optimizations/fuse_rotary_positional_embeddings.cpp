@@ -570,7 +570,6 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML) {
         model = std::make_shared<ov::Model>(ov::NodeVector{aten_cat_Concat_425},
                                             ov::ParameterVector{input, seq_length, cos_sin_cache});
     }
-    manager.register_pass<ov::pass::SymbolicOptimizations>();
     manager.register_pass<ov::pass::RoPEFusion>();
     {
         auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{seq_len, batch, 4608});
@@ -851,7 +850,6 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML_2d_rope) {
         model = std::make_shared<ov::Model>(ov::NodeVector{cat_Concat_425},
                                             ov::ParameterVector{input, cos_sin_cache, position_ids});
     }
-    manager.register_pass<ov::pass::SymbolicOptimizations>();
     manager.register_pass<ov::pass::RoPEFusion>(true);
     {
         auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{batch, seq_len, 4608});
@@ -961,7 +959,6 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML_nano_2d_rope) {
         model = std::make_shared<ov::Model>(ov::NodeVector{flatten_Reshape_421},
                                             ov::ParameterVector{input, cos_sin_cache, position_ids});
     }
-    manager.register_pass<ov::pass::SymbolicOptimizations>();
     manager.register_pass<ov::pass::RoPEFusion>(true);
     {
         auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{batch, seq_len, 3072});
