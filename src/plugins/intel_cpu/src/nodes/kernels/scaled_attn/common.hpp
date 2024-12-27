@@ -150,9 +150,6 @@ inline void mm512_uni_storeu_tail_ps(ov::float16* addr, __m512 v, size_t count) 
 }
 #endif
 
-#if defined(HAVE_AVX2)
-#endif
-
 #ifdef HAVE_AVX2
 inline __m128i get_8bit_tail_mask_for_16bit_elts(size_t num_16bit_tail_elts) {
     // num_tail_elts may take from 0 to 8
