@@ -44,6 +44,10 @@ KERNEL(pa_sdpa_opt)(
     const __global ALIBI_INPUT_TYPE* alibi_slopes,
 #endif
     __global OUTPUT_TYPE* output,
+#if PAGED_ATTENTION_SCORES_OUTPUT
+    __global SOFTMAX_ACCUMULATOR_TYPE* softmax_results,
+    const __global int* subsequence_offsets,
+#endif
     __global SOFTMAX_ACCUMULATOR_TYPE* exp_sums,
     __global SOFTMAX_ACCUMULATOR_TYPE* max_logits,
     __global OUTPUT_TYPE* tmp_out
@@ -276,6 +280,28 @@ KERNEL(pa_sdpa_opt)(
                 const uint max_logits_offset = exp_sums_offset;
                 max_logits[max_logits_offset] = qk_max;
             }
+
+#if PAGED_ATTENTION_SCORES_OUTPUT
+#if MULTI_TOKENS_PROCESSING
+            const uint subsequence_idx = gws_subseq_mapping[seq_idx];
+            const uint subsequence_start_pos = subsequence_begins[subsequence_idx];
+            const uint subsequence_end_pos = subsequence_begins[subsequence_idx + 1];
+            const bool save_softmax_results = seq_idx == subsequence_end_pos - 1;
+#else
+            const uint subsequence_idx = seq_idx;
+            const bool save_softmax_results = true;
+#endif // MULTI_TOKENS_PROCESSING
+            // PagedAttention is supposed to save only last "row" of the QK matrix multiplication,
+            // so save SEQ_LEN_PARTITION_SIZE elements for each partition
+            if (save_softmax_results) {
+                const uint output_offset = subsequence_idx * HEADS_NUM * total_partitions_num * SEQ_LEN_PARTITION_SIZE +
+                                           head_num_idx * total_partitions_num * SEQ_LEN_PARTITION_SIZE +
+                                           partition_idx * SEQ_LEN_PARTITION_SIZE;
+                for (uint i = sgid * SUBGROUP_SIZE + sglid; i < SEQ_LEN_PARTITION_SIZE; i += SUBGROUPS_PER_WG * SUBGROUP_SIZE) {
+                    softmax_results[output_offset + i] = slm_qk_vals[i];
+                }
+            }
+#endif // PAGED_ATTENTION_SCORES_OUTPUT
         }
     }
 
@@ -370,6 +396,10 @@ KERNEL(pa_sdpa_finalization_stage)(
     const __global INPUT6_TYPE* subsequence_begins,
 #endif
     __global OUTPUT_TYPE* output,
+#if PAGED_ATTENTION_SCORES_OUTPUT
+    __global SOFTMAX_ACCUMULATOR_TYPE* softmax_results,
+    const __global int* subsequence_offsets,
+#endif
     const __global SOFTMAX_ACCUMULATOR_TYPE* exp_sums,
     const __global SOFTMAX_ACCUMULATOR_TYPE* max_logits,
     const __global OUTPUT_TYPE* tmp_out,
@@ -499,4 +529,156 @@ KERNEL(pa_sdpa_finalization_stage)(
     }
 }
 
+#endif
+
+#ifdef SDPA_STAGE_2
+#define MAX_PARTITIONS_NUM 128
+
+REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
+KERNEL(pa_sdpa_scores_calculation)(
+    const __global INPUT3_TYPE* past_lens,
+    const __global INPUT6_TYPE* subsequence_begins,
+    __global OUTPUT1_TYPE* scores_output,
+    const __global SOFTMAX_ACCUMULATOR_TYPE* softmax_output,
+    const __global int* subsequence_offsets,
+    const __global SOFTMAX_ACCUMULATOR_TYPE* exp_sums,
+    const __global SOFTMAX_ACCUMULATOR_TYPE* max_logits,
+    const __global OUTPUT_TYPE* tmp_out,
+    const uint is_mixed_mode) {
+    const uint subsequence_idx = get_global_id(2);
+    const uint partition_global_idx = get_global_id(0);
+    const uint local_id = get_local_id(0);
+    const uint partition_idx = get_group_id(0);
+    const uint partition_size = get_local_size(0);
+    const uint max_seq_len = get_global_size(0);
+    const uint partitions_num = get_num_groups(0);
+    const uint sgid = get_sub_group_id();
+    const uint sgid_num = get_num_sub_groups();
+    const uint sglid = get_sub_group_local_id();
+
+    const int subsequence_begin = subsequence_begins[subsequence_idx];
+    const int subsequence_end = subsequence_begins[subsequence_idx + 1];
+    const uint seq_len = (subsequence_end - subsequence_begin) + past_lens[subsequence_idx];
+
+    const uint num_of_partitions = CEIL_DIV(seq_len, partition_size);
+
+    if (partition_idx >= num_of_partitions)
+        return;
+
+    __local SOFTMAX_ACCUMULATOR_TYPE slm_exp_sums[HEADS_NUM];
+    __local SOFTMAX_ACCUMULATOR_TYPE slm_global_exp_sum[HEADS_NUM];
+
+    SOFTMAX_ACCUMULATOR_TYPE total_score = SOFTMAX_ACCUMULATOR_VAL_ZERO;
+    if (seq_len <= partition_size) {
+        // If seq_len is less than the partition size, just reduce the results over the heads
+        for (uint head_idx = 0; head_idx < HEADS_NUM; head_idx++) {
+            const uint input_offset = subsequence_idx * HEADS_NUM * max_seq_len + head_idx * max_seq_len + partition_global_idx;
+            SOFTMAX_ACCUMULATOR_TYPE softmax_value = softmax_output[input_offset];
+            total_score += softmax_value;
+        }
+    } else if (seq_len <= partition_size * MAX_PARTITIONS_NUM) {
+        // Optimized version for longer prompts (up to partition_size * MAX_PARTITIONS_NUM, ~64K tokens)
+
+        // Depending on the previous kernel exp_sums and max_logits might have different structure:
+        // For ordinary 1st and 2nd token kernels, there is only a single entry per subsequence.
+        // However, for mixed mode execution, exp_sums and max_logits include information for all
+        // tokens of each subsequence, but only the last one is needed for score calculation.
+        const uint subsequence_pos = is_mixed_mode ? subsequence_end - 1 : subsequence_idx;
+
+        for (uint head_idx = sgid; head_idx < HEADS_NUM; head_idx += sgid_num) {
+            SOFTMAX_ACCUMULATOR_TYPE max_logit[MAX_PARTITIONS_NUM / SUBGROUP_SIZE];
+            SOFTMAX_ACCUMULATOR_TYPE exp_sum[MAX_PARTITIONS_NUM / SUBGROUP_SIZE];
+
+            const uint exp_sums_offset = subsequence_pos * HEADS_NUM * partitions_num + head_idx * partitions_num;
+            for (int i = 0; i < partitions_num / SUBGROUP_SIZE; i++) {
+                max_logit[i] = max_logits[exp_sums_offset + i * SUBGROUP_SIZE + sglid];
+                exp_sum[i] = exp_sums[exp_sums_offset + i * SUBGROUP_SIZE + sglid];
+            }
+
+            const uint partitions_leftovers = partitions_num % SUBGROUP_SIZE;
+            if (partitions_leftovers != 0) {
+                const uint idx = partitions_num / SUBGROUP_SIZE;
+                max_logit[idx] = sglid >= partitions_leftovers ? SOFTMAX_ACCUMULATOR_VAL_MIN : max_logits[exp_sums_offset + idx * SUBGROUP_SIZE + sglid];
+                exp_sum[idx] = sglid >= partitions_leftovers ? SOFTMAX_ACCUMULATOR_VAL_ZERO : exp_sums[exp_sums_offset + idx * SUBGROUP_SIZE + sglid];
+            }
+
+            SOFTMAX_ACCUMULATOR_TYPE global_max_logit = max_logit[0];
+            for (uint i = 1; i < CEIL_DIV(partitions_num, SUBGROUP_SIZE); i++) {
+                global_max_logit = SOFTMAX_ACCUMULATOR_MAX_FUNC(global_max_logit, max_logit[i]);
+            }
+
+            global_max_logit = sub_group_reduce_max(global_max_logit);
+
+            SOFTMAX_ACCUMULATOR_TYPE global_exp_sum = SOFTMAX_ACCUMULATOR_VAL_ZERO;
+            for (uint i = 0; i < CEIL_DIV(partitions_num, SUBGROUP_SIZE); i++) {
+                SOFTMAX_ACCUMULATOR_TYPE adjusted_exp_sum = exp_sum[i] * native_exp(max_logit[i] - global_max_logit);
+                // slm_exp_sums[head_idx][i * SUBGROUP_SIZE + sglid] = adjusted_exp_sum;
+                if (i * SUBGROUP_SIZE + sglid == partition_idx)
+                    slm_exp_sums[head_idx] = adjusted_exp_sum;
+                global_exp_sum += adjusted_exp_sum;
+            }
+
+            global_exp_sum = sub_group_reduce_add(global_exp_sum);
+
+            slm_global_exp_sum[head_idx] = global_exp_sum;
+        }
+
+        barrier(CLK_LOCAL_MEM_FENCE);
+
+        for (uint head_idx = 0; head_idx < HEADS_NUM; head_idx++) {
+            SOFTMAX_ACCUMULATOR_TYPE adjusted_exp_sum = slm_exp_sums[head_idx];
+            SOFTMAX_ACCUMULATOR_TYPE global_exp_sum = slm_global_exp_sum[head_idx];
+
+            const uint input_offset = subsequence_idx * HEADS_NUM * max_seq_len + head_idx * max_seq_len + partition_global_idx;
+            SOFTMAX_ACCUMULATOR_TYPE softmax_value = softmax_output[input_offset];
+
+            softmax_value = softmax_value * adjusted_exp_sum / global_exp_sum;
+            total_score += softmax_value;
+        }
+    } else {
+        // Non optimized fallback version
+        const uint subsequence_pos = is_mixed_mode ? subsequence_end - 1 : subsequence_idx;
+        for (uint head_idx = 0; head_idx < HEADS_NUM; head_idx++) {
+            SOFTMAX_ACCUMULATOR_TYPE global_max_logit = SOFTMAX_ACCUMULATOR_VAL_MIN;
+            const uint max_logits_base_offset = subsequence_pos * HEADS_NUM * partitions_num + head_idx * partitions_num;
+            for (uint i = 0; i < CEIL_DIV(partitions_num, SUBGROUP_SIZE); i++) {
+                const uint partition_offset = i * SUBGROUP_SIZE + sglid;
+                SOFTMAX_ACCUMULATOR_TYPE max_logit = partition_offset >= partitions_num ? SOFTMAX_ACCUMULATOR_VAL_MIN : max_logits[max_logits_base_offset + partition_offset];
+                global_max_logit = SOFTMAX_ACCUMULATOR_MAX_FUNC(global_max_logit, max_logit);
+            }
+
+            global_max_logit = sub_group_reduce_max(global_max_logit);
+
+            SOFTMAX_ACCUMULATOR_TYPE global_exp_sum = SOFTMAX_ACCUMULATOR_VAL_ZERO;
+            SOFTMAX_ACCUMULATOR_TYPE partition_adjusted_exp_sum = SOFTMAX_ACCUMULATOR_VAL_ZERO;
+            const uint exp_sums_base_offset = subsequence_pos * HEADS_NUM * partitions_num + head_idx * partitions_num;
+            for (uint i = 0; i < CEIL_DIV(partitions_num, SUBGROUP_SIZE); i++) {
+                const uint partition_offset = i * SUBGROUP_SIZE + sglid;
+                SOFTMAX_ACCUMULATOR_TYPE exp_sum = partition_offset >= partitions_num ? SOFTMAX_ACCUMULATOR_VAL_ZERO : exp_sums[exp_sums_base_offset + partition_offset];
+                SOFTMAX_ACCUMULATOR_TYPE max_logit = partition_offset >= partitions_num ? SOFTMAX_ACCUMULATOR_VAL_MIN : max_logits[max_logits_base_offset + partition_offset];
+                SOFTMAX_ACCUMULATOR_TYPE adjusted_exp_sum = exp_sum * native_exp(max_logit - global_max_logit);
+                global_exp_sum += adjusted_exp_sum;
+
+                // Save and broadcast the adjusted exp_sum for the currently being processed partition
+                if (i == partition_idx / SUBGROUP_SIZE)
+                    partition_adjusted_exp_sum = sub_group_broadcast(adjusted_exp_sum, partition_idx % SUBGROUP_SIZE);
+            }
+
+            global_exp_sum = sub_group_reduce_add(global_exp_sum);
+
+            const uint input_offset = subsequence_idx * HEADS_NUM * max_seq_len + head_idx * max_seq_len + partition_global_idx;
+            SOFTMAX_ACCUMULATOR_TYPE softmax_value = softmax_output[input_offset];
+
+            softmax_value = softmax_value * partition_adjusted_exp_sum / global_exp_sum;
+            total_score += softmax_value;
+        }
+    }
+
+    const uint output_offset = subsequence_offsets[subsequence_idx];
+    if (partition_global_idx < seq_len) {
+        scores_output[output_offset + partition_global_idx] = total_score;
+    }
+}
+
+#undef MAX_PARTITIONS_NUM
 #endif

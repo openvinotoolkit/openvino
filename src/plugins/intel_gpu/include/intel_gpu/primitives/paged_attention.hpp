@@ -24,6 +24,10 @@ struct paged_attention : public primitive_base<paged_attention> {
         OPENVINO_ASSERT(inputs.size() == 13, "[GPU] Unexpected inputs number for PagedAttention primitive: ", inputs.size());
     }
 
+    bool has_scores_output() const {
+        return num_outputs == 2;
+    }
+
     bool operator==(const primitive& rhs) const override {
         return compare_common_params(rhs);
     }
