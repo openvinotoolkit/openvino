@@ -156,6 +156,14 @@ TEST(SIMDJit, control_flow1) {
 #undef BODY_EXPR
 }
 
+TEST(SIMDJit, control_flow2) {
+#define COND_EXPR(dst, a, b, c, d, e, f) (dst != 100) || ((dst != 80) && (dst < f * 10))
+#define BODY_EXPR(dst, a, b, c, d, e, f) dst += 1
+    TEST_WHILE_EXPR(COND_EXPR, BODY_EXPR);
+#undef COND_EXPR
+#undef BODY_EXPR
+}
+
 static int fib(int n) {
     if (n == 1 || n == 2)
         return 1;
@@ -166,16 +174,9 @@ TEST(SIMDJit, control_flow_fib) {
     auto jit = std::make_shared<ov::intel_cpu::SIMDJit>(__func__);
     {
         auto n = jit->get_sreg(0);
-        jit->if_(
-            n == 1,
-            [&] {
-                jit->return_(1);
-            },
-            [&] {
-                jit->if_(n == 2, [&] {
-                    jit->return_(1);
-                });
-            });
+        jit->if_(n == 1 || n == 2, [&] {
+            jit->return_(1);
+        });
 
         auto s = jit->get_sreg();
         auto f1 = jit->get_sreg();

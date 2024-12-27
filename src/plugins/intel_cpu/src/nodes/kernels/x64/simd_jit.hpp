@@ -21,13 +21,13 @@ using jit_generator = dnnl::impl::cpu::x64::jit_generator;
 static const bool use_avx512 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
 #endif
 
-#define ASSERT(cond)                                                     \
-    if (!(cond)) {                                                       \
-        std::stringstream ss;                                            \
-        ss << __FILE__ << ":" << __LINE__ << " " << #cond << " failed!"; \
-        std::cout << ss.str() << std::endl;                              \
-        asm("int3");                                                     \
-        throw std::runtime_error(ss.str());                              \
+#define ASSERT(cond)                                                                           \
+    if (!(cond)) {                                                                             \
+        std::stringstream ss;                                                                  \
+        ss << "\033[31m" << __FILE__ << ":" << __LINE__ << " " << #cond << " failed! \033[0m"; \
+        std::cout << ss.str() << std::endl;                                                    \
+        asm("int3");                                                                           \
+        throw std::runtime_error(ss.str());                                                    \
     }
 
 namespace ov {
@@ -83,7 +83,7 @@ static const int SIMDJIT_DEBUG = std::getenv("SIMDJIT_DEBUG") ? std::atoi(std::g
 
 class SIMDJit;
 
-struct SRegExpr;
+class SRegExpr;
 
 class SReg {
 private:
@@ -197,6 +197,9 @@ struct RegExprImpl {
     bool is_cmp() const {
         return is_op(">") || is_op(">=") || is_op("<") || is_op("<=") || is_op("==") || is_op("!=");
     }
+    bool is_logical_op() const {
+        return is_cmp() || is_op("&&") || is_op("||") || is_op("!");
+    }
     bool is_op(const char* name = nullptr) const {
         // all nodes other than leaf is op
         if (name == nullptr)
@@ -242,16 +245,24 @@ struct RegExprImpl {
         std::cout << std::endl;
     }
     void _show_rpn(const RegExprImpl* pimpl, bool infix) const {
+        if (!pimpl)
+            return;
         if (pimpl->is_leaf()) {
             std::cout << pimpl->name();
             return;
         }
         if (infix) {
-            std::cout << "(";
-            _show_rpn(pimpl->lhs.get(), infix);
-            std::cout << pimpl->op;
-            _show_rpn(pimpl->rhs.get(), infix);
-            std::cout << ")";
+            if (!pimpl->rhs) {
+                std::cout << "(" << pimpl->op;
+                _show_rpn(pimpl->lhs.get(), infix);
+                std::cout << ")";
+            } else {
+                std::cout << "(";
+                _show_rpn(pimpl->lhs.get(), infix);
+                std::cout << pimpl->op;
+                _show_rpn(pimpl->rhs.get(), infix);
+                std::cout << ")";
+            }
         } else {
             std::cout << "(";
             _show_rpn(pimpl->lhs.get(), infix);
@@ -288,7 +299,8 @@ struct RegExprImpl {
     }
 };
 
-struct SRegExpr {
+class SRegExpr {
+public:
     std::unique_ptr<RegExprImpl> pimpl;
     // Addressing is a special expression in following pattern
     //  - base [+ disp]
@@ -313,6 +325,7 @@ struct SRegExpr {
     SRegExpr(int data) : pimpl(new RegExprImpl("i", data)) {}
     SRegExpr(SReg r) : pimpl(new RegExprImpl("r", r.r64().getIdx())) {}
     SRegExpr(const char* type, int data) : pimpl(new RegExprImpl(type, data)) {}
+    SRegExpr(const char* op, SRegExpr&& lhs) : pimpl(new RegExprImpl(op, lhs.pimpl)) {}
     SRegExpr(const char* op, SRegExpr&& lhs, SRegExpr&& rhs) : pimpl(new RegExprImpl(op, lhs.pimpl, rhs.pimpl)) {
         // regularize operand order to allow best reuse temp register
         if (pimpl->is_op("+") || pimpl->is_op("*")) {
@@ -322,9 +335,6 @@ struct SRegExpr {
                 std::swap(pimpl->lhs, pimpl->rhs);
         }
 
-        // unlike normal C-expression : compare can only be the last level of expression
-        ASSERT(!pimpl->lhs->is_cmp());
-        ASSERT(!pimpl->rhs->is_cmp());
         // create Addressing from the first leaf-op when expr pattern is valid:
         if (pimpl->lhs->is_reg() && pimpl->rhs->is_leaf()) {
             if (pimpl->is_op("+")) {
@@ -402,62 +412,79 @@ struct SRegExpr {
             return Xbyak::Reg64(paddr->base_reg) + paddr->disp;
     }
 
-    inline void evaluate(SIMDJit* jit, const SReg* pdst = nullptr, const char assign_op = '=');
+    inline void evaluate(SIMDJit* jit,
+                         const SReg* pdst = nullptr,
+                         const char assign_op = '=',
+                         const Xbyak::Label& label = {});
 };
 
 inline SRegExpr operator+(SRegExpr&& lhs, SRegExpr&& rhs) {
-    return std::move(SRegExpr("+", std::move(lhs), std::move(rhs)));
+    return SRegExpr("+", std::move(lhs), std::move(rhs));
 }
 inline SRegExpr operator*(SRegExpr&& lhs, SRegExpr&& rhs) {
-    return std::move(SRegExpr("*", std::move(lhs), std::move(rhs)));
+    return SRegExpr("*", std::move(lhs), std::move(rhs));
 }
 inline SRegExpr operator-(SRegExpr&& lhs, SRegExpr&& rhs) {
-    return std::move(SRegExpr("-", std::move(lhs), std::move(rhs)));
+    return SRegExpr("-", std::move(lhs), std::move(rhs));
 }
 inline SRegExpr operator-(SRegExpr&& rhs) {
     SRegExpr lhs(0);
-    return std::move(SRegExpr("-", std::move(lhs), std::move(rhs)));
+    return SRegExpr("-", std::move(lhs), std::move(rhs));
 }
 /*
 inline SRegExpr operator/(SRegExpr&& lhs, SRegExpr&& rhs) {
-    return std::move(SRegExpr("/", std::move(lhs), std::move(rhs)));
+    return SRegExpr("/", std::move(lhs), std::move(rhs));
 }
 inline SRegExpr operator%(SRegExpr&& lhs, SRegExpr&& rhs) {
-    return std::move(SRegExpr("%", std::move(lhs), std::move(rhs)));
+    return SRegExpr("%", std::move(lhs), std::move(rhs));
 }
 */
 inline SRegExpr operator>>(SRegExpr&& lhs, SRegExpr&& rhs) {
-    return std::move(SRegExpr(">>", std::move(lhs), std::move(rhs)));
+    return SRegExpr(">>", std::move(lhs), std::move(rhs));
 }
 inline SRegExpr operator<<(SRegExpr&& lhs, SRegExpr&& rhs) {
-    return std::move(SRegExpr("<<", std::move(lhs), std::move(rhs)));
+    return SRegExpr("<<", std::move(lhs), std::move(rhs));
 }
 inline SRegExpr operator&(SRegExpr&& lhs, SRegExpr&& rhs) {
-    return std::move(SRegExpr("&", std::move(lhs), std::move(rhs)));
+    return SRegExpr("&", std::move(lhs), std::move(rhs));
 }
 inline SRegExpr operator|(SRegExpr&& lhs, SRegExpr&& rhs) {
-    return std::move(SRegExpr("|", std::move(lhs), std::move(rhs)));
+    return SRegExpr("|", std::move(lhs), std::move(rhs));
 }
 inline SRegExpr operator^(SRegExpr&& lhs, SRegExpr&& rhs) {
-    return std::move(SRegExpr("^", std::move(lhs), std::move(rhs)));
+    return SRegExpr("^", std::move(lhs), std::move(rhs));
 }
 inline SRegExpr operator>(SRegExpr&& lhs, SRegExpr&& rhs) {
-    return std::move(SRegExpr(">", std::move(lhs), std::move(rhs)));
+    return SRegExpr(">", std::move(lhs), std::move(rhs));
 }
 inline SRegExpr operator>=(SRegExpr&& lhs, SRegExpr&& rhs) {
-    return std::move(SRegExpr(">=", std::move(lhs), std::move(rhs)));
+    return SRegExpr(">=", std::move(lhs), std::move(rhs));
 }
 inline SRegExpr operator<(SRegExpr&& lhs, SRegExpr&& rhs) {
-    return std::move(SRegExpr("<", std::move(lhs), std::move(rhs)));
+    return SRegExpr("<", std::move(lhs), std::move(rhs));
 }
 inline SRegExpr operator<=(SRegExpr&& lhs, SRegExpr&& rhs) {
-    return std::move(SRegExpr("<=", std::move(lhs), std::move(rhs)));
+    return SRegExpr("<=", std::move(lhs), std::move(rhs));
 }
 inline SRegExpr operator==(SRegExpr&& lhs, SRegExpr&& rhs) {
-    return std::move(SRegExpr("==", std::move(lhs), std::move(rhs)));
+    return SRegExpr("==", std::move(lhs), std::move(rhs));
 }
 inline SRegExpr operator!=(SRegExpr&& lhs, SRegExpr&& rhs) {
-    return std::move(SRegExpr("!=", std::move(lhs), std::move(rhs)));
+    return SRegExpr("!=", std::move(lhs), std::move(rhs));
+}
+inline SRegExpr operator&&(SRegExpr&& lhs, SRegExpr&& rhs) {
+    ASSERT(lhs.pimpl->is_logical_op());
+    ASSERT(rhs.pimpl->is_logical_op());
+    return SRegExpr("&&", std::move(lhs), std::move(rhs));
+}
+inline SRegExpr operator||(SRegExpr&& lhs, SRegExpr&& rhs) {
+    ASSERT(lhs.pimpl->is_logical_op());
+    ASSERT(rhs.pimpl->is_logical_op());
+    return SRegExpr("||", std::move(lhs), std::move(rhs));
+}
+inline SRegExpr operator!(SRegExpr&& lhs) {
+    ASSERT(lhs.pimpl->is_logical_op());
+    return SRegExpr("!", std::move(lhs));
 }
 
 class SIMDJit : public jit_generator {
@@ -468,7 +495,8 @@ public:
     int reg_status[num_allocatable_sregs];
     // scalar register variable
 
-    struct JitDisassembler {
+    class JitDisassembler {
+    public:
         size_t start;
         SIMDJit* jit;
         JitDisassembler(SIMDJit* jit) : jit(jit) {
@@ -486,13 +514,13 @@ public:
     };
     friend class JitDisassembler;
 
-    const void * getJitCode() {
+    const void* getJitCode() {
         return CodeGenerator::getCode();
     }
     std::unique_ptr<JitDisassembler> get_disasm(int enable) {
         if (enable) {
             auto* dis = new JitDisassembler(this);
-            return std::move(std::unique_ptr<JitDisassembler>(dis));
+            return std::unique_ptr<JitDisassembler>(dis);
         }
         return nullptr;
     }
@@ -679,26 +707,10 @@ public:
     void while_(SRegExpr regcmp, const Fn& loop_body) {
         Xbyak::Label loop, exit;
 
-        auto& cmp_op = *regcmp.pimpl;
-
         align(64, false);
         L(loop);
 
-        ASSERT(cmp_op.is_cmp());
-        regcmp.evaluate(this);
-
-        if (cmp_op.is_op("=="))
-            jne(exit, T_NEAR);  // if not equal (ZF=0).
-        if (cmp_op.is_op("!="))
-            je(exit, T_NEAR);  // if equal (ZF=1).
-        if (cmp_op.is_op(">"))
-            jle(exit, T_NEAR);  // if less or equal (ZF=1 or SF≠ OF).
-        if (cmp_op.is_op(">="))
-            jl(exit, T_NEAR);  // if less (SF≠ OF).
-        if (cmp_op.is_op("<"))
-            jge(exit, T_NEAR);  // if greater or equal (SF=OF).
-        if (cmp_op.is_op("<="))
-            jg(exit, T_NEAR);  // if greater (ZF=0 and SF=OF).
+        regcmp.evaluate(this, nullptr, 'F', exit);
 
         loop_body();
 
@@ -710,51 +722,18 @@ public:
     void do_while_(SRegExpr regcmp, const Fn& loop_body) {
         Xbyak::Label loop;
 
-        auto& cmp_op = *regcmp.pimpl;
-
         align(64, false);
         L(loop);
 
         loop_body();
 
-        ASSERT(cmp_op.is_cmp());
-        regcmp.evaluate(this);
-
-        if (cmp_op.is_op("=="))
-            je(loop, T_NEAR);
-        if (cmp_op.is_op("!="))
-            jne(loop, T_NEAR);
-        if (cmp_op.is_op(">"))
-            jg(loop, T_NEAR);
-        if (cmp_op.is_op(">="))
-            jge(loop, T_NEAR);
-        if (cmp_op.is_op("<"))
-            jl(loop, T_NEAR);
-        if (cmp_op.is_op("<="))
-            jle(loop, T_NEAR);
+        regcmp.evaluate(this, nullptr, 'T', loop);
     }
 
-    //***********************************************
-    // if (reg >= imm32, then_body, else_body)
     void if_(SRegExpr regcmp, const std::function<void()>& then_body, const std::function<void()>& else_body = {}) {
         Xbyak::Label if_else, if_exit;
 
-        auto& cmp_op = *regcmp.pimpl;
-        ASSERT(cmp_op.is_cmp());
-        regcmp.evaluate(this);
-
-        if (cmp_op.is_op("=="))
-            jne(if_else, T_NEAR);  // if not equal (ZF=0).
-        if (cmp_op.is_op("!="))
-            je(if_else, T_NEAR);  // if equal (ZF=1).
-        if (cmp_op.is_op(">"))
-            jle(if_else, T_NEAR);  // if less or equal (ZF=1 or SF≠ OF).
-        if (cmp_op.is_op(">="))
-            jl(if_else, T_NEAR);  // if less (SF≠ OF).
-        if (cmp_op.is_op("<"))
-            jge(if_else, T_NEAR);  // if greater or equal (SF=OF).
-        if (cmp_op.is_op("<="))
-            jg(if_else, T_NEAR);  // if greater (ZF=0 and SF=OF).
+        regcmp.evaluate(this, nullptr, 'F', if_else);
 
         then_body();
 
@@ -807,12 +786,20 @@ inline void SReg::operator++(int) const {
 inline void SReg::operator--(int) const {
     jit->dec(*reg);
 }
-inline void SRegExpr::evaluate(SIMDJit* jit, const SReg* pdst, const char assign_op) {
+
+inline void SRegExpr::evaluate(SIMDJit* jit, const SReg* pdst, const char assign_op, const Xbyak::Label& label) {
     int debug_log = SIMDJIT_DEBUG & 1;
     if (debug_log) {
         std::cout << "\033[32m==========================================\033[0m" << std::endl;
     }
     auto jit_dis = jit->get_disasm(debug_log);
+
+    // do_jump: the expression as condition of control-flow, will not be assigned to any register
+    //          instead it will emmit `jump` instruction:
+    // assign_op == 'T' jump to label if expression is true
+    // assign_op == 'F' jump to label if expression is false
+    const bool do_jump = (assign_op == 'T') || (assign_op == 'F');
+    const bool do_assign = (pdst != nullptr) && (!do_jump);
 
     if (debug_log) {
         pimpl->show_rpn();
@@ -901,7 +888,7 @@ inline void SRegExpr::evaluate(SIMDJit* jit, const SReg* pdst, const char assign
     });
 
     pimpl->for_each_op([&](RegExprImpl* p) {
-        if (!p->rhs->is_imm())
+        if (p->rhs && !p->rhs->is_imm())
             return true;
 
         if (p->is_op("+")) {
@@ -932,7 +919,7 @@ inline void SRegExpr::evaluate(SIMDJit* jit, const SReg* pdst, const char assign
             // `reuse lhs as dst` is the best case:
             //   dst = lhs + rhs  ===> lhs += rhs
             p->data = p->lhs->data;
-            if (!p->rhs->is_leaf())
+            if (p->rhs && !p->rhs->is_leaf())
                 scratch_reg_sn_pool.free(p->rhs->data - scratch_reg_base);
             return true;
         }
@@ -945,9 +932,28 @@ inline void SRegExpr::evaluate(SIMDJit* jit, const SReg* pdst, const char assign
             return true;
         }
 
-        // dst of cmp will be untouched, no need to allocate scratch
-        // also cmp will be the last op
-        if (p->is_cmp() && p->lhs->is_reg()) {
+        // as last comparasion OP of a jump condition, no need to allocate scratch
+        if (do_jump && p == pimpl.get() && p->is_cmp() && p->lhs->is_reg()) {
+            p->data = p->lhs->data;
+            return true;
+        }
+        // otherwise, a comparasion OP needs to assign the comparasion result as boolean
+        // to target scratch register, the expected instruction sequence would be:
+        //      cmp lhs, rhs
+        //      setcc dst
+        // so dst register will be required (and it can be rhs)
+        if (p->is_cmp() && !p->rhs->is_leaf()) {
+            // reuse rhs register, also need to reverse compare
+            // beause `cmp` instruction requires lhs to be register
+            if (p->is_op(">"))
+                p->op = "<";
+            else if (p->is_op(">="))
+                p->op = "<=";
+            else if (p->is_op("<"))
+                p->op = ">";
+            else if (p->is_op("<="))
+                p->op = ">=";
+            std::swap(p->lhs, p->rhs);
             p->data = p->lhs->data;
             return true;
         }
@@ -1104,6 +1110,20 @@ inline void SRegExpr::evaluate(SIMDJit* jit, const SReg* pdst, const char assign
             else {
                 jit->or_(dst, p->rhs->as_r64());
             }
+        } else if (p->is_op("&&")) {
+            if (p->rhs->is_imm())
+                jit->and_(dst, p->rhs->as_imm32() ? 1 : 0);
+            else {
+                jit->and_(dst, p->rhs->as_r64());
+            }
+        } else if (p->is_op("||")) {
+            if (p->rhs->is_imm())
+                jit->or_(dst, p->rhs->as_imm32() ? 1 : 0);
+            else {
+                jit->or_(dst, p->rhs->as_r64());
+            }
+        } else if (p->is_op("!")) {
+            jit->xor_(dst, 1);
         } else if (p->is_op("^")) {
             if (p->rhs->is_imm())
                 jit->xor_(dst, p->rhs->as_imm32());
@@ -1115,6 +1135,23 @@ inline void SRegExpr::evaluate(SIMDJit* jit, const SReg* pdst, const char assign
                 jit->cmp(dst, p->rhs->as_imm32());
             else {
                 jit->cmp(dst, p->rhs->as_r64());
+            }
+            if (!(do_jump && p == pimpl.get())) {
+                // generate boolean value based on cmp results
+                if (do_assign)
+                    jit->mov(dst, 0);  // note only lowest byte is set, clear high bytes
+                if (p->is_op("=="))
+                    jit->sete(dst.cvt8());
+                if (p->is_op("!="))
+                    jit->setne(dst.cvt8());
+                if (p->is_op(">"))
+                    jit->setg(dst.cvt8());
+                if (p->is_op(">="))
+                    jit->setge(dst.cvt8());
+                if (p->is_op("<"))
+                    jit->setl(dst.cvt8());
+                if (p->is_op("<="))
+                    jit->setle(dst.cvt8());
             }
         } else {
             std::cout << p->op << std::endl;
@@ -1143,6 +1180,47 @@ inline void SRegExpr::evaluate(SIMDJit* jit, const SReg* pdst, const char assign
                 ASSERT(0);
                 break;
             }
+        }
+    }
+
+    // generate jump
+    if (assign_op == 'T') {
+        if (pimpl->is_cmp()) {
+            if (pimpl->is_op("=="))
+                jit->je(label, jit->T_NEAR);
+            if (pimpl->is_op("!="))
+                jit->jne(label, jit->T_NEAR);
+            if (pimpl->is_op(">"))
+                jit->jg(label, jit->T_NEAR);
+            if (pimpl->is_op(">="))
+                jit->jge(label, jit->T_NEAR);
+            if (pimpl->is_op("<"))
+                jit->jl(label, jit->T_NEAR);
+            if (pimpl->is_op("<="))
+                jit->jle(label, jit->T_NEAR);
+        } else {
+            // convert final value to ZF
+            jit->test(pimpl->as_r64(), pimpl->as_r64());
+            jit->jnz(label, jit->T_NEAR);
+        }
+    } else if (assign_op == 'F') {
+        if (pimpl->is_cmp()) {
+            if (pimpl->is_op("=="))
+                jit->jne(label, jit->T_NEAR);
+            if (pimpl->is_op("!="))
+                jit->je(label, jit->T_NEAR);
+            if (pimpl->is_op(">"))
+                jit->jle(label, jit->T_NEAR);
+            if (pimpl->is_op(">="))
+                jit->jl(label, jit->T_NEAR);
+            if (pimpl->is_op("<"))
+                jit->jge(label, jit->T_NEAR);
+            if (pimpl->is_op("<="))
+                jit->jg(label, jit->T_NEAR);
+        } else {
+            // convert final value to ZF
+            jit->test(pimpl->as_r64().cvt8(), pimpl->as_r64().cvt8());
+            jit->jz(label, jit->T_NEAR);
         }
     }
 }
