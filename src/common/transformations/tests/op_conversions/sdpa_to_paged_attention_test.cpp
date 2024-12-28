@@ -29,6 +29,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/visualize_tree.hpp"
 #include "transformations/sdpa_to_paged_attention/prev_sequence_length_pattern.hpp"
 #include "transformations/sdpa_to_paged_attention/total_sequence_length_pattern.hpp"
 #include "transformations/utils/gen_pattern.hpp"
@@ -615,4 +616,135 @@ TEST_F(TransformationTestsF, SDPAToPA_TotalSequenceLengthPatternQwen) {
     comparator.disable(FunctionsComparator::PRECISIONS);
     disable_result_friendly_names_check();
     disable_rt_info_check();
+}
+
+TEST(TransformationTests, Baichuan2_13b_alibi_slopes) {
+    auto beam_idx = makeOP<opset1::Parameter>({}, {{"shape", PartialShape{DYN}}, {"element_type", "i32"}});
+    auto attention_mask = makeOP<opset1::Parameter>({}, {{"shape", PartialShape{DYN, DYN}}, {"element_type", "i64"}});
+    auto input_ids = makeOP<opset1::Parameter>({}, {{"shape", PartialShape{DYN, DYN}}, {"element_type", "i64"}});
+    ParameterVector params = nodes_to_params({input_ids, beam_idx, attention_mask});
+
+    auto input_ids_shape = makeOP<opset3::ShapeOf>({input_ids}, {{"output_type", "i64"}});
+    auto batch_dim = makeOP<opset8::Gather>({input_ids_shape, {0}, 0}, {{"batch_dims", 0}});
+
+    auto target_shape = makeOP<opset1::Concat>({batch_dim, {40ll}, {0ll}, {128ll}}, {{"axis", 0}});
+    auto init_to_read_value = makeOP<opset3::Broadcast>({0.000000f, target_shape}, {{"mode", "numpy"}});
+
+    auto ReadValue63 = makeOP<opset6::ReadValue>(
+        {init_to_read_value},
+        {{"variable_id", "ID2"}, {"variable_type", "f32"}, {"variable_shape", PartialShape{DYN, 40, DYN, 128}}});
+    auto Gather65 = makeOP<opset8::Gather>({ReadValue63, beam_idx, 0}, {{"batch_dims", 0}});
+
+    auto Constant83 = makeConst(element::f32, ov::Shape({1, 1, 1, 1}), {1.000000f});
+    auto Convert85 = makeOP<opset1::Convert>({attention_mask}, {{"destination_type", "f32"}});
+    auto Unsqueeze86 = makeOP<opset1::Unsqueeze>({Convert85, 2});
+    auto Unsqueeze87 = makeOP<opset1::Unsqueeze>({Convert85, 1});
+    auto Multiply88 = makeOP<opset1::Multiply>({Unsqueeze86, Unsqueeze87}, {{"auto_broadcast", "numpy"}});
+    auto Constant89 = makeConst(element::f32, ov::Shape({1, 1, 1}), {0.000000f});
+    auto Greater90 = makeOP<opset1::Greater>({Multiply88, Constant89}, {{"auto_broadcast", "numpy"}});
+    auto ShapeOf91 = makeOP<opset3::ShapeOf>({Greater90}, {{"output_type", "i32"}});
+    auto Gather94 = makeOP<opset8::Gather>({ShapeOf91, 1, 0}, {{"batch_dims", 0}});
+    auto Range96 = makeOP<opset4::Range>({0, Gather94, 1}, {{"output_type", "i32"}});
+    auto Unsqueeze97 = makeOP<opset1::Unsqueeze>({Range96, 0});
+    auto Unsqueeze98 = makeOP<opset1::Unsqueeze>({Range96, 1});
+    auto LessEqual99 = makeOP<opset1::LessEqual>({Unsqueeze97, Unsqueeze98}, {{"auto_broadcast", "numpy"}});
+    auto Constant100 = makeConst(element::boolean, ov::Shape({}), {0});
+    auto Select101 = makeOP<opset1::Select>({LessEqual99, Greater90, Constant100}, {{"auto_broadcast", "numpy"}});
+    auto Subtract102 = makeOP<opset1::Subtract>({Unsqueeze86, Unsqueeze87}, {{"auto_broadcast", "numpy"}});
+    auto Constant103 = makeConst(element::f32, ov::Shape({1, 1, 1}), {0.000000f});
+    auto Equal104 = makeOP<opset1::Equal>({Subtract102, Constant103}, {{"auto_broadcast", "numpy"}});
+    auto LogicalAnd105 = makeOP<opset1::LogicalAnd>({Select101, Equal104}, {{"auto_broadcast", "numpy"}});
+    auto Unsqueeze106 = makeOP<opset1::Unsqueeze>({LogicalAnd105, 1});
+
+    auto ShapeOf107 = makeOP<opset3::ShapeOf>({input_ids}, {{"output_type", "i64"}});
+    auto batch_dim_ = makeOP<opset8::Gather>({ShapeOf107, {0}, 0}, {{"batch_dims", 0}});
+
+    auto ALIBI_CONST = makeConst(element::f32, ov::Shape({40, 4096, 4096}), MOCK_VALUE);
+    auto seq_len = makeOP<opset8::Gather>({ShapeOf107, {1}, 0}, {{"batch_dims", 0}});
+    auto ShapeOf117 = makeOP<opset3::ShapeOf>({Gather65}, {{"output_type", "i64"}});
+    auto Gather120 = makeOP<opset8::Gather>({ShapeOf117, {2}, 0}, {{"batch_dims", 0}});
+    auto Add121 = makeOP<opset1::Add>({seq_len, Gather120}, {{"auto_broadcast", "numpy"}});
+    auto Broadcast123 = makeOP<opset3::Broadcast>({Add121, {2}}, {{"mode", "numpy"}});
+
+    // this slice expected to be replaced with Slice(alibi_const, start {1, 1}, stop {2, 2}, step {1, 1}, axes{1, 2});
+    // ALIBI_CONST content:
+    /*
+     * >>> line1 = np.reshape(line1, (40, 4096, 4096))
+        >>> print(line1[0][:][:])
+        [['0' '-inf' '-inf' ... '-inf' '-inf' '-inf']
+         ['0' '0.839844' '-inf' ... '-inf' '-inf' '-inf']
+         ['0' '0.839844' '1.67969' ... '-inf' '-inf' '-inf']
+         ...
+         ['0' '0.839844' '1.67969' ... '3440' '-inf' '-inf']
+         ['0' '0.839844' '1.67969' ... '3440' '3440' '-inf']
+         ['0' '0.839844' '1.67969' ... '3440' '3440' '3440']]
+        >>> print(line1[1][:][:])
+        [['0' '-inf' '-inf' ... '-inf' '-inf' '-inf']
+         ['0' '0.707031' '-inf' ... '-inf' '-inf' '-inf']
+         ['0' '0.707031' '1.41406' ... '-inf' '-inf' '-inf']
+         ...
+         ['0' '0.707031' '1.41406' ... '2896' '-inf' '-inf']
+         ['0' '0.707031' '1.41406' ... '2896' '2896' '-inf']
+         ['0' '0.707031' '1.41406' ... '2896' '2896' '2896']]
+        >>> print(line1[3][:][:])
+        [['0' '-inf' '-inf' ... '-inf' '-inf' '-inf']
+         ['0' '0.5' '-inf' ... '-inf' '-inf' '-inf']
+         ['0' '0.5' '1' ... '-inf' '-inf' '-inf']
+         ...
+         ['0' '0.5' '1' ... '2048' '-inf' '-inf']
+         ['0' '0.5' '1' ... '2048' '2048' '-inf']
+         ['0' '0.5' '1' ... '2048' '2048' '2048']]
+        >>> print(line1[4][:][:])
+        [['0' '-inf' '-inf' ... '-inf' '-inf' '-inf']
+         ['0' '0.419922' '-inf' ... '-inf' '-inf' '-inf']
+         ['0' '0.419922' '0.839844' ... '-inf' '-inf' '-inf']
+         ...
+         ['0' '0.419922' '0.839844' ... '1720' '-inf' '-inf']
+         ['0' '0.419922' '0.839844' ... '1720' '1720' '-inf']
+         ['0' '0.419922' '0.839844' ... '1720' '1720' '1720']]
+
+         Slicing from {1, 1} to {2, 2} gives us the expected alibi slope constant to pass it to PagedAttention:
+         >>> print(line1[5][1][1])
+            0.353516
+            >>> print(line1[4][1][1])
+            0.419922
+            >>> print(line1[3][1][1])
+            0.5
+
+         ALibi slope const shape [40, 4096, 4096]
+         Slicing means that we take only 1 value from each 4096 x 4096 matrix here
+         The resulting constant will be [40, 1, 1]
+         After that we need to insert Reshape to get the expected rank = 1 (shape [40])
+     */
+    auto SLICED_BY_TOTAL_LEN =
+        makeOP<opset8::Slice>({ALIBI_CONST, {0, 0}, Broadcast123, {1, 1}, {1, 2}});  // alibi??? 0...total_seq_len
+
+    auto ShapeOf127 = makeOP<opset3::ShapeOf>({SLICED_BY_TOTAL_LEN}, {{"output_type", "i64"}});
+    auto Gather130 = makeOP<opset8::Gather>({ShapeOf127, {1, 2}, 0}, {{"batch_dims", 0}});
+    auto Concat131 = makeOP<opset1::Concat>({batch_dim_, {1ll}, Gather130}, {{"axis", 0}});
+    auto Broadcast132 = makeOP<opset3::Broadcast>({Unsqueeze106, Concat131}, {{"mode", "bidirectional"}});
+    auto Convert133 = makeOP<opset1::Convert>({Broadcast132}, {{"destination_type", "f32"}});  // alibi??
+
+    auto Constant134 = makeConst(element::f32, ov::Shape({1, 1, 1, 1}), {1.000000f});
+    auto Multiply135 = makeOP<opset1::Multiply>({Convert133, Constant134}, {{"auto_broadcast", "numpy"}});
+    auto Subtract136 = makeOP<opset1::Subtract>({Constant83, Multiply135}, {{"auto_broadcast", "numpy"}});  // alibi???
+    auto Convert137 = makeOP<opset1::Convert>({Subtract136}, {{"destination_type", "boolean"}});
+
+    auto Select139 = makeOP<opset1::Select>({Convert137, -FLT_MAX, Subtract136}, {{"auto_broadcast", "numpy"}});
+    auto Unsqueeze140 = makeOP<opset1::Unsqueeze>({SLICED_BY_TOTAL_LEN, 0});
+    auto Add141 = makeOP<opset1::Add>({Select139, Unsqueeze140}, {{"auto_broadcast", "numpy"}});
+
+    auto Multiply143 =
+        makeOP<opset1::Multiply>({seq_len, {-1ll}}, {{"auto_broadcast", "numpy"}});  // attn_heads,maxpos,
+
+    auto SLICED_BY_CURRENT_LEN =
+        makeOP<opset8::Slice>({Add141, Multiply143, {LLONG_MAX}, {1}, {2}});  // tensor: 1, 40, current, total
+    auto res = std::make_shared<op::v0::Result>(SLICED_BY_CURRENT_LEN);
+    auto mode = std::make_shared<ov::Model>(ResultVector{res}, ParameterVector{params});
+
+    /*ov::pass::Manager manager;
+    manager.register_pass<ov::pass::VisualizeTree>("alibi_slope_test.svg");
+    manager.run_passes(mode);*/
+    // auto ScaledDotProductAttention148 = makeOP<v13::ScaledDotProductAttention>({Transpose62, Concat72, Concat82,
+    // Slice147}, {{"causal", false}});
 }

@@ -12,10 +12,12 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/visualize_tree.hpp"
 #include "transformations/sdpa_to_paged_attention/position_ids_replacer.hpp"
 #include "transformations/sdpa_to_paged_attention/prev_sequence_length_pattern.hpp"
 #include "transformations/sdpa_to_paged_attention/state_management_pattern.hpp"
 #include "transformations/sdpa_to_paged_attention/total_sequence_length_pattern.hpp"
+#include "transformations/utils/print_model.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::op;
@@ -36,6 +38,10 @@ static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> nod
 bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(SDPAToPagedAttention);
 
+    /*    ov::pass::Manager manager3;
+        manager3.register_pass<ov::pass::VisualizeTree>("before_pa_baichuan.svg");
+        manager3.register_pass<ov::pass::PrintModel>("before_pa_baichuan.txt");
+        manager3.run_passes(model);*/
     OPENVINO_ASSERT(ov::op::util::has_op_with_type<ov::op::v13::ScaledDotProductAttention>(model),
                     "No ScaledDotProductAttention operation observed in the graph, cannot perform"
                     "the SDPAToPagedAttention transformation.");
@@ -186,5 +192,9 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     model->add_parameters(model_remaining_params);
     model->add_parameters({std::move(max_context_len)});
     model->validate_nodes_and_infer_types();
+
+    /*    ov::pass::Manager manager_2;
+        manager_2.register_pass<ov::pass::VisualizeTree>("after_pa_baichuan.svg");
+        manager_2.run_passes(model);*/
     return true;
 }

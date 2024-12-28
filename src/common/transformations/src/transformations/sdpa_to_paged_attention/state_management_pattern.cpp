@@ -19,8 +19,10 @@
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/strided_slice.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
@@ -155,6 +157,16 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
     alibi_mask = pattern::wrap_type<v0::Unsqueeze>({alibi_mask, pattern::any_input()});
     alibi_mask = pattern::wrap_type<v1::Add>({pattern::any_input(), alibi_mask});
 
+    // Baichuan2 13b case
+    // TODO: make it stricter, more conservative.
+    auto sub = pattern::wrap_type<v1::Subtract>({pattern::any_input(), pattern::any_input()});
+    auto select = pattern::wrap_type<v1::Select>({pattern::any_input(), pattern::any_input(), sub});
+    auto _alibi = pattern::any_input();
+    auto Unsqueeze140 = pattern::wrap_type<v0::Unsqueeze>({_alibi, pattern::any_input()});
+    auto Add141 = pattern::wrap_type<v1::Add>({pattern::any_input(), Unsqueeze140});
+    auto Slice147 = pattern::wrap_type<v8::Slice>(
+        {Add141, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
+
     auto q = pattern::any_input();
     auto scale_input = pattern::any_input();
 
@@ -162,7 +174,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         std::make_shared<pattern::op::Or>(OutputVector{k_concat, k_shaped, k_shaped_transposed, k_simply_shaped});
     auto v_to_sdpa =
         std::make_shared<pattern::op::Or>(OutputVector{v_concat, v_shaped, v_shaped_transposed, v_simply_shaped});
-    auto mask_to_sdpa = std::make_shared<pattern::op::Or>(OutputVector{sdpa_mask, alibi_mask, pattern::any_input()});
+    auto mask_to_sdpa =
+        std::make_shared<pattern::op::Or>(OutputVector{sdpa_mask, alibi_mask, Slice147, pattern::any_input()});
 
     auto sdpa_with_4_inputs =
         pattern::wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa});
@@ -335,7 +348,19 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         }
 
         std::shared_ptr<Node> alibi_slopes;
-        if (pattern_map.find(alibi) != pattern_map.end()) {
+        if (pattern_map.count(_alibi)) {
+            alibi_slopes = pattern_map.at(_alibi).get_node_shared_ptr();
+            auto start = v0::Constant::create(element::i64, Shape{2}, {1, 1});
+            auto stop = v0::Constant::create(element::i64, Shape{2}, {2, 2});
+            auto step = v0::Constant::create(element::i64, Shape{2}, {1, 1});
+            auto axes = v0::Constant::create(element::i64, Shape{2}, {1, 2});
+            alibi_slopes = std::make_shared<v8::Slice>(alibi_slopes->input_value(0), start, stop, step, axes);
+            alibi_slopes =
+                std::make_shared<v1::Reshape>(alibi_slopes, v0::Constant::create(element::i64, Shape{1}, {-1}), false);
+            if (alibi_slopes->get_element_type() == element::f32) {
+                alibi_slopes = std::make_shared<v0::Convert>(alibi_slopes, element::f32);
+            }
+        } else if (pattern_map.find(alibi) != pattern_map.end()) {
             alibi_slopes = std::make_shared<v1::Reshape>(pattern_map.at(alibi),
                                                          v0::Constant::create(element::i64, Shape{1}, {-1}),
                                                          false);
