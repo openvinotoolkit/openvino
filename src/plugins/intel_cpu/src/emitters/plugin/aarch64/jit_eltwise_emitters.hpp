@@ -990,6 +990,13 @@ public:
 
     size_t get_inputs_count() const override;
 
+    size_t get_aux_vecs_count() const override;
+
+    size_t get_aux_gprs_count() const override;
+
+    void register_table_entries() override;
+    
+
     void emit_data() const override;
 
     static std::set<std::vector<element::Type>> get_supported_precisions(

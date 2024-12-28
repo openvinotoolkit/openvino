@@ -2459,6 +2459,14 @@ size_t jit_erf_emitter::get_inputs_count() const {
     return 1;
 }
 
+size_t jit_erf_emitter::get_aux_vecs_count() const {
+    return exp_emitter->get_aux_vecs_count() + 4;
+}
+
+size_t jit_erf_emitter::get_aux_gprs_count() const {
+    return exp_emitter->get_aux_gprs_count() + 1;
+}
+
 void jit_erf_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
                                 const std::vector<size_t>& out_vec_idxs) const {
     if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
@@ -2478,8 +2486,31 @@ void jit_erf_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     const TReg src(in_vec_idxs[0]);
     const TReg dst(out_vec_idxs[0]);
+    const TReg vmm_aux0(aux_vec_idxs[0]);
+    const TReg vmm_aux1(aux_vec_idxs[1]);
+    const TReg vmm_aux2(aux_vec_idxs[2]);
+    const TReg vmm_aux3(aux_vec_idxs[3]);
 
-    h->erf(dst.s, src.s);
+    // x = x * x
+    h->fmul(vmm_aux0.s, src.s, src.s);
+
+    // exp(-x)
+    h->fneg(vmm_aux0.s, vmm_aux0.s);
+    exp_emitter->emit_code({vmm_aux0.getIdx()}, {vmm_aux1.getIdx()}, aux_vec_idxs, aux_gpr_idxs);
+
+    // t = 1 / (p * x + 1)
+    h->ld1r(vmm_aux2.s, table_val2("erf_p"));
+    h->fmul(vmm_aux2.s, vmm_aux2.s, src.s);
+    h->ld1r(vmm_aux3.s, table_val2("one"));
+    h->fadd(vmm_aux2.s, vmm_aux2.s, vmm_aux3.s);
+    h->fdiv(vmm_aux2.s, vmm_aux3.s, vmm_aux2.s);
+
+    // erf = sign * (1 - exp(-x) * t)
+    h->fmul(vmm_aux1.s, vmm_aux1.s, vmm_aux2.s);
+    h->fsub(vmm_aux1.s, vmm_aux3.s, vmm_aux1.s);
+    h->fcmge(vmm_aux3.s, src.s, 0.0);
+    h->bsl(vmm_aux3.b16, vmm_aux1.b16, vmm_aux0.b16);
+    h->mov(dst.b16, vmm_aux3.b16);
 }
 
 void jit_erf_emitter::emit_data() const {
@@ -2489,6 +2520,11 @@ void jit_erf_emitter::emit_data() const {
 std::set<std::vector<element::Type>> jit_erf_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
+void jit_erf_emitter::register_table_entries() {
+    push_arg_entry_of("one", 0x3f800000, true);
+    push_arg_entry_of("erf_p", 0x3ea7ba05, true);
+}
+
 
 
 /// SOFT_SIGN ///
