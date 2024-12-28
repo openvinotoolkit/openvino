@@ -16,13 +16,13 @@ static std::vector<std::function<void(void)>> test_exprs;
     {                                                                  \
         auto jit = std::make_shared<ov::intel_cpu::SIMDJit>(__func__); \
         {                                                              \
-            auto dst = jit->get_sreg(0);                               \
-            auto a = jit->get_sreg(1);                                 \
-            auto b = jit->get_sreg(2);                                 \
-            auto c = jit->get_sreg(3);                                 \
-            auto d = jit->get_sreg(4);                                 \
-            auto e = jit->get_sreg(5);                                 \
-            auto f = jit->get_sreg(6);                                 \
+            auto dst = jit->get_arg(0);                                \
+            auto a = jit->get_arg(1);                                  \
+            auto b = jit->get_arg(2);                                  \
+            auto c = jit->get_arg(3);                                  \
+            auto d = jit->get_arg(4);                                  \
+            auto e = jit->get_arg(5);                                  \
+            auto f = jit->get_arg(6);                                  \
             expr_name(dst, a, b, c, d, e, f);                          \
             jit->finalize(dst);                                        \
         }                                                              \
@@ -42,13 +42,13 @@ static std::vector<std::function<void(void)>> test_exprs;
     {                                                                  \
         auto jit = std::make_shared<ov::intel_cpu::SIMDJit>(__func__); \
         {                                                              \
-            auto dst = jit->get_sreg(0);                               \
-            auto a = jit->get_sreg(1);                                 \
-            auto b = jit->get_sreg(2);                                 \
-            auto c = jit->get_sreg(3);                                 \
-            auto d = jit->get_sreg(4);                                 \
-            auto e = jit->get_sreg(5);                                 \
-            auto f = jit->get_sreg(6);                                 \
+            auto dst = jit->get_arg(0);                                \
+            auto a = jit->get_arg(1);                                  \
+            auto b = jit->get_arg(2);                                  \
+            auto c = jit->get_arg(3);                                  \
+            auto d = jit->get_arg(4);                                  \
+            auto e = jit->get_arg(5);                                  \
+            auto f = jit->get_arg(6);                                  \
             jit->while_(cond_expr(dst, a, b, c, d, e, f), [&] {        \
                 body_expr(dst, a, b, c, d, e, f);                      \
             });                                                        \
@@ -173,7 +173,7 @@ static int fib(int n) {
 TEST(SIMDJit, control_flow_fib) {
     auto jit = std::make_shared<ov::intel_cpu::SIMDJit>(__func__);
     {
-        auto n = jit->get_sreg(0);
+        auto n = jit->get_arg(0);
         jit->if_(n == 1 || n == 2, [&] {
             jit->return_(1);
         });

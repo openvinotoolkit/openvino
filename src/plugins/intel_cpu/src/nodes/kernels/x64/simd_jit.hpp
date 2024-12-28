@@ -15,20 +15,19 @@
 #    include "../include/jit.h"
 #    define DECLARE_CPU_JIT_AUX_FUNCTIONS(x)
 static const bool use_avx512 = false;
-#else
-#    include "cpu/x64/jit_generator.hpp"
-using jit_generator = dnnl::impl::cpu::x64::jit_generator;
-static const bool use_avx512 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
-#endif
-
-#define ASSERT(cond)                                                                           \
-    if (!(cond)) {                                                                             \
+#define OPENVINO_ASSERT(cond, ...) if (!(cond)) {\
         std::stringstream ss;                                                                  \
         ss << "\033[31m" << __FILE__ << ":" << __LINE__ << " " << #cond << " failed! \033[0m"; \
         std::cout << ss.str() << std::endl;                                                    \
         asm("int3");                                                                           \
         throw std::runtime_error(ss.str());                                                    \
     }
+#else
+#include "openvino/core/except.hpp"
+#include "cpu/x64/jit_generator.hpp"
+using jit_generator = dnnl::impl::cpu::x64::jit_generator;
+static const bool use_avx512 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
+#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -177,11 +176,11 @@ struct RegExprImpl {
     std::unique_ptr<RegExprImpl> rhs;
 
     Xbyak::Reg64 as_r64() {
-        ASSERT(!is_op("i"));
+        OPENVINO_ASSERT(!is_op("i"));
         return Xbyak::Reg64(data);
     }
     int as_imm32() {
-        ASSERT(is_op("i"));
+        OPENVINO_ASSERT(is_op("i"));
         return data;
     }
 
@@ -401,10 +400,10 @@ public:
 
     // convert to address
     operator Xbyak::RegExp() const {
-        ASSERT(paddr);
+        OPENVINO_ASSERT(paddr);
 
         if (paddr->base_reg < 0) {
-            ASSERT(paddr->index_reg >= 0);
+            OPENVINO_ASSERT(paddr->index_reg >= 0);
             return Xbyak::Reg64(paddr->index_reg) * paddr->scale + paddr->disp;
         } else if (paddr->index_reg >= 0)
             return Xbyak::Reg64(paddr->base_reg) + Xbyak::Reg64(paddr->index_reg) * paddr->scale + paddr->disp;
@@ -473,17 +472,17 @@ inline SRegExpr operator!=(SRegExpr&& lhs, SRegExpr&& rhs) {
     return SRegExpr("!=", std::move(lhs), std::move(rhs));
 }
 inline SRegExpr operator&&(SRegExpr&& lhs, SRegExpr&& rhs) {
-    ASSERT(lhs.pimpl->is_logical_op());
-    ASSERT(rhs.pimpl->is_logical_op());
+    OPENVINO_ASSERT(lhs.pimpl->is_logical_op());
+    OPENVINO_ASSERT(rhs.pimpl->is_logical_op());
     return SRegExpr("&&", std::move(lhs), std::move(rhs));
 }
 inline SRegExpr operator||(SRegExpr&& lhs, SRegExpr&& rhs) {
-    ASSERT(lhs.pimpl->is_logical_op());
-    ASSERT(rhs.pimpl->is_logical_op());
+    OPENVINO_ASSERT(lhs.pimpl->is_logical_op());
+    OPENVINO_ASSERT(rhs.pimpl->is_logical_op());
     return SRegExpr("||", std::move(lhs), std::move(rhs));
 }
 inline SRegExpr operator!(SRegExpr&& lhs) {
-    ASSERT(lhs.pimpl->is_logical_op());
+    OPENVINO_ASSERT(lhs.pimpl->is_logical_op());
     return SRegExpr("!", std::move(lhs));
 }
 
@@ -492,8 +491,6 @@ public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(SIMDJit);
 
     static constexpr int num_allocatable_sregs = sizeof(abi_x86_64_regs) / sizeof(abi_x86_64_regs[0]);
-    int reg_status[num_allocatable_sregs];
-    // scalar register variable
 
     class JitDisassembler {
     public:
@@ -561,35 +558,22 @@ public:
         create_kernel();
     }
 
-    SReg get_sreg(int idx = -1) {
-        auto alloc_sreg = [&](int i) {
-            if (reg_status[i] != 0) {
-                throw std::runtime_error(std::string("try to allocate an already used register:") + std::to_string(i));
-            }
-            reg_status[i] = 1;
-            return std::shared_ptr<Xbyak::Reg64>(new Xbyak::Reg64(abi_x86_64_regs[i]), [this, i](Xbyak::Reg64* preg) {
-                if (preg) {
-                    reg_status[i] = 0;
-                    delete preg;
-                }
-            });
-        };
+    SReg get_arg(int idx) {
+        auto ret = SReg(this, alloc_reg64(idx));
+        if (idx >= abi_param_regs_num)
+            mov(ret, ptr[rax + (idx - abi_param_regs_num + 1) * 8]);  // load from stack
+        return ret;
+    }
 
-        if (idx >= 0) {
-            auto ret = SReg(this, alloc_sreg(idx));
-            if (idx >= abi_param_regs_num)
-                mov(ret, ptr[rax + (idx - abi_param_regs_num + 1) * 8]);  // load from stack
-            return ret;
-        } else {
-            // find a free register, note argument registers are also allocatable, make sure
-            // allocate argument registers before any local register-var
-            for (int i = 0; i < num_allocatable_sregs; i++) {
-                if (reg_status[i] == 0) {
-                    return SReg(this, alloc_sreg(i));
-                }
+    SReg get_sreg() {
+        // find a free register, note argument registers are also allocatable, make sure
+        // allocate argument registers before any local register-var
+        for (int i = 0; i < num_allocatable_sregs; i++) {
+            if (reg_status[i] == 0) {
+                return SReg(this, alloc_reg64(i));
             }
         }
-        throw std::runtime_error(std::string("scalar register resource exhausted!"));
+        OPENVINO_ASSERT(false, "scalar register resource exhausted!");
         return {};
     }
 
@@ -752,6 +736,19 @@ public:
     static int vmm_width() {
         return (use_avx512 ? 512 : 256) / (sizeof(DT) * 8);
     }
+
+private:
+    int reg_status[num_allocatable_sregs];
+    std::shared_ptr<Xbyak::Reg64> alloc_reg64(int i) {
+        OPENVINO_ASSERT(reg_status[i] == 0, "try to allocate an already used register:", i);
+        reg_status[i] = 1;
+        return std::shared_ptr<Xbyak::Reg64>(new Xbyak::Reg64(abi_x86_64_regs[i]), [this, i](Xbyak::Reg64* preg) {
+            if (preg) {
+                reg_status[i] = 0;
+                delete preg;
+            }
+        });
+    }
 };
 
 inline const SReg& SReg::operator=(const SReg& rhs) const {
@@ -826,7 +823,7 @@ inline void SRegExpr::evaluate(SIMDJit* jit, const SReg* pdst, const char assign
                 jit->imul(dst, lhs->as_r64());
                 break;
             default:
-                ASSERT(false);
+                OPENVINO_ASSERT(false);
                 break;
             }
             return;
@@ -846,7 +843,7 @@ inline void SRegExpr::evaluate(SIMDJit* jit, const SReg* pdst, const char assign
                 jit->imul(dst, dst, lhs->as_imm32());
                 break;
             default:
-                ASSERT(false);
+                OPENVINO_ASSERT(false);
                 break;
             }
             return;
@@ -870,7 +867,7 @@ inline void SRegExpr::evaluate(SIMDJit* jit, const SReg* pdst, const char assign
                     jit->imul(dst, temp);
                     break;
                 default:
-                    ASSERT(false);
+                    OPENVINO_ASSERT(false);
                     break;
                 }
             }
@@ -990,7 +987,7 @@ inline void SRegExpr::evaluate(SIMDJit* jit, const SReg* pdst, const char assign
         // try to replace last scratch register with assign destination register
         auto assign_dst_reg_idx = pdst->r64().getIdx();
         auto assign_dst_reg_scratch_sn = pimpl->data;
-        ASSERT(assign_dst_reg_scratch_sn >= scratch_reg_base);
+        OPENVINO_ASSERT(assign_dst_reg_scratch_sn >= scratch_reg_base);
         // find the appearance of last access
         int last_access_exec_id = -1;
         int op_exec_id = 0;
@@ -1089,14 +1086,14 @@ inline void SRegExpr::evaluate(SIMDJit* jit, const SReg* pdst, const char assign
                 jit->sar(dst, p->rhs->as_imm32());
             else {
                 // only cl register supportted, we need allocate cl
-                ASSERT(0);  // jit->sar(dst, p->rhs->as_r64());
+                OPENVINO_ASSERT(false);  // jit->sar(dst, p->rhs->as_r64());
             }
         } else if (p->is_op("<<")) {
             if (p->rhs->is_imm())
                 jit->shl(dst, p->rhs->as_imm32());
             else {
                 // only cl register supportted, we need allocate cl
-                ASSERT(0);  // jit->shl(dst, p->rhs->as_r64());
+                OPENVINO_ASSERT(false);  // jit->shl(dst, p->rhs->as_r64());
             }
         } else if (p->is_op("&")) {
             if (p->rhs->is_imm())
@@ -1154,8 +1151,7 @@ inline void SRegExpr::evaluate(SIMDJit* jit, const SReg* pdst, const char assign
                     jit->setle(dst.cvt8());
             }
         } else {
-            std::cout << p->op << std::endl;
-            ASSERT(0);
+            OPENVINO_ASSERT(0, "Unsupported OP: ", p->op);
         }
         return true;
     });
@@ -1177,7 +1173,7 @@ inline void SRegExpr::evaluate(SIMDJit* jit, const SReg* pdst, const char assign
                 jit->imul(*pdst, pimpl->as_r64());
                 break;
             default:
-                ASSERT(0);
+                OPENVINO_ASSERT(false);
                 break;
             }
         }

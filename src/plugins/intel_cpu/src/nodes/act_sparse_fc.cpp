@@ -41,16 +41,6 @@ struct ActSparseFC::Executor : public ActSparseFC::ExecutorBase {
     MemoryPtr m_scales;
     ActSparseFCNode::Config& m_config;
 
-    void show(const char* name, uint8_t* src, int stride, int rows, int cols) {
-        printf("===== %s \n", name);
-        for (int r = 0; r < rows; r++, src += stride) {
-            for (int c = 0; c < cols; c++) {
-                printf("%02X,", src[c]);
-            }
-            printf("\n");
-        }
-    }
-
     Executor(ActSparseFC* pnode, DnnlScratchPadPtr scrachPad)
         : m_node(pnode),
           m_scrachPad(scrachPad),
@@ -64,7 +54,6 @@ struct ActSparseFC::Executor : public ActSparseFC::ExecutorBase {
         const auto& context = m_node->context;
         const auto& engine = m_node->getEngine();
 
-        std::cout << m_node->getName() << std::endl;
         auto create_weight = [&]() {
             auto raw_weight_mem = m_node->getSrcMemoryAtPort(1);
             MemoryPtr weight_mem;
