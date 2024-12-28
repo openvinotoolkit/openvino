@@ -48,14 +48,38 @@ layout paged_attention_inst::calc_output_layout(const paged_attention_node& /*no
 
 template<typename ShapeType>
 std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_node const& /*node*/, kernel_impl_params const& impl_param) {
-    auto out_layout = impl_param.get_input_layout(0);
+    auto data_layout = impl_param.get_input_layout(0);
 
     const auto& key_cache_ps = impl_param.get_input_layout(3).get_partial_shape();
     bool valid_block_size = key_cache_ps[3].is_dynamic() || key_cache_ps[3].get_length() == paged_attention::block_size;
     OPENVINO_ASSERT(valid_block_size, "[GPU] Incorrect block size for Paged Attention operation. "
                                       "Expected ", paged_attention::block_size, ", but got ", key_cache_ps[3].get_length());
 
-    return {out_layout};
+    std::vector<layout> output_layouts{ data_layout };
+
+    const auto& desc = impl_param.typed_desc<paged_attention>();
+    if (desc->has_scores_output()) {
+        const auto past_lens_idx = 5;
+        const auto output_dt = data_layout.data_type;
+        if (impl_param.get_input_layout(past_lens_idx).is_static()) {
+            const auto& memory_deps = impl_param.memory_deps;
+            const auto past_lens_mem = memory_deps.at(past_lens_idx);
+            mem_lock<int32_t, mem_lock_type::read> past_lens_mem_lock(past_lens_mem, *impl_param.strm);
+
+            long int total_size = 0;
+            for (size_t i = 0; i < past_lens_mem_lock.size(); i++) {
+                total_size += past_lens_mem_lock[i];
+            }
+
+            total_size += static_cast<long int>(impl_param.get_input_layout(0).get_shape()[0]);
+
+            output_layouts.push_back(layout{ov::PartialShape{total_size}, output_dt, format::bfyx});
+        } else {
+            output_layouts.push_back(layout{ov::PartialShape::dynamic(1), output_dt, format::bfyx});
+        }
+    }
+
+    return output_layouts;
 }
 
 template std::vector<layout>
@@ -81,11 +105,49 @@ std::string paged_attention_inst::to_string(const paged_attention_node& node) {
 }
 
 void paged_attention_inst::on_execute() {
-    auto stage = get_paged_attention_stage(*_impl_params);
+    const auto& desc = _impl_params->typed_desc<paged_attention>();
+    const bool has_scores_output = desc->has_scores_output();
+    const auto stage = get_paged_attention_stage(*_impl_params);
 
-    if (stage == PagedAttentionStage::UNKNOWN ||
-        stage == PagedAttentionStage::GENERATE)
+    if ((stage == PagedAttentionStage::UNKNOWN) ||
+        (stage == PagedAttentionStage::GENERATE && !has_scores_output))
         return;
+
+    auto& stream = get_network().get_stream();
+    const auto past_lens_mem = past_lens_memory_ptr();
+    const auto subsequence_begins_mem = subsequence_begins_memory_ptr();
+    mem_lock<int32_t, mem_lock_type::read> past_lens_mem_lock(past_lens_mem, stream);
+    mem_lock<int32_t, mem_lock_type::read> subsequence_begins_mem_lock(subsequence_begins_mem, stream);
+    std::unique_ptr<mem_lock<int32_t, mem_lock_type::write>> subsequence_offsets_lock = nullptr;
+
+    if (has_scores_output) {
+        const size_t subsequence_offsets_idx = 4;
+
+        OPENVINO_ASSERT(_intermediates_memory.size() > subsequence_offsets_idx,
+                        "[GPU] Unexpected number of intermediates buffers for Paged Attention for scores output calculation");
+
+        auto subsequence_offsets_mem = _intermediates_memory[subsequence_offsets_idx];
+        subsequence_offsets_lock.reset(new mem_lock<int32_t, mem_lock_type::write>(subsequence_offsets_mem, stream));
+    }
+
+    if (stage == PagedAttentionStage::GENERATE) {
+        // For the generate stage it's not necessary to configure any other intermediate
+        // buffers. Simply calculate the offsets and exit
+        size_t subsequence_offsets_acc = 0;
+        for (size_t i = 0; i < subsequence_begins_mem_lock.size() - 1; i++) {
+            const auto past_len = past_lens_mem_lock[i];
+            const auto seq_start = subsequence_begins_mem_lock[i];
+            const auto seq_end = subsequence_begins_mem_lock[i + 1];
+            const auto seq_length = seq_end - seq_start;
+
+            if (subsequence_offsets_lock) {
+                subsequence_offsets_lock->operator[](i) = static_cast<int32_t>(subsequence_offsets_acc);
+                subsequence_offsets_acc += seq_length + past_len;
+            }
+        }
+
+        return;
+    }
 
     OPENVINO_ASSERT(_intermediates_memory.size() >= 3, "Unexpected number of intermediates buffers for Paged Attention at prefill stage");
 
@@ -93,33 +155,29 @@ void paged_attention_inst::on_execute() {
     const auto blocks_indexes_end_idx = 1;
     const auto blocked_gws_subseq_mapping_idx = 2;
 
-    const auto past_lens_mem = past_lens_memory_ptr();
-    auto subsequence_begins_mem = subsequence_begins_memory_ptr();
     auto blocks_indexes_start_mem = _intermediates_memory[blocks_indexes_start_idx];
     auto blocks_indexes_end_mem = _intermediates_memory[blocks_indexes_end_idx];
     auto blocked_gws_subseq_mapping_mem = _intermediates_memory[blocked_gws_subseq_mapping_idx];
 
     OPENVINO_ASSERT(subsequence_begins_mem->get_layout().data_type == data_types::i32);
 
-    auto& stream = get_network().get_stream();
-    mem_lock<int32_t, mem_lock_type::read> past_lens_mem_lock(past_lens_mem, stream);
-    mem_lock<int32_t, mem_lock_type::read> subsequence_begins_mem_lock(subsequence_begins_mem, stream);
     mem_lock<int32_t, mem_lock_type::write> blocks_indexes_start_lock(blocks_indexes_start_mem, stream);
     mem_lock<int32_t, mem_lock_type::write> blocks_indexes_end_lock(blocks_indexes_end_mem, stream);
     mem_lock<int32_t, mem_lock_type::write> blocked_gws_subseq_mapping_mem_lock(blocked_gws_subseq_mapping_mem, stream);
     std::unique_ptr<mem_lock<int32_t, mem_lock_type::write>> sequential_gws_subseq_mapping_lock = nullptr;
 
     if (stage == PagedAttentionStage::MIXED) {
-        const auto sequential_gws_subseq_mapping_idx = 6;
+        const size_t sequential_gws_subseq_mapping_idx = has_scores_output ? 8 : 6;
 
         OPENVINO_ASSERT(_intermediates_memory.size() > sequential_gws_subseq_mapping_idx,
-                        "Unexpected number of intermediates buffers for Paged Attention for mixed stage");
+                        "[GPU] Unexpected number of intermediates buffers for Paged Attention for mixed stage");
 
         auto sequential_gws_subseq_mapping_mem = _intermediates_memory[sequential_gws_subseq_mapping_idx];
         sequential_gws_subseq_mapping_lock.reset(new mem_lock<int32_t, mem_lock_type::write>(sequential_gws_subseq_mapping_mem, stream));
     }
 
     size_t index = 0;
+    size_t subsequence_offsets_acc = 0;
     const auto target_seq_len_block_size = 16; // TODO: Get block size from the impl
     for (size_t i = 0; i < subsequence_begins_mem_lock.size() - 1; i++) {
         const auto past_len = past_lens_mem_lock[i];
@@ -158,6 +216,11 @@ void paged_attention_inst::on_execute() {
             for (int32_t idx = seq_start; idx < seq_end; idx++) {
                 sequential_gws_subseq_mapping_lock->operator[](idx) = static_cast<int32_t>(i);
             }
+        }
+
+        if (subsequence_offsets_lock) {
+            subsequence_offsets_lock->operator[](i) = static_cast<int32_t>(subsequence_offsets_acc);
+            subsequence_offsets_acc += seq_length + past_len;
         }
     }
 }
