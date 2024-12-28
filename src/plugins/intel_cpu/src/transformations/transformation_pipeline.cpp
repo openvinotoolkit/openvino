@@ -1129,6 +1129,10 @@ void Transformations::MainSnippets(void) {
                 ov::is_type<ov::op::v1::Mod>(n) || ov::is_type<ov::op::v1::Multiply>(n) ||
                 ov::is_type<ov::op::v0::Relu>(n) || ov::is_type<ov::op::v0::Sigmoid>(n) ||
                 ov::is_type<ov::op::v1::Subtract>(n) || ov::is_type<ov::op::v4::Swish>(n) ||
+                ov::is_type<ov::op::v0::Equal>(n) || ov::is_type<ov::op::v0::Equal>(n) ||
+                ov::is_type<ov::op::v0::Greater>(n) || ov::is_type<ov::op::v0::Greater>(n) ||
+                ov::is_type<ov::op::v0::GreaterEqual>(n) || ov::is_type<ov::op::v0::GreaterEqual>(n) ||
+                ov::is_type<ov::op::v0::LessEqual>(n) || ov::is_type<ov::op::v0::LessEqual>(n) ||
                 ov::is_type<ov::op::v0::Tanh>(n));
 #else
         // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant,
@@ -1241,8 +1245,8 @@ void Transformations::MainSnippets(void) {
         MAYBE_UNUSED(config.inferencePrecision);
         if (!ignoreCallback)
             return false;
-            // Note: BrgemmTPP doesn't support transposed KN natively
-            // so we should extract transposes for the corresponding matmul nodes
+        // Note: BrgemmTPP doesn't support transposed KN natively
+        // so we should extract transposes for the corresponding matmul nodes
 #if defined(SNIPPETS_LIBXSMM_TPP)
         // TPP doesn't support dynamic shapes -> there will be BrgemmCPU node
         if (n->is_dynamic())
