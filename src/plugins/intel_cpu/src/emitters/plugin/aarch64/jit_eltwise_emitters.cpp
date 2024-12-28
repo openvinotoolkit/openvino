@@ -2515,6 +2515,7 @@ void jit_erf_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
 void jit_erf_emitter::emit_data() const {
     jit_emitter::emit_data();
+    exp_emitter->emit_data();
 }
 
 std::set<std::vector<element::Type>> jit_erf_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
