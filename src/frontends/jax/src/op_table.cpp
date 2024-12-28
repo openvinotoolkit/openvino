@@ -47,6 +47,7 @@ OP_CONVERTER(translate_copy);
 OP_CONVERTER(translate_dot_general);
 OP_CONVERTER(translate_erfc);
 OP_CONVERTER(translate_integer_pow);
+OP_CONVERTER(translate_iota);
 OP_T_CONVERTER(translate_reduce_op);
 OP_CONVERTER(translate_reduce_window_max);
 OP_CONVERTER(translate_reduce_window_sum);
@@ -79,6 +80,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_jaxpr() {
             {"ge", op::translate_binary_op<v1::GreaterEqual>},
             {"gt", op::translate_binary_op<v1::Greater>},
             {"integer_pow", op::translate_integer_pow},
+            {"iota", op::translate_iota},
             {"lt", op::translate_binary_op<v1::Less>},
             {"le", op::translate_binary_op<v1::LessEqual>},
             {"max", op::translate_1to1_match_2_inputs<v1::Maximum>},
