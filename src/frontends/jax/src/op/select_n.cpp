@@ -24,13 +24,12 @@ OutputVector translate_select_n(const NodeContext& context) {
     if (which.get_element_type() == element::boolean) {
         which = std::make_shared<v0::Convert>(which, element::i32);
     }
+    auto const_axis = ov::op::v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{0});
     OutputVector unsqueezed_cases(num_inputs - 1);
     unsqueezed_cases.reserve(num_inputs - 1);
-    for (int ind = 1; ind < num_inputs; ind++) {
+    for (int ind = 1; ind < num_inputs; ++ind) {
         auto case_input = context.get_input(ind);
-        auto unsqueeze = std::make_shared<v0::Unsqueeze>(
-            case_input,
-            ov::op::v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{0}));
+        auto unsqueeze = std::make_shared<v0::Unsqueeze>(case_input, const_axis);
         unsqueezed_cases[ind - 1] = unsqueeze;
     }
     Output<Node> cases = std::make_shared<v0::Concat>(unsqueezed_cases, 0);
