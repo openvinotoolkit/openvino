@@ -72,7 +72,7 @@
 ///        It is your choice how to name it, but it should be unique among all
 ///        OPENVINO_RTTI_DECLARATION-enabled classes that can be
 ///        used in conjunction with each other in one transformation flow.
-/// \param VERSION_NAME is an name of operation version to distinguish different versions of
+/// \param VERSION_NAME is a name of operation version to distinguish different versions of
 ///        operations that shares the same TYPE_NAME
 /// \param PARENT_CLASS is an optional direct or indirect parent class for this class; define
 ///        it only in case if there is a need to capture any operation from some group of operations
