@@ -2,6 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// https://developercommunity.visualstudio.com/t/Crash-SEGV-in-mutex-lock/10679088#T-N10680013
+#if defined(_WIN32) || defined(_WIN64)
+    #define _DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR
+#endif
+
 #include "openvino/runtime/threading/executor_manager.hpp"
 
 #include "openvino/core/parallel.hpp"
