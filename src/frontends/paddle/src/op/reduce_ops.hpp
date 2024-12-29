@@ -31,6 +31,10 @@ NamedOutputs reduce_ops(const NodeContext& node) {
         dims = node.get_attribute<std::vector<int64_t>>("dim");
     }
 
+    std::transform(dims.begin(), dims.end(), dims.begin(), [&input_rank](int64_t value) {
+        return value >= 0 ? value : value + input_rank;
+    });
+
     int64_t axis_size = static_cast<int64_t>(dims.size());
     reduce_all = reduce_all || (axis_size == input_rank || axis_size == 0);
 

@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/opsets/opset14.hpp"
+#include "elementwise_ops.hpp"
 
 namespace ov {
 namespace frontend {
 namespace paddle {
 namespace op {
-namespace default_opset = ov::opset14;
-
+NamedOutputs less_equal(const NodeContext& node) {
+    return elementwise_ops<default_opset::LessEqual>(node);
+}
 }  // namespace op
 }  // namespace paddle
 }  // namespace frontend
