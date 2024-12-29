@@ -265,22 +265,26 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
 
 const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activationTypesSnippets() {
     static const std::map<utils::ActivationTypes, std::vector<std::vector<float>>> activationTypes {
-        {Abs,         {{}}},
-        {Exp,         {{}}},
-        {Ceiling,     {{}}},
-        {Clamp,       {{-2.0f, 2.0f}}},
-        {Elu,         {{0.1f}}},
-        {Floor,       {{}}},
-        {GeluErf,     {{}}},
-        {GeluTanh,    {{}}},
-        {Relu,        {{}}},
-        {HSwish,      {{}}},
+        {Abs,                   {{}}},
+        {Exp,                   {{}}},
+        {Ceiling,               {{}}},
+        {Clamp,                 {{-2.0f, 2.0f}}},
+        {Elu,                   {{0.1f}}},
+        {Floor,                 {{}}},
+        {GeluErf,               {{}}},
+        {GeluTanh,              {{}}},
+        {Relu,                  {{}}},
+        {HSwish,                {{}}},
+        {PReLu,                 {{-0.01f}}},
+        {Sqrt,                  {{}}},
+        {RoundHalfToEven,       {{}}},
+        {RoundHalfAwayFromZero, {{}}},
 #if defined(OPENVINO_ARCH_ARM64)
-        {Mish,        {{}}},
+        {Mish,                  {{}}},
 #endif
-        {Sigmoid,     {{}}},
-        {Swish,       {{0.1f}}},
-        {Tanh,        {{}}},
+        {Sigmoid,               {{}}},
+        {Swish,                 {{0.1f}}},
+        {Tanh,                  {{}}},
     };
 
     return activationTypes;
