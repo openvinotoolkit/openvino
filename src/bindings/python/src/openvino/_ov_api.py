@@ -5,7 +5,9 @@
 from types import TracebackType
 from typing import Any, Iterable, Union, Optional, Dict, Type
 from pathlib import Path
+import warnings
 
+import numpy as np
 
 from openvino._pyopenvino import Model as ModelBase
 from openvino._pyopenvino import Core as CoreBase
@@ -14,7 +16,7 @@ from openvino._pyopenvino import AsyncInferQueue as AsyncInferQueueBase
 from openvino._pyopenvino import Tensor
 from openvino._pyopenvino import Node
 
-from openvino.utils.data_helpers import (
+from openvino.runtime.utils.data_helpers import (
     OVDict,
     _InferRequestWrapper,
     _data_dispatch,
