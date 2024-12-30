@@ -108,10 +108,9 @@ if(ENABLE_AVX512F)
 endif()
 
 if(ENABLE_SVE)
-    if ((CMAKE_CXX_COMPILER_ID STREQUAL "Clang") AND (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13))
-        set(ENABLE_SVE OFF CACHE BOOL "" FORCE)
-    endif()
-    if ((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") AND (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10))
+    ov_check_compiler_supports_sve("-march=armv8-a+sve")
+
+    if(NOT CXX_HAS_SVE)
         set(ENABLE_SVE OFF CACHE BOOL "" FORCE)
     endif()
 endif()
