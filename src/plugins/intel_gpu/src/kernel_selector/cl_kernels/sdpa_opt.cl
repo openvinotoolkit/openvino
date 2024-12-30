@@ -853,10 +853,6 @@ KERNEL(sdpa_opt)(
     #error sdpa_opt.cl: unsupported TARGET_SEQ_LEN_BLOCK_SIZE
 #endif
 
-#if SUBGROUPS_PER_WG > SUBGROUP_SIZE
-    #error "sdpa_opt.cl: Number of subgroups per work group should be no more than subgroup_size"
-#endif
-
     // Define indexes variables using macro declarations to avoid register spills
     #define batch_idx ((uint)get_global_id(0))
     #define num_heads_dim ((uint)get_global_id(0))
@@ -1180,17 +1176,20 @@ KERNEL(sdpa_opt)(
         {
             // SoftMax calculation
             // each sg will compute a whole row of query
+            uint aligned_width = ((SUBGROUPS_PER_WG + (SUBGROUP_SIZE-1)) & ~(SUBGROUP_SIZE-1));
             for (uint m = sgid; m < seq_idx_end; m += SUBGROUPS_PER_WG) {
                 // rowmax
-                SOFTMAX_ACCUMULATOR_TYPE qk_max_new;
-                if (sglid < SUBGROUPS_PER_WG) {
-                    qk_max_new = slm_qk_max_vals[m][sglid];
-                } else {
-                    qk_max_new = SOFTMAX_ACCUMULATOR_VAL_MIN;
-                }
-                qk_max_new = sub_group_reduce_max(qk_max_new);
                 SOFTMAX_ACCUMULATOR_TYPE max_val_prev = slm_max_val_prev[m];
-                qk_max_new = SOFTMAX_ACCUMULATOR_MAX_FUNC(qk_max_new, max_val_prev);
+                SOFTMAX_ACCUMULATOR_TYPE qk_max_new, qk_max_last = max_val_prev;
+                for (uint k = sglid; k <  aligned_width; k += SUBGROUP_SIZE) {
+                    if (k < SUBGROUPS_PER_WG) {
+                        qk_max_new = slm_qk_max_vals[m][k];
+                    } else {
+                        qk_max_new = SOFTMAX_ACCUMULATOR_VAL_MIN;
+                    }
+                    qk_max_new = SOFTMAX_ACCUMULATOR_MAX_FUNC(sub_group_reduce_max(qk_max_new), qk_max_last);
+                    qk_max_last = qk_max_new;
+                }
 
                 // softmax
                 SOFTMAX_ACCUMULATOR_TYPE exp_sum_new = SOFTMAX_ACCUMULATOR_VAL_ZERO;

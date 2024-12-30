@@ -23,7 +23,11 @@ constexpr size_t subgroup_size = 16;
 
 static size_t get_sg_number_scale_factor(const sdpa_params& sdpa_params, size_t kernel_type) {
     const size_t optimal_scale_factor = 2;
-    if (kernel_type == KernelsTypes::MULTI_TOKENS || kernel_type == KernelsTypes::SINGLE_TOKEN) {
+    if (kernel_type == KernelsTypes::MULTI_TOKENS) {
+        if (sdpa_params.conf.head_size * optimal_scale_factor <= sdpa_params.engineInfo.maxWorkGroupSize) {
+            return optimal_scale_factor;
+        }
+    } else if (kernel_type == KernelsTypes::SINGLE_TOKEN) {
         if (sdpa_params.conf.head_size * optimal_scale_factor <= sdpa_params.engineInfo.maxWorkGroupSize &&
             sdpa_params.conf.head_size * optimal_scale_factor / subgroup_size <= subgroup_size) {
             return optimal_scale_factor;
