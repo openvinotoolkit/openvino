@@ -1,10 +1,6 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include <string>
-#include <vector>
-
 #include "act_sparse_fc.h"
 #include "common/arbitrary_order_desc_creator.h"
 #include "common/bfloat16.hpp"

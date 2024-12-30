@@ -1,8 +1,6 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <cstring>
-
 #include "act_sparse_fc_kernel.hpp"
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "openvino/core/except.hpp"
