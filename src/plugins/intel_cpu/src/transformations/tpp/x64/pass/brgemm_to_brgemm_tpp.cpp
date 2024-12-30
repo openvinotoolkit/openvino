@@ -68,9 +68,6 @@ BrgemmToBrgemmTPP::BrgemmToBrgemmTPP() {
         if (!is_supported_brgemm_configuration({layout_a, layout_b, layout_c}, {precision_a, precision_b, precision_c}))
             return false;
 
-        const auto dimsMatMulIn0 = snippets::utils::get_planar_pshape(brgemm->input(0)).get_shape();
-        const auto dimsMatMulIn1 = snippets::utils::get_planar_pshape(brgemm->input(1)).get_shape();
-
         const auto offset_a = brgemm->get_offset_a();
         const auto offset_b = brgemm->get_offset_b();
         const auto offset_c = brgemm->get_offset_c();
