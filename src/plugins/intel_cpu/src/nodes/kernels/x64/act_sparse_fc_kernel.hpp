@@ -1,23 +1,22 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#pragma once
 
 #include <array>
 #include <cstddef>
 #include <vector>
 
-#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "simd_jit.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-enum class WeightCompressionType { FP16 = 0, INT8, INT4 };
 class ActSparseFcKernel {
 public:
     // compile time parameters
-    ActSparseFcKernel(WeightCompressionType wtype, bool with_zero_points, int ic_group_size);
+    ActSparseFcKernel(bool is_quantized, bool is_int4, bool with_zero_points, int ic_group_size);
 
     void operator()(const float* input,
                     float* output,
@@ -73,10 +72,11 @@ private:
     T* scratch_alloc(size_t cnt);
 
 private:
-    const WeightCompressionType m_wtype;
-    const bool m_with_zp;
     SIMDJit* m_decompzp_kernel;
     SIMDJit* m_accumulate_kernel;
+    const bool m_is_quantized;
+    const bool m_is_int4;
+    const bool m_with_zp;
     const int m_ic_group_size;
 
     std::vector<int> m_nonzero_ids;

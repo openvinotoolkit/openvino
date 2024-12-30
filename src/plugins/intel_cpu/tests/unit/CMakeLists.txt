@@ -25,7 +25,8 @@ if(NOT X86_64)
       ${CMAKE_CURRENT_SOURCE_DIR}/transformations/x64
       ${CMAKE_CURRENT_SOURCE_DIR}/snippets_transformations/x64
       ${CMAKE_CURRENT_SOURCE_DIR}/nodes/eltwise_node_test.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/brgemm_executor_test.cpp)
+      ${CMAKE_CURRENT_SOURCE_DIR}/brgemm_executor_test.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/simd_jit_test.cpp)
 endif()
 
 if (NOT ENABLE_MLAS_FOR_CPU)

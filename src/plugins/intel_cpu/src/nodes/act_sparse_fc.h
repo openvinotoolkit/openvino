@@ -8,7 +8,34 @@
 #include "transformations/cpu_opset/x64/op/act_sparse_fc.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64)
-#    include "kernels/x64/mlp_kernel.hpp"
+#    include "kernels/x64/act_sparse_fc_kernel.hpp"
+#else
+namespace ov {
+namespace intel_cpu {
+class ActSparseFcKernel {
+public:
+    // compile time parameters
+    ActSparseFcKernel(bool is_quantized, bool is_int4, bool with_zero_points, int ic_group_size);
+
+    void operator()(const float* input,
+                    float* output,
+                    int M,
+                    int IC,
+                    int OC,
+                    float threshold,
+                    float zero_point,
+                    const void* W,
+                    const float* scales,
+                    const uint8_t* zp) {
+        OPENVINO_THROW("Unsupported platform.");
+    }
+
+    void repack_weights_i4(uint8_t* src, uint8_t* dst, int IC, int OC) {
+        OPENVINO_THROW("Unsupported platform.");
+    }
+};
+}  // namespace intel_cpu
+}  // namespace ov
 #endif
 
 namespace ov {
@@ -24,7 +51,7 @@ public:
         return getType() == Type::ActSparseFC;
     }
     bool needPrepareParams() const override {
-        return false;
+        return false;  // this is a shape-agnostic kernel
     }
     void createPrimitive() override;
     void executeDynamicImpl(dnnl::stream strm) override {
@@ -35,12 +62,11 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    struct ExecutorBase {
-        virtual void execute() = 0;
-        virtual ~ExecutorBase() = default;
-    };
-    std::shared_ptr<ExecutorBase> m_executor;
-    struct Executor;
+    std::shared_ptr<ov::intel_cpu::ActSparseFcKernel> m_executor;
+
+    MemoryPtr m_weight;
+    MemoryPtr m_zp;
+    MemoryPtr m_scales;
 
     ActSparseFCNode::Config m_config;
 };

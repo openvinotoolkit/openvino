@@ -10,24 +10,11 @@
 #include <sstream>
 #include <vector>
 
-#if 0
-#    define JIT_DEBUG 1
-#    include "../include/jit.h"
-#    define DECLARE_CPU_JIT_AUX_FUNCTIONS(x)
-static const bool use_avx512 = false;
-#define OPENVINO_ASSERT(cond, ...) if (!(cond)) {\
-        std::stringstream ss;                                                                  \
-        ss << "\033[31m" << __FILE__ << ":" << __LINE__ << " " << #cond << " failed! \033[0m"; \
-        std::cout << ss.str() << std::endl;                                                    \
-        asm("int3");                                                                           \
-        throw std::runtime_error(ss.str());                                                    \
-    }
-#else
-#include "openvino/core/except.hpp"
 #include "cpu/x64/jit_generator.hpp"
+#include "openvino/core/except.hpp"
+
 using jit_generator = dnnl::impl::cpu::x64::jit_generator;
 static const bool use_avx512 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
-#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -129,41 +116,56 @@ public:
     friend class SRegExpr;
 };
 
-class temp_reg_pool {
+class VReg {
+private:
+    SIMDJit* jit = nullptr;
+    std::shared_ptr<Xbyak::Xmm> reg;
+
 public:
-    struct temp_reg {
-        int id;
-        bool is_using;
-        temp_reg(int id, bool is_using) : id(id), is_using(is_using) {}
-    };
-    int allocate() {
-        for (size_t i = 0; i < temp_regs.size(); i++) {
-            if (!temp_regs[i].is_using) {
-                temp_regs[i].is_using = true;
-                return i;
-            }
+    VReg(SIMDJit* jit, std::shared_ptr<Xbyak::Xmm> reg) : jit(jit), reg(reg) {}
+
+    VReg() = default;
+
+    bool empty() const {
+        return !static_cast<bool>(reg);
+    }
+    operator Xbyak::Xmm&() {
+        return *reg;
+    }
+    operator const Xbyak::Xmm&() const {
+        return *reg;
+    }
+};
+
+class reg_pool {
+public:
+    reg_pool(const char * name, size_t max_num_regs) : m_name(name), m_status(max_num_regs, 0) {}
+
+    int allocate(int index = -1) {
+        // allocate register with specific index
+        if (index >= 0) {
+            OPENVINO_ASSERT(static_cast<size_t>(index) < m_status.size());
+            OPENVINO_ASSERT(m_status[index] == 0);
+            m_status[index] = 1;
+            return index;
         }
-        // allocate a new temp reg
-        int new_id = temp_regs.size();
-        temp_regs.emplace_back(new_id, true);
-        return temp_regs.size() - 1;  // return temp reg id
+
+        auto it = std::find(m_status.begin(), m_status.end(), 0);
+        OPENVINO_ASSERT(it != m_status.end(), "regiter pool ", m_name, " exhausted.");
+        *it = 1;
+        return it - m_status.begin();
     }
     void free(int i) {
-        temp_regs[i].is_using = false;
+        m_status[i] = 0;
     }
     void clear() {
-        temp_regs.clear();
-    }
-    int size() {
-        return temp_regs.size();
-    }
-    static temp_reg_pool& get() {
-        static temp_reg_pool tpool;
-        return tpool;
+        for (auto& s : m_status)
+            s = 0;
     }
 
 private:
-    std::vector<temp_reg> temp_regs;
+    const char * m_name;
+    std::vector<int> m_status;
 };
 
 struct RegExprImpl {
@@ -490,8 +492,6 @@ class SIMDJit : public jit_generator {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(SIMDJit);
 
-    static constexpr int num_allocatable_sregs = sizeof(abi_x86_64_regs) / sizeof(abi_x86_64_regs[0]);
-
     class JitDisassembler {
     public:
         size_t start;
@@ -522,12 +522,9 @@ public:
         return nullptr;
     }
 
-    SIMDJit(const char* name) : jit_generator(name) {
+    SIMDJit(const char* name) : jit_generator(name), sreg_pool("sreg_pool", sizeof(abi_x86_64_regs) / sizeof(abi_x86_64_regs[0])), vreg_pool("vreg_pool", use_avx512 ? 32 : 16) {
         mov(rax, rsp);
         preamble();
-        for (int i = 0; i < num_allocatable_sregs; i++) {
-            reg_status[i] = 0;  // free
-        }
     }
 
     void generate() override{};
@@ -565,18 +562,24 @@ public:
         return ret;
     }
 
+    // find a free register, note argument registers are also allocatable, make sure
+    // allocate argument registers before any local register-var
     SReg get_sreg() {
-        // find a free register, note argument registers are also allocatable, make sure
-        // allocate argument registers before any local register-var
-        for (int i = 0; i < num_allocatable_sregs; i++) {
-            if (reg_status[i] == 0) {
-                return SReg(this, alloc_reg64(i));
-            }
-        }
-        OPENVINO_ASSERT(false, "scalar register resource exhausted!");
-        return {};
+        return SReg(this, alloc_reg64(-1));
     }
 
+    VReg get_vreg() {
+        return VReg(this, alloc_vreg(-1));
+    }
+
+    std::vector<VReg> get_vregs(size_t num_vregs) {
+        std::vector<VReg> ret(num_vregs);
+        for (auto& v : ret)
+            v = get_vreg();
+        return ret;
+    }
+
+#if 0
     Xbyak::Xmm Vmm(int id) {
         if (use_avx512) {
             if (id >= 32)
@@ -588,6 +591,7 @@ public:
             return Xbyak::Ymm(id);
         }
     }
+#endif
 
     // simd_xxx helpers have meaning similar to x86 intrinsics
     // it's more well-known than raw instruction can it also can be
@@ -738,16 +742,32 @@ public:
     }
 
 private:
-    int reg_status[num_allocatable_sregs];
-    std::shared_ptr<Xbyak::Reg64> alloc_reg64(int i) {
-        OPENVINO_ASSERT(reg_status[i] == 0, "try to allocate an already used register:", i);
-        reg_status[i] = 1;
-        return std::shared_ptr<Xbyak::Reg64>(new Xbyak::Reg64(abi_x86_64_regs[i]), [this, i](Xbyak::Reg64* preg) {
+    reg_pool sreg_pool;
+    reg_pool vreg_pool;
+
+    std::shared_ptr<Xbyak::Reg64> alloc_reg64(int index) {
+        auto reg_index = sreg_pool.allocate(index);
+        return std::shared_ptr<Xbyak::Reg64>(new Xbyak::Reg64(abi_x86_64_regs[reg_index]), [this, reg_index](Xbyak::Reg64* preg) {
             if (preg) {
-                reg_status[i] = 0;
+                sreg_pool.free(reg_index);
                 delete preg;
             }
         });
+    }
+
+    std::shared_ptr<Xbyak::Xmm> alloc_vreg(int index) {
+        auto reg_index = vreg_pool.allocate(index);
+        if (use_avx512) {
+            return std::shared_ptr<Xbyak::Xmm>(new Xbyak::Zmm(reg_index), [this, reg_index](Xbyak::Zmm* preg) {
+                vreg_pool.free(reg_index);
+                delete preg;
+            });
+        } else {
+            return std::shared_ptr<Xbyak::Xmm>(new Xbyak::Ymm(reg_index), [this, reg_index](Xbyak::Ymm* preg) {
+                vreg_pool.free(reg_index);
+                delete preg;
+            });
+        }
     }
 };
 
@@ -907,7 +927,7 @@ inline void SRegExpr::evaluate(SIMDJit* jit, const SReg* pdst, const char assign
 
     // complex expression: need multiple passes on IR to work
     // assign scratch register & convert to 2-OP instruction form
-    auto& scratch_reg_sn_pool = temp_reg_pool::get();
+    static reg_pool scratch_reg_sn_pool("sreg_expr_scratch_registers", 32);
     scratch_reg_sn_pool.clear();
 
     auto scratch_reg_base = 1000;

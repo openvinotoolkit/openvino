@@ -9,30 +9,36 @@
 
 #if defined(OPENVINO_ARCH_X86_64)
 
-#    include "openvino/core/parallel.hpp"
+#include "openvino/core/parallel.hpp"
 
 namespace ov {
 namespace intel_cpu {
+
+enum class WeightCompressionType { FP16 = 0, INT8, INT4 };
 
 static std::shared_ptr<SIMDJit> jit_compile_gemmRegBlk(int rows, int cols, int prefetch_B_adv = 0) {
     auto jit = std::make_shared<SIMDJit>(__func__);
     auto simd_width_bytes = SIMDJit::vmm_width<uint8_t>();
 
     auto is_preload_b = (rows >= cols);
+    auto vregs_C = jit->get_vregs(rows * cols);
+    auto vregs_B = jit->get_vregs(is_preload_b ? cols : 1);
+    auto vregs_A = jit->get_vregs(is_preload_b ? 1 : rows);
+
     auto vmmC = [&](int row, int col) {
-        return jit->Vmm(row * cols + col);
+        return vregs_C[row * cols + col];
     };
     auto vmmB = [&](int col) {
         if (is_preload_b)
-            return jit->Vmm(rows * cols + col);
+            return vregs_B[col];
         else
-            return jit->Vmm(rows * cols);
+            return vregs_B[0];
     };
     auto vmmA = [&](int row) {
         if (is_preload_b)
-            return jit->Vmm(rows * cols + cols);
+            return vregs_A[0];
         else
-            return jit->Vmm(rows * cols + 1 + row);
+            return vregs_A[row];
     };
 
     // load all arguments into register
@@ -195,36 +201,33 @@ static std::shared_ptr<SIMDJit> jit_compile_accumulate_weight_i4(bool with_zero_
 
     auto oc = jit->get_sreg();
 
-    auto vx = [&](int i) {
-        OPENVINO_ASSERT(i < 4);
-        return jit->Vmm(i);
-    };
+    auto vx = jit->get_vregs(4);
 
-    auto vzp0 = jit->Vmm(4);
-    auto vzp1 = jit->Vmm(5);
+    auto vzp0 = jit->get_vreg();
+    auto vzp1 = jit->get_vreg();
 
-    auto vdst0 = jit->Vmm(6);
-    auto vdst1 = jit->Vmm(7);
+    auto vdst0 = jit->get_vreg();
+    auto vdst1 = jit->get_vreg();
 
-    auto vsum0 = jit->Vmm(8);
-    auto vsum1 = jit->Vmm(9);
+    auto vsum0 = jit->get_vreg();
+    auto vsum1 = jit->get_vreg();
 
-    auto wi32 = jit->Vmm(10);
-    auto wf0 = jit->Vmm(11);
-    auto wf1 = jit->Vmm(12);
+    auto wi32 = jit->get_vreg();
+    auto wf0 = jit->get_vreg();
+    auto wf1 = jit->get_vreg();
 
-    auto vmask_u4 = jit->Vmm(13);
+    auto vmask_u4 = jit->get_vreg();
 
-    auto vscale0 = jit->Vmm(14);
-    auto vscale1 = jit->Vmm(15);
+    auto vscale0 = jit->get_vreg();
+    auto vscale1 = jit->get_vreg();
 
     decltype(p_w0) pweights[4] = {p_w0, p_w1, p_w2, p_w3};
 
     jit->simd_set1_epi32(vmask_u4, 0xF);
-    jit->simd_broadcast_ss(vx(0), jit->ptr[dense_x + 0 * sizeof(float)]);
-    jit->simd_broadcast_ss(vx(1), jit->ptr[dense_x + 1 * sizeof(float)]);
-    jit->simd_broadcast_ss(vx(2), jit->ptr[dense_x + 2 * sizeof(float)]);
-    jit->simd_broadcast_ss(vx(3), jit->ptr[dense_x + 3 * sizeof(float)]);
+    jit->simd_broadcast_ss(vx[0], jit->ptr[dense_x + 0 * sizeof(float)]);
+    jit->simd_broadcast_ss(vx[1], jit->ptr[dense_x + 1 * sizeof(float)]);
+    jit->simd_broadcast_ss(vx[2], jit->ptr[dense_x + 2 * sizeof(float)]);
+    jit->simd_broadcast_ss(vx[3], jit->ptr[dense_x + 3 * sizeof(float)]);
 
     jit->for_loop(oc, 0, OC, simd_width * 2, [&]() {
         if (with_zero_point) {
@@ -264,8 +267,8 @@ static std::shared_ptr<SIMDJit> jit_compile_accumulate_weight_i4(bool with_zero_
                 jit->simd_sub_ps(wf1, wf1, vzp1);
             }
 
-            jit->simd_fmadd_ps(vsum0, wf0, vx(ic));
-            jit->simd_fmadd_ps(vsum1, wf1, vx(ic));
+            jit->simd_fmadd_ps(vsum0, wf0, vx[ic]);
+            jit->simd_fmadd_ps(vsum1, wf1, vx[ic]);
         }
         jit->simd_fmadd_ps(vdst0, vsum0, vscale0);
         jit->simd_fmadd_ps(vdst1, vsum1, vscale1);
@@ -312,18 +315,18 @@ static std::shared_ptr<SIMDJit> jit_compile_accumulate_weight(WeightCompressionT
         p_w2 = pw0 + p_w2 * OC * weight_element_size;
         p_w3 = pw0 + p_w3 * OC * weight_element_size;
 
-        auto vx0 = jit->Vmm(0);
-        auto vx1 = jit->Vmm(1);
-        auto vx2 = jit->Vmm(2);
-        auto vx3 = jit->Vmm(3);
-        auto vscales = jit->Vmm(4);
-        auto vzp = jit->Vmm(5);
-        auto vdst = jit->Vmm(6);
-        auto vw0 = jit->Vmm(7);
-        auto vw1 = jit->Vmm(8);
-        auto vw2 = jit->Vmm(9);
-        auto vw3 = jit->Vmm(10);
-        auto vsum = jit->Vmm(11);
+        auto vx0 = jit->get_vreg();
+        auto vx1 = jit->get_vreg();
+        auto vx2 = jit->get_vreg();
+        auto vx3 = jit->get_vreg();
+        auto vscales = jit->get_vreg();
+        auto vzp = jit->get_vreg();
+        auto vdst = jit->get_vreg();
+        auto vw0 = jit->get_vreg();
+        auto vw1 = jit->get_vreg();
+        auto vw2 = jit->get_vreg();
+        auto vw3 = jit->get_vreg();
+        auto vsum = jit->get_vreg();
         jit->simd_broadcast_ss(vx0, jit->ptr[dense_x + g * 4 + 0 * 4]);
         jit->simd_broadcast_ss(vx1, jit->ptr[dense_x + g * 4 + 1 * 4]);
         jit->simd_broadcast_ss(vx2, jit->ptr[dense_x + g * 4 + 2 * 4]);
@@ -397,8 +400,8 @@ static std::shared_ptr<SIMDJit> jit_compile_reduce_outputs() {
 
     jit->for_loop(i, 0, OC, simd_width, [&] {
         ptemp = src0 + i * sizeof(float);
-        auto vsum = jit->Vmm(0);
-        auto vw = jit->Vmm(1);
+        auto vsum = jit->get_vreg();
+        auto vw = jit->get_vreg();
         jit->simd_setzero_ps(vsum);
         jit->for_loop(k, 0, num_copies, 1, [&] {
             jit->simd_loadu_ps(vw, jit->ptr[ptemp + 0]);
@@ -450,17 +453,17 @@ static std::shared_ptr<SIMDJit> jit_compile_repack_3xsimdw_1xsimdw(bool with_zp)
     auto dst = jit->get_sreg();
     auto dst_stride = jit->get_sreg();
 
-    auto wf0 = jit->Vmm(0);
-    auto wf1 = jit->Vmm(1);
-    auto wf2 = jit->Vmm(2);
+    auto wf0 = jit->get_vreg();
+    auto wf1 = jit->get_vreg();
+    auto wf2 = jit->get_vreg();
 
-    auto scale0 = jit->Vmm(3);
-    auto scale1 = jit->Vmm(4);
-    auto scale2 = jit->Vmm(5);
+    auto scale0 = jit->get_vreg();
+    auto scale1 = jit->get_vreg();
+    auto scale2 = jit->get_vreg();
 
-    auto zp0 = jit->Vmm(6);
-    auto zp1 = jit->Vmm(7);
-    auto zp2 = jit->Vmm(8);
+    auto zp0 = jit->get_vreg();
+    auto zp1 = jit->get_vreg();
+    auto zp2 = jit->get_vreg();
 
     jit->for_loop(k, 0, K, 1, [&]() {
         dst = repacked_B_nx3;
@@ -542,20 +545,20 @@ static std::shared_ptr<SIMDJit> jit_compile_repack_2xsimdw(WeightCompressionType
 
     auto k = jit->get_sreg();
 
-    auto wf0 = jit->Vmm(0);
-    auto wf1 = jit->Vmm(1);
+    auto wf0 = jit->get_vreg();
+    auto wf1 = jit->get_vreg();
 
-    auto vzp0 = jit->Vmm(2);
-    auto vzp1 = jit->Vmm(3);
+    auto vzp0 = jit->get_vreg();
+    auto vzp1 = jit->get_vreg();
 
-    auto vscale0 = jit->Vmm(4);
-    auto vscale1 = jit->Vmm(5);
+    auto vscale0 = jit->get_vreg();
+    auto vscale1 = jit->get_vreg();
 
-    auto wi4x2 = jit->Vmm(6);
-    auto vmask_u4 = jit->Vmm(7);
+    auto wi4x2 = jit->get_vreg();
+    auto vmask_u4 = jit->get_vreg();
 
-    auto vtemp0 = jit->Vmm(8);
-    auto vtemp1 = jit->Vmm(9);
+    auto vtemp0 = jit->get_vreg();
+    auto vtemp1 = jit->get_vreg();
 
     if (wtype == WeightCompressionType::INT4)
         jit->simd_set1_epi32(vmask_u4, 0xF);
@@ -676,7 +679,7 @@ static std::shared_ptr<SIMDJit> get_decompress_zp_u8() {
 
     auto n = jit->get_sreg();
 
-    auto vzpi32 = jit->Vmm(0);
+    auto vzpi32 = jit->get_vreg();
     jit->for_loop(n, 0, cnt, simd_width, [&]() {
         jit->simd_load_epu8_epi32(vzpi32, jit->ptr[zp_input_u8 + n * 1]);
         jit->simd_cvtepi32_ps(vzpi32, vzpi32);
@@ -697,10 +700,10 @@ static std::shared_ptr<SIMDJit> get_decompress_zp_u4() {
 
     auto n = jit->get_sreg();
 
-    auto vzpi4x2 = jit->Vmm(0);
-    auto vzpi32_lo = jit->Vmm(1);
-    auto vzpi32_hi = jit->Vmm(2);
-    auto vmask_u4 = jit->Vmm(3);
+    auto vzpi4x2 = jit->get_vreg();
+    auto vzpi32_lo = jit->get_vreg();
+    auto vzpi32_hi = jit->get_vreg();
+    auto vmask_u4 = jit->get_vreg();
 
     jit->simd_set1_epi32(vmask_u4, 0xF);
 
@@ -905,43 +908,6 @@ void ActSparseFcKernel::repack_weights_i4(uint8_t* src, uint8_t* dst, int IC, in
     auto src_stride = IC / 2;
     const auto SIMDW = SIMDJit::vmm_width<float>();
 
-#    if 0
-    uint8_t scratch0[64];
-    uint8_t scratch1[64];
-    for (int ic = 0; ic + 2*SIMDW*4 <= IC; ic += 2*SIMDW*4) {
-        // 64-ic
-        auto* pdst = dst + ic * (OC / 2);
-        auto vmask_low_u4 = simd_set1_epi8(0xF);
-        auto vmask_high_u4 = simd_set1_epi8(0xF0);
-        for (int oc = 0; oc < OC; oc += (SIMDW*2), pdst += SIMDW) {
-            // 64-ic x 16-oc
-            auto* psrc_oc0 = src + (ic / 2) + (oc + 0)*src_stride;
-            auto* psrc_oc1 = src + (ic / 2) + (oc + SIMDW)*src_stride;
-            for (int k = 0; k < SIMDW; k++, psrc_oc0 += src_stride, psrc_oc1 += src_stride) {
-                auto b0 = simd_loadu_i32(psrc_oc0); // oc+0: ic0~64
-                auto b1 = simd_loadu_i32(psrc_oc1); // oc+8: ic0~64
-                auto b0_ic0 = simd_and_si(b0, vmask_low_u4);
-                auto b0_ic1 = simd_and_si(simd_srli_epi16(b0, 4), vmask_low_u4);
-
-                auto b1_ic0 = simd_and_si(simd_slli_epi16(b1, 4), vmask_high_u4);
-                auto b1_ic1 = simd_and_si(b1, vmask_high_u4);
-
-                auto bdst_ic0 = simd_or_si(b1_ic0, b0_ic0);    // even channels
-                auto bdst_ic1 = simd_or_si(b1_ic1, b0_ic1);    // odd channels
-
-                simd_storeu_si(scratch0, bdst_ic0);
-                simd_storeu_si(scratch1, bdst_ic1);
-
-                auto* pdst_temp0 = pdst + k;
-                auto* pdst_temp1 = pdst + k + (OC / 2);
-                for (int i = 0; i < SIMDW * 4; i++, pdst_temp0 += OC, pdst_temp1 += OC) {
-                    *pdst_temp0 = scratch0[i];
-                    *pdst_temp1 = scratch1[i];
-                }
-            }
-        }
-    }
-#    endif
     // [OC, IC/2, 2] => [IC, OC/2, 2]
     // tails
     parallel_nt(0, [&](const int ithr, const int nthr) {
@@ -973,8 +939,9 @@ void ActSparseFcKernel::repack_weights_i4(uint8_t* src, uint8_t* dst, int IC, in
     });
 }
 
-ActSparseFcKernel::ActSparseFcKernel(WeightCompressionType wtype, bool with_zero_points, int ic_group_size)
-    : m_wtype(wtype),
+ActSparseFcKernel::ActSparseFcKernel(bool is_quantized, bool is_int4, bool with_zero_points, int ic_group_size)
+    : m_is_quantized(is_quantized),
+      m_is_int4(is_int4),
       m_with_zp(with_zero_points),
       m_ic_group_size(ic_group_size) {
     static auto decompress_zp_u8 = get_decompress_zp_u8();
@@ -986,7 +953,13 @@ ActSparseFcKernel::ActSparseFcKernel(WeightCompressionType wtype, bool with_zero
     static auto accumulate_weight_i4_nozp = jit_compile_accumulate_weight_i4(false);
     static auto accumulate_weight_i4_withzp = jit_compile_accumulate_weight_i4(true);
 
-    switch (m_wtype) {
+    WeightCompressionType wtype;
+    if (m_is_quantized)
+        wtype = (m_is_int4 ? WeightCompressionType::INT4 : WeightCompressionType::INT8);
+    else
+        wtype = WeightCompressionType::FP16;
+
+    switch (wtype) {
     case WeightCompressionType::FP16:
         m_accumulate_kernel = accumulate_weight_fp16.get();
         m_decompzp_kernel = nullptr;
@@ -1015,9 +988,15 @@ void ActSparseFcKernel::operator()(const float* input,
     const auto SIMDW = SIMDJit::vmm_width<float>();
     OPENVINO_ASSERT((OC % (2 * SIMDW)) == 0, "ActSparseFcKernel: OC is not multiple of ", 2 * SIMDW);
 
+    WeightCompressionType wtype;
+    if (m_is_quantized)
+        wtype = (m_is_int4 ? WeightCompressionType::INT4 : WeightCompressionType::INT8);
+    else
+        wtype = WeightCompressionType::FP16;
+
     if (M > 1) {
         const auto SIMDW = SIMDJit::vmm_width<float>();
-        if (m_wtype == WeightCompressionType::FP16) {
+        if (wtype == WeightCompressionType::FP16) {
             parallel_nt(0, [&](const int ithr, const int nthr) {
                 int n0, n1;
                 splitter(OC / (2 * SIMDW), nthr, ithr, n0, n1);
@@ -1027,7 +1006,7 @@ void ActSparseFcKernel::operator()(const float* input,
             });
             return;
         }
-        if (m_wtype == WeightCompressionType::INT8) {
+        if (wtype == WeightCompressionType::INT8) {
             if (M < 32) {
                 parallel_nt(0, [&](const int ithr, const int nthr) {
                     int n0, n1;
@@ -1065,7 +1044,7 @@ void ActSparseFcKernel::operator()(const float* input,
             }
             return;
         }
-        if (m_wtype == WeightCompressionType::INT4) {
+        if (wtype == WeightCompressionType::INT4) {
             parallel_nt(0, [&](const int ithr, const int nthr) {
                 int n0, n1;
                 splitter(OC / (2 * SIMDW), nthr, ithr, n0, n1);
@@ -1128,15 +1107,15 @@ void ActSparseFcKernel::operator()(const float* input,
         auto* pdst = &m_output_temp[ithr * OC];
         memset(pdst, 0, OC * sizeof(m_output_temp[0]));
 
-        if (m_wtype == WeightCompressionType::FP16) {
+        if (wtype == WeightCompressionType::FP16) {
             (*m_accumulate_kernel)(pdst, OC, &m_nonzero_ids[g0], (g1 - g0), W, &m_nonzero_val[g0]);
-        } else if (m_wtype == WeightCompressionType::INT8) {
+        } else if (wtype == WeightCompressionType::INT8) {
             if (zp) {
                 zpbuff.resize(OC);
                 (*m_decompzp_kernel)(zp, zpbuff.data(), OC);
             }
             (*m_accumulate_kernel)(pdst, OC, &m_nonzero_ids[g0], g1 - g0, W, &m_nonzero_val[g0], scales, zpbuff.data());
-        } else if (m_wtype == WeightCompressionType::INT4) {
+        } else if (wtype == WeightCompressionType::INT4) {
             zpbuff.resize(OC);
             int last_gid = -1;
             // vector x weights
@@ -1168,4 +1147,5 @@ void ActSparseFcKernel::operator()(const float* input,
 
 }  // namespace intel_cpu
 }  // namespace ov
+
 #endif  // OPENVINO_ARCH_X86_64
