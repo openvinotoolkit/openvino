@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/frontend/jax/node_context.hpp";
+#include "openvino/frontend/jax/node_context.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather_elements.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "utils.hpp";
+#include "utils.hpp"
 
 using namespace ov::op;
 
