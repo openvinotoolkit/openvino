@@ -5,10 +5,6 @@
 # Python tools
 #
 
-# MO
-
-add_subdirectory(mo)
-
 if(ENABLE_PYTHON)
     # Benchmark Tool
     add_subdirectory(benchmark_tool)
@@ -16,7 +12,3 @@ if(ENABLE_PYTHON)
     # OpenVino Conversion Tool
     add_subdirectory(ovc)
 endif()
-
-# wheel openvino-dev
-
-add_subdirectory(openvino_dev)
