@@ -195,9 +195,14 @@ CPU::CPU() {
             for (int i = 0; i < static_cast<int>(socket_list.size()); i++) {
                 sockets_map.insert(std::pair<int, int>(socket_list[i], i));
             }
+            int current_numa_nodes = 0;
+            {
+                std::lock_guard<std::mutex> lock{_cpu_mutex};
+                current_numa_nodes = _numa_nodes;
+            }
             for (int i = 0; i < static_cast<int>(numa_node_list.size()); i++) {
                 for (int j = 0; j < static_cast<int>(numa_node_list[i].size()); j++) {
-                    numa_node_map.insert(std::pair<int, int>(numa_node_list[i][j], i * _numa_nodes / _sockets + j));
+                    numa_node_map.insert(std::pair<int, int>(numa_node_list[i][j], i * current_numa_nodes / _sockets + j));
                 }
             }
             for (size_t i = 0; i < valid_cpu_mapping_table.size(); i++) {
