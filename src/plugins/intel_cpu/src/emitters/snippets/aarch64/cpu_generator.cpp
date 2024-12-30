@@ -20,52 +20,58 @@
 
 namespace ov {
 
-#define CREATE_SNIPPETS_EMITTER(e_type)                                                           \
-    {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
-         return std::make_shared<e_type>(h.get(), isa, expr);                                     \
-     },                                                                                           \
-     [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {             \
-         return e_type::get_supported_precisions(n);                                              \
-     }}
+#define CREATE_SNIPPETS_EMITTER(e_type)                                                              \
+    {                                                                                                \
+        [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
+            return std::make_shared<e_type>(h.get(), isa, expr);                                     \
+        },                                                                                           \
+            [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {         \
+                return e_type::get_supported_precisions(n);                                          \
+            }                                                                                        \
+    }
 
-#define CREATE_CPU_EMITTER(e_type)                                                                \
-    {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
-         return std::make_shared<e_type>(h.get(), isa, expr->get_node());                         \
-     },                                                                                           \
-     [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {             \
-         return e_type::get_supported_precisions(n);                                              \
-     }}
+#define CREATE_CPU_EMITTER(e_type)                                                                   \
+    {                                                                                                \
+        [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
+            return std::make_shared<e_type>(h.get(), isa, expr->get_node());                         \
+        },                                                                                           \
+            [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {         \
+                return e_type::get_supported_precisions(n);                                          \
+            }                                                                                        \
+    }
 
-#define CREATE_GELU_V7_EMITTER(e_type_erf, e_type_tanh)                                           \
-    {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
-         const auto& n = expr->get_node();                                                        \
-         const auto& gelu = std::dynamic_pointer_cast<ov::op::v7::Gelu>(n);                       \
-         if (gelu == nullptr) {                                                                   \
-             OPENVINO_THROW("Can't cast to ov::op::v7::Gelu");                                    \
-         }                                                                                        \
-         const auto approximationMode = gelu->get_approximation_mode();                           \
-         if (approximationMode == ov::op::GeluApproximationMode::ERF) {                           \
-             return std::make_shared<e_type_erf>(h.get(), isa, n);                                \
-         } else if (approximationMode == ov::op::GeluApproximationMode::TANH) {                   \
-             return std::make_shared<e_type_tanh>(h.get(), isa, n);                               \
-         } else {                                                                                 \
-             OPENVINO_THROW("Unsupported Gelu approximation mode");                               \
-         }                                                                                        \
-     },                                                                                           \
-     [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {             \
-         const auto& gelu = std::dynamic_pointer_cast<ov::op::v7::Gelu>(n);                       \
-         if (gelu == nullptr) {                                                                   \
-             OPENVINO_THROW("Can't cast to ov::op::v7::Gelu");                                    \
-         }                                                                                        \
-         const auto approximationMode = gelu->get_approximation_mode();                           \
-         if (approximationMode == ov::op::GeluApproximationMode::ERF) {                           \
-             return e_type_erf::get_supported_precisions(n);                                      \
-         } else if (approximationMode == ov::op::GeluApproximationMode::TANH) {                   \
-             return e_type_tanh::get_supported_precisions(n);                                     \
-         } else {                                                                                 \
-             OPENVINO_THROW("Unsupported Gelu approximation mode");                               \
-         }                                                                                        \
-     }}
+#define CREATE_GELU_V7_EMITTER(e_type_erf, e_type_tanh)                                              \
+    {                                                                                                \
+        [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
+            const auto& n = expr->get_node();                                                        \
+            const auto& gelu = std::dynamic_pointer_cast<ov::op::v7::Gelu>(n);                       \
+            if (gelu == nullptr) {                                                                   \
+                OPENVINO_THROW("Can't cast to ov::op::v7::Gelu");                                    \
+            }                                                                                        \
+            const auto approximationMode = gelu->get_approximation_mode();                           \
+            if (approximationMode == ov::op::GeluApproximationMode::ERF) {                           \
+                return std::make_shared<e_type_erf>(h.get(), isa, n);                                \
+            } else if (approximationMode == ov::op::GeluApproximationMode::TANH) {                   \
+                return std::make_shared<e_type_tanh>(h.get(), isa, n);                               \
+            } else {                                                                                 \
+                OPENVINO_THROW("Unsupported Gelu approximation mode");                               \
+            }                                                                                        \
+        },                                                                                           \
+            [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {         \
+                const auto& gelu = std::dynamic_pointer_cast<ov::op::v7::Gelu>(n);                   \
+                if (gelu == nullptr) {                                                               \
+                    OPENVINO_THROW("Can't cast to ov::op::v7::Gelu");                                \
+                }                                                                                    \
+                const auto approximationMode = gelu->get_approximation_mode();                       \
+                if (approximationMode == ov::op::GeluApproximationMode::ERF) {                       \
+                    return e_type_erf::get_supported_precisions(n);                                  \
+                } else if (approximationMode == ov::op::GeluApproximationMode::TANH) {               \
+                    return e_type_tanh::get_supported_precisions(n);                                 \
+                } else {                                                                             \
+                    OPENVINO_THROW("Unsupported Gelu approximation mode");                           \
+                }                                                                                    \
+            }                                                                                        \
+    }
 
 class jit_snippet : public dnnl::impl::cpu::aarch64::jit_generator {
 public:
