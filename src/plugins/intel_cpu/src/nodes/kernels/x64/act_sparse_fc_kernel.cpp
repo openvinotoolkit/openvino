@@ -1,15 +1,15 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "act_sparse_fc_kernel.hpp"
-
 #include <cstring>
 
+#include "act_sparse_fc_kernel.hpp"
+#include "memory_desc/cpu_blocked_memory_desc.h"
 #include "openvino/core/except.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64)
 
-#include "openvino/core/parallel.hpp"
+#    include "openvino/core/parallel.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -159,31 +159,6 @@ static std::shared_ptr<SIMDJit> jit_compile_gemmRegBlk(int rows, int cols, int p
 
     jit->finalize();
     return jit;
-}
-
-static void gemm6x2_Mx2(const float* pA,
-                        int64_t A_stride,
-                        const float* pB,
-                        int64_t B_stride,
-                        const float* pC,
-                        int64_t C_stride,
-                        int M,
-                        int64_t bK,
-                        int64_t is_accumulate_C) {
-    static std::shared_ptr<SIMDJit> gemm6x2[6] = {
-        jit_compile_gemmRegBlk(6, 2),
-        jit_compile_gemmRegBlk(1, 2),
-        jit_compile_gemmRegBlk(2, 2),
-        jit_compile_gemmRegBlk(3, 2),
-        jit_compile_gemmRegBlk(4, 2),
-        jit_compile_gemmRegBlk(5, 2),
-    };
-    int m;
-    for (m = 0; m + 6 <= M; m += 6, pA += 6 * A_stride, pC += 6 * C_stride) {
-        (*gemm6x2[0])(pA, A_stride, pB, B_stride, pC, C_stride, bK, is_accumulate_C);
-    }
-    if (m < M)
-        (*gemm6x2[M - m])(pA, A_stride, pB, B_stride, pC, C_stride, bK, is_accumulate_C);
 }
 
 static std::shared_ptr<SIMDJit> jit_compile_accumulate_weight_i4(bool with_zero_point) {
@@ -415,26 +390,6 @@ static std::shared_ptr<SIMDJit> jit_compile_reduce_outputs() {
     return jit;
 }
 
-/*
-dst0 : [N, OC]
-src0 : [num_copies, N, OC]
-*/
-static inline void reduce_outputs(float* dst0, float* src0, int num_copies, int64_t OC) {
-    static auto jit_reduce = jit_compile_reduce_outputs();
-    int64_t simd_width = SIMDJit::vmm_width<float>();
-
-    ov::parallel_nt(0, [&](const int ithr, const int nthr) {
-        int64_t oc0, oc1;
-        ov::splitter(OC / simd_width, nthr, ithr, oc0, oc1);
-        oc0 *= simd_width;
-        oc1 *= simd_width;
-        if (oc1 > OC)
-            oc1 = OC;
-
-        (*jit_reduce)(dst0 + oc0, src0 + oc0, num_copies, oc1 - oc0, OC);
-    });
-}
-
 static std::shared_ptr<SIMDJit> jit_compile_repack_3xsimdw_1xsimdw(bool with_zp) {
     auto jit = std::make_shared<SIMDJit>(__func__);
     auto simd_width = SIMDJit::vmm_width<float>();
@@ -627,46 +582,8 @@ static std::shared_ptr<SIMDJit> jit_compile_repack_2xsimdw(WeightCompressionType
 
 template <class T>
 T* ActSparseFcKernel::scratch_alloc(size_t cnt) {
-#    if defined(__GNUC__) || defined(__clang__)
-    thread_local uint8_t scratch[1024 * 1024 * 2] __attribute__((aligned(4096)));
-#    else
-    thread_local uint8_t scratch[1024 * 1024 * 2];
-#    endif
-    OPENVINO_ASSERT(cnt * sizeof(T) < sizeof(scratch));
-    // DEBUG_LOG(reinterpret_cast<void*>(scratch));
-    return reinterpret_cast<T*>(scratch);
-}
-
-void ActSparseFcKernel::MM_ComputeBounded_reuseA_f16(const float* A,
-                                                     float* C,
-                                                     const ov::float16* W,
-                                                     int M,
-                                                     int IC,
-                                                     int OC,
-                                                     int n0,
-                                                     int n1) {
-    static auto repack_2xsimdw = jit_compile_repack_2xsimdw(WeightCompressionType::FP16);
-    constexpr int BK = 54;
-    const auto SIMDW = SIMDJit::vmm_width<float>();
-    float* scratch = scratch_alloc<float>(BK * (SIMDW * 2) + OC);
-
-    int K = IC;
-    int64_t A_stride = IC;
-    int64_t C_stride = OC;
-    int64_t W_stride = OC;
-
-    float* repacked_B = scratch;
-
-    for (int k = 0; k < K; k += BK, A += BK, W += BK * W_stride) {
-        int64_t bK = std::min(K - k, BK);
-        int64_t is_accumulate_C = (k > 0);
-
-        for (int n = n0; n + 2 * SIMDW <= n1; n += 2 * SIMDW) {
-            // prepack [BK, 16] into scratch
-            (*repack_2xsimdw)(W + n, W_stride, repacked_B, bK);
-            gemm6x2_Mx2(A, A_stride, repacked_B, 2 * SIMDW, C + n, C_stride, M, bK, is_accumulate_C);
-        }
-    }
+    OPENVINO_ASSERT(cnt * sizeof(T) < 2048 * 1024);
+    return reinterpret_cast<T*>(m_scratch_base + parallel_get_thread_num() * 2048 * 1024);
 }
 
 static std::shared_ptr<SIMDJit> get_decompress_zp_u8() {
@@ -722,6 +639,54 @@ static std::shared_ptr<SIMDJit> get_decompress_zp_u4() {
     return jit;
 }
 
+void ActSparseFcKernel::gemm6x2_Mx2(const float* pA,
+                                    int64_t A_stride,
+                                    const float* pB,
+                                    int64_t B_stride,
+                                    const float* pC,
+                                    int64_t C_stride,
+                                    int M,
+                                    int64_t bK,
+                                    int64_t is_accumulate_C) {
+    int m;
+    for (m = 0; m + 6 <= M; m += 6, pA += 6 * A_stride, pC += 6 * C_stride) {
+        (*gemm6x2[0])(pA, A_stride, pB, B_stride, pC, C_stride, bK, is_accumulate_C);
+    }
+    if (m < M)
+        (*gemm6x2[M - m])(pA, A_stride, pB, B_stride, pC, C_stride, bK, is_accumulate_C);
+}
+
+void ActSparseFcKernel::MM_ComputeBounded_reuseA_f16(const float* A,
+                                                     float* C,
+                                                     const ov::float16* W,
+                                                     int M,
+                                                     int IC,
+                                                     int OC,
+                                                     int n0,
+                                                     int n1) {
+    constexpr int BK = 54;
+    const auto SIMDW = SIMDJit::vmm_width<float>();
+    float* scratch = scratch_alloc<float>(BK * (SIMDW * 2) + OC);
+
+    int K = IC;
+    int64_t A_stride = IC;
+    int64_t C_stride = OC;
+    int64_t W_stride = OC;
+
+    float* repacked_B = scratch;
+
+    for (int k = 0; k < K; k += BK, A += BK, W += BK * W_stride) {
+        int64_t bK = std::min(K - k, BK);
+        int64_t is_accumulate_C = (k > 0);
+
+        for (int n = n0; n + 2 * SIMDW <= n1; n += 2 * SIMDW) {
+            // prepack [BK, 16] into scratch
+            (*m_repack_2xsimdw_kernel)(W + n, W_stride, repacked_B, bK);
+            gemm6x2_Mx2(A, A_stride, repacked_B, 2 * SIMDW, C + n, C_stride, M, bK, is_accumulate_C);
+        }
+    }
+}
+
 void ActSparseFcKernel::MM_ComputeBounded_reuseA_i8(const float* A,
                                                     float* C,
                                                     const uint8_t* W,
@@ -732,11 +697,6 @@ void ActSparseFcKernel::MM_ComputeBounded_reuseA_i8(const float* A,
                                                     int OC,
                                                     int64_t n0,
                                                     int64_t n1) {
-    static auto decompress_zp_u8 = get_decompress_zp_u8();
-    static auto repack_2xsimdw_i8_zp = jit_compile_repack_2xsimdw(WeightCompressionType::INT8, true);
-    static auto repack_2xsimdw_i8_nozp = jit_compile_repack_2xsimdw(WeightCompressionType::INT8, false);
-
-    auto repack_2xsimdw_i8 = zp ? repack_2xsimdw_i8_zp : repack_2xsimdw_i8_nozp;
     constexpr int BK = 54;
     const auto SIMDW = SIMDJit::vmm_width<float>();
     float* scratch = scratch_alloc<float>(BK * (SIMDW * 2) + OC);
@@ -751,7 +711,7 @@ void ActSparseFcKernel::MM_ComputeBounded_reuseA_i8(const float* A,
 
     // deocompress zero-point into scratch
     if (zp) {
-        int n = n0 + (*decompress_zp_u8)(zp + n0, zero_points, n1 - n0);
+        int n = n0 + (*m_decompzp_kernel)(zp + n0, zero_points, n1 - n0);
         for (; n < n1; n++) {
             zero_points[n - n0] = zp[n];
         }
@@ -763,7 +723,7 @@ void ActSparseFcKernel::MM_ComputeBounded_reuseA_i8(const float* A,
 
         for (int n = n0; n + 2 * SIMDW <= n1; n += 2 * SIMDW) {
             // prepack [BK, 16] into scratch
-            (*repack_2xsimdw_i8)(W + n, W_stride, repacked_B, bK, scales + n, zero_points + n - n0);
+            (*m_repack_2xsimdw_kernel)(W + n, W_stride, repacked_B, bK, scales + n, zero_points + n - n0);
             gemm6x2_Mx2(A, A_stride, repacked_B, 2 * SIMDW, C + n, C_stride, M, bK, is_accumulate_C);
         }
     }
@@ -779,24 +739,6 @@ void ActSparseFcKernel::MM_ComputeBounded_reuseB_i8(const float* A,
                                                     int OC,
                                                     int n0,
                                                     int n1) {
-    static auto decompress_zp_u8 = get_decompress_zp_u8();
-    static std::shared_ptr<SIMDJit> gemm4x3[6] = {
-        jit_compile_gemmRegBlk(4, 3),
-        jit_compile_gemmRegBlk(1, 3),
-        jit_compile_gemmRegBlk(2, 3),
-        jit_compile_gemmRegBlk(3, 3),
-    };
-    static std::shared_ptr<SIMDJit> gemm4x1[6] = {
-        jit_compile_gemmRegBlk(4, 1),
-        jit_compile_gemmRegBlk(1, 1),
-        jit_compile_gemmRegBlk(2, 1),
-        jit_compile_gemmRegBlk(3, 1),
-    };
-
-    static auto repack_3xsimdw_i8_1xsimdw_nozp = jit_compile_repack_3xsimdw_1xsimdw(false);
-    static auto repack_3xsimdw_i8_1xsimdw_withzp = jit_compile_repack_3xsimdw_1xsimdw(true);
-    auto* repack_3xsimdw_i8 = zp ? repack_3xsimdw_i8_1xsimdw_withzp.get() : repack_3xsimdw_i8_1xsimdw_nozp.get();
-
     const auto SIMDW = SIMDJit::vmm_width<float>();
     constexpr int BK = 512;
     constexpr int BN = 512;
@@ -815,12 +757,19 @@ void ActSparseFcKernel::MM_ComputeBounded_reuseB_i8(const float* A,
         const auto* pW = W + cur_n;
 
         if (zp) {
-            (*decompress_zp_u8)(zp + cur_n, zero_points, bN);
+            (*m_decompzp_kernel)(zp + cur_n, zero_points, bN);
         }
 
         for (int k0 = 0; k0 < IC; k0 += BK, pW += BK * B_stride) {
             int64_t bK = std::min(IC - k0, BK);
-            (*repack_3xsimdw_i8)(pW, B_stride, scales + cur_n, zero_points, bK, bN, repacked_B_n24, repacked_B_n8);
+            (*m_repack_3xsimdw_i8_kernel)(pW,
+                                          B_stride,
+                                          scales + cur_n,
+                                          zero_points,
+                                          bK,
+                                          bN,
+                                          repacked_B_n24,
+                                          repacked_B_n8);
 
             bool is_accumulate_C = (k0 > 0);
             auto* pC = C + cur_n;
@@ -861,11 +810,6 @@ void ActSparseFcKernel::MM_ComputeBounded_reuseA_i4(const float* A,
                                                     int n0,
                                                     int n1,
                                                     int icgs) {
-    static auto decompress_zp_u4 = get_decompress_zp_u4();
-    static auto repack_2xsimdw_nozp = jit_compile_repack_2xsimdw(WeightCompressionType::INT4, false);
-    static auto repack_2xsimdw_withzp = jit_compile_repack_2xsimdw(WeightCompressionType::INT4, true);
-    auto* repack_2xsimdw = zp ? repack_2xsimdw_withzp.get() : repack_2xsimdw_nozp.get();
-
     int BK = icgs;
     const auto SIMDW = SIMDJit::vmm_width<float>();
     float* scratch = scratch_alloc<float>(BK * (SIMDW * 2) + OC);
@@ -886,7 +830,7 @@ void ActSparseFcKernel::MM_ComputeBounded_reuseA_i4(const float* A,
         // deocompress zero-point into scratch buffer
         if (zp) {
             const auto* pzp = zp + n0 / 2;
-            int n = n0 + (*decompress_zp_u4)(pzp, zero_points, n1 - n0);
+            int n = n0 + (*m_decompzp_kernel)(pzp, zero_points, n1 - n0);
             for (; n < n1; n += 2, pzp++) {
                 zero_points[n - n0] = (*pzp) & 0xF;
                 zero_points[n - n0 + 1] = (*pzp) >> 4;
@@ -896,7 +840,7 @@ void ActSparseFcKernel::MM_ComputeBounded_reuseA_i4(const float* A,
         for (int n = n0; n + 2 * SIMDW <= n1; n += 2 * SIMDW) {
             // prepack subB [BK, 16] into scratch
             // because BK is fully contained within IC-group (BK == n*IC_group_size), it can share same zp & scales
-            (*repack_2xsimdw)(W + n / 2, W_stride, repacked_B, bK, scales + n, zero_points + n - n0);
+            (*m_repack_2xsimdw_kernel)(W + n / 2, W_stride, repacked_B, bK, scales + n, zero_points + n - n0);
             gemm6x2_Mx2(A, A_stride, repacked_B, 2 * SIMDW, C + n, C_stride, M, bK, is_accumulate_C);
         }
     }
@@ -939,39 +883,68 @@ void ActSparseFcKernel::repack_weights_i4(uint8_t* src, uint8_t* dst, int IC, in
     });
 }
 
-ActSparseFcKernel::ActSparseFcKernel(bool is_quantized, bool is_int4, bool with_zero_points, int ic_group_size)
+/*
+dst0 : [N, OC]
+src0 : [num_copies, N, OC]
+*/
+void ActSparseFcKernel::reduce_outputs(float* dst0, float* src0, int num_copies, int64_t OC) {
+    int64_t simd_width = SIMDJit::vmm_width<float>();
+    ov::parallel_nt(0, [&](const int ithr, const int nthr) {
+        int64_t oc0, oc1;
+        ov::splitter(OC / simd_width, nthr, ithr, oc0, oc1);
+        oc0 *= simd_width;
+        oc1 *= simd_width;
+        if (oc1 > OC)
+            oc1 = OC;
+
+        (*m_reduce_outputs_kernel)(dst0 + oc0, src0 + oc0, num_copies, oc1 - oc0, OC);
+    });
+}
+
+ActSparseFcKernel::ActSparseFcKernel(DnnlScratchPadPtr scrach_pad,
+                                     bool is_quantized,
+                                     bool is_int4,
+                                     bool with_zero_points,
+                                     int ic_group_size)
     : m_is_quantized(is_quantized),
       m_is_int4(is_int4),
       m_with_zp(with_zero_points),
-      m_ic_group_size(ic_group_size) {
-    static auto decompress_zp_u8 = get_decompress_zp_u8();
-    static auto decompress_zp_u4 = get_decompress_zp_u4();
+      m_ic_group_size(ic_group_size),
+      m_scrach_pad(scrach_pad) {
+    gemm6x2[0] = jit_compile_gemmRegBlk(6, 2);
+    gemm6x2[1] = jit_compile_gemmRegBlk(1, 2);
+    gemm6x2[2] = jit_compile_gemmRegBlk(2, 2);
+    gemm6x2[3] = jit_compile_gemmRegBlk(3, 2);
+    gemm6x2[4] = jit_compile_gemmRegBlk(4, 2);
+    gemm6x2[5] = jit_compile_gemmRegBlk(5, 2);
 
-    static auto accumulate_weight_fp16 = jit_compile_accumulate_weight(WeightCompressionType::FP16);
-    static auto accumulate_weight_i8_nozp = jit_compile_accumulate_weight(WeightCompressionType::INT8, false);
-    static auto accumulate_weight_i8_withzp = jit_compile_accumulate_weight(WeightCompressionType::INT8, true);
-    static auto accumulate_weight_i4_nozp = jit_compile_accumulate_weight_i4(false);
-    static auto accumulate_weight_i4_withzp = jit_compile_accumulate_weight_i4(true);
+    gemm4x3[0] = jit_compile_gemmRegBlk(4, 3);
+    gemm4x3[1] = jit_compile_gemmRegBlk(1, 3);
+    gemm4x3[2] = jit_compile_gemmRegBlk(2, 3);
+    gemm4x3[3] = jit_compile_gemmRegBlk(3, 3);
 
-    WeightCompressionType wtype;
+    gemm4x1[0] = jit_compile_gemmRegBlk(4, 1);
+    gemm4x1[1] = jit_compile_gemmRegBlk(1, 1);
+    gemm4x1[2] = jit_compile_gemmRegBlk(2, 1);
+    gemm4x1[3] = jit_compile_gemmRegBlk(3, 1);
+
+    m_reduce_outputs_kernel = jit_compile_reduce_outputs();
+
     if (m_is_quantized)
-        wtype = (m_is_int4 ? WeightCompressionType::INT4 : WeightCompressionType::INT8);
-    else
-        wtype = WeightCompressionType::FP16;
-
-    switch (wtype) {
-    case WeightCompressionType::FP16:
-        m_accumulate_kernel = accumulate_weight_fp16.get();
+        if (m_is_int4) {
+            m_accumulate_kernel = jit_compile_accumulate_weight_i4(m_with_zp);
+            m_decompzp_kernel = get_decompress_zp_u4();
+            m_repack_2xsimdw_kernel = jit_compile_repack_2xsimdw(WeightCompressionType::INT4, m_with_zp);
+        } else {
+            m_accumulate_kernel = jit_compile_accumulate_weight(WeightCompressionType::INT8, m_with_zp);
+            m_decompzp_kernel = get_decompress_zp_u8();
+            m_repack_3xsimdw_i8_kernel = jit_compile_repack_3xsimdw_1xsimdw(m_with_zp);
+            m_repack_2xsimdw_kernel = jit_compile_repack_2xsimdw(WeightCompressionType::INT8, m_with_zp);
+        }
+    else {
+        m_accumulate_kernel = jit_compile_accumulate_weight(WeightCompressionType::FP16);
+        m_repack_2xsimdw_kernel = jit_compile_repack_2xsimdw(WeightCompressionType::FP16);
         m_decompzp_kernel = nullptr;
-        break;
-    case WeightCompressionType::INT8:
-        m_accumulate_kernel = m_with_zp ? accumulate_weight_i8_withzp.get() : accumulate_weight_i8_nozp.get();
-        m_decompzp_kernel = decompress_zp_u8.get();
-        break;
-    case WeightCompressionType::INT4:
-        m_accumulate_kernel = m_with_zp ? accumulate_weight_i4_withzp.get() : accumulate_weight_i4_nozp.get();
-        m_decompzp_kernel = decompress_zp_u4.get();
-        break;
     }
 }
 
@@ -987,6 +960,13 @@ void ActSparseFcKernel::operator()(const float* input,
                                    const uint8_t* zp) {
     const auto SIMDW = SIMDJit::vmm_width<float>();
     OPENVINO_ASSERT((OC % (2 * SIMDW)) == 0, "ActSparseFcKernel: OC is not multiple of ", 2 * SIMDW);
+
+    if (!m_scratch_mem) {
+        auto scratch_size = static_cast<size_t>(parallel_get_max_threads() * 2048 * 1024);
+        auto newMemDesc = std::make_shared<CpuBlockedMemoryDesc>(ov::element::u8, Shape{scratch_size});
+        m_scratch_mem = m_scrach_pad->createScratchPadMem(newMemDesc);
+    }
+    m_scratch_base = m_scratch_mem->getDataAs<uint8_t>();
 
     WeightCompressionType wtype;
     if (m_is_quantized)

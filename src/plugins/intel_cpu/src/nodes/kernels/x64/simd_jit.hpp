@@ -139,7 +139,7 @@ public:
 
 class reg_pool {
 public:
-    reg_pool(const char * name, size_t max_num_regs) : m_name(name), m_status(max_num_regs, 0) {}
+    reg_pool(const char* name, size_t max_num_regs) : m_name(name), m_status(max_num_regs, 0) {}
 
     int allocate(int index = -1) {
         // allocate register with specific index
@@ -164,7 +164,7 @@ public:
     }
 
 private:
-    const char * m_name;
+    const char* m_name;
     std::vector<int> m_status;
 };
 
@@ -522,7 +522,10 @@ public:
         return nullptr;
     }
 
-    SIMDJit(const char* name) : jit_generator(name), sreg_pool("sreg_pool", sizeof(abi_x86_64_regs) / sizeof(abi_x86_64_regs[0])), vreg_pool("vreg_pool", use_avx512 ? 32 : 16) {
+    SIMDJit(const char* name)
+        : jit_generator(name),
+          sreg_pool("sreg_pool", sizeof(abi_x86_64_regs) / sizeof(abi_x86_64_regs[0])),
+          vreg_pool("vreg_pool", use_avx512 ? 32 : 16) {
         mov(rax, rsp);
         preamble();
     }
@@ -747,12 +750,13 @@ private:
 
     std::shared_ptr<Xbyak::Reg64> alloc_reg64(int index) {
         auto reg_index = sreg_pool.allocate(index);
-        return std::shared_ptr<Xbyak::Reg64>(new Xbyak::Reg64(abi_x86_64_regs[reg_index]), [this, reg_index](Xbyak::Reg64* preg) {
-            if (preg) {
-                sreg_pool.free(reg_index);
-                delete preg;
-            }
-        });
+        return std::shared_ptr<Xbyak::Reg64>(new Xbyak::Reg64(abi_x86_64_regs[reg_index]),
+                                             [this, reg_index](Xbyak::Reg64* preg) {
+                                                 if (preg) {
+                                                     sreg_pool.free(reg_index);
+                                                     delete preg;
+                                                 }
+                                             });
     }
 
     std::shared_ptr<Xbyak::Xmm> alloc_vreg(int index) {

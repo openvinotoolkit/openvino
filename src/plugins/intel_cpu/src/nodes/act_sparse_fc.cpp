@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "act_sparse_fc.h"
-
 #include <string>
 #include <vector>
 
+#include "act_sparse_fc.h"
 #include "common/arbitrary_order_desc_creator.h"
 #include "common/bfloat16.hpp"
 #include "common/cpu_memcpy.h"
@@ -74,7 +73,8 @@ struct ActSparseFCKey {
     }
 
     bool operator==(const ActSparseFCKey& rhs) const {
-        return is_quantized == rhs.is_quantized && is_int4 == rhs.is_int4 && with_zero_point == rhs.with_zero_point && ic_q_group_size == rhs.ic_q_group_size;
+        return is_quantized == rhs.is_quantized && is_int4 == rhs.is_int4 && with_zero_point == rhs.with_zero_point &&
+               ic_q_group_size == rhs.ic_q_group_size;
     }
 };
 
@@ -82,15 +82,16 @@ void ActSparseFC::createPrimitive() {
     ActSparseFCKey key;
     key.is_quantized = m_config.is_quantized;
     key.is_int4 = m_config.is_int4;
-    key.with_zero_point =  m_config.with_zero_point;
+    key.with_zero_point = m_config.with_zero_point;
     key.ic_q_group_size = m_config.ic_q_group_size;
 
-    auto buildExecutor = [](const ActSparseFCKey& key) -> std::shared_ptr<ActSparseFcKernel> {
+    auto buildExecutor = [this](const ActSparseFCKey& key) -> std::shared_ptr<ActSparseFcKernel> {
 #if defined(OPENVINO_ARCH_X86_64)
-        return std::make_shared<ActSparseFcKernel>(key.is_quantized,
-                                                    key.is_int4,
-                                                    key.with_zero_point,
-                                                    key.ic_q_group_size);
+        return std::make_shared<ActSparseFcKernel>(context->getScratchPad(),
+                                                   key.is_quantized,
+                                                   key.is_int4,
+                                                   key.with_zero_point,
+                                                   key.ic_q_group_size);
 #else
         return nullptr;
 #endif
@@ -153,8 +154,7 @@ void ActSparseFC::createPrimitive() {
         // [OC, IC/group_size, 1] => [IC/group_size, OC]
         auto raw_scales_mem = getSrcMemoryAtPort(2);
         ArbitraryOrderDescCreator descCreator({2, 1, 0});
-        auto dst_mem_desc =
-            descCreator.createSharedDesc(raw_scales_mem->getPrecision(), raw_scales_mem->getShape());
+        auto dst_mem_desc = descCreator.createSharedDesc(raw_scales_mem->getPrecision(), raw_scales_mem->getShape());
 
         auto scales_mem = std::make_shared<Memory>(engine, dst_mem_desc);
         node::Reorder::reorderData(*raw_scales_mem, *scales_mem, context->getParamsCache());
