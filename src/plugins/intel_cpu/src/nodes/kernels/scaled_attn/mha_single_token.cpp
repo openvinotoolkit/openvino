@@ -627,8 +627,7 @@ static ov::float16 dot_product_fp16(ov::float16* a,
 #endif
 
 template <typename TA>
-static float
-dot_product_by_channel(TA* a, uint8_t* b, size_t n, float* scale, float* zp, size_t group_size) {
+static float dot_product_by_channel(TA* a, uint8_t* b, size_t n, float* scale, float* zp, size_t group_size) {
     float sum = 0.0f;
     size_t i = 0;
 #if defined(HAVE_AVX512F)
@@ -1174,22 +1173,9 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                             auto p_scale = past_k_scale_zp.ptr<float>(pk / key_group_size * 2, 0, h_group);
                             auto p_zp = past_k_scale_zp.ptr<float>(pk / key_group_size * 2 + 1, 0, h_group);
                             auto p_k = present_key.ptr<uint8_t>(0, h_group, pk);
-                            attn_dequant_u8_by_channel_kernel(p_k,
-                                                              head_sum.ptr<float>(ithr),
-                                                              1,
-                                                              S,
-                                                              present_key.m_strides[2],
-                                                              S,
-                                                              p_scale,
-                                                              p_zp);
-
                             prefetch_bytes(S, _MM_HINT_T0, 4096, p_k);
-                            buf_attn_w.ptr<T3>(0, h_group, 0)[pk] = dot_product_by_channel(query.ptr<T>(0, h_group),
-                                                                                           p_k,
-                                                                                           S,
-                                                                                           p_scale,
-                                                                                           p_zp,
-                                                                                           key_group_size);
+                            buf_attn_w.ptr<T3>(0, h_group, 0)[pk] =
+                                dot_product_by_channel(query.ptr<T>(0, h_group), p_k, S, p_scale, p_zp, key_group_size);
                         } else {
                             auto p_k = present_key.ptr<T2>(0, h_group, pk);
                             prefetch_bytes(S, _MM_HINT_T0, 4096, p_k);
@@ -1226,12 +1212,8 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                             auto p_scale = past_k_scale_zp.ptr<float>(pk / key_group_size * 2, b_kv, h_group);
                             auto p_zp = past_k_scale_zp.ptr<float>(pk / key_group_size * 2 + 1, b_kv, h_group);
                             auto p_k = present_key.ptr<uint8_t>(b_kv, h_group, pk);
-                            buf_attn_w.ptr<T3>(b, h_group, 0)[pk] = dot_product_by_channel(query.ptr<T>(b, h_group),
-                                                                                           p_k,
-                                                                                           S,
-                                                                                           p_scale,
-                                                                                           p_zp,
-                                                                                           key_group_size);
+                            buf_attn_w.ptr<T3>(b, h_group, 0)[pk] =
+                                dot_product_by_channel(query.ptr<T>(b, h_group), p_k, S, p_scale, p_zp, key_group_size);
                         } else {
                             auto p_k = present_key.ptr<T2>(b_kv, h_group, pk);
                             buf_attn_w.ptr<T3>(b, h_group, 0)[pk] = dot_product(query.ptr<T>(b, h_group),

@@ -38,6 +38,24 @@ void attn_quant_u8(const float* src, uint8_t* dst, size_t n, float& scale, float
 
 void attn_dequant_u8(const uint8_t* src, float* dst, size_t n, float scale, float zp);
 
+void attn_quant_by_channel_u8(const float* src,
+                              uint8_t* dst,
+                              size_t seq_dim,
+                              size_t hidden_dims,
+                              size_t src_stride,
+                              size_t dst_stride,
+                              float* scale,
+                              float* zp);
+
+void attn_dequant_by_channel_u8(const uint8_t* src,
+                                float* dst,
+                                size_t seq_dim,
+                                size_t hidden_dims,
+                                size_t src_stride,
+                                size_t dst_stride,
+                                float* scale,
+                                float* zp);
+
 }  // namespace XARCH
 }  // namespace Cpu
 }  // namespace Extensions

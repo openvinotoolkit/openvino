@@ -250,6 +250,25 @@ static void quant_u8_by_channel_kernel(const T* src,
     }
 }
 
+template <typename TA, typename TB>
+void cvt_copy(TA* a, TB* b, size_t n) {
+    size_t i = 0;
+#if defined(HAVE_AVX512F)
+    for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {
+        auto vb = mm512_uni_loadu_ps(b + i);
+        mm512_uni_storeu_ps(a + i, vb);
+    }
+#elif defined(HAVE_AVX2)
+    for (; i + vec_len_f32_avx2 <= n; i += vec_len_f32_avx2) {
+        auto vb = mm256_uni_loadu_ps(b + i);
+        mm256_uni_storeu_ps(a + i, vb);
+    }
+#endif
+    for (; i < n; i++) {
+        a[i] = b[i];
+    }
+}
+
 template <typename T, typename T2>
 static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                           const ov::intel_cpu::PlainTensor& v_src,
@@ -325,7 +344,7 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                                                   S,
                                                   k_scale_zp.ptr<float>(group_id * 2, b, h),
                                                   k_scale_zp.ptr<float>(group_id * 2 + 1, b, h));
-                std::memcpy(thread_temp_buffer + prev_nums * S, k_src.ptr<T>(b, h), sizeof(T) * S);
+                cvt_copy(thread_temp_buffer + prev_nums * S, k_src.ptr<T>(b, h), S);
                 quant_u8_by_channel_kernel(thread_temp_buffer,
                                            k_dst.ptr<T2>(b, h, group_id * key_group_size),
                                            std::min(key_group_size, L1 + prev_nums),
@@ -475,6 +494,28 @@ void attn_quant_u8(const float* src, uint8_t* dst, size_t n, float& scale, float
 
 void attn_dequant_u8(const uint8_t* src, float* dst, size_t n, float scale, float zp) {
     attn_dequant_u8_kernel(src, dst, n, scale, zp);
+}
+
+void attn_quant_by_channel_u8(const float* src,
+                              uint8_t* dst,
+                              size_t seq_dim,
+                              size_t hidden_dims,
+                              size_t src_stride,
+                              size_t dst_stride,
+                              float* scale,
+                              float* zp) {
+    quant_u8_by_channel_kernel(src, dst, seq_dim, hidden_dims, src_stride, dst_stride, scale, zp);
+}
+
+void attn_dequant_by_channel_u8(const uint8_t* src,
+                                float* dst,
+                                size_t seq_dim,
+                                size_t hidden_dims,
+                                size_t src_stride,
+                                size_t dst_stride,
+                                float* scale,
+                                float* zp) {
+    attn_dequant_u8_by_channel_kernel(src, dst, seq_dim, hidden_dims, src_stride, dst_stride, scale, zp);
 }
 
 }  // namespace XARCH

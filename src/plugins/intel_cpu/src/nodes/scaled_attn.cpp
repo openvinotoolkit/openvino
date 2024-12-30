@@ -1180,7 +1180,7 @@ void ScaledDotProductAttention::createPrimitive() {
                        " cannot be divided by group size " + std::to_string(m_key_quant_param.groupSize));
     }
 
-    if (valueS % m_key_quant_param.groupSize != 0) {
+    if (valueS % m_value_quant_param.groupSize != 0) {
         OPENVINO_THROW("ScaledDotProductAttention AttentionExecutor creation fails value state " +
                        std::to_string(keyS) + " cannot be divided by group size " +
                        std::to_string(m_key_quant_param.groupSize));
