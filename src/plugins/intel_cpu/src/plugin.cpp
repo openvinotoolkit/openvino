@@ -218,6 +218,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                                                            ov::element::Type_t::i4,
                                                                            ov::element::Type_t::u8,
                                                                            ov::element::Type_t::i8,
+                                                                           ov::element::Type_t::f8e4m3,
+                                                                           ov::element::Type_t::f8e5m2,
                                                                            ov::element::Type_t::u16,
                                                                            ov::element::Type_t::i16,
                                                                            ov::element::Type_t::u32,
