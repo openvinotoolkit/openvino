@@ -4,6 +4,7 @@
 
 include(options)
 include(target_flags)
+include(compile_flags/os_flags)
 
 if(WIN32)
     set (CPACK_GENERATOR "ZIP" CACHE STRING "Cpack generator for OpenVINO")
