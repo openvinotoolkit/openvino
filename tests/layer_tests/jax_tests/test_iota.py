@@ -26,7 +26,7 @@ class TestIota(JaxLayerTest):
         
 
     @pytest.mark.parametrize("input_shape", [1,2,3])
-    @pytest.mark.parametrize("input_type", ["jnp.float32"])
+    @pytest.mark.parametrize("input_type", ["np.float32"])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_jax_fe
