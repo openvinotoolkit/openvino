@@ -80,6 +80,7 @@
 #include "transformations/op_conversions/detection_output_downgrade.hpp"
 #include "transformations/op_conversions/detection_output_upgrade.hpp"
 #include "transformations/op_conversions/eye_decomposition.hpp"
+#include "transformations/op_conversions/fake_convert_decomposition.hpp"
 #include "transformations/op_conversions/fq_decomposition.hpp"
 #include "transformations/op_conversions/gelu7_downgrade.hpp"
 #include "transformations/op_conversions/group_normalization_decomposition.hpp"
@@ -1295,6 +1296,7 @@ void Transformations::PostSnippets(void) {
             return node::FakeQuantize::isSupportedOperation(node, errMsg);
         },
         ov::pass::FakeQuantizeDecomposition);
+    CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeConvertDecomposition);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::ConstantFolding);
     postSnippetsManager.run_passes(model);
 }
