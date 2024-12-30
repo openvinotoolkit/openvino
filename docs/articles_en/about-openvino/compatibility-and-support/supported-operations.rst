@@ -41,27 +41,36 @@ Data as of OpenVINO 2024.4, 18 Oct. 2024.
 
    .. tab-item:: PyTorch
 
-      .. csv-table::
+      .. data-table::
          :class: modeldata stripe
-         :name: TensorFlow ops
+         :name: TensorFlow_ops_v1
          :header-rows: 1
          :file:  ../../_static/conformance_files/pytorch_ops.csv
+         :data-column-hidden: []
+         :data-order: [[ 0, "asc" ]]
+         :data-page-length: 10
 
    .. tab-item:: TensorFlow
 
-      .. csv-table::
+      .. data-table::
          :class: modeldata stripe
-         :name: TensorFlow ops
+         :name: TensorFlow_ops_v2
          :header-rows: 1
          :file:  ../../_static/conformance_files/tensorflow_ops.csv
+         :data-column-hidden: []
+         :data-order: [[ 0, "asc" ]]
+         :data-page-length: 10
 
    .. tab-item:: PaddlePaddle
 
-      .. csv-table::
+      .. data-table::
          :class: modeldata stripe
-         :name: Paddle ops
+         :name: Paddle_ops
          :header-rows: 1
          :file:  ../../_static/conformance_files/paddlepaddle_ops.csv
+         :data-column-hidden: []
+         :data-order: [[ 0, "asc" ]]
+         :data-page-length: 10
 
    .. tab-item:: ONNX
 

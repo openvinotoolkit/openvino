@@ -37,6 +37,7 @@
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/reshape_prelu.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
+#include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
@@ -79,6 +80,7 @@
 #include "transformations/op_conversions/detection_output_downgrade.hpp"
 #include "transformations/op_conversions/detection_output_upgrade.hpp"
 #include "transformations/op_conversions/eye_decomposition.hpp"
+#include "transformations/op_conversions/fake_convert_decomposition.hpp"
 #include "transformations/op_conversions/fq_decomposition.hpp"
 #include "transformations/op_conversions/gelu7_downgrade.hpp"
 #include "transformations/op_conversions/group_normalization_decomposition.hpp"
@@ -695,6 +697,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::MatMulConstTransposesExtraction);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertScatterNDUpdate15ToScatterNDUpdate3);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertSliceScatter);
+    CPU_DISABLE_PASS_COMMON(manager, ov::pass::SDPAFusion);
     CPU_DISABLE_PASS_X64(manager, ov::pass::HSigmoidDecomposition);
 
     CPU_DISABLE_PASS_X64(manager, ov::pass::ReduceL1Decomposition);
@@ -1291,6 +1294,7 @@ void Transformations::PostSnippets(void) {
             return node::FakeQuantize::isSupportedOperation(node, errMsg);
         },
         ov::pass::FakeQuantizeDecomposition);
+    CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeConvertDecomposition);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::ConstantFolding);
     postSnippetsManager.run_passes(model);
 }
