@@ -32,11 +32,13 @@
 #include "intel_gpu/primitives/embedding_bag.hpp"
 #include "intel_gpu/primitives/extract_image_patches.hpp"
 
+#include "swiglu_inst.h"
 #include "activation_inst.h"
 #include "eltwise_inst.h"
 #include "quantize_inst.h"
 #include "reorder_inst.h"
 
+#include "kernel_selector/kernels/swiglu/swiglu_kernel_base.h"
 #include "kernel_selector/kernels/activation/activation_kernel_base.h"
 #include "kernel_selector/kernels/depth_to_space/depth_to_space_kernel_base.h"
 #include "kernel_selector/kernels/eltwise/eltwise_kernel_base.h"
@@ -118,6 +120,46 @@ bool query_local_block_io_supported(engine& e, const ExecutionConfig& config) {
 }  // namespace
 
 namespace cldnn {
+
+bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
+    auto device = e.get_device().get();
+
+    static std::mutex m;
+    std::lock_guard<std::mutex> lock(m);
+
+    static std::map<cldnn::device*, bool> cache;
+    if (cache.find(device) != cache.end()) {
+        return cache.at(device);
+    }
+
+    std::shared_ptr<kernel_selector::KernelString> kernel_string = std::make_shared<kernel_selector::KernelString>();
+    // This program checks if cm sources can be jitted by current IGC version
+    const char* kernel_code = R""""(
+        #include <cm/cm.h>
+        #include <cm/cmtl.h>
+
+        extern "C" _GENX_MAIN_ void cm_check() {
+            unsigned int id = cm_linear_global_id();
+        }
+        )"""";
+
+    kernel_string->str = kernel_code;
+    kernel_string->options = " -cmc ";
+    kernel_string->entry_point = "cm_check";
+    kernel_string->batch_compilation = true;
+
+    try {
+        cldnn::kernel_impl_params dummy_params;
+        auto _kernels_cache_device_query = std::unique_ptr<cldnn::kernels_cache>(new cldnn::kernels_cache(e, config, 0));
+        _kernels_cache_device_query->add_kernels_source(dummy_params, {kernel_string}, false);
+        _kernels_cache_device_query->build_all();
+        cache[device] = true;
+    } catch (std::exception&) {
+        cache[device] = false;
+    }
+
+    return cache.at(device);
+}
 
 bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
     auto device = e.get_device().get();
@@ -309,6 +351,8 @@ kernel_selector::data_layout to_data_layout(format f) {
             return kernel_selector::data_layout::bfzyx;
         case format::bzyxf:
             return kernel_selector::data_layout::bzyxf;
+        case format::ybfx:
+            return kernel_selector::data_layout::ybfx;
         case format::fs_b_yx_fsv32:
             return kernel_selector::data_layout::fs_b_yx_fsv32;
         case format::bfwzyx:
@@ -1007,7 +1051,13 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
 }
 
 std::shared_ptr<kernel_selector::fuse_params> convert_fuse_params(std::shared_ptr<NodeFuseParams> p) {
-    if (p->type() == activation::type_id()) {
+    if (p->type() == swiglu::type_id()) {
+        auto casted = std::dynamic_pointer_cast<SwigluFuseParams>(p);
+        auto axis = casted->_desc->axis;
+        auto split_length = casted->_desc->split_lengths;
+        auto split_to_glu_idx = casted->_desc->split_to_glu_idx;
+        return std::make_shared<kernel_selector::swiglu_fuse_params>(axis, split_length, split_to_glu_idx);
+    } else if (p->type() == activation::type_id()) {
         auto casted = std::dynamic_pointer_cast<ActivationFuseParams>(p);
         auto desc = casted->_desc;
         kernel_selector::base_activation_params p;

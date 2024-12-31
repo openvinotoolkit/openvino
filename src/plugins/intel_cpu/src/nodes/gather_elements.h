@@ -14,7 +14,7 @@ class GatherElements : public Node {
 public:
     GatherElements(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
-    void getSupportedDescriptors() override {};
+    void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;
     bool created() const override;
@@ -40,6 +40,6 @@ private:
     void directExecution();
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

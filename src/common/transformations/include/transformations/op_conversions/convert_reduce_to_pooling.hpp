@@ -35,6 +35,8 @@ class TRANSFORMATIONS_API ConvertReduceSumToPooling;
 
 class ConvertReduceBase : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("ConvertReduceBase");
+
     template <class T>
     ov::matcher_pass_callback convert_reduce_to_pooling();
 };
@@ -59,7 +61,7 @@ public:
 
 class ov::pass::ConvertReduceToPooling : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("ConvertReduceToPooling", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("ConvertReduceToPooling");
     ConvertReduceToPooling() {
         add_matcher<ConvertReduceMeanToPooling>();
         add_matcher<ConvertReduceMaxToPooling>();
@@ -72,7 +74,7 @@ ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
     return [&](ov::pass::pattern::Matcher& m) {
         auto reduce = std::dynamic_pointer_cast<T>(m.get_match_root());
 
-        if (!reduce || transformation_callback(reduce)) {
+        if (!reduce || transformation_callback(reduce) || ov::shape_size(reduce->input_value(0).get_shape()) == 0) {
             return false;
         }
 

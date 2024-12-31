@@ -40,6 +40,7 @@ class CreatePrecisionsDependentAttribute;
 template <typename AttributeType, typename OperationType>
 class ov::pass::low_precision::CreatePrecisionsDependentAttribute : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("low_precision::CreatePrecisionsDependentAttribute");
     CreatePrecisionsDependentAttribute() {
         auto operation = pattern::wrap_type<OperationType>();
 

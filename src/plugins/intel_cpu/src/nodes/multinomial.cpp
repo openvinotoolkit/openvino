@@ -4,9 +4,10 @@
 
 #include "multinomial.hpp"
 
-#include "openvino/op/multinomial.hpp"
-#include <openvino/op/constant.hpp>
 #include <openvino/core/type.hpp>
+#include <openvino/op/constant.hpp>
+
+#include "openvino/op/multinomial.hpp"
 #include "utils/bfloat16.hpp"
 
 namespace ov {
@@ -14,7 +15,7 @@ namespace intel_cpu {
 namespace node {
 
 Multinomial::Multinomial(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, NgraphShapeInferFactory(op, PortMask(NUM_SAMPLES_PORT))) {
+    : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         THROW_CPU_NODE_ERR(errorMessage);
@@ -80,7 +81,7 @@ bool Multinomial::needPrepareParams() const {
 void Multinomial::createPrimitive() {
     if (!m_const_inputs[NUM_SAMPLES_PORT]) {
         CPU_NODE_ASSERT(isDynamicNode(), "is static while the samples input is a variable");
-        return; // avoid reading non initialized data from the NUM_SAMPLES_PORT input
+        return;  // avoid reading non initialized data from the NUM_SAMPLES_PORT input
     }
     Node::createPrimitive();
 }
@@ -102,11 +103,9 @@ void Multinomial::prepareParams() {
     }
 
     if (m_num_samples_precision == ov::element::i32) {
-        m_samples_count =
-            getSrcDataAtPortAs<const int32_t>(NUM_SAMPLES_PORT)[0];
+        m_samples_count = getSrcDataAtPortAs<const int32_t>(NUM_SAMPLES_PORT)[0];
     } else {
-        m_samples_count =
-            getSrcDataAtPortAs<const int64_t>(NUM_SAMPLES_PORT)[0];
+        m_samples_count = getSrcDataAtPortAs<const int64_t>(NUM_SAMPLES_PORT)[0];
     }
 
     m_batches_count = probs_shape[0];

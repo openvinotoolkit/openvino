@@ -20,6 +20,6 @@ class TRANSFORMATIONS_API LoraSubgraphFusion;
 
 class ov::pass::LoraSubgraphFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("LoraSubgraphFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("LoraSubgraphFusion");
     LoraSubgraphFusion();
 };

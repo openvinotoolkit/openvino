@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "node.h"
 #include "common/dnnl_executor.h"
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -33,6 +33,6 @@ private:
     size_t axis = 0;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov
