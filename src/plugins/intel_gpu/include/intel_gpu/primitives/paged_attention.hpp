@@ -40,7 +40,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         ob << heads_num;
         ob << kv_heads_num;
         ob << has_alibi;
-        ob << has_rotation_coefficients;
+        ob << has_rotated_blocks;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -49,7 +49,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         ib >> heads_num;
         ib >> kv_heads_num;
         ib >> has_alibi;
-        ib >> has_rotation_coefficients;
+        ib >> has_rotated_blocks;
     }
 
     optional_value<float> scale_val{};
@@ -57,6 +57,6 @@ struct paged_attention : public primitive_base<paged_attention> {
     size_t heads_num = 0;
     size_t kv_heads_num = 0;
     bool has_alibi = false;
-    bool has_rotation_coefficients = false;
+    bool has_rotated_blocks = false;
 };
 }  // namespace cldnn
