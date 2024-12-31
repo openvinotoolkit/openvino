@@ -577,7 +577,7 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
     // Read meta data from legacy representation
     if (root.child("rt_info").empty()) {
         // Legacy representation
-        // meta_data - MO meta
+        // meta_data - IR meta
         // quantization_parameters - NNCF quantization section
         std::unordered_set<std::string> meta_names = {"meta_data", "quantization_parameters"};
         read_legacy_meta_data(function, meta_names, root);

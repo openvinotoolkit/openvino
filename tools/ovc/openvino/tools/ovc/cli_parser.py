@@ -623,7 +623,7 @@ def depersonalize(value: str, key: str):
 
 
 def get_available_front_ends(fem=None):
-    # Use this function as workaround to avoid IR frontend usage by MO
+    # Use this function as workaround to avoid IR frontend usage by OVC
     if fem is None:
         return []
     available_moc_front_ends = fem.get_available_front_ends()

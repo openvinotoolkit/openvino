@@ -64,7 +64,7 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
                 OPENVINO_ASSERT(leaf_names.find(param_name) == leaf_names.end() ||
                                     param->output(0).get_names().find(param_name) != param->output(0).get_names().end(),
                                 "Model operation names have collisions with tensor names.",
-                                " Please use MO to generate new IR version, it should allow to avoid the issue");
+                                " Please use OVC to generate new IR version, it should allow to avoid the issue");
                 leaf_names.insert(param_name);
                 param->output(0).get_tensor().add_names({param_name});
                 new_param->output(0).get_tensor().add_names({param_name});
@@ -96,7 +96,7 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
                 OPENVINO_ASSERT(leaf_names.find(res_name) == leaf_names.end() ||
                                     result->output(0).get_names().find(res_name) != result->output(0).get_names().end(),
                                 "Model operation names have collisions with tensor names.",
-                                " Please use MO to generate new IR version, it should allow to avoid the issue");
+                                " Please use OVC to generate new IR version, it should allow to avoid the issue");
                 leaf_names.insert(res_name);
                 result->output(0).get_tensor().add_names({res_name});
                 new_result->output(0).get_tensor().add_names({res_name});

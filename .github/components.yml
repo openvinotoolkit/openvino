@@ -110,7 +110,6 @@ IR_FE:
 
 ONNX_FE:
   revalidate:
-    - MO
     - OVC
     - ONNX_RT
   build:
@@ -119,7 +118,6 @@ ONNX_FE:
 
 PDPD_FE:
   revalidate:
-    - MO
     - OVC
   build:
     - CPU
@@ -127,7 +125,6 @@ PDPD_FE:
 
 TF_FE:
   revalidate:
-    - MO
     - OVC
   build:
     - CPU
@@ -136,7 +133,6 @@ TF_FE:
 
 TFL_FE:
   revalidate:
-    - MO
     - OVC
   build:
     - CPU
@@ -144,7 +140,6 @@ TFL_FE:
 
 PyTorch_FE:
   revalidate:
-    - MO
     - OVC
   build:
     - CPU
@@ -153,7 +148,6 @@ PyTorch_FE:
 
 JAX_FE:
   revalidate:
-    - MO
     - OVC
   build:
     - CPU
@@ -171,7 +165,6 @@ C_API:
 Python_API:
   revalidate:
     - samples
-    - MO
     - OVC
     - tools
     - TF_FE
@@ -224,14 +217,6 @@ OVC:
     - ONNX_FE
     - PDPD_FE
     - JAX_FE
-  build:
-    - Python_API
-    - TOKENIZERS # TF_FE tests depends on tokenizers build
-
-MO:
-  revalidate:
-    - PyTorch_FE
-    - TF_FE
   build:
     - Python_API
     - TOKENIZERS # TF_FE tests depends on tokenizers build

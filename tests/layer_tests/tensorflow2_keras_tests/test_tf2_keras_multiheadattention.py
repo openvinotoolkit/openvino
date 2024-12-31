@@ -76,7 +76,7 @@ class TestKerasMultiHeadAttention(CommonTF2LayerTest):
             marks=pytest.mark.xfail(reason="45432"))
     ]
 
-    @pytest.mark.skip(reason='Einsum is unsupported in MO')
+    @pytest.mark.skip(reason='Einsum is unsupported in OVC')
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.precommit
     def test_keras_multiheadattention(self, params, ie_device, precision, ir_version, temp_dir,
@@ -104,7 +104,7 @@ class TestKerasMultiHeadAttention(CommonTF2LayerTest):
             marks=pytest.mark.xfail(reason="45432"))
     ]
 
-    @pytest.mark.skip(reason='Einsum is unsupported in MO')
+    @pytest.mark.skip(reason='Einsum is unsupported in OVC')
     @pytest.mark.parametrize("params", test_data_no_bias)
     @pytest.mark.nightly
     def test_keras_multiheadattention_no_bias(self, params, ie_device, precision, ir_version,

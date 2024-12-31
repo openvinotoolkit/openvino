@@ -27,7 +27,7 @@ static void CreateNormalizeL2Op(ProgramBuilder& p, const std::shared_ptr<ov::op:
     bool across_spatial = !(axis.size() == 1 && axis[0] == 1);
     float eps = op->get_eps();
 
-    // WA for MO outputting %.6f
+    // WA for OVC outputting %.6f
     if (eps == 0.0f) {
         eps = 1e-10f;
     }
