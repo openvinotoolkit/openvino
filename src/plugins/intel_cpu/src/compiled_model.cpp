@@ -258,6 +258,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::hint::kv_cache_precision.name()),
             RO_property(ov::hint::key_cache_group_size.name()),
             RO_property(ov::hint::value_cache_group_size.name()),
+            RO_property(ov::hint::key_cache_quant_bychannel.name()),
         };
 
         OPENVINO_SUPPRESS_DEPRECATED_START
@@ -338,6 +339,8 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         return decltype(ov::hint::key_cache_group_size)::value_type(config.keyCacheGroupSize);
     } else if (name == ov::hint::value_cache_group_size) {
         return decltype(ov::hint::value_cache_group_size)::value_type(config.valueCacheGroupSize);
+    } else if (name == ov::hint::key_cache_quant_bychannel) {
+        return decltype(ov::hint::key_cache_quant_bychannel)::value_type(config.keyCacheQuantByChannel);
     }
     OPENVINO_THROW("Unsupported property: ", name);
 }

@@ -61,6 +61,7 @@ struct Config {
 #endif
     size_t keyCacheGroupSize = 0;
     size_t valueCacheGroupSize = 0;
+    bool keyCacheQuantByChannel = false;
     ov::threading::IStreamsExecutor::Config streamExecutorConfig;
     int streams = 1;
     bool streamsChanged = false;

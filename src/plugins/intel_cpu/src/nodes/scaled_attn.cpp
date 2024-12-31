@@ -1170,7 +1170,7 @@ void ScaledDotProductAttention::createPrimitive() {
     const auto valueS = *(valueDims.end() - 1);
 
     m_key_quant_param.groupSize = cpuConfig.keyCacheGroupSize ? cpuConfig.keyCacheGroupSize : keyS;
-    m_key_quant_param.isByChannel = getenv("ENABLE_CHANNEL") ? true : false;
+    m_key_quant_param.isByChannel = cpuConfig.keyCacheQuantByChannel;
     m_value_quant_param.groupSize = cpuConfig.valueCacheGroupSize ? cpuConfig.valueCacheGroupSize : valueS;
     std::cout << "SDPA|key_group_size|" << m_key_quant_param.groupSize << "|m_value_group_size|"
               << m_value_quant_param.groupSize << "|rtPrecision|" << rtPrecision << "|kvCache|"
