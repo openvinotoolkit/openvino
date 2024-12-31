@@ -38,6 +38,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "utils/split.hpp"
 
 using namespace ov::op;
@@ -53,8 +54,8 @@ namespace {
 std::shared_ptr<ov::Node> get_present_state(const std::shared_ptr<ov::Node>& K,
                                             const std::shared_ptr<ov::Node>& V,
                                             const ov::OutputVector& op_inputs);
-std::shared_ptr<ov::Node> rotaryEmbedding(std::shared_ptr<ov::Node> input,
-                                          std::shared_ptr<ov::Node> past_seqlen,
+std::shared_ptr<ov::Node> rotaryEmbedding(ov::Output<ov::Node> input,
+                                          ov::Output<ov::Node> past_seqlen,
                                           std::shared_ptr<ov::Node> seqlen_k,
                                           std::shared_ptr<ov::Node> cos_cache,
                                           std::shared_ptr<ov::Node> sin_cache,
@@ -82,39 +83,40 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         v0::Constant::create(ov::element::i64, ov::Shape{1}, {num_heads + kv_num_heads + kv_num_heads});
     auto head_size_node = std::make_shared<v1::Divide>(hidden_size, total_num_heads_node);
 
+    // transpose Q, K and V to (batch_size, num_heads, sequence_len, head_size)
+    auto perm = v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
+
     // Q K V (batch_size, sequence_len, num_heads, head_size)
-    ov::Output<ov::Node> oQ, oK, oV;
+    ov::Output<ov::Node> Q, K, V;
     int index = 0;
-    oQ = nodes[index++];
-    oK = nodes[index++];
-    oV = nodes[index++];
-    if (ov::op::util::is_null(oK)) {
+    Q = nodes[index++];
+    K = nodes[index++];
+    V = nodes[index++];
+    if (ov::op::util::is_null(K)) {
         // Handle the packed QKV
         auto packed_qkv_shape = std::make_shared<v0::Concat>(
             ov::NodeVector{batch_size, current_seqlen_size, total_num_heads_node, head_size_node},
             0);
-        auto inputs_qkv = std::make_shared<v1::Reshape>(oQ, packed_qkv_shape, false);
-        // split the node into 3 even parts Q, K, V with shape (batch_size, sequence_len, num_head, head_size)
-        auto split = ov::op::util::make_split(inputs_qkv, {num_heads, kv_num_heads, kv_num_heads}, 2);
-        oQ = split[0];
-        oK = split[1];
-        oV = split[2];
+        auto inputs_qkv = std::make_shared<v1::Reshape>(Q, packed_qkv_shape, false)->output(0);
+        // (batch_size, sequence_len, num_head, head_size)
+        inputs_qkv = std::make_shared<v1::Transpose>(inputs_qkv, perm);
+        // split the node into 3 even parts Q, K, V with shape (batch_size, num_head, sequence_len, head_size)
+        auto split = ov::op::util::make_split(inputs_qkv, {num_heads, kv_num_heads, kv_num_heads}, 1);
+        Q = split[0];
+        K = split[1];
+        V = split[2];
+    } else {
+        Q = std::make_shared<v1::Transpose>(Q, perm);
+        K = std::make_shared<v1::Transpose>(K, perm);
+        V = std::make_shared<v1::Transpose>(V, perm);
     }
 
-    std::shared_ptr<ov::Node> Q, K, V;
-
-    const auto& past_key = nodes[index++].get_node_shared_ptr();
-    const auto& past_value = nodes[index++].get_node_shared_ptr();
+    const auto& past_key = nodes[index++];
+    const auto& past_value = nodes[index++];
     const auto& seqlens_k = nodes[index++].get_node_shared_ptr();
     const auto& total_sequence_length = nodes[index++];  // unused, it's not always equal (seqlens_k + 1)
     const auto& cos_cache = nodes[index++].get_node_shared_ptr();
     const auto& sin_cache = nodes[index++].get_node_shared_ptr();
-
-    // transpose Q, K and V to (batch_size, num_heads, sequence_len, head_size)
-    auto perm = v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
-    Q = std::make_shared<v1::Transpose>(oQ, perm);
-    K = std::make_shared<v1::Transpose>(oK, perm);
-    V = std::make_shared<v1::Transpose>(oV, perm);
 
     auto zero = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
     auto one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
@@ -146,7 +148,7 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     // present = concat(K, V) if 'past' input is unavailable
     // or
     // present = concat(past, K, V)
-    auto construct_kv_cache = [&](const std::shared_ptr<ov::Node>& past, const std::shared_ptr<ov::Node>& current) {
+    auto construct_kv_cache = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current) {
         auto past_datas = std::make_shared<v8::Slice>(past, zero, past_sequence_length, one, two);
         auto curr_datas = std::make_shared<v8::Slice>(current, zero, current_seqlen_size, one, two);
         return std::make_shared<v0::Concat>(ov::NodeVector{past_datas, curr_datas}, 2);
@@ -172,8 +174,8 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         auto new_kv_shape = std::make_shared<v0::Concat>(ov::NodeVector{kv_shape_prev_2, one, kv_shape_last_2}, 0);
         K = std::make_shared<v1::Reshape>(K, new_kv_shape, false);
         V = std::make_shared<v1::Reshape>(V, new_kv_shape, false);
-        K = std::make_shared<v0::Concat>(ov::NodeVector(kv_num_heads_factor, K), 2);
-        V = std::make_shared<v0::Concat>(ov::NodeVector(kv_num_heads_factor, V), 2);
+        K = std::make_shared<v0::Concat>(ov::OutputVector(kv_num_heads_factor, K), 2);
+        V = std::make_shared<v0::Concat>(ov::OutputVector(kv_num_heads_factor, V), 2);
         auto q_shape = std::make_shared<v3::ShapeOf>(Q);
         // (batch_size, num_heads, sequence_len, head_size)
         const auto q_shape_prev_2 = detail::get_dimensions(q_shape, {0, 1});
@@ -193,24 +195,22 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
                                     seqlens_1d_scalar,
                                     one_without_shape,
                                     ov::element::i64);
-    auto mask_shape = std::make_shared<v0::Concat>(ov::NodeVector{one, one, one, seqlens_1d}, 0);
-    mask_per_line_node = std::make_shared<v1::Reshape>(mask_per_line_node, mask_shape, false);
-    auto pad_end_shape = std::make_shared<v0::Concat>(ov::NodeVector{one, one, current_seqlen_size, seqlens_1d}, 0);
-    auto paded_mask = std::make_shared<v3::Broadcast>(mask_per_line_node, pad_end_shape);
-    std::shared_ptr<ov::Node> compare_mask =
+    mask_per_line_node = std::make_shared<v0::Unsqueeze>(mask_per_line_node, zero);
+    auto minus_inf = v0::Constant::create(element::f32, Shape{}, {-std::numeric_limits<float>::infinity()});
+    auto mask_shape = std::make_shared<v0::Concat>(ov::NodeVector{current_seqlen_size, seqlens_1d}, 0);
+    auto compare_mask = std::make_shared<v3::Broadcast>(mask_per_line_node, mask_shape);
+
+    std::shared_ptr<ov::Node> vertical_range =
         std::make_shared<v4::Range>(past_seq_len_scalar, seqlens_1d_scalar, one_without_shape, ov::element::i64);
-    auto compare_range_shape = std::make_shared<v0::Concat>(ov::NodeVector{one, one, current_seqlen_size, one}, 0);
-    compare_mask = std::make_shared<v1::Reshape>(compare_mask, compare_range_shape, false);
-    auto lower_triangular_mask = std::make_shared<v1::LessEqual>(paded_mask, compare_mask);
-    auto higher_triangular_mask = std::make_shared<v1::Greater>(paded_mask, compare_mask);
-    auto negtive_const = v0::Constant::create(ov::element::f32, ov::Shape{}, {-1e20f});
+    vertical_range = std::make_shared<v0::Unsqueeze>(vertical_range, one);
 
-    auto convert_mask = std::make_shared<v0::Convert>(higher_triangular_mask, ov::element::f32);
-    auto input_offset_data = std::make_shared<v1::Multiply>(convert_mask, negtive_const);
+    auto triu = std::make_shared<v1::Greater>(compare_mask, vertical_range);
+    auto typed_zero = std::make_shared<v1::ConvertLike>(zero, softmax_input);
+    auto typed_minus_inf = std::make_shared<v1::ConvertLike>(minus_inf, softmax_input);
+    auto minus_inf_mask = std::make_shared<v3::Broadcast>(typed_minus_inf, mask_shape);
+    auto atten_mask = std::make_shared<v1::Select>(triu, minus_inf_mask, typed_zero);
 
-    convert_mask = std::make_shared<v0::Convert>(lower_triangular_mask, ov::element::f32);
-    auto softmax_input_masked = std::make_shared<v1::Multiply>(softmax_input, convert_mask);
-    std::shared_ptr<ov::Node> softmax_input_added = std::make_shared<v1::Add>(softmax_input_masked, input_offset_data);
+    std::shared_ptr<ov::Node> softmax_input_added = std::make_shared<v1::Add>(softmax_input, atten_mask);
     // softmax((Q x K' + mask) / sqrt(head_size))
     const auto softmax = std::make_shared<v8::Softmax>(softmax_input_added, 3);
 
@@ -245,8 +245,8 @@ std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::Node>& node, 
     return get_dimensions(std::make_shared<v3::ShapeOf>(node), dims);
 }
 
-std::shared_ptr<ov::Node> rotaryEmbedding(std::shared_ptr<ov::Node> input,
-                                          std::shared_ptr<ov::Node> past_seqlen,
+std::shared_ptr<ov::Node> rotaryEmbedding(ov::Output<ov::Node> input,
+                                          ov::Output<ov::Node> past_seqlen,
                                           std::shared_ptr<ov::Node> seqlen_k,
                                           std::shared_ptr<ov::Node> cos_cache,
                                           std::shared_ptr<ov::Node> sin_cache,
@@ -316,45 +316,15 @@ std::shared_ptr<ov::Node> rotaryEmbedding(std::shared_ptr<ov::Node> input,
         auto result = std::make_shared<v1::Add>(add_input0, multi_input1);
         return result;
     } else {
-        auto negtive_two = v0::Constant::create(ov::element::i64, ov::Shape{1}, {-2});
-        auto split_input_shape = std::make_shared<v0::Concat>(ov::NodeVector{dim_bns, two, half_last_dim}, 0);
-        auto reshaped_input = std::make_shared<v1::Reshape>(input, split_input_shape, false);
-        auto first_half = std::make_shared<v8::Slice>(reshaped_input, zero, one, one, negtive_two);
-        auto second_half = std::make_shared<v8::Slice>(reshaped_input, one, two, one, negtive_two);
+        auto cos =
+            std::make_shared<v8::Slice>(cos_cache, past_seqlen, slice_cache_dim_shape, one, zero);
+        auto sin =
+            std::make_shared<v8::Slice>(sin_cache, past_seqlen, slice_cache_dim_shape, one, zero);
+        auto in_split = ov::op::util::make_split(input, 2, -1);
+        auto res_0 = std::make_shared<v1::Subtract>(std::make_shared<v1::Multiply>(in_split[0], cos), std::make_shared<v1::Multiply>(in_split[1], sin));
+        auto res_1 = std::make_shared<v1::Add>(std::make_shared<v1::Multiply>(in_split[0], sin), std::make_shared<v1::Multiply>(in_split[1], cos));
 
-        auto second_input = std::make_shared<v0::Concat>(ov::NodeVector{second_half, first_half}, -2);
-
-        auto mask_shape = std::make_shared<v0::Concat>(ov::NodeVector{one, half_last_dim}, 0);
-        auto reshaped_mask = std::make_shared<v1::Reshape>(masks, mask_shape, false);
-        auto negtive_mask = std::make_shared<v0::Negative>(reshaped_mask);
-        auto concat_mask = std::make_shared<v0::Concat>(ov::NodeVector{negtive_mask, reshaped_mask}, -2);
-        auto real_mask = std::make_shared<v1::Reshape>(concat_mask, dim_head_size, false);
-        auto mask_f32 = std::make_shared<v0::Convert>(real_mask, ov::element::f32);
-
-        auto perm = v0::Constant::create(ov::element::i64, ov::Shape{5}, {0, 1, 2, 4, 3});
-        auto input0 = reshaped_input;  // std::make_shared<v1::Transpose>(reshaped_input, perm);
-        auto input1 = second_input;    // std::make_shared<v1::Transpose>(second_input, perm);
-        auto real_input0 = std::make_shared<v1::Reshape>(input0, input_shape, false);
-        auto real_input1 = std::make_shared<v1::Reshape>(input1, input_shape, false);
-
-        auto new_cache_shape = std::make_shared<v0::Concat>(ov::NodeVector{cache_1st_dim, two, cache_last_dim}, 0);
-        auto temp_cache_shape = std::make_shared<v0::Concat>(ov::NodeVector{cache_1st_dim, one, cache_last_dim}, 0);
-        auto cos_cache_reshape = std::make_shared<v1::Reshape>(cos_cache, temp_cache_shape, false);
-        auto sin_cache_reshape = std::make_shared<v1::Reshape>(sin_cache, temp_cache_shape, false);
-        auto cos_cache_broadcasted = std::make_shared<v3::Broadcast>(cos_cache_reshape, new_cache_shape);
-        auto sin_cache_broadcasted = std::make_shared<v3::Broadcast>(sin_cache_reshape, new_cache_shape);
-        auto real_cos_input = std::make_shared<v1::Reshape>(cos_cache_broadcasted, real_cache_shape, false);
-        auto real_sin_input = std::make_shared<v1::Reshape>(sin_cache_broadcasted, real_cache_shape, false);
-        // TODO: change zero to sequence_K
-        auto sliced_cos_input =
-            std::make_shared<v8::Slice>(real_cos_input, past_seqlen, slice_cache_dim_shape, one, zero);
-        auto sliced_sin_input =
-            std::make_shared<v8::Slice>(real_sin_input, past_seqlen, slice_cache_dim_shape, one, zero);
-        auto add_input0 = std::make_shared<v1::Multiply>(real_input0, sliced_cos_input);
-        auto add_input1 = std::make_shared<v1::Multiply>(real_input1, sliced_sin_input);
-        auto multi_input1 = std::make_shared<v1::Multiply>(add_input1, mask_f32);
-        auto result = std::make_shared<v1::Add>(add_input0, multi_input1);
-        return result;
+        return std::make_shared<v0::Concat>(ov::NodeVector{res_0, res_1}, -1);
     }
 }
 }  // namespace
