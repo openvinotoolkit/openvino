@@ -8,6 +8,7 @@
 #include "snippets/lowered/expression.hpp"
 #include "snippets/generator.hpp"
 #include "snippets/op/kernel.hpp"
+#include <type_traits>
 
 /**
  * @interface RegManager
@@ -18,8 +19,10 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 
-using RegTypeMapper = std::function<RegType(const ov::Output<Node>& out)>;
-using LiveInterval = std::pair<double, double>;
+// LiveInterval is a pair of (start, stop) expression execution numbers, where:
+// start - exec number of the expression that produced the value
+// stop - exec number of the last consumer of the value
+using LiveInterval = std::pair<decltype(Expression().get_exec_num()), decltype(Expression().get_exec_num())>;
 class RegManager {
 public:
     RegManager() = delete;
@@ -27,9 +30,8 @@ public:
     inline RegType get_reg_type(const ov::Output<Node>& out) const { return m_generator->get_op_out_reg_type(out); }
     inline std::vector<Reg> get_vec_reg_pool() const { return m_generator->get_target_machine()->get_vec_reg_pool(); }
 
-    inline void set_live_range(const Reg& reg, const LiveInterval& interval, bool force = false) {
-        OPENVINO_ASSERT(force || m_reg_live_range.count(reg) == 0, "Live range for this reg is already set");
-        m_reg_live_range[reg] = interval;
+    inline void set_live_range(const Reg& reg, const LiveInterval& interval) {
+        OPENVINO_ASSERT(m_reg_live_range.insert({reg, interval}).second, "Live range for this reg is already set");
     }
 
     inline std::vector<Reg> get_kernel_call_regs(const std::shared_ptr<snippets::op::Kernel>& kernel) const {
@@ -52,7 +54,7 @@ public:
         OPENVINO_ASSERT(m_reg_live_range.count(reg), "Live range for this reg was not set");
         return m_reg_live_range[reg];
     }
-    inline std::map<Reg, LiveInterval> get_live_range_map() const {
+    inline const std::map<Reg, LiveInterval>& get_live_range_map() const {
         return m_reg_live_range;
     }
 

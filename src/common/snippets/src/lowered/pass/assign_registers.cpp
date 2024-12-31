@@ -20,6 +20,8 @@ namespace pass {
 
 AssignRegisters::RegMap AssignRegisters::assign_regs_manually(const LinearIR& linear_ir, std::set<Reg>& gpr_pool, std::set<Reg>& vec_pool) {
     RegMap manually_assigned;
+    OPENVINO_ASSERT(gpr_pool.size() >= (linear_ir.get_parameters().size() + linear_ir.get_results().size()),
+                    "Not enough gp registers in the pool to perform manual assignment");
     for (const auto& param : linear_ir.get_parameters()) {
         manually_assigned[param->get_output_port_descriptor(0)->get_reg()] = *gpr_pool.begin();
         gpr_pool.erase(gpr_pool.begin());
@@ -36,6 +38,8 @@ AssignRegisters::RegMap AssignRegisters::assign_regs_manually(const LinearIR& li
             // All buffers have one common data pointer
             const auto reg_group = static_cast<long int>(buffer->get_reg_group());
             max_buffer_group = std::max(max_buffer_group, reg_group);
+            OPENVINO_ASSERT(gpr_pool.size() > static_cast<size_t>(max_buffer_group),
+                            "Not enough gp registers in the pool to perform manual assignment");
             const auto& assigned = *std::next(gpr_pool.begin(), reg_group);
             const auto& out_reg = expr->get_output_port_descriptor(0)->get_reg();
             manually_assigned[out_reg] = assigned;
@@ -52,6 +56,7 @@ AssignRegisters::RegMap AssignRegisters::assign_regs_manually(const LinearIR& li
             // TODO [96351]: We should rewrite accumulator pattern using another way
             const auto& input_tensor = expr->get_input_port_connector(0);
             const auto& input = input_tensor->get_source();
+            OPENVINO_ASSERT(!vec_pool.empty(), "Not enough vector registers in the pool to perform manual assignment");
             const auto& assigned = *vec_pool.begin();
             for (const auto& tensor : input.get_expr()->get_input_port_connectors()) {
                 const auto parent = tensor->get_source();

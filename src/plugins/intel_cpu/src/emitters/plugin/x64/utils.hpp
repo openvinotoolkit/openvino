@@ -18,9 +18,15 @@ public:
     size_t get_num_spilled_regs() const {
         return m_regs_to_spill.size();
     }
-    // push (save) all registers on the stack
+    /**
+     * @brief Spills registers to stack
+     * @arg live_regs - set of registers to spill (optional). All registers will be spilled if live_regs is not
+     * provided.
+     */
     void preamble(const std::set<snippets::Reg>& live_regs = {});
-    // pop (take) all registers from the stack
+    /**
+     * @brief Restores registers previously spilled in preamble(live_regs) call.
+     */
     void postamble();
 
     // align stack on 16-byte and allocate shadow space as ABI reqiures

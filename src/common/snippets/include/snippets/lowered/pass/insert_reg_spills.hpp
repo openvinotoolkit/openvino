@@ -19,10 +19,11 @@ namespace pass {
  */
 class InsertRegSpills : public Pass {
 public:
-    OPENVINO_RTTI("InsertRegSpills", "Pass")
+    OPENVINO_RTTI("InsertRegSpills", "", Pass)
     explicit InsertRegSpills(RegManager& reg_manager) : m_reg_manager(reg_manager) {}
     bool run(LinearIR& linear_ir) override;
 
+private:
     RegManager& m_reg_manager;
 };
 

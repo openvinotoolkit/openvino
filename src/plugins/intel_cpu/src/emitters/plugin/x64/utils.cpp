@@ -5,7 +5,6 @@
 #include "utils.hpp"
 
 #include "emitters/utils.hpp"
-#include "snippets/utils/utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -43,7 +42,7 @@ struct regs_to_spill {
         };
         for (int i = 0; i < 16; i++) {
             // do not spill rsp;
-            if (i != 4)
+            if (i != Xbyak::Reg::RSP)
                 push_if_live(Reg64(i));
         }
 

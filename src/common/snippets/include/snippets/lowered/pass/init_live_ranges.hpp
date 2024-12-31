@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ namespace pass {
  */
 class InitLiveRanges : public Pass {
 public:
-    OPENVINO_RTTI("InitLiveRanges", "Pass")
+    OPENVINO_RTTI("InitLiveRanges", "", Pass)
     explicit InitLiveRanges(RegManager& reg_manager) : m_reg_manager(reg_manager) {}
     bool run(LinearIR& linear_ir) override;
 private:

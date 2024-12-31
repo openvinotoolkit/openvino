@@ -7,9 +7,6 @@
 #include "snippets/op/subgraph.hpp"
 #include "snippets/lowered/expressions/buffer_expression.hpp"
 
-#include "snippets/lowered/pass/serialize_control_flow.hpp"
-#include "snippets/lowered/pass/serialize_data_flow.hpp"
-
 namespace ov {
 namespace snippets {
 namespace lowered {
@@ -84,7 +81,7 @@ bool InitLiveRanges::run(LinearIR& linear_ir) {
         }
     }
 
-    return false;
+    return true;
 }
 
 } // namespace pass

@@ -23,7 +23,7 @@ public:
     OPENVINO_OP("RegSpillBaseBase", "SnippetsOpset");
     RegSpillBase(const std::vector<Output<Node>>& args);
     RegSpillBase() = default;
-    virtual std::set<Reg> get_regs_to_spill() const = 0;
+    virtual const std::set<Reg>& get_regs_to_spill() const = 0;
     bool visit_attributes(AttributeVisitor& visitor) override;
 protected:
 };
@@ -41,7 +41,7 @@ public:
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
     std::shared_ptr<RegSpillEnd> get_reg_spill_end() const;
-    std::set<Reg> get_regs_to_spill() const override { return m_regs_to_spill; }
+    const std::set<Reg>& get_regs_to_spill() const override { return m_regs_to_spill; }
 
     class ShapeInfer : public IShapeInferSnippets {
         size_t num_out_shapes = 0;
@@ -72,7 +72,7 @@ public:
         OPENVINO_ASSERT(reg_spill_begin, "Can't get reg_spill_begin from reg_spill_end");
         return reg_spill_begin;
     }
-    std::set<Reg> get_regs_to_spill() const override {
+    const std::set<Reg>& get_regs_to_spill() const override {
         return get_reg_spill_begin()->get_regs_to_spill();
     }
 };
