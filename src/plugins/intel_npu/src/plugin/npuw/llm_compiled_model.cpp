@@ -330,14 +330,6 @@ std::optional<ov::Any> pop_option(ov::AnyMap& config, const std::string& option_
     return std::nullopt;
 }
 
-template <typename T>
-std::optional<T> get_option(ov::AnyMap& config, const std::string& option_name) {
-    if (auto it = config.find(option_name); it != config.end()) {
-        return std::make_optional(it->second.as<T>());
-    }
-    return std::nullopt;
-}
-
 ov::AnyMap get_baseline_common_config() {
     ov::AnyMap config = {
         {"NPU_COMPILATION_MODE_PARAMS", "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm"},

@@ -148,11 +148,10 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                                      ? 3u
                                      : kvcache_desc.dim;
 
-            auto prefill_out_slice =
-                make_tensor_slice(prefill_out_tensor,
-                                  kv_dim,
-                                  kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
-                                  kvcache_desc.max_prompt_size);
+            auto prefill_out_slice = make_tensor_slice(prefill_out_tensor,
+                                                       kv_dim,
+                                                       kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
+                                                       kvcache_desc.max_prompt_size);
 
             auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, kvcache_desc.num_stored_tokens);
 
