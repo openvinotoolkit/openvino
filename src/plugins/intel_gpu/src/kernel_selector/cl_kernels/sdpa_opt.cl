@@ -1224,8 +1224,6 @@ KERNEL(sdpa_opt)(
 #if PAGED_ATTENTION_SCORES_OUTPUT
             const uint subsequence_idx = gws_seq_indexes_correspondence[target_seq_dim];
             const uint subsequence_end_pos = subsequence_begins[subsequence_idx + 1];
-            const uint block_start_pos = blocked_indexes_start[target_seq_dim];
-            const uint block_end_pos = blocked_indexes_end[target_seq_dim];
 
             // PagedAttention is supposed to save only last "row" of the QK matrix multiplication,
             // so save SEQ_LEN_PARTITION_SIZE elements for each partition
