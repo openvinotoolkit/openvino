@@ -21,6 +21,6 @@ class TRANSFORMATIONS_API ConvertNMSToNMSIEInternal;
 
 class ov::pass::ConvertNMSToNMSIEInternal : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertNMSToNMSIEInternal", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertNMSToNMSIEInternal");
     ConvertNMSToNMSIEInternal();
 };

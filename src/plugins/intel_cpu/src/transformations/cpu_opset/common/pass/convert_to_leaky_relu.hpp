@@ -9,11 +9,11 @@
 namespace ov {
 namespace intel_cpu {
 
-class ConvertToLeakyRelu: public ov::pass::MatcherPass {
+class ConvertToLeakyRelu : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertToLeakyRelu", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertToLeakyRelu");
     ConvertToLeakyRelu();
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

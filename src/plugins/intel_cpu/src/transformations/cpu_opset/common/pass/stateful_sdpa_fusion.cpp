@@ -9,16 +9,16 @@
 #include <cstdint>
 #include <limits>
 #include <openvino/core/rt_info.hpp>
-#include "openvino/opsets/opset1.hpp"
 #include <openvino/opsets/opset13.hpp>
 #include <openvino/opsets/opset6.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <transformations/utils/utils.hpp>
 #include <transformations/utils/gen_pattern.hpp>
+#include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 using namespace ov::gen_pattern;
@@ -60,7 +60,7 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         auto reshape_kv = wrap_type<opset6::Reshape>({kv, any_input()});
         auto unsqueeze_kv = makePattern<opset1::Unsqueeze>({kv, any_input()});
 
-        auto check_one = [] (Output<Node> output) -> bool {
+        auto check_one = [](Output<Node> output) -> bool {
             auto node = std::dynamic_pointer_cast<opset1::Constant>(output.get_node_shared_ptr());
             const auto& bcst_arg = node->cast_vector<float>();
             return std::all_of(bcst_arg.begin(), bcst_arg.end(), [](float i) {
@@ -69,8 +69,9 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         };
         auto constant_bcst = wrap_type<opset1::Constant>(check_one);
 
-        auto computed_bcst = makePattern<opset1::Broadcast>({wrap_type<opset1::Constant>(check_one),
-            any_input(), any_input()}, {{"mode", "numpy"}});
+        auto computed_bcst =
+            makePattern<opset1::Broadcast>({wrap_type<opset1::Constant>(check_one), any_input(), any_input()},
+                                           {{"mode", "numpy"}});
 
         auto multiply_kv = wrap_type<opset6::Multiply>({reshape_kv | unsqueeze_kv, constant_bcst | computed_bcst});
         auto result = wrap_type<opset6::Reshape>({multiply_kv, any_input()});
@@ -156,22 +157,22 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         for (auto&& item : {concat_k_node, concat_v_node}) {
             auto&& children = item->get_output_target_inputs(0);
             switch (children.size()) {
-                case 2:
-                    // pass, as the existence of Assign will be checked later
-                    break;
-                case 3:
-                    // the first one leads to SDPA, otherwise the matcher doesn't find the pattern
-                    // the second one leads to Assign, and this is checked later
-                    // the third child is allowed to be a ShapeOf op only, thus one of them must be ShapeOf
-                    if (!std::any_of(children.begin(), children.end(), [](const ov::Input<ov::Node>& child) {
-                            return ov::is_type<ov::op::v3::ShapeOf>(child.get_node()) ||
-                                ov::is_type<ov::op::v0::ShapeOf>(child.get_node());
-                        })) {
-                        return false;
-                    }
-                    break;
-                default:
+            case 2:
+                // pass, as the existence of Assign will be checked later
+                break;
+            case 3:
+                // the first one leads to SDPA, otherwise the matcher doesn't find the pattern
+                // the second one leads to Assign, and this is checked later
+                // the third child is allowed to be a ShapeOf op only, thus one of them must be ShapeOf
+                if (!std::any_of(children.begin(), children.end(), [](const ov::Input<ov::Node>& child) {
+                        return ov::is_type<ov::op::v3::ShapeOf>(child.get_node()) ||
+                               ov::is_type<ov::op::v0::ShapeOf>(child.get_node());
+                    })) {
                     return false;
+                }
+                break;
+            default:
+                return false;
             }
         }
 
@@ -187,7 +188,7 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         if (past_v_node->get_variable_id() != assign_v_node->get_variable_id())
             return false;
 
-        auto is_optional_one_child = [&pattern_map] (const std::vector<std::shared_ptr<Node>>& nodes) {
+        auto is_optional_one_child = [&pattern_map](const std::vector<std::shared_ptr<Node>>& nodes) {
             for (auto&& node : nodes) {
                 if (pattern_map.count(node)) {
                     auto p = pattern_map.at(node).get_node_shared_ptr();
@@ -197,10 +198,21 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
             }
             return true;
         };
-        if (!is_optional_one_child({convert_past_k, convert_past_v, transpose_q, transpose_k, transpose_v,
-                                    reshape_k, unsqueeze_k, computed_bcst_k, multiply_k,
-                                    reshape_v, unsqueeze_v, computed_bcst_v, multiply_v,
-                                    mq_reshape_k, mq_reshape_v})) {
+        if (!is_optional_one_child({convert_past_k,
+                                    convert_past_v,
+                                    transpose_q,
+                                    transpose_k,
+                                    transpose_v,
+                                    reshape_k,
+                                    unsqueeze_k,
+                                    computed_bcst_k,
+                                    multiply_k,
+                                    reshape_v,
+                                    unsqueeze_v,
+                                    computed_bcst_v,
+                                    multiply_v,
+                                    mq_reshape_k,
+                                    mq_reshape_v})) {
             return false;
         }
 
@@ -257,6 +269,13 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
             assign_cvt_v_node->set_arguments({new_node->output(2)});
         else
             assign_v_node->set_arguments({new_node->output(2)});
+
+        // Markup pattern:
+        // ReadValue->Convert(Optional)->ScaledDotProductAttentionWithKVCache->Convert(Optional)->Assign, so that
+        // ReadValue can't be replaced with ReadValueWithSubgraph in this pattern.
+        // TODO: Temporarily skip this pattern. If MemoryInputSDPA supports Subgraph in the future, it may be deleted.
+        past_k_node->get_rt_info()["DisableInitSubgraphFusing"] = true;
+        past_v_node->get_rt_info()["DisableInitSubgraphFusing"] = true;
 
         return true;
     };
