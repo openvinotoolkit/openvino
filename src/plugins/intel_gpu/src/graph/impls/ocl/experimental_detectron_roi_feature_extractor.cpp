@@ -22,6 +22,7 @@ struct experimental_detectron_roi_feature_extractor_impl : public typed_primitiv
         return make_deep_copy<experimental_detectron_roi_feature_extractor_impl, kernel_params_t>(*this);
     }
 
+protected:
     event::ptr execute_impl(const std::vector<event::ptr>& events,
                             experimental_detectron_roi_feature_extractor_inst& instance) override {
         instance.copy_rois_input_to_second_output();

@@ -287,7 +287,6 @@ public:
     void load(cldnn::BinaryInputBuffer& ib);
     bool is_loaded_from_cache() const { return _loaded_from_cache; }
 
-    bool is_new_shape_infer() const { return new_shape_infer; }
     layout_optimizer& get_layout_optimizer() const { return *_layout_optimizer; }
 
 private:
@@ -312,8 +311,6 @@ private:
     const size_t _impls_cache_capacity = 300;
     std::shared_ptr<ICompilationContext> _compilation_context;
     bool _loaded_from_cache = false;
-
-    bool new_shape_infer = false;
 
     std::map<primitive_id, std::shared_ptr<program_node>> nodes_map;
     std::list<primitive_id> optimized_out;

@@ -29,92 +29,6 @@ const std::set<eltwise_mode>
                                     eltwise_mode::is_inf,
                                     eltwise_mode::is_nan };
 
-layout eltwise_inst::calc_output_layout(eltwise_node const& node, kernel_impl_params const& impl_param) {
-    size_t primary_input_idx = 0;
-    if (node.input(primary_input_idx).is_constant()) {
-        for (size_t i = 1; i < node.get_dependencies().size(); i++) {
-            if (!node.input(i).is_constant()) {
-                primary_input_idx = i;
-                break;
-            }
-        }
-    }
-    auto input_node_layout = impl_param.get_non_padded_input_layout(primary_input_idx);
-    auto desc = impl_param.typed_desc<eltwise>();
-    auto output_type = desc->output_data_types[0].value_or(input_node_layout.data_type);
-
-    auto size = input_node_layout.get_tensor();
-    auto format = input_node_layout.format;
-    for (size_t i = 0; i < desc->input_size(); i++) {
-        if (i == primary_input_idx)
-            continue;
-
-        auto l = impl_param.get_non_padded_input_layout(i);
-        size = tensor::max(size, l.get_tensor());
-        if (l.format == format::b_fs_zyx_fsv16)  // use optimized 5D
-            format = format::b_fs_zyx_fsv16;
-        else if (l.format == format::bs_fs_zyx_bsv16_fsv16)
-            format = format::bs_fs_zyx_bsv16_fsv16;
-    }
-    auto output_layout = layout(output_type, format, size);
-
-    auto mode = desc->mode;
-    // list of operations supported for integer types
-    if (input_node_layout.data_type == data_types::i8 || input_node_layout.data_type == data_types::u8 ||
-        input_node_layout.data_type == data_types::i32 || input_node_layout.data_type == data_types::i64) {
-        std::vector<eltwise_mode> eltwise_int_modes = {eltwise_mode::sum,
-                                                       eltwise_mode::sub,
-                                                       eltwise_mode::prod,
-                                                       eltwise_mode::div,
-                                                       eltwise_mode::min,
-                                                       eltwise_mode::max,
-                                                       eltwise_mode::mod,
-                                                       eltwise_mode::eq,
-                                                       eltwise_mode::ne,
-                                                       eltwise_mode::lt,
-                                                       eltwise_mode::le,
-                                                       eltwise_mode::gt,
-                                                       eltwise_mode::ge,
-                                                       eltwise_mode::squared_diff,
-                                                       eltwise_mode::floor_mod,
-                                                       eltwise_mode::logic_and,
-                                                       eltwise_mode::logic_or,
-                                                       eltwise_mode::logic_xor,
-                                                       eltwise_mode::right_shift,
-                                                       eltwise_mode::left_shift,
-                                                       eltwise_mode::bitwise_and,
-                                                       eltwise_mode::bitwise_or,
-                                                       eltwise_mode::bitwise_xor};
-        if (std::find(eltwise_int_modes.begin(), eltwise_int_modes.end(), mode) == eltwise_int_modes.end())
-            CLDNN_ERROR_MESSAGE(desc->id, "Requested eltwise mode is not supported for integer types.");
-    }
-
-    // Logic and comparison operations should return i8 for any inputs
-    if (eltwise::eltwise_bool_modes.find(mode) != eltwise::eltwise_bool_modes.end()) {
-        output_layout.data_type = data_types::i8;
-    }
-
-    if (desc->output_data_types[0]) {
-        output_layout.data_type = *desc->output_data_types[0];
-    }
-
-    if (node.has_fused_primitives()) {
-        output_layout.data_type = impl_param.get_output_element_type();
-    }
-
-    if (!desc->stride.empty()) {
-        auto new_size = input_node_layout.get_tensor();
-        // we can safely use only first stride, since we're using first input, and input / stride should give exact same
-        // value for every input
-        new_size.spatial[0] = (input_node_layout.spatial(0) - 1) / desc->stride[0].spatial[0] + 1;
-        new_size.spatial[1] = (input_node_layout.spatial(1) - 1) / desc->stride[0].spatial[1] + 1;
-        new_size.spatial[2] = (input_node_layout.spatial(2) - 1) / desc->stride[0].spatial[2] + 1;
-        input_node_layout.set_tensor(new_size);
-        return input_node_layout;
-    }
-    return output_layout;
-}
-
 template<typename ShapeType>
 std::vector<layout> eltwise_inst::calc_output_layouts(eltwise_node const& /*node*/, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<eltwise>();
@@ -393,18 +307,13 @@ eltwise_inst::typed_primitive_inst(network& network, eltwise_node const& node) :
                                       "");
         }
     } else {
-        bool use_new_shape_infer = network.get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
         auto input0_pshape = node.get_input_pshape(0);
 
         for (size_t i = 1; i < inputs_count; ++i) {
             auto input_pshape = node.get_input_pshape(i);
 
             if (input0_pshape.size() > input_pshape.size()) {
-                if (use_new_shape_infer) {
-                    input_pshape.insert(input_pshape.begin(), input0_pshape.size() - input_pshape.size(), 1);
-                } else {
-                    input_pshape.insert(input_pshape.end(), input0_pshape.size() - input_pshape.size(), 1);
-                }
+                input_pshape.insert(input_pshape.begin(), input0_pshape.size() - input_pshape.size(), 1);
             }
 
             auto base_pshape = input0_pshape;

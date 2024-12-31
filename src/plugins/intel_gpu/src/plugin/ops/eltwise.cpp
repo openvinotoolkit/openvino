@@ -4,11 +4,8 @@
 
 #include "intel_gpu/primitives/eltwise.hpp"
 
-#include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/activation.hpp"
-#include "intel_gpu/primitives/reorder.hpp"
-#include "intel_gpu/primitives/reshape.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/bitwise_or.hpp"
@@ -36,8 +33,9 @@
 #include "openvino/op/power.hpp"
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/subtract.hpp"
-#include "openvino/op/xor.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/floor_mod.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -49,44 +47,6 @@ void CreateElementwiseOp(ProgramBuilder& p,
                          bool pythondiv) {
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
-
-    auto out_pshape = op->get_output_partial_shape(0);
-    auto out_rank = out_pshape.size();
-    // New shape infer is supposed to work w/o extra reshapes/reorders
-    // So the code below must be removed once new shape infer is enabled
-    if (out_pshape.is_static() && !p.use_new_shape_infer()) {
-        for (size_t i = 0; i < inputs.size(); ++i) {
-            auto input_pshape = op->get_input_partial_shape(i);
-            auto input_rank = input_pshape.size();
-            if (input_rank != out_rank && input_pshape.is_static()) {
-                // Add reorder if changing number of dimensions requires changing format
-                auto targetFormat = cldnn::format::get_default_format(out_rank);
-                if (targetFormat.value != cldnn::format::get_default_format(input_rank).value) {
-                    auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
-                    auto targetDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(i));
-                    auto reorderPrim = cldnn::reorder(reorderName,
-                                                    inputs[i],
-                                                    targetFormat,
-                                                    targetDatatype);
-
-                    p.add_primitive(*op, reorderPrim);
-                    inputs[i] = cldnn::input_info(reorderName);
-                }
-
-                auto reshapeName = layerName + "_cldnn_in" + std::to_string(i) + "_reshape";
-
-                // Extend input dimensions by prepending ones
-                input_pshape.insert(input_pshape.begin(), out_rank - input_rank, 1ul);
-
-                auto targetShape = tensor_from_dims(input_pshape.to_shape());
-
-                auto reshapePrim = cldnn::reshape(reshapeName, inputs[i], targetShape);
-                p.add_primitive(*op, reshapePrim);
-
-                inputs[i] = cldnn::input_info(reshapeName);
-            }
-        }
-    }
 
     auto out_dt = cldnn::element_type_to_data_type(op->get_output_element_type(0));
     auto eltwisePrim = cldnn::eltwise(layerName,

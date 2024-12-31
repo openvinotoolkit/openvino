@@ -23,15 +23,6 @@ data_types get_output_data_type(const kernel_impl_params& impl_param) {
 }
 }  // namespace
 
-layout shape_of_inst::calc_output_layout(shape_of_node const& node, kernel_impl_params const& impl_param) {
-    const auto prim = impl_param.typed_desc<shape_of>();
-    const auto dt = get_output_data_type(impl_param);
-    const auto rank = impl_param.get_input_layout(0).get_rank();
-    const cldnn::tensor out_size{static_cast<tensor::value_type>(rank), 1, 1, 1};
-
-    return layout{dt, format::bfyx, out_size};
-}
-
 template<typename ShapeType>
 std::vector<layout> shape_of_inst::calc_output_layouts(shape_of_node const& /*node*/, const kernel_impl_params& impl_param) {
     const auto dt = get_output_data_type(impl_param);

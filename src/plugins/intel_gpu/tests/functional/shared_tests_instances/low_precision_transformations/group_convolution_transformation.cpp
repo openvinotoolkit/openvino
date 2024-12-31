@@ -34,7 +34,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         { 255ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
         true,
         "Convolution",
-        "U8"
+        ov::element::u8.get_type_name()
     },
     // group convolution, tensor quantization
     {
@@ -44,7 +44,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         { 255ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
         true,
         "Convolution",
-        "U8"
+        ov::element::u8.get_type_name()
     },
     // group convolution, tensor quantization
     {
@@ -54,7 +54,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         { 255ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
         true,
         "Convolution",
-        "U8"
+        ov::element::u8.get_type_name()
     },
     // group convolution, per-channel quantization
     {
@@ -107,7 +107,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         { 255ul, ov::Shape { 3, 8, 1, 1, 1 }, { -127.f }, { 127.f }, { -127.f }, { 127.f } },
         false,
         "Convolution",
-        "U8"
+        ov::element::u8.get_type_name()
     },
     // group convolution without reshape, per channel quantization with different values
     {
@@ -130,7 +130,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         },
         false,
         "Convolution",
-        "U8"
+        ov::element::u8.get_type_name()
     },
 };
 
@@ -159,7 +159,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         { 255ul, ov::Shape { 3, 8, 1, 1 }, { -127.f }, { 127.f }, { -127.f }, { 127.f } },
         false,
         "Convolution",
-        "U8"
+        ov::element::u8.get_type_name()
     },
     // group convolution without reshape, per channel quantization with different values
     {
@@ -182,7 +182,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         },
         false,
         "Convolution",
-        "U8"
+        ov::element::u8.get_type_name()
     },
 };
 

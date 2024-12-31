@@ -3,6 +3,7 @@
 //
 
 #include "intel_gpu/runtime/layout.hpp"
+#include "openvino/pass/visualize_tree.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/pass/serialize.hpp"
@@ -92,8 +93,6 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, const RemoteContextImpl::Ptr& context
         m_config.set_property(ov::intel_gpu::partial_build_program(bool_prop_value));
         ib >> bool_prop_value;
         m_config.set_property(ov::intel_gpu::optimize_data(bool_prop_value));
-        ib >> bool_prop_value;
-        m_config.set_property(ov::intel_gpu::allow_new_shape_infer(bool_prop_value));
     }
 
     auto imported_prog = std::make_shared<cldnn::program>(get_engine(), m_config);
@@ -196,8 +195,8 @@ void Graph::build(std::shared_ptr<cldnn::program> program) {
         auto steps_info = get_network()->get_optimizer_passes_info();
         size_t step_idx = 0;
         for (auto& step : steps_info) {
-            auto xml_path = debug_config->dump_graphs + std::to_string(net_id) + "_" + std::to_string(step_idx) + "_" + step.first + "_graph.xml";
-            ov::pass::Serialize(xml_path, "").run_on_model(get_runtime_model(step.second, true));
+            auto xml_path = debug_config->dump_graphs + std::to_string(net_id) + "_" + std::to_string(step_idx) + "_" + step.first + "_graph.svg";
+            ov::pass::VisualizeTree(xml_path).run_on_model(get_runtime_model(step.second, true));
             step_idx++;
         }
         net_id++;
@@ -234,7 +233,6 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 { "border", "Pad" },
                 { "concatenation", "Concat" },
                 { "convolution", "Convolution" },
-                { "deformable_convolution", "DeformableConvolution" },
                 { "crop", "Crop" },
                 { "custom_gpu_primitive", "CustomGPUPrimitive" },
                 { "data", "Const" },
@@ -524,7 +522,6 @@ void Graph::export_model(cldnn::BinaryOutputBuffer &ob) {
     {
         ob << m_config.get_property(ov::intel_gpu::partial_build_program);
         ob << m_config.get_property(ov::intel_gpu::optimize_data);
-        ob << m_config.get_property(ov::intel_gpu::allow_new_shape_infer);
     }
 
     ob.set_stream(m_network->get_stream_ptr().get());

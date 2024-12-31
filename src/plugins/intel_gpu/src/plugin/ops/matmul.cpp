@@ -8,15 +8,10 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 
 #include "openvino/op/matmul.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/fake_quantize.hpp"
 #include "intel_gpu/op/gemm.hpp"
 #include "intel_gpu/op/indirect_gemm.hpp"
 
 #include "intel_gpu/primitives/gemm.hpp"
-#include "intel_gpu/primitives/fully_connected.hpp"
-#include "intel_gpu/primitives/reshape.hpp"
-#include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/permute.hpp"
 
 namespace ov {
@@ -128,18 +123,6 @@ static void CreateMatMulOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::
                                 rank_b);
 
     p.add_primitive(*op, gemmPrim);
-
-    if (!p.use_new_shape_infer()) {
-        auto outDims = op->get_output_shape(0);
-        auto outDimsN = outDims.size();
-        // Reshape output if gemm specific shape does not match default one
-        if (outDimsN < 4) {
-            auto outputShape = tensor_from_dims(outDims);
-            auto outReshapeName = layerName + "_cldnn_out_reshape";
-            auto outReshapePrim = cldnn::reshape(outReshapeName, cldnn::input_info(layerName), outputShape);
-            p.add_primitive(*op, outReshapePrim);
-        }
-    }
 }
 
 static void CreateGemmOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::Gemm>& op) {
@@ -172,18 +155,6 @@ static void CreateGemmOp(ProgramBuilder& p, const std::shared_ptr<ov::op::intern
                                 beta);
 
     p.add_primitive(*op, gemmPrim);
-
-    if (!p.use_new_shape_infer()) {
-        auto outDims = op->get_output_shape(0);
-        auto outDimsN = outDims.size();
-        // Reshape output if gemm specific shape does not match default one
-        if (outDimsN < 4) {
-            auto outputShape = tensor_from_dims(outDims);
-            auto outReshapeName = layerName + "_cldnn_out_reshape";
-            auto outReshapePrim = cldnn::reshape(outReshapeName, cldnn::input_info(layerName), outputShape);
-            p.add_primitive(*op, outReshapePrim);
-        }
-    }
 }
 
 static void CreateIndirectGemmOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_gpu::op::IndirectGemm>& op) {

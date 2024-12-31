@@ -884,7 +884,7 @@ TEST(gather_nd_gpu_fp16, dynamic_r4) {
     topology.add(gather_nd("gather_nd", input_info("input1"), input_info("input2"), static_cast<uint8_t>(in1_shape.size()), static_cast<uint8_t>(in2_shape.size()), batch_dims, true));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -966,7 +966,7 @@ TEST(gather_nd_gpu_fp16, dynamic_r5) {
     topology.add(gather_nd("gather_nd", input_info("input1"), input_info("input2"), static_cast<uint8_t>(in1_shape.size()), static_cast<uint8_t>(in2_shape.size()), batch_dims, false));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);

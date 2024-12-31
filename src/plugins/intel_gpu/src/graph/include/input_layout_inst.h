@@ -32,9 +32,6 @@ public:
         return { impl_param.typed_desc<input_layout>()->layout };
     }
 
-    static layout calc_output_layout(input_layout_node const& node, kernel_impl_params const& impl_param) {
-        return impl_param.typed_desc<input_layout>()->layout;
-    }
     static std::string to_string(input_layout_node const& node);
 
     void update_shape() override;

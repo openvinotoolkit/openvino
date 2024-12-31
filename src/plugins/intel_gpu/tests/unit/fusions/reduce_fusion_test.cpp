@@ -60,9 +60,6 @@ public:
     void execute(reduce_test_params& p, bool is_dynamic = false, bool use_planar_input = false) {
         auto input_prim = get_mem(get_input_layout(p, use_planar_input));
 
-        cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
-        cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
-
         network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
         network network_fused(this->engine, this->topology_fused, cfg_fused);
 

@@ -95,7 +95,7 @@ public:
         reorder_topo.add(reorder("reorder2", input_info("gather"), format::type::bfwzyx, T_dat_dt));
         auto config = get_test_default_config(engine);
         if (impl_type != impl_types::any) {
-            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
             config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gather", {format::bfyx, "", impl_types::cpu}} }));
         }
 
@@ -1944,7 +1944,7 @@ TEST(gather_gpu_fp32, dynamic_322_axisF) {
     topology.add(gather("gather", input_info("input1"), input_info("input2"), axis, 0, ov::Shape{}));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -1987,7 +1987,7 @@ TEST(gather_gpu_fp32, indice_out_of_bound) {
     topology.add(gather("gather", input_info("input1"), input_info("input2"), axis, 0, ov::Shape{}, 0, true));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -2025,7 +2025,7 @@ TEST(gather_cpu_impl_fp32, dynamic_322_axisF) {
     topology.add(gather("gather", input_info("input1"), input_info("input2"), axis, 0, ov::Shape{}));
 
     auto config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gather", {format::bfyx, "", impl_types::cpu}} }));
     network network(engine, topology, config);
     network.set_input_data("input1", input1);
@@ -2189,7 +2189,7 @@ public:
         );
 
         auto config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input", input_mem);
@@ -2234,7 +2234,7 @@ public:
         );
 
         auto config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input", input_mem);
@@ -2279,7 +2279,7 @@ public:
         );
 
         auto config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input", input_mem);
@@ -2350,7 +2350,7 @@ TEST(gather_gpu_fp32, dynamic_support_neg_ind) {
     topology.add(gather("gather", input_info("data"), input_info("indices"), axis, data_shape.size(), ov::Shape{}, 0, true));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
 
     network.set_input_data("data", data_mem);
@@ -2395,7 +2395,6 @@ TEST(gather_gpu_fp32, dynamic_support_scalar_indice_empty_memory) {
     topology.add(gather("gather", input_info("data"), input_info("indices"), axis, data_shape.size(), ov::Shape{}, 0, true));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
 
     network.set_input_data("data", data_mem);

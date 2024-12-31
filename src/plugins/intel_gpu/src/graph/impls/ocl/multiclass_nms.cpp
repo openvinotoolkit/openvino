@@ -43,17 +43,6 @@ struct multiclass_nms_impl : public typed_primitive_impl_ocl<multiclass_nms> {
         return make_deep_copy<multiclass_nms_impl, kernel_params_t>(*this);
     }
 
-protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<multiclass_nms>& instance) const override {
-        kernel_arguments_data args = parent::get_arguments(instance);
-        // Legacy multi-output
-        if (instance.desc()->num_outputs == 1) {
-            args.outputs.push_back(instance.output_indices_memory());
-            args.outputs.push_back(instance.output_num_memory());
-        }
-        return args;
-    }
-
 public:
    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<multiclass_nms>();
@@ -70,24 +59,14 @@ public:
         params.background_class = attrs.background_class;
         params.normalized = attrs.normalized;
         params.nms_eta = attrs.nms_eta;
-        params.has_roisnum = primitive->has_roisnum;
-
-        size_t inputs_num = primitive->has_roisnum ? 3 : 2;
 
         params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
-        if (inputs_num == 3) {
+        if (primitive->input_size() == 3) {
             params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[2]));
             params.has_roisnum = true;
         }
-
-        if (primitive->num_outputs == 3) {
-            params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[1]));
-            params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[2]));
-        } else {
-            // Legacy multi-output
-            params.outputs.push_back(convert_data_tensor(impl_param.input_layouts[inputs_num + 0]));
-            params.outputs.push_back(convert_data_tensor(impl_param.input_layouts[inputs_num + 1]));
-        }
+        params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[1]));
+        params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[2]));
 
         return params;
     }

@@ -76,7 +76,7 @@ public:
         topology.add(reorder("expected_counts", input_info("unique_gather", 3), plain_format, count_data_type));
 
         auto config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
         network network(engine, topology, config);
         network.set_input_data("input", input);
 

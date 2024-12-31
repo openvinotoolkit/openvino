@@ -50,38 +50,33 @@ struct batch_to_space : public primitive_base<batch_to_space> {
     /// @param crops_end Amount to crop from the ending along each axis of data input
     batch_to_space(const primitive_id& id,
                    const input_info& input,
-                   const tensor& block_shape,
-                   const tensor& crops_begin,
-                   const tensor& crops_end,
-                   const tensor& out_size)
+                   const std::vector<int32_t>& block_shape,
+                   const std::vector<int32_t>& crops_begin,
+                   const std::vector<int32_t>& crops_end)
         : primitive_base(id, {input}),
           block_shape(block_shape),
           crops_begin(crops_begin),
           crops_end(crops_end),
-          out_size(out_size),
           shape_constant(1) {}
 
     batch_to_space(const primitive_id& id,
-                   const std::vector<input_info>& inputs,
-                   const tensor& out_size)
-        : primitive_base(id, inputs),
-          block_shape(tensor()),
-          crops_begin(tensor()),
-          crops_end(tensor()),
-          out_size(out_size),
+                   const std::vector<input_info>& inputs)
+        : primitive_base(id, inputs, {}),
+          block_shape({}),
+          crops_begin({}),
+          crops_end({}),
           shape_constant(0) {}
 
-    tensor block_shape;
-    tensor crops_begin;
-    tensor crops_end;
-    tensor out_size;
+    std::vector<int32_t> block_shape;
+    std::vector<int32_t> crops_begin;
+    std::vector<int32_t> crops_end;
     int64_t shape_constant;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
-        seed = hash_combine(seed, block_shape.hash());
-        seed = hash_combine(seed, crops_begin.hash());
-        seed = hash_combine(seed, crops_end.hash());
+        seed = hash_range(seed, block_shape.begin(), block_shape.end());
+        seed = hash_range(seed, crops_begin.begin(), crops_begin.end());
+        seed = hash_range(seed, crops_end.begin(), crops_end.end());
         seed = hash_combine(seed, shape_constant);
         return seed;
     }
@@ -102,7 +97,6 @@ struct batch_to_space : public primitive_base<batch_to_space> {
         ob << block_shape;
         ob << crops_begin;
         ob << crops_end;
-        ob << out_size;
         ob << shape_constant;
     }
 
@@ -111,7 +105,6 @@ struct batch_to_space : public primitive_base<batch_to_space> {
         ib >> block_shape;
         ib >> crops_begin;
         ib >> crops_end;
-        ib >> out_size;
         ib >> shape_constant;
     }
 };

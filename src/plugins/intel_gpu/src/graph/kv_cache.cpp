@@ -22,10 +22,6 @@ kv_cache_inst::typed_primitive_inst(network& network, const kv_cache_node& node)
     kv_cache_id = kv_cache_counter++;
 }
 
-layout kv_cache_inst::calc_output_layout(const kv_cache_node& node, kernel_impl_params const& impl_param) {
-    return impl_param.input_layouts[0];
-}
-
 template<typename ShapeType>
 std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& /*node*/, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<kv_cache>();

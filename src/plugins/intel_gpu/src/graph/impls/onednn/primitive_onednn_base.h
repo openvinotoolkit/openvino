@@ -343,10 +343,6 @@ private:
     void build_primitive(const ExecutionConfig& config) {
         auto cache_outpath = get_cache_directory(config);
 
-        if (!config.get_property(ov::intel_gpu::allow_new_shape_infer)) {
-            cache_outpath = "";
-        }
-
         if (cache_outpath.empty()) {
             _prim = PrimType(_pd);
         } else {

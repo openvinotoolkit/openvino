@@ -33,15 +33,15 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
 const std::vector<FakeQuantizeTransformationParam> fakeQuantizeOnDataValues = {
     {
         {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
-        "Pooling", "U8"
+        "Pooling", ov::element::u8.get_type_name()
     },
     {
         { 256ul, { {1ul}, {1ul}, {1ul}, {1ul} }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-        "Pooling", "U8"
+        "Pooling", ov::element::u8.get_type_name()
     },
     {
         { 256ul, {}, { 0.f }, { 2.55f }, { -1.28f }, { 1.27f } },
-        "Pooling", "I8"
+        "Pooling", ov::element::i8.get_type_name()
     },
     // nGraph: dot interval FQ node is being const-folded, so does Pooling
     {
@@ -50,15 +50,15 @@ const std::vector<FakeQuantizeTransformationParam> fakeQuantizeOnDataValues = {
     },
     {
         { 256ul, {}, { -127.5f }, { 0.f }, { -127.5f }, { 0.f } },
-        "Pooling", "U8"
+        "Pooling", ov::element::u8.get_type_name()
     },
     {
         { 16ul, {}, { 0.f }, { 1.5f }, { 0.f }, { 1.5f } },
-        "Pooling", "U8"
+        "Pooling", ov::element::u8.get_type_name()
     },
     {
         { 16ul, {}, { -8.f }, { 7.f }, { -0.8f }, { 0.7f } },
-        "Pooling", "I8"
+        "Pooling", ov::element::i8.get_type_name()
     },
     // nGraph: I8->FP32 Convert is not supported
     // { 256ul, {}, { -1.28f} , { 1.27f }, { -1.28f} , { 1.27f } },

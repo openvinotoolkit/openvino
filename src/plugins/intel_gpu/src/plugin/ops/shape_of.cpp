@@ -3,7 +3,6 @@
 //
 
 #include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "openvino/op/shape_of.hpp"
 
@@ -18,8 +17,8 @@ static void CreateShapeOfOpCommon(ProgramBuilder& p, const std::shared_ptr<ov::N
     const std::string layerName = layer_type_name_ID(op);
 
     const auto primitive = cldnn::shape_of(layerName,
-                                     inputs[0],
-                                     cldnn::element_type_to_data_type(op->get_output_element_type(0)));
+                                           inputs[0],
+                                           cldnn::element_type_to_data_type(op->get_output_element_type(0)));
 
     p.add_primitive(*op, primitive);
 }

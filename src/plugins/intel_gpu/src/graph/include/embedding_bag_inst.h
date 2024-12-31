@@ -29,7 +29,6 @@ class typed_primitive_inst<embedding_bag> : public typed_primitive_inst_base<emb
 public:
     template<typename ShapeType>
     static std::vector<layout> calc_output_layouts(embedding_bag_node const& /*node*/, const kernel_impl_params& impl_param);
-    static layout calc_output_layout(embedding_bag_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(embedding_bag_node const& node);
     typed_primitive_inst(network& network, embedding_bag_node const& desc);
 };

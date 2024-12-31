@@ -51,7 +51,7 @@ TEST(prepare_buffer_fusing, optimize_reshape) {
     topology.add(reorder("reorder", input_info("permute2"), format::bfyx, data_types::f32));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     auto prog = program::build_program(engine, topology, config, false, true);
 
     program_wrapper::apply_opt_pass<prepare_buffer_fusing>(*prog);
@@ -93,7 +93,7 @@ TEST(prepare_buffer_fusing, static_node_after_optimized_out_dyn_reshape) {
     topology.add(reorder("reorder", input_info("fc"), format::bfyx, data_types::f32));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     auto prog = program::build_program(engine, topology, config, false, true);
     ASSERT_NE(prog, nullptr);
 
@@ -190,7 +190,7 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     auto prog = program::build_program(engine, topology, config, false, false);
     ASSERT_NE(prog, nullptr);
     cldnn::network net(prog, 0);
@@ -260,7 +260,7 @@ TEST(prepare_buffer_fusing, in_place_concat_strided_slice_dyn) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     auto prog = program::build_program(engine, topology, config, false, false);
     ASSERT_NE(prog, nullptr);
     cldnn::network net(prog, 0);
@@ -333,7 +333,6 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic_onednn_batch1) {
 
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(false));
     auto prog = program::build_program(engine, topology, config, false, false);
     ASSERT_NE(prog, nullptr);
     auto& concat_node_p = prog->get_node("concat");
@@ -411,7 +410,6 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic_onednn_batch2) {
 
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     ov::intel_gpu::ImplForcingMap forcing_map = {
         {"reorder1", ov::intel_gpu::ImplementationDesc{format::any, "", impl_types::onednn}},
         {"reorder2", ov::intel_gpu::ImplementationDesc{format::any, "", impl_types::onednn}}
@@ -491,7 +489,7 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic__static_dim_dyn_pad) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     auto prog = program::build_program(engine, topology, config, false, false);
     ASSERT_NE(prog, nullptr);
     cldnn::network net(prog, 0);
@@ -617,7 +615,7 @@ TEST(prepare_buffer_fusing, skip_in_place_concat_inside_shape_of_subgraph) {
     topology.add(eltwise("eltwise2", input_info("concat1"), input_info("data_2"), eltwise_mode::prod, broadcast_spec));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -809,7 +807,6 @@ TEST(prepare_buffer_fusing, in_place_crop_dynamic) {
     );
 
     auto config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
 
@@ -888,7 +885,6 @@ TEST(prepare_buffer_fusing, in_place_crop_dynamic_reshape_unsqueeze) {
     );
 
     auto config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
 
@@ -958,7 +954,6 @@ TEST(prepare_buffer_fusing, in_place_crop_dynamic_reshape_squeeze_crop_axis) {
     );
 
     auto config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
 
@@ -1040,7 +1035,6 @@ TEST(prepare_buffer_fusing, in_place_crop_dynamic_split_lengths) {
     );
 
     auto config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
 
@@ -1122,7 +1116,6 @@ TEST(prepare_buffer_fusing, in_place_crop_dynamic_mvn) {
     );
 
     auto config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
 
@@ -1431,7 +1424,7 @@ TEST(prepare_buffer_fusing, skip_in_place_concat_padding_in_non_concat_axis_of_d
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     auto program = program::build_program(engine, topology, config, false, true);
     program_wrapper::apply_opt_pass<prepare_buffer_fusing>(*program);
@@ -1471,7 +1464,6 @@ TEST(prepare_buffer_fusing, in_place_onednn_concat_static) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(false));
     network network(engine, topology, config);
 
     auto input_memory1 = engine.allocate_memory(in_layout1);

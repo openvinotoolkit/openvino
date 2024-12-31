@@ -5,7 +5,6 @@
 
 #include <memory>
 
-#include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/roi_align.hpp"
 

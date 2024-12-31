@@ -30,7 +30,6 @@ class typed_primitive_inst<batch_to_space> : public typed_primitive_inst_base<ba
 public:
     template<typename ShapeType>
     static std::vector<layout> calc_output_layouts(batch_to_space_node const& /*node*/, const kernel_impl_params& impl_param);
-    static layout calc_output_layout(batch_to_space_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(batch_to_space_node const& node);
 
     bool need_reset_output_memory() const override {

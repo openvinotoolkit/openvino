@@ -43,8 +43,6 @@ public:
         return output_layouts;
     }
 
-    static layout calc_output_layout(const read_value_node& node, kernel_impl_params const& impl_param);
-
     static std::string to_string(const read_value_node& node);
 
     typed_primitive_inst(network& network, const read_value_node& desc);

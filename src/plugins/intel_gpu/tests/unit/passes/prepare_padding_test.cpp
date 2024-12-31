@@ -33,7 +33,7 @@ TEST(prepare_padding, groupconv_with_output) {
     topo.add(reorder("reorder", input_info("conv"), format::bfyx, data_types::f32));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     auto prog = program::build_program(engine, topo, config, false, true);
     reorder_factory rf;
     program_wrapper::apply_opt_pass<prepare_padding>(*prog, true);
@@ -59,7 +59,7 @@ TEST(prepare_padding, mvn_conv) {
     topo.add(reorder("reorder_output", input_info("conv"), format::bfyx, data_types::f16));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topo, config);
     network.set_input_data("input", input);

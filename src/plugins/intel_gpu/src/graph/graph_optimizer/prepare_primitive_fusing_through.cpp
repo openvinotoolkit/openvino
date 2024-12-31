@@ -134,7 +134,7 @@ void prepare_primitive_fusing_through::run(program& p) {
         if (node->is_type<eltwise>()) {
             auto out_shape = new_prev->get_output_layout().get_partial_shape();  // new_prev's layout became node's new layout after fusing
             auto in_shape = node->get_dependency(1).get_output_layout().get_partial_shape();
-            if (!broadcastable(in_shape, out_shape, true, true))
+            if (!broadcastable(in_shape, out_shape, true))
                 continue;
         }
 

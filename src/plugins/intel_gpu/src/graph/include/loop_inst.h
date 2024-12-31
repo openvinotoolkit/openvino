@@ -322,7 +322,6 @@ private:
 
     template<typename ShapeType>
     static std::vector<layout> calc_output_layouts(loop_node const& /*node*/, kernel_impl_params const& impl_param);
-    static layout calc_output_layout(const loop_node& /*node*/, kernel_impl_params const& impl_param);
     bool preproc_memories_done = false;
     std::vector<backedge_memory_mapping> backedge_memory_mappings;
     std::vector<concatenated_memory_mapping::ptr> concatenated_input_mem_mappings;

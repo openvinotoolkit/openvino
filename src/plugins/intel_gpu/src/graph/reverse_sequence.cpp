@@ -11,13 +11,6 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(reverse_sequence)
 
-layout reverse_sequence_inst::calc_output_layout(reverse_sequence_node const& node, kernel_impl_params const& impl_param) {
-    auto input_layout = impl_param.get_input_layout();
-    auto input_format = input_layout.format;
-
-    return layout{input_layout.data_type, input_format, input_layout.get_tensor()};
-}
-
 std::string reverse_sequence_inst::to_string(reverse_sequence_node const& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();

@@ -13,17 +13,17 @@
 using namespace cldnn;
 using namespace ::tests;
 
-template <reverse_mode mode>
+template <ov::op::v1::Reverse::Mode mode>
 struct ReverseModeTraits;
 
 template <>
-struct ReverseModeTraits<reverse_mode::index> {
+struct ReverseModeTraits<ov::op::v1::Reverse::Mode::INDEX> {
     using axis_type = int32_t;
     static const data_types data_type = data_types::i32;
 };
 
 template <>
-struct ReverseModeTraits<reverse_mode::mask> {
+struct ReverseModeTraits<ov::op::v1::Reverse::Mode::MASK> {
     using axis_type = bool;
     static const data_types data_type = data_types::u8;
 };
@@ -31,7 +31,7 @@ struct ReverseModeTraits<reverse_mode::mask> {
 /**
  * Specific Reverse params to define the tests. Input and output should be the same type
  */
-template <typename T, reverse_mode mode>
+template <typename T, ov::op::v1::Reverse::Mode mode>
 struct ReverseParams {
     tensor input_tensor;
     format input_format;
@@ -40,7 +40,7 @@ struct ReverseParams {
     std::vector<T> expected_out;
 };
 
-template <typename T, reverse_mode mode>
+template <typename T, ov::op::v1::Reverse::Mode mode>
 struct reverse_gpu_test : public ::testing::TestWithParam<ReverseParams<T, mode>> {
 public:
     void test(bool is_caching_test = false) {
@@ -92,7 +92,7 @@ public:
 };
 
 struct PrintToStringParamName {
-    template <class T, reverse_mode mode>
+    template <class T, ov::op::v1::Reverse::Mode mode>
     std::string operator()(const testing::TestParamInfo<ReverseParams<T, mode>>& param) {
         std::stringstream buf;
         buf << "input tensor " << param.param.input_tensor.to_string();
@@ -105,18 +105,18 @@ struct PrintToStringParamName {
     }
 };
 
-using reverse_gpu_test_int32_mask = reverse_gpu_test<int32_t, reverse_mode::mask>;
-using reverse_gpu_test_int32_index = reverse_gpu_test<int32_t, reverse_mode::index>;
-using reverse_gpu_test_int64_mask = reverse_gpu_test<int64_t, reverse_mode::mask>;
-using reverse_gpu_test_int64_index = reverse_gpu_test<int64_t, reverse_mode::index>;
-using reverse_gpu_test_float_mask = reverse_gpu_test<float, reverse_mode::mask>;
-using reverse_gpu_test_float_index = reverse_gpu_test<float, reverse_mode::index>;
-using reverse_gpu_test_int8_mask = reverse_gpu_test<int8_t, reverse_mode::mask>;
-using reverse_gpu_test_int8_index = reverse_gpu_test<int8_t, reverse_mode::index>;
-using reverse_gpu_test_uint8_mask = reverse_gpu_test<uint8_t, reverse_mode::mask>;
-using reverse_gpu_test_uint8_index = reverse_gpu_test<uint8_t, reverse_mode::index>;
-using reverse_gpu_test_f16_mask = reverse_gpu_test<ov::float16, reverse_mode::mask>;
-using reverse_gpu_test_f16_index = reverse_gpu_test<ov::float16, reverse_mode::index>;
+using reverse_gpu_test_int32_mask = reverse_gpu_test<int32_t, ov::op::v1::Reverse::Mode::MASK>;
+using reverse_gpu_test_int32_index = reverse_gpu_test<int32_t, ov::op::v1::Reverse::Mode::INDEX>;
+using reverse_gpu_test_int64_mask = reverse_gpu_test<int64_t, ov::op::v1::Reverse::Mode::MASK>;
+using reverse_gpu_test_int64_index = reverse_gpu_test<int64_t, ov::op::v1::Reverse::Mode::INDEX>;
+using reverse_gpu_test_float_mask = reverse_gpu_test<float, ov::op::v1::Reverse::Mode::MASK>;
+using reverse_gpu_test_float_index = reverse_gpu_test<float, ov::op::v1::Reverse::Mode::INDEX>;
+using reverse_gpu_test_int8_mask = reverse_gpu_test<int8_t, ov::op::v1::Reverse::Mode::MASK>;
+using reverse_gpu_test_int8_index = reverse_gpu_test<int8_t, ov::op::v1::Reverse::Mode::INDEX>;
+using reverse_gpu_test_uint8_mask = reverse_gpu_test<uint8_t, ov::op::v1::Reverse::Mode::MASK>;
+using reverse_gpu_test_uint8_index = reverse_gpu_test<uint8_t, ov::op::v1::Reverse::Mode::INDEX>;
+using reverse_gpu_test_f16_mask = reverse_gpu_test<ov::float16, ov::op::v1::Reverse::Mode::MASK>;
+using reverse_gpu_test_f16_index = reverse_gpu_test<ov::float16, ov::op::v1::Reverse::Mode::INDEX>;
 
 TEST_P(reverse_gpu_test_int32_mask, reverse_i32_mask) {
     ASSERT_NO_FATAL_FAILURE(test());
@@ -189,8 +189,8 @@ const auto five_d_formats = {
 }  // namespace
 
 template <typename T>
-std::vector<ReverseParams<T, reverse_mode::mask>> generateMaskParams() {
-    std::vector<ReverseParams<T, reverse_mode::mask>> params;
+std::vector<ReverseParams<T, ov::op::v1::Reverse::Mode::MASK>> generateMaskParams() {
+    std::vector<ReverseParams<T, ov::op::v1::Reverse::Mode::MASK>> params;
     for (const auto f : four_d_formats) {
         params.push_back({tensor(batch(4), feature(3)),
                           f,
@@ -213,10 +213,10 @@ std::vector<ReverseParams<T, reverse_mode::mask>> generateMaskParams() {
 }
 
 template <typename T>
-std::vector<ReverseParams<T, reverse_mode::index>> generateIndexParams() {
-    std::vector<ReverseParams<T, reverse_mode::index>> params;
+std::vector<ReverseParams<T, ov::op::v1::Reverse::Mode::INDEX>> generateIndexParams() {
+    std::vector<ReverseParams<T, ov::op::v1::Reverse::Mode::INDEX>> params;
     for (const auto fmt : four_d_formats) {
-        std::vector<ReverseParams<T, reverse_mode::index>> local_params{
+        std::vector<ReverseParams<T, ov::op::v1::Reverse::Mode::INDEX>> local_params{
             //{tensor(batch(8)), format::bfyx, std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7}, {},
             // std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7}},
             {tensor(batch(8)),
@@ -268,7 +268,7 @@ std::vector<ReverseParams<T, reverse_mode::index>> generateIndexParams() {
     }
 
     for (const auto fmt : five_d_formats) {
-        std::vector<ReverseParams<T, reverse_mode::index>> local_params{
+        std::vector<ReverseParams<T, ov::op::v1::Reverse::Mode::INDEX>> local_params{
             {tensor{1, 1, 3, 4, 2},
              fmt,
              std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23},
@@ -291,8 +291,8 @@ std::vector<ReverseParams<T, reverse_mode::index>> generateIndexParams() {
 }
 
 template <>
-std::vector<ReverseParams<ov::float16, reverse_mode::mask>> generateMaskParams() {
-    std::vector<ReverseParams<ov::float16, reverse_mode::mask>> params;
+std::vector<ReverseParams<ov::float16, ov::op::v1::Reverse::Mode::MASK>> generateMaskParams() {
+    std::vector<ReverseParams<ov::float16, ov::op::v1::Reverse::Mode::MASK>> params;
     for (const auto fmt : four_d_formats) {
         // reverse_2d_1_mask
         params.push_back({tensor(batch(4), feature(3)),
@@ -328,8 +328,8 @@ std::vector<ReverseParams<ov::float16, reverse_mode::mask>> generateMaskParams()
 }
 
 template <>
-std::vector<ReverseParams<ov::float16, reverse_mode::index>> generateIndexParams() {
-    std::vector<ReverseParams<ov::float16, reverse_mode::index>> params;
+std::vector<ReverseParams<ov::float16, ov::op::v1::Reverse::Mode::INDEX>> generateIndexParams() {
+    std::vector<ReverseParams<ov::float16, ov::op::v1::Reverse::Mode::INDEX>> params;
     for (const auto fmt : four_d_formats) {
         // reverse_2d_1_mask
         params.push_back({tensor(batch(4), feature(3)),

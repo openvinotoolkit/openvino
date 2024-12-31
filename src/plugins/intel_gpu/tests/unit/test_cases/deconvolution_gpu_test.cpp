@@ -305,7 +305,7 @@ TYPED_TEST(deconvolution_basic, no_bias_basic_wsiz2x2_in2x2x1x1_nopad_exclude_fu
     );
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     network network(engine, topology, config);
@@ -3098,13 +3098,11 @@ TEST(deconvolution_gpu_onednn, spatial_1d) {
     ov::intel_gpu::ImplementationDesc deconv_impl_test = { format::b_fs_yx_fsv16, "", impl_types::onednn };
     config_test.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "deconv", deconv_impl_test } }));
     config_test.set_property(ov::intel_gpu::optimize_data(true));
-    config_test.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     ExecutionConfig config_ref = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc deconv_impl_ref = { format::bfyx, "", impl_types::ocl };
     config_ref.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{ "deconv", deconv_impl_ref } }));
     config_ref.set_property(ov::intel_gpu::optimize_data(true));
-    config_ref.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     network network_test(engine, topology_test, config_test);
     network network_ref(engine, topology_ref, config_ref);

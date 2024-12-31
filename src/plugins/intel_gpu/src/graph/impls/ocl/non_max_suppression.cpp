@@ -47,15 +47,9 @@ protected:
             args.inputs.push_back(instance.soft_nms_sigma_mem());
         }
 
-        // New API for mutiple outputs support
         for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
             args.outputs.push_back(instance.output_memory_ptr(i));
         }
-        // // Legacy multi-output
-        if (instance.has_second_output())
-            args.outputs.push_back(instance.second_output_mem());
-        if (instance.has_third_output())
-            args.outputs.push_back(instance.third_output_mem());
 
         return args;
     }
@@ -113,29 +107,8 @@ static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, b
             }
         }
 
-        auto get_additional_output_node_idx = [&] (bool is_third) {
-            size_t offset = 2;
-            offset += arg.has_num_select_per_class();
-            offset += arg.has_iou_threshold();
-            offset += arg.has_score_threshold();
-            offset += arg.has_soft_nms_sigma();
-            if (is_third)
-                offset += arg.has_second_output();
-            return offset;
-        };
-
-        // Legacy multi-output
-        if (arg.has_second_output()) {
-            params.outputs.push_back(convert_data_tensor(impl_param.input_layouts[get_additional_output_node_idx(false)]));
-        }
-
-        if (arg.has_third_output()) {
-            params.outputs.push_back(convert_data_tensor(impl_param.input_layouts[get_additional_output_node_idx(true)]));
-        }
-
-        if (arg.use_multiple_outputs()) {
-            params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[1]));
-            params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[2]));
+        for (size_t i = 1; i < primitive->num_outputs; i++) {
+            params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[i]));
         }
 
         params.sort_result_descending = primitive->sort_result_descending;

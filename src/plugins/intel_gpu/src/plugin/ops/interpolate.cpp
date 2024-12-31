@@ -92,54 +92,36 @@ static void CreateInterpolateOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
     ValidateAxesAndThrowIfError(op, axes);
 
     std::shared_ptr<cldnn::resample> resamplePrim = nullptr;
-    if (p.use_new_shape_infer()) {
-        if (sizes_constant && scales_constant) {
-            resamplePrim = std::make_shared<cldnn::resample>(layerName,
-                                                             inputs[0],
-                                                             sizes,
-                                                             scales,
-                                                             axes,
-                                                             attrs.pads_begin,
-                                                             attrs.pads_end,
-                                                             attrs.antialias,
-                                                             attrs.cube_coeff,
-                                                             attrs.mode,
-                                                             attrs.shape_calculation_mode,
-                                                             attrs.coordinate_transformation_mode,
-                                                             attrs.nearest_mode);
-        } else {
-            resamplePrim = std::make_shared<cldnn::resample>(layerName,
-                                                             inputs[0],
-                                                             inputs[SIZES_INDEX],
-                                                             inputs[SCALES_INDEX],
-                                                             axes,
-                                                             attrs.pads_begin,
-                                                             attrs.pads_end,
-                                                             attrs.antialias,
-                                                             attrs.cube_coeff,
-                                                             attrs.mode,
-                                                             attrs.shape_calculation_mode,
-                                                             attrs.coordinate_transformation_mode,
-                                                             attrs.nearest_mode);
-        }
-    } else {
-        auto outShape = op->get_output_shape(0);
-        auto outputPattern = std::vector<int64_t>(outShape.begin(), outShape.end());
-
+    if (sizes_constant && scales_constant) {
         resamplePrim = std::make_shared<cldnn::resample>(layerName,
-                                                         inputs[0],
-                                                         outputPattern,
-                                                         scales,
-                                                         axes,
-                                                         attrs.pads_begin,
-                                                         attrs.pads_end,
-                                                         attrs.antialias,
-                                                         attrs.cube_coeff,
-                                                         attrs.mode,
-                                                         attrs.shape_calculation_mode,
-                                                         attrs.coordinate_transformation_mode,
-                                                         attrs.nearest_mode);
+                                                            inputs[0],
+                                                            sizes,
+                                                            scales,
+                                                            axes,
+                                                            attrs.pads_begin,
+                                                            attrs.pads_end,
+                                                            attrs.antialias,
+                                                            attrs.cube_coeff,
+                                                            attrs.mode,
+                                                            attrs.shape_calculation_mode,
+                                                            attrs.coordinate_transformation_mode,
+                                                            attrs.nearest_mode);
+    } else {
+        resamplePrim = std::make_shared<cldnn::resample>(layerName,
+                                                            inputs[0],
+                                                            inputs[SIZES_INDEX],
+                                                            inputs[SCALES_INDEX],
+                                                            axes,
+                                                            attrs.pads_begin,
+                                                            attrs.pads_end,
+                                                            attrs.antialias,
+                                                            attrs.cube_coeff,
+                                                            attrs.mode,
+                                                            attrs.shape_calculation_mode,
+                                                            attrs.coordinate_transformation_mode,
+                                                            attrs.nearest_mode);
     }
+
     p.add_primitive(*op, resamplePrim);
 }
 
@@ -172,55 +154,37 @@ static void CreateInterpolateOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
     ValidateAxesAndThrowIfError(op, axes);
 
     std::shared_ptr<cldnn::resample> resamplePrim = nullptr;
-    if (p.use_new_shape_infer()) {
-        if (scales_or_sizes_constant) {
-            resamplePrim = std::make_shared<cldnn::resample>(layerName,
-                                                             inputs[0],
-                                                             sizes,
-                                                             scales,
-                                                             axes,
-                                                             attrs.pads_begin,
-                                                             attrs.pads_end,
-                                                             attrs.antialias,
-                                                             attrs.cube_coeff,
-                                                             attrs.mode,
-                                                             attrs.shape_calculation_mode,
-                                                             attrs.coordinate_transformation_mode,
-                                                             attrs.nearest_mode);
-        } else {
-            resamplePrim = std::make_shared<cldnn::resample>(layerName,
-                                                             inputs[0],
-                                                             inputs[eScalesOrSizesIndex],
-                                                             inputs[eAxesIndex],
-                                                             axes,
-                                                             attrs.pads_begin,
-                                                             attrs.pads_end,
-                                                             attrs.antialias,
-                                                             attrs.cube_coeff,
-                                                             attrs.mode,
-                                                             attrs.shape_calculation_mode,
-                                                             attrs.coordinate_transformation_mode,
-                                                             attrs.nearest_mode,
-                                                             1);
-        }
-    } else {
-        auto outShape = op->get_output_shape(0);
-        auto outputPattern = std::vector<int64_t>(outShape.begin(), outShape.end());
-
+    if (scales_or_sizes_constant) {
         resamplePrim = std::make_shared<cldnn::resample>(layerName,
-                                                         inputs[0],
-                                                         outputPattern,
-                                                         scales,
-                                                         axes,
-                                                         attrs.pads_begin,
-                                                         attrs.pads_end,
-                                                         attrs.antialias,
-                                                         attrs.cube_coeff,
-                                                         attrs.mode,
-                                                         attrs.shape_calculation_mode,
-                                                         attrs.coordinate_transformation_mode,
-                                                         attrs.nearest_mode);
+                                                            inputs[0],
+                                                            sizes,
+                                                            scales,
+                                                            axes,
+                                                            attrs.pads_begin,
+                                                            attrs.pads_end,
+                                                            attrs.antialias,
+                                                            attrs.cube_coeff,
+                                                            attrs.mode,
+                                                            attrs.shape_calculation_mode,
+                                                            attrs.coordinate_transformation_mode,
+                                                            attrs.nearest_mode);
+    } else {
+        resamplePrim = std::make_shared<cldnn::resample>(layerName,
+                                                            inputs[0],
+                                                            inputs[eScalesOrSizesIndex],
+                                                            inputs[eAxesIndex],
+                                                            axes,
+                                                            attrs.pads_begin,
+                                                            attrs.pads_end,
+                                                            attrs.antialias,
+                                                            attrs.cube_coeff,
+                                                            attrs.mode,
+                                                            attrs.shape_calculation_mode,
+                                                            attrs.coordinate_transformation_mode,
+                                                            attrs.nearest_mode,
+                                                            1);
     }
+
     p.add_primitive(*op, resamplePrim);
 }
 
