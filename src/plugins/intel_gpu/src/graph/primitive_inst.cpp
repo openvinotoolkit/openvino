@@ -2671,7 +2671,6 @@ bool primitive_inst::is_valid_fusion() const {
             auto gemm_dims = onednn::convert_gemm_tensor(gemm_layout.get_tensor(),
                                                          cldnn::format::dimension(gemm_layout.format),
                                                          false);
-
             auto data_dims = onednn::convert_gemm_tensor(data_layout.get_tensor(),
                                                          cldnn::format::dimension(data_layout.format),
                                                          false);
@@ -2685,8 +2684,19 @@ bool primitive_inst::is_valid_fusion() const {
             const auto fc_dims = fc_layout.get_dims();
             const auto data_dims = data_layout.get_dims();
 
+            auto same_spatial = [](layout a, layout b) {
+                if (a.get_spatial_rank() != b.get_spatial_rank())
+                    return false;
+                for (size_t i = 0; i < a.get_spatial_rank(); i++) {
+                    if (a.spatial(i) != b.spatial(i))
+                        return false;
+                }
+                return true;
+            };
+
             if (!(fc_dims[0] == 1 || fc_dims[1] == 1) &&
                 !(data_dims[0] == 1 && data_dims[1] == 1) &&
+                !((data_dims[0] == 1 || data_dims[1] == 1) && same_spatial(fc_layout, data_layout)) &&
                 !(fc_layout.count() == data_layout.count())) {
                 return false;
             }
