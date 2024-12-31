@@ -987,11 +987,12 @@ void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
         kernel type | brgdconv | jit_uni_dw_convolution_fwd_t
         support impl type | native bf16 ISA without AMX | avx512_core_bf16 or avx512_core
         bias dt | oneof(src,dest) | oneof(src, dest, f32)
-
         FP16:
         kernel type | brgdconv | brgemm_convolution_fwd_t
         impl type | native FP16 ISA without AMX | native FP16 ISA
         bias type | oneof(src,dest) | oneof(src, dest, f32)
+        @todo: this bias type changes may have minor accuracy impact on some models, so when upstream ONEDNN extend this
+        kind of matrix support (ticket MFDNN-12936) we can continue use bdt = memory::data_type::f32 here;
         */
         auto out_dt = outDnnlDesc.get_data_type();
         if (!canBeExecutedInInt8() && isDepthWise()) {
