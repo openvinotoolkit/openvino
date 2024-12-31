@@ -23,6 +23,6 @@ class TRANSFORMATIONS_API RandomUniformFusion;
  */
 class ov::pass::RandomUniformFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("RandomUniformFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("RandomUniformFusion");
     RandomUniformFusion();
 };

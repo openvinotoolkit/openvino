@@ -24,7 +24,7 @@ ov::pass::ConvertFCToFCQuantizedLegacy::ConvertFCToFCQuantizedLegacy() {
     std::vector<element::Type> weights_types{ov::element::i8};
 
     auto activations_m = pattern::any_input(ov::pass::pattern::type_matches_any(activation_types));
-    auto weights_m = wrap_type<ov::op::v0::Constant>(ov::pass::pattern::type_matches_any(weights_types));
+    auto weights_m = pattern::any_input();
     auto bias_m = pattern::any_input();
 
     auto fully_connected_m = wrap_type<ov::op::internal::FullyConnected>({activations_m, weights_m, bias_m});
@@ -43,7 +43,8 @@ ov::pass::ConvertFCToFCQuantizedLegacy::ConvertFCToFCQuantizedLegacy() {
         const auto& fc_output_shape = fc_output.get_partial_shape();
         const auto& multiply_output_shape = multiply.get_partial_shape();
 
-        if (*fc_output_shape.rbegin() != *multiply_output_shape.rbegin()) {
+        if (*fc_output_shape.rbegin() != *multiply_output_shape.rbegin() ||
+            !ov::op::util::is_on_constant_path(weights)) {
             return false;
         }
 
