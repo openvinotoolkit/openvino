@@ -13,6 +13,8 @@
 namespace ov {
 namespace npuw {
 
+using TokensHistory = std::vector<std::vector<int64_t>>;
+
 class LLMInferRequest final : public ov::ISyncInferRequest {
 public:
     explicit LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
@@ -26,9 +28,7 @@ public:
     std::vector<ov::ProfilingInfo> get_profiling_info() const override {
         return {};
     }
-    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override {
-        return {};
-    }
+    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
 
 private:
     void prepare_for_new_conversation();
@@ -51,6 +51,10 @@ private:
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_out_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_in_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_out_ports;
+
+    bool m_is_chat_conversation = false;
+    // TokensHistory m_tokens_history;
+    ov::SoPtr<ov::IVariableState> m_tokens_history;
 };
 
 }  // namespace npuw

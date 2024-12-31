@@ -100,6 +100,22 @@ void copy_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITenso
         std::copy_n(src_p + src_offset, chunk_byte_size, dst_p + dst_offset);
     }
 }
+
+int64_t get_token_from_logits(const ov::SoPtr<ov::ITensor>& logits, const size_t batch_idx) {
+    if (logits->get_shape()[0] <= batch_idx) {
+        OPENVINO_THROW("logits batch size doesn't match the number of beams");
+    }
+
+    size_t vocab_size = logits->get_shape().back();
+    size_t batch_offset = batch_idx * logits->get_shape()[1] * vocab_size;
+    size_t sequence_offset = (logits->get_shape()[1] - 1) * vocab_size;
+    const float* logits_data = logits->data<const float>() + batch_offset + sequence_offset;
+
+    int64_t out_token = std::max_element(logits_data, logits_data + vocab_size) - logits_data;
+    float max_logit = logits_data[out_token];
+
+    return out_token;
+}
 }  // anonymous namespace
 
 ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model)
@@ -266,15 +282,43 @@ void ov::npuw::LLMInferRequest::infer() {
     auto attention_mask = get_tensor(inputs[1]);
     auto position_ids = get_tensor(inputs[2]);
 
+
     OPENVINO_ASSERT(ov::element::i64 == input_ids->get_element_type());
     OPENVINO_ASSERT(ov::element::i64 == attention_mask->get_element_type());
     OPENVINO_ASSERT(ov::element::i64 == position_ids->get_element_type());
 
     if (input_ids->get_size() != 1) {
+        if (m_is_chat_conversation) {
+            auto state_tensor = m_tokens_history->get_state();
+            auto new_state_tensor = ov::make_tensor(input_ids->get_element_type(),
+                {1, input_ids->get_shape().at(1)},
+                input_ids->data<int64_t>());
+            m_tokens_history->set_state(state_tensor);
+        }
         infer_prefill(input_ids, attention_mask, position_ids);
+        if (m_is_chat_conversation) {
+            auto state_tensor = m_tokens_history->get_state();
+            auto state_tensor_shape = state_tensor->get_shape();
+            ++state_tensor_shape[1];
+            state_tensor->set_shape(state_tensor_shape);
+            state_tensor->data<int64_t>()[state_tensor_shape[1] - 1] = get_token_from_logits(m_logits, 0);
+        }
     } else {
         infer_generate(input_ids, attention_mask, position_ids);
+        if (m_is_chat_conversation) {
+            auto state_tensor = m_tokens_history->get_state();
+            auto state_tensor_shape = state_tensor->get_shape();
+            ++state_tensor_shape[1];
+            state_tensor->set_shape(state_tensor_shape);
+            state_tensor->data<int64_t>()[state_tensor_shape[1] - 1] = get_token_from_logits(m_logits, 0);
+        }
     }
+    // assistant?
+    // we should somehow separate answer and prompt. prompt goes as user, but result.
+    // There should be tokens before answer. <assistant>
+    // might be we shouldn't preserve prompt and only answer?
+    // so when prefill is called
+    // WE SHOULD THINK HOW THIS CAN BE DONE.
 }
 
 ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
@@ -283,4 +327,8 @@ ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_tensor(const ov::Output<co
         return m_logits;
     }
     return ov::ISyncInferRequest::get_tensor(port);
+}
+
+std::vector<ov::SoPtr<ov::IVariableState>> ov::npuw::LLMInferRequest::query_state() const {
+    return {m_tokens_history};
 }
