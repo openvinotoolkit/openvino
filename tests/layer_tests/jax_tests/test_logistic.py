@@ -26,9 +26,10 @@ class TestLogistic(JaxLayerTest):
 
         return jax_logistic, None, 'logistic'
 
-    @pytest.mark.parametrize("input_shape", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    @pytest.mark.parametrize("input_shape", [[2], [3, 4], [5,6,7]])
     @pytest.mark.parametrize("input_type", [np.float32, np.float64])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     @pytest.mark.precommit_jax_fe
     def test_logistic(self, ie_device, precision, ir_version, input_shape, input_type):
         self._test(*self.create_model(input_shape, input_type),
