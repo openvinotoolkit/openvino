@@ -3,9 +3,8 @@
 //
 
 #include "openvino/frontend/jax/node_context.hpp"
-#include "openvino/op/range.hpp"
 #include "openvino/op/constant.hpp"
-
+#include "openvino/op/range.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -24,7 +23,6 @@ OutputVector translate_iota(const NodeContext& context) {
     auto stop = v0::Constant::create(ov::element::i64, Shape{}, {size});
     auto res = std::make_shared<ov::op::v4::Range>(start, stop, step, dtype);
     return {res};
-
 };
 
 }  // namespace op
