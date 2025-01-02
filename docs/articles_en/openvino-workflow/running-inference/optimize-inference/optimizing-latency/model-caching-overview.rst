@@ -136,6 +136,35 @@ To check in advance if a particular device supports model caching, your applicat
          :language: cpp
          :fragment: [ov:caching:part3]
 
+Set ``CacheMode`` property to ``OPTIMIZE_SIZE`` to enable weightless caching.
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+Weightless caching is a feature that allows you to create a cache file which doesn't contain the weights of the model. Instead, the weights are loaded from the original model file. This helps to reduce the size of the cache file.
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.py
+         :language: py
+         :fragment: [ov:caching:part4]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.cpp
+         :language: cpp
+         :fragment: [ov:caching:part4]
+
+.. important::
+
+   Currently, this property is supported only by the GPU Plugin and IR model format.
+
+.. important::
+
+   Some weights which undergo transformations during model compilation may not be eligible for weightless caching. In such cases, the cache file will contain these weights while still using the weightless caching mechanism for the rest. The feature supports some of the common transformations and replicates them after loading the model from the cache.
+
 Set "cache_encryption_callbacks" config option to enable cache encryption
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -148,14 +177,14 @@ If model caching is enabled in the CPU Plugin, the model topology can be encrypt
 
       .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.py
          :language: py
-         :fragment: [ov:caching:part4]
+         :fragment: [ov:caching:part5]
 
    .. tab-item:: C++
       :sync: cpp
 
       .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.cpp
          :language: cpp
-         :fragment: [ov:caching:part4]
+         :fragment: [ov:caching:part5]
 
 If model caching is enabled in the GPU Plugin, the model topology can be encrypted while it is saved to the cache and decrypted when it is loaded from the cache. Full encryption only works when the ``CacheMode`` property is set to ``OPTIMIZE_SIZE``.
 
@@ -166,14 +195,14 @@ If model caching is enabled in the GPU Plugin, the model topology can be encrypt
 
       .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.py
          :language: py
-         :fragment: [ov:caching:part5]
+         :fragment: [ov:caching:part6]
 
    .. tab-item:: C++
       :sync: cpp
 
       .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.cpp
          :language: cpp
-         :fragment: [ov:caching:part5]
+         :fragment: [ov:caching:part6]
 
 .. important::
 
