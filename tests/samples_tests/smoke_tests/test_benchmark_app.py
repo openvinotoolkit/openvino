@@ -70,7 +70,7 @@ def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape
             assert not nstreams or config_json['CPU']['NUM_STREAMS'] == nstreams
             assert (not pin
                 or pin == 'YES' and config_json['CPU']['ENABLE_CPU_PINNING'] == 'YES'
-                or pin == 'NO' and config_json['CPU']['ENABLE_CPU_PINNING'] == 'NO'
+                or pin == 'NO' and config_json['CPU']['ENABLE_CPU_PINNING'] == 'NO')
 
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
