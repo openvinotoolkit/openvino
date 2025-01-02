@@ -1367,15 +1367,23 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_dynamic_quantize_matmul) {
     const std::vector<float> b_scale{0.003137f};
     const std::vector<int8_t> b_zero_point{-34};
 
-    const std::vector<float> expected{0.8681802f, 0.7458673f, 1.6218146f, 1.5770973f, 1.4774824f, 3.0677009f, 2.3504133f, 2.2423527f, 4.611995f};
+    const std::vector<float> expected{0.8681802f,
+                                      0.7458673f,
+                                      1.6218146f,
+                                      1.5770973f,
+                                      1.4774824f,
+                                      3.0677009f,
+                                      2.3504133f,
+                                      2.2423527f,
+                                      4.611995f};
 
     // add_input needs to be called in order of model inputs (order matters)
-    test_case.add_input<float>(Shape{3,2}, input_A);
-    test_case.add_input<int8_t>(Shape{2,3}, input_B);
+    test_case.add_input<float>(Shape{3, 2}, input_A);
+    test_case.add_input<int8_t>(Shape{2, 3}, input_B);
     test_case.add_input<float>(Shape{1}, b_scale);
     test_case.add_input<int8_t>(Shape{1}, b_zero_point);
 
-    test_case.add_expected_output<float>(Shape{3,3}, expected);
+    test_case.add_expected_output<float>(Shape{3, 3}, expected);
 
     if (std::string("${BACKEND_NAME}") == std::string("IE_GPU")) {
         test_case.run_with_tolerance_as_fp(0.0055f);

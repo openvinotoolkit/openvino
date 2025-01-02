@@ -5,11 +5,11 @@
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/frontend/exception.hpp"
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/matmul.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/subtract.hpp"
 #include "utils/common.hpp"
 
 using namespace ov::op;
@@ -27,12 +27,12 @@ ov::OutputVector dynamic_quantize_matmul(const ov::frontend::onnx::Node& node) {
     common::default_op_checks(node, 3);
 
     const auto inputs = node.get_ov_inputs();
-    const auto& A = inputs[0]; // required
-    const auto& B = inputs[1]; // required
-    const auto& b_scale = inputs[2]; // required
+    const auto& A = inputs[0];        // required
+    const auto& B = inputs[1];        // required
+    const auto& b_scale = inputs[2];  // required
 
-    ov::Output<ov::Node> b_zero_point; // optional, input[3]
-    ov::Output<ov::Node> bias; // optional, input[4]
+    ov::Output<ov::Node> b_zero_point;  // optional, input[3]
+    ov::Output<ov::Node> bias;          // optional, input[4]
 
     // Constrain input matrix A to T1 type (float tensor)
     auto element_type_A = A.get_element_type();
@@ -56,7 +56,7 @@ ov::OutputVector dynamic_quantize_matmul(const ov::frontend::onnx::Node& node) {
                      element_type_b_scale);
 
     // Check for the optional inputs
-    if(inputs.size() > 3) {
+    if (inputs.size() > 3) {
         // Constrain input b_zero_point to T2 type (int8 tensor, uint8 tensor)
         b_zero_point = inputs[3];
         auto element_type_b_zero_point = b_zero_point.get_element_type();
@@ -66,7 +66,7 @@ ov::OutputVector dynamic_quantize_matmul(const ov::frontend::onnx::Node& node) {
                          element_type_b_zero_point);
     }
 
-    if(inputs.size() > 4) {
+    if (inputs.size() > 4) {
         // Constrain input bias to T1 type (float tensor)
         bias = inputs[4];
         auto element_type_bias = bias.get_element_type();
@@ -76,18 +76,20 @@ ov::OutputVector dynamic_quantize_matmul(const ov::frontend::onnx::Node& node) {
                          element_type_bias);
     }
 
-    // At time of writing, ov::MatMul does not support int8/uint8 types. To get the correct output, we need to dequantize B. 
-    // Technically this does not do DynamicQuantization, but is required for correct output of the operator. It will implement A * B_dequantized + bias
-    // According to ONNX RT docs, they do linear quantization shown here https://tomwildenhain-microsoft.github.io/onnxruntime/docs/performance/quantization.html
-    // B_dequantized = (B - b_zero_point) * b_scale
+    // At time of writing, ov::MatMul does not support int8/uint8 types. To get the correct output, we need to
+    // dequantize B. Technically this does not do DynamicQuantization, but is required for correct output of the
+    // operator. It will implement A * B_dequantized + bias According to ONNX RT docs, they do linear quantization shown
+    // here https://tomwildenhain-microsoft.github.io/onnxruntime/docs/performance/quantization.html B_dequantized = (B
+    // - b_zero_point) * b_scale
 
     ov::Output<ov::Node> B_dequantized = std::make_shared<v0::Convert>(B, b_scale.get_element_type());
     b_zero_point = std::make_shared<v0::Convert>(b_zero_point, b_scale.get_element_type());
     B_dequantized = std::make_shared<v1::Subtract>(B_dequantized, b_zero_point);
     B_dequantized = std::make_shared<v1::Multiply>(B_dequantized, b_scale);
 
-    // A, B are N-dimensional matrices. According to example ONNX models for this operator, the suboperations pass input A/B such that B's shape is already transposed.
-    // E.g. https://github.com/microsoft/onnxruntime/blob/main/onnxruntime/test/testdata/transform/fusion/dynamic_quantize_matmul.onnx
+    // A, B are N-dimensional matrices. According to example ONNX models for this operator, the suboperations pass input
+    // A/B such that B's shape is already transposed. E.g.
+    // https://github.com/microsoft/onnxruntime/blob/main/onnxruntime/test/testdata/transform/fusion/dynamic_quantize_matmul.onnx
     // So here in ov::MatMul we will not do any transpose
 
     auto result = std::make_shared<v0::MatMul>(A, B_dequantized, false, false);
