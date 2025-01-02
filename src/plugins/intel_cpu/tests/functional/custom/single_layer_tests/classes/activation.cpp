@@ -197,7 +197,9 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         (activation_type == utils::ActivationTypes::Sqrt) ||
         (activation_type == utils::ActivationTypes::Swish) ||
         (activation_type == utils::ActivationTypes::LogicalNot) ||
-        (activation_type == utils::ActivationTypes::Tanh))) {
+        (activation_type == utils::ActivationTypes::Tanh) ||
+        (activation_type == utils::ActivationTypes::RoundHalfAwayFromZero) ||
+        (activation_type == utils::ActivationTypes::RoundHalfToEven))) {
         return "jit";
     }
 
@@ -209,7 +211,9 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
     if ((activation_type == utils::ActivationTypes::Floor) ||
        (activation_type == utils::ActivationTypes::Ceiling) ||
        (activation_type == utils::ActivationTypes::IsNaN) ||
-       (activation_type == utils::ActivationTypes::IsFinite)) {
+       (activation_type == utils::ActivationTypes::IsFinite) ||
+       (activation_type == utils::ActivationTypes::RoundHalfAwayFromZero) ||
+       (activation_type == utils::ActivationTypes::RoundHalfToEven)) {
         return "ref";
     }
     return "acl";
