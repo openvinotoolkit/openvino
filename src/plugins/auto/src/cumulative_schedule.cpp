@@ -74,8 +74,7 @@ void CumuSchedule::init() {
             } else {
                 cpu_device_information = device;
                 OPENVINO_SUPPRESS_DEPRECATED_START
-                cpu_device_information.config.insert(
-                    {ov::affinity.name(), ov::Any(ov::Affinity::CORE).as<std::string>()});
+                cpu_device_information.config.insert({ov::hint::enable_cpu_pinning.name(), "YES"});
                 OPENVINO_SUPPRESS_DEPRECATED_END
             }
         }

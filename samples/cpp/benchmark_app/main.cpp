@@ -490,20 +490,11 @@ int main(int argc, char* argv[]) {
                 }
             };
 
-            auto fix_pin_option = [](const std::string& str) -> std::string {
-                if (str == "NO")
-                    return "NONE";
-                else if (str == "YES")
-                    return "CORE";
-                else
-                    return str;
-            };
-
             auto set_nthreads_pin = [&](const std::string& str) {
                 OPENVINO_SUPPRESS_DEPRECATED_START
-                auto property_name = str == "nthreads" ? ov::inference_num_threads.name() : ov::affinity.name();
+                auto property_name = str == "nthreads" ? ov::inference_num_threads.name() : ov::hint::enable_cpu_pinning.name();
                 auto property = str == "nthreads" ? ov::inference_num_threads(int(FLAGS_nthreads))
-                                                  : ov::affinity(fix_pin_option(FLAGS_pin));
+                                                  : ov::hint::enable_cpu_pinning(FLAGS_pin);
                 OPENVINO_SUPPRESS_DEPRECATED_END
                 if (supported(property_name) || device_name == "AUTO") {
                     // create nthreads/pin primary property for HW device or AUTO if -d is AUTO directly.

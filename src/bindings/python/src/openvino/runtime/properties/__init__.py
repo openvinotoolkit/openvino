@@ -15,7 +15,6 @@ from openvino._pyopenvino.properties import auto_batch_timeout
 from openvino._pyopenvino.properties import num_streams
 from openvino._pyopenvino.properties import inference_num_threads
 from openvino._pyopenvino.properties import compilation_num_threads
-from openvino._pyopenvino.properties import affinity
 from openvino._pyopenvino.properties import force_tbb_terminate
 from openvino._pyopenvino.properties import enable_mmap
 from openvino._pyopenvino.properties import supported_properties
