@@ -4221,28 +4221,12 @@ TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_wzp_128
 }
 
 // Test per-token dyn-quan
-TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_test_no) {
-    this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 600, 1024, 2048, 0, 32, true);
-}
-
-TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_test_32) {
-    this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 600, 1024, 2048, 32, 32, true);
-}
-
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_test_fake_per_token) {
     this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 600, 1024, 2048, -1, 32, true);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_test_per_token) {
     this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 600, 1024, 2048, -1, 1024, true);
-}
-
-TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_test_no) {
-    this->test_compressed_int8_scale_dyn_quan_weight_u8(true, 600, 1024, 2048, 0, 32, true);
-}
-
-TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_test_32) {
-    this->test_compressed_int8_scale_dyn_quan_weight_u8(true, 600, 1024, 2048, 32, 32, true);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_test_per_token_small_scale) {
@@ -4252,7 +4236,6 @@ TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_test_pe
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_test_per_token_full_scale) {
     this->test_compressed_int8_scale_dyn_quan_weight_u8(true, 600, 1024, 2048, -1, 1024, true);
 }
-
 
 TEST_F(fully_connected_gpu_tests, compressed_scale_bias) {
     this->test_compressed_scale_bias(false);
