@@ -23,11 +23,21 @@ set(_DEFINE_NEON_FP16 "HAVE_NEON_FP16" ${_DEFINE_ANY})
 set(_DEFINE_SVE       "HAVE_SVE"      ${_DEFINE_SVE})
 
 ## Arch specific compile options
-ov_avx512_optimization_flags(_FLAGS_AVX512F)
-ov_avx2_optimization_flags  (_FLAGS_AVX2)
-ov_sse42_optimization_flags (_FLAGS_SSE42)
-ov_arm_neon_fp16_optimization_flags(_FLAGS_NEON_FP16)
-ov_arm_sve_optimization_flags(_FLAGS_SVE)
+if(ENABLE_AVX512F)
+    ov_avx512_optimization_flags(_FLAGS_AVX512F)
+endif()
+if(ENABLE_AVX2)
+    ov_avx2_optimization_flags  (_FLAGS_AVX2)
+endif()
+if(ENABLE_SSE42)
+    ov_sse42_optimization_flags (_FLAGS_SSE42)
+endif()
+if(ENABLE_NEON_FP16)
+    ov_arm_neon_fp16_optimization_flags(_FLAGS_NEON_FP16)
+endif()
+if(ENABLE_SVE)
+    ov_arm_sve_optimization_flags(_FLAGS_SVE)
+endif()
 set(_FLAGS_AVX "")  ## TBD is not defined for OV project yet
 set(_FLAGS_ANY "")  ##
 
