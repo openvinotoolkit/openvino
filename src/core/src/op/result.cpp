@@ -16,9 +16,11 @@ namespace ov {
 namespace op {
 namespace v0 {
 
-Result::Result(const Output<Node>& arg, bool use_input_names) : Op({arg}) {
+Result::Result(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
+}
 
+Result::Result(const Output<Node>& arg, bool use_input_names) : Result(arg) {
     if (use_input_names && !util::is_parameter(arg.get_node())) {
         // On create use inputs names which will be used as model output names (except Paramater, model's inputs names).
         get_output_tensor(0).add_names(get_input_tensor(0).get_names());
