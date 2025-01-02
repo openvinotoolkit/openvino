@@ -481,10 +481,10 @@ inline void scale_add2_reduce_max(ov::float16* a,
     svbool_t pg_f16 = svptrue_b16();
     svbool_t pg_u8 = svptrue_b8();
     svbool_t pg_u16 = svptrue_b16();
-    size_t inc = vec_len_f16_sve;
+    size_t inc = vec_len_f16_sve();
 
     while (i < size) {
-        if (size - i < vec_len_f16_sve) {
+        if (size - i < vec_len_f16_sve()) {
             inc = size - i;
             pg_f16 = svwhilelt_b16(0, static_cast<int>(inc));
             pg_u8 = svwhilelt_b8(0, static_cast<int>(inc));
@@ -717,12 +717,11 @@ inline void exp_reduce_sum(float* a, const float max, const size_t size, float& 
     svfloat32_t v_a;
     svfloat32_t v_max = svdup_n_f32(max);
     svfloat32_t v_sum = svdup_n_f32(0.0f);
-    size_t vec_len_f32_sve = svcntw();
-    size_t inc = vec_len_f32_sve;
+    size_t inc = vec_len_f32_sve();
     svbool_t pg = svptrue_b32();
 
     while (i < size) {
-        if (size - i < vec_len_f32_sve) {
+        if (size - i < vec_len_f32_sve()) {
             inc = size - i;
             pg = svwhilelt_b32(0, static_cast<int>(inc));
         }
@@ -767,12 +766,12 @@ inline void exp_reduce_sum_f32(ov::float16* a, const ov::float16 max, const size
     svbool_t pg_f32 = svptrue_b32();
     svbool_t pg_f16 = svptrue_b16();
     svfloat16_t zero = svdup_n_f16(0.0);
-    size_t inc = vec_len_f32_sve;
+    size_t inc = vec_len_f32_sve();
 
     while (i < size) {
-        if (size - i < vec_len_f16_sve)
+        if (size - i < vec_len_f16_sve())
             pg_f16 = svwhilelt_b16(0, static_cast<int>(size - i));
-        if (size - i < vec_len_f32_sve) {
+        if (size - i < vec_len_f32_sve()) {
             pg_f32 = svwhilelt_b32(0, static_cast<int>(size - i));
             inc = size - i;
         }
@@ -838,10 +837,10 @@ inline void exp_reduce_sum(ov::float16* a, const ov::float16 max, const size_t s
     svfloat16_t v_max = svdup_n_f16(max);
     svfloat16_t v_sum = svdup_n_f16(0.0f);
     svbool_t pg = svptrue_b16();
-    size_t inc = vec_len_f16_sve;
+    size_t inc = vec_len_f16_sve();
 
     while (i < size) {
-        if (size - i < vec_len_f16_sve) {
+        if (size - i < vec_len_f16_sve()) {
             inc = size - i;
             pg = svwhilelt_b16(0, static_cast<int>(inc));
         }
@@ -919,11 +918,11 @@ inline void multiply_scalar(float* a, float* a_dst, const float val, const size_
 #elif defined(OPENVINO_ARCH_ARM64)
 #    if defined(HAVE_SVE)
     svfloat32_t v_scale = svdup_n_f32(val);
-    size_t inc = vec_len_f32_sve;
+    size_t inc = vec_len_f32_sve();
     svbool_t pg = svptrue_b32();
 
     while (i < size) {
-        if (size - i < vec_len_f32_sve) {
+        if (size - i < vec_len_f32_sve()) {
             inc = size - i;
             pg = svwhilelt_b32(0, static_cast<int>(inc));
         }
@@ -1020,11 +1019,11 @@ inline void multiply_scalar(ov::float16* a, ov::float16* a_dst, const ov::float1
     size_t i = 0;
 #    if defined(HAVE_SVE)
     svfloat16_t v_scale = svdup_n_f16(val);
-    size_t inc = vec_len_f16_sve;
+    size_t inc = vec_len_f16_sve();
     svbool_t pg = svptrue_b16();
 
     while (i < size) {
-        if (size - i < vec_len_f16_sve) {
+        if (size - i < vec_len_f16_sve()) {
             inc = size - i;
             pg = svwhilelt_b16(0, static_cast<int>(inc));
         }

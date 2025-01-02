@@ -39,8 +39,14 @@ static constexpr size_t vec_len_f32_neon = vec_len_neon / sizeof(float);
 static constexpr size_t vec_len_f16_neon = vec_len_neon / sizeof(ov::float16);
 
 #if defined(HAVE_SVE)
-static size_t vec_len_f32_sve = svcntw();
-static size_t vec_len_f16_sve = svcnth();
+inline size_t vec_len_f32_sve() {
+    static size_t len = svcntw();
+    return len;
+}
+inline size_t vec_len_f16_sve() {
+    static size_t len = svcnth();
+    return len;
+}
 #endif
 
 #ifdef HAVE_AVX512F
