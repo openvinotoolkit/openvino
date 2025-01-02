@@ -15,8 +15,8 @@
 
 #include "cpu_memory.h"
 #include "nodes/executors/executor_factory.hpp"
-#include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
+#include "nodes/executors/memory_arguments.hpp"
 #include "post_ops.hpp"
 
 namespace ov {
@@ -72,6 +72,8 @@ public:
                                                size_t OC,
                                                size_t G,
                                                ov::element::Type inferencePrecision) noexcept;
+    static ov::element::TypeVector getSupportedCompressedWeightsTypes();
+    static ov::element::TypeVector getSupportedCompressedActivationsTypes();
 
     bool isExecutable() const override {
         return !isInputTensorAtPortEmpty(0);
@@ -105,7 +107,7 @@ private:
 
     static bool isConstantInput(const std::shared_ptr<const ov::Node>& op, InputId port);
 
-    std::unordered_map<size_t, size_t> m_atoi; // memory argument id to input id
+    std::unordered_map<size_t, size_t> m_atoi;  // memory argument id to input id
 
     void fuseDecompressionConstant(const MemoryCPtr& memory, MemoryCPtr& decompressionValuesPtr);
 

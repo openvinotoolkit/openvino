@@ -11,9 +11,9 @@ namespace intel_cpu {
 
 class FullyConnectedBiasFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("FullyConnectedBiasFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("FullyConnectedBiasFusion");
     FullyConnectedBiasFusion();
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

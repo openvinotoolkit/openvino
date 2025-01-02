@@ -41,13 +41,13 @@ An example step from [`job_python_unit_tests.yml`](./../../../../.github/workflo
 steps:
 ...
   - name: OVC unit tests
-    if: fromJSON(inputs.affected-components).MO.test
+    if: fromJSON(inputs.affected-components).OVC.test
     run: python3 -m pytest -s ${INSTALL_TEST_DIR}/ovc/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-OpenVinoConversion.xml
 ...
 ```
 The step includes:
 * a `name`: `OVC unit tests`.
-* an `if` condition: `fromJSON(inputs.affected-components).MO.test`
+* an `if` condition: `fromJSON(inputs.affected-components).OVC.test`
   * This step is executed only if the condition is `true`.
   * This is a part of the Smart CI system implemented for the OpenVINO workflow. Read the [Smart CI Overview](./smart_ci.md) to learn about the system and its usage.
 * a `run` section with commands to be executed.

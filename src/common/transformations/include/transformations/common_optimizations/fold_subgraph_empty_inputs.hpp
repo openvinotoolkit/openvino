@@ -34,7 +34,7 @@ TRANSFORMATIONS_API bool fold_subgraph_empty_inputs_is_disabled(const std::share
 
 class ov::pass::FoldSubgraphEmptyInputs : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("FoldSubgraphEmptyInputs", "0");
+    OPENVINO_MATCHER_PASS_RTTI("FoldSubgraphEmptyInputs");
     FoldSubgraphEmptyInputs();
 };
 

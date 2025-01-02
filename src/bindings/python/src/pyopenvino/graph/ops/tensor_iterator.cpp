@@ -9,6 +9,7 @@
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/ops/util/multisubgraph.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -18,7 +19,13 @@ void regclass_graph_op_TensorIterator(py::module m) {
         "tensor_iterator");
     cls.doc() = "openvino.impl.op.TensorIterator wraps ov::op::v0::TensorIterator";
     cls.def(py::init<>());
-    cls.def("set_body", &ov::op::v0::TensorIterator::set_body, py::arg("body"));
+    cls.def(
+        "set_body",
+        [](const std::shared_ptr<ov::op::v0::TensorIterator>& self, py::object& ie_api_model) {
+            const auto body = Common::utils::convert_to_model(ie_api_model);
+            self->set_body(body);
+        },
+        py::arg("body"));
     cls.def("set_invariant_input",
             &ov::op::v0::TensorIterator::set_invariant_input,
             py::arg("body_parameter"),
@@ -68,7 +75,8 @@ void regclass_graph_op_TensorIterator(py::module m) {
 
     cls.def(
         "set_function",
-        [](const std::shared_ptr<ov::op::v0::TensorIterator>& self, const std::shared_ptr<ov::Model>& func) {
+        [](const std::shared_ptr<ov::op::v0::TensorIterator>& self, const py::object& ie_api_model) {
+            const auto func = Common::utils::convert_to_model(ie_api_model);
             self->set_function(func);
         },
         py::arg("func"));

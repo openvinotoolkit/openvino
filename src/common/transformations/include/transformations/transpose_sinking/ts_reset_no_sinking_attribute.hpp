@@ -24,6 +24,6 @@ class TRANSFORMATIONS_API TSResetNoSinkingAttribute;
  */
 class ov::pass::transpose_sinking::TSResetNoSinkingAttribute : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::pass::TSResetNoSinkingAttribute", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ov::pass::TSResetNoSinkingAttribute");
     TSResetNoSinkingAttribute();
 };
