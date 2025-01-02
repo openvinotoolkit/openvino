@@ -118,6 +118,7 @@ void pre_load_transform(const std::shared_ptr<ov::Model>& model, const ov::AnyMa
         rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulMultiply>();
         rewr.run_on_model(model);
     }
+    model->validate_nodes_and_infer_types();
 }
 }  // anonymous namespace
 
@@ -193,29 +194,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         for (auto&& r : orig_results) {
             LOG_VERB(r);
         }
-    }
-
-    // FIXME: Find a better place to call this transformation
-    ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(model);
-
-    if (m_cfg.get<::intel_npu::NPUW_FOLD>() && m_cfg.get<::intel_npu::NPUW_FUNCALL_FOR_ALL>()) {
-        // If there's folding enabled AND non-repeating graphs are forced to be
-        // functions, do extra lifting for gather (if any)
-        ov::pass::GraphRewrite rewr;
-        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherAsymCW>();
-        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymCW>();
-        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymGQ>();
-        rewr.run_on_model(model);
-    }
-
-    if (m_cfg.get<::intel_npu::NPUW_SLICE_OUT>()) {
-        // Add Slice before last MatMul for the prefill model
-        ov::pass::GraphRewrite rewr;
-        rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmul>();
-        rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulAdd>();
-        rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulTranspose>();
-        rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulMultiply>();
-        rewr.run_on_model(model);
     }
 
     auto partitioning = getPartitioning(model, m_cfg);
