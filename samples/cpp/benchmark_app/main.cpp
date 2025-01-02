@@ -492,7 +492,8 @@ int main(int argc, char* argv[]) {
 
             auto set_nthreads_pin = [&](const std::string& str) {
                 OPENVINO_SUPPRESS_DEPRECATED_START
-                auto property_name = str == "nthreads" ? ov::inference_num_threads.name() : ov::hint::enable_cpu_pinning.name();
+                auto property_name =
+                    str == "nthreads" ? ov::inference_num_threads.name() : ov::hint::enable_cpu_pinning.name();
                 auto property = str == "nthreads" ? ov::inference_num_threads(int(FLAGS_nthreads))
                                                   : ov::hint::enable_cpu_pinning(FLAGS_pin);
                 OPENVINO_SUPPRESS_DEPRECATED_END
