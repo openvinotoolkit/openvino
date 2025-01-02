@@ -114,7 +114,10 @@ void jit_brgemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) con
     regs_to_spill.emplace(snippets::RegType::gpr, h->rbp.getIdx());
     // Note: abi_param_1 is a default invalid value to check later that the aux reg was allocated properly
     Xbyak::Reg64 aux_reg = abi_param1;
-    utils::init_memory_access_aux_gpr(mem_ptrs_idxs, m_memory_offsets, aux_gpr_idxs, regs_to_spill, aux_reg);
+    const bool is_dynamic_case =
+        std::any_of(m_memory_offsets.cbegin(), m_memory_offsets.cend(), ov::snippets::utils::is_dynamic_value<size_t>);
+    if (std::is_same<T, BrgemmAMXKernelExecutor>() || is_dynamic_case)
+        aux_reg = utils::init_memory_access_aux_gpr(mem_ptrs_idxs, aux_gpr_idxs, regs_to_spill);
     EmitABIRegSpills spill(h);
     spill.preamble(regs_to_spill);
 

@@ -35,20 +35,15 @@ size_t get_buffer_cluster_id(const ov::snippets::lowered::ExpressionPort& port);
 Xbyak::Reg64 get_aux_gpr(const std::vector<size_t>& used_gpr_idxs);
 
 /**
- * @brief Initializes aux gpr register for dynamic memory access emitters. If any of the `memory_offsets` is dynamic,
- * then try to assign `aux_reg` a register from `aux_gpr_idxs`. If `aux_gpr_idxs` is empty, then choose a register that
- * is not in `mem_ptr_reg_idxs` and add it to `regs_to_spill`.
+ * @brief Returns aux gpr register for dynamic memory access emitters. Returns a register from `aux_gpr_idxs`.
+ * If it's empty, then choose a register that is not in `mem_ptr_reg_idxs` and add it to `regs_to_spill`.
  * @param mem_ptr_reg_idxs register indexes reserved to store memory pointers in this emitter
- * @param memory_offsets memory offsets, could be dynamic
  * @param aux_gpr_idxs pool of available gp register indexes
  * @param regs_to_spill set of live registers to be spilled before ABI call
- * @param aux_reg auxiliary register that should be initialized
  */
-void init_memory_access_aux_gpr(const std::vector<size_t>& mem_ptr_reg_idxs,
-                                const std::vector<size_t>& memory_offsets,
-                                const std::vector<size_t>& aux_gpr_idxs,
-                                std::set<snippets::Reg>& regs_to_spill,
-                                Xbyak::Reg64& aux_reg);
+Xbyak::Reg64 init_memory_access_aux_gpr(const std::vector<size_t>& mem_ptr_reg_idxs,
+                                        const std::vector<size_t>& aux_gpr_idxs,
+                                        std::set<snippets::Reg>& regs_to_spill);
 
 /**
  * @brief Push data pointer on stack adding offset. The offset is taken from runtime params `abi_param1`

@@ -26,8 +26,6 @@ jit_reg_spill_begin_emitter::jit_reg_spill_begin_emitter(dnnl::impl::cpu::x64::j
     const auto& reg_spill_node = ov::as_type_ptr<snippets::op::RegSpillBegin>(m_reg_spill_begin_expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(reg_spill_node, "expects RegSpillBegin expression");
     m_num_spilled = reg_spill_node->get_regs_to_spill().size();
-    // todo: abstract registers were not mapped on physical onces at this point (Kernel emitter does that),
-    //  so we have to declare reg_spiller mutable
     m_abi_reg_spiller = std::make_shared<EmitABIRegSpills>(h);
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
