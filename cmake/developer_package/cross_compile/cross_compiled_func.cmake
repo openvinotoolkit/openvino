@@ -11,7 +11,7 @@ set(_ACCEPTED_ARCHS_AVX     "^(ANY|SSE42|AVX)$")
 set(_ACCEPTED_ARCHS_AVX2    "^(ANY|SSE42|AVX|AVX2)$")
 set(_ACCEPTED_ARCHS_AVX512F "^(ANY|SSE42|AVX|AVX2|AVX512F)$")
 set(_ACCEPTED_ARCHS_NEON_FP16 "^(ANY|NEON_FP16)$")
-set(_ACCEPTED_ARCHS_SVE     "^(ANY|SVE)$")
+set(_ACCEPTED_ARCHS_SVE     "^(ANY|NEON_FP16|SVE)$")
 
 ## Arch specific definitions
 set(_DEFINE_ANY       "")
@@ -186,10 +186,10 @@ endfunction()
 #  Return currently requested ARCH id
 #
 function(_currently_requested_top_arch VAR)
-    if(ENABLE_NEON_FP16)
-        set(RES NEON_FP16)
-    elseif(ENABLE_SVE)
+    if(ENABLE_SVE)
         set(RES SVE)
+    elseif(ENABLE_NEON_FP16)
+        set(RES NEON_FP16)
     elseif(ENABLE_AVX512F)
         set(RES AVX512F)
     elseif(ENABLE_AVX2)
