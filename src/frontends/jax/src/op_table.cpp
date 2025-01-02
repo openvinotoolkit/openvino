@@ -54,7 +54,6 @@ OP_CONVERTER(translate_reduce_window_sum);
 OP_CONVERTER(translate_reshape);
 OP_CONVERTER(translate_rsqrt);
 OP_CONVERTER(translate_select_n);
-OP_CONVERTER(translate_logistic);
 OP_CONVERTER(translate_slice);
 OP_CONVERTER(translate_square);
 OP_CONVERTER(translate_squeeze);
