@@ -136,7 +136,7 @@ To check in advance if a particular device supports model caching, your applicat
          :language: cpp
          :fragment: [ov:caching:part3]
 
-Set ``CacheMode`` property to ``OPTIMIZE_SIZE`` to enable weightless caching.
+Set ``CacheMode`` property to ``OPTIMIZE_SIZE`` to enable weightless caching
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Weightless caching is a feature that allows you to create a cache file which doesn't contain the weights of the model. Instead, the weights are loaded from the original model file. This helps to reduce the size of the cache file.
