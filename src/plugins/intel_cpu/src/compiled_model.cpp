@@ -132,6 +132,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                                                     ov::hint::SchedulingCoreType::ANY_CORE,
                                                                     false,
                                                                     true,
+                                                                    true,
                                                                     sub_streams_table,
                                                                     sub_cfg.streamsRankTable[i]};
             m_sub_compiled_models.push_back(

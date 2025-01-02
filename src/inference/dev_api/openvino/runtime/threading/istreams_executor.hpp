@@ -105,6 +105,7 @@ public:
         bool _cpu_reservation = false;  //!< Whether to reserve current cores which will not be used by other plugin.
                                         //!< If it is true, cpu_pinning defaults to true.
         bool _cpu_pinning = false;      //!< Whether to bind threads to cores.
+        bool _cores_limit = true;       //!< Whether to limit the number of streams and threads by the number of cpu cores
         std::vector<std::vector<int>> _streams_info_table = {};
         std::vector<std::vector<int>> _stream_processor_ids;
         int _sub_streams = 0;
@@ -146,6 +147,7 @@ public:
                ov::hint::SchedulingCoreType thread_preferred_core_type = ov::hint::SchedulingCoreType::ANY_CORE,
                bool cpu_reservation = false,
                bool cpu_pinning = false,
+               bool cores_limit = true,
                std::vector<std::vector<int>> streams_info_table = {},
                std::vector<int> rank = {})
             : _name{std::move(name)},
@@ -154,6 +156,7 @@ public:
               _thread_preferred_core_type(thread_preferred_core_type),
               _cpu_reservation{cpu_reservation},
               _cpu_pinning{cpu_pinning},
+              _cores_limit{cores_limit},
               _streams_info_table{std::move(streams_info_table)},
               _rank{rank} {
             update_executor_config();
