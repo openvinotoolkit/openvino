@@ -79,6 +79,10 @@ std::string FakeConvert::get_destination_type() const {
     return m_destination_type.get_type_name();
 }
 
+void FakeConvert::set_destination_type(ov::element::Type destination_type) {
+    m_destination_type = destination_type;
+}
+
 const ov::element::Type& FakeConvert::get_destination_element_type() const {
     return m_destination_type;
 }

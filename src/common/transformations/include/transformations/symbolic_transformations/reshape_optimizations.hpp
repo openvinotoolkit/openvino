@@ -52,6 +52,6 @@ class TRANSFORMATIONS_API ReshapeOptimizations;
  */
 class ov::pass::ReshapeOptimizations : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ReshapeOptimizations", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ReshapeOptimizations");
     ReshapeOptimizations();
 };

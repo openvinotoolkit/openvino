@@ -6,16 +6,14 @@ models from OpenVINO-supported frameworks may also work properly but have not be
 
 **AI Models that run on Intel® Core Ultra™ Processors with OpenVINO™ toolkit:**
 
-.. raw:: html
-
-   <link rel="stylesheet" type="text/css" href="../../_static/css/openVinoDataTables.css">
-
-
-.. csv-table::
+.. data-table:: 
    :class: modeldata stripe
    :name: supportedModelsTable
    :header-rows: 1
    :file:  ../../_static/download/supported_models.csv
+   :data-column-hidden: []
+   :data-order: [[ 0, "asc" ]]
+   :data-page-length: 10
 
 
 | Marked cells indicate models that passed inference with no errors. Empty cells indicate
