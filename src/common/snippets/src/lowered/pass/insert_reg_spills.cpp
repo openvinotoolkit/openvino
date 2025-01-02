@@ -37,14 +37,14 @@ bool InsertRegSpills::run(LinearIR& linear_ir) {
         // Note: we need to insert immediately before LoopBegin => increment start_it
         start_it++;
         const auto& loop_begin_live = start_it->get()->get_live_regs();
-        std::set<Reg> brgemm_used;
-        const auto& brgemm_reg_info = expr->get_reg_info();
-        brgemm_used.insert(brgemm_reg_info.first.begin(), brgemm_reg_info.first.end());
-        brgemm_used.insert(brgemm_reg_info.second.begin(), brgemm_reg_info.second.end());
-        // Note: before the loop, we need to spill all live regs except for the ones used by brgemm
+        std::set<Reg> used;
+        const auto& reg_info = expr->get_reg_info();
+        used.insert(reg_info.first.begin(), reg_info.first.end());
+        used.insert(reg_info.second.begin(), reg_info.second.end());
+        // Note: before the loop, we need to spill all live regs except for the ones used by the target expression
         std::set<Reg> regs_to_spill;
         std::set_difference(loop_begin_live.begin(), loop_begin_live.end(),
-                            brgemm_used.begin(), brgemm_used.end(),
+                            used.begin(), used.end(),
                             std::inserter(regs_to_spill, regs_to_spill.begin()));
         // we also need to keep kernel regs alive (actually only abi_param_1 is used in emitters, but save all for consistency)
         for (const auto& r : m_reg_manager.get_kernel_call_regs( snippets::op::Kernel::make_kernel(linear_ir.is_dynamic())))

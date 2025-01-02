@@ -57,6 +57,7 @@ jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h,
         m_memory_offsets.push_back(brgemm_repack->get_offset_compensations());
         m_buffer_ids.push_back(utils::get_buffer_cluster_id(expr->get_output_port(1)));
     }
+    m_live_regs = expr->get_live_regs();
 }
 
 void jit_brgemm_copy_b_emitter::validate_arguments(const std::vector<size_t>& in,
@@ -72,31 +73,38 @@ void jit_brgemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const s
     if (out.size() > 1)
         mem_ptrs_idxs.emplace_back(out[1]);
 
+    std::set<snippets::Reg> regs_to_spill = m_live_regs;
+    // Note: these 3 registers will be corrupted by the caller during the ABI call
+    regs_to_spill.emplace(snippets::RegType::gpr, abi_param1.getIdx());
+    regs_to_spill.emplace(snippets::RegType::gpr, abi_param2.getIdx());
+    regs_to_spill.emplace(snippets::RegType::gpr, h->rbp.getIdx());
+    // Note: abi_param_1 is a default invalid value to check later that the aux reg was allocated properly
+    Xbyak::Reg64 aux_reg = abi_param1;
+    utils::init_memory_access_aux_gpr(mem_ptrs_idxs, m_memory_offsets, aux_gpr_idxs, regs_to_spill, aux_reg);
+
     EmitABIRegSpills spill(h);
-    spill.preamble();
+    spill.preamble(regs_to_spill);
 
     h->mov(h->rbp, reinterpret_cast<uint64_t>(BrgemmCopyBKernelExecutor::execute));
     auto reserved_stack_size = sizeof(BrgemmCopyBKernel::call_args);
     // Reserve memory on the stack
     h->sub(h->rsp, reserved_stack_size);
 
-    const bool is_dynamic_case =
-        std::any_of(m_memory_offsets.cbegin(), m_memory_offsets.cend(), ov::snippets::utils::is_dynamic_value<size_t>);
-    Xbyak::Reg64 aux_reg = is_dynamic_case ? ov::intel_cpu::utils::get_aux_gpr(mem_ptrs_idxs) : Xbyak::Reg64();
-
     const std::vector<size_t> args_offsets{GET_OFF_BRGEMM_COPY_B_ARGS(src),
                                            GET_OFF_BRGEMM_COPY_B_ARGS(tr_src),
                                            GET_OFF_BRGEMM_COPY_B_ARGS(compensation_ptr)};
     const auto& mem_ptrs = ov::intel_cpu::utils::transform_idxs_to_regs(mem_ptrs_idxs);
     for (size_t i = 0; i < mem_ptrs.size(); i++) {
-        if (ov::snippets::utils::is_dynamic_value(m_memory_offsets[i]))
+        if (ov::snippets::utils::is_dynamic_value(m_memory_offsets[i])) {
+            OV_CPU_JIT_EMITTER_ASSERT(aux_reg != abi_param1, "Aux reg is needed, but wasn't allocated");
             utils::push_ptr_with_runtime_offset_on_stack(h,
                                                          args_offsets[i],
                                                          mem_ptrs[i],
                                                          aux_reg,
                                                          GET_OFF(buffer_offsets) + m_buffer_ids[i] * sizeof(size_t));
-        else
+        } else {
             utils::push_ptr_with_static_offset_on_stack(h, args_offsets[i], mem_ptrs[i], m_memory_offsets[i]);
+        }
     }
 
     // No scratchpad => need to write nullptr manually

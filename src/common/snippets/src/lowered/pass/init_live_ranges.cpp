@@ -39,10 +39,6 @@ bool InitLiveRanges::run(LinearIR& linear_ir) {
             expr->set_live_regs(std::prev(expr_it)->get()->get_live_regs());
             continue;
         }
-
-        OPENVINO_ASSERT(expr->get_output_count() == op->get_output_size() ||
-                        ov::is_type<op::LoopEnd>(op) ||
-                        ov::is_type<ov::op::v0::Result>(op), "Incorrect count of output port descriptors!");
         const double start = expr->get_exec_num();
         // Remove all regs that expired before start
         regs_to_expire.erase(regs_to_expire.begin(), regs_to_expire.lower_bound(start)); // remove all elements lower than start (not equal)

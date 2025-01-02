@@ -59,6 +59,24 @@ Xbyak::Reg64 get_aux_gpr(const std::vector<size_t>& used_gpr_idxs) {
     OV_CPU_JIT_EMITTER_THROW("Failed to allocate aux GPR");
 }
 
+void init_memory_access_aux_gpr(const std::vector<size_t>& mem_ptr_reg_idxs,
+                                const std::vector<size_t>& memory_offsets,
+                                const std::vector<size_t>& aux_gpr_idxs,
+                                std::set<snippets::Reg>& regs_to_spill,
+                                Xbyak::Reg64& aux_reg) {
+    const bool is_dynamic_case =
+        std::any_of(memory_offsets.cbegin(), memory_offsets.cend(), ov::snippets::utils::is_dynamic_value<size_t>);
+    // Note: abi_param_1 is a default invalid value to check later that the aux reg was allocated properly
+    if (is_dynamic_case) {
+        if (!aux_gpr_idxs.empty()) {
+            aux_reg = Xbyak::Reg64(static_cast<int>(aux_gpr_idxs[0]));
+        } else {
+            aux_reg = ov::intel_cpu::utils::get_aux_gpr(mem_ptr_reg_idxs);
+            regs_to_spill.emplace(snippets::RegType::gpr, aux_reg.getIdx());
+        }
+    }
+};
+
 void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::x64::jit_generator* h,
                                            size_t stack_offset,
                                            Xbyak::Reg64 ptr_reg,

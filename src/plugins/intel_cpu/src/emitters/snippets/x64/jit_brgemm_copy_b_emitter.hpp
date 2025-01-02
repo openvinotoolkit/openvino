@@ -32,6 +32,7 @@ private:
     std::vector<size_t> m_memory_offsets{};
     std::vector<size_t> m_buffer_ids{};
     std::shared_ptr<BrgemmCopyBKernelExecutor> m_kernel_executor{nullptr};
+    std::set<snippets::Reg> m_live_regs{};
     bool m_with_comp{false};
 
 #ifdef SNIPPETS_DEBUG_CAPS
