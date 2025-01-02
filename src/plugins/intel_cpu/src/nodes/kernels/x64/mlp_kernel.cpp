@@ -550,12 +550,13 @@ void GateUpCombine::generate() {
     const auto zmm_up = zmm0;
     const auto ymm_dst = ymm5;
 
-    auto injector = std::make_shared<jit_uni_eltwise_injector_f32<dnnl::impl::cpu::x64::avx512_core>>(
+    auto injector = std::make_shared<jit_uni_eltwise_injector<dnnl::impl::cpu::x64::avx512_core>>(
         this,
         m_act_alg,
         1.f,
         1.0f,
         1.f,
+        data_type::f32,
         true,                               // save_state, true due to additional r15 is used.
         Xbyak::Reg64(Xbyak::Operand::R10),  // p_table
         Xbyak::Opmask(1),                   // k_mask
