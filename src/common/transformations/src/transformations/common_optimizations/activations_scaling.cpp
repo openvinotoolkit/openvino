@@ -189,75 +189,6 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
     this->register_matcher(m, callback);
 }
 
-// ScaleDownFusion merges multiple scale_down layers into one.
-//
-//               input                      input
-//               /   \           ==>          |
-//           Mul_a   Mul_b                  Mul_a
-//             |       |                    /   \_
-//           op_a    op_b                op_a   op_b
-ov::pass::activations_scaling::ScaleDownFusion::ScaleDownFusion() {
-    MATCHER_SCOPE(ScaleDownFusion);
-
-    const auto get_const_value = [](const std::shared_ptr<ov::Node>& node,
-                                    float& const_value) -> bool {
-        auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(node);
-        if (const_node == nullptr)
-            return false;
-
-        if (const_node->get_element_type() == ov::element::f16) {
-            const_value = std::stof(const_node->get_data_ptr<ov::float16>()->to_string());
-        } else if (const_node->get_element_type() == ov::element::f32) {
-            const_value = *const_node->get_data_ptr<float>();
-        } else {
-            return false;
-        }
-        return true;
-    };
-
-    auto activation_m = any_input();
-    auto mul_const_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>(is_scalar_node);
-    auto mul_m = wrap_type<ov::op::v1::Multiply>({activation_m, mul_const_m});
-
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
-
-        auto mul = pattern_map.at(mul_m).get_node_shared_ptr();
-        auto parent = mul->get_input_node_shared_ptr(0);
-        if (parent->get_output_size() > 1 || parent->get_users().size() == 1)
-            return false;
-
-        if (transformation_callback(mul))
-            return false;
-
-        float mul_const_value = 0.f;
-        if (!get_const_value(pattern_map.at(mul_const_m).get_node_shared_ptr(), mul_const_value))
-            return false;
-
-        size_t num_fused_mul_nodes = 0;
-        auto children = parent->get_users();
-        for (const auto& child : children) {
-            if (child == mul)
-                continue;
-            if (ov::is_type<ov::op::v1::Multiply>(child)) {
-                float mul_const_value2 = 0.f;
-                if (get_const_value(child->input(0).get_source_output().get_node_shared_ptr(), mul_const_value2) ||
-                    get_const_value(child->input(1).get_source_output().get_node_shared_ptr(), mul_const_value2)) {
-                    if (mul_const_value == mul_const_value2) {
-                        ov::replace_output_update_name(child->output(0), mul->output(0));
-                        num_fused_mul_nodes += 1;
-                    }
-                }
-            }
-        }
-
-        return (num_fused_mul_nodes > 0);
-    };
-
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(mul_m, "ScaleDownFusion");
-    this->register_matcher(m, callback);
-}
-
 // Normalization has the following property.
 //
 // Norm(input * const_a) = Norm(input)
@@ -336,15 +267,14 @@ ov::pass::activations_scaling::MulConcatTransformation::MulConcatTransformation(
         ov::Output<ov::Node> last_dep_const = {};
         ov::element::Type last_dep_const_type = ov::element::undefined;
         for (auto& input : concat->inputs()) {
-            auto dep_node =
-                ov::as_type_ptr<ov::op::v1::Multiply>(input.get_source_output().get_node_shared_ptr());
+            auto dep_node = ov::as_type_ptr<ov::op::v1::Multiply>(input.get_source_output().get_node_shared_ptr());
             if (!dep_node) {
                 return false;
             }
-            auto dep_const0 = ov::as_type_ptr<ov::op::v0::Constant>(
-                dep_node->input(0).get_source_output().get_node_shared_ptr());
-            auto dep_const1 = ov::as_type_ptr<ov::op::v0::Constant>(
-                dep_node->input(1).get_source_output().get_node_shared_ptr());
+            auto dep_const0 =
+                ov::as_type_ptr<ov::op::v0::Constant>(dep_node->input(0).get_source_output().get_node_shared_ptr());
+            auto dep_const1 =
+                ov::as_type_ptr<ov::op::v0::Constant>(dep_node->input(1).get_source_output().get_node_shared_ptr());
             if (!dep_const0 && !dep_const1) {
                 return false;
             }

@@ -103,6 +103,7 @@
 #include "transformations/common_optimizations/activations_scaling.hpp"
 #include "transformations/common_optimizations/softmax_fusion.hpp"
 #include "transformations/common_optimizations/glu_fusion.hpp"
+#include "transformations/common_optimizations/shared_ops_optimization.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
@@ -948,8 +949,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             pass_config->disable<MVNTransformation>();
             pass_config->disable<ConcatTransformation>();
             pass_config->disable<ClampTransformation>();
-            // pass_config->disable<UnsqueezeTransformation>();
-            // pass_config->disable<VariadicSplitTransformation>();
 
             pass_config->set_callback<FoldConvertTransformation>(
                 [](const std::shared_ptr<const ov::Node> &node) -> bool {
@@ -962,7 +961,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 });
 
             manager.register_pass<ov::pass::activations_scaling::ScaleDownSingleLayer>(activations_scale_factor, infer_precision);
-            manager.register_pass<ov::pass::activations_scaling::ScaleDownFusion>();
+            manager.register_pass<ov::pass::SharedOpOptimization>();
 
             // Move down scalar-multiply layers as much as possible
             auto params = LayerTransformation::Params(false, infer_precision, {infer_precision}, true, false);

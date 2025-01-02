@@ -182,26 +182,26 @@ TEST_P(ActivationsScaling, Inference) {
     ov::serialize(compiledModel.get_runtime_model(), "test.xml");
 }
 
-// TEST_P(ActivationsScaling, Inference_cached) {
-//     std::stringstream ss;
-//     ss << "gpu_model_cache_" << std::hash<std::string>{}(
-//           std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) +
-//           std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
-//     std::string cacheDirName = ss.str();
-//     {
-//         ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
-//         ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
-//         ov::test::utils::removeDir(cacheDirName);
-//         core->set_property(ov::cache_dir(cacheDirName));
-//         compile_model();
-//     }
-//     {
-//         run();
-//         ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
-//         ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
-//         ov::test::utils::removeDir(cacheDirName);
-//     }
-// }
+TEST_P(ActivationsScaling, Inference_cached) {
+    std::stringstream ss;
+    ss << "gpu_model_cache_" << std::hash<std::string>{}(
+          std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) +
+          std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
+    std::string cacheDirName = ss.str();
+    {
+        ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
+        ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
+        ov::test::utils::removeDir(cacheDirName);
+        core->set_property(ov::cache_dir(cacheDirName));
+        compile_model();
+    }
+    {
+        run();
+        ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
+        ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
+        ov::test::utils::removeDir(cacheDirName);
+    }
+}
 
 const std::vector<ov::element::Type> input_precisions = {ov::element::f16};
 
