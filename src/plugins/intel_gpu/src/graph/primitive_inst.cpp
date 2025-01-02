@@ -2658,6 +2658,19 @@ bool primitive_inst::is_valid_fusion() const {
         if (fd.is_type<eltwise>())
             can_broadcast = ov::PartialShape::broadcast_merge_into(merged_shape, outer_dep_pshape, fd.typed_desc<eltwise>()->broadcast_spec);
 
+        // Check if broadcast happens more than single axis.
+        // Current FUSED_OP_LOAD macro cannot support broadcast on dynamic dimension.
+        if (can_broadcast == true && (merged_shape.is_static() && outer_dep_pshape.is_static()) &&
+            outer_dep.first->_is_dynamic == true && merged_shape.rank().get_length() == outer_dep_pshape.rank().get_length()) {
+            uint8_t broadcast_more_than_single_axis = 0;
+            for (int64_t i = 0; i < merged_shape.rank().get_length(); i++) {
+                if (merged_shape.get_shape().at(i) != outer_dep_pshape.get_shape().at(i))
+                    broadcast_more_than_single_axis++;
+            }
+            if (broadcast_more_than_single_axis > 1)
+                can_broadcast = false;
+        }
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
         // WA for OneDNN binary add fusions: we need to broadcast batch dimension to avoid situation with
         // batch dimension mismatch in OneDNN tensor descriptors as follow:
