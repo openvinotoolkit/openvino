@@ -87,17 +87,16 @@ ov::npuw::DeviceProperties get_properties_per_device(const std::shared_ptr<const
 }  // namespace ov
 
 namespace {
-template<typename T>
+template <typename T>
 auto cfg_get(const ov::AnyMap& properties) -> typename T::ValueType {
-    const auto &opt_name = std::string(T::key());
+    const auto& opt_name = std::string(T::key());
     if (properties.count(opt_name)) {
         return properties.at(opt_name).as<typename T::ValueType>();
     }
     return T::defaultValue();
 }
 
-void pre_load_transform(const std::shared_ptr<ov::Model>& model,
-                        const ov::AnyMap& props) {
+void pre_load_transform(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& props) {
     ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(model);
 
     if (cfg_get<::intel_npu::NPUW_FOLD>(props) && cfg_get<::intel_npu::NPUW_FUNCALL_FOR_ALL>(props)) {
@@ -120,7 +119,7 @@ void pre_load_transform(const std::shared_ptr<ov::Model>& model,
         rewr.run_on_model(model);
     }
 }
-} // anonymous namespace
+}  // anonymous namespace
 
 std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     const std::shared_ptr<ov::Model>& model,
