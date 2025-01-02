@@ -267,7 +267,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // conf.readProperties(config, modelType);
 
     Config config = m_plugin_config;
-    config.set_property(properties, OptionVisibility::RELEASE);
+    config.set_user_property(properties, OptionVisibility::RELEASE);
     config.modelType = getModelType(model);
 
     Transformations transformations(cloned_model, config);
@@ -319,7 +319,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 }
 
 void Plugin::set_property(const ov::AnyMap& config) {
-    m_plugin_config.set_property(config, OptionVisibility::RELEASE);
+    m_plugin_config.set_user_property(config, OptionVisibility::RELEASE);
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options) const {
@@ -532,7 +532,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     }
 
     Config config = m_plugin_config;
-    config.set_property(properties, OptionVisibility::RELEASE);
+    config.set_user_property(properties, OptionVisibility::RELEASE);
     config.modelType = getModelType(model);
     config.finalize(get_default_context(), get_rt_info(*model));
     auto context = std::make_shared<GraphContext>(config, fake_w_cache, false);
@@ -603,7 +603,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
     deserializer >> model;
 
     Config config = m_plugin_config;
-    config.set_property(properties, OptionVisibility::RELEASE);
+    config.set_user_property(properties, OptionVisibility::RELEASE);
     config.modelType = getModelType(model);
 
     // import config props from caching model

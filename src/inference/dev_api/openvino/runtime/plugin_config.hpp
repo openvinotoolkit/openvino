@@ -78,7 +78,7 @@
     OV_CONFIG_OPTION(PropertyNamespace, PropertyVar, OptionVisibility::DEBUG, __VA_ARGS__)
 
 namespace ov {
-#define ENABLE_DEBUG_CAPS
+
 enum class OptionVisibility : uint8_t {
     RELEASE = 1 << 0,            // Option can be set for any build type via public interface, environment and config file
     RELEASE_INTERNAL = 1 << 1,   // Option can be set for any build type via environment and config file only
@@ -247,7 +247,7 @@ protected:
         if (!is_set_by_user(property)) {
             auto rt_info_val = rt_info.find(property.name());
             if (rt_info_val != rt_info.end()) {
-                set_property(property(rt_info_val->second.template as<T>()));
+                set_user_property(ov::AnyMap({property(rt_info_val->second.template as<T>())}), OptionVisibility::RELEASE);
             }
         }
     }
