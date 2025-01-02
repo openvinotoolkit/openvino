@@ -86,6 +86,42 @@ ov::npuw::DeviceProperties get_properties_per_device(const std::shared_ptr<const
 }  // namespace npuw
 }  // namespace ov
 
+namespace {
+template<typename T>
+auto cfg_get(const ov::AnyMap& properties) -> typename T::ValueType {
+    const auto &opt_name = std::string(T::key());
+    if (properties.count(opt_name)) {
+        return properties.at(opt_name).as<typename T::ValueType>();
+    }
+    return T::defaultValue();
+}
+
+void pre_load_transform(const std::shared_ptr<ov::Model>& model,
+                        const ov::AnyMap& props) {
+    ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(model);
+
+    if (cfg_get<::intel_npu::NPUW_FOLD>(props) && cfg_get<::intel_npu::NPUW_FUNCALL_FOR_ALL>(props)) {
+        // If there's folding enabled AND non-repeating graphs are forced to be
+        // functions, do extra lifting for gather (if any)
+        ov::pass::GraphRewrite rewr;
+        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherAsymCW>();
+        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymCW>();
+        rewr.add_matcher<ov::npuw::patterns::opt::DQLiftGatherSymGQ>();
+        rewr.run_on_model(model);
+    }
+
+    if (cfg_get<::intel_npu::NPUW_SLICE_OUT>(props)) {
+        // Add Slice before last MatMul for the prefill model
+        ov::pass::GraphRewrite rewr;
+        rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmul>();
+        rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulAdd>();
+        rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulTranspose>();
+        rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulMultiply>();
+        rewr.run_on_model(model);
+    }
+}
+} // anonymous namespace
+
 std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     const std::shared_ptr<ov::Model>& model,
     const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -99,6 +135,7 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
         compiled_model = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, properties);
     } else {
         LOG_INFO("ov::npuw::CompiledModel will be created.");
+        pre_load_transform(model, properties);
         compiled_model = std::make_shared<ov::npuw::CompiledModel>(model, plugin, properties);
     }
     LOG_INFO("Done");
