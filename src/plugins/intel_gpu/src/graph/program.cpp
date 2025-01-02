@@ -1871,6 +1871,12 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
     for (auto const& node_id : allocating_order) {
         ob << node_id;
     }
+
+    ob << state_initializers.size();
+    for (auto& state_initializer : state_initializers) {
+        ob << state_initializer.first;
+        ob << state_initializer.second;
+    }
 }
 
 void program::load(cldnn::BinaryInputBuffer& ib) {
@@ -2038,5 +2044,16 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
         primitive_id node_id;
         ib >> node_id;
         allocating_order.emplace_back(node_id);
+    }
+
+    size_t state_initializers_size;
+    ib >> state_initializers_size;
+    state_initializers.clear();
+    for (size_t i = 0; i < state_initializers_size; i++) {
+        std::string variable_id;
+        std::vector<primitive_id> initializers;
+        ib >> variable_id;
+        ib >> initializers;
+        state_initializers[variable_id] = initializers;
     }
 }
