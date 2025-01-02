@@ -166,4 +166,61 @@ std::function<bool(Output<Node>)> all_of(const std::vector<std::function<bool(Ou
 }
 }  // namespace pattern
 }  // namespace pass
+pass::pattern::op::ValuePredicate operator||(const pass::pattern::op::ValuePredicate& a,
+                                             const pass::pattern::op::ValuePredicate& b) {
+    return [=](const Output<Node>& value) {
+        return a(value) || b(value);
+    };
+}
+
+pass::pattern::op::ValuePredicate operator||(const std::function<bool(Output<Node>)>& a,
+                                             const std::function<bool(Output<Node>)>& b) {
+    return [=](const Output<Node>& value) {
+        return a(value) || b(value);
+    };
+}
+
+pass::pattern::op::ValuePredicate operator||(const pass::pattern::op::NodePredicate& a,
+                                             const pass::pattern::op::NodePredicate& b) {
+    return pass::pattern::op::as_value_predicate(a) || pass::pattern::op::as_value_predicate(b);
+}
+
+pass::pattern::op::ValuePredicate operator||(const pass::pattern::op::ValuePredicate& a,
+                                             const pass::pattern::op::NodePredicate& b) {
+    return a || pass::pattern::op::as_value_predicate(b);
+}
+
+pass::pattern::op::ValuePredicate operator||(const pass::pattern::op::NodePredicate& a,
+                                             const pass::pattern::op::ValuePredicate& b) {
+    return pass::pattern::op::as_value_predicate(a) || b;
+}
+
+pass::pattern::op::ValuePredicate operator&&(const pass::pattern::op::ValuePredicate& a,
+                                             const pass::pattern::op::ValuePredicate& b) {
+    return [=](const Output<Node>& value) {
+        return a(value) && b(value);
+    };
+}
+
+pass::pattern::op::ValuePredicate operator&&(const std::function<bool(Output<Node>)>& a,
+                                             const std::function<bool(Output<Node>)>& b) {
+    return [=](const Output<Node>& value) {
+        return a(value) && b(value);
+    };
+}
+
+pass::pattern::op::ValuePredicate operator&&(const pass::pattern::op::NodePredicate& a,
+                                             const pass::pattern::op::NodePredicate& b) {
+    return pass::pattern::op::as_value_predicate(a) && pass::pattern::op::as_value_predicate(b);
+}
+
+pass::pattern::op::ValuePredicate operator&&(const pass::pattern::op::ValuePredicate& a,
+                                             const pass::pattern::op::NodePredicate& b) {
+    return a && pass::pattern::op::as_value_predicate(b);
+}
+
+pass::pattern::op::ValuePredicate operator&&(const pass::pattern::op::NodePredicate& a,
+                                             const pass::pattern::op::ValuePredicate& b) {
+    return pass::pattern::op::as_value_predicate(a) && b;
+}
 }  // namespace ov
