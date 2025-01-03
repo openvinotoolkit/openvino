@@ -1,0 +1,76 @@
+// Copyright (C) 2018-2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "openvino/pass/pattern/op/predicate.hpp"
+
+#include "openvino/util/log.hpp"
+
+namespace ov::pass::pattern {
+
+PatternSymbolValue::PatternSymbolValue() : m_value(){};
+PatternSymbolValue::PatternSymbolValue(const std::shared_ptr<ov::Symbol>& s) : m_value(s){};
+PatternSymbolValue::PatternSymbolValue(const int64_t& i) : m_value(i){};
+PatternSymbolValue::PatternSymbolValue(const double& d) : m_value(d){};
+PatternSymbolValue::PatternSymbolValue(const std::vector<PatternSymbolValue>& g) : m_value(g){};
+
+bool PatternSymbolValue::is_dynamic() const {
+    return is_valid() && m_value.is<std::shared_ptr<ov::Symbol>>();
+}
+
+bool PatternSymbolValue::is_static() const {
+    return !is_dynamic() && !is_group();
+}
+
+bool PatternSymbolValue::is_group() const {
+    return is_valid() && m_value.is<std::vector<PatternSymbolValue>>();
+}
+
+bool PatternSymbolValue::is_integer() const {
+    return is_valid() && m_value.is<int64_t>();
+}
+
+bool PatternSymbolValue::is_double() const {
+    return is_valid() && m_value.is<double>();
+}
+
+int64_t PatternSymbolValue::i() const {
+    return m_value.as<int64_t>();
+}
+
+double PatternSymbolValue::d() const {
+    return m_value.as<double>();
+}
+
+std::shared_ptr<ov::Symbol> PatternSymbolValue::s() const {
+    return m_value.as<std::shared_ptr<ov::Symbol>>();
+}
+
+std::vector<PatternSymbolValue> PatternSymbolValue::g() const {
+    return m_value.as<std::vector<PatternSymbolValue>>();
+}
+
+bool PatternSymbolValue::is_valid() const {
+    return m_value != nullptr && m_value.is<int64_t>() ^ m_value.is<double>() ^
+                                     m_value.is<std::shared_ptr<ov::Symbol>>() ^
+                                     m_value.is<std::vector<PatternSymbolValue>>();
+}
+
+namespace op {
+
+namespace {
+constexpr bool symbol_true_predicate(pass::pattern::PatternSymbolMap&, const Output<Node>&) {
+    return true;
+}
+}  // namespace
+
+Predicate::Predicate() : m_pred(symbol_true_predicate) {}
+Predicate::Predicate(nullptr_t) : Predicate() {}
+
+bool Predicate::operator()(pass::pattern::PatternSymbolMap& m, const Output<Node>& output) const {
+    bool result = m_pred(m, output);
+    OPENVINO_DEBUG("Predicate `", m_name, "` has ", (result ? "passed" : "failed"), ". Applied to ", output);
+    return result;
+}
+}  // namespace op
+}  // namespace ov::pass::pattern
