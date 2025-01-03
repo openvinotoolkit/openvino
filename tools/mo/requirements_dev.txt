@@ -1,9 +1,0 @@
--c ../constraints.txt
-coverage
-astroid
-pylint
-pyenchant
-defusedxml
-requests
-pytest
-fastjsonschema
