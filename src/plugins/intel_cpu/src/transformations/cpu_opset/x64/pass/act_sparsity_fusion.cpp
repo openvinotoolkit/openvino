@@ -201,12 +201,12 @@ ov::intel_cpu::ActivationSparsityFusion::ActivationSparsityFusion() {
             return false;
         }
 
+#ifdef CPU_DEBUG_CAPS
         if (std::getenv("NO_SPARSE"))
             return false;
+        std::cout << __func__ << ":" << m.get_match_root() << std::endl;
+#endif
         ov::replace_node(old_node, new_node);
-
-        std::cout << m.get_match_root() << std::endl;
-
         return false;
     };
 

@@ -118,11 +118,10 @@ public:
 
 class VReg {
 private:
-    SIMDJit* jit = nullptr;
     std::shared_ptr<Xbyak::Xmm> reg;
 
 public:
-    VReg(SIMDJit* jit, std::shared_ptr<Xbyak::Xmm> reg) : jit(jit), reg(reg) {}
+    VReg(std::shared_ptr<Xbyak::Xmm> reg) : reg(reg) {}
 
     VReg() = default;
 
@@ -572,7 +571,7 @@ public:
     }
 
     VReg get_vreg() {
-        return VReg(this, alloc_vreg(-1));
+        return VReg(alloc_vreg(-1));
     }
 
     std::vector<VReg> get_vregs(size_t num_vregs) {
@@ -581,20 +580,6 @@ public:
             v = get_vreg();
         return ret;
     }
-
-#if 0
-    Xbyak::Xmm Vmm(int id) {
-        if (use_avx512) {
-            if (id >= 32)
-                throw std::runtime_error(std::string("try to use invalid zmm register: #") + std::to_string(id));
-            return Xbyak::Zmm(id);
-        } else {
-            if (id >= 16)
-                throw std::runtime_error(std::string("try to use invalid ymm register: #") + std::to_string(id));
-            return Xbyak::Ymm(id);
-        }
-    }
-#endif
 
     // simd_xxx helpers have meaning similar to x86 intrinsics
     // it's more well-known than raw instruction can it also can be
