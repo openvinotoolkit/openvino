@@ -840,6 +840,76 @@
         }
     },
 	{
+        "Platform": "Intel® Core™ Ultra 7 processor 155H NPU-only",
+        "Model": "llama-2-7b-chat",
+        "featured_SKU": true,
+        "whats_new_model": false,
+        "PlatformType": "Intel® Core™, NPU-only",
+        "Parameters": {
+            "throughput": {
+                "Precisions": [
+                    {
+                        "int4": "",
+                        "int8": "",
+                        "fp16": 3.12,
+                        "fp32": "",
+                        "bf16": ""
+                    }
+                ],
+                "Unit": "Tokens per sec",
+                "UnitDesc": "higher is better"
+            },
+            "latency": {
+                "Precisions": [
+                    {
+                        "int4": "",
+                        "int8": "",
+                        "fp16": 320.24,
+                        "fp32": "",
+                        "bf16": ""
+                    }
+                ],
+                "Unit": "ms",
+                "UnitDesc": "lower is better"
+            }
+        }
+    },
+    {
+        "Platform": "Intel® Core™ Ultra 7 processor 155H NPU-only",
+        "Model": "phi-3-mini-4k-instruct",
+        "featured_SKU": true,
+        "whats_new_model": true,
+        "PlatformType": "Intel® Core™, NPU-only",
+        "Parameters": {
+            "throughput": {
+                "Precisions": [
+                    {
+                        "int4": "",
+                        "int8": 0.5,
+                        "fp16": 4.8,
+                        "fp32": "",
+                        "bf16": ""
+                    }
+                ],
+                "Unit": "Tokens per sec",
+                "UnitDesc": "higher is better"
+            },
+            "latency": {
+                "Precisions": [
+                    {
+                        "int4": "",
+                        "int8": 1963.5,
+                        "fp16": 208.07,
+                        "fp32": "",
+                        "bf16": ""
+                    }
+                ],
+                "Unit": "ms",
+                "UnitDesc": "lower is better"
+            }
+        }
+    },
+	{
         "Platform": "Intel® Core™ Ultra 9 processor 288V CPU+iGPU",
         "Model": "bert-base-cased",
         "featured_SKU": true,
@@ -15976,7 +16046,7 @@
                         "bf16": ""
                     }
                 ],
-                "Unit": "Tokens per Sec",
+                "Unit": "Tokens per sec",
                 "UnitDesc": "higher is better"
             },
             "latency": {
@@ -16011,7 +16081,7 @@
                         "bf16": ""
                     }
                 ],
-                "Unit": "Tokens per Sec",
+                "Unit": "Tokens per sec",
                 "UnitDesc": "higher is better"
             },
             "latency": {
@@ -16046,7 +16116,7 @@
                         "bf16": ""
                     }
                 ],
-                "Unit": "Tokens per Sec",
+                "Unit": "Tokens per sec",
                 "UnitDesc": "higher is better"
             },
             "latency": {
@@ -16081,7 +16151,7 @@
                         "bf16": ""
                     }
                 ],
-                "Unit": "Tokens per Sec",
+                "Unit": "Tokens per sec",
                 "UnitDesc": "higher is better"
             },
             "latency": {
@@ -16116,7 +16186,7 @@
                         "bf16": ""
                     }
                 ],
-                "Unit": "Tokens per Sec",
+                "Unit": "Tokens per sec",
                 "UnitDesc": "higher is better"
             },
             "latency": {
@@ -16186,7 +16256,7 @@
                         "bf16": ""
                     }
                 ],
-                "Unit": "Tokens per Sec",
+                "Unit": "Tokens per sec",
                 "UnitDesc": "higher is better"
             },
             "latency": {
@@ -16256,7 +16326,7 @@
                         "bf16": ""
                     }
                 ],
-                "Unit": "Tokens per Sec",
+                "Unit": "Tokens per sec",
                 "UnitDesc": "higher is better"
             },
             "latency": {
@@ -16291,7 +16361,7 @@
                         "bf16": ""
                     }
                 ],
-                "Unit": "Tokens per Sec",
+                "Unit": "Tokens per sec",
                 "UnitDesc": "higher is better"
             },
             "latency": {

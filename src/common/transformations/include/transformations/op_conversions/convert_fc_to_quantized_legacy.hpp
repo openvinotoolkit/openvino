@@ -17,6 +17,6 @@ class TRANSFORMATIONS_API ConvertFCToFCQuantizedLegacy;
 
 class ov::pass::ConvertFCToFCQuantizedLegacy : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertFullyConnectedToFullyConnectedQuantized", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvertFCToFCQuantizedLegacy");
     ConvertFCToFCQuantizedLegacy();
 };

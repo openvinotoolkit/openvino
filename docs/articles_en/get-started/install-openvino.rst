@@ -38,20 +38,7 @@ All currently supported versions are:
    :doc:`Install OpenVINO GenAI Flavor <../learn-openvino/llm_inference_guide/genai-guide>` and
    :doc:`Run LLMs with OpenVINO GenAI Flavor <../learn-openvino/llm_inference_guide/genai-guide>`.
 
-.. dropdown:: Deprecation of OpenVINO™ Development Tools Package
-
-   The OpenVINO™ Development Tools package has been deprecated and removed from the default
-   installation options. For new projects, the OpenVINO runtime package now includes
-   all necessary components.
-
-   The OpenVINO Development Tools is still available for older versions of OpenVINO,
-   as well as the current one, from the GitHub repository and PyPI. :doc:`Learn more <../documentation/legacy-features/install-dev-tools>`.
-
 .. dropdown:: Building OpenVINO from Source
 
    OpenVINO Toolkit source files are available on GitHub as open source. If you want to build your own version of OpenVINO for your platform,
    follow the `OpenVINO Build Instructions <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md>`__.
-
-
-
-
