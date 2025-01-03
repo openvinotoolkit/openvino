@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,15 +34,17 @@ void reshape_transfer::run(program& p) {
     is_suitable_parent = [&is_suitable_parent](const cldnn::program_node* node) -> bool {
         if (node->get_users().size() != 1 || node->is_dynamic())
             return false;
+        if (node->is_type<convolution>())
+            return true;
         for (size_t idx = 0; idx < node->get_dependencies().size(); idx++) {
             auto& input = node->get_dependency(idx);
             if (!input.is_in_data_flow() || input.is_constant())
                 continue;
-            if (node->is_type<convolution>() || input.is_type<convolution>()) {
-                return true;
-            } else if (input.is_type<eltwise>() && input.get_dependency(1).is_constant()) {
+            if (node->is_type<reorder>()) {
                 return is_suitable_parent(&input);
-            } else if (input.is_type<activation>()) {
+            } else if (node->is_type<eltwise>() && node->get_dependency(1).is_constant()) {
+                return is_suitable_parent(&input);
+            } else if (node->is_type<activation>()) {
                 return is_suitable_parent(&input);
             }
             return false;
