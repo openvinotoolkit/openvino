@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "act_sparse_fc.h"
+
 #include "common/arbitrary_order_desc_creator.h"
 #include "common/bfloat16.hpp"
 #include "common/cpu_memcpy.h"
