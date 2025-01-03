@@ -28,8 +28,8 @@
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "nodes/kernels/x64/brgemm_kernel.hpp"
 #elif defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE)
+#    include "arm_sve.h"
 #    include "nodes/kernels/aarch64/brgemm_kernel.hpp"
-#    include "nodes/kernels/aarch64/pa_kernels.hpp"
 #endif
 
 namespace ov {
@@ -41,7 +41,7 @@ using namespace ov;
 using namespace ov::intel_cpu;
 
 // currently depends on brgemm which only support x64
-#ifdef OPENVINO_ARCH_X86_64
+#if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE))
 
 #    if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 
@@ -856,9 +856,6 @@ static void attn_reduce(T* dst, float* temp, size_t M, size_t S, size_t temp_str
         dst[i] = sum;
     }
 }
-
-#endif
-#if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE))
 
 // N must be multiple of 16
 template <typename TDST,
@@ -2308,7 +2305,7 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
                                                          size_t value_group_size) {
     std::shared_ptr<PagedAttentionExecutor> executor;
 
-#if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE))
+#if defined(OPENVINO_ARCH_X86_64)
     if (data_type == ov::element::bf16) {
 #    if defined(HAVE_AVX512F)
         if (key_cache_type == ov::element::u8) {
@@ -2378,6 +2375,16 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
     } else {
         OPENVINO_THROW("make_pa_executor: unsupported precision: ", data_type);
     }
+#elif (defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE))
+    if (data_type == ov::element::f32) {
+        if (key_cache_type == ov::element::u8 && value_cache_type == ov::element::u8) {
+            executor =
+                std::make_shared<AttentionExecutor<float, uint8_t, ov::element::u8>>(key_group_size, value_group_size);
+        } else {
+            OPENVINO_THROW("make_pa_executor: key_cache_type and value_cache_type of u8 is only support");
+        }
+    }
+
 #else
     OPENVINO_THROW("make_pa_executor: only support x64 platform or ARM with SVE support");
 #endif
