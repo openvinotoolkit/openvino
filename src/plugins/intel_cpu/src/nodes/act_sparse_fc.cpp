@@ -82,7 +82,7 @@ void ActSparseFC::createPrimitive() {
     key.with_zero_point = m_config.with_zero_point;
     key.ic_q_group_size = m_config.ic_q_group_size;
 
-    auto buildExecutor = [this](const ActSparseFCKey& key) -> std::shared_ptr<ActSparseFcKernel> {
+    auto buildExecutor = [&](const ActSparseFCKey& key) -> std::shared_ptr<ActSparseFcKernel> {
 #if defined(OPENVINO_ARCH_X86_64)
         return std::make_shared<ActSparseFcKernel>(context->getScratchPad(),
                                                    key.is_quantized,
