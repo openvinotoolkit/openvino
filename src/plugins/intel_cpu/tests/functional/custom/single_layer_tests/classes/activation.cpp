@@ -250,6 +250,7 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Elu,         {{0.1f}}},
         {Floor,       {{}}},
         {Ceiling,     {{}}},
+        {Negative,    {{}}},
         {Swish,       {{0.1f}}},
         {HSwish,      {{}}},
         {PReLu,       {{-0.01f}}},
