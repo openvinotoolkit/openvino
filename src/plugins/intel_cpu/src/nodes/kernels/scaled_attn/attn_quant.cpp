@@ -272,106 +272,6 @@ static void quant_u4(const T* src, void* dst, size_t n, float& scale, float& zp)
     }
 }
 
-template <typename T>
-static void quant_i4(const T* src, void* dst, size_t n, float& scale) {
-    auto insert_half_byte = [](uint8_t dst, uint8_t val, bool high_half) -> uint8_t {
-        uint8_t shift = high_half ? 0 : 4;
-        if (high_half)
-            val &= 0x0F;
-        return dst | (uint8_t)(val << shift);
-    };
-    auto dst_ptr = reinterpret_cast<uint8_t*>(dst);
-    size_t i = 0;
-    float max = -FLT_MAX;
-    float min = FLT_MAX;
-    find_minmax(src, n, min, max);
-    float max_abs = std::max(std::abs(min), std::abs(max));
-    scale = max_abs / ((1 << 3) - 1);
-    if (scale == 0)
-        scale = 0.0001f;
-#if defined(HAVE_AVX512F)
-    auto v_scale = _mm512_set1_ps(1 / scale);
-    auto v_upper = _mm512_set1_epi32(7);
-    auto v_lower = _mm512_set1_epi32(-8);
-    for (; i + 2 * vec_len_f32_avx512 <= n; i += 2 * vec_len_f32_avx512) {
-        auto v0 = mm512_uni_loadu_ps(src + i);
-        auto v1 = mm512_uni_loadu_ps(src + i + vec_len_f32_avx512);
-        v0 = _mm512_mul_ps(v0, v_scale);
-        v1 = _mm512_mul_ps(v1, v_scale);
-        auto v0_i32 = _mm512_cvt_roundps_epi32(v0, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-        auto v1_i32 = _mm512_cvt_roundps_epi32(v1, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-
-        v0_i32 = _mm512_max_epi32(v0_i32, v_lower);
-        v1_i32 = _mm512_max_epi32(v1_i32, v_lower);
-        v0_i32 = _mm512_min_epi32(v0_i32, v_upper);
-        v1_i32 = _mm512_min_epi32(v1_i32, v_upper);
-
-        __m512i idx1 = _mm512_set_epi32(30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
-        __m512i idx2 = _mm512_set_epi32(31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1);
-        auto first_half = _mm512_permutex2var_epi32(v0_i32, idx1, v1_i32);
-        auto second_half = _mm512_permutex2var_epi32(v0_i32, idx2, v1_i32);
-
-        auto mask = _mm512_set1_epi32(0x0F);
-        second_half = _mm512_and_epi32(second_half, mask);
-        first_half = _mm512_slli_epi32(first_half, 4);
-        auto combined = _mm512_or_epi32(first_half, second_half);
-        _mm512_mask_cvtepi32_storeu_epi8(dst_ptr + i / 2, 0xffff, combined);
-    }
-#endif
-#if defined(HAVE_AVX2)
-    auto v256_lower = _mm256_set1_epi32(-8);
-    auto v256_upper = _mm256_set1_epi32(7);
-    auto v256_scale = _mm256_set1_ps(1 / scale);
-    for (; i + vec_len_f32_avx2 * 2 <= n; i += vec_len_f32_avx2 * 2) {
-        auto v0 = mm256_uni_loadu_ps(src + i);
-        auto v1 = mm256_uni_loadu_ps(src + i + vec_len_f32_avx2);
-        v0 = _mm256_mul_ps(v0, v256_scale);
-        v1 = _mm256_mul_ps(v1, v256_scale);
-        v0 = _mm256_round_ps(v0, _MM_ROUND_NEAREST);
-        v1 = _mm256_round_ps(v1, _MM_ROUND_NEAREST);
-
-        auto v0_i32 = _mm256_cvtps_epi32(v0);
-        auto v1_i32 = _mm256_cvtps_epi32(v1);
-        v0_i32 = _mm256_max_epi32(v0_i32, v256_lower);
-        v1_i32 = _mm256_max_epi32(v1_i32, v256_lower);
-        v0_i32 = _mm256_min_epi32(v0_i32, v256_upper);
-        v1_i32 = _mm256_min_epi32(v1_i32, v256_upper);
-        auto idx1 = _mm256_set_epi32(7, 5, 3, 1, 6, 4, 2, 0);
-        v0_i32 = _mm256_permutevar8x32_epi32(v0_i32, idx1);
-        v1_i32 = _mm256_permutevar8x32_epi32(v1_i32, idx1);
-
-        //    0,1,2,3,4,5,6,7 | 8,9,10,11,12,13,14,15
-        //       _mm256_permutevar8x32_epi32
-        //    0,2,4,6,1,3,5,7 | 8,10,12,14,9,11,13,15
-        //       _mm256_permute2x128_si256
-        // 0,2,4,6,8,10,12,14 | 1,3,5,7,9,11,13,15
-        //          shift + mask + or
-        //     [0,1],[2,3], ..., [12,13], [14,15]
-        auto first_half = _mm256_permute2x128_si256(v0_i32, v1_i32, 0x20);
-        auto second_half = _mm256_permute2x128_si256(v0_i32, v1_i32, 0x31);
-        first_half = _mm256_slli_epi32(first_half, 4);
-        auto mask = _mm256_set1_epi32(0x0F);
-        second_half = _mm256_and_si256(second_half, mask);
-        auto combined = _mm256_or_si256(first_half, second_half);
-
-        auto high4 = _mm256_extractf128_si256(combined, 1);
-        auto low4 = _mm256_castsi256_si128(combined);
-        // keep sign bit for s4 case
-        auto packed = _mm_packs_epi32(low4, high4);
-        packed = _mm_packs_epi16(packed, packed);
-        _mm_storel_epi64(reinterpret_cast<__m128i*>(dst_ptr + i / 2), packed);
-    }
-#endif
-    for (; i < n; i++) {
-        float tmp = src[i];
-        int8_t src_val = std::min((int8_t)(7), (int8_t)std::round(tmp / scale));
-        src_val = std::max((int8_t)(-8), src_val);
-        uint8_t dst_val = i % 2 == 0 ? 0 : dst_ptr[i / 2];
-        dst_val = insert_half_byte(dst_val, src_val, (uint8_t)(i % 2));
-        dst_ptr[i / 2] = dst_val;
-    }
-}
-
 template <typename T,
           ov::element::Type_t DST_PREC,
           typename std::enable_if<DST_PREC == ov::element::u8, bool>::type = true>
@@ -384,13 +284,6 @@ template <typename T,
           typename std::enable_if<DST_PREC == ov::element::u4, bool>::type = true>
 static void quantize(const T* src, void* dst, size_t n, float* scale_zp) {
     quant_u4(src, dst, n, *scale_zp, *(scale_zp + 1));
-}
-
-template <typename T,
-          ov::element::Type_t DST_PREC,
-          typename std::enable_if<DST_PREC == ov::element::i4, bool>::type = true>
-static void quantize(const T* src, void* dst, size_t n, float* scale_zp) {
-    quant_i4(src, dst, n, *scale_zp);
 }
 
 template <typename T, typename T2>
@@ -500,17 +393,14 @@ void paged_attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
     static constexpr function_type funcs_fp32[] = {
         paged_attn_quant_mt<float, ov::element::u8, ov::element::u8>,
         paged_attn_quant_mt<float, ov::element::u8, ov::element::u4>,
-        paged_attn_quant_mt<float, ov::element::u8, ov::element::i4>,
     };
     static constexpr function_type funcs_bf16[] = {
         paged_attn_quant_mt<ov::bfloat16, ov::element::u8, ov::element::u8>,
         paged_attn_quant_mt<ov::bfloat16, ov::element::u8, ov::element::u4>,
-        paged_attn_quant_mt<ov::bfloat16, ov::element::u8, ov::element::i4>,
     };
     static constexpr function_type funcs_f16[] = {
         paged_attn_quant_mt<ov::float16, ov::element::u8, ov::element::u8>,
         paged_attn_quant_mt<ov::float16, ov::element::u8, ov::element::u4>,
-        paged_attn_quant_mt<ov::float16, ov::element::u8, ov::element::i4>,
     };
     if (k_dst.get_precision() != ov::element::u8) {
         OPENVINO_THROW("unsupport src type: ",

@@ -408,7 +408,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                val.as<std::string>(),
                                " for property key ",
                                ov::hint::value_cache_precision.name(),
-                               ". Supported values: u4, s4, u8, bf16, f16, f32");
+                               ". Supported values: u4, u8, bf16, f16, f32");
             }
         } else if (key == ov::hint::key_cache_group_size.name() || key == ov::hint::value_cache_group_size.name()) {
             try {

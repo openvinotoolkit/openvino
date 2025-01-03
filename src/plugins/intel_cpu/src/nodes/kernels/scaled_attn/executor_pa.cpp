@@ -463,99 +463,6 @@ static void attn_acc_value_block(float* out,
     }
 }
 
-template <typename T,
-          ov::element::Type_t SRC_PREC,
-          typename std::enable_if<SRC_PREC == ov::element::i4, bool>::type = true>
-static void attn_acc_value_block(float* out,
-                                 float* weight,
-                                 void* v,
-                                 const size_t S,
-                                 const size_t block_size,
-                                 const size_t group_size) {
-    size_t src_offset = 0;
-    size_t dst_offset = 0;
-    const size_t params_offset = sizeof(float);
-    auto sub_byte_multiplier = 8 / 4;
-    uint8_t* v_ptr = reinterpret_cast<uint8_t*>(v);
-    const size_t src_stride = S / group_size * (group_size / sub_byte_multiplier + params_offset);
-    auto extract_half_byte = [](uint8_t val, bool high_half) -> uint8_t {
-        uint8_t shift = high_half ? 0 : 4;
-
-        return (uint8_t)((val >> shift) & 0x000F);
-    };
-
-    for (size_t j = 0; j < block_size; j++) {
-        dst_offset = 0;
-        src_offset = 0;
-        while (dst_offset < S) {
-            auto v0 = reinterpret_cast<float*>(v_ptr + src_offset);
-            size_t i = 0;
-#    if defined(HAVE_AVX512F)
-            auto attn_w_vec0 = _mm512_set1_ps(weight[j] * v0[0]);
-            for (; i + vec_len_f32_avx512 * 2 <= group_size; i += vec_len_f32_avx512 * 2) {
-                auto data = _mm_loadu_si128(reinterpret_cast<__m128i*>(v_ptr + i / 2 + src_offset + params_offset));
-                auto v_i32 = _mm512_cvtepi8_epi32(data);
-                // cvt to f32
-                auto v_256_low_half = _mm512_srai_epi32(v_i32, 4);
-                auto v_256_high_half = _mm512_slli_epi32(v_i32, 28);
-                v_256_high_half = _mm512_srai_epi32(v_256_high_half, 28);
-
-                auto v_f32_low_half = _mm512_cvtepi32_ps(v_256_low_half);
-                auto v_f32_high_half = _mm512_cvtepi32_ps(v_256_high_half);
-
-                __m512i idx1 = _mm512_set_epi32(23, 7, 22, 6, 21, 5, 20, 4, 19, 3, 18, 2, 17, 1, 16, 0);
-                __m512i idx2 = _mm512_set_epi32(31, 15, 30, 14, 29, 13, 28, 12, 27, 11, 26, 10, 25, 9, 24, 8);
-                __m512 first_half = _mm512_permutex2var_ps(v_f32_low_half, idx1, v_f32_high_half);
-                __m512 second_half = _mm512_permutex2var_ps(v_f32_low_half, idx2, v_f32_high_half);
-                auto v_out0 = mm512_uni_loadu_ps(out + dst_offset + i);
-                auto v_out1 = mm512_uni_loadu_ps(out + dst_offset + i + vec_len_f32_avx512);
-                v_out0 = _mm512_fmadd_ps(attn_w_vec0, first_half, v_out0);
-                v_out1 = _mm512_fmadd_ps(attn_w_vec0, second_half, v_out1);
-                mm512_uni_storeu_ps(out + dst_offset + i, v_out0);
-                mm512_uni_storeu_ps(out + dst_offset + i + vec_len_f32_avx512, v_out1);
-            }
-#    elif defined(HAVE_AVX2)
-            auto v256_attn_w_vec0 = _mm256_set1_ps(weight[j] * v0[0]);
-            for (; i + vec_len_f32_avx2 * 2 <= group_size; i += vec_len_f32_avx2 * 2) {
-                auto data = _mm_loadl_epi64(reinterpret_cast<__m128i*>(v_ptr + i / 2 + src_offset + params_offset));
-
-                auto v_i32 = _mm256_cvtepi8_epi32(data);
-                auto v_256_low_half = _mm256_srai_epi32(v_i32, 4);
-                auto v_f32_low_half = _mm256_cvtepi32_ps(v_256_low_half);
-
-                auto v_256_high_half = _mm256_slli_epi32(v_i32, 28);
-                v_256_high_half = _mm256_srai_epi32(v_256_high_half, 28);
-                auto v_f32_high_half = _mm256_cvtepi32_ps(v_256_high_half);
-
-                auto v_out0 = mm256_uni_loadu_ps(out + dst_offset + i);
-                auto v_out1 = mm256_uni_loadu_ps(out + dst_offset + i + vec_len_f32_avx2);
-                __m256 first_half = _mm256_permute2f128_ps(v_f32_low_half, v_f32_high_half, 0x20);
-                auto idx1 = _mm256_set_epi32(7, 3, 6, 2, 5, 1, 4, 0);
-                first_half = _mm256_permutevar8x32_ps(first_half, idx1);
-                __m256 second_half = _mm256_permute2f128_ps(v_f32_low_half, v_f32_high_half, 0x31);
-                second_half = _mm256_permutevar8x32_ps(second_half, idx1);
-                v_out0 = _mm256_fmadd_ps(v256_attn_w_vec0, first_half, v_out0);
-                v_out1 = _mm256_fmadd_ps(v256_attn_w_vec0, second_half, v_out1);
-                mm256_uni_storeu_ps(out + dst_offset + i, v_out0);
-                mm256_uni_storeu_ps(out + dst_offset + i + vec_len_f32_avx2, v_out1);
-            }
-#    endif
-            for (; i < group_size; i += 2) {
-                uint8_t data = v_ptr[i / 2 + src_offset + params_offset];
-                float tmp0 = extract_half_byte(data, static_cast<bool>(i % 2));
-                tmp0 = tmp0 > 8 ? (tmp0 - 16) : tmp0;
-                float tmp1 = extract_half_byte(data, static_cast<bool>((i + 1) % 2));
-                tmp1 = tmp1 > 8 ? (tmp1 - 16) : tmp1;
-                out[dst_offset + i] += weight[j] * (tmp0)*v0[0];
-                out[dst_offset + i + 1] += weight[j] * (tmp1)*v0[0];
-            }
-            dst_offset += group_size;
-            src_offset += group_size / sub_byte_multiplier + params_offset;
-        }
-        v_ptr += src_stride;
-    }
-}
-
 template <typename TA, typename TB>
 static void dot_product_block(TA* a,
                               TB* b,
@@ -1282,47 +1189,6 @@ static void pack_32NxK(TDST* dst,
             auto f = reinterpret_cast<float*>(s + src_offset);
             attn_dequant_u4_kernel(s + (src_offset + sizeof(float) * 2), t + dst_offset, group_size, f[0], f[1]);
             src_offset += group_size / sub_byte_mulitplier + sizeof(float) * 2;
-            dst_offset += group_size;
-        }
-        s += src_offset;
-        t += src_stride;
-    }
-    pack_32NxK<TDST, precision_of<TDST>::value>(dst,
-                                                tmp,
-                                                reinterpret_cast<TDST*>(0),
-                                                N,
-                                                K,
-                                                dst_stride,
-                                                src_stride,
-                                                group_size);
-}
-
-template <typename TDST,
-          ov::element::Type_t SRC_PREC,
-          typename std::enable_if<precision_of<TDST>::value != ov::element::f32 && (SRC_PREC == ov::element::i4),
-                                  bool>::type = true>
-static void pack_32NxK(TDST* dst,
-                       void* src,
-                       TDST* tmp,
-                       const size_t N,
-                       const size_t K,
-                       const size_t dst_stride,
-                       const size_t src_stride,
-                       const size_t group_size) {
-    // The layout for per token per head:
-    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
-    // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
-    auto s = reinterpret_cast<uint8_t*>(src);
-    auto t = tmp;
-    // if group_size not set, the whole row is used as a group
-    const size_t sub_byte_mulitplier = 2;
-    for (size_t n = 0; n < N; n++) {
-        size_t src_offset = 0;
-        size_t dst_offset = 0;
-        while (dst_offset < K) {
-            auto f = reinterpret_cast<float*>(s + src_offset);
-            attn_dequant_s4_kernel(s + (src_offset + sizeof(float)), t + dst_offset, group_size, f[0]);
-            src_offset += group_size / sub_byte_mulitplier + sizeof(float);
             dst_offset += group_size;
         }
         s += src_offset;
@@ -2085,7 +1951,7 @@ struct MHA {
         auto Hk = v_cache.m_dims[1];
 
         constexpr bool q_is_xf16 = one_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
-        constexpr bool q_cache_is_same = precision_of<DATA_TYPE>::value == precision_of<KEY_CACHE_TYPE>::value;
+        constexpr bool q_cache_is_same = precision_of<DATA_TYPE>::value == VALUE_PREC;
         auto attn_work_count = _workitems.attn_work_size();
         auto reorder_work_count = _workitems.reorder_work_size();
 
