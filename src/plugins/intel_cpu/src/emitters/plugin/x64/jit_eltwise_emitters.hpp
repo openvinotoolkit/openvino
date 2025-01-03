@@ -601,7 +601,6 @@ class jit_negative_emitter : public jit_emitter {
 public:
     jit_negative_emitter(dnnl::impl::cpu::x64::jit_generator* host,
                          dnnl::impl::cpu::x64::cpu_isa_t host_isa,
-                         const std::shared_ptr<ov::Node>& n,
                          ov::element::Type exec_prc = ov::element::f32);
 
     size_t get_inputs_num() const override;
