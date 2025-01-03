@@ -156,6 +156,7 @@ void BatchToSpace::batchToSpaceKernel() {
     size_t channels = (inShape5D[1] / blockSize);
     channels = channels == 0 ? 1 : channels;
     const size_t workAmount = inShape5D[0] * channels;
+    OPENVINO_ASSERT(workAmount > 0, errorPrefix, " has unsupported work amount == 0");
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start(0lu), end(0lu);
