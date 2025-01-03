@@ -236,7 +236,7 @@ struct SubgraphCodeGeneratorKey {
     bool operator==(const SubgraphCodeGeneratorKey& rhs) const;
 
     std::shared_ptr<Subgraph::SubgraphAttrs> attrs = nullptr;
-    uint8_t broadcasting_mask = 0;
+    uint32_t broadcasting_mask = 0;
 };
 
 struct SubgraphShapeInferResultKey {
@@ -738,8 +738,8 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() const {
     return backend_passes;
 }
 
-uint8_t Subgraph::getBroadcastingMask(const std::vector<VectorDims>& input_shapes) {
-    uint8_t mask = 0;
+uint32_t Subgraph::getBroadcastingMask(const std::vector<VectorDims>& input_shapes) {
+    uint32_t mask = 0;
     OPENVINO_ASSERT(broadcastable_inputs.size() <= sizeof(mask) * CHAR_BIT,
                     "Incorrect size of broadcastable inputs of Subgraph");
     for (const auto& broadcastable_input : broadcastable_inputs) {
