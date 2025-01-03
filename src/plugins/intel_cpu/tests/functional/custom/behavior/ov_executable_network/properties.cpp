@@ -187,6 +187,36 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckKVCachePrecision) {
     ASSERT_EQ(kv_cache_precision_value, ov::element::f32);
 }
 
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkFinetuneKVCachePrecision) {
+    ov::Core core;
+
+    core.set_property(deviceName, ov::hint::key_cache_precision(ov::element::f16));
+    core.set_property(deviceName, ov::hint::value_cache_precision(ov::element::u4));
+    ov::CompiledModel compiledModel = core.compile_model(model, deviceName);
+
+    auto key_cache_precision_value = ov::element::undefined;
+    auto value_cache_precision_value = ov::element::undefined;
+    OV_ASSERT_NO_THROW(key_cache_precision_value = compiledModel.get_property(ov::hint::key_cache_precision));
+    OV_ASSERT_NO_THROW(value_cache_precision_value = compiledModel.get_property(ov::hint::value_cache_precision));
+    ASSERT_EQ(key_cache_precision_value, ov::element::f16);
+    ASSERT_EQ(value_cache_precision_value, ov::element::u4);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkFinetuneKVCacheGroupSize) {
+    ov::Core core;
+
+    core.set_property(deviceName, ov::hint::key_cache_group_size(32));
+    core.set_property(deviceName, ov::hint::value_cache_group_size(16));
+    ov::CompiledModel compiledModel = core.compile_model(model, deviceName);
+
+    auto key_cache_group_size_value = 0;
+    auto value_cache_group_size_value = 0;
+    OV_ASSERT_NO_THROW(key_cache_group_size_value = compiledModel.get_property(ov::hint::key_cache_group_size));
+    OV_ASSERT_NO_THROW(value_cache_group_size_value = compiledModel.get_property(ov::hint::value_cache_group_size));
+    ASSERT_EQ(key_cache_group_size_value, 32);
+    ASSERT_EQ(value_cache_group_size_value, 16);
+}
+
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckAccuracyModeDynamicQuantizationGroupSize) {
     ov::Core core;
 

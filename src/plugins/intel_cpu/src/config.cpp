@@ -373,43 +373,42 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ov::hint::kv_cache_precision.name(),
                                ". Supported values: u8, bf16, f16, f32");
             }
-        } else if (key == ov::hint::key_cache_precision.name() || key == ov::hint::value_cache_precision.name()) {
+        } else if (key == ov::hint::key_cache_precision.name()) {
             try {
                 kvCachePrecisionSetExplicitly = true;
                 auto const prec = val.as<ov::element::Type>();
-                if (key == ov::hint::key_cache_precision.name()) {
-                    if (one_of(prec, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8)) {
-                        keyCachePrecision = prec;
-                    } else {
-                        OPENVINO_THROW("keyCachePrecision doesn't support value ", prec);
-                    }
+                if (one_of(prec, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8)) {
+                    keyCachePrecision = prec;
                 } else {
-                    if (one_of(prec,
-                               ov::element::f32,
-                               ov::element::f16,
-                               ov::element::bf16,
-                               ov::element::u8,
-                               ov::element::u4,
-                               ov::element::i4)) {
-                        valueCachePrecision = prec;
-                    } else {
-                        OPENVINO_THROW("valueCachePrecision doesn't support value ", prec);
-                    }
+                    OPENVINO_THROW("keyCachePrecision doesn't support value ", prec);
                 }
             } catch (ov::Exception&) {
-                if (key == ov::hint::key_cache_precision.name()) {
-                    OPENVINO_THROW("Wrong value ",
-                                   val.as<std::string>(),
-                                   " for property key ",
-                                   ov::hint::key_cache_precision.name(),
-                                   ". Supported values: u8, bf16, f16, f32");
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               " for property key ",
+                               ov::hint::key_cache_precision.name(),
+                               ". Supported values: u8, bf16, f16, f32");
+            }
+        } else if (key == ov::hint::value_cache_precision.name()) {
+            try {
+                kvCachePrecisionSetExplicitly = true;
+                auto const prec = val.as<ov::element::Type>();
+                if (one_of(prec,
+                           ov::element::f32,
+                           ov::element::f16,
+                           ov::element::bf16,
+                           ov::element::u8,
+                           ov::element::u4)) {
+                    valueCachePrecision = prec;
                 } else {
-                    OPENVINO_THROW("Wrong value ",
-                                   val.as<std::string>(),
-                                   " for property key ",
-                                   ov::hint::value_cache_precision.name(),
-                                   ". Supported values: u4, s4, u8, bf16, f16, f32");
+                    OPENVINO_THROW("valueCachePrecision doesn't support value ", prec);
                 }
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               " for property key ",
+                               ov::hint::value_cache_precision.name(),
+                               ". Supported values: u4, s4, u8, bf16, f16, f32");
             }
         } else if (key == ov::hint::key_cache_group_size.name() || key == ov::hint::value_cache_group_size.name()) {
             try {
