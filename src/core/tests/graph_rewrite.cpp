@@ -58,7 +58,7 @@ public:
 
 class Anchor : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("Anchor");
+    OPENVINO_GRAPH_REWRITE_RTTI("Anchor");
     Anchor() : GraphRewrite() {}
 };
 

@@ -306,23 +306,28 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                 size_t remaining_group_size = prev_nums ? (key_group_size - prev_nums) : 0;
                 if (prev_nums) {
                     attn_dequant_u8_by_channel_kernel(k_dst.ptr<uint8_t>(b, h, group_id * key_group_size),
-                                                    thread_temp_buffer,
-                                                    prev_nums,
-                                                    S,
-                                                    k_dst.m_strides[2],
-                                                    S,
-                                                    k_scale_zp.ptr<float>(group_id * 2, b, h),
-                                                    k_scale_zp.ptr<float>(group_id * 2 + 1, b, h));
+                                                      thread_temp_buffer,
+                                                      prev_nums,
+                                                      S,
+                                                      k_dst.m_strides[2],
+                                                      S,
+                                                      k_scale_zp.ptr<float>(group_id * 2, b, h),
+                                                      k_scale_zp.ptr<float>(group_id * 2 + 1, b, h));
                     remaining_group_size = std::min(remaining_group_size, L1);
-                    cvt_copy(thread_temp_buffer + prev_nums * S, k_src.ptr<T>(b, h), remaining_group_size, S, k_src.m_strides[2], S);
+                    cvt_copy(thread_temp_buffer + prev_nums * S,
+                             k_src.ptr<T>(b, h),
+                             remaining_group_size,
+                             S,
+                             k_src.m_strides[2],
+                             S);
                     quant_u8_by_channel_kernel(thread_temp_buffer,
-                                            k_dst.ptr<T2>(b, h, group_id * key_group_size),
-                                            std::min(key_group_size, remaining_group_size + prev_nums),
-                                            S,
-                                            S,
-                                            k_dst.m_strides[2],
-                                            k_scale_zp.ptr<float>(group_id * 2, b, h),
-                                            k_scale_zp.ptr<float>(group_id * 2 + 1, b, h));
+                                               k_dst.ptr<T2>(b, h, group_id * key_group_size),
+                                               std::min(key_group_size, remaining_group_size + prev_nums),
+                                               S,
+                                               S,
+                                               k_dst.m_strides[2],
+                                               k_scale_zp.ptr<float>(group_id * 2, b, h),
+                                               k_scale_zp.ptr<float>(group_id * 2 + 1, b, h));
                 }
 
                 if (L1 > remaining_group_size) {

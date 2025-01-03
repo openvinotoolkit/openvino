@@ -628,13 +628,71 @@ static MemoryPtr prepackDecompressionParams(const MemoryCPtr& paramsPtr,
     auto srcMem = std::make_shared<Memory>(engine, srcMemoryDesc, paramsPtr->getData());
 
     dstMem->load(*srcMem);
-
     return dstMem;
+}
+
+static dnnl::memory::dims getGroupDims(const VectorDims& weiDims, const VectorDims& scaleDims) {
+    if (scaleDims[0] == 1 && scaleDims[1] == 1)
+        return {};
+
+    int N = weiDims[weiDims.size() - 2];
+    int K = weiDims[weiDims.size() - 1];
+    dnnl::memory::dim groupN = N / scaleDims[0];
+    dnnl::memory::dim groupK = K / scaleDims[1];
+
+    return {groupK, groupN};
+}
+
+static int getMask(const VectorDims& weiDims, const dnnl::memory::dims& groupDims) {
+    const int maskN = 1 << (weiDims.size() - 1);
+    const int maskK = 1 << (weiDims.size() - 2);
+    int N = weiDims[weiDims.size() - 2];
+    int K = weiDims[weiDims.size() - 1];
+    int mask = 0;
+    if (!groupDims.empty() && groupDims[1] != N)
+        mask += maskN;
+    if (!groupDims.empty() && groupDims[0] != K)
+        mask += maskK;
+
+    return mask;
 }
 
 void DnnlPostOpsComposer::appendDecompressionScales(const MemoryCPtr& scales_ptr,
                                                     bool needTranspose,
-                                                    ov::element::Type dstPrecision) {
+                                                    ov::element::Type dstPrecision,
+                                                    const VectorDims& weiDims) {
+    if (scales_ptr == nullptr)
+        return;
+
+    auto scaleMem = prepackDecompressionParams(scales_ptr, needTranspose, dstPrecision, engine);
+    auto groupDims = getGroupDims(weiDims, scaleMem->getStaticDims());
+    auto mask = getMask(weiDims, groupDims);
+
+    attr.set_scales(DNNL_ARG_WEIGHTS, mask, groupDims, DnnlExtensionUtils::ElementTypeToDataType(dstPrecision));
+    cpuArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS] = std::move(scaleMem);
+    dnnlArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS] =
+        cpuArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS]->getPrimitive();
+}
+
+void DnnlPostOpsComposer::appendDecompressionZeroPoints(const MemoryCPtr& zero_points_ptr,
+                                                        bool needTranspose,
+                                                        ov::element::Type dstPrecision,
+                                                        const VectorDims& weiDims) {
+    if (zero_points_ptr == nullptr)
+        return;
+
+    auto zeroPointsMem = prepackDecompressionParams(zero_points_ptr, needTranspose, dstPrecision, engine);
+    auto groupDims = getGroupDims(weiDims, zeroPointsMem->getStaticDims());
+    auto mask = getMask(weiDims, groupDims);
+
+    attr.set_zero_points(DNNL_ARG_WEIGHTS, mask, groupDims, DnnlExtensionUtils::ElementTypeToDataType(dstPrecision));
+    cpuArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS] = zeroPointsMem;
+    dnnlArgs[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS] = zeroPointsMem->getPrimitive();
+}
+
+void DnnlPostOpsComposer::appendDecompressionScalesLegacy(const MemoryCPtr& scales_ptr,
+                                                          bool needTranspose,
+                                                          ov::element::Type dstPrecision) {
     if (scales_ptr == nullptr)
         return;
 
@@ -647,9 +705,9 @@ void DnnlPostOpsComposer::appendDecompressionScales(const MemoryCPtr& scales_ptr
         cpuArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS]->getPrimitive();
 }
 
-void DnnlPostOpsComposer::appendDecompressionZeroPoints(const MemoryCPtr& zero_points_ptr,
-                                                        bool needTranspose,
-                                                        ov::element::Type dstPrecision) {
+void DnnlPostOpsComposer::appendDecompressionZeroPointsLegacy(const MemoryCPtr& zero_points_ptr,
+                                                              bool needTranspose,
+                                                              ov::element::Type dstPrecision) {
     if (zero_points_ptr == nullptr)
         return;
 
