@@ -69,8 +69,8 @@ void cvt_copy(TA* dst, TB* src, size_t n) {
 }
 
 #if defined(OPENVINO_ARCH_ARM64)
-#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-#if defined(HAVE_SVE)
+#    if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+#        if defined(HAVE_SVE)
 template <>
 void cvt_copy(ov::float16* dst, ov::float16* src, size_t n) {
     size_t i = 0;
@@ -87,7 +87,7 @@ void cvt_copy(ov::float16* dst, ov::float16* src, size_t n) {
         i += inc;
     }
 }
-#else // NEON
+#        else   // NEON
 template <>
 void cvt_copy(ov::float16* dst, ov::float16* src, size_t n) {
     size_t i = 0;
@@ -99,10 +99,10 @@ void cvt_copy(ov::float16* dst, ov::float16* src, size_t n) {
         dst[i] = src[i];
     }
 }
-#endif // defined(HAVE_SVE)
-#endif // defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+#        endif  // defined(HAVE_SVE)
+#    endif      // defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 
-#if defined(HAVE_SVE)
+#    if defined(HAVE_SVE)
 template <>
 void cvt_copy(float* dst, float* src, size_t n) {
     size_t i = 0;
@@ -120,7 +120,7 @@ void cvt_copy(float* dst, float* src, size_t n) {
         i += inc;
     }
 }
-#else // NEON
+#    else   // NEON
 template <>
 void cvt_copy(float* dst, float* src, size_t n) {
     size_t i = 0;
@@ -132,8 +132,8 @@ void cvt_copy(float* dst, float* src, size_t n) {
         dst[i] = src[i];
     }
 }
-#endif // defined(HAVE_SVE)
-#endif // defined(OPENVINO_ARCH_ARM64)
+#    endif  // defined(HAVE_SVE)
+#endif      // defined(OPENVINO_ARCH_ARM64)
 
 template <typename T>
 static void attn_acc_value(float* out, float weight, T* v, size_t S, float* scale, float* zp) {
