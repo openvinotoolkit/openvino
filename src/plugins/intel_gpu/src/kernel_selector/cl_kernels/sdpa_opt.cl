@@ -867,7 +867,11 @@ KERNEL(sdpa_opt)(
     #define b0_idx (batch_idx / NUM_HEADS)
     #define b1_idx (batch_idx % NUM_HEADS)
     #define target_seq_dim ((uint)get_global_id(1))
+#if IS_PAGED_ATTENTION
+    #define target_seq_idx ((uint)block_start_pos - subsequence_begins[gws_seq_indexes_correspondence[target_seq_dim]])
+#else
     #define target_seq_idx ((uint)get_global_id(1) * TARGET_SEQ_LEN_BLOCK_SIZE)
+#endif
     #define head_size_idx ((uint)get_local_id(2) % HEAD_SIZE)
     #define sglid (uint)get_sub_group_local_id()
     #define sgid (uint)get_sub_group_id()
