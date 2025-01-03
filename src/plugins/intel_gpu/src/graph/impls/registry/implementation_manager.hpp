@@ -59,10 +59,10 @@ public:
     virtual bool support_shapes(const kernel_impl_params& param) const { return true; }
     virtual in_out_fmts_t query_formats(const program_node& node) const { OPENVINO_NOT_IMPLEMENTED; }
 
-    ImplementationManager(impl_types impl_type, shape_types shape_type, ValidateFunc vf = nullptr)
+    ImplementationManager(impl_types impl_type, shape_types shape_type, ValidateFunc&& vf = nullptr)
         : m_impl_type(impl_type)
         , m_shape_type(shape_type)
-        , m_vf(vf) {}
+        , m_vf(std::move(vf)) {}
     virtual ~ImplementationManager() = default;
 
     static shape_types get_shape_type(const program_node& node);
@@ -112,7 +112,7 @@ struct ImplementationManagerLegacy : public ImplementationManager {
         }
 
     ImplementationManagerLegacy(const ImplementationManagerLegacy* other, ValidateFunc vf)
-        : ImplementationManager(other->m_impl_type, other->m_shape_type, vf)
+        : ImplementationManager(other->m_impl_type, other->m_shape_type, std::move(vf))
         , m_factory(other->m_factory)
         , m_keys(other->m_keys) {
             add_keys_with_any_layout();

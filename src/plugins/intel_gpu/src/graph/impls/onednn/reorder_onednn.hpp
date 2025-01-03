@@ -12,7 +12,8 @@ namespace onednn {
 
 struct ReorderImplementationManager : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("onednn::reorder")
-    ReorderImplementationManager(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::onednn, shape_type, vf) {}
+    ReorderImplementationManager(shape_types shape_type, ValidateFunc vf = nullptr)
+        : ImplementationManager(impl_types::onednn, shape_type, std::move(vf)) {}
     std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override;
     std::unique_ptr<primitive_impl> create_impl(const kernel_impl_params& params) const override;
 

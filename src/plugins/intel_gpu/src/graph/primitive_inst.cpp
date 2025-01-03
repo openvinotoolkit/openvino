@@ -2819,7 +2819,7 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
 
         // 1.1. Static impl not found - run async compilation
         auto& compilation_context = prog.get_compilation_context();
-        compilation_context.push_task(updated_params, [&inst, &compilation_context, updated_params, find_impl]() {
+        compilation_context.push_task(updated_params, [&inst, &compilation_context, &updated_params, find_impl]() {
             if (compilation_context.is_stopped())
                 return;
             auto& _program = *inst.get_network().get_program();
