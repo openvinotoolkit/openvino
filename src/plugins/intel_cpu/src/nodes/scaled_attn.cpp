@@ -1172,9 +1172,6 @@ void ScaledDotProductAttention::createPrimitive() {
     m_key_quant_param.groupSize = cpuConfig.keyCacheGroupSize ? cpuConfig.keyCacheGroupSize : keyS;
     m_key_quant_param.isByChannel = cpuConfig.keyCacheQuantByChannel;
     m_value_quant_param.groupSize = cpuConfig.valueCacheGroupSize ? cpuConfig.valueCacheGroupSize : valueS;
-    std::cout << "SDPA|key_group_size|" << m_key_quant_param.groupSize << "|m_value_group_size|"
-              << m_value_quant_param.groupSize << "|rtPrecision|" << rtPrecision << "|kvCache|"
-              << cpuConfig.kvCachePrecision << "|k_channel|" << m_key_quant_param.isByChannel << std::endl;
     if (keyS % m_key_quant_param.groupSize != 0) {
         OPENVINO_THROW("ScaledDotProductAttention AttentionExecutor creation fails key state " + std::to_string(keyS) +
                        " cannot be divided by group size " + std::to_string(m_key_quant_param.groupSize));
@@ -1818,9 +1815,6 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
                     [&](const SDPAQuantParam& quant_param, PlainTensor& new_scale_zp, PlainTensor& old_scale_zp) {
                         if (quant_param.isByChannel) {
                             size_t group_nums = div_up(L0, quant_param.groupSize) * 2;
-                            std::cout << "SDPA|update_kv_scales_zp|by_channel|" << group_nums << "|"
-                                      << old_scale_zp.m_dims[0] << "|" << old_scale_zp.m_dims[1] << "|"
-                                      << old_scale_zp.m_dims[2] << "|" << old_scale_zp.m_dims[3] << std::endl;
                             parallel_for(group_nums, [&](size_t m) {
                                 memcpy(new_scale_zp.ptr<float>(m),
                                        old_scale_zp.ptr<float>(m),
@@ -1828,9 +1822,6 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
                                            old_scale_zp.m_dims[3]);
                             });
                         } else {
-                            std::cout << "SDPA|update_kv_scales_zp|by_dims"
-                                      << "|" << old_scale_zp.m_dims[0] << "|" << old_scale_zp.m_dims[1] << "|"
-                                      << old_scale_zp.m_dims[2] << "|" << old_scale_zp.m_dims[3] << std::endl;
                             parallel_for(L0, [&](size_t m) {
                                 memcpy(new_scale_zp.ptr<float>(m),
                                        old_scale_zp.ptr<float>(m),
@@ -1844,10 +1835,6 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
             }
             m_k_state->set_scale_zp(new_scale_zp_k);
             m_v_state->set_scale_zp(new_scale_zp_v);
-            std::cout << "SDPA|"
-                      << "updatePastkv|EnLargeCache|" << m_k_state->get_scale_zp().m_dims[0] << "|"
-                      << m_k_state->get_scale_zp().m_dims[1] << "|" << m_k_state->get_scale_zp().m_dims[2] << "|"
-                      << m_k_state->get_scale_zp().m_dims[3] << std::endl;
         }
     } else if (is_reset) {
         // when reset and not resize, just reset the desc
@@ -1855,10 +1842,6 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
         // new_shape is the shape used by the original model which maybe different from BHLS, reverse here is to permute
         // BHLS to original model shape. BHLS is the stated input shape of SDPA, however internally we use LBHS for
         // KV-cache storage. real_order is used to permute the original shape to LBHS
-        std::cout << "SDPA|"
-                  << "updatePastkv|is_reset|" << m_k_state->get_scale_zp().m_dims[0] << "|"
-                  << m_k_state->get_scale_zp().m_dims[1] << "|" << m_k_state->get_scale_zp().m_dims[2] << "|"
-                  << m_k_state->get_scale_zp().m_dims[3] << std::endl;
         auto reset_desc = [&](size_t new_S) {
             std::vector<size_t> new_shape = reverse({B, H, (L0 + L1), new_S});
             VectorDims strides(new_shape.size(), 1);
@@ -1936,6 +1919,7 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
                                          m_key_quant_param.groupSize * S});
                 auto scratchMem = context->getScratchPad()->createScratchPadMem(newMemDesc);
                 auto temp_buffer = scratchMem->getDataAs<float>();
+                // L0 is set to 0 here because past_kv is reset by set_state API, re-initializing
                 attn_quantkv(init_k,
                              init_v,
                              temp_buffer,
@@ -1943,7 +1927,7 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
                              past_v,
                              m_k_state->get_scale_zp(),
                              m_v_state->get_scale_zp(),
-                             L0,
+                             0,
                              m_key_quant_param.isByChannel,
                              m_key_quant_param.groupSize,
                              m_value_quant_param.groupSize);
@@ -1956,7 +1940,6 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
     if (kvcache_precision == ov::element::u8) {
         // past_k's shape is BHLS, internal layout LBHS
         // scale_zp's shape is LBHS, internal layout LBHS
-        printf("SDPA|updatePastKV|quant\n");
         auto newMemDesc = std::make_shared<CpuBlockedMemoryDesc>(
             ov::element::f32,
             ov::intel_cpu::Shape{static_cast<size_t>(parallel_get_max_threads()), m_key_quant_param.groupSize * S});

@@ -251,21 +251,23 @@ static void quant_u8_by_channel_kernel(const T* src,
 }
 
 template <typename TA, typename TB>
-void cvt_copy(TA* a, TB* b, size_t n) {
-    size_t i = 0;
+void cvt_copy(TA* a, TB* b, size_t m, size_t n, size_t src_stride, size_t dst_stride) {
+    for (size_t j = 0; j < m; j++) {
+        size_t i = 0;
 #if defined(HAVE_AVX512F)
-    for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {
-        auto vb = mm512_uni_loadu_ps(b + i);
-        mm512_uni_storeu_ps(a + i, vb);
-    }
+        for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {
+            auto vb = mm512_uni_loadu_ps(b + i + j * src_stride);
+            mm512_uni_storeu_ps(a + i + j * dst_stride, vb);
+        }
 #elif defined(HAVE_AVX2)
-    for (; i + vec_len_f32_avx2 <= n; i += vec_len_f32_avx2) {
-        auto vb = mm256_uni_loadu_ps(b + i);
-        mm256_uni_storeu_ps(a + i, vb);
-    }
+        for (; i + vec_len_f32_avx2 <= n; i += vec_len_f32_avx2) {
+            auto vb = mm256_uni_loadu_ps(b + i + j * src_stride);
+            mm256_uni_storeu_ps(a + i + j * dst_stride, vb);
+        }
 #endif
-    for (; i < n; i++) {
-        a[i] = b[i];
+        for (; i < n; i++) {
+            a[i + j * dst_stride] = b[i + j * src_stride];
+        }
     }
 }
 
@@ -283,35 +285,6 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                           const size_t value_group_size) {
     // For compatibility, all input_kvs are permuted to BHLS
     size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2], S = k_src.m_dims[3], SV = v_src.m_dims[3];
-    std::cout << "attn_quant_mt|L0|" << L0 << "|L1|" << L1 << "|quant_key_by_channel|" << quant_key_by_channel
-              << std::endl;
-    printf("attn_quant_mt|src|dims %ld %ld %ld %ld\n",
-           k_src.m_dims[0],
-           k_src.m_dims[1],
-           k_src.m_dims[2],
-           k_src.m_dims[3]);
-    printf("attn_quant_mt|src|stride %ld %ld %ld %ld\n",
-           k_src.m_strides[0],
-           k_src.m_strides[1],
-           k_src.m_strides[2],
-           k_src.m_strides[3]);
-    printf("attn_quant_mt|dst|dims %ld %ld %ld %ld\n",
-           k_dst.m_dims[0],
-           k_dst.m_dims[1],
-           k_dst.m_dims[2],
-           k_dst.m_dims[3]);
-    printf("attn_quant_mt|dst|stride %ld %ld %ld %ld\n",
-           k_dst.m_strides[0],
-           k_dst.m_strides[1],
-           k_dst.m_strides[2],
-           k_dst.m_strides[3]);
-
-    printf("attn_quant_mt|scale_zp|dims %ld %ld %ld %ld\n",
-           k_scale_zp.m_dims[0],
-           k_scale_zp.m_dims[1],
-           k_scale_zp.m_dims[2],
-           k_scale_zp.m_dims[3]);
-    // TODO: support beam search with beam_table.
     if (quant_key_by_channel) {
         if (L0 == 0) {
             parallel_for3d(ov::intel_cpu::div_up(L1, key_group_size), B, H, [&](size_t group_id, size_t b, size_t h) {
@@ -327,32 +300,46 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
         } else {
             size_t group_id = L0 / key_group_size;
             size_t prev_nums = L0 % key_group_size;
-            printf("2nd_quant|L0 %ld group_size %ld group_id %ld prev_nums %ld\n",
-                   L0,
-                   key_group_size,
-                   group_id,
-                   prev_nums);
-            printf("\n");
             parallel_for2d(B, H, [&](size_t b, size_t h) {
                 auto thread_id = parallel_get_thread_num();
                 float* thread_temp_buffer = temp_buffer + thread_id * key_group_size * S;
-                attn_dequant_u8_by_channel_kernel(k_dst.ptr<uint8_t>(b, h, group_id * key_group_size),
-                                                  thread_temp_buffer,
-                                                  prev_nums,
-                                                  S,
-                                                  k_dst.m_strides[2],
-                                                  S,
-                                                  k_scale_zp.ptr<float>(group_id * 2, b, h),
-                                                  k_scale_zp.ptr<float>(group_id * 2 + 1, b, h));
-                cvt_copy(thread_temp_buffer + prev_nums * S, k_src.ptr<T>(b, h), S);
-                quant_u8_by_channel_kernel(thread_temp_buffer,
-                                           k_dst.ptr<T2>(b, h, group_id * key_group_size),
-                                           std::min(key_group_size, L1 + prev_nums),
-                                           S,
-                                           S,
-                                           k_dst.m_strides[2],
-                                           k_scale_zp.ptr<float>(group_id * 2, b, h),
-                                           k_scale_zp.ptr<float>(group_id * 2 + 1, b, h));
+                size_t remaining_group_size = prev_nums ? (key_group_size - prev_nums) : 0;
+                if (prev_nums) {
+                    attn_dequant_u8_by_channel_kernel(k_dst.ptr<uint8_t>(b, h, group_id * key_group_size),
+                                                    thread_temp_buffer,
+                                                    prev_nums,
+                                                    S,
+                                                    k_dst.m_strides[2],
+                                                    S,
+                                                    k_scale_zp.ptr<float>(group_id * 2, b, h),
+                                                    k_scale_zp.ptr<float>(group_id * 2 + 1, b, h));
+                    remaining_group_size = std::min(remaining_group_size, L1);
+                    cvt_copy(thread_temp_buffer + prev_nums * S, k_src.ptr<T>(b, h), remaining_group_size, S, k_src.m_strides[2], S);
+                    quant_u8_by_channel_kernel(thread_temp_buffer,
+                                            k_dst.ptr<T2>(b, h, group_id * key_group_size),
+                                            std::min(key_group_size, remaining_group_size + prev_nums),
+                                            S,
+                                            S,
+                                            k_dst.m_strides[2],
+                                            k_scale_zp.ptr<float>(group_id * 2, b, h),
+                                            k_scale_zp.ptr<float>(group_id * 2 + 1, b, h));
+                }
+
+                if (L1 > remaining_group_size) {
+                    size_t new_seq = L1 - remaining_group_size;
+                    for (size_t new_group_id = prev_nums ? group_id + 1 : group_id, src_offset = 0;
+                         new_group_id < ov::intel_cpu::div_up(L0 + L1, key_group_size);
+                         new_group_id++, src_offset += key_group_size) {
+                        quant_u8_by_channel_kernel(k_src.ptr<T>(b, h, remaining_group_size + src_offset),
+                                                   k_dst.ptr<T2>(b, h, new_group_id * key_group_size),
+                                                   std::min(key_group_size, new_seq - src_offset),
+                                                   S,
+                                                   k_src.m_strides[2],
+                                                   k_dst.m_strides[2],
+                                                   k_scale_zp.ptr<float>(new_group_id * 2, b, h),
+                                                   k_scale_zp.ptr<float>(new_group_id * 2 + 1, b, h));
+                    }
+                }
             });
         }
     } else {

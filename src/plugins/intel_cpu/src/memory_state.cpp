@@ -260,7 +260,7 @@ ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
         if (m_quant_by_channel) {
             parallel_for3d(L0, B, H, [&](size_t ithr, size_t m, size_t b, size_t h) {
                 auto b_kv = static_cast<size_t>(beam_table.at<int32_t>({b, m}));
-                size_t group_id = L0 / m_group_size;
+                size_t group_id = m / m_group_size;
                 buffers[ithr].resize<float>({S});
                 attn_dequant_by_channel_u8(pastkv.ptr<uint8_t>(m, b_kv, h),
                                            buffers[ithr].ptr<float>(),

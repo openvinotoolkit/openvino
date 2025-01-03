@@ -10,6 +10,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
+#include "utils/general_utils.h"
 
 using namespace ov::test;
 using namespace CPUTestUtils;
@@ -19,7 +20,9 @@ namespace test {
 using InputShapeAndTransposeOrder = std::pair<std::vector<InputShape>, std::vector<size_t>>;
 using ConcatSDPTransposeTestParams = std::tuple<ElementType,
                                                 InputShapeAndTransposeOrder,
-                                                bool  // has ShapeOf
+                                                bool,  // has ShapeOf
+                                                bool, // quantize by channel
+                                                size_t // group_size
                                                 >;
 // Subgraph:
 /*                              Parameter
@@ -52,7 +55,9 @@ public:
         ElementType inType;
         InputShapeAndTransposeOrder inputShapeAndOrders;
         bool hasShapeof;
-        std::tie(inType, inputShapeAndOrders, hasShapeof) = obj.param;
+        bool quantKeyByChannel;
+        size_t groupSize;
+        std::tie(inType, inputShapeAndOrders, hasShapeof, quantKeyByChannel, groupSize) = obj.param;
         std::ostringstream result;
         std::vector<InputShape>& inputShapes = inputShapeAndOrders.first;
         std::vector<size_t>& transposeOrder = inputShapeAndOrders.second;
@@ -71,7 +76,9 @@ public:
             result << ")_";
         }
         result << "Prc=" << inType << "_";
-        result << "HasShapeOf=" << hasShapeof;
+        result << "HasShapeOf=" << hasShapeof << "_";
+        result << "quantKeyByChannel=" << quantKeyByChannel << "_";
+        result << "groupSize= " << groupSize << "_";
         result << "TransposeOrder=";
         result << "(";
         for (const auto& itr : transposeOrder) {
@@ -86,12 +93,15 @@ public:
         ElementType inType;
         InputShapeAndTransposeOrder inputShapeAndOrders;
         bool hasShapeOf;
-        std::tie(inType, inputShapeAndOrders, hasShapeOf) = this->GetParam();
+        std::tie(inType, inputShapeAndOrders, hasShapeOf, quantKeyByChannel, keyGroupSize) = this->GetParam();
         std::vector<InputShape>& inputShapes = inputShapeAndOrders.first;
         transposeOrder = inputShapeAndOrders.second;
         targetDevice = ov::test::utils::DEVICE_CPU;
         rel_threshold = 1e-2f;
         configuration[ov::hint::inference_precision.name()] = ov::element::f32;
+        configuration[ov::hint::key_cache_group_size.name()] = keyGroupSize;
+        configuration[ov::hint::value_cache_group_size.name()] = keyGroupSize;
+        configuration[ov::hint::key_cache_quant_bychannel.name()] = quantKeyByChannel;
         if (inType == ElementType::bf16) {
             configuration[ov::hint::inference_precision.name()] = ov::element::bf16;
             rel_threshold = 0.01f;
@@ -237,6 +247,8 @@ public:
         }
     }
     std::vector<size_t> transposeOrder;
+    size_t keyGroupSize = 0;
+    bool quantKeyByChannel = false;
 };
 
 class ConcatSDPTransposeTest : public ConcatSDPTransposeTestBase {
@@ -280,6 +292,70 @@ public:
     }
 };
 
+namespace {
+template <typename T>
+static void quant_u8_by_channel(const T* src,
+                                uint8_t* dst,
+                                size_t seq_dim,
+                                size_t hidden_dims,
+                                size_t src_stride,
+                                size_t dst_stride,
+                                float* scale,
+                                float* zp) {
+    size_t j = 0;
+    for (; j < hidden_dims; j++) {
+        float max = -std::numeric_limits<float>::max();
+        float min = std::numeric_limits<float>::max();
+        for (size_t i = 0; i < seq_dim; i++) {
+            float tmp = src[i * src_stride + j];
+            max = std::max(max, tmp);
+            min = std::min(min, tmp);
+        }
+        float orgin_range = (max - min);
+        float temp_scale = 0.0f;
+        float temp_zp = 0.0f;
+        if (orgin_range != 0.0f) {
+            temp_scale = orgin_range / 255;
+            temp_zp = -255 * min / orgin_range;
+        } else {
+            temp_scale = 0.0001f;
+            temp_zp = -min / temp_scale;
+        }
+        scale[j] = temp_scale;
+        zp[j] = temp_zp;
+    }
+    // quantize
+    for (size_t i = 0; i < seq_dim; ++i) {
+        for (size_t j = 0; j < hidden_dims; j++) {
+            float tmp = src[i * src_stride + j];
+            dst[i * dst_stride + j] = static_cast<uint8_t>(std::round(tmp / scale[j] + zp[j]));
+        }
+    }
+}
+
+template <typename TDST>
+void attn_dequant_u8_by_channel(const uint8_t* src,
+                                TDST* dst,
+                                size_t seq_dim,
+                                size_t hidden_dims,
+                                size_t src_stride,
+                                size_t dst_stride,
+                                float* scale,
+                                float* zp) {
+    uint8_t* src_nc = const_cast<uint8_t*>(src);
+    for (size_t i = 0; i < seq_dim; ++i) {
+        size_t j = 0;
+        while (j < hidden_dims) {
+            float tmp = src_nc[i * src_stride + j];
+            tmp = (tmp - zp[j]) * scale[j];
+            dst[i * dst_stride + j] = tmp;
+            j += 1;
+        }
+    }
+}
+
+}  // namespace
+
 TEST_P(ConcatSDPTransposeTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     auto actualOutputs = run_test(function);
@@ -291,6 +367,39 @@ TEST_P(ConcatSDPTransposeTest, CompareWithRefs) {
     auto expectedOutputs = run_test(functionRefs);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 0);
     for (size_t i = 0; i < actualOutputs.size(); i++) {
+        if (i == (actualOutputs.size() - 2) && keyGroupSize > 0) {
+            const auto& key_shape = expectedOutputs[i].get_shape();
+            const auto& strides = expectedOutputs[i].get_strides();
+            auto* src = expectedOutputs[i].data<float>();
+            size_t B = key_shape[0];
+            size_t L = key_shape[1];
+            size_t H = key_shape[2];
+            size_t S = key_shape[3];
+            std::vector<uint8_t> dst_u8(B * L * H * S, 0);
+            size_t groupNum = ov::intel_cpu::div_up(L, keyGroupSize);
+            std::vector<float> scales(B * groupNum * H * S, 0);
+            std::vector<float> zp(B * groupNum * H * S, 0);
+            for (size_t b = 0; b < B; b++) {
+                for (size_t groupIdx = 0; groupIdx < groupNum; groupIdx++) {
+                    quant_u8_by_channel(src + (b * strides[0] + groupIdx * keyGroupSize * strides[1]) / expectedOutputs[i].get_element_type().size(),
+                                        dst_u8.data(),
+                                        std::min(keyGroupSize, L - groupIdx * keyGroupSize),
+                                        H * S,
+                                        strides[1] / expectedOutputs[i].get_element_type().size(),
+                                        H * S,
+                                        scales.data() + b * groupNum * H * S + groupIdx * H * S,
+                                        zp.data() + b * groupNum * H * S + groupIdx * H * S);
+                    attn_dequant_u8_by_channel(dst_u8.data(),
+                                               src + (b * strides[0] + groupIdx * keyGroupSize * strides[1]) / expectedOutputs[i].get_element_type().size(),
+                                               std::min(keyGroupSize, L - groupIdx * keyGroupSize),
+                                               H * S,
+                                               H * S,
+                                               strides[1] / expectedOutputs[i].get_element_type().size(),
+                                               scales.data() + b * groupNum * H * S + groupIdx * H * S,
+                                               zp.data() + b * groupNum * H * S + groupIdx * H * S);
+                }
+            }
+        }
         ov::test::utils::compare(expectedOutputs[i], actualOutputs[i], abs_threshold, rel_threshold);
     }
 }
@@ -325,7 +434,33 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTransposeTest,
                          ConcatSDPTransposeTest,
                          ::testing::Combine(::testing::Values(ElementType::f32),
                                             ::testing::ValuesIn(inputShapeAndReorders),
-                                            ::testing::Values(true, false)),
+                                            ::testing::Values(true, false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(0)),
+                         ConcatSDPTransposeTest::getTestCaseName);
+
+const std::vector<InputShapeAndTransposeOrder> shapesWithGreedySearch = {
+    {
+        // greedy search
+        {{
+            // B, L1, H, S
+            {{1, -1, 8, 64}, {{1, 7, 8, 64}, {1, 1, 8, 64}, {1, 16, 8, 64}, {1, 1, 8, 64}, {1, 15, 8, 64}, {1, 1, 8, 64}, {1, 1, 8, 64}}},
+            // B, L0, H, S
+            {{1, -1, 8, 64}, {{1, 0, 8, 64}, {1, 7, 8, 64}, {1, 8, 8, 64}, {1, 24, 8, 64}, {1, 25, 8, 64}, {1, 41, 8, 64}, {1, 42, 8, 64}}},
+         },
+         // transposeOrder
+         {0, 2, 1, 3}
+        }
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTransposeByChannelTest,
+                         ConcatSDPTransposeTest,
+                         ::testing::Combine(::testing::Values(ElementType::f32),
+                                            ::testing::ValuesIn(shapesWithGreedySearch),
+                                            ::testing::Values(true),
+                                            ::testing::Values(true),
+                                            ::testing::Values(8)),
                          ConcatSDPTransposeTest::getTestCaseName);
 } //  namespace
 
@@ -424,7 +559,9 @@ TEST_P(ConcatSDPTransposeTestSetState, CompareWithRefs) {
     ElementType inType;
     InputShapeAndTransposeOrder inputShapeAndOrders;
     bool hasShapeOf;
-    std::tie(inType, inputShapeAndOrders, hasShapeOf) = this->GetParam();
+    bool quantKeyByChannel;
+    size_t groupSize;
+    std::tie(inType, inputShapeAndOrders, hasShapeOf, quantKeyByChannel, groupSize) = this->GetParam();
 
     // skip bf16 test on avx512 platform
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
@@ -463,7 +600,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTransposeTestSetState,
                          ConcatSDPTransposeTestSetState,
                          ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16, ElementType::f16),
                                             ::testing::ValuesIn(inputShapeAndReordersSetState),
-                                            ::testing::Values(false)),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(0)),
                          ConcatSDPTransposeTest::getTestCaseName);
 
 }  // namespace
