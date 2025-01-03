@@ -994,8 +994,15 @@ KERNEL(sdpa_opt)(
     __attribute__((opencl_unroll_hint(1)))
     for (uint start_partition_idx = 0; start_partition_idx < SOURCE_SEQ_LEN; start_partition_idx += SEQ_LEN_PARTITION_SIZE) {
         const uint seq_len = start_partition_idx + sgid * SUBGROUP_SIZE;
+#if IS_CAUSAL
+        const uint partition_seq_len = min((uint)SEQ_LEN_PARTITION_SIZE, (uint)max(0, (int)(target_seq_idx + seq_idx_end) - (int)start_partition_idx));
+#else
         const uint partition_seq_len = min((uint)SOURCE_SEQ_LEN - start_partition_idx, (uint)SEQ_LEN_PARTITION_SIZE);
+#endif
 
+#if IS_CAUSAL
+        if (seq_len <= target_seq_idx) { // keep tril i.e. m >= n
+#endif
 #if IS_PAGED_ATTENTION
 #ifdef BROADCAST_GROUP_SIZE
         const uint heads_dim = num_heads_dim / BROADCAST_GROUP_SIZE;
@@ -1026,6 +1033,9 @@ KERNEL(sdpa_opt)(
 #endif
 
             int seq_len_calc_size = min((int)(SOURCE_SEQ_LEN) - (int)seq_len, (int)SUBGROUP_SIZE);
+#if IS_CAUSAL
+            MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_acc = OUTPUT_VAL_ZERO;
+#else  // !IS_CAUSAL
             MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_acc;
 
             qk_acc = FUNC_CALL(load_attn_mask)(OPTIONAL_SHAPE_INFO_TENSOR
@@ -1041,6 +1051,7 @@ KERNEL(sdpa_opt)(
                             ATTN_MASK_BUFFER
                             ATTN_SCALE_BUFFER
                             PA_BUFFERS);
+#endif  // !IS_CAUSAL
 
             if (seq_len_calc_size >= SUBGROUP_SIZE) {
 #if IS_KV_COMPRESSED
@@ -1157,6 +1168,10 @@ KERNEL(sdpa_opt)(
             {
                 SOFTMAX_ACCUMULATOR_TYPE qk_max = SOFTMAX_ACCUMULATOR_VAL_MIN;
                 unroll_for (uint i = 0; i < TARGET_SEQ_LEN_BLOCK_SIZE; i++) {
+#if IS_CAUSAL
+                // casual mask: valid only if query <= kv_len
+                if (seq_len + i <= target_seq_idx + sglid) {
+#endif  // IS_CAUSAL
 #if !APPLY_SCALES_TO_QUERY
 #if HAS_SCALE_INPUT
                     const OUTPUT_TYPE scale_val = *scale;
@@ -1172,12 +1187,21 @@ KERNEL(sdpa_opt)(
 #endif
 
                     qk_acc[i] = INPUT0_MIN_FUNC(INPUT0_MAX_FUNC(qk_acc[i], INPUT0_VAL_MIN), INPUT0_VAL_MAX);
-
+#if IS_CAUSAL
+                } else {
+                    qk_acc[i] = -1e9f;
+                }
+#endif  // IS_CAUSAL
                     qk_max = SOFTMAX_ACCUMULATOR_MAX_FUNC(qk_max, TO_SOFTMAX_ACCUMULATOR_TYPE(qk_acc[i]));
                     slm_qk_vals[sglid][sgid * TARGET_SEQ_LEN_BLOCK_SIZE + i] = qk_acc[i];
                 }
                 slm_qk_max_vals[sglid][sgid] = qk_max;
             }
+#if IS_CAUSAL
+        } else { // skip triu
+            slm_qk_max_vals[sglid][sgid] = -1e9f;
+        }
+#endif
 
         barrier(CLK_LOCAL_MEM_FENCE);
 
