@@ -219,14 +219,16 @@ CPU::CPU() {
         } else if (valid_cpu_mapping_table.size() == (unsigned)_processors) {
             return 0;
         } else {
-            std::lock_guard<std::mutex> lock{_cpu_mutex};
             _processors = valid_cpu_mapping_table.size();
             _cpu_mapping_table.swap(valid_cpu_mapping_table);
-            update_valid_processor_linux(std::move(phy_core_list),
-                                         _numa_nodes,
-                                         _cores,
-                                         _proc_type_table,
-                                         _cpu_mapping_table);
+            {
+                std::lock_guard<std::mutex> lock{_cpu_mutex};
+                update_valid_processor_linux(std::move(phy_core_list),
+                                             _numa_nodes,
+                                             _cores,
+                                             _proc_type_table,
+                                             _cpu_mapping_table);
+            }
             return 0;
         }
     };
@@ -235,7 +237,7 @@ CPU::CPU() {
 
     if (!get_info_linux(cache_info_mode)) {
         parse_cache_info_linux(system_info_table,
-                               node_info_table,
+                               std::move(node_info_table),
                                _processors,
                                _numa_nodes,
                                _sockets,
@@ -249,7 +251,7 @@ CPU::CPU() {
          (_proc_type_table[0][ALL_PROC] != _proc_type_table[0][EFFICIENT_CORE_PROC]))) {
         if (!get_info_linux(freq_info_mode)) {
             parse_freq_info_linux(system_info_table,
-                                  node_info_table,
+                                  std::move(node_info_table),
                                   _processors,
                                   _numa_nodes,
                                   _sockets,

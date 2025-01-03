@@ -230,7 +230,8 @@ void program::init_program() {
     if (_task_executor == nullptr)
         _task_executor = program::make_task_executor(_config);
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, _task_executor,
-                                                                      kernel_selector::KernelBase::get_db().get_batch_headers()));
+                                                                      kernel_selector::KernelBase::get_db().get_batch_headers(),
+                                                                      kernel_selector::KernelBase::get_db().get_cm_batch_headers()));
 
     _kernels_cache->set_kernels_reuse(get_config().get_property(ov::intel_gpu::hint::enable_kernels_reuse));
 
