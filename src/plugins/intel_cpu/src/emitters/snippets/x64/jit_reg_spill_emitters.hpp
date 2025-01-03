@@ -32,9 +32,8 @@ public:
 protected:
     void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
-    const ov::snippets::lowered::ExpressionPtr m_reg_spill_begin_expr;
+    std::set<snippets::Reg> m_regs_to_spill;
     std::shared_ptr<EmitABIRegSpills> m_abi_reg_spiller;
-    size_t m_num_spilled = SIZE_MAX;
 };
 
 /* ============================================================== */

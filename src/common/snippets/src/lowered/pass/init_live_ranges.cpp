@@ -36,7 +36,7 @@ bool InitLiveRanges::run(LinearIR& linear_ir) {
         const auto& expr = *expr_it;
         const auto op = expr->get_node();
         if (pass_through_expr(expr)) {
-            if(expr_it != linear_ir.begin())
+            if (expr_it != linear_ir.begin())
                 expr->set_live_regs(std::prev(expr_it)->get()->get_live_regs());
             continue;
         }

@@ -18,11 +18,11 @@ namespace intel_cpu {
 jit_reg_spill_begin_emitter::jit_reg_spill_begin_emitter(dnnl::impl::cpu::x64::jit_generator* h,
                                                          dnnl::impl::cpu::x64::cpu_isa_t isa,
                                                          const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_emitter(h, isa),
-      m_reg_spill_begin_expr(expr) {
-    const auto& reg_spill_node = ov::as_type_ptr<snippets::op::RegSpillBegin>(m_reg_spill_begin_expr->get_node());
+    : jit_emitter(h, isa) {
+    const auto& reg_spill_node = ov::as_type_ptr<snippets::op::RegSpillBegin>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(reg_spill_node, "expects RegSpillBegin expression");
-    m_num_spilled = reg_spill_node->get_regs_to_spill().size();
+    const auto& rinfo =  expr->get_reg_info();
+    m_regs_to_spill = std::set<snippets::Reg>(rinfo.second.begin(), rinfo.second.end());
     m_abi_reg_spiller = std::make_shared<EmitABIRegSpills>(h);
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
@@ -30,7 +30,8 @@ jit_reg_spill_begin_emitter::jit_reg_spill_begin_emitter(dnnl::impl::cpu::x64::j
 void jit_reg_spill_begin_emitter::validate_arguments(const std::vector<size_t>& in,
                                                      const std::vector<size_t>& out) const {
     OV_CPU_JIT_EMITTER_ASSERT(in.empty(), "In regs should be empty for reg_spill_begin emitter");
-    OV_CPU_JIT_EMITTER_ASSERT(out.size() == m_num_spilled, "Invalid number of out regs for reg_spill_begin emitter");
+    OV_CPU_JIT_EMITTER_ASSERT(out.size() == m_regs_to_spill.size(),
+                              "Invalid number of out regs for reg_spill_begin emitter");
 }
 
 void jit_reg_spill_begin_emitter::emit_code(const std::vector<size_t>& in,
@@ -42,8 +43,7 @@ void jit_reg_spill_begin_emitter::emit_code(const std::vector<size_t>& in,
 }
 
 void jit_reg_spill_begin_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    const auto& reg_info = m_reg_spill_begin_expr->get_reg_info();
-    m_abi_reg_spiller->preamble({reg_info.second.begin(), reg_info.second.end()});
+    m_abi_reg_spiller->preamble(m_regs_to_spill);
 }
 
 /* ============================================================== */

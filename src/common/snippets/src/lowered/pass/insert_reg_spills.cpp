@@ -66,16 +66,19 @@ bool InsertRegSpills::run(LinearIR& linear_ir) {
         const auto end = std::make_shared<op::RegSpillEnd>(begin);
         const auto loop_ids = start_it->get()->get_loop_ids();
         OPENVINO_ASSERT(loop_ids == std::prev(stop_it)->get()->get_loop_ids(), "Inconsistent loop ids for RegSpill expressions");
-        const auto spill_begin_expr = *linear_ir.insert_node(begin, std::vector<PortConnectorPtr>{}, loop_ids,
-                                                             false, start_it, std::vector<std::set<ExpressionPort>>{});
+        const auto spill_begin_it = linear_ir.insert_node(begin, std::vector<PortConnectorPtr>{}, loop_ids,
+                                                          false, start_it, std::vector<std::set<ExpressionPort>>{});
         std::vector<Reg> vregs{regs_to_spill.begin(), regs_to_spill.end()};
-        spill_begin_expr->set_reg_info({{}, vregs});
-        spill_begin_expr->set_live_regs(std::prev(start_it, 2)->get()->get_live_regs());
+        spill_begin_it->get()->set_reg_info({{}, vregs});
+        // Note: spill_begin and spill_end do not use any registers, so:
+        //  - the regs that are live on entry of spill_begin are the same as for its predecessor (since no regs consumed)
+        //  - similarly, live regs for spill_end are the same as for its successor (since no regs produced)
+        spill_begin_it->get()->set_live_regs(std::prev(spill_begin_it)->get()->get_live_regs());
 
-        const auto spill_end_expr = *linear_ir.insert_node(end, spill_begin_expr->get_output_port_connectors(), loop_ids,
+        const auto spill_end_it = linear_ir.insert_node(end, spill_begin_it->get()->get_output_port_connectors(), loop_ids,
                                                            false, stop_it, std::vector<std::set<ExpressionPort>>{});
-        spill_end_expr->set_reg_info({vregs, {}});
-        spill_begin_expr->set_live_regs(stop_it->get()->get_live_regs());
+        spill_end_it->get()->set_reg_info({vregs, {}});
+        spill_end_it->get()->set_live_regs(std::next(spill_end_it)->get()->get_live_regs());
         modified = true;
     }
     return modified;
