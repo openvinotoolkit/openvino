@@ -337,7 +337,7 @@ void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& pr
 bool Node::isOneDimShape(const ov::PartialShape& pshape) {
     int value_1_num = 0;
     int sz = static_cast<int>(pshape.size());
-    for (auto s : pshape) {
+    for (const auto& s : pshape) {
         if (s.is_static() && s.get_length() == 1) {
             value_1_num++;
         }
@@ -383,7 +383,7 @@ void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_
 
                 const bool isCompatible = curDesc->isCompatible(*parentDesc);
                 if (!isCompatible) {
-                    if (!isReorderRequired(parentDesc, curDesc)) {
+                    if (!isReorderRequired(std::move(parentDesc), curDesc)) {
                         estimate += 1;
                     } else {
                         estimate += ov::shape_size<ov::intel_cpu::VectorDims>(curDesc->getShape().getMinDims());
